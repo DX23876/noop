@@ -177,8 +177,22 @@ public final class BLEManager: NSObject, ObservableObject {
     static let scanFallbackDelaySeconds: TimeInterval = 8
     /// Last time ANY notification arrived — drives the liveness watchdog.
     private var lastDataAt = Date()
-    /// True while the Live screen wants the (heavy) realtime stream; keep-alive re-arms it.
+    /// True while a Live/Health screen is on-screen and wants the realtime stream. One of the two
+    /// inputs to `wantsRealtime`. Driven by `startRealtime()` / `stopRealtime()`.
+    private var screenWantsRealtime = false
+    /// True while the "Continuous HRV capture" preference wants the realtime stream held open even with
+    /// no Live screen visible, so the strap banks dense beat-to-beat R-R 24/7 (better overnight
+    /// HRV/recovery/sleep). The second input to `wantsRealtime`. Default off; set by
+    /// `setKeepRealtimeForData(_:)`. Mirrors the Android `keepStreamForData`.
+    private var keepRealtimeForData = false
+    /// Derived want: the (heavy) realtime stream should be armed while EITHER a screen wants it OR the
+    /// continuous-capture preference wants it. Keep-alive re-arms it; the post-bond branch arms it on
+    /// connect. Recomputed only inside `reconcileRealtime()`.
     private var wantsRealtime = false
+    /// What we last told the strap (armed = TOGGLE_REALTIME_HR 1). Lets `reconcileRealtime()` send the
+    /// toggle only on the false↔true edge instead of on every input change. Cleared on disconnect — the
+    /// strap forgets the toggle across a connection, and the post-bond branch re-arms from `wantsRealtime`.
+    private var realtimeArmed = false
     /// #80 marginal-radio fallback: tracks consecutive arm-then-quick-timeout cycles. When it trips,
     /// `standardHRFallback` goes true and the next connect skips arming R10/R11 (relies on 0x2A37).
     private var marginalRadio = MarginalRadioDetector()
@@ -896,23 +910,55 @@ public final class BLEManager: NSObject, ObservableObject {
     /// the R10/R11 realtime stream is also on. Keep that stream scoped to the Live tab and stop it
     /// on disappear so it does not permanently compete with historical offload.
     public func startRealtime() {
-        wantsRealtime = true
+        screenWantsRealtime = true
         // The user explicitly (re-)asked for the full stream by opening Live / tapping Start HR — give the
         // heavy R10/R11 burst another chance even if a prior marginal-radio fallback had tripped. If the
-        // radio still can't take it, the detector will simply trip again. (#80)
+        // radio still can't take it, the detector will simply trip again. (#80) This is screen-only intent;
+        // the continuous-capture path does NOT reset the fallback (it's a passive background want).
         marginalRadio.reset()
         standardHRFallback = false
         state.standardHRMode = nil
         enableLiveNotifications(reason: "start realtime")
-        send(.sendR10R11Realtime, payload: [0x01])
-        send(.toggleRealtimeHR, payload: [0x01])
+        send(.sendR10R11Realtime, payload: [0x01])   // the heavy burst rides alongside the toggle on Live
+        reconcileRealtime()                          // arms TOGGLE_REALTIME_HR(1) on the off→on edge
         realtimeArmedAt = Date()       // start the arm→drop stopwatch for the marginal-radio detector
     }
     /// Stop the Live-tab realtime streams. The lightweight 0x2A37 HR keeps recording if firmware emits it.
+    /// The TOGGLE only actually disarms if the continuous-capture preference no longer wants it either —
+    /// the reconciler sends it on the on→off edge of the combined want, so a Live screen closing while
+    /// continuous capture is on keeps the dense stream flowing.
     public func stopRealtime() {
-        wantsRealtime = false
-        send(.toggleRealtimeHR, payload: [0x00])
+        screenWantsRealtime = false
+        // Always stop the heavy R10/R11 burst when the Live screen leaves — it's the battery-hungry part
+        // and is only ever wanted while a live screen is up. The lightweight TOGGLE/0x2A37 R-R stream is
+        // what continuous capture keeps; the reconciler decides whether to disarm that.
         send(.sendR10R11Realtime, payload: [0x00])
+        reconcileRealtime()
+    }
+
+    /// The "Continuous HRV capture" preference flipped: hold the realtime stream open with no Live screen
+    /// visible (true) or release it (false), then reconcile. Driven from the app model. Mirrors the
+    /// Android `setKeepStreamForData`.
+    public func setKeepRealtimeForData(_ keep: Bool) {
+        keepRealtimeForData = keep
+        reconcileRealtime()
+    }
+
+    /// Single reconciler for the realtime-HR TOGGLE. The stream should be armed while EITHER a screen
+    /// wants it (`screenWantsRealtime`) OR the continuous-capture preference wants it
+    /// (`keepRealtimeForData`). We arm (TOGGLE_REALTIME_HR 1) / disarm (TOGGLE_REALTIME_HR 0) ONLY on the
+    /// false↔true edge of that derived want — so a Live screen closing while the preference still wants
+    /// it does NOT disarm, and turning the preference off with no screen open DOES disarm. The toggle only
+    /// reaches the strap once it's a WHOOP4 (custom channels open immediately) or a bonded 5/MG (puffin
+    /// framing); otherwise the want is remembered and the post-bond branch arms it. Mirrors the Android
+    /// `reconcileRealtime`.
+    private func reconcileRealtime() {
+        let want = screenWantsRealtime || keepRealtimeForData
+        wantsRealtime = want   // keep-alive + post-bond arm-on-connect read this derived value
+        guard want != realtimeArmed else { return }                      // no edge — nothing to send
+        guard selectedModel.deviceFamily == .whoop4 || state.bonded else { return }   // can't reach the strap yet
+        realtimeArmed = want
+        send(.toggleRealtimeHR, payload: [want ? 0x01 : 0x00])
     }
 
     /// EXPERIMENTAL R22 telemetry (#174): give the user (and us) live proof of what the strap is doing.
@@ -1050,6 +1096,7 @@ public final class BLEManager: NSObject, ObservableObject {
         // Never re-arm the heavy R10/R11 burst once the marginal-radio fallback has tripped (#80) — that
         // would just re-trigger the drop the keep-alive is meant to prevent. 0x2A37 keeps the HR flowing.
         if wantsRealtime && !standardHRFallback {
+            realtimeArmed = true   // keep reconcileRealtime()'s edge tracking in sync with the re-arm
             send(.sendR10R11Realtime, payload: [0x01])
             send(.toggleRealtimeHR, payload: [0x01])
         }   // re-arm so it can't lapse
@@ -1363,6 +1410,11 @@ extension BLEManager: CBCentralManagerDelegate {
         state.clearBiometrics()       // and a stale HR / R-R must not outlive the link either
         didBond = false
         whoop5RealtimeArmed = false
+        // The strap forgets the realtime-HR toggle across a disconnect; the post-bond branch re-arms it
+        // from `wantsRealtime`. Clear only the "what we last sent" flag — `screenWantsRealtime` /
+        // `keepRealtimeForData` (and thus `wantsRealtime`) are intent and must survive a reconnect so the
+        // stream comes back automatically.
+        realtimeArmed = false
         whoop5SessionStarted = false
         clockRequested = false
         connectHandshakeDone = false
@@ -1607,6 +1659,7 @@ extension BLEManager: CBPeripheralDelegate {
             // (Opening Live later also arms it via startRealtime(), now that send() routes the 5/MG toggle.)
             if wantsRealtime && !whoop5RealtimeArmed {
                 whoop5RealtimeArmed = true
+                realtimeArmed = true   // keep reconcileRealtime()'s edge tracking in sync with the arm
                 log("WHOOP 5/MG: arming realtime HR (puffin TOGGLE_REALTIME_HR)")
                 send(.toggleRealtimeHR, payload: [0x01])
             }
@@ -1699,6 +1752,7 @@ extension BLEManager: CBPeripheralDelegate {
                 state.standardHRMode = "Standard HR mode (low bandwidth) — your Bluetooth radio couldn't sustain the full stream; live heart rate via the standard profile."
             } else {
                 log("Realtime HR: arming after bond")
+                realtimeArmed = true   // keep reconcileRealtime()'s edge tracking in sync with the arm
                 send(.sendR10R11Realtime, payload: [0x01])
                 send(.toggleRealtimeHR, payload: [0x01])
                 realtimeArmedAt = Date()   // start the arm→drop stopwatch for the marginal-radio detector

@@ -702,8 +702,21 @@ class WhoopBleClient(
      *  and bounces a stalled link. Handler-posted on every connect handshake; cancelled in reset(). */
     private val keepAliveRunnable = Runnable { keepAliveFire() }
     private var keepAliveTick = 0
-    /** True while the Live screen wants the realtime HR stream; the keep-alive re-arms it so it can't lapse. */
+    /** True while a Live/Health screen is on-screen and wants the realtime HR stream (ref-counted in
+     *  [com.noop.ui.AppViewModel]). One of the two inputs to [wantsRealtime]. */
+    @Volatile private var screenWantsRealtime = false
+    /** True while the "Continuous HRV capture" preference wants the realtime stream held open even with
+     *  no Live screen visible, so the strap banks dense beat-to-beat R-R 24/7 (better overnight
+     *  HRV/recovery/sleep). The second input to [wantsRealtime]. Default off; set by
+     *  [setKeepStreamForData]. Mirrors the Swift `keepRealtimeForData`. */
+    @Volatile private var keepStreamForData = false
+    /** Derived want: the realtime stream should be armed while EITHER a screen wants it OR the
+     *  continuous-capture preference wants it. The keep-alive re-arms it so it can't lapse, and the
+     *  post-bond branch arms it on connect. Recomputed only inside [reconcileRealtime]. */
     @Volatile private var wantsRealtime = false
+    /** What we last told the strap (armed = TOGGLE_REALTIME_HR 1). Lets [reconcileRealtime] send the
+     *  toggle only on the false↔true edge instead of on every input change. */
+    @Volatile private var realtimeArmed = false
     /** Wall-clock of the last inbound notification — drives the keep-alive liveness watchdog. */
     @Volatile private var lastDataAtMs = 0L
     /** True once we've re-subscribed during the CURRENT quiet episode, so the keep-alive re-subscribes
@@ -1313,7 +1326,7 @@ class WhoopBleClient(
                 // "succeed" with zero body frames. Hardware-validated ordering: CLIENT_HELLO →
                 // subscribe puffin chars → clock → history. (#78 fork)
                 drainCccdQueue(g)
-                if (wantsRealtime) send(CommandNumber.TOGGLE_REALTIME_HR, byteArrayOf(1))
+                if (wantsRealtime) { realtimeArmed = true; send(CommandNumber.TOGGLE_REALTIME_HR, byteArrayOf(1)) }
             } else if (!didBond && connectedFamily == DeviceFamily.WHOOP4) {
                 didBond = true
                 _state.value = _state.value.copy(bonded = true, encryptedBond = true)   // WHOOP4 bond is genuine (#69)
@@ -1726,8 +1739,10 @@ class WhoopBleClient(
         startBackfillTimer()
         startKeepAlive()
         // Arm realtime HR now if a screen already wants it (Live/Health Monitor opened before the bond
-        // completed) — otherwise the stream would only start at the next keep-alive tick (issue #18).
-        if (wantsRealtime) send(CommandNumber.TOGGLE_REALTIME_HR, byteArrayOf(1))
+        // completed) OR the continuous-capture preference wants it — otherwise the stream would only
+        // start at the next keep-alive tick (issue #18). Mark it armed so reconcileRealtime() tracks the
+        // edge correctly (the strap forgot the toggle across the disconnect; reset() cleared realtimeArmed).
+        if (wantsRealtime) { realtimeArmed = true; send(CommandNumber.TOGGLE_REALTIME_HR, byteArrayOf(1)) }
     }
 
     // ====================================================================================
@@ -1784,7 +1799,7 @@ class WhoopBleClient(
                 // screen wants it), and poll battery (~60s) — which also keeps the link warm. A 5/MG
                 // strap rejects WHOOP4-framed commands, so we skip them and rely on re-subscribe + bounce.
                 if (connectedFamily == DeviceFamily.WHOOP4) {
-                    if (wantsRealtime) send(CommandNumber.TOGGLE_REALTIME_HR, byteArrayOf(1))
+                    if (wantsRealtime) { realtimeArmed = true; send(CommandNumber.TOGGLE_REALTIME_HR, byteArrayOf(1)) }
                     keepAliveTick += 1
                     if (keepAliveTick % 2 == 0) send(CommandNumber.GET_BATTERY_LEVEL)
                 }
@@ -1818,24 +1833,48 @@ class WhoopBleClient(
     }
 
     /**
-     * The Live screen wants realtime HR. Remember it ([wantsRealtime]) so the keep-alive keeps
-     * re-arming the stream so it can't lapse, and kick it now. Port of `BLEManager.startRealtime`.
+     * The Live screen wants realtime HR. Records the screen want and reconciles. Port of
+     * `BLEManager.startRealtime`.
      */
     fun startRealtime() {
-        wantsRealtime = true
-        // Both families arm via TOGGLE_REALTIME_HR; send() frames it correctly per family (puffin for
-        // 5/MG). The toggle only reaches a 5/MG strap once bonded — the post-bond branch arms it too.
-        if (connectedFamily == DeviceFamily.WHOOP4 || _state.value.bonded) {
-            send(CommandNumber.TOGGLE_REALTIME_HR, byteArrayOf(1))
-        }
+        screenWantsRealtime = true
+        reconcileRealtime()
     }
 
-    /** The Live screen no longer needs realtime HR; stop re-arming it. Port of `BLEManager.stopRealtime`. */
+    /** The Live screen no longer needs realtime HR; clear its want and reconcile. The stream stays armed
+     *  if the continuous-capture preference ([keepStreamForData]) still wants it. Port of
+     *  `BLEManager.stopRealtime`. */
     fun stopRealtime() {
-        wantsRealtime = false
-        if (connectedFamily == DeviceFamily.WHOOP4 || _state.value.bonded) {
-            send(CommandNumber.TOGGLE_REALTIME_HR, byteArrayOf(0))
-        }
+        screenWantsRealtime = false
+        reconcileRealtime()
+    }
+
+    /** The "Continuous HRV capture" preference flipped: hold the realtime stream open with no Live screen
+     *  visible (true) or release it (false), then reconcile. Wired from [com.noop.ui.AppViewModel] and
+     *  gated there on the background-connection preference. Mirrors the Swift `setKeepRealtimeForData`. */
+    fun setKeepStreamForData(keep: Boolean) {
+        keepStreamForData = keep
+        reconcileRealtime()
+    }
+
+    /**
+     * Single reconciler for the realtime-HR stream. The stream should be armed while EITHER a screen
+     * wants it ([screenWantsRealtime]) OR the continuous-capture preference wants it ([keepStreamForData]).
+     * We arm (TOGGLE_REALTIME_HR 1) / disarm (TOGGLE_REALTIME_HR 0) ONLY on the false↔true edge of that
+     * derived want — so a Live screen closing while the preference still wants it does NOT disarm, and
+     * turning the preference off with no screen open DOES disarm. The toggle only reaches the strap once
+     * it's a WHOOP4 (custom channels are open immediately) or a bonded 5/MG (puffin framing); otherwise
+     * the want is remembered and the post-bond branch arms it. Port of `BLEManager.reconcileRealtime`.
+     */
+    private fun reconcileRealtime() {
+        val want = screenWantsRealtime || keepStreamForData
+        wantsRealtime = want   // the keep-alive + post-bond arm-on-connect read this derived value
+        if (want == realtimeArmed) return                          // no edge — nothing to send
+        if (connectedFamily != DeviceFamily.WHOOP4 && !_state.value.bonded) return   // can't reach the strap yet
+        realtimeArmed = want
+        // Both families arm/disarm via TOGGLE_REALTIME_HR; send() frames it correctly per family (puffin
+        // for 5/MG). A screen re-entry blanks its own smoothing window in the view-model, not here.
+        send(CommandNumber.TOGGLE_REALTIME_HR, byteArrayOf(if (want) 1.toByte() else 0.toByte()))
     }
 
     /**
@@ -2629,6 +2668,11 @@ class WhoopBleClient(
         cccdInFlight = false
         cccdRetries = 0
         sessionStarted = false
+        // The strap forgets the realtime-HR toggle across a disconnect; the post-bond branch re-arms it
+        // from [wantsRealtime]. Clear only the "what we last sent" flag — the screen/preference WANTS
+        // ([screenWantsRealtime]/[keepStreamForData]/[wantsRealtime]) are intent and must survive a
+        // reconnect so the stream comes back automatically.
+        realtimeArmed = false
 
         // Reset offload state so the next connect starts a fresh session (port of the backfill
         // flag resets in didDisconnectPeripheral). Timers are handler-posted, so cancel them here.

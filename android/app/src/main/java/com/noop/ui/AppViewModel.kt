@@ -250,10 +250,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
 
+        // Apply the persisted "Continuous HRV capture" intent so the BLE client holds the dense realtime
+        // stream armed once bonded (the reconciler arms it post-bond). Only effective with background
+        // connection on — without it there's nothing keeping the link up to stream over, so a continuous
+        // want would be meaningless. Pushed BEFORE autoReconnectOnLaunch so a launch reconnect arms it.
+        ble.setKeepStreamForData(continuousHrvEffective())
+
         // Reconnect to the strap we last bonded to, so the user doesn't have to tap Connect after an
         // app update / restart (#67). Self-gates on the keep-connected pref + a saved strap + permission.
         autoReconnectOnLaunch()
     }
+
+    /** The effective continuous-HRV want: the user's "Continuous HRV capture" preference AND
+     *  "Keep connected in the background" — the latter is what holds the link up for the stream to ride,
+     *  so continuous capture is meaningless without it. */
+    private fun continuousHrvEffective(): Boolean =
+        NoopPrefs.continuousHrv(appContext) && NoopPrefs.backgroundConnection(appContext)
 
     /**
      * On launch, reconnect DIRECTLY to the strap we last bonded to (no scan), so the connection
@@ -569,6 +581,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         } else {
             WhoopConnectionService.stop(appContext)
         }
+        // Continuous HRV capture is gated on background connection (it has nothing to stream over without
+        // it), so a change here re-reconciles the keep-stream want: turning background off disarms the
+        // continuous stream when no Live screen wants it; turning it back on re-arms it if the pref is on.
+        ble.setKeepStreamForData(continuousHrvEffective())
+    }
+
+    /**
+     * Flip "Continuous HRV capture" (driven by Settings → Strap). Persists the preference and pushes the
+     * effective want to the BLE client so it takes effect immediately: turning it on while bonded +
+     * backgrounded arms the dense realtime stream now; turning it off disarms it unless a Live screen
+     * still wants it (the reconciler only sends the toggle on the false↔true edge). Gated on background
+     * connection — it does nothing while that's off (there'd be no background link to stream over).
+     */
+    fun setContinuousHrv(enabled: Boolean) {
+        NoopPrefs.setContinuousHrv(appContext, enabled)
+        ble.setKeepStreamForData(continuousHrvEffective())
     }
 
     /**

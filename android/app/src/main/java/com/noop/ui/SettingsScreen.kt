@@ -208,6 +208,10 @@ fun SettingsScreen(vm: AppViewModel) {
     // on. SharedPreferences isn't reactive, so the Switch mirrors into a local state.
     var backgroundConnection by remember { mutableStateOf(NoopPrefs.backgroundConnection(context)) }
 
+    // "Continuous HRV capture" — hold the dense realtime stream armed 24/7 (better overnight HRV) at the
+    // cost of more battery. Default OFF; only does anything with background connection on. Local mirror.
+    var continuousHrv by remember { mutableStateOf(NoopPrefs.continuousHrv(context)) }
+
     // "Debug logging" — mirror the strap log to logcat (adb). Default OFF so normal users don't.
     var debugLogging by remember { mutableStateOf(NoopPrefs.debugLogging(context)) }
 
@@ -548,6 +552,43 @@ fun SettingsScreen(vm: AppViewModel) {
                         onCheckedChange = {
                             backgroundConnection = it
                             vm.setBackgroundConnection(it)
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Palette.surfaceBase,
+                            checkedTrackColor = Palette.accent,
+                            uncheckedThumbColor = Palette.textSecondary,
+                            uncheckedTrackColor = Palette.surfaceInset,
+                            uncheckedBorderColor = Palette.hairline,
+                        ),
+                    )
+                }
+
+                // Continuous HRV capture: keep the dense beat-to-beat (R-R) stream armed even with no Live
+                // screen open, so the strap banks far more data overnight for better HRV/recovery/sleep.
+                // Honest battery framing — continuous HR streaming uses more battery. Needs background
+                // connection on (there's no background link to stream over otherwise). Default OFF.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Continuous HRV capture",
+                            style = NoopType.subhead,
+                            color = Palette.textPrimary,
+                        )
+                        Text(
+                            "Keeps the detailed beat-to-beat stream running all day and night, not just while a live screen is open, so NOOP captures much more for overnight HRV, recovery and sleep. Uses more battery (your strap streams heart rate continuously). Needs \"Keep connected in the background\" on.",
+                            style = NoopType.footnote,
+                            color = Palette.textTertiary,
+                        )
+                    }
+                    Switch(
+                        checked = continuousHrv,
+                        onCheckedChange = {
+                            continuousHrv = it
+                            vm.setContinuousHrv(it)
                         },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Palette.surfaceBase,

@@ -33,6 +33,11 @@ struct SettingsView: View {
     /// BLE sensor for Garmin/Zwift/gym kit. See [PuffinExperiment.broadcastHrKey]. (#181)
     @AppStorage(PuffinExperiment.broadcastHrKey) private var broadcastHrEnabled = false
 
+    /// Opt-in "Continuous HRV capture" (off by default) — holds the dense realtime stream armed 24/7 so
+    /// the strap banks beat-to-beat R-R for better overnight HRV/recovery/sleep, at a battery cost.
+    /// See [PuffinExperiment.keepRealtimeForDataKey].
+    @AppStorage(PuffinExperiment.keepRealtimeForDataKey) private var continuousHrvEnabled = false
+
     // Imperial/Metric display preference (D#103). Stored data is always SI; this only changes how
     // distances/weights/heights/temperatures are SHOWN — and lets the profile fields below take
     // imperial entry. Temperature has a separate override so °C/°F can be picked independently.
@@ -355,6 +360,22 @@ struct SettingsView: View {
                     .tint(StrandPalette.statusCritical)
                     .disabled(!live.connected && !live.bonded)
                 }
+
+                Divider().overlay(StrandPalette.hairline)
+
+                // MARK: Continuous HRV capture — keep the dense beat-to-beat (R-R) stream armed 24/7.
+                Toggle(isOn: $continuousHrvEnabled) {
+                    Text("Continuous HRV capture")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                }
+                .toggleStyle(.switch)
+                .tint(StrandPalette.accent)
+                .onChange(of: continuousHrvEnabled) { on in model.ble.setKeepRealtimeForData(on) }
+                Text("Keeps the detailed beat-to-beat heart-rate stream running all day and night, not just while a live screen is open, so NOOP captures much more for overnight HRV, recovery and sleep. Uses more battery — your strap streams heart rate continuously while connected.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }

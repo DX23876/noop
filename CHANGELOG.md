@@ -17,6 +17,19 @@ approximate; downloads are on the [Releases](https://github.com/NoopApp/noop/rel
 
 ---
 
+## 2.12.0 — Continuous HRV capture (opt-in): sharper overnight HRV, recovery and sleep
+
+- **New (opt-in):** **Continuous HRV capture.** Your strap streams dense beat-to-beat heart-rate
+  variability in the clear, but apps usually only listen while a live screen is open — so overnight,
+  when HRV, recovery and sleep need it most, the data goes quiet. Turn this on (**Settings → Strap**,
+  with background connection enabled on Android) and NOOP keeps the stream open in the background,
+  banking roughly an interval a second all night for much sharper overnight HRV, recovery and sleep —
+  especially on WHOOP 5.0/MG. It uses more battery, so it's off by default and entirely your call.
+  Big thanks to @Extazian, whose reverse-engineering proved this is reachable without touching
+  anything encrypted (standard HR characteristic, no DTLS, nothing near your WHOOP account).
+
+---
+
 ## 2.11.1 — Your day now follows your timezone, not UTC
 
 - **Fixed:** on phones away from UTC (most of the world), the dashboard could appear to **freeze partway

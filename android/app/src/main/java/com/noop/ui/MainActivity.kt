@@ -139,6 +139,12 @@ object NoopPrefs {
     /** "Keep connected in the background" — drives [com.noop.ble.WhoopConnectionService]. Default on. */
     const val KEY_BACKGROUND_CONNECTION = "noop.backgroundConnection"
 
+    /** "Continuous HRV capture" — when on (AND background connection is on), NOOP holds the dense
+     *  realtime HR stream armed even with no Live screen open, so the strap banks beat-to-beat R-R 24/7
+     *  for far better overnight HRV/recovery/sleep. Uses more battery (continuous HR streaming). Default
+     *  OFF. Drives [com.noop.ble.WhoopBleClient.setKeepStreamForData] via [AppViewModel]. */
+    const val KEY_CONTINUOUS_HRV = "noop.continuousHrv"
+
     /** The calendar day (yyyy-MM-dd) on which the morning-journal nudge was last shown — keeps the
      *  Sleep screen's "Good morning" sheet to at most once per day. */
     const val KEY_LAST_JOURNAL_PROMPT = "noop.lastJournalPromptDay"
@@ -157,6 +163,15 @@ object NoopPrefs {
 
     fun setBackgroundConnection(context: Context, enabled: Boolean) {
         of(context).edit().putBoolean(KEY_BACKGROUND_CONNECTION, enabled).apply()
+    }
+
+    /** Whether NOOP keeps the dense realtime HR stream armed 24/7 for continuous HRV capture. Default
+     *  false. Only takes effect while [backgroundConnection] is also on. */
+    fun continuousHrv(context: Context): Boolean =
+        of(context).getBoolean(KEY_CONTINUOUS_HRV, false)
+
+    fun setContinuousHrv(context: Context, enabled: Boolean) {
+        of(context).edit().putBoolean(KEY_CONTINUOUS_HRV, enabled).apply()
     }
 
     /** Whether the strap log is mirrored to logcat. Default false (normal users don't log to adb). */

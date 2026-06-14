@@ -130,6 +130,14 @@ final class AppModel: ObservableObject {
             guard let self, bonded, self.behavior.smartAlarmEnabled else { return }
             self.applySmartAlarm()
         }.store(in: &hrCancellables)
+        // Re-apply "Continuous HRV capture" on every (re)bond: if on, the strap should hold the dense
+        // realtime stream armed even with no Live screen open, so it banks beat-to-beat R-R 24/7 for
+        // better overnight HRV/recovery/sleep. The BLE reconciler arms it on the off→on edge; pushing it
+        // here (and at the init tail) covers a fresh launch and every reconnect. (See PuffinExperiment.)
+        live.$bonded.removeDuplicates().sink { [weak self] _ in
+            guard let self else { return }
+            self.ble.setKeepRealtimeForData(PuffinExperiment.keepRealtimeForDataEnabled)
+        }.store(in: &hrCancellables)
         // A completed backfill has just written strap history. Refresh the dashboard cache,
         // but leave heavyweight analysis to its own guarded/background-friendly path.
         live.$lastSyncedAt
@@ -145,6 +153,11 @@ final class AppModel: ObservableObject {
             .map { Date(timeIntervalSince1970: $0) }
 
         AppModel.shared = self   // publish for App Intents (Shortcuts) — see the static above (#42)
+
+        // Seed the BLE client with the persisted "Continuous HRV capture" intent so `wantsRealtime`
+        // reflects it from launch — the reconciler then arms the dense stream as soon as the strap bonds
+        // (and the bond sink above re-applies it on every reconnect).
+        ble.setKeepRealtimeForData(PuffinExperiment.keepRealtimeForDataEnabled)
 
         // Turn the strap's offloaded raw data into dashboard scores on launch and every 15
         // minutes, so recovery / strain / sleep populate from the strap itself with no import.

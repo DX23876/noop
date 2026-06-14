@@ -29,4 +29,13 @@ enum PuffinExperiment {
     static let broadcastHrKey = "noopBroadcastHr"
 
     static var broadcastHrEnabled: Bool { UserDefaults.standard.bool(forKey: broadcastHrKey) }
+
+    /// Opt-in "Continuous HRV capture": hold the dense realtime HR stream armed even with no Live screen
+    /// open, so the strap banks beat-to-beat R-R intervals 24/7 for far better overnight HRV/recovery/
+    /// sleep (vs the sparse history offload). Uses more battery (continuous HR streaming). Default OFF;
+    /// applied on launch + each (re)bond and driven by `BLEManager.setKeepRealtimeForData(_:)`. Mirrors
+    /// the Android `NoopPrefs.KEY_CONTINUOUS_HRV`. Works on WHOOP 4 and 5/MG (both emit 0x2A37 R-R).
+    static let keepRealtimeForDataKey = "noopContinuousHrv"
+
+    static var keepRealtimeForDataEnabled: Bool { UserDefaults.standard.bool(forKey: keepRealtimeForDataKey) }
 }
