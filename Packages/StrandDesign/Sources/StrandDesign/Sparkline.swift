@@ -88,9 +88,9 @@ public struct Sparkline: View {
                 if showsHead, let head = pts.last {
                     let c = StrandPalette.sample(stops: gradient.stops, at: 1.0)
                     Circle().fill(c).frame(width: lineWidth * 3.2, height: lineWidth * 3.2)
-                        .blur(radius: lineWidth * 1.2).opacity(0.8).blendMode(.plusLighter)
+                        .blur(radius: lineWidth * 1.2).opacity(0.8).additiveBloom()
                         .position(head)
-                    Circle().fill(Color.white).frame(width: lineWidth * 1.6, height: lineWidth * 1.6)
+                    Circle().fill(StrandPalette.tipCore).frame(width: lineWidth * 1.6, height: lineWidth * 1.6)
                         .position(head)
                 }
 

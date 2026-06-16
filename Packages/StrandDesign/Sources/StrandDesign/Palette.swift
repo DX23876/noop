@@ -218,6 +218,10 @@ public enum StrandPalette {
     public static let goldDeep      = Color(light: "#9A6B12", dark: "#C8902F")
     /// Near-black brown — text / icons placed ON gold surfaces (scheme-invariant; gold fills stay gold).
     public static let goldDeepText  = Color(hex: "#3A2708")
+    /// The bright core dot at a gauge arc tip / sparkline head. White reads as a highlight on the dark
+    /// canvas; on light it would vanish into the white card, so it flips to a deep ink that reads as a
+    /// crisp centre on the (deepened) coloured tip bead.
+    public static let tipCore       = Color(light: "#241B06", dark: "#FFFFFF")
     /// High-vis signal yellow — sparing emphasis (badges / alerts); deepened on light to stay visible.
     public static let signalYellow  = Color(light: "#E8A800", dark: "#FFD63D")
     /// 135–155° gold ramp for buttons, ring fills, FAB (light → gold → deep).

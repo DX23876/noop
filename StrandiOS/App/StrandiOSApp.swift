@@ -120,13 +120,14 @@ private struct iOSRootView: View {
         // seeded simulator build can be screenshotted deterministically for verification + marketing.
         // No-op in Release (whole branch is #if DEBUG) and when the arg is absent.
         if let demo = DemoScreens.requested {
+            // Inherit the app appearance (set via the Theme picker, or `-theme.appearance light|dark`
+            // in the launch arguments) so demo/marketing shots can be taken in either scheme.
             return AnyView(
                 NavigationStack {
                     demo
                         .background(StrandPalette.surfaceBase.ignoresSafeArea())
                         .navigationBarTitleDisplayMode(.inline)
                 }
-                .preferredColorScheme(.dark)
             )
         }
         #endif

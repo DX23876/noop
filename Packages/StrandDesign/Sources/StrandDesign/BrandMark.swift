@@ -79,7 +79,7 @@ public struct BrandMark: View {
                             endPoint: .center
                         )
                     )
-                    .blendMode(.plusLighter)
+                    .additiveBloom()
                     .opacity(0.6)
             )
             // 1px hairline rim so the disc reads cleanly on the navy canvas.

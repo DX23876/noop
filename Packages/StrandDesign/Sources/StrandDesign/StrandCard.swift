@@ -29,6 +29,7 @@ public struct FrostedCardSurface: View {
     public var tint: Color?
     public var cornerRadius: CGFloat
     public var washStrength: Double
+    @Environment(\.colorScheme) private var scheme
 
     public init(tint: Color? = nil, cornerRadius: CGFloat = 18, washStrength: Double = 1.0) {
         self.tint = tint
@@ -74,7 +75,14 @@ public struct FrostedCardSurface: View {
                     lineWidth: 1
                 )
             )
-        // No shadow — the Titanium card is flat; the hairline + hue carry the edge.
+            // Elevation idiom: DARK is flat — the hairline + hue carry the edge, no shadow. LIGHT raises
+            // white cards off the warm-paper canvas with a soft resting drop shadow (the hairline alone
+            // is too faint to separate white-on-paper). Hover deepens this further in StrandCardHover.
+            .shadow(
+                color: scheme == .light ? Color(hex: "#1A2230").opacity(0.07) : .clear,
+                radius: scheme == .light ? 9 : 0,
+                x: 0, y: scheme == .light ? 3 : 0
+            )
     }
 }
 
@@ -120,6 +128,7 @@ public struct StrandCard<Content: View>: View {
 public struct StrandCardHover: ViewModifier {
     public var cornerRadius: CGFloat
     @State private var hovering = false
+    @Environment(\.colorScheme) private var scheme
 
     public init(cornerRadius: CGFloat = 18) {
         self.cornerRadius = cornerRadius
@@ -134,11 +143,14 @@ public struct StrandCardHover: ViewModifier {
                     .strokeBorder(StrandPalette.hairlineStrong, lineWidth: 1)
                     .opacity(hovering ? 1 : 0)
             )
+            // Incremental hover lift on top of the surface's resting elevation: a warm soft shadow on
+            // light (the white card lifts off the paper), the signature black on dark.
             .shadow(
-                color: Color.black.opacity(hovering ? 0.45 : 0.0),
-                radius: hovering ? 16 : 0,
+                color: hovering ? (scheme == .light ? Color(hex: "#1A2230").opacity(0.16)
+                                                     : Color.black.opacity(0.45)) : .clear,
+                radius: hovering ? (scheme == .light ? 14 : 16) : 0,
                 x: 0,
-                y: hovering ? 10 : 0
+                y: hovering ? (scheme == .light ? 6 : 10) : 0
             )
             .offset(y: hovering ? -1 : 0)
             .animation(StrandMotion.interactive, value: hovering)

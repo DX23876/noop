@@ -91,6 +91,8 @@ public struct ScenicHeroBackground: View {
     /// Whether to draw the bottom fade that lets content sit cleanly over the field.
     public var fadesToBase: Bool
 
+    @Environment(\.colorScheme) private var scheme
+
     public init(domain: DomainTheme? = nil, starCount: Int = 40, fadesToBase: Bool = true) {
         self.domain = domain
         self.starCount = starCount
@@ -116,10 +118,13 @@ public struct ScenicHeroBackground: View {
                     startRadius: 0,
                     endRadius: 320
                 )
-                .blendMode(.plusLighter)
+                .additiveBloom()
             }
 
-            // Deterministic starfield — fixed positions/sizes so it can't flicker.
+            // Deterministic starfield — fixed positions/sizes so it can't flicker. A starfield only
+            // belongs on the dark night-sky hero; on the warm-paper light field it reads as dirt, so
+            // it's suppressed (the radial + domain bloom carry the light hero alone).
+            if scheme == .dark {
             Canvas { context, size in
                 let w = max(1, Int(size.width))
                 let topBand = max(1, Int(size.height * 0.55))
@@ -133,6 +138,7 @@ public struct ScenicHeroBackground: View {
                         with: .color(StrandPalette.scenicStar.opacity(alpha))
                     )
                 }
+            }
             }
 
             // Bottom fade so a hero number / card reads cleanly over the field.

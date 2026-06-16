@@ -114,7 +114,7 @@ public struct BevelGauge: View {
                 )
                 .blur(radius: bloomRadius)
                 .opacity(bloomOpacity)
-                .blendMode(.plusLighter)
+                .additiveBloom()
 
             // Faint full-span track — the inset "well" the gold/amber/blue arc sits in.
             arcShape(to: 1.0)
@@ -143,7 +143,7 @@ public struct BevelGauge: View {
                              y: center.y + radius * sin(tipAngle))
             // Clean Material tip: a single small solid dot at the arc end. The large
             // blurred halo is gone; only a very faint shadow keeps it from looking pasted on.
-            Circle().fill(Color.white)
+            Circle().fill(StrandPalette.tipCore)
                 .frame(width: lineWidth * 0.7, height: lineWidth * 0.7)
                 .overlay(Circle().fill(tipColor).opacity(0.35))
                 .shadow(color: tipColor.opacity(0.35), radius: lineWidth * 0.18)

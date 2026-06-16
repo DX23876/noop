@@ -165,7 +165,7 @@ struct HighlightDot: View {
                 .frame(width: diameter * 1.8, height: diameter * 1.8)
                 .blur(radius: diameter * 0.6)
                 .opacity(0.7)
-                .blendMode(.plusLighter)
+                .additiveBloom()
             Circle()
                 .fill(StrandPalette.surfaceBase)
                 .frame(width: diameter, height: diameter)
@@ -189,7 +189,7 @@ struct NowCapDot: View {
         ZStack {
             Circle().fill(color.opacity(0.30)).frame(width: 18, height: 18)
             Circle().fill(color.opacity(0.65)).frame(width: 11, height: 11)
-            Circle().fill(Color.white).frame(width: 5, height: 5)
+            Circle().fill(StrandPalette.tipCore).frame(width: 5, height: 5)
         }
         .allowsHitTesting(false)
     }

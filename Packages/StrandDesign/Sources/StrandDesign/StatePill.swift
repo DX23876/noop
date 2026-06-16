@@ -92,7 +92,7 @@ public struct ConnectionDot: View {
                     .frame(width: size, height: size)
                     .scaleEffect(animate ? 2.4 : 1.0)
                     .opacity(animate ? 0.0 : 0.5)
-                    .blendMode(.plusLighter)
+                    .additiveBloom()
             }
             Circle()
                 .fill(tone.color)

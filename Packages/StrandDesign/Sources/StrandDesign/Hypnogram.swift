@@ -134,7 +134,7 @@ public struct Hypnogram: View {
                                     .frame(width: rect.width, height: rect.height)
                                     .blur(radius: 6)
                                     .opacity(dimmed ? 0.35 : 0.7)
-                                    .blendMode(.plusLighter)
+                                    .additiveBloom()
                                     .position(x: rect.midX, y: rect.midY)
                                     .accessibilityHidden(true)
                             }
