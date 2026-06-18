@@ -790,8 +790,11 @@ fun GlowRing(
         Canvas(modifier = Modifier.fillMaxSize()) {
             val stroke = lineWidth.toPx()
             val inset = stroke / 2f
-            val arcSize = Size(size.width - stroke, size.height - stroke)
-            val tl = Offset(inset, inset)
+            // Always draw a CIRCLE: size the arc off the smaller box dimension and centre it, so a
+            // non-square box (e.g. a hero ring the Row squeezes horizontally) never renders an ellipse.
+            val d = minOf(size.width, size.height)
+            val arcSize = Size(d - stroke, d - stroke)
+            val tl = Offset((size.width - d) / 2f + inset, (size.height - d) / 2f + inset)
             // Full-circle track so the arc reads as a fraction of a circle (like WHOOP).
             drawArc(
                 color = trackColor, startAngle = 0f, sweepAngle = 360f, useCenter = false,

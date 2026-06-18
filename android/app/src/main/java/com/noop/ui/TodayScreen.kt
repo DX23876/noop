@@ -672,11 +672,15 @@ private fun ScoreHeroRow(
         ) {
             // Centre (hero) ring sized off width; the flanking rings are ~66% of it. The trio is grouped
             // tightly and centred, bottom-aligned so the larger Charge ring rises above its neighbours.
-            val center = ((maxWidth - 12.dp) / 2.3f).coerceIn(110.dp, 150.dp)
+            // Size off the width LESS the two inter-ring gaps so centre + 2×side + 2×gap all fit — else the
+            // Row squeezes the last (Effort) column and its ring renders as an ellipse. (GlowRing is also
+            // hardened to stay circular in a non-square box, but fitting keeps the trio equal-sized.)
+            val ringGap = 16.dp
+            val center = ((maxWidth - ringGap * 2) / 2.4f).coerceIn(108.dp, 148.dp)
             val side = center * 0.66f
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
+                horizontalArrangement = Arrangement.spacedBy(ringGap, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.Bottom,
             ) {
                 // REST — sleep composite 0–100, reusing the recovery ring's colour scale.

@@ -17,6 +17,13 @@ approximate; downloads are on the [Releases](https://noop.fans/NoopApp/noop/rele
 
 ---
 
+## 4.6.4 — Round rings (Android)
+
+- **Fixed:** on the new Today screen, the **Effort** ring could render as a squashed oval — the three
+  score rings didn't quite fit the row width, so the last one got pinched horizontally. The rings are
+  now sized to fit (and the ring component draws a true circle even in a tight box), so all three are
+  perfect circles on every screen size. (Android.)
+
 ## 4.6.3 — The new Today screen comes to Android
 
 - **Android catch-up.** v4.6.2 brought the WHOOP-style Today hero to iPhone and Mac, but Android only

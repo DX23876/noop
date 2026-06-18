@@ -25,7 +25,7 @@ object AppChangelog {
      * Bump this when you add a release below. The "What's New" sheet shows automatically when the
      * stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
      */
-    const val CURRENT_VERSION = "4.6.3"
+    const val CURRENT_VERSION = "4.6.4"
 
     data class Release(
         val version: String,
@@ -36,6 +36,14 @@ object AppChangelog {
 
     /** Newest first. */
     val releases: List<Release> = listOf(
+        Release(
+            version = "4.6.4",
+            title = "Round rings",
+            date = "June 2026",
+            items = listOf(
+                "**Fixed:** the **Effort** ring on the new Today screen could render as a squashed oval (the three rings didn't quite fit the width, so the last one got pinched). All three are now perfect circles, whatever your screen size.",
+            ),
+        ),
         Release(
             version = "4.6.3",
             title = "The new Today screen comes to Android",
