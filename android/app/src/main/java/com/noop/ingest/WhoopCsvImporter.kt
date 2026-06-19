@@ -281,7 +281,7 @@ object WhoopCsvImporter {
 
     // MARK: - physiological_cycles.csv -> DailyMetric
 
-    private fun parseCycles(table: CsvTable, deviceId: String): List<DailyMetric> {
+    internal fun parseCycles(table: CsvTable, deviceId: String): List<DailyMetric> {
         val out = ArrayList<DailyMetric>(table.rows.size)
         for (row in table.rows) {
             val tz = WhoopTime.tzOffsetMinutes(row["cycle_timezone"])
@@ -362,12 +362,12 @@ object WhoopCsvImporter {
 
     // MARK: - sleeps.csv -> SleepSession (+ DailyMetric sleep fields)
 
-    private class SleepParse(
+    internal class SleepParse(
         val sessions: List<SleepSession>,
         val daily: List<DailyMetric>,
     )
 
-    private fun parseSleeps(table: CsvTable, deviceId: String): SleepParse {
+    internal fun parseSleeps(table: CsvTable, deviceId: String): SleepParse {
         val sessions = ArrayList<SleepSession>(table.rows.size)
         val daily = ArrayList<DailyMetric>()
         for (row in table.rows) {
@@ -409,10 +409,16 @@ object WhoopCsvImporter {
                 )
             }
 
-            // Fold the MAIN sleep (not naps) into a DailyMetric keyed on the sleep's day, so the
+            // Fold the MAIN sleep (not naps) into a DailyMetric keyed on the sleep's WAKE day, so the
             // sleep-architecture columns are populated even when physiological_cycles.csv is absent.
+            // Key off wake_onset first: sleep_onset is on the PREVIOUS calendar evening, but the
+            // matching physiological_cycles row is keyed off cycle_start_time = the WAKE day, and
+            // mergeDaily groups by day-string. Keying off onset landed the night one day early and
+            // split it across two daily rows (Android export-import day-shift bug). Every other
+            // convention (sleep-session mergeSleep, the AppleHealth importer, macOS which keys off
+            // cycle_start_time) uses the local wake-day; align with it. Naps stay excluded above.
             if (!isNap) {
-                val dayTs = sleepOnset ?: cycleStart ?: wakeOnset
+                val dayTs = wakeOnset ?: cycleStart ?: sleepOnset
                 if (dayTs != null) {
                     daily.add(
                         DailyMetric(
@@ -541,7 +547,7 @@ object WhoopCsvImporter {
      * precedence (they carry recovery/strain/RHR/HRV/SpO2/skin-temp); sleep rows fill any sleep
      * architecture columns the cycle row left null. One row per (deviceId, day) to honour the PK.
      */
-    private fun mergeDaily(cycles: List<DailyMetric>, sleepDaily: List<DailyMetric>): List<DailyMetric> {
+    internal fun mergeDaily(cycles: List<DailyMetric>, sleepDaily: List<DailyMetric>): List<DailyMetric> {
         if (sleepDaily.isEmpty()) return dedupeByDay(cycles, preferFirst = true)
         if (cycles.isEmpty()) return dedupeByDay(sleepDaily, preferFirst = true)
 

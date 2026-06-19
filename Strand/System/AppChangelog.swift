@@ -7,7 +7,7 @@ enum AppChangelog {
 
     /// Bump this when you add a release below. The "What's New" sheet shows automatically when the
     /// stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
-    static let currentVersion = "4.9.0"
+    static let currentVersion = "4.9.1"
 
     struct Release: Identifiable {
         let version: String
@@ -19,6 +19,15 @@ enum AppChangelog {
 
     /// Newest first.
     static let releases: [Release] = [
+        Release(
+            version: "4.9.1",
+            title: "More realistic calories + honest alarm wording",
+            date: "June 2026",
+            items: [
+                "**More realistic daily calories.** The all-day energy estimate was running high — it credited ordinary daytime heart rate at exercise intensity. Now only genuine exertion counts at the higher rate, so your daily burn reads closer to reality. (Thanks to everyone on the subreddit who flagged it.)",
+                "**Honest Smart-alarm wording.** The Smart-alarm card now says up front that a strap-driven wake is experimental and hasn't been verified to fire on WHOOP 4.0 or 5/MG — so keep a backup alarm. (No behaviour change; we just stopped over-promising.)",
+                "**Smoother iPhone sideloading.** Fixed the AltStore/SideStore source so adding it no longer fails with \"given data not valid JSON\" (the old link pointed at a host that's gone).",
+            ]),
         Release(
             version: "4.9.0",
             title: "Steadier heart rate + a stack of fixes",

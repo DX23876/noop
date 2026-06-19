@@ -134,7 +134,7 @@ struct AutomationsView: View {
 
     private var alarmCard: some View {
         Section2(icon: "alarm.fill", title: "Smart alarm",
-                 blurb: "Wake to a wrist buzz. This arms the strap's own firmware alarm, so it still fires if \(Platform.deviceNounPhrase) is asleep or NOOP is closed.",
+                 blurb: "Wake to a buzz from the strap's own firmware alarm. Experimental — a strap-driven wake hasn't been verified firing yet on WHOOP 4.0 or 5/MG, so keep a backup alarm.",
                  active: behavior.smartAlarmEnabled) {
             VStack(spacing: 0) {
                 ToggleRow(label: "Enable smart alarm", help: "Arms the strap to buzz at your wake time.",

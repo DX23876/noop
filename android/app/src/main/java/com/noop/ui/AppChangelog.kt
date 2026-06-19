@@ -25,7 +25,7 @@ object AppChangelog {
      * Bump this when you add a release below. The "What's New" sheet shows automatically when the
      * stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
      */
-    const val CURRENT_VERSION = "4.9.0"
+    const val CURRENT_VERSION = "4.9.1"
 
     data class Release(
         val version: String,
@@ -36,6 +36,16 @@ object AppChangelog {
 
     /** Newest first. */
     val releases: List<Release> = listOf(
+        Release(
+            version = "4.9.1",
+            title = "More realistic calories + import & chart fixes",
+            date = "June 2026",
+            items = listOf(
+                "**More realistic daily calories.** The all-day energy estimate was running high — it credited ordinary daytime heart rate at exercise intensity. Now only genuine exertion counts at the higher rate. (Thanks to everyone on the subreddit who flagged it.)",
+                "**Health Connect workouts now show on the Today graph.** A workout imported from Health Connect now gets its marker on the Today heart-rate graph, just like recorded and manually-added workouts.",
+                "**Fixed WHOOP-import day shift.** Importing a WHOOP export could file a night's sleep on the wrong day (a day early) and split it across two days — it now lands on the correct wake-day.",
+            ),
+        ),
         Release(
             version = "4.9.0",
             title = "Steadier heart rate + a stack of fixes",

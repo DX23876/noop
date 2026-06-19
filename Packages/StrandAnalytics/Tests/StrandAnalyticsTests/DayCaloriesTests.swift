@@ -34,13 +34,48 @@ final class DayCaloriesTests: XCTestCase {
         // A whole day at resting HR burns far less than the same length all-active day,
         // and the resting-day total is positive (BMR floor).
         let profile = UserProfile(weightKg: 70, heightCm: 170, age: 30, sex: "nonbinary")
-        // activeThreshold = 55 + 0.30*(185-55) = 94 bpm; 60 < 94 (resting), 150 >= 94 (active).
+        // Day activeThreshold = 55 + 0.50*(185-55) = 120 bpm; 60 < 120 (resting), 150 >= 120 (active).
         let restingDay = Calories.estimateDayCalories(hrDay(bpm: 60, n: 3600), profile: profile,
                                                       hrmax: 185.0, restingHR: 55.0)
         let activeDay = Calories.estimateDayCalories(hrDay(bpm: 150, n: 3600), profile: profile,
                                                      hrmax: 185.0, restingHR: 55.0)
         XCTAssertGreaterThan(restingDay, 0.0, "resting day must burn > 0 (BMR floor)")
         XCTAssertGreaterThan(activeDay, restingDay, "active day must exceed resting day")
+    }
+
+    func testSedentaryFullDayApproximatesBMR() {
+        // A full 24 h at resting HR (below the day active gate) must total ≈ the subject's BMR:
+        // the day estimator floors every sub-threshold second at the resting metabolic rate, so
+        // an all-rest day is BMR by construction. Standard male test subject's revised
+        // Harris–Benedict BMR ≈ 1825 kcal. This is an APPROXIMATE estimate, not medical advice.
+        let profile = UserProfile(weightKg: 80, heightCm: 180, age: 35, sex: "male")
+        let sedentary = hrDay(bpm: 55, n: 86_400)   // 24 h, all at resting HR
+        let total = Calories.estimateDayCalories(sedentary, profile: profile,
+                                                 hrmax: 185.0, restingHR: 55.0)
+        XCTAssertEqual(total, 1825.25, accuracy: 1.0,
+                       "a sedentary full day must total ≈ the subject's BMR (~1825 kcal)")
+    }
+
+    func testLightActivityDayIsFarBelowOldInflatedTotal() {
+        // The bug: at the OLD 30% day gate (~94 bpm for this subject) ordinary low-intensity
+        // daytime HR (~100 bpm walking/standing) was credited the FULL Keytel gross-exercise
+        // rate, inflating the day total by ~1000+ kcal. The 50% day gate (120 bpm) now treats
+        // that HR as resting, so a realistic mixed light day (8 h sleep @55, 8 h sedentary @70,
+        // 8 h light activity @100) collapses toward BMR instead of the old runaway figure.
+        let profile = UserProfile(weightKg: 80, heightCm: 180, age: 35, sex: "male")
+        let lightDay = hrDay(bpm: 55, n: 8 * 3_600)
+            + hrDay(bpm: 70, n: 8 * 3_600)
+            + hrDay(bpm: 100, n: 8 * 3_600)
+        let total = Calories.estimateDayCalories(lightDay, profile: profile,
+                                                 hrmax: 185.0, restingHR: 55.0)
+        // NEW total ≈ 1825 kcal (every second below the 120 bpm gate → BMR floor).
+        XCTAssertEqual(total, 1825.25, accuracy: 1.0,
+                       "a light-activity day must land near BMR, not the old inflated total")
+        // Teeth: the OLD 30%-gate model credited the 8 h @100 bpm block at the full Keytel
+        // active rate (~3551 kcal for that block alone), so the old day total was ≈ 4768 kcal.
+        // Pin that we are now WELL below it (more than 2000 kcal lower).
+        XCTAssertLessThan(total, 4768.0 - 2000.0,
+                          "the light-activity day must drop far below the old inflated ~4768 kcal")
     }
 
     func testSparseHRTracksElapsedTimeNotSampleCount() {

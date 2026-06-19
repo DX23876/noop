@@ -105,11 +105,44 @@ class DayCaloriesTest {
         // A whole day at resting HR burns far less than the same length all-active day,
         // and the resting-day total is positive (BMR floor).
         val profile = UserProfile(weightKg = 70.0, heightCm = 170.0, age = 30.0, sex = "nonbinary")
-        // activeThreshold = 55 + 0.30*(185-55) = 94 bpm; 60 < 94 (resting), 150 >= 94 (active).
+        // Day activeThreshold = 55 + 0.50*(185-55) = 120 bpm; 60 < 120 (resting), 150 >= 120 (active).
         val restingDay = Calories.estimateDayCalories(hrDay(60, 3600), profile, hrmax = 185.0, restingHR = 55.0)
         val activeDay = Calories.estimateDayCalories(hrDay(150, 3600), profile, hrmax = 185.0, restingHR = 55.0)
         assertTrue("resting day must burn > 0 (BMR floor)", restingDay > 0.0)
         assertTrue("active day must exceed resting day", activeDay > restingDay)
+    }
+
+    @Test
+    fun dayCalories_sedentaryFullDayApproximatesBMR() {
+        // A full 24 h at resting HR (below the day active gate) must total ≈ the subject's BMR:
+        // the day estimator floors every sub-threshold second at the resting metabolic rate, so
+        // an all-rest day is BMR by construction. Standard male test subject's revised
+        // Harris–Benedict BMR ≈ 1825 kcal. This is an APPROXIMATE estimate, not medical advice.
+        val profile = UserProfile(weightKg = 80.0, heightCm = 180.0, age = 35.0, sex = "male")
+        val sedentary = hrDay(55, 86_400) // 24 h, all at resting HR
+        val total = Calories.estimateDayCalories(sedentary, profile, hrmax = 185.0, restingHR = 55.0)
+        assertEquals("a sedentary full day must total ≈ the subject's BMR (~1825 kcal)",
+            1825.25, total, 1.0)
+    }
+
+    @Test
+    fun dayCalories_lightActivityDayIsFarBelowOldInflatedTotal() {
+        // The bug: at the OLD 30% day gate (~94 bpm for this subject) ordinary low-intensity
+        // daytime HR (~100 bpm walking/standing) was credited the FULL Keytel gross-exercise
+        // rate, inflating the day total by ~1000+ kcal. The 50% day gate (120 bpm) now treats
+        // that HR as resting, so a realistic mixed light day (8 h sleep @55, 8 h sedentary @70,
+        // 8 h light activity @100) collapses toward BMR instead of the old runaway figure.
+        val profile = UserProfile(weightKg = 80.0, heightCm = 180.0, age = 35.0, sex = "male")
+        val lightDay = hrDay(55, 8 * 3_600) + hrDay(70, 8 * 3_600) + hrDay(100, 8 * 3_600)
+        val total = Calories.estimateDayCalories(lightDay, profile, hrmax = 185.0, restingHR = 55.0)
+        // NEW total ≈ 1825 kcal (every second below the 120 bpm gate → BMR floor).
+        assertEquals("a light-activity day must land near BMR, not the old inflated total",
+            1825.25, total, 1.0)
+        // Teeth: the OLD 30%-gate model credited the 8 h @100 bpm block at the full Keytel active
+        // rate (~3551 kcal for that block alone), so the old day total was ≈ 4768 kcal. Pin that
+        // we are now WELL below it (more than 2000 kcal lower).
+        assertTrue("the light-activity day must drop far below the old inflated ~4768 kcal",
+            total < 4768.0 - 2000.0)
     }
 
     @Test

@@ -86,6 +86,7 @@ import com.noop.data.AppleDaily
 import com.noop.data.DailyMetric
 import com.noop.data.HrBucket
 import com.noop.data.SleepSession
+import com.noop.data.WhoopRepository
 import com.noop.data.WorkoutRow
 import com.noop.ingest.HealthConnectImporter
 import java.time.Instant
@@ -299,9 +300,7 @@ fun TodayScreen(viewModel: AppViewModel, onSupport: () -> Unit = {}) {
         footer = TodayFooterState(
             // fillWorkoutHrFromStrap: imported sessions carry no HR — derive it from strap samples (#77).
             recentWorkouts = viewModel.repo.fillWorkoutHrFromStrap(
-                (viewModel.repo.workouts("my-whoop", recentCutoff, now) +
-                    viewModel.repo.workouts("apple-health", recentCutoff, now) +
-                    viewModel.repo.workouts("health-connect", recentCutoff, now))
+                viewModel.repo.workoutsAllSources(recentCutoff, now)
                     .sortedByDescending { it.startTs }
             ),
             whoopDays = days.size,
@@ -1188,6 +1187,15 @@ private fun MetricGrid(
     }
 }
 
+// Workouts across every recorded + imported source over [from, to]. Recorded sessions live under
+// "my-whoop"; Apple Health and Health Connect imports are stored under their own device ids (since
+// #34/#53). Both the "Last Workouts" feed and the HR-graph sport glyphs need the SAME union, or
+// Health-Connect-imported sessions get no glyph on the Today trend — so they share this one seam.
+private suspend fun WhoopRepository.workoutsAllSources(from: Long, to: Long): List<WorkoutRow> =
+    workouts("my-whoop", from, to) +
+        workouts("apple-health", from, to) +
+        workouts("health-connect", from, to)
+
 // MARK: - Heart-rate trend (today's continuous HR off the strap's own ~1Hz history)
 //
 // A full-width 24h HR trend, plotted from 5-minute bucket means of the strap's hrSample history
@@ -1230,8 +1238,12 @@ private fun HeartRateTrendCard(
                 .maxByOrNull { it.endTs }
         }.getOrNull()
         // Workouts overlapping the window — each gets a sport glyph at its in-window HR peak.
+        // Union every source (not just "my-whoop"): Health-Connect-imported sessions are stored
+        // under their own device id, so a strap-only query left them glyph-less here while the
+        // "Last Workouts" feed below showed them (#34/#53). The glyph self-hides when no strap HR
+        // overlaps, so an import with no matching strap curve simply draws nothing.
         workoutsToday = runCatching {
-            viewModel.repo.workouts("my-whoop", start - 6 * 3600L, end)
+            viewModel.repo.workoutsAllSources(start - 6 * 3600L, end)
                 .filter { it.startTs <= end && it.endTs >= start }
         }.getOrDefault(emptyList())
     }

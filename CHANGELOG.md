@@ -17,6 +17,23 @@ approximate; downloads are on the [Releases](https://noop.fans/NoopApp/noop/rele
 
 ---
 
+## 4.9.1 — More realistic calories + import, chart & sideload fixes
+
+- **More realistic daily calories (all platforms).** The all-day energy estimate read high — it
+  credited ordinary daytime heart rate at exercise intensity. The gross-exercise rate now only kicks
+  in at genuine exertion (≥ 50% heart-rate reserve, up from 30%), so daily burn reads closer to
+  reality. Detected/manual workouts are unchanged. (Community-reported.)
+- **Health Connect workouts show on the Today graph (Android).** A workout imported from Health
+  Connect now gets its marker on the Today heart-rate graph, like recorded and manual workouts.
+- **Fixed WHOOP-import day shift (Android).** Importing a WHOOP export could file a night's sleep on
+  the wrong day (a day early) and split it across two days — it now keys to the correct wake-day.
+- **Honest Smart-alarm wording (iPhone/Mac).** The Smart-alarm card now states up front that a
+  strap-driven wake is experimental and unverified on WHOOP 4.0 / 5/MG — keep a backup alarm.
+- **iPhone sideload fix.** The AltStore/SideStore source no longer fails with "given data not valid
+  JSON" — the install docs and source pointed at the dead GitHub host; they now use noop.fans.
+
+---
+
 ## 4.9.0 — Steadier heart rate + a stack of fixes
 
 - **Steadier live heart rate (all platforms).** The Health tab and the macOS menu bar now show the
