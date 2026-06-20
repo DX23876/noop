@@ -2,7 +2,7 @@
 
 All notable changes to NOOP. NOOP is an independent, experimental project — not the WHOOP app, and
 not affiliated with WHOOP. It reads a strap you own, on your own device, fully offline. Dates are
-approximate; downloads are on the [Releases](https://noop.fans/NoopApp/noop/releases) page.
+approximate; downloads are on the [Releases](https://github.com/NoopApp/noop/releases) page.
 
 ## What to expect
 
@@ -473,18 +473,18 @@ A fix release following a full code review of the v4 line.
 
 - **Today's Effort now updates live through the day.** The Effort ring recomputes over today's heart rate
   as it happens (midnight → now), instead of showing yesterday's completed-day value — or a stale 0.0 early
-  in the morning — until the next full re-score. Thanks @rad182 ([#402](https://noop.fans/NoopApp/noop/issues/402)).
+  in the morning — until the next full re-score. Thanks @rad182 ([#402](https://github.com/NoopApp/noop/issues/402)).
 - **Editing a sleep time can't scramble the night any more.** The wake picker keeps the night on its own
   day, so correcting a bed/wake time re-derives that night's stages cleanly instead of splitting the
   corrected block and its totals across two days. Resting-HR + HRV day-bucketing was also aligned across
-  Mac, iPhone and Android. Thanks @ujix ([#406](https://noop.fans/NoopApp/noop/issues/406)).
+  Mac, iPhone and Android. Thanks @ujix ([#406](https://github.com/NoopApp/noop/issues/406)).
 - **Late nights and long lie-ins are captured** — the sleep-detection window was widened so a wake after
-  noon isn't cut short. Thanks @ujix ([#425](https://noop.fans/NoopApp/noop/pull/425)).
+  noon isn't cut short. Thanks @ujix ([#425](https://github.com/NoopApp/noop/pull/425)).
 - **Smart alarm is now honestly flagged experimental.** The strap acknowledges the alarm, but a
   strap-driven wake hasn't been verified firing yet — on WHOOP 4.0 *or* 5/MG — so the app asks you to keep
-  a backup alarm while we confirm the exact firmware buzz pattern. Thanks Kaliarti ([#428](https://noop.fans/NoopApp/noop/issues/428)).
+  a backup alarm while we confirm the exact firmware buzz pattern. Thanks Kaliarti ([#428](https://github.com/NoopApp/noop/issues/428)).
 - **Android: rename your WHOOP's Bluetooth name** — brings Android up to the iPhone/Mac feature. Thanks
-  @cbarrado ([#422](https://noop.fans/NoopApp/noop/pull/422)).
+  @cbarrado ([#422](https://github.com/NoopApp/noop/pull/422)).
 - **Polish from the review:** your Vitality breakdown now reconciles exactly with the Body Age number it
   explains; the new Age cards always compute on Android (the age control is bounded like iPhone/Mac);
   renaming no longer spins forever if your strap doesn't answer; live workout detection now covers the
@@ -1158,7 +1158,7 @@ A large batch of fixes from reported issues and community contributions.
   one button, only when the strap is **worn and bonded**. It does write to the strap, but it's
   **reversible** (it only changes which data the strap emits) and is the same thing the official app does.
   Experimental: it may do nothing on your firmware yet. If you own a 5/MG, turning it on and sharing your
-  strap log on [#174](https://noop.fans/NoopApp/noop/issues/174) is exactly what we need to finish 5.0/MG
+  strap log on [#174](https://github.com/NoopApp/noop/issues/174) is exactly what we need to finish 5.0/MG
   support. **iPhone/Android only** — a Mac can't write to a 5/MG. Built on the public protocol work of
   **judes.club**, **Asherlc/dofek** and **b-nnett/goose**.
 
@@ -1181,7 +1181,7 @@ A large batch of fixes from reported issues and community contributions.
   blocks showed only one — the rest were silently hidden. All blocks are now read from **both** sources,
   and a split day reads as **one night**: totals summed, the real gap between blocks preserved in the
   hypnogram, the "N nights ago" label counting days (not blocks), and a cross-midnight night showing its
-  span ("Fri 13 → Sat 14 Jun"). Implemented from [PR #173](https://noop.fans/NoopApp/noop/pull/173) —
+  span ("Fri 13 → Sat 14 Jun"). Implemented from [PR #173](https://github.com/NoopApp/noop/pull/173) —
   thanks **@FrostDev7**. (Android's day totals were already correct; its per-day grouping follows.)
 
 ---

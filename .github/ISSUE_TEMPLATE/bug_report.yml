@@ -7,11 +7,11 @@ body:
       value: |
         ### ⛔ First — is this already answered?
         Many "bugs" are expected behaviour or a known limit. **Please check these before filing — it's the fastest way to an answer:**
-        - **[FAQ](https://noop.fans/NoopApp/noop/wiki/FAQ)** — live HR, recovery/sleep, steps, importing, privacy, updates.
-        - **[WHOOP 5.0 / MG status](https://noop.fans/NoopApp/noop/wiki/WHOOP-5.0-and-MG-Status)** — SpO₂, steps, recovery/sleep on the newer straps (the most common topic).
-        - **[Troubleshooting](https://noop.fans/NoopApp/noop/wiki/Troubleshooting)** — pairing, "syncs but no data", generic HR straps.
+        - **[FAQ](https://github.com/NoopApp/noop/wiki/FAQ)** — live HR, recovery/sleep, steps, importing, privacy, updates.
+        - **[WHOOP 5.0 / MG status](https://github.com/NoopApp/noop/wiki/WHOOP-5.0-and-MG-Status)** — SpO₂, steps, recovery/sleep on the newer straps (the most common topic).
+        - **[Troubleshooting](https://github.com/NoopApp/noop/wiki/Troubleshooting)** — pairing, "syncs but no data", generic HR straps.
 
-        Not sure it's a bug, or it's a feature idea? Please use **[Discussions](https://noop.fans/NoopApp/noop/discussions)** instead. 🙏
+        Not sure it's a bug, or it's a feature idea? Please use **[Discussions](https://github.com/NoopApp/noop/discussions)** instead. 🙏
 
         ---
 
@@ -110,9 +110,9 @@ body:
       options:
         - label: I attached or pasted a strap log above — **or** my bug is a clearly reproducible UI issue that doesn't need one (e.g. a typo, a button that does nothing) and I've described exactly how to see it.
           required: true
-        - label: I checked the [Troubleshooting guide](https://noop.fans/NoopApp/noop/wiki/Troubleshooting) — especially "history syncs but no data" (most often the strap isn't banking history to flash; charge it to 100% and reconnect).
+        - label: I checked the [Troubleshooting guide](https://github.com/NoopApp/noop/wiki/Troubleshooting) — especially "history syncs but no data" (most often the strap isn't banking history to flash; charge it to 100% and reconnect).
           required: true
-        - label: I checked the [FAQ](https://noop.fans/NoopApp/noop/wiki/FAQ) and — if I'm on a WHOOP 5.0 / MG — the [5.0/MG status page](https://noop.fans/NoopApp/noop/wiki/WHOOP-5.0-and-MG-Status), and this isn't an already-known limit (e.g. SpO₂, or recovery/sleep on the 5/MG).
+        - label: I checked the [FAQ](https://github.com/NoopApp/noop/wiki/FAQ) and — if I'm on a WHOOP 5.0 / MG — the [5.0/MG status page](https://github.com/NoopApp/noop/wiki/WHOOP-5.0-and-MG-Status), and this isn't an already-known limit (e.g. SpO₂, or recovery/sleep on the 5/MG).
           required: true
         - label: I've left out anything personal (strap serial, account email, raw export).
           required: true

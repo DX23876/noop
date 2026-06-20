@@ -516,7 +516,7 @@ Contributions toward these are welcome — open an issue to coordinate first.
 - **Android (shipped).** A full, native Kotlin/Gradle client lives under `android/`, re-implementing
   the same wire protocol against Android's BLE stack — it pairs, offloads, persists and scores
   on-device, and imports WHOOP / Apple Health / Health Connect. Pre-built APKs are in
-  [Releases](https://noop.fans/NoopApp/noop/releases). Continued real-hardware testing across more devices is always welcome
+  [Releases](https://github.com/NoopApp/noop/releases). Continued real-hardware testing across more devices is always welcome
   (an emulator can't reach a physical strap).
 - **iOS (build-from-source target on `main`).** iOS was folded into `main` in v1.94 as a first-class
   build-from-source target — the `NOOPiOS` and `NOOPiOSWidgets` schemes (app target plus widgets, a

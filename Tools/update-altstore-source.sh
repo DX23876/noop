@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
 # update-altstore-source.sh <version> <ipa> [desc] — refresh altstore-source.json with a new iOS release.
-# PORTED for the self-hosted forge: the downloadURL now points at the forge release asset.
-# Everything else is identical to the original (reads CFBundleVersion + size from the IPA,
-# prepends/replaces apps[0].versions[0], mirrors legacy top-level fields).
+# The downloadURL points at the canonical GitHub release asset (github.com/NoopApp/noop/releases);
+# noop.fans stays a mirror. Everything else reads CFBundleVersion + size from the IPA,
+# prepends/replaces apps[0].versions[0], and mirrors legacy top-level fields.
 #
 # Run LOCALLY right after the anonymized .ipa is built, then commit altstore-source.json +
 # push it (the file is served from the repo so AltStore/SideStore can read it).
@@ -36,7 +36,9 @@ SHORT="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST"
 
 SIZE="$(stat -f%z "$IPA")"
 DATE="$(date -u +%Y-%m-%d)"
-URL="https://${DOMAIN}/${ORG}/${REPO}/releases/download/v${VERSION}/NOOP-v${VERSION}-ios.ipa"
+# GitHub is the canonical download home; the AltStore source must point at the GitHub release asset.
+# (noop.fans stays a mirror — the FORGE_* vars above are still used by the deploy/push mechanic.)
+URL="https://github.com/${ORG}/${REPO}/releases/download/v${VERSION}/NOOP-v${VERSION}.ipa"
 
 echo "→ $VERSION (build $BUILD), ${SIZE} bytes, $DATE"
 jq --arg v "$VERSION" --arg b "$BUILD" --arg d "$DATE" --arg desc "$DESC" \

@@ -1,7 +1,7 @@
 # iOS — Install & Build
 
 > **iOS is now a direct download (v1.96).** Grab **`NOOP-v<version>-ios.ipa`** from the
-> [Releases](https://noop.fans/NoopApp/noop/releases) page and install it with **AltStore** or **SideStore** — see
+> [Releases](https://github.com/NoopApp/noop/releases) page and install it with **AltStore** or **SideStore** — see
 > **[Install (sideload)](#install-sideload)** below. No Mac, no Xcode, no App Store, and no Apple
 > Developer account needed — **and NOOP stays anonymous**, because the `.ipa` we ship is *unsigned*
 > and **you** sign it on your own iPhone with your own free Apple ID. The app target (`NOOPiOS` +
@@ -18,7 +18,7 @@ Nothing about this touches NOOP's identity or Apple's servers on our side.
 1. **Install a sideloader on your computer** — [AltStore](https://altstore.io) or
    [SideStore](https://sidestore.io) (both free). Follow their one-time setup (it installs a helper +
    AltStore/SideStore onto your iPhone using your own Apple ID).
-2. **Download `NOOP-v<version>-ios.ipa`** from [Releases](https://noop.fans/NoopApp/noop/releases) to your iPhone (or your
+2. **Download `NOOP-v<version>-ios.ipa`** from [Releases](https://github.com/NoopApp/noop/releases) to your iPhone (or your
    computer, then AirDrop/transfer it).
 3. **Open the `.ipa` with AltStore/SideStore** (Share → AltStore, or the app's "+" button). It signs
    and installs NOOP. First launch may need **Settings → General → VPN & Device Management → trust
@@ -29,11 +29,12 @@ Nothing about this touches NOOP's identity or Apple's servers on our side.
 So you never have to manually re-download, add NOOP's **source** to AltStore/SideStore once — new
 releases then show up (and re-sign) automatically:
 
-**Source URL:** `https://noop.fans/NoopApp/noop/raw/branch/main/altstore-source.json`
+**Source URL:** `https://raw.githubusercontent.com/NoopApp/noop/main/altstore-source.json`
 
-> If a sideloader says **"given data not valid JSON"** when you add the source, you've used the old
-> GitHub URL — that host is gone, so it returns an error page instead of the file. Use the `noop.fans`
-> URL above.
+> Make sure you copy the **raw** URL above exactly. If a sideloader says **"given data not valid
+> JSON"** when you add the source, you've pasted a normal web page URL (which returns HTML) instead of
+> the raw file — use the `raw.githubusercontent.com` URL above. (It's also mirrored at
+> `https://noop.fans/NoopApp/noop/raw/branch/main/altstore-source.json`.)
 
 - **AltStore:** open AltStore → **Browse** tab → tap **＋** (top-left) → paste the URL → **Add Source**.
   NOOP appears under the source; tap **Free** / **Get** to install. From then on it updates itself on

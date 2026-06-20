@@ -1,7 +1,7 @@
 # WHOOP 5.0 / MG deep data — the "R22" unlock
 
 **Status:** experimental, opt-in, awaiting on-hardware confirmation.
-**Tracking:** [#174](https://noop.fans/NoopApp/noop/issues/174).
+**Tracking:** [#174](https://github.com/NoopApp/noop/issues/174).
 
 ## The problem
 
