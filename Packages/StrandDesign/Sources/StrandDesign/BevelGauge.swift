@@ -76,14 +76,11 @@ public struct BevelGauge: View {
     public var body: some View {
         ZStack {
             // STATIC BACKDROP: the frosted inner disc + the faint full-span track. Neither depends on
-            // `animatedFraction`, yet they used to re-render on every draw-in frame as siblings of the
-            // animated arc. Flatten them into ONE cached raster via .drawingGroup() so each animation
-            // frame only redraws the live arc + tip — not the disc's radial gradient and the track every
-            // tick. Flat fill + smooth radial gradient rasterize pixel-identically. Framed to the same
-            // diameter so the track arc's radius math is byte-for-byte unchanged.
+            // `animatedFraction`, so SwiftUI/CoreAnimation already caches it as an unchanged layer and
+            // does NOT re-render it when only the arc animates. No .drawingGroup() — a per-instance
+            // offscreen flatten cost more than it saved (it was part of the v7.0.2 lag regression).
             staticBackdrop
                 .frame(width: diameter, height: diameter)
-                .drawingGroup()
 
             // LIVE LAYER: the gradient progress arc + end-cap, kept OUTSIDE the drawingGroup so the
             // shape's `animatableData` still animates smoothly (a drawingGroup would freeze it).

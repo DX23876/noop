@@ -591,14 +591,21 @@ private struct PulseDot: View {
     var size: CGFloat
     @State private var animate = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var scheme
     var body: some View {
         ZStack {
-            if pulsing {
+            // Dark-mode only (#review): AdditiveBloom used to hide this expanding ring on light
+            // (content.opacity(0)); now that we drop the offscreen bloom, gate it explicitly so light
+            // mode stays ring-free (the resting dot + its shadow carry the live state there).
+            if pulsing && scheme == .dark {
                 Circle().fill(color)
                     .frame(width: size, height: size)
                     .scaleEffect(animate ? 2.4 : 1.0)
                     .opacity(animate ? 0.0 : 0.5)
-                    .additiveBloom()
+                    // No .additiveBloom(): the .plusLighter blend forced an offscreen pass every
+                    // frame of the repeatForever pulse, a continuous cost while a strap is backfilling
+                    // (exactly when this live dot is on screen). The expanding/fading ring reads the
+                    // same without it; the resting dot's shadow still carries the "live" glow.
             }
             Circle().fill(color)
                 .frame(width: size, height: size)

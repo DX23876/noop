@@ -177,7 +177,9 @@ public struct Hypnogram: View {
                                     .position(x: rect.midX, y: rect.midY)
                             }
                         }
-                        .drawingGroup()
+                        // NO .drawingGroup() — flat solid pills are cheap to draw inline; the per-instance
+                        // offscreen flatten was part of the v7.0.2 lag regression. The #707 accessibility
+                        // collapse is served by `.accessibilityHidden(true)` below + the single plot summary.
                         .accessibilityHidden(true)
 
                         // Hover affordance: crosshair, band highlight ring, tooltip.

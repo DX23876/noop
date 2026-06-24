@@ -254,10 +254,41 @@ final class Repository: ObservableObject {
         do { try await store.checkpointWAL(); return true } catch { return false }
     }
 
+    /// One refresh's fully-merged dashboard caches, computed OFF the main actor (FIX 3) and applied to the
+    /// `@Published` props in a single main-actor batch. Every member is an `Equatable` value type. NOT
+    /// marked `Sendable` (its `DailyMetric`/`CachedSleepSession` members aren't formally `Sendable`); it
+    /// crosses the `Task.detached` boundary the same way the engine's `DayResult` already does under this
+    /// project's `minimal` strict-concurrency setting (SWIFT_STRICT_CONCURRENCY: minimal, Swift 5 mode).
+    private struct MergedCaches {
+        let importedSleep: [String: ImportedSleepFigures]
+        let days: [DailyMetric]
+        let sleeps: [CachedSleepSession]
+        let vitalRows: [SourcedDailyMetric]
+        let freshness: RepositoryFreshness
+    }
+
     /// Reload the dashboard caches over the last `nDays`, merging imported history with the
     /// on-device computed scores so a strap-only user still gets a populated dashboard.
+    ///
+    /// FIX 3: a fresh-import / first-launch analyze tail fires `refresh()` many times in quick succession.
+    /// Two costs made each one expensive: (1) the `mergeDaily`/`mergeSleep`/`sourceRows` O(n log n) sorts
+    /// ran on the MAIN actor over thousands of rows, and (2) `refreshSeq` bumped UNCONDITIONALLY, so every
+    /// bump re-fired `TodayView.loadAll()` (~28 sequential reads + 28 @State writes) even when nothing
+    /// changed. Now the sorts run in a detached task and the merged result is DIFFED against the current
+    /// caches — when nothing changed we skip BOTH the re-publish and the `refreshSeq` bump, so the redundant
+    /// tail refreshes don't each detonate a full Today reload. The "one consistent publish per refresh"
+    /// guarantee is kept: on a real change every prop + the seq are assigned in ONE main-actor batch.
+    /// Monotonic ordering token (#review): refresh() now suspends on an off-actor merge between the store
+    /// reads and the publish, so two overlapping refresh() calls (e.g. a 120-day backfill refresh and the
+    /// 4000-day analyze-tail refresh) could resume + publish OUT OF ORDER, an older stale merge clobbering a
+    /// newer one. Each call captures the token at entry and only publishes if it is still the latest. Not
+    /// @Published (pure ordering, never drives the UI); race-free since Repository is @MainActor.
+    private var refreshGen = 0
+
     func refresh(days nDays: Int = 4000) async {
         guard let store = await ensureStore() else { return }
+        refreshGen &+= 1
+        let myGen = refreshGen
         let now = Date()
         let fromDay = Self.dayString(now.addingTimeInterval(-Double(nDays) * 86_400))
         let toDay = Self.dayString(now.addingTimeInterval(86_400))
@@ -276,29 +307,60 @@ final class Repository: ObservableObject {
         let cons = (try? await store.metricSeries(deviceId: deviceId, key: "sleep_consistency", from: fromDay, to: toDay)) ?? []
         let need = (try? await store.metricSeries(deviceId: deviceId, key: "sleep_need_min", from: fromDay, to: toDay)) ?? []
         let debt = (try? await store.metricSeries(deviceId: deviceId, key: "sleep_debt_min", from: fromDay, to: toDay)) ?? []
-        var fig: [String: ImportedSleepFigures] = [:]
-        for p in perf { fig[p.day, default: ImportedSleepFigures()].performancePct = p.value }
-        for p in cons { fig[p.day, default: ImportedSleepFigures()].consistencyPct = p.value }
-        for p in need { fig[p.day, default: ImportedSleepFigures()].needMin = p.value }
-        for p in debt { fig[p.day, default: ImportedSleepFigures()].debtMin = p.value }
 
-        self.importedSleep = fig   // assigned BEFORE days/sleeps: one consistent publish per refresh
-        // H5 (#509): a night the user hand-edited (userEdited) must keep its corrected sleep figures even
-        // when a WHOOP/Apple import also covers that day. The computed ("-noop") session carries the edit,
-        // and IntelligenceEngine re-keys the computed DAILY row from it; collect those edited days so the
-        // merge lets the computed row's SLEEP fields win there (imports still win on every un-edited day).
-        let editedDays = Self.userEditedDays(compSleep)
-        self.days = Self.mergeDaily(imported: imported, computed: computed, userEditedDays: editedDays)
-        self.sleeps = Self.mergeSleep(imported: impSleep, computed: compSleep)
-        self.vitalRows = Self.sourceRows(imported: imported, computed: computed, apple: apple)
-        self.freshness = Self.computeFreshness(imported: imported, computed: computed, apple: apple,
-                                               importedSleeps: impSleep, computedSleeps: compSleep)
+        // Merge + sort OFF the main actor (FIX 3): the figures build, the two O(n log n) daily/sleep merges,
+        // the source-row sort, and the freshness counts are all pure over the rows just read, so they run in
+        // a detached task and the main actor stays free for SwiftUI during a deep-history refresh.
+        let merged: MergedCaches = await Task.detached(priority: .utility) {
+            var fig: [String: ImportedSleepFigures] = [:]
+            for p in perf { fig[p.day, default: ImportedSleepFigures()].performancePct = p.value }
+            for p in cons { fig[p.day, default: ImportedSleepFigures()].consistencyPct = p.value }
+            for p in need { fig[p.day, default: ImportedSleepFigures()].needMin = p.value }
+            for p in debt { fig[p.day, default: ImportedSleepFigures()].debtMin = p.value }
+            // H5 (#509): a night the user hand-edited (userEdited) must keep its corrected sleep figures even
+            // when a WHOOP/Apple import also covers that day. The computed ("-noop") session carries the edit,
+            // and IntelligenceEngine re-keys the computed DAILY row from it; collect those edited days so the
+            // merge lets the computed row's SLEEP fields win there (imports still win on every un-edited day).
+            let editedDays = Self.userEditedDays(compSleep)
+            return MergedCaches(
+                importedSleep: fig,
+                days: Self.mergeDaily(imported: imported, computed: computed, userEditedDays: editedDays),
+                sleeps: Self.mergeSleep(imported: impSleep, computed: compSleep),
+                vitalRows: Self.sourceRows(imported: imported, computed: computed, apple: apple),
+                freshness: Self.computeFreshness(imported: imported, computed: computed, apple: apple,
+                                                 importedSleeps: impSleep, computedSleeps: compSleep))
+        }.value
+
+        // Generation guard (#review): if a newer refresh() started while this one merged off-actor, drop
+        // this now-stale result so it can't clobber the newer caches or re-fire loadAll out of order.
+        guard myGen == refreshGen else { return }
+
+        // DIFF before publishing (FIX 3): if this refresh produced byte-identical caches AND we've already
+        // loaded once, skip the re-publish and the `refreshSeq` bump entirely — assigning an equal value to
+        // an @Published prop still fires objectWillChange, so the skip must cover the assignments too. This
+        // is what stops the analyze-tail's burst of refresh() calls each re-firing TodayView.loadAll().
+        let unchanged = loaded
+            && merged.days == days
+            && merged.sleeps == sleeps
+            && merged.importedSleep == importedSleep
+            && merged.vitalRows == vitalRows
+            && merged.freshness == freshness
+        guard !unchanged else { return }
+
+        // One consistent publish per refresh: assign every cache, flip `loaded`, then bump `refreshSeq` so
+        // the intraday-updating views reload exactly once for this real change.
+        self.importedSleep = merged.importedSleep
+        self.days = merged.days
+        self.sleeps = merged.sleeps
+        self.vitalRows = merged.vitalRows
+        self.freshness = merged.freshness
         self.loaded = true
         self.refreshSeq += 1
     }
 
     /// Per-source coverage counts for the Freshness Pipeline card. Pure over the rows already read.
-    private static func computeFreshness(imported: [DailyMetric], computed: [DailyMetric],
+    /// `nonisolated` (FIX 3) so `refresh()`'s detached merge task can call it off the main actor.
+    nonisolated private static func computeFreshness(imported: [DailyMetric], computed: [DailyMetric],
                                          apple: [DailyMetric], importedSleeps: [CachedSleepSession],
                                          computedSleeps: [CachedSleepSession]) -> RepositoryFreshness {
         let days = (imported + computed + apple).map(\.day)
@@ -354,7 +416,8 @@ final class Repository: ObservableObject {
     /// Daily rows tagged with the source that supplied them, for the source-aware vital-sign cards.
     /// One entry per (source, day) — the consumer resolves precedence per metric (imported > computed
     /// > Apple); ordered by day, then source priority, so a stable list reaches the UI.
-    private static func sourceRows(imported: [DailyMetric], computed: [DailyMetric],
+    /// `nonisolated` (FIX 3) so `refresh()`'s detached merge task can call it off the main actor.
+    nonisolated private static func sourceRows(imported: [DailyMetric], computed: [DailyMetric],
                                    apple: [DailyMetric]) -> [SourcedDailyMetric] {
         (imported.map { SourcedDailyMetric(metric: $0, source: .whoopImport) }
             + computed.map { SourcedDailyMetric(metric: $0, source: .noopComputed) }
@@ -373,7 +436,7 @@ final class Repository: ObservableObject {
     /// in whatever the live device zone is and so disagreed with the engine's cached-offset attribution
     /// across a midnight boundary for non-UTC users (the Swift half of #406; mirrors the Android #304 fix
     /// pinned by MergeSleepLocalDayTest).
-    private static func mergeSleep(imported: [CachedSleepSession], computed: [CachedSleepSession]) -> [CachedSleepSession] {
+    nonisolated private static func mergeSleep(imported: [CachedSleepSession], computed: [CachedSleepSession]) -> [CachedSleepSession] {
         func endDay(_ s: CachedSleepSession) -> String {
             let offsetSec = TimeZone.current.secondsFromGMT(for: Date(timeIntervalSince1970: TimeInterval(s.endTs)))
             return AnalyticsEngine.dayString(s.endTs, offsetSec: offsetSec)

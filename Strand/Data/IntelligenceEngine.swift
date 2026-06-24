@@ -65,6 +65,19 @@ final class IntelligenceEngine: ObservableObject {
         }
     }
 
+    /// One day's off-actor scan output (FIX 1). Carries the pure `AnalyticsEngine.DayResult` produced by
+    /// the off-main scan loop plus the pre-computed RHR floor-vs-mean diagnostic line (#691) — computed
+    /// inside the detached task from pure inputs so the main actor can replay it through the
+    /// MainActor-bound `diagnosticSink` in the SAME per-day order. Deliberately NOT marked `Sendable`:
+    /// its `AnalyticsEngine.DayResult` member isn't formally `Sendable` either, and the per-day loop ALREADY
+    /// returned a `DayResult` across the `Task.detached` boundary under this project's `minimal` strict-
+    /// concurrency setting (SWIFT_STRICT_CONCURRENCY: minimal, Swift 5 mode) — this wraps the same value
+    /// type the same way, so it crosses the boundary identically.
+    private struct DayScan {
+        let result: AnalyticsEngine.DayResult
+        let rhrLine: String?
+    }
+
     struct Computed: Identifiable {
         let day: String
         let recovery: Double?
@@ -107,7 +120,7 @@ final class IntelligenceEngine: ObservableObject {
     /// SAME span the floor came from, so the two numbers are directly comparable). Empty in-bed → nightMean
     /// is "nil". Counts/bpm only — no timestamps or PII. Pure so it's unit-tested directly and is the SAME
     /// line `analyzeRecent` ships. Byte-identical to the Android `rhrFloorMeanLogLine`.
-    static func rhrFloorMeanLogLine(day: String, floor: Int, inBedBpms: [Int]) -> String {
+    nonisolated static func rhrFloorMeanLogLine(day: String, floor: Int, inBedBpms: [Int]) -> String {
         let meanLog: String = inBedBpms.isEmpty ? "nil"
             : String(Int((Double(inBedBpms.reduce(0, +)) / Double(inBedBpms.count)).rounded()))
         return "rhr day=\(day) floor=\(floor) nightMean=\(meanLog) inBedSamples=\(inBedBpms.count) "
@@ -298,116 +311,148 @@ final class IntelligenceEngine: ObservableObject {
             windowStart: nowLocalMidnight - maxDays * 86_400 - 30 * 3_600,
             windowEnd: now, offsetSec: tzOffset)
 
-        for offset in 0..<maxDays {
-            let dayStart = nowLocalMidnight - offset * 86_400
-            let day = AnalyticsEngine.dayString(dayStart, offsetSec: tzOffset)
-            // Read a generous window around the night that ends on `day`; the stager finds the span.
-            let from = dayStart - 30 * 3_600
-            // Sleep read-window END. For a PAST day the night may end any time before the NEXT local
-            // midnight (late sleepers / weekend lie-ins / shift workers wake well after noon), so a
-            // hard `dayStart + 18h` (6 PM) bound TRUNCATED the read at exactly 18:00 — and a real wake
-            // past it was reported as a flat 18:00 wake (#500). Read a PAST day through to the next
-            // local midnight so the stager sees the whole night; TODAY keeps the 18:00 cap (the store
-            // clamps to `now` anyway, and an in-progress nap shouldn't be read as a finished night).
-            let nextMidnight = dayStart + 86_400
-            let to = (dayStart < nowLocalMidnight) ? nextMidnight : dayStart + 18 * 3_600
+        // ── FIX 1 (main-actor jank): run the ENTIRE per-day enumeration OFF the main actor ───────────
+        // Every `await store.…` read inside this loop has its continuation RESUME on the main actor
+        // (the engine is `@MainActor`), so on a fresh-import 4000-day pass the ~32 000 read-resumes
+        // monopolise the main actor for ~1 minute and SwiftUI can't render. The per-day reads + scoring
+        // touch NO `@Published`/`repo`/`profile` state — only the captured immutable inputs, the
+        // `WhoopStore` actor, the nonisolated `registry`, and the pure `resolveDayOwner` /
+        // `bandSleepStateSamples` / `AnalyticsEngine.analyzeDay`. So we hoist the whole loop into ONE
+        // `Task.detached(priority:.utility)` whose continuations resume OFF the main actor, then hop back
+        // here only to fold the results into `@Published`-feeding state and `refresh()` once at the end.
+        // The per-day SCORING ORDER, the `hr.count >= 200` skip, and the maxDays semantics are unchanged;
+        // only the executor the reads resume on changes. Diagnostic (#691) lines are computed inside (pure
+        // inputs) and returned so they can be replayed through `diagnosticSink` here, in the SAME order.
+        let computedId = deviceId + "-noop"
+        // Bind `deviceId` (a MainActor instance `let`) to a local Sendable `String` so the @Sendable
+        // detached closure captures the VALUE, never `self` (which would be an isolation violation).
+        let ownerFallbackId = deviceId
+        let scanned: [DayScan] = await Task.detached(priority: .utility) {
+            var out: [DayScan] = []
+            for offset in 0..<maxDays {
+                let dayStart = nowLocalMidnight - offset * 86_400
+                let day = AnalyticsEngine.dayString(dayStart, offsetSec: tzOffset)
+                // Read a generous window around the night that ends on `day`; the stager finds the span.
+                let from = dayStart - 30 * 3_600
+                // Sleep read-window END. For a PAST day the night may end any time before the NEXT local
+                // midnight (late sleepers / weekend lie-ins / shift workers wake well after noon), so a
+                // hard `dayStart + 18h` (6 PM) bound TRUNCATED the read at exactly 18:00 — and a real wake
+                // past it was reported as a flat 18:00 wake (#500). Read a PAST day through to the next
+                // local midnight so the stager sees the whole night; TODAY keeps the 18:00 cap (the store
+                // clamps to `now` anyway, and an in-progress nap shouldn't be read as a finished night).
+                let nextMidnight = dayStart + 86_400
+                let to = (dayStart < nowLocalMidnight) ? nextMidnight : dayStart + 18 * 3_600
 
-            // I2: pick the single device that owns this day, and read ITS streams below. With one device
-            // this resolves to `deviceId` (active strap, has data → priority 0), so nothing changes; with
-            // multiple sources the day is scored from exactly one (active strap > other live straps >
-            // imports, or a locked override). Falls back to `deviceId` if the registry is unreadable.
-            let owner = await resolveDayOwner(day: day, from: from, to: to, store: store,
-                                              devices: regDevices, activeId: regActiveId,
-                                              registry: registry)
+                // I2: pick the single device that owns this day, and read ITS streams below. With one device
+                // this resolves to `deviceId` (active strap, has data → priority 0), so nothing changes; with
+                // multiple sources the day is scored from exactly one (active strap > other live straps >
+                // imports, or a locked override). Falls back to `deviceId` if the registry is unreadable.
+                let owner = await Self.resolveDayOwner(day: day, from: from, to: to, store: store,
+                                                       devices: regDevices, activeId: regActiveId,
+                                                       registry: registry, fallbackDeviceId: ownerFallbackId)
 
-            let hr = (try? await store.hrSamples(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
-            guard hr.count >= 200 else { continue }   // need real raw data, not a stray sample
-            let rr = (try? await store.rrIntervals(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
-            let resp = (try? await store.respSamples(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
-            let grav = (try? await store.gravitySamples(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
-            let steps = (try? await store.stepSamples(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
-            let skin = (try? await store.skinTempSamples(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
-            // Wrist-wear events in the night window, paired into off-wrist [start, end) intervals for the
-            // off-wrist sleep backstop (#500). The HR-gap proxy in the stager is the always-on guard;
-            // these explicit intervals sharpen it under the FRACTIONAL rule (#504) — a session is dropped
-            // only when its off-wrist coverage reaches maxOffWristSleepFraction, so a real night with a
-            // short off-wrist tail survives. Pairing needs WRIST_ON too (to bound each interval); a span
-            // still open at the window end closes at `to`. Empty when the strap emitted no wrist events.
-            let wristEvents = (try? await store.events(deviceId: owner, from: from, to: to, limit: 50_000)) ?? []
-            let wristOff = AnalyticsEngine.offWristIntervals(events: wristEvents, windowEnd: to)
+                let hr = (try? await store.hrSamples(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
+                guard hr.count >= 200 else { continue }   // need real raw data, not a stray sample
+                let rr = (try? await store.rrIntervals(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
+                let resp = (try? await store.respSamples(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
+                let grav = (try? await store.gravitySamples(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
+                let steps = (try? await store.stepSamples(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
+                let skin = (try? await store.skinTempSamples(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
+                // Wrist-wear events in the night window, paired into off-wrist [start, end) intervals for the
+                // off-wrist sleep backstop (#500). The HR-gap proxy in the stager is the always-on guard;
+                // these explicit intervals sharpen it under the FRACTIONAL rule (#504) — a session is dropped
+                // only when its off-wrist coverage reaches maxOffWristSleepFraction, so a real night with a
+                // short off-wrist tail survives. Pairing needs WRIST_ON too (to bound each interval); a span
+                // still open at the window end closes at `to`. Empty when the strap emitted no wrist events.
+                let wristEvents = (try? await store.events(deviceId: owner, from: from, to: to, limit: 50_000)) ?? []
+                let wristOff = AnalyticsEngine.offWristIntervals(events: wristEvents, windowEnd: to)
 
-            // Calendar-day window for the ADDITIVE daily totals (steps + calories). The night window
-            // above is anchored to the current time-of-day and ends at dayStart+12h, so for a PAST
-            // day whose late hours sit after that bound those hours are never read and the totals
-            // undercount. Read exactly [localMidnight(day), localMidnight(day)+86400) and hand it to
-            // analyzeDay's dayHr/daySteps, which use it ONLY for those totals. `dayStart` is already a
-            // LOCAL midnight; midnightLocal is idempotent on it (the store range is inclusive, so end
-            // at -1 s). (#277 — local-day bucketing.)
-            let dayMid = Self.midnightLocal(dayStart, offsetSec: tzOffset)
-            let dayEnd = dayMid + 86_400 - 1
-            // Same `owner` as the night window above (I2): the additive day totals must come from the
-            // one device that owns the day, never a mix.
-            let dayHr = (try? await store.hrSamples(deviceId: owner, from: dayMid, to: dayEnd, limit: 200_000)) ?? []
-            let daySteps = (try? await store.stepSamples(deviceId: owner, from: dayMid, to: dayEnd, limit: 200_000)) ?? []
-            // Full calendar-day gravity for WORKOUT detection. The night window above ends at
-            // dayStart+12h (≈ noon), so an afternoon/evening workout sits outside it and was only
-            // detected once a later pass re-read it through the next night window — a ~day lag. This
-            // [localMidnight, localMidnight+24h) read (today: clamped to `now` by the store) lets the
-            // detector see the whole day, so a 5 pm run shows up on the same day.
-            let dayGrav = (try? await store.gravitySamples(deviceId: owner, from: dayMid, to: dayEnd, limit: 200_000)) ?? []
+                // Calendar-day window for the ADDITIVE daily totals (steps + calories). The night window
+                // above is anchored to the current time-of-day and ends at dayStart+12h, so for a PAST
+                // day whose late hours sit after that bound those hours are never read and the totals
+                // undercount. Read exactly [localMidnight(day), localMidnight(day)+86400) and hand it to
+                // analyzeDay's dayHr/daySteps, which use it ONLY for those totals. `dayStart` is already a
+                // LOCAL midnight; midnightLocal is idempotent on it (the store range is inclusive, so end
+                // at -1 s). (#277 — local-day bucketing.)
+                let dayMid = Self.midnightLocal(dayStart, offsetSec: tzOffset)
+                let dayEnd = dayMid + 86_400 - 1
+                // Same `owner` as the night window above (I2): the additive day totals must come from the
+                // one device that owns the day, never a mix.
+                let dayHr = (try? await store.hrSamples(deviceId: owner, from: dayMid, to: dayEnd, limit: 200_000)) ?? []
+                let daySteps = (try? await store.stepSamples(deviceId: owner, from: dayMid, to: dayEnd, limit: 200_000)) ?? []
+                // Full calendar-day gravity for WORKOUT detection. The night window above ends at
+                // dayStart+12h (≈ noon), so an afternoon/evening workout sits outside it and was only
+                // detected once a later pass re-read it through the next night window — a ~day lag. This
+                // [localMidnight, localMidnight+24h) read (today: clamped to `now` by the store) lets the
+                // detector see the whole day, so a 5 pm run shows up on the same day.
+                let dayGrav = (try? await store.gravitySamples(deviceId: owner, from: dayMid, to: dayEnd, limit: 200_000)) ?? []
 
-            // CONSUME (#531 / H8): the prior pass's persisted v18 BAND sleep_state for sessions overlapping
-            // the night window, expanded to timestamped (ts, state) samples on the 30 s grid, so the H7
-            // morning-stillness guard can confirm a borderline re-onset against the strap's OWN scored band.
-            // Read under `computedId` (where the prior pass banded its detected sessions); empty on the first
-            // pass (no banded sessions yet) → the guard simply falls back to the HR bar. Honest: only real
-            // banded "asleep" epochs rescue a block, never a fabricated one.
-            let bandSleepState = await bandSleepStateSamples(computedId: deviceId + "-noop",
-                                                             from: from, to: to, store: store)
+                // CONSUME (#531 / H8): the prior pass's persisted v18 BAND sleep_state for sessions overlapping
+                // the night window, expanded to timestamped (ts, state) samples on the 30 s grid, so the H7
+                // morning-stillness guard can confirm a borderline re-onset against the strap's OWN scored band.
+                // Read under `computedId` (where the prior pass banded its detected sessions); empty on the first
+                // pass (no banded sessions yet) → the guard simply falls back to the HR bar. Honest: only real
+                // banded "asleep" epochs rescue a block, never a fabricated one.
+                let bandSleepState = await Self.bandSleepStateSamples(computedId: computedId,
+                                                                      from: from, to: to, store: store)
 
-            // #690: read the experimental-V2 toggle ONCE here (off the detached executor, matching the
-            // Repository self-heal call site) and capture the Bool, so the Settings toggle now drives the
-            // NORMAL detected-night staging path — not only the userEdited self-heal restage.
-            let useSleepStagerV2 = PuffinExperiment.experimentalSleepV2Enabled
+                // #690: read the experimental-V2 toggle ONCE here (off the detached executor, matching the
+                // Repository self-heal call site) and capture the Bool, so the Settings toggle now drives the
+                // NORMAL detected-night staging path — not only the userEdited self-heal restage.
+                let useSleepStagerV2 = PuffinExperiment.experimentalSleepV2Enabled
 
-            let res = await Task.detached(priority: .utility) {
-                AnalyticsEngine.analyzeDay(day: day, hr: hr, rr: rr, resp: resp, gravity: grav,
-                                           steps: steps, dayHr: dayHr, daySteps: daySteps,
-                                           dayGravity: dayGrav,
-                                           skinTemp: skin,
-                                           profile: up, baselines: baselines1, maxHROverride: maxHR,
-                                           tzOffsetSeconds: tzOffset, wristOff: wristOff,
-                                           habitualMidsleepSec: habitualMidsleepSec,
-                                           bandSleepState: bandSleepState,
-                                           // #690: thread the V2 toggle into the NORMAL staging path so
-                                           // it affects detected nights, not just the self-heal restage.
-                                           useSleepStagerV2: useSleepStagerV2)
-            }.value
+                // Already OFF the main actor — score directly (the prior nested `Task.detached` here only
+                // existed to hop off the main actor; the whole loop now runs off it, so the score is computed
+                // inline with the identical inputs and identical result).
+                let res = AnalyticsEngine.analyzeDay(day: day, hr: hr, rr: rr, resp: resp, gravity: grav,
+                                                     steps: steps, dayHr: dayHr, daySteps: daySteps,
+                                                     dayGravity: dayGrav,
+                                                     skinTemp: skin,
+                                                     profile: up, baselines: baselines1, maxHROverride: maxHR,
+                                                     tzOffsetSeconds: tzOffset, wristOff: wristOff,
+                                                     habitualMidsleepSec: habitualMidsleepSec,
+                                                     bandSleepState: bandSleepState,
+                                                     // #690: thread the V2 toggle into the NORMAL staging path so
+                                                     // it affects detected nights, not just the self-heal restage.
+                                                     useSleepStagerV2: useSleepStagerV2)
+                // ── RHR floor-vs-mean diagnostic (#691) ────────────────────────────────────────────────
+                // Make the recurring "NOOP's resting HR reads LOWER than my sleeping-HR app" reports
+                // explainable from the strap log instead of a guess. The two numbers measure different
+                // things BY DESIGN, not a bug: NOOP's `restingHr` is the WHOOP-style FLOOR (the lowest
+                // sustained 5-min in-bed level — SleepStager picks the min 5-min rolling-mean HR per session,
+                // and the day takes the .min() across them), whereas a "sleeping HR" app reports the night
+                // MEAN over the whole asleep span. The mean always sits above the floor, so NOOP looking
+                // lower is correct. Log BOTH so a report ships proof of the gap. Mean is computed over the
+                // SAME matched in-bed span the floor came from (so they're directly comparable); a night
+                // with no banked floor (no matched sleep) logs nil and the line is skipped. Logging only —
+                // no scoring change. Counts/bpm only; no timestamps or PII (LiveState.append also scrubs).
+                // Computed here (pure inputs) and carried out so the main actor can replay it through
+                // `diagnosticSink` in the SAME per-day order — the sink is a MainActor-bound closure.
+                var rhrLine: String?
+                if let floor = res.daily.restingHr {
+                    let inBedBpms = hr.filter { s in
+                        res.cachedSleep.contains { s.ts >= $0.startTs && s.ts < $0.endTs }
+                    }.map { $0.bpm }
+                    rhrLine = Self.rhrFloorMeanLogLine(day: res.daily.day, floor: floor, inBedBpms: inBedBpms)
+                }
+                out.append(DayScan(result: res, rhrLine: rhrLine))
+            }
+            return out
+        }.value
+
+        // Back on the main actor: fold the off-actor results into the pass-2 state in the SAME order the
+        // loop produced them. Pure assignment / appends — no further store reads — so this is cheap and the
+        // main actor was free during the heavy enumeration above.
+        for scan in scanned {
+            let res = scan.result
             nightlyHrvByDay[res.daily.day] = res.daily.avgHrv
             nightlyRhrByDay[res.daily.day] = res.daily.restingHr.map(Double.init)
             nightlyRespByDay[res.daily.day] = res.daily.respRateBpm
             nightlySkinByDay[res.daily.day] = res.nightlySkinTempC
-            // ── RHR floor-vs-mean diagnostic (#691) ────────────────────────────────────────────────
-            // Make the recurring "NOOP's resting HR reads LOWER than my sleeping-HR app" reports
-            // explainable from the strap log instead of a guess. The two numbers measure different
-            // things BY DESIGN, not a bug: NOOP's `restingHr` is the WHOOP-style FLOOR (the lowest
-            // sustained 5-min in-bed level — SleepStager picks the min 5-min rolling-mean HR per session,
-            // and the day takes the .min() across them), whereas a "sleeping HR" app reports the night
-            // MEAN over the whole asleep span. The mean always sits above the floor, so NOOP looking
-            // lower is correct. Log BOTH so a report ships proof of the gap. Mean is computed over the
-            // SAME matched in-bed span the floor came from (so they're directly comparable); a night
-            // with no banked floor (no matched sleep) logs nil and the line is skipped. Logging only —
-            // no scoring change. Counts/bpm only; no timestamps or PII (LiveState.append also scrubs).
-            if let floor = res.daily.restingHr {
-                let inBedBpms = hr.filter { s in
-                    res.cachedSleep.contains { s.ts >= $0.startTs && s.ts < $0.endTs }
-                }.map { $0.bpm }
-                diagnosticSink?(Self.rhrFloorMeanLogLine(day: res.daily.day, floor: floor, inBedBpms: inBedBpms))
-            }
+            if let line = scan.rhrLine { diagnosticSink?(line) }
             scoredNights.append((daily: res.daily, strain: res.strain, cachedSleep: res.cachedSleep,
                                  workouts: res.workouts, nightlySkin: res.nightlySkinTempC,
                                  sessionMotion: res.sessionMotionByStart))
-            await Task.yield()
         }
 
         // ── Seed the baseline from the UNION of imported nightly history + the values just computed.
@@ -463,7 +508,7 @@ final class IntelligenceEngine: ObservableObject {
         // the cross-source duplicate (#107): the strap source carries imported WHOOP rows AND manual /
         // re-labelled rows (both written under `deviceId`), and apple-health carries Health imports —
         // a detected bout overlapping ANY of them is skipped below. Port of the Android dedup block.
-        let computedId = deviceId + "-noop"
+        // (`computedId` is bound once above, before the off-actor scan loop.)
         let windowStart = now - maxDays * 86_400 - 30 * 3_600
         var realWorkouts = (try? await store.workouts(deviceId: deviceId, from: windowStart,
                                                        to: now, limit: 100_000)) ?? []
@@ -652,30 +697,50 @@ final class IntelligenceEngine: ObservableObject {
         let stepsCalDays = 60
         let calOldest = AnalyticsEngine.dayString(
             nowLocalMidnight - (stepsCalDays - 1) * 86_400, offsetSec: tzOffset)
-        // Phone reference steps per day, from the apple-health daily rows (steps > 0 only).
-        // #693: read `appleDaily`, NOT `dailyMetrics`. Apple-Health import writes the phone step count into
-        // `appleDaily.steps` (Int?), never into a dailyMetric `steps` row — so the old `dailyMetrics` read
-        // was always empty and the calibration never advanced past "Need 3 more days" (Android already reads
-        // appleDaily here, IntelligenceEngine.kt:676). `store.appleDaily(deviceId:from:to:)` already exists.
-        let appleRows = (try? await store.appleDaily(deviceId: Repository.appleHealthSource,
-                                                     from: calOldest, to: newestDay)) ?? []
-        var refStepsByDay: [String: Double] = [:]
-        for r in appleRows { if let s = r.steps, s > 0 { refStepsByDay[r.day] = Double(s) } }
-        // Per-day motion volume over the calibration window, read from the owner-resolved strap streams.
-        // (Owner resolution mirrors the scoring loop; one device installs resolve to `deviceId`.)
-        var motionByDay: [String: Double] = [:]
-        for off in 0..<stepsCalDays {
-            let dayMid = Self.midnightLocal(nowLocalMidnight - off * 86_400, offsetSec: tzOffset)
-            let dayEnd = dayMid + 86_400 - 1
-            let dayKey = AnalyticsEngine.dayString(dayMid, offsetSec: tzOffset)
-            let owner = await resolveDayOwner(day: dayKey, from: dayMid, to: dayEnd, store: store,
-                                              devices: regDevices, activeId: regActiveId,
-                                              registry: registry)
-            let grav = (try? await store.gravitySamples(deviceId: owner, from: dayMid, to: dayEnd,
-                                                        limit: 200_000)) ?? []
-            let m = StepsEstimateEngine.dayMotionIntensity(grav)
-            if m > 0 { motionByDay[dayKey] = m }
-        }
+        // ── FIX 2 (main-actor jank): hoist the 60-day steps-calibration STORE READS off the main actor ──
+        // Same residual stall FIX 1 fixed, smaller scale: this class is `@MainActor`, so each `await store.…`
+        // below resumes its continuation ON the main actor — the apple-health read + 60 per-day
+        // owner-resolve/gravity reads add 60+ read-resumes of main-actor contention every analyzeRecent.
+        // The reads touch NO `@Published`/`profile`/`registry`-isolated state — only the captured immutable
+        // inputs (calOldest/newestDay/nowLocalMidnight/tzOffset/regDevices/regActiveId), the `WhoopStore`
+        // actor, the nonisolated `registry`, the nonisolated-static `resolveDayOwner`, and the pure static
+        // `StepsEstimateEngine.dayMotionIntensity`. So we hoist the whole gather into ONE
+        // `Task.detached(priority:.utility)` whose continuations resume OFF the main actor, returning two
+        // plain `[String: Double]` value types (fully Sendable — even cleaner than FIX 1's [DayScan]). The
+        // pure `StepsEstimateEngine.calibrate/estimate/status` fit + the `profile.*` assignments stay on the
+        // main actor below, consuming those dictionaries. Same per-day inputs (same window, same owner
+        // resolution, same `m > 0` / `steps > 0` filters), same outputs — only the executor the reads resume
+        // on changes. Bind `deviceId` (a MainActor instance `let`) to a local Sendable `String` so the
+        // @Sendable detached closure captures the VALUE, never `self`, exactly as FIX 1's `ownerFallbackId`.
+        let stepsFallbackId = deviceId
+        let (refStepsByDay, motionByDay): ([String: Double], [String: Double]) =
+            await Task.detached(priority: .utility) {
+            // Phone reference steps per day, from the apple-health daily rows (steps > 0 only).
+            // #693: read `appleDaily`, NOT `dailyMetrics`. Apple-Health import writes the phone step count into
+            // `appleDaily.steps` (Int?), never into a dailyMetric `steps` row — so the old `dailyMetrics` read
+            // was always empty and the calibration never advanced past "Need 3 more days" (Android already reads
+            // appleDaily here, IntelligenceEngine.kt:676). `store.appleDaily(deviceId:from:to:)` already exists.
+            let appleRows = (try? await store.appleDaily(deviceId: Repository.appleHealthSource,
+                                                         from: calOldest, to: newestDay)) ?? []
+            var refSteps: [String: Double] = [:]
+            for r in appleRows { if let s = r.steps, s > 0 { refSteps[r.day] = Double(s) } }
+            // Per-day motion volume over the calibration window, read from the owner-resolved strap streams.
+            // (Owner resolution mirrors the scoring loop; one device installs resolve to `deviceId`.)
+            var motion: [String: Double] = [:]
+            for off in 0..<stepsCalDays {
+                let dayMid = Self.midnightLocal(nowLocalMidnight - off * 86_400, offsetSec: tzOffset)
+                let dayEnd = dayMid + 86_400 - 1
+                let dayKey = AnalyticsEngine.dayString(dayMid, offsetSec: tzOffset)
+                let owner = await Self.resolveDayOwner(day: dayKey, from: dayMid, to: dayEnd, store: store,
+                                                       devices: regDevices, activeId: regActiveId,
+                                                       registry: registry, fallbackDeviceId: stepsFallbackId)
+                let grav = (try? await store.gravitySamples(deviceId: owner, from: dayMid, to: dayEnd,
+                                                            limit: 200_000)) ?? []
+                let m = StepsEstimateEngine.dayMotionIntensity(grav)
+                if m > 0 { motion[dayKey] = m }
+            }
+            return (refSteps, motion)
+        }.value
         // Build calibration points only for days with BOTH a motion volume and a real phone step count.
         let calPoints = motionByDay.compactMap { (day, motion) -> StepsEstimateEngine.CalibrationPoint? in
             guard let s = refStepsByDay[day] else { return nil }
@@ -773,19 +838,25 @@ final class IntelligenceEngine: ObservableObject {
     /// the dayOwnership table. Returns `deviceId` when the registry yields no owner (no candidate has
     /// data, or it's empty/unreadable) so the legacy single-source path is preserved.
     ///
-    /// Single-device install: the only paired row is the seeded active 'my-whoop' (== `deviceId`). Its
-    /// candidate is priority 0 with `hasData == true` for any day the strap collected HR, so the
-    /// resolver returns `deviceId` and the caller's reads are byte-identical to the pre-I2 code. The
-    /// presence check is the same `LIMIT 1` over the same window the caller already reads.
-    private func resolveDayOwner(day: String, from: Int, to: Int, store: WhoopStore,
-                                 devices: [PairedDevice], activeId: String,
-                                 registry: DeviceRegistryStore) async -> String {
+    /// Single-device install: the only paired row is the seeded active 'my-whoop' (== `fallbackDeviceId`).
+    /// Its candidate is priority 0 with `hasData == true` for any day the strap collected HR, so the
+    /// resolver returns `fallbackDeviceId` and the caller's reads are byte-identical to the pre-I2 code.
+    /// The presence check is the same `LIMIT 1` over the same window the caller already reads.
+    ///
+    /// `nonisolated static` (FIX 1): the body touches NO `@Published`/instance-isolated state — only the
+    /// passed-in `store` actor, the nonisolated `registry` struct, the value params, and `fallbackDeviceId`
+    /// (the former `self.deviceId`). Making it `nonisolated` lets the off-main scan loop call it WITHOUT
+    /// hopping back to the main actor each iteration, which is the whole point of FIX 1. Logic identical.
+    nonisolated static func resolveDayOwner(day: String, from: Int, to: Int, store: WhoopStore,
+                                            devices: [PairedDevice], activeId: String,
+                                            registry: DeviceRegistryStore,
+                                            fallbackDeviceId: String) async -> String {
         // A locked override wins outright and skips the presence checks entirely.
         if let locked = (try? registry.dayOwner(day))?.deviceId {
             return locked
         }
         // No registry rows (shouldn't happen — v15 seeds one — but be safe): keep the legacy id.
-        guard !devices.isEmpty else { return deviceId }
+        guard !devices.isEmpty else { return fallbackDeviceId }
 
         var candidates: [DayOwnerResolver.Candidate] = []
         for d in devices where d.status != .archived {
@@ -796,7 +867,7 @@ final class IntelligenceEngine: ObservableObject {
             let hasData = !((try? await store.hrSamples(deviceId: d.id, from: from, to: to, limit: 1)) ?? []).isEmpty
             candidates.append(DayOwnerResolver.Candidate(deviceId: d.id, priority: priority, hasData: hasData))
         }
-        return DayOwnerResolver.resolve(day: day, lockedOwner: nil, candidates: candidates) ?? deviceId
+        return DayOwnerResolver.resolve(day: day, lockedOwner: nil, candidates: candidates) ?? fallbackDeviceId
     }
 
     /// #137: re-score under-sampled manual workouts. A `manual` workout is scored from the live HR
@@ -913,8 +984,10 @@ final class IntelligenceEngine: ObservableObject {
     /// epoch `i` to `startTs + i*30`. Empty when nothing is banded yet, so the guard simply falls back to the
     /// HR bar. Honest: only real banded states are surfaced, never a fabricated reading. The grid here mirrors
     /// `SleepStager`'s 30 s epoch grid, so an epoch's timestamp lands inside the candidate run it scores.
-    private func bandSleepStateSamples(computedId: String, from: Int, to: Int,
-                                       store: WhoopStore) async -> [(ts: Int, state: Int)] {
+    /// `nonisolated static` (FIX 1): touches only the `store` actor + value params, so the off-main scan
+    /// loop calls it without hopping back to the main actor each iteration. Logic identical.
+    nonisolated static func bandSleepStateSamples(computedId: String, from: Int, to: Int,
+                                                  store: WhoopStore) async -> [(ts: Int, state: Int)] {
         let epochS = 30
         let sessions = (try? await store.sleepSessions(deviceId: computedId, from: from, to: to,
                                                        limit: 4000)) ?? []

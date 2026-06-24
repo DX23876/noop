@@ -26,6 +26,13 @@ struct StrandiOSApp: App {
     @AppStorage(ChartStyle.storageKey) private var chartStyleRaw = ChartStyle.titanium.rawValue
 
     init() {
+        #if DEBUG
+        // DEBUG-only promo-screenshot harness: when launched with `--demo-hour <Int>`, pin Today to that
+        // hour's day-cycle scene + a per-hour stat frame. No-op (active stays nil) when the arg is absent.
+        // MUST live here, not in StrandApp.swift — that is the macOS @main and is excluded from the iOS
+        // target, so the hook there never runs on iOS.
+        DemoDayHarness.applyLaunchArgsIfNeeded()
+        #endif
         // Debug-only canary: trips if the App Group entitlement is missing on this target before any
         // silent no-op (PendingIntents, WidgetSnapshot.publish, Live Activity) can mask the issue as
         // "the widget doesn't show anything yet." No-op in Release.

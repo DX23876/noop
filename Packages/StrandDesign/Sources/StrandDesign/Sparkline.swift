@@ -76,11 +76,12 @@ public struct Sparkline: View {
         GeometryReader { geo in
             let pts = points(in: geo.size)
             ZStack {
-                // STATIC LAYER: area wash + gradient line + head dot. These rebuild only when the
-                // values/size change, so flatten them into ONE cached GPU layer via .drawingGroup() —
-                // the sparkline is a flat fill/stroke (no blur), so the raster is pixel-identical. The
-                // hover crosshair/tooltip stay OUTSIDE this group so they don't force the line to
-                // re-rasterize on every pointer move.
+                // STATIC LAYER: area wash + gradient line + head dot. Drawn INLINE — NO .drawingGroup().
+                // A ~14-point polyline + fill + 2 dots is trivially cheap, and a per-sparkline offscreen
+                // flatten costs FAR more (a dedicated MTLTexture + an extra composite pass) than it saves.
+                // Today shows ~10-16 tiles at once, so per-tile .drawingGroup() piled up ~16 offscreen
+                // passes that re-rasterised on every scroll / body re-eval — the v7.0.2 lag regression.
+                // CoreAnimation already caches this flat layer natively.
                 ZStack {
                     if showsArea, pts.count > 1 {
                         areaPath(pts, in: geo.size)
@@ -107,7 +108,6 @@ public struct Sparkline: View {
                             .position(head)
                     }
                 }
-                .drawingGroup()
 
                 // Hover affordance: crosshair + highlighted sample + tooltip.
                 if showsHover, !values.isEmpty, let hx = hoverX,

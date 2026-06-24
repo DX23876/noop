@@ -638,6 +638,16 @@ struct TodayView: View {
                             : "Updates")
     }
 
+    /// The local hour driving the day-cycle scene. DEBUG promo harness: a pinned `--demo-hour` frame
+    /// overrides it; otherwise (and always in Release) the live clock hour. Byte-identical in Release.
+    private var demoSceneHour: Int {
+        #if DEBUG
+        return DemoDayHarness.hour ?? Calendar.current.component(.hour, from: Date())
+        #else
+        return Calendar.current.component(.hour, from: Date())
+        #endif
+    }
+
     var body: some View {
         ScreenScaffold(title: scaffoldTitle, onRefresh: { await repo.refresh() },
                        // PERF (scroll): lazy column so the scaffold materialises Today's content on demand.
@@ -645,14 +655,14 @@ struct TodayView: View {
                        // unchanged — this only defers building the single inner stack until it scrolls in.
                        // Byte-identical layout (LazyVStack == eager VStack alignment/spacing/header).
                        lazy: true,
-                       // PERF (scroll stutter): flatten the day-cycle scene (a gradient-masked image with a
-                       // gradient overlay + opacity) into ONE cached GPU layer via `.drawingGroup()`, so it
-                       // composites once rather than re-rasterizing its mask/overlay on each body pass / scroll
-                       // recomposite. The scene is plain alpha compositing — no blend modes — so the flatten is
-                       // visually identical. Scoped to this call site, leaving SceneScreenBackground reusable
-                       // un-flattened elsewhere.
+                       // PERF (scroll stutter): the day-cycle scene is a static masked Image. CoreAnimation
+                       // already caches it as a stable image layer, so it does NOT re-rasterize on body
+                       // re-evals or scroll. NO .drawingGroup() — wrapping this 600pt masked image in a
+                       // second offscreen pass DOUBLED its cost and re-rasterised it on every TodayView
+                       // body re-eval (the masked image is itself one offscreen pass). That was a v7.0.2
+                       // lag regression; removing the flatten restores native layer caching.
                        topBackground: showDayCycleBackground
-                           ? AnyView(SceneScreenBackground().drawingGroup()) : nil) {
+                           ? AnyView(SceneScreenBackground(hour: demoSceneHour)) : nil) {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
                 #if os(iOS)
                 // Compact top bar: profile/settings (left) · ‹ Today › day-nav (centre, bold) · strap
@@ -1135,6 +1145,26 @@ struct TodayView: View {
             }
             .accessibilityElement(children: .combine)
 
+            #if DEBUG
+            // DEBUG promo harness: override the Synthesis headline + body with the active frame's copy.
+            if let f = DemoDayHarness.active {
+                InsightCard(
+                    category: "Synthesis",
+                    status: "\(f.synthHeadline)",
+                    detail: "\(f.synthBody)",
+                    statusColor: StrandPalette.textPrimary,
+                    tint: StrandPalette.chargeColor
+                )
+            } else {
+                InsightCard(
+                    category: "Synthesis",
+                    status: calibrationStatus ?? "\(synthesisCardStatus(d, score: score))",
+                    detail: calibrationDetail ?? "\(synthesisCardDetail(d, score: score))",
+                    statusColor: StrandPalette.textPrimary,
+                    tint: StrandPalette.chargeColor
+                )
+            }
+            #else
             InsightCard(
                 category: "Synthesis",
                 status: calibrationStatus ?? "\(synthesisCardStatus(d, score: score))",
@@ -1142,6 +1172,7 @@ struct TodayView: View {
                 statusColor: StrandPalette.textPrimary,
                 tint: StrandPalette.chargeColor
             )
+            #endif
 
             if let note = effortZeroNote {
                 HStack(alignment: .top, spacing: 6) {
@@ -1267,8 +1298,14 @@ struct TodayView: View {
         }
         switch card {
         case .hrv:
+            #if DEBUG
+            if let f = DemoDayHarness.active { return withUnit("\(f.hrvMs)") }
+            #endif
             return withUnit(d?.avgHrv.map { "\(Int($0.rounded()))" } ?? "—")
         case .restingHr:
+            #if DEBUG
+            if let f = DemoDayHarness.active { return withUnit("\(f.rhrBpm)") }
+            #endif
             return withUnit(d?.restingHr.map { "\($0)" } ?? "—")
         case .respiratory:
             return withUnit(d?.respRateBpm.map { String(format: "%.1f", $0) }
@@ -1291,6 +1328,10 @@ struct TodayView: View {
         case .calories:
             return withUnit(caloriesValue(appleDays.last))
         case .stress:
+            #if DEBUG
+            // DEBUG promo harness: pin the Stress card (0–3) to the active frame's value. No-op otherwise.
+            if let f = DemoDayHarness.active { return "\(f.stress0to3)" }
+            #endif
             return stressToday.map { "\(Int($0.rounded()))" } ?? "—"
         case .fitnessAge:
             return withUnit(fitnessAgeToday.map { "\(Int($0.rounded()))" } ?? "—")
@@ -1393,6 +1434,20 @@ struct TodayView: View {
     /// recovery / calibration bindings the rings use — presentation only.
     @ViewBuilder
     private func recoveryStatePill(score: Double?) -> some View {
+        #if DEBUG
+        // DEBUG promo harness: pin the readiness badge to the active frame's word. "Solid" reads green
+        // (.solid); anything else (e.g. "Moderate") uses the slate state so it's visibly distinct without
+        // inventing a new hue. No-op when no `--demo-hour` frame is active.
+        if let f = DemoDayHarness.active {
+            ScoreStatePill(f.readiness == "Solid" ? .solid : .calibrating, text: "\(f.readiness)")
+        } else if score != nil {
+            ScoreStatePill(.solid)
+        } else if let n = recoveryCalibration {
+            ScoreStatePill(.calibrating, text: "Calibrating, \(n) of \(Baselines.minNightsSeed)")
+        } else {
+            ScoreStatePill(.calibrating)
+        }
+        #else
         if score != nil {
             ScoreStatePill(.solid)
         } else if let n = recoveryCalibration {
@@ -1400,6 +1455,7 @@ struct TodayView: View {
         } else {
             ScoreStatePill(.calibrating)
         }
+        #endif
     }
 
     /// Screen-4 "metric card": HRV / Resting HR / Respiratory as a stack of labelled metric rows
@@ -1420,12 +1476,20 @@ struct TodayView: View {
         let vd = carried ?? d
         NoopCard(tint: StrandPalette.chargeColor) {
             VStack(spacing: 0) {
+                // DEBUG promo harness: pin HRV / Resting HR to the active frame's values. No-op otherwise.
+                #if DEBUG
+                let demoHrv = DemoDayHarness.active.map { "\($0.hrvMs)" }
+                let demoRhr = DemoDayHarness.active.map { "\($0.rhrBpm)" }
+                #else
+                let demoHrv: String? = nil
+                let demoRhr: String? = nil
+                #endif
                 metricRow(icon: "waveform.path.ecg", label: "HRV",
-                          value: vd?.avgHrv.map { "\(Int($0.rounded()))" } ?? "—", unit: "ms",
+                          value: demoHrv ?? (vd?.avgHrv.map { "\(Int($0.rounded()))" } ?? "—"), unit: "ms",
                           tint: StrandPalette.metricCyan)
                 Divider().overlay(StrandPalette.hairline)
                 metricRow(icon: "heart.fill", label: "Resting HR",
-                          value: vd?.restingHr.map { "\($0)" } ?? "—", unit: "bpm",
+                          value: demoRhr ?? (vd?.restingHr.map { "\($0)" } ?? "—"), unit: "bpm",
                           tint: StrandPalette.metricRose)
                 Divider().overlay(StrandPalette.hairline)
                 metricRow(icon: "lungs.fill", label: "Respiratory",
@@ -1707,6 +1771,12 @@ struct TodayView: View {
     /// (#402). Falls back to the stored `strain` when there isn't yet enough of today's HR to score
     /// (StrainScorer.minReadings). Navigated past days always use the stored row.
     private func effortStrain(_ d: DailyMetric?) -> Double? {
+        #if DEBUG
+        // DEBUG promo harness: pin Effort (NOOP 0–100 axis) to the active frame's value. This single
+        // point feeds the hero ring AND every Effort read-out, so they stay consistent. No-op when no
+        // `--demo-hour` frame is active. Charge/Rest are intentionally left at their seeded values.
+        if let f = DemoDayHarness.active { return f.effort }
+        #endif
         if selectedDayOffset == 0, let live = liveTodayStrain {
             // Effort accrues over a day and must never visibly DROP. The in-progress recompute (raw day
             // HR, midnight→now) can UNDER-read when today's HR is sparse or a logged workout's load isn't
@@ -2273,29 +2343,61 @@ struct TodayView: View {
     // MARK: - Loading
 
     private func loadAll() async {
-        // 14-day sparklines — Whoop.
-        sparks["recovery"]        = await sparkValues("recovery", source: "my-whoop", window: 14)
-        sparks["strain"]          = await sparkValues("strain", source: "my-whoop", window: 14)
-        sparks["sleep_total_min"] = await sparkValues("sleep_total_min", source: "my-whoop", window: 14)
-        sparks["hrv"]             = await sparkValues("hrv", source: "my-whoop", window: 14)
-        sparks["rhr"]             = await sparkValues("rhr", source: "my-whoop", window: 14)
-        sparks["spo2"]            = await sparkValues("spo2", source: "my-whoop", window: 14)
+        // 14-day sparklines — Whoop + Apple Health. These reads are mutually independent (distinct
+        // metric keys/sources), so kick them all off concurrently with `async let` and await the
+        // results below. Each hits the @MainActor Repository, fires its `await store.*` on the
+        // WhoopStore actor and suspends — releasing the main actor so the next read can start —
+        // instead of fully round-tripping one at a time. The assignments below stay on the main
+        // actor and the final values are byte-identical to the sequential version.
+        async let recoverySpark      = sparkValues("recovery", source: "my-whoop", window: 14)
+        async let strainSpark        = sparkValues("strain", source: "my-whoop", window: 14)
+        async let sleepTotalSpark    = sparkValues("sleep_total_min", source: "my-whoop", window: 14)
+        async let hrvSpark           = sparkValues("hrv", source: "my-whoop", window: 14)
+        async let rhrSpark           = sparkValues("rhr", source: "my-whoop", window: 14)
+        async let spo2Spark          = sparkValues("spo2", source: "my-whoop", window: 14)
+        async let respRateSpark      = sparkValues("resp_rate", source: "apple-health", window: 14)
+        async let stepsAppleSpark    = sparkValues("steps", source: "apple-health", window: 14)
+        async let weightSpark        = sparkValues("weight", source: "apple-health", window: 90)
+        async let activeKcalSpark    = sparkValues("active_kcal", source: "apple-health", window: 14)
 
-        // 14-day sparklines — Apple Health.
-        sparks["resp_rate"]   = await sparkValues("resp_rate", source: "apple-health", window: 14)
-        sparks["steps"]       = await sparkValues("steps", source: "apple-health", window: 14)
+        sparks["recovery"]        = await recoverySpark
+        sparks["strain"]          = await strainSpark
+        sparks["sleep_total_min"] = await sleepTotalSpark
+        sparks["hrv"]             = await hrvSpark
+        sparks["rhr"]             = await rhrSpark
+        sparks["spo2"]            = await spo2Spark
+        sparks["resp_rate"]   = await respRateSpark
+        sparks["steps"]       = await stepsAppleSpark
         // Steps prefer the strap's own @57 daily total (no metricSeries — it lives on the daily row),
         // so a strap-only WHOOP 5/MG user gets a steps trend without Apple Health. Falls back to the
-        // Apple Health series above when the strap supplied no steps (#276).
+        // Apple Health series above when the strap supplied no steps (#276). This synchronous overwrite
+        // must run AFTER sparks["steps"] is assigned from the Apple-Health read above (unchanged order).
         let strapSteps = repo.days.suffix(14).compactMap { $0.steps.map(Double.init) }
         if !strapSteps.isEmpty { sparks["steps"] = strapSteps }
-        sparks["weight"]      = await sparkValues("weight", source: "apple-health", window: 90)
-        sparks["active_kcal"] = await sparkValues("active_kcal", source: "apple-health", window: 14)
+        sparks["weight"]      = await weightSpark
+        sparks["active_kcal"] = await activeKcalSpark
+
+        // The next block of reads are all mutually independent (distinct keys/sources, none consumes
+        // another's result): the Rest + steps-estimate series, the two provenance resolves, workout +
+        // Apple-daily rows, the two Mi-Band series, and the three "your cards" series. Fire them all
+        // off concurrently with `async let`, then await each where its result is first used — same
+        // data, same derivations, same assignment order as the sequential version, all on the main actor.
+        async let restSeriesA       = repo.exploreSeries(key: "sleep_performance", source: "my-whoop")
+        async let stepsEstSeriesA    = repo.exploreSeries(key: "steps_est", source: "my-whoop")
+        async let recoveryResolvedA  = repo.resolvedSeries(key: "recovery", source: Repository.whoopSource)
+        async let restResolvedA      = repo.resolvedSeries(key: "sleep_performance", source: Repository.whoopSource)
+        async let workoutsA          = repo.workoutRows()
+        async let appleDaysA         = repo.appleDailyRows()
+        async let xStepsA            = repo.series(key: "steps", source: "xiaomi-band")
+        async let xSleepA            = repo.series(key: "sleep_total_min", source: "xiaomi-band")
+        async let stressSeriesA      = repo.exploreSeries(key: "stress", source: "my-whoop")
+        async let fitnessAgeSeriesA  = repo.exploreSeries(key: "fitness_age", source: "my-whoop")
+        async let vitalitySeriesA    = repo.exploreSeries(key: "vitality", source: "my-whoop")
 
         // Rest SCORE for the logical day. `exploreSeries` already merges imported + computed
         // `sleep_performance` (imported-wins), so a Bluetooth-only user sees the on-device Rest
         // composite and an importer sees the export's figure — exactly like the Rest detail screen.
-        let restSeries = await repo.exploreSeries(key: "sleep_performance", source: "my-whoop")
+        let restSeries = await restSeriesA
         let restByDay = Dictionary(restSeries.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
         // The Rest TILE's sparkline (#614 follow-up). The tile's number is `restScore` (the Rest composite,
         // 0–100) but its mini-graph used to plot raw sleep MINUTES (`sparks["sleep_total_min"]`), so the
@@ -2307,7 +2409,7 @@ struct TodayView: View {
         // "-noop" metricSeries the IntelligenceEngine writes, exactly like the Explore "steps_est" metric.
         // Only consulted when a day has no REAL step count (see the .steps tile), so it never overrides a
         // measured value — it just fills the gap a 4.0 user would otherwise see as "—".
-        let stepsEstSeries = await repo.exploreSeries(key: "steps_est", source: "my-whoop")
+        let stepsEstSeries = await stepsEstSeriesA
         stepsEstByDay = Dictionary(stepsEstSeries.map { ($0.day, Int($0.value.rounded())) },
                                    uniquingKeysWith: { _, last in last })
         // The selected day's Rest, falling back to the series tail only when today itself is selected —
@@ -2320,27 +2422,27 @@ struct TodayView: View {
         // provenance badge reflects the truth (computed vs imported), never a blanket "on-device". Keyed by
         // metric so the Charge ring and Rest tile each badge their own winner.
         var provenance: [String: String] = [:]
-        let recoveryResolved = await repo.resolvedSeries(key: "recovery", source: Repository.whoopSource)
+        let recoveryResolved = await recoveryResolvedA
         if let win = recoveryResolved.points.last(where: { $0.day == selectedDayKey })?.source {
             provenance["recovery"] = win
         }
-        let restResolved = await repo.resolvedSeries(key: "sleep_performance", source: Repository.whoopSource)
+        let restResolved = await restResolvedA
         if let win = restResolved.points.last(where: { $0.day == selectedDayKey })?.source {
             provenance["sleep_performance"] = win
         }
         provenanceByMetric = provenance
 
-        workouts = await repo.workoutRows()
-        appleDays = await repo.appleDailyRows()
+        workouts = await workoutsA
+        appleDays = await appleDaysA
         // Mi Band (Mi Fitness import) — distinct days across its representative metric keys.
-        let xSteps = await repo.series(key: "steps", source: "xiaomi-band")
-        let xSleep = await repo.series(key: "sleep_total_min", source: "xiaomi-band")
+        let xSteps = await xStepsA
+        let xSleep = await xSleepA
         xiaomiDays = Set(xSteps.map(\.day) + xSleep.map(\.day)).count
         // Your cards (#582 / Design Reset): latest Stress / Fitness age / Vitality for the pinned home
         // cards. Same merged exploreSeries reads their detail screens use; nil simply hides that card.
-        stressToday = (await repo.exploreSeries(key: "stress", source: "my-whoop")).last?.value
-        fitnessAgeToday = (await repo.exploreSeries(key: "fitness_age", source: "my-whoop")).last?.value
-        vitalityToday = (await repo.exploreSeries(key: "vitality", source: "my-whoop")).last?.value
+        stressToday = (await stressSeriesA).last?.value
+        fitnessAgeToday = (await fitnessAgeSeriesA).last?.value
+        vitalityToday = (await vitalitySeriesA).last?.value
         // Hydration card (opt-in): today's stored total + the sex/Effort goal. Only loaded when the
         // feature is on, so a disabled feature does zero work and the card stays hidden.
         if hydrationEnabled {
@@ -2487,6 +2589,10 @@ struct TodayView: View {
 
     /// Greeting word used as the section's trailing label (no lone text block).
     private var greetingWord: String {
+        #if DEBUG
+        // DEBUG promo harness: pin the greeting to the active frame's wording. No-op otherwise.
+        if let f = DemoDayHarness.active { return f.greeting }
+        #endif
         let h = Calendar.current.component(.hour, from: Date())
         switch h {
         case ..<12:   return "Good morning"

@@ -4,7 +4,12 @@ import GRDB
 /// Synchronous GRDB access to the device registry + day-ownership tables. Kept synchronous (its own
 /// queue) to mirror the existing store helpers; the app wraps it behind the WhoopStore actor / a
 /// @MainActor cache. Enforces invariant I1 (at most one .active) inside setActive's transaction.
-public struct DeviceRegistryStore {
+///
+/// `Sendable`: the only stored property is a GRDB `DatabaseQueue` (itself `@unchecked Sendable`, access
+/// internally serialized), so this thin synchronous wrapper is safe to hand across actor boundaries —
+/// e.g. the off-main `IntelligenceEngine.analyzeRecent` scan loop (FIX 1). A cross-module `public` struct
+/// doesn't auto-infer `Sendable`, so it's declared here.
+public struct DeviceRegistryStore: Sendable {
     let dbQueue: DatabaseQueue
     public init(dbQueue: DatabaseQueue) { self.dbQueue = dbQueue }
 
