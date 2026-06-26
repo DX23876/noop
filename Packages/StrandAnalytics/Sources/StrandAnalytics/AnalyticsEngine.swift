@@ -240,13 +240,18 @@ public enum AnalyticsEngine {
                                   // staged by `SleepStagerV2` instead of V1. Default false keeps V1 the
                                   // byte-identical default for pure-function callers/tests; IntelligenceEngine
                                   // threads `PuffinExperiment.experimentalSleepV2Enabled`. (V7 / #690)
-                                  useSleepStagerV2: Bool = false) -> DayResult {
+                                  useSleepStagerV2: Bool = false,
+                                  // Sleep & Rest test-mode trace sink (zero-cost default nil = byte-identical).
+                                  // When non-nil, the gate trace from detectSleep and the Rest sub-score line
+                                  // are forwarded line-by-line. Side-effect-only; never alters the DayResult.
+                                  traceSink: ((String) -> Void)? = nil) -> DayResult {
 
         // ── Sleep detection + staging ─────────────────────────────────────────
         let allSessions = SleepStager.detectSleep(hr: hr, rr: rr, resp: resp, gravity: gravity,
                                                   tzOffsetSeconds: tzOffsetSeconds, wristOff: wristOff,
                                                   bandSleepState: bandSleepState,
-                                                  useSleepStagerV2: useSleepStagerV2)
+                                                  useSleepStagerV2: useSleepStagerV2,
+                                                  traceSink: traceSink)
         // Sessions attributed to `day` = those whose end falls on `day` (LOCAL day, #277). `day` is
         // the caller's local-day key; attribute by the same offset so the bucket and the key agree.
         let matched = allSessions.filter { dayString($0.end, offsetSec: tzOffsetSeconds) == day }
@@ -307,6 +312,17 @@ public enum AnalyticsEngine {
             needHours: sleepNeedHours,
             consistency: sleepConsistency,
             deepSeconds: deepS)
+        // Sleep & Rest test mode (E5): emit the Rest sub-score breakdown for this night, reusing the
+        // IDENTICAL inputs `restScore` consumed above so the trace can never disagree with the score.
+        // `subScoreLine` itself reuses `Rest.composite` for the final value. Side-effect-only; emitted
+        // only when a trace is requested and this day actually scored a night.
+        if let traceSink, !matched.isEmpty {
+            traceSink(Rest.subScoreLine(
+                tstSeconds: tstS, inBedSeconds: inBedS, efficiency: efficiency,
+                restorativeSeconds: deepS + remS, needHours: sleepNeedHours,
+                consistency: sleepConsistency, deepSeconds: deepS,
+                groupFragments: mainGroup.count, groupInBedSeconds: inBedS))
+        }
 
         // #525 NOTE: the sleep-DURATION figures above are main-night-only (the headline "your night"),
         // but the physiological aggregates below (resting HR, HRV, respiration) intentionally stay over

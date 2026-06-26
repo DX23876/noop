@@ -76,6 +76,10 @@ final class IntelligenceEngine: ObservableObject {
     private struct DayScan {
         let result: AnalyticsEngine.DayResult
         let rhrLine: String?
+        /// Sleep & Rest test-mode gate-trace + Rest sub-score lines for this day, collected off the main
+        /// actor and replayed through `diagnosticSink` tagged `.sleep` in per-day order. Empty unless the
+        /// Sleep mode is active (the gate is read once before the loop), so the default path is unchanged.
+        let sleepTrace: [String]
     }
 
     struct Computed: Identifiable {
@@ -333,6 +337,11 @@ final class IntelligenceEngine: ObservableObject {
         // Bind `deviceId` (a MainActor instance `let`) to a local Sendable `String` so the @Sendable
         // detached closure captures the VALUE, never `self` (which would be an isolation violation).
         let ownerFallbackId = deviceId
+        // Sleep & Rest test mode (E5): read the zero-cost gate ONCE here (a single Bool) and capture it
+        // into the detached loop. When false (the default), no per-day trace sink is built and analyzeDay
+        // runs its byte-identical default path. When true, each day collects its gate-trace + Rest line,
+        // replayed below through `diagnosticSink` tagged `.sleep` in per-day order.
+        let sleepTraceActive = TestCentre.active(.sleep)
         let scanned: [DayScan] = await Task.detached(priority: .utility) {
             var out: [DayScan] = []
             for offset in 0..<maxDays {
@@ -410,6 +419,10 @@ final class IntelligenceEngine: ObservableObject {
                 // Already OFF the main actor — score directly (the prior nested `Task.detached` here only
                 // existed to hop off the main actor; the whole loop now runs off it, so the score is computed
                 // inline with the identical inputs and identical result).
+                // Sleep & Rest test mode (E5): a per-day collector for the gate trace + Rest sub-score line,
+                // built ONLY when the mode is active. nil otherwise = analyzeDay's byte-identical default path.
+                var sleepTrace: [String] = []
+                let traceSink: ((String) -> Void)? = sleepTraceActive ? { sleepTrace.append($0) } : nil
                 let res = AnalyticsEngine.analyzeDay(day: day, hr: hr, rr: rr, resp: resp, gravity: grav,
                                                      steps: steps, dayHr: dayHr, daySteps: daySteps,
                                                      dayGravity: dayGrav,
@@ -420,7 +433,8 @@ final class IntelligenceEngine: ObservableObject {
                                                      bandSleepState: bandSleepState,
                                                      // #690: thread the V2 toggle into the NORMAL staging path so
                                                      // it affects detected nights, not just the self-heal restage.
-                                                     useSleepStagerV2: useSleepStagerV2)
+                                                     useSleepStagerV2: useSleepStagerV2,
+                                                     traceSink: traceSink)
                 // ── RHR floor-vs-mean diagnostic (#691) ────────────────────────────────────────────────
                 // Make the recurring "NOOP's resting HR reads LOWER than my sleeping-HR app" reports
                 // explainable from the strap log instead of a guess. The two numbers measure different
@@ -441,7 +455,7 @@ final class IntelligenceEngine: ObservableObject {
                     }.map { $0.bpm }
                     rhrLine = Self.rhrFloorMeanLogLine(day: res.daily.day, floor: floor, inBedBpms: inBedBpms)
                 }
-                out.append(DayScan(result: res, rhrLine: rhrLine))
+                out.append(DayScan(result: res, rhrLine: rhrLine, sleepTrace: sleepTrace))
             }
             return out
         }.value
@@ -456,6 +470,9 @@ final class IntelligenceEngine: ObservableObject {
             nightlyRespByDay[res.daily.day] = res.daily.respRateBpm
             nightlySkinByDay[res.daily.day] = res.nightlySkinTempC
             if let line = scan.rhrLine { diagnosticSink?(line, nil) }
+            // Sleep & Rest test mode (E5): replay this day's gate-trace + Rest lines tagged `.sleep` so they
+            // land under the profile tag in the export. Empty unless the mode is active.
+            for line in scan.sleepTrace { diagnosticSink?(line, .sleep) }
             scoredNights.append((daily: res.daily, strain: res.strain, cachedSleep: res.cachedSleep,
                                  workouts: res.workouts, nightlySkin: res.nightlySkinTempC,
                                  sessionMotion: res.sessionMotionByStart))
