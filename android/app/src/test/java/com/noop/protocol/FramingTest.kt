@@ -232,6 +232,37 @@ class FramingTest {
         assertEquals(91.2, r.parsed["battery_pct"] as Double, 1e-9)
     }
 
+    /** Assemble a CRC-valid WHOOP4 COMMAND_RESPONSE (type 0x24) frame from a resp_cmd + payload,
+     *  computing crc8(length) and crc32(inner) the same way the strap would — so the decode vector
+     *  cross-checks the decoder rather than agreeing with a hand-typed CRC. */
+    private fun w4ResponseFrame(cmd: Int, payload: ByteArray): ByteArray {
+        val inner = byteArrayOf(0x24, 0x00, cmd.toByte()) + payload   // type, seq, resp_cmd, payload
+        val length = 4 + inner.size                                    // crc32 offset = 4 + inner
+        val out = ByteArray(length + 4)
+        out[0] = 0xAA.toByte()
+        out[1] = (length and 0xFF).toByte()
+        out[2] = ((length ushr 8) and 0xFF).toByte()
+        out[3] = Crc.crc8(byteArrayOf(out[1], out[2])).toByte()
+        inner.copyInto(out, 4)
+        val crc32 = Crc.crc32(inner)
+        for (i in 0..3) out[length + i] = ((crc32 ushr (8 * i)) and 0xFF).toByte()
+        return out
+    }
+
+    @Test
+    fun parse_commandResponse_reportVersionInfo_fwHarvard() {
+        // COMMAND_RESPONSE REPORT_VERSION_INFO(7): fw_harvard = 4 LE u32 at payload[3,7,11,15].
+        // Payload[0..2] are status bytes (ignored); the four versions encode 41.16.6.0.
+        val payload = ByteArray(19)
+        fun le32(at: Int, v: Int) { for (i in 0..3) payload[at + i] = ((v ushr (8 * i)) and 0xFF).toByte() }
+        le32(3, 41); le32(7, 16); le32(11, 6); le32(15, 0)
+        val r = Framing.parseFrame(w4ResponseFrame(CommandNumber.REPORT_VERSION_INFO.rawValue, payload))
+        assertTrue(r.ok)
+        assertEquals(true, r.crcOk)
+        assertEquals("COMMAND_RESPONSE", r.typeName)
+        assertEquals("41.16.6.0", r.parsed["fw_harvard"])
+    }
+
     @Test
     fun parse_corruptedCrc_reportsCrcFalse() {
         // Flip a payload byte so the CRC32 no longer matches; the frame is still well-formed (ok),
