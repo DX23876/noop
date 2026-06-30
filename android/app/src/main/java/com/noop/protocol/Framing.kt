@@ -325,6 +325,28 @@ object Framing {
         if (CommandNumber.fromRaw(cmd) == CommandNumber.GET_BATTERY_LEVEL) {
             frame.u8(13)?.let { pct -> if (pct <= 100) parsed["battery_pct"] = pct.toDouble() }
         }
+        // GET_HELLO (145): WHOOP 5/MG device name + firmware version. Mirrors the Swift Interpreter
+        // decodeWhoop5CommandResponse — pay base = frame[11]; the name is printable ASCII at pay[16], the
+        // firmware is 4 bytes at pay[93] guarded by pay[93]==50 (the "5.x" generation), the session token is
+        // deliberately never read. Surfaced on the Devices card. (Raw 145 == CommandNumber.GET_HELLO.)
+        if (cmd == 145) {
+            val payEnd = frame.size - 4 // strip the trailing CRC32
+            if (payEnd > 11) {
+                val pay = frame.copyOfRange(11, payEnd)
+                val name = StringBuilder()
+                var i = 16
+                while (i < pay.size && pay[i].toInt() != 0 &&
+                    (pay[i].toInt() and 0xFF) in 32..126 && name.length < 24
+                ) {
+                    name.append((pay[i].toInt() and 0xFF).toChar()); i++
+                }
+                if (name.length >= 6) parsed["device_name"] = name.toString()
+                if (pay.size >= 97 && (pay[93].toInt() and 0xFF) == 50) {
+                    parsed["fw_version"] = "${pay[93].toInt() and 0xFF}.${pay[94].toInt() and 0xFF}." +
+                        "${pay[95].toInt() and 0xFF}.${pay[96].toInt() and 0xFF}"
+                }
+            }
+        }
     }
 
     /**
@@ -442,6 +464,17 @@ object Framing {
                         ((pay[4].toLong() and 0xFFL) shl 16) or
                         ((pay[5].toLong() and 0xFFL) shl 24)
                     parsed["clock"] = v.toInt()
+                }
+            }
+            CommandNumber.REPORT_VERSION_INFO -> {
+                // WHOOP 4.0 firmware version (the main "Harvard" MCU): 4 little-endian u32 at pay[3,7,11,15].
+                // Mirrors the Swift PostHooks command_response `fw_harvard` decode. Surfaced on the Devices card.
+                if (pay.size >= 19) {
+                    fun le32(at: Int): Long = (pay[at].toLong() and 0xFFL) or
+                        ((pay[at + 1].toLong() and 0xFFL) shl 8) or
+                        ((pay[at + 2].toLong() and 0xFFL) shl 16) or
+                        ((pay[at + 3].toLong() and 0xFFL) shl 24)
+                    parsed["fw_harvard"] = "${le32(3)}.${le32(7)}.${le32(11)}.${le32(15)}"
                 }
             }
             else -> Unit

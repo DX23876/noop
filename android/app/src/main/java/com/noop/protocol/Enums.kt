@@ -72,6 +72,10 @@ enum class EventNumber(val rawValue: Int) {
  */
 enum class CommandNumber(val rawValue: Int) {
     TOGGLE_REALTIME_HR(3),
+    // Firmware/version read. WHOOP 4.0 answers with the bundled component versions
+    // (`fw_harvard` a.b.c.d, `fw_boylston` a.b.c.d). Documented-safe read — distinct from the
+    // firmware-LOAD opcodes. Port of Swift `WhoopCommand.reportVersionInfo` (whoop_protocol.json: 7).
+    REPORT_VERSION_INFO(7),
     SET_CLOCK(10),
     GET_CLOCK(11),
     SEND_HISTORICAL_DATA(22),
@@ -82,6 +86,9 @@ enum class CommandNumber(val rawValue: Int) {
     GET_BATTERY_LEVEL(26),
     GET_DATA_RANGE(34),
     GET_HELLO_HARVARD(35),
+    // WHOOP 5.0/MG hello. Carries device name + `fw_version` a.b.c.d in the response. Older (4.0)
+    // firmware answers "unsupported" (0a03) and is ignored. Port of Swift `WhoopCommand.getHello` (145).
+    GET_HELLO(145),
     SEND_R10_R11_REALTIME(63),
     // WHOOP 5.0/MG (device family GOOSE/MAVERICK) one-shot buzz. Gen-4 straps use the legacy
     // RUN_HAPTICS_PATTERN(79) below; a 5/MG strap only honors this command.
