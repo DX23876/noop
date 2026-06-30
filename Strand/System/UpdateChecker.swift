@@ -18,7 +18,7 @@ final class UpdateChecker: ObservableObject {
 
     @Published var state: State = .idle
 
-    private static let endpoint = URL(string: "https://api.github.com/repos/NoopApp/noop/releases/latest")!
+    private static let endpoint = URL(string: "https://api.github.com/repos/ryanbr/noop/releases/latest")!
 
     func check(currentVersion: String) {
         guard state != .checking else { return }

@@ -1821,7 +1821,7 @@ struct SettingsView: View {
 
                 // Project home — NOOP's code, releases, issues and wiki live on GitHub
                 // (canonical; noop.fans is kept as a mirror).
-                Link(destination: URL(string: "https://github.com/NoopApp/noop")!) {
+                Link(destination: URL(string: "https://github.com/ryanbr/noop")!) {
                     HStack(spacing: 10) {
                         Image(systemName: "chevron.left.forwardslash.chevron.right")
                             .foregroundStyle(StrandPalette.accent)

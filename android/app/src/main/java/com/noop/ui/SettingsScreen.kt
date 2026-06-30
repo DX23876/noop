@@ -1884,11 +1884,11 @@ fun SettingsScreen(vm: AppViewModel, onOpenTestCentre: () -> Unit = {}) {
                         .background(Palette.accent.copy(alpha = 0.10f))
                         .border(1.dp, Palette.accent.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
                         .clickable {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/NoopApp/noop"))
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/ryanbr/noop"))
                             try {
                                 context.startActivity(intent)
                             } catch (_: ActivityNotFoundException) {
-                                Toast.makeText(context, "github.com/NoopApp/noop", Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, "github.com/ryanbr/noop", Toast.LENGTH_LONG).show()
                             }
                         }
                         .padding(horizontal = 14.dp, vertical = 12.dp)

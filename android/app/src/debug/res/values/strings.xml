@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Fork-only (noop-staging): debug builds are the testing/staging app. The package is already
+  com.noop.whoop.debug (debug applicationIdSuffix), so it installs ALONGSIDE the official NOOP
+  (com.noop.whoop) with its own data. This override gives it a distinct launcher name so the two
+  are tellable apart on the home screen. Build-type source set wins over main/flavor, so
+  assembleFullDebug shows "NOOP Staging". Mirrors how the demo flavor labels itself "NOOP Demo".
+-->
+<resources>
+    <string name="app_name">NOOP Staging</string>
+</resources>
