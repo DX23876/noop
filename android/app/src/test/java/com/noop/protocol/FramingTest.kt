@@ -303,6 +303,21 @@ class FramingTest {
     }
 
     @Test
+    fun reassembler_reconstructsFromOneBytePerFragment() {
+        // Feed two back-to-back frames ONE BYTE per fragment: hammers the offset/compact buffer the way
+        // the historical offload does (the worst case for the old O(n^2) drain). Output must still be the
+        // two exact frames, in order.
+        val a = Framing.buildCommand(CommandNumber.GET_BATTERY_LEVEL, byteArrayOf(0), seq = 0)
+        val b = Framing.buildCommand(CommandNumber.GET_CLOCK, byteArrayOf(0), seq = 1)
+        val r = Reassembler()
+        val out = ArrayList<ByteArray>()
+        for (byte in a + b) out += r.feed(byteArrayOf(byte))
+        assertEquals(2, out.size)
+        assertArrayEquals(a, out[0])
+        assertArrayEquals(b, out[1])
+    }
+
+    @Test
     fun reassembler_resetDropsPartialFrame() {
         // reset() (called on every reconnect) must discard a buffered half-frame, so the stale bytes
         // can't corrupt the first frame of the next session.
