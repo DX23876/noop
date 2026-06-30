@@ -1710,6 +1710,14 @@ final class Repository: ObservableObject {
         } else if let old, old.startTs != row.startTs || old.sport != row.sport {
             _ = try? await store.deleteWorkouts(deviceId: deviceId, sport: old.sport,
                                                 from: old.startTs, to: old.startTs)
+            // #10: the GPS route lives in RouteStore keyed by the natural key (startTs + sport), NOT in the
+            // DB row. Re-keying the DB row above without moving the route would orphan it under the OLD key,
+            // so the detail view's route + distance vanish after a sport/start edit. Re-key the route too:
+            // read it under the old key and, ONLY if one exists, store it under the new key then drop the old.
+            if let route = RouteStore.load(startTs: old.startTs, sport: old.sport) {
+                RouteStore.store(route, startTs: row.startTs, sport: row.sport)
+                RouteStore.remove(startTs: old.startTs, sport: old.sport)
+            }
         }
         _ = try? await store.upsertWorkouts([row], deviceId: deviceId)
     }
