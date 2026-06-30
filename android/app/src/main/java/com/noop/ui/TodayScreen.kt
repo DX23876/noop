@@ -143,6 +143,7 @@ import kotlin.math.roundToInt
  *  iOS card ids so an export/import round-trips. */
 private const val CARD_SCORES_BUILDING = "scoresBuilding"
 private const val CARD_NEW_HERE = "newHere"
+private const val CARD_CALIBRATING = "calibratingBaseline"
 
 /** Process-lifetime guard for the #605 dashboard auto-land. A top-level var = one value per LAUNCH, which
  *  survives BOTH a recomposition AND an Activity recreation / tab-away+restore. rememberSaveable only
@@ -469,6 +470,9 @@ fun TodayScreen(
     var newHereDismissed by remember {
         mutableStateOf(TodayCardDismissal.isDismissed(context, CARD_NEW_HERE))
     }
+    var calibratingDismissed by remember {
+        mutableStateOf(TodayCardDismissal.isDismissed(context, CARD_CALIBRATING))
+    }
     // Dismiss a Today info-card INTO the inbox: persist its flag, hide it, and post a restorable
     // `.dismissedCard` update carrying the card id. Mirrors the iOS `dismissTodayCard`.
     val dismissTodayCard: (String, String, String) -> Unit = { id, title, message ->
@@ -476,6 +480,7 @@ fun TodayScreen(
         when (id) {
             CARD_SCORES_BUILDING -> scoresBuildingDismissed = true
             CARD_NEW_HERE -> newHereDismissed = true
+            CARD_CALIBRATING -> calibratingDismissed = true
         }
         updateStore?.post(
             UpdateItem(
@@ -495,6 +500,7 @@ fun TodayScreen(
             when (restoreSignal) {
                 CARD_SCORES_BUILDING -> scoresBuildingDismissed = false
                 CARD_NEW_HERE -> newHereDismissed = false
+                CARD_CALIBRATING -> calibratingDismissed = false
             }
             updateStore.restoreRequest = null
         }
@@ -858,13 +864,33 @@ fun TodayScreen(
             // do. "Calibrating" (N more nights, no fake number), "Last night · <date>" (#802 carry-over)
             // or "Needs the strap" (no data overnight). The carried Charge now draws a dimmed filled ring on
             // the hero with NO in-ring caption, so its "Last night ..." note renders BELOW the rings here,
-            // matching iOS explainedScoreNote. Today only; never a fabricated value.
+            // matching iOS explainedScoreNote. CarriedLastNight + NeedsStrap always show (one-off / today-
+            // blocking, not recurring nags); the Calibrating note is dismissible-and-remembered just below.
+            // Today only; never a fabricated value.
             if (selectedDayOffset == 0 &&
-                (scoreState is ScoreState.Calibrating ||
-                    scoreState is ScoreState.CarriedLastNight ||
-                    scoreState is ScoreState.NeedsStrap)
+                (scoreState is ScoreState.CarriedLastNight || scoreState is ScoreState.NeedsStrap)
             ) {
                 ScoreStateNote(scoreState)
+            }
+            // The calibrating "Building your baseline … N more nights …" note is dismissible-and-remembered
+            // (into the Updates inbox, restorable) like the neighbouring "scores are building" card, so a
+            // returning user who's read it once isn't shown it every day through the calibration window.
+            if (selectedDayOffset == 0 && scoreState is ScoreState.Calibrating && !calibratingDismissed) {
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    ScoreStateNote(scoreState)
+                    if (updateStore != null) {
+                        TodayCardDismissButton(
+                            modifier = Modifier.align(Alignment.TopEnd),
+                            onClick = {
+                                dismissTodayCard(
+                                    CARD_CALIBRATING,
+                                    "Building your baseline",
+                                    "Charge, Effort and Rest become personal after a few nights of wear.",
+                                )
+                            },
+                        )
+                    }
+                }
             }
             if (selectedDayOffset != 0 || !scoresBuildingDismissed) {
                 Box(modifier = Modifier.fillMaxWidth()) {
