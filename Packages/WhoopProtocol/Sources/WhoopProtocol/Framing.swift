@@ -20,10 +20,16 @@ private let crc8Table: [UInt8] = [
     0xDE, 0xD9, 0xD0, 0xD7, 0xC2, 0xC5, 0xCC, 0xCB, 0xE6, 0xE1, 0xE8, 0xEF, 0xFA, 0xFD, 0xF4, 0xF3,
 ]
 
-public func crc8(_ bytes: [UInt8]) -> UInt8 {
+/// CRC-8 (poly 0x07) over `bytes[from..<(to ?? count)]`. The range (default = whole array) lets the
+/// per-frame validator checksum a slice of the frame WITHOUT materializing a sub-array via
+/// `Array(frame[...])` (#perf) — every frame is CRC'd, so that copy added up on the historical-offload path.
+public func crc8(_ bytes: [UInt8], _ from: Int = 0, _ to: Int? = nil) -> UInt8 {
+    let end = to ?? bytes.count
     var crc: UInt8 = 0
-    for b in bytes {
-        crc = crc8Table[Int(crc ^ b)]
+    var i = from
+    while i < end {
+        crc = crc8Table[Int(crc ^ bytes[i])]
+        i += 1
     }
     return crc
 }
@@ -41,20 +47,27 @@ private let crc32Table: [UInt32] = {
     return table
 }()
 
-public func crc32(_ bytes: [UInt8]) -> UInt32 {
+/// Standard zlib CRC-32 over `bytes[from..<(to ?? count)]` (default = whole array). Ranged to avoid a
+/// per-frame sub-array allocation in the validator (#perf).
+public func crc32(_ bytes: [UInt8], _ from: Int = 0, _ to: Int? = nil) -> UInt32 {
+    let end = to ?? bytes.count
     var crc: UInt32 = 0xFFFFFFFF
-    for b in bytes {
-        crc = crc32Table[Int((crc ^ UInt32(b)) & 0xFF)] ^ (crc >> 8)
+    var i = from
+    while i < end {
+        crc = crc32Table[Int((crc ^ UInt32(bytes[i])) & 0xFF)] ^ (crc >> 8)
+        i += 1
     }
     return crc ^ 0xFFFFFFFF
 }
 
 /// CRC16-Modbus (poly 0xA001, init 0xFFFF, reflected). Used for the Whoop 5.0 frame header check.
 /// Ported verbatim from the Goose reverse-engineering (`crc16Modbus`).
-public func crc16Modbus(_ bytes: [UInt8]) -> UInt16 {
+public func crc16Modbus(_ bytes: [UInt8], _ from: Int = 0, _ to: Int? = nil) -> UInt16 {
+    let end = to ?? bytes.count
     var crc: UInt16 = 0xFFFF
-    for b in bytes {
-        crc ^= UInt16(b)
+    var i = from
+    while i < end {
+        crc ^= UInt16(bytes[i])
         for _ in 0..<8 {
             if crc & 1 == 1 {
                 crc = (crc >> 1) ^ 0xA001
@@ -62,6 +75,7 @@ public func crc16Modbus(_ bytes: [UInt8]) -> UInt16 {
                 crc >>= 1
             }
         }
+        i += 1
     }
     return crc
 }
@@ -97,12 +111,12 @@ public func verifyFrame(_ frame: [UInt8]) -> FrameCheck {
         return FrameCheck(ok: false)
     }
     let length = u16le(frame, 1)
-    let crc8OK = crc8([frame[1], frame[2]]) == frame[3]
+    // Ranged CRC over the frame in place — no per-frame sub-array allocation (#perf).
+    let crc8OK = crc8(frame, 1, 3) == frame[3]
     var crc32OK: Bool? = nil
     // length must cover at least the envelope's inner bytes (mirrors framing.py).
     if 7 <= length && length + 4 <= frame.count {
-        let inner = Array(frame[4..<length])
-        crc32OK = crc32(inner) == u32le(frame, length)
+        crc32OK = crc32(frame, 4, length) == u32le(frame, length)   // inner = frame[4..<length]
     }
     let ok = crc8OK && (crc32OK ?? false)
     return FrameCheck(ok: ok, length: length, crc8OK: crc8OK, crc32OK: crc32OK)
@@ -145,8 +159,8 @@ private func verifyFrameWhoop5(_ frame: [UInt8]) -> FrameCheck {
     }
     let total = declaredLength + 8
 
-    // Header CRC16-Modbus over the first 6 bytes, stored LE at frame[6..8].
-    let wantHeaderCRC = crc16Modbus(Array(frame[0..<6]))
+    // Header CRC16-Modbus over the first 6 bytes, stored LE at frame[6..8]. Ranged, no copy (#perf).
+    let wantHeaderCRC = crc16Modbus(frame, 0, 6)
     let gotHeaderCRC = UInt16(frame[6]) | (UInt16(frame[7]) << 8)
     let headerCRCOK = wantHeaderCRC == gotHeaderCRC
 
@@ -154,8 +168,7 @@ private func verifyFrameWhoop5(_ frame: [UInt8]) -> FrameCheck {
     if frame.count >= total {
         // payload spans [8, total-4); CRC32 trailer is the final 4 bytes of the frame.
         let payloadEnd = total - 4
-        let payload = Array(frame[8..<payloadEnd])
-        let want = crc32(payload)
+        let want = crc32(frame, 8, payloadEnd)   // payload = frame[8..<payloadEnd]
         let got = u32le(frame, payloadEnd)
         crc32OK = want == got
     }
