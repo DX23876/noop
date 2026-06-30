@@ -42,7 +42,17 @@ private fun ByteArray.u32(off: Int): Long? {
  * the 0xAA SOF are discarded. Mirrors framing.py / Swift `Reassembler`.
  */
 class Reassembler(private val family: DeviceFamily = DeviceFamily.WHOOP4) {
-    private val buf = ArrayList<Byte>()
+    // Byte-array window with a read offset, NOT an ArrayList<Byte> (#perf): the old buffer boxed every
+    // incoming byte (buf.add(b)) and drained each completed frame with repeat(total){ removeAt(0) } — an
+    // O(n) array shift PER BYTE, i.e. O(n^2) to drain one frame, on the per-notification path the
+    // historical offload hammers (thousands of ~1.9 KB records over a multi-night sync). Here bytes append
+    // into a plain ByteArray, `start` advances past consumed bytes, and the unconsumed tail is compacted to
+    // the front once per feed(). Same frames, same order, byte-identical output (FramingTest reassembler
+    // vectors guard it). `compact()` runs at the end of every feed(), so `start` is always 0 when the next
+    // append() lands — append() can therefore size off `end` alone with no dead space.
+    private var buf = ByteArray(0)
+    private var start = 0   // first unconsumed byte
+    private var end = 0     // one past the last valid byte
 
     /**
      * Drop any partial-frame remnant. Called on (re)connect so a stalled or garbage frame from one
@@ -50,51 +60,79 @@ class Reassembler(private val family: DeviceFamily = DeviceFamily.WHOOP4) {
      * reassigning a fresh `Reassembler` on every connect (BLEManager.swift:183).
      */
     fun reset() {
-        buf.clear()
+        start = 0
+        end = 0
     }
 
     /** Feed one fragment; return zero or more complete frames now available, in order. */
     fun feed(fragment: ByteArray): List<ByteArray> {
-        for (b in fragment) buf.add(b)
+        append(fragment)
         val out = ArrayList<ByteArray>()
         while (true) {
-            val sof = buf.indexOfFirst { it == 0xAA.toByte() }
-            if (sof < 0) {
-                buf.clear()
+            val sof = indexOfSof()
+            if (sof < 0) {                 // no SOF anywhere → nothing salvageable, drop it all
+                start = 0
+                end = 0
                 break
             }
-            if (sof > 0) {
-                // drop everything before the SOF
-                repeat(sof) { buf.removeAt(0) }
-            }
-            if (buf.size < 4) break
+            if (sof > start) start = sof   // discard the leading bytes before the SOF
+            val avail = end - start
+            if (avail < 4) break
             // Frame length is encoded differently per family: WHOOP4 = u16 @[1..3], total = length + 4;
             // WHOOP5/MG ("puffin") = declaredLength u16 @[2..4], total = declaredLength + 8 (it counts
             // the payload + the 4-byte CRC32 trailer, and has 2 extra header bytes). Using the WHOOP4
             // formula on a 5/MG frame decodes a bogus 6 KB length and the live stream never emits.
-            val length: Int
-            val total: Int
-            if (family == DeviceFamily.WHOOP5) {
-                length = (buf[2].toInt() and 0xFF) or ((buf[3].toInt() and 0xFF) shl 8)
-                total = length + 8
+            val total: Int = if (family == DeviceFamily.WHOOP5) {
+                ((buf[start + 2].toInt() and 0xFF) or ((buf[start + 3].toInt() and 0xFF) shl 8)) + 8
             } else {
-                length = (buf[1].toInt() and 0xFF) or ((buf[2].toInt() and 0xFF) shl 8)
-                total = length + 4
+                ((buf[start + 1].toInt() and 0xFF) or ((buf[start + 2].toInt() and 0xFF) shl 8)) + 4
             }
             if (total > MAX_FRAME_BYTES) {
                 // A corrupt or misaligned SOF decodes an impossibly large length and we'd wait forever
                 // for bytes that can never arrive over BLE — the live stream would freeze until a
                 // reconnect. The largest real WHOOP frame is ~1920 B, so anything past the 8 KB ceiling
                 // is garbage: drop this 0xAA and resync to the next one.
-                buf.removeAt(0)
+                start += 1
                 continue
             }
-            if (buf.size < total) break
-            val frame = ByteArray(total) { buf[it] }
-            out.add(frame)
-            repeat(total) { buf.removeAt(0) }
+            if (avail < total) break
+            out.add(buf.copyOfRange(start, start + total))
+            start += total
         }
+        compact()
         return out
+    }
+
+    /** First 0xAA at or after [start], or -1 if none remain in the live window. */
+    private fun indexOfSof(): Int {
+        var i = start
+        while (i < end) {
+            if (buf[i] == 0xAA.toByte()) return i
+            i++
+        }
+        return -1
+    }
+
+    /** Append a fragment to the live window, growing the backing array (powers of two) when needed. */
+    private fun append(fragment: ByteArray) {
+        if (fragment.isEmpty()) return
+        if (end + fragment.size > buf.size) {
+            var cap = if (buf.isEmpty()) 256 else buf.size
+            while (cap < end + fragment.size) cap = cap shl 1
+            buf = buf.copyOf(cap)
+        }
+        System.arraycopy(fragment, 0, buf, end, fragment.size)
+        end += fragment.size
+    }
+
+    /** Slide the unconsumed tail back to offset 0 so `start` can't run away and the array stays small.
+     *  Bounded: the tail is at most one in-progress frame (< MAX_FRAME_BYTES). */
+    private fun compact() {
+        if (start == 0) return
+        val remaining = end - start
+        if (remaining > 0) System.arraycopy(buf, start, buf, 0, remaining)
+        start = 0
+        end = remaining
     }
 
     private companion object {
