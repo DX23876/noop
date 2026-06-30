@@ -106,6 +106,11 @@ data class LiveState(
      *  [withRRIntervals]; emptied by [clearedBiometrics]. Twin of macOS LiveState.rrRecent (PR#191). */
     val rrRecent: List<Int> = emptyList(),
     val batteryPct: Double? = null,
+    /** Strap firmware version from the connect handshake (4.0 `fw_harvard` a.b.c.d via REPORT_VERSION_INFO /
+     *  5·MG `fw_version` e.g. 50.38.1.0 via GET_HELLO), surfaced on the Devices card. null until the
+     *  response decodes. The Swift WhoopProtocol decodes the same fields (PostHooks/Interpreter); this
+     *  wires send → state → UI on Android. */
+    val strapFirmware: String? = null,
     /** Charging flag from BATTERY_LEVEL events — wire observation: u8 bit0 (4.0 @26 / 5.0 @30,
      *  ~every 8 min on captured links). Flag only; battery % keeps its family source (#77).
      *  Cleared on disconnect so a stale flag can't outlive the link. Twin of macOS
@@ -3029,6 +3034,12 @@ class WhoopBleClient(
 
             "COMMAND_RESPONSE" -> {
                 doubleValue(parsed.parsed["battery_pct"])?.let { setBattery(it) }
+                // Firmware version from the connect handshake (4.0 fw_harvard via REPORT_VERSION_INFO /
+                // 5·MG fw_version via GET_HELLO) → surface it on the Devices card. Keyed on the parsed
+                // field's presence (not resp_cmd), so it works for either family. Stable per connection.
+                (parsed.parsed["fw_version"] as? String ?: parsed.parsed["fw_harvard"] as? String)?.let { fw ->
+                    if (_state.value.strapFirmware != fw) _state.value = _state.value.copy(strapFirmware = fw)
+                }
                 val respCmd = parsed.parsed["resp_cmd"] as? String
                 val result = parsed.parsed["result"] as? String
                 // 5/MG range-query gate: a GET_DATA_RANGE SUCCESS releases the history request
@@ -3233,6 +3244,13 @@ class WhoopBleClient(
      */
     private fun runConnectHandshake() {
         send(CommandNumber.GET_HELLO_HARVARD)
+        // One-shot firmware-version read, surfaced on the Devices card. Documented-safe READ command
+        // (not a firmware-load opcode); the family-appropriate one is sent and its response decoded in
+        // Framing (`fw_harvard` 4.0 / `fw_version` 5·MG). Each family ignores the other's command.
+        when (connectedFamily) {
+            DeviceFamily.WHOOP4 -> send(CommandNumber.REPORT_VERSION_INFO)
+            DeviceFamily.WHOOP5 -> send(CommandNumber.GET_HELLO)
+        }
         sendSetClockBothForms()
         // GET_CLOCK's payload length is firmware-specific, exactly like SET_CLOCK's: newer firmware
         // answers the EMPTY form and ignores [0x00], while fw 41.17.x answers [0x00] and ignores the
