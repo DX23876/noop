@@ -122,12 +122,12 @@ object Framing {
     private fun verifyWhoop4(frame: ByteArray): FrameCheck {
         if (frame.size < 8 || frame[0] != 0xAA.toByte()) return FrameCheck(ok = false)
         val length = (frame[1].toInt() and 0xFF) or ((frame[2].toInt() and 0xFF) shl 8)
-        val headerOk = Crc.crc8(byteArrayOf(frame[1], frame[2])) == (frame[3].toInt() and 0xFF)
+        // Ranged CRC over the frame in place — no per-frame sub-array allocation (#perf).
+        val headerOk = Crc.crc8(frame, 1, 3) == (frame[3].toInt() and 0xFF)
         var crc32Ok: Boolean? = null
         // length must cover at least the envelope's inner bytes (mirrors framing.py).
         if (length in 7..(frame.size - 4)) {
-            val inner = frame.copyOfRange(4, length)
-            val want = Crc.crc32(inner)
+            val want = Crc.crc32(frame, 4, length)   // inner record = frame[4 until length]
             val got = frame.u32(length) ?: 0L
             crc32Ok = want == got
         }
@@ -146,15 +146,14 @@ object Framing {
         if (declaredLength < 4) return FrameCheck(ok = false, length = declaredLength)
         val total = declaredLength + 8
 
-        val wantHeader = Crc.crc16Modbus(frame.copyOfRange(0, 6))
+        val wantHeader = Crc.crc16Modbus(frame, 0, 6)   // ranged, no copyOfRange (#perf)
         val gotHeader = (frame[6].toInt() and 0xFF) or ((frame[7].toInt() and 0xFF) shl 8)
         val headerOk = wantHeader == gotHeader
 
         var crc32Ok: Boolean? = null
         if (frame.size >= total) {
             val payloadEnd = total - 4
-            val payload = frame.copyOfRange(8, payloadEnd)
-            val want = Crc.crc32(payload)
+            val want = Crc.crc32(frame, 8, payloadEnd)   // payload = frame[8 until payloadEnd]
             val got = frame.u32(payloadEnd) ?: 0L
             crc32Ok = want == got
         }
