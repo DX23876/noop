@@ -74,15 +74,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputScope
@@ -172,6 +169,14 @@ private const val CARD_CALIBRATING = "calibratingBaseline"
  *  behaviour untouched. iOS parity: TodayView's selectedDayOffset is plain @State, which is never persisted
  *  and so already re-inits to 0 on every fresh launch, reaching the same offset through the same helper. */
 private var todayDidSnapToTodayThisLaunch = false
+
+// MARK: - Liquid hero tokens (the liquid Today restyle)
+//
+// The hero card the score vessels float on, ported from the iOS LiquidTodayView. `heroFill` is a
+// translucent near-black (mock rgba(13,14,20,.80)) so it floats over the day-of-sky; the vessels + white
+// count-up numbers read crisp on it. Radius 26 + a white@0.11 hairline give the frosted-glass edge.
+private val LIQUID_HERO_FILL: Color = Color(red = 13f / 255f, green = 14f / 255f, blue = 20f / 255f, alpha = 0.80f)
+private val LIQUID_HERO_RADIUS: Dp = 26.dp
 
 /**
  * The minimal, stable slice of the BLE [com.noop.ble.LiveState] the Today top-level body reads. Pulled out
@@ -880,15 +885,17 @@ fun TodayScreen(
         // Tighten the top inset now the big title is gone (Compose forbids negative padding, so this
         // expresses iOS's `.padding(top: -16)` as a smaller scaffold top padding).
         topPadding = 12.dp,
-        // SCREEN-level day-cycle scene backdrop (iOS parity): the current hour's illustration sits behind
-        // the WHOLE top region, the TodayTopBar AND the rings hero, full-bleed (full-width, up behind the
-        // status bar), top-aligned, fading into the flat canvas over its lower portion, with a faint top
-        // dark scrim so the white header text stays legible. The cards float OVER it on the flat canvas
-        // below. Replaces the in-card hero scene (removed from the hero Box below). Mirrors iOS TodayView
-        // passing `topBackground: AnyView(SceneScreenBackground())`. No glow.
+        // LIQUID SKY BACKDROP (the pilot pattern — LiquidScreenSky.kt): the time-of-day liquid sky sits
+        // behind the WHOLE top region, the TodayTopBar AND the hero vessels, full-bleed (full-width, up
+        // behind the status bar via the scaffold's topBackground plumbing), top-aligned, settling into the
+        // flat canvas over its lower half so the cards float OVER it on the theme surface. This is the
+        // Android equivalent of the iOS `ScreenScaffold(topBackground: liquidScaffoldSky())`: it replaces
+        // the classic day-cycle SceneScreenBackground with the liquid day-of-sky (LiquidSkyStatic — no
+        // per-frame cost on this scroll-heavy screen). The other liquid screens drop in the SAME
+        // LiquidScreenSky() slot verbatim.
         // #698, gated on the "Day-cycle background" setting (default ON). Off passes null, so the scaffold
         // paints the plain dark surface canvas instead, mirroring iOS's `showDayCycleBackground ? ... : nil`.
-        topBackground = if (showDayCycleBackground) { { SceneScreenBackground() } } else null,
+        topBackground = if (showDayCycleBackground) { { LiquidScreenSky() } } else null,
     ) {
         // The header recording-status (COMPONENT 3) the top-bar light reflects: Recording while the strap
         // is connected and a live HR is streaming, else "Last synced Xm ago" from the last offload, else
@@ -1032,14 +1039,16 @@ fun TodayScreen(
         // in-card scene here, and no rounded clip (a flat hero on the screen-level backdrop). The Charge
         // ring value reads WHITE (GlowRing's centre label) with a charge-green arc, matching the iOS source.
         item {
+        // The liquid hero CARD: a translucent near-black that floats over the day-of-sky so the vessels +
+        // white count-up numbers stay crisp — the card does the contrast work, not a muted sky. A rounded
+        // 26 corner + a faint white hairline give it the frosted-glass edge of the iOS liquid heroCard
+        // (heroFill = rgba(13,14,20,.80), stroke white@0.11). Mirrors the iOS LiquidTodayView heroCard.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                // The dark hero CARD floats over the vivid day-scene so the rings + white numbers stay crisp,                 // the card does the contrast work, not a muted scene (2026-06-23). Mirrors iOS heroSection.
-                .background(
-                    Palette.surfaceBase.copy(alpha = 0.72f),
-                    RoundedCornerShape(Metrics.cardRadius),
-                )
+                .clip(RoundedCornerShape(LIQUID_HERO_RADIUS))
+                .background(LIQUID_HERO_FILL)
+                .border(1.dp, Color.White.copy(alpha = 0.11f), RoundedCornerShape(LIQUID_HERO_RADIUS))
                 .staggeredAppear(1),
         ) {
             ScoreHeroRow(
@@ -1364,13 +1373,16 @@ private fun WorkoutInProgressCard(
     val elapsed = elapsedClock(elapsedS)
     val sportLabel = workout.sport.name
 
+    // liquidPress on the whole tappable "return to workout" card (same interactionSource on clickable + press).
+    val interaction = remember { MutableInteractionSource() }
     NoopCard(
         tint = Palette.metricRose,
         // Combine into ONE actionable element so TalkBack reads "Workout in progress, $sport, $elapsed,
         // Return to workout" as a single Button, not five stops; the decorative dot is omitted by clearing
         // child semantics. The whole card is the tap target.
         modifier = Modifier
-            .clickable(onClick = onReturn)
+            .liquidPress(interaction)
+            .clickable(interactionSource = interaction, indication = null, onClick = onReturn)
             .semantics(mergeDescendants = true) {
                 contentDescription = "Workout in progress, $sportLabel, $elapsed. Return to workout."
             },
@@ -1889,11 +1901,14 @@ private fun RecordingStatusLight(state: RecordingState?, onClick: () -> Unit) {
  *  The whole card is the tap target. Lives near the donation nudge in the Today flow. */
 @Composable
 private fun SupportRow(onSupport: () -> Unit) {
+    // liquidPress on the whole tappable card (the SAME interactionSource drives the clickable + the press).
+    val interaction = remember { MutableInteractionSource() }
     NoopCard(
         modifier = Modifier
+            .liquidPress(interaction)
             .clip(RoundedCornerShape(Metrics.cardRadius))
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = interaction,
                 indication = null,
                 onClick = onSupport,
             )
@@ -1972,6 +1987,13 @@ private fun ScoreHeroRow(
     val effortOutOf = if (effortScale == EffortScale.WHOOP) 21.0 else 100.0
     val effortVal = strain?.let { UnitFormatter.effortValue(it, effortScale) } ?: 0.0
 
+    // The vessels run LIVE (per-frame slosh + tilt) once the row has any real score to show; a wholly
+    // empty/calibrating hero poses them static so a brand-new user's launch churn isn't fighting live
+    // canvases (the Android equivalent of the iOS `dataLoaded` gate on HeroScoreCell). LiquidVessel + the
+    // count-up both honour Reduce Motion internally, so this is purely a "don't animate an empty hero" cost
+    // gate. A carried Charge counts as data (its dimmed vessel should slosh like the Rest one).
+    val animated = recovery != null || strain != null || restScore != null || lastScoredCharge != null
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -1995,7 +2017,8 @@ private fun ScoreHeroRow(
                 horizontalArrangement = Arrangement.spacedBy(ringGap, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.Top,
             ) {
-                // CHARGE, recovery 0–100. Honest empty / calibrating overlay; badges its recovery winner.
+                // CHARGE, recovery 0–100, as a liquid VESSEL with the value counting up over it. Honest
+                // empty / calibrating overlay; badges its recovery winner.
                 HeroRingColumn(
                     domain = DomainTheme.Charge,
                     onInfo = { onScoreInfo(ScoreSection.CHARGE) },
@@ -2004,72 +2027,67 @@ private fun ScoreHeroRow(
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         // #802: when today has no Charge yet but a prior night's value is carried, draw a
-                        // DIMMED (0.8 opacity) REAL ring filled to the carried value, matching the Rest ring,
-                        // rather than a bare number on an empty track (which read as broken). Same diameter so
-                        // the self-sizing hero row is untouched; the dim + the carried "Last night · <date>"
-                        // caption mark it as carried, not today's fresh score. Mirrors iOS chargeRing (#802).
+                        // DIMMED (0.8 opacity) REAL vessel filled to the carried value, matching the Rest
+                        // vessel, rather than a bare number on an empty vessel (which read as broken). Same
+                        // diameter so the self-sizing hero row is untouched; the dim + the carried "Last
+                        // night · <date>" caption mark it as carried, not today's fresh score. Mirrors iOS.
                         val carried = if (recovery == null && recoveryCalibration == null) lastScoredCharge else null
                         if (carried != null) {
-                            // #802: the carried branch draws ONLY the dimmed filled ring with the value
-                            // number inside, matching iOS chargeRing. The "Last night · <date>" note is NOT
-                            // drawn in-ring (an unbounded in-ring caption inflated the Charge column and broke
-                            // the three-equal-rings layout); it renders BELOW the hero via ScoreStateNote.
-                            GlowRing(
+                            HeroScoreVessel(
                                 modifier = Modifier.alpha(0.8f),
-                                fraction = (carried.value / 100.0).toFloat(),
+                                fraction = carried.value / 100.0,
                                 value = carried.value,
-                                color = Palette.recoveryColor(carried.value),
+                                tint = Palette.recoveryColor(carried.value),
                                 diameter = ring,
-                                lineWidth = ring * 0.10f,
-                                showsLabel = true,
-                                format = { "${it.roundToInt()}" },
+                                animated = animated,
+                                showsValue = true,
                             )
                         } else {
-                            GlowRing(
-                                fraction = ((recovery ?: 0.0) / 100.0).toFloat(),
+                            HeroScoreVessel(
+                                fraction = (recovery ?: 0.0) / 100.0,
                                 value = recovery ?: 0.0,
-                                color = Palette.recoveryColor(recovery ?: 0.0),
+                                tint = Palette.recoveryColor(recovery ?: 0.0),
                                 diameter = ring,
-                                lineWidth = ring * 0.10f,
-                                showsLabel = recovery != null,
+                                animated = animated,
+                                showsValue = recovery != null,
                             )
-                            // Empty track + calibrating / no-data overlay (the carried case is handled above).
+                            // Empty vessel + calibrating / no-data overlay (the carried case is above).
                             if (recovery == null) RingEmptyOverlay(recoveryCalibration, diameter = ring)
                         }
-                        // No in-ring tap cue: the single tap affordance is the CHARGE-label chevron below the
-                        // ring (HeroRingColumn), matching iOS where the in-ring cue was removed.
+                        // No in-vessel tap cue: the single tap affordance is the CHARGE-label chevron below
+                        // the vessel (HeroRingColumn), matching iOS where the in-ring cue was removed.
                     }
                 }
-                // EFFORT, strain on the gauge, on the user's selected scale.
+                // EFFORT, strain on the gauge, on the user's selected scale, as a liquid vessel.
                 HeroRingColumn(domain = DomainTheme.Effort, onInfo = { onScoreInfo(ScoreSection.EFFORT) }) {
                     Box(contentAlignment = Alignment.Center) {
-                        GlowRing(
-                            fraction = (if (effortOutOf > 0) effortVal / effortOutOf else 0.0).toFloat(),
+                        HeroScoreVessel(
+                            fraction = if (effortOutOf > 0) effortVal / effortOutOf else 0.0,
                             value = effortVal,
-                            color = Palette.effortTint((strain ?: 0.0) / 100.0),
+                            tint = Palette.effortTint((strain ?: 0.0) / 100.0),
                             diameter = ring,
-                            lineWidth = ring * 0.10f,
-                            showsLabel = strain != null,
-                            format = { if (effortScale == EffortScale.WHOOP) String.format("%.1f", it) else it.toInt().toString() },
+                            animated = animated,
+                            showsValue = strain != null,
+                            format = { if (effortScale == EffortScale.WHOOP) String.format(Locale.US, "%.1f", it) else it.toInt().toString() },
                         )
                         if (strain == null) RingNoData()
                     }
                 }
-                // REST, sleep composite 0–100, reusing the recovery ring's colour scale. Badges its real
-                // sleep_performance merge winner under the ring (gated upstream on restScore != null).
+                // REST, sleep composite 0–100, reusing the recovery colour scale, as a liquid vessel. Badges
+                // its real sleep_performance merge winner under the vessel (gated upstream on restScore != null).
                 HeroRingColumn(
                     domain = DomainTheme.Rest,
                     onInfo = { onScoreInfo(ScoreSection.REST) },
                     provenance = restProvenance,
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        GlowRing(
-                            fraction = ((restScore ?: 0.0) / 100.0).toFloat(),
+                        HeroScoreVessel(
+                            fraction = (restScore ?: 0.0) / 100.0,
                             value = restScore ?: 0.0,
-                            color = Palette.recoveryColor(restScore ?: 0.0),
+                            tint = Palette.recoveryColor(restScore ?: 0.0),
                             diameter = ring,
-                            lineWidth = ring * 0.10f,
-                            showsLabel = restScore != null,
+                            animated = animated,
+                            showsValue = restScore != null,
                         )
                         // #898: an aggregate-import user (a daily HRV/RHR import, no in-bed session) gets a
                         // Charge from WatchRecovery but NO sleep_performance, so Rest used to read a bare
@@ -2110,10 +2128,16 @@ private fun HeroRingColumn(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         if (onRingTap != null) {
+            // liquidPress on the tappable Charge vessel so it settles inward on press (the vessel itself
+            // also splashes via LiquidVessel's own tap). Same interactionSource on the clickable + press.
+            val ringInteraction = remember { MutableInteractionSource() }
             Box(
                 modifier = Modifier
+                    .liquidPress(ringInteraction)
                     .clip(CircleShape)
                     .clickable(
+                        interactionSource = ringInteraction,
+                        indication = null,
                         onClickLabel = "See what shaped your ${domain.label}",
                         onClick = onRingTap,
                     ),
@@ -2159,6 +2183,54 @@ private fun HeroRingColumn(
                 provenance,
                 tint = provenanceLabelTint(provenance),
                 modifier = Modifier.semantics { contentDescription = "Source: $provenance" },
+            )
+        }
+    }
+}
+
+/**
+ * One hero score as a liquid VESSEL with the value counting up over it — the signature liquid Today hero
+ * element. A [LiquidVessel] (Compose primitive, LiquidPrimitives.kt) fills to [fraction] (0..1) in the
+ * domain [tint], sized to [diameter]; over it a [CountUpText] rolls the number up to [value] (white,
+ * tabular, a soft shadow so it reads on the vessel), matching the iOS `HeroScoreCell` (a count-up number
+ * over a filling vessel). The number is hit-transparent (clearAndSetSemantics + no clickable) so a tap
+ * falls THROUGH to the vessel — LiquidVessel owns its own tap→splash+haptic; the enclosing HeroRingColumn
+ * adds the Charge breakdown tap. When [showsValue] is false (no score yet) the vessel draws empty and the
+ * caller overlays the calibrating / No-Data text, so the number is simply omitted here.
+ *
+ * The number size tracks the diameter (≈ 0.27×, capped) so the three equal vessels stay balanced; it
+ * mirrors the iOS 96dp-vessel → 26pt-number ratio. Values/bindings are UNCHANGED from the GlowRing this
+ * replaced — same fraction, same value, same value-sampled tint.
+ */
+@Composable
+private fun HeroScoreVessel(
+    fraction: Double,
+    value: Double,
+    tint: Color,
+    diameter: Dp,
+    modifier: Modifier = Modifier,
+    animated: Boolean = true,
+    showsValue: Boolean = true,
+    format: (Double) -> String = { it.roundToInt().toString() },
+) {
+    Box(modifier = modifier.size(diameter), contentAlignment = Alignment.Center) {
+        LiquidVessel(
+            value = fraction.coerceIn(0.0, 1.0),
+            tint = tint,
+            animated = animated,
+            modifier = Modifier.size(diameter),
+        )
+        if (showsValue) {
+            // Count-up number over the vessel — white, tabular, a soft shadow for legibility, hit-transparent
+            // so the tap reaches the vessel (splash). Size ≈ diameter × 0.27 (iOS 96→26 ratio), capped.
+            val numberSp = (diameter.value * 0.27f).coerceIn(20f, 30f)
+            CountUpText(
+                value = value,
+                format = format,
+                style = NoopType.number(numberSp, weight = FontWeight.Bold)
+                    .copy(shadow = Shadow(color = Color.Black.copy(alpha = 0.5f), offset = Offset(0f, 1f), blurRadius = 6f)),
+                color = Color.White,
+                modifier = Modifier.clearAndSetSemantics {},
             )
         }
     }
@@ -2243,7 +2315,17 @@ private fun SynthesisHeroCard(
             synthesisDetail(day)
         }
         if (synthesisExpanded) {
-            Box(modifier = Modifier.clickable(onClickLabel = "Collapse", onClick = onToggleSynthesis)) {
+            val expandedInteraction = remember { MutableInteractionSource() }
+            Box(
+                modifier = Modifier
+                    .liquidPress(expandedInteraction)
+                    .clickable(
+                        interactionSource = expandedInteraction,
+                        indication = null,
+                        onClickLabel = "Collapse",
+                        onClick = onToggleSynthesis,
+                    ),
+            ) {
                 InsightCard(
                     modifier = Modifier.fillMaxWidth(),
                     category = "Synthesis",
@@ -2259,10 +2341,17 @@ private fun SynthesisHeroCard(
             }
         } else {
             // Collapsed: a one-liner with the SYNTHESIS overline, the status headline and a down-chevron.
+            val collapsedInteraction = remember { MutableInteractionSource() }
             NoopCard(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(onClickLabel = "Expand for the full read", onClick = onToggleSynthesis),
+                    .liquidPress(collapsedInteraction)
+                    .clickable(
+                        interactionSource = collapsedInteraction,
+                        indication = null,
+                        onClickLabel = "Expand for the full read",
+                        onClick = onToggleSynthesis,
+                    ),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -2678,12 +2767,21 @@ private fun DashboardCardRow(
 ) {
     // A real number renders white; a placeholder (No Data, or the Stress calibrating state) renders dimmed.
     val hasValue = value != NO_DATA && value != STRESS_CALIBRATING
+    // liquidPress: the tappable card settles inward on press (the iOS LiquidPressStyle feel). The SAME
+    // interactionSource feeds the clickable and the press modifier, so it responds to the actual touch.
+    // It is applied OUTSIDE the frosted surface so the whole card (surface + content) scales/dims as one.
+    val interaction = remember { MutableInteractionSource() }
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .let { if (onClick != null) it.liquidPress(interaction) else it }
             .clip(RoundedCornerShape(Metrics.cardRadius))
             .frostedCardSurface(cornerRadius = Metrics.cardRadius)
-            .let { if (onClick != null) it.clickable(onClick = onClick) else it }
+            .let {
+                if (onClick != null) {
+                    it.clickable(interactionSource = interaction, indication = null, onClick = onClick)
+                } else it
+            }
             .padding(horizontal = 13.dp, vertical = 11.dp)
             .semantics { contentDescription = "${card.title}: $value" },
         verticalAlignment = Alignment.CenterVertically,
@@ -3179,32 +3277,29 @@ private fun RecoveryContributorsSection(day: DailyMetric?, carriedDay: DailyMetr
     }
 }
 
-/** One labelled contributor bar in the shared stage/zone-bar style: a label + right-aligned read-out
- *  over an inset track with a round-capped metric-hue fill. A null fraction renders an empty track. */
+/** One labelled contributor bar: a label + right-aligned read-out over a liquid TUBE filled to [fraction].
+ *  These ARE genuine single-value progress bars (each signal against a typical adult span), so the liquid
+ *  finish reads well here (matching how the iOS liquid Today draws its single-value goal/strain bars as
+ *  tubes). Static (not per-frame) — they sit in the tapped-open Charge breakdown, not a live surface, so
+ *  `animated = false` keeps the sheet cheap. A null fraction renders an empty tube. */
 @Composable
 private fun ContributorBar(label: String, readout: String, fraction: Double?, color: Color) {
-    val fillFrac = fraction?.coerceIn(0.0, 1.0)?.toFloat() ?: 0f
+    val fillFrac = fraction?.coerceIn(0.0, 1.0) ?: 0.0
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.space6)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Overline(label, modifier = Modifier.weight(1f))
             Text(readout, style = NoopType.captionNumber, color = Palette.textPrimary)
         }
-        Box(
+        LiquidTube(
+            frac = fillFrac,
+            tint = color,
+            height = Metrics.progressHeight,
+            animated = false,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(Metrics.progressHeight)
-                .clip(RoundedCornerShape(Metrics.cornerPill))
-                .background(Palette.surfaceInset)
-                .semantics { contentDescription = "$label $readout" }
-                .drawBehind { if (fillFrac > 0f) drawContributorFill(color, fillFrac) },
+                .semantics { contentDescription = "$label $readout" },
         )
     }
-}
-
-private fun DrawScope.drawContributorFill(color: Color, frac: Float) {
-    val w = (size.width * frac).coerceAtLeast(size.height)
-    val r = size.height / 2f
-    drawRoundRect(color = color, size = Size(w, size.height), cornerRadius = CornerRadius(r, r))
 }
 
 /**
@@ -4658,10 +4753,17 @@ private fun TodaySourcesSection(
         // Collapsed: one tappable "Synced from: ..." line. Health Connect folds under the "Apple Watch"
         // bucket in the summary (both are the phone's health store to the audience); the expanded card
         // still lists every source by name, so no provenance detail is lost.
+        val collapsedInteraction = remember { MutableInteractionSource() }
         NoopCard(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClickLabel = "Show what NOOP is synced from", onClick = onToggle),
+                .liquidPress(collapsedInteraction)
+                .clickable(
+                    interactionSource = collapsedInteraction,
+                    indication = null,
+                    onClickLabel = "Show what NOOP is synced from",
+                    onClick = onToggle,
+                ),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
