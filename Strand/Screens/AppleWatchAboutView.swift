@@ -28,10 +28,10 @@ private struct WatchMetric: Identifiable {
 
         var pillLabel: String {
             switch self {
-            case .great:        return "Great"
-            case .good:         return "Good"
-            case .calibrating:  return "Calibrating"
-            case .unavailable:  return "Not available"
+            case .great:        return String(localized: "Great")
+            case .good:         return String(localized: "Good")
+            case .calibrating:  return String(localized: "Calibrating")
+            case .unavailable:  return String(localized: "Not available")
             }
         }
 
@@ -75,27 +75,27 @@ struct AppleWatchAboutView: View {
     // the watch is strongest at down to what it can't honestly do, so the page reads as a fair
     // appraisal rather than a sales pitch.
     private let metrics: [WatchMetric] = [
-        WatchMetric(icon: "bed.double.fill", metric: "Sleep / Rest",
+        WatchMetric(icon: "bed.double.fill", metric: String(localized: "Sleep / Rest"),
                     confidence: .great,
-                    detail: "Apple's own sleep stages drive Rest directly. This is one of the watch's strengths."),
-        WatchMetric(icon: "figure.walk", metric: "Steps & workouts",
+                    detail: String(localized: "Apple's own sleep stages drive Rest directly. This is one of the watch's strengths.")),
+        WatchMetric(icon: "figure.walk", metric: String(localized: "Steps & workouts"),
                     confidence: .great,
-                    detail: "Steps, active energy and logged workouts feed Effort. Dense and reliable."),
-        WatchMetric(icon: "lungs.fill", metric: "Fitness Age",
+                    detail: String(localized: "Steps, active energy and logged workouts feed Effort. Dense and reliable.")),
+        WatchMetric(icon: "lungs.fill", metric: String(localized: "Fitness Age"),
                     confidence: .great,
-                    detail: "Built from Apple's cardio-fitness VO₂ max estimate, the same number the Fitness app shows."),
-        WatchMetric(icon: "flame.fill", metric: "Effort",
+                    detail: String(localized: "Built from Apple's cardio-fitness VO₂ max estimate, the same number the Fitness app shows.")),
+        WatchMetric(icon: "flame.fill", metric: String(localized: "Effort"),
                     confidence: .good,
-                    detail: "Heart rate plus active energy give a solid daily cardiovascular load. An on-watch workout sharpens it further."),
-        WatchMetric(icon: "heart.fill", metric: "Recovery / Charge",
+                    detail: String(localized: "Heart rate plus active energy give a solid daily cardiovascular load. An on-watch workout sharpens it further.")),
+        WatchMetric(icon: "heart.fill", metric: String(localized: "Recovery / Charge"),
                     confidence: .calibrating,
-                    detail: "Led by your heart-rate variability versus your own baseline. The watch samples HRV rather than streaming it, so this needs about a week of nights to calibrate. Until then NOOP shows \u{201C}needs more data\u{201D}, never a guessed number."),
-        WatchMetric(icon: "thermometer.medium", metric: "Skin temperature",
+                    detail: String(localized: "Led by your heart-rate variability versus your own baseline. The watch samples HRV rather than streaming it, so this needs about a week of nights to calibrate. Until then NOOP shows \u{201C}needs more data\u{201D}, never a guessed number.")),
+        WatchMetric(icon: "thermometer.medium", metric: String(localized: "Skin temperature"),
                     confidence: .good,
-                    detail: "From the watch's wrist-temperature sensor during sleep, on Series 8 and later. Older models don't have the sensor, so it reads \u{201C}not available\u{201D} rather than zero."),
-        WatchMetric(icon: "drop.degreesign", metric: "Blood oxygen (SpO₂)",
+                    detail: String(localized: "From the watch's wrist-temperature sensor during sleep, on Series 8 and later. Older models don't have the sensor, so it reads \u{201C}not available\u{201D} rather than zero.")),
+        WatchMetric(icon: "drop.degreesign", metric: String(localized: "Blood oxygen (SpO₂)"),
                     confidence: .unavailable,
-                    detail: "Trend only where supported, and Apple removed the SpO₂ sensor from the newest US units, so on those it simply isn't there. NOOP shows nothing rather than a fake reading."),
+                    detail: String(localized: "Trend only where supported, and Apple removed the SpO₂ sensor from the newest US units, so on those it simply isn't there. NOOP shows nothing rather than a fake reading.")),
     ]
 
     var body: some View {
@@ -218,7 +218,7 @@ struct AppleWatchAboutView: View {
                     .font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
-                Text("That's why a watch-only Charge starts out \u{201C}Calibrating\u{201D}. NOOP needs about seven nights of your HRV to learn what normal looks like for you. Until it has them it withholds the score rather than guess. Once the baseline is set, your Charge appears with its confidence, on the same 0–100 scale as a strap's.")
+                Text("That's why a watch-only Charge starts out \u{201C}Calibrating\u{201D}. NOOP needs about seven nights of your HRV to learn what normal looks like for you. Until it has them it withholds the score rather than guess. Once the baseline is set, your Charge appears with its confidence, on the same 0-100 scale as a strap's.")
                     .font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)

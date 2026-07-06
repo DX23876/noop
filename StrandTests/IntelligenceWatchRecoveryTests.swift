@@ -75,4 +75,31 @@ final class IntelligenceWatchRecoveryTests: XCTestCase {
         XCTAssertEqual(scored.map { $0.day }, ordered.map { $0.day })
         XCTAssertNotNil(scored.last!.recovery)
     }
+
+    /// #823: the SAME source-only fold the wearable-import (Oura/Fitbit/Garmin/Health Connect) lane now uses
+    /// to score Charge for an import-only day. The rows are import DailyMetric rows (HRV + RHR, recovery nil);
+    /// with enough trailing history the latest import-only day comes out with a real Charge, so an
+    /// imported-only user no longer sees a permanently blank ring. This is the engine the IntelligenceEngine
+    /// wearable fold runs per source under `Repository.wearableImportSources`.
+    func testImportOnlyDaysGetScoredCharge() {
+        let importRows = (1...10).map { i in
+            appleRow(day: String(format: "2026-06-%02d", i), hrv: 50.0, rhr: 50)
+        }
+        let scored = IntelligenceEngine.watchRecoveries(appleRows: importRows)
+        let latest = scored.last!
+        XCTAssertEqual(latest.day, "2026-06-10")
+        XCTAssertNotNil(latest.recovery, "an import-only day with enough history must score a Charge (#823)")
+        XCTAssertNotEqual(latest.confidence, .calibrating)
+    }
+
+    /// #823 honesty: a sparse import (only a couple of days) must NOT fabricate a Charge , it stays nil +
+    /// calibrating, exactly like a cold-start strap. Only real, sufficient imported signal yields a score.
+    func testSparseImportStaysCalibratingNeverFabricated() {
+        let importRows = (1...3).map { i in
+            appleRow(day: String(format: "2026-06-%02d", i), hrv: 50.0, rhr: 50)
+        }
+        let scored = IntelligenceEngine.watchRecoveries(appleRows: importRows)
+        XCTAssertTrue(scored.allSatisfy { $0.recovery == nil })
+        XCTAssertTrue(scored.allSatisfy { $0.confidence == .calibrating })
+    }
 }

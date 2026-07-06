@@ -83,13 +83,13 @@ class DecoderGoldenTest {
 
     @Test
     fun testSpO2PerSample0x6F() {
-        // header high nibble 1 -> base 128 ; samples 95,96 ; FF terminator.
+        // byte6 high nibble 1 (base/status, discarded) ; samples 95,96 ; FF terminator (#968).
         val rec = record("6f0802000100105f60ff")
         val s = OuraDecoders.decodeSpO2PerSample(rec)
         assertEquals(
             listOf(
-                OuraSpO2(ringTimestamp = rt, value = 223),
-                OuraSpO2(ringTimestamp = rt, value = 224),
+                OuraSpO2(ringTimestamp = rt, value = 95),
+                OuraSpO2(ringTimestamp = rt, value = 96),
             ),
             s,
         )

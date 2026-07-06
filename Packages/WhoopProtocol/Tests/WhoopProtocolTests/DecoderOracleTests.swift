@@ -70,8 +70,14 @@ final class DecoderOracleTests: XCTestCase {
             for (key, expected) in frame.expect {
                 switch key {
                 case "gravity_mag":
-                    guard case .double(let wantMag) = expected else {
-                        XCTFail("gravity_mag must be a number in \(frame.name)"); continue
+                    // A whole-number magnitude like 1.0 decodes as .int(1) here, because OracleValue tries
+                    // Int before Double and Foundation's JSONDecoder accepts `1.0` as Int — so accept both
+                    // forms (an integer magnitude is still a valid double).
+                    let wantMag: Double
+                    switch expected {
+                    case .double(let d): wantMag = d
+                    case .int(let i): wantMag = Double(i)
+                    default: XCTFail("gravity_mag must be a number in \(frame.name)"); continue
                     }
                     let gx = parsed["gravity_x"]?.doubleValue
                     let gy = parsed["gravity_y"]?.doubleValue

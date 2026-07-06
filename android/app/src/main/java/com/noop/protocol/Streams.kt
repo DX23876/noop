@@ -34,15 +34,66 @@ data class Spo2Sample(val ts: Int, val red: Int, val ir: Int, val unit: String =
  * A skin-temperature sample at wall-clock unix seconds [ts]. Mirrors the Room `SkinTempSample` and
  * the Swift `SkinTempSample(raw:unit:)` shape.
  *
- * UNIT CONVENTION (codebase-wide): [raw] is an integer in CENTI-degrees C (°C = raw / 100). The WHOOP
- * @73 historical path stores raw at this scale and the analytics reader (AnalyticsEngine /
- * wornNightlySkinTempC, both platforms) divides raw by 100 to recover °C. The live Oura path stores
- * the SAME celsius * 100, so a given decoded celsius yields an IDENTICAL raw integer on Android and
- * macOS. [unit] carries the scale tag ("centi_c") explicitly so it is never silently assumed; it
- * mirrors the Swift `SkinTempSample.unit`. (The Room entity has no unit column yet; this carrier-level
- * tag plus this comment document the convention until a migration adds one.)
+ * UNIT CONVENTION: [raw] is a device-native register value whose °C scale is FAMILY-SPECIFIC (#938) —
+ * the 5/MG v18 @73 field is CENTI-degrees C (°C = raw / 100), but the WHOOP 4.0 v24 @72 field is a RAW
+ * ADC on a different scale. The analytics reader (AnalyticsEngine / wornNightlySkinTempC, both platforms)
+ * converts via [skinTempCelsius], which branches on [DeviceFamily]; running the 4.0 raw through /100 read
+ * every worn night ~8 °C, below the 28 °C worn gate (issue #938). The live Oura path stores celsius * 100
+ * (the 5/MG centidegree convention), so its raw decodes identically on Android and macOS. [unit] carries a
+ * scale tag ("raw_adc") so the scale is never silently assumed. (The Room entity has no unit column yet;
+ * this carrier-level tag plus this comment document the convention until a migration adds one.)
  */
 data class SkinTempSample(val ts: Int, val raw: Int, val unit: String = "raw_adc")
+
+/**
+ * WHOOP 4.0 (v24) skin-temp mapping constants (#938). The single provisional slope + anchor live in ONE
+ * place so the two-point-calibration TODO has an obvious home. Kept in lockstep with the Swift
+ * `Whoop4SkinTemp`.
+ */
+object Whoop4SkinTemp {
+    /** Worn resting raw register value the anchor pins (reporter's steady worn baseline, ~826). */
+    const val ANCHOR_RAW: Double = 826.0
+
+    /** Physiological nocturnal wrist skin temperature the anchor raw maps to (°C). */
+    const val ANCHOR_CELSIUS: Double = 33.0
+
+    /** PROVISIONAL °C-per-raw-unit slope. TODO(#938): replace with the two-point anchor slope. */
+    const val PROVISIONAL_SLOPE_C_PER_RAW: Double = 0.05
+}
+
+/**
+ * Convert a raw `skin_temp_raw` register value to °C, DEVICE-FAMILY-AWARE (#938).
+ *
+ * The two families bank skin temp on DIFFERENT scales, and applying one family's scale to the other is a
+ * real decode bug: the historical `skin_temp_raw` field is a RAW ADC on the WHOOP 4.0 (v24 @72, "degC
+ * computed server-side" per the schema) but a CENTIDEGREE register on the 5/MG (v18 @73). A single
+ * family-blind `raw/100` sent every 4.0 night ~8 °C low, below the 28 °C worn gate, so skin temp and the
+ * illness signal vanished (issue #938, reporter dpguglielmi's 4.0 capture).
+ *
+ * - [DeviceFamily.WHOOP5]: `raw / 100`. PROVEN on real 5/MG captures (Whoop5HistoricalTests: worn 3057 =
+ *   30.6 °C, off-wrist 2247 = 22.5 °C). Unchanged.
+ *
+ * - [DeviceFamily.WHOOP4]: a single-anchor affine map. The 4.0 firmware (41.17.6.0) banks byte-72 at 1 Hz
+ *   ON-WRIST ONLY, so there is ONE solid anchor and NO clean off-wrist room anchor from the strap. The
+ *   reporter's doff/don capture gives a steady worn resting value of raw ~826 (worn steady ~830–865; a
+ *   no-contact floor ~510–520 at removal, then banking stops). Under `/100` that reads ~8.3 °C — impossible
+ *   for a wrist streaming a resting HR (~52 bpm). We anchor the worn value at a defensible nocturnal wrist
+ *   skin temperature (33.0 °C ↔ raw 826) and carry a PROVISIONAL slope until a second calibration point
+ *   exists. Because downstream use is a deviation from the user's OWN nightly baseline (skinTempDevC), the
+ *   offset is what must be right to clear the absolute 28–42 °C worn gate + 20–42 °C baseline clamp; a slope
+ *   error only rescales the deviation and stays directionally correct. All 4.0 values APPROXIMATE.
+ *
+ *   TODO(#938): replace the provisional slope with the exact two-point anchor once a second worn point at a
+ *   markedly different ambient pins the ADC→°C transfer (including whether it is linear). Until then this is
+ *   a defensible worn-range mapping, NOT a claimed-accurate absolute thermometer. Kept in lockstep with the
+ *   Swift `skinTempCelsius(raw:family:)`.
+ */
+fun skinTempCelsius(raw: Int, family: DeviceFamily): Double = when (family) {
+    DeviceFamily.WHOOP5 -> raw / 100.0
+    DeviceFamily.WHOOP4 ->
+        Whoop4SkinTemp.ANCHOR_CELSIUS +
+            (raw - Whoop4SkinTemp.ANCHOR_RAW) * Whoop4SkinTemp.PROVISIONAL_SLOPE_C_PER_RAW
+}
 
 /**
  * A device event. [ts] is real RTC unix seconds (already wall-clock, never offset). [kind] is the

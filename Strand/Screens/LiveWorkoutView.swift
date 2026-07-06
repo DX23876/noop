@@ -183,10 +183,10 @@ struct LiveWorkoutView: View {
                 }
             }
             if let band = zoneSet.zones.first(where: { $0.number == zone }) {
-                Text("Zone \(zone): \(Int(band.lower))–\(Int(band.upper)) bpm (\(Int(band.lowerPct * 100))–\(Int(band.upperPct * 100))% max HR)")
+                Text("Zone \(zone): \(Int(band.lower))-\(Int(band.upper)) bpm (\(Int(band.lowerPct * 100))-\(Int(band.upperPct * 100))% max HR)")
                     .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
             } else {
-                Text("Warming up — keep moving to climb into Zone 1.")
+                Text("Warming up. Keep moving to climb into Zone 1.")
                     .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
             }
         }
@@ -195,11 +195,11 @@ struct LiveWorkoutView: View {
     private var statsGrid: some View {
         let w = model.activeWorkout
         return HStack(spacing: NoopMetrics.gap) {
-            stat("AVG", (w?.avgHr ?? 0) > 0 ? "\(w!.avgHr)" : "—",
+            stat(String(localized: "AVG"), (w?.avgHr ?? 0) > 0 ? "\(w!.avgHr)" : "—",
                  tint: (w?.avgHr ?? 0) > 0 ? StrandPalette.metricRose : StrandPalette.textPrimary)
-            stat("PEAK", (w?.peakHr ?? 0) > 0 ? "\(w!.peakHr)" : "—",
+            stat(String(localized: "PEAK"), (w?.peakHr ?? 0) > 0 ? "\(w!.peakHr)" : "—",
                  tint: (w?.peakHr ?? 0) > 0 ? StrandPalette.metricRose : StrandPalette.textPrimary)
-            stat("EFFORT", UnitFormatter.effortDisplay(w?.liveStrain ?? 0, scale: effortScale),
+            stat(String(localized: "EFFORT"), UnitFormatter.effortDisplay(w?.liveStrain ?? 0, scale: effortScale),
                  tint: StrandPalette.strainColor(w?.liveStrain ?? 0))
         }
     }
@@ -235,11 +235,11 @@ struct LiveWorkoutView: View {
 
     private static func zoneName(_ zone: Int) -> String {
         switch zone {
-        case 1: return "Recovery"
-        case 2: return "Fat burn"
-        case 3: return "Aerobic"
-        case 4: return "Threshold"
-        case 5: return "Maximum"
+        case 1: return String(localized: "Recovery")
+        case 2: return String(localized: "Fat burn")
+        case 3: return String(localized: "Aerobic")
+        case 4: return String(localized: "Threshold")
+        case 5: return String(localized: "Maximum")
         default: return ""
         }
     }
@@ -272,9 +272,9 @@ private struct SensorRowIfPresent: View {
                     .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
                     .foregroundStyle(StrandPalette.textSecondary)
                 HStack(spacing: NoopMetrics.gap) {
-                    if let speed { stat("SPEED", "\(speed) km/h", tint: StrandPalette.effortColor) }
-                    if let cadence { stat("CADENCE", "\(cadence)/min", tint: StrandPalette.effortColor) }
-                    if let power { stat("POWER", "\(power) W", tint: StrandPalette.effortColor) }
+                    if let speed { stat(String(localized: "SPEED"), "\(speed) km/h", tint: StrandPalette.effortColor) }
+                    if let cadence { stat(String(localized: "CADENCE"), "\(cadence)/min", tint: StrandPalette.effortColor) }
+                    if let power { stat(String(localized: "POWER"), "\(power) W", tint: StrandPalette.effortColor) }
                 }
             }
             .staggeredAppear(index: 5)

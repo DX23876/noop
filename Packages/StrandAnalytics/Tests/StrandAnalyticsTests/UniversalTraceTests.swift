@@ -46,4 +46,28 @@ final class UniversalTraceTests: XCTestCase {
         XCTAssertFalse(line.contains("oldest="))
         XCTAssertFalse(line.contains("spanDays="))
     }
+
+    // #990: a newest banked record 363 DAYS behind wall used to read "clockOk" - the false all-clear
+    // that hid the reporter's real clock fault. Beyond +-48h it must read as a clock warning.
+    func testFarBehindDriftIsAClockWarningNotOk() {
+        let line = UniversalTrace.clockDriftLine(newestUnix: wall - 363 * 86_400, wallNowUnix: wall)
+        XCTAssertTrue(line.contains("CLOCK-WARNING"), line)
+        XCTAssertTrue(line.contains("363d behind wall"), line)
+        XCTAssertFalse(line.contains("clockOk"), line)
+    }
+
+    func testBehindWithinTwoDaysStaysOk() {
+        // 47h behind = an unworn strap, not a clock fault: still clockOk.
+        let line = UniversalTrace.clockDriftLine(newestUnix: wall - 47 * 3_600, wallNowUnix: wall)
+        XCTAssertTrue(line.hasSuffix("clockOk"), line)
+    }
+
+    // #987: an epoch-era newest (strap RTC never set, reads ~1970/71) is its own named fault, more
+    // specific than the generic behind warning, with the fix (charge + reconnect) in the line.
+    func testEpochEraNewestReadsRtcEpoch() {
+        let line = UniversalTrace.clockDriftLine(newestUnix: 40_000_000, wallNowUnix: wall)  // 1971-04
+        XCTAssertTrue(line.contains("RTC-EPOCH"), line)
+        XCTAssertTrue(line.contains("1970/71"), line)
+        XCTAssertFalse(line.contains("clockOk"), line)
+    }
 }

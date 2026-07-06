@@ -1,8 +1,5 @@
 package com.noop.ui
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -12,11 +9,11 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -45,13 +42,17 @@ import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -59,8 +60,8 @@ import kotlin.math.roundToInt
 import kotlin.math.sqrt
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -79,6 +80,16 @@ import com.noop.ble.WhoopModel
  * controls. Ports LiveView.swift to Compose. Toggles the strap's real-time HR stream
  * on/off as the screen enters/leaves composition.
  */
+
+// MARK: - Liquid hero tokens (the liquid Live restyle)
+//
+// The hero card the live HR vessel floats on, mirroring the liquid Today hero. A translucent near-black
+// (mock rgba(13,14,20,.80)) so it floats over the day-of-sky; the vessel + the white count-up number read
+// crisp on it. Radius 26 + a white@0.11 hairline give the frosted-glass edge. (Twins of the liquid Today
+// LIQUID_HERO_FILL / LIQUID_HERO_RADIUS, redeclared here since those are file-private to TodayScreen.)
+private val LIVE_HERO_FILL: Color = Color(red = 13f / 255f, green = 14f / 255f, blue = 20f / 255f, alpha = 0.80f)
+private val LIVE_HERO_RADIUS: Dp = 26.dp
+
 @Composable
 fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
     val live by viewModel.live.collectAsStateWithLifecycle()
@@ -95,6 +106,9 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
     val unitSystem = UnitPrefs.system(context)
     // Effort display scale (#268) — routes the live + saved workout Effort read-outs. Display-only.
     val effortScale = UnitPrefs.effortScale(context)
+    // Same day-cycle gate as the liquid Today (LiquidScreenSky.kt): the time-of-day sky settles behind the
+    // top content when the user hasn't opted out; otherwise the scaffold paints the plain dark canvas.
+    val showDayCycleBackground = remember { NoopPrefs.showDayCycleBackground(context) }
 
     // The runtime Bluetooth permission gates scanning. If it isn't granted, the Connect button
     // REQUESTS it (rather than silently doing nothing), then connects once allowed. Shared with
@@ -133,6 +147,16 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
     // the live readout); see the report note.
     var showSportPicker by remember { mutableStateOf(false) }
     var showHrvSnapshot by remember { mutableStateOf(false) }
+    // Live workout mode (#238): the full-screen in-exercise overlay. Normally opened at workout START
+    // (StartWorkoutSheet); this lets the Today "workout in progress" indicator re-open it for a session
+    // already in flight by consuming the ViewModel's one-shot on appear (iOS parity:
+    // LiveView.consumeActiveWorkoutRequest). Closing just hides it; the workout keeps recording.
+    var showLiveWorkout by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        // consumeActiveWorkoutRequest() returns true exactly once per raise, and only while a workout is
+        // active, so a stale flag can never open an empty overlay.
+        if (viewModel.consumeActiveWorkoutRequest()) showLiveWorkout = true
+    }
 
     // GPS workout sport picker — the shared sheet (also used on the Workouts screen, #115). Rendered at
     // body level so it floats over Live as an overlay regardless of list position (unchanged behaviour).
@@ -162,7 +186,28 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
         }
     }
 
-    LazyScreenScaffold(title = "Live Body Console", subtitle = "Current physiology, strap trust, and session controls") {
+    // The full-screen live-workout overlay (#238). A plain full-screen Dialog so it floats over Live, the
+    // same idiom WorkoutStartSection uses; opened by the Today indicator's one-shot above (or a future
+    // in-screen re-open). Guarded on an active workout so it never shows an empty overlay. Dismiss hides it;
+    // End (inside) stops the workout.
+    if (showLiveWorkout && activeWorkout != null) {
+        Dialog(
+            onDismissRequest = { showLiveWorkout = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            LiveWorkoutScreen(vm = viewModel, onClose = { showLiveWorkout = false })
+        }
+    }
+
+    LazyScreenScaffold(
+        title = "Live Body Console",
+        subtitle = "Current physiology, strap trust, and session controls",
+        // LIQUID SKY BACKDROP (the pilot pattern — LiquidScreenSky.kt): the time-of-day liquid sky settles
+        // behind the header + hero and the cards float over the flat canvas below. Reuses the shared
+        // LiquidScreenSky() slot verbatim; when the day-cycle background is off, the scaffold paints the
+        // plain surface instead (matching the liquid Today's showDayCycleBackground gate).
+        topBackground = if (showDayCycleBackground) { { LiquidScreenSky() } } else null,
+    ) {
 
         // Active band row (MW-6) — names the band the console is reading, with a "Manage devices"
         // affordance that opens the Devices screen. Additive; the connect/disconnect controls below are
@@ -215,7 +260,7 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
                 verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
                 Text(
-                    "Can't connect — your strap's pairing was reset",
+                    "Can't connect - your strap's pairing was reset",
                     style = NoopType.subhead,
                     color = Palette.textPrimary,
                 )
@@ -277,9 +322,9 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
         }
         }
 
-        // Body console — focal pulsing HR ring + live physiology (R-R strip, rolling RMSSD, frame/event).
+        // Body console — focal live HR VESSEL + live physiology (R-R thread, rolling RMSSD, frame/event).
         item {
-        BodyConsole(live = live, bpm = bpm, activeConnection = activeConnection, zone = liveZone)
+        BodyConsole(live = live, bpm = bpm, activeConnection = activeConnection, zone = liveZone, hrMax = profile.hrMax)
         }
 
         // Signal Trust rail — one tile per signal that has to be current for the console to be trusted.
@@ -322,7 +367,9 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
                         Text("● ${w.sport.name.uppercase()}", style = NoopType.overline, color = Palette.statusCritical)
                         Spacer(Modifier.weight(1f))
                         Text(
-                            String.format("%d:%02d", elapsedS / 60, elapsedS % 60),
+                            // Shared clock: M:SS up to an hour, H:MM:SS past it (so a long session reads
+                            // "1:30:00", not "90:00"), the same format the Today indicator uses.
+                            elapsedClock(elapsedS),
                             style = NoopType.number(22f), color = Palette.textPrimary,
                         )
                     }
@@ -498,7 +545,9 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
             }
 
             OutlinedButton(
-                onClick = { viewModel.buzz(2) },
+                // #921: the confirmed one-shot sequence (pattern + RUN_ALARM where the family gate
+                // allows it, acked). A bare pattern write here matched the iOS silent no-buzz path.
+                onClick = { viewModel.buzzStrapOnce() },
                 modifier = Modifier.weight(1f),
                 enabled = live.bonded,
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
@@ -656,11 +705,19 @@ private fun ActiveBandRow(name: String, onManageDevices: () -> Unit) {
                 Overline("Active band")
                 Text(name, style = NoopType.headline, color = Palette.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
+            // liquidPress: the "Manage devices" affordance settles inward on press (the iOS LiquidPressStyle
+            // feel), the SAME interactionSource driving its clickable + the press response.
+            val manageInteraction = remember { MutableInteractionSource() }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
-                    .clickable(onClick = onManageDevices)
+                    .liquidPress(manageInteraction)
+                    .clickable(
+                        interactionSource = manageInteraction,
+                        indication = null,
+                        onClick = onManageDevices,
+                    )
                     .semantics { contentDescription = "Manage devices" }
                     .padding(horizontal = 8.dp, vertical = 6.dp),
             ) {
@@ -825,45 +882,44 @@ private fun lastSyncLabel(live: LiveState): String =
 // MARK: - Body console (focal HR ring + live physiology)
 
 @Composable
-private fun BodyConsole(live: LiveState, bpm: Int?, activeConnection: Boolean, zone: Int) {
-    // The console floats over an Effort-tinted scenic hero and carries the Effort wash, so the live
-    // readout reads like a Bevel hero rather than a flat panel.
+private fun BodyConsole(live: LiveState, bpm: Int?, activeConnection: Boolean, zone: Int, hrMax: Int) {
+    // The liquid hero CARD: a translucent near-black that floats over the day-of-sky so the HR vessel + the
+    // white count-up number stay crisp — the card does the contrast work, not a muted sky. A rounded 26
+    // corner + a faint white hairline give it the frosted-glass edge of the liquid Today heroCard
+    // (heroFill = rgba(13,14,20,.80), stroke white@0.11). Mirrors the pilot LiquidTodayView heroCard.
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(Metrics.cardRadius)),
+            .clip(RoundedCornerShape(LIVE_HERO_RADIUS))
+            .background(LIVE_HERO_FILL)
+            .border(1.dp, Color.White.copy(alpha = 0.11f), RoundedCornerShape(LIVE_HERO_RADIUS))
+            .padding(20.dp),
     ) {
-        ScenicHeroBackground(modifier = Modifier.matchParentSize(), domain = DomainTheme.Effort)
-        NoopCard(padding = 20.dp, tint = Palette.effortColor) {
-            Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                HeartReadout(live = live, bpm = bpm, activeConnection = activeConnection, zone = zone)
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(Palette.hairline),
-                )
-                PhysiologyStack(live = live, activeConnection = activeConnection)
-            }
+        Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+            HeartReadout(live = live, bpm = bpm, activeConnection = activeConnection, zone = zone, hrMax = hrMax)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(Palette.hairline),
+            )
+            PhysiologyStack(live = live, activeConnection = activeConnection)
         }
     }
 }
 
 @Composable
-private fun HeartReadout(live: LiveState, bpm: Int?, activeConnection: Boolean, zone: Int) {
-    // Tint by the live HR zone when streaming, the Effort world otherwise — the workouts/live colour world.
+private fun HeartReadout(live: LiveState, bpm: Int?, activeConnection: Boolean, zone: Int, hrMax: Int) {
+    // Tint by the live HR zone when streaming, the Effort world otherwise — the workouts/live colour world
+    // (UNCHANGED from the hand-drawn ring this replaced: same zone→colour math, same value-sampled tint).
     val tint = when {
         bpm == null -> Palette.textSecondary
         zone >= 1 -> Palette.hrZoneColor(zone)
         else -> Palette.effortColor
     }
-    val color by animateColorAsState(tint, tween(Motion.durationStandard), label = "hrColor")
-    // Pulse the ring on each new HR sample. animateFloatAsState toward a target that flips with the
-    // value gives a single ease-out "beat" without an infinite loop.
-    val pulseTarget = if (bpm == null) 0f else ((bpm % 2)).toFloat()
-    val pulse by animateFloatAsState(pulseTarget, tween(300), label = "hrPulse")
-    val ringScale = 0.96f + 0.11f * pulse
-    val ringColor = if (bpm == null) Palette.hairline else tint
+    // The vessel fill: current bpm as a fraction of the age-based max HR (the same hrMax the zone model
+    // above uses). Null bpm → empty vessel. Clamped 0..1 by LiquidVessel at the draw call.
+    val fraction = bpm?.let { (it.toDouble() / hrMax.toDouble()) } ?: 0.0
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -877,32 +933,35 @@ private fun HeartReadout(live: LiveState, bpm: Int?, activeConnection: Boolean, 
                 .aspectRatio(1f),
             contentAlignment = Alignment.Center,
         ) {
-            // Soft zone-tinted bloom behind the ring — the Bevel glow, breathing with each beat.
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .aspectRatio(1f)
-                    .scale(0.9f + 0.1f * pulse)
-                    .clip(CircleShape)
-                    .background(tint.copy(alpha = if (bpm == null) 0f else 0.14f)),
+            // The live HR GAUGE as a liquid VESSEL — fills to bpm/hrMax in the zone tint, sloshing live once
+            // a real HR is streaming (animated only when bpm != null, so an idle console poses static and
+            // doesn't churn an empty canvas). Mirrors the liquid Today HeroScoreVessel idiom.
+            LiquidVessel(
+                value = fraction,
+                tint = tint,
+                animated = bpm != null,
+                modifier = Modifier.fillMaxSize(),
             )
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f)
-                    .scale(ringScale)
-                    .clip(CircleShape)
-                    .border(2.dp, ringColor.copy(alpha = 0.28f), CircleShape),
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.86f)
-                    .aspectRatio(1f)
-                    .clip(CircleShape)
-                    .border(1.dp, Palette.hairline, CircleShape),
-            )
+            // The bpm number rolled up over the vessel — white, tabular, a soft shadow for legibility, and
+            // hit-transparent (clearAndSetSemantics + no clickable) so the tap falls THROUGH to the vessel,
+            // which owns its own tap→splash+haptic. Mirrors HeroScoreVessel's count-up-over-vessel number.
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = bpm?.toString() ?: "—", style = NoopType.number(72f), color = color)
+                if (bpm != null) {
+                    CountUpText(
+                        value = bpm.toDouble(),
+                        format = { it.roundToInt().toString() },
+                        style = NoopType.number(64f, weight = FontWeight.Bold)
+                            .copy(shadow = Shadow(color = Color.Black.copy(alpha = 0.5f), offset = Offset(0f, 1f), blurRadius = 6f)),
+                        color = Color.White,
+                        modifier = Modifier.clearAndSetSemantics {},
+                    )
+                } else {
+                    Text(
+                        text = "—",
+                        style = NoopType.number(64f, weight = FontWeight.Bold),
+                        color = Palette.textSecondary,
+                    )
+                }
                 Text("bpm", style = NoopType.subhead, color = Palette.textSecondary)
                 if (zone >= 1) {
                     Text("ZONE $zone", style = NoopType.overline, color = tint)
@@ -953,37 +1012,39 @@ private fun PhysiologyStack(live: LiveState, activeConnection: Boolean) {
     }
 }
 
-/** A compact bar strip of the recent R-R buffer — proof the console is genuinely live (a single HR
- *  number can look frozen; a moving R-R strip can't). Empty state shows muted ticks. */
+/** The recent R-R buffer as a live liquid THREAD — the beat-by-beat trace with a travelling glint +
+ *  endpoint pulse (a single HR number can look frozen; a flowing thread can't). R-R intervals ARE the
+ *  time between heartbeats, so the buffer is a genuine beat-by-beat series; the thread auto-normalises its
+ *  own min/max, so the raw ms values feed it directly. Empty state shows a muted flat thread + the
+ *  "Waiting…" caption. Same data binding (live.rrRecent) as the bar strip this replaced. */
 @Composable
 private fun RRStrip(rrRecent: List<Int>) {
     val values = rrRecent.takeLast(18)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(
-            verticalAlignment = Alignment.Bottom,
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-            modifier = Modifier.height(58.dp),
-        ) {
-            if (values.isEmpty()) {
-                repeat(18) {
-                    Box(
-                        modifier = Modifier
-                            .width(6.dp)
-                            .height(18.dp)
-                            .clip(RoundedCornerShape(50))
-                            .background(Palette.hairline),
-                    )
-                }
-            } else {
-                values.forEach { rr ->
-                    Box(
-                        modifier = Modifier
-                            .width(6.dp)
-                            .height(rrBarHeight(rr).dp)
-                            .clip(RoundedCornerShape(50))
-                            .background(Palette.metricCyan.copy(alpha = (0.35f + minOf(0.45, (rr % 180) / 400.0)).toFloat())),
-                    )
-                }
+        if (values.size >= 2) {
+            // Live thread — flows (glint + pulse) as new intervals land. Heart-pink (LiquidThread default).
+            LiquidThread(
+                bpm = values.map { it.toDouble() },
+                animated = true,
+                height = 58.dp,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        } else {
+            // Empty / single-sample state: a muted flat hairline placeholder at the same height, so the
+            // card doesn't jump when the first pair of intervals arrives and the thread takes over.
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(58.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(2.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(Palette.hairline),
+                )
             }
         }
         Text(
@@ -1120,7 +1181,7 @@ private fun SignalTrustTile(tile: SignalTile, modifier: Modifier = Modifier) {
 // MARK: - Pure helpers (shared by the body console + the trust rail)
 
 private fun signalTrustSummary(live: LiveState, activeConnection: Boolean): String = when {
-    activeConnection && live.encryptedBond -> "Encrypted stream — deep controls and history sync available."
+    activeConnection && live.encryptedBond -> "Encrypted stream - deep controls and history sync available."
     activeConnection -> "Live heart rate is flowing; full strap controls need an encrypted bond."
     live.connected -> "Connected, waiting for a streaming state."
     // The actionable "Scan and connect…" CTA now lives in the above-the-fold OfflineConnectCallout,
@@ -1133,11 +1194,6 @@ private fun connectionModeDetail(live: LiveState, activeConnection: Boolean): St
     activeConnection -> "Heart rate stream is active."
     live.connected -> "Radio connected, stream not yet trusted."
     else -> "No live stream."
-}
-
-private fun rrBarHeight(rr: Int): Double {
-    val clamped = rr.coerceIn(420, 1180)
-    return 16.0 + (clamped - 420) / 760.0 * 42.0
 }
 
 /** A "feel" RMSSD over the recent R-R buffer — time-gap-unaware on purpose (a live indicator, not a

@@ -51,6 +51,12 @@ public struct TrendChart: View {
     /// coordinate space (via the overlay proxy), so it sits exactly on the line. nil = no cap.
     /// (#458: an earlier sibling-overlay cap guessed the plot insets and floated off the line.)
     public var nowCapColor: Color?
+    /// Y-axis domain when it should differ from `valueRange` — e.g. an axis fitted to the data
+    /// window (with a little headroom) while the gradient stays anchored to the metric's full
+    /// scale. nil = `valueRange`. Widening the TOP of this domain is how a caller keeps a peak
+    /// curve and the top axis label clear of the plot clip (see #974); done purely in data space
+    /// so it needs no macOS14/iOS17 plot-dimension padding API — works on our macOS13/iOS16 floor.
+    public var yDomain: ClosedRange<Double>?
 
     /// Mean of all point values, computed once in `init` so the area fill's gradient
     /// stop doesn't run an O(n) reduce for every mark on every render.
@@ -69,7 +75,8 @@ public struct TrendChart: View {
         valueFormat: @escaping (Double) -> String = { String(Int($0.rounded())) },
         dateFormat: @escaping (Date) -> String = { TrendChart.defaultDateString($0) },
         accessibilityLabel: String? = nil,
-        nowCapColor: Color? = nil
+        nowCapColor: Color? = nil,
+        yDomain: ClosedRange<Double>? = nil
     ) {
         let sorted = points.sorted { $0.date < $1.date }
         self.points = sorted
@@ -82,6 +89,7 @@ public struct TrendChart: View {
         self.dateFormat = dateFormat
         self.accessibilityLabel = accessibilityLabel
         self.nowCapColor = nowCapColor
+        self.yDomain = yDomain
         let avg = sorted.isEmpty
             ? valueRange.lowerBound
             : sorted.map(\.value).reduce(0, +) / Double(sorted.count)
@@ -95,11 +103,11 @@ public struct TrendChart: View {
         // VoiceOver one-liner: count + mean + range — formatted with the SAME valueFormat the
         // tooltip uses, so units match. Computed once here, not per render.
         if sorted.isEmpty {
-            self.a11ySummary = "No data"
+            self.a11ySummary = String(localized: "No data", bundle: .module)
         } else {
             let vals = sorted.map(\.value)
             let lo = vals.min()!, hi = vals.max()!
-            self.a11ySummary = "\(sorted.count) points, mean \(valueFormat(avg)), range \(valueFormat(lo)) to \(valueFormat(hi))"
+            self.a11ySummary = String(localized: "\(sorted.count) points, mean \(valueFormat(avg)), range \(valueFormat(lo)) to \(valueFormat(hi))", bundle: .module)
         }
     }
 
@@ -149,6 +157,11 @@ public struct TrendChart: View {
         LinearGradient(gradient: gradient, startPoint: .bottom, endPoint: .top)
     }
 
+    /// The Y domain actually applied to the axis + plot clip: the explicit `yDomain` when a caller
+    /// supplied one (e.g. a data-fitted axis with top headroom), else the gradient's `valueRange`.
+    /// Exposed internally so a unit test can pin the resolution without rendering the chart.
+    var resolvedYDomain: ClosedRange<Double> { yDomain ?? valueRange }
+
     public var body: some View {
         Chart {
             if showsArea {
@@ -192,7 +205,11 @@ public struct TrendChart: View {
                 }
             }
         }
-        .chartYScale(domain: valueRange)
+        // Domain drives BOTH the axis extent and the plot clip. A caller that wants a top-of-range
+        // peak (and the top axis label) to clear the clip passes a `yDomain` whose upper bound sits a
+        // little above the data — pure data-space headroom, so no macOS14/iOS17 plot-dimension endPadding
+        // API is needed (#974). The value→color gradient still keys off `valueRange`, unchanged.
+        .chartYScale(domain: resolvedYDomain)
         // Clip the plot to its own bounds. catmullRom interpolation overshoots past the data extremes
         // on sharp turns, and the AreaMark gradient is drawn UNCLIPPED — so on a spiky HR curve the
         // rose fill bled down the page behind the cards below the chart. Clipping the plot area bounds
@@ -276,9 +293,12 @@ public struct TrendChart: View {
             }
         }
         .frame(height: height)
-        // Belt-and-suspenders: also bound the whole chart (axes + overlay) to its frame so nothing
-        // a Charts internal might draw outside the plot can reach the surrounding layout.
-        .clipped()
+        // NOTE: no outer `.clipped()` here. The PLOT is already clipped to its own bounds by
+        // `.chartPlotStyle { plotArea.clipped() }` above (that's what contains the catmullRom overshoot +
+        // the unclipped AreaMark bleed). An additional clip on the WHOLE chart also cropped the axis-label
+        // gutter — cutting the top y-axis value (e.g. "90") in half and clipping the first/last x-axis
+        // labels ("Apr 19"…"May") at the frame edges (#1019). Dropping it lets Swift Charts render the
+        // reserved label regions in full; the marks stay contained by the plot clip, so nothing bleeds.
         // Collapse the Charts marks (line/area/points) into ONE meaningful VoiceOver element instead
         // of letting VoiceOver walk raw per-mark axis values with no series context. The decorative
         // stacked under-glow copy (showsHover:false, no label) is hidden so the same series isn't

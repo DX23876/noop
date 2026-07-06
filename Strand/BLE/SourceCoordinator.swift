@@ -90,6 +90,11 @@ final class SourceCoordinator: ObservableObject {
     /// every WHOOP→WHOOP re-point. nil until the first WHOOP activation is handled. Lets us tell "same
     /// WHOOP, no change" (no churn) from "a DIFFERENT WHOOP became active" (re-point + reconnect).
     private var activeWhoopId: String?
+    /// The uuid of the strap the WHOOP link is CURRENTLY connected to (from `connectedPeripheralUUID`).
+    /// Lets a WHOOP→WHOOP make-active adopt IN PLACE when the newly-activated row is the same physical
+    /// strap (#74 keep): a stop/start churn there would drop the live link and reconnect via scan. Cleared
+    /// on disconnect (nil uuid).
+    private var connectedWhoopUuid: String?
 
     private var cancellables = Set<AnyCancellable>()
 
@@ -214,6 +219,11 @@ final class SourceCoordinator: ObservableObject {
             // existing WHOOP flow — already kicked off elsewhere on launch — uses it. For the single
             // seeded "my-whoop" (peripheralId nil, id "my-whoop") this is setPreferredPeripheral(nil)
             // and NO setActiveDeviceId / NO scan / NO disconnect: byte-for-byte today's behaviour.
+            pointWhoop(at: id, peripheralId: peripheralId)
+        } else if let peripheralId, peripheralId.caseInsensitiveCompare(connectedWhoopUuid ?? "") == .orderedSame {
+            // WHOOP → the SAME physical strap (make-active on the row we're already connected to): adopt IN
+            // PLACE. A stop/start churn here would drop the #74-kept live link and force a scan reconnect.
+            // Just re-point the targeting so samples land under this id; the connection is untouched.
             pointWhoop(at: id, peripheralId: peripheralId)
         } else {
             // WHOOP → a DIFFERENT WHOOP: drop the current link, re-point, and reconnect.
@@ -398,6 +408,10 @@ final class SourceCoordinator: ObservableObject {
     ///       RE-ADOPT the working strap so we stop looping on the strap that won't bond. See #52.
     ///   • it already matches → nothing to write.
     private func connectedPeripheralChanged(to uuid: String?) {
+        // Track the live strap's uuid for the WHOOP->WHOOP adopt-in-place skip (#74). nil is a
+        // disconnect/never-connected republish: clear it so a later make-active can't wrongly match a stale
+        // link, then fall through to the existing ignore.
+        connectedWhoopUuid = uuid
         guard let uuid else { return }
 
         let activeId = registry.activeDeviceId

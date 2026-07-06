@@ -67,6 +67,14 @@ public final class OuraDriver {
     /// The most recent ring time seen on any record, used to stamp live-HR pushes (which are not TLV
     /// records and carry no timestamp of their own).
     private var lastRingTimestamp: UInt32 = 0
+    /// Ring-time -> UTC anchor (OURA_PROTOCOL.md s5.5): the ring's clock ticks at 100 ms/tick by default
+    /// (burst-mode 1 ms/tick, s5.5, is NOT modeled in v1). Set from the ring's own 0x42 time-sync event
+    /// (primary) or, only while no 0x42 has arrived yet THIS session, the coarser 1s-granularity 0x85 RTC
+    /// beacon (secondary). nil until the first anchor event of this session: a record decoded before then
+    /// has no computable UTC time, and `unixSeconds(forRingTimestamp:)` honestly returns nil rather than
+    /// guessing. A stale anchor from a PREVIOUS session is never reused - the ring may have rebooted.
+    private var anchorUtcMs: Int64?
+    private var anchorRingTime: UInt32?
     /// The freshly-provisioned key the transport generated during an adopt flow (s3.2). Once set by
     /// beginKeyInstall it becomes the effective key for the post-install re-auth. nil otherwise.
     private var installedKey: [UInt8]?
@@ -198,6 +206,39 @@ public final class OuraDriver {
         liveHREnableStep = 0
         lastRingTimestamp = 0
         installedKey = nil
+        anchorUtcMs = nil
+        anchorRingTime = nil
+    }
+
+    // MARK: - Ring-time -> UTC anchor (s5.5)
+
+    /// Convert a record's ring-clock timestamp to unix seconds using the current session's anchor
+    /// (OURA_PROTOCOL.md s5.5). Returns nil when no anchor has arrived yet this session, so the caller
+    /// can honestly fall back (e.g. to wall-clock arrival time) instead of guessing.
+    public func unixSeconds(forRingTimestamp rt: UInt32) -> Int? {
+        guard let anchorUtcMs, let anchorRingTime else { return nil }
+        let deltaTicks = Int64(rt) - Int64(anchorRingTime)
+        let ms = anchorUtcMs + deltaTicks * 100   // default 100 ms/tick (s5.5); bounded input, no overflow
+        // #968: a corrupt/misaligned ring timestamp (seen on a full cursor=0 history dump) can convert to
+        // an implausible epoch. Gate the RESULT to the same 2020-2035 plausible window used for anchoring
+        // (was a weak `ms > 0`), so the caller honestly falls back to arrival time instead of banking a
+        // 1970 or far-future sample.
+        let seconds = ms / 1000
+        guard seconds >= Self.minPlausibleEpochSeconds, seconds <= Self.maxPlausibleEpochSeconds else { return nil }
+        return Int(seconds)
+    }
+
+    /// Bounds for a plausible anchor epoch (unix seconds): 2020-01-01 to 2035-01-01. A decoded 0x42/0x85
+    /// value outside this range is a corrupt/misaligned record (seen on real hardware: a full cursor=0
+    /// history dump hit one deep in the backlog) and is never trusted as an anchor (honest-data invariant).
+    /// This gate ALSO bounds the input to the seconds->ms `* 1000` conversion so it can never overflow
+    /// Int64 (a naive multiply on a near-Int64.max raw value traps).
+    private static let minPlausibleEpochSeconds: Int64 = 1_577_836_800
+    private static let maxPlausibleEpochSeconds: Int64 = 2_051_222_400
+
+    private static func plausibleAnchorMs(fromEpochSeconds seconds: Int64) -> Int64? {
+        guard seconds >= minPlausibleEpochSeconds, seconds <= maxPlausibleEpochSeconds else { return nil }
+        return seconds * 1000   // safe: bounded input, cannot overflow
     }
 
     // MARK: - Record ingest (decode)
@@ -264,11 +305,30 @@ public final class OuraDriver {
 
         // --- Tier A: Lifecycle / state / time ---
         case .timeSync:
-            if let ts = OuraDecoders.decodeTimeSync(record) { return [.timeSync(ts)] }
-            return []
+            // Primary UTC anchor (s5.5): always wins over a secondary RTC-beacon anchor already set.
+            guard let ts = OuraDecoders.decodeTimeSync(record) else { return [] }
+            // UNIT CORRECTION (s6.11): the 0x42 wire value is unix SECONDS, not ms. OURA_PROTOCOL.md s6.11
+            // cited it as ms from an unverified write-up; treating it as ms anchored history-fetched samples
+            // to ~1970. The decoder stays a faithful byte-level parse of the documented layout (OuraTimeSync.
+            // epochMs still names what the doc claims); the seconds->ms conversion lives here.
+            // CRASH-SAFETY (s6.11): a full cursor=0 history dump can hit a 0x42 record with an implausible
+            // raw value (a misaligned/corrupt record deep in the backlog); a naive `* 1000` overflows Int64
+            // and traps. plausibleAnchorMs bounds-checks BEFORE multiplying, so an implausible value is
+            // safely ignored (honest: never anchors to a garbage time) instead of crashing.
+            if let ms = Self.plausibleAnchorMs(fromEpochSeconds: ts.epochMs) {
+                anchorUtcMs = ms
+                anchorRingTime = ts.ringTimestamp
+            }
+            return [.timeSync(ts)]
         case .rtcBeacon:
-            if let r = OuraDecoders.decodeRtcBeacon(record) { return [.rtcBeacon(r)] }
-            return []
+            // Secondary UTC anchor (s5.5, 1s granularity): only fills in while no 0x42 anchor exists yet
+            // this session, so a coarser beacon never overrides the primary time-sync anchor.
+            guard let r = OuraDecoders.decodeRtcBeacon(record) else { return [] }
+            if anchorUtcMs == nil, let ms = Self.plausibleAnchorMs(fromEpochSeconds: Int64(r.unixSeconds)) {
+                anchorUtcMs = ms
+                anchorRingTime = r.ringTimestamp
+            }
+            return [.rtcBeacon(r)]
         case .stateChange, .wearEvent:
             if let s = OuraDecoders.decodeState(record) { return [.state(s)] }
             return []
@@ -287,7 +347,14 @@ public final class OuraDriver {
         case .sleepSummary1, .sleepSummaryB, .sleepSummaryC, .sleepSummaryD, .sleepSummaryE, .sleepSummaryF:
             return [.tierB(OuraTierBSummary(tag: record.type, ringTimestamp: record.ringTimestamp,
                                             rawPayload: record.payload, kind: "sleep_summary"))]
-        case .activityInfo, .activitySummary1, .activitySummary2:
+        case .activityInfo:
+            // Split out of the raw-bytes .tierB wrapper: this ONE activity tag has a plausible decode
+            // formula (Decoders.decodeActivityInfo, third-party [oura-rs], PR #960 investigation). Still
+            // Tier B - only reached behind allowTierB (gated above), and OuraStreamMapping never folds
+            // .activityInfo into a durable stream. 0x51/0x52 summaries stay raw below.
+            guard let info = OuraDecoders.decodeActivityInfo(record) else { return [] }
+            return [.activityInfo(info)]
+        case .activitySummary1, .activitySummary2:
             return [.tierB(OuraTierBSummary(tag: record.type, ringTimestamp: record.ringTimestamp,
                                             rawPayload: record.payload, kind: "activity"))]
         case .realSteps1, .realSteps2:
@@ -334,8 +401,10 @@ public final class OuraDriver {
         if frame.subop == 0x28 {
             return .liveHRPush(frame.subBody)
         }
-        // Enable/subscribe ACKs (0x23 / 0x27) advance the triplet (s5.6).
-        if frame.subop == 0x23 || frame.subop == 0x27 {
+        // Live-HR enable ACKs advance the triplet (s5.6): 0x21 is the dhr_read feature-read ACK from
+        // step 1 (`2f 06 21 02 01 11 02 00`), 0x23 acks the enable write (step 2), 0x27 acks the
+        // subscribe write (step 3). All three must be recognised or the sequencer stalls at step 0.
+        if frame.subop == 0x21 || frame.subop == 0x23 || frame.subop == 0x27 {
             return .enableAck
         }
         return .unhandled

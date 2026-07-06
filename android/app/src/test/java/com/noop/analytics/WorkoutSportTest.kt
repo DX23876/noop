@@ -63,4 +63,14 @@ class WorkoutSportTest {
         assertTrue(names.indexOf("Pickleball") < names.indexOf("Other"))
         assertEquals("Other", names.last())
     }
+
+    /** Bowling (D#850) is an EXTRA (no HC type) → rides on "Other" for writeback but keeps its own
+     *  label, has no route (GPS off), and sits before the generic "Other" catch-all. */
+    @Test fun bowling_isExtra_fallsBackToOther() {
+        val bowling = WorkoutSport.all.first { it.name == "Bowling" }
+        assertEquals(ExerciseSessionRecord.EXERCISE_TYPE_OTHER_WORKOUT, bowling.exerciseType)
+        assertFalse(bowling.isDistanceSport)
+        val names = WorkoutSport.all.map { it.name }
+        assertTrue(names.indexOf("Bowling") < names.indexOf("Other"))
+    }
 }

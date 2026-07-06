@@ -74,8 +74,14 @@ enum TestBundleAssembler {
     /// reaches into the live app (LiveState, TestCentre, the diagnostics) to gather the actual bytes, so
     /// it lives with the screen that binds the Report button. The pure primitives (redactEntries,
     /// capEntries) stay where Group B shipped them; this just composes them in the canonical order.
+    /// `storage` / `strapModel` (#1002): the REAL probes, gathered async by TestCentreReport (the DB file
+    /// size + per-table row counts come off the store actor, so the sync assembler can't read them
+    /// itself). nil means the probe could not run (store unopenable) - meta then carries the zeroed
+    /// block, which stays honest: zeros are "nothing readable", never a made-up figure.
     @MainActor
-    static func assemble(profile: TestDomain, live: LiveState) -> [FileExport.BundleEntry] {
+    static func assemble(profile: TestDomain, live: LiveState,
+                         storage: TestBundleMeta.Storage? = nil,
+                         strapModel: String? = nil) -> [FileExport.BundleEntry] {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
         #if os(iOS)
         let platform = "iOS"
@@ -158,8 +164,10 @@ enum TestBundleAssembler {
         }
 
         // 3. meta.json: the machine-readable tie. The questionnaire answers are whatever the tester saved
-        //    for this profile; profileStartedAt is ISO8601 from TestCentre. Storage is left zeroed in
-        //    Phase 1 (the DB-size probe is a later wire-up); we never fabricate a number we cannot read. The
+        //    for this profile; profileStartedAt is ISO8601 from TestCentre. Storage + strapModel (#1002)
+        //    are the caller's REAL probes (Phase 1 shipped hardcoded zeros here, so every meta.json read
+        //    "db_bytes: 0" even on a multi-GB library and maintainers triaged blind); a nil probe falls
+        //    back to the zeroed block - zeros mean "unreadable", we still never fabricate. The
         //    capture_check field carries the same OK/INCOMPLETE verdicts as the report section.
         let started = TestCentre.startedAt(profile).map { ISO8601DateFormatter().string(from: $0) }
         let meta = TestBundleMeta(
@@ -167,13 +175,13 @@ enum TestBundleAssembler {
             appVersion: version,
             platform: platform,
             osVersion: ProcessInfo.processInfo.operatingSystemVersionString,
-            strapModel: nil,
+            strapModel: strapModel,
             source: ["Live Bluetooth"],
             testProfile: profile.id,
             profileStartedAt: started,
             questionnaire: TestCentre.answers(profile),
             build: buildProvenance(),
-            storage: TestBundleMeta.Storage(dbBytes: 0, rows: [:], rawCaptureBytes: 0),
+            storage: storage ?? TestBundleMeta.Storage(dbBytes: 0, rows: [:], rawCaptureBytes: 0),
             redaction: redactionVersion,
             truncated: truncated,
             captureCheck: checks)

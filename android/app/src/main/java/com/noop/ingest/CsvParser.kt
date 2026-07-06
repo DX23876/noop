@@ -272,7 +272,12 @@ internal class CsvTable private constructor(
         /** Parse CSV text. */
         fun fromText(rawText: String): CsvTable {
             val text = Bom.stripString(rawText)
-            val records = parseRecords(text).toMutableList()
+            // Detect the field delimiter from the header line. WHOOP exports are comma-separated, but a
+            // real Oura account-export CSV uses `;` (and some locales' exports use `;`/tab). Sniffing per
+            // file lets one parser read all of them; default stays `,` so the WHOOP path is unchanged.
+            // (issue #862)
+            val delimiter = detectDelimiter(text)
+            val records = parseRecords(text, delimiter).toMutableList()
             if (records.isEmpty()) {
                 return CsvTable(emptyList(), emptyList(), emptyList())
             }
@@ -299,14 +304,40 @@ internal class CsvTable private constructor(
             return CsvTable(headerRow, normHeaders, parsedRows)
         }
 
+        // MARK: Delimiter detection
+
+        /**
+         * Sniff the field delimiter from the FIRST (header) line: whichever of `,`, `;` or tab appears
+         * most outside quotes. Defaults to `,` (WHOOP / Fitbit unaffected) when none is present. Only
+         * the header line is scanned. Mirrors Swift `CSVTable.detectDelimiter`. (issue #862)
+         */
+        fun detectDelimiter(text: String): Char {
+            var commas = 0; var semis = 0; var tabs = 0
+            var inQuotes = false
+            for (ch in text) {
+                if (ch == '"') { inQuotes = !inQuotes; continue }
+                if (inQuotes) continue
+                if (ch == '\n' || ch == '\r') break   // header line only
+                when (ch) {
+                    ',' -> commas++
+                    ';' -> semis++
+                    '\t' -> tabs++
+                }
+            }
+            if (semis > commas && semis >= tabs) return ';'
+            if (tabs > commas && tabs > semis) return '\t'
+            return ','
+        }
+
         // MARK: RFC-4180-ish record splitter
 
         /**
          * Split CSV text into records of fields, honouring quotes and `""` escapes,
          * and treating CRLF / CR / LF uniformly as row terminators.
          * Faithful port of `CSVTable.parseRecords` (operates on Unicode code points).
+         * [delimiter] is the field separator (auto-detected per file; `,` by default).
          */
-        fun parseRecords(text: String): List<List<String>> {
+        fun parseRecords(text: String, delimiter: Char = ','): List<List<String>> {
             val records = ArrayList<List<String>>()
             val field = StringBuilder()
             var record = ArrayList<String>()
@@ -332,7 +363,7 @@ internal class CsvTable private constructor(
             fun peekConsume(): Int? = if (pos < codePoints.size) codePoints[pos++] else null
 
             val quote = '"'.code
-            val comma = ','.code
+            val comma = delimiter.code   // field separator (auto-detected per file)
             val cr = '\r'.code
             val lf = '\n'.code
 

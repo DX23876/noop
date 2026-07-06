@@ -405,7 +405,7 @@ private fun ResultCard(result: HrvAnalyzer.HrvResult) {
                 ) {
                     Icon(Icons.Filled.WarningAmber, contentDescription = null, tint = Palette.statusWarning)
                     Text(
-                        "Not enough clean beats — sit still and try again. ${result.nClean} of " +
+                        "Not enough clean beats - sit still and try again. ${result.nClean} of " +
                             "${result.nInput} beats survived filtering (need ${HrvAnalyzer.MIN_BEATS}).",
                         style = NoopType.footnote, color = Palette.textSecondary,
                     )
@@ -510,7 +510,7 @@ private fun instruction(phase: HrvPhase, bonded: Boolean, result: HrvAnalyzer.Hr
         }
         HrvPhase.Capturing -> "Sit still, breathe normally. Keep your wrist relaxed and steady."
         HrvPhase.Done -> if (result != null && result.rmssd == null) {
-            "Not enough clean beats — sit still and try again."
+            "Not enough clean beats - sit still and try again."
         } else {
             "Done. Save this reading to keep it in your trends."
         }

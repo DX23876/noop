@@ -243,7 +243,12 @@ struct CSVTable {
     /// Parse CSV text (BOM already advisable to strip, but handled here too).
     init(text rawText: String) {
         let text = BOM.stripString(rawText)
-        var records = CSVTable.parseRecords(text)
+        // Detect the field delimiter from the header line. WHOOP exports are comma-separated, but other
+        // sources are not: a real Oura account-export CSV uses `;` (and some locales' spreadsheet exports
+        // use `;` or a tab). Sniffing per file lets one parser read all of them; default stays `,` so the
+        // WHOOP path is byte-for-byte unchanged. (issue #862)
+        let delimiter = CSVTable.detectDelimiter(text)
+        var records = CSVTable.parseRecords(text, delimiter: delimiter)
         guard !records.isEmpty else {
             self.headers = []
             self.normalizedHeaders = []
@@ -285,11 +290,37 @@ struct CSVTable {
         self.init(text: text)
     }
 
+    // MARK: Delimiter detection
+
+    /// Sniff the field delimiter from the FIRST (header) line of a CSV: whichever of `,`, `;` or tab
+    /// appears most outside quotes. Defaults to `,` (so WHOOP / Fitbit exports are unaffected) when the
+    /// header has none of them. Only the header line is scanned, so it's O(header length). (issue #862)
+    static func detectDelimiter(_ text: String) -> Character {
+        var commas = 0, semis = 0, tabs = 0
+        var inQuotes = false
+        for ch in text.unicodeScalars {
+            if ch == "\"" { inQuotes.toggle(); continue }
+            if inQuotes { continue }
+            if ch == "\n" || ch == "\r" { break }   // header line only
+            switch ch {
+            case ",":  commas += 1
+            case ";":  semis += 1
+            case "\t": tabs += 1
+            default:   break
+            }
+        }
+        if semis > commas && semis >= tabs { return ";" }
+        if tabs > commas && tabs > semis { return "\t" }
+        return ","
+    }
+
     // MARK: RFC-4180-ish record splitter
 
     /// Split CSV text into records of fields, honouring quotes and escaped
     /// quotes, and treating CRLF / CR / LF uniformly as row terminators.
-    static func parseRecords(_ text: String) -> [[String]] {
+    /// `delimiter` is the field separator (auto-detected per file; `,` by default).
+    static func parseRecords(_ text: String, delimiter: Character = ",") -> [[String]] {
+        let sep = delimiter.unicodeScalars.first ?? ","
         var records: [[String]] = []
         var field = ""
         var record: [String] = []
@@ -326,7 +357,7 @@ struct CSVTable {
                 case "\"":
                     inQuotes = true
                     sawAnyField = true
-                case ",":
+                case sep:
                     record.append(field)
                     field = ""
                     sawAnyField = true

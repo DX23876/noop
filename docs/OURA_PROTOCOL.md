@@ -11,6 +11,7 @@
 - **[open_oura-r5]** - Th0rgal/open_oura `docs/ring-5-observations.md` (Ring 5).
 - **[open_oura-feat]** - Th0rgal/open_oura `docs/ring-features.md` (feature gating).
 - **[relue]** - relue/oura_ring_reverse `docs/.../heartbeat_replication_guide.md` and `heartbeat_complete_flow.md` (no-license; Ring 3 live-HR).
+- **[oura-rs]** - Th0rgal/open_oura `crates/oura-protocol/src/events.rs` (no-license Rust clean-room decoder; facts cited only, no code copied). Its event tags marked `"_status": "unvalidated"` are treated the same as our Tier B - plausible, not ground-truth-confirmed.
 
 > **CONFLICT NOTE (resolution rule):** The relue archive file `event_data_definition.md` describes events as **protobuf varint** records (e.g. `0x55` SLEEP_HR with field tags). This contradicts the **byte-for-byte verified TLV framing** in [open_ring] and [ringverse]. The TLV/bit-packed model from [open_ring]/[ringverse] is authoritative for our decoders; the protobuf description is treated as unverified/likely AI-fabricated and is NOT used. Where a layout is only attested by a single no-license, AI-generated doc, it is marked **(UNVERIFIED)** and our decoder must gate it behind a fixture test before trusting it.
 
@@ -342,7 +343,9 @@ bits 14–15 : qual_b
 - Voltage as **uint16 LE at body offset [4..6]** per [open_ring]. **CONFLICT:** [open_oura-r3] reads percent at body[0]; [open_ring] reads voltage at [4]. **NOOP rule:** read percent at body[0]; derive a voltage-based estimate from [4..6] only as a fallback, fixture-validated per generation.
 
 ### 6.11 Time-sync ind - `0x42` (15 B)
-- Bytes 6–13: **int64 LE epoch milliseconds**; byte 14: int8 timezone offset in 30-min units (×1800 = seconds). [ringverse]
+- Bytes 6–13: an int64 LE epoch value; byte 14: int8 timezone offset in 30-min units (×1800 = seconds). [ringverse]
+- **UNIT = unix SECONDS, not milliseconds.** [ringverse] documents this field as epoch milliseconds, but that citation is unverified and wrong: on real Gen 3 hardware the wire value is unix seconds. Treating it as milliseconds anchors every history-fetched sample to roughly Jan 1970 (about 1000x too early). **NOOP rule:** the decoder (`OuraDecoders.decodeTimeSync`) stays a faithful byte-level parse of the documented layout - `OuraTimeSync.epochMs` still names what the doc claims - but the driver multiplies the decoded value by 1000 before using it as the ms-scale UTC anchor (`OuraDriver`, the `.timeSync` ingest case). Treat this as a single-generation data point until a second ring/generation confirms it.
+- **CRASH-SAFETY RULE: bounds-check any multi-byte wire arithmetic before use.** A full cursor-0 history dump (a ring never synced before) can surface a `0x42` record deep in the backlog whose raw epoch value is wildly implausible (near `Int64.max`) - a misaligned/corrupt record rather than a real time-sync (§2.4: "each notification contains whole frames/records" is the verified-corpus norm, not a guarantee). A naive seconds→ms `× 1000` on such a value overflows `Int64` and traps. **Any arithmetic on a raw multi-byte wire field must be plausibility-checked before use, never trusted as automatically well-formed.** NOOP's driver gates the time-sync / RTC-beacon anchor to a 2020–2035 unix-seconds window before converting (`OuraDriver.plausibleAnchorMs`), rejecting anything outside it as an undecodable record rather than crashing or anchoring to garbage.
 - This is the primary UTC anchor (§5.5). [open_ring][ringverse]
 
 ### 6.12 Sleep architecture
@@ -357,6 +360,8 @@ bits 14–15 : qual_b
 - **`0x47` `motion_events`** (variable): byte6 bits`[7:5]`=field_a, `[4:0]`=field_b; bytes7–9 = three **int8 × 8** axis magnitudes; optional bytes10–11. [ringverse]
 - **`0x6B` `motion_period`** (19–31 B): 12-bit period `((b6<<8)|(b6>>6)) & 0xFFF`; byte6 bits`[5:4]`=leading-symbol count; then 2-bit codes, 4 per byte (MSB-first). MOTION_STATE enum: `0 NO_MOTION, 1 RESTLESS, 2 TOSSING, 3 ACTIVE`. [ringverse][open_ring]
 - **`0x50` activity_info / `0x51`,`0x52` activity_summary**: activity category + intensity (MET-class). Layout **(UNVERIFIED - partial)**; [ringverse] notes real_steps/activity_info have unresolved constants. Gate on fixtures. [ringverse]
+  - **`0x50` decode formula (PR #960 investigation, live Gen 3, 2026-07-02) [oura-rs]:** byte0 = a `state` code (activity-category, meaning unconfirmed); every following byte = one MET sample, `met = byte × 0.1` for `byte < 0x80`, else `met = 12.8 + (byte − 128) × 0.2` (two-slope: 0.1-MET resolution to 12.7, 0.2 steps above). **Plausible against six real Gen 3 captures** across two sessions - a full day from steady resting (0.9–1.1 MET) through a vigorous-activity burst (7.4 MET), everything physiologically sane, nothing negative or absurd - but **NOT ground-truth-validated** against the Oura app's own MET/step numbers. Stays Tier B: NOOP decodes it (`OuraDecoders.decodeActivityInfo` → `OuraEvent.activityInfo`, both platforms) but gates it behind `allowTierB`, logs it for investigation only, and never folds it into `OuraStreamMapping`/scoring - and NEVER derives a step count from it. `0x51`/`0x52` activity_summary stay fully undecoded (raw Tier-B bytes only).
+  - **Real Steps (feature `0x0B`) server gating [open_oura-feat]:** real_steps is behind the server flag `activity/real_steps` (default **false**; `FeatureDefinitions.ActivityRealSteps`, Gen 3+), the same server-flag-off pattern as SpO2 (§7.1). This explains `0x7E`/`0x7F` never once appearing across the PR #960 live sessions - the ring isn't sending them, it is not a NOOP decode gap. `0x50` itself is an always-on base stream (not feature-gated), matching it appearing in every session.
 - **`0x7E`/`0x7F` real_steps_features 1/2** (18 B each): bit-packed step features merged across the paired events. **(UNVERIFIED - partial)** [ringverse]
 
 ### 6.14 Raw PPG
@@ -381,7 +386,7 @@ bits 14–15 : qual_b
 | `0x01` | Research Data (RData) | often server-blocked; returns idle status 3 [open_oura-r3] |
 | `0x02` | Daytime HR | Gen3+; **live-HR path (§5.6)** |
 | `0x03` | Exercise HR (AWHR) | Gen3+; cap version ≥ 2 |
-| `0x04` | SpO2 | Gen3+; server-gated |
+| `0x04` | SpO2 | Gen3+; server-gated. **Confirmed OFF on a real Gen 3 ring:** a `2f 02 20 04` feature-status read returns `04 00 00 00 00` (mode `0x00` = off, status `0x00` = off per §7.2) - SpO2 is switched off for that ring/account, not a NOOP decode issue. SpO2 also never arrives as a live push (unlike HR's feature `0x02`); it only ever arrives via history fetch (§5), same as skin temp. NOOP sends the diagnostic read only; it does NOT try to enable/subscribe SpO2 (a live enable produces nothing during the day regardless). |
 | `0x05` | Bundling | - |
 | `0x06` | Encrypted API | (Oura's encrypted channel - NOOP does NOT use) |
 | `0x07` | Tap-to-tag | - |

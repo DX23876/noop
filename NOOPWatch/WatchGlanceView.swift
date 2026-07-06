@@ -43,11 +43,16 @@ struct WatchGlanceView: View {
             // still current; a calibrating OR stale score is a dash with a small "cal" marker so we
             // never show a value we did not compute or one that is no longer current.
             HStack(spacing: 8) {
-                ScoreRing(label: "Charge", value: snap.charge, calibrating: snap.chargeCalibrating || stale,
+                // The labels ride a plain String property into ScoreRing, so they must be wrapped HERE;
+                // a bare literal would bypass the string catalog entirely.
+                ScoreRing(label: String(localized: "Charge"), value: snap.charge,
+                          calibrating: snap.chargeCalibrating || stale,
                           color: StrandPalette.chargeColor)
-                ScoreRing(label: "Effort", value: snap.effort, calibrating: snap.effortCalibrating || stale,
+                ScoreRing(label: String(localized: "Effort"), value: snap.effort,
+                          calibrating: snap.effortCalibrating || stale,
                           color: StrandPalette.effortColor)
-                ScoreRing(label: "Rest", value: snap.rest, calibrating: snap.restCalibrating || stale,
+                ScoreRing(label: String(localized: "Rest"), value: snap.rest,
+                          calibrating: snap.restCalibrating || stale,
                           color: StrandPalette.restColor)
             }
             .frame(maxWidth: .infinity)
@@ -110,7 +115,7 @@ struct WatchGlanceView: View {
     /// snapshot is stale the rings above are already dashes, and this line carries the recency.
     private func asOf(_ snap: WatchScoreSnapshot) -> some View {
         let fresh = snap.freshnessText()
-        return Text(snap.isStale() ? "stale · \(fresh)" : "as of \(fresh)")
+        return Text(snap.isStale() ? String(localized: "stale · \(fresh)") : String(localized: "as of \(fresh)"))
             .font(StrandFont.footnote)
             .foregroundStyle(StrandPalette.textTertiary)
             .frame(maxWidth: .infinity)

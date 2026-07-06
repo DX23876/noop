@@ -36,6 +36,7 @@ public func sportSymbol(_ sport: String) -> String {
     case s.contains("volleyball"):                  return "figure.volleyball"
     case s.contains("stretch"):                     return "figure.flexibility"
     case s.contains("golf"):                        return "figure.golf"
+    case s.contains("bowl"):                        return "figure.bowling"
     case s.contains("soccer") || s.contains("football"):
                                                      return "figure.soccer"
     case s.contains("basketball"):                  return "figure.basketball"

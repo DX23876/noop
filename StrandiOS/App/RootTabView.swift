@@ -22,9 +22,21 @@ struct RootTabView: View {
     /// between tab roots, calm easing). Defaults to Today.
     @State private var selectedTab: Int = 0
     /// Which More-tab groups are expanded (S2). Insights + Body stay open at rest; Data + App collapse to
-    /// just their header until tapped, so the More list reads shorter without losing a single row. Keyed
-    /// by the section title so the set survives view rebuilds.
-    @State private var expandedMoreSections: Set<String> = ["Insights", "Body"]
+    /// just their header until tapped. Persisted (#860 item 2): the user's open/closed choice must SURVIVE
+    /// leaving and re-entering the More tab (and relaunch), not reset to the seed every visit. Backed by an
+    /// `@AppStorage` CSV string (keyed identically to the Android `MoreSectionPrefs`), bridged to a
+    /// `Set<String>` through `MoreSectionPrefs` so the section logic below is unchanged.
+    @AppStorage(MoreSectionPrefs.storageKey) private var expandedMoreSectionsCSV = MoreSectionPrefs.defaultCSV
+    private var expandedMoreSections: Set<String> { MoreSectionPrefs.decode(expandedMoreSectionsCSV) }
+
+    /// V8 liquid redesign is the default Today; the Settings toggle lets a user fall back to the classic
+    /// Today if they prefer it (keyed identically to the SettingsView toggle). Default ON.
+    @AppStorage("noop.liquidTodayEnabled") private var liquidTodayEnabled = true
+
+    /// The Today tab root, honouring the liquid/classic preference.
+    @ViewBuilder private var todayTabRoot: some View {
+        if liquidTodayEnabled { LiquidTodayView() } else { TodayView() }
+    }
 
     init() {
         // Plain Titanium bar: pin the background to `surfaceBase` and clear the system
@@ -49,7 +61,7 @@ struct RootTabView: View {
             // cleanly in the gap between them — replaces the native tab bar: no overlap, no glow. The
             // native TabView still drives content + per-tab nav state; only its bar is hidden.
             TabView(selection: $selectedTab) {
-                tab(TodayView(), "Today", "square.grid.2x2").tag(0)
+                tab(todayTabRoot, "Today", "square.grid.2x2").tag(0)
                 tab(TrendsView(), "Trends", "chart.line.uptrend.xyaxis").tag(1)
                 tab(SleepView(), "Sleep", "bed.double").tag(2)
                 moreTab.tag(3)
@@ -59,8 +71,26 @@ struct RootTabView: View {
             // Tab crossfade — README §Motion: ~240ms opacity swap between tab roots, global calm
             // easing cubic-bezier(0.22,1,0.36,1).
             .animation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24), value: selectedTab)
+            // Swipe left/right anywhere to move between tabs (2026-07-02). Simultaneous so vertical
+            // scrolling still works; only a decisive horizontal flick switches tabs.
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 24)
+                    .onEnded { v in
+                        // Today (tab 0) uses horizontal swipe to change DAYS, so tab-swipe is off there.
+                        guard selectedTab != 0 else { return }
+                        let dx = v.translation.width, dy = v.translation.height
+                        guard abs(dx) > 60, abs(dx) > abs(dy) * 1.6 else { return }
+                        let next = min(3, max(0, selectedTab + (dx < 0 ? 1 : -1)))
+                        if next != selectedTab {
+                            withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = next }
+                        }
+                    }
+            )
 
-            FloatingTabBar(selection: $selectedTab)
+            FloatingTabBar(selection: $selectedTab, onReselect: { _ in
+                // Re-tapping the active tab refreshes that page's data (2026-07-02).
+                Task { await repo.refresh() }
+            })
         }
         .task {
             await repo.refresh()
@@ -101,6 +131,17 @@ struct RootTabView: View {
                 // Trends is a primary tab on iPhone (not a pillar sheet) — switch to it.
                 withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 1 }
                 router.requestedDestination = nil
+            case .activeWorkout:
+                // The Today active-workout indicator opens Live through the quick-action Live sheet; once
+                // it's up, LiveView consumes the one-shot `presentActiveWorkout` flag and presents the
+                // in-exercise screen. Calm sheet easing, matching the other quick-action presents.
+                withAnimation(Self.sheetEase) { quickAction = .live }
+                router.requestedDestination = nil
+            case .liveSession:
+                // Live Sessions is presented from Today's own Start entry (a cover, not a routed sheet),
+                // so a deep-link lands on the Today tab where that entry lives.
+                withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 0 }
+                router.requestedDestination = nil
             case nil:
                 break
             }
@@ -129,11 +170,19 @@ struct RootTabView: View {
                 // requestedDestination handler switches `selectedTab` instead), but the switch must stay
                 // exhaustive. Fall back to Trends inside the sheet host if it ever arrives here.
                 case .trends: TrendsView()
+                // .activeWorkout routes through the quick-action Live sheet (handled above); this keeps the
+                // switch exhaustive and falls back to Live if it ever reaches the pillar host.
+                case .activeWorkout: LiveView()
+                // .liveSession routes to the Today tab (handled above — its Start entry owns the cover);
+                // this keeps the switch exhaustive and falls back to Today if it ever reaches the host.
+                case .liveSession: LiquidTodayView()
                 }
             }
             .background(StrandPalette.surfaceBase.ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(StrandPalette.surfaceBase, for: .navigationBar)
+            // #1027: same fix as quickScreen — the pillar screens draw the full-bleed liquid sky, so a
+            // transparent nav bar keeps it edge-to-edge instead of an opaque band clipping the top on scroll.
+            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { routedPillar = nil }
@@ -181,7 +230,12 @@ struct RootTabView: View {
             view
                 .background(StrandPalette.surfaceBase.ignoresSafeArea())
                 .navigationBarTitleDisplayMode(.inline)
-                .toolbarBackground(StrandPalette.surfaceBase, for: .navigationBar)
+                // #1027: these screens draw a full-bleed liquid sky (ScreenScaffold topBackground) that runs
+                // edge-to-edge under a transparent bar — exactly how the tab roots present it. An OPAQUE
+                // surfaceBase toolbar background sat on top of that sky and, as the content scrolled up, its
+                // extended status-bar band CLIPPED the sky + the in-content header ("Live Body Console").
+                // Hiding the bar background lets the sky stay continuous under the floating Done button.
+                .toolbarBackground(.hidden, for: .navigationBar)
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button("Done") { quickAction = nil }
@@ -198,7 +252,9 @@ struct RootTabView: View {
             DevicesView()
                 .background(StrandPalette.surfaceBase.ignoresSafeArea())
                 .navigationBarTitleDisplayMode(.inline)
-                .toolbarBackground(StrandPalette.surfaceBase, for: .navigationBar)
+                // #1027: same fix as quickScreen — Devices draws the full-bleed liquid sky, so a transparent
+                // nav bar keeps it edge-to-edge instead of an opaque band clipping the top on scroll.
+                .toolbarBackground(.hidden, for: .navigationBar)
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button("Done") { showDevices = false }
@@ -212,7 +268,7 @@ struct RootTabView: View {
         // Each primary tab gets its OWN NavigationStack so the in-content NavigationLinks (e.g. the Today
         // dashboard card rows) both navigate AND render opaque. An ORPHANED NavigationLink (no
         // NavigationStack ancestor) renders its whole label in a disabled/translucent state — that was
-        // washing the Today cards over the hero scene and dimming their text to grey (Aaron 2026-06-23).
+        // washing the Today cards over the hero scene and dimming their text to grey (2026-06-23).
         // The root view hides the system nav bar (each screen draws its own in-content header); pushed
         // detail screens get their own nav bar + back button.
         NavigationStack {
@@ -231,7 +287,9 @@ struct RootTabView: View {
     // rows in a single grouped NoopCard with hairline dividers — the same row idiom Settings/Health use.
     private var moreTab: some View {
         NavigationStack {
-            ScreenScaffold(title: "More", subtitle: "Everything else, one tap away") {
+            ScreenScaffold(title: "More", subtitle: "Everything else, one tap away",
+                           onRefresh: { await repo.refresh() },
+                           topBackground: liquidScaffoldSky()) {
                 moreSection("Insights") {
                     MoreRow("What Moves You", "wand.and.sparkles") { InsightsHubView() }
                     MoreRow("Intelligence", "brain.head.profile") { IntelligenceView() }
@@ -303,8 +361,11 @@ struct RootTabView: View {
             // the exact strandOverline styling and the card layout below stays identical to before.
             Button {
                 withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) {
-                    if isOpen { expandedMoreSections.remove(title) }
-                    else { expandedMoreSections.insert(title) }
+                    // Persist the toggle via the CSV-backed @AppStorage so the choice survives leaving and
+                    // re-entering the More tab and relaunch (#860 item 2). MoreSectionPrefs owns encode/decode.
+                    var open = expandedMoreSections
+                    if isOpen { open.remove(title) } else { open.insert(title) }
+                    expandedMoreSectionsCSV = MoreSectionPrefs.encode(open)
                 }
             } label: {
                 HStack(spacing: 6) {
@@ -320,8 +381,8 @@ struct RootTabView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(Text(title))
-            .accessibilityValue(Text(isOpen ? "Expanded" : "Collapsed"))
-            .accessibilityHint(Text(isOpen ? "Double tap to collapse" : "Double tap to expand"))
+            .accessibilityValue(Text(isOpen ? String(localized: "Expanded") : String(localized: "Collapsed")))
+            .accessibilityHint(Text(isOpen ? String(localized: "Double tap to collapse") : String(localized: "Double tap to expand")))
 
             if isOpen {
                 // Zero internal padding so each MoreRow owns its own comfortable insets + height; the rows
@@ -359,7 +420,11 @@ private struct MoreRow<Destination: View>: View {
             destination()
                 .background(StrandPalette.surfaceBase.ignoresSafeArea())
                 .navigationBarTitleDisplayMode(.inline)
-                .toolbarBackground(StrandPalette.surfaceBase, for: .navigationBar)
+                // #1027: a pushed sky-scaffold screen (Live, Workouts, Health, …) draws a full-bleed liquid
+                // sky; an opaque surfaceBase nav-bar band sat over it and clipped the top on scroll. A hidden
+                // bar background keeps the sky edge-to-edge. On the flat (no-sky) screens this is visually
+                // identical at rest — the destination's own surfaceBase background shows through the bar.
+                .toolbarBackground(.hidden, for: .navigationBar)
         } label: {
             HStack(spacing: 14) {
                 // Pin the icon to the accent explicitly. A plain inherited tint gets re-resolved by iOS to
@@ -483,6 +548,8 @@ private struct QuickActionSheet: View {
 /// Glass where available, a `.ultraThinMaterial` fallback below. Replaces the hidden native tab bar.
 private struct FloatingTabBar: View {
     @Binding var selection: Int
+    /// Fires when the user taps the ALREADY-active tab (2026-07-02: re-tap should refresh).
+    var onReselect: (Int) -> Void = { _ in }
 
     private struct Item: Identifiable { let title: LocalizedStringKey; let icon: String; let tag: Int; var id: Int { tag } }
     private let nav = [Item(title: "Today", icon: "square.grid.2x2", tag: 0),
@@ -502,8 +569,20 @@ private struct FloatingTabBar: View {
         .padding(.vertical, 7)
         .padding(.horizontal, 8)
         .liquidGlass(in: Capsule())
-        .overlay(Capsule().strokeBorder(StrandPalette.hairline.opacity(0.6), lineWidth: 0.5))
-        .shadow(color: .black.opacity(0.10), radius: 12, x: 0, y: 5)
+        // Over the liquid Today the sky ends at ~340pt, so the bar floats on flat opaque surfaceBase —
+        // a blur material has nothing to dissolve and hardens into a solid lozenge (2026-07-02:
+        // "clips into a solid shape"). A faint translucent scrim INSIDE the same Capsule keeps the pill
+        // reading as tinted glass, not a slab, even against dead-flat colour.
+        .background(.white.opacity(0.06), in: Capsule())
+        // Soft top-lit rim instead of one hard hairline, so there's no crisp cut-out edge.
+        .overlay(
+            Capsule().strokeBorder(
+                LinearGradient(colors: [.white.opacity(0.22), .white.opacity(0.04)],
+                               startPoint: .top, endPoint: .bottom),
+                lineWidth: 0.75)
+        )
+        // Lighter, wider shadow: real elevation without stamping a dark halo on the flat canvas.
+        .shadow(color: .black.opacity(0.22), radius: 18, x: 0, y: 8)
         .padding(.horizontal, 22)
         .padding(.bottom, 4)
     }
@@ -511,7 +590,11 @@ private struct FloatingTabBar: View {
     private func tabButton(_ item: Item) -> some View {
         let active = selection == item.tag
         return Button {
-            withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selection = item.tag }
+            if active {
+                onReselect(item.tag)
+            } else {
+                withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selection = item.tag }
+            }
         } label: {
             VStack(spacing: 3) {
                 Image(systemName: item.icon)

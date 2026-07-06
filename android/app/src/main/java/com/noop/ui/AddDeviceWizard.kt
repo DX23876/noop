@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -63,7 +65,7 @@ import com.noop.data.SourceKind
 import com.noop.oura.OuraRingGen
 import kotlinx.coroutines.launch
 
-// MARK: - Add a device — guided, branching wizard (MW-4)
+// MARK: - Add a device - guided, branching wizard (MW-4)
 //
 // Different bands pair COMPLETELY differently, so this wizard asks the device TYPE first, then gives
 // type-specific prep guidance and runs the RIGHT scan/connect for that type:
@@ -76,7 +78,7 @@ import kotlinx.coroutines.launch
 //
 // Registration goes through [AppViewModel.registerDevice] → DeviceRegistry; the SourceCoordinator reacts
 // to the active-device change and connects (pinning the WHOOP / starting the strap source). The wizard
-// never touches the BLE client directly — only the AppViewModel pass-throughs. WHOOP-FIRST: WHOOP is the
+// never touches the BLE client directly - only the AppViewModel pass-throughs. WHOOP-FIRST: WHOOP is the
 // primary band; the type list shows it first and a footer reiterates it. Renders cleanly with nothing
 // nearby (the type picker, every prep step, and the searching/empty pick state all need no hardware).
 // Faithful Kotlin twin of Strand/Screens/AddDeviceWizard.swift. US English throughout.
@@ -84,7 +86,7 @@ import kotlinx.coroutines.launch
 /** What the user is adding. Drives the prep copy AND which scan/register path runs. */
 private enum class DeviceType {
     Whoop5MG, Whoop4, HrStrap, GymEquipment,
-    // EXPERIMENTAL tier — best-effort, clean-room, can't be hardware-verified here. Each fails to an
+    // EXPERIMENTAL tier - best-effort, clean-room, can't be hardware-verified here. Each fails to an
     // honest message and never fabricates data.
     Amazfit, MiBand, Garmin, Oura;
 
@@ -166,7 +168,7 @@ fun AddDeviceWizard(
     var askMakeActive by remember { mutableStateOf(false) }
 
     // Discovery-only HR source for the strap path (also Garmin Broadcast HR). Never persists, never
-    // connects — we only read its `discovered` / `scanning` StateFlows while scanning. Created once.
+    // connects - we only read its `discovered` / `scanning` StateFlows while scanning. Created once.
     val hrScanner = remember { viewModel.makeStrapScanner() }
     // Discovery-only FTMS source for the gym-equipment path. Same throwaway contract.
     val ftmsScanner = remember { viewModel.makeFtmsScanner() }
@@ -430,6 +432,11 @@ fun AddDeviceWizard(
             }
         },
         text = {
+            // Make the wizard body scrollable so no step is ever cut off under large font scaling or on
+            // large/short displays (#897: the device-type list was taller than the dialog and the lower rows,
+            // e.g. Oura, were unreachable). The AlertDialog text slot does not scroll its content on its own,
+            // so we own the scroll here. Every step renders unchanged inside this scroll container.
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
             // The Oura type runs the factory-reset-and-adopt sub-flow (section 2 of the onboarding UX
             // spec), NOT the generic Prep/Pick/Confirm. Everything else keeps the generic 4-step shape.
             if (type == DeviceType.Oura) {
@@ -545,6 +552,7 @@ fun AddDeviceWizard(
                         onAdd = { askMakeActive = true },
                     )
                 }
+            }
             }
         },
         confirmButton = {},
@@ -665,12 +673,12 @@ private fun ouraHeaderSubtitle(step: OuraStep, advanced: Boolean): String? = whe
     OuraStep.Failed -> null
 }
 
-// MARK: - Step 1 — type picker
+// MARK: - Step 1 - type picker
 
 @Composable
 private fun TypeStep(onPick: (DeviceType) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        TypeRow(Icons.Filled.Watch, DeviceType.Whoop5MG.title, "Newer WHOOP band — experimental in NOOP") {
+        TypeRow(Icons.Filled.Watch, DeviceType.Whoop5MG.title, "Newer WHOOP band. Experimental in NOOP") {
             onPick(DeviceType.Whoop5MG)
         }
         TypeRow(Icons.Filled.Watch, DeviceType.Whoop4.title, "NOOP's primary, fully-supported band") {
@@ -683,10 +691,13 @@ private fun TypeStep(onPick: (DeviceType) -> Unit) {
             onPick(DeviceType.GymEquipment)
         }
 
-        // EXPERIMENTAL tier — clearly labelled, opt-in, best-effort. Each is honest about what it can
+        // EXPERIMENTAL tier - clearly labelled, opt-in, best-effort. Each is honest about what it can
         // actually read; none fabricates data.
         Overline("Experimental", modifier = Modifier.padding(top = 8.dp))
         ExperimentalTierNote()
+        TypeRow(Icons.Filled.Circle, DeviceType.Oura.title, "Take over your ring locally. Beta. This replaces the Oura app.") {
+            onPick(DeviceType.Oura)
+        }
         TypeRow(Icons.Filled.GraphicEq, DeviceType.Amazfit.title, "Incl. Helio. Live heart rate where the band exposes it. Help us test.") {
             onPick(DeviceType.Amazfit)
         }
@@ -695,9 +706,6 @@ private fun TypeStep(onPick: (DeviceType) -> Unit) {
         }
         TypeRow(Icons.Filled.Watch, DeviceType.Garmin.title, "Uses the watch's Broadcast Heart Rate. We'll show you how.") {
             onPick(DeviceType.Garmin)
-        }
-        TypeRow(Icons.Filled.Circle, DeviceType.Oura.title, "Take over your ring locally. Beta. This replaces the Oura app.") {
-            onPick(DeviceType.Oura)
         }
 
         WhoopFirstNote()
@@ -811,7 +819,7 @@ private fun OnePhoneWarningCard() {
     }
 }
 
-// MARK: - Step 2 — type-specific prep + guidance
+// MARK: - Step 2 - type-specific prep + guidance
 
 @Composable
 private fun PrepStep(type: DeviceType, onScan: () -> Unit) {
@@ -889,7 +897,7 @@ private fun PrepStep(type: DeviceType, onScan: () -> Unit) {
     }
 }
 
-/** Type-specific "get it ready" guidance — the point of the branching wizard. US English copy. */
+/** Type-specific "get it ready" guidance - the point of the branching wizard. US English copy. */
 private fun prepInstructions(type: DeviceType): List<String> = when (type) {
     DeviceType.Whoop4 -> listOf(
         "Put your WHOOP 4.0 on your wrist and make sure it's awake.",
@@ -897,23 +905,23 @@ private fun prepInstructions(type: DeviceType): List<String> = when (type) {
         "NOOP will look for it nearby.",
     )
     DeviceType.Whoop5MG -> listOf(
-        "WHOOP 5.0 / MG bonds to one device at a time — unpair it from the official WHOOP app first.",
+        "WHOOP 5.0 / MG bonds to one device at a time, so unpair it from the official WHOOP app first.",
         "Put the band into pairing mode, on your wrist and awake.",
         "NOOP will look for it nearby.",
     )
     DeviceType.HrStrap -> listOf(
-        "Wake your strap — put it on, or dampen the contacts.",
+        "Wake your strap. Put it on, or dampen the contacts.",
         "Make sure it isn't connected to another app (a bike computer, the brand's own app…).",
         "NOOP will look for it nearby.",
     )
     DeviceType.GymEquipment -> listOf(
-        "Wake the machine — start pedalling, walking or rowing so it powers on its Bluetooth.",
+        "Wake the machine. Start pedalling, walking or rowing so it powers on its Bluetooth.",
         "Make sure it isn't already connected to another app (Zwift, the gym's app, a bike computer…).",
         "NOOP looks for machines that broadcast the standard Bluetooth Fitness Machine service.",
     )
     DeviceType.Amazfit -> listOf(
         "Wake your Amazfit / Zepp band and make sure it isn't connected to the Zepp app right now.",
-        "NOOP reads live heart rate when the band exposes it. Some bands need a pairing we can't do yet — if so, we'll say so honestly.",
+        "NOOP reads live heart rate when the band exposes it. Some bands need a pairing we can't do yet. If so, we'll say so honestly.",
         "Experimental: this is best-effort. If live doesn't work, you can export from Zepp and import the file.",
     )
     DeviceType.MiBand -> listOf(
@@ -937,7 +945,7 @@ private val ouraPrepInstructions: List<String> = listOf(
     "When the ring is reset and waking, tap Scan below.",
 )
 
-// MARK: - Step 3 — pick from the live scan
+// MARK: - Step 3 - pick from the live scan
 
 @Composable
 private fun WhoopPickStep(
@@ -1626,7 +1634,7 @@ private fun DiscoveredRow(name: String, subtitle: String, rssi: Int, onTap: () -
     }
 }
 
-// MARK: - Step 4 — name + confirm
+// MARK: - Step 4 - name + confirm
 
 @Composable
 private fun ConfirmStep(

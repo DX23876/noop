@@ -164,6 +164,23 @@ public enum WorkoutsTrace {
             + "distanceM=\(Int(distanceM.rounded())) (filter: accuracy+speed gate)"
     }
 
+    /// An engine detected-bout decision line: the IntelligenceEngine derives a workout bout from the raw HR
+    /// stream, then either PERSISTS it (source "-noop", sport "detected") or DROPS it because it overlaps a
+    /// real session the user already logged (manual / imported), so the same bout is never counted twice.
+    /// This is the "auto workout appeared then vanished" seam (#975): a bout can persist on one pass then be
+    /// dropped on the next once the manual row lands, and without this line the export shows NO workouts
+    /// trace for the auto path at all. `verdict` is "persisted" / "droppedOverlap"; `durMin` is the whole-
+    /// minute bout length; on a drop, `overlapSource` names the real row it collided with. No PII (a source
+    /// label + minutes + bpm only). Mirrors the Kotlin `WorkoutsTrace.detectedBoutLine`.
+    public static func detectedBoutLine(verdict: String,
+                                        durMin: Int,
+                                        avgBpm: Int,
+                                        overlapSource: String? = nil) -> String {
+        var line = "detectedBout verdict=\(verdict) durMin=\(durMin) avgBpm=\(avgBpm)"
+        if let overlapSource { line += " overlapSource=\(overlapSource)" }
+        return line
+    }
+
     /// A cross-source dedup decision line: two same-activity rows from different sources were collapsed to
     /// the richer one. Reports the sources, the kept richness, and the overlap, so a "my workout shows twice"
     /// or "the richer one disappeared" report shows exactly which pair merged and which won.

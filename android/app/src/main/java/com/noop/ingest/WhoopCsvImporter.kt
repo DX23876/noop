@@ -294,10 +294,15 @@ object WhoopCsvImporter {
             val tz = WhoopTime.tzOffsetMinutes(row["cycle_timezone"])
             val cycleStart = WhoopTime.parseEpochSeconds(row.cell("cycle_start_time"), tz)
             val cycleEnd = WhoopTime.parseEpochSeconds(row.cell("cycle_end_time"), tz)
+            val wakeOnset = WhoopTime.parseEpochSeconds(row.cell("wake_onset"), tz)
 
-            // Skip rows with no usable timestamp at all (Swift: cycleStart == nil && cycleEnd == nil).
-            if (cycleStart == null && cycleEnd == null) continue
-            val day = epochSecondsToDay(cycleStart ?: cycleEnd!!, tz)
+            // Skip rows with no usable timestamp at all.
+            if (cycleStart == null && cycleEnd == null && wakeOnset == null) continue
+            // WHOOP cycles are onset-to-onset: cycle_start_time == the sleep onset (the EVENING). Key
+            // the day off the WAKE (wake_onset), then cycle_end (the next onset, same wake-day), then
+            // the start. Matches parseSleeps + mergeSleep + macOS; keying off the start put scores a day
+            // early and blanked Today for import-only users (import day-shift, v8.2.1).
+            val day = epochSecondsToDay(wakeOnset ?: cycleEnd ?: cycleStart!!, tz)
 
             // Same aliases / unit handling as Swift parseCycles.
             val recovery = row.double("recovery_score_pct")
@@ -356,8 +361,10 @@ object WhoopCsvImporter {
             val tz = WhoopTime.tzOffsetMinutes(row["cycle_timezone"])
             val cycleStart = WhoopTime.parseEpochSeconds(row.cell("cycle_start_time"), tz)
             val cycleEnd = WhoopTime.parseEpochSeconds(row.cell("cycle_end_time"), tz)
-            if (cycleStart == null && cycleEnd == null) continue   // same skip rule as parseCycles
-            val day = epochSecondsToDay(cycleStart ?: cycleEnd!!, tz)
+            val wakeOnset = WhoopTime.parseEpochSeconds(row.cell("wake_onset"), tz)
+            if (cycleStart == null && cycleEnd == null && wakeOnset == null) continue   // same skip rule as parseCycles
+            // Wake-day keying — see parseCycles (WHOOP cycle_start is the evening onset, v8.2.1).
+            val day = epochSecondsToDay(wakeOnset ?: cycleEnd ?: cycleStart!!, tz)
             fun add(key: String, v: Double?) { if (v != null) out.add(MetricSeriesRow(deviceId, day, key, v)) }
             add("sleep_performance", row.double("sleep_performance_pct"))
             add("sleep_consistency", row.double("sleep_consistency_pct"))
@@ -418,12 +425,12 @@ object WhoopCsvImporter {
 
             // Fold the MAIN sleep (not naps) into a DailyMetric keyed on the sleep's WAKE day, so the
             // sleep-architecture columns are populated even when physiological_cycles.csv is absent.
-            // Key off wake_onset first: sleep_onset is on the PREVIOUS calendar evening, but the
-            // matching physiological_cycles row is keyed off cycle_start_time = the WAKE day, and
-            // mergeDaily groups by day-string. Keying off onset landed the night one day early and
-            // split it across two daily rows (Android export-import day-shift bug). Every other
-            // convention (sleep-session mergeSleep, the AppleHealth importer, macOS which keys off
-            // cycle_start_time) uses the local wake-day; align with it. Naps stay excluded above.
+            // Key off wake_onset: sleep_onset (== cycle_start_time in a WHOOP export) is the PREVIOUS
+            // evening, and mergeDaily groups by day-string. parseCycles now keys its cycle rows off the
+            // wake too (v8.2.1), so the two align on the same wake-day and merge into one row; keying
+            // either off the onset landed the night a day early and split it across two rows. Every
+            // convention (sleep-session mergeSleep, the AppleHealth importer, macOS) uses the local
+            // wake-day; align with it. Naps stay excluded above.
             if (!isNap) {
                 val dayTs = wakeOnset ?: cycleStart ?: sleepOnset
                 if (dayTs != null) {
@@ -529,6 +536,9 @@ object WhoopCsvImporter {
             // Our JournalEntry PK is (deviceId, day, question); a question is required to store.
             if (question == null) continue
 
+            // journal_entries.csv carries only cycle_start (the onset evening), no wake time, so entries
+            // stay keyed to the onset day rather than the wake day the cycle metrics now use — a minor
+            // correlation-only offset (v8.2.1); aligning it needs the cycle's wake day threaded in.
             val day = cycleStart?.let { epochSecondsToDay(it, tz) }
                 ?: epochSecondsToDay(System.currentTimeMillis() / 1000)
 

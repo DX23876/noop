@@ -5,15 +5,16 @@ import org.junit.Assert.assertNotNull
 import org.junit.Test
 
 /**
- * Pins the WHOOP export-import day-keying for the sleeps.csv → DailyMetric fold.
+ * Pins the WHOOP export-import day-keying: a physiological cycle AND the sleeps.csv fold both belong
+ * to the local WAKE day.
  *
- * Regression for the Android-only export day-shift bug: the non-nap sleep fold used to key its
- * DailyMetric off sleep ONSET, but onset sits on the PREVIOUS calendar evening while the matching
- * physiological_cycles row is keyed off cycle_start_time = the WAKE day. Because mergeDaily groups
- * by day-string, the two rows landed on different days — the night's sleep architecture went one
- * day early and the night was split across two daily rows. parseSleeps now keys the fold off
- * wake_onset first (matching macOS, the AppleHealth importer, and the sleep-session merge), so the
- * sleep row and the cycle row share a day and mergeDaily collapses them into ONE daily row.
+ * WHOOP exports are onset-to-onset, so a cycle's cycle_start_time is the EVENING you fell asleep
+ * (identical to that cycle's sleep_onset), while the recovery/strain it carries are what you read the
+ * next morning. parseCycles + parseCycleSeries key off wake_onset (then cycle_end = the next onset, on
+ * the same wake day, then the start); parseSleeps folds off wake_onset too. So the cycle row and the
+ * sleep row share a day and mergeDaily collapses them into ONE daily row. Keying off the onset put
+ * every night's scores a day early, which blanked Today for import-only users and split the night
+ * across two daily rows (import day-shift, v8.2.1).
  */
 class WhoopCsvImporterTest {
 
@@ -35,7 +36,7 @@ class WhoopCsvImporterTest {
         val sleeps = sleepParse(
             """
             Cycle start time,Cycle timezone,Sleep onset,Wake onset,Nap,Asleep duration (min),Light sleep duration (min),Deep (SWS) duration (min),REM duration (min)
-            2024-01-02 06:30:00,UTC+01:00,2024-01-01 23:15:00,2024-01-02 06:30:00,false,420,210,90,120
+            2024-01-01 22:10:00,UTC+01:00,2024-01-01 23:15:00,2024-01-02 06:30:00,false,420,210,90,120
             """
         )
 
@@ -45,11 +46,12 @@ class WhoopCsvImporterTest {
         assertEquals("2024-01-02", sleepDay.day)
         assertEquals(420.0, sleepDay.totalSleepMin!!, 1e-9)
 
-        // The physiological_cycles row for the same night is keyed off cycle_start_time = wake day.
+        // The physiological_cycles row for the same night (onset-to-onset: starts the prior evening,
+        // ends the next) is keyed off wake_onset = the wake day, matching the sleep fold.
         val cycleRows = cycles(
             """
-            Cycle start time,Cycle end time,Cycle timezone,Recovery score %,Resting heart rate (bpm),Day strain
-            2024-01-02 06:30:00,2024-01-03 06:00:00,UTC+01:00,66,52,8.4
+            Cycle start time,Cycle end time,Cycle timezone,Recovery score %,Resting heart rate (bpm),Day strain,Wake onset
+            2024-01-01 22:10:00,2024-01-02 22:30:00,UTC+01:00,66,52,8.4,2024-01-02 06:30:00
             """
         )
         assertEquals(1, cycleRows.size)
@@ -83,7 +85,7 @@ class WhoopCsvImporterTest {
         assertNotNull(sleeps.sessions.single())
     }
 
-    /** When wake_onset is missing, the fold falls back to cycle_start, then onset. */
+    /** When wake_onset is missing, the sleep fold falls back to cycle_start, then sleep onset. */
     @Test
     fun missingWakeOnsetFallsBackToCycleStart() {
         val sleeps = sleepParse(
@@ -93,8 +95,27 @@ class WhoopCsvImporterTest {
             """
         )
         assertEquals(1, sleeps.daily.size)
-        // cycle_start_time = wake day, so the fold still lands on 2024-01-02.
+        // wake_onset absent → fall back to cycle_start (2024-01-02 here).
         assertEquals("2024-01-02", sleeps.daily.single().day)
+    }
+
+    /**
+     * REGRESSION (v8.2.1): a REALISTIC onset-to-onset physiological_cycles row — cycle_start on the
+     * prior evening, wake the next morning — keys its DailyMetric to the WAKE day, not the onset day.
+     * Keying off cycle_start put the newest night a day early, so a fresh import with no live strap had
+     * no row under "today" and the Today screen blanked. Fails on the old cycle_start keying.
+     */
+    @Test
+    fun cyclesKeyRealOnsetToOnsetRowToWakeDay() {
+        val rows = cycles(
+            """
+            Cycle start time,Cycle end time,Cycle timezone,Recovery score %,Resting heart rate (bpm),Day strain,Sleep onset,Wake onset
+            2026-06-05 22:37:00,2026-06-06 22:40:00,UTC+01:00,73,47,8.1,2026-06-05 22:37:00,2026-06-06 07:22:00
+            """
+        )
+        assertEquals(1, rows.size)
+        // The recovery you READ on the 6th, not the evening of the 5th you fell asleep.
+        assertEquals("2026-06-06", rows.single().day)
     }
 
     // --- Localized (Brazilian Portuguese) headers, issue #692 ---------------------------------
@@ -130,7 +151,8 @@ class WhoopCsvImporterTest {
         assertEquals(80.0, r.recovery!!, 1e-9)
         assertEquals(52, r.restingHr)
         assertEquals(95.0, r.avgHrv!!, 1e-9)
-        assertEquals("2024-03-01", r.day)
+        // Keyed off wake_onset (Início da vigília 2024-03-02 06:30) = the wake day, not the onset day.
+        assertEquals("2024-03-02", r.day)
         // Day Strain 12.5 is rescaled onto NOOP's 0–100 Effort axis (×100/21).
         assertEquals(12.5 * (100.0 / 21.0), r.strain!!, 1e-9)
     }

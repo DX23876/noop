@@ -17,8 +17,8 @@ public enum ChartStyle: String, CaseIterable, Identifiable, Sendable {
 
     public var label: String {
         switch self {
-        case .titanium: return "Default"
-        case .classic:  return "Classic"
+        case .titanium: return String(localized: "Default", bundle: .module)
+        case .classic:  return String(localized: "Classic", bundle: .module)
         }
     }
 
@@ -56,9 +56,9 @@ public enum AppearanceMode: String, CaseIterable, Identifiable, Sendable {
     /// Human label for the Settings control.
     public var label: String {
         switch self {
-        case .system: return "System"
-        case .light:  return "Light"
-        case .dark:   return "Dark"
+        case .system: return String(localized: "System", bundle: .module)
+        case .light:  return String(localized: "Light", bundle: .module)
+        case .dark:   return String(localized: "Dark", bundle: .module)
         }
     }
 

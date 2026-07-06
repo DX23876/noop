@@ -155,19 +155,21 @@ public enum OuraDecoders {
 
     // MARK: - SpO2 per-sample (0x6F; s6.5)
 
-    /// Decode the 0x6F spo2_event: byte6 bits [7:4]=SpO2 base (<<7), [3:0]=status flag; then one
+    /// Decode the 0x6F spo2_event: byte6 bits [7:4]=SpO2 base/status field, [3:0]=status flag; then one
     /// uint8 SpO2 value per second from byte7 onward (optional 0xFF terminator). Per OURA_PROTOCOL.md
     /// s6.5. Returns nil on a short body.
     public static func decodeSpO2PerSample(_ rec: OuraRecord) -> [OuraSpO2]? {
         let b = rec.payload
         guard b.count >= 2 else { return nil }
-        let base = (Int(b[0]) >> 4) << 7              // high nibble of byte6, scaled << 7
+        // byte6 high nibble [7:4] is a base/status field, NOT an offset to add to each sample. Real Gen 3
+        // captures (#968, pipiche38) show samples[] are DIRECT SpO2 percentages (~95-96), so adding the
+        // scaled base produced impossible ~223% readings. The samples themselves are the percentage.
         var out: [OuraSpO2] = []
         var i = 1
         while i < b.count {
             let raw = Int(b[i])
             if raw == 0xFF { break }                  // terminator
-            out.append(OuraSpO2(ringTimestamp: rec.ringTimestamp, value: base + raw))
+            out.append(OuraSpO2(ringTimestamp: rec.ringTimestamp, value: raw))
             i += 1
         }
         return out.isEmpty ? nil : out
@@ -373,6 +375,27 @@ public enum OuraDecoders {
             }
         }
         return out.isEmpty ? nil : out
+    }
+
+    // MARK: - Activity info (0x50; s6.13) - Tier B, third-party formula
+
+    /// Decode the 0x50 activity_info record: byte0 = a `state` code (activity-category; meaning
+    /// unconfirmed), every following byte = one MET sample. Formula (OURA_PROTOCOL.md s6.13, [oura-rs],
+    /// clean-room fact citation): `met = byte * 0.1` for byte < 0x80, else `met = 12.8 + (byte - 128) * 0.2`
+    /// (a two-slope encoding: 0.1-MET resolution up to 12.7, coarser 0.2 steps above). THIRD-PARTY and NOT
+    /// ground-truth-validated against the Oura app, so this stays Tier B end to end: OuraDriver gates it
+    /// behind `allowTierB`, and OuraStreamMapping never folds it into a durable stream. Values are
+    /// normalised to 2 decimal places so a decoded MET compares exactly against its fixture (0.1 is not
+    /// exactly representable in binary floating point). Returns nil on an empty body - a record with no
+    /// state byte decodes to nothing, never a guess.
+    public static func decodeActivityInfo(_ rec: OuraRecord) -> OuraActivityInfo? {
+        let b = rec.payload
+        guard let state = b.first else { return nil }
+        let met: [Double] = b.dropFirst().map { byte in
+            let raw = byte < 0x80 ? Double(byte) * 0.1 : 12.8 + (Double(byte) - 128.0) * 0.2
+            return (raw * 100).rounded() / 100
+        }
+        return OuraActivityInfo(ringTimestamp: rec.ringTimestamp, state: Int(state), met: met)
     }
 }
 

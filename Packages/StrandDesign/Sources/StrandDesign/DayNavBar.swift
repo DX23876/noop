@@ -14,18 +14,24 @@ import SwiftUI
 
 public struct DayNavBar: View {
     private let selectedOffset: Int
+    private let today: Date
     private let onSelect: (Int) -> Void
 
     @State private var showingPicker = false
 
-    public init(selectedOffset: Int, onSelect: @escaping (Int) -> Void) {
+    /// `today` is the caller's LOGICAL day (the same anchor the rest of Today uses, rolling at 04:00),
+    /// so every label here counts back from it. Passing it in instead of reading `Date()` keeps the
+    /// macOS full-date label in step with the data shown in the 00:00-04:00 window, where a raw
+    /// `Date()` already reads the next calendar day while the screen still shows the logical day (#14).
+    public init(selectedOffset: Int, today: Date, onSelect: @escaping (Int) -> Void) {
         self.selectedOffset = selectedOffset
+        self.today = today
         self.onSelect = onSelect
     }
 
-    /// The calendar day the current offset resolves to, counting back from the local day.
+    /// The calendar day the current offset resolves to, counting back from the caller's logical day.
     private var selectedDay: Date {
-        Calendar.current.date(byAdding: .day, value: -selectedOffset, to: Date()) ?? Date()
+        Calendar.current.date(byAdding: .day, value: -selectedOffset, to: today) ?? today
     }
 
     private var canGoNewer: Bool { selectedOffset > 0 }
@@ -105,13 +111,15 @@ public struct DayNavBar: View {
             set: { newValue in
                 let cal = Calendar.current
                 let start = cal.startOfDay(for: newValue)
-                let today = cal.startOfDay(for: Date())
-                let days = cal.dateComponents([.day], from: start, to: today).day ?? 0
+                // Offset is measured from the caller's LOGICAL day (not raw Date()), so a date picked in
+                // the 00:00-04:00 window maps to the same offset the labels count back from (#14).
+                let anchor = cal.startOfDay(for: today)
+                let days = cal.dateComponents([.day], from: start, to: anchor).day ?? 0
                 onSelect(max(0, days))
                 showingPicker = false
             }
         )
-        return DatePicker("", selection: pickedBinding, in: ...Date(), displayedComponents: [.date])
+        return DatePicker("", selection: pickedBinding, in: ...today, displayedComponents: [.date])
             .datePickerStyle(.graphical)
             .labelsHidden()
             .padding(12)

@@ -18,9 +18,10 @@ enum WhoopImporter {
         // physiological_cycles → DailyMetric (one row per sleep-to-sleep day)
         var metrics: [DailyMetric] = []
         for c in result.cycles {
-            guard let start = c.cycleStart else { continue }
+            guard let day = cycleDay(wake: c.wakeOnset, end: c.cycleEnd, start: c.cycleStart,
+                                     tzOffsetMin: c.tzOffsetMin) else { continue }
             metrics.append(DailyMetric(
-                day: dayString(start, tzOffsetMin: c.tzOffsetMin),
+                day: day,
                 totalSleepMin: c.asleepDurationMin,
                 efficiency: c.sleepEfficiencyPct,
                 deepMin: c.deepSleepDurationMin,
@@ -69,8 +70,8 @@ enum WhoopImporter {
             if let v { points.append(MetricPoint(day: day, key: key, value: v)) }
         }
         for c in result.cycles {
-            guard let start = c.cycleStart else { continue }
-            let day = dayString(start, tzOffsetMin: c.tzOffsetMin)
+            guard let day = cycleDay(wake: c.wakeOnset, end: c.cycleEnd, start: c.cycleStart,
+                                     tzOffsetMin: c.tzOffsetMin) else { continue }
             add(day, "recovery", c.recoveryScore);        add(day, "strain", WhoopExportImporter.effortFromImportedDayStrain(c.dayStrain))
             add(day, "rhr", c.restingHeartRate);          add(day, "hrv", c.hrvMs)
             add(day, "spo2", c.bloodOxygenPct);           add(day, "skin_temp", c.skinTempCelsius)
@@ -102,9 +103,11 @@ enum WhoopImporter {
         let (rm, rs) = meanStd(result.cycles.compactMap(\.restingHeartRate))
         let (hm, hs) = meanStd(result.cycles.compactMap(\.hrvMs))
         for c in result.cycles {
-            guard let start = c.cycleStart, let rhr = c.restingHeartRate, let hrv = c.hrvMs else { continue }
+            guard let rhr = c.restingHeartRate, let hrv = c.hrvMs,
+                  let day = cycleDay(wake: c.wakeOnset, end: c.cycleEnd, start: c.cycleStart,
+                                     tzOffsetMin: c.tzOffsetMin) else { continue }
             let z = 0.6 * ((rhr - rm) / rs) - 0.6 * ((hrv - hm) / hs)
-            add(dayString(start, tzOffsetMin: c.tzOffsetMin), "stress", max(0, min(3, 1.5 + z)))
+            add(day, "stress", max(0, min(3, 1.5 + z)))
         }
         // Derived: daily HR-zone minutes + strength-activity time from workouts.
         var zoneByDay: [String: [Double]] = [:]
@@ -132,6 +135,9 @@ enum WhoopImporter {
 
         // Journal behaviours → correlation insights.
         let journal: [JournalEntry] = result.journal.compactMap { j in
+            // journal_entries.csv carries only cycle_start (the onset evening), no wake time, so entries
+            // stay keyed to the onset day rather than the wake day the cycle metrics now use. A minor
+            // correlation-only offset; aligning it needs the parser to thread each cycle's wake day.
             guard let start = j.cycleStart, let q = j.question else { return nil }
             return JournalEntry(day: dayString(start, tzOffsetMin: j.tzOffsetMin),
                                 question: q,
@@ -189,6 +195,13 @@ enum WhoopImporter {
         }
 
         return result.summary
+    }
+
+    /// The NOOP day a WHOOP cycle belongs to: the local calendar day you WOKE. See
+    /// `WhoopDayKeying.wakeDayKey` for the full rationale (WHOOP exports are onset-to-onset, so a
+    /// cycle's start is the evening before; keying off it blanked Today for import-only users, v8.2.1).
+    private static func cycleDay(wake: Date?, end: Date?, start: Date?, tzOffsetMin: Int) -> String? {
+        WhoopDayKeying.wakeDayKey(wake: wake, end: end, start: start, tzOffsetMin: tzOffsetMin)
     }
 
     /// Local-calendar day string for the cycle's own UTC offset.

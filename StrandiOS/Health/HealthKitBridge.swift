@@ -386,6 +386,12 @@ final class HealthKitBridge: ObservableObject {
         let points = AppleHealthAggregator.metricPoints(aggregates)
             .map { MetricPoint(day: $0.day, key: $0.key, value: $0.value) }
 
+        // Workouts the user logged in Apple Health (Apple Watch rings, gym apps, etc.). macOS already
+        // imports these from a static Health export and Android reads them from Health Connect; iOS now
+        // reads them live on-device too, so the platforms reach parity. ON-DEVICE ONLY: this is a plain
+        // HealthKit read of workouts NOOP did NOT author, never any cloud/3rd-party API. (#835)
+        let workoutRows = await collectWorkouts(start: start, end: end)
+
         // Persist all the apple-health rows AND write back, advancing lastSync only when the WHOLE
         // round-trip succeeds. The three read-side upserts used to be swallowed by `try?`, so a failed
         // import (e.g. a disk-full GRDB write) dropped rows yet still cleared lastError and advanced
@@ -395,11 +401,12 @@ final class HealthKitBridge: ObservableObject {
             try await store.upsertAppleDaily(appleRows, deviceId: appleDeviceId)
             try await store.upsertDailyMetrics(dmRows, deviceId: appleDeviceId)
             try await store.upsertMetricSeries(points, deviceId: appleDeviceId)
+            if !workoutRows.isEmpty { try await store.upsertWorkouts(workoutRows, deviceId: appleDeviceId) }
             try await writeBack(whoopStore: store)
             lastSync = Date()
             lastError = nil
         } catch {
-            lastError = "Apple Health sync failed: \(error.localizedDescription)"
+            lastError = String(localized: "Apple Health sync failed: \(error.localizedDescription)")
         }
     }
 
@@ -558,6 +565,96 @@ final class HealthKitBridge: ObservableObject {
                 cont.resume()
             }
             store.execute(q)
+        }
+    }
+
+    // MARK: - Workouts (#835)
+
+    /// Read the workouts the user logged in Apple Health over `[start, end)` and map each to a
+    /// `WorkoutRow` under the apple-health source. ON-DEVICE ONLY: a straight HealthKit `HKWorkout` query,
+    /// no cloud or third-party API. NOOP-authored workouts are excluded (the same `notNoopAuthored`
+    /// predicate the metric reads use) so our own write-back never re-imports as "Apple Health". Mirrors
+    /// the macOS export importer and the Android Health Connect importer, which already ingest workouts,
+    /// closing the iOS gap. The upsert is idempotent on (deviceId, startTs), so re-running a sync window
+    /// refreshes rather than duplicates.
+    private func collectWorkouts(start: Date, end: Date) async -> [WorkoutRow] {
+        let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate),
+            Self.notNoopAuthored,
+        ])
+        return await withCheckedContinuation { (cont: CheckedContinuation<[WorkoutRow], Never>) in
+            let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+            let q = HKSampleQuery(sampleType: HKObjectType.workoutType(), predicate: predicate,
+                                  limit: HKObjectQueryNoLimit, sortDescriptors: [sort]) { _, samples, _ in
+                var rows: [WorkoutRow] = []
+                for case let workout as HKWorkout in samples ?? [] {
+                    let startTs = Int(workout.startDate.timeIntervalSince1970)
+                    let endTs = max(Int(workout.endDate.timeIntervalSince1970), startTs)
+                    let duration = workout.duration > 0 ? workout.duration : Double(endTs - startTs)
+                    rows.append(WorkoutRow(
+                        startTs: startTs,
+                        endTs: endTs,
+                        sport: Self.sportName(workout.workoutActivityType),
+                        source: HealthKitBridge.appleWorkoutSource,
+                        durationS: duration,
+                        energyKcal: workout.totalEnergyBurned?.doubleValue(for: .kilocalorie()),
+                        avgHr: nil,
+                        maxHr: nil,
+                        strain: nil,
+                        distanceM: workout.totalDistance?.doubleValue(for: .meter()),
+                        zonesJSON: nil,
+                        notes: nil))
+                }
+                cont.resume(returning: rows)
+            }
+            store.execute(q)
+        }
+    }
+
+    /// Source tag stamped on workouts imported from Apple Health. Matches the macOS importer's
+    /// `WorkoutSource.appleHealthSource` ("apple-health") and `appleDeviceId`, so the workout list and
+    /// source filters treat an iOS-read workout exactly like a macOS-imported one.
+    static let appleWorkoutSource = "apple-health"
+
+    /// Map an `HKWorkoutActivityType` to NOOP's human sport label. Strength training routes to the
+    /// shared lifting sport so a gym session lands in the Lifting lane; anything we don't name explicitly
+    /// falls back to a generic "Workout" rather than an opaque numeric type.
+    private static func sportName(_ type: HKWorkoutActivityType) -> String {
+        switch type {
+        case .running:                    return "Running"
+        case .walking:                    return "Walking"
+        case .hiking:                     return "Hiking"
+        case .cycling:                    return "Cycling"
+        case .traditionalStrengthTraining,
+             .functionalStrengthTraining: return LiftingImporter.sport
+        case .highIntensityIntervalTraining: return "HIIT"
+        case .coreTraining:               return "Core training"
+        case .yoga:                       return "Yoga"
+        case .pilates:                    return "Pilates"
+        case .rowing:                     return "Rowing"
+        case .elliptical:                 return "Elliptical"
+        case .stairClimbing, .stairs:     return "Stairs"
+        case .jumpRope:                   return "Jump rope"
+        case .boxing, .kickboxing:        return "Boxing"
+        case .basketball:                 return "Basketball"
+        case .soccer:                     return "Soccer"
+        case .americanFootball:           return "Football"
+        case .baseball:                   return "Baseball"
+        case .badminton:                  return "Badminton"
+        case .tennis:                     return "Tennis"
+        case .tableTennis:                return "Table tennis"
+        case .volleyball:                 return "Volleyball"
+        case .squash, .racquetball:       return "Squash"
+        case .martialArts, .taiChi:       return "Martial arts"
+        case .dance, .cardioDance, .socialDance: return "Dancing"
+        case .golf:                       return "Golf"
+        case .climbing:                   return "Climbing"
+        case .downhillSkiing, .crossCountrySkiing: return "Skiing"
+        case .snowboarding:               return "Snowboarding"
+        case .swimming:                   return "Swimming"
+        case .surfingSports:              return "Surfing"
+        case .paddleSports:               return "Paddling"
+        default:                          return "Workout"
         }
     }
 

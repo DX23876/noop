@@ -179,12 +179,12 @@ struct AppleWatchSetupView: View {
                 Text("WHAT IT'S GREAT AT").font(StrandFont.overline)
                     .tracking(StrandFont.overlineTracking)
                     .foregroundStyle(StrandPalette.statusPositive)
-                bullet("bed.double.fill", "Sleep & Rest",
-                       "Apple's sleep stages are strong, and they drive your Rest score directly.")
-                bullet("figure.walk", "Steps & workouts",
-                       "Steps, active energy and logged workouts feed your Effort. Dense and reliable.")
-                bullet("bolt.heart.fill", "Fitness Age",
-                       "Built from the watch's cardio-fitness VO₂ max, the same number the Fitness app shows.")
+                bullet("bed.double.fill", String(localized: "Sleep & Rest"),
+                       String(localized: "Apple's sleep stages are strong, and they drive your Rest score directly."))
+                bullet("figure.walk", String(localized: "Steps & workouts"),
+                       String(localized: "Steps, active energy and logged workouts feed your Effort. Dense and reliable."))
+                bullet("bolt.heart.fill", String(localized: "Fitness Age"),
+                       String(localized: "Built from the watch's cardio-fitness VO₂ max, the same number the Fitness app shows."))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -196,10 +196,10 @@ struct AppleWatchSetupView: View {
                 Text("WHERE IT'S LIGHTER THAN A STRAP").font(StrandFont.overline)
                     .tracking(StrandFont.overlineTracking)
                     .foregroundStyle(StrandPalette.statusWarning)
-                bullet("heart.fill", "Recovery takes about a week",
-                       "A watch samples your heart-rate variability rather than streaming it all night, so your Charge score needs roughly seven nights to calibrate. Until then NOOP shows \u{201C}needs more data\u{201D}, never a guessed number.")
-                bullet("drop.degreesign", "A couple of metrics depend on your model",
-                       "Wrist temperature needs Series 8 or later, and the newest US units dropped the blood-oxygen sensor. Where a sensor isn't there, NOOP reads \u{201C}not available\u{201D} instead of zero.")
+                bullet("heart.fill", String(localized: "Recovery takes about a week"),
+                       String(localized: "A watch samples your heart-rate variability rather than streaming it all night, so your Charge score needs roughly seven nights to calibrate. Until then NOOP shows \u{201C}needs more data\u{201D}, never a guessed number."))
+                bullet("drop.degreesign", String(localized: "A couple of metrics depend on your model"),
+                       String(localized: "Wrist temperature needs Series 8 or later, and the newest US units dropped the blood-oxygen sensor. Where a sensor isn't there, NOOP reads \u{201C}not available\u{201D} instead of zero."))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -259,10 +259,11 @@ struct AppleWatchSetupView: View {
                         .fixedSize(horizontal: false, vertical: true)
 
                 case .entitlementMissing:
-                    // A free-signed sideload was re-signed without the HealthKit entitlement, so the
-                    // request can never present and the app can never appear under Settings › Health.
-                    // Give the honest path instead of an impossible Settings instruction (mirrors #348).
-                    Text("This install can't connect to Apple Health directly. It was sideloaded with a free signing profile, which doesn't include Apple's Health permission, so there's nothing to grant here.")
+                    // The sideload was re-signed without the HealthKit entitlement (free Apple IDs always
+                    // lack it, and some paid reseller certs do too, #930), so the request can never present
+                    // and the app can never appear under Settings › Health. Give the honest path instead
+                    // of an impossible Settings instruction (mirrors #348).
+                    Text("This install can't connect to Apple Health directly. It was signed with a profile that doesn't include Apple's Health permission, so there's nothing to grant here.")
                         .font(StrandFont.subhead)
                         .foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)

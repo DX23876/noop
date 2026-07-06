@@ -3,6 +3,29 @@
 # each anonymized + leak-checked. Writes dist/NOOP-v7.0.0-{macos.zip,.ipa,.apk}.
 set -uo pipefail
 cd ~/Documents/Strand
+
+# ── Anonymity source guard ─────────────────────────────────────────────────────
+# A maintainer name or home path must never reach a release. This is a build-from-
+# source project, so the SOURCE (not just the compiled binary) has to stay clean.
+# Abort before building if a real identity has leaked into tracked code/docs.
+# (A first-name leak in code comments shipped silently for weeks once; never again.)
+LEAK="$(git grep -niE 'aaron|iinde|phull' -- '*.swift' '*.kt' '*.md' '*.py' '*.sh' '*.yml' '*.json' '*.xcstrings' 2>/dev/null | grep -ivE 'aaronson' || true)"
+if [ -n "$LEAK" ]; then
+  echo "✗ ANONYMITY LEAK in tracked source, refusing to build:" >&2
+  echo "$LEAK" | head -20 >&2
+  exit 1
+fi
+# Codename guard: the word "Strand" must never reach a USER-FACING string literal (a shipped Android
+# toast said "reopen Strand" until v8.2.0). Identifier prefixes (StrandFont/StrandPalette/…) and
+# path/comment mentions are fine; a quoted standalone-word use is not.
+CODENAME="$(git grep -nE '"[^"]*\bStrand\b[^"]*"' -- '*.swift' '*.kt' 2>/dev/null | grep -vE 'Strand(Font|Palette|Design|Analytics|Tests|iOS)|Strand/|/Strand|scheme|CFBundle|xcodeproj|\.swift"' || true)"
+if [ -n "$CODENAME" ]; then
+  echo "✗ CODENAME LEAK in a user-facing string, refusing to build:" >&2
+  echo "$CODENAME" | head -20 >&2
+  exit 1
+fi
+echo "✓ anonymity source-scan clean"
+
 VER="${1:-7.0.1}"
 DIST="dist"; mkdir -p "$DIST"
 HOMEPATH="$HOME"

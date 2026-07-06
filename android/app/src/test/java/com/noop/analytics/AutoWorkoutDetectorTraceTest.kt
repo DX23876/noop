@@ -92,6 +92,17 @@ class AutoWorkoutDetectorTraceTest {
                 keptRichness = 5, droppedRichness = 1,
             ),
         )
+        // #975: the engine detected-bout decision line , persisted (no overlap) and dropped (overlaps a real).
+        assertEquals(
+            "detectedBout verdict=persisted durMin=42 avgBpm=148",
+            WorkoutsTrace.detectedBoutLine(verdict = "persisted", durMin = 42, avgBpm = 148),
+        )
+        assertEquals(
+            "detectedBout verdict=droppedOverlap durMin=42 avgBpm=148 overlapSource=manual",
+            WorkoutsTrace.detectedBoutLine(
+                verdict = "droppedOverlap", durMin = 42, avgBpm = 148, overlapSource = "manual",
+            ),
+        )
     }
 
     @Test fun workoutsReadoutParsesLastSession() {

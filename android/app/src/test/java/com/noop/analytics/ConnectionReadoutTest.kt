@@ -52,6 +52,35 @@ class ConnectionTraceTest {
             ConnectionTrace.noCursorLine(),
         )
     }
+
+    // #990: the -363 d drift that used to print "clockOk". Beyond the 48 h behind-tolerance the line
+    // must carry a clock warning naming the day count. Twin of the Swift vector.
+    @Test fun clockDriftLineFarBehindIsWarning() {
+        val wall = 1_782_475_200L
+        val line = ConnectionTrace.clockDriftLine(
+            oldestUnix = null, newestUnix = wall - 363L * 86_400L, wallNowUnix = wall,
+        )
+        assertTrue(line, line.contains("CLOCK-WARNING"))
+        assertTrue(line, line.contains("363d behind wall"))
+        assertFalse(line, line.contains("clockOk"))
+    }
+
+    @Test fun clockDriftLineBehindWithinToleranceStaysOk() {
+        val wall = 1_782_475_200L
+        val line = ConnectionTrace.clockDriftLine(
+            oldestUnix = null, newestUnix = wall - 47L * 3_600L, wallNowUnix = wall,
+        )
+        assertTrue(line, line.endsWith("clockOk"))
+    }
+
+    // #987: an epoch-era newest (never-set RTC, ~1970/71) is the named RTC-EPOCH fault, never clockOk.
+    @Test fun clockDriftLineEpochEraReadsRtcEpoch() {
+        val line = ConnectionTrace.clockDriftLine(
+            oldestUnix = null, newestUnix = 40_000_000L, wallNowUnix = 1_782_475_200L,  // 1971-04
+        )
+        assertTrue(line, line.contains("RTC-EPOCH"))
+        assertFalse(line, line.contains("clockOk"))
+    }
 }
 
 class ConnectionReadoutTest {
@@ -101,5 +130,74 @@ class ConnectionReadoutTest {
 
     @Test fun lastOffloadResultNullWhenNone() {
         assertNull(ConnectionReadout.lastOffloadResult(listOf("[connection] connect up gen=1 uptimeStart=1")))
+    }
+
+    // #990 per-session / all-time drained rows - twins of the Swift vectors.
+
+    @Test fun sessionRowsFromProgressLine() {
+        val tail = listOf("[connection] offload progress trim=100 chunkRows=5 sessionRows=57 sessionMotion=2 nights=1")
+        assertEquals(57, ConnectionReadout.sessionRows(tail))
+    }
+
+    @Test fun sessionRowsResultLineWins() {
+        val tail = listOf(
+            "[connection] offload progress trim=100 chunkRows=5 sessionRows=5 sessionMotion=2 nights=1",
+            "[connection] offload result=complete rows=42 nights=2",
+        )
+        assertEquals(42, ConnectionReadout.sessionRows(tail))
+    }
+
+    @Test fun sessionRowsEmptyResultIsZeroNotStale() {
+        // An "empty" result carries no rows= field: it honestly means 0, never an older running total.
+        val tail = listOf(
+            "[connection] offload progress trim=100 chunkRows=9 sessionRows=9 sessionMotion=2 nights=1",
+            "[connection] offload result=empty (console only, no sensor records)",
+        )
+        assertEquals(0, ConnectionReadout.sessionRows(tail))
+    }
+
+    @Test fun sessionRowsNullWhenNoOffload() {
+        assertNull(ConnectionReadout.sessionRows(listOf("[connection] connect up gen=1 uptimeStart=1")))
+    }
+
+    @Test fun drainedRowsFromSummary() {
+        assertEquals(
+            5_397,
+            ConnectionReadout.drainedRowsFromSummary(
+                "Backfill: session persisted 5397 rows (5211 with motion, 5211 skin-temp) across 2 night(s).",
+            ),
+        )
+        assertNull(ConnectionReadout.drainedRowsFromSummary("Backfill: session ended - reason=timeout"))
+        assertNull(ConnectionReadout.drainedRowsFromSummary("session persisted garbage rows"))
+    }
+
+    // #987 clock latch + last frame - twins of the Swift vectors.
+
+    @Test fun clockCorrelatedDeviceParsesNewest() {
+        val lines = listOf(
+            "12:00:01  Clock correlated: device=100 wall=1782475200",
+            "12:05:09  Clock correlated: device=1782475600 wall=1782475601",
+        )
+        assertEquals(1_782_475_600L, ConnectionReadout.clockCorrelatedDevice(lines))
+        assertNull(ConnectionReadout.clockCorrelatedDevice(listOf("connect up")))
+    }
+
+    @Test fun clockLatchedLabel() {
+        assertEquals("yes", ConnectionReadout.clockLatchedLabel(1_782_475_600L))
+        assertEquals("no (RTC reads 1970/71)", ConnectionReadout.clockLatchedLabel(40_000_000L))
+        assertEquals("no (waiting for the strap clock)", ConnectionReadout.clockLatchedLabel(null))
+    }
+
+    @Test fun rtcWarningFiresOnEpochEraClockOrNewest() {
+        assertTrue(ConnectionReadout.rtcWarning(40_000_000L, null) != null)
+        assertTrue(ConnectionReadout.rtcWarning(null, 30_000_000L) != null)
+        assertNull(ConnectionReadout.rtcWarning(1_782_475_600L, 1_782_475_000L))
+        // No signal seen yet must not fabricate a fault.
+        assertNull(ConnectionReadout.rtcWarning(null, null))
+    }
+
+    @Test fun lastFrameLabel() {
+        assertEquals("12s ago", ConnectionReadout.lastFrameLabel(990L, nowUnix = 1_002L))
+        assertEquals("no frames yet", ConnectionReadout.lastFrameLabel(null, nowUnix = 1_002L))
     }
 }

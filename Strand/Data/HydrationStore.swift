@@ -117,6 +117,8 @@ extension Repository {
         // #798 - also record the per-entry row so the detail can show, edit and delete this exact drink.
         let entries = HydrationEntries.adding(Self.hydrationEntries(day: dayKey), amountMl: amountMl)
         Self.writeHydrationEntries(entries, day: dayKey)
+        // #989: hydration writes never bump refreshSeq, so tell the Today card directly.
+        noteHydrationChanged()
         return next
     }
 
@@ -159,6 +161,8 @@ extension Repository {
                 [MetricPoint(day: dayKey, key: HydrationStore.key, value: total)],
                 deviceId: HydrationStore.sourceId)
         }
+        // #989: edits/deletes funnel through here; tell the Today card directly (see logHydration).
+        noteHydrationChanged()
         return total
     }
 

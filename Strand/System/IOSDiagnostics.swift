@@ -112,7 +112,7 @@ struct IOSDiagnostics {
         if let side = isSideloaded { lines.append("Sideloaded build: \(side ? "yes" : "no (App Store / TestFlight)")") }
         if let days = expiryDaysRemaining() {
             if days < 0 {
-                lines.append("Sideload expiry: EXPIRED \(-days) day\(abs(days) == 1 ? "" : "s") ago — re-sign to relaunch")
+                lines.append("Sideload expiry: EXPIRED \(-days) day\(abs(days) == 1 ? "" : "s") ago - re-sign to relaunch")
             } else {
                 lines.append("Sideload expiry: \(days) day\(days == 1 ? "" : "s") remaining")
             }

@@ -63,7 +63,7 @@ fun BackupSyncScreen() {
     var busy by remember { mutableStateOf(false) }
 
     // Restore-from-folder sheet state: the listed snapshots, and the one pending confirmation.
-    var snapshots by remember { mutableStateOf<List<Pair<String, Uri>>>(emptyList()) }
+    var snapshots by remember { mutableStateOf<List<BackupSync.SnapshotDoc>>(emptyList()) }
     var showSnapshotPicker by remember { mutableStateOf(false) }
     var pendingRestore by remember { mutableStateOf<Pair<String, Uri>?>(null) }
 
@@ -264,19 +264,28 @@ fun BackupSyncScreen() {
                         style = NoopType.footnote, color = Palette.textSecondary,
                     )
                     snapshots.forEach { snap ->
-                        val (name, uri) = snap
-                        val whenMs = BackupSync.snapshotTimeMs(name)
+                        // Label + confirmation come from the resolved timeMs carried through from
+                        // listSnapshotDocs, so a hand-named / date-only backup still shows a friendly date
+                        // (its file-modification date) instead of the raw filename - parity with Swift. Only
+                        // when the date is genuinely unknown (timeMs == 0) do we fall back to the name.
+                        val whenLabel = if (snap.timeMs > 0L) {
+                            DateUtils.getRelativeTimeSpanString(snap.timeMs).toString()
+                        } else {
+                            snap.name
+                        }
                         Text(
-                            text = whenMs?.let { DateUtils.getRelativeTimeSpanString(it).toString() } ?: name,
+                            text = whenLabel,
                             style = NoopType.body,
                             color = Palette.textPrimary,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
                                     showSnapshotPicker = false
-                                    pendingRestore = snap.copy(first = whenMs?.let {
-                                        "the backup from ${DateUtils.getRelativeTimeSpanString(it)}"
-                                    } ?: name)
+                                    pendingRestore = if (snap.timeMs > 0L) {
+                                        "the backup from $whenLabel"
+                                    } else {
+                                        snap.name
+                                    } to snap.uri
                                 }
                                 .padding(vertical = 10.dp),
                         )

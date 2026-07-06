@@ -80,6 +80,16 @@ public enum StrandPalette {
     public static let textSecondary  = Color(light: "#4C5564", dark: "#C8CFD8")
     public static let textTertiary   = Color(light: "#7C8696", dark: "#8A94A4")
 
+    // MARK: Text ON a permanently-dark surface (scheme-invariant)
+    // Use these — NOT textPrimary/Secondary/Tertiary — for labels/pills drawn over a fill that is pinned
+    // dark in BOTH themes (e.g. the Liquid Today hero score card + session-start row, whose `heroFill` is
+    // a fixed near-black). The regular text tokens FLIP to dark ink in Light mode, so on a fixed-dark card
+    // they render dark-on-near-black and vanish (#1013). These hold the light-on-dark values in BOTH
+    // schemes, so a label always reads on the card. (Same hex as the *.dark side of the text tokens.)
+    public static let onDarkPrimary   = Color(hex: "#F4F6F8")
+    public static let onDarkSecondary = Color(hex: "#C8CFD8")
+    public static let onDarkTertiary  = Color(hex: "#8A94A4")
+
     // MARK: Glow — ambient bloom behind heroes / charts (additive on dark; faint warm on light)
     public static let glowAmbient    = Color(light: "#F0E4C0", dark: "#3A2D0A")
 
@@ -188,10 +198,14 @@ public enum StrandPalette {
     public static var strainGradient: Gradient { Gradient(stops: strainStops) }
 
     // MARK: Sleep stages — the blue "Rest" colour world (Titanium); Classic adds a purple REM.
-    public static var sleepAwake: Color { isClassic ? cSleepAwake : Color(light: "#97A2B2", dark: "#C2CCDA") }
-    public static var sleepLight: Color { isClassic ? cSleepLight : Color(light: "#3A80D6", dark: "#4A90E2") }
-    public static var sleepDeep:  Color { isClassic ? cSleepDeep  : Color(light: "#234F9E", dark: "#2F6FCB") }
-    public static var sleepREM:   Color { isClassic ? cSleepREM   : Color(light: "#5790DA", dark: "#6FA8E8") }
+    // WHOOP sleep-stage palette (adopted from ryanAtriumAi #988): four distinct hues per stage —
+    // Awake white-grey #CAC8CB, Light periwinkle #A7A4F4, SWS/Deep orchid-pink #FD96FD, REM purple
+    // #AE5BEF — because the previous three near-identical blues made a fragmented on-device
+    // hypnogram unreadable. Light-mode variants are the same hues darkened for contrast on white.
+    public static var sleepAwake: Color { isClassic ? cSleepAwake : Color(light: "#8E949E", dark: "#CAC8CB") }
+    public static var sleepLight: Color { isClassic ? cSleepLight : Color(light: "#7B78E0", dark: "#A7A4F4") }
+    public static var sleepDeep:  Color { isClassic ? cSleepDeep  : Color(light: "#C13EC1", dark: "#FD96FD") }
+    public static var sleepREM:   Color { isClassic ? cSleepREM   : Color(light: "#8E3BD6", dark: "#AE5BEF") }
 
     // MARK: HR zones — Titanium cool→warm (no green), or the Classic grey→green→yellow→orange→red.
     public static var zone1: Color { isClassic ? cZone1 : Color(light: "#3A80D6", dark: "#4A90E2") }
@@ -323,11 +337,11 @@ public enum StrandPalette {
     /// DEPLETED · LOW · MODERATE · PRIMED · PEAK
     public static func recoveryState(_ score: Double) -> String {
         switch score {
-        case ..<25:  return "DEPLETED"
-        case ..<50:  return "LOW"
-        case ..<70:  return "MODERATE"
-        case ..<88:  return "PRIMED"
-        default:     return "PEAK"
+        case ..<25:  return String(localized: "DEPLETED", bundle: .module)
+        case ..<50:  return String(localized: "LOW", bundle: .module)
+        case ..<70:  return String(localized: "MODERATE", bundle: .module)
+        case ..<88:  return String(localized: "PRIMED", bundle: .module)
+        default:     return String(localized: "PEAK", bundle: .module)
         }
     }
 
@@ -456,9 +470,9 @@ public enum SleepStage: String, CaseIterable, Sendable {
     /// Display label.
     public var label: String {
         switch self {
-        case .awake: return "Awake"
-        case .light: return "Light"
-        case .deep:  return "Deep"
+        case .awake: return String(localized: "Awake", bundle: .module)
+        case .light: return String(localized: "Light", bundle: .module)
+        case .deep:  return String(localized: "Deep", bundle: .module)
         case .rem:   return "REM"
         }
     }

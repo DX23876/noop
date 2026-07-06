@@ -37,7 +37,7 @@ struct AutomationsView: View {
 
     var body: some View {
         ScreenScaffold(title: "Automations",
-                       subtitle: "Make the strap do things — tap to act, walk away to lock, train by feel.",
+                       subtitle: "Make the strap do things: tap to act, walk away to lock, train by feel.",
                        // PERF: the cards are direct children of the scaffold column, so the LazyVStack
                        // path (byte-identical layout) genuinely builds the off-screen cards on demand
                        // instead of constructing all eight/nine + their toggle subtrees up-front.
@@ -66,12 +66,12 @@ struct AutomationsView: View {
     /// iPhone and every wrist alert (inactivity, app notifications) stays silently off. Binds the same
     /// `notif.masterEnabled` key the SedentaryDetector and the notification posting read.
     private var wristAlertsCard: some View {
-        Section2(icon: "bell.badge.fill", title: "Wrist alerts",
-                 blurb: "Let NOOP tap your wrist for the things you turn on below, so you can leave your phone and still feel what matters.",
+        Section2(icon: "bell.badge.fill", title: String(localized: "Wrist alerts"),
+                 blurb: String(localized: "Let NOOP tap your wrist for the things you turn on below, so you can leave your phone and still feel what matters."),
                  active: wristAlertsMaster) {
             VStack(spacing: 0) {
-                ToggleRow(label: "Enable wrist alerts",
-                          help: "The master switch for every wrist buzz (inactivity, stress, alerts). Off keeps the strap quiet no matter what else is on.",
+                ToggleRow(label: String(localized: "Enable wrist alerts"),
+                          help: String(localized: "The master switch for every wrist buzz (inactivity, stress, alerts). Off keeps the strap quiet no matter what else is on."),
                           isOn: $wristAlertsMaster)
             }
         }
@@ -81,8 +81,8 @@ struct AutomationsView: View {
     // MARK: - Double tap
 
     private var doubleTapCard: some View {
-        Section2(icon: "hand.tap.fill", title: "Double-tap",
-                 blurb: "Double-tap the strap to trigger an action on \(Platform.deviceNounPhrase). (The strap exposes a single double-tap gesture.)",
+        Section2(icon: "hand.tap.fill", title: String(localized: "Double-tap"),
+                 blurb: String(localized: "Double-tap the strap to trigger an action on \(Platform.deviceNounPhrase). (The strap exposes a single double-tap gesture.)"),
                  active: behavior.doubleTapAction != .none) {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
@@ -94,7 +94,7 @@ struct AutomationsView: View {
                     .labelsHidden().fixedSize()
                 }
                 if behavior.doubleTapAction == .runShortcut {
-                    shortcutField("Shortcut name", text: $behavior.doubleTapShortcut)
+                    shortcutField(String(localized: "Shortcut name"), text: $behavior.doubleTapShortcut)
                 }
                 HStack {
                     Button {
@@ -146,22 +146,22 @@ struct AutomationsView: View {
     // MARK: - Wear & presence
 
     private var wearCard: some View {
-        Section2(icon: "figure.walk.motion", title: "Wear & presence",
+        Section2(icon: "figure.walk.motion", title: String(localized: "Wear & presence"),
                  blurb: wearBlurb,
                  active: wearActive) {
             VStack(spacing: 0) {
                 #if os(macOS)
-                ToggleRow(label: "Lock the Mac when I take the strap off",
-                          help: "Fires the moment the strap leaves your wrist.",
+                ToggleRow(label: String(localized: "Lock the Mac when I take the strap off"),
+                          help: String(localized: "Fires the moment the strap leaves your wrist."),
                           isOn: $behavior.autoLockOnWristOff)
                 rowDivider
                 #endif
-                shortcutFieldRow("Run a Shortcut when taken off",
-                                 help: "Presence automation — set a Focus, pause media, set away…",
+                shortcutFieldRow(String(localized: "Run a Shortcut when taken off"),
+                                 help: String(localized: "Presence automation: set a Focus, pause media, set away…"),
                                  text: $behavior.wristOffShortcut)
                 rowDivider
-                shortcutFieldRow("Run a Shortcut when put back on",
-                                 help: "Reverse the above when you return.",
+                shortcutFieldRow(String(localized: "Run a Shortcut when put back on"),
+                                 help: String(localized: "Reverse the above when you return."),
                                  text: $behavior.wristOnShortcut)
             }
         }
@@ -170,35 +170,35 @@ struct AutomationsView: View {
     // MARK: - Coaching
 
     private var coachingCard: some View {
-        Section2(icon: "bolt.heart.fill", title: "Haptic coaching",
-                 blurb: "Train by feel — the strap buzzes so you don't have to watch a screen.",
+        Section2(icon: "bolt.heart.fill", title: String(localized: "Haptic coaching"),
+                 blurb: String(localized: "Train by feel. The strap buzzes so you don't have to watch a screen."),
                  active: behavior.zoneCoaching || behavior.stressNudge || behavior.stressCheckIn) {
             VStack(spacing: 0) {
-                ToggleRow(label: "HR-zone coaching",
-                          help: "Buzz when you hit your top zone (ease off) and again when you recover. Uses your max HR from Settings.",
+                ToggleRow(label: String(localized: "HR-zone coaching"),
+                          help: String(localized: "Buzz when you hit your top zone (ease off) and again when you recover. Uses your max HR from Settings."),
                           isOn: $behavior.zoneCoaching)
                 rowDivider
-                ToggleRow(label: "Resting stress nudge (experimental)",
-                          help: "A gentle buzz when your HRV drops while your heart rate is calm — a cue to take a paced breath. Rate-limited to once every 15 minutes; off by default.",
+                ToggleRow(label: String(localized: "Resting stress nudge (experimental)"),
+                          help: String(localized: "A gentle buzz when your HRV drops while your heart rate is calm, a cue to take a paced breath. Rate-limited to once every 15 minutes; off by default."),
                           isOn: $behavior.stressNudge)
                 rowDivider
                 // v5 L3 closed-loop check-in (master + sub toggles). Default OFF, manual-first. The keys
                 // mirror BiofeedbackPrefs, which the central detector (AppModel.evaluateStress) reads.
-                ToggleRow(label: "Stress check-ins (haptic)",
-                          help: "When a fresh, non-exercise HRV dip is detected while you're still, NOOP offers a one-minute guided breath — a single confirming buzz and a dismissible card. Never an alarm, never a diagnosis.",
+                ToggleRow(label: String(localized: "Stress check-ins (haptic)"),
+                          help: String(localized: "When a fresh, non-exercise HRV dip is detected while you're still, NOOP offers a one-minute guided breath: a single confirming buzz and a dismissible card. Never an alarm, never a diagnosis."),
                           isOn: $behavior.stressCheckIn)
                 if behavior.stressCheckIn {
                     rowDivider
-                    ToggleRow(label: "Auto-nudge",
-                              help: "Let the check-in fire on its own. Off keeps it manual — you start a breath from Breathe yourself.",
+                    ToggleRow(label: String(localized: "Auto-nudge"),
+                              help: String(localized: "Let the check-in fire on its own. Off keeps it manual: you start a breath from Breathe yourself."),
                               isOn: $behavior.stressAutoNudge)
                     rowDivider
-                    ToggleRow(label: "Respect quiet hours",
-                              help: "Suppress auto-nudges overnight (10pm–7am).",
+                    ToggleRow(label: String(localized: "Respect quiet hours"),
+                              help: String(localized: "Suppress auto-nudges overnight (10pm-7am)."),
                               isOn: $behavior.stressQuietHours)
                     rowDivider
-                    ToggleRow(label: "Use my resonance pace",
-                              help: "Breathe at the pace your last \u{201C}find my pace\u{201D} sweep locked in, if you have one — otherwise a calm 5.5 breaths/min.",
+                    ToggleRow(label: String(localized: "Use my resonance pace"),
+                              help: String(localized: "Breathe at the pace your last \u{201C}find my pace\u{201D} sweep locked in, if you have one. Otherwise a calm 5.5 breaths/min."),
                               isOn: $behavior.stressUseResonancePace)
                 }
             }
@@ -208,38 +208,38 @@ struct AutomationsView: View {
     // MARK: - Inactivity reminder (#419)
 
     private var inactivityCard: some View {
-        Section2(icon: "timer", title: "Inactivity reminder",
-                 blurb: "A gentle wrist buzz when you've been sitting too long — a nudge to get up and move. Inferred from the strap's motion on each history sync, so it lags real time by a sync or two.",
+        Section2(icon: "timer", title: String(localized: "Inactivity reminder"),
+                 blurb: String(localized: "A gentle wrist buzz when you've been sitting too long, a nudge to get up and move. Inferred from the strap's motion on each history sync, so it lags real time by a sync or two."),
                  active: inactivity.enabled) {
             VStack(spacing: 0) {
-                ToggleRow(label: "Enable inactivity reminder",
-                          help: "Buzzes after you've been sitting past your threshold.",
+                ToggleRow(label: String(localized: "Enable inactivity reminder"),
+                          help: String(localized: "Buzzes after you've been sitting past your threshold."),
                           isOn: $inactivity.enabled)
                 if inactivity.enabled {
                     if !notifMasterOn {
-                        Text("Notifications are off, so this can't buzz yet — turn on the master switch in Notifications to let it through.")
+                        Text("Notifications are off, so this can't buzz yet. Turn on the master switch in Notifications to let it through.")
                             .font(StrandFont.footnote)
                             .foregroundStyle(StrandPalette.statusWarning)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.top, 6)
                     }
                     rowDivider
-                    stepperRow(label: "Sitting for", help: "Minutes seated before the first nudge.",
-                               value: $inactivity.thresholdMinutes, suffix: "min", range: 15...120, step: 15)
+                    stepperRow(label: String(localized: "Sitting for"), help: String(localized: "Minutes seated before the first nudge."),
+                               value: $inactivity.thresholdMinutes, suffix: String(localized: "min"), range: 15...120, step: 15)
                     rowDivider
-                    stepperRow(label: "Re-nudge every", help: "If you're still seated, buzz again this often.",
-                               value: $inactivity.reNudgeMinutes, suffix: "min", range: 15...120, step: 15)
+                    stepperRow(label: String(localized: "Re-nudge every"), help: String(localized: "If you're still seated, buzz again this often."),
+                               value: $inactivity.reNudgeMinutes, suffix: String(localized: "min"), range: 15...120, step: 15)
                     rowDivider
-                    stepperRow(label: "Buzz strength", help: "How strong the buzz is.",
+                    stepperRow(label: String(localized: "Buzz strength"), help: String(localized: "How strong the buzz is."),
                                value: $inactivity.buzzLoops, suffix: "×", range: 1...4, step: 1)
                     rowDivider
                     // Reuses the shared notification only-when-worn gate (notif.onlyWhenWorn).
-                    ToggleRow(label: "Only when worn",
-                              help: "Don't buzz when the strap is off your wrist.",
+                    ToggleRow(label: String(localized: "Only when worn"),
+                              help: String(localized: "Don't buzz when the strap is off your wrist."),
                               isOn: onlyWhenWornBinding)
                     rowDivider
-                    ToggleRow(label: "Only during active hours",
-                              help: "Only nudge during your active hours.",
+                    ToggleRow(label: String(localized: "Only during active hours"),
+                              help: String(localized: "Only nudge during your active hours."),
                               isOn: $inactivity.activeHoursEnabled)
                     if inactivity.activeHoursEnabled {
                         rowDivider
@@ -302,11 +302,11 @@ struct AutomationsView: View {
     // MARK: - Illness early-warning
 
     private var illnessCard: some View {
-        Section2(icon: "waveform.path.ecg", title: "Illness early-warning",
-                 blurb: "Watches your resting HR, HRV, skin temperature and respiration against your own 28-day baseline. On-device and approximate — informational only, not a diagnosis.",
+        Section2(icon: "waveform.path.ecg", title: String(localized: "Illness early-warning"),
+                 blurb: String(localized: "Watches your resting HR, HRV, skin temperature and respiration against your own 28-day baseline. On-device and approximate: informational only, not a diagnosis."),
                  active: behavior.illnessWatch) {
-            ToggleRow(label: "Watch for early-illness signs",
-                      help: "Needs at least 14 days of history. When two or more signals drift together you get a banner on the dashboard and a notification — at most once a day.",
+            ToggleRow(label: String(localized: "Watch for early-illness signs"),
+                      help: String(localized: "Needs at least 14 days of history. When two or more signals drift together you get a banner on the dashboard and a notification, at most once a day."),
                       isOn: $behavior.illnessWatch)
                 .onChangeCompat(of: behavior.illnessWatch) { _ in
                     model.reevaluateIllness()
@@ -318,8 +318,8 @@ struct AutomationsView: View {
     // MARK: - Health insights (v5: cycle awareness opt-in · experimental Rhythm)
 
     private var healthInsightsCard: some View {
-        Section2(icon: "thermometer.medium", title: "Health insights",
-                 blurb: "Optional, on-device reads from your nightly signals. Each is off by default — for awareness only, never a diagnosis.",
+        Section2(icon: "thermometer.medium", title: String(localized: "Health insights"),
+                 blurb: String(localized: "Optional, on-device reads from your nightly signals. Each is off by default: for awareness only, never a diagnosis."),
                  active: cycleAwareness || rhythmEnabled) {
             VStack(spacing: 0) {
                 // #801: cycle awareness reads the MENSTRUAL temperature shift, so the toggle is only
@@ -327,8 +327,8 @@ struct AutomationsView: View {
                 // not shown for male profiles). Keeps the two surfaces consistent: a profile that can't
                 // see the Health card can't enable the feature from here either.
                 if cycleOptInApplies {
-                    ToggleRow(label: "Cycle awareness",
-                              help: "Reads a coarse menstrual-cycle phase from your nightly skin temperature, entirely on \(Platform.deviceNounPhrase). Awareness only: not contraception, not a fertility predictor, not a medical service. The card appears in Health.",
+                    ToggleRow(label: String(localized: "Cycle awareness"),
+                              help: String(localized: "Reads a coarse menstrual-cycle phase from your nightly skin temperature, entirely on \(Platform.deviceNounPhrase). Awareness only: not contraception, not a fertility predictor, not a medical service. The card appears in Health."),
                               isOn: $cycleAwareness)
                         .onChangeCompat(of: cycleAwareness) { on in
                             model.cycleAwarenessEnabled = on
@@ -336,8 +336,8 @@ struct AutomationsView: View {
                         }
                     rowDivider
                 }
-                ToggleRow(label: "Rhythm visualization (experimental)",
-                          help: "An experimental picture of your beat-to-beat heart timing. Not an ECG and not a diagnosis. You'll read and accept an experimental note before it shows anything.",
+                ToggleRow(label: String(localized: "Rhythm visualization (experimental)"),
+                          help: String(localized: "An experimental picture of your beat-to-beat heart timing. Not an ECG and not a diagnosis. You'll read and accept an experimental note before it shows anything."),
                           isOn: $rhythmEnabled)
                 if rhythmEnabled {
                     rowDivider
@@ -358,11 +358,11 @@ struct AutomationsView: View {
     // MARK: - Strap battery alerts
 
     private var batteryCard: some View {
-        Section2(icon: "battery.25", title: "Battery alerts",
-                 blurb: "Get a notification when the strap battery runs low (15%) so you can top it up before tonight, and when it finishes charging.",
+        Section2(icon: "battery.25", title: String(localized: "Battery alerts"),
+                 blurb: String(localized: "Get a notification when the strap battery runs low (15%) so you can top it up before tonight, and when it finishes charging."),
                  active: behavior.batteryAlerts) {
-            ToggleRow(label: "Notify on low and full battery",
-                      help: "A reminder to recharge before bed when the strap drops to 15%, and a heads-up when it reaches 100% — each at most once per charge cycle.",
+            ToggleRow(label: String(localized: "Notify on low and full battery"),
+                      help: String(localized: "A reminder to recharge before bed when the strap drops to 15%, and a heads-up when it reaches 100%, each at most once per charge cycle."),
                       isOn: $behavior.batteryAlerts)
                 .onChangeCompat(of: behavior.batteryAlerts) { on in
                     if on { BatteryNotifier.requestAuthorization() }
@@ -397,9 +397,9 @@ struct AutomationsView: View {
 
     private var wearBlurb: String {
         #if os(macOS)
-        "React when the strap comes off or goes on. Note: macOS reserves true auto-UNLOCK for Apple Watch — this can lock, not unlock."
+        String(localized: "React when the strap comes off or goes on. Note: macOS reserves true auto-UNLOCK for Apple Watch, so this can lock, not unlock.")
         #else
-        "React when the strap comes off or goes on — run a Shortcut to set a Focus, pause media, mark yourself away."
+        String(localized: "React when the strap comes off or goes on. Run a Shortcut to set a Focus, pause media, mark yourself away.")
         #endif
     }
 
@@ -428,7 +428,7 @@ struct AutomationsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer()
-            shortcutField("Shortcut name", text: text)
+            shortcutField(String(localized: "Shortcut name"), text: text)
         }
         .frame(minHeight: 42).padding(.vertical, 4)
     }

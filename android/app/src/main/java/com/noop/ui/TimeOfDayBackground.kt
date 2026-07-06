@@ -36,7 +36,7 @@ import kotlin.math.sin
 // layer sits at alpha <= 0.16, painted OVER the WHOOP `surfaceBase` canvas so screens stay dark,
 // flat and clean.
 //
-// HARD RULES honoured (Aaron, standing):
+// HARD RULES honoured (standing):
 //  - NO GLOW. No bloom, no blur halos, no neon. The sun/moon are plain filled circles at very low
 //    opacity; stars are tiny crisp dots.
 //  - TOKENS first (`Palette`). The only literal colours are the few subtle atmosphere tints the

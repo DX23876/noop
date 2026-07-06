@@ -68,15 +68,76 @@ object BackupSync {
 
     fun isSnapshot(name: String): Boolean = snapshotTimeMs(name) != null
 
+    /**
+     * Any `.noopbak` file, whatever it's named. The RESTORE list uses this (not [isSnapshot]) so a
+     * hand-named backup like `noop-backup-2026-06-30.noopbak` still shows (#852). Case-insensitive on
+     * the extension. Prune/latest stay strict on [isSnapshot], so a non-canonical name is listed for
+     * restore but never auto-deleted.
+     */
+    fun isBackupFile(name: String): Boolean = name.lowercase().endsWith(SUFFIX)
+
     /** Newest snapshot by encoded time among [names] (non-snapshots ignored), or null if none. */
     fun latestSnapshot(names: List<String>): String? =
         names.filter(::isSnapshot).maxByOrNull { snapshotTimeMs(it)!! }
 
-    /** Snapshots to DELETE to keep only the [keep] newest (oldest-first). Empty when within budget. */
+    /**
+     * Snapshots to DELETE to keep only the [keep] newest (oldest-first). Empty when within budget.
+     * Strict on purpose: only canonical snapshots are prune candidates, so a hand-named `.noopbak`
+     * in the folder is never auto-deleted.
+     */
     fun snapshotsToPrune(names: List<String>, keep: Int): List<String> {
         val snaps = names.filter(::isSnapshot).sortedByDescending { snapshotTimeMs(it)!! }
         return if (snaps.size <= keep) emptyList() else snaps.drop(keep)
     }
+
+    /** One restorable `.noopbak` for the folder picker: its filename and the ms used to order/label it. */
+    data class Restorable(val name: String, val timeMs: Long)
+
+    /**
+     * One `.noopbak` document as the SAF cursor sees it: display name, its Uri, and the raw last-modified
+     * ms the provider reported (0 when the column is null). Two docs can share [name] (Drive duplicates,
+     * a sync client dropping the same date-only file twice); the [uri] is what keeps them distinct.
+     */
+    data class BackupDoc(val name: String, val uri: Uri, val modifiedMs: Long)
+
+    /**
+     * ALL `.noopbak` files (any name) ordered newest-first for the restore picker (#852). Canonical
+     * names use their embedded UTC stamp; the rest fall back to the file date [fileDateMs] gives for
+     * that name (0 when unknown). Non-`.noopbak` files are dropped. Pure, so it's unit-tested; the I/O
+     * layer supplies [fileDateMs] from the SAF cursor's last-modified column.
+     */
+    fun restorablesNewestFirst(names: List<String>, fileDateMs: (String) -> Long): List<Restorable> =
+        names.filter(::isBackupFile)
+            .map { Restorable(it, snapshotTimeMs(it) ?: fileDateMs(it)) }
+            // Newest-first, with a name tie-break so equal-time entries (two files sharing a date-only
+            // name, or a provider that reports the same modified date) order deterministically and
+            // identically to Swift's `timeMs desc then name asc`.
+            .sortedWith(compareByDescending<Restorable> { it.timeMs }.thenBy { it.name })
+
+    /**
+     * Newest-first ordering of raw docs, PRESERVING DUPLICATES (#852). Unlike [restorablesNewestFirst]
+     * (which keys off a bare name list), this keeps every distinct document even when two share a display
+     * name - Drive duplicates, or a sync client / second device dropping `noop-backup-2026-06-30.noopbak`
+     * twice - so no real backup silently vanishes. Date-only names are the most collision-prone, and they
+     * are exactly the files #852 rescues. Non-`.noopbak` docs are dropped. Canonical names order by their
+     * embedded stamp; the rest by the provider's last-modified ms.
+     *
+     * Generic over the doc type via [name]/[modifiedMs] accessors so the pure ordering is unit-testable
+     * WITHOUT constructing an Android [Uri] (this project has no Robolectric). The I/O layer feeds it
+     * [BackupDoc]s straight from the cursor.
+     */
+    fun <T> restorableDocsNewestFirst(
+        docs: List<T>,
+        name: (T) -> String,
+        modifiedMs: (T) -> Long,
+    ): List<T> =
+        docs.filter { isBackupFile(name(it)) }
+            // Same key as [restorablesNewestFirst]: the embedded stamp when present, else the file date.
+            // Same newest-first + name tie-break so a doc list and a name list order identically.
+            .sortedWith(
+                compareByDescending<T> { snapshotTimeMs(name(it)) ?: modifiedMs(it) }
+                    .thenBy { name(it) },
+            )
 
     /** True when [nowMs] is at least a day past [lastBackupMs] (pure, so the catch-up gate is testable). */
     fun isCatchUpDue(lastBackupMs: Long, nowMs: Long): Boolean = nowMs - lastBackupMs >= DAY_MS
@@ -117,38 +178,57 @@ object BackupSync {
     private fun prune(context: Context, treeUri: Uri) {
         val keep = BackupSyncPrefs.keepCount(context)
         val children = runCatching { listSnapshotDocs(context, treeUri) }.getOrDefault(emptyList())
-        val toDelete = snapshotsToPrune(children.map { it.first }, keep).toSet()
-        for ((name, docUri) in children) {
-            if (name in toDelete) {
-                runCatching { DocumentsContract.deleteDocument(context.contentResolver, docUri) }
+        val toDelete = snapshotsToPrune(children.map { it.name }, keep).toSet()
+        for (doc in children) {
+            if (doc.name in toDelete) {
+                runCatching { DocumentsContract.deleteDocument(context.contentResolver, doc.uri) }
             }
         }
     }
 
-    /** (name, documentUri) for every snapshot in the tree, newest-first. Drives restore-from-folder. */
-    fun listSnapshotDocs(context: Context, treeUri: Uri): List<Pair<String, Uri>> {
+    /** One row of the restore picker: display name, its Uri, and the resolved ms used to order + label it. */
+    data class SnapshotDoc(val name: String, val uri: Uri, val timeMs: Long)
+
+    /**
+     * Every `.noopbak` in the tree, newest-first, as (name, Uri, resolved-ms) rows. Drives
+     * restore-from-folder. Lists ANY `.noopbak`, not just canonically-named ones (#852): a hand-named
+     * backup like `noop-backup-2026-06-30.noopbak` still shows. DUPLICATES ARE PRESERVED - two docs
+     * sharing a display name (Drive duplicates, a sync client dropping the same file twice) both survive,
+     * distinguished by their Uri, so no real backup silently vanishes. Canonical names order + label by
+     * their embedded stamp; the rest by the SAF last-modified date, so the picker shows a friendly date
+     * even for a hand-named file (parity with Swift). Content is validated on restore, so a bad file here
+     * is caught then.
+     */
+    fun listSnapshotDocs(context: Context, treeUri: Uri): List<SnapshotDoc> {
         val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(
             treeUri,
             DocumentsContract.getTreeDocumentId(treeUri),
         )
-        val out = ArrayList<Pair<String, Uri>>()
+        val docs = ArrayList<BackupDoc>()
         context.contentResolver.query(
             childrenUri,
             arrayOf(
                 DocumentsContract.Document.COLUMN_DOCUMENT_ID,
                 DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                DocumentsContract.Document.COLUMN_LAST_MODIFIED,
             ),
             null, null, null,
         )?.use { c ->
             while (c.moveToNext()) {
                 val id = c.getString(0)
                 val name = c.getString(1) ?: continue
-                if (isSnapshot(name)) {
-                    out.add(name to DocumentsContract.buildDocumentUriUsingTree(treeUri, id))
+                if (isBackupFile(name)) {
+                    // COLUMN_LAST_MODIFIED can be null for some providers; fall back to 0.
+                    val modifiedMs = if (c.isNull(2)) 0L else c.getLong(2)
+                    docs.add(BackupDoc(name, DocumentsContract.buildDocumentUriUsingTree(treeUri, id), modifiedMs))
                 }
             }
         }
-        return out.sortedByDescending { snapshotTimeMs(it.first)!! }
+        // Order + preserve duplicates in the pure helper, then resolve each row's display ms the same way
+        // (embedded stamp when present, else the file date) so the screen can label from timeMs directly.
+        return restorableDocsNewestFirst(docs, { it.name }, { it.modifiedMs }).map {
+            SnapshotDoc(it.name, it.uri, snapshotTimeMs(it.name) ?: it.modifiedMs)
+        }
     }
 
     // ── Scheduling (WorkManager - survives reboot/app-kill, mirrors DebugExportScheduler) ──

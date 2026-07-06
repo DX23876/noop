@@ -125,7 +125,7 @@ fun Modifier.frostedCardSurface(
             style = Stroke(width = 1.dp.toPx()),
         )
     } else {
-        // TINTED card (iOS parity, Aaron 2026-06-23 "synthesis has the old blue style"): a FLAT raised
+        // TINTED card (iOS parity, 2026-06-23 "synthesis has the old blue style"): a FLAT raised
         // surface — the SAME WHOOP grey as the neutral card, NO navy bevel gradient — carrying only a
         // whisper of the domain tint as a diagonal hue wash so it stays in the grey family.
         // 1) Flat raised fill — identical to the neutral card.
@@ -556,6 +556,10 @@ fun <T> SegmentedPillControl(
     label: (T) -> String,
     onSelect: (T) -> Unit,
     modifier: Modifier = Modifier,
+    // Per-segment availability (#943): a disabled segment stays VISIBLE (dimmed, not clickable) so the
+    // control can teach that an option exists before it is usable, e.g. trend ranges that unlock as
+    // history builds. Defaulted so every existing call site is untouched.
+    enabled: (T) -> Boolean = { true },
 ) {
     val outerShape = RoundedCornerShape(50)
     // The track is a fixed-height pill; the selected pill FILLS that height so its inset is EQUAL on
@@ -574,9 +578,10 @@ fun <T> SegmentedPillControl(
     ) {
         items.forEach { item ->
             val selected = item == selection
+            val itemEnabled = enabled(item)
             // Selected segment is SELECTION CHROME → follows the accent: a gold gradient + gold-deep ink
             // on dark; a flat blue accent + white ink on light (so light selection matches the blue
-            // chrome, not gold). Unselected stays clear with tertiary text.
+            // chrome, not gold). Unselected stays clear with tertiary text; disabled dims further.
             val pillShape = RoundedCornerShape(50)
             val pillBg = if (selected) {
                 if (Palette.isLight) Modifier.background(Palette.accent, pillShape)
@@ -590,17 +595,18 @@ fun <T> SegmentedPillControl(
                     .fillMaxHeight()
                     .clip(pillShape)
                     .then(pillBg)
-                    .clickableNoRipple { onSelect(item) }
+                    .then(if (itemEnabled) Modifier.clickableNoRipple { onSelect(item) } else Modifier)
                     .padding(horizontal = 12.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = label(item),
                     style = NoopType.captionNumber,
-                    color = if (selected) {
-                        if (Palette.isLight) androidx.compose.ui.graphics.Color.White else Palette.goldDeepText
-                    } else {
-                        Palette.textTertiary
+                    color = when {
+                        selected && Palette.isLight -> androidx.compose.ui.graphics.Color.White
+                        selected -> Palette.goldDeepText
+                        !itemEnabled -> Palette.textTertiary.copy(alpha = 0.45f)
+                        else -> Palette.textTertiary
                     },
                 )
             }
@@ -1231,6 +1237,11 @@ fun LazyScreenScaffold(
     // above its first row, and supply leading/trailing header actions + a screen-level scene backdrop.
     // All defaulted, so the existing flat callers (Intelligence) are byte-for-byte untouched.
     topPadding: Dp = 28.dp,
+    // The inter-row vertical spacing between top-level items. Defaults to the shared `screenRowSpacing`
+    // (20dp) so every existing caller is byte-for-byte untouched; the liquid Today passes a tighter value
+    // to match the iOS Today's compact `VStack(spacing: 12)` section rhythm (the maintainer's "iOS is
+    // tighter/slicker" note). Scoped per-scaffold so no other screen's rhythm shifts.
+    rowSpacing: Dp = Metrics.screenRowSpacing,
     leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
     // Optional full-bleed scene drawn behind the scroll content at the TOP of the screen — the SAME slot
@@ -1283,9 +1294,10 @@ fun LazyScreenScaffold(
         LazyColumn(
             modifier = listModifier,
             contentPadding = PaddingValues(start = 28.dp, top = topPadding, end = 28.dp, bottom = 28.dp),
-            // #765: the SAME shared inter-card spacing token as the eager ScreenScaffold, so Today/Explore
-            // (both lazy) and the eager screens share one uniform card rhythm.
-            verticalArrangement = Arrangement.spacedBy(Metrics.screenRowSpacing),
+            // #765: the shared inter-card spacing token by default (Today/Explore + the eager screens share
+            // one uniform card rhythm); a caller may pass a tighter [rowSpacing] (the liquid Today does, for
+            // the iOS-compact section rhythm).
+            verticalArrangement = Arrangement.spacedBy(rowSpacing),
         ) {
             if (header != null) {
                 item { header() }

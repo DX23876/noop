@@ -179,6 +179,15 @@ struct NOOPChargeView: View {
         return snap.freshnessText(now: entry.date)
     }
 
+    /// True when the snapshot's scores read as current ("Today" / "just now"). The families below skip
+    /// the recency label in that case because it adds no information next to a live-looking number.
+    /// Decided by the SEMANTIC flag on the shared contract, never by comparing the localized display
+    /// text `freshness` returns; a display-text comparison would silently stop matching in every
+    /// language the string catalogs translate.
+    private var isFreshToday: Bool {
+        entry.snapshot?.isFreshToday(now: entry.date) ?? false
+    }
+
     var body: some View {
         switch family {
         case .accessoryCircular:    circular
@@ -232,11 +241,11 @@ struct NOOPChargeView: View {
     /// The circular family's curved widgetLabel. Appends the freshness once a snapshot starts aging so
     /// the number above it is never read as live; stays "Charge" while it is fresh.
     private var circularLabel: String {
-        guard let fresh = freshness else { return "Charge" }
-        if isStale { return "Charge · \(fresh)" }
-        // "just now" / "Today" add no information next to a live-looking ring, so keep it clean.
-        if fresh == "just now" || fresh == "Today" { return "Charge" }
-        return "Charge · \(fresh)"
+        guard let fresh = freshness else { return String(localized: "Charge") }
+        if isStale { return String(localized: "Charge · \(fresh)") }
+        // A current snapshot's label adds no information next to a live-looking ring, so keep it clean.
+        if isFreshToday { return String(localized: "Charge") }
+        return String(localized: "Charge · \(fresh)")
     }
 
     // MARK: accessoryCorner — number hugging the corner, "Charge" curved along the bezel
@@ -257,41 +266,49 @@ struct NOOPChargeView: View {
     private var cornerLabel: String {
         switch charge {
         case .value:
-            // Real number: ride the bezel with the recency so an aging score stays honest.
-            guard let fresh = freshness, fresh != "just now", fresh != "Today" else { return "Charge" }
-            return "Charge · \(fresh)"
+            // Real number: ride the bezel with the recency so an aging score stays honest. A current
+            // snapshot keeps the plain label (semantic flag, not a display-text comparison).
+            guard let fresh = freshness, !isFreshToday else { return String(localized: "Charge") }
+            return String(localized: "Charge · \(fresh)")
         case .calibrating:
             // When the dash is here because the whole snapshot went stale, say so plainly rather than
             // "cal" (which means "needs more data", a different thing).
-            return isStale ? "Charge · \(freshness ?? "stale")" : "Charge · cal"
+            if isStale {
+                let fresh = freshness ?? String(localized: "stale")
+                return String(localized: "Charge · \(fresh)")
+            }
+            return String(localized: "Charge · cal")
         case .missing:
-            return noSnapshot ? "Open NOOP" : "Charge"
+            return noSnapshot ? String(localized: "Open NOOP") : String(localized: "Charge")
         }
     }
 
     // MARK: accessoryInline — a single line of text along the top of the face
 
     private var inlineText: String {
-        if noSnapshot { return "NOOP · open on iPhone" }
+        if noSnapshot { return String(localized: "NOOP · open on iPhone") }
         // When the snapshot has aged out we never print the old number; we say it is stale and how old.
-        if isStale { return "Charge stale · \(freshness ?? "old")" }
+        if isStale {
+            let fresh = freshness ?? String(localized: "old")
+            return String(localized: "Charge stale · \(fresh)")
+        }
         switch charge {
         case .value(let v):
             // A fresh number reads as live, so append the recency once it starts to age.
             let suffix = inlineFreshnessSuffix
-            if let hr = entry.snapshot?.hr { return "Charge \(v) · \(hr) bpm\(suffix)" }
-            return "Charge \(v)\(suffix)"
+            if let hr = entry.snapshot?.hr { return String(localized: "Charge \(v) · \(hr) bpm\(suffix)") }
+            return String(localized: "Charge \(v)\(suffix)")
         case .calibrating:
-            return "Charge calibrating"
+            return String(localized: "Charge calibrating")
         case .missing:
-            return "Charge –"
+            return String(localized: "Charge –")
         }
     }
 
     /// " · 2h ago" appended to the inline line once a snapshot ages, empty while it is fresh so a live
-    /// reading stays uncluttered.
+    /// reading stays uncluttered. Keyed off the semantic flag, never the localized display text.
     private var inlineFreshnessSuffix: String {
-        guard let fresh = freshness, fresh != "just now", fresh != "Today" else { return "" }
+        guard let fresh = freshness, !isFreshToday else { return "" }
         return " · \(fresh)"
     }
 
@@ -316,9 +333,9 @@ struct NOOPChargeView: View {
             }
             // The three scores, equal-width.
             HStack(alignment: .top, spacing: 0) {
-                scoreCell("Charge", readout: charge, tint: chargeTint)
-                scoreCell("Effort", readout: effort, tint: effortTint)
-                scoreCell("Rest", readout: rest, tint: restTint)
+                scoreCell(String(localized: "Charge"), readout: charge, tint: chargeTint)
+                scoreCell(String(localized: "Effort"), readout: effort, tint: effortTint)
+                scoreCell(String(localized: "Rest"), readout: rest, tint: restTint)
             }
         }
         .widgetAccentable()
@@ -330,7 +347,7 @@ struct NOOPChargeView: View {
     /// snapshot reads as "Yesterday" / "2h ago" rather than implying it is live. The three cells below
     /// already collapse to the calibrating dash when stale, so the header and the numbers agree.
     private var headerTrailing: String {
-        guard let snap = entry.snapshot else { return "open iPhone" }
+        guard let snap = entry.snapshot else { return String(localized: "open iPhone") }
         return snap.freshnessText(now: entry.date)
     }
 
@@ -392,25 +409,35 @@ struct NOOPChargeView: View {
     private var accessibilityCharge: String {
         // A stale snapshot collapses to the calibrating dash visually, but for VoiceOver we say WHY it
         // is a dash plainly so it is never mistaken for "still calibrating".
-        if isStale { return "Charge out of date, last synced \(freshness ?? "a while ago"). Open NOOP on iPhone." }
+        if isStale {
+            let fresh = freshness ?? String(localized: "a while ago")
+            return String(localized: "Charge out of date, last synced \(fresh). Open NOOP on iPhone.")
+        }
         switch charge {
-        case .value(let v):    return "Charge \(v) out of 100"
-        case .calibrating:     return "Charge calibrating, needs more data"
-        case .missing:         return noSnapshot ? "No data, open NOOP on iPhone" : "Charge unavailable"
+        case .value(let v):    return String(localized: "Charge \(v) out of 100")
+        case .calibrating:     return String(localized: "Charge calibrating, needs more data")
+        case .missing:         return noSnapshot ? String(localized: "No data, open NOOP on iPhone")
+                                                 : String(localized: "Charge unavailable")
         }
     }
 
     private var accessibilityRectangular: String {
-        if noSnapshot { return "NOOP. No data yet, open NOOP on your iPhone to sync." }
-        if isStale { return "NOOP. Scores out of date, last synced \(freshness ?? "a while ago"). Open NOOP on iPhone to refresh." }
+        if noSnapshot { return String(localized: "NOOP. No data yet, open NOOP on your iPhone to sync.") }
+        if isStale {
+            let fresh = freshness ?? String(localized: "a while ago")
+            return String(localized: "NOOP. Scores out of date, last synced \(fresh). Open NOOP on iPhone to refresh.")
+        }
         func phrase(_ label: String, _ r: ScoreReadout) -> String {
             switch r {
-            case .value(let v):  return "\(label) \(v)"
-            case .calibrating:   return "\(label) calibrating"
-            case .missing:       return "\(label) unavailable"
+            case .value(let v):  return String(localized: "\(label) \(v)")
+            case .calibrating:   return String(localized: "\(label) calibrating")
+            case .missing:       return String(localized: "\(label) unavailable")
             }
         }
-        return "NOOP. \(phrase("Charge", charge)), \(phrase("Effort", effort)), \(phrase("Rest", rest))."
+        let chargePhrase = phrase(String(localized: "Charge"), charge)
+        let effortPhrase = phrase(String(localized: "Effort"), effort)
+        let restPhrase = phrase(String(localized: "Rest"), rest)
+        return String(localized: "NOOP. \(chargePhrase), \(effortPhrase), \(restPhrase).")
     }
 
     // Snapshot recency now comes straight from the shared contract (`freshnessText` / `isStale` on

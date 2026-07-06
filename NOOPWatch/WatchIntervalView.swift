@@ -31,9 +31,9 @@ struct WatchIntervalView: View {
         case work, rest, done
         var label: String {
             switch self {
-            case .work: return "WORK"
-            case .rest: return "REST"
-            case .done: return "DONE"
+            case .work: return String(localized: "WORK")
+            case .rest: return String(localized: "REST")
+            case .done: return String(localized: "DONE")
             }
         }
     }
@@ -183,7 +183,7 @@ struct WatchIntervalView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
                     .contentTransition(.numericText())
-                Text(isFinished ? "DONE" : "SEC")
+                Text(isFinished ? String(localized: "DONE") : String(localized: "SEC"))
                     .font(StrandFont.overlineScaled(9))
                     .tracking(1.5)
                     .foregroundStyle(StrandPalette.textTertiary)
@@ -193,8 +193,8 @@ struct WatchIntervalView: View {
         .frame(width: diameter, height: diameter)
         .animation(.snappy, value: remaining)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(isFinished ? "Session done"
-                                        : "\(remaining) seconds remaining in \(phase.label)")
+        .accessibilityLabel(isFinished ? String(localized: "Session done")
+                                        : String(localized: "\(remaining) seconds remaining in \(phase.label)"))
     }
 
     // MARK: Controls — Start/Pause + Reset
@@ -205,7 +205,8 @@ struct WatchIntervalView: View {
                 if isFinished { resetToStart() }
                 toggleRunning()
             } label: {
-                Label(running ? "Pause" : (isFinished ? "Restart" : "Start"),
+                Label(running ? String(localized: "Pause")
+                              : (isFinished ? String(localized: "Restart") : String(localized: "Start")),
                       systemImage: running ? "pause.fill" : "play.fill")
                     .font(StrandFont.rounded(14, weight: .semibold))
                     .frame(maxWidth: .infinity)

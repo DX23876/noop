@@ -1,5 +1,7 @@
 import XCTest
 @testable import Strand
+import WhoopProtocol
+import WhoopStore
 
 /// Pins the success-side observability the log forensics flagged as the blind spot (#150): NOOP logged
 /// FAILURES (decoded-to-0) but never SUCCESSES, so a strap log couldn't tell a banking strap from a
@@ -104,5 +106,94 @@ final class BackfillerSessionTallyTests: XCTestCase {
         XCTAssertTrue(line.contains("clock (RTC) is corrupt"))
         XCTAssertTrue(line.contains("Fully charge"))
         XCTAssertFalse(line.contains("\u{2014}"))
+    }
+
+    // MARK: - #1 records-bearing 0xFFFFFFFF END must NOT false-alarm "no banked history"
+
+    /// A store that forwards the real decoded counts so the session tally reflects rows that genuinely
+    /// landed (the v25 record frames below each decode to one gravity sample).
+    private final class TallyStore: BackfillStoreWriting {
+        @discardableResult
+        func insert(_ streams: Streams, deviceId: String) async throws
+            -> (hr: Int, rr: Int, events: Int, battery: Int,
+                spo2: Int, skinTemp: Int, resp: Int, gravity: Int) {
+            (streams.hr.count, streams.rr.count, 0, 0,
+             streams.spo2.count, streams.skinTemp.count, streams.resp.count, streams.gravity.count)
+        }
+        func enqueueRawBatch(_ meta: RawBatchMeta, frames: [[UInt8]]) async throws {}
+        func setCursor(_ name: String, _ value: Int) async throws {}
+        func cursor(_ name: String) async throws -> Int? { nil }
+    }
+
+    private func hexBytes(_ s: String) -> [UInt8] {
+        var out = [UInt8](); out.reserveCapacity(s.count / 2); var i = s.startIndex
+        while i < s.endIndex { let j = s.index(i, offsetBy: 2)
+            out.append(UInt8(s[i..<j], radix: 16)!); i = j }
+        return out
+    }
+
+    /// Three REAL WHOOP 4.0 v25 records (84 B, 1 Hz); each retro-decodes to one gravity sample. Reused
+    /// from RawHistoryArchiveReplayTests so the chunk genuinely persists rows this END.
+    private var v25RecordFrames: [[UInt8]] {
+        [
+            "aa50000c2f190013390000140d2b6a4075010068a2010032fdbcfd98fdd3fdccfd47ffb00366064f073e06c103d3016cffa2fc87fa2ffae5fdbe03140675060c0510012dff1bfec0018f3c500500010068dc8f44",
+            "aa50000c2f190014390000150d2b6a487001003ab301008dfd6afdaffda9fdaffd68fddbfb0dfc09fd77fe89fe62febffec9fe91ff0bff81ff5fff3e00d600790078ff3dff4bff801d553c5005010000d7c016b3",
+            "aa50000c2f190015390000160d2b6a586b01006d8f0100a3ff94ffc4ffbcffbeff22004a009400cb0048005d006b004400d700130115013301f20088001d0031ffd9fe5eff75ff0048933c50050001008bdf2c2c",
+        ].map(hexBytes)
+    }
+
+    /// Build a real WHOOP4 HISTORY_END frame (type 49, cmd 2) carrying the given trim. Payload layout is
+    /// unix(4) + subsec(2) + unk0(4) + trim(4), matching the metadata post-hook (HistoricalMetaTests).
+    private func historyEndFrame(trim: UInt32, unix: UInt32 = 1_700_000_000) -> [UInt8] {
+        func le32(_ v: UInt32) -> [UInt8] {
+            [UInt8(v & 0xFF), UInt8((v >> 8) & 0xFF), UInt8((v >> 16) & 0xFF), UInt8((v >> 24) & 0xFF)]
+        }
+        let payload = le32(unix) + [0, 0] + le32(0) + le32(trim)
+        return frameFromPayload(payload, type: 49, seq: 0, cmd: 2)
+    }
+
+    /// #1: a bad-clock/flash strap can emit records on the SAME no-cursor (0xFFFFFFFF) END. Before the
+    /// fix the no-cursor gate read sessionRowsPersisted at the TOP of finishChunk, before this END's own
+    /// rows were tallied, so it logged the alarming "no banked history, fully charge it" line even though
+    /// the END had just delivered rows. After the relocation it sees those rows and logs the neutral
+    /// caught-up line instead.
+    @MainActor func testRecordsBearingNoCursorEndDoesNotFalseAlarm() async {
+        var lines: [String] = []
+        let backfiller = Backfiller(
+            store: TallyStore(),
+            deviceId: "test",
+            ackTrim: { _, _ in },
+            log: { lines.append($0) })
+        backfiller.begin(family: .whoop4)
+        for f in v25RecordFrames { await backfiller.ingest(f) }     // records arrive on the open chunk
+        await backfiller.ingest(historyEndFrame(trim: 0xFFFFFFFF))  // ...then a no-cursor END carrying them
+
+        XCTAssertTrue(backfiller.sessionRowsPersisted > 0, "the v25 records must have persisted rows")
+        let joined = lines.joined(separator: "\n")
+        XCTAssertFalse(joined.contains("no banked history to offload"),
+                       "a records-bearing 0xFFFFFFFF END must NOT emit the false no-history alarm")
+        XCTAssertFalse(joined.contains("fully charge it"))
+        XCTAssertTrue(joined.contains("reached the end of available history"),
+                      "it should log the neutral caught-up line instead")
+    }
+
+    /// #1 (the critical other half): a genuinely empty session (a 0xFFFFFFFF END with no accumulated
+    /// records, so zero rows persisted) STILL emits the real no-history guidance. The relocation must not
+    /// silence the legitimate case.
+    @MainActor func testTrulyEmptyNoCursorEndStillWarnsNoHistory() async {
+        var lines: [String] = []
+        let backfiller = Backfiller(
+            store: TallyStore(),
+            deviceId: "test",
+            ackTrim: { _, _ in },
+            log: { lines.append($0) })
+        backfiller.begin(family: .whoop4)
+        await backfiller.ingest(historyEndFrame(trim: 0xFFFFFFFF))  // no records this session
+
+        XCTAssertEqual(backfiller.sessionRowsPersisted, 0)
+        let joined = lines.joined(separator: "\n")
+        XCTAssertTrue(joined.contains("no banked history to offload"),
+                      "a truly-empty no-cursor session must still warn the strap has no banked history")
+        XCTAssertTrue(joined.contains("fully charge it"))
     }
 }

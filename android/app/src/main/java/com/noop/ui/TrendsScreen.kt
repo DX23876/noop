@@ -2,6 +2,8 @@ package com.noop.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
@@ -31,7 +34,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -65,6 +70,15 @@ import kotlin.math.roundToInt
 // fake it, the "Recovery history" card renders the real per-day recovery series as a
 // bar strip over the same window, with a short note pointing at the macOS calendar view.
 
+// MARK: - Liquid hero tokens (the liquid Trends restyle)
+//
+// The Charge hero card floats over the day-of-sky, so it carries the liquid translucent near-black fill
+// (rgba(13,14,20,.80)) rather than the classic frosted surface — the card does the contrast work so the
+// crisp line chart + the count-up vessel accent read clean over the sky. Radius 26 + a white@0.11 hairline
+// give it the frosted-glass edge. Mirrors the liquid Today heroCard (LiquidTodayView / TodayScreen).
+private val LIQUID_HERO_FILL: Color = Color(red = 13f / 255f, green = 14f / 255f, blue = 20f / 255f, alpha = 0.80f)
+private val LIQUID_HERO_RADIUS: Dp = 26.dp
+
 @Composable
 fun TrendsScreen(vm: AppViewModel) {
     // Reactive cache (oldest → newest) as the immediate backing.
@@ -83,6 +97,12 @@ fun TrendsScreen(vm: AppViewModel) {
 
     // Effort display scale (#268) , routes the Effort small-multiple's numbers + unit. Display-only.
     val effortScale = UnitPrefs.effortScale(LocalContext.current)
+
+    // Day-cycle sky backdrop (#698). Default ON. When off, Trends drops the liquid sky and the scaffold
+    // paints the plain dark surface canvas instead. SharedPreferences isn't reactive, so this is read once
+    // into local state (mirrors Today's showDayCycleBackground gate).
+    val trendsCtx = LocalContext.current
+    val showDayCycleBackground = remember { NoopPrefs.showDayCycleBackground(trendsCtx) }
 
     var range by remember { mutableStateOf(TrendsRange.Quarter) }
 
@@ -122,7 +142,15 @@ fun TrendsScreen(vm: AppViewModel) {
     }
     val recAvg = recovery.values.averageOrNull()
 
-    LazyScreenScaffold(title = "Trends", subtitle = "The thread of you over time.") {
+    LazyScreenScaffold(
+        title = "Trends",
+        subtitle = "The thread of you over time.",
+        // LIQUID SKY BACKDROP (the pilot pattern — LiquidScreenSky.kt): the time-of-day liquid sky settles
+        // into the theme canvas behind the header + top rows, full-bleed via the scaffold's topBackground
+        // plumbing. Static (LiquidSkyStatic, inside the helper) — never an animated sky behind a scrolling
+        // list. Gated on the same day-cycle pref as Today; when off, the scaffold paints the flat canvas.
+        topBackground = if (showDayCycleBackground) { { LiquidScreenSky() } } else null,
+    ) {
         if (days.isEmpty()) {
             item { EmptyTrends() }
             return@LazyScreenScaffold
@@ -194,6 +222,11 @@ fun TrendsScreen(vm: AppViewModel) {
                 // the hero only names its window so the count isn't doubled in one card height.
                 subtitle = range.subtitle,
                 trailing = recAvg?.let { "${it.roundToInt()}" },
+                // LIQUID hero: the translucent-black frosted wrapper + a small count-up Charge vessel accent
+                // in the header (the screen's one headline single value — the window-average Charge). The
+                // line chart below stays crisp. Small multiples pass liquidHero = false → untouched.
+                liquidHero = true,
+                headlineValue = recAvg,
                 color = Palette.chargeColor,
                 tipColor = Palette.chargeBright,
                 tint = Palette.chargeColor,
@@ -314,7 +347,11 @@ private fun WeeklyDigestNav(
     val anchorDay = remember(weekOffset) {
         WeeklyDigestEngine.addDays(logicalDayKeyNow(), weekOffset * 7)
     }
-    val digest = remember(days, anchorDay) { buildWeeklyDigest(days, anchorDay) }
+    // #268/#463: past weeks quote Effort on the user's display scale too, same as the live card.
+    val factor = effortDisplayFactor(UnitPrefs.effortScale(LocalContext.current))
+    val digest = remember(days, anchorDay, factor) {
+        buildWeeklyDigest(days, anchorDay, effortDisplayFactor = factor)
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         WeekNavBar(weekOffset = weekOffset, minWeekOffset = minWeekOffset, onStep = onStep)
@@ -342,11 +379,20 @@ private fun WeekNavBar(weekOffset: Int, minWeekOffset: Int, onStep: (Int) -> Uni
         weekOffset == -1 -> "Last week"
         else -> "${-weekOffset} weeks ago"
     }
+    // liquidPress on the two week-step chevrons (the screen's tappable controls): each settles inward on
+    // press, wired to the SAME interactionSource the IconButton uses for its own ripple, matching the pilot.
+    val prevInteraction = remember { MutableInteractionSource() }
+    val nextInteraction = remember { MutableInteractionSource() }
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = Metrics.space4),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = { onStep(-1) }, enabled = !atOldest) {
+        IconButton(
+            onClick = { onStep(-1) },
+            enabled = !atOldest,
+            interactionSource = prevInteraction,
+            modifier = Modifier.liquidPress(prevInteraction),
+        ) {
             Icon(
                 Icons.Filled.ChevronLeft,
                 contentDescription = "Previous week",
@@ -362,7 +408,12 @@ private fun WeekNavBar(weekOffset: Int, minWeekOffset: Int, onStep: (Int) -> Uni
             Overline("Week in review", color = Palette.textSecondary)
         }
         Spacer(Modifier.weight(1f))
-        IconButton(onClick = { onStep(1) }, enabled = !atNewest) {
+        IconButton(
+            onClick = { onStep(1) },
+            enabled = !atNewest,
+            interactionSource = nextInteraction,
+            modifier = Modifier.liquidPress(nextInteraction),
+        ) {
             Icon(
                 Icons.Filled.ChevronRight,
                 contentDescription = "Next week",
@@ -579,8 +630,17 @@ private fun ChartCard(
     // hero's `valueRange: 0...106` padded ceiling, so the peak + now-cap halo clear the top
     // gridline. 0 keeps the curve filling the full height (the small multiples). (#458/parity)
     chartHeadroom: Float = 0f,
+    // LIQUID: the hero card only. When true the card carries the liquid translucent-black frosted wrapper
+    // (rgba(13,14,20,.80), radius 26, white@0.11 hairline) instead of the classic NoopCard surface, and the
+    // trailing readout becomes a small count-up Charge vessel filled to [headlineValue] (0..100). Every
+    // small-multiple card leaves this false → identical classic NoopCard + plain text readout as before.
+    liquidHero: Boolean = false,
+    headlineValue: Double? = null,
 ) {
-    NoopCard(modifier = modifier, padding = Metrics.cardPadding, tint = tint) {
+    // The card body — one composable reused by both the classic and the liquid-hero container so the
+    // header / chart / footer layout is byte-identical between them; only the surface + the header readout
+    // treatment differ.
+    val body: @Composable () -> Unit = {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             // Header.
             Row(verticalAlignment = Alignment.Top) {
@@ -590,7 +650,12 @@ private fun ChartCard(
                         Text(subtitle, style = NoopType.footnote, color = Palette.textTertiary)
                     }
                 }
-                if (trailing != null) {
+                if (liquidHero && headlineValue != null) {
+                    // The one liquid accent on this screen: a small Charge vessel filled to the window
+                    // average, the value counting up over it (white, tabular, soft shadow, hit-transparent).
+                    // Same value + charge tint as the plain readout it replaces — the chart stays crisp.
+                    HeadlineVessel(value = headlineValue, tint = Palette.recoveryColor(headlineValue))
+                } else if (trailing != null) {
                     // Neutral 15pt readout (matches iOS TrendsView) , not the 22sp tinted figure.
                     Text(trailing, style = NoopType.bodyNumber, color = Palette.textPrimary)
                 }
@@ -618,6 +683,52 @@ private fun ChartCard(
                 ChangeChip(change, higherIsBetter, changeFmt)
             }
         }
+    }
+
+    if (liquidHero) {
+        // The liquid hero surface: a translucent near-black that floats over the day-of-sky so the crisp
+        // chart + the vessel accent read clean — the card does the contrast work, not a muted sky. Radius 26
+        // + a faint white hairline give the frosted-glass edge of the iOS liquid heroCard. Mirrors Today.
+        Box(
+            modifier = modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(LIQUID_HERO_RADIUS))
+                .background(LIQUID_HERO_FILL)
+                .border(1.dp, Color.White.copy(alpha = 0.11f), RoundedCornerShape(LIQUID_HERO_RADIUS))
+                .padding(Metrics.cardPadding),
+        ) {
+            body()
+        }
+    } else {
+        NoopCard(modifier = modifier, padding = Metrics.cardPadding, tint = tint) { body() }
+    }
+}
+
+/**
+ * The screen's single liquid accent: a small [LiquidVessel] filled to [value] (0..100 → 0..1) in the
+ * charge [tint], the number rolling up over it via [CountUpText] (white, tabular, a soft shadow so it reads
+ * on the vessel, hit-transparent so a tap falls through to the vessel's own splash). The Trends echo of the
+ * liquid Today `HeroScoreVessel`, sized down to a header readout so it accents the headline value without
+ * competing with the crisp chart below.
+ */
+@Composable
+private fun HeadlineVessel(value: Double, tint: Color) {
+    val diameter = 44.dp
+    Box(modifier = Modifier.size(diameter), contentAlignment = Alignment.Center) {
+        LiquidVessel(
+            value = (value / 100.0).coerceIn(0.0, 1.0),
+            tint = tint,
+            animated = true,
+            modifier = Modifier.size(diameter),
+        )
+        CountUpText(
+            value = value,
+            format = { "${it.roundToInt()}" },
+            style = NoopType.number(17f, weight = FontWeight.Bold)
+                .copy(shadow = Shadow(color = Color.Black.copy(alpha = 0.5f), offset = Offset(0f, 1f), blurRadius = 6f)),
+            color = Color.White,
+            modifier = Modifier.clearAndSetSemantics {},
+        )
     }
 }
 
@@ -687,6 +798,9 @@ private fun ChartWithAxes(
                         color = color,
                         fill = true,
                         selectionEnabled = true,
+                        // #463: the pinpoint label goes through the SAME formatter as the axis column,
+                        // so a tapped Effort day can't print the stored 0-100 value beside a 0-21 axis.
+                        formatValue = formatY,
                     )
                     GlowEndCap(values = values, tipColor = tipColor)
                 }

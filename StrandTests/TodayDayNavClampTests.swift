@@ -63,4 +63,34 @@ final class TodayDayNavClampTests: XCTestCase {
         // A stray future-dated earliest key must not yield a negative reach.
         XCTAssertEqual(TodayView.maxDayOffset(earliestDayKey: "2026-07-01", todayKey: "2026-06-28"), 0)
     }
+
+    // MARK: - pickedDayOffset (#16 - 00:00-04:00 rollover)
+
+    /// Picking the logical day itself is always offset 0, whatever the wall clock says.
+    func testPickedDayOffsetSameLogicalDayIsZero() {
+        let cal = Calendar.current
+        let logical = cal.date(from: DateComponents(year: 2026, month: 6, day: 28))!
+        XCTAssertEqual(TodayView.pickedDayOffset(pickedDate: logical, anchorLogicalDay: logical), 0)
+    }
+
+    /// THE rollover case: at 02:00 on the 29th the logical day is still the 28th. Picking the 28th must be
+    /// offset 0 (today), and picking the 29th - the calendar day that raw Date() would have used as the
+    /// anchor - must clamp to 0, never a negative/future offset.
+    func testPickedDayOffsetInRolloverWindowAnchorsToLogicalDay() {
+        let cal = Calendar.current
+        let logical = cal.date(from: DateComponents(year: 2026, month: 6, day: 28))!          // logical "today"
+        let calendarDay = cal.date(from: DateComponents(year: 2026, month: 6, day: 29))!      // wall-clock day at 02:00
+        // The logical day reads as today.
+        XCTAssertEqual(TodayView.pickedDayOffset(pickedDate: logical, anchorLogicalDay: logical), 0)
+        // The wall-clock-ahead day clamps to today rather than going negative.
+        XCTAssertEqual(TodayView.pickedDayOffset(pickedDate: calendarDay, anchorLogicalDay: logical), 0)
+    }
+
+    /// A genuine past pick counts whole days back from the logical anchor.
+    func testPickedDayOffsetCountsWholeDaysBack() {
+        let cal = Calendar.current
+        let logical = cal.date(from: DateComponents(year: 2026, month: 6, day: 28))!
+        let picked = cal.date(from: DateComponents(year: 2026, month: 6, day: 24))!
+        XCTAssertEqual(TodayView.pickedDayOffset(pickedDate: picked, anchorLogicalDay: logical), 4)
+    }
 }

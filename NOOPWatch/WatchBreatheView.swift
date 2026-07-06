@@ -26,9 +26,9 @@ struct WatchBreatheView: View {
 
         var label: String {
             switch self {
-            case .relax:     return "Relax"
-            case .coherence: return "Coherence"
-            case .box:       return "Box"
+            case .relax:     return String(localized: "Relax")
+            case .coherence: return String(localized: "Coherence")
+            case .box:       return String(localized: "Box")
             }
         }
 
@@ -212,13 +212,23 @@ struct WatchBreatheView: View {
         .minimumScaleFactor(0.6)
         .padding(.horizontal, 4)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(running ? "\(phaseWord) for \(max(phaseRemaining, 0)) seconds" : "Ready to breathe")
+        .accessibilityLabel(running ? phaseAccessibilityLabel : String(localized: "Ready to breathe"))
     }
 
     private var phaseWord: String {
         switch phase {
-        case .inhale: return "Breathe in"
-        case .exhale: return "Breathe out"
+        case .inhale: return String(localized: "Breathe in")
+        case .exhale: return String(localized: "Breathe out")
+        }
+    }
+
+    /// Whole-phrase per phase (never a localized word stitched into a template) so each reads
+    /// naturally in every language.
+    private var phaseAccessibilityLabel: String {
+        let secs = max(phaseRemaining, 0)
+        switch phase {
+        case .inhale: return String(localized: "Breathe in for \(secs) seconds")
+        case .exhale: return String(localized: "Breathe out for \(secs) seconds")
         }
     }
 
@@ -227,8 +237,8 @@ struct WatchBreatheView: View {
     private var paceLine: some View {
         // Compact one-liner. Running: the live session readout. Idle: the selected pace + a quick nod to the
         // wrist cue (folded in from the old footer so the "one tap in, two out" guidance still has a home).
-        Text(running ? "\(breathCount) breaths · \(timeString(sessionSeconds))"
-                     : "\(pace.label) · \(String(format: "%.0f", pace.inhale))s in / \(String(format: "%.0f", pace.exhale))s out")
+        Text(running ? String(localized: "\(breathCount) breaths · \(timeString(sessionSeconds))")
+                     : String(localized: "\(pace.label) · \(String(format: "%.0f", pace.inhale))s in / \(String(format: "%.0f", pace.exhale))s out"))
             .font(StrandFont.footnote)
             .foregroundStyle(StrandPalette.textTertiary)
             .lineLimit(1)
@@ -276,7 +286,7 @@ struct WatchBreatheView: View {
             HStack(spacing: 6) {
                 Image(systemName: running ? "stop.fill" : "play.fill")
                     .font(.system(size: 14, weight: .semibold))
-                Text(running ? "Stop" : "Start")
+                Text(running ? String(localized: "Stop") : String(localized: "Start"))
                     .font(StrandFont.rounded(15, weight: .semibold))
             }
             .frame(maxWidth: .infinity)
@@ -289,7 +299,7 @@ struct WatchBreatheView: View {
             .foregroundStyle(running ? StrandPalette.statusCritical : StrandPalette.restBright)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(running ? "Stop session" : "Start session")
+        .accessibilityLabel(running ? String(localized: "Stop session") : String(localized: "Start session"))
     }
 
     // MARK: - Session control

@@ -139,10 +139,10 @@ public enum ReadinessEngine {
             unit: "ms",
             decimals: 0,
             higherIsBetter: true,
-            goodText: "above your baseline — well recovered",
+            goodText: "above your baseline - well recovered",
             neutralText: "in your normal range",
             watchText: "a touch below baseline",
-            badText: "suppressed — a sign of autonomic fatigue")
+            badText: "suppressed - a sign of autonomic fatigue")
         if let s = hrvSignal { signals.append(s) }
 
         // Resting-HR drift ---------------------------------------------------
@@ -156,7 +156,7 @@ public enum ReadinessEngine {
             goodText: "at or below baseline",
             neutralText: "in your normal range",
             watchText: "running a little high",
-            badText: "elevated — overtraining or illness can do this")
+            badText: "elevated - overtraining or illness can do this")
         if let s = rhrSignal { signals.append(s) }
 
         // Respiratory-rate drift (illness early signal) ----------------------
@@ -172,7 +172,7 @@ public enum ReadinessEngine {
                 if z >= 2.0 {
                     signals.append(Signal(key: "respRate", label: "Respiratory rate",
                         evidence: evidence(value: rr, baseline: m, unit: "rpm", decimals: 1),
-                        detail: "up vs baseline — sometimes an early sign of getting sick", flag: .bad))
+                        detail: "up vs baseline - sometimes an early sign of getting sick", flag: .bad))
                 } else if z >= 1.5 {
                     signals.append(Signal(key: "respRate", label: "Respiratory rate",
                         evidence: evidence(value: rr, baseline: m, unit: "rpm", decimals: 1),
@@ -201,7 +201,7 @@ public enum ReadinessEngine {
                 if mono >= 2.0 {
                     signals.append(Signal(key: "monotony", label: "Training variety",
                         evidence: "monotony \(String(format: "%.1f", mono))",
-                        detail: "low — similar strain every day raises strain/illness risk", flag: .watch))
+                        detail: "low - similar strain every day raises strain/illness risk", flag: .watch))
                 }
             }
         }
@@ -244,7 +244,7 @@ public enum ReadinessEngine {
         case ..<0.8:
             return Signal(key: "acwr", label: "Training load",
                 evidence: evidence,
-                detail: "ramping down (acute:chronic \(pct)) — room to build", flag: .watch)
+                detail: "ramping down (acute:chronic \(pct)) - room to build", flag: .watch)
         case 0.8..<1.3:
             return Signal(key: "acwr", label: "Training load",
                 evidence: evidence,
@@ -252,11 +252,11 @@ public enum ReadinessEngine {
         case 1.3..<1.5:
             return Signal(key: "acwr", label: "Training load",
                 evidence: evidence,
-                detail: "building fast (acute:chronic \(pct)) — watch fatigue", flag: .watch)
+                detail: "building fast (acute:chronic \(pct)) - watch fatigue", flag: .watch)
         default:
             return Signal(key: "acwr", label: "Training load",
                 evidence: evidence,
-                detail: "spiking (acute:chronic \(pct)) — higher injury risk", flag: .bad)
+                detail: "spiking (acute:chronic \(pct)) - higher injury risk", flag: .bad)
         }
     }
 
@@ -285,7 +285,7 @@ public enum ReadinessEngine {
 
         if bad.count >= 2 || (recoveryDown && loadHigh) {
             return (.rundown, "Run down",
-                    "Several signals are down at once. Treat today as recovery — easy movement, real sleep tonight.")
+                    "Several signals are down at once. Treat today as recovery - easy movement, real sleep tonight.")
         }
         if recoveryDown || loadHigh || bad.count >= 1 {
             return (.strained, "Strained",
@@ -296,7 +296,7 @@ public enum ReadinessEngine {
                     "Your signals are aligned and your load is supported. A harder session is well backed today.")
         }
         return (.balanced, "Balanced",
-                "Nothing's flagging. Train to feel — your body's holding steady.")
+                "Nothing's flagging. Train to feel - your body's holding steady.")
     }
 
     // MARK: Stats helpers

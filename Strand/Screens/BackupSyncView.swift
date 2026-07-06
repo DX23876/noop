@@ -53,7 +53,10 @@ struct BackupSyncView: View {
             Button("Replace all data", role: .destructive) { runRestore(snap) }
             Button("Cancel", role: .cancel) { pendingRestore = nil }
         } message: { snap in
-            Text("Replace all current data with the backup from \(absoluteTime(snap.timeMs))? This cannot be undone.")
+            // A hand-named file with no resolved date (timeMs 0) confirms by NAME, not "1 Jan 1970".
+            Text(snap.timeMs > 0
+                ? "Replace all current data with the backup from \(absoluteTime(snap.timeMs))? This cannot be undone."
+                : "Replace all current data with the backup \(snap.name)? This cannot be undone.")
         }
     }
 
@@ -64,8 +67,8 @@ struct BackupSyncView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Backup folder")
                     .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
-                Text(folderLabel.map { "Saving to: \($0)" }
-                     ?? "No folder chosen yet. Pick one your cloud app already syncs, or any local folder.")
+                Text(folderLabel.map { String(localized: "Saving to: \($0)") }
+                     ?? String(localized: "No folder chosen yet. Pick one your cloud app already syncs, or any local folder."))
                     .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
                 Text("Tip: choose a folder in iCloud Drive and your backups sync to all your Apple devices automatically, no account setup needed.")
@@ -126,7 +129,20 @@ struct BackupSyncView: View {
         #if os(macOS)
         if FolderBackup.pickFolder() != nil { folderLabel = FolderBackup.folderLabel() }
         #else
-        Task { if await FolderBackup.pickFolder() != nil { folderLabel = FolderBackup.folderLabel() } }
+        // #1000a: on iOS the folder picker has reportedly refused to enable its Select button, leaving
+        // the user with only Cancel and NOOP silently doing nothing. We can't tell a deliberate Cancel
+        // apart from that dead-button dead-end (both come back nil), so when no folder arrives we show
+        // the screen's normal result alert with a concrete workaround instead of staying silent. Mildly
+        // chatty on a genuine Cancel; honest and actionable when the picker is actually broken.
+        Task {
+            if await FolderBackup.pickFolder() != nil {
+                folderLabel = FolderBackup.folderLabel()
+            } else {
+                alertTitle = String(localized: "No folder selected")
+                alertMessage = String(localized: "NOOP didn't get a folder back from the picker. If the Select button won't enable, try creating a fresh folder in Files (under On My iPhone or iCloud Drive) and choosing that instead.")
+                showAlert = true
+            }
+        }
         #endif
     }
 
@@ -137,10 +153,10 @@ struct BackupSyncView: View {
             await MainActor.run {
                 lastMs = FolderBackup.lastBackupMs
                 busy = false
-                alertTitle = ok ? "Backed up" : "Backup problem"
+                alertTitle = ok ? String(localized: "Backed up") : String(localized: "Backup problem")
                 alertMessage = ok
-                    ? "Saved a backup to your folder."
-                    : "Backup failed - re-pick the folder and try again."
+                    ? String(localized: "Saved a backup to your folder.")
+                    : String(localized: "Backup failed - re-pick the folder and try again.")
                 showAlert = true
             }
         }
@@ -149,8 +165,8 @@ struct BackupSyncView: View {
     private func openRestorePicker() {
         snapshots = FolderBackup.listSnapshots()
         if snapshots.isEmpty {
-            alertTitle = "No backups found"
-            alertMessage = "There are no NOOP backups in your folder yet. Use Back up now first."
+            alertTitle = String(localized: "No backups found")
+            alertMessage = String(localized: "There are no NOOP backups in your folder yet. Use Back up now first.")
             showAlert = true
         } else {
             showRestoreSheet = true
@@ -170,12 +186,12 @@ struct BackupSyncView: View {
                 busy = false
                 switch result {
                 case .imported:
-                    alertTitle = "Restored"
-                    alertMessage = "Fully quit and reopen NOOP to load it."
+                    alertTitle = String(localized: "Restored")
+                    alertMessage = String(localized: "Fully quit and reopen NOOP to load it.")
                 case .failure(let m):
-                    alertTitle = "Restore problem"; alertMessage = m
+                    alertTitle = String(localized: "Restore problem"); alertMessage = m
                 case .cancelled, .exported:
-                    alertTitle = "Restore problem"; alertMessage = "Couldn't restore that backup."
+                    alertTitle = String(localized: "Restore problem"); alertMessage = String(localized: "Couldn't restore that backup.")
                 }
                 showAlert = true
             }
@@ -210,17 +226,22 @@ private struct RestorePickerSheet: View {
                 Button { onChoose(snap) } label: {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(absoluteTime(snap.timeMs))
+                            // A hand-named file whose date lookup failed has timeMs 0; show its name as the
+                            // primary line rather than "1 Jan 1970". The filename subtitle then only repeats
+                            // when we DO have a real date to head the row.
+                            Text(primaryLabel(snap))
                                 .font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
-                            Text(snap.name)
-                                .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                            if snap.timeMs > 0 {
+                                Text(snap.name)
+                                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                            }
                         }
                         Spacer()
                         Image(systemName: "chevron.right")
                             .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                     }
                 }
-                .accessibilityLabel("Restore backup from \(absoluteTime(snap.timeMs))")
+                .accessibilityLabel(accessibilityLabel(snap))
             }
             .navigationTitle("Choose a backup")
             .toolbar {
@@ -229,6 +250,17 @@ private struct RestorePickerSheet: View {
                 }
             }
         }
+    }
+
+    /// The row's headline: a friendly date when we resolved one, else the filename (never the epoch date).
+    private func primaryLabel(_ snap: FolderBackup.Snapshot) -> String {
+        snap.timeMs > 0 ? absoluteTime(snap.timeMs) : snap.name
+    }
+
+    /// VoiceOver label: reads the resolved date when we have one, else the filename (no epoch date).
+    private func accessibilityLabel(_ snap: FolderBackup.Snapshot) -> String {
+        snap.timeMs > 0 ? String(localized: "Restore backup from \(absoluteTime(snap.timeMs))")
+                        : String(localized: "Restore backup \(snap.name)")
     }
 
     private func absoluteTime(_ ms: Int) -> String {

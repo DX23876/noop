@@ -79,6 +79,14 @@ final class AutoWorkoutDetectorTraceTests: XCTestCase {
             WorkoutsTrace.dedupLine(sportKey: "running", keptSource: "strap", droppedSource: "apple",
                                     keptRichness: 5, droppedRichness: 1),
             "dedup sport=running kept=strap(richness=5) dropped=apple(richness=1) (same activity, richer kept)")
+        // #975: the engine detected-bout decision line , persisted (no overlap) and dropped (overlaps a real).
+        XCTAssertEqual(
+            WorkoutsTrace.detectedBoutLine(verdict: "persisted", durMin: 42, avgBpm: 148),
+            "detectedBout verdict=persisted durMin=42 avgBpm=148")
+        XCTAssertEqual(
+            WorkoutsTrace.detectedBoutLine(verdict: "droppedOverlap", durMin: 42, avgBpm: 148,
+                                                 overlapSource: "manual"),
+            "detectedBout verdict=droppedOverlap durMin=42 avgBpm=148 overlapSource=manual")
     }
 
     func testWorkoutsReadoutParsesLastSession() {

@@ -776,6 +776,59 @@ class MainNightConsistencyTest {
         assertEquals(listOf(0, 2), SleepStageTotals.mainNightGroupIndices(blocks, 0L))
     }
 
+    // ── #861 a real overnight night split by a 60–90 min wake is ONE sleep, not nap + sleep ──────────
+
+    /** The reported pattern (#861): one overnight sleep the detector left split into two fragments by a real
+     *  ~70-min mid-night wake, longer than the old 60-min bridge, so the later fragment lost the main-night
+     *  pick and was LABELLED A NAP. The wider overnight night-tail bridge (≤ NIGHT_TAIL_BRIDGE_MAX_MIN, onset
+     *  still in the overnight band) now folds both fragments into ONE main-night group, so neither is a nap.
+     *  Honest-data invariant: no stage is invented; the gap is folded into AWAKE by the aggregate. Mirrors
+     *  Swift `testOvernightNightSplitBySeventyMinuteWakeMergesIntoOneSleepNotNap`. */
+    @Test
+    fun overnightNightSplitBySeventyMinuteWakeMergesIntoOneSleepNotNap() {
+        val a = atMin(23, 30) - 86_400L              // overnight onset
+        val aEnd = a + 3 * 3600                       // 23:30 → 02:30
+        val b = aEnd + 70 * 60                        // 03:40 onset (70-min gap; 60 ≤ gap < 90)
+        val bEnd = b + 4 * 3600                       // 03:40 → 07:40 (the longer tail)
+        val blocks = listOf(
+            SleepStageTotals.NightBlock(a, aEnd),
+            SleepStageTotals.NightBlock(b, bEnd),
+        )
+        assertEquals(listOf(0, 1), SleepStageTotals.mainNightGroupIndices(blocks, 0L))
+        // The wider bridge lives only in mainNightGroupIndices; bridgeAdjacent's <60-min contract is unchanged.
+        assertEquals(2, SleepStageTotals.bridgeAdjacent(blocks).size)
+    }
+
+    /** The daytime guard the widening must NOT breach: a genuine afternoon nap (daytime onset) stays its OWN
+     *  block, because the wider bridge requires an overnight-band onset. Mirrors Swift
+     *  `testDaytimeNapWithSeventyMinuteGapStillStaysItsOwnBlock`. */
+    @Test
+    fun daytimeNapStillStaysItsOwnBlockUnderWiderBridge() {
+        val night = atHour(0)                         // 00:00 → 06:00 overnight
+        val nightEnd = night + 6 * 3600
+        val nap = atHour(13)                          // 13:00 daytime onset → never a night-tail
+        val blocks = listOf(
+            SleepStageTotals.NightBlock(night, nightEnd),
+            SleepStageTotals.NightBlock(nap, nap + 90 * 60),
+        )
+        assertEquals(listOf(0), SleepStageTotals.mainNightGroupIndices(blocks, 0L))
+    }
+
+    /** The upper guard: a wake gap at/over NIGHT_TAIL_BRIDGE_MAX_MIN (90 min) is NOT a mid-night wake, so the
+     *  blocks stay separate even for an overnight-band onset. Mirrors Swift
+     *  `testOvernightGapAtOrAboveNinetyMinutesDoesNotBridge`. */
+    @Test
+    fun overnightGapAtOrAboveNinetyMinutesDoesNotBridge() {
+        val a = atHour(23) - 86_400L
+        val aEnd = a + 3 * 3600                        // 23:00 → 02:00
+        val b = aEnd + 95 * 60                         // 03:35 onset (95-min gap ≥ 90)
+        val blocks = listOf(
+            SleepStageTotals.NightBlock(a, aEnd),
+            SleepStageTotals.NightBlock(b, b + 4 * 3600),
+        )
+        assertEquals(listOf(1), SleepStageTotals.mainNightGroupIndices(blocks, 0L))
+    }
+
     /**
      * IRON-RULE REGRESSION GUARD (#547 / #407 lanes): the 6.1.1 bridged main-night SELECTION must NOT move
      * when the upstream ingest gate (#547) or the downstream motion trace (#407) change. Pins

@@ -138,6 +138,24 @@ public actor WhoopStore {
         }
     }
 
+    /// Permanently delete every recorded sample/derived row for one device across all `deviceId`-keyed
+    /// tables (16+ `DELETE FROM <table> WHERE deviceId = ?` in one GRDB transaction). Wraps the
+    /// synchronous `DeviceRegistryStore.deleteAllData` so the heavy multi-table write runs on the actor's
+    /// own serial executor, OFF the main thread. The "Delete all of this device's data" and "Remove
+    /// Apple Health data" actions previously ran this same store write synchronously on the main actor and
+    /// froze the UI on a large dataset. The `pairedDevice` registry row is left intact (archiving/removing
+    /// it is a separate op). Async entry point; the actual write is on `deleteAllDataImpl`.
+    public func deleteAllData(deviceId: String) async throws {
+        try deleteAllDataImpl(deviceId: deviceId)
+    }
+
+    /// Non-async so the synchronous `DeviceRegistryStore.deleteAllData` (a blocking GRDB write) is called
+    /// directly (mirrors the syncRead/syncWrite pattern). Runs on the actor's executor, off the main
+    /// thread. Builds the synchronous registry wrapper over the same GRDB writer the store owns.
+    private func deleteAllDataImpl(deviceId: String) throws {
+        try DeviceRegistryStore(dbQueue: dbWriter).deleteAllData(deviceId: deviceId)
+    }
+
     /// Total on-disk size of the database — the main file plus its `-wal`/`-shm` siblings — in bytes.
     /// Drives the iOS Storage diagnostics screen (#590). `nil` for an in-memory store (no path). Runs
     /// on the actor's executor, off the main thread. Note (#755): under the `DatabasePool` the `-wal`

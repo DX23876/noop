@@ -52,6 +52,14 @@ enum BackupSync {
 
     static func isSnapshot(_ name: String) -> Bool { snapshotTimeMs(name) != nil }
 
+    /// Any `.noopbak` file, whatever it's named. The RESTORE list uses this (not `isSnapshot`) so a
+    /// hand-named backup like `noop-backup-2026-06-30.noopbak` still shows (#852). Case-insensitive on
+    /// the extension so `.NOOPBAK` copied off another device still counts. Prune/latest stay strict on
+    /// `isSnapshot`, so a non-canonical name is listed for restore but never auto-deleted.
+    static func isBackupFile(_ name: String) -> Bool {
+        name.lowercased().hasSuffix(suffix)
+    }
+
     /// Newest snapshot by encoded time (non-snapshots ignored), or nil.
     static func latestSnapshot(_ names: [String]) -> String? {
         names.filter(isSnapshot).max { (snapshotTimeMs($0) ?? 0) < (snapshotTimeMs($1) ?? 0) }
@@ -63,9 +71,33 @@ enum BackupSync {
     }
 
     /// Snapshots to DELETE to keep only the `keep` newest (oldest-first). Empty when within budget.
+    /// Strict on purpose: only canonical snapshots are prune candidates, so a hand-named `.noopbak`
+    /// in the folder is never auto-deleted.
     static func snapshotsToPrune(_ names: [String], keep: Int) -> [String] {
         let snaps = snapshotsNewestFirst(names)
         return snaps.count <= keep ? [] : Array(snaps.dropFirst(keep))
+    }
+
+    /// One restorable `.noopbak` for the folder picker: its filename and the ms used to order/label it.
+    struct Restorable: Equatable {
+        let name: String
+        /// The instant we sort and display by: the canonical filename stamp when present, else the
+        /// file's own modification date (passed in by the I/O layer). Never nil so the list is stable.
+        let timeMs: Int
+    }
+
+    /// ALL `.noopbak` files (any name) ordered newest-first for the restore picker (#852). Canonical
+    /// names use their embedded UTC stamp; the rest fall back to the file date `fileDateMs` gives for
+    /// that name (0 when unknown). Non-`.noopbak` files are dropped. Pure, so it's unit-tested; the I/O
+    /// layer supplies `fileDateMs` from the filesystem.
+    static func restorablesNewestFirst(_ names: [String],
+                                       fileDateMs: (String) -> Int) -> [Restorable] {
+        names.filter(isBackupFile)
+            .map { Restorable(name: $0, timeMs: snapshotTimeMs($0) ?? fileDateMs($0)) }
+            // Newest-first, with a name tie-break so equal-time entries (two files sharing a date-only
+            // name, or a provider that reports the same modified date) order deterministically and
+            // identically to Kotlin's `compareByDescending { timeMs }.thenBy { name }`.
+            .sorted { $0.timeMs != $1.timeMs ? $0.timeMs > $1.timeMs : $0.name < $1.name }
     }
 }
 
@@ -182,18 +214,25 @@ enum FolderBackup {
         var id: String { name }
     }
 
-    /// List the snapshots in the user's chosen backup folder, NEWEST FIRST - the source for the restore
-    /// picker (must-fix #1: restore from the configured folder, never a generic re-prompt). Returns an
-    /// empty list if no folder is chosen or the folder can't be read.
+    /// List the backups in the user's chosen folder, NEWEST FIRST - the source for the restore picker
+    /// (must-fix #1: restore from the configured folder, never a generic re-prompt). Lists ANY `.noopbak`
+    /// file, not just canonically-named ones (#852): a hand-named backup like
+    /// `noop-backup-2026-06-30.noopbak` still shows. Canonical names sort/label by their embedded stamp;
+    /// the rest by the file's own modification date. Content is validated on restore, so a bad file here
+    /// is caught then. Returns an empty list if no folder is chosen or the folder can't be read.
     static func listSnapshots() -> [Snapshot] {
         guard let folder = resolveFolder() else { return [] }
         let scoped = folder.startAccessingSecurityScopedResource()
         defer { if scoped { folder.stopAccessingSecurityScopedResource() } }
         let names = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
-        return BackupSync.snapshotsNewestFirst(names).compactMap { name in
-            guard let ms = BackupSync.snapshotTimeMs(name) else { return nil }
-            return Snapshot(name: name, timeMs: ms)
+        let fileDateMs: (String) -> Int = { name in
+            let url = folder.appendingPathComponent(name)
+            let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+            guard let modified else { return 0 }
+            return Int((modified.timeIntervalSince1970 * 1000.0).rounded())
         }
+        return BackupSync.restorablesNewestFirst(names, fileDateMs: fileDateMs)
+            .map { Snapshot(name: $0.name, timeMs: $0.timeMs) }
     }
 
     /// Restore a snapshot the user picked FROM THE CONFIGURED FOLDER. Resolves the bookmark, brackets
@@ -224,17 +263,20 @@ enum FolderBackup {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
-        panel.prompt = "Choose"
-        panel.message = "Choose a folder for NOOP backups (for example a Google Drive or iCloud folder)."
+        panel.prompt = String(localized: "Choose")
+        panel.message = String(localized: "Choose a folder for NOOP backups (for example a Google Drive or iCloud folder).")
         guard panel.runModal() == .OK, let url = panel.url else { return nil }
         saveFolder(url)
         return url
     }
     #else
     /// Present a folder picker (`UIDocumentPicker`) and persist the bookmark. Returns the chosen URL.
+    /// Starts in the previously-chosen folder when one resolves (else the picker falls back to our
+    /// Documents) — part of the #1000a "Select button never enables" mitigation; see
+    /// `DocumentPicker.pickFolder`.
     @MainActor
     static func pickFolder() async -> URL? {
-        let url = await DocumentPicker.pickFolder()
+        let url = await DocumentPicker.pickFolder(startingAt: resolveFolder())
         if let url { saveFolder(url) }
         return url
     }

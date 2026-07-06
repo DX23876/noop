@@ -121,6 +121,10 @@ final class Backfiller {
     /// Backfiller (PR #241, ryanbr); reset per session in `begin`.
     private var loggedLayoutVersions: Set<Int> = []
 
+    /// SpO2 RE dump (PR #945, reimplemented): how many full-record dumps this session emitted, bounded by
+    /// `Spo2ReTrace.maxSamples`. Session-scoped so the cap spans chunks; reset per session in `begin`.
+    private var spo2Dumped = 0
+
     /// Durably archives undecodable record frames BEFORE the trim ack (#77 / #91). Returns true once
     /// the bytes are safe (written OR cap-reached — either way the chunk may be acked) and false on a
     /// genuine write failure, in which case `finishChunk` holds the cursor/ack so the strap re-sends.
@@ -193,6 +197,7 @@ final class Backfiller {
         loggedFutureRtc = false
         sessionDroppedImplausible = 0
         loggedLayoutVersions.removeAll(keepingCapacity: true)
+        spo2Dumped = 0
         // #547: the range markers belong to a connection's GET_DATA_RANGE, which BLEManager re-sets per
         // connect; clear them here so a fresh session never reuses a previous strap's window. BLEManager
         // re-publishes them as soon as the range reply arrives.
@@ -295,23 +300,15 @@ final class Backfiller {
     /// TRUE so the records following this END become the next chunk. An END with no accumulated
     /// records is still acked (it advances the strap's trim) — that's how the offload progresses.
     /// `endFrame` carries the 8-byte `end_data` the ack requires.
+    /// The pure decode result of one offload chunk, produced OFF the main actor (see finishChunk).
+    private struct DecodedChunk {
+        let parsed: [ParsedFrame]
+        let decoded: Streams
+        let rejected: [[UInt8]]
+    }
+
     private func finishChunk(unix: UInt32, trim: UInt32, endFrame: [UInt8]) async {
         guard let endData = Backfiller.endData(from: endFrame, family: family) else { return }
-
-        // #150 / #783: trim=0xFFFFFFFF is the strap's "no valid flash cursor" sentinel. Its MEANING depends
-        // on whether this run already banked anything. On the FIRST end of a fresh offload it means "no
-        // banked history" (a clock/charge state). But the auto-continuation (#364) re-kicks SEND_HISTORICAL
-        // after a run that DID persist rows, and the very next end then carries 0xFFFFFFFF to mean "you are
-        // caught up, nothing left past the last trim", NOT "no history". Emitting the scary
-        // "fully charge it" line there was wrong and alarmed users whose strap had just synced fine (#783).
-        // So gate the message on `sessionRowsPersisted == 0`: if rows landed this run, log a neutral
-        // caught-up line instead. Either way it logs once per session (loggedNoCursor) and the ack proceeds.
-        if trim == 0xFFFFFFFF, !loggedNoCursor {
-            loggedNoCursor = true
-            log?(Backfiller.noCursorLine(rowsPersisted: sessionRowsPersisted))
-            // Connection test mode: the no-cursor sentinel as a compact tagged line (gated zero-cost).
-            emitConnection(ConnectionTrace.noCursorLine())
-        }
 
         // #773: corrupt future-RTC detection. A HISTORY_END carries the strap's own clock; a genuine offload
         // is always PAST-dated (it's banked history), so an end dated days into the future can only be a
@@ -338,7 +335,22 @@ final class Backfiller {
             // decodes to correct wall time, and we can persist + ack + upload. The correlation is only
             // truly required to map REALTIME (type-40/43) device-epoch timestamps, never in a hist chunk.
             let ref = clockRef ?? { let now = Int(Date().timeIntervalSince1970); return ClockRef(device: now, wall: now) }()
-            let parsed = frames.map { parseFrame($0, family: family) }
+            // PERF (2026-07-03): the heavy decode — parseFrame ×N, extractHistoricalStreams, and the
+            // reject-classifier's SECOND full parse — runs OFF the main actor so a long history offload no
+            // longer freezes the UI (was ~54K parseFrame calls on main for a 27K-row import). Pure functions
+            // only; every @Published write, the store insert, and the ack/cursor sequence below stay on the
+            // main actor in the SAME order, so the persist→archive→cursor→ack trim-safety is untouched.
+            let fam = family
+            let dev = ref.device, wall = ref.wall
+            let oldest = sessionOldestUnix, newest = sessionNewestUnix
+            let extractFn = extract   // keep the injected Extractor seam (tests override it); prod == extractHistoricalStreams
+            let d = await Task.detached(priority: .utility) { () -> DecodedChunk in
+                let parsed = frames.map { parseFrame($0, family: fam) }
+                let decoded = extractFn(parsed, dev, wall, oldest, newest)
+                let rejected = rejectedHistoricalRecords(frames, family: fam)
+                return DecodedChunk(parsed: parsed, decoded: decoded, rejected: rejected)
+            }.value
+            let parsed = d.parsed
             // Observability (PR #241): log which layout this strap emits on a HEALTHY sync too — the
             // unmapped-version path below only fires for layouts NOOP can't decode, so a normal log
             // never revealed v18/v24/v25/v26. Once per distinct layout this session.
@@ -359,6 +371,28 @@ final class Backfiller {
                     return ConnectionTrace.firmwareLine(version: v, decodable: decodable)
                 }())
             }
+            // SpO2 RE dump (PR #945, reimplemented): while the Connection test mode is on, dump a few FULL
+            // historical records + their mapped raw SpO2 channels so an offline pass can tell whether the
+            // strap banks a COMPUTED SpO2 (a byte tracking the WHOOP app's nightly %) vs only the raw
+            // red/IR ADC we already decode. Log-only and bounded per session across chunks (`spo2Dumped`,
+            // reset in begin); zero-cost when the mode is off (one Bool short-circuit). Only genuine
+            // historical records (a decoded `unix`) spend the sample budget - the strap's type-50 console
+            // frames carry no record bytes to correlate. Records dump whether or not they carry SpO2
+            // channels, so "nothing banked" is provable too. Never a user-facing number (never-fabricate;
+            // the #194 lesson). Twin of the Android Backfiller emit.
+            if spo2Dumped < Spo2ReTrace.maxSamples, connectionActive(), let connectionLog {
+                for (raw, p) in zip(frames, parsed) where spo2Dumped < Spo2ReTrace.maxSamples {
+                    guard let unix = p.parsed["unix"]?.intValue else { continue }
+                    connectionLog(Spo2ReTrace.recordLine(
+                        frame: raw,
+                        version: p.parsed["hist_version"]?.intValue,
+                        unix: unix,
+                        red: p.parsed["spo2_red"]?.intValue,
+                        ir: p.parsed["spo2_ir"]?.intValue,
+                        skinRaw: p.parsed["skin_temp_raw"]?.intValue))
+                    spo2Dumped += 1
+                }
+            }
             // Diagnostic (#30): a historical record whose firmware version we don't have a field map for
             // bails out of decode entirely — no HR, no R-R, no GRAVITY — so sleep (which is gravity/
             // motion-driven) can never be computed from it, even though the offload "completes". Surface
@@ -375,7 +409,7 @@ final class Backfiller {
                 loggedUnmappedVersions.insert(v)
                 log?("Historical records use firmware layout v\(v), which NOOP doesn't decode yet — no motion data, so sleep can't be computed from the strap. Please report this (issue #30).")
             }
-            let decoded = extract(parsed, ref.device, ref.wall, sessionOldestUnix, sessionNewestUnix)
+            let decoded = d.decoded
             // #547: surface a bad-clock strap. extractHistoricalStreams DROPPED any record whose own unix
             // timestamp was implausible (far-past / bogus-2027 / future-dated) before it could pollute the
             // DB. Log it (once it's accrued at least one this session, on the first chunk that sees it) so
@@ -397,7 +431,7 @@ final class Backfiller {
             // type-50 console/diagnostic frames, which decode to 0 rows by design and are NOT a loss
             // (the "rejected frames" red herring users kept reporting — #77/#120). Drives both the
             // log wording below and the archive guard further down.
-            let rejected = rejectedHistoricalRecords(frames, family: family)
+            let rejected = d.rejected
             // Tally this chunk's outcome so a completed-but-empty session is distinguishable from a
             // caught-up one (#77 family): did it decode sensor rows, and was it console-only?
             onChunk?(!decoded.isEmpty, decoded.isEmpty && rejected.isEmpty)
@@ -478,6 +512,26 @@ final class Backfiller {
                 }
             }
         }
+
+        // #150 / #783 / #1: trim=0xFFFFFFFF is the strap's "no valid flash cursor" sentinel. Its MEANING
+        // depends on whether this run already banked anything. On the FIRST end of a fresh offload it means
+        // "no banked history" (a clock/charge state). But the auto-continuation (#364) re-kicks
+        // SEND_HISTORICAL after a run that DID persist rows, and the very next end then carries 0xFFFFFFFF
+        // to mean "you are caught up, nothing left past the last trim", NOT "no history". Emitting the scary
+        // "fully charge it" line there was wrong and alarmed users whose strap had just synced fine (#783).
+        // We gate this AFTER the persist block (#1): a bad-clock/flash strap can emit records on the SAME
+        // 0xFFFFFFFF END, so `sessionRowsPersisted` must already include THIS end's own rows before the
+        // pick, otherwise a records-bearing no-cursor END false-alarms "no banked history". So gate on
+        // `sessionRowsPersisted == 0` HERE: if rows landed (this run or this END), log the neutral caught-up
+        // line; a genuinely empty session (0 rows) still gets the real no-history guidance. Logs once per
+        // session (loggedNoCursor) and the ack still proceeds below.
+        if trim == 0xFFFFFFFF, !loggedNoCursor {
+            loggedNoCursor = true
+            log?(Backfiller.noCursorLine(rowsPersisted: sessionRowsPersisted))
+            // Connection test mode: the no-cursor sentinel as a compact tagged line (gated zero-cost).
+            emitConnection(ConnectionTrace.noCursorLine())
+        }
+
         do { try await store.setCursor("strap_trim", Int(trim)) } catch {
             // Diag (#601): decoded (and raw, if on) are durable but the strap_trim cursor write failed. We
             // return WITHOUT acking — acking now would let the strap trim past records the cursor hasn't

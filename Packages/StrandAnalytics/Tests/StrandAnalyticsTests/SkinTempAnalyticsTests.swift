@@ -164,6 +164,53 @@ final class SkinTempAnalyticsTests: XCTestCase {
         XCTAssertTrue(f.isAbsent, "kept < minSamples → no trusted mean")
     }
 
+    // MARK: - device-family-aware conversion (#938)
+
+    /// A WHOOP 4.0 v24 worn night (raw ~826–860, the reporter's steady worn baseline) produced NO nightly
+    /// mean under the old family-blind /100 (raw 826 → 8.3 °C, below the 28 °C worn gate, kept=0). With the
+    /// `.whoop4` scale those same raw values land ~33 °C and the night is kept — the fix.
+    func testWhoop4WornNightProducesMeanUnderFamilyAwareScale() throws {
+        let start = 11_000_000
+        let sess = [session(start: start, durSec: 600)]
+        let hrs = (0..<600).map { hr(start + $0) }
+        // Steady worn 4.0 raw ~840 — impossible 8.4 °C under /100, plausible ~33.7 °C under the 4.0 map.
+        let temps = (0..<600).map { SkinTempSample(ts: start + $0, raw: 840) }
+        // Old behaviour (family-blind /100 == `.whoop5`): dropped, no mean.
+        XCTAssertNil(AnalyticsEngine.wornNightlySkinTempC(sess, hr: hrs, skinTemp: temps, family: .whoop5))
+        // Fixed behaviour (`.whoop4`): a trusted nightly mean in the plausible worn band.
+        let mean = try XCTUnwrap(AnalyticsEngine.wornNightlySkinTempC(sess, hr: hrs, skinTemp: temps, family: .whoop4))
+        XCTAssertGreaterThan(mean, 28.0)
+        XCTAssertLessThan(mean, 42.0)
+    }
+
+    /// A 5/MG worn night is byte-identical whether `family` is defaulted or passed explicitly — the fix
+    /// changes nothing for the proven centidegree path.
+    func testWhoop5NightUnchangedByFamilyParameter() throws {
+        let start = 12_000_000
+        let sess = [session(start: start, durSec: 600)]
+        let hrs = (0..<600).map { hr(start + $0) }
+        let temps = (0..<600).map { skin(start + $0, rawX100: 3400) }  // 34 °C centidegrees
+        let defaulted = try XCTUnwrap(AnalyticsEngine.wornNightlySkinTempC(sess, hr: hrs, skinTemp: temps))
+        let explicit = try XCTUnwrap(AnalyticsEngine.wornNightlySkinTempC(sess, hr: hrs, skinTemp: temps, family: .whoop5))
+        XCTAssertEqual(defaulted, 34.0, accuracy: 1e-9)
+        XCTAssertEqual(defaulted, explicit)
+    }
+
+    /// The funnel diagnostic reports the SAME family-aware outcome: a worn 4.0 night is kept under `.whoop4`
+    /// but all-out-of-range (dropped) under the family-blind `.whoop5` scale.
+    func testFunnelFamilyAwareAttribution() {
+        let start = 13_000_000
+        let sess = [session(start: start, durSec: 600)]
+        let hrs = (0..<600).map { hr(start + $0) }
+        let temps = (0..<600).map { SkinTempSample(ts: start + $0, raw: 840) }
+        let w5 = AnalyticsEngine.skinTempFunnel(sess, hr: hrs, skinTemp: temps, family: .whoop5)
+        XCTAssertEqual(w5.droppedOutOfRange, 600, "under /100 the 4.0 worn raw reads ~8 °C, all out of range")
+        XCTAssertTrue(w5.isAbsent)
+        let w4 = AnalyticsEngine.skinTempFunnel(sess, hr: hrs, skinTemp: temps, family: .whoop4)
+        XCTAssertEqual(w4.kept, 600)
+        XCTAssertFalse(w4.isAbsent)
+    }
+
     // MARK: - seed → deviation (skin_temp baseline)
 
     private let skinCfg = Baselines.metricCfg["skin_temp"]!

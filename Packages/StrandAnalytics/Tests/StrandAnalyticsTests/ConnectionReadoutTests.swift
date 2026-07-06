@@ -48,6 +48,33 @@ final class ConnectionTraceTests: XCTestCase {
         XCTAssertEqual(ConnectionTrace.noCursorLine(),
                        "offload trim=0xFFFFFFFF noCursor (strap has no banked history to offload)")
     }
+
+    // #990: the -363 d drift that used to print "clockOk". Beyond the 48 h behind-tolerance the line
+    // must carry a clock warning naming the day count, mirroring the universal line's shared verdict.
+    func testClockDriftLineFarBehindIsWarning() {
+        let wall = 1_782_475_200
+        let line = ConnectionTrace.clockDriftLine(oldestUnix: nil, newestUnix: wall - 363 * 86_400,
+                                                  wallNowUnix: wall)
+        XCTAssertTrue(line.contains("CLOCK-WARNING"), line)
+        XCTAssertTrue(line.contains("363d behind wall"), line)
+        XCTAssertFalse(line.contains("clockOk"), line)
+    }
+
+    func testClockDriftLineBehindWithinToleranceStaysOk() {
+        let wall = 1_782_475_200
+        let line = ConnectionTrace.clockDriftLine(oldestUnix: nil, newestUnix: wall - 47 * 3_600,
+                                                  wallNowUnix: wall)
+        XCTAssertTrue(line.hasSuffix("clockOk"), line)
+    }
+
+    // #987: an epoch-era newest (never-set RTC, ~1970/71) is the named RTC-EPOCH fault, not a generic
+    // behind warning and never clockOk.
+    func testClockDriftLineEpochEraReadsRtcEpoch() {
+        let line = ConnectionTrace.clockDriftLine(oldestUnix: nil, newestUnix: 40_000_000,  // 1971-04
+                                                  wallNowUnix: 1_782_475_200)
+        XCTAssertTrue(line.contains("RTC-EPOCH"), line)
+        XCTAssertFalse(line.contains("clockOk"), line)
+    }
 }
 
 final class ConnectionReadoutTests: XCTestCase {
@@ -98,5 +125,70 @@ final class ConnectionReadoutTests: XCTestCase {
 
     func testLastOffloadResultNilWhenNone() {
         XCTAssertNil(ConnectionReadout.lastOffloadResult(taggedTail: ["[connection] connect up gen=1 uptimeStart=1"]))
+    }
+
+    // MARK: - #990 per-session / all-time drained rows
+
+    func testSessionRowsFromProgressLine() {
+        let tail = ["[connection] offload progress trim=100 chunkRows=5 sessionRows=57 sessionMotion=2 nights=1"]
+        XCTAssertEqual(ConnectionReadout.sessionRows(taggedTail: tail), 57)
+    }
+
+    func testSessionRowsResultLineWins() {
+        let tail = [
+            "[connection] offload progress trim=100 chunkRows=5 sessionRows=5 sessionMotion=2 nights=1",
+            "[connection] offload result=complete rows=42 nights=2",
+        ]
+        XCTAssertEqual(ConnectionReadout.sessionRows(taggedTail: tail), 42)
+    }
+
+    func testSessionRowsEmptyResultIsZeroNotStale() {
+        // An "empty" result carries no rows= field: it honestly means 0, never an older running total.
+        let tail = [
+            "[connection] offload progress trim=100 chunkRows=9 sessionRows=9 sessionMotion=2 nights=1",
+            "[connection] offload result=empty (console only, no sensor records)",
+        ]
+        XCTAssertEqual(ConnectionReadout.sessionRows(taggedTail: tail), 0)
+    }
+
+    func testSessionRowsNilWhenNoOffload() {
+        XCTAssertNil(ConnectionReadout.sessionRows(taggedTail: ["[connection] connect up gen=1 uptimeStart=1"]))
+    }
+
+    func testDrainedRowsFromSummary() {
+        XCTAssertEqual(ConnectionReadout.drainedRowsFromSummary(
+            "Backfill: session persisted 5397 rows (5211 with motion, 5211 skin-temp) across 2 night(s)."), 5_397)
+        XCTAssertNil(ConnectionReadout.drainedRowsFromSummary("Backfill: session ended - reason=timeout"))
+        XCTAssertNil(ConnectionReadout.drainedRowsFromSummary("session persisted garbage rows"))
+    }
+
+    // MARK: - #987 clock latch + last frame
+
+    func testClockCorrelatedDeviceParsesNewest() {
+        let lines = [
+            "12:00:01  Clock correlated: device=100 wall=1782475200",
+            "12:05:09  Clock correlated: device=1782475600 wall=1782475601",
+        ]
+        XCTAssertEqual(ConnectionReadout.clockCorrelatedDevice(logLines: lines), 1_782_475_600)
+        XCTAssertNil(ConnectionReadout.clockCorrelatedDevice(logLines: ["connect up"]))
+    }
+
+    func testClockLatchedLabel() {
+        XCTAssertEqual(ConnectionReadout.clockLatchedLabel(deviceClockUnix: 1_782_475_600), "yes")
+        XCTAssertEqual(ConnectionReadout.clockLatchedLabel(deviceClockUnix: 40_000_000), "no (RTC reads 1970/71)")
+        XCTAssertEqual(ConnectionReadout.clockLatchedLabel(deviceClockUnix: nil), "no (waiting for the strap clock)")
+    }
+
+    func testRtcWarningFiresOnEpochEraClockOrNewest() {
+        XCTAssertNotNil(ConnectionReadout.rtcWarning(deviceClockUnix: 40_000_000, strapNewestUnix: nil))
+        XCTAssertNotNil(ConnectionReadout.rtcWarning(deviceClockUnix: nil, strapNewestUnix: 30_000_000))
+        XCTAssertNil(ConnectionReadout.rtcWarning(deviceClockUnix: 1_782_475_600, strapNewestUnix: 1_782_475_000))
+        XCTAssertNil(ConnectionReadout.rtcWarning(deviceClockUnix: nil, strapNewestUnix: nil),
+                     "no signal seen yet must not fabricate a fault")
+    }
+
+    func testLastFrameLabel() {
+        XCTAssertEqual(ConnectionReadout.lastFrameLabel(lastFrameUnix: 990, nowUnix: 1_002), "12s ago")
+        XCTAssertEqual(ConnectionReadout.lastFrameLabel(lastFrameUnix: nil, nowUnix: 1_002), "no frames yet")
     }
 }

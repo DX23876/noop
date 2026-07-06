@@ -9,13 +9,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Air
@@ -49,11 +47,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -118,6 +119,15 @@ private enum class Pace(val label: String) {
 }
 
 private enum class Phase { Inhale, Exhale }
+
+// MARK: - Liquid hero tokens (the liquid Breathe restyle)
+//
+// The frosted hero panel the breathe vessel floats on, matching the liquid Today heroCard. `heroFill` is a
+// translucent near-black (mock rgba(13,14,20,.80)) so it floats over the day-of-sky and the vessel + white
+// count-up read crisp on it; radius 26 + a white@0.11 hairline give the frosted-glass edge. Declared here
+// (not shared from Today) because the Today copies are file-private — same values, kept in lockstep.
+private val LIQUID_HERO_FILL: Color = Color(red = 13f / 255f, green = 14f / 255f, blue = 20f / 255f, alpha = 0.80f)
+private val LIQUID_HERO_RADIUS = 26.dp
 
 /** The three biofeedback layers as a mode switch (mirrors BreathingView.Mode). */
 private enum class BreatheMode(val label: String) {
@@ -282,6 +292,11 @@ fun BreatheScreen(viewModel: AppViewModel) {
     ScreenScaffold(
         title = "Breathe",
         subtitle = "Haptic-paced breathing · find your pace · calm down",
+        // LIQUID SKY BACKDROP (the pilot pattern — LiquidScreenSky.kt): the time-of-day liquid sky settles
+        // into the theme canvas behind the header + top card and bleeds full-width up behind the status bar
+        // via the scaffold's topBackground plumbing. The Android equivalent of the iOS
+        // `ScreenScaffold(topBackground: liquidScaffoldSky())`; the cards float OVER it on the flat canvas.
+        topBackground = { LiquidScreenSky() },
     ) {
         // Mode switch — Breathe / Resonance / Calm me.
         SegmentedPillControl(
@@ -341,8 +356,17 @@ fun BreatheScreen(viewModel: AppViewModel) {
             Text("$breathCount breaths", style = NoopType.captionNumber, color = Palette.textSecondary)
         }
 
-        // The orb card.
-        NoopCard(padding = 24.dp, tint = Palette.restColor) {
+        // The liquid hero CARD: a translucent near-black frosted panel (mock rgba(13,14,20,.80), radius 26,
+        // white@0.11 hairline) that floats over the day-of-sky so the breathe vessel + white count-up stay
+        // crisp — the card does the contrast work, not a muted sky. Mirrors the iOS liquid heroCard.
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(LIQUID_HERO_RADIUS))
+                .background(LIQUID_HERO_FILL)
+                .border(1.dp, Color.White.copy(alpha = 0.11f), RoundedCornerShape(LIQUID_HERO_RADIUS))
+                .padding(24.dp),
+        ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(18.dp),
@@ -356,21 +380,36 @@ fun BreatheScreen(viewModel: AppViewModel) {
                     )
                 }
 
-                // The breathing orb is the immersive hero: it floats over a calm Rest-world
-                // starfield, the scenic bloom deepening as the orb expands so the field breathes.
+                // The breathe pacer is now a liquid VESSEL: it FILLS on the inhale and EMPTIES on the exhale,
+                // driven by the SAME eased `orbProgress` the orb used (0..1, from the phase-duration tween), so
+                // the breath timing is untouched — the fluid just replaces the scaling orb. Only animates while
+                // a session is live (posed/static otherwise, so the still hero costs nothing). The live BPM
+                // counts up over it (white, tabular, soft shadow, hit-transparent so a tap falls to the vessel,
+                // which owns its own splash+haptic). Rest-tinted (restBright), matching the iOS breathe hero.
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(300.dp)
-                        .clip(RoundedCornerShape(Metrics.cardRadius)),
+                        .height(280.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    ScenicHeroBackground(
-                        modifier = Modifier.matchParentSize(),
-                        domain = DomainTheme.Rest,
-                        starCount = 56,
+                    LiquidVessel(
+                        value = orbProgress.toDouble(),
+                        tint = Palette.restBright,
+                        animated = running,
+                        modifier = Modifier.height(280.dp),
                     )
-                    BreathingOrb(progress = orbProgress, bpm = bpm, running = running, modifier = Modifier.height(280.dp))
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.clearAndSetSemantics {},
+                    ) {
+                        Text(
+                            bpm?.toString() ?: "—",
+                            style = NoopType.number(40f, weight = FontWeight.Bold)
+                                .copy(shadow = Shadow(color = Color.Black.copy(alpha = 0.5f), offset = Offset(0f, 1f), blurRadius = 6f)),
+                            color = Color.White,
+                        )
+                        Text("BPM", style = NoopType.footnote.copy(letterSpacing = 0.8.sp), color = Palette.textTertiary)
+                    }
                 }
 
                 Text(
@@ -455,7 +494,7 @@ fun BreatheScreen(viewModel: AppViewModel) {
         // Hidden while running and when there is nothing honest to show.
         val outcomeLine = when {
             running -> null
-            endedOutcome == "—" -> "RMSSD — · not enough R-R data"
+            endedOutcome == "—" -> "RMSSD - · not enough R-R data"
             endedOutcome != null -> "RMSSD $endedOutcome"
             lastStoredOutcome.isNotEmpty() -> "Last session: $lastStoredOutcome"
             else -> null
@@ -522,80 +561,6 @@ fun BreatheScreen(viewModel: AppViewModel) {
         CoherenceCard(rmssd)
 
         if (!live.bonded) HapticHint()
-    }
-}
-
-// MARK: - Breathing orb
-
-@Composable
-private fun BreathingOrb(progress: Float, bpm: Int?, running: Boolean = false, modifier: Modifier = Modifier) {
-    val minScale = 0.42f
-    val scale = minScale + (1f - minScale) * progress
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .aspectRatio(1f),
-        contentAlignment = Alignment.Center,
-    ) {
-        // Static guide ring at the inhale extent.
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
-                .clip(CircleShape)
-                .border(1.dp, Palette.restColor.copy(alpha = 0.28f), CircleShape),
-        )
-        // Outer halo — a Rest-world bloom that brightens as the orb expands. Roughly HALVED to match
-        // the iOS refresh (less glow, crisper): the peak alpha is ~0.15 and it scales with the orb's
-        // expansion (an envelope, like iOS's 0.55 + 0.45·progress) so it stays calm rather than blooming.
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(scale * 1.35f)
-                .aspectRatio(1f)
-                .clip(CircleShape)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            Palette.restBright.copy(alpha = 0.15f * scale.coerceIn(0f, 1f)),
-                            Color.Transparent,
-                        ),
-                    ),
-                ),
-        )
-        // Orb body — soft indigo→periwinkle Rest gradient.
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(scale)
-                .aspectRatio(1f)
-                .clip(CircleShape)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            Palette.restBright.copy(alpha = 0.90f),
-                            Palette.restColor.copy(alpha = 0.62f),
-                            Palette.restDeep.copy(alpha = 0.85f),
-                        ),
-                    ),
-                )
-                .border(1.dp, Palette.restBright.copy(alpha = 0.50f), CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(bpm?.toString() ?: "—", style = NoopType.number(40f), color = Palette.textPrimary)
-                Text("BPM", style = NoopType.footnote.copy(letterSpacing = 0.8.sp), color = Palette.textTertiary)
-            }
-        }
-        // Travelling guide ring — a brighter 2px stroke that rides the breath out toward the outer track
-        // and back (the sactyr suggestion: the middle ring grows to meet the outer ring on the inhale,
-        // then shrinks toward the core on the exhale). It scales with the same eased progress as the orb,
-        // so under reduced animations it simply parks at its current radius rather than pulsing.
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(scale)
-                .aspectRatio(1f)
-                .clip(CircleShape)
-                .border(2.dp, Palette.restBright.copy(alpha = if (running) 0.65f else 0.35f), CircleShape),
-        )
     }
 }
 
@@ -673,28 +638,17 @@ private fun CoherenceCard(rmssd: Double?) {
                 Spacer(Modifier.weight(1f))
                 StatePill(label, tone = tone)
             }
-            // Normalized bar — RMSSD 0..120ms → 0..1.
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(10.dp)
-                    .clip(RoundedCornerShape(50))
-                    .background(Palette.surfaceInset),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(frac.coerceAtLeast(0.02f))
-                        .height(10.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(
-                            Brush.horizontalGradient(
-                                listOf(Palette.restDeep, Palette.restBright),
-                            ),
-                        ),
-                )
-            }
+            // Normalized bar — RMSSD 0..120ms → 0..1 — as a liquid tube (a genuine single-value fill).
+            // Static (animated = false): it settles to the level, no per-frame clock, matching the pilot's
+            // tube usage on non-live contributor bars.
+            LiquidTube(
+                frac = frac.toDouble(),
+                tint = Palette.restBright,
+                animated = false,
+                modifier = Modifier.fillMaxWidth(),
+            )
             Text(
-                "Estimate only — a higher RMSSD while paced usually means your parasympathetic \"rest\" branch is engaging. It is not a clinical reading; trends over a session matter more than any single number.",
+                "Estimate only: a higher RMSSD while paced usually means your parasympathetic \"rest\" branch is engaging. It is not a clinical reading; trends over a session matter more than any single number.",
                 style = NoopType.footnote, color = Palette.textTertiary,
             )
         }
@@ -762,7 +716,7 @@ private fun HapticHint() {
     ) {
         Icon(Icons.Filled.GraphicEq, contentDescription = null, tint = Palette.statusWarning)
         Text(
-            "Connect your strap for haptic guidance — you'll feel one pulse on the inhale, two on the exhale, so you can breathe with your eyes closed.",
+            "Connect your strap for haptic guidance. You'll feel one pulse on the inhale, two on the exhale, so you can breathe with your eyes closed.",
             style = NoopType.footnote, color = Palette.textSecondary,
         )
     }
@@ -803,7 +757,7 @@ private fun StressCheckInCard(onBreatheNow: () -> Unit) {
                 StatePill("Passive", tone = StrandTone.Neutral)
             }
             Text(
-                "Your HRV dipped while you were still — want a minute to breathe?",
+                "Your HRV dipped while you were still. Want a minute to breathe?",
                 style = NoopType.subhead, color = Palette.textPrimary,
             )
             honestNudgeLine(n)?.let {
@@ -826,7 +780,7 @@ private fun StressCheckInCard(onBreatheNow: () -> Unit) {
                 }) { Text("Turn off", style = NoopType.body, color = Palette.textSecondary) }
             }
             Text(
-                "Relaxation guidance from your own numbers — not a health alert, and not a diagnosis. Trends matter more than any single number.",
+                "Relaxation guidance from your own numbers: not a health alert, and not a diagnosis. Trends matter more than any single number.",
                 style = NoopType.footnote, color = Palette.textTertiary,
             )
         }
@@ -917,11 +871,11 @@ private fun ResonanceMode(
                         tone = if (live.bonded) StrandTone.Positive else StrandTone.Warning)
                 }
                 Text(
-                    "Everyone has a breathing pace — usually between 4.5 and 7 breaths a minute — where the heart's rhythm swings the most with each breath. We pace you through a few candidate paces, measure how your HRV responds, and lock the one that resonates best for you.",
+                    "Everyone has a breathing pace (usually between 4.5 and 7 breaths a minute) where the heart's rhythm swings the most with each breath. We pace you through a few candidate paces, measure how your HRV responds, and lock the one that resonates best for you.",
                     style = NoopType.subhead, color = Palette.textSecondary,
                 )
                 Text(
-                    "Estimate from PPG-derived R-R — relaxation guidance, not a clinical reading. Your pace drifts, so we date it and you can re-measure anytime.",
+                    "Estimate from PPG-derived R-R: relaxation guidance, not a clinical reading. Your pace drifts, so we date it and you can re-measure anytime.",
                     style = NoopType.footnote, color = Palette.textTertiary,
                 )
             }
@@ -1006,7 +960,7 @@ private fun ResonanceResultCard(result: ResonanceEngine.SweepResult, context: an
             }
             if (!result.didLock) {
                 Text(
-                    "Not enough clean beat data to lock a pace today — try again rested, sitting still with the strap snug. For now we'll pace you at 5.5 br/min (coherence).",
+                    "Not enough clean beat data to lock a pace today. Try again rested, sitting still with the strap snug. For now we'll pace you at 5.5 br/min (coherence).",
                     style = NoopType.footnote, color = Palette.textTertiary,
                 )
             }
@@ -1138,7 +1092,7 @@ private fun CalmMode(viewModel: AppViewModel, live: com.noop.ble.LiveState, bpm:
                         tone = if (canRun) StrandTone.Neutral else StrandTone.Warning)
                 }
                 Text(
-                    "The strap buzzes a gentle rhythm just below your current heart rate — a felt metronome to relax toward. It trails your heart down rather than yanking it, and stops on its own.",
+                    "The strap buzzes a gentle rhythm just below your current heart rate, a felt metronome to relax toward. It trails your heart down rather than yanking it, and stops on its own.",
                     style = NoopType.subhead, color = Palette.textSecondary,
                 )
                 Text(
@@ -1200,10 +1154,10 @@ private fun CalmMode(viewModel: AppViewModel, live: com.noop.ble.LiveState, bpm:
                     }
                     when {
                         !canBuzz -> Text(
-                            "Connect your strap — Calm me is a felt rhythm on the wrist, so it needs a bonded connection.",
+                            "Connect your strap. Calm me is a felt rhythm on the wrist, so it needs a bonded connection.",
                             style = NoopType.footnote, color = Palette.textTertiary)
                         !canRun -> Text(
-                            "Waiting for a resting heart rate — start a live reading first, or come back when you're still.",
+                            "Waiting for a resting heart rate. Start a live reading first, or come back when you're still.",
                             style = NoopType.footnote, color = Palette.textTertiary)
                     }
                 }
@@ -1227,7 +1181,7 @@ private fun CalmMode(viewModel: AppViewModel, live: com.noop.ble.LiveState, bpm:
                     }
                     if (didNotFall) {
                         Text(
-                            "That's normal — a paced breath often settles things when a metronome alone doesn't.",
+                            "That's normal. A paced breath often settles things when a metronome alone doesn't.",
                             style = NoopType.footnote, color = Palette.textTertiary)
                     }
                 }
@@ -1250,8 +1204,8 @@ private fun calmOutcomeLine(
         else ->
             if (startHr != null && endHr != null && endHr < startHr) "HR eased $startHr → $endHr over $mmss."
             else if (startHr != null && endHr != null)
-                "HR held steady ($startHr → $endHr) — try a paced breath instead."
-            else "Session ended — try a paced breath instead."
+                "HR held steady ($startHr → $endHr). Try a paced breath instead."
+            else "Session ended. Try a paced breath instead."
     }
 }
 
@@ -1268,23 +1222,14 @@ private fun calmDidNotFall(
 
 @Composable
 private fun ProgressBar(frac: Float) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(10.dp)
-            .clip(RoundedCornerShape(50))
-            .background(Palette.surfaceInset),
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(frac.coerceIn(0.02f, 1f))
-                .height(10.dp)
-                .clip(RoundedCornerShape(50))
-                .background(
-                    Brush.horizontalGradient(listOf(Palette.restDeep, Palette.restBright)),
-                ),
-        )
-    }
+    // The sweep progress as a liquid tube — a single-value fill. Static (animated = false): it settles to
+    // the current sweep fraction with no per-frame clock, matching the pilot's tube usage.
+    LiquidTube(
+        frac = frac.toDouble(),
+        tint = Palette.restBright,
+        animated = false,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 private fun formatDay(epochMs: Long): String =

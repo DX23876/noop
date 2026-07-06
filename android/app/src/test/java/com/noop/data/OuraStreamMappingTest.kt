@@ -130,4 +130,31 @@ class OuraStreamMappingTest {
         assertTrue(s.battery.isEmpty())
         assertTrue(s.hr.isEmpty())
     }
+
+    @Test
+    fun tierBAndActivityInfoNeverMapToAStream() {
+        // HONEST-DATA INVARIANT (PR #960): Tier-B raw summaries AND the decoded-but-unvalidated 0x50
+        // activity/MET events must never produce a durable stream row (in particular no step count is
+        // ever minted from MET - it is not one), exactly like the Swift twin's drop test.
+        val s = OuraStreamMapping.streams(
+            listOf(
+                OuraEvent.TierB(
+                    com.noop.oura.OuraTierBSummary(
+                        tag = 0x7E, ringTimestamp = 100, rawPayload = intArrayOf(1, 2, 3),
+                        kind = "real_steps",
+                    ),
+                ),
+                OuraEvent.ActivityInfo(
+                    com.noop.oura.OuraActivityInfo(ringTimestamp = 100, state = 0x41, met = listOf(1.8, 1.9)),
+                ),
+            ),
+            anchor,
+        )
+        assertTrue(s.hr.isEmpty())
+        assertTrue(s.rr.isEmpty())
+        assertTrue(s.events.isEmpty())
+        assertTrue(s.battery.isEmpty())
+        assertTrue(s.spo2.isEmpty())
+        assertTrue(s.skinTemp.isEmpty())
+    }
 }

@@ -62,6 +62,24 @@ class TestCentre internal constructor(private val prefs: SharedPreferences) {
         prefs.edit().putString(ANSWERS_PREFIX + d.id, o.toString()).apply()
     }
 
+    // All-time drained-rows tally (#990) - twin of the Swift TestCentre accessors. Sits in the
+    // testcentre.* namespace because the Connection readout is its consumer, but it accrues
+    // UNCONDITIONALLY (the Backfiller session summary is not test-mode gated), so it answers "has this
+    // install ever drained anything" across sessions - the per-session counter resets on every
+    // reconnect, so a strap stuck in a pull-restart loop looked like it never progressed even when rows
+    // were landing.
+
+    /** Fold one session's drained rows into the persisted all-time tally. Called from the log sink when
+     *  the Backfiller's "session persisted N rows" summary lands (the single emit point). */
+    fun noteDrainedRows(rows: Int) {
+        if (rows <= 0) return
+        prefs.edit().putLong(CUMULATIVE_DRAINED_KEY, cumulativeDrainedRows() + rows).apply()
+    }
+
+    /** The all-time drained-rows tally (0 before anything ever drained). Shown beside the per-session
+     *  count on the Connection readout (#990). */
+    fun cumulativeDrainedRows(): Long = prefs.getLong(CUMULATIVE_DRAINED_KEY, 0L)
+
     /**
      * One-time migration. Idempotent, guarded by the v1 bool. Phase 1 has no domain-activation state to
      * seed from the legacy toggles (those are advanced experimental flags, gathered by the IA but not
@@ -80,6 +98,7 @@ class TestCentre internal constructor(private val prefs: SharedPreferences) {
         private const val STARTED_PREFIX = "testcentre.startedAt."
         private const val ANSWERS_PREFIX = "testcentre.answers."
         private const val MIGRATED_KEY = "testcentre.migrated.v1"
+        private const val CUMULATIVE_DRAINED_KEY = "testcentre.cumulativeDrainedRows"
 
         fun from(context: Context): TestCentre =
             TestCentre(context.getSharedPreferences(PREFS, Context.MODE_PRIVATE))

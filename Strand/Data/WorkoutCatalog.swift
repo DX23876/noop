@@ -68,6 +68,8 @@ enum WorkoutCatalog {
         // EXTRA , no Health Connect type, still first-class here. (#77/#152, #768)
         Sport(name: "Padel", isDistanceSport: false),
         Sport(name: "Pickleball", isDistanceSport: false),
+        // Bowling (D#850): light lane sport, no route, so GPS stays off.
+        Sport(name: "Bowling", isDistanceSport: false),
         Sport(name: "Other", isDistanceSport: false),
     ]
 

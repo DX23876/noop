@@ -24,7 +24,7 @@ import java.util.Calendar
 // it dissolves into the flat canvas behind the ring content. The scene is chosen from the CURRENT local
 // hour and recomputed on recomposition (cheap — just a drawable lookup), so it changes through the day.
 //
-// HARD RULES honoured (Aaron, standing):
+// HARD RULES honoured (standing):
 //  - NO GLOW / no bloom. The scene is a flat image at a capped ~0.42 alpha, never a literal photo.
 //  - The rings + WHITE numbers + labels MUST stay legible: a faint bottom-up dark scrim sits UNDER the
 //    ring content so a bright midday scene never washes out the white text. No tinting of the rest of
@@ -185,7 +185,7 @@ private fun Modifier.SceneHeroBackgroundModifier(
 //
 // Compose port of the iOS `SceneScreenBackground`. The day-cycle scene anchored to the TOP of the SCREEN,
 // behind the header + the rings hero — so it "forms part of the background" and the cards sit OVER it
-// (Aaron's direction). Full-WIDTH (aspect-fill), TOP-aligned so the sky shows, fading into the canvas
+// (the design direction). Full-WIDTH (aspect-fill), TOP-aligned so the sky shows, fading into the canvas
 // ([Palette.surfaceBase]) over its lower portion (~92% down) so it dissolves before the dashboard cards, at
 // a ~0.5 image alpha. A faint dark scrim under the VERY top keeps the white header text legible on a bright
 // sky. Place it edge-to-edge as a TOP-anchored screen background behind the scroll content (the caller

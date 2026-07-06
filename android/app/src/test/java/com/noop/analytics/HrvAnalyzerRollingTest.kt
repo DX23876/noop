@@ -40,10 +40,25 @@ class HrvAnalyzerRollingTest {
     @Test fun timestampsAreThePerSampleWindowEnd() {
         val series = (0 until 10).map { rr(100L + it, 800) }
         val out = HrvAnalyzer.rollingRmssd(series, windowSec = 300)
-        // One point per input sample that had >= 2 clean beats in its trailing window. The first sample has
-        // no predecessor in-window, so the curve starts at the SECOND sample's ts.
-        assertEquals(101L, out.first().first)
+        // #1035 (ryanbr): one point per sample once its trailing window holds >= minBeatsPerWindow (8)
+        // clean beats, so the curve starts at the 8th sample's ts (107) — a 2-beat window was a noisy
+        // spike, not HRV.
+        assertEquals(107L, out.first().first)
         assertEquals(109L, out.last().first)
+    }
+
+    @Test fun stepSecThinsEmission() {
+        // #1036 (ryanbr) parity with Swift testRollingRmssdStepThinsEmission: the same 60-beat 1 Hz stream
+        // with a 10 s stride emits far fewer than one-per-beat, and adjacent emitted points are >= stepSec
+        // apart, while the value stays the steady ~10 ms alternation. This is the flood guard the day-scale
+        // chart needs (the HRV branch skips downsampleTimeline, so without a stride it plots every beat).
+        val series = (0 until 60).map { rr(1000L + it, if (it % 2 == 0) 800 else 810) }
+        val dense = HrvAnalyzer.rollingRmssd(series, windowSec = 30, stepSec = 0)
+        val thinned = HrvAnalyzer.rollingRmssd(series, windowSec = 30, stepSec = 10)
+        assertTrue("a stride must emit fewer points than every-beat", thinned.size < dense.size)
+        for (i in 1 until thinned.size) {
+            assertTrue("adjacent emits >= stepSec apart", thinned[i].first - thinned[i - 1].first >= 10)
+        }
     }
 
     @Test fun rangeFilterDropsOutOfRangeBeatsFromWindows() {

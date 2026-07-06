@@ -55,6 +55,22 @@ final class ChargeBreakdownFormatTests: XCTestCase {
         XCTAssertTrue(ChargeBreakdownFormat.driverAccessibilityLabel(one).contains("up 1 point."))
     }
 
+    /// The VoiceOver label now routes the engine's label + verdict (which are localization KEYS) through
+    /// `String(localized:)` before interpolating, so a localized build reads them translated instead of
+    /// leaking English. In the base (en) locale each key resolves to itself, so the sentence is unchanged:
+    /// this pins that the localization wiring did not alter the en output (the parity fix must stay
+    /// behaviour-preserving at source). The real engine label/verdict strings are used, so the assertion
+    /// also proves those exact keys exist to localize.
+    func testDriverAccessibilityLabelResolvesLabelAndVerdictThroughLocalization() {
+        let d = ChargeDriver(label: "Heart rate variability", deltaPoints: 7,
+                             valueText: "72 ms", baselineText: "64 ms baseline",
+                             verdict: "above baseline, supporting recovery")
+        // en: keys resolve to themselves -> identical to the pre-localization sentence.
+        XCTAssertEqual(
+            ChargeBreakdownFormat.driverAccessibilityLabel(d),
+            "Heart rate variability: up 7 points. 72 ms, 64 ms baseline. above baseline, supporting recovery.")
+    }
+
     // MARK: - A3: confidence tier chip (pure presentation of the EXISTING confidence)
 
     func testTierTagMapsConfidenceToShortTag() {

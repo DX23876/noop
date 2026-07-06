@@ -132,7 +132,7 @@ struct WatchWorkoutView: View {
             Circle()
                 .fill(workout.phase == .paused ? StrandPalette.statusWarning : StrandPalette.statusCritical)
                 .frame(width: 7, height: 7)
-            Text(workout.phase == .paused ? "PAUSED" : "RECORDING")
+            Text(workout.phase == .paused ? String(localized: "PAUSED") : String(localized: "RECORDING"))
                 .font(StrandFont.overline)
                 .tracking(StrandFont.overlineTracking)
                 .foregroundStyle(workout.phase == .paused ? StrandPalette.statusWarning : StrandPalette.metricRose)
@@ -275,9 +275,10 @@ struct WatchWorkoutView: View {
             Text("Workout saved")
                 .font(StrandFont.rounded(20, weight: .semibold))
                 .foregroundStyle(StrandPalette.textPrimary)
-            // A small honest recap of what we banked.
-            Text("\(Self.clock(workout.elapsed))" +
-                 (workout.activeKcal.map { " · \($0) kcal" } ?? ""))
+            // A small honest recap of what we banked. Whole-phrase per shape (no appended tail)
+            // so the kcal variant localizes as one string.
+            Text(workout.activeKcal.map { String(localized: "\(Self.clock(workout.elapsed)) · \($0) kcal") }
+                 ?? Self.clock(workout.elapsed))
                 .font(StrandFont.footnote)
                 .foregroundStyle(StrandPalette.textSecondary)
             Button("Done") { workout.reset() }

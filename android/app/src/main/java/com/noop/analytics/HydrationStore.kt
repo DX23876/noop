@@ -19,6 +19,14 @@ import java.util.TimeZone
  */
 object HydrationStore {
 
+    /**
+     * #989 (Kotlin twin of Repository.hydrationSeq): bumped on every mutation ([log] / [set]; [remove]
+     * routes through [set]). Hydration writes never touch the flows Today already collects (`days` only
+     * changes on a data refresh), so the dashboard card sat stale until an unrelated sync. Today keys its
+     * hydration re-read on this too.
+     */
+    val mutationSeq = kotlinx.coroutines.flow.MutableStateFlow(0)
+
     /** The generic metric-series key the day total is banked under (shared id; keep == the Swift key). */
     const val KEY: String = "hydration"
 
@@ -47,6 +55,7 @@ object HydrationStore {
         val current = total(repo, ts)
         val next = current + amountMl
         repo.upsertMetricSeries(listOf(MetricSeriesRow(SOURCE_ID, day, KEY, next)))
+        mutationSeq.value += 1   // #989: tell Today's card directly (see mutationSeq)
         return next
     }
 
@@ -75,6 +84,7 @@ object HydrationStore {
         val day = dayKey(ts)
         val next = clampedTotal(totalMl)
         repo.upsertMetricSeries(listOf(MetricSeriesRow(SOURCE_ID, day, KEY, next)))
+        mutationSeq.value += 1   // #989: edits/deletes route through here too
         return next
     }
 

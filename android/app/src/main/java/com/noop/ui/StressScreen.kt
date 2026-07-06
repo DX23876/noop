@@ -2,6 +2,7 @@ package com.noop.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
@@ -9,11 +10,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -36,6 +37,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -43,7 +45,9 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -85,6 +89,11 @@ import kotlin.math.sqrt
 fun StressScreen(vm: AppViewModel, onBreathe: () -> Unit = {}) {
     val days by vm.recentDays.collectAsStateWithLifecycle()
 
+    // #698: the liquid day-of-sky backdrop is gated on the same "Day-cycle background" setting as Today,
+    // so turning it off falls back to the flat theme canvas on every liquid screen alike.
+    val context = LocalContext.current
+    val showDayCycleBackground = remember { NoopPrefs.showDayCycleBackground(context) }
+
     // Stored daily "stress" values (0–3), keyed by day. Loaded once per device; the
     // metricSeries store is the Android analogue of the macOS `repo.series(key:source:)`.
     // We pull a wide range so the whole history is covered.
@@ -123,6 +132,12 @@ fun StressScreen(vm: AppViewModel, onBreathe: () -> Unit = {}) {
     LazyScreenScaffold(
         title = "Stress",
         subtitle = "Autonomic load from HRV and resting heart rate",
+        // LIQUID SKY BACKDROP (the pilot pattern — LiquidScreenSky.kt): the time-of-day liquid sky settles
+        // into the theme canvas behind the header + hero vessel, full-bleed (full-width, up behind the
+        // status bar via the scaffold's topBackground plumbing), and the cards float OVER it on the flat
+        // surface below. The Android equivalent of the iOS `ScreenScaffold(topBackground: liquidScaffoldSky())`.
+        // Gated on the "Day-cycle background" setting like Today; off passes null (the flat-canvas path).
+        topBackground = if (showDayCycleBackground) { { LiquidScreenSky() } } else null,
     ) {
         when {
             model != null -> StressContent(model, daytime, stressIndex, freqHrv, onBreathe)
@@ -220,21 +235,40 @@ private fun androidx.compose.foundation.lazy.LazyListScope.StressContent(
     item { StressMethodologyCard(model, modifier = Modifier.staggeredAppear(4)) }
 }
 
-// MARK: - 1 · Hero — the NOOP count-up PipBar (the needle/speedometer is gone)
+// MARK: - Liquid hero tokens (the liquid restyle)
 //
-// Aaron's call mirrored from iOS: "remove the needle, it's not needed" + "straight
-// horizontal bars that almost count up separated by pips". So the hero reads as one clean
-// WHOOP-style block — a big WHITE CountUpText value with "of 3" + the band word beside it,
-// over a PipBar on the 0…3 scale tinted by the live stress band (calm blue → steady green →
-// tense amber). The SYNTHESIS number stays textPrimary (white), never the band colour.
+// The hero card the stress vessel floats on, ported from the iOS liquid heroCard. `LIQUID_HERO_FILL` is a
+// translucent near-black (mock rgba(13,14,20,.80)) so it floats over the day-of-sky; the vessel + white
+// count-up number read crisp on it. Radius 26 + a white@0.11 hairline give the frosted-glass edge. Same
+// numbers as the Today pilot's hero card.
+private val LIQUID_HERO_FILL: Color = Color(red = 13f / 255f, green = 14f / 255f, blue = 20f / 255f, alpha = 0.80f)
+private val LIQUID_HERO_RADIUS = 26.dp
+
+// MARK: - 1 · Hero — the liquid stress VESSEL (the flat PipBar is gone)
+//
+// The liquid restyle: the headline 0–3 read is now a band-tinted [LiquidVessel] filling to score/3, with
+// the count-up value rolled up over it in white (the same HeroScoreVessel idiom as the liquid Today). The
+// band word + StatePill + the one plain-English line ride beside / under it. The score, band, tints
+// (StressRamp: calm blue → steady green → tense amber) and the explanation are UNCHANGED — only the
+// presentation moved from the flat PipBar to the sloshing vessel. The card wrapper is the liquid frosted
+// translucent-black hero surface so the vessel + white number stay crisp over the day-of-sky.
 
 @Composable
 private fun StressHeroCard(model: StressModel, modifier: Modifier = Modifier) {
     val bandColor = StressRamp.color(model.score)
-    NoopCard(tint = Palette.stressColor, modifier = modifier) {
+    // The vessel fills on the SAME 0–3 scale the score uses (score / 3 → 0..1), tinted by the live band.
+    val fraction = (model.score / 3.0).coerceIn(0.0, 1.0)
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(LIQUID_HERO_RADIUS))
+            .background(LIQUID_HERO_FILL)
+            .border(1.dp, Color.White.copy(alpha = 0.11f), RoundedCornerShape(LIQUID_HERO_RADIUS))
+            .padding(Metrics.cardPadding),
+    ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -244,48 +278,67 @@ private fun StressHeroCard(model: StressModel, modifier: Modifier = Modifier) {
                 StatePill(model.band.title, tone = model.band.tone, showsDot = true)
             }
 
-            // Big count-up value + "of 3", with the band word beside it (no needle).
+            // The liquid vessel + the count-up value rolled over it, with "of 3" + the band word beside.
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Bottom,
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(18.dp),
             ) {
-                Row(verticalAlignment = Alignment.Bottom) {
+                // The band-tinted vessel with a WHITE count-up number over it — the HeroScoreVessel idiom.
+                // `animated` only once a real score is loaded (model != null here, so always a real value).
+                Box(
+                    modifier = Modifier
+                        .size(112.dp)
+                        .semantics {
+                            contentDescription =
+                                "Stress ${String.format(Locale.US, "%.1f", model.score)} of 3, ${model.band.title}"
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    LiquidVessel(
+                        value = fraction,
+                        tint = bandColor,
+                        animated = true,
+                        modifier = Modifier.size(112.dp),
+                    )
+                    // Count-up value over the vessel — white, tabular, a soft shadow for legibility, and
+                    // hit-transparent so the tap reaches the vessel (splash). Mirrors HeroScoreVessel.
                     CountUpText(
                         value = model.score,
                         format = { String.format(Locale.US, "%.1f", it) },
-                        style = NoopType.display(52f),
-                        color = Palette.textPrimary,
-                    )
-                    Text(
-                        "of 3",
-                        style = NoopType.number(15f, FontWeight.Medium),
-                        color = Palette.textTertiary,
-                        modifier = Modifier.padding(start = 6.dp, bottom = 8.dp),
+                        style = NoopType.number(30f, weight = FontWeight.Bold)
+                            .copy(shadow = Shadow(color = Color.Black.copy(alpha = 0.5f), offset = Offset(0f, 1f), blurRadius = 6f)),
+                        color = Color.White,
+                        modifier = Modifier.clearAndSetSemantics {},
                     )
                 }
-                Spacer(Modifier.weight(1f))
-                Text(
-                    model.band.title,
-                    style = NoopType.overline,
-                    color = bandColor,
-                    modifier = Modifier.padding(bottom = 8.dp),
-                )
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            model.band.title,
+                            style = NoopType.display(30f),
+                            color = bandColor,
+                        )
+                        Text(
+                            "of 3",
+                            style = NoopType.number(14f, FontWeight.Medium),
+                            color = Palette.textTertiary,
+                            modifier = Modifier.padding(start = 6.dp, bottom = 5.dp),
+                        )
+                    }
+                    Text(
+                        "on the 0-3 autonomic-load scale",
+                        style = NoopType.footnote,
+                        color = Palette.textTertiary,
+                    )
+                }
             }
 
-            // The NOOP signature: a count-up PipBar on the 0…3 scale, band-tinted.
-            PipBar(
-                value = model.score.toFloat(),
-                range = 0f..3f,
-                segments = 21,
-                tint = bandColor,
-                height = 12.dp,
-                modifier = Modifier.semantics {
-                    contentDescription =
-                        "Stress ${String.format(Locale.US, "%.1f", model.score)} of 3, ${model.band.title}"
-                },
-            )
-
-            // One plain-English line, full width under the bar.
+            // One plain-English line, full width under the vessel row.
             Text(
                 model.explanation,
                 style = NoopType.subhead,
@@ -444,8 +497,8 @@ private fun StressDaytimeSection(
 
                 Text(
                     "The line traces your autonomic load across the waking day, scored " +
-                        "against your own calm hours today — the same 0–3 proxy as the score " +
-                        "above, read hour by hour. Hours without enough data are skipped.",
+                        "against your own calm hours today (the same 0-3 proxy as the score " +
+                        "above, read hour by hour). Hours without enough data are skipped.",
                     style = NoopType.footnote,
                     color = Palette.textTertiary,
                 )
@@ -672,12 +725,14 @@ private fun daytimeLineDescription(hours: List<DaytimeStress.HourPoint>): String
     return "Hourly stress today: " + parts.joinToString(", ")
 }
 
-// MARK: - Totals bar — Calm / Moderate / High split of the scored waking hours
+// MARK: - Time-in-band — Calm / Moderate / High split of the scored waking hours (liquid tubes)
 //
-// A single proportional bar that splits the day's SCORED hours into the three bands
-// (Calm 0–1 = blue, Moderate 1–2 = green, High 2–3 = amber), each segment widthed
-// by its share of the scored hours, with a small legend reading "Calm 6h · Moderate 4h ·
-// High 3h". Flat segments, hairline-separated — README screen-9 totals bar.
+// The liquid restyle of the README screen-9 totals split: instead of one stacked proportional bar, each
+// band gets its OWN [LiquidTube] row filled to that band's SHARE of the day's scored hours (a genuine
+// single-value 0..1 fraction per row — Calm hours / total, Moderate / total, High / total), tinted by the
+// SAME StressRamp band colour (blue → green → amber). `animated = false` so the three tubes pose once and
+// cost nothing per frame. The swatch + label sit on the left, the hour count on the right; the shares still
+// sum to the day.
 
 @Composable
 private fun StressTotalsBar(day: DaytimeStress.Result) {
@@ -687,55 +742,15 @@ private fun StressTotalsBar(day: DaytimeStress.Result) {
     val calm = scored.count { (it.level ?: 0.0) < 1.0 }
     val high = scored.count { (it.level ?: 0.0) >= 2.0 }
     val moderate = scored.size - calm - high
-    val total = scored.size.toFloat()
+    val total = scored.size.toDouble()
 
     NoopCard(tint = Palette.stressColor) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Overline("Time in band")
 
-            // The proportional bar — three flat segments on the inset track, round outer ends.
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(Metrics.progressHeight)
-                    .clip(RoundedCornerShape(Metrics.cornerBadge))
-                    .background(Palette.surfaceInset),
-            ) {
-                if (calm > 0) {
-                    Box(
-                        modifier = Modifier
-                            .weight(calm / total)
-                            .fillMaxHeight()
-                            .background(StressTotalsBand.Calm.color),
-                    )
-                }
-                if (moderate > 0) {
-                    Box(
-                        modifier = Modifier
-                            .weight(moderate / total)
-                            .fillMaxHeight()
-                            .background(StressTotalsBand.Moderate.color),
-                    )
-                }
-                if (high > 0) {
-                    Box(
-                        modifier = Modifier
-                            .weight(high / total)
-                            .fillMaxHeight()
-                            .background(StressTotalsBand.High.color),
-                    )
-                }
-            }
-
-            // Legend — one entry per non-empty band, "<swatch> Calm · 6h".
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                TotalsLegendItem(StressTotalsBand.Calm, calm)
-                TotalsLegendItem(StressTotalsBand.Moderate, moderate)
-                TotalsLegendItem(StressTotalsBand.High, high)
-            }
+            TimeInBandRow(StressTotalsBand.Calm, calm, total)
+            TimeInBandRow(StressTotalsBand.Moderate, moderate, total)
+            TimeInBandRow(StressTotalsBand.High, high, total)
         }
     }
 }
@@ -746,11 +761,17 @@ private enum class StressTotalsBand(val title: String, val color: Color) {
     High("High", StressRamp.TENSE),        // amber — high
 }
 
+/** One band's share of the scored waking hours as a liquid tube row: a swatch + label on the left, the
+ *  band-tinted [LiquidTube] filled to hours/total, and the hour count on the right. Posed (animated=false). */
 @Composable
-private fun TotalsLegendItem(band: StressTotalsBand, hours: Int) {
+private fun TimeInBandRow(band: StressTotalsBand, hours: Int, total: Double) {
+    val frac = if (total > 0) hours / total else 0.0
     Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics { contentDescription = "${band.title} ${hours} hours" },
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Box(
             modifier = Modifier
@@ -759,9 +780,24 @@ private fun TotalsLegendItem(band: StressTotalsBand, hours: Int) {
                 .background(if (hours > 0) band.color else Palette.surfaceInset),
         )
         Text(
-            "${band.title} · ${hours}h",
+            band.title,
+            style = NoopType.captionNumber,
+            color = if (hours > 0) band.color else Palette.textTertiary,
+            modifier = Modifier.width(72.dp),
+        )
+        LiquidTube(
+            frac = frac,
+            tint = band.color,
+            height = Metrics.progressHeight,
+            animated = false,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            "${hours}h",
             style = NoopType.captionNumber,
             color = if (hours > 0) Palette.textSecondary else Palette.textTertiary,
+            textAlign = TextAlign.End,
+            modifier = Modifier.width(32.dp),
         )
     }
 }
@@ -927,7 +963,7 @@ private fun StressTrendSection(model: StressModel, modifier: Modifier = Modifier
                         Column(modifier = Modifier.weight(1f)) {
                             Overline("Stress · ${range.label}")
                             Text(
-                                "Daily 0–3 proxy",
+                                "Daily 0-3 proxy",
                                 style = NoopType.footnote,
                                 color = Palette.textTertiary,
                             )
@@ -1000,7 +1036,7 @@ private fun StressMethodologyCard(model: StressModel, modifier: Modifier = Modif
             Overline("How this is computed")
             Text(
                 if (model.usingStored) {
-                    "Today's value is your recorded daily stress score (0–3)."
+                    "Today's value is your recorded daily stress score (0-3)."
                 } else {
                     "Stress is derived from two autonomic signals."
                 },
@@ -1010,17 +1046,17 @@ private fun StressMethodologyCard(model: StressModel, modifier: Modifier = Modif
             Text(
                 "We compare today's resting heart rate and HRV to your own 30-day " +
                     "baseline. A higher-than-usual resting HR and a lower-than-usual HRV " +
-                    "both push the score up — classic signs the body is activated. The " +
-                    "combined shift is mapped onto a 0–3 scale: 0 is calm, 1.5 sits at " +
+                    "both push the score up, classic signs the body is activated. The " +
+                    "combined shift is mapped onto a 0-3 scale: 0 is calm, 1.5 sits at " +
                     "your baseline, 3 is highly activated.",
                 style = NoopType.subhead,
                 color = Palette.textSecondary,
             )
             HorizontalDivider(color = Palette.hairline)
             Row(modifier = Modifier.fillMaxWidth()) {
-                BandLegend("0–1", "LOW", StressRamp.CALM)
-                BandLegend("1–2", "MEDIUM", StressRamp.STEADY)
-                BandLegend("2–3", "HIGH", StressRamp.TENSE)
+                BandLegend("0-1", "LOW", StressRamp.CALM)
+                BandLegend("1-2", "MEDIUM", StressRamp.STEADY)
+                BandLegend("2-3", "HIGH", StressRamp.TENSE)
             }
         }
     }
@@ -1278,19 +1314,19 @@ internal class StressModel private constructor(
             val rhrDn = (rhrDelta ?: 0.0) < -1.0
             return when (band) {
                 StressBand.High -> when {
-                    rhrUp && hrvDn -> "Resting HR is elevated and HRV is below your baseline — both classic signs of high activation. Prioritise rest, hydration and an easy day."
+                    rhrUp && hrvDn -> "Resting HR is elevated and HRV is below your baseline, both classic signs of high activation. Prioritise rest, hydration and an easy day."
                     hrvDn -> "HRV has dropped well below your baseline, pointing to elevated stress or fatigue. Ease off and give your body time to recover."
-                    rhrUp -> "Resting heart rate is running high versus your norm — your body is under load today. Keep effort light."
+                    rhrUp -> "Resting heart rate is running high versus your norm. Your body is under load today. Keep effort light."
                     else -> "Your autonomic markers are skewed toward stress today. Treat it as a recovery-focused day."
                 }
                 StressBand.Medium -> when {
-                    rhrUp || hrvDn -> "Slightly off baseline — ${if (rhrUp) "resting HR is a touch high" else "HRV is a little low"} — so you're moderately activated. Nothing alarming; just don't overreach."
-                    else -> "You're sitting around your typical autonomic baseline — moderate stress, a normal, balanced day."
+                    rhrUp || hrvDn -> "Slightly off baseline (${if (rhrUp) "resting HR is a touch high" else "HRV is a little low"}), so you're moderately activated. Nothing alarming; just don't overreach."
+                    else -> "You're sitting around your typical autonomic baseline: moderate stress, a normal, balanced day."
                 }
                 StressBand.Low -> when {
-                    rhrDn && hrvUp -> "Resting heart rate is low and HRV is up — your nervous system looks well-recovered and calm. A great day to push if you want to."
+                    rhrDn && hrvUp -> "Resting heart rate is low and HRV is up. Your nervous system looks well-recovered and calm. A great day to push if you want to."
                     hrvUp -> "HRV is above baseline, a sign of a relaxed, well-recovered nervous system. Stress is low."
-                    else -> "Resting heart rate and HRV are sitting at or below baseline — low physiological stress. You're in a calm, recovered state."
+                    else -> "Resting heart rate and HRV are sitting at or below baseline: low physiological stress. You're in a calm, recovered state."
                 }
             }
         }

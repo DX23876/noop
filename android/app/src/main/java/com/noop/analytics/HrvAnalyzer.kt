@@ -232,19 +232,30 @@ object HrvAnalyzer {
     /**
      * Rolling/windowed rMSSD over an RR series. For each input sample (ascending by ts), computes the
      * Task-Force rMSSD over the cleaned beats whose ts falls in the trailing window `(ts - windowSec, ts]`,
-     * emitting `(ts, rmssd)` only when at least 2 clean beats survive in that window (rMSSD needs a
-     * successive difference). Range + Malik ectopic filtering ([cleanRR]) is applied to the WHOLE series
-     * once, so artifacts never enter any window. Empty when fewer than 2 input rows. Pure, deterministic.
+     * emitting `(ts, rmssd)` only when at least [minBeatsPerWindow] clean beats survive in that window (a
+     * 2-beat window is one successive difference = a noisy spike, not HRV — matches the Swift twin's
+     * minBeatsPerWindow gate). Range + Malik ectopic filtering ([cleanRR]) is applied to the WHOLE series
+     * once, so artifacts never enter any window. Empty when fewer than [minBeatsPerWindow] input rows.
+     * Pure, deterministic.
      *
      * @param rr the RR intervals (each carries a ts in unix SECONDS and rrMs); the Android twin of the
      *   Swift `[RRSample]`.
      * @param windowSec the trailing window width in seconds (defaults to [DEFAULT_ROLLING_WINDOW_SEC]).
+     * @param stepSec emit at most one point per this many seconds of advance — a thinning stride so a 1 Hz
+     *   RR stream does not emit a point per beat (and flood the chart). 0 (the default) emits at every
+     *   qualifying window. Mirrors the Swift HRVAnalyzer.rollingRmssd `stepSec`.
+     * @param minBeatsPerWindow minimum clean beats required inside a window before it emits (default 8,
+     *   matching the Swift twin) — a smaller window is a noisy spike, not a trustworthy rMSSD.
+     *
+     * Android parity port of ryanbr's #1035 (minBeatsPerWindow gate) + #1036 (stepSec thinning stride).
      */
     fun rollingRmssd(
         rr: List<RrInterval>,
         windowSec: Int = DEFAULT_ROLLING_WINDOW_SEC,
+        stepSec: Int = 0,
+        minBeatsPerWindow: Int = 8,
     ): List<Pair<Long, Double>> {
-        if (rr.size < 2 || windowSec <= 0) return emptyList()
+        if (rr.size < minBeatsPerWindow || windowSec <= 0) return emptyList()
         // Ascending by ts so the trailing-window scan is monotone (the table read is already ordered, but
         // we don't assume it). Stable on equal ts.
         val sorted = rr.sortedBy { it.ts }
@@ -266,14 +277,23 @@ object HrvAnalyzer {
         val window = windowSec.toLong()
         val out = ArrayList<Pair<Long, Double>>(kept.size)
         var lo = 0
+        var lastEmitTs: Long? = null
         for (hi in kept.indices) {
             val tEnd = kept[hi].ts
             val tStart = tEnd - window
             // Advance the trailing edge so only beats with ts in (tStart, tEnd] remain.
             while (lo < hi && kept[lo].ts <= tStart) lo++
+            // Thinning stride (#1036): skip emitting until at least [stepSec] has passed since the last
+            // EMITTED point (measured against emits, not candidates), matching the Swift twin's stepSec branch.
+            val last = lastEmitTs
+            if (stepSec > 0 && last != null && tEnd - last < stepSec) continue
             val span = kept.subList(lo, hi + 1).map { it.rrMs.toDouble() }
+            // A window with too few clean beats is a noisy spike, not a trustworthy rMSSD — require
+            // [minBeatsPerWindow] survivors (#1035), matching the Swift HRVAnalyzer.rollingRmssd default (8).
+            if (span.size < minBeatsPerWindow) continue
             val r = rmssdRaw(span) ?: continue
             out.add(tEnd to r)
+            lastEmitTs = tEnd
         }
         return out
     }

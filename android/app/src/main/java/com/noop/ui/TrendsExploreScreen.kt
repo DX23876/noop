@@ -147,7 +147,7 @@ private val builtInMetrics: List<MetricSpec> = listOf(
         key = "strain", title = "Effort", unit = "/100", category = "Effort",
         accent = Palette.strain066, higherIsBetter = null, decimals = 1,
         dailyPick = { it.strain },
-        description = "Cardiovascular load for the day, on a 0–100 scale (was 0–21).",
+        description = "Cardiovascular load for the day, on a 0-100 scale (was 0-21).",
     ),
     MetricSpec(
         key = "hrv", title = "HRV", unit = "ms", category = "Charge",

@@ -43,7 +43,7 @@ public enum CaptureCompleteness {
     ///
     ///   sleep       -> the gate-run trace ("gate run=...") and the sleep-provenance line
     ///   connection  -> the promoted clock-drift summary and the bond-state line
-    ///   workouts    -> the auto-detect verdict line and the session lifecycle line
+    ///   workouts    -> the auto-detect verdict line, the session lifecycle line, and the engine detected-bout decision
     ///   display     -> the data-volume line and the frame-time digest
     ///   import      -> the per-stage rowsIn/rowsOut line
     ///   steps       -> the raw step-counter trace, INCLUDING its no-counter sentinel
@@ -60,7 +60,7 @@ public enum CaptureCompleteness {
     public static let tokens: [TestDomain: [String]] = [
         .sleep:      ["gate run=", "sleepProvenance"],
         .connection: ["clockDrift", "bondState"],
-        .workouts:   ["autoDetect", "session event="],
+        .workouts:   ["autoDetect", "session event=", "detectedBout"],
         .display:    ["dataVolume", "frameSummary"],
         .dataImport: ["import stage=", "rowsIn="],
         .steps:      ["stepsRaw", "stepsCal"],

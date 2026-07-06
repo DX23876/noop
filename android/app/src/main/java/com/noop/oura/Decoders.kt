@@ -177,13 +177,15 @@ object OuraDecoders {
     fun decodeSpO2PerSample(rec: OuraRecord): List<OuraSpO2>? {
         val b = rec.payload
         if (b.size < 2) return null
-        val base = (b[0] shr 4) shl 7                    // high nibble of byte6, scaled << 7
+        // byte6 high nibble [7:4] is a base/status field, NOT an offset to add to each sample. Real Gen 3
+        // captures (#968, pipiche38) show samples[] are DIRECT SpO2 percentages (~95-96), so adding the
+        // scaled base produced impossible ~223% readings. The samples themselves are the percentage.
         val out = ArrayList<OuraSpO2>()
         var i = 1
         while (i < b.size) {
             val raw = b[i]
             if (raw == 0xFF) break                       // terminator
-            out.add(OuraSpO2(ringTimestamp = rec.ringTimestamp, value = base + raw))
+            out.add(OuraSpO2(ringTimestamp = rec.ringTimestamp, value = raw))
             i += 1
         }
         return if (out.isEmpty()) null else out
@@ -419,6 +421,31 @@ object OuraDecoders {
             }
         }
         return if (out.isEmpty()) null else out
+    }
+
+    // MARK: - Activity info (0x50; s6.13) - Tier B, third-party formula
+
+    /**
+     * Decode the 0x50 activity_info record: byte0 = a `state` code (activity-category; meaning
+     * unconfirmed), every following byte = one MET sample. Formula (OURA_PROTOCOL.md s6.13, [oura-rs],
+     * clean-room fact citation): `met = byte * 0.1` for byte < 0x80, else `met = 12.8 + (byte - 128) * 0.2`
+     * (a two-slope encoding: 0.1-MET resolution up to 12.7, coarser 0.2 steps above). THIRD-PARTY and NOT
+     * ground-truth-validated against the Oura app, so this stays Tier B end to end: OuraDriver gates it
+     * behind `allowTierB`, and OuraStreamMapping never folds it into a durable stream. Values are
+     * normalised to 2 decimal places so a decoded MET compares exactly against its fixture (0.1 is not
+     * exactly representable in binary floating point; same normalisation as the Swift twin, so both
+     * platforms decode identical doubles). Returns null on an empty body - a record with no state byte
+     * decodes to nothing, never a guess.
+     */
+    fun decodeActivityInfo(rec: OuraRecord): OuraActivityInfo? {
+        val b = rec.payload
+        if (b.isEmpty()) return null
+        val met = ArrayList<Double>(b.size - 1)
+        for (k in 1 until b.size) {
+            val raw = if (b[k] < 0x80) b[k] * 0.1 else 12.8 + (b[k] - 128) * 0.2
+            met.add(Math.round(raw * 100.0) / 100.0)
+        }
+        return OuraActivityInfo(ringTimestamp = rec.ringTimestamp, state = b[0], met = met)
     }
 }
 

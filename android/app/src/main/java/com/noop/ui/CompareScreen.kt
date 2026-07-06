@@ -44,6 +44,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -83,6 +85,10 @@ data class CompareMetric(
     val unit: String,
     val source: String,      // "my-whoop" or "apple-health"
     val decimals: Int,
+    // Optional honesty note shown in the metric picker (e.g. BMI is derived from the profile height
+    // when it comes from Health Connect, since Health Connect carries no measured BMI record). The
+    // parity-locked [title] stays identical to the iOS MetricCatalog; the caveat lives here instead.
+    val note: String? = null,
 ) {
     val id: String get() = "$source:$key"
 
@@ -162,7 +168,10 @@ private object CompareCatalog {
         CompareMetric("weight", "Weight", "Health", "kg", "apple-health", 1),
         CompareMetric("body_fat", "Body Fat", "Health", "%", "apple-health", 1),
         CompareMetric("lean_mass", "Lean Body Mass", "Health", "kg", "apple-health", 1),
-        CompareMetric("bmi", "BMI", "Health", "", "apple-health", 1),
+        CompareMetric(
+            "bmi", "BMI", "Health", "", "apple-health", 1,
+            note = "From Health Connect this is derived from your weight and profile height.",
+        ),
         // Nutrition (imported from a food-tracker CSV — calories-in next to calories-out).
         // Mirrors the macOS MetricCatalog entries exactly (same keys + sources, v2.2.0 parity).
         CompareMetric("calories_in", "Calories In", "Nutrition", "kcal", NutritionCsvImporter.SOURCE_ID, 0),
@@ -317,6 +326,11 @@ private object CorrelationEngine {
 fun CompareScreen(vm: AppViewModel) {
     val days by vm.recentDays.collectAsStateWithLifecycle()
 
+    // Liquid finish (pilot pattern): the time-of-day sky settles behind the top of the screen, gated on the
+    // same day-cycle-background preference the liquid Today honours. Off = the flat dark canvas path.
+    val context = LocalContext.current
+    val showDayCycleBackground = remember { NoopPrefs.showDayCycleBackground(context) }
+
     val maxSelection = 4
     val minSelection = 2
 
@@ -394,12 +408,18 @@ fun CompareScreen(vm: AppViewModel) {
         if (anyWidened) "$base · sparse widened" else base
     }
 
-    LazyScreenScaffold(title = "Compare", subtitle = "Overlay signals, draw conclusions.") {
+    LazyScreenScaffold(
+        title = "Compare",
+        subtitle = "Overlay signals, draw conclusions.",
+        // Liquid sky backdrop (LiquidScreenSky.kt) in the scaffold's topBackground slot, gated on the
+        // day-cycle preference — the same pilot plumbing the liquid Today uses.
+        topBackground = if (showDayCycleBackground) { { LiquidScreenSky() } } else null,
+    ) {
 
         // ── Metric picker section (chips + range control)
         item {
         Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-            SectionHeader("Metrics", overline = "Overlay 2–4 signals")
+            SectionHeader("Metrics", overline = "Overlay 2-4 signals")
             NoopCard {
                 Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -581,11 +601,20 @@ private fun AddMetricMenu(
                                 }
                             },
                             text = {
-                                Text(
-                                    metric.title,
-                                    style = NoopType.body,
-                                    color = if (enabled) Palette.textPrimary else Palette.textTertiary,
-                                )
+                                Column {
+                                    Text(
+                                        metric.title,
+                                        style = NoopType.body,
+                                        color = if (enabled) Palette.textPrimary else Palette.textTertiary,
+                                    )
+                                    metric.note?.let {
+                                        Text(
+                                            it,
+                                            style = NoopType.footnote,
+                                            color = Palette.textTertiary,
+                                        )
+                                    }
+                                }
                             },
                         )
                     }
@@ -630,9 +659,14 @@ private fun MetricChip(
     modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(50)
+    // liquidPress on the whole pick chip, driven by the SAME interactionSource that drives its only tap
+    // target (the remove ✕) — so pressing to remove settles the chip inward, the pilot's tappable-card feel.
+    // The remove gesture is unchanged (still the ✕ tap → onRemove).
+    val interaction = remember { MutableInteractionSource() }
     Row(
         modifier = modifier
             .clip(shape)
+            .liquidPress(interaction)
             .background(Palette.surfaceOverlay)
             .border(1.dp, color.copy(alpha = 0.4f), shape)
             .padding(horizontal = 11.dp, vertical = 8.dp),
@@ -660,7 +694,11 @@ private fun MetricChip(
             modifier = Modifier
                 .size(18.dp)
                 .clip(CircleShape)
-                .clickableNoRippleLocal(enabled = true) { onRemove() }
+                .clickable(
+                    interactionSource = interaction,
+                    indication = null,
+                    onClick = onRemove,
+                )
                 .padding(3.dp),
         )
     }
@@ -683,9 +721,9 @@ private fun OverlaySection(
                 Overline("Normalized overlay")
                 Text(
                     if (anyWidened) {
-                        "Each line min–max normalized · sparse series widened past ${range.phrase}"
+                        "Each line min-max normalized · sparse series widened past ${range.phrase}"
                     } else {
-                        "Each line min–max normalized within ${range.phrase}"
+                        "Each line min-max normalized within ${range.phrase}"
                     },
                     style = NoopType.footnote,
                     color = Palette.textTertiary,
@@ -860,7 +898,7 @@ private fun Legend(series: List<CompareSeries>) {
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    "${s.metric.format(s.realMin, unitSystem, tempUnit)} – " +
+                    "${s.metric.format(s.realMin, unitSystem, tempUnit)}-" +
                         s.metric.format(s.realMax, unitSystem, tempUnit),
                     style = NoopType.captionNumber,
                     color = Palette.textSecondary,
@@ -953,7 +991,27 @@ private fun PairCard(p: PairResult) {
                     modifier = Modifier.weight(1f),
                 )
                 TrendChip(text = signedR(p.r), color = tint)
-                Text("r = ${signedR(p.r)}", style = NoopType.number(18f), color = tint)
+                // Small liquid vessel accent for the headline single value: |r| fills the vessel in the
+                // relationship's own tint, with the signed r rolled up over it (white, tabular, hit-
+                // transparent so a tap falls through). Same r, same tint, same signedR formatting the plain
+                // "r = …" readout used — just visualised as a headline vessel. STATIC (animated = false):
+                // up to six of these render in a scrolling list, so they pose once (the pilot's small-gauge
+                // static-raster rule) rather than each running a live clock.
+                Box(modifier = Modifier.size(38.dp), contentAlignment = Alignment.Center) {
+                    LiquidVessel(
+                        value = abs(p.r).coerceIn(0.0, 1.0),
+                        tint = tint,
+                        animated = false,
+                        modifier = Modifier.size(38.dp),
+                    )
+                    CountUpText(
+                        value = p.r,
+                        format = { signedR(it) },
+                        style = NoopType.number(12f, weight = FontWeight.Bold),
+                        color = Color.White,
+                        modifier = Modifier.clearAndSetSemantics {},
+                    )
+                }
             }
 
             Text(insightSentence(p), style = NoopType.subhead, color = Palette.textSecondary)
@@ -975,12 +1033,12 @@ private fun insightSentence(p: PairResult): String {
         "(${strengthWord(p.r)} ${directionWord(p.r)}) over ${p.n} shared days.")
         .replace("  ", " ").replace(" )", ")")
     if (abs(p.r) < 0.3) {
-        return "$head No clear relationship — they move largely independently."
+        return "$head No clear relationship - they move largely independently."
     }
     val aT = p.a.metric.title.lowercase()
     val bT = p.b.metric.title.lowercase()
     val verb = if (p.r < 0) "tends to fall" else "tends to rise"
-    return "$head When $aT rises, $bT $verb — a ${strengthWord(p.r)} ${directionWord(p.r)} link."
+    return "$head When $aT rises, $bT $verb - a ${strengthWord(p.r)} ${directionWord(p.r)} link."
 }
 
 private fun signedR(r: Double): String {

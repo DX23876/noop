@@ -8,6 +8,7 @@ import com.noop.data.PpgHrRow
 import com.noop.data.RespRow
 import com.noop.data.RrRow
 import com.noop.data.SkinTempRow
+import com.noop.data.SleepStateRow
 import com.noop.data.Spo2Row
 import com.noop.data.StepRow
 import com.noop.data.StreamBatch
@@ -561,6 +562,7 @@ fun extractHistoricalStreams(
     val spo2 = ArrayList<Spo2Row>()
     val skinTemp = ArrayList<SkinTempRow>()
     val steps = ArrayList<StepRow>()
+    val sleepState = ArrayList<SleepStateRow>()
     val resp = ArrayList<RespRow>()
     val gravity = ArrayList<GravityRow>()
     val events = ArrayList<EventEntry>()
@@ -617,6 +619,12 @@ fun extractHistoricalStreams(
                 p.intOrNull("step_motion_counter")?.let { c ->
                     steps.add(StepRow(ts, c, activityClass = p.intOrNull("activity_class")))
                 }
+                // Band sleep_state (#175): the strap's OWN @81 high-nibble state (0 wake/1 still/2 asleep/3
+                // up), decoded but DROPPED here until now, so the whole band-state chain (persist → the H7
+                // re-onset confirm guard → Deep Timeline track) had no source. Carried VERBATIM including 0
+                // (a real wake reading, not "absent"): only 5/MG v18 records emit the key, so a WHOOP 4.0
+                // simply adds nothing.
+                p.intOrNull("sleep_state")?.let { st -> sleepState.add(SleepStateRow(ts, st)) }
                 p.intOrNull("resp_rate_raw")?.let { raw -> resp.add(RespRow(ts, raw)) }
                 p.doubleOrNull("gravity_x")?.let { gx ->
                     gravity.add(
@@ -685,6 +693,7 @@ fun extractHistoricalStreams(
     return StreamBatch(
         hr = hr, rr = rr, events = events, battery = battery,
         spo2 = spo2, skinTemp = skinTemp, resp = resp, gravity = gravity, steps = steps,
+        sleepState = sleepState,
         ppgHr = ppgHr,
         droppedImplausibleTs = droppedImplausible,
     )

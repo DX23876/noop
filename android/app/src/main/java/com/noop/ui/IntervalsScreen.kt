@@ -204,7 +204,7 @@ fun IntervalsScreen(vm: AppViewModel) {
     // semantics-walked. Order/spacing unchanged (LazyColumn reproduces the eager `spacedBy(20.dp)`).
     LazyScreenScaffold(
         title = "Interval Timer",
-        subtitle = "Silent haptic HIIT — the strap buzzes the transitions",
+        subtitle = "Silent haptic HIIT - the strap buzzes the transitions",
     ) {
         // --- Status row ---
         item {
@@ -503,7 +503,7 @@ private fun ConfigStepper(
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, style = NoopType.headline, color = Palette.textPrimary.copy(alpha = dim))
             Text(
-                "${range.first}–${range.last}${unit?.let { " $it" } ?: ""} · step $step",
+                "${range.first} - ${range.last}${unit?.let { " $it" } ?: ""} · step $step",
                 style = NoopType.footnote,
                 color = Palette.textTertiary.copy(alpha = dim),
             )

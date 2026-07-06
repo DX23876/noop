@@ -17,6 +17,93 @@ approximate; downloads are on the [Releases](https://github.com/NoopApp/noop/rel
 
 ---
 
+## 7.9.0: Coupled view, a rebuilt workout list, and numbers in your journal (all platforms)
+
+Three sizeable new features, the fix wave that was in flight, and a hardening pass a pre-release
+review turned up. Everything runs on your own device, offline, no account.
+
+**New.**
+
+- **Coupled view.** An optional one-glance day screen that puts recovery, day strain on the 0 to 21
+  scale, and sleep together. Off by default; turn it on as a card in Customise. It is a different
+  lens on NOOP's own scores, nothing is recomputed.
+- **Workout list, rebuilt on iPhone.** All Sessions is now a compact native list with sport, source
+  and search filters and a merge tool to split or join your own sessions. Merges keep the real
+  active time and re-derive effort; imported history stays read only. Android gets the same filters
+  and merge.
+- **Numeric journal entries.** A journal item can hold a number with a unit (caffeine in mg, alcohol
+  in units) instead of only yes or no, and those numbers feed the what-moves-your-recovery ranking.
+  Items group into sections, and a custom item renames without losing its history. Thanks maddognik.
+- **Band sleep state (beta).** For WHOOP 5.0 and MG, the band's own sleep-state signal now reaches a
+  track in the Deep Timeline and a column in the raw sensor export, and it can gently confirm the
+  on-device sleep detection. Beta because the codes are still being confirmed against real nights,
+  so it never overrides your derived sleep.
+- **Delete a sleep and it stays gone.** Deleting a detected sleep now keeps it from returning on the
+  next sync, with an undo. A hand-edited nap you delete just goes away quietly, since there is
+  nothing to suppress.
+
+**Fixed.**
+
+- **The live heart-rate graph reads true.** The Health screen now samples once a second, so a steady
+  rate draws flat instead of a slow phantom ramp. Thanks ryanbr.
+- **Chart range chips make sense on new accounts.** W, M, 3M, 6M, 1Y and ALL unlock as your history
+  grows instead of drawing identical charts in your first week, identical on iPhone, Mac and
+  Android. Thanks ryanbr.
+- **A late-night sleep edit can no longer blank the screen.** An edit that rolled the bed time across
+  midnight could hide the whole sleep screen; the editor corrects the obvious case and degrades
+  gracefully. Your data was never lost. Thanks sudden-break.
+- **Week in Review is honest about short weeks.** A week compared against a one or two day week is
+  marked as rough rather than dressed up as a trend, and the Effort figure respects your chosen
+  scale everywhere including VoiceOver. Thanks pikapik487.
+- **Add a device without dropping your strap (Android).** Opening Add a WHOOP no longer tears down a
+  live connection or loops on a refused re-bond, and a genuinely stuck strap now gives up cleanly
+  instead of draining the battery.
+- **Lab Book CSV import.** Bring lab markers in from a CSV (date, marker, value, unit), European
+  decimal-comma files included, with bad rows skipped rather than guessed.
+
+**Under the hood.**
+
+- The Apple Watch and the design system are localised in step with the phone.
+- A pre-release review of this wave surfaced two would-ship-broken defects and a dozen smaller ones,
+  all fixed before cutting.
+
+**Not in this release, on purpose.** The Bluetooth-off-the-main-thread work (the 5.0/MG offload
+freeze) is a change to the most sensitive part of the app and needs the compiler enforcing every hop
+and real-hardware testing, so it is getting its own release rather than being rushed.
+
+## 7.8.0: the everything update (all platforms)
+
+The biggest single release since 7.0. Performance for large libraries (cached Today and Apple
+Health loads, launch without redundant work, roughly 2x faster live decoding, smooth Compare
+charts on multi-year data, and backup/restore/export/delete off the UI thread), chart pinch-zoom
+and pan that actually win against the day swipe on iPhone with Android at parity, a search field
+for the Mac sidebar, an opt-in overnight-only mode for Continuous HRV at about half the battery
+cost, the fix for Charge and Rest pinning to an old night (duplicate sleep from a drifting strap
+clock is now detected, healed and re-scored), the silent Buzz Strap shortcut fixed with
+acknowledged writes, mid-session widget refresh with a budget-aware watch gate, Bowling in the
+sports list, and, on iPhone and Mac, complete Spanish and Chinese (Simplified and Traditional) with a
+refreshed Italian. Community contributions reimplemented with credit: quanturtle, ryanbr, dpguglielmi,
+subscriptiondestroyer. Thank you.
+
+## 7.7.1: bug fixes (Effort, the widget's day, and Oura reconnect) (all platforms)
+
+- **Effort stops reading zero after a strap swap.** If a band was re-added through the device manager, the Today heart-rate curve and Effort could come back empty. They now read whichever strap is actually paired.
+- **The widget shows today, not yesterday.** Around midnight the home-screen widget, watch face, Live Activity and lock-screen notification could hang on the previous day. They all roll to the new day now.
+- **Oura rings reconnect on their own.** After a dropout or an app restart the ring comes back by itself, and it no longer loops a pairing it cannot finish and drains the battery.
+- **A battery estimate that learns faster.** Days remaining now personalises from recent discharge without waiting for a full charge first, which helps on a WHOOP 5.0 that rarely tops up to 100 percent.
+- **Restore finds backups you named yourself.** The restore list now includes backup files with just a date in the name.
+- **Smaller fixes.** The Add-a-device list scrolls at large text sizes, the Today tiles line up evenly, and Android Bluetooth is a little steadier.
+
+## 7.7.0: smoother (especially on Mac), an Oura live-HR fix, and a big pile of improvements (all platforms)
+
+- **Smoother, especially on Mac.** The long freeze some people hit when opening the app or the Insights tab should be gone, and after a sync Charge and Rest now catch up to the latest night instead of sometimes sticking on an older one.
+- **Oura ring (beta): live heart rate again.** Live heart rate from the ring had stopped coming through; it streams again now. The file import accepts more export shapes, and the ring is easier to find when adding a device.
+- **A workout in progress on Today.** A live "workout in progress" card taps straight through to the live view.
+- **WHOOP 4.0 data shows sooner.** While the strap is still building history, the screens show what has banked so far instead of looking empty, and steps can show still / walking / running.
+- **Pinch to zoom the heart rate (iPhone).** Pinch and drag the Today heart-rate chart to look closer at any part of the day.
+- **A coach you can shape.** The AI Coach takes your own instructions and can factor in your stress balance when you have shared that signal. Still bring-your-own-key, still on-device.
+- **A long list of smaller fixes.** Steadier Bluetooth, sleep edits that stick on imported nights, a more reliable smart alarm, cleaner day navigation, and more of the app in Italian.
+
 ## 7.0.2 — the smoothness release: app-wide performance + a Sleep V2 crash fix (all platforms)
 
 You told us the home screen and sleep cards felt laggy, so this is a top-to-bottom performance pass across every screen on every platform, plus a real fix for a Sleep V2 crash.

@@ -61,6 +61,18 @@ interface WhoopDao : DeviceRegistryDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertSteps(rows: List<StepSample>): List<Long>
 
+    /** The strap's OWN band sleep_state per record (#175). Idempotent by (deviceId, ts). */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertSleepState(rows: List<SleepStateSampleEntity>): List<Long>
+
+    /** Upsert one Live Session (v22). Natural key (deviceId, startTs) — start (endTs null) then end. */
+    @Upsert
+    suspend fun upsertLiveSession(row: LiveSessionRow)
+
+    /** Most-recent Live Sessions first, for the look-back summary + streak. */
+    @Query("SELECT * FROM liveSession WHERE deviceId = :deviceId ORDER BY startTs DESC LIMIT :limit")
+    suspend fun recentLiveSessions(deviceId: String, limit: Int): List<LiveSessionRow>
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertResp(rows: List<RespSample>): List<Long>
 
@@ -255,6 +267,14 @@ interface WhoopDao : DeviceRegistryDao {
             "ORDER BY ts ASC LIMIT :limit"
     )
     suspend fun stepSamples(deviceId: String, from: Long, to: Long, limit: Int): List<StepSample>
+
+    /** The strap's OWN banked band sleep_state (#175) in [from, to], ascending. Feeds the Deep Timeline
+     *  band-state track and the per-session grid the H7 re-onset confirm guard reads. */
+    @Query(
+        "SELECT * FROM sleepStateSample WHERE deviceId = :deviceId AND ts >= :from AND ts <= :to " +
+            "ORDER BY ts ASC LIMIT :limit"
+    )
+    suspend fun sleepStateSamples(deviceId: String, from: Long, to: Long, limit: Int): List<SleepStateSampleEntity>
 
     @Query(
         "SELECT * FROM respSample WHERE deviceId = :deviceId AND ts >= :from AND ts <= :to " +
@@ -516,9 +536,17 @@ interface WhoopDao : DeviceRegistryDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertDismissedSleep(rows: List<DismissedSleep>)
 
-    /** All deleted-sleep markers for a [deviceId] (the computed "<id>-noop" source the engine writes). */
+    /** All deleted-sleep markers for a [deviceId]. The engine reads the UNION of the imported id and its
+     *  computed "<id>-noop" id (see WhoopRepository.dismissedSleeps, #65 3A), since a tombstone is written
+     *  under whichever namespace owned the deleted row. */
     @Query("SELECT * FROM dismissedSleep WHERE deviceId = :deviceId")
     suspend fun dismissedSleeps(deviceId: String): List<DismissedSleep>
+
+    /** Lift ONE deleted-sleep tombstone (#65 undo / "allow re-detection"): removes the marker so the
+     *  night is re-detected from raw on the next analyze pass. Keyed by (deviceId, startTs): the same
+     *  natural key the insert uses, so it removes exactly the tombstone [deleteSleepSession] wrote. */
+    @Query("DELETE FROM dismissedSleep WHERE deviceId = :deviceId AND startTs = :startTs")
+    suspend fun deleteDismissedSleep(deviceId: String, startTs: Long)
 
     // MARK: - Frontier / stats (Reads.swift)
 
@@ -599,12 +627,15 @@ interface WhoopDao : DeviceRegistryDao {
     @Query("DELETE FROM battery WHERE ts < :minTs OR ts > :maxTs")
     suspend fun pruneBatteryByTs(minTs: Long, maxTs: Long): Int
 
-    /** Computed daily-metric rows whose `day` key is FUTURE (lexicographically after [today], valid for
-     *  "yyyy-MM-dd") or implausibly old (before [minDay]). String compare is correct for ISO dates. */
-    @Query("DELETE FROM dailyMetric WHERE day > :today OR day < :minDay")
+    /** Daily-metric rows whose `day` key is FUTURE (lexicographically after [today], valid for "yyyy-MM-dd",
+     *  any source) or implausibly old (before [minDay]) AND computed (`-noop`). The far-past floor is
+     *  `-noop`-scoped so a WHOOP CSV import (bare "my-whoop") carrying REAL multi-year history is never
+     *  purged (v8.2.1). String compare is correct for ISO dates. */
+    @Query("DELETE FROM dailyMetric WHERE day > :today OR (day < :minDay AND deviceId LIKE '%-noop')")
     suspend fun pruneDailyMetricByDay(today: String, minDay: String): Int
 
-    /** Computed sleep-session rows whose onset `startTs` is implausible (before [minTs] or after [maxTs]). */
-    @Query("DELETE FROM sleepSession WHERE startTs < :minTs OR startTs > :maxTs")
+    /** Sleep-session rows whose onset `startTs` is future (after [maxTs], any source) or implausibly old
+     *  (before [minTs]) AND computed (`-noop`), so an imported multi-year sleep history survives (v8.2.1). */
+    @Query("DELETE FROM sleepSession WHERE startTs > :maxTs OR (startTs < :minTs AND deviceId LIKE '%-noop')")
     suspend fun pruneSleepSessionByTs(minTs: Long, maxTs: Long): Int
 }

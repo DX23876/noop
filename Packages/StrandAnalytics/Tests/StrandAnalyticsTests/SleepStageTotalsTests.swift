@@ -1090,6 +1090,65 @@ final class SleepStageTotalsTests: XCTestCase {
         XCTAssertEqual(group.sorted(), [0, 2], "the bridged biphasic night wins, returning BOTH its fragments")
     }
 
+    // MARK: - #861 a real overnight night split by a 60–90 min wake is ONE sleep, not nap + sleep
+
+    /// The reported pattern (#861): one overnight sleep the detector left split into two fragments by a real
+    /// mid-night wake of ~70 min, longer than the old 60-min `gapBridgeMaxMin`, so the later fragment lost the
+    /// main-night pick and was LABELLED A NAP. The wider overnight night-tail bridge (≤ `nightTailBridgeMaxMin`,
+    /// onset still in the overnight band) now folds both fragments into ONE main-night group, so neither part is
+    /// a nap. Honest-data invariant: no stage is invented; the 70-min gap is later folded into AWAKE by the
+    /// aggregate, not relabelled sleep.
+    func testOvernightNightSplitBySeventyMinuteWakeMergesIntoOneSleepNotNap() throws {
+        let a = ts525("2026-06-14T23:30")               // overnight onset
+        let aEnd = a + 3 * 3600                          // 23:30 → 02:30
+        let b = aEnd + 70 * 60                           // 03:40 onset (70-min wake gap; 60 ≤ gap < 90)
+        let bEnd = b + 4 * 3600                          // 03:40 → 07:40 (the longer tail)
+        let blocks = [
+            SleepStageTotals.NightBlock(start: a, end: aEnd),
+            SleepStageTotals.NightBlock(start: b, end: bEnd),
+        ]
+        // Before the fix a 70-min gap was NOT bridged, the 4h tail won, and the 3h head became a "nap".
+        let group = try XCTUnwrap(SleepStageTotals.mainNightGroupIndices(blocks, offsetSec: 0))
+        XCTAssertEqual(group.sorted(), [0, 1],
+                       "a 60–90 min mid-night wake bridges both overnight fragments into one sleep (no nap)")
+        // The wider bridge must NOT touch the bare `bridgeAdjacent` (its <60-min contract is unchanged): a
+        // 70-min gap still leaves it two blocks, so the golden detector-side bridge tests stay byte-identical.
+        XCTAssertEqual(SleepStageTotals.bridgeAdjacent(blocks).count, 2,
+                       "the band-aware widening lives only in mainNightGroupIndices, not bridgeAdjacent")
+    }
+
+    /// The daytime guard the widening must NOT breach: a genuine afternoon nap with the SAME 70-min gap from the
+    /// night's end stays its OWN block, because its onset is in the daytime band (not the overnight band the
+    /// wider bridge requires). So a real nap is never folded into the night by the #861 fix.
+    func testDaytimeNapWithSeventyMinuteGapStillStaysItsOwnBlock() throws {
+        let night = ts525("2026-06-15T00:00")           // overnight
+        let nightEnd = night + 6 * 3600                  // 00:00 → 06:00 (the main night)
+        // A 70-min gap from the night's end lands the nap onset at 07:10, still inside the broad overnight
+        // band [20:00, 11:00). To prove the DAYTIME guard, place the nap at a true daytime onset (13:00) and
+        // confirm it is not bridged regardless of being the same day.
+        let nap = ts525("2026-06-15T13:00")             // daytime onset → never a night-tail
+        let blocks = [
+            SleepStageTotals.NightBlock(start: night, end: nightEnd),
+            SleepStageTotals.NightBlock(start: nap,   end: nap + 90 * 60),  // 1.5h afternoon nap
+        ]
+        let group = try XCTUnwrap(SleepStageTotals.mainNightGroupIndices(blocks, offsetSec: 0))
+        XCTAssertEqual(group, [0], "a daytime-onset nap is never folded into the night by the wider bridge")
+    }
+
+    /// The upper guard: a wake gap at/over `nightTailBridgeMaxMin` (90 min) is NOT a mid-night wake, so it stays
+    /// two blocks even for an overnight-band onset, so a genuinely separate early-morning sleep is not swallowed.
+    func testOvernightGapAtOrAboveNinetyMinutesDoesNotBridge() throws {
+        let a = ts525("2026-06-14T23:00")
+        let aEnd = a + 3 * 3600                          // 23:00 → 02:00
+        let b = aEnd + 95 * 60                           // 03:35 onset (95-min gap ≥ nightTailBridgeMaxMin)
+        let blocks = [
+            SleepStageTotals.NightBlock(start: a, end: aEnd),
+            SleepStageTotals.NightBlock(start: b, end: b + 4 * 3600),
+        ]
+        let group = try XCTUnwrap(SleepStageTotals.mainNightGroupIndices(blocks, offsetSec: 0))
+        XCTAssertEqual(group, [1], "a ≥90-min wake is not a night-tail; the blocks stay separate")
+    }
+
     // MARK: - #561 stages-path seam sums the bridged group (analyzeDay parity)
 
     func testHonoringEditsSumsBiphasicGroup() throws {

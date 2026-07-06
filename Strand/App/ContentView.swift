@@ -7,6 +7,8 @@ struct ContentView: View {
     @AppStorage("noop.onboarded") private var onboarded = false
     @AppStorage("noop.lastSeenChangelogVersion") private var lastSeenChangelog = ""
     @AppStorage("noop.acceptedTermsVersion") private var acceptedTerms = ""
+    /// Local timestamp of the last terms acceptance — the on-device consent record (version + when).
+    @AppStorage("noop.acceptedTermsAt") private var acceptedTermsAt = ""
     @State private var showWhatsNew = false
 
     var body: some View {
@@ -25,7 +27,10 @@ struct ContentView: View {
             // Terms acknowledgment gate — over EVERYTHING (before onboarding/pairing/Bluetooth) until
             // the current terms version is accepted; re-appears if the terms materially change.
             if acceptedTerms != Terms.currentVersion {
-                TermsGateView(onAccept: { acceptedTerms = Terms.currentVersion })
+                TermsGateView(onAccept: {
+                    acceptedTermsAt = ISO8601DateFormatter().string(from: Date())
+                    acceptedTerms = Terms.currentVersion
+                })
                     .transition(.opacity)
                     .zIndex(2)
             }

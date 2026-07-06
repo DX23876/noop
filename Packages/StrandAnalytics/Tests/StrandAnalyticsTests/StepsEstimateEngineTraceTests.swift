@@ -93,6 +93,33 @@ final class StepsEstimateEngineTraceTests: XCTestCase {
         XCTAssertTrue(lines[0].contains("need >=2"))
     }
 
+    func testEmptyCounterReportsNoRawCounterNotBroken() {
+        // #810: a WHOOP 4.0 sends NO raw step counter, so daySteps is empty for it. The trace must say so
+        // honestly (the device is motion-estimated), NOT emit the "counterSamples=0 ... need >=2" line that
+        // read as broken. A 5/MG never hits this branch (it always banks counter rows). Twin of the Android
+        // emptyCounterReportsNoRawCounterNotBroken.
+        let lines = StepsEstimateEngine.rawCounterTrace(
+            daySteps: [], dayKey: dayUtc, tzOffsetSeconds: 0, ticksPerStep: 1.0)
+        XCTAssertEqual(lines.count, 1)
+        XCTAssertTrue(lines[0].contains("counterSamples=0"))
+        XCTAssertTrue(lines[0].contains("noRawCounter"))
+        XCTAssertTrue(lines[0].contains("motion-estimated"))
+        XCTAssertFalse(lines[0].contains("need >=2"))  // not the misleading "broken" line
+        XCTAssertFalse(lines[0].contains("\u{2014}"))   // no em-dash
+    }
+
+    func testEmptyAfterDayFilterAlsoReportsNoRawCounter() {
+        // daySteps has rows, but none fall on the requested day (e.g. all on a neighbouring day). After the
+        // local-day filter the sorted list is empty, so the same honest noRawCounter line is emitted rather
+        // than a broken-looking counterSamples=0 ... need >=2. Twin of the Android
+        // emptyAfterDayFilterAlsoReportsNoRawCounter.
+        let otherDay = [step(2 * 86_400, 100), step(2 * 86_400 + 60, 150)]
+        let lines = StepsEstimateEngine.rawCounterTrace(
+            daySteps: otherDay, dayKey: dayUtc, tzOffsetSeconds: 0, ticksPerStep: 1.0)
+        XCTAssertEqual(lines.count, 1)
+        XCTAssertTrue(lines[0].contains("noRawCounter"))
+    }
+
     // MARK: - WHOOP-4 calibration trace
 
     func testCalibrationTraceReusesCalibrateVerbatim() {

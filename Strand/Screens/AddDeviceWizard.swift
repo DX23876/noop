@@ -281,7 +281,7 @@ struct AddDeviceWizard: View {
         }
         switch step {
         case .type:    return "Add a device"
-        case .prep:    return LocalizedStringKey(type.map(typeTitle) ?? "Add a device")
+        case .prep:    return LocalizedStringKey(type.map(typeTitle) ?? String(localized: "Add a device"))
         case .pick:    return "Pick your device"
         case .confirm: return "Name & confirm"
         }
@@ -310,33 +310,33 @@ struct AddDeviceWizard: View {
         VStack(alignment: .leading, spacing: 10) {
             typeRow(.whoop5mg, icon: "applewatch.side.right",
                     title: "WHOOP 5.0 / MG",
-                    subtitle: "Newer WHOOP band — experimental in NOOP")
+                    subtitle: String(localized: "Newer WHOOP band, experimental in NOOP"))
             typeRow(.whoop4, icon: "applewatch.side.right",
                     title: "WHOOP 4.0",
-                    subtitle: "NOOP's primary, fully-supported band")
+                    subtitle: String(localized: "NOOP's primary, fully-supported band"))
             typeRow(.hrStrap, icon: "heart.circle",
-                    title: "Heart-rate strap",
-                    subtitle: "Polar, Wahoo, Coospo, Garmin HRM, Amazfit Helio broadcast")
+                    title: String(localized: "Heart-rate strap"),
+                    subtitle: String(localized: "Polar, Wahoo, Coospo, Garmin HRM, Amazfit Helio broadcast"))
             typeRow(.gymEquipment, icon: "figure.run.treadmill",
-                    title: "Gym equipment",
-                    subtitle: "Treadmill, indoor bike, rower or cross-trainer (Bluetooth FTMS)")
+                    title: String(localized: "Gym equipment"),
+                    subtitle: String(localized: "Treadmill, indoor bike, rower or cross-trainer (Bluetooth FTMS)"))
 
             // EXPERIMENTAL tier — clearly labelled, opt-in, best-effort. Each is honest about what it can
             // actually read; none fabricates data.
             Text("Experimental").strandOverline().padding(.top, 8)
             experimentalTierNote
+            typeRow(.oura, icon: "circle.circle",
+                    title: String(localized: "Oura ring"),
+                    subtitle: String(localized: "Take over your ring locally. Beta. This replaces the Oura app."))
             typeRow(.amazfit, icon: "waveform.path.ecg.rectangle",
                     title: "Amazfit / Zepp",
-                    subtitle: "Incl. Helio. Live heart rate where the band exposes it. Help us test.")
+                    subtitle: String(localized: "Incl. Helio. Live heart rate where the band exposes it. Help us test."))
             typeRow(.miBand, icon: "waveform.path.ecg",
                     title: "Xiaomi Mi Band",
-                    subtitle: "Live heart rate on bands that don't need pairing. Help us test.")
+                    subtitle: String(localized: "Live heart rate on bands that don't need pairing. Help us test."))
             typeRow(.garmin, icon: "applewatch",
-                    title: "Garmin watch",
-                    subtitle: "Uses the watch's Broadcast Heart Rate. We'll show you how.")
-            typeRow(.oura, icon: "circle.circle",
-                    title: "Oura ring",
-                    subtitle: "Take over your ring locally. Beta. This replaces the Oura app.")
+                    title: String(localized: "Garmin watch"),
+                    subtitle: String(localized: "Uses the watch's Broadcast Heart Rate. We'll show you how."))
 
             whoopFirstNote
         }
@@ -454,39 +454,39 @@ struct AddDeviceWizard: View {
         switch t {
         case .whoop4:
             return [
-                "Put your WHOOP 4.0 on your wrist and make sure it's awake.",
-                "Make sure it's NOT connected to the official WHOOP app right now.",
-                "NOOP will look for it nearby.",
+                String(localized: "Put your WHOOP 4.0 on your wrist and make sure it's awake."),
+                String(localized: "Make sure it's NOT connected to the official WHOOP app right now."),
+                String(localized: "NOOP will look for it nearby."),
             ]
         case .whoop5mg:
             return [
-                "WHOOP 5.0 / MG bonds to one device at a time — unpair it from the official WHOOP app first.",
-                "Put the band into pairing mode, on your wrist and awake.",
-                "NOOP will look for it nearby.",
+                String(localized: "WHOOP 5.0 / MG bonds to one device at a time. Unpair it from the official WHOOP app first."),
+                String(localized: "Put the band into pairing mode, on your wrist and awake."),
+                String(localized: "NOOP will look for it nearby."),
             ]
         case .hrStrap:
             return [
-                "Wake your strap — put it on, or dampen the contacts.",
-                "Make sure it isn't connected to another app (a bike computer, the brand's own app…).",
-                "NOOP will look for it nearby.",
+                String(localized: "Wake your strap. Put it on, or dampen the contacts."),
+                String(localized: "Make sure it isn't connected to another app (a bike computer, the brand's own app…)."),
+                String(localized: "NOOP will look for it nearby."),
             ]
         case .gymEquipment:
             return [
-                "Wake the machine — start pedalling, walking or rowing so it powers on its Bluetooth.",
-                "Make sure it isn't already connected to another app (Zwift, the gym's app, a bike computer…).",
-                "NOOP looks for machines that broadcast the standard Bluetooth Fitness Machine service.",
+                String(localized: "Wake the machine. Start pedalling, walking or rowing so it powers on its Bluetooth."),
+                String(localized: "Make sure it isn't already connected to another app (Zwift, the gym's app, a bike computer…)."),
+                String(localized: "NOOP looks for machines that broadcast the standard Bluetooth Fitness Machine service."),
             ]
         case .amazfit:
             return [
-                "Wake your Amazfit / Zepp band and make sure it isn't connected to the Zepp app right now.",
-                "NOOP reads live heart rate when the band exposes it. Some bands need a pairing we can't do yet — if so, we'll say so honestly.",
-                "Experimental: this is best-effort. If live doesn't work, you can export from Zepp and import the file.",
+                String(localized: "Wake your Amazfit / Zepp band and make sure it isn't connected to the Zepp app right now."),
+                String(localized: "NOOP reads live heart rate when the band exposes it. Some bands need a pairing we can't do yet. If so, we'll say so honestly."),
+                String(localized: "Experimental: this is best-effort. If live doesn't work, you can export from Zepp and import the file."),
             ]
         case .miBand:
             return [
-                "Wake your Mi Band and make sure it isn't connected to the Mi Fitness / Zepp Life app right now.",
-                "NOOP reads live heart rate on bands that don't require pairing. Newer bands need an auth handshake we can't do yet.",
-                "Experimental: if your band needs pairing, we'll tell you honestly rather than show a fake reading.",
+                String(localized: "Wake your Mi Band and make sure it isn't connected to the Mi Fitness / Zepp Life app right now."),
+                String(localized: "NOOP reads live heart rate on bands that don't require pairing. Newer bands need an auth handshake we can't do yet."),
+                String(localized: "Experimental: if your band needs pairing, we'll tell you honestly rather than show a fake reading."),
             ]
         case .garmin:
             return GarminBroadcast.broadcastHint
@@ -495,10 +495,10 @@ struct AddDeviceWizard: View {
             // installs its own key on a reset ring and becomes its sole owner (clean-room facts, see
             // docs/OURA_PROTOCOL.md s3 on the install-key + reset-clears-owner model).
             return [
-                "Open the official Oura app and remove this ring (Oura calls it \"factory reset\" or \"unpair and reset\"). This wipes the ring's owner so NOOP can take it over.",
-                "Keep the ring on the charger or on your finger so it stays awake.",
-                "Make sure the Oura app is fully closed. A ring answers one owner at a time.",
-                "When the ring is reset and waking, tap Scan below.",
+                String(localized: "Open the official Oura app and remove this ring (Oura calls it \"factory reset\" or \"unpair and reset\"). This wipes the ring's owner so NOOP can take it over."),
+                String(localized: "Keep the ring on the charger or on your finger so it stays awake."),
+                String(localized: "Make sure the Oura app is fully closed. A ring answers one owner at a time."),
+                String(localized: "When the ring is reset and waking, tap Scan below."),
             ]
         }
     }
@@ -551,18 +551,18 @@ struct AddDeviceWizard: View {
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("What you get").strandOverline()
-                    ouraBullet("Your ring talks to NOOP only, fully offline, no Oura account.")
-                    ouraBullet("Live heart rate, and HRV when the ring can measure it.")
-                    ouraBullet("Overnight sleep staging, resting heart rate, skin-temperature trend, motion and battery, read straight off the ring.")
-                    ouraBullet("NOOP's own Charge, Effort and Rest, computed on your device from published methods.")
+                    ouraBullet(String(localized: "Your ring talks to NOOP only, fully offline, no Oura account."))
+                    ouraBullet(String(localized: "Live heart rate, and HRV when the ring can measure it."))
+                    ouraBullet(String(localized: "Overnight sleep staging, resting heart rate, skin-temperature trend, motion and battery, read straight off the ring."))
+                    ouraBullet(String(localized: "NOOP's own Charge, Effort and Rest, computed on your device from published methods."))
                 }
                 Divider().overlay(StrandPalette.hairline)
                 VStack(alignment: .leading, spacing: 6) {
                     Text("What you lose").strandOverline()
-                    ouraBullet("The Oura app and your Oura account stop working with this ring. This is the point. You are replacing Oura.")
-                    ouraBullet("Oura's own Readiness and Sleep scores. NOOP does not copy them. It computes its own.")
-                    ouraBullet("Anything that needs Oura's cloud (web dashboard, Oura's coaching, shared circles).")
-                    ouraBullet("Likely your Oura warranty and support, because the ring is no longer paired to Oura. Treat this as permanent.")
+                    ouraBullet(String(localized: "The Oura app and your Oura account stop working with this ring. This is the point. You are replacing Oura."))
+                    ouraBullet(String(localized: "Oura's own Readiness and Sleep scores. NOOP does not copy them. It computes its own."))
+                    ouraBullet(String(localized: "Anything that needs Oura's cloud (web dashboard, Oura's coaching, shared circles)."))
+                    ouraBullet(String(localized: "Likely your Oura warranty and support, because the ring is no longer paired to Oura. Treat this as permanent."))
                 }
             }
         }
@@ -764,7 +764,7 @@ struct AddDeviceWizard: View {
                          let gen = ring.detectedGen ?? .gen3
                          pickedOura = (ring: ring, gen: gen)
                          clearOtherPicks(except: .oura)
-                         nameDraft = "Oura ring"
+                         nameDraft = String(localized: "Oura ring")
                          ouraScanner.stopScan()
                          ouraStep = .confirm
                      },
@@ -946,15 +946,15 @@ struct AddDeviceWizard: View {
         let live = (gen == .gen5) ? "*" : "✓"   // newer rings: live HR is best-effort
         let firm = (gen == .gen5) ? "*" : "✓"   // resting HR / sleep / battery
         return [
-            (live, "Live heart rate"),
+            (live, String(localized: "Live heart rate")),
             ("*", "HRV (rMSSD)"),
-            (firm, "Resting heart rate"),
-            (firm, "Sleep staging"),
-            ("*", "Skin-temperature trend"),
-            ("*", "Steps / motion"),
-            (firm, "Battery"),
-            ("-", "Blood oxygen (SpO2 %)"),
-            ("-", "Oura Readiness / Sleep score"),
+            (firm, String(localized: "Resting heart rate")),
+            (firm, String(localized: "Sleep staging")),
+            ("*", String(localized: "Skin-temperature trend")),
+            ("*", String(localized: "Steps / motion")),
+            (firm, String(localized: "Battery")),
+            ("-", String(localized: "Blood oxygen (SpO2 %)")),
+            ("-", String(localized: "Oura Readiness / Sleep score")),
         ]
     }
 
@@ -1136,24 +1136,24 @@ struct AddDeviceWizard: View {
         return n.isEmpty ? confirmAdvertisedName : n
     }
     private var confirmAdvertisedName: String {
-        if let pickedWhoop { return pickedWhoop.name.isEmpty ? (type.map(typeTitle) ?? "Device") : pickedWhoop.name }
+        if let pickedWhoop { return pickedWhoop.name.isEmpty ? (type.map(typeTitle) ?? String(localized: "Device")) : pickedWhoop.name }
         if let pickedStrap { return pickedStrap.name }
         if let pickedMachine { return pickedMachine.name }
         if let pickedHuami { return pickedHuami.name }
         if let pickedOura { return pickedOura.ring.name }
-        return type.map(typeTitle) ?? "Device"
+        return type.map(typeTitle) ?? String(localized: "Device")
     }
     private var confirmBrand: String {
         if type?.isWhoop == true { return "WHOOP" }
-        if type == .gymEquipment { return "Gym equipment" }
+        if type == .gymEquipment { return String(localized: "Gym equipment") }
         if type == .amazfit { return "Amazfit" }
         if type == .miBand { return "Mi Band" }
         if type == .garmin { return "Garmin" }
         // Oura confirms with the detected generation name + a Beta marker so the user sees what NOOP
         // identified before adopting (the gen is best-effort from the scan, fixed by this pick).
-        if let pickedOura { return "\(pickedOura.gen.displayName) · Beta" }
+        if let pickedOura { return String(localized: "\(pickedOura.gen.displayName) · Beta") }
         if let pickedStrap { return brandGuess(from: pickedStrap.name) }
-        return "Heart-rate strap"
+        return String(localized: "Heart-rate strap")
     }
     private var confirmRSSI: Int {
         pickedWhoop?.rssi ?? pickedStrap?.rssi ?? pickedMachine?.rssi ?? pickedHuami?.rssi ?? pickedOura?.ring.rssi ?? -70
@@ -1317,7 +1317,7 @@ struct AddDeviceWizard: View {
             id: "oura-\(uuid)",
             brand: "Oura",
             model: gen.displayName,
-            nickname: name == "Oura ring" ? nil : name,
+            nickname: name == String(localized: "Oura ring") ? nil : name,
             peripheralId: uuid,
             sourceKind: .oura,
             capabilities: ouraCapabilities(for: gen),
@@ -1375,12 +1375,12 @@ struct AddDeviceWizard: View {
         switch t {
         case .whoop5mg:     return "WHOOP 5.0 / MG"
         case .whoop4:       return "WHOOP 4.0"
-        case .hrStrap:      return "Heart-rate strap"
-        case .gymEquipment: return "Gym equipment"
+        case .hrStrap:      return String(localized: "Heart-rate strap")
+        case .gymEquipment: return String(localized: "Gym equipment")
         case .amazfit:      return "Amazfit / Zepp"
         case .miBand:       return "Xiaomi Mi Band"
-        case .garmin:       return "Garmin watch"
-        case .oura:         return "Oura ring"
+        case .garmin:       return String(localized: "Garmin watch")
+        case .oura:         return String(localized: "Oura ring")
         }
     }
 
@@ -1470,7 +1470,7 @@ struct AddDeviceWizard: View {
         if lower.contains("scosche") || lower.contains("rhythm") { return "Scosche" }
         if lower.contains("magene") { return "Magene" }
         if lower.contains("amazfit") || lower.contains("helio") || lower.contains("zepp") { return "Amazfit" }
-        return "Heart-rate strap"
+        return String(localized: "Heart-rate strap")
     }
 }
 
@@ -1535,7 +1535,7 @@ private struct HRPickList: View {
         if lower.contains("scosche") || lower.contains("rhythm") { return "Scosche" }
         if lower.contains("magene") { return "Magene" }
         if lower.contains("amazfit") || lower.contains("helio") || lower.contains("zepp") { return "Amazfit" }
-        return "Heart-rate strap"
+        return String(localized: "Heart-rate strap")
     }
 }
 
@@ -1554,7 +1554,7 @@ private struct FTMSPickList: View {
             } else {
                 ForEach(scanner.discovered.sorted { $0.rssi > $1.rssi }) { machine in
                     DiscoveredRow(name: machine.name,
-                                  subtitle: "Gym equipment",
+                                  subtitle: String(localized: "Gym equipment"),
                                   rssi: machine.rssi) {
                         onSelect(machine)
                     }
@@ -1578,7 +1578,7 @@ private struct HuamiPickList: View {
                 SearchingCard()
             } else {
                 ForEach(scanner.discovered.sorted { $0.rssi > $1.rssi }) { dev in
-                    DiscoveredRow(name: dev.name, subtitle: "Experimental", rssi: dev.rssi) {
+                    DiscoveredRow(name: dev.name, subtitle: String(localized: "Experimental"), rssi: dev.rssi) {
                         onSelect(dev)
                     }
                 }
@@ -1636,7 +1636,7 @@ private struct OuraPickList: View {
             } else {
                 ForEach(scanner.discovered.sorted { $0.rssi > $1.rssi }) { ring in
                     DiscoveredRow(name: ring.name,
-                                  subtitle: (ring.detectedGen?.displayName ?? "Oura ring") + " · Beta",
+                                  subtitle: String(localized: "\(ring.detectedGen?.displayName ?? String(localized: "Oura ring")) · Beta"),
                                   rssi: ring.rssi) {
                         onSelect(ring)
                     }

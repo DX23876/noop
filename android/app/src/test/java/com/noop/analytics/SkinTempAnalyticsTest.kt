@@ -2,6 +2,7 @@ package com.noop.analytics
 
 import com.noop.data.HrSample
 import com.noop.data.SkinTempSample
+import com.noop.protocol.DeviceFamily
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -173,6 +174,53 @@ class SkinTempAnalyticsTest {
         assertEquals(100, f.kept)
         assertTrue(f.minSamples > 100)
         assertTrue("kept < minSamples → no trusted mean", f.isAbsent)
+    }
+
+    // ── device-family-aware conversion (#938) ───────────────────────────────
+
+    /** A WHOOP 4.0 v24 worn night (raw ~840, the reporter's steady worn baseline) produced NO nightly mean
+     *  under the old family-blind /100 (8.4 °C, below the 28 °C worn gate). With the WHOOP4 scale it lands
+     *  ~33.7 °C and the night is kept. Mirrors Swift testWhoop4WornNightProducesMeanUnderFamilyAwareScale. */
+    @Test
+    fun whoop4WornNightProducesMeanUnderFamilyAwareScale() {
+        val start = 11_000_000L
+        val sess = listOf(session(start, 600))
+        val hrs = (0 until 600).map { hr(start + it) }
+        val temps = (0 until 600).map { skin(start + it, 840) } // raw 840 (NOT centi-°C for a 4.0)
+        assertNull(AnalyticsEngine.wornNightlySkinTempC(sess, hrs, temps, DeviceFamily.WHOOP5))
+        val mean = AnalyticsEngine.wornNightlySkinTempC(sess, hrs, temps, DeviceFamily.WHOOP4)!!
+        assertTrue("worn 4.0 night must clear the 28 °C gate, was $mean", mean > 28.0)
+        assertTrue("worn 4.0 night must stay under 42 °C, was $mean", mean < 42.0)
+    }
+
+    /** A 5/MG worn night is identical whether family is defaulted or passed explicitly. Mirrors Swift
+     *  testWhoop5NightUnchangedByFamilyParameter. */
+    @Test
+    fun whoop5NightUnchangedByFamilyParameter() {
+        val start = 12_000_000L
+        val sess = listOf(session(start, 600))
+        val hrs = (0 until 600).map { hr(start + it) }
+        val temps = (0 until 600).map { skin(start + it, 3400) } // 34 °C centidegrees
+        val defaulted = AnalyticsEngine.wornNightlySkinTempC(sess, hrs, temps)!!
+        val explicit = AnalyticsEngine.wornNightlySkinTempC(sess, hrs, temps, DeviceFamily.WHOOP5)!!
+        assertEquals(34.0, defaulted, 1e-9)
+        assertEquals(defaulted, explicit, 1e-12)
+    }
+
+    /** The funnel diagnostic reports the SAME family-aware outcome: a worn 4.0 night is kept under WHOOP4 but
+     *  all-out-of-range under the family-blind WHOOP5 scale. Mirrors Swift testFunnelFamilyAwareAttribution. */
+    @Test
+    fun funnelFamilyAwareAttribution() {
+        val start = 13_000_000L
+        val sess = listOf(session(start, 600))
+        val hrs = (0 until 600).map { hr(start + it) }
+        val temps = (0 until 600).map { skin(start + it, 840) }
+        val w5 = AnalyticsEngine.skinTempFunnel(sess, hrs, temps, DeviceFamily.WHOOP5)
+        assertEquals(600, w5.droppedOutOfRange)
+        assertTrue(w5.isAbsent)
+        val w4 = AnalyticsEngine.skinTempFunnel(sess, hrs, temps, DeviceFamily.WHOOP4)
+        assertEquals(600, w4.kept)
+        assertFalse(w4.isAbsent)
     }
 
     // ── seed → deviation (skin_temp baseline) ───────────────────────────────

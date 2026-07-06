@@ -73,6 +73,47 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         }
     }
 
+    /// The same label as `titleKey`, resolved to a plain `String` so the sidebar filter (#915) can
+    /// match what the user actually reads in their language. `LocalizedStringKey` cannot be compared
+    /// against typed text, so each case repeats its literal through `String(localized:)`: the
+    /// extractor merges these with the `titleKey` literals into the same catalog entries, so no new
+    /// keys appear. Keep the two switches in lockstep (the compiler forces a new case into both;
+    /// a string edit must be mirrored by hand, or search stops finding that row).
+    var localizedTitle: String {
+        switch self {
+        case .today: return String(localized: "Today")
+        case .intelligence: return String(localized: "Intelligence")
+        case .insightsHub: return String(localized: "What Moves You")
+        case .coach: return String(localized: "Coach")
+        case .live: return String(localized: "Live")
+        case .breathe: return String(localized: "Breathe")
+        case .intervals: return String(localized: "Intervals")
+        case .explore: return String(localized: "Explore")
+        case .compare: return String(localized: "Compare")
+        case .insights: return String(localized: "Insights")
+        case .sleep: return String(localized: "Sleep")
+        case .trends: return String(localized: "Trends")
+        case .workouts: return String(localized: "Workouts")
+        case .health: return String(localized: "Health")
+        case .stress: return String(localized: "Stress")
+        case .labBook: return String(localized: "Lab Book")
+        case .rhythm: return String(localized: "Rhythm")
+        case .appleHealth: return String(localized: "Apple Health")
+        case .xiaomi: return String(localized: "Mi Band")
+        case .dataSources: return String(localized: "Data Sources")
+        case .backupSync: return String(localized: "Backup & Sync")
+        case .fusedRecord: return String(localized: "Your Data, Fused")
+        case .devices: return String(localized: "Devices")
+        case .notifications: return String(localized: "Notifications")
+        case .automation: return String(localized: "Automations")
+        // Mirrors the `titleKey` remap above (#766): the row reads "Alarms", not the raw "Smart Alarm".
+        case .smartAlarm: return String(localized: "Alarms")
+        case .settings: return String(localized: "Settings")
+        case .support: return String(localized: "Support")
+        case .testCentre: return String(localized: "Test Centre")
+        }
+    }
+
     var icon: String {
         switch self {
         case .today: return "circle.hexagongrid.fill"
@@ -155,11 +196,21 @@ struct RootView: View {
     /// Cross-screen navigation requests (e.g. Live → "Manage devices"). Observed here so a screen can
     /// switch the sidebar selection without owning it — see `NavRouter`.
     @EnvironmentObject var router: NavRouter
+    /// The liquid Today (default) vs the classic Today, same flag the iOS shell + Settings toggle read.
+    @AppStorage("noop.liquidTodayEnabled") private var liquidTodayEnabled = true
     @State private var selection: NavItem? = .today
     /// Which sidebar groups are expanded (S1, #805). Default = the group owning the launch selection
     /// (`.today`). The single-item Today/Sleep sections always read expanded so their one row shows; the
     /// multi-item groups (Body / Insights / Data & App) collapse to just their header until tapped.
     @State private var expandedGroups: Set<String> = Self.initialExpandedGroups(for: .today)
+    /// Sidebar filter text (#915). Since the collapsible sections landed (S1), 27 of the 28
+    /// destinations sit inside collapsed groups; typing here filters every group by its localized row
+    /// title so any screen is reachable without knowing which section owns it.
+    @State private var searchQuery = ""
+    /// The user's expand/collapse state as it stood the instant a search began (the trimmed query
+    /// going empty to non-empty), so clearing the search puts every group back exactly as they left
+    /// it. `nil` means no search is in flight; whitespace-only input never arms one.
+    @State private var preSearchExpansion: Set<String>? = nil
 
     /// The groups expanded at rest: every single-item group (so its lone row is visible) plus the group
     /// owning the current selection. Keeps the sidebar to "headers + the active group" as the spec asks.
@@ -182,12 +233,18 @@ struct RootView: View {
                 // their one row directly so there's nothing to expand into. The `NavItem` enum is
                 // unchanged (M5 gate): only this layout that consumes it changed.
                 List(selection: $selection) {
+                    // One pass over NavGroup.all in data order (never split singles from multis into
+                    // separate loops: ordering must survive future group additions). While a search is
+                    // active each group shows only its matching rows; the bare-row vs DisclosureGroup
+                    // shape keys on the group's FULL size, so a section narrowed to one hit keeps its
+                    // header for context and Today/Sleep stay bare rows that simply drop out on a miss.
                     ForEach(NavGroup.all) { group in
-                        if group.items.count == 1, let only = group.items.first {
-                            sidebarRow(only)
-                        } else {
+                        let visible = visibleItems(in: group)
+                        if group.items.count == 1 {
+                            ForEach(visible) { sidebarRow($0) }
+                        } else if !visible.isEmpty {
                             DisclosureGroup(isExpanded: groupExpansion(group.id)) {
-                                ForEach(group.items) { sidebarRow($0) }
+                                ForEach(visible) { sidebarRow($0) }
                             } label: {
                                 Text(group.title)
                                     .font(StrandFont.rounded(11, weight: .semibold))
@@ -202,24 +259,40 @@ struct RootView: View {
                 // flat surfaceBase as the brand header above — without this the translucent list read
                 // as a lighter panel below an opaque black header strip (the "black upper" seam).
                 .scrollContentBackground(.hidden)
+                // Sidebar filter (#915, reimplemented): native .searchable on the sidebar column,
+                // which macOS renders as a system search field in the sidebar's toolbar area with
+                // focus, clear and Escape handling for free (macOS 12+, safely under our 13.0
+                // target), so no hand-rolled TextField and no custom chrome. macOS-only BY DESIGN,
+                // not a parity gap: iOS ships RootTabView, where the tab bar plus the More list
+                // already puts every destination within a couple of taps, so there is no iOS
+                // equivalent to add.
+                .searchable(text: $searchQuery, placement: .sidebar, prompt: "Search")
 
                 Divider().overlay(StrandPalette.hairline)
                 SidebarStatus().padding(.horizontal, 14).padding(.vertical, 12)
             }
             // One continuous flat WHOOP-grey surface behind the brand header, the list rows, and the
-            // status pill — no black-vs-vibrancy seam (Design Reset, Aaron 2026-06-23).
+            // status pill, no black-vs-vibrancy seam (Design Reset, 2026-06-23).
             .background(StrandPalette.surfaceBase)
             .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 280)
         } detail: {
-            detail
-                // Tab/section crossfade — README §Motion: "switching tabs uses a crossfade ~240ms",
-                // global calm easing cubic-bezier(0.22,1,0.36,1). Opacity swap between detail roots
-                // keyed on the selected nav item; restrained (no slide) for the desktop sidebar shell.
-                .id(selection ?? .today)
-                .transition(.opacity)
-                .animation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24), value: selection)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(StrandPalette.surfaceBase.ignoresSafeArea())
+            // The crossfade `.id` lives on the INNER switched content, not on the detail-column root
+            // the split view hosts. A stable ZStack hosts the column; only the `detail` child inside it
+            // carries `.id(selection)`. Keeping the split view's hosted view identity stable across
+            // sidebar switches stops SwiftUI cold-mounting the whole detail column every time (#833):
+            // an `.id` on the column ROOT re-created the hosted subtree on each switch, cold-starting
+            // the target screen and re-running its O(full-history) @MainActor reads, which froze macOS
+            // on a large DB. The child still gets a per-selection identity, so the opacity crossfade
+            // (README §Motion: "switching tabs uses a crossfade ~240ms", calm cubic-bezier
+            // (0.22,1,0.36,1)) fires unchanged: it inserts/removes the id'd child on each change.
+            ZStack {
+                detail
+                    .id(selection ?? .today)
+                    .transition(.opacity)
+            }
+            .animation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24), value: selection)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(StrandPalette.surfaceBase.ignoresSafeArea())
         }
         .task {
             await repo.refresh()
@@ -243,6 +316,12 @@ struct RootView: View {
             case .fusedRecord: selection = .fusedRecord
             case .rhythm: selection = .rhythm
             case .trends: selection = .trends
+            // The Today active-workout indicator routes to the Live surface; LiveView then consumes the
+            // one-shot `presentActiveWorkout` flag on appear to open the in-exercise screen.
+            case .activeWorkout: selection = .live
+            // Live Sessions is presented from Today's own Start entry (a cover, not a sidebar item), so a
+            // deep-link lands the user on Today where that entry lives.
+            case .liveSession: selection = .today
             case nil: break
             }
             if dest != nil { router.requestedDestination = nil }
@@ -255,6 +334,47 @@ struct RootView: View {
                 expandedGroups.insert(g.id)
             }
         }
+        // Sidebar filter transitions (#915). Entering a search (trimmed query going empty to
+        // non-empty) snapshots the user's expand/collapse state ONCE, then every keystroke
+        // auto-expands the groups that contain matches so the hits are actually visible, not hidden
+        // behind collapsed headers. Clearing the search (or backspacing down to whitespace) restores
+        // that snapshot exactly, with one carve-out: the group owning the current selection is
+        // re-expanded, preserving the S1 invariant above that the selected row is never hidden
+        // inside a collapsed section (the user may have just selected a hit from a group they had
+        // collapsed before searching).
+        .onChangeCompat(of: searchQuery) { raw in
+            let query = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            if query.isEmpty {
+                // Whitespace-only never armed a search, so there may be nothing to restore.
+                guard let saved = preSearchExpansion else { return }
+                preSearchExpansion = nil
+                expandedGroups = saved
+                if let sel = selection, let g = NavGroup.group(containing: sel) {
+                    expandedGroups.insert(g.id)
+                }
+            } else {
+                if preSearchExpansion == nil { preSearchExpansion = expandedGroups }
+                for group in NavGroup.all
+                where group.items.contains(where: { $0.localizedTitle.localizedStandardContains(query) }) {
+                    expandedGroups.insert(group.id)
+                }
+            }
+        }
+    }
+
+    /// The filter text that actually applies: trimmed, so a whitespace-only query is no query at all.
+    private var trimmedQuery: String {
+        searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// A group's rows under the current filter: all of them when no search is active, otherwise the
+    /// ones whose LOCALIZED title contains the query. `localizedStandardContains` gives the standard
+    /// user-search semantics (case-insensitive, diacritic-insensitive, locale-aware) in one call.
+    /// ALL groups filter, including single-item Today/Sleep; a group with no hits disappears entirely.
+    private func visibleItems(in group: NavGroup) -> [NavItem] {
+        let query = trimmedQuery
+        guard !query.isEmpty else { return group.items }
+        return group.items.filter { $0.localizedTitle.localizedStandardContains(query) }
     }
 
     /// One selectable destination row (same Label styling the flat list used), tagged for selection.
@@ -333,7 +453,9 @@ struct RootView: View {
     // macOS-only and leaves iOS untouched (TodayView's `.toolbar` stays on its own view body either way).
     @ViewBuilder private var todayDetail: some View {
         #if os(macOS)
-        NavigationStack { TodayView() }
+        NavigationStack {
+            if liquidTodayEnabled { LiquidTodayView() } else { TodayView() }
+        }
         #else
         TodayView()
         #endif
@@ -408,7 +530,7 @@ private struct SidebarStatus: View {
                 Text(statusText)
                     .font(StrandFont.rounded(12, weight: .medium))
                     .foregroundStyle(StrandPalette.textPrimary)
-                Text(live.batteryPct.map { "Battery \(Int($0))%" } ?? "Strap not connected")
+                Text(live.batteryPct.map { String(localized: "Battery \(Int($0))%") } ?? String(localized: "Strap not connected"))
                     .font(StrandFont.rounded(11))
                     .foregroundStyle(StrandPalette.textTertiary)
             }

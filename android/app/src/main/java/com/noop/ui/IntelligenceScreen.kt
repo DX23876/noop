@@ -101,7 +101,7 @@ fun IntelligenceScreen(vm: AppViewModel) {
 
     LazyScreenScaffold(
         title = "Intelligence",
-        subtitle = "Charge, effort and rest — scored with the model, explained in plain terms.",
+        subtitle = "Charge, effort and rest - scored with the model, explained in plain terms.",
     ) {
         item { forecast?.let { ForecastCard(it) } }
         item { ExplainerCard(effortScale) }
@@ -217,7 +217,7 @@ private fun ForecastCard(f: RecoveryForecast) {
                     )
                     Text(
                         "Estimate from today's effort, your typical sleep and your ${f.nights}-night " +
-                            "recovery baseline — not a measurement. Your real Charge is scored from " +
+                            "recovery baseline - not a measurement. Your real Charge is scored from " +
                             "tomorrow's HRV when you wake.",
                         style = NoopType.footnote,
                         color = Palette.textTertiary,
@@ -257,7 +257,7 @@ private fun ExplainerCard(effortScale: EffortScale) {
             Text(
                 "Charge weighs your heart-rate variability against your personal baseline " +
                     "(~55%), resting heart rate (~20%), rest quality (~15%), respiration (~5%) " +
-                    "and skin-temperature deviation (~5%). Effort is a 0–${UnitFormatter.effortScaleMax(effortScale)} " +
+                    "and skin-temperature deviation (~5%). Effort is a 0 - ${UnitFormatter.effortScaleMax(effortScale)} " +
                     "cardiovascular load from time spent in each heart-rate zone. Rest is staged " +
                     "from movement and heart rate. The full on-device recompute from the strap's raw " +
                     "streams is a later port; the scores below are read from each day's cached metrics.",
@@ -325,7 +325,7 @@ private fun ModelBreakdownCard(effortScale: EffortScale) {
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    "0–${UnitFormatter.effortScaleMax(effortScale)} scale",
+                    "0 - ${UnitFormatter.effortScaleMax(effortScale)} scale",
                     style = NoopType.captionNumber,
                     color = Palette.effortColor,
                 )

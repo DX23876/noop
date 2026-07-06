@@ -3,6 +3,7 @@ package com.noop.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -49,9 +50,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.noop.ble.SourceCoordinator
@@ -72,6 +76,15 @@ import kotlinx.coroutines.launch
 // The registry's reads are one-shot suspend (not a Flow), so the screen keeps the list in a remembered
 // state and reloads it after every mutation via [reload].
 
+// MARK: - Liquid hero tokens (the liquid Devices restyle)
+//
+// The ACTIVE device card is the screen's hero: it floats over the day-of-sky as a translucent near-black
+// frosted card so the strap name + the live battery tube stay crisp on it. Same tokens as the liquid Today
+// hero (heroFill = rgba(13,14,20,.80), radius 26, white@0.11 hairline). Those Today constants are private to
+// TodayScreen, so the identical values are declared here. Mirrors the iOS liquid heroCard.
+private val LIQUID_HERO_FILL: Color = Color(red = 13f / 255f, green = 14f / 255f, blue = 20f / 255f, alpha = 0.80f)
+private val LIQUID_HERO_RADIUS: Dp = 26.dp
+
 @Composable
 fun DevicesScreen(
     viewModel: AppViewModel,
@@ -82,6 +95,11 @@ fun DevicesScreen(
 ) {
     val scope = rememberCoroutineScope()
     val live by viewModel.live.collectAsStateWithLifecycle()
+
+    // Liquid sky backdrop gate — the SAME "Day-cycle background" preference the liquid Today honours (#698,
+    // default ON). Off falls back to the flat dark canvas, so the setting governs every liquid screen alike.
+    val context = LocalContext.current
+    val showDayCycleBackground = remember { NoopPrefs.showDayCycleBackground(context) }
 
     // The current device list, reloaded after each registry op. Null while the first read is in flight.
     var devices by remember { mutableStateOf<List<PairedDeviceRow>?>(null) }
@@ -113,6 +131,11 @@ fun DevicesScreen(
     LazyScreenScaffold(
         title = "Devices",
         subtitle = "Pair and manage the bands NOOP reads from.",
+        // LIQUID SKY BACKDROP (the pilot pattern — LiquidScreenSky.kt): the time-of-day liquid sky settles
+        // into the flat canvas behind the top of the screen so the frosted device cards float over it. The
+        // static sky (LiquidSkyStatic inside the helper) carries no per-frame cost on this scrolling list.
+        // Gated on the same "Day-cycle background" setting as Today; off passes null for the plain canvas.
+        topBackground = if (showDayCycleBackground) { { LiquidScreenSky() } } else null,
     ) {
         if (devices == null) {
             // The registry resolves a beat after launch. Show a calm pending note in that brief window.
@@ -134,7 +157,7 @@ fun DevicesScreen(
                 // strap, or an FTMS machine all funnel into live.batteryPct). null otherwise.
                 liveBatteryPct = if (device.status == DeviceStatus.active.name && live.connected)
                     live.batteryPct?.let { Math.round(it).toInt() } else null,
-                // Firmware version from the connect handshake — only for the active, connected device.
+                // Firmware version from the connect handshake: only for the active, connected strap.
                 liveFirmware = if (device.status == DeviceStatus.active.name && live.connected)
                     live.strapFirmware else null,
                 onMakeActive = { switchTarget = device },
@@ -182,7 +205,7 @@ fun DevicesScreen(
         ConfirmDialog(
             title = "Make this your active strap?",
             message = "Make ${displayName(device)} your active strap? From now on it provides your live data. " +
-                "$currentActiveName's history stays exactly as it is — only new days come from ${displayName(device)}.",
+                "$currentActiveName's history stays exactly as it is. Only new days come from ${displayName(device)}.",
             confirmLabel = "Make active",
             onConfirm = {
                 scope.launch { viewModel.setActiveDevice(device.id); reload() }
@@ -271,8 +294,8 @@ private fun DeviceCard(
     /** The active+connected device's live battery percent (0–100) — surfaced the same way for WHOOP, a
      *  generic strap, or an FTMS machine. null when not active/connected or no battery was reported. */
     liveBatteryPct: Int? = null,
-    /** The active+connected device's firmware version (from the connect handshake). null when not
-     *  active/connected or the strap hasn't reported it (e.g. a non-WHOOP strap). */
+    /** The active+connected strap's firmware version (from the connect handshake). null when not
+     *  active/connected, or for a source that reports no firmware (e.g. a non-WHOOP strap). */
     liveFirmware: String? = null,
     onMakeActive: () -> Unit,
     onRename: () -> Unit,
@@ -281,11 +304,27 @@ private fun DeviceCard(
     onDeleteData: (() -> Unit)? = null,
 ) {
     val profile = deviceProfile(device)
-    NoopCard(
-        modifier = Modifier.alpha(if (dimmed) 0.6f else 1f),
-        padding = 18.dp,
-        tint = if (isActive) Palette.accent else null,
-    ) {
+    // The per-device actions menu's open state is hoisted here so the WHOLE card is a tap target that opens
+    // the same menu the trailing ⋮ button does — additive, non-destructive (the menu still gates every
+    // action + confirm), and it gives the card a real `clickable` to drive `liquidPress`.
+    var menuOpen by remember { mutableStateOf(false) }
+    // liquidPress: the SAME interactionSource feeds the card's clickable and the press modifier, so the
+    // whole card settles inward on press (the iOS LiquidPressStyle feel). Applied on the OUTER card so the
+    // frosted surface + content scale/dim as one, matching the liquid Today cards.
+    val interaction = remember { MutableInteractionSource() }
+    val cardModifier = Modifier
+        .alpha(if (dimmed) 0.6f else 1f)
+        .liquidPress(interaction)
+        .clickable(
+            interactionSource = interaction,
+            indication = null,
+            onClickLabel = "Device actions for ${displayName(device)}",
+        ) { menuOpen = true }
+
+    // The ACTIVE device is the hero: the liquid translucent-black frosted card (rgba(13,14,20,.80), radius
+    // 26, white@0.11 hairline) so it floats over the day-of-sky, matching the liquid Today hero. Every other
+    // card (paired / removed) keeps the crisp neutral NoopCard frosted surface.
+    val body: @Composable () -> Unit = {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -333,10 +372,17 @@ private fun DeviceCard(
                 Text(profile.footnote, style = NoopType.footnote, color = Palette.textTertiary)
             }
 
+            // Live battery as a small liquid TUBE — the active+connected device's reported % (WHOOP, a
+            // generic strap or an FTMS machine all funnel into live.batteryPct). A genuine single-value
+            // progress bar, so a static (posed) LiquidTube is exactly right; it replaces the "· Battery x%"
+            // that used to sit in the text line below. The SAME `liveBatteryPct` binding drives it.
+            if (liveBatteryPct != null) {
+                BatteryTube(pct = liveBatteryPct)
+            }
+
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     lastSeenLine(device, isLiveConnected) +
-                        (liveBatteryPct?.let { " · Battery $it%" } ?: "") +
                         (liveFirmware?.let { " · FW $it" } ?: ""),
                     style = NoopType.footnote,
                     color = Palette.textTertiary,
@@ -345,6 +391,8 @@ private fun DeviceCard(
                 DeviceActionsMenu(
                     device = device,
                     isActive = isActive,
+                    open = menuOpen,
+                    onOpenChange = { menuOpen = it },
                     onMakeActive = onMakeActive,
                     onRename = onRename,
                     onRemove = onRemove,
@@ -353,6 +401,50 @@ private fun DeviceCard(
                 )
             }
         }
+    }
+
+    if (isActive) {
+        Box(
+            modifier = cardModifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(LIQUID_HERO_RADIUS))
+                .background(LIQUID_HERO_FILL)
+                .border(1.dp, Color.White.copy(alpha = 0.11f), RoundedCornerShape(LIQUID_HERO_RADIUS))
+                .padding(18.dp),
+        ) {
+            body()
+        }
+    } else {
+        NoopCard(
+            modifier = cardModifier,
+            padding = 18.dp,
+        ) {
+            body()
+        }
+    }
+}
+
+/**
+ * The active+connected device's live battery as a small liquid tube. A posed (static) [LiquidTube] fills to
+ * the reported percent in the accent, with a leading "Battery" label + the trailing %, so the same figure
+ * that used to read as "· Battery x%" in the meta line now reads as the liquid vessel the design calls for.
+ */
+@Composable
+private fun BatteryTube(pct: Int) {
+    val clamped = pct.coerceIn(0, 100)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.semantics { contentDescription = "Battery $clamped%" },
+    ) {
+        Text("Battery", style = NoopType.footnote, color = Palette.textTertiary)
+        LiquidTube(
+            frac = clamped / 100.0,
+            tint = Palette.accent,
+            animated = false,
+            modifier = Modifier.weight(1f),
+        )
+        Text("$clamped%", style = NoopType.footnote, color = Palette.textSecondary)
     }
 }
 
@@ -375,43 +467,45 @@ private fun StatePill(device: PairedDeviceRow, isActive: Boolean, isLiveConnecte
 private fun DeviceActionsMenu(
     device: PairedDeviceRow,
     isActive: Boolean,
+    // Open state is hoisted to the DeviceCard so the whole card (not just this ⋮ button) can open the menu.
+    open: Boolean,
+    onOpenChange: (Boolean) -> Unit,
     onMakeActive: () -> Unit,
     onRename: () -> Unit,
     onRemove: (() -> Unit)?,
     onReAdd: (() -> Unit)?,
     onDeleteData: (() -> Unit)?,
 ) {
-    var open by remember { mutableStateOf(false) }
     Box {
         IconButton(
-            onClick = { open = true },
+            onClick = { onOpenChange(true) },
             modifier = Modifier
                 .size(32.dp)
                 .semantics { contentDescription = "Device actions for ${displayName(device)}" },
         ) {
             Icon(Icons.Filled.MoreVert, contentDescription = null, tint = Palette.textSecondary, modifier = Modifier.size(20.dp))
         }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+        DropdownMenu(expanded = open, onDismissRequest = { onOpenChange(false) }) {
             if (device.status == DeviceStatus.archived.name) {
                 if (onReAdd != null) {
-                    MenuItem("Make active", Icons.Filled.Bolt) { open = false; onReAdd() }
+                    MenuItem("Make active", Icons.Filled.Bolt) { onOpenChange(false); onReAdd() }
                 }
-                MenuItem("Rename", Icons.Filled.Edit) { open = false; onRename() }
+                MenuItem("Rename", Icons.Filled.Edit) { onOpenChange(false); onRename() }
                 if (onDeleteData != null) {
                     HorizontalDivider(color = Palette.hairline)
                     MenuItem("Delete this device's data…", Icons.Filled.Delete, destructive = true) {
-                        open = false; onDeleteData()
+                        onOpenChange(false); onDeleteData()
                     }
                 }
             } else {
                 if (!isActive) {
-                    MenuItem("Make active", Icons.Filled.Bolt) { open = false; onMakeActive() }
+                    MenuItem("Make active", Icons.Filled.Bolt) { onOpenChange(false); onMakeActive() }
                 }
-                MenuItem("Rename", Icons.Filled.Edit) { open = false; onRename() }
+                MenuItem("Rename", Icons.Filled.Edit) { onOpenChange(false); onRename() }
                 if (onRemove != null) {
                     HorizontalDivider(color = Palette.hairline)
                     MenuItem("Remove", Icons.Filled.RemoveCircleOutline, destructive = true) {
-                        open = false; onRemove()
+                        onOpenChange(false); onRemove()
                     }
                 }
             }
@@ -466,7 +560,7 @@ private fun WhoopFirstFooter() {
         )
         Text(
             "WHOOP is NOOP's primary, fully-supported band. Other heart-rate straps are an early, " +
-                "in-development addition — they stream live heart rate and HRV, but not WHOOP's deeper " +
+                "in-development addition: they stream live heart rate and HRV, but not WHOOP's deeper " +
                 "sleep and recovery data.",
             style = NoopType.footnote,
             color = Palette.textTertiary,
@@ -684,7 +778,7 @@ private fun deviceProfile(device: PairedDeviceRow): DeviceCapabilityProfile {
         return DeviceCapabilityProfile(
             displayModel = "Gym equipment (FTMS)",
             captures = "Speed · Cadence · Power · Distance · Energy · Heart rate (if the machine sends it)",
-            powers = "Records a live machine workout — Effort-scored from HR when the machine reports it",
+            powers = "Records a live machine workout, Effort-scored from HR when the machine reports it",
             footnote = "Live machine data over Bluetooth FTMS. No sleep, recovery, skin temp or SpO₂. " +
                 "Effort needs the machine's heart rate; without it the session logs the machine metrics only.",
         )
@@ -694,9 +788,9 @@ private fun deviceProfile(device: PairedDeviceRow): DeviceCapabilityProfile {
         return DeviceCapabilityProfile(
             displayModel = "${device.brand} (experimental)",
             captures = "Heart rate (live, best-effort)",
-            powers = "Powers the live console + Effort — no Charge, Rest or Sleep",
+            powers = "Powers the live console + Effort. No Charge, Rest or Sleep",
             footnote = "Experimental: live heart rate where the band exposes it. Some bands need a pairing " +
-                "we can't do yet — NOOP will say so honestly and never show a made-up number. No sleep, " +
+                "we can't do yet. NOOP will say so honestly and never show a made-up number. No sleep, " +
                 "recovery, skin temp, SpO₂ or steps.",
         )
     }
@@ -732,7 +826,7 @@ private fun deviceProfile(device: PairedDeviceRow): DeviceCapabilityProfile {
         return DeviceCapabilityProfile(
             displayModel = "Heart-rate strap",
             captures = "Heart rate · HRV (live)* · Strain",
-            powers = "Powers the live console + Effort — no Charge, Rest or Sleep",
+            powers = "Powers the live console + Effort. No Charge, Rest or Sleep",
             footnote = "Live HR + R-R only · no sleep, recovery, skin temp, SpO₂, steps or battery " +
                 "(those are WHOOP-only).",
         )
@@ -745,7 +839,7 @@ private fun deviceProfile(device: PairedDeviceRow): DeviceCapabilityProfile {
             displayModel = "WHOOP 5.0 / MG",
             captures = "Heart rate · HRV · Skin temp* · Resp rate* · Steps* · Sleep · Strain · Battery",
             powers = whoopPowers,
-            footnote = "* on-device estimate — skin temp is a nightly ±°C deviation, steps are a raw " +
+            footnote = "* on-device estimate: skin temp is a nightly ±°C deviation, steps are a raw " +
                 "motion count (#78). No SpO₂ % off the strap; import a WHOOP CSV for a real %.",
         )
     }
@@ -755,7 +849,7 @@ private fun deviceProfile(device: PairedDeviceRow): DeviceCapabilityProfile {
             displayModel = "WHOOP 4.0",
             captures = "Heart rate · HRV · Skin temp* · Resp rate* · Sleep · Strain · Battery",
             powers = whoopPowers,
-            footnote = "* on-device estimate — skin temp is a nightly ±°C deviation (firmware-dependent); " +
+            footnote = "* on-device estimate: skin temp is a nightly ±°C deviation (firmware-dependent); " +
                 "no steps over BLE on a 4.0. No SpO₂ % off the strap; import a WHOOP CSV for a real %.",
         )
     }
@@ -764,7 +858,7 @@ private fun deviceProfile(device: PairedDeviceRow): DeviceCapabilityProfile {
         displayModel = "WHOOP",
         captures = "Heart rate · HRV · Skin temp* · Resp rate* · Sleep · Strain · Battery",
         powers = whoopPowers,
-        footnote = "Exact model unknown — shows what every WHOOP can do. * on-device estimate · " +
+        footnote = "Exact model unknown. Shows what every WHOOP can do. * on-device estimate · " +
             "no SpO₂ % off the strap (import a WHOOP CSV for that).",
     )
 }

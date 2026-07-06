@@ -152,9 +152,9 @@ public struct Sparkline: View {
     /// formatted via the same `valueFormat` closure so units match the call site.
     private var axSummary: String {
         guard let last = values.last, let lo = values.min(), let hi = values.max() else {
-            return "No data"
+            return String(localized: "No data", bundle: .module)
         }
-        return "Trend, \(values.count) points, latest \(valueFormat(last)), low \(valueFormat(lo)), high \(valueFormat(hi))"
+        return String(localized: "Trend, \(values.count) points, latest \(valueFormat(last)), low \(valueFormat(lo)), high \(valueFormat(hi))", bundle: .module)
     }
 
     /// The gradient colour at a sample's normalized position along the line.

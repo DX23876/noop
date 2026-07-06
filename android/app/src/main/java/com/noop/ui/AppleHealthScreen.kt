@@ -183,12 +183,12 @@ fun AppleHealthScreen(vm: AppViewModel) {
 /** Header subtitle reflects the windowed (visible) per-day span of the steps series. */
 private fun spanSubtitle(loaded: Boolean, data: AppleData, range: AppleRange): String {
     if (!loaded) {
-        return "Steps, heart, sleep, body composition and VO₂ max — synced from the desktop app."
+        return "Steps, heart, sleep, body composition and VO₂ max - synced from the desktop app."
     }
     // Use steps as the canonical per-day series for the span readout.
     val rows = resolve(data.raw("steps"), range).rows
     if (rows.isEmpty()) {
-        return "Steps, heart, sleep, body composition and VO₂ max — synced from the desktop app."
+        return "Steps, heart, sleep, body composition and VO₂ max - synced from the desktop app."
     }
     val lo = rows.first().day
     val hi = rows.last().day
@@ -443,7 +443,7 @@ private fun MetricChartCard(
 
     val subtitle = run {
         val unit = if (n == 1) "reading" else "readings"
-        if (resolved.fellBack) "$n $unit · sparse — widened to ${resolved.effective.windowName}"
+        if (resolved.fellBack) "$n $unit · sparse - widened to ${resolved.effective.windowName}"
         else "$n $unit · ${range.windowName}"
     }
 

@@ -54,9 +54,9 @@ private struct BreathingContent: View {
         case breathe, resonance, calm
         var label: String {
             switch self {
-            case .breathe:   return "Breathe"
-            case .resonance: return "Resonance"
-            case .calm:      return "Calm me"
+            case .breathe:   return String(localized: "Breathe")
+            case .resonance: return String(localized: "Resonance")
+            case .calm:      return String(localized: "Calm me")
             }
         }
     }
@@ -72,10 +72,10 @@ private struct BreathingContent: View {
 
         var label: String {
             switch self {
-            case .relax:      return "Relax 4-6"
-            case .coherence:  return "Coherence 5.5"
-            case .box:        return "Box 4-4"
-            case .resonance:  return "Resonance"
+            case .relax:      return String(localized: "Relax 4-6")
+            case .coherence:  return String(localized: "Coherence 5.5")
+            case .box:        return String(localized: "Box 4-4")
+            case .resonance:  return String(localized: "Resonance")
             }
         }
 
@@ -107,11 +107,11 @@ private struct BreathingContent: View {
 
         func tagline(lockedBpm: Double?) -> String {
             switch self {
-            case .relax:     return "Long exhale · downshift to rest"
-            case .coherence: return "Equal breath · ~5.5 br/min coherence"
-            case .box:       return "Square breath · steady focus"
+            case .relax:     return String(localized: "Long exhale · downshift to rest")
+            case .coherence: return String(localized: "Equal breath · ~5.5 br/min coherence")
+            case .box:       return String(localized: "Square breath · steady focus")
             case .resonance:
-                return String(format: "Your locked pace · %.1f br/min", lockedBpm ?? ResonanceEngine.fallbackBpm)
+                return String(localized: "Your locked pace · \(String(format: "%.1f", lockedBpm ?? ResonanceEngine.fallbackBpm)) br/min")
             }
         }
     }
@@ -161,7 +161,10 @@ private struct BreathingContent: View {
 
     var body: some View {
         ScreenScaffold(title: "Breathe",
-                       subtitle: "Haptic-paced breathing · find your pace · calm down") {
+                       subtitle: "Haptic-paced breathing · find your pace · calm down",
+                       // Liquid finish: the same full-bleed day-of-sky backdrop Today + the other liquid
+                       // tabs carry, so Breathe sits in one atmosphere.
+                       topBackground: liquidScaffoldSky()) {
 
             modeSwitch
             StressCheckInCard(center: nudgeCenter) { startOneMinuteCue() }
@@ -335,55 +338,27 @@ private struct BreathingContent: View {
 
     private var phaseWord: String {
         switch phase {
-        case .inhale: return "Breathe in…"
-        case .exhale: return "Breathe out…"
+        case .inhale: return String(localized: "Breathe in…")
+        case .exhale: return String(localized: "Breathe out…")
         }
     }
 
     private var breathingOrb: some View {
         GeometryReader { geo in
             let maxDiameter = min(geo.size.width, geo.size.height)
-            let minScale: CGFloat = 0.42
-            let scale = minScale + (1.0 - minScale) * orbProgress
-            let diameter = maxDiameter * scale
-
-            // The concentric guide ring expands toward the outer track on the inhale and collapses on the
-            // exhale (the sactyr suggestion: the middle ring grows to meet the outer ring, then shrinks
-            // back to the core). It sits just inside the orb's edge so it reads as a clean travelling line
-            // rather than a second disc. Under Reduce Motion orbProgress is held steady, so the ring parks
-            // at its mid radius instead of pulsing.
-            let guideScale = minScale + (1.0 - minScale) * orbProgress
-            let guideDiameter = maxDiameter * guideScale
-
+            // The breath ring — the resting track the vessel breathes within. Crisp 1px stroke, no glow.
             ZStack {
-                // The breath ring — the resting track the orb expands toward. Crisp 1px stroke, no glow.
                 Circle()
                     .strokeBorder(StrandPalette.restColor.opacity(0.28), lineWidth: 1)
                     .frame(width: maxDiameter, height: maxDiameter)
 
-                // The breathing orb — a flat radial-shaded disc (shading, not a bloom halo): no blur layer,
-                // no drop shadow. Its scale (not a glow) is what cues inhale/exhale.
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [StrandPalette.restBright.opacity(0.90),
-                                     StrandPalette.restColor.opacity(0.62),
-                                     StrandPalette.restDeep.opacity(0.85)],
-                            center: .init(x: 0.4, y: 0.35),
-                            startRadius: 2,
-                            endRadius: diameter * 0.62
-                        )
-                    )
-                    .overlay(
-                        Circle().strokeBorder(StrandPalette.restBright.opacity(0.50), lineWidth: 1)
-                    )
-                    .frame(width: diameter, height: diameter)
-
-                // The travelling guide ring — a brighter 2px stroke that rides the breath out toward the
-                // outer track and back, giving a crisp visual pace line on top of the orb's soft swell.
-                Circle()
-                    .strokeBorder(StrandPalette.restBright.opacity(running ? 0.65 : 0.35), lineWidth: 2)
-                    .frame(width: guideDiameter, height: guideDiameter)
+                // The pacer is now the canonical liquid vessel: it FILLS on the inhale and drains on the
+                // exhale as `orbProgress` (0 contracted → 1 expanded) drives the level, so the breath is
+                // cued by water rising and falling rather than a swelling disc. Rest-tinted to match the
+                // world; under Reduce Motion `orbProgress` parks at a steady mid-level (no pulsing), and
+                // the phase word + haptics still carry the pace.
+                LiquidVessel(value: orbProgress, tint: StrandPalette.restColor, animated: running)
+                    .frame(width: maxDiameter, height: maxDiameter)
 
                 VStack(spacing: 2) {
                     if let bpm = model.bpm {
@@ -396,11 +371,13 @@ private struct BreathingContent: View {
                             .font(StrandFont.number(40))
                             .foregroundStyle(StrandPalette.textPrimary)
                     }
-                    Text("BPM")
+                    Text(String(localized: "BPM"))
                         .font(StrandFont.footnote)
                         .tracking(0.8)
                         .foregroundStyle(StrandPalette.textTertiary)
                 }
+                .shadow(color: .black.opacity(0.5), radius: 6, y: 1)
+                .allowsHitTesting(false)   // taps fall through to the vessel → splash
             }
             .frame(width: geo.size.width, height: geo.size.height)
         }
@@ -429,9 +406,10 @@ private struct BreathingContent: View {
     private var outcomeLine: String? {
         if running { return nil }
         if let endedOutcome {
-            return endedOutcome == "—" ? "RMSSD — · not enough R-R data" : "RMSSD \(endedOutcome)"
+            return endedOutcome == "—" ? String(localized: "No RMSSD · not enough R-R data")
+                                       : String(localized: "RMSSD \(endedOutcome)")
         }
-        if !lastStoredOutcome.isEmpty { return "Last session: \(lastStoredOutcome)" }
+        if !lastStoredOutcome.isEmpty { return String(localized: "Last session: \(lastStoredOutcome)") }
         return nil
     }
 
@@ -476,19 +454,19 @@ private struct BreathingContent: View {
 
     private var readoutRow: some View {
         HStack(spacing: NoopMetrics.gap) {
-            readoutTile(label: "Heart rate",
+            readoutTile(label: String(localized: "Heart rate"),
                         value: model.bpm.map { "\($0)" } ?? "—",
                         unit: "bpm",
                         accent: StrandPalette.metricRose,
-                        caption: live.worn ? "Live" : "Strap not worn")
+                        caption: live.worn ? String(localized: "Live") : String(localized: "Strap not worn"))
 
-            readoutTile(label: "HRV (RMSSD)",
+            readoutTile(label: String(localized: "HRV (RMSSD)"),
                         value: rmssd.map { String(format: "%.0f", $0) } ?? "—",
                         unit: "ms",
                         accent: StrandPalette.metricPurple,
-                        caption: rrBuffer.isEmpty ? "Waiting for R-R" : "Last \(rrBuffer.count) beats")
+                        caption: rrBuffer.isEmpty ? String(localized: "Waiting for R-R") : String(localized: "Last \(rrBuffer.count) beats"))
 
-            readoutTile(label: "Pace",
+            readoutTile(label: String(localized: "Pace"),
                         value: String(format: "%.1f", pace.bpm(lockedBpm: lockedBpm)),
                         unit: "br/min",
                         accent: StrandPalette.restBright,
@@ -535,24 +513,14 @@ private struct BreathingContent: View {
                     StatePill("\(coherenceLabel)", tone: coherenceTone, showsDot: true)
                 }
 
-                GeometryReader { geo in
-                    let frac = coherenceFraction
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(StrandPalette.surfaceInset)
-                        Capsule()
-                            .fill(
-                                LinearGradient(
-                                    colors: [StrandPalette.restDeep,
-                                             StrandPalette.restBright],
-                                    startPoint: .leading, endPoint: .trailing)
-                            )
-                            .frame(width: max(6, geo.size.width * frac))
-                            .animation(.easeInOut(duration: 0.5), value: frac)
-                    }
-                }
-                .frame(height: 10)
+                // The coherence estimate as a filling liquid tube (the same horizontal vessel Today's Key
+                // Metrics use), Rest-tinted, filling to the RMSSD-derived fraction — replaces the flat
+                // gradient capsule. Live so it sloshes as the reading updates through a session.
+                LiquidTube(frac: coherenceFraction, tint: StrandPalette.restBright, height: 10)
+                    .accessibilityLabel("Coherence estimate")
+                    .accessibilityValue("\(Int(coherenceFraction * 100)) percent")
 
-                Text("Estimate only — a higher RMSSD while paced usually means your parasympathetic \"rest\" branch is engaging. It is not a clinical reading; trends over a session matter more than any single number.")
+                Text("Estimate only: a higher RMSSD while paced usually means your parasympathetic \"rest\" branch is engaging. It is not a clinical reading; trends over a session matter more than any single number.")
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -566,12 +534,12 @@ private struct BreathingContent: View {
     }
 
     private var coherenceLabel: String {
-        guard let r = rmssd else { return "No data" }
+        guard let r = rmssd else { return String(localized: "No data") }
         switch r {
-        case ..<20:  return "Building"
-        case ..<45:  return "Settling"
-        case ..<80:  return "Coherent"
-        default:     return "Deep calm"
+        case ..<20:  return String(localized: "Building")
+        case ..<45:  return String(localized: "Settling")
+        case ..<80:  return String(localized: "Coherent")
+        default:     return String(localized: "Deep calm")
         }
     }
 
@@ -590,7 +558,7 @@ private struct BreathingContent: View {
         HStack(spacing: 10) {
             Image(systemName: "applewatch.radiowaves.left.and.right")
                 .foregroundStyle(StrandPalette.statusWarning)
-            Text("Connect your strap for haptic guidance — you'll feel one pulse on the inhale, two on the exhale, so you can breathe with your eyes closed.")
+            Text("Connect your strap for haptic guidance. You'll feel one pulse on the inhale, two on the exhale, so you can breathe with your eyes closed.")
                 .font(StrandFont.footnote)
                 .foregroundStyle(StrandPalette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -650,7 +618,9 @@ private struct BreathingContent: View {
         }
         let mean = sessionRmssdSum / Double(sessionRmssdCount)
         let pct = Int(((mean - base) / base * 100).rounded())
-        let core = String(format: "%+d%% vs start · peak %.0f ms", pct, sessionRmssdPeak)
+        let pctStr = String(format: "%+d%%", pct)
+        let peakStr = String(format: "%.0f", sessionRmssdPeak)
+        let core = String(localized: "\(pctStr) vs start · peak \(peakStr) ms")
         endedOutcome = core
         lastStoredOutcome = core
     }
@@ -898,11 +868,11 @@ private struct ResonanceModeView: View {
                     StatePill(live.bonded ? "Haptics on" : "Visual only",
                               tone: live.bonded ? .positive : .warning, showsDot: true)
                 }
-                Text("Everyone has a breathing pace — usually between 4.5 and 7 breaths a minute — where the heart's rhythm swings the most with each breath. We pace you through a few candidate paces, measure how your HRV responds, and lock the one that resonates best for you.")
+                Text("Everyone has a breathing pace (usually between 4.5 and 7 breaths a minute) where the heart's rhythm swings the most with each breath. We pace you through a few candidate paces, measure how your HRV responds, and lock the one that resonates best for you.")
                     .font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
-                Text("Estimate from PPG-derived R-R — relaxation guidance, not a clinical reading. Your pace drifts, so we date it and you can re-measure anytime.")
+                Text("Estimate from PPG-derived R-R: relaxation guidance, not a clinical reading. Your pace drifts, so we date it and you can re-measure anytime.")
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -935,16 +905,16 @@ private struct ResonanceModeView: View {
         StrandCard(tint: StrandPalette.restColor) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    Text(controller.sweepLabel ?? "Sweeping…")
+                    Text(controller.sweepLabel ?? String(localized: "Sweeping…"))
                         .font(StrandFont.headline)
                         .foregroundStyle(StrandPalette.textPrimary)
                     Spacer()
                     StatePill("Live", tone: .accent, showsDot: true, pulsing: true)
                 }
 
-                // Sweep progress as the NOOP signature segmented bar — cascades up in the Rest world.
-                PipBar(value: controller.sweepProgress, range: 0...1, segments: 28,
-                       tint: StrandPalette.restColor, height: 10)
+                // Sweep progress as a filling liquid tube (the liquid idiom used across the redesign),
+                // Rest-tinted so it reads as one with the breathe world.
+                LiquidTube(frac: controller.sweepProgress, tint: StrandPalette.restColor, height: 10)
                     .accessibilityLabel("Sweep progress")
                     .accessibilityValue("\(Int(controller.sweepProgress * 100)) percent")
 
@@ -976,7 +946,7 @@ private struct ResonanceModeView: View {
                 }
 
                 if !result.didLock {
-                    Text("Not enough clean beat data to lock a pace today — try again rested, sitting still with the strap snug. For now we'll pace you at 5.5 br/min (coherence).")
+                    Text("Not enough clean beat data to lock a pace today. Try again rested, sitting still with the strap snug. For now we'll pace you at 5.5 br/min (coherence).")
                         .font(StrandFont.footnote)
                         .foregroundStyle(StrandPalette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -1032,16 +1002,11 @@ private struct ResonanceModeView: View {
                         .font(StrandFont.captionNumber)
                         .foregroundStyle(StrandPalette.textSecondary)
                         .frame(width: 34, alignment: .leading)
-                    GeometryReader { geo in
-                        let frac = (s.rsaAmplitude ?? 0) / max(maxRsa, 0.0001)
-                        ZStack(alignment: .leading) {
-                            Capsule().fill(StrandPalette.surfaceInset)
-                            Capsule()
-                                .fill(StrandPalette.restBright.opacity(s.scored ? 0.9 : 0.25))
-                                .frame(width: max(4, geo.size.width * CGFloat(frac)))
-                        }
-                    }
-                    .frame(height: 8)
+                    // Each pace's RSA amplitude as a static liquid tube — the same horizontal vessel used
+                    // across the redesign. An unscored pace reads muted via a dimmed Rest tint.
+                    LiquidTube(frac: (s.rsaAmplitude ?? 0) / max(maxRsa, 0.0001),
+                               tint: StrandPalette.restBright.opacity(s.scored ? 1 : 0.35),
+                               height: 8, animated: false)
                     Text(s.rsaAmplitude.map { String(format: "%.1f", $0) } ?? "—")
                         .font(StrandFont.captionNumber)
                         .foregroundStyle(s.scored ? StrandPalette.textSecondary : StrandPalette.textTertiary)
@@ -1056,8 +1021,8 @@ private struct ResonanceModeView: View {
 
     private func rsaTextSummary(_ scores: [ResonanceEngine.PaceScore]) -> String {
         scores.map { s in
-            let v = s.rsaAmplitude.map { String(format: "%.1f", $0) } ?? "unscored"
-            return String(format: "%.1f breaths per minute: %@", s.bpm, v)
+            let v = s.rsaAmplitude.map { String(format: "%.1f", $0) } ?? String(localized: "unscored")
+            return String(localized: "\(String(format: "%.1f", s.bpm)) breaths per minute: \(v)")
         }.joined(separator: ", ")
     }
 
@@ -1065,7 +1030,7 @@ private struct ResonanceModeView: View {
         HStack(spacing: 10) {
             Image(systemName: "applewatch.radiowaves.left.and.right")
                 .foregroundStyle(StrandPalette.statusWarning)
-            Text("Connect your strap for the felt cue — the sweep paces you with one buzz on the inhale, two on the exhale.")
+            Text("Connect your strap for the felt cue. The sweep paces you with one buzz on the inhale, two on the exhale.")
                 .font(StrandFont.footnote)
                 .foregroundStyle(StrandPalette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -1109,7 +1074,7 @@ private struct CalmModeView: View {
                     StatePill(canRun ? "Ready" : "Strap needed",
                               tone: canRun ? .neutral : .warning, showsDot: true)
                 }
-                Text("The strap buzzes a gentle rhythm just below your current heart rate — a felt metronome to relax toward. It trails your heart down rather than yanking it, and stops on its own.")
+                Text("The strap buzzes a gentle rhythm just below your current heart rate, a felt metronome to relax toward. It trails your heart down rather than yanking it, and stops on its own.")
                     .font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -1134,12 +1099,12 @@ private struct CalmModeView: View {
                 .disabled(!canRun)
 
                 if !controller.canBuzz {
-                    Text("Connect your strap — Calm me is a felt rhythm on the wrist, so it needs a bonded connection.")
+                    Text("Connect your strap. Calm me is a felt rhythm on the wrist, so it needs a bonded connection.")
                         .font(StrandFont.footnote)
                         .foregroundStyle(StrandPalette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
                 } else if !canRun {
-                    Text("Waiting for a resting heart rate — start a live reading first, or come back when you're still.")
+                    Text("Waiting for a resting heart rate. Start a live reading first, or come back when you're still.")
                         .font(StrandFont.footnote)
                         .foregroundStyle(StrandPalette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -1212,7 +1177,7 @@ private struct CalmModeView: View {
                     Spacer(minLength: 0)
                 }
                 if controller.calmDidNotFall {
-                    Text("That's normal — a paced breath often settles things when a metronome alone doesn't.")
+                    Text("That's normal. A paced breath often settles things when a metronome alone doesn't.")
                         .font(StrandFont.footnote)
                         .foregroundStyle(StrandPalette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)

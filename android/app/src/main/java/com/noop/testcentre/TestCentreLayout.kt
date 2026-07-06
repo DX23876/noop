@@ -26,17 +26,34 @@ object TestCentreLayout {
 
     /**
      * The row status string, twin of Swift statusText. "Off" when inactive; "On" for an active toggle
-     * mode; "Capturing K of N <unit>" for an active guided mode, K = ceil(elapsed days), clamped to the
-     * target so a long capture never reads past its window. No em-dash.
+     * mode; "Capturing K of N <unit>" for an active guided mode. No em-dash.
+     *
+     * K is the HONEST per-mode capture count (#965): the number of DISTINCT days this mode actually
+     * produced a trace on ([capturedUnits], from [CaptureAccumulator]), so each active mode INDEPENDENTLY
+     * accumulates its own count rather than every row sharing one elapsed-clock number. [capturedUnits] is
+     * clamped to [0, target]: a dead-trace mode reads "0 of N" honestly, and a mode run past its window
+     * reads "N of N" (never over-runs). [capturedUnits] == null falls back to the legacy elapsed-day proxy
+     * (ceil(elapsed days), clamped to [1, target]) for a caller with no real count (a screen with no log
+     * yet); the live Test Centre row supplies the accumulator count so the shipped counter is data-driven.
      */
-    fun statusText(mode: TestMode, active: Boolean, elapsedSeconds: Double?): String {
+    fun statusText(
+        mode: TestMode,
+        active: Boolean,
+        elapsedSeconds: Double?,
+        capturedUnits: Int? = null,
+    ): String {
         if (!active) return "Off"
         return when (val cap = mode.capture) {
             is CaptureKind.Toggle -> "On"
             is CaptureKind.Guided -> {
-                val elapsed = (elapsedSeconds ?: 0.0).coerceAtLeast(0.0)
-                val dayIndex = kotlin.math.ceil(elapsed / 86_400.0).toInt()
-                val k = dayIndex.coerceIn(1, cap.defaultCount)
+                val k = if (capturedUnits != null) {
+                    // Honest data-driven count: distinct captured days, clamped to [0, target].
+                    capturedUnits.coerceIn(0, cap.defaultCount)
+                } else {
+                    // Legacy elapsed-clock proxy (no real count available), clamped to [1, target].
+                    val elapsed = (elapsedSeconds ?: 0.0).coerceAtLeast(0.0)
+                    kotlin.math.ceil(elapsed / 86_400.0).toInt().coerceIn(1, cap.defaultCount)
+                }
                 // The mode's own word, lowercased to match the Swift CaptureUnit.rawValue
                 // ("nights" / "days") so the two platforms read byte-identical.
                 val unitWord = when (cap.unit) {

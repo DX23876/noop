@@ -50,7 +50,7 @@ struct TestCentreView: View {
     /// The "whole app" report profile for the section-3 manual Report button. master is not a registry
     /// mode (it has no wear-and-capture flow), so the deep-link self-applies the test:all label via this.
     static let masterReportMode = TestMode(
-        domain: .master, title: "Bug report", blurb: "", icon: "ladybug", priority: .high,
+        domain: .master, title: String(localized: "Bug report"), blurb: "", icon: "ladybug", priority: .high,
         captures: [], questionnaire: [], liveReadout: [],
         capture: .toggle, includesScreenshot: false, requires5MG: false)
 
@@ -167,7 +167,7 @@ struct TestCentreView: View {
                     // A generic "whole app" report: the master profile so the deep-link self-applies the
                     // test:all label. master is not in the registry (it is not a wear-and-capture mode), so
                     // build the lightweight mode inline.
-                    report.start(mode: TestCentreView.masterReportMode, live: live)
+                    report.start(mode: TestCentreView.masterReportMode, live: live, repo: model.repo)
                 }
                 Text("Builds a redacted .zip, shows you exactly what it contains, then opens a prefilled GitHub issue. You attach the file on the next screen.")
                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
@@ -295,8 +295,8 @@ struct TestCentreView: View {
             await model.intelligence.analyzeRecent()
             await model.repo.refresh()
         }
-        infoTitle = "Charge baseline recalibrating"
-        infoMessage = "NOOP will re-learn your baseline from tonight's data onward. Your history is kept, and it takes a few nights to settle."
+        infoTitle = String(localized: "Charge baseline recalibrating")
+        infoMessage = String(localized: "NOOP will re-learn your baseline from tonight's data onward. Your history is kept, and it takes a few nights to settle.")
         showInfo = true
     }
 
@@ -321,15 +321,15 @@ struct TestCentreView: View {
         model.ble.flushPuffinCaptures()
         let url = ScheduledDebugExport.runNow(captureURL: live.puffinCaptureURL)
         if let url {
-            infoTitle = "Strap log exported"
+            infoTitle = String(localized: "Strap log exported")
             #if os(iOS)
-            infoMessage = "Saved \(url.lastPathComponent) to NOOP's folder in the Files app."
+            infoMessage = String(localized: "Saved \(url.lastPathComponent) to NOOP's folder in the Files app.")
             #else
-            infoMessage = "Saved \(url.lastPathComponent) to your Documents folder."
+            infoMessage = String(localized: "Saved \(url.lastPathComponent) to your Documents folder.")
             #endif
         } else {
-            infoTitle = "Export failed"
-            infoMessage = "Couldn't write the strap log right now."
+            infoTitle = String(localized: "Export failed")
+            infoMessage = String(localized: "Couldn't write the strap log right now.")
         }
         showInfo = true
     }
@@ -348,6 +348,18 @@ private struct TestModeRow: View {
         TestCentre.startedAt(mode.domain).map { Date().timeIntervalSince($0) }
     }
 
+    /// The HONEST per-mode captured-day count for a guided row (#965): distinct days THIS mode produced its
+    /// own trace on, read from the same shareable log the report exports, so each active mode accumulates
+    /// its OWN count instead of every guided row sharing one elapsed-clock number. nil for a toggle mode
+    /// (no "K of N") and when the mode is off. Recomputes with `live.log` (published) so the row updates as
+    /// new capture days land.
+    private var capturedUnits: Int? {
+        guard on, case .guided = mode.capture else { return nil }
+        return CaptureAccumulator.capturedDays(domain: mode.domain,
+                                               reportText: live.exportableLogText(),
+                                               tzOffsetSeconds: TimeZone.current.secondsFromGMT())
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 12) {
@@ -355,7 +367,8 @@ private struct TestModeRow: View {
                     .foregroundStyle(StrandPalette.accent).frame(width: 24)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(mode.title).font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
-                    Text(TestCentreLayout.statusText(for: mode, active: on, elapsedSeconds: elapsed))
+                    Text(TestCentreLayout.statusText(for: mode, active: on, elapsedSeconds: elapsed,
+                                                     capturedUnits: capturedUnits))
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
                 }
                 Spacer()
@@ -407,7 +420,7 @@ private struct TestModeRow: View {
             }
             HStack {
                 Spacer()
-                Button("Report") { report.start(mode: mode, live: live) }
+                Button("Report") { report.start(mode: mode, live: live, repo: model.repo) }
                     .buttonStyle(.plain).font(StrandFont.mono).foregroundStyle(StrandPalette.accent)
                     .accessibilityLabel("Report a \(mode.title) bug")
             }
@@ -454,11 +467,11 @@ private struct SleepReadoutPanel: View {
         let gravCoverage = SleepReadout.gravityCoverageFraction(gravity: live.recentGravitySamples, hr: live.recentHrSamples)
         let lastGate = SleepReadout.lastGateFired(taggedTail: live.taggedTail(domain: .sleep))
         VStack(alignment: .leading, spacing: 4) {
-            ReadoutRow(label: "HR density (per min)",
-                       value: live.recentHrSamples.isEmpty ? "no live HR yet" : String(format: "%.1f", hrDensity))
-            ReadoutRow(label: "Gravity coverage",
-                       value: live.recentGravitySamples.isEmpty ? "no live gravity yet" : String(format: "%.0f%%", gravCoverage * 100))
-            ReadoutRow(label: "Last gate fired", value: lastGate ?? "no night yet")
+            ReadoutRow(label: String(localized: "HR density (per min)"),
+                       value: live.recentHrSamples.isEmpty ? String(localized: "no live HR yet") : String(format: "%.1f", hrDensity))
+            ReadoutRow(label: String(localized: "Gravity coverage"),
+                       value: live.recentGravitySamples.isEmpty ? String(localized: "no live gravity yet") : String(format: "%.0f%%", gravCoverage * 100))
+            ReadoutRow(label: String(localized: "Last gate fired"), value: lastGate ?? String(localized: "no night yet"))
         }
         .padding(.top, 2)
     }
@@ -474,9 +487,9 @@ private struct BatteryReadoutPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            ReadoutRow(label: "Current charge", value: live.batteryReadout("currentSoc"))
-            ReadoutRow(label: "Estimated runtime left", value: live.batteryReadout("estimateDaysLeft"))
-            ReadoutRow(label: "Slope source", value: live.batteryReadout("slopeSource"))
+            ReadoutRow(label: String(localized: "Current charge"), value: live.batteryReadout("currentSoc"))
+            ReadoutRow(label: String(localized: "Estimated runtime left"), value: live.batteryReadout("estimateDaysLeft"))
+            ReadoutRow(label: String(localized: "Slope source"), value: live.batteryReadout("slopeSource"))
         }
         .padding(.top, 2)
     }
@@ -498,13 +511,40 @@ private struct ConnectionReadoutPanel: View {
         // stale uptimeStart from the last connect).
         let uptime = live.connected
             ? ConnectionReadout.uptimeLabel(taggedTail: tail, nowUnix: now)
-            : "not connected"
+            : String(localized: "not connected")
         let reconnects = ConnectionReadout.reconnectCount(taggedTail: tail)
         let lastOffload = ConnectionReadout.lastOffloadResult(taggedTail: tail)
+        // #990: rows drained this session (the running/final offload tally) BESIDE the persisted all-time
+        // counter, so a strap stuck in a pull-restart loop still shows the install-lifetime progress the
+        // per-session number keeps resetting away.
+        let sessionRows = ConnectionReadout.sessionRows(taggedTail: tail)
+        let allTimeRows = TestCentre.cumulativeDrainedRows()
+        // #987: clock latch + frame liveness. The correlated device clock is parsed from the same log the
+        // export ships (pure ConnectionReadout parsers), the last-frame stamp off the non-published
+        // LiveState field FrameRouter writes.
+        let deviceClock = ConnectionReadout.clockCorrelatedDevice(logLines: live.log)
+        let rtcWarning = ConnectionReadout.rtcWarning(deviceClockUnix: deviceClock,
+                                                      strapNewestUnix: live.strapRange?.newestUnix)
         VStack(alignment: .leading, spacing: 4) {
-            ReadoutRow(label: "Connection uptime", value: uptime)
-            ReadoutRow(label: "Reconnects this run", value: String(reconnects))
-            ReadoutRow(label: "Last offload result", value: lastOffload ?? "no offload yet")
+            ReadoutRow(label: String(localized: "Connection uptime"), value: uptime)
+            ReadoutRow(label: String(localized: "Reconnects this run"), value: String(reconnects))
+            ReadoutRow(label: String(localized: "Last offload result"), value: lastOffload ?? String(localized: "no offload yet"))
+            ReadoutRow(label: String(localized: "Rows drained (session)"),
+                       value: sessionRows.map(String.init) ?? String(localized: "no offload yet"))
+            ReadoutRow(label: String(localized: "Rows drained (all time)"), value: String(allTimeRows))
+            ReadoutRow(label: String(localized: "Clock latched"),
+                       value: ConnectionReadout.clockLatchedLabel(deviceClockUnix: deviceClock))
+            ReadoutRow(label: String(localized: "Last frame"),
+                       value: ConnectionReadout.lastFrameLabel(lastFrameUnix: live.lastFrameAtUnix, nowUnix: now))
+            if let rtcWarning {
+                // #987: the plain-words 1970/71 warning - amber, not a bare token, because this is the
+                // single most common "no history" root cause and the fix is in the sentence.
+                Text(rtcWarning)
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.statusWarning)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityLabel(rtcWarning)
+            }
         }
         .padding(.top, 2)
     }
@@ -521,7 +561,7 @@ private struct RecoveryReadoutPanel: View {
     var body: some View {
         let last = TestReadout.lastChargeBreakdown(taggedTail: live.taggedTail(domain: .recovery))
         VStack(alignment: .leading, spacing: 4) {
-            ReadoutRow(label: "Last Charge breakdown", value: last ?? "no night scored yet")
+            ReadoutRow(label: String(localized: "Last Charge breakdown"), value: last ?? String(localized: "no night scored yet"))
         }
         .padding(.top, 2)
     }
@@ -537,7 +577,7 @@ private struct HrvReadoutPanel: View {
     var body: some View {
         let last = TestReadout.lastHrvComputation(taggedTail: live.taggedTail(domain: .hrv))
         VStack(alignment: .leading, spacing: 4) {
-            ReadoutRow(label: "Last HRV reading", value: last ?? "no reading yet")
+            ReadoutRow(label: String(localized: "Last HRV reading"), value: last ?? String(localized: "no reading yet"))
         }
         .padding(.top, 2)
     }
@@ -556,8 +596,8 @@ private struct StepsReadoutPanel: View {
         let steps = StepsReadout.stepsToday(taggedTail: tail)
         let calState = StepsReadout.calibrationState(taggedTail: tail)
         VStack(alignment: .leading, spacing: 4) {
-            ReadoutRow(label: "Steps today", value: steps.map(String.init) ?? "no estimate yet")
-            ReadoutRow(label: "Calibration", value: calState ?? "no calibration yet")
+            ReadoutRow(label: String(localized: "Steps today"), value: steps.map(String.init) ?? String(localized: "no estimate yet"))
+            ReadoutRow(label: String(localized: "Calibration"), value: calState ?? String(localized: "no calibration yet"))
         }
         .padding(.top, 2)
     }
@@ -573,7 +613,7 @@ private struct WorkoutsReadoutPanel: View {
     var body: some View {
         let summary = WorkoutsReadout.lastSessionSummary(taggedTail: live.taggedTail(domain: .workouts))
         VStack(alignment: .leading, spacing: 4) {
-            ReadoutRow(label: "Last session", value: summary ?? "no session yet")
+            ReadoutRow(label: String(localized: "Last session"), value: summary ?? String(localized: "no session yet"))
         }
         .padding(.top, 2)
     }
@@ -590,7 +630,7 @@ private struct ImportReadoutPanel: View {
     var body: some View {
         let summary = ImportReadout.lastImportSummary(taggedTail: live.taggedTail(domain: .dataImport))
         VStack(alignment: .leading, spacing: 4) {
-            ReadoutRow(label: "Last import", value: summary ?? "no import yet")
+            ReadoutRow(label: String(localized: "Last import"), value: summary ?? String(localized: "no import yet"))
         }
         .padding(.top, 2)
     }
@@ -609,8 +649,8 @@ private struct DisplayReadoutPanel: View {
         let metrics = DisplayReadout.deviceMetricsNow(taggedTail: tail)
         let frames = DisplayReadout.frameSummaryNow(taggedTail: tail)
         VStack(alignment: .leading, spacing: 4) {
-            ReadoutRow(label: "Device metrics", value: metrics ?? "reading…")
-            ReadoutRow(label: "Frame summary", value: frames ?? "no window yet")
+            ReadoutRow(label: String(localized: "Device metrics"), value: metrics ?? String(localized: "reading…"))
+            ReadoutRow(label: String(localized: "Frame summary"), value: frames ?? String(localized: "no window yet"))
         }
         .padding(.top, 2)
     }
@@ -643,9 +683,19 @@ private struct ReportReviewSheet: View {
         return ScreenScaffold(title: "Review before sharing",
                               subtitle: "This is exactly what your report will contain. Nothing leaves \(Platform.deviceNounPhrase) until you tap Share.") {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
+                if report.pending?.modeInactive == true {
+                    // #1002: the selected profile's test mode is not on, so this bundle carries no capture
+                    // for the very thing being reported (the #812 capture_check only grades ACTIVE modes,
+                    // so without this the report just looked thin with no explanation). Warn plainly, with
+                    // the fix, BEFORE the user ships a report a maintainer can't act on.
+                    Text("Heads up: this test mode is off, so the report has no capture for it. For a useful report, turn the mode on, reproduce the problem while wearing the strap, then report again.")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.statusWarning)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 NoopCard {
                     ScrollView {
-                        Text(preview.isEmpty ? "(nothing to share yet)" : preview)
+                        Text(preview.isEmpty ? String(localized: "(nothing to share yet)") : preview)
                             .font(StrandFont.mono)
                             .foregroundStyle(StrandPalette.textSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading)

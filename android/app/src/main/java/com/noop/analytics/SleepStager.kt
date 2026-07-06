@@ -737,6 +737,44 @@ object SleepStager {
     // ── detectSleep (public) ──────────────────────────────────────────────────
 
     /**
+     * One folded Long per sample stream for the [detectSleep] memo key: folds the COUNT plus every
+     * (ts, quantised value) with large odd multipliers — the same every-element discipline as
+     * [StagerCache.fingerprint] — so an in-place interior edit (a re-import correcting a value), a
+     * truncation, or an append all re-key to a fresh compute and a stale hit is never served.
+     * Internal so the fingerprint-completeness test pins those properties directly.
+     */
+    internal fun <T> streamFingerprint(samples: List<T>, ts: (T) -> Long, quant: (T) -> Long): Long {
+        var h = samples.size.toLong() * 2_654_435_761L
+        for (e in samples) h = (h * 1_000_003L + ts(e)) * 1_000_003L + quant(e)
+        return h
+    }
+
+    /** Full memo key for [detectSleep] — every input that steers detection or staging, nothing else. */
+    private data class DetectKey(
+        val grav: Long, val hr: Long, val rr: Long, val resp: Long,
+        val tz: Long, val wristOff: Long, val band: Long, val v2: Boolean,
+    )
+
+    /** Bound ≈ the distinct days of a scoring window (matches the Swift detectSleepCache capacity, 40).
+     *  Access-order LRU so the hottest nights survive a long session; an entry is a handful of small
+     *  sessions — the multi-hour raw streams are never retained (#707 rule: the cache must not be the
+     *  next leak). */
+    private const val DETECT_CACHE_MAX_DAYS = 40
+    private val detectCache = object : LinkedHashMap<DetectKey, List<DetectedSleep>>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<DetectKey, List<DetectedSleep>>): Boolean =
+            size > DETECT_CACHE_MAX_DAYS
+    }
+    private val detectCacheLock = Any()
+
+    /** Deep copy across the memo boundary. [DetectedSleep] itself is immutable, but its `stages` are
+     *  mutable [StageSegment]s — the exact reason [StagerCache] deep-copies hypnograms — so the memo
+     *  holds a private copy and hands every hit a fresh one; a caller reshaping a segment in place can
+     *  never poison the cache. Swift needs no copy (value-type structs); Kotlin's mutable StageSegment
+     *  does. O(stages), a rounding error next to the detection spine the memo skips. */
+    private fun copyDetected(sessions: List<DetectedSleep>): List<DetectedSleep> =
+        sessions.map { it.copy(stages = StagerCache.copyOf(it.stages)) }
+
+    /**
      * Detect sleep sessions from biometric streams. Empty/absent gravity → [].
      * Gravity-only input degrades gracefully (HR/RR/resp refinements skipped).
      *
@@ -752,6 +790,16 @@ object SleepStager {
      * intervals) reaches [maxOffWristSleepFraction] of its duration — the FRACTIONAL rule from #504, so
      * a real night with a short off-wrist tail survives (#500). Defaults to empty (HR-gap proxy only),
      * so the pure function and its tests stay event-free.
+     *
+     * PERF (#707 parity, mirrors the Swift detectSleepCache): this is the single heaviest analytics
+     * call — it sorts the dense full-day gravity stream, builds the delta/still spine, and stages every
+     * accepted run — and [IntelligenceEngine.analyzeRecent] re-runs it per day across the window every
+     * 15-min tick, so an idempotent re-pass (or a sync that never touched a given day) redid all of it
+     * for an identical result; the exact path that ANR'd before #125. Android had only the staging-layer
+     * [StagerCache], so the detection spine still re-ran uncached ~21× per pass. The public entry now
+     * memoizes the RESULT on a FULL input key (every argument that steers detection or staging: the four
+     * streams, tz offset, #500 off-wrist intervals, #531 band state, the V2 toggle) in a bounded LRU. A
+     * hit is byte-identical to recomputing — the memo only ever skips work, never changes it.
      */
     fun detectSleep(
         hr: List<HrSample> = emptyList(),
@@ -776,6 +824,57 @@ object SleepStager {
         // and the sparse-gravity bridge records its result. Side-effect-only; the returned list is
         // byte-identical to the untraced call. Default null = no work, byte-identical. Mirrors Swift.
         traceSink: ((String) -> Unit)? = null,
+    ): List<DetectedSleep> {
+        // Test mode ONLY: a requested trace MUST run the live gate ladder so every verdict emits for THIS
+        // night — never a silent memo replay. The trace is side-effect-only (the returned list is
+        // byte-identical to the untraced call), so every real call still memoizes below. Mirrors the
+        // Swift detectSleep traceSink bypass (#707).
+        if (traceSink != null) {
+            return detectSleepUncached(hr, rr, resp, gravity, tzOffsetSeconds, wristOff,
+                bandSleepState, useSleepStagerV2, traceSink)
+        }
+        val key = DetectKey(
+            // Fold the three gravity axes SEPARATELY (raw IEEE-754 bits, like StagerCache.fingerprint)
+            // rather than quantising the x+y+z SUM: two different postures sharing a component sum must
+            // not alias. DELIBERATELY harder than the Swift key's summed quant — a fingerprint difference
+            // can only cost one platform an extra recompute, never change a value, so this is free
+            // collision hardening, not a parity break.
+            grav = streamFingerprint(gravity, { it.ts }) { s ->
+                var q = java.lang.Double.doubleToRawLongBits(s.x)
+                q = q * 1_000_003L + java.lang.Double.doubleToRawLongBits(s.y)
+                q = q * 1_000_003L + java.lang.Double.doubleToRawLongBits(s.z)
+                q
+            },
+            hr = streamFingerprint(hr, { it.ts }) { it.bpm.toLong() },
+            rr = streamFingerprint(rr, { it.ts }) { it.rrMs.toLong() },
+            resp = streamFingerprint(resp, { it.ts }) { it.raw.toLong() },
+            tz = tzOffsetSeconds,
+            wristOff = streamFingerprint(wristOff, { it.first }) { it.second },
+            band = streamFingerprint(bandSleepState, { it.first }) { it.second.toLong() },
+            v2 = useSleepStagerV2,
+        )
+        synchronized(detectCacheLock) { detectCache[key] }?.let { return copyDetected(it) }
+        // Compute OUTSIDE the lock (the Swift AnalyticsMemoCache does the same): a slow night never
+        // serialises another thread's lookup, and a racing duplicate compute just overwrites the entry
+        // with an identical value — benign, the function is deterministic.
+        val sessions = detectSleepUncached(hr, rr, resp, gravity, tzOffsetSeconds, wristOff,
+            bandSleepState, useSleepStagerV2, null)
+        synchronized(detectCacheLock) { detectCache[key] = copyDetected(sessions) }
+        return sessions
+    }
+
+    /** The unchanged detection + staging pipeline, split out verbatim so [detectSleep] can memoize in
+     *  front (#707 parity). Parameters are documented on the public wrapper. */
+    private fun detectSleepUncached(
+        hr: List<HrSample>,
+        rr: List<RrInterval>,
+        resp: List<RespSample>,
+        gravity: List<GravitySample>,
+        tzOffsetSeconds: Long,
+        wristOff: List<Pair<Long, Long>>,
+        bandSleepState: List<Pair<Long, Int>>,
+        useSleepStagerV2: Boolean,
+        traceSink: ((String) -> Unit)?,
     ): List<DetectedSleep> {
         val grav = gravity.sortedBy { it.ts }
         if (grav.size < 2) return emptyList()
@@ -1061,6 +1160,37 @@ object SleepStager {
             hr = emptyList(), rr = emptyList(), resp = emptyList(),
         )
         return grid.counts
+    }
+
+    /**
+     * #175: the strap's OWN band sleep_state (0 wake/1 still/2 asleep/3 up) gridded onto the SAME 30 s epoch
+     * grid `stagesJSON` / [sessionEpochMotion] use, so the caller can persist it via
+     * [com.noop.data.WhoopRepository.persistSessionSleepState] and the H7 re-onset CONFIRM guard can read it
+     * back as timestamped `(startTs + i*epochS, state)` samples. Returns EMPTY when the session carries no
+     * band-state samples (a WHOOP 4.0, or an unbanded window) — an absent signal stays absent, never a
+     * fabricated array. When present, each epoch takes the band's LAST reported state within its
+     * `[start + i*30, start + (i+1)*30)` window; an epoch with no sample of its own CARRIES FORWARD the
+     * previous epoch's state (band state is a step function). Leading epochs before the first sample take the
+     * first sample's state. The band code is carried VERBATIM — this never converts an unproven code into a
+     * derived stage; consumers decide meaning. Mirrors Swift `sessionEpochSleepState`. (#175)
+     */
+    fun sessionEpochSleepState(start: Long, end: Long, sleepState: List<Pair<Long, Int>>): List<Int> {
+        val seg = rowsBetween(sleepState, start, end) { it.first }.sortedBy { it.first }
+        if (seg.isEmpty() || end <= start) return emptyList()
+        val nEpochs = maxOf(1, kotlin.math.ceil((end - start).toDouble() / epochS).toInt())
+        val out = IntArray(nEpochs) { seg[0].second }   // lead-in = first sample's state
+        var last = seg[0].second
+        var si = 0
+        for (i in 0 until nEpochs) {
+            val epochEnd = start + ((i + 1) * epochS).toLong()
+            // Advance through every sample that falls in/at-or-before this epoch's window; the LAST one wins.
+            while (si < seg.size && seg[si].first < epochEnd) {
+                last = seg[si].second
+                si++
+            }
+            out[i] = last   // carry-forward when the epoch had no sample of its own
+        }
+        return out.toList()
     }
 
     // ── Epoch grid ────────────────────────────────────────────────────────────

@@ -110,7 +110,7 @@ fun AutomationsScreen(viewModel: AppViewModel) {
     // accessibility-walked on scroll.
     LazyScreenScaffold(
         title = "Automations",
-        subtitle = "Make the strap do things — tap to act, walk away to lock, train by feel.",
+        subtitle = "Make the strap do things: tap to act, walk away to lock, train by feel.",
     ) {
         // Double-tap (parity since 4.2.8): a real, persisted action picker bound to the ViewModel, with a
         // Test action button. Mirrors AutomationsView.swift's Picker (Apple-applicable subset only; no
@@ -155,12 +155,12 @@ fun AutomationsScreen(viewModel: AppViewModel) {
         SettingsSection(
             icon = Icons.Filled.Bolt,
             title = "Haptic coaching",
-            blurb = "Train by feel — the strap buzzes so you don't have to watch a screen.",
+            blurb = "Train by feel. The strap buzzes so you don't have to watch a screen.",
             active = zoneCoaching || stressNudge,
         ) {
             ToggleRow(
                 label = "HR-zone coaching",
-                help = "A triple-buzz when you climb into your top zone (Zone 5, ≥ $zone5Bpm bpm) — a cue to ease off. Max HR comes from Settings.",
+                help = "A triple-buzz when you climb into your top zone (Zone 5, ≥ $zone5Bpm bpm), a cue to ease off. Max HR comes from Settings.",
                 checked = zoneCoaching,
                 onChange = { viewModel.setZoneCoaching(it) },
             )
@@ -168,7 +168,7 @@ fun AutomationsScreen(viewModel: AppViewModel) {
                 RowDivider()
                 ToggleRow(
                     label = "Recovery buzz",
-                    help = "Also buzz once when your heart rate drops back to Zone 1 — a cue that you've recovered.",
+                    help = "Also buzz once when your heart rate drops back to Zone 1, a cue that you've recovered.",
                     checked = zoneCoachRecovery,
                     onChange = { viewModel.setZoneCoachRecovery(it) },
                 )
@@ -176,7 +176,7 @@ fun AutomationsScreen(viewModel: AppViewModel) {
             RowDivider()
             ToggleRow(
                 label = "Resting stress nudge (experimental)",
-                help = "A gentle buzz when your HRV drops while your heart rate is calm — a cue to take a paced breath. Rate-limited to once every 15 minutes; off by default.",
+                help = "A gentle buzz when your HRV drops while your heart rate is calm, a cue to take a paced breath. Rate-limited to once every 15 minutes; off by default.",
                 checked = stressNudge,
                 onChange = { stressNudge = it },
             )
@@ -209,7 +209,7 @@ fun AutomationsScreen(viewModel: AppViewModel) {
         SettingsSection(
             icon = Icons.Filled.Timer,
             title = "Inactivity reminder",
-            blurb = "A gentle wrist buzz when you've been sitting too long — a nudge to get up and move. Inferred from the strap's motion on each history sync, so it lags real time by a sync or two.",
+            blurb = "A gentle wrist buzz when you've been sitting too long, a nudge to get up and move. Inferred from the strap's motion on each history sync, so it lags real time by a sync or two.",
             active = inactivityEnabled,
         ) {
             ToggleRow(
@@ -225,7 +225,7 @@ fun AutomationsScreen(viewModel: AppViewModel) {
                 if (!notifMasterOn) {
                     RowDivider()
                     Text(
-                        "Notifications are off, so this can't buzz yet — turn on the master switch in " +
+                        "Notifications are off, so this can't buzz yet. Turn on the master switch in " +
                             "Settings → Notifications to let it through.",
                         style = NoopType.footnote, color = Palette.statusWarning,
                     )
@@ -321,12 +321,12 @@ fun AutomationsScreen(viewModel: AppViewModel) {
         SettingsSection(
             icon = Icons.Filled.MonitorHeart,
             title = "Illness early-warning",
-            blurb = "Watches your resting HR, HRV, skin temperature and respiration against your own 28-day baseline. On-device and approximate — informational only, not a diagnosis.",
+            blurb = "Watches your resting HR, HRV, skin temperature and respiration against your own 28-day baseline. On-device and approximate: informational only, not a diagnosis.",
             active = illnessWatch,
         ) {
             ToggleRow(
                 label = "Watch for early-illness signs",
-                help = "Needs at least 14 days of history. When two or more signals drift together you get a banner on Today and a notification — at most once a day.",
+                help = "Needs at least 14 days of history. When two or more signals drift together you get a banner on Today and a notification, at most once a day.",
                 checked = illnessWatch,
                 onChange = { viewModel.setIllnessWatchEnabled(it) },
             )
@@ -343,7 +343,7 @@ fun AutomationsScreen(viewModel: AppViewModel) {
         ) {
             ToggleRow(
                 label = "Notify on low and full battery",
-                help = "Sends a notification when the strap drops to 15% or reaches a full charge — at most once per charge cycle.",
+                help = "Sends a notification when the strap drops to 15% or reaches a full charge, at most once per charge cycle.",
                 checked = batteryAlerts,
                 onChange = { viewModel.setBatteryAlertsEnabled(it) },
             )
@@ -371,7 +371,7 @@ private fun NapDetectionSection(viewModel: AppViewModel) {
         icon = Icons.Filled.Bedtime,
         title = "Nap detection",
         blurb = "Spots a likely daytime nap from the strap's motion and heart rate on each history sync, " +
-            "then asks you to confirm it. Inferred and approximate — NOOP never adds a nap to your sleep " +
+            "then asks you to confirm it. Inferred and approximate: NOOP never adds a nap to your sleep " +
             "without your OK.",
         active = enabled,
     ) {
@@ -442,7 +442,7 @@ private fun napWindowLabel(nap: NapCandidate, ctx: android.content.Context): Str
     val start = fmt.format(java.util.Date(nap.start * 1000L))
     val end = fmt.format(java.util.Date(nap.end * 1000L))
     val mins = nap.durationS / 60
-    return "$start – $end · ~$mins min"
+    return "$start-$end · ~$mins min"
 }
 
 private fun napDetailLabel(nap: NapCandidate): String =

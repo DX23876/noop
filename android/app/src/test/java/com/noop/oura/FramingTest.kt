@@ -45,6 +45,45 @@ class FramingTest {
         assertArrayEquals(intArrayOf(0x00), frames[1].body)
     }
 
+    // MARK: - GetBattery response (0x0D, s6.10)
+
+    @Test
+    fun testBatteryResponseOpIsRecognisedAsAnOuterFrame() {
+        // 0d 06 <percent=57=87> <charging=00> <flag=00> <3 unknown> - the live path routes this op to the
+        // battery decoder, never to the TLV record decoder (op 0x0D is below the event-tag range).
+        val frames = OuraFraming.parseOuterFrames(bytes("0d06570000003c0f"))
+        assertEquals(1, frames.size)
+        assertEquals(OuraFraming.batteryResponseOp, frames[0].op)
+        val battery = OuraDecoders.decodeBattery(frames[0].body)
+        assertEquals(0x57, battery?.percent)   // 87%
+    }
+
+    // MARK: - GetEvents response (0x11, s5.2)
+
+    @Test
+    fun testParseGetEventsResponseMoreDataFollows() {
+        // 11 08 <status=ff> <sub_status=00> <last_rt:4LE=78563412> <pad:2>
+        val outer = OuraFraming.parseOuterFrame(bytes("1108ff00785634120000"))
+        assertEquals(OuraFraming.getEventsResponseOp, outer?.op)
+        val summary = OuraFraming.parseGetEventsResponse(outer!!.body)
+        assertEquals(0x1234_5678L, summary?.cursor)
+        assertEquals(true, summary?.moreData)
+    }
+
+    @Test
+    fun testParseGetEventsResponseNoMoreData() {
+        // status 0x00 -> caught up, no more data.
+        val outer = OuraFraming.parseOuterFrame(bytes("11080000785634120000"))
+        val summary = OuraFraming.parseGetEventsResponse(outer!!.body)
+        assertEquals(0x1234_5678L, summary?.cursor)
+        assertEquals(false, summary?.moreData)
+    }
+
+    @Test
+    fun testParseGetEventsResponseShortBodyReturnsNil() {
+        assertNull(OuraFraming.parseGetEventsResponse(bytes("ff0012")))
+    }
+
     // MARK: - Secure-session sub-frame (0x2F)
 
     @Test

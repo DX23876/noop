@@ -209,6 +209,11 @@ fun LineChart(
     // tap/swipe-to-inspect interaction opt in explicitly (Sleep, Trends, the Vital Signs detail).
     selectionEnabled: Boolean = false,
     dragSelectionEnabled: Boolean = true,
+    // Selection-label formatter (#463): the tap/drag pinpoint read-out draws the RAW plotted value by
+    // default; screens whose surrounding chrome converts values for display (Trends' Effort chart on
+    // the 0-21 scale) pass their axis formatter so the label can't leak the stored scale as a bare
+    // unconverted number. Default null keeps every other caller byte-identical.
+    formatValue: ((Double) -> String)? = null,
 ) {
     val cleanValues = remember(values) { values.filter { it.isFinite() } }
     var selectedIndex by remember(cleanValues) { mutableIntStateOf(-1) }
@@ -363,7 +368,7 @@ fun LineChart(
                             drawCircle(color = Palette.surfaceBase.copy(alpha = StrandAlpha.chartShadow), radius = 9f, center = p)
                             drawCircle(color = color, radius = 4.5f, center = p)
                             drawContext.canvas.nativeCanvas.apply {
-                                val label = formatLineValue(cleanValues[selectedIndex])
+                                val label = lineChartSelectionLabel(cleanValues[selectedIndex], formatValue)
                                 drawText(label, 8f, 32f, markerPaint)
                             }
                         }
@@ -432,6 +437,11 @@ private fun nearestIndexForX(count: Int, width: Float, x: Float): Int {
     val raw = (clampedX / step).roundToInt()
     return raw.coerceIn(0, count - 1)
 }
+
+/** The tap/drag pinpoint label: the caller's display formatter when supplied (#463), else the raw
+ *  near-integer-collapsing default. Split out so the fallback choice is JVM-testable. */
+internal fun lineChartSelectionLabel(value: Double, formatValue: ((Double) -> String)?): String =
+    formatValue?.invoke(value) ?: formatLineValue(value)
 
 private fun formatLineValue(value: Double): String {
     if (!value.isFinite()) return "-"

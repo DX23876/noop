@@ -23,10 +23,16 @@ enum ChargeBreakdownFormat {
     /// Always carries an explicit sign for a non-zero delta so a positive term reads "+N" not "N".
     /// Pure + unit-tested (`ChargeBreakdownFormatTests`).
     static func chipLabel(deltaPoints: Int) -> String {
-        let unit = abs(deltaPoints) == 1 ? "pt" : "pts"
-        if deltaPoints > 0 { return "+\(deltaPoints) \(unit)" }
-        if deltaPoints < 0 { return "\(deltaPoints) \(unit)" }   // the minus sign rides the value
-        return "0 \(unit)"
+        // Whole-phrase variants per sign/count so translators never see a stitched unit fragment.
+        if deltaPoints > 0 {
+            return deltaPoints == 1 ? String(localized: "+\(deltaPoints) pt")
+                                    : String(localized: "+\(deltaPoints) pts")
+        }
+        if deltaPoints < 0 {   // the minus sign rides the value
+            return deltaPoints == -1 ? String(localized: "\(deltaPoints) pt")
+                                     : String(localized: "\(deltaPoints) pts")
+        }
+        return String(localized: "0 pts")
     }
 
     /// The chip colour for a signed delta, sampled from the RECOVERY RAMP endpoints so the Charge
@@ -42,13 +48,30 @@ enum ChargeBreakdownFormat {
     /// VoiceOver phrasing of one driver row: label, signed points, value vs baseline, verdict.
     /// Built from the engine row verbatim (no recompute). Pure.
     static func driverAccessibilityLabel(_ d: ChargeDriver) -> String {
-        let pts = d.deltaPoints == 0
-            ? "no change"
-            : "\(d.deltaPoints > 0 ? "up" : "down") \(abs(d.deltaPoints)) \(abs(d.deltaPoints) == 1 ? "point" : "points")"
-        var s = "\(d.label): \(pts). \(d.valueText)"
-        if !d.baselineText.isEmpty { s += ", \(d.baselineText)" }
-        s += ". \(d.verdict)."
-        return s
+        // Whole-phrase variants (direction x count, and with/without baseline) so translators see
+        // complete sentences, never stitched direction/plural fragments.
+        let pts: String
+        if d.deltaPoints == 0 {
+            pts = String(localized: "no change")
+        } else {
+            let n = abs(d.deltaPoints)
+            switch (d.deltaPoints > 0, n == 1) {
+            case (true, true):   pts = String(localized: "up 1 point")
+            case (true, false):  pts = String(localized: "up \(n) points")
+            case (false, true):  pts = String(localized: "down 1 point")
+            case (false, false): pts = String(localized: "down \(n) points")
+            }
+        }
+        // The engine's label + verdict are catalog KEYS (see ChargeDrivers.swift). Interpolating them
+        // raw into a String(localized:) template would leave them English in a localized build (the
+        // template is the lookup key, its substitutions are not re-localized), so look each up first
+        // and interpolate the already-localized text. valueText/baselineText are numeric read-outs.
+        let label = String(localized: String.LocalizationValue(d.label))
+        let verdict = String(localized: String.LocalizationValue(d.verdict))
+        if d.baselineText.isEmpty {
+            return String(localized: "\(label): \(pts). \(d.valueText). \(verdict).")
+        }
+        return String(localized: "\(label): \(pts). \(d.valueText), \(d.baselineText). \(verdict).")
     }
 
     // MARK: - Score-confidence tier chip (A3)
@@ -58,9 +81,9 @@ enum ChargeBreakdownFormat {
     /// solid -> REL. (reliable). Unit-tested.
     static func tierTag(_ confidence: ScoreConfidence) -> String {
         switch confidence {
-        case .calibrating: return "CALIBRATING"
-        case .building:    return "EST."
-        case .solid:       return "REL."
+        case .calibrating: return String(localized: "CALIBRATING")
+        case .building:    return String(localized: "EST.")
+        case .solid:       return String(localized: "REL.")
         }
     }
 
@@ -87,21 +110,22 @@ enum ChargeBreakdownFormat {
     /// gate minus banked, clamped >= 1 by the caller); the singular/plural reads honestly. Pure +
     /// unit-tested.
     static func calibrationCountdown(nightsRemaining: Int) -> String {
+        // Whole-phrase variants per count so translators never see a stitched plural fragment.
         let n = max(0, nightsRemaining)
-        return "\(n) \(n == 1 ? "night" : "nights") to go"
+        return n == 1 ? String(localized: "1 night to go") : String(localized: "\(n) nights to go")
     }
 
     /// The supporting line under the countdown, naming the score whose baseline is unlocking. Pure.
     /// `scoreName` is the user-facing score word (e.g. "Charge"); kept a parameter so the same copy
     /// serves any baseline-building score honestly without hard-coding one.
     static func calibrationUnlockCopy(scoreName: String) -> String {
-        "more overnight wear to unlock your \(scoreName) baseline"
+        String(localized: "more overnight wear to unlock your \(scoreName) baseline")
     }
 
     /// "Calibrating, 1 of 4 nights" progress label for the countdown card header. `banked` is the
     /// nights gathered so far, `seed` the gate (`Baselines.minNightsSeed`). Pure + unit-tested.
     static func calibrationProgress(banked: Int, seed: Int) -> String {
-        "Calibrating, \(max(0, banked)) of \(seed) nights"
+        String(localized: "Calibrating, \(max(0, banked)) of \(seed) nights")
     }
 
     // MARK: - Relative skin-temp label (A5)
@@ -111,15 +135,15 @@ enum ChargeBreakdownFormat {
     /// Pure + unit-tested.
     static func skinTempDeviationLabel(_ rel: SkinTempRelative) -> String {
         let sign = rel.deviationC >= 0 ? "+" : ""
-        return "\(sign)\(String(format: "%.1f", rel.deviationC)) C vs your normal"
+        return String(localized: "\(sign)\(String(format: "%.1f", rel.deviationC)) C vs your normal")
     }
 
     /// The plain-English tier word for the relative skin-temp marker. Pure.
     static func skinTempTierWord(_ tier: SkinTempRelative.Tier) -> String {
         switch tier {
-        case .cooler:  return "Cooler than your baseline"
-        case .typical: return "Typical for you"
-        case .warmer:  return "Warmer than your baseline"
+        case .cooler:  return String(localized: "Cooler than your baseline")
+        case .typical: return String(localized: "Typical for you")
+        case .warmer:  return String(localized: "Warmer than your baseline")
         }
     }
 }
@@ -158,9 +182,9 @@ struct ConfidenceTierChip: View {
 
     private var accessibility: String {
         switch confidence {
-        case .calibrating: return "Confidence: calibrating"
-        case .building:    return "Confidence: estimate"
-        case .solid:       return "Confidence: reliable"
+        case .calibrating: return String(localized: "Confidence: calibrating")
+        case .building:    return String(localized: "Confidence: estimate")
+        case .solid:       return String(localized: "Confidence: reliable")
         }
     }
 }
@@ -218,7 +242,7 @@ struct ChargeDriverRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.space2) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(driver.label)
+                Text(LocalizedStringKey(driver.label))
                     .font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.textPrimary)
                 Spacer(minLength: 8)
@@ -245,7 +269,7 @@ struct ChargeDriverRow: View {
             // A thin magnitude bar tinted to the chip hue, reading the term's share of the biggest mover.
             PipBar(value: magnitude, range: 0...barMax, segments: 16, tint: chipHue, height: 6)
                 .accessibilityHidden(true)
-            Text(driver.verdict)
+            Text(LocalizedStringKey(driver.verdict))
                 .font(StrandFont.footnote)
                 .foregroundStyle(StrandPalette.textTertiary)
                 .fixedSize(horizontal: false, vertical: true)

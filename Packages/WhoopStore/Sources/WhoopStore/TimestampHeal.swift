@@ -55,19 +55,20 @@ extension WhoopStore {
                 rawDeleted += db.changesCount
             }
 
-            // (b) Computed rows. dailyMetric is keyed by a yyyy-MM-dd `day` text — drop any day AFTER
-            // today (a future row can only come from a future-dated record) or implausibly far in the
-            // past (before the 2023-11 floor's day). String comparison is correct for the zero-padded
-            // yyyy-MM-dd format. The far-past floor key is derived from MIN_PLAUSIBLE_UNIX in UTC so it
-            // is a fixed sentinel independent of the device's zone.
+            // (b) Computed rows. dailyMetric is keyed by a yyyy-MM-dd `day` text; sleepSession by an
+            // integer `startTs`. A FUTURE-dated row is always implausible (a future day/ts can only come
+            // from a future-dated record), so drop it regardless of source. The far-PAST floor, though, is
+            // applied ONLY to computed (`-noop`) rows: those can't legitimately predate NOOP, so a pre-2023
+            // one is bad-clock garbage — but a WHOOP CSV import (bare "my-whoop") carries REAL dates going
+            // back years, and reusing the floor across all sources silently purged that imported history on
+            // any heal (v8.2.1). String comparison is correct for the zero-padded yyyy-MM-dd format.
             let floorDayKey = WhoopStore.utcDayKey(MIN_PLAUSIBLE_UNIX)
             var computedDeleted = 0
-            try db.execute(sql: "DELETE FROM dailyMetric WHERE day > ? OR day < ?",
+            try db.execute(sql: "DELETE FROM dailyMetric WHERE day > ? OR (day < ? AND deviceId LIKE '%-noop')",
                            arguments: [todayLocalDayKey, floorDayKey])
             computedDeleted += db.changesCount
-            // sleepSession is keyed by an integer `startTs` — drop future/implausible sessions.
-            try db.execute(sql: "DELETE FROM sleepSession WHERE startTs < ? OR startTs > ?",
-                           arguments: [lo, hi])
+            try db.execute(sql: "DELETE FROM sleepSession WHERE startTs > ? OR (startTs < ? AND deviceId LIKE '%-noop')",
+                           arguments: [hi, lo])
             computedDeleted += db.changesCount
 
             return TimestampHealResult(rawRowsDeleted: rawDeleted,

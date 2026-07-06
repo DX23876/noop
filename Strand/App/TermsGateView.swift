@@ -7,7 +7,10 @@ import StrandDesign
 /// version is then stored locally, the on-device equivalent of a consent record. See `Terms` / `TERMS.md`.
 struct TermsGateView: View {
     let onAccept: () -> Void
-    @State private var checked = false
+    /// One flag per `Terms.attestations` entry; every one must be ticked before Accept enables.
+    @State private var checks: [Bool] = Array(repeating: false, count: Terms.attestations.count)
+
+    private var allChecked: Bool { checks.allSatisfy { $0 } }
 
     var body: some View {
         ZStack {
@@ -18,9 +21,10 @@ struct TermsGateView: View {
                     Text("Before you use NOOP")
                         .font(StrandFont.title1)
                         .foregroundStyle(StrandPalette.textPrimary)
-                    Text("Please read and accept the points below.")
+                    Text("Please read the points below, then confirm each statement.")
                         .font(StrandFont.subhead)
                         .foregroundStyle(StrandPalette.textSecondary)
+                        .multilineTextAlignment(.center)
                 }
                 .padding(.top, 36)
                 .padding(.bottom, 22)
@@ -39,6 +43,28 @@ struct TermsGateView: View {
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                         }
+
+                        Rectangle()
+                            .fill(StrandPalette.hairline)
+                            .frame(height: 1)
+                            .padding(.vertical, 2)
+
+                        Text("Please confirm each of these:")
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.textSecondary)
+
+                        ForEach(Array(Terms.attestations.enumerated()), id: \.offset) { idx, line in
+                            Toggle(isOn: Binding(get: { checks[idx] }, set: { checks[idx] = $0 })) {
+                                Text(line)
+                                    .font(StrandFont.footnote)
+                                    .foregroundStyle(StrandPalette.textPrimary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            #if os(macOS)
+                            .toggleStyle(.checkbox)   // iOS falls back to the default switch toggle
+                            #endif
+                        }
+
                         Text("The full terms are in TERMS.md, shipped with NOOP. This is not legal advice.")
                             .font(StrandFont.footnote)
                             .foregroundStyle(StrandPalette.textTertiary)
@@ -52,31 +78,19 @@ struct TermsGateView: View {
                     .fill(StrandPalette.hairline)
                     .frame(height: 1)
 
-                VStack(spacing: 16) {
-                    Toggle(isOn: $checked) {
-                        Text("I have read and accept these terms, and I'm using NOOP with my own device and my own data, at my own risk.")
-                            .font(StrandFont.footnote)
-                            .foregroundStyle(StrandPalette.textPrimary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    #if os(macOS)
-                    .toggleStyle(.checkbox)   // iOS falls back to the default switch toggle
-                    #endif
-
-                    Button(action: onAccept) {
-                        Text("Accept & Continue")
-                            .font(StrandFont.headline)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 9)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(StrandPalette.accent)
-                    .disabled(!checked)
-                    .keyboardShortcut(.defaultAction)
+                Button(action: onAccept) {
+                    Text("Accept & Continue")
+                        .font(StrandFont.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 9)
                 }
+                .buttonStyle(.borderedProminent)
+                .tint(StrandPalette.accent)
+                .disabled(!allChecked)
+                .keyboardShortcut(.defaultAction)
                 .padding(26)
             }
-            .frame(maxWidth: 560, maxHeight: 640)
+            .frame(maxWidth: 560, maxHeight: 720)
         }
     }
 }

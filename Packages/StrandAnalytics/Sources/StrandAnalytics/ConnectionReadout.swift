@@ -27,21 +27,58 @@ public enum ConnectionTrace {
     ///
     /// - Parameter futureToleranceSeconds: slack before flagging FUTURE (clock skew between the strap RTC
     ///   and the phone is normal up to a minute or two); the default mirrors a couple of minutes.
+    /// - Parameter behindToleranceSeconds: slack before flagging a BEHIND drift (#990). A newest banked
+    ///   record naturally trails wall time by hours (unworn strap, backlog), so the default is 48 h;
+    ///   beyond that the old line claimed "clockOk" at -363 days, hiding the exact clock fault the
+    ///   reporter needed to see.
     public static func clockDriftLine(oldestUnix: Int?,
                                       newestUnix: Int,
                                       wallNowUnix: Int,
-                                      futureToleranceSeconds: Int = 120) -> String {
+                                      futureToleranceSeconds: Int = 120,
+                                      behindToleranceSeconds: Int = behindToleranceDefault) -> String {
         let iso = isoDate(newestUnix)
         let aheadSeconds = newestUnix - wallNowUnix
-        let future = aheadSeconds > futureToleranceSeconds
         var line = "clockDrift newest=\(iso) wall=\(isoDate(wallNowUnix)) "
             + "newestVsWall=\(signed(aheadSeconds))s"
         if let oldestUnix {
             let spanDays = max(0, (newestUnix - oldestUnix)) / 86_400
             line += " oldest=\(isoDate(oldestUnix)) spanDays=\(spanDays)"
         }
-        line += future ? " FUTURE-DATED (strap clock ahead of wall)" : " clockOk"
+        line += clockVerdict(aheadSeconds: aheadSeconds, newestUnix: newestUnix,
+                             futureToleranceSeconds: futureToleranceSeconds,
+                             behindToleranceSeconds: behindToleranceSeconds)
         return line
+    }
+
+    // MARK: - Strap-clock verdict (shared by clockDriftLine + UniversalTrace.clockDriftLine, #990/#987)
+
+    /// 1972-01-01 unix. A strap RTC that was never set counts up from its 1970 epoch, so any strap-side
+    /// timestamp below this ceiling means "the clock never latched" (the #77/#91/#987 cluster tell:
+    /// the strap banks nothing to flash until its clock is set). Public so the readout warning (#987)
+    /// and the export line share ONE definition of "epoch-era".
+    public static let rtcEpochCeilingUnix = 63_072_000
+
+    /// The default BEHIND drift tolerance (#990): ±48 h. Being a day or two behind is a strap that
+    /// simply was not worn; beyond that the line must read as a clock warning, never "clockOk".
+    public static let behindToleranceDefault = 48 * 3_600
+
+    /// The strap-clock VERDICT token both clock-drift lines end with. One function so the Connection
+    /// and the universal line can never disagree about what counts as a clock fault. Ordered most
+    /// specific first: FUTURE (RTC ahead), RTC-EPOCH (never set, ~1970/71), CLOCK-WARNING (behind by
+    /// more than the tolerance, #990: a -363 d drift used to read "clockOk"), else clockOk. Honest
+    /// wording on the behind case: a reset clock and a long-unworn strap look identical from here, so
+    /// the line names both instead of guessing.
+    static func clockVerdict(aheadSeconds: Int, newestUnix: Int,
+                             futureToleranceSeconds: Int, behindToleranceSeconds: Int) -> String {
+        if aheadSeconds > futureToleranceSeconds { return " FUTURE-DATED (strap clock ahead of wall)" }
+        if newestUnix < rtcEpochCeilingUnix {
+            return " RTC-EPOCH (strap clock reads 1970/71, never set; charge to 100% and reconnect so it latches)"
+        }
+        if aheadSeconds < -behindToleranceSeconds {
+            let days = -aheadSeconds / 86_400
+            return " CLOCK-WARNING (newest banked record \(days)d behind wall; strap clock reset or history stale)"
+        }
+        return " clockOk"
     }
 
     /// The firmware-layout line for a HEALTHY sync: which historical record layout the strap emits
@@ -114,6 +151,71 @@ public enum ConnectionReadout {
             }
         }
         return nil
+    }
+
+    /// Rows drained (persisted) THIS session, for the readout row beside the all-time tally (#990):
+    /// the newest `sessionRows=<n>` running total the per-chunk offload-progress emitter writes, falling
+    /// back to the final `offload result= ... rows=<n>` when the session already summarised. nil when no
+    /// offload has drained anything this session.
+    public static func sessionRows(taggedTail: [String]) -> Int? {
+        for line in taggedTail.reversed() {
+            // A finished session's result line wins (it is the newest line). An "empty (console only)"
+            // result carries no rows= field and honestly means 0, NOT an older session's running total.
+            if line.contains("offload result=") { return intField(line, key: "rows=") ?? 0 }
+            if let n = intField(line, key: "sessionRows=") { return n }
+        }
+        return nil
+    }
+
+    /// #990: parse the Backfiller's session summary ("Backfill: session persisted N rows (...) across
+    /// K night(s).") back into its row count, so the log sink can fold each session into the persisted
+    /// ALL-TIME drained-rows tally. That summary is emitted UNCONDITIONALLY whenever rows landed (the
+    /// #150 win-rate line), so the cumulative counter accrues on every session, not only while the
+    /// Connection test mode is on. nil for any other line.
+    public static func drainedRowsFromSummary(_ line: String) -> Int? {
+        guard let r = line.range(of: "session persisted ") else { return nil }
+        let rest = line[r.upperBound...]
+        let digits = rest.prefix { $0.isNumber }
+        guard !digits.isEmpty, rest.dropFirst(digits.count).hasPrefix(" rows") else { return nil }
+        return Int(digits)
+    }
+
+    /// #987: the device-side clock value from the newest "Clock correlated: device=<d> wall=<w>" line
+    /// the correlation path logs, or nil when no correlation happened this session. Parsed from the
+    /// UNTAGGED log tail (correlation is not a test-mode emitter), so the caller passes the full log lines.
+    public static func clockCorrelatedDevice(logLines: [String]) -> Int? {
+        for line in logLines.reversed() where line.contains("Clock correlated:") {
+            return intField(line, key: "device=")
+        }
+        return nil
+    }
+
+    /// #987: the "clock latched" readout value. "yes" once a correlation landed with a plausible (post-
+    /// 1972) device clock; "no (RTC reads 1970/71)" when the strap answered with an epoch-era clock
+    /// (never set, so it banks no history); "no (waiting for the strap clock)" before any reply.
+    public static func clockLatchedLabel(deviceClockUnix: Int?) -> String {
+        guard let d = deviceClockUnix else { return "no (waiting for the strap clock)" }
+        return d < ConnectionTrace.rtcEpochCeilingUnix ? "no (RTC reads 1970/71)" : "yes"
+    }
+
+    /// #987: a plain-words warning when the strap RTC reads epoch-era (~1970/71), from EITHER signal we
+    /// hold: the correlated device clock or the strap's newest banked-record timestamp. nil when both
+    /// look sane (or neither was seen yet - we never fabricate a fault). One string, shown verbatim on
+    /// the Devices / Test Centre connection readout, naming the consequence and the fix.
+    public static func rtcWarning(deviceClockUnix: Int?, strapNewestUnix: Int?) -> String? {
+        let ceiling = ConnectionTrace.rtcEpochCeilingUnix
+        let clockBad = deviceClockUnix.map { $0 > 0 && $0 < ceiling } ?? false
+        let newestBad = strapNewestUnix.map { $0 > 0 && $0 < ceiling } ?? false
+        guard clockBad || newestBad else { return nil }
+        return "Strap clock reads 1970/71 (never set since its last reset), so it is not banking history. "
+            + "Charge the strap to 100% and reconnect so the clock latches."
+    }
+
+    /// #987: freshness label for the "last frame" readout row: how long ago the most recent strap frame
+    /// was routed ("12s ago"), or "no frames yet" before the first one. `nowUnix` injected for testability.
+    public static func lastFrameLabel(lastFrameUnix: Int?, nowUnix: Int) -> String {
+        guard let t = lastFrameUnix else { return "no frames yet" }
+        return durationLabel(max(0, nowUnix - t)) + " ago"
     }
 
     /// Parse a `key=<int>` field out of a line (the value runs up to the next space). nil when absent or

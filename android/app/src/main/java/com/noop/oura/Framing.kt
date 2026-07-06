@@ -84,12 +84,52 @@ data class OuraRecord(val type: Int, val ringTimestamp: Long, val payload: IntAr
     }
 }
 
+/**
+ * The parsed result of a 0x11 GetEvents response (OURA_PROTOCOL.md s5.2). Kotlin twin of the Swift
+ * `(cursor: UInt32, moreData: Bool)` tuple. `cursor` is the new resume cursor (an unsigned 32-bit ring
+ * timestamp carried as a Long, 0..0xFFFFFFFF); `moreData` is true while the ring still has banked events
+ * to hand over.
+ */
+data class GetEventsSummary(val cursor: Long, val moreData: Boolean)
+
 object OuraFraming {
     /** The secure-session / extended opcode. Per OURA_PROTOCOL.md s2.2 / s4.1. */
     const val secureSessionOp = 0x2F
 
+    /**
+     * The GetEvents response / summary outer opcode (OURA_PROTOCOL.md s5.2). Below the event-tag range
+     * (tags are >= 0x41), so a caller that fails to special-case it and lets it fall through to the TLV
+     * decoder gets a safe no-op ("unknown tag") with correct byte accounting, never a misdecode. Kotlin
+     * twin of Swift's getEventsResponseOp.
+     */
+    const val getEventsResponseOp = 0x11
+
+    /**
+     * The GetBattery response outer opcode (OURA_PROTOCOL.md s4.1/s6.10). Below the event-tag range
+     * (tags are >= 0x41), so it round-trips safely through the TLV decoder as an "unknown tag" no-op if a
+     * caller fails to special-case it. Kotlin twin of Swift's batteryResponseOp.
+     */
+    const val batteryResponseOp = 0x0D
+
     /** The minimum legal TLV `len` field: it must cover the 4 timestamp bytes. Per OURA_PROTOCOL.md s2.3. */
     const val minRecordLen = 4
+
+    /**
+     * Parse a 0x11 GetEvents response body: `status:1 sub_status:1 last_ring_timestamp:4LE pad:2`
+     * (OURA_PROTOCOL.md s5.2). `status` 0x00 = empty/no more; any other value = data follows. The
+     * `last_ring_timestamp` is the new cursor to resume the fetch from. Returns null on a short body
+     * (never guesses a cursor). Kotlin twin of Swift's parseGetEventsResponse; `cursor` is the unsigned
+     * 32-bit ring timestamp carried as a Long (0..0xFFFFFFFF).
+     */
+    fun parseGetEventsResponse(body: IntArray): GetEventsSummary? {
+        if (body.size < 6) return null
+        val status = body[0]
+        val cursor = (body[2].toLong() and 0xFFL) or
+            ((body[3].toLong() and 0xFFL) shl 8) or
+            ((body[4].toLong() and 0xFFL) shl 16) or
+            ((body[5].toLong() and 0xFFL) shl 24)
+        return GetEventsSummary(cursor = cursor, moreData = status != 0x00)
+    }
 
     /**
      * Parse one outer frame from the front of `bytes`. Returns null on a short buffer (header or body

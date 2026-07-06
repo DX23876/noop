@@ -107,35 +107,78 @@ public struct WatchScoreSnapshot: Codable, Equatable, Sendable {
         now.timeIntervalSince(asOf) > Self.stalenessThreshold
     }
 
-    /// A short, honest recency label for the glance + complication. Prefers `scoreDay` (the day the scores
-    /// are ABOUT) when the phone supplied it, so it reads "Today" / "Yesterday" / a weekday rather than
-    /// implying live numbers. Falls back to the `asOf` build-age ("just now" / "2h ago" / "3d ago") for
-    /// older payloads that predate `scoreDay`.
-    public func freshnessText(now: Date = Date()) -> String {
+    /// The semantic freshness buckets behind `freshnessText`. Display code that needs to REASON about
+    /// recency (e.g. "the label adds nothing while the scores are current, hide it") goes through
+    /// `isFreshToday`, which switches on this classification. It must never compare the localized
+    /// display string ("Today" / "just now") instead: that reads fine in English and silently breaks
+    /// in every translated language.
+    private enum FreshnessKind {
+        case today
+        case yesterday
+        case weekday(Date)
+        case daysAgo(Int)
+        case builtJustNow
+        case builtMinutesAgo(Int)
+        case builtHoursAgo(Int)
+        case builtDaysAgo(Int)
+    }
+
+    /// Classify this snapshot's recency. Prefers `scoreDay` (the day the scores are ABOUT) when the
+    /// phone supplied it, so the label can read "Today" / "Yesterday" / a weekday rather than implying
+    /// live numbers. Falls back to the `asOf` build age for older payloads that predate `scoreDay`.
+    private func freshnessKind(now: Date) -> FreshnessKind {
         let cal = Calendar.current
 
         // Preferred path: we know which day the scores describe. Compare day keys against "now" so the
         // label tracks the actual calendar day, not the build clock.
         if let scoreDay, let scored = Self.dayKeyFormatter.date(from: scoreDay) {
-            if cal.isDateInToday(scored) { return "Today" }
-            if cal.isDateInYesterday(scored) { return "Yesterday" }
+            if cal.isDateInToday(scored) { return .today }
+            if cal.isDateInYesterday(scored) { return .yesterday }
             let days = cal.dateComponents([.day], from: cal.startOfDay(for: scored),
                                           to: cal.startOfDay(for: now)).day ?? 0
             // Within the last week a weekday name ("Mon") is the most readable; past that, a plain count.
-            if days >= 2 && days <= 6 {
-                let f = DateFormatter()
-                f.dateFormat = "EEE"
-                return f.string(from: scored)
-            }
-            return "\(max(days, 0)) days ago"
+            if days >= 2 && days <= 6 { return .weekday(scored) }
+            return .daysAgo(max(days, 0))
         }
 
         // Fallback: no scoreDay (an older snapshot). Describe the build age of the snapshot itself.
         let age = now.timeIntervalSince(asOf)
-        if age < 60 { return "just now" }
-        if age < 3600 { return "\(Int(age / 60))m ago" }
-        if age < 86_400 { return "\(Int(age / 3600))h ago" }
-        return "\(Int(age / 86_400))d ago"
+        if age < 60 { return .builtJustNow }
+        if age < 3600 { return .builtMinutesAgo(Int(age / 60)) }
+        if age < 86_400 { return .builtHoursAgo(Int(age / 3600)) }
+        return .builtDaysAgo(Int(age / 86_400))
+    }
+
+    /// A short, honest recency label for the glance + complication ("Today" / "Yesterday" / "2h ago").
+    /// Rendered off `freshnessKind` so the words and the semantics (`isFreshToday`) can never drift.
+    public func freshnessText(now: Date = Date()) -> String {
+        switch freshnessKind(now: now) {
+        case .today:                  return String(localized: "Today", bundle: .module)
+        case .yesterday:              return String(localized: "Yesterday", bundle: .module)
+        case .weekday(let scored):
+            let f = DateFormatter()
+            f.dateFormat = "EEE"
+            return f.string(from: scored)
+        case .daysAgo(let days):      return String(localized: "\(days) days ago", bundle: .module)
+        case .builtJustNow:           return String(localized: "just now", bundle: .module)
+        case .builtMinutesAgo(let m): return String(localized: "\(m)m ago", bundle: .module)
+        case .builtHoursAgo(let h):   return String(localized: "\(h)h ago", bundle: .module)
+        case .builtDaysAgo(let d):    return String(localized: "\(d)d ago", bundle: .module)
+        }
+    }
+
+    /// True when the scores read as CURRENT: they describe today's local day, or (for older payloads
+    /// without `scoreDay`) the snapshot was built under a minute ago. This is the semantic twin of
+    /// `freshnessText` returning "Today" / "just now", and it is what display code must key off when it
+    /// appends the freshness label only where it adds information. Never compare the localized display
+    /// text for that decision: it breaks the moment a string catalog translates "Today". Derived at
+    /// read time from fields already on the wire (`scoreDay` + `asOf`), so the encoded payload is
+    /// unchanged and a snapshot from an older phone build classifies exactly as before.
+    public func isFreshToday(now: Date = Date()) -> Bool {
+        switch freshnessKind(now: now) {
+        case .today, .builtJustNow: return true
+        default:                    return false
+        }
     }
 
     /// Shared "YYYY-MM-DD" parser/formatter for `scoreDay`. Fixed locale + POSIX so it round-trips the

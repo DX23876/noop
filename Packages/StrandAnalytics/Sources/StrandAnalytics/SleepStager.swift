@@ -1020,6 +1020,35 @@ public enum SleepStager {
         return grid.counts
     }
 
+    /// #175: the strap's OWN band sleep_state (0 wake/1 still/2 asleep/3 up) gridded onto the SAME 30 s
+    /// epoch grid `stagesJSON` / `sessionEpochMotion` use, so the caller can persist it via
+    /// `WhoopStore.persistSessionSleepState` and the H7 re-onset CONFIRM guard can read it back as timestamped
+    /// `(startTs + i*epochS, state)` samples. Returns EMPTY when the session carries no band-state samples
+    /// (a WHOOP 4.0, or an unbanded window) — an absent signal stays absent, never a fabricated array. When
+    /// present, each epoch takes the band's LAST reported state within its `[start+i·30, start+(i+1)·30)`
+    /// window; an epoch with no sample of its own CARRIES FORWARD the previous epoch's state (band state is a
+    /// step function). Leading epochs before the first sample take the first sample's state. The band code is
+    /// carried VERBATIM — this never converts an unproven code into a derived stage; consumers decide meaning.
+    public static func sessionEpochSleepState(start: Int, end: Int,
+                                              sleepState: [(ts: Int, state: Int)]) -> [Int] {
+        let seg = rowsBetween(sleepState, start: start, end: end) { $0.ts }.sorted { $0.ts < $1.ts }
+        guard !seg.isEmpty, end > start else { return [] }
+        let nEpochs = max(1, Int(ceil(Double(end - start) / epochS)))
+        var out = [Int](repeating: seg[0].state, count: nEpochs)   // lead-in = first sample's state
+        var last = seg[0].state
+        var si = 0
+        for i in 0..<nEpochs {
+            let epochEnd = start + Int(Double(i + 1) * epochS)
+            // Advance through every sample that falls in/at-or-before this epoch's window; the LAST one wins.
+            while si < seg.count && seg[si].ts < epochEnd {
+                last = seg[si].state
+                si += 1
+            }
+            out[i] = last   // carry-forward when the epoch had no sample of its own
+        }
+        return out
+    }
+
     // MARK: - Epoch grid
 
     struct EpochGrid {

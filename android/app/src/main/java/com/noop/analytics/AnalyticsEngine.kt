@@ -8,6 +8,8 @@ import com.noop.data.SkinTempSample
 import com.noop.data.RespSample
 import com.noop.data.RrInterval
 import com.noop.data.StepSample
+import com.noop.protocol.DeviceFamily
+import com.noop.protocol.skinTempCelsius
 import org.json.JSONObject
 import java.time.Instant
 import java.time.ZoneOffset
@@ -161,6 +163,11 @@ object AnalyticsEngine {
         // seeds a personal baseline from these means across nights and re-derives skinTempDevC in pass 2
         // (same two-pass shape as avgHrv→recovery). (PR #85)
         skinTemp: List<SkinTempSample> = emptyList(),
+        // Device family that wrote [skinTemp], so the raw→°C conversion picks the right scale (#938):
+        // 5/MG banks CENTIDEGREES (raw/100), the WHOOP 4.0 v24 field is a RAW ADC on a different scale.
+        // Default WHOOP5 keeps every 5/MG + pure-function caller byte-identical; IntelligenceEngine passes
+        // the day owner's real family.
+        skinTempFamily: DeviceFamily = DeviceFamily.WHOOP5,
         profile: UserProfile,
         baselines: ProfileBaselines = ProfileBaselines(),
         maxHROverride: Double? = null,
@@ -321,7 +328,7 @@ object AnalyticsEngine {
         // mean is harvested; IntelligenceEngine seeds the baseline from those means and re-derives the
         // deviation in pass 2 (mirrors avgHrv→recovery). Computed BEFORE Charge so the Charge skin-temp
         // penalty can read it. APPROXIMATE. (PR #85)
-        val nightlySkinTempC = wornNightlySkinTempC(matched, hr, skinTemp)
+        val nightlySkinTempC = wornNightlySkinTempC(matched, hr, skinTemp, skinTempFamily)
         val skinTempDevC: Double? = nightlySkinTempC?.let { v ->
             baselines.skinTemp?.takeIf { it.usable }?.let { round2(Baselines.deviation(v, it).delta) }
         }
@@ -507,6 +514,21 @@ object AnalyticsEngine {
             if (motion.isNotEmpty()) sessionMotionByStart[s.start] = motion
         }
 
+        // ── Per-session per-epoch BAND sleep_state (#175) ─────────────────────
+        // Grid the strap's OWN band sleep_state (the SAME [bandSleepState] samples the H7 guard consumes)
+        // onto each matched session's 30 s epochs, for the caller to persist beside `stagesJSON`. This is the
+        // source the band-state chain lacked (persist → next pass's H7 re-onset CONFIRM). A session whose
+        // window carries no band samples is omitted (no key) → the caller persists NULL, an absent signal
+        // stays absent. Empty on a WHOOP 4.0. The band code is carried verbatim; it NEVER overrides the
+        // derived hypnogram, only confirms a borderline morning re-onset. Mirrors Swift.
+        val sessionSleepStateByStart = HashMap<Long, List<Int>>()
+        if (bandSleepState.isNotEmpty()) {
+            for (s in matched) {
+                val states = SleepStager.sessionEpochSleepState(s.start, s.end, bandSleepState)
+                if (states.isNotEmpty()) sessionSleepStateByStart[s.start] = states
+            }
+        }
+
         return DayResult(
             daily = daily,
             sleepSessions = matched,
@@ -519,6 +541,7 @@ object AnalyticsEngine {
             effortConfidence = effortConfidence,
             restConfidence = restConfidence,
             sessionMotionByStart = sessionMotionByStart,
+            sessionSleepStateByStart = sessionSleepStateByStart,
         )
     }
 
@@ -535,14 +558,21 @@ object AnalyticsEngine {
      * concurrent HR sample reads a worn, alive BPM (the strap streams HR only on-wrist), and (c) the
      * value is in the plausible worn range — so an on-charger interval drifting to ambient (which still
      * passes the strap's looser 20–45 decode gate, e.g. the ~22 °C off-wrist decode fixture) can't
-     * poison the nightly mean. Uses the decoder's /100 scale. All values APPROXIMATE. (PR #85)
+     * poison the nightly mean.
+     *
+     * The raw→°C conversion is DEVICE-FAMILY-AWARE (#938): 5/MG stores CENTIDEGREES (°C = raw/100), but
+     * the WHOOP 4.0 v24 field@72 is a RAW ADC on a different scale — running it through /100 read every
+     * worn 4.0 night ~8 °C, below the 28 °C worn gate, so kept=0 and skin temp + the illness signal
+     * vanished (issue #938). The shared [skinTempCelsius] picks the right scale; [family] defaults to
+     * WHOOP5 so every existing 5/MG + pure-function caller is byte-identical. All values APPROXIMATE.
      */
     internal fun wornNightlySkinTempC(
         sessions: List<DetectedSleep>,
         hr: List<HrSample>,
         skinTemp: List<SkinTempSample>,
+        family: DeviceFamily = DeviceFamily.WHOOP5,
         minSamples: Int = MIN_SKIN_TEMP_SAMPLES_INLINE,
-    ): Double? = skinTempFunnel(sessions, hr, skinTemp, minSamples).mean
+    ): Double? = skinTempFunnel(sessions, hr, skinTemp, family, minSamples).mean
 
     /** Plausible worn skin-temperature range (°C). Off-wrist/charging samples drift to ambient and are
      *  excluded; the strap's own decode gate is the looser 20–45. (PR #85) */
@@ -589,6 +619,7 @@ object AnalyticsEngine {
         sessions: List<DetectedSleep>,
         hr: List<HrSample>,
         skinTemp: List<SkinTempSample>,
+        family: DeviceFamily = DeviceFamily.WHOOP5,
         minSamples: Int = MIN_SKIN_TEMP_SAMPLES_INLINE,
     ): SkinTempFunnelDiagnostic {
         val total = skinTemp.size
@@ -611,7 +642,7 @@ object AnalyticsEngine {
         for (t in skinTemp) {
             if (t.ts !in wornSeconds) { notWorn++; continue }
             if (sessions.none { t.ts in it.start..it.end }) { outOfWindow++; continue }
-            val c = t.raw / 100.0
+            val c = skinTempCelsius(t.raw, family)   // #938: family-aware (5/MG=raw/100, 4.0=raw ADC map)
             if (c < SKIN_TEMP_MIN_C || c > SKIN_TEMP_MAX_C) { outOfRange++; continue }
             sum += c
             kept++

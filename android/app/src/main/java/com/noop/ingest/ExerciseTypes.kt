@@ -61,6 +61,9 @@ object ExerciseTypes {
         // Pickleball (#768): a fast-growing racquet sport HC has no type for → writes as "Other",
         // stays "Pickleball" on our own rows. No route → GPS off.
         "Pickleball" to EX.EXERCISE_TYPE_OTHER_WORKOUT,
+        // Bowling (D#850): HC has no type for it → writes as "Other", stays "Bowling" on our own
+        // rows. No route → GPS off.
+        "Bowling" to EX.EXERCISE_TYPE_OTHER_WORKOUT,
         // #714 indoor treadmill walk. HC has a treadmill-RUN type but no treadmill-WALK type, so this
         // rides on plain WALKING for writeback while keeping its own "Treadmill walk" label. Kept OUT of
         // DISTANCE_TYPES so GPS defaults off (an indoor session has no route).

@@ -31,7 +31,7 @@ import StrandAnalytics
 /// The standing privacy promise repeated on every sensitive skin-temp surface (the single
 /// biggest competitive wedge vs cloud cycle trackers, and the ethical stance).
 private let skinTempPrivacyLine =
-    "This stays on your device. It is never uploaded, never synced, never shared."
+    String(localized: "This stays on your device. It is never uploaded, never synced, never shared.")
 
 /// A small, footnote-styled privacy row with a lock glyph — dropped at the foot of each
 /// sensitive card so the promise is impossible to miss without shouting.
@@ -164,7 +164,7 @@ struct CycleAwarenessCard: View {
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(hue)
                 .accessibilityHidden(true)
-            Text("A period is likely between \(prettyDay(window.earliestDay)) and \(prettyDay(window.latestDay)) — a window, not a fixed date.")
+            Text("A period is likely between \(prettyDay(window.earliestDay)) and \(prettyDay(window.latestDay)) (a window, not a fixed date).")
                 .font(StrandFont.subhead)
                 .foregroundStyle(StrandPalette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -191,18 +191,18 @@ struct CycleAwarenessCard: View {
 
     private var phaseTitle: String {
         switch result.phase {
-        case .follicular:   return "Follicular"
-        case .periOvulatory: return "Mid-cycle shift"
-        case .luteal:       return "Luteal"
-        case .unknown:      return "No clear pattern"
-        case .learning:     return "Learning your pattern"
+        case .follicular:   return String(localized: "Follicular")
+        case .periOvulatory: return String(localized: "Mid-cycle shift")
+        case .luteal:       return String(localized: "Luteal")
+        case .unknown:      return String(localized: "No clear pattern")
+        case .learning:     return String(localized: "Learning your pattern")
         }
     }
 
     /// "~day 18–22" — always a RANGE, never a single point.
     private var cycleDayText: String? {
         guard let lo = result.cycleDayLow, let hi = result.cycleDayHigh else { return nil }
-        return lo == hi ? "· ~day \(lo)" : "· ~day \(lo)–\(hi)"
+        return lo == hi ? String(localized: "· ~day \(lo)") : String(localized: "· ~day \(lo)-\(hi)")
     }
 
     private var statusLine: String { result.note }
@@ -224,11 +224,12 @@ struct CycleAwarenessCard: View {
     }
 
     private var accessibilityHeadline: String {
-        var s = "Cycle phase: \(phaseTitle)."
         if let lo = result.cycleDayLow, let hi = result.cycleDayHigh {
-            s += lo == hi ? " About day \(lo)." : " About day \(lo) to \(hi)."
+            return lo == hi
+                ? String(localized: "Cycle phase: \(phaseTitle). About day \(lo).")
+                : String(localized: "Cycle phase: \(phaseTitle). About day \(lo) to \(hi).")
         }
-        return s
+        return String(localized: "Cycle phase: \(phaseTitle).")
     }
 }
 
@@ -253,7 +254,7 @@ struct CycleAwarenessOptInCard: View {
                         .foregroundStyle(StrandPalette.textPrimary)
                     Spacer()
                 }
-                Text("NOOP can read a coarse menstrual-cycle phase from your nightly skin temperature — entirely on your device. It is awareness only: not contraception, not a fertility predictor, not a medical service.")
+                Text("NOOP can read a coarse menstrual-cycle phase from your nightly skin temperature, entirely on your device. It is awareness only: not contraception, not a fertility predictor, not a medical service.")
                     .font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -349,7 +350,7 @@ struct BodyClockCard: View {
             Text("Plan · \(plan.estimatedDays)-day shift")
                 .strandOverline()
             // Day 1's concrete light + lights-out cue — light + sleep timing only.
-            Text("Day 1 — bright light \(clockString(firstDay.brightLightStartHour))–\(clockString(firstDay.brightLightEndHour)), lights-out around \(clockString(firstDay.targetSleepHour)).")
+            Text("Day 1: bright light \(clockString(firstDay.brightLightStartHour))-\(clockString(firstDay.brightLightEndHour)), lights-out around \(clockString(firstDay.targetSleepHour)).")
                 .font(StrandFont.subhead)
                 .foregroundStyle(StrandPalette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -367,13 +368,14 @@ struct BodyClockCard: View {
     private var offsetTitle: String {
         let mins = Int(abs(estimate.offsetVsScheduleMinutes).rounded())
         if estimate.confidence == .unreadable {
-            return "Hard to read right now"
+            return String(localized: "Hard to read right now")
         }
         if mins <= 20 {
-            return "About in sync with your schedule"
+            return String(localized: "About in sync with your schedule")
         }
-        let dir = estimate.offsetVsScheduleMinutes > 0 ? "later" : "earlier"
-        return "About \(mins) min \(dir) than your schedule"
+        return estimate.offsetVsScheduleMinutes > 0
+            ? String(localized: "About \(mins) min later than your schedule")
+            : String(localized: "About \(mins) min earlier than your schedule")
     }
 
     private var confidenceLabel: LocalizedStringKey {
@@ -494,11 +496,11 @@ struct HeadsUpCard: View {
 
     private var title: String {
         switch result.level {
-        case .raised:        return "Heads-up"
-        case .alreadyUnwell: return "Rest up"
-        case .suppressed:    return "Probably not illness"
-        case .mild:          return "A few signals are up"
-        case .quiet:         return "Nothing notable"
+        case .raised:        return String(localized: "Heads-up")
+        case .alreadyUnwell: return String(localized: "Rest up")
+        case .suppressed:    return String(localized: "Probably not illness")
+        case .mild:          return String(localized: "A few signals are up")
+        case .quiet:         return String(localized: "Nothing notable")
         }
     }
 
@@ -510,7 +512,7 @@ struct HeadsUpCard: View {
     private var confidenceLine: String? {
         guard result.level == .raised,
               let d = distance else { return nil }
-        return "Confidence: \(IllnessConfidence.band(d.distance)) (distance \(IllnessConfidence.formatted(d.distance)))"
+        return String(localized: "Confidence: \(IllnessConfidence.band(d.distance)) (distance \(IllnessConfidence.formatted(d.distance)))")
     }
 }
 
@@ -521,9 +523,9 @@ struct HeadsUpCard: View {
 /// already did). Bands: >= 3.5 strong, >= 2.5 moderate, else slight. Identical to the Kotlin twin.
 enum IllnessConfidence {
     static func band(_ distance: Double) -> String {
-        if distance >= 3.5 { return "strong" }
-        if distance >= 2.5 { return "moderate" }
-        return "slight"
+        if distance >= 3.5 { return String(localized: "strong") }
+        if distance >= 2.5 { return String(localized: "moderate") }
+        return String(localized: "slight")
     }
     static func formatted(_ distance: Double) -> String {
         String(format: "%.1f", distance)
@@ -562,7 +564,10 @@ private struct FlowChips: View {
 private func prettyDay(_ key: String) -> String {
     let parts = key.split(separator: "-")
     guard parts.count == 3, let m = Int(parts[1]), let d = Int(parts[2]), (1...12).contains(m) else { return key }
-    let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    let months = [String(localized: "Jan"), String(localized: "Feb"), String(localized: "Mar"),
+                  String(localized: "Apr"), String(localized: "May"), String(localized: "Jun"),
+                  String(localized: "Jul"), String(localized: "Aug"), String(localized: "Sep"),
+                  String(localized: "Oct"), String(localized: "Nov"), String(localized: "Dec")]
     return "\(d) \(months[m - 1])"
 }
 

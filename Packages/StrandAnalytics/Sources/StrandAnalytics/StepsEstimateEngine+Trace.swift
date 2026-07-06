@@ -95,6 +95,17 @@ extension StepsEstimateEngine {
             .sorted { $0.ts < $1.ts }
 
         var lines: [String] = []
+        // #810: a WHOOP 4.0 sends NO raw step counter over BLE at all, so `sorted` is empty for it; its
+        // steps are MOTION-ESTIMATED (the calibrationTrace path), not counted. Emitting the bare
+        // "counterSamples=0 (need >=2 for a delta)" line made a 4.0 export read as BROKEN. When there is
+        // no counter sample at all, say so honestly so the trace reflects the model, not a fault. (A 5/MG
+        // with a single counter sample still falls through to the "need >=2" line: it HAS a counter, just
+        // one read this window.) The Kotlin twin emits the same branch first; keep them byte-identical.
+        if sorted.isEmpty {
+            lines.append("stepsRaw day=\(dayKey) counterSamples=0 noRawCounter "
+                + "(no step counter on this device; steps are motion-estimated, e.g. WHOOP 4.0)")
+            return lines
+        }
         guard sorted.count >= 2 else {
             lines.append("stepsRaw day=\(dayKey) counterSamples=\(sorted.count) (need >=2 for a delta)")
             return lines

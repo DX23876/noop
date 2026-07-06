@@ -98,7 +98,7 @@ private fun dayLabel(epochSec: Long): String {
 
 /** "Looks like a workout [yesterday ]around 14:05–14:32 (avg HR 148, 27 min). Save it?" Mirrors iOS. */
 private fun promptText(w: AutoWorkoutDetector.DetectedWorkout): String =
-    "Looks like a workout ${dayLabel(w.startSec)}around ${hhmm(w.startSec)}–${hhmm(w.endSec)} " +
+    "Looks like a workout ${dayLabel(w.startSec)}around ${hhmm(w.startSec)} - ${hhmm(w.endSec)} " +
         "(avg HR ${w.avgBpm}, ${w.durationMin} min). Save it?"
 
 @Composable

@@ -81,8 +81,19 @@ object TestBundleAssembler {
      *
      * [logText] is the live strap-log tail (vm.ble.exportLogText()) so the assembler stays off the BLE
      * client and is testable; the header and last crash are added here to match the strap-log file.
+     *
+     * [storage] / [strapModel] (#1002): the REAL probes, gathered by the caller (the row counts are
+     * suspend store reads, so the sync assembler can't run them itself). null means the probe could not
+     * run - meta then carries the zeroed block, which stays honest: zeros are "nothing readable", never
+     * a made-up figure. Twin of the Swift assembler's parameters.
      */
-    fun assemble(context: Context, profile: TestDomain, logText: String): List<Pair<String, ByteArray>> {
+    fun assemble(
+        context: Context,
+        profile: TestDomain,
+        logText: String,
+        storage: TestBundleMeta.Storage? = null,
+        strapModel: String? = null,
+    ): List<Pair<String, ByteArray>> {
         val tc = TestCentre.from(context)
         // The set of currently-active domains drives the report-completeness guard. MASTER turns every
         // domain on (TestCentre.active resolves that), so a master report checks every mapped trace.
@@ -139,8 +150,10 @@ object TestBundleAssembler {
         val out = ArrayList(capped)
 
         // 3. meta.json: the machine-readable tie. Answers + startedAt come off the single TestCentre
-        //    surface. Storage is left zeroed in Phase 1 (the DB-size probe is a later wire-up); we never
-        //    fabricate a number we cannot read. The Android build is unsigned-flavour, channel "GitHub".
+        //    surface. Storage + strapModel (#1002) are the caller's REAL probes (Phase 1 shipped
+        //    hardcoded zeros here, so every meta.json read "db_bytes: 0" even on a multi-GB library and
+        //    maintainers triaged blind); a null probe falls back to the zeroed block - zeros mean
+        //    "unreadable", we still never fabricate. The Android build is unsigned-flavour, channel "GitHub".
         val started = tc.startedAt(profile)?.let {
             java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", java.util.Locale.US)
                 .format(java.util.Date(it * 1000L))
@@ -150,13 +163,13 @@ object TestBundleAssembler {
             appVersion = BuildConfig.VERSION_NAME,
             platform = "Android",
             osVersion = Build.VERSION.RELEASE ?: "?",
-            strapModel = null,
+            strapModel = strapModel,
             source = listOf("Live Bluetooth"),
             testProfile = profile.id,
             profileStartedAt = started,
             questionnaire = tc.answers(profile),
             build = TestBundleMeta.Build(channel = "GitHub", signed = false),
-            storage = TestBundleMeta.Storage(dbBytes = 0, rows = emptyMap(), rawCaptureBytes = 0),
+            storage = storage ?: TestBundleMeta.Storage(dbBytes = 0, rows = emptyMap(), rawCaptureBytes = 0),
             redaction = REDACTION_VERSION,
             truncated = truncated,
             // The same completeness guard, machine-readable. Computed over the SHIPPING report.txt (the

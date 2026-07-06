@@ -40,18 +40,35 @@ public enum TestCentreLayout {
 public extension TestCentreLayout {
 
     /// The row status string. "Off" when inactive; "On" for an active toggle mode; "Capturing K of N
-    /// <unit>" for an active guided mode, where K is the elapsed-day count (1-based, ceil), clamped to
-    /// the target so a long-running capture never reads past its window (spec section 12). `unit` is the
-    /// mode's own word ("nights" / "days"), so Sleep and Battery read naturally. No em-dash.
-    static func statusText(for mode: TestMode, active: Bool, elapsedSeconds: Double?) -> String {
+    /// <unit>" for an active guided mode. `unit` is the mode's own word ("nights" / "days"), so Sleep and
+    /// Battery read naturally. No em-dash.
+    ///
+    /// K is the HONEST per-mode capture count (#965): the number of DISTINCT days this mode actually
+    /// produced a trace on (`capturedUnits`, from `CaptureAccumulator`), so each active mode INDEPENDENTLY
+    /// accumulates its own count rather than every row sharing one elapsed-clock number. `capturedUnits`
+    /// is clamped to [0, target]: a dead-trace mode reads "0 of N" honestly (it captured nothing), and a
+    /// mode run past its window reads "N of N" (it never over-runs).
+    ///
+    /// `capturedUnits == nil` falls back to the legacy elapsed-day proxy (`ceil(elapsedSeconds / 1 day)`,
+    /// clamped to [1, target]) for callers that cannot supply a real count (previews / a screen with no log
+    /// yet); the live Test Centre row supplies the accumulator count so the shipped counter is data-driven.
+    static func statusText(for mode: TestMode, active: Bool, elapsedSeconds: Double?,
+                           capturedUnits: Int? = nil) -> String {
         guard active else { return "Off" }
         switch mode.capture {
         case .toggle:
             return "On"
         case let .guided(unit, defaultCount):
-            let elapsed = max(0, elapsedSeconds ?? 0)
-            let dayIndex = Int(ceil(elapsed / 86_400.0))
-            let k = min(max(dayIndex, 1), defaultCount)
+            let k: Int
+            if let captured = capturedUnits {
+                // Honest data-driven count: distinct captured days, clamped to [0, target].
+                k = min(max(captured, 0), defaultCount)
+            } else {
+                // Legacy elapsed-clock proxy (no real count available), clamped to [1, target].
+                let elapsed = max(0, elapsedSeconds ?? 0)
+                let dayIndex = Int(ceil(elapsed / 86_400.0))
+                k = min(max(dayIndex, 1), defaultCount)
+            }
             return "Capturing \(k) of \(defaultCount) \(unit.rawValue)"
         }
     }

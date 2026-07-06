@@ -40,6 +40,41 @@ final class FramingTests: XCTestCase {
         XCTAssertEqual(frames[1].body, [0x00])
     }
 
+    // MARK: - GetBattery response (0x0D, s6.10)
+
+    func testBatteryResponseOpIsRecognisedAsAnOuterFrame() {
+        // 0d 06 <percent=57=87> <charging=00> <flag=00> <3 unknown> - the live path routes this op to the
+        // battery decoder, never to the TLV record decoder (op 0x0D is below the event-tag range).
+        let frames = OuraFraming.parseOuterFrames(bytes("0d06570000003c0f"))
+        XCTAssertEqual(frames.count, 1)
+        XCTAssertEqual(frames[0].op, OuraFraming.batteryResponseOp)
+        let battery = OuraDecoders.decodeBattery(frames[0].body)
+        XCTAssertEqual(battery?.percent, 0x57)   // 87%
+    }
+
+    // MARK: - GetEvents response (0x11, s5.2)
+
+    func testParseGetEventsResponseMoreDataFollows() {
+        // 11 08 <status=ff> <sub_status=00> <last_rt:4LE=78563412> <pad:2>
+        let outer = OuraFraming.parseOuterFrame(bytes("1108ff00785634120000"))
+        XCTAssertEqual(outer?.op, OuraFraming.getEventsResponseOp)
+        let summary = OuraFraming.parseGetEventsResponse(outer!.body)
+        XCTAssertEqual(summary?.cursor, 0x1234_5678)
+        XCTAssertEqual(summary?.moreData, true)
+    }
+
+    func testParseGetEventsResponseNoMoreData() {
+        // status 0x00 -> caught up, no more data.
+        let outer = OuraFraming.parseOuterFrame(bytes("11080000785634120000"))
+        let summary = OuraFraming.parseGetEventsResponse(outer!.body)
+        XCTAssertEqual(summary?.cursor, 0x1234_5678)
+        XCTAssertEqual(summary?.moreData, false)
+    }
+
+    func testParseGetEventsResponseShortBodyReturnsNil() {
+        XCTAssertNil(OuraFraming.parseGetEventsResponse(bytes("ff0012")))
+    }
+
     // MARK: - Secure-session sub-frame (0x2F)
 
     func testSecureFrameNonceResponse() {

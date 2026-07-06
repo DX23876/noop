@@ -11,11 +11,11 @@ options:
   developmentLanguage: en
 settings:
   base:
-    MARKETING_VERSION: "7.5.0"
+    MARKETING_VERSION: "8.2.2"
     # iOS build number (CFBundleVersion). GLOBAL so the iOS app AND its widget extension inherit the
     # SAME value — they must match or iOS warns "extension version must match parent app" (#416).
     # macOS sets its own CFBundleVersion on the Strand target and is unaffected by this.
-    CURRENT_PROJECT_VERSION: "161"
+    CURRENT_PROJECT_VERSION: "172"
     SWIFT_VERSION: "5.0"
     # Emit localizable strings so Xcode auto-extracts every LocalizedStringKey into the
     # String Catalog on build (the English (US) base entries).
@@ -73,13 +73,16 @@ targets:
         excludes:
           - "Resources/Info.plist"
           - "Resources/Strand.entitlements"
+          # The liquid Today is now cross-platform: its iOS-only chrome (topBarTrailing / navigationBarTitleDisplayMode
+          # / presentationCompactAdaptation / two-param onChange / sensoryFeedback) is guarded, so the mac split-view
+          # shell hosts LiquidTodayView too. All Liquid/* now compile into the mac target.
     info:
       path: Strand/Resources/Info.plist
       properties:
         CFBundleName: NOOP
         CFBundleDisplayName: NOOP
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
-        CFBundleVersion: "192"
+        CFBundleVersion: "198"
         LSMinimumSystemVersion: "13.0"
         LSApplicationCategoryType: public.app-category.healthcare-fitness
         NSBluetoothAlwaysUsageDescription: "NOOP connects directly to your WHOOP strap over Bluetooth to read heart rate, R-R intervals, battery, and sensor data locally on your Mac. Nothing leaves your device."
@@ -327,6 +330,9 @@ targets:
     platform: watchOS
     deploymentTarget: "10.0"
     sources:
+      # Includes NOOPWatch/Localizable.xcstrings, the watch app's OWN string catalog (the watch cannot
+      # read the phone app's Strand/Resources catalog; a target only ships the catalogs in its sources).
+      # Shared StrandDesign strings localize via the package's own catalog + bundle: .module.
       - path: NOOPWatch
         excludes:
           - "Info.plist"
@@ -381,6 +387,8 @@ targets:
     platform: watchOS
     deploymentTarget: "10.0"
     sources:
+      # Includes NOOPWatchComplications/Localizable.xcstrings: the complication is its own bundle and
+      # needs its own catalog (it cannot read the watch app's, let alone the phone's).
       - path: NOOPWatchComplications
         excludes:
           - "Info.plist"
@@ -408,6 +416,9 @@ targets:
         PRODUCT_NAME: NOOPWatchComplications
         GENERATE_INFOPLIST_FILE: NO
         TARGETED_DEVICE_FAMILY: "4"
+        # Parity with the other UI targets: auto-extract LocalizedStringKey / String(localized:) usages
+        # into this target's Localizable.xcstrings on build.
+        SWIFT_EMIT_LOC_STRINGS: YES
     dependencies:
       - package: StrandDesign
 

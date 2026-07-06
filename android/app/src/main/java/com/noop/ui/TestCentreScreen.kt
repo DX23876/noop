@@ -37,6 +37,8 @@ import com.noop.BuildConfig
 import com.noop.analytics.Baselines
 import com.noop.ble.PuffinExperiment
 import com.noop.ble.WhoopModel
+import com.noop.testcentre.CaptureAccumulator
+import com.noop.testcentre.CaptureKind
 import com.noop.testcentre.DisplayPerformanceMonitor
 import com.noop.testcentre.ReportReviewGate
 import com.noop.testcentre.TestBundleAssembler
@@ -115,6 +117,10 @@ fun TestCentreScreen(vm: AppViewModel) {
                         mode = mode,
                         active = testCentre.active(mode.domain),
                         startedAtSeconds = testCentre.startedAt(mode.domain),
+                        // #965: the shareable strap log the report exports, so the row's "K of N" is the
+                        // HONEST per-mode captured-day count (CaptureAccumulator), not an elapsed-clock proxy.
+                        // Recomputes with `live` (collected above) so the count updates as new days land.
+                        logText = vm.ble.exportLogText(),
                         onToggle = { on ->
                             if (on) testCentre.activate(mode.domain) else testCentre.deactivate(mode.domain)
                             // Display & Performance owns a live frame monitor. It must run ONLY while the
@@ -136,7 +142,10 @@ fun TestCentreScreen(vm: AppViewModel) {
                                 }
                             }
                         },
-                        onReport = { pendingReport = buildPending(context, mode, vm.ble.exportLogText()) },
+                        onReport = {
+                            // Launched (#1002): buildPending is now suspend (storage probe reads the store).
+                            scope.launch { pendingReport = buildPending(context, mode, vm.ble.exportLogText(), vm) }
+                        },
                     )
                 }
             }
@@ -148,7 +157,10 @@ fun TestCentreScreen(vm: AppViewModel) {
         // --- Section 3: Export and auto-export ---
         ExportCard(
             vm = vm,
-            onReport = { pendingReport = buildPending(context, MASTER_REPORT_MODE, vm.ble.exportLogText()) },
+            onReport = {
+                // Launched (#1002): buildPending is now suspend (storage probe reads the store).
+                scope.launch { pendingReport = buildPending(context, MASTER_REPORT_MODE, vm.ble.exportLogText(), vm) }
+            },
         )
 
         // --- Section 4: Advanced / experimental ---
@@ -158,6 +170,7 @@ fun TestCentreScreen(vm: AppViewModel) {
     pendingReport?.let { p ->
         ReportReviewDialog(
             previewText = p.gate.previewText,
+            modeInactive = p.modeInactive,
             onCancel = { pendingReport = null },
             onShare = {
                 p.gate.confirm()
@@ -179,12 +192,15 @@ fun TestCentreScreen(vm: AppViewModel) {
 
 /** A report staged for the mandatory review gate: the profile, its title, the already-redacted entries
  *  and the gate built over them. The Kotlin gate keeps its entries private, so we hold them here too to
- *  hand TestReportFlow.run the same list it reviews. */
+ *  hand TestReportFlow.run the same list it reviews. [modeInactive] (#1002): the selected profile's test
+ *  mode is not on at report time, so the bundle carries no capture for the very thing being reported -
+ *  the review dialog warns off it (the #812 capture_check only grades ACTIVE modes, so it can't). */
 private class PendingReport(
     val profile: TestDomain,
     val title: String,
     val entries: List<Pair<String, ByteArray>>,
     val gate: ReportReviewGate,
+    val modeInactive: Boolean = false,
 )
 
 /** The "whole app" report profile for the section-3 manual Report button. MASTER is not a registry mode
@@ -196,14 +212,52 @@ private val MASTER_REPORT_MODE = TestMode(
     capture = com.noop.testcentre.CaptureKind.Toggle, includesScreenshot = false, requires5MG = false,
 )
 
-/** Assemble the redacted, capped bundle for a profile and wrap it in the review gate. */
-private fun buildPending(
+/** Assemble the redacted, capped bundle for a profile and wrap it in the review gate. Suspend (#1002):
+ *  the storage probe reads the store, so the callers launch it on the UI scope; the dialog presents off
+ *  the same `pendingReport` state a beat after the tap. */
+private suspend fun buildPending(
     context: android.content.Context,
     mode: TestMode,
     logText: String,
+    vm: AppViewModel,
 ): PendingReport {
-    val entries = TestBundleAssembler.assemble(context, mode.domain, logText)
-    return PendingReport(mode.domain, mode.title, entries, ReportReviewGate(entries))
+    // #1002 REAL storage probe, replacing the Phase-1 zeros in meta.json:
+    //  - db_bytes: the Room store's on-disk footprint (noop_whoop.db + its -wal/-shm sidecars);
+    //  - rows: per-table row counts via the store (WhoopRepository.storageRowCounts);
+    //  - raw_capture_bytes: the 5/MG frame-recorder JSONL on disk (both rotation generations).
+    // Everything read, never guessed; when nothing was readable the probe stays null and meta keeps the
+    // honest zeroed block. Mirrors the Swift TestCentreReport.storageProbe.
+    val dbPath = context.getDatabasePath(com.noop.data.WhoopDatabase.DB_NAME)
+    var dbBytes = 0L
+    for (suffix in listOf("", "-wal", "-shm")) {
+        val f = java.io.File(dbPath.path + suffix)
+        if (f.exists()) dbBytes += f.length()
+    }
+    val rows = vm.repo.storageRowCounts()
+    var rawBytes = 0L
+    for (name in listOf(
+        com.noop.ble.WhoopBleClient.WHOOP5_CAPTURE_FILE,
+        com.noop.ble.WhoopBleClient.WHOOP5_CAPTURE_FILE + ".1",
+    )) {
+        val f = java.io.File(context.filesDir, name)
+        if (f.exists()) rawBytes += f.length()
+    }
+    val storage = if (dbBytes > 0L || rows.isNotEmpty() || rawBytes > 0L) {
+        com.noop.testcentre.TestBundleMeta.Storage(
+            dbBytes = dbBytes.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+            rows = rows,
+            rawCaptureBytes = rawBytes.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+        )
+    } else {
+        null
+    }
+    // #1002: the connected model - the scan/connect path persists the DETECTED family to this pref, so
+    // it reflects the strap that actually linked; the display name matches the Swift wire value.
+    val strapModel = NoopPrefs.of(context).getString("noop.selectedWhoopModel", null)
+        ?.let { name -> runCatching { WhoopModel.valueOf(name).displayName }.getOrNull() }
+    val entries = TestBundleAssembler.assemble(context, mode.domain, logText, storage, strapModel)
+    val modeInactive = mode.domain != TestDomain.MASTER && !TestCentre.from(context).active(mode.domain)
+    return PendingReport(mode.domain, mode.title, entries, ReportReviewGate(entries), modeInactive)
 }
 
 @Composable
@@ -211,17 +265,32 @@ private fun TestModeRow(
     mode: TestMode,
     active: Boolean,
     startedAtSeconds: Long?,
+    logText: String,
     onToggle: (Boolean) -> Unit,
     onReport: () -> Unit,
 ) {
     var on by remember { mutableStateOf(active) }
     val elapsed = startedAtSeconds?.let { (System.currentTimeMillis() / 1000.0) - it }
+    // #965: HONEST per-mode captured-day count for a guided row (distinct days THIS mode produced its own
+    // trace on), read from the same log the report exports, so each active mode accumulates its OWN count
+    // instead of every guided row sharing one elapsed number. null for a toggle mode (no "K of N") / when off.
+    val capturedUnits: Int? =
+        if (on && mode.capture is CaptureKind.Guided) {
+            CaptureAccumulator.capturedDays(
+                domain = mode.domain,
+                reportText = logText,
+                tzOffsetSeconds =
+                    (java.util.TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 1000).toLong(),
+            )
+        } else {
+            null
+        }
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(mode.title, style = NoopType.body, color = Palette.textPrimary)
                 Text(
-                    TestCentreLayout.statusText(mode, on, elapsed),
+                    TestCentreLayout.statusText(mode, on, elapsed, capturedUnits),
                     style = NoopType.footnote,
                     color = Palette.textSecondary,
                 )
@@ -411,13 +480,30 @@ private fun AdvancedCard(vm: AppViewModel, is5MG: Boolean) {
 }
 
 @Composable
-private fun ReportReviewDialog(previewText: String, onCancel: () -> Unit, onShare: () -> Unit) {
+private fun ReportReviewDialog(
+    previewText: String,
+    modeInactive: Boolean,
+    onCancel: () -> Unit,
+    onShare: () -> Unit,
+) {
     AlertDialog(
         onDismissRequest = onCancel,
         containerColor = Palette.surfaceOverlay,
         title = { Text("Review before sharing", style = NoopType.title2, color = Palette.textPrimary) },
         text = {
             Column {
+                if (modeInactive) {
+                    // #1002: the selected profile's test mode is off, so this bundle carries no capture
+                    // for the very thing being reported. Warn plainly, with the fix, BEFORE the user
+                    // ships a report a maintainer can't act on. Twin of the Swift review-sheet warning.
+                    Text(
+                        "Heads up: this test mode is off, so the report has no capture for it. For a " +
+                            "useful report, turn the mode on, reproduce the problem while wearing the " +
+                            "strap, then report again.",
+                        style = NoopType.footnote, color = Palette.statusWarning,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                }
                 Text(
                     "This is exactly what your report will contain. Nothing leaves this phone until you tap Share.",
                     style = NoopType.subhead, color = Palette.textSecondary,

@@ -28,13 +28,16 @@ public enum UniversalTrace {
     ///
     /// - Parameter futureToleranceSeconds: slack before flagging FUTURE; a strap RTC vs phone skew of a
     ///   minute or two is normal, so the default mirrors a couple of minutes.
+    /// - Parameter behindToleranceSeconds: slack before flagging a BEHIND drift (#990) - a newest banked
+    ///   record naturally trails wall time by hours, so the default is 48 h; beyond that "clockOk" was a
+    ///   false all-clear (a -363 d drift used to read clockOk).
     public static func clockDriftLine(newestUnix: Int,
                                       wallNowUnix: Int,
                                       oldestUnix: Int? = nil,
                                       firmwareLayout: Int? = nil,
-                                      futureToleranceSeconds: Int = 120) -> String {
+                                      futureToleranceSeconds: Int = 120,
+                                      behindToleranceSeconds: Int = ConnectionTrace.behindToleranceDefault) -> String {
         let aheadSeconds = newestUnix - wallNowUnix
-        let future = aheadSeconds > futureToleranceSeconds
         var line = "strapClock newest=\(ConnectionTrace.isoDate(newestUnix)) "
             + "wall=\(ConnectionTrace.isoDate(wallNowUnix)) "
             + "newestVsWall=\(ConnectionTrace.signed(aheadSeconds))s"
@@ -45,7 +48,12 @@ public enum UniversalTrace {
             line += " oldest=\(ConnectionTrace.isoDate(oldestUnix)) spanDays=\(spanDays)"
         }
         line += firmwareLayout.map { " firmware=v\($0)" } ?? " firmware=unknown"
-        line += future ? " FUTURE-DATED (strap clock ahead of wall)" : " clockOk"
+        // The verdict is SHARED with ConnectionTrace.clockDriftLine (#990/#987) so the universal and
+        // Connection lines can never disagree about what counts as a clock fault: FUTURE-DATED,
+        // RTC-EPOCH (~1970/71 never-set clock), CLOCK-WARNING (behind beyond +-48 h), else clockOk.
+        line += ConnectionTrace.clockVerdict(aheadSeconds: aheadSeconds, newestUnix: newestUnix,
+                                             futureToleranceSeconds: futureToleranceSeconds,
+                                             behindToleranceSeconds: behindToleranceSeconds)
         return line
     }
 }

@@ -951,6 +951,70 @@ final class SleepStagerTests: XCTestCase {
         XCTAssertTrue(SleepStager.sessionEpochMotion(start: 0, end: 1800, grav: []).isEmpty)
     }
 
+    // MARK: - #175 per-session band sleep_state gridding (persisted beside stagesJSON)
+
+    func testSessionEpochSleepStateGridsOnePerEpoch() {
+        // 90-min session at 1 sample/30 s all "asleep" (2) → 180 epochs, all 2, on the same grid as staging.
+        let start = 1_000_000
+        let dur = 90 * 60
+        var band: [(ts: Int, state: Int)] = []
+        for i in 0..<(dur / 30) { band.append((ts: start + i * 30, state: 2)) }
+        let states = SleepStager.sessionEpochSleepState(start: start, end: start + dur, sleepState: band)
+        XCTAssertEqual(states.count, 180, "one band-state value per 30 s epoch (matches sessionEpochMotion)")
+        XCTAssertTrue(states.allSatisfy { $0 == 2 }, "an all-asleep band grids to all-asleep epochs")
+    }
+
+    func testSessionEpochSleepStateCarriesForwardAndVerbatim() {
+        // A sparse band that flips wake(0)→asleep(2)→up(3): each epoch takes the last in-window state and
+        // carries it forward across empty epochs. state 0 is a REAL wake reading, carried verbatim.
+        let start = 0
+        let dur = 6 * 30                       // 6 epochs
+        let band: [(ts: Int, state: Int)] = [
+            (ts: 0, state: 0),                 // epoch 0 → 0 (wake)
+            (ts: 75, state: 2),                // epoch 2 → 2 (asleep); epoch 1 carries 0 forward
+            (ts: 160, state: 3),               // epoch 5 → 3 (up); epochs 3,4 carry 2 forward
+        ]
+        let states = SleepStager.sessionEpochSleepState(start: start, end: start + dur, sleepState: band)
+        XCTAssertEqual(states, [0, 0, 2, 2, 2, 3], "last-in-epoch wins; empty epochs carry forward; 0 kept")
+    }
+
+    func testSessionEpochSleepStateEmptyWhenNoBandSamples() {
+        // No band samples in the window → [] so the caller persists NULL (a WHOOP 4.0 / unbanded window),
+        // never a fabricated array. This is what keeps the derived-only path intact for straps without it.
+        XCTAssertTrue(SleepStager.sessionEpochSleepState(start: 0, end: 1800, sleepState: []).isEmpty)
+        // Samples entirely outside the window are also ignored.
+        let far: [(ts: Int, state: Int)] = [(ts: 9_000, state: 2)]
+        XCTAssertTrue(SleepStager.sessionEpochSleepState(start: 0, end: 1800, sleepState: far).isEmpty)
+    }
+
+    func testSessionGridFeedsTheReonsetGuardEndToEnd() {
+        // The FULL #175 consume chain, as a unit: an "asleep"-banded morning block grids to a per-session
+        // state array (what IntelligenceEngine persists via persistSessionSleepState), which — expanded back
+        // to (startTs + i·30, state) samples exactly as IntelligenceEngine.bandSleepStateSamples does — makes
+        // the H7 re-onset CONFIRM guard KEEP a borderline-HR block it would otherwise reject. This is the
+        // dormant guard the missing stream starved; it never overrides the derived stage, only confirms.
+        let p = daytimePeriod(9, durMin: 120)         // 120-min morning block → 240 epochs (clears the 90-min bar)
+        let wakeEnd = startAtHour(8)
+        // The strap banked this block predominantly "asleep" (2).
+        var band: [(ts: Int, state: Int)] = []
+        for i in 0..<240 { band.append((ts: p.start + i * 30, state: 2)) }
+
+        // 1) Grid it per session (the persist-ready array).
+        let states = SleepStager.sessionEpochSleepState(start: p.start, end: p.end, sleepState: band)
+        XCTAssertEqual(states.count, 240)
+        XCTAssertTrue(states.allSatisfy { $0 == 2 })
+
+        // 2) Expand back to timestamped samples the way the H7 read path does (startTs + i·epochS).
+        let epochS = 30
+        let reconstructed = states.enumerated().map { (ts: p.start + $0.offset * epochS, state: $0.element) }
+
+        // 3) The guard now CONFIRMS the borderline-HR re-onset (74 > 0.90×80=72 would otherwise reject).
+        XCTAssertTrue(
+            SleepStager.passesMorningStillnessGuard(p, restingHR: 74, baseline: 80,
+                                                    morningWakeEnd: wakeEnd, bandSleepState: reconstructed),
+            "the persisted+re-expanded band grid drives the H7 confirm end to end")
+    }
+
     // MARK: - REM-funnel diagnostic (#688)
 
     /// A still, REM-eligible epoch (still + cardiac-activated + irregular resp). The percentile

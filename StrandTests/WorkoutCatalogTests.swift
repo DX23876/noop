@@ -56,4 +56,19 @@ final class WorkoutCatalogTests: XCTestCase {
         XCTAssertLessThan(pickle, other, "Pickleball extra must sit before the generic Other")
         XCTAssertEqual(names.last, "Other", "Other stays the final catch-all")
     }
+
+    /// Bowling (D#850): exists, is spelled byte-for-byte the way Android persists it, defaults GPS off
+    /// (a lane has no route), and rides with the extras before the generic "Other" catch-all.
+    func testBowlingPresetExistsWithGpsOff() {
+        let s = WorkoutCatalog.sport(named: "bowling")
+        XCTAssertNotNil(s, "Bowling must be in the suggestion catalogue (D#850)")
+        XCTAssertEqual(s?.name, "Bowling", "Name is persisted data, must match Android byte-for-byte")
+        XCTAssertEqual(s?.isDistanceSport, false, "Bowling has no route, GPS defaults off")
+        let names = WorkoutCatalog.all.map(\.name)
+        guard let bowling = names.firstIndex(of: "Bowling"),
+              let other = names.firstIndex(of: "Other") else {
+            return XCTFail("Bowling and Other must both be present")
+        }
+        XCTAssertLessThan(bowling, other, "Bowling extra must sit before the generic Other")
+    }
 }

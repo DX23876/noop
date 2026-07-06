@@ -226,7 +226,7 @@ final class BiofeedbackController: ObservableObject {
             }
             let bpm = paces[index]
             session = .resonanceSweep(bpm: bpm, paceIndex: index, paceCount: paces.count)
-            sweepLabel = String(format: "Testing %.1f br/min…", bpm)
+            sweepLabel = String(localized: "Testing \(String(format: "%.1f", bpm)) br/min…")
 
             // Collect this pace's R-R from the live feed for the pace's duration.
             let startTs = Int(Date().timeIntervalSince1970)
@@ -276,7 +276,7 @@ final class BiofeedbackController: ObservableObject {
         stop()
         guard canBuzz, let h0 = model.bpm, h0 >= 55, h0 <= 120 else {
             // Haptic-first: needs a bonded strap + a resting-band HR. Don't fake it.
-            calmOutcome = "Couldn't start — needs a connected strap and a resting heart rate."
+            calmOutcome = String(localized: "Couldn't start. Needs a connected strap and a resting heart rate.")
             calmDidNotFall = false
             return
         }
@@ -321,20 +321,20 @@ final class BiofeedbackController: ObservableObject {
         switch reason {
         case .settled:
             if let s = start, let e = end {
-                calmOutcome = "HR settled \(s) → \(e) over \(mmss)."
+                calmOutcome = String(localized: "HR settled \(s) → \(e) over \(mmss).")
             } else {
-                calmOutcome = "HR settled over \(mmss)."
+                calmOutcome = String(localized: "HR settled over \(mmss).")
             }
             calmDidNotFall = false
         case .timeout, .invalidHR, .none:
             if let s = start, let e = end, e < s {
-                calmOutcome = "HR eased \(s) → \(e) over \(mmss)."
+                calmOutcome = String(localized: "HR eased \(s) → \(e) over \(mmss).")
                 calmDidNotFall = false
             } else if let s = start, let e = end {
-                calmOutcome = "HR held steady (\(s) → \(e)) — try a paced breath instead."
+                calmOutcome = String(localized: "HR held steady (\(s) → \(e)). Try a paced breath instead.")
                 calmDidNotFall = true
             } else {
-                calmOutcome = "Session ended — try a paced breath instead."
+                calmOutcome = String(localized: "Session ended. Try a paced breath instead.")
                 calmDidNotFall = true
             }
         }

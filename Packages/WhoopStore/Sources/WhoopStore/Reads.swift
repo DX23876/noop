@@ -8,11 +8,17 @@ import WhoopProtocol
 public struct HRBucket: Sendable, Equatable {
     public let ts: Int
     public let bpm: Double
-    public init(ts: Int, bpm: Double) { self.ts = ts; self.bpm = bpm }
+    /// The WEAKEST signal confidence contributing to this bucket: 1.0 for measured `hrSample`
+    /// rows, the stored autocorrelation `conf` for PPG-derived fallback rows. Lets a chart render
+    /// a weak-optical stretch distinctly instead of identically to a clean measured beat. Defaults
+    /// to 1.0 so existing constructors/tests are unchanged. (adopted from ryanAtriumAi #988 —
+    /// purely additive surfacing; the acceptance floor itself is unchanged.)
+    public let conf: Double
+    public init(ts: Int, bpm: Double, conf: Double = 1.0) { self.ts = ts; self.bpm = bpm; self.conf = conf }
 }
 
 extension WhoopStore {
-    /// Shared decoder — JSONDecoder is stateless across decodes and was previously allocated once
+    /// Shared decoder, JSONDecoder is stateless across decodes and was previously allocated once
     /// per event row. Battery events are dense (~every 8 min), so a multi-year read decodes
     /// thousands of rows; reusing one decoder removes that per-row allocation.
     fileprivate static let eventDecoder = JSONDecoder()
@@ -47,7 +53,7 @@ extension WhoopStore {
 
     /// Cheap change-detector for the raw HR stream: `(count, maxTs)` over `[from, to]`, computed in
     /// SQLite over the `(deviceId, ts)` index WITHOUT materializing any rows (#836). Lets a caller decide
-    /// "nothing was inserted since last time, skip the expensive re-read" for pennies — `COUNT(*)` moves on
+    /// "nothing was inserted since last time, skip the expensive re-read" for pennies, `COUNT(*)` moves on
     /// any insert (including a backfilled OLD night whose `maxTs` wouldn't change), and `maxTs` distinguishes
     /// fresh appends. COALESCE so an empty window is `(0, 0)`, never nil.
     public func hrFingerprint(deviceId: String, from: Int, to: Int) async throws -> (count: Int, maxTs: Int) {
@@ -76,12 +82,16 @@ extension WhoopStore {
     public func hrBuckets(deviceId: String, from: Int, to: Int, bucketSeconds: Int) async throws -> [HRBucket] {
         let bucket = max(1, bucketSeconds)
         return try syncRead { db in
+            // MIN(conf) per bucket: measured rows contribute 1.0, PPG fallback rows their stored
+            // autocorrelation conf — so a bucket touched by ANY weak-optical estimate reads as weak
+            // (conservative), and a purely-measured bucket stays 1.0. Purely additive projection:
+            // the bpm aggregate and the anti-join semantics are byte-identical. (ryanAtriumAi #988)
             try Row.fetchAll(db, sql: """
-                SELECT (ts / ?) * ? AS bucket, AVG(bpm) AS avgBpm FROM (
-                    SELECT ts, bpm FROM hrSample
+                SELECT (ts / ?) * ? AS bucket, AVG(bpm) AS avgBpm, MIN(conf) AS minConf FROM (
+                    SELECT ts, bpm, 1.0 AS conf FROM hrSample
                     WHERE deviceId = ? AND ts >= ? AND ts <= ?
                     UNION ALL
-                    SELECT p.ts, p.bpm FROM ppgHrSample p
+                    SELECT p.ts, p.bpm, p.conf FROM ppgHrSample p
                     WHERE p.deviceId = ? AND p.ts >= ? AND p.ts <= ?
                       AND NOT EXISTS (
                         SELECT 1 FROM hrSample h
@@ -93,7 +103,7 @@ extension WhoopStore {
                                  deviceId, from, to,
                                  deviceId, from, to,
                                  bucket])
-                .map { HRBucket(ts: $0["bucket"], bpm: $0["avgBpm"]) }
+                .map { HRBucket(ts: $0["bucket"], bpm: $0["avgBpm"], conf: $0["minConf"] ?? 1.0) }
         }
     }
 
@@ -161,11 +171,13 @@ extension WhoopStore {
     public func stepSamples(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [StepSample] {
         try syncRead { db in
             try Row.fetchAll(db, sql: """
-                SELECT ts, counter FROM stepSample
+                SELECT ts, counter, activityClass FROM stepSample
                 WHERE deviceId = ? AND ts >= ? AND ts <= ?
                 ORDER BY ts ASC LIMIT ?
                 """, arguments: [deviceId, from, to, limit])
-                .map { StepSample(ts: $0["ts"], counter: $0["counter"]) }
+                // activityClass (#316, v19) reads back nil for any pre-v19 row (the column defaulted null) and
+                // for any record whose @63 byte was 0xFF/invalid/absent, an absent class stays absent.
+                .map { StepSample(ts: $0["ts"], counter: $0["counter"], activityClass: $0["activityClass"]) }
         }
     }
 

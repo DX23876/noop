@@ -114,4 +114,46 @@ class BackfillerSessionTallyTest {
         assertTrue(line.contains("Fully charge"))
         assertFalse(line.contains("\u2014"))
     }
+
+    // ---- #1 records-bearing 0xFFFFFFFF END must NOT false-alarm "no banked history" ----
+
+    /**
+     * #1: the no-cursor (0xFFFFFFFF) gate must pick its line on the row count that ALREADY includes THIS
+     * END's own rows. A bad-clock/flash strap can emit records on the same no-cursor END; before the fix
+     * the gate read sessionRowsPersisted at the TOP of finishChunk, before this chunk's rows were tallied,
+     * so a records-bearing END logged the alarming "no banked history" line. The relocation moves the gate
+     * AFTER `sessionRowsPersisted += rows`. This pins that ordering by replaying finishChunk's exact field
+     * sequence through the SAME production helpers (chunkTally -> add rows -> noCursorLine): with this
+     * END's rows added first, the no-cursor line is the neutral caught-up one, never the false alarm.
+     */
+    @Test fun recordsBearingNoCursorEndDoesNotFalseAlarm() {
+        // This END carries records (a v25-style chunk decoding to gravity rows): chunkTally yields rows > 0.
+        val counts = InsertCounts(gravity = 3)
+        var sessionRowsPersisted = 0
+        // finishChunk's persist-block ordering: tally THIS chunk, THEN add to the session total...
+        val (rows, _, _) = Backfiller.chunkTally(counts, listOf(1_700_000_000L, 1_700_000_001L, 1_700_000_002L))
+        sessionRowsPersisted += rows
+        // ...and ONLY THEN does the relocated no-cursor gate read sessionRowsPersisted.
+        val line = Backfiller.noCursorLine(sessionRowsPersisted)
+        assertTrue("this END's own rows must be in the count", sessionRowsPersisted > 0)
+        assertFalse("a records-bearing 0xFFFFFFFF END must NOT emit the false no-history alarm",
+            line.contains("no banked history to offload"))
+        assertFalse(line.contains("fully charge"))
+        assertTrue("it should be the neutral caught-up line instead",
+            line.contains("reached the end of available history"))
+    }
+
+    /**
+     * #1 (the critical other half): a genuinely empty session (a 0xFFFFFFFF END with no accumulated
+     * records, so zero rows persisted) STILL gets the real no-history guidance. The relocation must not
+     * silence the legitimate case: with no persist block running, sessionRowsPersisted stays 0 and the
+     * gate emits the genuine warning.
+     */
+    @Test fun trulyEmptyNoCursorEndStillWarnsNoHistory() {
+        val sessionRowsPersisted = 0 // empty END: the persist block never runs, total stays 0
+        val line = Backfiller.noCursorLine(sessionRowsPersisted)
+        assertTrue("a truly-empty no-cursor session must still warn the strap has no banked history",
+            line.contains("no banked history to offload"))
+        assertTrue(line.contains("fully charge"))
+    }
 }

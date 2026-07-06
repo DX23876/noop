@@ -44,10 +44,11 @@ object Crc {
         }
     }
 
-    /** CRC-8 (poly 0x07) over `data[from until to]`. Returns a value in 0..255. The [from]/[to] range
-     *  (default = whole array) lets the per-frame validator checksum a slice of the frame WITHOUT
-     *  allocating a sub-array (#perf) — every frame is CRC'd, so the copyOfRange added up on the
-     *  historical-offload path. */
+    /**
+     * CRC-8 (poly 0x07) over `data[from until to]`. Returns a value in 0..255. The [from]/[to] range
+     * defaults to the whole array (existing callers unchanged); passing a range lets the frame
+     * validator checksum a slice in place instead of slicing out a fresh array for every frame.
+     */
     fun crc8(data: ByteArray, from: Int = 0, to: Int = data.size): Int {
         var crc = 0
         var i = from
@@ -58,8 +59,11 @@ object Crc {
         return crc and 0xFF
     }
 
-    /** Standard zlib CRC-32 over `data[from until to]` (default = whole array). Returns 0..0xFFFFFFFF
-     *  as a Long. Ranged to avoid a per-frame sub-array allocation in the validator (#perf). */
+    /**
+     * Standard zlib CRC-32 over `data[from until to]`. Returns a value in 0..0xFFFFFFFF as a Long.
+     * The range defaults to the whole array; the validator passes a range to checksum the inner
+     * record or payload in place, skipping the per-frame copyOfRange on the offload path.
+     */
     fun crc32(data: ByteArray, from: Int = 0, to: Int = data.size): Long {
         var crc = 0xFFFFFFFFL
         var i = from
@@ -72,10 +76,10 @@ object Crc {
     }
 
     /**
-     * CRC16-Modbus (poly 0xA001, init 0xFFFF, reflected) over `data[from until to]` (default = whole
-     * array). Used for the Whoop 5.0 frame header check. Ported verbatim from the Goose
-     * reverse-engineering (`crc16Modbus`). Ranged to avoid a per-frame sub-array allocation (#perf).
-     * Returns 0..0xFFFF.
+     * CRC16-Modbus (poly 0xA001, init 0xFFFF, reflected) over `data[from until to]`. Used for the
+     * Whoop 5.0 frame header check. Ported verbatim from the Goose reverse-engineering
+     * (`crc16Modbus`). Returns 0..0xFFFF. The range defaults to the whole array; the validator passes
+     * a range so the 6-byte header check needs no copyOfRange.
      */
     fun crc16Modbus(data: ByteArray, from: Int = 0, to: Int = data.size): Int {
         var crc = 0xFFFF

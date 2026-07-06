@@ -164,4 +164,64 @@ final class ReadSpineActiveDeviceTests: XCTestCase {
         XCTAssertEqual(landDay, Repository.logicalDayStart(Date(timeIntervalSince1970: TimeInterval(liveBase))),
                        "Today must anchor on the fresh live day, not a stale imported day")
     }
+
+    // MARK: - #316 / @63 step activity-class union (the Steps tile icon)
+
+    /// Pure union pick: `latestActivityClass` returns the non-nil class on the greatest-ts sample across the
+    /// per-id lists, resolves a ts tie in favour of the FIRST list (active strap), and passes an empty union
+    /// through as nil. A nil-class sample never masks an earlier real class.
+    func testLatestActivityClassUnionPickAndTieBreak() {
+        // Single list reduces to "last non-nil class in that list": ts 30 is nil, so ts 20's walk (1) wins.
+        let single = [[
+            StepSample(ts: 10, counter: 1, activityClass: 0),
+            StepSample(ts: 20, counter: 2, activityClass: 1),
+            StepSample(ts: 30, counter: 3, activityClass: nil),
+        ]]
+        XCTAssertEqual(Repository.latestActivityClass(single), 1,
+                       "the latest NON-NIL class wins; a trailing nil-class sample does not blank the icon")
+
+        // Two lists, greatest ts across the union wins: active strap's ts=100 run (2) beats canonical ts=90.
+        let active = [StepSample(ts: 100, counter: 5, activityClass: 2)]
+        let canonical = [StepSample(ts: 90, counter: 4, activityClass: 0)]
+        XCTAssertEqual(Repository.latestActivityClass([active, canonical]), 2,
+                       "the greatest-ts classed sample across the union wins")
+
+        // Exact ts tie: the FIRST list (active strap) wins, matching the union's active-wins rule.
+        let activeTie = [StepSample(ts: 200, counter: 6, activityClass: 1)]
+        let canonicalTie = [StepSample(ts: 200, counter: 7, activityClass: 0)]
+        XCTAssertEqual(Repository.latestActivityClass([activeTie, canonicalTie]), 1,
+                       "on a ts tie the active strap's class wins")
+
+        // An empty union passes through as nil (no icon), never a crash.
+        XCTAssertNil(Repository.latestActivityClass([[], []]), "an empty union hides the icon")
+    }
+
+    /// End-to-end #904/#908 family: a re-added strap banks its live STEP samples (carrying @63 activityClass)
+    /// under its OWN fresh id, exactly like HR. A read pinned to the canonical "my-whoop" finds NO class (the
+    /// tile icon vanishes); `stepActivityClassLatest` reads the union and surfaces the re-added strap's class.
+    @MainActor
+    func testStepActivityClassUnionSurfacesReAddedStrapClass() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertDevice(id: canonicalId, mac: nil, name: "WHOOP")
+        try await store.upsertDevice(id: newId, mac: nil, name: "WHOOP")
+
+        // Today's live step samples land under the re-added strap's fresh id; the latest carries class 2 (run).
+        // The canonical "my-whoop" namespace has NO steps today (imports never drift to the active id).
+        let base = 1_780_000_000
+        let liveSteps = (0..<20).map { StepSample(ts: base + $0, counter: $0, activityClass: $0 == 19 ? 2 : 1) }
+        try await store.insert(Streams(steps: liveSteps), deviceId: newId)
+
+        let repo = Repository(deviceId: canonicalId)
+        repo.setStoreForTesting(store)
+
+        // Before the re-add the read model is the canonical namespace only, which has no step class today.
+        let pinned = await repo.stepActivityClassLatest(from: base, to: base + 100)
+        XCTAssertNil(pinned, "with only the canonical id active, a re-added strap's step class is not yet reachable")
+
+        // Re-add → the active-strap read id follows, and the union surfaces the re-added strap's latest class.
+        repo.adoptActiveDeviceId(newId)
+        let surfaced = await repo.stepActivityClassLatest(from: base, to: base + 100)
+        XCTAssertEqual(surfaced, 2,
+                       "the union must surface the re-added strap's live activity class, not an empty pinned read")
+    }
 }

@@ -31,6 +31,13 @@ public enum BatteryEstimator {
     /// The discharge run restarts after it, so we never fit a rate across a charge.
     public static let chargeStepPct: Double = 1.0
 
+    /// A charge only ANCHORS a fresh discharge run when it returns the strap NEAR FULL (#8). A mere partial
+    /// top-up (e.g. 40% -> 55% on a quick desk charge) used to reset the run exactly like a 0% -> 100%
+    /// charge, discarding the long clean discharge history before it and inflating "days left" off the short
+    /// post-top-up tail. So a rise is treated as a run-reset anchor only when the post-rise SoC reaches this;
+    /// a partial top-up is instead stepped over, and the fit prefers the longer pre-top-up discharge segment.
+    public static let nearFullPct: Double = 90.0
+
     // MARK: - Output
 
     /// Where the drain rate came from: the user's own measured discharge, or the rated fallback.
@@ -70,21 +77,15 @@ public enum BatteryEstimator {
         guard let last = sorted.last else { return nil }
         let current = last.soc
 
-        // Take the trailing discharge run only: everything after the most recent CHARGE step (a SoC rise
-        // larger than chargeStepPct), so a charge earlier in the buffer never flattens the fitted slope.
-        var startIdx = 0
-        if sorted.count >= 2 {
-            for i in stride(from: sorted.count - 1, through: 1, by: -1)
-            where sorted[i].soc > sorted[i - 1].soc + chargeStepPct {
-                startIdx = i
-                break
-            }
-        }
-        let run = Array(sorted[startIdx...])
+        // The discharge segment whose slope we fit: anchored at the most recent NEAR-FULL charge, and ending
+        // before any later partial top-up, so neither a charge earlier in the buffer nor a quick desk top-up
+        // distorts the fitted slope (#8).
+        let run = dischargeFitWindow(sorted)
 
-        // Fit the discharge slope over the run as a simple endpoints rate (%/h). The series is short and
-        // monotone-ish within a run, so endpoints are as good as a least-squares line and far cheaper, and
-        // they keep the test fixtures exact. nil when the run is too short, too flat, or not discharging.
+        // Fit the discharge slope over the segment as a simple endpoints rate (%/h). The series is short and
+        // monotone-ish within a segment, so endpoints are as good as a least-squares line and far cheaper,
+        // and they keep the test fixtures exact. nil when it's too short, too flat, or not discharging. The
+        // estimate stays anchored to `current` (the latest SoC), even when the fit window ends earlier.
         let measuredRate: Double? = {
             guard run.count >= 2, let first = run.first, let lastRun = run.last else { return nil }
             let spanHours = Double(lastRun.ts - first.ts) / 3600.0
@@ -104,6 +105,55 @@ public enum BatteryEstimator {
                         currentSoc: current)
     }
 
+    /// The slice of the sorted SoC series whose endpoints we fit the discharge slope on (#8). Two rules,
+    /// both keyed off "is this rise a real charge or a partial top-up":
+    ///   1. START at the most recent NEAR-FULL charge: the most recent rise > chargeStepPct that LANDS at
+    ///      >= nearFullPct. A partial top-up (rise that doesn't reach near-full) is NOT an anchor: the scan
+    ///      steps over it and keeps looking further back, so a quick 40->55 desk charge no longer throws away
+    ///      the long clean discharge before it. If there is no near-full charge in the buffer, start = 0.
+    ///   2. END before the most recent partial top-up that falls AFTER the start anchor, so the fitted slope
+    ///      is the longer pre-top-up discharge segment, never the short, slope-flattening post-top-up tail.
+    /// `current` (the latest SoC the estimate is anchored to) is taken by the caller from the series end, not
+    /// from this window, so trimming the tail changes only the slope, never the SoC the runtime divides into.
+    /// Pure; the Kotlin twin is `dischargeFitWindow`.
+    static func dischargeFitWindow(_ sorted: [(ts: Int, soc: Double)]) -> [(ts: Int, soc: Double)] {
+        guard sorted.count >= 2 else { return sorted }
+
+        // 1. Most recent NEAR-FULL charge anchors the run start; partial top-ups are stepped over.
+        var startIdx = 0
+        for i in stride(from: sorted.count - 1, through: 1, by: -1)
+        where sorted[i].soc > sorted[i - 1].soc + chargeStepPct && sorted[i].soc >= nearFullPct {
+            startIdx = i
+            break
+        }
+
+        // 1b. #919: with no near-full (>=90%) charge to anchor on - common on a 12-day WHOOP 5.0 that rarely
+        //     tops past 90% between charges - anchor at the buffer's HIGHEST SoC (the top of the most recent
+        //     discharge) rather than the oldest reading, which can sit below a later charge and net to a
+        //     NON-discharge window (drop < 0 -> stuck on `rated`). The max is >= every later reading, so the
+        //     window can only discharge; the >=minDropPct gate still rejects a flat run. Preserves #8: its
+        //     buffer starts at the max, so this stays index 0 there. Last occurrence of the max (>=), for
+        //     parity with the Kotlin twin.
+        if startIdx == 0 {
+            var maxIdx = 0
+            for i in sorted.indices where sorted[i].soc >= sorted[maxIdx].soc { maxIdx = i }
+            startIdx = maxIdx
+        }
+
+        // 2. End before the most recent PARTIAL top-up after the start anchor (a rise > chargeStepPct that
+        //    does NOT reach near-full), so the fit prefers the longer pre-top-up discharge segment.
+        var endIdx = sorted.count - 1
+        if endIdx - startIdx >= 1 {
+            for i in stride(from: sorted.count - 1, through: startIdx + 1, by: -1)
+            where sorted[i].soc > sorted[i - 1].soc + chargeStepPct && sorted[i].soc < nearFullPct {
+                endIdx = i - 1
+                break
+            }
+        }
+        guard endIdx > startIdx else { return Array(sorted[startIdx...]) }
+        return Array(sorted[startIdx...endIdx])
+    }
+
     /// Side-effect-free diagnostic twin of `estimate`: returns the SAME `Estimate` plus a list of trace
     /// lines describing the full (t, soc) series, the detected charge step(s), the trailing discharge run
     /// start/span/drop, the fitted slope, and which gate (minSpanHours / minDropPct) decided source =
@@ -120,11 +170,12 @@ public enum BatteryEstimator {
         lines.append("battery series=\(sorted.count) readings span \(first0.ts)..\(last.ts)s")
         for s in sorted { lines.append("battery read t=\(s.ts)s soc=\(socText(s.soc))") }
 
-        // The most recent CHARGE step (same scan as estimate): a SoC rise larger than chargeStepPct.
+        // The most recent NEAR-FULL charge anchors the run start (same scan as estimate, #8); a partial
+        // top-up does NOT anchor and is reported separately below.
         var startIdx = 0
         if sorted.count >= 2 {
             for i in stride(from: sorted.count - 1, through: 1, by: -1)
-            where sorted[i].soc > sorted[i - 1].soc + chargeStepPct {
+            where sorted[i].soc > sorted[i - 1].soc + chargeStepPct && sorted[i].soc >= nearFullPct {
                 startIdx = i
                 let rise = sorted[i].soc - sorted[i - 1].soc
                 lines.append("battery chargeStep at t=\(sorted[i].ts)s +\(socText(rise))pp "
@@ -132,7 +183,18 @@ public enum BatteryEstimator {
                 break
             }
         }
-        let run = Array(sorted[startIdx...])
+        // The most recent PARTIAL top-up after the anchor (a rise that does NOT reach near-full): the fit
+        // ends before it and prefers the longer pre-top-up discharge segment (#8).
+        if sorted.count >= 2, startIdx < sorted.count - 1 {
+            for i in stride(from: sorted.count - 1, through: startIdx + 1, by: -1)
+            where sorted[i].soc > sorted[i - 1].soc + chargeStepPct && sorted[i].soc < nearFullPct {
+                let rise = sorted[i].soc - sorted[i - 1].soc
+                lines.append("battery partialTopUp at t=\(sorted[i].ts)s +\(socText(rise))pp "
+                    + "(<nearFullPct \(socText(nearFullPct))) -> fit pre-top-up segment")
+                break
+            }
+        }
+        let run = dischargeFitWindow(sorted)
 
         var spanPass = false
         var dropPass = false

@@ -6,7 +6,7 @@
 
 <p align="center"><b>Your strap. Your data. Your machine. Offline, on-device, no cloud.</b></p>
 
-<p align="center"><sub>Now in the <b>"Titanium &amp; Gold"</b> redesign: one feature set across iPhone, Android and Mac.</sub></p>
+<p align="center"><sub>Now in the all-new <b>Liquid Metal</b> design: one living look across iPhone, Android and Mac.</sub></p>
 
 <p align="center">
   <img alt="Platforms" src="https://img.shields.io/badge/platforms-macOS%20%C2%B7%20Android%20%C2%B7%20iOS-E8B84B?style=flat-square">
@@ -44,13 +44,17 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/shot-ios-today.png" alt="Today — iPhone" width="218">
-  &nbsp;&nbsp;
-  <img src="docs/assets/shot-android-sleep.png" alt="Sleep — Android" width="218">
-  &nbsp;&nbsp;
-  <img src="docs/assets/shot-ios-stress.png" alt="Stress — iPhone" width="218">
+  <a href="https://github.com/NoopApp/noop/releases/latest"><img src="docs/assets/hero-v8.jpg" alt="NOOP in the new Liquid Metal design, on iPhone, Mac and Android" width="820"></a>
 </p>
-<p align="center"><sub>Today · Sleep · Stress — the new <b>Titanium &amp; Gold</b> look. One feature set across iPhone, Android &amp; Mac.</sub></p>
+
+<p align="center">
+  <img src="docs/assets/shot-ios-today.png" alt="Today on iPhone" width="218">
+  &nbsp;&nbsp;
+  <img src="docs/assets/shot-android-today.png" alt="Today on Android" width="218">
+  &nbsp;&nbsp;
+  <img src="docs/assets/shot-android-trend.png" alt="A metric's own trend on Android" width="218">
+</p>
+<p align="center"><sub>The all-new <b>Liquid Metal</b> look: living liquid scores, a sky that moves with your day, rebuilt on every screen. The same Today on iPhone and Android, and a metric&rsquo;s own trend. One design across iPhone, Android &amp; Mac.</sub></p>
 
 ---
 

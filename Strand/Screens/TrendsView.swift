@@ -23,12 +23,12 @@ struct TrendsView: View {
         var id: Int { rawValue }
         var label: String {
             switch self {
-            case .week:    return "W"
-            case .month:   return "M"
-            case .quarter: return "3M"
-            case .half:    return "6M"
-            case .year:    return "1Y"
-            case .all:     return "ALL"
+            case .week:    return String(localized: "W")
+            case .month:   return String(localized: "M")
+            case .quarter: return String(localized: "3M")
+            case .half:    return String(localized: "6M")
+            case .year:    return String(localized: "1Y")
+            case .all:     return String(localized: "ALL")
             }
         }
         /// Trailing-day window, or nil for "all history".
@@ -143,11 +143,14 @@ struct TrendsView: View {
     /// Caption text from an already-resolved count + effective range. Mirrors
     /// `caption(_:)` exactly but takes precomputed inputs to avoid re-filtering.
     private func caption(count n: Int, eff: Range) -> String {
-        let unit = n == 1 ? "reading" : "readings"
         if eff != range {
-            return "\(n) \(unit) · sparse — widened to \(name(for: eff))"
+            return n == 1
+                ? String(localized: "1 reading · sparse, widened to \(name(for: eff))")
+                : String(localized: "\(n) readings · sparse, widened to \(name(for: eff))")
         }
-        return "\(n) \(unit) · \(name(for: range))"
+        return n == 1
+            ? String(localized: "1 reading · \(name(for: range))")
+            : String(localized: "\(n) readings · \(name(for: range))")
     }
 
     /// A padded value range for a series so the line isn't flat against the axis.
@@ -194,28 +197,42 @@ struct TrendsView: View {
 
     /// "Trailing 90 days" / "All history" — used as a card subtitle.
     private var rangeSubtitle: String {
-        guard let n = range.days else { return "All history" }
-        return "Trailing \(n) days"
+        guard let n = range.days else { return String(localized: "All history") }
+        return String(localized: "Trailing \(n) days")
     }
 
     private func name(for r: Range) -> String {
         switch r {
-        case .week:    return "week"
-        case .month:   return "month"
-        case .quarter: return "3 months"
-        case .half:    return "6 months"
-        case .year:    return "year"
-        case .all:     return "all history"
+        case .week:    return String(localized: "week")
+        case .month:   return String(localized: "month")
+        case .quarter: return String(localized: "3 months")
+        case .half:    return String(localized: "6 months")
+        case .year:    return String(localized: "year")
+        case .all:     return String(localized: "all history")
         }
     }
 
     var body: some View {
+        // The liquid metric cards now tap through to their MetricDetailView (matching Today's card
+        // taps + Explore's rows). On iOS each tab already supplies a NavigationStack, so those pushes
+        // land in the ambient stack. On macOS the .trends detail pane has NO enclosing NavigationStack
+        // (RootView), so — exactly like MetricExplorerView (#753) — wrap the scaffold in one here so the
+        // pushes get Back chrome instead of hanging. The SAME shared scaffold renders on both.
+        #if os(macOS)
+        NavigationStack { scaffold }
+        #else
+        scaffold
+        #endif
+    }
+
+    private var scaffold: some View {
         ScreenScaffold(title: "Trends", subtitle: "The thread of you over time.",
                        // PERF (scroll): lazy column — byte-identical layout (LazyVStack == eager VStack
                        // alignment/spacing/header). The content is one inner eager VStack, so the staggered
                        // section reveal is unchanged; this only defers building that stack until it scrolls in.
                        onRefresh: { await repo.refresh() },
-                       lazy: true) {
+                       lazy: true,
+                       topBackground: liquidScaffoldSky()) {
             if repo.days.isEmpty {
                 ComingSoon(what: repo.loaded
                     ? "Trends need history to draw. Import your WHOOP export in Data Sources to see weeks, months and years instantly."
@@ -350,7 +367,7 @@ struct TrendsView: View {
 
             Spacer()
             VStack(spacing: 2) {
-                Text(weekOffset == 0 ? "This week" : weekOffsetLabel)
+                Text(weekOffset == 0 ? String(localized: "This week") : weekOffsetLabel)
                     .font(StrandFont.headline)
                     .foregroundStyle(StrandPalette.textPrimary)
                 Text("Week in review")
@@ -373,8 +390,8 @@ struct TrendsView: View {
     /// "Last week" for -1, else the count of weeks back ("3 weeks ago") for the stepper's centre label.
     private var weekOffsetLabel: String {
         let n = -weekOffset
-        if n == 1 { return "Last week" }
-        return "\(n) weeks ago"
+        if n == 1 { return String(localized: "Last week") }
+        return String(localized: "\(n) weeks ago")
     }
 
     // MARK: Week in Review — the Charge / Effort / Rest trio in pip language
@@ -395,7 +412,7 @@ struct TrendsView: View {
                     SectionHeader("Week in review", overline: "Charge · Effort · Rest")
                     if let v = chargeAvg {
                         pipScoreRow(label: "Charge", value: v, range: 0...100,
-                                    tint: StrandPalette.chargeColor,
+                                    tint: StrandPalette.chargeColor, frac: v / 100,
                                     format: { "\(Int($0.rounded()))" })
                     }
                     if let v = effortAvg {
@@ -407,13 +424,15 @@ struct TrendsView: View {
                         // On the 0–21 WHOOP scale Effort reads to one decimal (e.g. "9.0"); on the 0–100
                         // scale it's a whole number — match `effortScaleMax` so the count-up format agrees.
                         let oneDecimal = effortScale == .whoop
+                        // The vessel fills off the stored 0–100 internal scale (v), so it agrees with the
+                        // Charge/Rest vessels regardless of the displayed Effort unit.
                         pipScoreRow(label: "Effort", value: display, range: 0...maxV,
-                                    tint: StrandPalette.effortColor,
+                                    tint: StrandPalette.effortColor, frac: v / 100,
                                     format: { oneDecimal ? String(format: "%.1f", $0) : "\(Int($0.rounded()))" })
                     }
                     if let v = restAvg {
                         pipScoreRow(label: "Rest", value: v, range: 0...100,
-                                    tint: StrandPalette.restColor,
+                                    tint: StrandPalette.restColor, frac: v / 100,
                                     format: { "\(Int($0.rounded()))" })
                     }
                 }
@@ -423,18 +442,28 @@ struct TrendsView: View {
     }
 
     /// One pip row matching `PipBarRow`'s layout, but with the value driven by `CountUpText` so the big
-    /// number ticks up. UPPERCASE label + big white count-up value over the segmented count-up bar.
+    /// number ticks up. UPPERCASE label + a small liquid vessel (the score as a fill) beside the big white
+    /// count-up value, over the segmented count-up bar. `frac` (0…1) is the score on the shared 0–100
+    /// internal scale so the three vessels read against the same fill — a small liquid accent on a single
+    /// headline metric, exactly where it reads well (not on a chart).
     private func pipScoreRow(label: LocalizedStringKey, value: Double, range: ClosedRange<Double>,
-                             tint: Color, format: @escaping (Double) -> String) -> some View {
+                             tint: Color, frac: Double, format: @escaping (Double) -> String) -> some View {
         VStack(alignment: .leading, spacing: NoopMetrics.space2) {
             Text(label)
                 .font(StrandFont.overline)
                 .tracking(StrandFont.overlineTracking)
                 .textCase(.uppercase)
                 .foregroundStyle(StrandPalette.textSecondary)
-            CountUpText(value: value, format: format,
-                        font: StrandFont.number(30, weight: .bold),
-                        color: StrandPalette.textPrimary)
+            HStack(spacing: NoopMetrics.space3) {
+                // Static (posed) vessel — a small liquid gauge, not a live 60fps canvas, so the three
+                // in this card cost a single cached frame each (same call as Today's small vessels).
+                LiquidVessel(value: max(0, min(1, frac)), tint: tint, animated: false)
+                    .frame(width: 30, height: 30)
+                    .accessibilityHidden(true)
+                CountUpText(value: value, format: format,
+                            font: StrandFont.number(30, weight: .bold),
+                            color: StrandPalette.textPrimary)
+            }
             PipBar(value: value, range: range, tint: tint)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -456,7 +485,7 @@ struct TrendsView: View {
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: NoopMetrics.space1) {
                     Text("Export trends report").strandOverline()
-                    Text("A shareable one-page PDF of recovery, sleep, HRV, resting HR and strain over a range — saved on your \(Platform.deviceNoun).")
+                    Text("A shareable one-page PDF of recovery, sleep, HRV, resting HR and strain over a range, saved on your \(Platform.deviceNoun).")
                         .font(StrandFont.footnote)
                         .foregroundStyle(StrandPalette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -493,12 +522,13 @@ struct TrendsView: View {
 
     // MARK: Hero — recovery over time
 
+    @ViewBuilder
     private func heroRecovery(recovery: ResolvedMetric) -> some View {
         let pts = recovery.points
         let avg = mean(pts)
         // Charge world — the WHOOP recovery value scale (red→yellow→green) drawn as a crisp flat line
         // with a bright "now" cap. No glow.
-        return ChartCard(
+        let card = ChartCard(
             title: "Charge",
             // The range bar above already prints the authoritative reading-count caption;
             // the hero only names its window so the count isn't doubled in one card height.
@@ -515,7 +545,7 @@ struct TrendsView: View {
                               valueRange: 0...106,
                               tip: StrandPalette.chargeBright,
                               valueFormat: { "\(Int($0.rounded()))" },
-                              accessibilityLabel: "Charge trend")
+                              accessibilityLabel: String(localized: "Charge trend"))
                 } else {
                     sparsePlaceholder
                 }
@@ -534,6 +564,24 @@ struct TrendsView: View {
                 }
             }
         )
+        // Tap the hero to open the full Charge (recovery) metric detail — matching Today's card taps.
+        // LiquidPressStyle gives the physical settle-inward on press (the liquid tap language). The card's
+        // own rich labels (title + chart series + footer stats) are surfaced by the link's button element,
+        // with a hint that a tap opens the detail.
+        NavigationLink { metricDetail("recovery") } label: { card }
+            .buttonStyle(LiquidPressStyle())
+            .accessibilityHint(Text(String(localized: "Opens the full Charge metric.")))
+    }
+
+    /// The per-metric detail page (chart + history) for a catalog key — the same tap-through target Today
+    /// and Explore use. Falls back to the metrics Explorer if the key isn't in the catalog.
+    @ViewBuilder
+    private func metricDetail(_ key: String) -> some View {
+        if let m = MetricCatalog.all.first(where: { $0.key == key }) {
+            MetricDetailView(metric: m)
+        } else {
+            MetricExplorerView()
+        }
     }
 
     // MARK: Small multiples — HRV / Resting HR / Day Strain
@@ -552,7 +600,8 @@ struct TrendsView: View {
                 // keeping its established metric hue for legibility. Effort is the WHOOP blue strain world.
                 metricChart(
                     title: "Heart rate variability", unit: "ms",
-                    accessibilityTitle: "Heart rate variability",
+                    accessibilityTitle: String(localized: "Heart rate variability"),
+                    metricKey: "hrv",
                     points: hrvPts,
                     gradient: gradient(StrandPalette.metricPurple),
                     tip: StrandPalette.metricPurple,
@@ -563,7 +612,8 @@ struct TrendsView: View {
                 )
                 metricChart(
                     title: "Resting heart rate", unit: "bpm",
-                    accessibilityTitle: "Resting heart rate",
+                    accessibilityTitle: String(localized: "Resting heart rate"),
+                    metricKey: "rhr",
                     points: rhrPts,
                     gradient: gradient(StrandPalette.metricRose),
                     tip: StrandPalette.metricRose,
@@ -576,7 +626,8 @@ struct TrendsView: View {
                     // Plotted points + range stay on the stored 0–100 scale (line shape unchanged); only the
                     // displayed numbers + unit follow the Effort-scale toggle, converted inside `fmt`. (#268)
                     title: "Effort", unit: "/ \(UnitFormatter.effortScaleMax(effortScale))",
-                    accessibilityTitle: "Effort",
+                    accessibilityTitle: String(localized: "Effort"),
+                    metricKey: "strain",
                     points: strainPts,
                     // WHOOP: Effort/Strain is always BLUE — a deep→bright blue line, not the amber ramp.
                     gradient: gradient(StrandPalette.effortColor),
@@ -596,6 +647,8 @@ struct TrendsView: View {
         // Plain-string series name for VoiceOver (the `title` is a LocalizedStringKey and can't be
         // re-read as a String); supplied by callers so the line announces e.g. "HRV trend".
         accessibilityTitle: String,
+        // MetricCatalog key this small-multiple taps through to (its full MetricDetailView).
+        metricKey: String,
         points pts: [TrendPoint],
         subtitle: String? = nil,
         gradient: Gradient,
@@ -606,7 +659,7 @@ struct TrendsView: View {
         fmt: @escaping (Double) -> String
     ) -> some View {
         let avg = mean(pts)
-        ChartCard(
+        let card = ChartCard(
             title: title,
             subtitle: subtitle,
             trailing: avg.map(fmt),
@@ -616,7 +669,7 @@ struct TrendsView: View {
                 if pts.count >= 2 {
                     glowChart(points: pts, gradient: gradient, valueRange: range,
                               tip: tip, valueFormat: { "\(fmt($0)) \(unit)" },
-                              accessibilityLabel: "\(accessibilityTitle) trend")
+                              accessibilityLabel: String(localized: "\(accessibilityTitle) trend"))
                 } else {
                     sparsePlaceholder
                 }
@@ -634,6 +687,11 @@ struct TrendsView: View {
                 }
             }
         )
+        // Each small-multiple taps through to its own metric detail (like Today's cards / Explore's rows),
+        // with the liquid press settle. The chart itself is left uncluttered — no vessel over it (task).
+        NavigationLink { metricDetail(metricKey) } label: { card }
+            .buttonStyle(LiquidPressStyle())
+            .accessibilityHint(Text(String(localized: "Opens the full \(accessibilityTitle) metric.")))
     }
 
     // MARK: Year heat-strip
@@ -646,10 +704,10 @@ struct TrendsView: View {
             guard let dt = date(d.day) else { return nil }
             return RecoveryDay(date: dt, score: d.recovery)
         }
-        let title = (range == .all && repo.days.count > 365) ? "Charge — all history" : "Charge — past year"
+        let title = (range == .all && repo.days.count > 365) ? String(localized: "Charge (all history)") : String(localized: "Charge (past year)")
         return NoopCard(tint: StrandPalette.chargeColor) {
             VStack(alignment: .leading, spacing: NoopMetrics.cardInnerSpacing) {
-                SectionHeader("\(title)", overline: "Calendar", trailing: "\(recoveryDays.filter { $0.score != nil }.count) days")
+                SectionHeader("\(title)", overline: "Calendar", trailing: String(localized: "\(recoveryDays.filter { $0.score != nil }.count) days"))
                 if recoveryDays.isEmpty {
                     sparsePlaceholder.frame(height: 120)
                 } else {

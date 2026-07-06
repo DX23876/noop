@@ -69,6 +69,30 @@ public enum TestCentre {
         }
     }
 
+    // MARK: - All-time drained-rows tally (#990)
+
+    /// Key for the ALL-TIME drained (persisted) row counter. Sits in the testcentre.* namespace because
+    /// the Connection readout is its consumer, but it accrues UNCONDITIONALLY (the Backfiller's session
+    /// summary is not test-mode gated), so it answers "has this install ever drained anything" across
+    /// sessions - the #990 ask: the per-session counter resets on every reconnect, so a strap stuck in a
+    /// pull-restart loop looked like it never progressed even when rows were landing.
+    private static let cumulativeDrainedKey = "testcentre.cumulativeDrainedRows"
+
+    /// Fold one session's drained rows into the persisted all-time tally. Called from the LiveState log
+    /// sink when the Backfiller's "session persisted N rows" summary lands (the single emit point), so
+    /// no BLE-path code needs a new seam. `nonisolated` - a UserDefaults read-modify-write only.
+    public nonisolated static func noteDrainedRows(_ rows: Int) {
+        guard rows > 0 else { return }
+        let d = UserDefaults.standard
+        d.set(d.integer(forKey: cumulativeDrainedKey) + rows, forKey: cumulativeDrainedKey)
+    }
+
+    /// The all-time drained-rows tally (0 before anything ever drained). The Connection readout shows it
+    /// beside the per-session count (#990).
+    public nonisolated static func cumulativeDrainedRows() -> Int {
+        UserDefaults.standard.integer(forKey: cumulativeDrainedKey)
+    }
+
     /// One-time migration: fold the scattered @AppStorage / PuffinExperiment / ScheduledDebugExport keys
     /// behind this surface WITHOUT renaming them (read-through). Existing keys are PRESERVED (spec section
     /// 10): the experimental toggles keep their PuffinExperiment.*Key names, the scheduled export keeps its

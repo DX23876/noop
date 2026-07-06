@@ -100,6 +100,18 @@ class OuraDriver(
     private var lastRingTimestamp: Long = 0
 
     /**
+     * Ring-time -> UTC anchor (OURA_PROTOCOL.md s5.5): the ring's clock ticks at 100 ms/tick by default
+     * (burst-mode 1 ms/tick, s5.5, is NOT modeled in v1). Set from the ring's own 0x42 time-sync event
+     * (primary) or, only while no 0x42 has arrived yet THIS session, the coarser 1s-granularity 0x85 RTC
+     * beacon (secondary). null until the first anchor event of this session: a record decoded before then
+     * has no computable UTC time, and [unixSeconds] honestly returns null rather than guessing. A stale
+     * anchor from a PREVIOUS session is never reused - the ring may have rebooted. Kotlin twin of Swift's
+     * anchorUtcMs/anchorRingTime.
+     */
+    private var anchorUtcMs: Long? = null
+    private var anchorRingTime: Long? = null
+
+    /**
      * The freshly-provisioned key the transport generated during an adopt flow (s3.2). Once set by
      * beginKeyInstall it becomes the effective key for the post-install re-auth. null otherwise.
      */
@@ -265,6 +277,57 @@ class OuraDriver(
         liveHREnableStep = 0
         lastRingTimestamp = 0
         installedKey = null
+        // A stale anchor must not survive stop()/a new session - the ring may have rebooted (s5.5).
+        anchorUtcMs = null
+        anchorRingTime = null
+    }
+
+    // MARK: - Ring-time -> UTC anchor (s5.5)
+
+    /**
+     * Convert a record's ring-clock timestamp to unix seconds using the current session's anchor
+     * (OURA_PROTOCOL.md s5.5). Returns null when no anchor has arrived yet this session, so the caller
+     * can honestly fall back (e.g. to wall-clock arrival time) instead of guessing. Kotlin twin of
+     * Swift's `unixSeconds(forRingTimestamp:)`. `rt` is the unsigned 32-bit ring timestamp as a Long.
+     */
+    fun unixSeconds(forRingTimestamp: Long): Long? {
+        val anchorMs = anchorUtcMs ?: return null
+        val anchorRt = anchorRingTime ?: return null
+        val deltaTicks = forRingTimestamp - anchorRt
+        val ms = anchorMs + deltaTicks * 100   // default 100 ms/tick (s5.5); bounded input, no overflow
+        // #968: a corrupt/misaligned ring timestamp (seen on a full cursor=0 history dump) can convert to
+        // an implausible epoch. Gate the RESULT to the same 2020-2035 plausible window used for anchoring
+        // (was a weak `ms <= 0`), so the caller honestly falls back to arrival time instead of banking a
+        // 1970 or far-future sample. Byte-identical to the Swift twin.
+        val seconds = ms / 1000
+        if (seconds < MIN_PLAUSIBLE_EPOCH_SECONDS || seconds > MAX_PLAUSIBLE_EPOCH_SECONDS) return null
+        return seconds
+    }
+
+    /**
+     * Set the session anchor from a decoded epoch (unix SECONDS on the wire, s6.11) if it is plausible.
+     * `preferPrimary` is true for a 0x42 time-sync (always wins) and false for a 0x85 RTC beacon (fills a
+     * gap only while no time-sync anchor exists yet). Kotlin twin of the anchor-set logic inlined in the
+     * Swift driver's `.timeSync` / `.rtcBeacon` ingest cases.
+     */
+    private fun setAnchorIfPlausible(epochSeconds: Long, ringTimestamp: Long, preferPrimary: Boolean) {
+        // A secondary (beacon) anchor never displaces an already-set primary (time-sync) anchor.
+        if (!preferPrimary && anchorUtcMs != null) return
+        val ms = plausibleAnchorMs(epochSeconds) ?: return
+        anchorUtcMs = ms
+        anchorRingTime = ringTimestamp
+    }
+
+    /**
+     * Bounds-check a decoded epoch (unix seconds) and convert to ms, or null if implausible. Kotlin twin
+     * of Swift's `plausibleAnchorMs(fromEpochSeconds:)`. The 2020-2035 gate rejects a corrupt/misaligned
+     * 0x42/0x85 value (seen on real hardware: a full cursor=0 history dump hit one deep in the backlog) so
+     * it is never trusted as an anchor (honest-data invariant). The gate ALSO bounds the input to the
+     * seconds->ms `* 1000` conversion so it can never overflow Long.
+     */
+    private fun plausibleAnchorMs(epochSeconds: Long): Long? {
+        if (epochSeconds < MIN_PLAUSIBLE_EPOCH_SECONDS || epochSeconds > MAX_PLAUSIBLE_EPOCH_SECONDS) return null
+        return epochSeconds * 1000   // safe: bounded input, cannot overflow
     }
 
     // MARK: - Record ingest (decode)
@@ -329,10 +392,25 @@ class OuraDriver(
                 (OuraDecoders.decodeSleepPhase(record) ?: emptyList()).map { OuraEvent.SleepPhaseEvent(it) }
 
             // --- Tier A: Lifecycle / state / time ---
-            OuraEventTag.TIME_SYNC ->
-                OuraDecoders.decodeTimeSync(record)?.let { listOf(OuraEvent.TimeSyncEvent(it)) } ?: emptyList()
-            OuraEventTag.RTC_BEACON ->
-                OuraDecoders.decodeRtcBeacon(record)?.let { listOf(OuraEvent.RtcBeaconEvent(it)) } ?: emptyList()
+            OuraEventTag.TIME_SYNC -> {
+                // Primary UTC anchor (s5.5): always wins over a secondary RTC-beacon anchor already set.
+                val ts = OuraDecoders.decodeTimeSync(record) ?: return emptyList()
+                // UNIT CORRECTION (s6.11): the 0x42 wire value is unix SECONDS, not ms (treating it as ms
+                // anchored history-fetched samples to ~1970). OuraTimeSync.epochMs still names what the doc
+                // claims; the seconds->ms conversion lives in the anchor gate.
+                // CRASH-SAFETY (s6.11): a full cursor=0 history dump can hit a 0x42 record with an
+                // implausible raw value; plausibleAnchorMs bounds-checks BEFORE multiplying, so an
+                // implausible value is safely ignored (never anchors to garbage) instead of overflowing.
+                setAnchorIfPlausible(ts.epochMs, ts.ringTimestamp, preferPrimary = true)
+                listOf(OuraEvent.TimeSyncEvent(ts))
+            }
+            OuraEventTag.RTC_BEACON -> {
+                // Secondary UTC anchor (s5.5, 1s granularity): only fills in while no 0x42 anchor exists yet
+                // this session, so a coarser beacon never overrides the primary time-sync anchor.
+                val r = OuraDecoders.decodeRtcBeacon(record) ?: return emptyList()
+                setAnchorIfPlausible(r.unixSeconds, r.ringTimestamp, preferPrimary = false)
+                listOf(OuraEvent.RtcBeaconEvent(r))
+            }
             OuraEventTag.STATE_CHANGE, OuraEventTag.WEAR_EVENT ->
                 OuraDecoders.decodeState(record)?.let { listOf(OuraEvent.StateEvent(it)) } ?: emptyList()
             OuraEventTag.DEBUG_TEXT ->
@@ -356,7 +434,14 @@ class OuraDriver(
                         ),
                     ),
                 )
-            OuraEventTag.ACTIVITY_INFO, OuraEventTag.ACTIVITY_SUMMARY_1, OuraEventTag.ACTIVITY_SUMMARY_2 ->
+            OuraEventTag.ACTIVITY_INFO ->
+                // Split out of the raw-bytes TierB wrapper: this ONE activity tag has a plausible decode
+                // formula (OuraDecoders.decodeActivityInfo, third-party [oura-rs], PR #960 investigation).
+                // Still Tier B - only reached behind allowTierB (gated above), and OuraStreamMapping never
+                // folds ActivityInfo into a durable stream. 0x51/0x52 summaries stay raw below.
+                OuraDecoders.decodeActivityInfo(record)?.let { listOf(OuraEvent.ActivityInfo(it)) }
+                    ?: emptyList()
+            OuraEventTag.ACTIVITY_SUMMARY_1, OuraEventTag.ACTIVITY_SUMMARY_2 ->
                 listOf(
                     OuraEvent.TierB(
                         OuraTierBSummary(
@@ -424,8 +509,10 @@ class OuraDriver(
         if (frame.subop == 0x28) {
             return SecureRouting.LiveHRPush(frame.subBody)
         }
-        // Enable/subscribe ACKs (0x23 / 0x27) advance the triplet (s5.6).
-        if (frame.subop == 0x23 || frame.subop == 0x27) {
+        // Live-HR enable ACKs advance the triplet (s5.6): 0x21 is the dhr_read feature-read ACK from
+        // step 1 (`2f 06 21 02 01 11 02 00`), 0x23 acks the enable write (step 2), 0x27 acks the
+        // subscribe write (step 3). All three must be recognised or the sequencer stalls at step 0.
+        if (frame.subop == 0x21 || frame.subop == 0x23 || frame.subop == 0x27) {
             return SecureRouting.EnableAck
         }
         return SecureRouting.Unhandled
@@ -455,5 +542,17 @@ class OuraDriver(
 
         object EnableAck : SecureRouting()
         object Unhandled : SecureRouting()
+    }
+
+    companion object {
+        /**
+         * Bounds for a plausible anchor epoch (unix seconds): 2020-01-01 to 2035-01-01. A decoded
+         * 0x42/0x85 value outside this range is a corrupt/misaligned record (seen on real hardware: a full
+         * cursor=0 history dump hit one deep in the backlog) and is never trusted as an anchor (honest-data
+         * invariant). This gate ALSO bounds the input to the seconds->ms `* 1000` conversion so it can
+         * never overflow Long. Byte-identical to Swift's min/maxPlausibleEpochSeconds.
+         */
+        private const val MIN_PLAUSIBLE_EPOCH_SECONDS = 1_577_836_800L
+        private const val MAX_PLAUSIBLE_EPOCH_SECONDS = 2_051_222_400L
     }
 }

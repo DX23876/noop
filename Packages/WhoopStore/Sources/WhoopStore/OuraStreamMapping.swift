@@ -40,8 +40,11 @@ public enum OuraStreamMapping {
     ///   - `.temp`       (0x46/0x75)                    → `skinTemp:[SkinTempSample(raw_adc)]`
     ///   - `.sleepPhase` (0x4E/0x5A 2-bit codes)        → `events:[WhoopEvent(kind: OURA_SLEEP_PHASE)]`
     ///   - `.battery`                                   → `battery:[BatterySample]`
-    /// Every other event case (`.motion`, `.state`, `.timeSync`, `.rtcBeacon`, `.debugText`, `.tierB`)
-    /// is intentionally not folded into a durable stream here.
+    /// Every other event case (`.motion`, `.state`, `.timeSync`, `.rtcBeacon`, `.debugText`, `.tierB`,
+    /// `.activityInfo`) is intentionally not folded into a durable stream here. In particular the 0x50
+    /// activity/MET decode NEVER mints a `steps` row: the formula is third-party and unvalidated (Tier B,
+    /// OURA_PROTOCOL.md s6.13), and MET is not a step count - fabricating one would break the honest-data
+    /// invariant and the per-source day-owner rules.
     public static func streams(from events: [OuraEvent], at ts: Int) -> Streams {
         var out = Streams()
         for e in events {
@@ -99,9 +102,10 @@ public enum OuraStreamMapping {
                     mv: v.voltageMv,
                     charging: v.charging))
 
-            case .motion, .state, .timeSync, .rtcBeacon, .debugText, .tierB:
+            case .motion, .state, .timeSync, .rtcBeacon, .debugText, .tierB, .activityInfo:
                 // Not a durable per-device stream row (timeSync/rtcBeacon anchor the transport's clock;
-                // motion/state/debug are diagnostics; Tier-B is UNVERIFIED and must never feed scoring).
+                // motion/state/debug are diagnostics; Tier-B / .activityInfo are UNVERIFIED and must
+                // never feed scoring or the steps stream).
                 continue
             }
         }

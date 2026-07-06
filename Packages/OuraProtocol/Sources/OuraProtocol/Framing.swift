@@ -37,6 +37,27 @@ public enum OuraFraming {
     /// The secure-session / extended opcode. Per OURA_PROTOCOL.md s2.2 / s4.1.
     public static let secureSessionOp: UInt8 = 0x2F
 
+    /// The GetEvents response / summary outer opcode (OURA_PROTOCOL.md s5.2). Below the event-tag range
+    /// (tags are >= 0x41), so a caller that fails to special-case it and lets it fall through to the TLV
+    /// decoder gets a safe no-op ("unknown tag") with correct byte accounting, never a misdecode.
+    public static let getEventsResponseOp: UInt8 = 0x11
+
+    /// The GetBattery response outer opcode (OURA_PROTOCOL.md s4.1/s6.10). Below the event-tag range
+    /// (tags are >= 0x41), so it round-trips safely through the TLV decoder as an "unknown tag" no-op if a
+    /// caller fails to special-case it.
+    public static let batteryResponseOp: UInt8 = 0x0D
+
+    /// Parse a 0x11 GetEvents response body: `status:1 sub_status:1 last_ring_timestamp:4LE pad:2`
+    /// (OURA_PROTOCOL.md s5.2). `status` 0x00 = empty/no more; any other value = data follows. The
+    /// `last_ring_timestamp` is the new cursor to resume the fetch from. Returns nil on a short body
+    /// (never guesses a cursor).
+    public static func parseGetEventsResponse(_ body: [UInt8]) -> (cursor: UInt32, moreData: Bool)? {
+        guard body.count >= 6 else { return nil }
+        let status = body[0]
+        let cursor = UInt32(body[2]) | (UInt32(body[3]) << 8) | (UInt32(body[4]) << 16) | (UInt32(body[5]) << 24)
+        return (cursor, status != 0x00)
+    }
+
     /// Parse one outer frame from the front of `bytes`. Returns nil on a short buffer (header or body
     /// not fully present), so a caller can wait for more bytes. Per OURA_PROTOCOL.md s2.1.
     public static func parseOuterFrame(_ bytes: [UInt8]) -> OuraOuterFrame? {

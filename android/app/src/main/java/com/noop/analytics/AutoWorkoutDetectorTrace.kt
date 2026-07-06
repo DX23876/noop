@@ -179,6 +179,25 @@ object WorkoutsTrace {
     ): String =
         "dedup sport=$sportKey kept=$keptSource(richness=$keptRichness) " +
             "dropped=$droppedSource(richness=$droppedRichness) (same activity, richer kept)"
+
+    /**
+     * An engine detected-bout decision line (#975): the IntelligenceEngine derives a bout from raw HR then
+     * either PERSISTS it (source "-noop", sport "detected") or DROPS it because it overlaps a real logged
+     * session (manual / imported), so the same bout is never counted twice. `verdict` is "persisted" /
+     * "droppedOverlap" / "droppedShadow"; `durMin` is the whole-minute bout length; on a drop, `overlapSource`
+     * names the real row it collided with. No PII (a source label + minutes + bpm only). Swift twin
+     * AutoWorkoutDetector.detectedBoutLine.
+     */
+    fun detectedBoutLine(
+        verdict: String,
+        durMin: Int,
+        avgBpm: Int,
+        overlapSource: String? = null,
+    ): String {
+        var line = "detectedBout verdict=$verdict durMin=$durMin avgBpm=$avgBpm"
+        if (overlapSource != null) line += " overlapSource=$overlapSource"
+        return line
+    }
 }
 
 /**

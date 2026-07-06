@@ -34,23 +34,23 @@ struct HowNoopWorksView: View {
 
         var title: String {
             switch self {
-            case .sleepSorting: return "How your sleep is sorted"
-            case .scores:       return "How your scores work"
-            case .recording:    return "What \"recording\" means"
-            case .provenance:   return "Where your numbers come from"
+            case .sleepSorting: return String(localized: "How your sleep is sorted")
+            case .scores:       return String(localized: "How your scores work")
+            case .recording:    return String(localized: "What \"recording\" means")
+            case .provenance:   return String(localized: "Where your numbers come from")
             }
         }
 
         var body: String {
             switch self {
             case .sleepSorting:
-                return "NOOP picks your main sleep as your longest real block, and (once it has learned your usual hours) the one nearest your normal sleep time. Everything else that day is a nap. You can always edit bed and wake times."
+                return String(localized: "NOOP picks your main sleep as your longest real block, and (once it has learned your usual hours) the one nearest your normal sleep time. Everything else that day is a nap. You can always edit bed and wake times.")
             case .scores:
-                return "Charge, Effort and Rest are scored on your own device from your strap data. Charge needs about four nights of sleep to learn your baseline (that's \"Calibrating\", counted as nights of 4 on the ring), and keeps sharpening over your first couple of weeks. On a WHOOP 5 or MG the strap banks little history, so that count can sit at 0 of 4 until you have worn it across a few nights. That's the strap's sync limit, not a fault. Before there's a number, NOOP shows what it can without faking one."
+                return String(localized: "Charge, Effort and Rest are scored on your own device from your strap data. Charge needs about four nights of sleep to learn your baseline (that's \"Calibrating\", counted as nights of 4 on the ring), and keeps sharpening over your first couple of weeks. On a WHOOP 5 or MG the strap banks little history, so that count can sit at 0 of 4 until you have worn it across a few nights. That's the strap's sync limit, not a fault. Before there's a number, NOOP shows what it can without faking one.")
             case .recording:
-                return "When your strap is connected NOOP is saving data live. \"Last synced\" tells you how fresh it is. If it says \"Not recording\", reconnect."
+                return String(localized: "When your strap is connected NOOP is saving data live. \"Last synced\" tells you how fresh it is. If it says \"Not recording\", reconnect.")
             case .provenance:
-                return "A badge shows whether a number was scored on-device by NOOP, or imported from Whoop or Apple Health."
+                return String(localized: "A badge shows whether a number was scored on-device by NOOP, or imported from Whoop or Apple Health.")
             }
         }
 
@@ -78,10 +78,10 @@ struct HowNoopWorksView: View {
         /// Short overline tag above the section title.
         var overline: String {
             switch self {
-            case .sleepSorting: return "SLEEP"
-            case .scores:       return "SCORES"
-            case .recording:    return "RECORDING"
-            case .provenance:   return "PROVENANCE"
+            case .sleepSorting: return String(localized: "SLEEP")
+            case .scores:       return String(localized: "SCORES")
+            case .recording:    return String(localized: "RECORDING")
+            case .provenance:   return String(localized: "PROVENANCE")
             }
         }
     }
@@ -221,10 +221,10 @@ struct HowNoopWorksView: View {
 
         var name: String {
             switch self {
-            case .charge:     return "Charge"
-            case .effort:     return "Effort"
-            case .rest:       return "Rest"
-            case .fitnessAge: return "Fitness Age"
+            case .charge:     return String(localized: "Charge")
+            case .effort:     return String(localized: "Effort")
+            case .rest:       return String(localized: "Rest")
+            case .fitnessAge: return String(localized: "Fitness Age")
             }
         }
 
@@ -232,23 +232,23 @@ struct HowNoopWorksView: View {
         var method: String {
             switch self {
             case .charge:
-                return "A baseline-normalized recovery score: your resting heart rate, sleep quality and night-to-night consistency, weighted against your own baseline, with heart-rate variability (rMSSD) leading wherever the strap gives us a clean reading."
+                return String(localized: "A baseline-normalized recovery score: your resting heart rate, sleep quality and night-to-night consistency, weighted against your own baseline, with heart-rate variability (rMSSD) leading wherever the strap gives us a clean reading.")
             case .effort:
-                return "A cardiovascular load in the Banister TRIMP family: time spent in each heart-rate zone, weighted so harder zones count for more, summed into one daily figure."
+                return String(localized: "A cardiovascular load in the Banister TRIMP family: time spent in each heart-rate zone, weighted so harder zones count for more, summed into one daily figure.")
             case .rest:
-                return "Sleep scored from how long you slept versus how much you needed, how efficient the night was, and the restorative (deep and REM) share of it."
+                return String(localized: "Sleep scored from how long you slept versus how much you needed, how efficient the night was, and the restorative (deep and REM) share of it.")
             case .fitnessAge:
-                return "An estimated VO2max from the Nes / HUNT Fitness Study model (resting heart rate, age and activity), read against population norms to express it as a fitness age."
+                return String(localized: "An estimated VO2max from the Nes / HUNT Fitness Study model (resting heart rate, age and activity), read against population norms to express it as a fitness age.")
             }
         }
 
         /// The short method-family tag shown as an overline next to the score name.
         var family: String {
             switch self {
-            case .charge:     return "RESTING HR + SLEEP + HRV"
-            case .effort:     return "BANISTER TRIMP / HR ZONES"
-            case .rest:       return "DURATION + EFFICIENCY + STAGES"
-            case .fitnessAge: return "NES / HUNT VO2MAX"
+            case .charge:     return String(localized: "RESTING HR + SLEEP + HRV")
+            case .effort:     return String(localized: "BANISTER TRIMP / HR ZONES")
+            case .rest:       return String(localized: "DURATION + EFFICIENCY + STAGES")
+            case .fitnessAge: return String(localized: "NES / HUNT VO2MAX")
             }
         }
 

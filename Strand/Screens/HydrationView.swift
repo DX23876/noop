@@ -4,13 +4,16 @@ import StrandAnalytics
 
 // MARK: - Hydration detail (MVP, opt-in, local-only)
 //
-// Design-Reset compliant: a clean progress ring (GlowRing, blue accent, no bloom), the three quick-log
-// buttons (Sip / Cup / Bottle) in the secondary NoopButton style, today's logged total as a single
-// read-out, and a 7-day mini bar history. Flat cards (NoopCard), NoopMetrics spacing, tokens only, no
-// gold. BYTE-PARITY twin of the Android `HydrationScreen`: the day total + history come from the
-// local-only `HydrationStore` series (additive day total), and the goal is the pure `HydrationGoal`
-// engine (profile sex + today's Effort bump). Per-tap rows aren't separately persisted on either
-// platform — the day total is the source of truth, so the screen shows the honest day figure.
+// Liquid finish: water in a vessel is the literal metaphor, so the hero is the canonical `LiquidVessel`
+// tinted the action blue, filling to today's fraction of goal with the litre figure counting up over it.
+// The day total sits in a filling `LiquidTube` (the same horizontal vessel Today's grid uses), the three
+// quick-log buttons (Sip / Cup / Bottle) stay in the secondary NoopButton style, and the 7-day mini bars
+// remain. Frosted `card {}` surfaces (rounded 22 + resting hairline), the day-of-sky backdrop, and
+// `LiquidPressStyle` on the tappable drink rows line the screen up with the liquid Today + batch-1 tabs.
+// BYTE-PARITY twin of the Android `HydrationScreen`: the day total + history come from the local-only
+// `HydrationStore` series (additive day total), and the goal is the pure `HydrationGoal` engine (profile
+// sex + today's Effort bump). Per-tap rows aren't separately persisted on either platform — the day total
+// is the source of truth, so the screen shows the honest day figure.
 struct HydrationView: View {
     @EnvironmentObject var repo: Repository
     @EnvironmentObject var profile: ProfileStore
@@ -20,6 +23,9 @@ struct HydrationView: View {
     @State private var totalML: Double = 0
     @State private var history: [(day: String, value: Double)] = []
     @State private var reloadTick = 0
+    /// The animated fill the hero vessel + tube drive to on appear and after each log, so the liquid
+    /// rises smoothly rather than snapping (the Today HeroScoreCell idiom).
+    @State private var heroFraction: Double = 0
     /// #798 - today's individual logged drinks (for swipe-to-delete + tap-to-edit), and the entry being
     /// edited in the amount sheet (nil when the sheet is closed).
     @State private var entries: [HydrationEntry] = []
@@ -35,7 +41,10 @@ struct HydrationView: View {
     var body: some View {
         ScreenScaffold(title: "Hydration",
                        subtitle: "Your fluid intake today, on \(Platform.deviceNounPhrase) only.",
-                       onRefresh: { await reload() }) {
+                       onRefresh: { await reload() },
+                       // Liquid finish: the same full-bleed day-of-sky backdrop Today + the other liquid
+                       // tabs carry, so Hydration sits in one atmosphere.
+                       topBackground: liquidScaffoldSky()) {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
                 ringSection
                 logSection
@@ -46,6 +55,14 @@ struct HydrationView: View {
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
+            }
+            // Rise the hero vessel + tube to the current fill on appear, and re-draw when a log moves it.
+            // macOS-13-safe single-param onChange.
+            .onChangeCompat(of: fraction) { newFraction in
+                withAnimation(.easeOut(duration: 0.9)) { heroFraction = newFraction }
+            }
+            .onAppear {
+                withAnimation(.easeOut(duration: 0.9)) { heroFraction = fraction }
             }
         }
         .task(id: reloadTick) { await reload() }
@@ -65,27 +82,29 @@ struct HydrationView: View {
         }
     }
 
-    // MARK: - Ring (total vs goal, in litres)
+    // MARK: - Hero (the vessel: water filling toward the goal, in litres)
 
     private var ringSection: some View {
-        NoopCard(padding: 20) {
+        card {
             VStack(spacing: NoopMetrics.cardInnerSpacing) {
+                // The signature liquid gauge, filling the "of goal" fraction in the action blue. Water in
+                // a vessel is the literal metaphor here, so it replaces the old flat progress ring. The
+                // litre figure counts up over it; the vessel fills to the SAME animated `heroFraction`
+                // driven on appear / after a log, so the fill and the number roll-up land together.
                 ZStack {
-                    GlowRing(fraction: fraction,
-                             value: HydrationGoal.litres(fromML: totalML),
-                             format: { _ in "" },   // centre text is the overlay below
-                             color: StrandPalette.accent,
-                             diameter: 184,
-                             lineWidth: 14)
+                    LiquidVessel(value: heroFraction, tint: StrandPalette.accent, animated: true)
+                        .frame(width: 184, height: 184)
                     VStack(spacing: 2) {
-                        Text(String(format: "%.1f", HydrationGoal.litres(fromML: totalML)))
-                            .font(StrandFont.rounded(40, weight: .bold))
-                            .foregroundStyle(StrandPalette.textPrimary)
-                            .monospacedDigit()
-                        Text(String(format: "of %.1f L", HydrationGoal.litres(fromML: Double(goalML))))
+                        CountUpText(value: HydrationGoal.litres(fromML: totalML),
+                                    format: { String(format: "%.1f", $0) },
+                                    font: StrandFont.rounded(40, weight: .bold),
+                                    color: StrandPalette.textPrimary)
+                            .shadow(color: .black.opacity(0.5), radius: 6, y: 1)
+                        Text(String(localized: "of \(String(format: "%.1f", HydrationGoal.litres(fromML: Double(goalML)))) L"))
                             .font(StrandFont.subhead)
                             .foregroundStyle(StrandPalette.textSecondary)
                     }
+                    .allowsHitTesting(false)   // taps fall through to the vessel → splash
                 }
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Hydration today")
@@ -97,6 +116,20 @@ struct HydrationView: View {
             }
             .frame(maxWidth: .infinity)
         }
+    }
+
+    // MARK: - Frosted card helper (matches LiquidTodayView.card: rounded 22 + resting hairline)
+
+    private func card<V: View>(padding: CGFloat = 16, @ViewBuilder _ content: () -> V) -> some View {
+        content()
+            .padding(padding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(StrandPalette.surfaceRaised)
+                    .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .strokeBorder(StrandPalette.hairline, lineWidth: 1))
+            )
     }
 
     // MARK: - Quick log (Sip / Cup / Bottle, secondary style)
@@ -145,7 +178,7 @@ struct HydrationView: View {
 
     @ViewBuilder private var entriesSection: some View {
         if !entries.isEmpty {
-            NoopCard(padding: 18) {
+            card(padding: 18) {
                 VStack(alignment: .leading, spacing: NoopMetrics.gap) {
                     Text("Today's drinks").strandOverline()
                     // #842 — render rows in a plain VStack inside the page ScrollView. The previous nested,
@@ -189,7 +222,8 @@ struct HydrationView: View {
                 }
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            // Liquid tap response: the same physical settle-inward every tappable liquid row gets.
+            .buttonStyle(LiquidPressStyle())
             .accessibilityLabel("Logged \(entry.amountMl) millilitres at \(Self.entryTimeFmt.string(from: entry.loggedAt))")
             .accessibilityHint("Tap to edit the amount")
             Button(role: .destructive) {
@@ -213,7 +247,7 @@ struct HydrationView: View {
     // MARK: - 7-day mini history (flat bars, today on the right)
 
     private var historySection: some View {
-        NoopCard(padding: 18) {
+        card(padding: 18) {
             VStack(alignment: .leading, spacing: NoopMetrics.gap) {
                 Text("Last 7 days").strandOverline()
                 historyBars
@@ -260,7 +294,7 @@ struct HydrationView: View {
     // MARK: - Today's total (the honest day figure; per-tap rows aren't persisted)
 
     private var todayTotalSection: some View {
-        NoopCard(padding: 18) {
+        card(padding: 18) {
             VStack(alignment: .leading, spacing: NoopMetrics.space2) {
                 Text("Today").strandOverline()
                 if totalML <= 0 {
@@ -283,6 +317,11 @@ struct HydrationView: View {
                             .foregroundStyle(StrandPalette.textPrimary)
                             .monospacedDigit()
                     }
+                    // Progress toward goal as the liquid tube (the same horizontal vessel Today's Key
+                    // Metrics use), filling to the animated `heroFraction` so it rises with the hero.
+                    LiquidTube(frac: heroFraction, tint: StrandPalette.accent, height: 8, animated: false)
+                        .accessibilityLabel("Progress toward today's goal")
+                        .accessibilityValue("\(percent) percent")
                 }
             }
         }

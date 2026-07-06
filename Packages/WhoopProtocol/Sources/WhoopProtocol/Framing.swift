@@ -20,14 +20,14 @@ private let crc8Table: [UInt8] = [
     0xDE, 0xD9, 0xD0, 0xD7, 0xC2, 0xC5, 0xCC, 0xCB, 0xE6, 0xE1, 0xE8, 0xEF, 0xFA, 0xFD, 0xF4, 0xF3,
 ]
 
-/// CRC-8 (poly 0x07) over `bytes[from..<(to ?? count)]`. The range (default = whole array) lets the
-/// per-frame validator checksum a slice of the frame WITHOUT materializing a sub-array via
-/// `Array(frame[...])` (#perf) — every frame is CRC'd, so that copy added up on the historical-offload path.
+/// CRC-8 (poly 0x07) over `bytes[from..<(to ?? count)]`. The optional range defaults to the whole
+/// array, so existing callers are unchanged; passing a range lets the frame validator checksum a slice
+/// in place rather than slicing out a fresh `Array(frame[...])` for every frame on the offload path.
 public func crc8(_ bytes: [UInt8], _ from: Int = 0, _ to: Int? = nil) -> UInt8 {
-    let end = to ?? bytes.count
+    let upper = to ?? bytes.count
     var crc: UInt8 = 0
     var i = from
-    while i < end {
+    while i < upper {
         crc = crc8Table[Int(crc ^ bytes[i])]
         i += 1
     }
@@ -47,26 +47,28 @@ private let crc32Table: [UInt32] = {
     return table
 }()
 
-/// Standard zlib CRC-32 over `bytes[from..<(to ?? count)]` (default = whole array). Ranged to avoid a
-/// per-frame sub-array allocation in the validator (#perf).
+/// Standard zlib CRC-32 over `bytes[from..<(to ?? count)]`. The optional range defaults to the whole
+/// array (existing callers unchanged); the validator passes a range to checksum the inner record or
+/// payload in place, skipping the per-frame sub-array copy that added up over a multi-night offload.
 public func crc32(_ bytes: [UInt8], _ from: Int = 0, _ to: Int? = nil) -> UInt32 {
-    let end = to ?? bytes.count
+    let upper = to ?? bytes.count
     var crc: UInt32 = 0xFFFFFFFF
     var i = from
-    while i < end {
+    while i < upper {
         crc = crc32Table[Int((crc ^ UInt32(bytes[i])) & 0xFF)] ^ (crc >> 8)
         i += 1
     }
     return crc ^ 0xFFFFFFFF
 }
 
-/// CRC16-Modbus (poly 0xA001, init 0xFFFF, reflected). Used for the Whoop 5.0 frame header check.
-/// Ported verbatim from the Goose reverse-engineering (`crc16Modbus`).
+/// CRC16-Modbus (poly 0xA001, init 0xFFFF, reflected) over `bytes[from..<(to ?? count)]`. Used for the
+/// Whoop 5.0 frame header check. The optional range defaults to the whole array; the validator passes
+/// a range so the 6-byte header check needs no `Array(frame[0..<6])` copy.
 public func crc16Modbus(_ bytes: [UInt8], _ from: Int = 0, _ to: Int? = nil) -> UInt16 {
-    let end = to ?? bytes.count
+    let upper = to ?? bytes.count
     var crc: UInt16 = 0xFFFF
     var i = from
-    while i < end {
+    while i < upper {
         crc ^= UInt16(bytes[i])
         for _ in 0..<8 {
             if crc & 1 == 1 {
@@ -111,12 +113,13 @@ public func verifyFrame(_ frame: [UInt8]) -> FrameCheck {
         return FrameCheck(ok: false)
     }
     let length = u16le(frame, 1)
-    // Ranged CRC over the frame in place — no per-frame sub-array allocation (#perf).
+    // Ranged CRCs checksum the frame in place, with no per-frame sub-array allocation.
     let crc8OK = crc8(frame, 1, 3) == frame[3]
     var crc32OK: Bool? = nil
     // length must cover at least the envelope's inner bytes (mirrors framing.py).
     if 7 <= length && length + 4 <= frame.count {
-        crc32OK = crc32(frame, 4, length) == u32le(frame, length)   // inner = frame[4..<length]
+        // inner record = frame[4..<length]
+        crc32OK = crc32(frame, 4, length) == u32le(frame, length)
     }
     let ok = crc8OK && (crc32OK ?? false)
     return FrameCheck(ok: ok, length: length, crc8OK: crc8OK, crc32OK: crc32OK)
@@ -159,7 +162,7 @@ private func verifyFrameWhoop5(_ frame: [UInt8]) -> FrameCheck {
     }
     let total = declaredLength + 8
 
-    // Header CRC16-Modbus over the first 6 bytes, stored LE at frame[6..8]. Ranged, no copy (#perf).
+    // Header CRC16-Modbus over the first 6 bytes, stored LE at frame[6..8]. Ranged, no copy.
     let wantHeaderCRC = crc16Modbus(frame, 0, 6)
     let gotHeaderCRC = UInt16(frame[6]) | (UInt16(frame[7]) << 8)
     let headerCRCOK = wantHeaderCRC == gotHeaderCRC
@@ -168,7 +171,8 @@ private func verifyFrameWhoop5(_ frame: [UInt8]) -> FrameCheck {
     if frame.count >= total {
         // payload spans [8, total-4); CRC32 trailer is the final 4 bytes of the frame.
         let payloadEnd = total - 4
-        let want = crc32(frame, 8, payloadEnd)   // payload = frame[8..<payloadEnd]
+        // payload = frame[8..<payloadEnd], checksummed in place.
+        let want = crc32(frame, 8, payloadEnd)
         let got = u32le(frame, payloadEnd)
         crc32OK = want == got
     }
@@ -227,7 +231,14 @@ public func puffinCommandFrame(cmd: UInt8, seq: UInt8, payload: [UInt8] = [0x00]
 /// A complete frame is `length + 4` bytes where length = u16 LE at buf[1..3].
 /// Mirrors framing.py Reassembler.
 public final class Reassembler {
+    // Backed by a flat byte buffer plus a read cursor rather than draining off the front. The earlier
+    // form called buf.removeFirst(n), which shifts the whole tail down on every completed frame, so
+    // draining one frame was O(n) and the historical offload (thousands of ~1.9 KB records over a
+    // multi-night sync) paid it repeatedly. Here fragments append into [buf], [head] advances past
+    // consumed bytes, and the leftover tail is compacted to the front once per feed(). Output frames are
+    // byte-identical and in the same order. This mirrors the Android Reassembler window.
     private var buf: [UInt8] = []
+    private var head = 0   // index of the first byte not yet consumed
     private let family: DeviceFamily
 
     /// ~4× the largest real WHOOP frame (~1920 B raw/historical). A declared total beyond this is a
@@ -251,36 +262,62 @@ public final class Reassembler {
         buf.append(contentsOf: fragment)
         var out: [[UInt8]] = []
         while true {
-            guard let sof = buf.firstIndex(of: 0xAA) else {
+            guard let sof = indexOfSOF() else {
+                // No SOF left in the window: nothing here is salvageable, so drop it all.
                 buf.removeAll(keepingCapacity: true)
+                head = 0
                 break
             }
-            if sof > 0 {
-                buf.removeFirst(sof)
-            }
+            // Skip any leading bytes ahead of the SOF instead of physically removing them.
+            if sof > head { head = sof }
+            let avail = buf.count - head
             // Both families need at least 4 bytes to read their declared length.
-            if buf.count < 4 {
+            if avail < 4 {
                 break
             }
             let total: Int
             switch family {
             case .whoop4:
-                total = (Int(buf[1]) | (Int(buf[2]) << 8)) + 4
+                total = (Int(buf[head + 1]) | (Int(buf[head + 2]) << 8)) + 4
             case .whoop5:
-                total = (Int(buf[2]) | (Int(buf[3]) << 8)) + 8
+                total = (Int(buf[head + 2]) | (Int(buf[head + 3]) << 8)) + 8
             }
             if total > Reassembler.maxFrameBytes {
                 // Impossibly large declared length → this 0xAA is garbage. Drop it and resync to the
                 // next SOF instead of stalling the live stream until a reconnect.
-                buf.removeFirst(1)
+                head += 1
                 continue
             }
-            if buf.count < total {
+            if avail < total {
                 break
             }
-            out.append(Array(buf[0..<total]))
-            buf.removeFirst(total)
+            out.append(Array(buf[head..<(head + total)]))
+            head += total
         }
+        compact()
         return out
+    }
+
+    /// Index of the first 0xAA at or after `head` in the live window, or nil if none remain.
+    private func indexOfSOF() -> Int? {
+        var i = head
+        while i < buf.count {
+            if buf[i] == 0xAA { return i }
+            i += 1
+        }
+        return nil
+    }
+
+    /// Slide the unconsumed tail back to offset 0 so `head` can't drift forever and the buffer stays
+    /// small. compact() runs at the end of every feed(), so `head` is always 0 when the next append
+    /// lands. The leftover is at most one in-progress frame (< maxFrameBytes), so the move is bounded.
+    private func compact() {
+        if head == 0 { return }
+        if head >= buf.count {
+            buf.removeAll(keepingCapacity: true)
+        } else {
+            buf.removeFirst(head)
+        }
+        head = 0
     }
 }

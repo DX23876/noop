@@ -109,12 +109,25 @@ data class OuraTierBSummary(
     }
 }
 
+/**
+ * One decoded `0x50` activity_info record: a `state` code (activity-category; meaning unconfirmed)
+ * plus a per-sample MET (metabolic-equivalent) series. THIRD-PARTY FORMULA (OURA_PROTOCOL.md s6.13,
+ * [oura-rs] - clean-room fact citation, no code copied): plausible against six real Gen 3 captures
+ * from PR #960's investigation (resting ~0.9 MET through a vigorous-activity burst at 7.4 MET, all
+ * physiologically sane), but NOT independently ground-truth-validated against the Oura app's own
+ * numbers. It therefore stays Tier B: emitted only behind `OuraDriver.allowTierB`, and NEVER folded
+ * into `OuraStreamMapping`/`Streams`/scoring (steps stay honest - no step count is minted from MET).
+ * Kotlin twin of the Swift `OuraActivityInfo` (met as List<Double> keeps structural equality).
+ */
+data class OuraActivityInfo(val ringTimestamp: Long, val state: Int, val met: List<Double>)
+
 // MARK: - The emitted event union
 
 /**
  * What OuraDriver.ingest(record:) emits. A single record can yield several events (e.g. an IBI+amp
- * record carries up to 6 IBIs). Tier-B events are wrapped in TierB and only emitted when the driver
- * is configured to allow them; they must never feed scoring without passing a real-capture fixture.
+ * record carries up to 6 IBIs). Tier-B events are wrapped in TierB (or ActivityInfo) and only emitted
+ * when the driver is configured to allow them; they must never feed scoring without passing a
+ * real-capture fixture.
  *
  * Kotlin twin of the Swift `OuraEvent` enum-with-associated-values, modelled as a sealed class.
  */
@@ -138,6 +151,14 @@ sealed class OuraEvent {
      */
     data class TierB(val value: OuraTierBSummary) : OuraEvent()
 
+    /**
+     * A decoded `0x50` activity_info record (state + MET series). Still Tier-B (see [OuraActivityInfo]
+     * doc) - split out of the raw-bytes [TierB] wrapper because this ONE tag has a plausible decode
+     * formula, so an investigating consumer can log real MET numbers instead of hex. Same gate
+     * (`allowTierB`), same discipline (never reaches `OuraStreamMapping`).
+     */
+    data class ActivityInfo(val value: OuraActivityInfo) : OuraEvent()
+
     /** True for Tier-B events, so a consumer can assert none leaked into a Tier-A-only sink. */
-    val isTierB: Boolean get() = this is TierB
+    val isTierB: Boolean get() = this is TierB || this is ActivityInfo
 }

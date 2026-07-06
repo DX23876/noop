@@ -23,7 +23,16 @@ import WhoopStore   // DailyMetric (the anchor row's recovery / strain / sleep f
 final class WatchSessionBridge: NSObject, ObservableObject {
 
     /// The most recent snapshot we built + sent, surfaced for debug / a Settings "watch sync" readout.
+    /// Also one half of the push gate below: a rebuilt snapshot whose headline values match this one is
+    /// not worth a budgeted transfer, so `pushLatest` skips it.
     @Published private(set) var lastSent: WatchScoreSnapshot?
+    /// When the last snapshot was actually pushed, the other half of the push gate. nil until the first
+    /// push of this process, which therefore always passes the spacing check.
+    private var lastPushedAt: Date?
+    /// Minimum spacing between pushes (30 minutes). Complication/context transfers ride a system budget
+    /// (~50/day for complication updates), so `pushLatest` never sends more often than this, and only
+    /// when the headline values actually changed. BOTH checks must pass; see `shouldPush`.
+    static let minPushInterval: TimeInterval = 30 * 60
     /// Whether a watch is currently paired + has the NOOP watch app installed + is reachable enough to
     /// receive context. Application context still queues for delivery when the watch is briefly away, so
     /// this is informational, not a gate on sending.
@@ -56,41 +65,94 @@ final class WatchSessionBridge: NSObject, ObservableObject {
     /// widget). It reads the SAME most-recent scored day the widget anchors on, so the wrist, the widget
     /// and Today never disagree about which day they describe.
     ///
+    /// SELF-THROTTLED (the watch budget gate): callers may invoke this as often as they like, the push
+    /// only goes out when `shouldPush` passes, at most once per `minPushInterval` AND only when the
+    /// snapshot's headline values differ from the last push. A skipped snapshot is not lost: the next
+    /// trigger (a refreshSeq bump, a foreground, a launch) rebuilds it fresh off the same model.
+    ///
     /// `async` because Rest (sleep_performance) lives in a computed metric series rather than a
     /// `DailyMetric` column, so it needs an `exploreSeries` read (mirrors `WidgetSnapshot.publish`).
     func sendLatest(from model: AppModel) async {
         let snap = await Self.buildSnapshot(from: model)
+        // A contentless snapshot (a cold launch races the first repo refresh, so `days` is still empty)
+        // must NOT push: it would stomp the watch's last REAL data with the empty state AND burn the
+        // 30-minute spacing gate, locking out the genuine snapshot that lands seconds later. Skip
+        // without touching lastPushedAt/lastSent, so the first real snapshot passes the gate untouched.
+        let contentless = snap.scoreDay == nil && snap.charge == nil && snap.effort == nil
+            && snap.rest == nil && snap.sleepSummary.isEmpty
+        if contentless { return }
+        let now = Date()
+        guard shouldPush(snap, now: now) else { return }
+        lastPushedAt = now
         send(snap)
     }
 
     /// Build the latest snapshot off `model` and push it to the watch. The entrypoint the iOS app entry
-    /// calls from the SAME refresh that republishes the Home-screen widget (scenePhase active + after a
-    /// Health sync), so the wrist updates in lockstep with the widget instead of only ever showing
-    /// placeholder data. Thin alias over `sendLatest`; named for the app-entry call site to read clearly.
+    /// calls from the SAME refresh that republishes the Home-screen widget (scenePhase active, after a
+    /// Health sync, and on an active-phase refreshSeq bump), so the wrist updates in lockstep with the
+    /// widget instead of only ever showing placeholder data. Thin alias over `sendLatest` and therefore
+    /// self-throttled the same way; named for the app-entry call site to read clearly.
     func pushLatest(from model: AppModel) async {
         await sendLatest(from: model)
+    }
+
+    /// The budget gate: complication/context transfers share a ~50/day system budget, so a push must
+    /// pass BOTH checks. (1) Spacing: at least `minPushInterval` since the last actual push (nil = never
+    /// pushed this process, passes). (2) Substance: the snapshot's HEADLINE values differ from the last
+    /// pushed one, so an unchanged dashboard never burns a transfer re-stating the same scores.
+    private func shouldPush(_ snap: WatchScoreSnapshot, now: Date) -> Bool {
+        if let at = lastPushedAt, now.timeIntervalSince(at) < Self.minPushInterval { return false }
+        return Self.headlineChanged(from: lastSent, to: snap)
+    }
+
+    /// Whether the headline content of `next` differs from the last-pushed snapshot. Headline = the
+    /// scores (with their calibrating flags), the sleep summary line, and the day the scores are ABOUT.
+    /// `hr` and `asOf` are deliberately NOT headline: hr ticks ~1 Hz and `asOf` differs on every build,
+    /// so counting either as "changed" would defeat the dedup and re-send identical scores all day.
+    /// nil `last` (nothing pushed yet) always counts as changed.
+    static func headlineChanged(from last: WatchScoreSnapshot?, to next: WatchScoreSnapshot) -> Bool {
+        guard let last else { return true }
+        return last.charge != next.charge
+            || last.chargeCalibrating != next.chargeCalibrating
+            || last.effort != next.effort
+            || last.effortCalibrating != next.effortCalibrating
+            || last.rest != next.rest
+            || last.restCalibrating != next.restCalibrating
+            || last.sleepSummary != next.sleepSummary
+            || last.scoreDay != next.scoreDay
     }
 
     /// Build the snapshot off the app state. Pure read; no side effects. Split out so the wiring is easy
     /// to follow and the calibrating logic sits in one place.
     static func buildSnapshot(from model: AppModel) async -> WatchScoreSnapshot {
-        // Anchor on the most recent day that actually carries a recovery score (the same row the widget
-        // and the Live Activity anchor on), so every field describes one coherent day.
-        let day = model.repo.days.last(where: { $0.recovery != nil })
+        // #911: anchor the way Today does, through the SHARED `Repository.widgetAnchor` the Home/Lock
+        // widget and the iOS Live Activity now also use, so the wrist, the widget, the Live Activity and
+        // Today always describe the same day. `Date()` is read here so the day rolls live as the phone
+        // republishes; the helper folds in the #304 pre-04:00 carve-out and the #547 future-day guard, and
+        // anchors on today's row (not "the most recent day with any recovery score") so it can't drift
+        // around the rollover. When today isn't scored yet it carries over the last STRICTLY-PRIOR scored
+        // day for the recovery side.
+        let days = model.repo.days
+        let now = Date()
+        let day = Repository.widgetAnchor(days: days, now: now)
 
         // Rest (sleep_performance) for that same anchor day. exploreSeries merges imported + on-device,
         // exactly like the Today Rest tile and the widget. The tail fallback (restSeries.last) is ONLY
         // valid when the anchor day IS the local today: early in a fresh day today's Rest row may not
         // exist yet, so we borrow the latest known value. For an anchor that is NOT today, borrowing the
         // tail would surface a DIFFERENT day's Rest as this day's without any cal marker (the cross-day
-        // bug), so we leave it nil and let restCalibrating flag it honestly. Mirrors TodayView's
-        // `restByDay[selectedDayKey] ?? (selectedDayOffset == 0 ? restSeries.last?.value : nil)`.
+        // bug), so we leave it nil and let restCalibrating flag it honestly. #977: the tail is ALSO gated on
+        // freshness now — a live 5.0 whose sleep never scores used to push a weeks-old Rest to the watch
+        // forever; a stale tail falls through to nil so the watch shows its honest calibrating state. Mirrors
+        // TodayView.freshRestScore.
         var restScore: Double?
         if let day {
             let restSeries = await model.repo.exploreSeries(key: "sleep_performance", source: model.deviceId)
             let restByDay = Dictionary(restSeries.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
-            let anchorIsToday = day.day == Repository.localDayKey(Date())
-            restScore = restByDay[day.day] ?? (anchorIsToday ? restSeries.last?.value : nil)
+            let anchorIsToday = day.day == Repository.localDayKey(now)
+            restScore = TodayView.freshRestScore(
+                todayValue: restByDay[day.day], lastDay: restSeries.last?.day,
+                lastValue: restSeries.last?.value, isTodaySelected: anchorIsToday, todayKey: day.day)
         }
 
         // The honesty rule: a missing number that is genuinely mid-calibration is flagged so the watch
@@ -122,21 +184,23 @@ final class WatchSessionBridge: NSObject, ObservableObject {
 
     /// A one line sleep summary for the glance, formatted on the phone (the watch never recomputes it).
     /// "7h 12m · 81%" when both are present; just the duration or just the efficiency when only one is;
-    /// empty when neither is known (the watch then hides the line).
+    /// empty when neither is known (the watch then hides the line). Formatted through the app's string
+    /// catalog ("%lldh %lldm" / "%lld%%", the same keys the Sleep screens use) so the wrist shows the
+    /// phone's language, not hardcoded English.
     static func sleepSummary(for day: DailyMetric?) -> String {
         guard let day else { return "" }
         var parts: [String] = []
         if let mins = day.totalSleepMin, mins > 0 {
             let h = Int(mins) / 60
             let m = Int(mins) % 60
-            parts.append("\(h)h \(m)m")
+            parts.append(String(localized: "\(h)h \(m)m"))
         }
         if let eff = day.efficiency, eff > 0 {
             // efficiency is stored as a fraction in [0,1] in some paths and as a percent in others; the
             // cached DailyMetric carries the percent-style value the Today tile reads, so render it as a
             // whole percent and clamp defensively.
             let pct = eff <= 1.0 ? eff * 100 : eff
-            parts.append("\(Int(pct.rounded()))%")
+            parts.append(String(localized: "\(Int(pct.rounded()))%"))
         }
         return parts.joined(separator: " · ")
     }

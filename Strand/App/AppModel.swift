@@ -220,6 +220,19 @@ final class AppModel: ObservableObject {
         // inert (one UserDefaults bool read) when the mode is off. `live` is captured strongly, as above.
         self.repo.workoutsLog = { [live] line in live.append(log: line, domain: .workouts) }
         self.gpsRecorder.workoutsLog = { [live] line in live.append(log: line, domain: .workouts) }
+        // #961: give the read model the user's HRmax + sex so it can backfill a strap-native workout's
+        // Effort on display when the stored value is nil (a live/manual session that ended with sparse HR).
+        // Seed it now and keep it in step with any profile edit (objectWillChange fires just before a
+        // @Published setter lands, so read the CURRENT values , they're already committed by the time the
+        // next reconcile reads `strainProfile`). Display-only; the score itself is unchanged.
+        self.repo.strainProfile = Repository.StrainProfile(hrMax: Double(profile.hrMax), sex: profile.sex)
+        profile.objectWillChange.sink { [weak self] in
+            guard let self else { return }
+            DispatchQueue.main.async {
+                self.repo.strainProfile = Repository.StrainProfile(
+                    hrMax: Double(self.profile.hrMax), sex: self.profile.sex)
+            }
+        }.store(in: &hrCancellables)
         // Smooth HR centrally so it's solid everywhere it's shown.
         live.$heartRate.sink { [weak self] _ in self?.ingestHR() }.store(in: &hrCancellables)
         live.$rr.sink { [weak self] _ in self?.ingestHR() }.store(in: &hrCancellables)
@@ -463,6 +476,15 @@ final class AppModel: ObservableObject {
         // already running and refreshes the dashboard itself once the new scores persist. (PR #218)
         await intelligence.analyzeRecent()
         await refreshV5Signals()
+        #if os(iOS)
+        // #980: a strap backfill routinely completes while the app is BACKGROUNDED (it runs as a
+        // bluetooth-central, so it stays alive to receive the offload). The only other widget-publish
+        // sites are gated on scenePhase == .active, so a background sync would rescore today's data but
+        // never rewrite the shared App-Group snapshot or call WidgetCenter.reloadAllTimelines — the
+        // widget kept showing yesterday's numbers. Publishing here, on the real "new data landed"
+        // signal, pushes the fresh snapshot to the home-screen widget without needing a foreground.
+        await WidgetSnapshot.publish(from: self)
+        #endif
     }
 
     /// Fold a fresh reading into the smoothing window and republish a stable bpm.
@@ -784,6 +806,13 @@ final class AppModel: ObservableObject {
     /// Empty until a present-scan has discovered something; refreshed in place as RSSI updates.
     var discoveredWhoops: [(uuid: String, name: String, rssi: Int)] { ble.discoveredWhoops }
 
+    /// True when the selected/connected strap is a WHOOP 5/MG. A thin window onto `BLEManager.isWhoop5`
+    /// (its `selectedModel` is private) so a view can branch on the strap generation without reaching into
+    /// the BLE layer. #864: the Smart-alarm card uses this to give a 5/MG owner the honest "saved but NOT
+    /// armed until Experimental is on" copy, instead of hardcoding WHOOP 4.0. Mirrors the Android
+    /// `LiveState.whoop5Detected` field the equivalent screen reads.
+    var whoop5Detected: Bool { ble.isWhoop5 }
+
     /// Point the WHOOP scan at a specific family, then present nearby straps WITHOUT auto-connecting.
     /// `prepareForModelSwitch()` first clears any sticky bond/connection so the engine is idle, then
     /// `connect(model:)` selects the family + installs its framing (it sets the engine's private
@@ -913,10 +942,19 @@ final class AppModel: ObservableObject {
     func getBattery() { ble.refreshBattery() }
 
     /// Fire a haptic buzz on the strap. patternId=2 is the graduated buzz confirmed on-device;
-    /// `loops` sets the length. Used by the in-app test button and (later) notification alerts.
+    /// `loops` sets the length. Used by scheduled cues (coach zones, moment marks, biofeedback).
     /// Requires a bonded connection , no-op otherwise (the command characteristic is gated on bond).
+    /// For a user-facing "buzz the strap now" action use `buzzStrapOnce()` instead (#921).
     func buzz(loops: UInt8 = 2) {
         ble.send(.runHapticsPattern, payload: [2, loops, 0, 0, 0])
+    }
+
+    /// One-shot user buzz (#921): the on-device-confirmed pattern (patternId=2, 3 loops) followed by
+    /// RUN_ALARM, both written acknowledged. A bare RUN_HAPTICS_PATTERN write can be silently ignored
+    /// (WHOOP 4.0 via the Siri shortcut) or dropped unacked on a busy link, so the Live "Buzz strap"
+    /// button and the Buzz Strap App Intent both route through this single sequence.
+    func buzzStrapOnce() {
+        ble.buzzStrapOnce()
     }
 
     /// Fire a specific preset haptic pattern (patternId 0–6 on Harvard; loops sets length).
@@ -961,9 +999,9 @@ final class AppModel: ObservableObject {
     static func postInactivity(minutes: Int) {
         #if os(iOS)
         let body = minutes > 0
-            ? "You've been seated for about \(minutes) min. Time to move."
-            : "Time to move , you've been seated a while."
-        postWristAlert(identifier: "inactivity-nudge", title: "Move reminder", body: body)
+            ? String(localized: "You've been seated for about \(minutes) min. Time to move.")
+            : String(localized: "Time to move. You've been seated a while.")
+        postWristAlert(identifier: "inactivity-nudge", title: String(localized: "Move reminder"), body: body)
         #endif
     }
 
@@ -971,8 +1009,8 @@ final class AppModel: ObservableObject {
     /// `onSmartAlarmFired` hook. No-op on macOS and when wrist alerts are off.
     static func postSmartAlarm() {
         #if os(iOS)
-        postWristAlert(identifier: "smart-alarm-wake", title: "Smart alarm",
-                       body: "Good morning , your smart alarm just woke you.")
+        postWristAlert(identifier: "smart-alarm-wake", title: String(localized: "Smart alarm"),
+                       body: String(localized: "Good morning. Your smart alarm just woke you."))
         #endif
     }
 
@@ -994,17 +1032,118 @@ final class AppModel: ObservableObject {
     }
     #endif
 
+    /// Stable identifier base for the smart-alarm BACKUP wake notification(s). The every-day case uses
+    /// this id directly; the per-weekday case fans out to "<base>-d<weekday>" so a re-arm replaces by id
+    /// and never stacks. Kept separate from "smart-alarm-wake" (the strap-confirmed mirror) so the two
+    /// never collide.
+    private static let smartAlarmBackupId = "smart-alarm-wake-backup"
+    private static var smartAlarmBackupIds: [String] {
+        [smartAlarmBackupId] + (1...7).map { "\(smartAlarmBackupId)-d\($0)" }
+    }
+
+    /// Schedule a BEST-EFFORT repeating daily backup wake notification for the smart alarm (#4 + #6).
+    ///
+    /// The strap firmware alarm is one absolute instant and the mirror in `postSmartAlarm` only posts
+    /// AFTER the strap reports it fired, so if the buzz fails or the phone is suspended past day one there
+    /// was previously no OS-level wake at all. This adds a repeating `UNCalendarNotificationTrigger` that
+    /// "lives in the notification center, not our process" (the WindDownNudge idiom), so it survives
+    /// relaunch and keeps firing each chosen morning even with the app killed.
+    ///
+    /// HONEST: this is NOT a guaranteed loud alarm. A sideloaded build has no critical-alert entitlement,
+    /// so iOS Focus / silent mode can still suppress the sound. The UI copy says to keep a real backup.
+    ///
+    /// Gated on the wrist-alerts master (the same switch `postWristAlert` honours) and on the OS already
+    /// having authorized notifications (no second prompt). Always removes the prior set first, so a re-arm
+    /// replaces rather than stacks. `weekdays` empty = every day (single daily trigger); a non-empty set
+    /// fans out to one weekday-pinned trigger per selected day. No-op on macOS.
+    /// `log` (optional): strap-log sink for the two guard bails below (#401 close-out). The bails were
+    /// silent no-ops, so a user whose backup never fired (wrist-alerts master off, or notification
+    /// permission revoked after arming) had NOTHING in the log to explain the missed backup. The caller
+    /// wraps the sink in a main-actor hop (the auth check completes off-main). Diagnostic only - both
+    /// guards bail exactly as before.
+    static func scheduleSmartAlarmBackupNotification(minutes: Int, weekdays: Set<Int>,
+                                                     log: ((String) -> Void)? = nil) {
+        #if os(iOS)
+        let center = UNUserNotificationCenter.current()
+        // Always clear BOTH the single and the per-day ids so switching modes (or editing the weekday set)
+        // never leaves an orphaned trigger or double-fires.
+        center.removePendingNotificationRequests(withIdentifiers: smartAlarmBackupIds)
+        guard UserDefaults.standard.bool(forKey: wristAlertsMasterKey) else {
+            log?("Smart alarm: backup notification NOT scheduled (wrist-alerts master is off)")
+            return
+        }
+        let valid = weekdays.filter { (1...7).contains($0) }
+        // A non-empty selection that filters to nothing (only out-of-range numbers) has no day to fire on.
+        if !weekdays.isEmpty && valid.isEmpty { return }
+        center.getNotificationSettings { settings in
+            guard settings.authorizationStatus == .authorized else {
+                log?("Smart alarm: backup notification NOT scheduled (notifications not authorized)")
+                return
+            }
+            let content = UNMutableNotificationContent()
+            content.title = String(localized: "Smart alarm")
+            content.body = String(localized: "Backup wake: your smart alarm time is here.")
+            content.sound = .default
+            let hour = minutes / 60
+            let minute = minutes % 60
+            if weekdays.isEmpty {
+                var comps = DateComponents()
+                comps.hour = hour
+                comps.minute = minute
+                let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: true)
+                center.add(UNNotificationRequest(identifier: smartAlarmBackupId, content: content, trigger: trigger))
+            } else {
+                for weekday in valid {
+                    var comps = DateComponents()
+                    comps.weekday = weekday   // Calendar weekday 1=Sun…7=Sat , fires weekly on that day
+                    comps.hour = hour
+                    comps.minute = minute
+                    let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: true)
+                    center.add(UNNotificationRequest(identifier: "\(smartAlarmBackupId)-d\(weekday)",
+                                                     content: content, trigger: trigger))
+                }
+            }
+        }
+        #endif
+    }
+
+    /// Cancel the smart-alarm backup wake notification(s). Called on disarm. No-op on macOS.
+    static func cancelSmartAlarmBackupNotification() {
+        #if os(iOS)
+        UNUserNotificationCenter.current()
+            .removePendingNotificationRequests(withIdentifiers: smartAlarmBackupIds)
+        #endif
+    }
+
     /// Arm (or clear) the strap's firmware alarm from the smart-alarm settings. The firmware alarm
     /// fires even if the Mac is asleep / NOOP is closed. No-op until bonded (send is gated on bond).
+    ///
+    /// On iOS this ALSO (dis)arms the best-effort backup wake notification (#4 + #6): a repeating daily
+    /// `UNCalendarNotificationTrigger` that survives suspend/relaunch, so a missed strap buzz still gets
+    /// an OS-level wake. macOS keeps just the firmware alarm (the static helpers are no-ops there).
     func applySmartAlarm() {
-        guard behavior.smartAlarmEnabled else { ble.disableStrapAlarm(); return }
+        guard behavior.smartAlarmEnabled else {
+            ble.disableStrapAlarm()
+            Self.cancelSmartAlarmBackupNotification()
+            return
+        }
         guard let next = Self.nextSmartAlarmDate(minutes: behavior.smartAlarmMinutes,
                                                  weekdays: behavior.smartAlarmWeekdays) else {
             // No enabled weekday in the next week (only possible from a corrupted set) , disarm rather
             // than arm a misleading time the user never asked for.
-            ble.disableStrapAlarm(); return
+            ble.disableStrapAlarm()
+            Self.cancelSmartAlarmBackupNotification()
+            return
         }
         ble.armStrapAlarm(at: next)
+        // Replace (remove + re-add by stable identifier) on every re-arm so the backup never stacks.
+        // The log sink hops to the main actor because the auth check completes off-main and LiveState is
+        // @MainActor - the same Task hop the importTraceSink uses.
+        Self.scheduleSmartAlarmBackupNotification(minutes: behavior.smartAlarmMinutes,
+                                                  weekdays: behavior.smartAlarmWeekdays,
+                                                  log: { [weak self] line in
+                                                      Task { @MainActor in self?.live.append(log: line) }
+                                                  })
     }
 
     /// Compute the next fire date for the smart alarm, honouring the weekday selection.
@@ -1565,7 +1704,7 @@ final class AppModel: ObservableObject {
                 let span: String
                 if let a = summary.earliest, let b = summary.latest {
                     let f = DateFormatter(); f.dateFormat = "MMM yyyy"
-                    span = " · \(f.string(from: a))–\(f.string(from: b))"
+                    span = " · \(f.string(from: a))-\(f.string(from: b))"
                 } else { span = "" }
                 finishImport(.whoop, summary: "Imported \(summary.recordCount) records\(span)")
             } catch {
@@ -1596,7 +1735,7 @@ final class AppModel: ObservableObject {
                 let span: String
                 if let a = summary.earliest, let b = summary.latest {
                     let f = DateFormatter(); f.dateFormat = "MMM yyyy"
-                    span = " · \(f.string(from: a))–\(f.string(from: b))"
+                    span = " · \(f.string(from: a))-\(f.string(from: b))"
                 } else { span = "" }
                 let days = summary.countsByCategory["days"] ?? 0
                 let sleeps = summary.countsByCategory["sleepSessions"] ?? 0
@@ -1627,6 +1766,13 @@ final class AppModel: ObservableObject {
                                                                        deviceId: appleDeviceId, trace: importTraceSink())
                 try? await store.checkpointWAL()   // reclaim the WAL a bulk import grew (#590)
                 await repo.refresh()
+                // #833/v7.7.2: an Apple Health import may write ONLY body-composition series (weight/body_fat/
+                // lean_mass/bmi/vo2max), which live in metricSeries OUTSIDE refresh()'s diff over daily/sleep/
+                // vitals, so refresh() may not bump `refreshSeq`. AppleHealthView's re-mount cache keys on
+                // `refreshSeq`, so it would keep serving the pre-import snapshot. Explicitly drop the cache so
+                // the next visit re-reads the freshly imported data. (refresh() alone is insufficient here.)
+                repo.appleHealthCache = nil
+                repo.appleHealthLoadedSeq = -1
                 finishImport(.appleHealth, summary: "Imported \(summary.recordCount) records")
             } catch {
                 finishImport(.appleHealth, summary: "Import failed: \(error)", failed: true)
@@ -1744,6 +1890,12 @@ final class AppModel: ObservableObject {
             switch outcome {
             case .imported(let days, let workouts):
                 await repo.refresh()
+                // #833/v7.7.2: the Shortcuts import writes body-composition series (e.g. weight) into
+                // metricSeries, which sits OUTSIDE refresh()'s diff, so refresh() may leave `refreshSeq`
+                // unchanged and AppleHealthView's re-mount cache would serve stale data. Drop the cache so the
+                // next visit re-reads. (Same reasoning as the file-import path above.)
+                repo.appleHealthCache = nil
+                repo.appleHealthLoadedSeq = -1
                 let w = workouts > 0 ? " · \(workouts) workouts" : ""
                 finishImport(.appleHealth, summary: "Imported \(days) days\(w)")
             case .nothingToImport:

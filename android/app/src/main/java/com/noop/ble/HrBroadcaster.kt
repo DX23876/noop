@@ -1,6 +1,7 @@
 package com.noop.ble
 
 import android.annotation.SuppressLint
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
@@ -13,11 +14,15 @@ import android.bluetooth.le.AdvertiseCallback
 import android.bluetooth.le.AdvertiseData
 import android.bluetooth.le.AdvertiseSettings
 import android.bluetooth.le.BluetoothLeAdvertiser
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.ParcelUuid
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -74,11 +79,39 @@ class HrBroadcaster(
     /** Centrals (gym kit / apps) currently subscribed to 0x2A37 notifications, keyed by address. */
     private val subscribers = ConcurrentHashMap<String, BluetoothDevice>()
 
-    /** True once [start] was called and we want to be advertising; gates auto-restart on radio events. */
+    /** True once [start] was called and we want to be advertising; gates auto-restart on radio events.
+     *  @Volatile: set on the caller/main thread, read on the BLE binder callback + radio-receiver threads. */
+    @Volatile
     private var wantAdvertising = false
     /** The most recent live HR pushed in, re-sent to a central that subscribes mid-session so a newly
-     *  connected machine shows a value at once. null until the first sample; cleared on stop. */
+     *  connected machine shows a value at once. null until the first sample; cleared on stop.
+     *  @Volatile: written by [update] (LiveState collector) and read in [onDescriptorWriteRequest] (binder). */
+    @Volatile
     private var lastBpm: Int? = null
+
+    /** True once [bluetoothStateReceiver] is registered, so a repeat [start] never double-registers
+     *  (which would later throw on a single unregister). */
+    private var radioReceiverRegistered = false
+
+    /**
+     * Watches the OS Bluetooth radio so the broadcast SURVIVES a toggle (the auto-restart [wantAdvertising]
+     * gates): STATE_ON re-opens the server + re-advertises when the user's toggle is still on; STATE_OFF
+     * drops the now-dead server handles so the next open rebuilds cleanly. Without this the advertiser
+     * stayed down after a radio off->on cycle until the user manually re-toggled the setting. Scoped
+     * ENTIRELY to the broadcast (WHOOP-first isolation: it never touches the WHOOP path). iOS gets this
+     * free from CBPeripheralManager's state delegate.
+     *
+     * Credit: ryanbr (NoopApp/noop#1029).
+     */
+    private val bluetoothStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != BluetoothAdapter.ACTION_STATE_CHANGED) return
+            when (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)) {
+                BluetoothAdapter.STATE_TURNING_OFF, BluetoothAdapter.STATE_OFF -> onRadioOff()
+                BluetoothAdapter.STATE_ON -> onRadioOn()
+            }
+        }
+    }
 
     private val _advertising = MutableStateFlow(false)
     /** True while the advertiser is running (the radio is on and [start] succeeded). */
@@ -103,6 +136,9 @@ class HrBroadcaster(
     fun start() {
         wantAdvertising = true
         _statusNote.value = null
+        // Listen for the radio toggling BEFORE the adapter check, so enabling the broadcast while
+        // Bluetooth is off still auto-starts the instant the radio comes back. Idempotent (guarded).
+        registerRadioReceiver()
 
         val ad = adapter
         if (ad == null || !ad.isEnabled) {
@@ -136,6 +172,49 @@ class HrBroadcaster(
         gattServer = null
         hrCharacteristic = null
         _advertising.value = false
+        if (radioReceiverRegistered) {
+            runCatching { appContext.unregisterReceiver(bluetoothStateReceiver) }
+            radioReceiverRegistered = false
+        }
+    }
+
+    /** Register [bluetoothStateReceiver] once so radio toggles auto-restart the broadcast. Guarded so a
+     *  repeat [start] can't stack registrations (which would throw on the single [stop] unregister). */
+    private fun registerRadioReceiver() {
+        if (radioReceiverRegistered) return
+        runCatching {
+            ContextCompat.registerReceiver(
+                appContext,
+                bluetoothStateReceiver,
+                IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED),
+                ContextCompat.RECEIVER_NOT_EXPORTED,
+            )
+        }.onSuccess { radioReceiverRegistered = true }
+    }
+
+    /** Radio down: the OS already tore down our advertiser + GATT server, so drop the now-dead handles
+     *  (nulling them so a later [openServer] REBUILDS instead of short-circuiting on the stale ref) and
+     *  reset live state. [wantAdvertising] is KEPT so [onRadioOn] auto-resumes. Idempotent across
+     *  TURNING_OFF then OFF. */
+    private fun onRadioOff() {
+        runCatching { advertiser?.stopAdvertising(advertiseCallback) }
+        runCatching { gattServer?.close() }
+        gattServer = null
+        hrCharacteristic = null
+        subscribers.clear()
+        _subscriberCount.value = 0
+        _advertising.value = false
+        _statusNote.value = "Bluetooth is off. Turn it on to broadcast your heart rate."
+        log("HR-out: Bluetooth radio off, broadcast paused (resumes when it returns)")
+    }
+
+    /** Radio back: if the user still wants to broadcast, rebuild via the idempotent [start] path (which
+     *  re-checks the adapter, re-opens the server, re-advertises, and no-ops the receiver registration). */
+    private fun onRadioOn() {
+        if (wantAdvertising) {
+            log("HR-out: Bluetooth radio on, resuming broadcast")
+            start()
+        }
     }
 
     /**
@@ -223,6 +302,14 @@ class HrBroadcaster(
         }
 
         override fun onStartFailure(errorCode: Int) {
+            // ALREADY_STARTED means we ARE advertising — e.g. a redundant restart from a spurious STATE_ON
+            // while the broadcast was already up. Treat it as success so the state + note don't flip to a
+            // false error while we're actually broadcasting.
+            if (errorCode == ADVERTISE_FAILED_ALREADY_STARTED) {
+                _advertising.value = true
+                _statusNote.value = null
+                return
+            }
             _advertising.value = false
             _statusNote.value = when (errorCode) {
                 ADVERTISE_FAILED_FEATURE_UNSUPPORTED ->

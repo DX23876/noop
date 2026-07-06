@@ -188,7 +188,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
                     restartNeeded = true
                     Toast.makeText(
                         context,
-                        "Imported. Fully close and reopen Strand to load it.",
+                        "Imported. Fully close and reopen NOOP to load it.",
                         Toast.LENGTH_LONG,
                     ).show()
                 }
@@ -294,7 +294,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
         PermissionController.createRequestPermissionResultContract(),
     ) { granted ->
         if (granted.any { it in HealthConnectImporter.PERMISSIONS }) {
-            runImport { HealthConnectImporter.import(context, vm.repo) }
+            runImport { HealthConnectImporter.import(context, vm.repo, ProfileStore.from(context).heightCm) }
         } else {
             Toast.makeText(context, "Health Connect access not granted.", Toast.LENGTH_LONG).show()
         }
@@ -316,7 +316,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
                 HealthConnectImporter.client(context).permissionController.getGrantedPermissions()
             }.getOrDefault(emptySet())
             if (granted.any { it in HealthConnectImporter.PERMISSIONS }) {
-                runImport { HealthConnectImporter.import(context, vm.repo) }
+                runImport { HealthConnectImporter.import(context, vm.repo, ProfileStore.from(context).heightCm) }
             } else {
                 hcPermissionLauncher.launch(HealthConnectImporter.PERMISSIONS)
             }
@@ -440,7 +440,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
             title = "Health Connect",
             icon = Icons.Filled.MonitorHeart,
             subtitle = "Pull steps, heart rate, HRV, sleep, SpO₂, weight and workouts straight from " +
-                "Android's Health Connect — no file needed. On-device; it never overwrites richer " +
+                "Android's Health Connect. No file needed. On-device; it never overwrites richer " +
                 "WHOOP data, and writes nothing unless you opt in to sharing back below.",
         ) {
             val hasHc = (hcDays ?: 0) > 0 || (hcWorkouts ?: 0) > 0
@@ -555,7 +555,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
                     )
                 }
             } else {
-                RoadmapNote("Health Connect isn't set up on this device — install it from Google Play, then return here to import.")
+                RoadmapNote("Health Connect isn't set up on this device. Install it from Google Play, then return here to import.")
             }
         }
         }
@@ -567,7 +567,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
             icon = Icons.Filled.Restaurant,
             tint = Palette.metricAmber,
             subtitle = "Import daily calories, protein, carbs, fat and body weight from a " +
-                "nutrition CSV — a MyFitnessPal or Cronometer export, or any spreadsheet " +
+                "nutrition CSV: a MyFitnessPal or Cronometer export, or any spreadsheet " +
                 "with a date column plus those values. Meal-level rows are summed per day.",
         ) {
             val hasNutrition = (nutritionDays ?: 0) > 0 || (nutritionWeighIns ?: 0) > 0
@@ -595,8 +595,8 @@ fun DataSourcesScreen(vm: AppViewModel) {
             title = "Xiaomi Mi Band",
             icon = Icons.Filled.Watch,
             tint = Palette.metricPurple,
-            subtitle = "Import a Mi Band / Smart Band 8, 9 or 10's full history — steps, heart rate, " +
-                "resting HR, sleep stages, SpO₂, stress and sleep score — straight from the Mi Fitness " +
+            subtitle = "Import a Mi Band / Smart Band 8, 9 or 10's full history (steps, heart rate, " +
+                "resting HR, sleep stages, SpO₂, stress and sleep score) straight from the Mi Fitness " +
                 "app's on-device database. Fully offline; no Xiaomi account or Bluetooth. Export the Mi " +
                 "Fitness folder (or its .db / a .zip of it) from your phone and choose it here.",
         ) {
@@ -627,7 +627,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
             tint = DomainTheme.Effort.color,
             subtitle = "Import your strength-training history from a Hevy CSV export or a Liftosaur " +
                 "JSON export. Each workout becomes a Strength session with a training-volume " +
-                "estimate (weight × reps) — a volume figure, not a measured strain, so it never " +
+                "estimate (weight × reps). It's a volume figure, not a measured strain, so it never " +
                 "changes your Effort.",
         ) {
             val hasLifting = (liftingWorkouts ?: 0) > 0
@@ -655,8 +655,8 @@ fun DataSourcesScreen(vm: AppViewModel) {
             title = "Workout file (GPX / TCX / FIT)",
             icon = Icons.Filled.Map,
             tint = Palette.metricAmber,
-            subtitle = "Import a single exported workout file from any brand — Garmin, Coros, Suunto, " +
-                "Wahoo, Polar, Strava, Apple — straight off your phone. GPS route, distance, heart rate " +
+            subtitle = "Import a single exported workout file from any brand (Garmin, Coros, Suunto, " +
+                "Wahoo, Polar, Strava, Apple) straight off your phone. GPS route, distance, heart rate " +
                 "and calories come in where the file has them. Fully offline; nothing leaves your phone.",
         ) {
             val hasFiles = (activityFiles ?: 0) > 0
@@ -667,7 +667,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
             )
             CountLine(
                 primary = activityFiles?.let { "$it workouts" } ?: "—",
-                secondary = "GPX · TCX · FIT — one workout per file",
+                secondary = "GPX · TCX · FIT (one workout per file)",
             )
             BackupButton(
                 label = "Import workout file…",
@@ -684,11 +684,11 @@ fun DataSourcesScreen(vm: AppViewModel) {
             title = "Oura / Fitbit / Garmin export",
             icon = Icons.Filled.Watch,
             tint = Palette.metricPurple,
-            subtitle = "Import your own data export from Oura, Fitbit or Garmin — sleep, resting heart " +
+            subtitle = "Import your own data export from Oura, Fitbit or Garmin: sleep, resting heart " +
                 "rate, HRV, steps and more, where the export has them. Download it from the brand's app " +
                 "(Oura: Account → Export Data; Fitbit: Google Takeout; Garmin: Export Your Data), then " +
                 "choose the file here. Fully offline; nothing leaves your phone. Each brand's own " +
-                "readiness or sleep score is kept for reference only — your scores stay yours.",
+                "readiness or sleep score is kept for reference only. Your scores stay yours.",
         ) {
             val hasDays = (wearableDays ?: 0) > 0
             StatePill(
@@ -698,7 +698,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
             )
             CountLine(
                 primary = wearableDays?.let { "$it day metrics" } ?: "—",
-                secondary = "Oura JSON · Fitbit Takeout · Garmin GDPR — daily metrics + sleep",
+                secondary = "Oura JSON · Fitbit Takeout · Garmin GDPR (daily metrics + sleep)",
             )
             BackupButton(
                 label = "Import wearable export…",
@@ -717,7 +717,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
             tint = DomainTheme.Effort.color,
             subtitle = "Re-share your live strap heart rate over Bluetooth as a standard heart-rate " +
                 "sensor, so a gym treadmill, bike, Zwift, Peloton or any fitness app nearby can read " +
-                "it. Works on any WHOOP — 4.0 or 5.0/MG — because your phone does the broadcasting. " +
+                "it. Works on any WHOOP (4.0 or 5.0/MG) because your phone does the broadcasting. " +
                 "Local Bluetooth only. Nothing leaves your phone. Off by default.",
         ) {
             if (hrBroadcast) {
@@ -809,12 +809,12 @@ fun DataSourcesScreen(vm: AppViewModel) {
         SourceCard(
             title = "WHOOP Strap (Live BLE)",
             icon = Icons.Filled.Bluetooth,
-            subtitle = "Pairs directly with your strap over Bluetooth — no WHOOP app, no cloud.",
+            subtitle = "Pairs directly with your strap over Bluetooth: no WHOOP app, no cloud.",
         ) {
             val (label, tone) = when {
-                live.bonded -> "Bonded — streaming." to StrandTone.Positive
-                live.connected -> "Connected — pairing…" to StrandTone.Warning
-                else -> "Not connected — open Live to pair." to StrandTone.Critical
+                live.bonded -> "Bonded, streaming." to StrandTone.Positive
+                live.connected -> "Connected, pairing…" to StrandTone.Warning
+                else -> "Not connected. Open Live to pair." to StrandTone.Critical
             }
             StatePill(title = label, tone = tone, showsDot = true, pulsing = live.connected && !live.bonded)
         }
@@ -851,7 +851,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
             }
             if (restartNeeded) {
                 Text(
-                    "Import staged. Fully close and reopen Strand to load the new data.",
+                    "Import staged. Fully close and reopen NOOP to load the new data.",
                     style = NoopType.subhead,
                     color = Palette.statusWarning,
                 )
@@ -872,7 +872,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
             },
             text = {
                 Text(
-                    "This permanently deletes everything imported from Apple Health — heart rate, HRV, " +
+                    "This permanently deletes everything imported from Apple Health: heart rate, HRV, " +
                         "sleep, steps, workouts and more. Your live strap data is untouched. This can't be undone.",
                     style = NoopType.subhead,
                     color = Palette.textSecondary,

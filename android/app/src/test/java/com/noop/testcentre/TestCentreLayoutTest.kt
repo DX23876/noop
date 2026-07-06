@@ -67,4 +67,68 @@ class TestCentreLayoutTest {
             TestCentreLayout.statusText(TestModeRegistry.mode(TestDomain.BATTERY)!!, active = true, elapsedSeconds = 10.0 * 86400),
         )
     }
+
+    // MARK: honest per-mode captured count (#965)
+
+    @Test
+    fun status_usesCapturedUnitsOverElapsed() {
+        assertEquals(
+            "Capturing 2 of 3 nights",
+            TestCentreLayout.statusText(
+                TestModeRegistry.mode(TestDomain.SLEEP)!!, active = true,
+                elapsedSeconds = 5.0, capturedUnits = 2,
+            ),
+        )
+    }
+
+    @Test
+    fun status_zeroCapturedReadsZero() {
+        assertEquals(
+            "Capturing 0 of 3 nights",
+            TestCentreLayout.statusText(
+                TestModeRegistry.mode(TestDomain.SLEEP)!!, active = true,
+                elapsedSeconds = 3.0 * 86400, capturedUnits = 0,
+            ),
+        )
+    }
+
+    @Test
+    fun status_capturedClampsToTarget() {
+        assertEquals(
+            "Capturing 3 of 3 days",
+            TestCentreLayout.statusText(
+                TestModeRegistry.mode(TestDomain.BATTERY)!!, active = true,
+                elapsedSeconds = 0.0, capturedUnits = 9,
+            ),
+        )
+    }
+
+    @Test
+    fun status_guidedModesDivergeOnCapturedCount() {
+        assertEquals(
+            "Capturing 3 of 3 nights",
+            TestCentreLayout.statusText(
+                TestModeRegistry.mode(TestDomain.SLEEP)!!, active = true,
+                elapsedSeconds = 0.0, capturedUnits = 3,
+            ),
+        )
+        assertEquals(
+            "Capturing 1 of 3 days",
+            TestCentreLayout.statusText(
+                TestModeRegistry.mode(TestDomain.BATTERY)!!, active = true,
+                elapsedSeconds = 0.0, capturedUnits = 1,
+            ),
+        )
+    }
+
+    @Test
+    fun status_fallsBackToElapsedWhenNoCount() {
+        assertEquals(
+            "Capturing 2 of 3 nights",
+            TestCentreLayout.statusText(
+                TestModeRegistry.mode(TestDomain.SLEEP)!!, active = true,
+                elapsedSeconds = 25.0 * 3600, capturedUnits = null,
+            ),
+        )
+    }
 }

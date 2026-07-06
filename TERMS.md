@@ -105,17 +105,28 @@ experimental, you accept that this allocation of risk is reasonable.
 
 ## 7. Your acknowledgment
 
-By ticking the acknowledgment box on first launch, **you confirm that you have read and accept §1–§6,
-that you are using NOOP with your own device and your own data, at your own risk, and that you will
-not hold the maintainers responsible** to any greater extent than §6 allows. If these terms change
-in a way that materially affects your rights, NOOP will ask you to acknowledge the new version.
+On first launch (and again if these terms materially change), NOOP asks you to confirm several
+statements **individually** before you can continue. By ticking each box you confirm that:
 
-## 8. A request to WHOOP personnel (not a binding condition)
+- **you are not a WHOOP employee, contractor, or affiliate, and are not using NOOP on WHOOP's behalf;**
+- **you own the WHOOP device you will use with NOOP, will only use it to access your own data, and
+  accept that doing so is your decision and your risk** — including any effect on your WHOOP account,
+  subscription, device, or warranty, and that it may breach WHOOP's Terms of Service;
+- **you understand NOOP is unofficial and experimental, provided free and "as is" with no warranty,
+  and is not a medical device or medical advice;** and
+- **to the fullest extent the law allows, you will not hold the maintainers or contributors liable**
+  for any loss or damage arising from your use of it, beyond what §6 preserves.
 
-If you are employed by, or acting on behalf of, WHOOP, Inc., we politely ask that you **do not use
-this software.** This is a good-faith request, not a contractual condition, and it does not change
-anyone's legal rights. NOOP exists to let people read their own device's data on their own device;
-it is not intended to compete with, substitute for, or harm WHOOP's products or services.
+You also confirm that you have read and accept §1–§6. NOOP records, on your device, the version you
+accepted and when — a local record of your acknowledgment. If these terms change in a way that
+materially affects your rights, NOOP will ask you to acknowledge the new version.
+
+## 8. WHOOP personnel
+
+If you are employed by, or acting on behalf of, WHOOP, Inc., we ask that you **do not use this
+software**, and the first-launch acknowledgment asks you to confirm that you are not (see §7). NOOP
+exists to let people read their own device's data on their own device; it is not intended to compete
+with, substitute for, or harm WHOOP's products or services.
 
 ## 9. Changes, governing law, and severance
 

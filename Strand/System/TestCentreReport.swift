@@ -21,6 +21,12 @@ final class TestCentreReport: ObservableObject {
         let profile: TestDomain
         let title: String
         var gate: ReportReviewGate
+        /// #1002: true when the selected profile's test mode is NOT on at report time (never activated,
+        /// or turned off) - so the bundle carries no capture for the very thing being reported. The
+        /// review sheet shows a plain warning off this; the #812 capture_check can't cover it because it
+        /// only grades ACTIVE domains. Always false for the master profile (it has no wear-and-capture
+        /// mode of its own).
+        var modeInactive: Bool = false
     }
 
     /// Non-nil while a report is awaiting review. Drive a `.sheet(item:)` off this.
@@ -36,10 +42,56 @@ final class TestCentreReport: ObservableObject {
     @Published var copyableReport: String?
 
     /// Build the redacted bundle for `mode` and stage it for review. Nothing leaves the device yet.
-    func start(mode: TestMode, live: LiveState) {
-        let entries = TestBundleAssembler.assemble(profile: mode.domain, live: live)
-        pending = Pending(profile: mode.domain, title: mode.title,
-                          gate: ReportReviewGate(entries: entries))
+    /// Async under the hood (#1002): the storage probe reads the store actor, so the bundle is staged a
+    /// beat after the tap; the sheet presents off `pending` exactly as before. `repo` is the live
+    /// Repository for the row-count probe - nil (tests/previews) skips the store read and the meta keeps
+    /// the honest zeroed block.
+    func start(mode: TestMode, live: LiveState, repo: Repository? = nil) {
+        Task { @MainActor [weak self] in
+            let storage = await TestCentreReport.storageProbe(repo: repo, live: live)
+            // #1002: the connected model. BLEManager persists the DETECTED family to this key on every
+            // connect, so it reflects the strap that actually linked - nil before any strap ever did.
+            // Read, never guessed.
+            let model = UserDefaults.standard.string(forKey: "selectedWhoopModel")
+            let entries = TestBundleAssembler.assemble(profile: mode.domain, live: live,
+                                                       storage: storage, strapModel: model)
+            self?.pending = Pending(profile: mode.domain, title: mode.title,
+                                    gate: ReportReviewGate(entries: entries),
+                                    modeInactive: mode.domain != .master && !TestCentre.active(mode.domain))
+        }
+    }
+
+    /// #1002: the REAL storage probe behind meta.json's storage block, replacing the Phase-1 zeros.
+    /// - db_bytes: the store's on-disk footprint (whoop.sqlite + its -wal/-shm sidecars), read off the
+    ///   filesystem so it is the byte count a maintainer can reason about.
+    /// - rows: per-table row counts read via the store (the same COUNTs the store's stats surface runs).
+    /// - raw_capture_bytes: the banked rawBatch bytes in the store PLUS the on-disk raw-capture .jsonl
+    ///   when the frame recorder is on - the full raw-capture footprint (#590).
+    /// Returns nil when nothing was readable (store unopenable AND no file), so the caller's zeroed
+    /// fallback stays an honest "unreadable", never a fabricated figure.
+    static func storageProbe(repo: Repository?, live: LiveState) async -> TestBundleMeta.Storage? {
+        let fm = FileManager.default
+        var dbBytes = 0
+        if let path = try? StorePaths.defaultDatabasePath() {
+            for suffix in ["", "-wal", "-shm"] {
+                dbBytes += (try? fm.attributesOfItem(atPath: path + suffix))?[.size] as? Int ?? 0
+            }
+        }
+        var rows: [String: Int] = [:]
+        var rawBytes = 0
+        if let store = await repo?.storeHandle() {
+            if let c = try? await store.storageStats_rowCountsForTest() {
+                rows = ["hr": c.hr, "rr": c.rr, "events": c.events, "battery": c.battery,
+                        "spo2": c.spo2, "skinTemp": c.skinTemp, "resp": c.resp, "gravity": c.gravity]
+            }
+            if let steps = try? await store.stepCountForTest() { rows["steps"] = steps }
+            rawBytes = (try? await store.storageStats().rawBytes) ?? 0
+        }
+        if let url = live.puffinCaptureURL {
+            rawBytes += (try? fm.attributesOfItem(atPath: url.path))?[.size] as? Int ?? 0
+        }
+        guard dbBytes > 0 || !rows.isEmpty || rawBytes > 0 else { return nil }
+        return TestBundleMeta.Storage(dbBytes: dbBytes, rows: rows, rawCaptureBytes: rawBytes)
     }
 
     /// The user read the report and confirmed: clear the gate and run the shipped share + deep-link flow.

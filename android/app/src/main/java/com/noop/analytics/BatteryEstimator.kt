@@ -34,6 +34,13 @@ object BatteryEstimator {
      *  The discharge run restarts after it, so we never fit a rate across a charge. */
     const val chargeStepPct = 1.0
 
+    /** A charge only ANCHORS a fresh discharge run when it returns the strap NEAR FULL (#8). A mere partial
+     *  top-up (e.g. 40% -> 55% on a quick desk charge) used to reset the run exactly like a 0% -> 100%
+     *  charge, discarding the long clean discharge history before it and inflating "days left" off the short
+     *  post-top-up tail. So a rise is treated as a run-reset anchor only when the post-rise SoC reaches this;
+     *  a partial top-up is instead stepped over, and the fit prefers the longer pre-top-up discharge segment. */
+    const val nearFullPct = 90.0
+
     /** Where the drain rate came from: the user's own measured discharge, or the rated fallback. */
     enum class Source { MEASURED, RATED }
 
@@ -63,22 +70,15 @@ object BatteryEstimator {
         val last = sorted.lastOrNull() ?: return null
         val current = last.second
 
-        // Take the trailing discharge run only: everything after the most recent CHARGE step (a SoC rise
-        // larger than chargeStepPct), so a charge earlier in the buffer never flattens the fitted slope.
-        var startIdx = 0
-        if (sorted.size >= 2) {
-            for (i in sorted.size - 1 downTo 1) {
-                if (sorted[i].second > sorted[i - 1].second + chargeStepPct) {
-                    startIdx = i
-                    break
-                }
-            }
-        }
-        val dischargeRun = sorted.subList(startIdx, sorted.size)
+        // The discharge segment whose slope we fit: anchored at the most recent NEAR-FULL charge, and ending
+        // before any later partial top-up, so neither a charge earlier in the buffer nor a quick desk top-up
+        // distorts the fitted slope (#8).
+        val dischargeRun = dischargeFitWindow(sorted)
 
-        // Fit the discharge slope over the run as a simple endpoints rate (%/h). The series is short and
-        // monotone-ish within a run, so endpoints are as good as a least-squares line and far cheaper, and
-        // they keep the test fixtures exact. null when the run is too short, too flat, or not discharging.
+        // Fit the discharge slope over the segment as a simple endpoints rate (%/h). The series is short and
+        // monotone-ish within a segment, so endpoints are as good as a least-squares line and far cheaper,
+        // and they keep the test fixtures exact. null when it's too short, too flat, or not discharging. The
+        // estimate stays anchored to `current` (the latest SoC), even when the fit window ends earlier.
         val measuredRate: Double? = run {
             if (dischargeRun.size < 2) return@run null
             val first = dischargeRun.first()
@@ -96,6 +96,59 @@ object BatteryEstimator {
         // estimate from a near-flat measured run that still squeaked past the drop gate.
         val clamped = minOf(remaining, ratedHours * 1.5)
         return Estimate(clamped, if (measuredRate != null) Source.MEASURED else Source.RATED, current)
+    }
+
+    /**
+     * The slice of the sorted SoC series whose endpoints we fit the discharge slope on (#8). Two rules,
+     * both keyed off "is this rise a real charge or a partial top-up":
+     *  1. START at the most recent NEAR-FULL charge: the most recent rise > chargeStepPct that LANDS at
+     *     >= nearFullPct. A partial top-up (rise that doesn't reach near-full) is NOT an anchor: the scan
+     *     steps over it and keeps looking further back, so a quick 40->55 desk charge no longer throws away
+     *     the long clean discharge before it. If there is no near-full charge in the buffer, start = 0.
+     *  2. END before the most recent partial top-up that falls AFTER the start anchor (a rise > chargeStepPct
+     *     that does NOT reach near-full), so the fitted slope is the longer pre-top-up discharge segment,
+     *     never the short, slope-flattening post-top-up tail.
+     * `current` (the latest SoC the estimate is anchored to) is taken by the caller from the series end, not
+     * from this window, so trimming the tail changes only the slope, never the SoC the runtime divides into.
+     * Pure; the Swift twin is `dischargeFitWindow`.
+     */
+    fun dischargeFitWindow(sorted: List<Pair<Long, Double>>): List<Pair<Long, Double>> {
+        if (sorted.size < 2) return sorted
+
+        // 1. Most recent NEAR-FULL charge anchors the run start; partial top-ups are stepped over.
+        var startIdx = 0
+        for (i in sorted.size - 1 downTo 1) {
+            if (sorted[i].second > sorted[i - 1].second + chargeStepPct && sorted[i].second >= nearFullPct) {
+                startIdx = i
+                break
+            }
+        }
+
+        // 1b. #919: with no near-full (>=90%) charge to anchor on - common on a 12-day WHOOP 5.0 that rarely
+        //     tops past 90% between charges - anchor at the buffer's HIGHEST SoC (the top of the most recent
+        //     discharge) rather than the oldest reading, which can sit below a later charge and net to a
+        //     NON-discharge window (drop < 0 -> stuck on rated). The max is >= every later reading, so the
+        //     window can only discharge; the >=minDropPct gate still rejects a flat run. Preserves #8: its
+        //     buffer starts at the max, so this stays index 0 there. Last occurrence of the max (>=).
+        if (startIdx == 0) {
+            var maxIdx = 0
+            for (i in sorted.indices) if (sorted[i].second >= sorted[maxIdx].second) maxIdx = i
+            startIdx = maxIdx
+        }
+
+        // 2. End before the most recent PARTIAL top-up after the start anchor (a rise > chargeStepPct that
+        //    does NOT reach near-full), so the fit prefers the longer pre-top-up discharge segment.
+        var endIdx = sorted.size - 1
+        if (endIdx - startIdx >= 1) {
+            for (i in sorted.size - 1 downTo startIdx + 1) {
+                if (sorted[i].second > sorted[i - 1].second + chargeStepPct && sorted[i].second < nearFullPct) {
+                    endIdx = i - 1
+                    break
+                }
+            }
+        }
+        if (endIdx <= startIdx) return sorted.subList(startIdx, sorted.size)
+        return sorted.subList(startIdx, endIdx + 1)
     }
 
     /**
@@ -117,10 +170,12 @@ object BatteryEstimator {
         lines.add("battery series=${sorted.size} readings span ${first0.first}..${last.first}s")
         for (s in sorted) lines.add("battery read t=${s.first}s soc=${soc(s.second)}")
 
+        // The most recent NEAR-FULL charge anchors the run start (same scan as estimate, #8); a partial
+        // top-up does NOT anchor and is reported separately below.
         var startIdx = 0
         if (sorted.size >= 2) {
             for (i in sorted.size - 1 downTo 1) {
-                if (sorted[i].second > sorted[i - 1].second + chargeStepPct) {
+                if (sorted[i].second > sorted[i - 1].second + chargeStepPct && sorted[i].second >= nearFullPct) {
                     startIdx = i
                     val rise = sorted[i].second - sorted[i - 1].second
                     lines.add("battery chargeStep at t=${sorted[i].first}s +${soc(rise)}pp " +
@@ -129,7 +184,19 @@ object BatteryEstimator {
                 }
             }
         }
-        val run = sorted.subList(startIdx, sorted.size)
+        // The most recent PARTIAL top-up after the anchor (a rise that does NOT reach near-full): the fit
+        // ends before it and prefers the longer pre-top-up discharge segment (#8).
+        if (sorted.size >= 2 && startIdx < sorted.size - 1) {
+            for (i in sorted.size - 1 downTo startIdx + 1) {
+                if (sorted[i].second > sorted[i - 1].second + chargeStepPct && sorted[i].second < nearFullPct) {
+                    val rise = sorted[i].second - sorted[i - 1].second
+                    lines.add("battery partialTopUp at t=${sorted[i].first}s +${soc(rise)}pp " +
+                        "(<nearFullPct ${soc(nearFullPct)}) -> fit pre-top-up segment")
+                    break
+                }
+            }
+        }
+        val run = dischargeFitWindow(sorted)
 
         var spanPass = false
         var dropPass = false

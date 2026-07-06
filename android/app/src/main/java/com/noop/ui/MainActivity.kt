@@ -63,8 +63,8 @@ class MainActivity : ComponentActivity() {
         }
 
         // Only pre-warm permissions at launch for already-onboarded users. First-run onboarding
-        // requests each permission at the step that explains it — Bluetooth when the Connect step
-        // appears, notifications when it enables the background keep-alive — so the OS prompt never
+        // requests each permission at the step that explains it, Bluetooth when the Connect step
+        // appears, notifications when it enables the background keep-alive, so the OS prompt never
         // lands before the screen that justifies it.
         if (NoopPrefs.of(this).getBoolean(NoopPrefs.KEY_ONBOARDED, false)) {
             requestBlePermissions()
@@ -165,26 +165,35 @@ object NoopPrefs {
     /** Terms-of-use version the user last accepted. Empty until the first-run gate is accepted; a
      *  material terms change bumps [Terms.CURRENT_VERSION] and re-prompts. Mirrors macOS @AppStorage. */
     const val KEY_ACCEPTED_TERMS_VERSION = "noop.acceptedTermsVersion"
+    /** ISO-8601 timestamp of the last terms acceptance — the on-device consent record (version + when). */
+    const val KEY_ACCEPTED_TERMS_AT = "noop.acceptedTermsAt"
 
-    /** "Keep connected in the background" — drives [com.noop.ble.WhoopConnectionService]. Default on. */
+    /** "Keep connected in the background", drives [com.noop.ble.WhoopConnectionService]. Default on. */
     const val KEY_BACKGROUND_CONNECTION = "noop.backgroundConnection"
 
-    /** "Continuous HRV capture" — when on (AND background connection is on), NOOP holds the dense
+    /** "Continuous HRV capture", when on (AND background connection is on), NOOP holds the dense
      *  realtime HR stream armed even with no Live screen open, so the strap banks beat-to-beat R-R 24/7
      *  for far better overnight HRV/recovery/sleep. Uses more battery (continuous HR streaming). Default
      *  OFF. Drives [com.noop.ble.WhoopBleClient.setKeepStreamForData] via [AppViewModel]. */
     const val KEY_CONTINUOUS_HRV = "noop.continuousHrv"
 
-    /** The calendar day (yyyy-MM-dd) on which the morning-journal nudge was last shown — keeps the
+    /** "Overnight only" refinement of Continuous HRV capture (#927): when on (with [KEY_CONTINUOUS_HRV]),
+     *  the dense realtime stream is armed only inside the nightly quiet-hours window (22:00 to 07:00 by
+     *  default, wrap-aware, local wall time) instead of 24/7, roughly halving the battery cost. Default
+     *  OFF, so existing Continuous HRV users keep the always-on behaviour with no migration. Read by
+     *  [com.noop.ble.WhoopBleClient] at every arm site (re-derived at arm time, never cached). */
+    const val KEY_CONTINUOUS_HRV_OVERNIGHT = "noop.continuousHrvOvernight"
+
+    /** The calendar day (yyyy-MM-dd) on which the morning-journal nudge was last shown, keeps the
      *  Sleep screen's "Good morning" sheet to at most once per day. */
     const val KEY_LAST_JOURNAL_PROMPT = "noop.lastJournalPromptDay"
 
-    /** "Debug logging" — when on, the strap log is also written to logcat (`adb`). Default OFF so a
+    /** "Debug logging", when on, the strap log is also written to logcat (`adb`). Default OFF so a
      *  normal user never emits the connection log to the system log; the in-app ring buffer (and the
      *  "Share strap log" export) work regardless. See [com.noop.ble.WhoopBleClient.debugLogcat]. */
     const val KEY_DEBUG_LOGGING = "noop.debugLogging"
 
-    /** "Broadcast heart rate" — when on, NOOP acts as a standard BLE Heart Rate peripheral (0x180D /
+    /** "Broadcast heart rate", when on, NOOP acts as a standard BLE Heart Rate peripheral (0x180D /
      *  0x2A37) and re-broadcasts the live strap HR so a gym treadmill / Zwift / Peloton can read it.
      *  LOCAL Bluetooth only, nothing leaves the device. Default OFF. Drives [com.noop.ble.HrBroadcaster]
      *  via [AppViewModel]. Distinct from the WHOOP strap's own "broadcast HR" firmware config. */
@@ -195,7 +204,7 @@ object NoopPrefs {
     fun of(context: Context): SharedPreferences =
         context.getSharedPreferences(NAME, Context.MODE_PRIVATE)
 
-    /** #836 — the raw-HR fingerprint ("count:maxTs") the last COMPLETED idle rescore scored against. The
+    /** #836, the raw-HR fingerprint ("count:maxTs") the last COMPLETED idle rescore scored against. The
      *  15-min backstop tick skips when the current fingerprint equals this; cleared implicitly by any HR
      *  insert/delete (the fingerprint moves). Mirrors the Swift `analyzeWatermark` UserDefaults key. */
     fun analyzeWatermark(context: Context): String? =
@@ -220,6 +229,15 @@ object NoopPrefs {
 
     fun setContinuousHrv(context: Context, enabled: Boolean) {
         of(context).edit().putBoolean(KEY_CONTINUOUS_HRV, enabled).apply()
+    }
+
+    /** Whether Continuous HRV capture arms the stream only inside the nightly window (#927). Default
+     *  false = always-on, the pre-#927 behaviour. */
+    fun continuousHrvOvernight(context: Context): Boolean =
+        of(context).getBoolean(KEY_CONTINUOUS_HRV_OVERNIGHT, false)
+
+    fun setContinuousHrvOvernight(context: Context, enabled: Boolean) {
+        of(context).edit().putBoolean(KEY_CONTINUOUS_HRV_OVERNIGHT, enabled).apply()
     }
 
     /** Whether the strap log is mirrored to logcat. Default false (normal users don't log to adb). */
@@ -250,7 +268,7 @@ object NoopPrefs {
 
     /** Launcher-icon preference (v3 "Titanium & Gold"). false = machined-titanium (.IconDefault,
      *  the default); true = blued/dark-blue titanium (.IconNavy). The actual swap is done by
-     *  enabling exactly one of the two <activity-alias> entries via PackageManager — this bool just
+     *  enabling exactly one of the two <activity-alias> entries via PackageManager, this bool just
      *  records the user's choice so the App Icon control reflects it across restarts. */
     const val KEY_APP_ICON_NAVY = "noop.appIconNavy"
 
@@ -261,7 +279,7 @@ object NoopPrefs {
         of(context).edit().putBoolean(KEY_APP_ICON_NAVY, navy).apply()
     }
 
-    /** Imperial/Metric display preference (D#103). Display-only — stored data stays SI. The length/mass
+    /** Imperial/Metric display preference (D#103). Display-only, stored data stays SI. The length/mass
      *  system is read by [UnitPrefs.system]; the temperature override (empty = "match the system") by
      *  [UnitPrefs.temperature]. Mirrors macOS @AppStorage("units.system" / "units.temperature"). */
     const val KEY_UNIT_SYSTEM = "units.system"
@@ -315,7 +333,7 @@ object NoopPrefs {
         of(context).edit().putBoolean(KEY_HC_WRITEBACK, enabled).apply()
     }
 
-    /** #528 — last HR sample epoch-second exported to Health Connect (0 = nothing exported yet). The
+    /** #528, last HR sample epoch-second exported to Health Connect (0 = nothing exported yet). The
      *  HR share-back only emits samples newer than this, so each writeback is incremental. */
     const val KEY_HC_HR_FRONTIER = "noop.hcHrFrontierTs"
 
@@ -345,8 +363,7 @@ object NoopPrefs {
         of(context).edit().putInt(KEY_SMART_ALARM_MINUTES, minutes).apply()
     }
 
-    /** Weekdays the smart alarm fires on (Calendar.DAY_OF_WEEK: 1=Sun … 7=Sat). Empty = every day —
-     *  the backward-compatible default for anyone upgrading from before per-day scheduling (#539). Stored
+    /** Weekdays the smart alarm fires on (Calendar.DAY_OF_WEEK: 1=Sun … 7=Sat). Empty = every day,      *  the backward-compatible default for anyone upgrading from before per-day scheduling (#539). Stored
      *  as a string set; only valid day numbers (1…7) are kept so a corrupted entry can't schedule a
      *  bogus day. Mirrors macOS `BehaviorStore.smartAlarmWeekdays`. */
     const val KEY_SMART_ALARM_WEEKDAYS = "noop.smartAlarmWeekdays"
@@ -386,8 +403,8 @@ object NoopPrefs {
         of(context).edit().putStringSet(KEY_SMART_ALARM_OVERRIDES, clean).apply()
     }
 
-    /** HR-zone haptic coaching: buzz the strap on entering the top zone (ease off) and — when the
-     *  recovery buzz is on — on dropping back to Zone 1. Zone-based off the profile's HR-max; mirrors
+    /** HR-zone haptic coaching: buzz the strap on entering the top zone (ease off) and, when the
+     *  recovery buzz is on, on dropping back to Zone 1. Zone-based off the profile's HR-max; mirrors
      *  macOS. Coaching default off; recovery buzz default on (matches macOS's always-both behaviour).
      *  Reimplemented from @cbarrado's PR #350. */
     const val KEY_ZONE_COACHING = "noop.zoneCoaching"
@@ -408,7 +425,7 @@ object NoopPrefs {
         of(context).edit().putBoolean(KEY_ZONE_COACH_RECOVERY, enabled).apply()
     }
 
-    /** Illness early-warning (banner + notification). Default ON — the watch has always run on
+    /** Illness early-warning (banner + notification). Default ON, the watch has always run on
      *  Android, so this is an opt-OUT; macOS is opt-in (behavior.illnessWatch, default off). */
     const val KEY_ILLNESS_WATCH = "noop.illnessWatch"
 
@@ -420,7 +437,7 @@ object NoopPrefs {
     }
 
     /** Cycle awareness (v5): read a coarse menstrual-cycle PHASE from the nightly skin-temperature
-     *  shift. OPT-IN, default OFF (manual-first ethos) — the Health hub's Cycle card only renders once
+     *  shift. OPT-IN, default OFF (manual-first ethos), the Health hub's Cycle card only renders once
      *  this is on. Awareness only; never contraception / fertility / diagnosis. */
     const val KEY_CYCLE_TRACKING = "noop.cycleTracking"
 
@@ -432,7 +449,7 @@ object NoopPrefs {
     }
 
     /** Hydration tracking (MVP): an opt-in, on-device-only fluid log with a daily goal + quick-add
-     *  buttons. OPT-IN, default OFF (manual-first ethos) — the Today "Hydration" card and the detail
+     *  buttons. OPT-IN, default OFF (manual-first ethos), the Today "Hydration" card and the detail
      *  feature only appear once this is on. Nothing is synced; the day total lives in the local
      *  metric-series store. */
     const val KEY_HYDRATION_TRACKING = "noop.hydrationTracking"
@@ -445,7 +462,7 @@ object NoopPrefs {
     }
 
     /** "Day-cycle background" (#698): the time-of-day scene (sunrise / day / dusk / night) behind the
-     *  Today screen. Default ON — it's the v7 atmosphere. Some people find the moving scene distracting
+     *  Today screen. Default ON, it's the v7 atmosphere. Some people find the moving scene distracting
      *  and want a plain dark canvas, so turning this off makes TodayScreen drop the SceneScreenBackground
      *  and fall back to the flat surface; the cards already sit on an opaque canvas, so they stay just as
      *  readable. Mirrors macOS @AppStorage("noop.showDayCycleBackground"). */
@@ -460,7 +477,7 @@ object NoopPrefs {
 
     /** Coach on-device signals (v5): when ON, the opt-in BYO-key Coach's grounding context may include a
      *  SUMMARY-ONLY line of on-device correlations + Lab Book markers (no raw egress). A SECOND opt-in on
-     *  top of the existing "let the coach use my data" consent. Default OFF — keeps the anonymity posture. */
+     *  top of the existing "let the coach use my data" consent. Default OFF, keeps the anonymity posture. */
     const val KEY_COACH_SIGNALS = "noop.coachSignals"
 
     fun coachSignals(context: Context): Boolean =
@@ -470,9 +487,25 @@ object NoopPrefs {
         of(context).edit().putBoolean(KEY_COACH_SIGNALS, enabled).apply()
     }
 
+    /** The user's EDITED Coach system prompt. Empty/absent means "use the built-in default". A small,
+     *  non-secret text key, read FRESH per request so an edit takes effect on the next message. Mirrors
+     *  macOS/iOS UserDefaults "ai.systemPrompt". */
+    const val KEY_COACH_SYSTEM_PROMPT = "noop.coachSystemPrompt"
+
+    /** The stored prompt override, or empty string when nothing custom is set. */
+    fun coachSystemPrompt(context: Context): String =
+        of(context).getString(KEY_COACH_SYSTEM_PROMPT, "").orEmpty()
+
+    /** Persist [prompt] as the prompt override; a blank value clears it (back to default). */
+    fun setCoachSystemPrompt(context: Context, prompt: String) {
+        val trimmed = prompt.trim()
+        if (trimmed.isEmpty()) of(context).edit().remove(KEY_COACH_SYSTEM_PROMPT).apply()
+        else of(context).edit().putString(KEY_COACH_SYSTEM_PROMPT, prompt).apply()
+    }
+
     /** "Auto-detect workouts" (MVP, opt-in, on-device, NON-DESTRUCTIVE). When ON, NOOP scans the last
      *  day or two of strap HR for a sustained-elevated bout and surfaces ONE dismissible Today card
-     *  suggesting you save it — it NEVER creates a workout on its own (the user taps Save). Default OFF;
+     *  suggesting you save it, it NEVER creates a workout on its own (the user taps Save). Default OFF;
      *  when off no detection runs and no card shows. Mirrors macOS/iOS @AppStorage("autoDetectWorkouts"). */
     const val KEY_AUTO_DETECT_WORKOUTS = "noop.autoDetectWorkouts"
 
@@ -483,7 +516,7 @@ object NoopPrefs {
         of(context).edit().putBoolean(KEY_AUTO_DETECT_WORKOUTS, enabled).apply()
     }
 
-    /** Last local day (ISO yyyy-MM-dd) an illness notification was posted — the once-a-day gate,
+    /** Last local day (ISO yyyy-MM-dd) an illness notification was posted, the once-a-day gate,
      *  persisted so the app-open and background-service call sites can't double-post. */
     const val KEY_ILLNESS_LAST_NOTIFIED_DAY = "noop.illnessLastNotifiedDay"
 
@@ -494,7 +527,7 @@ object NoopPrefs {
         of(context).edit().putString(KEY_ILLNESS_LAST_NOTIFIED_DAY, day).apply()
     }
 
-    /** Battery alerts — low (≤15%) + charge-complete (100%) strap notifications (#368, thanks @ujix).
+    /** Battery alerts, low (≤15%) + charge-complete (100%) strap notifications (#368, thanks @ujix).
      *  Default ON; gated here and behind the OS notification permission. */
     const val KEY_BATTERY_ALERTS = "noop.batteryAlerts"
 
@@ -505,7 +538,7 @@ object NoopPrefs {
         of(context).edit().putBoolean(KEY_BATTERY_ALERTS, enabled).apply()
     }
 
-    /** Persisted once-per-crossing flags behind BatteryAlertPolicy — they survive process death so a
+    /** Persisted once-per-crossing flags behind BatteryAlertPolicy, they survive process death so a
      *  battery hovering near a threshold fires exactly once per cycle (low re-arms above 25%, full
      *  re-arms below 100%). */
     const val KEY_BATTERY_LOW_ALERTED = "noop.batteryLowAlerted"
@@ -525,12 +558,12 @@ object NoopPrefs {
         of(context).edit().putBoolean(KEY_BATTERY_FULL_ALERTED, alerted).apply()
     }
 
-    /** Scheduled report notifications (#517) — opt-in, default OFF, no AI. Two independent toggles:
+    /** Scheduled report notifications (#517), opt-in, default OFF, no AI. Two independent toggles:
      *  - [KEY_REPORT_MORNING]: a morning recap (Charge + Rest) posted once after a fresh night is
-     *    processed. It is NOT alarm-precise — it lands when the next sync + analytics pass completes,
+     *    processed. It is NOT alarm-precise, it lands when the next sync + analytics pass completes,
      *    so the copy is honest about timing.
      *  - [KEY_REPORT_WORKOUT]: a post-workout summary (Effort + duration + avg HR) posted when a newly
-     *    synced workout is first seen. Same post-sync-timing caveat — a strap-only workout surfaces on
+     *    synced workout is first seen. Same post-sync-timing caveat, a strap-only workout surfaces on
      *    the next history offload, not the instant the session ends.
      *  The dedupe state ([KEY_REPORT_MORNING_DAY] / [KEY_REPORT_LAST_WORKOUT_TS]) survives process death
      *  so the app-open and background call sites can't double-post. Mirrors the BatteryAlert/Illness gate
@@ -554,7 +587,7 @@ object NoopPrefs {
         of(context).edit().putBoolean(KEY_REPORT_WORKOUT, enabled).apply()
     }
 
-    /** Last local day (ISO yyyy-MM-dd) the morning recap was posted — the once-a-day gate. */
+    /** Last local day (ISO yyyy-MM-dd) the morning recap was posted, the once-a-day gate. */
     fun reportMorningDay(context: Context): String? =
         of(context).getString(KEY_REPORT_MORNING_DAY, null)
 
@@ -562,7 +595,7 @@ object NoopPrefs {
         of(context).edit().putString(KEY_REPORT_MORNING_DAY, day).apply()
     }
 
-    /** Start-ts (epoch seconds) of the most recent workout already summarised — only a STRICTLY newer
+    /** Start-ts (epoch seconds) of the most recent workout already summarised, only a STRICTLY newer
      *  session fires again, so a re-sync of the same backlog never re-notifies. 0 = none yet. */
     fun reportLastWorkoutTs(context: Context): Long =
         of(context).getLong(KEY_REPORT_LAST_WORKOUT_TS, 0L)
@@ -571,11 +604,11 @@ object NoopPrefs {
         of(context).edit().putLong(KEY_REPORT_LAST_WORKOUT_TS, ts).apply()
     }
 
-    /** Caffeine late-intake nudge (PR#566, mvanhorn) — opt-in, default OFF. When on, the Caffeine card
+    /** Caffeine late-intake nudge (PR#566, mvanhorn), opt-in, default OFF. When on, the Caffeine card
      *  shows a cutoff time (the latest you can have caffeine and still clear it below a target residual by
      *  bedtime) and flags an intake logged after that cutoff. [KEY_CAFFEINE_BEDTIME_MIN] is the user's
      *  bedtime as minutes-since-midnight (default 23:00) the cutoff is computed back from. On-device, no
-     *  notification — a quiet inline hint, matching the manual-first caffeine card. */
+     *  notification, a quiet inline hint, matching the manual-first caffeine card. */
     const val KEY_CAFFEINE_CUTOFF = "noop.caffeine.cutoffNudge"
     const val KEY_CAFFEINE_BEDTIME_MIN = "noop.caffeine.bedtimeMinutes"
 
@@ -618,8 +651,7 @@ object NoopPrefs {
     }
 
     /** #547 RE-POLLUTION re-arm: set true by the BLE layer when a sync's ingest gate dropped implausible
-     *  (bad-clock) records, so the next analyze tick re-runs the purge even after [KEY_TS_HEAL_DONE] is set —
-     *  a wandering-clock strap re-sends bad-dated records across syncs, and may have banked similar garbage
+     *  (bad-clock) records, so the next analyze tick re-runs the purge even after [KEY_TS_HEAL_DONE] is set,      *  a wandering-clock strap re-sends bad-dated records across syncs, and may have banked similar garbage
      *  on an OLDER build whose gate was weaker. Cleared once the re-heal runs. */
     const val KEY_TS_HEAL_PENDING = "noop.tsHeal.v547.pending"
 
@@ -631,7 +663,7 @@ object NoopPrefs {
     }
 
     /** The last strap we bonded to (address + model), persisted so NOOP can reconnect to it directly on
-     *  the next launch — e.g. after an APK update restarts the process (#67). On-device only; never sent. */
+     *  the next launch, e.g. after an APK update restarts the process (#67). On-device only; never sent. */
     const val KEY_LAST_DEVICE_ADDR = "noop.lastDeviceAddress"
     const val KEY_LAST_DEVICE_MODEL = "noop.lastDeviceModel"
 
@@ -685,21 +717,24 @@ fun NoopRoot() {
         mutableStateOf(prefs.getString(NoopPrefs.KEY_LAST_SEEN_CHANGELOG, "") ?: "")
     }
 
-    // Seed the current What's New into the Updates inbox ONCE per version (idempotent — tracks the last
+    // Seed the current What's New into the Updates inbox ONCE per version (idempotent, tracks the last
     // seeded version), for onboarded users only so a brand-new user's first run isn't pre-populated. The
     // bell in the Today header surfaces it; the inbox row deep-links to the full changelog read.
     LaunchedEffect(onboarded) {
         if (onboarded) UpdateStore.from(context).seedWhatsNewIfNeeded()
     }
 
-    // Terms acknowledgment gate — over EVERYTHING (before onboarding/pairing/Bluetooth) until the
+    // Terms acknowledgment gate, over EVERYTHING (before onboarding/pairing/Bluetooth) until the
     // current terms version is accepted; re-appears if the terms materially change. (clickwrap)
     var acceptedTerms by remember {
         mutableStateOf(prefs.getString(NoopPrefs.KEY_ACCEPTED_TERMS_VERSION, "") ?: "")
     }
     if (acceptedTerms != Terms.CURRENT_VERSION) {
         TermsGateScreen(onAccept = {
-            prefs.edit().putString(NoopPrefs.KEY_ACCEPTED_TERMS_VERSION, Terms.CURRENT_VERSION).apply()
+            prefs.edit()
+                .putString(NoopPrefs.KEY_ACCEPTED_TERMS_VERSION, Terms.CURRENT_VERSION)
+                .putString(NoopPrefs.KEY_ACCEPTED_TERMS_AT, java.time.Instant.now().toString())
+                .apply()
             acceptedTerms = Terms.CURRENT_VERSION
         })
         return
@@ -709,7 +744,7 @@ fun NoopRoot() {
         OnboardingScreen(
             viewModel = appViewModel,
             onFinished = {
-                // A brand-new user just saw the expectations in onboarding — don't also pop the
+                // A brand-new user just saw the expectations in onboarding, don't also pop the
                 // changelog at them; mark them current (mirrors macOS ContentView onFinished).
                 prefs.edit()
                     .putBoolean(NoopPrefs.KEY_ONBOARDED, true)

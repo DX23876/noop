@@ -23,6 +23,14 @@ public final class LiveState: ObservableObject {
     /// connect/disconnect. Drives the Live pill's two-state distinction; the encrypted channel (buzz,
     /// alarm, double-tap, history offload) only works when this is true.
     @Published public var encryptedBond: Bool = false
+    /// True ONLY when a non-WHOOP live source (currently the Oura ring) is actively streaming live HR.
+    /// This is the green "STREAMING" signal for sources that have no WHOOP-style encrypted bond: it is
+    /// DELIBERATELY separate from `bonded`, which carries WHOOP encrypted-bond + buzz semantics (it gates
+    /// haptics in AppModel / BreathingView) and must not be set by the Oura path. The menu-bar pill reads
+    /// this to show STREAMING for a live ring while leaving the WHOOP bonded logic untouched. The owning
+    /// source sets it true in its streaming branch and false at every teardown (stop / needs-pairing /
+    /// radio-off / connect-fail / disconnect). Twin of the Android LiveState.streamingLiveHR.
+    @Published public var streamingLiveHR: Bool = false
     @Published public var heartRate: Int? = nil
     /// Whether the heavy R10/R11 realtime burst is currently armed (the "live feed"). Tracks the
     /// realtime INTENT (startRealtime/stopRealtime), NOT `heartRate` — the lightweight 0x2A37 profile
@@ -173,10 +181,26 @@ public final class LiveState: ObservableObject {
 
     @Published public var lastFrameType: String? = nil
     @Published public var lastEvent: String? = nil
+    /// #987: unix of the most recent strap frame FrameRouter routed. Deliberately NOT @Published - the
+    /// raw flood arrives per-notification and a published write per frame would re-render every observer
+    /// at frame rate (the exact churn the lastFrameType change-guard exists to avoid). The Test Centre
+    /// Connection readout reads it on its own render cadence, which is plenty for a freshness label.
+    /// Cleared with the other live readouts in clearBiometrics so it can't outlive the link.
+    public private(set) var lastFrameAtUnix: Int?
+
+    /// Stamp the last-frame instant (#987). One plain Int write per routed frame; called by FrameRouter
+    /// after the CRC guard so bad bytes never count as liveness.
+    public func noteFrameRouted(now: Int = Int(Date().timeIntervalSince1970)) { lastFrameAtUnix = now }
     /// The strap's BLE advertising name, read back from firmware via GET_ADVERTISING_NAME_HARVARD
     /// (cmd 76 — sent in the connect handshake, parsed by FrameRouter). nil until the first reply.
     /// WHOOP 4.0 only; the rename control in Settings shows this as the strap's current name.
     @Published public var advertisingName: String? = nil
+    /// The connected strap's firmware version, read during the connect handshake: WHOOP 4.0 via
+    /// REPORT_VERSION_INFO (`fw_harvard`), WHOOP 5/MG via GET_HELLO (`fw_version`). FrameRouter
+    /// publishes it; the Devices card shows it next to battery. nil until the reply lands, and
+    /// cleared on disconnect so a stale version can't outlive the link. Twin of the Android
+    /// LiveState.strapFirmware.
+    @Published public var strapFirmware: String? = nil
     /// Transient, human-readable result of the most recent strap-rename attempt — the
     /// SET_ADVERTISING_NAME_HARVARD ack, or a local validation message from BLEManager.renameStrap.
     /// Surfaced under the rename field; overwritten by the next attempt.
@@ -377,6 +401,26 @@ public final class LiveState: ObservableObject {
         }
     }
 
+    /// Seed the SoC buffer from the persisted battery table on connect/bootstrap (#7). `batterySamples` is
+    /// otherwise fed ONLY by live BLE events (`bankBatterySample`), so after a reconnect the "~X days left"
+    /// estimate restarted from an empty buffer and ignored the long discharge history already on disk.
+    /// Android seeds from its persisted battery table over a 14-day window; iOS/macOS did not, so the two
+    /// platforms diverged. The BLEManager bootstrap path does one async read of the persisted series and
+    /// passes it here. De-dupes against any points already banked from live events this session (by ts) so a
+    /// seed that races a couple of live readings can't double-count them, then re-sorts and caps the buffer.
+    /// Only banks the historical points that aren't already present, so calling it twice is idempotent.
+    public func seedBatterySamples(_ seed: [(ts: Int, soc: Double)]) {
+        guard !seed.isEmpty else { return }
+        let existing = Set(batterySamples.map { $0.ts })
+        let fresh = seed.filter { !existing.contains($0.ts) }
+        guard !fresh.isEmpty else { return }
+        batterySamples.append(contentsOf: fresh)
+        batterySamples.sort { $0.ts < $1.ts }
+        if batterySamples.count > Self.maxBatterySamples {
+            batterySamples.removeFirst(batterySamples.count - Self.maxBatterySamples)
+        }
+    }
+
     /// Drop the banked SoC buffer (called on disconnect) so a stale runtime estimate can't outlive the
     /// link, the twin of the `charging = nil` clear on the same path.
     public func clearBatterySamples() {
@@ -409,6 +453,7 @@ public final class LiveState: ObservableObject {
         recentHrSamples.removeAll()       // Sleep readout buffers must not outlive the link (Group E)
         recentGravitySamples.removeAll()
         clearStrapRange()                 // a stale clock-drift window must not outlive the link either
+        lastFrameAtUnix = nil             // #987: a stale "last frame" freshness must not outlive it either
     }
 
     /// Cap on the in-app strap-log ring buffer. Raised from the old ~1h (200 lines) to retain a rolling
@@ -426,6 +471,14 @@ public final class LiveState: ObservableObject {
         log.append(Self.redactPii(tagged))
         if log.count > Self.maxLogLines { log.removeFirst(log.count - Self.maxLogLines) }
         Self.persistTail(log)
+        // #990: fold the Backfiller's per-session "session persisted N rows" summary into the persisted
+        // ALL-TIME drained-rows tally, right here at the single log sink (no new BLE seam). The summary
+        // is emitted unconditionally whenever rows landed (#150), so the cumulative counter accrues on
+        // every session, not only while the Connection test mode is on. The contains() pre-check keeps
+        // the common per-line cost to one substring scan.
+        if line.contains("session persisted"), let rows = ConnectionReadout.drainedRowsFromSummary(line) {
+            TestCentre.noteDrainedRows(rows)
+        }
     }
 
     /// The in-app log lines tagged for one test domain (for the Test Centre live readout). Read-only,
@@ -517,7 +570,7 @@ public final class LiveState: ObservableObject {
         #else
         let osName = "macOS"
         #endif
-        var header = "NOOP strap log — \(osName)\nApp: \(v)\n\(osName): "
+        var header = "NOOP strap log - \(osName)\nApp: \(v)\n\(osName): "
             + ProcessInfo.processInfo.operatingSystemVersionString + "\n"
         #if os(iOS)
         let diagLines = IOSDiagnostics.capture().summaryLines()
