@@ -74,6 +74,13 @@ android {
                 signingConfigs.getByName("release")
             else
                 signingConfigs.getByName("debug")
+            // Fork staging release: built with -PstagingRelease (the fork testing-build CI only), the
+            // release APK gets its own id/name so it installs BESIDE both the official app and the
+            // .debug staging build. A real release (no property) keeps the true com.noop.whoop id.
+            if (project.hasProperty("stagingRelease")) {
+                applicationIdSuffix = ".staging"
+                versionNameSuffix = "-staging"
+            }
         }
     }
 
