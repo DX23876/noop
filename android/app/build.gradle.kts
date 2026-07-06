@@ -32,6 +32,15 @@ android {
     }
 
     signingConfigs {
+        getByName("debug") {
+            val forkDebugKeystore = rootProject.file("fork-debug.keystore")
+            if (forkDebugKeystore.exists()) {
+                storeFile = forkDebugKeystore
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
         create("release") {
             if (keystorePropsFile.exists()) {
                 storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
