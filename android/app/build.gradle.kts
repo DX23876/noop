@@ -58,12 +58,13 @@ android {
             versionNameSuffix = "-debug"
         }
         release {
-            // R8 full-mode was stripping classes the app needs at runtime (Compose/Room/Tink
-            // reflective paths), so release builds installed then crashed on launch. This is an
-            // offline app where a ~20 MB APK is fine, so we ship UNMINIFIED for reliability.
-            // Re-enabling minify later requires device-verified keep rules first.
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // Optimised release: R8 code shrink + resource shrink ON. The earlier crash-on-launch was
+            // R8 *full-mode* over-stripping reflective paths (Compose/Room/Tink) — that aggressive mode is
+            // now OFF (android.enableR8.fullMode=false in gradle.properties) and the reflective survivors
+            // (Tink via security-crypto, WorkManager Workers, Room, enums/Parcelable/native) are pinned by
+            // explicit keep rules in proguard-rules.pro. Device-verify a launch before trusting a real ship.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -74,6 +75,13 @@ android {
                 signingConfigs.getByName("release")
             else
                 signingConfigs.getByName("debug")
+            // Fork staging release: built with -PstagingRelease (the fork testing-build CI only), the
+            // release APK gets its own id/name so it installs BESIDE both the official app and the
+            // .debug staging build. A real release (no property) keeps the true com.noop.whoop id.
+            if (project.hasProperty("stagingRelease")) {
+                applicationIdSuffix = ".staging"
+                versionNameSuffix = "-staging"
+            }
         }
     }
 
