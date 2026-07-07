@@ -11,7 +11,7 @@ import StrandAnalytics
 // It only ever SUGGESTS: tapping Save creates a manual-style "Workout" for the window (via the
 // same manual-save path the edit sheet uses); the X dismisses it durably so it never re-prompts.
 // Nothing is created automatically. Design-Reset compliant — a flat NoopCard using NoopMetrics /
-// StrandPalette / StrandFont, no gold, matching the other Today cards (mirrors DonationNudgeCard).
+// StrandPalette / StrandFont, no gold, matching the other Today cards.
 
 struct AutoWorkoutCard: View {
 

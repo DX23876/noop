@@ -1,7 +1,6 @@
 import Foundation
 
-/// Single source of truth for project identity, attribution, and donation addresses — reused by the
-/// Support screen and kept in sync with the cross-platform docs (see docs/DONATIONS.md). Deliberately
+/// Single source of truth for project identity and attribution. Deliberately
 /// contains no author/AI identifiers so the public repo can stay anonymous.
 enum ProjectInfo {
     static let appName = "NOOP"
@@ -15,24 +14,4 @@ enum ProjectInfo {
         ("johnmiddleton12/my-whoop", "WHOOP 4.0 BLE protocol"),
         ("b-nnett/goose", "WHOOP 5.0 BLE protocol"),
     ]
-
-    /// Optional, never-required donation addresses. Framed as support, not a paywall.
-    static let donations: [CryptoAddress] = [
-        .init(symbol: "BTC", name: "Bitcoin",
-              address: "bc1qn2gkl7wslwpws06mvazjn2uu689zlkv7kg3kf5"),
-        .init(symbol: "ADA", name: "Cardano",
-              address: "addr1qxsju3y0mlke2h6h2g6qgnq4r3jstngtyjxs0nnp5zrv28zv8p5rgzruxyjz33j9k23pffta8z639e2snjdd4vcetfqsn4vwr3"),
-        .init(symbol: "ETH", name: "Ethereum",
-              address: "0xd64D508b531c4b1297Ca4023C774e0E97aA67B7F"),
-        // XRP intentionally NOT offered in-app: it's an exchange-hosted address
-        // that needs a destination tag, and a scan-to-donate QR can't carry the
-        // tag reliably, so a tagless scan could be lost. XRP stays in docs only.
-    ]
-
-    struct CryptoAddress: Identifiable {
-        let symbol: String
-        let name: String
-        let address: String
-        var id: String { symbol }
-    }
 }

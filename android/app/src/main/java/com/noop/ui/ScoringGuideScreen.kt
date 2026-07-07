@@ -111,9 +111,9 @@ enum class ScoreSection {
 }
 
 /**
- * One-time first-run flag for the Today "New here?" scoring-guide card. Plain-prefs persistence
- * mirroring [DonationNudgePrefs] — a tiny self-contained store, so the card's seen-state lives next
- * to the screen that owns it and never touches the unrelated onboarding/changelog prefs.
+ * One-time first-run flag for the Today "New here?" scoring-guide card. A tiny self-contained
+ * plain-prefs store, so the card's seen-state lives next to the screen that owns it and never
+ * touches the unrelated onboarding/changelog prefs.
  */
 object ScoringGuidePrefs {
     private const val FILE = "noop_scoring_guide_prefs"

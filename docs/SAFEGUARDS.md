@@ -15,7 +15,7 @@ GitHub's AUP prohibits, and may suspend accounts for:
 ## Our safeguards
 
 **1. Donation / crypto addresses live in ONE canonical set of places — never in comments.**
-The BTC/ETH/etc. addresses belong in `README.md`, `docs/DONATIONS.md`, the in-app **Support** screen, and the Donations wiki page — *that's it*. **Never paste a donation or crypto address into an issue, PR, or comment.** If a reply needs to mention donating, **link** to the README/Support — don't paste the address. Repeating a crypto address across many comments is the single clearest "promotional bulk content / solicitation" signal, and it's what most likely tripped the filter. (Automation never posts addresses — `update-donation-stats.sh` only *reads* the public chains for donor counts.)
+The BTC/ETH/etc. addresses belong in the in-app **Support** screen and the Donations wiki page — *that's it*. **Never paste a donation or crypto address into an issue, PR, or comment.** If a reply needs to mention donating, **link** to the wiki — don't paste the address. Repeating a crypto address across many comments is the single clearest "promotional bulk content / solicitation" signal, and it's what most likely tripped the filter.
 
 **2. Batch releases — don't drip-ship.**
 Combine multiple fixes into one release and space releases out. `Tools/release.sh` has a **cadence guard**: it refuses to publish if ≥3 releases were cut today or the last was <20 min ago, unless you deliberately set `ALLOW_RAPID_RELEASE=1`. A burst should always be a conscious decision, never an accident. (Tune via `CADENCE_LIMIT` / `CADENCE_MIN_GAP_MIN`.)

@@ -519,9 +519,6 @@ feed, refresh battery, scan/reconnect, or disconnect.
 `SupportView.swift`:
 
 - **Built on** — credit to the community interoperability projects NOOP stands on.
-- **Donate (optional)** — never a paywall; the whole app works without it. Copy-to-clipboard
-  crypto addresses (Bitcoin, Cardano, Ethereum, XRP) for anyone who wants to chip in toward
-  future work (Windows, deeper iOS hardware validation, new features). The app never asks again.
 - A reminder: **not affiliated with WHOOP; interoperability software for your own device and
   data; not a medical device.**
 

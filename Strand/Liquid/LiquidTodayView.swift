@@ -38,7 +38,6 @@ struct LiquidTodayView: View {
     @State private var guideSection: ScoreSection?
     @State private var showCustomise = false
     @State private var showSettings = false
-    @State private var showSupport = false
     @State private var synthesisExpanded = false
     @State private var showLiveSession = false
 
@@ -251,14 +250,6 @@ struct LiquidTodayView: View {
                     .liquidSheetDoneChrome { showSettings = false }
             }
         }
-        // The heart → the (optional) Support sheet: NOOP is free forever, donations just help it keep moving.
-        .sheet(isPresented: $showSupport) {
-            NavigationStack {
-                SupportView()
-                    .background(StrandPalette.surfaceBase.ignoresSafeArea())
-                    .liquidSheetDoneChrome { showSupport = false }
-            }
-        }
         // Live Session (silent guardian, beta): the in-session screen owns the whole display — full
         // screen on iOS (nothing should compete with the ring mid-workout), a sheet on macOS where
         // fullScreenCover doesn't exist.
@@ -346,16 +337,6 @@ struct LiquidTodayView: View {
                 }
                 Spacer(minLength: 8)
                 HStack(spacing: 8) {
-                    // Support / donate — a tap opens the (optional) support sheet. NOOP is free forever.
-                    Button { showSupport = true } label: {
-                        Image(systemName: "heart.fill")
-                            .font(.system(size: 19, weight: .semibold))
-                            .foregroundStyle(StrandPalette.chargeColor)
-                            .frame(width: 34, height: 34)
-                            .shadow(color: .black.opacity(0.3), radius: 6, y: 1)
-                    }
-                    .buttonStyle(LiquidPressStyle())
-                    .accessibilityLabel("Support NOOP. It's free; donations are optional and help development.")
                     // Profile pic (the one set in Settings) → opens Settings, matching the classic Today.
                     Button { showSettings = true } label: {
                         ProfileAvatarView(imageData: profile.avatarImageData, size: 34)

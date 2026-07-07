@@ -217,7 +217,6 @@ private data class TodayLiveSnapshot(
 @Composable
 fun TodayScreen(
     viewModel: AppViewModel,
-    onSupport: () -> Unit = {},
     onQuickActions: () -> Unit = {},
     updateStore: UpdateStore? = null,
     onOpenUpdates: () -> Unit = {},
@@ -990,7 +989,6 @@ fun TodayScreen(
                 selectedDay = selectedDay,
                 batteryPct = if (liveSnap.connected) liveSnap.batteryPct else null,
                 onPickDay = { offset -> selectedDayOffset = offset },
-                onSupport = onSupport,
                 onQuickActions = onQuickActions,
                 onOpenSettings = onOpenSettings,
                 onOpenDevices = onOpenDevices,
@@ -1374,12 +1372,6 @@ fun TodayScreen(
         if (selectedDayOffset == 0) {
             item { AutoWorkoutNudgeCard(viewModel = viewModel, days = days) }
         }
-        // Honest, dismissible 12-hourly donation ask, a card in the flow, never a dialog.
-        item { DonationNudgeCard() }
-        // Support, an in-content card (heart.fill in metricRose, "Donate or get in touch, totally
-        // optional.", chevron). The Support heart left the header cluster for parity with iOS, where
-        // Support is an in-flow supportRow near the donation nudge (still reachable via More → Support).
-        item { SupportRow(onSupport = onSupport) }
         // Strap battery only while the link is up AND a real reading exists, a stale % from a
         // dropped connection must not present as live (#159).
         item {
@@ -1854,7 +1846,6 @@ private fun LiquidTodayHeader(
     selectedDay: LocalDate,
     batteryPct: Double?,
     onPickDay: (Int) -> Unit,
-    onSupport: () -> Unit,
     onQuickActions: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenDevices: () -> Unit,
@@ -1930,15 +1921,12 @@ private fun LiquidTodayHeader(
             )
         }
 
-        // RIGHT: the iOS four controls, in order — heart · avatar · + · battery ring. Each ~34dp, 8dp apart.
+        // RIGHT: the controls, in order — avatar · + · battery ring. Each ~34dp, 8dp apart.
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            // (a) Support / donate heart — a filled heart in the charge-green tint (iOS chargeColor). NOOP is
-            // free forever; donations are optional. Mirrors iOS `heart.fill` → showSupport.
-            HeaderHeartButton(onSupport = onSupport)
-            // (b) Profile avatar (the photo set in Settings, or the NOOP loop mark) → Settings. Mirrors iOS.
+            // (a) Profile avatar (the photo set in Settings, or the NOOP loop mark) → Settings. Mirrors iOS.
             Box(
                 modifier = Modifier
                     .size(34.dp)
@@ -1953,42 +1941,12 @@ private fun LiquidTodayHeader(
             ) {
                 ProfileAvatar(size = 34.dp)
             }
-            // (c) Quick-add (+), the accented primary. Mirrors iOS's LiquidAddButton (a glyph on a translucent
+            // (b) Quick-add (+), the accented primary. Mirrors iOS's LiquidAddButton (a glyph on a translucent
             // disc → the quick-actions menu). Sized 34dp to match the rest of the liquid cluster.
             QuickActionDisc(onClick = onQuickActions)
-            // (d) Strap battery ring showing the % (iOS LiquidBatteryButton). Tap → Devices.
+            // (c) Strap battery ring showing the % (iOS LiquidBatteryButton). Tap → Devices.
             LiquidBatteryRing(batteryPct = batteryPct, onClick = onOpenDevices)
         }
-    }
-}
-
-/** The header Support heart (iOS `heart.fill` → showSupport): a filled heart in the charge-green tint on a
- *  34dp tap target, with a soft shadow so it reads on the day-of-sky. NOOP is free forever; a tap opens the
- *  optional Support sheet. Mirrors the iOS liquid header heart. */
-@Composable
-private fun HeaderHeartButton(onSupport: () -> Unit) {
-    val interaction = remember { MutableInteractionSource() }
-    Box(
-        modifier = Modifier
-            .size(34.dp)
-            .liquidPress(interaction)
-            .clickable(
-                interactionSource = interaction,
-                indication = null,
-                onClick = onSupport,
-            )
-            .semantics {
-                contentDescription =
-                    "Support NOOP. It's free; donations are optional and help development."
-            },
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            Icons.Filled.Favorite,
-            contentDescription = null,
-            tint = Palette.chargeColor,
-            modifier = Modifier.size(19.dp),
-        )
     }
 }
 
@@ -2125,54 +2083,6 @@ private fun LiquidWordmark() {
                 style = NoopType.number(16f, weight = FontWeight.Bold)
                     .copy(shadow = Shadow(color = Color.Black.copy(alpha = 0.25f), offset = Offset(0f, 1f), blurRadius = 6f)),
                 color = Color.White.copy(alpha = 0.5f),
-            )
-        }
-    }
-}
-
-/** In-content Support card (iOS supportRow): heart.fill in metricRose, the donation copy, a chevron.
- *  The whole card is the tap target. Lives near the donation nudge in the Today flow. */
-@Composable
-private fun SupportRow(onSupport: () -> Unit) {
-    // liquidPress on the whole tappable card (the SAME interactionSource drives the clickable + the press).
-    val interaction = remember { MutableInteractionSource() }
-    NoopCard(
-        modifier = Modifier
-            .liquidPress(interaction)
-            .clip(RoundedCornerShape(Metrics.cardRadius))
-            .clickable(
-                interactionSource = interaction,
-                indication = null,
-                onClick = onSupport,
-            )
-            .semantics { contentDescription = "Support NOOP: donate or get in touch" },
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Metrics.space14),
-        ) {
-            Icon(
-                Icons.Filled.Favorite,
-                contentDescription = null,
-                tint = Palette.metricRose,
-                modifier = Modifier.size(Metrics.iconSmall),
-            )
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(Metrics.space4),
-            ) {
-                Text("Support NOOP", style = NoopType.headline, color = Palette.textPrimary)
-                Text(
-                    "Donate or get in touch. Totally optional.",
-                    style = NoopType.subhead,
-                    color = Palette.textSecondary,
-                )
-            }
-            Icon(
-                Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = Palette.textTertiary,
-                modifier = Modifier.size(Metrics.iconSmall),
             )
         }
     }
