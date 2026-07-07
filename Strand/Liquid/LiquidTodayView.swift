@@ -418,11 +418,11 @@ struct LiquidTodayView: View {
 
     private var heroCard: some View {
         HStack(alignment: .top, spacing: 4) {
-            HeroScoreCell(label: "Charge", score: displayDay?.recovery, tint: StrandPalette.chargeColor,
+            HeroScoreCell(label: String(localized: "Charge"), score: displayDay?.recovery, tint: StrandPalette.chargeColor,
                           pill: "WHOOP", animated: dataLoaded, onGuide: { guideSection = .charge })
-            HeroScoreCell(label: "Effort", score: displayDay?.strain, tint: StrandPalette.effortColor,
+            HeroScoreCell(label: String(localized: "Effort"), score: displayDay?.strain, tint: StrandPalette.effortColor,
                           pill: nil, animated: dataLoaded, onGuide: { guideSection = .effort })
-            HeroScoreCell(label: "Rest", score: restScore, tint: StrandPalette.restColor,
+            HeroScoreCell(label: String(localized: "Rest"), score: restScore, tint: StrandPalette.restColor,
                           pill: "WHOOP", animated: dataLoaded, onGuide: { guideSection = .rest })
         }
         .padding(.vertical, 16)
@@ -632,7 +632,7 @@ struct LiquidTodayView: View {
                         Text(synthLine).font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
                             .fixedSize(horizontal: false, vertical: true)
                         if synthesisExpanded {
-                            Text(readiness.summary).font(StrandFont.caption)
+                            Text(LocalizedStringKey(readiness.summary)).font(StrandFont.caption)
                                 .foregroundStyle(StrandPalette.textSecondary)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
@@ -661,11 +661,11 @@ struct LiquidTodayView: View {
                         Text(line).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                     }
                 }
-                vitalRow("Heart-rate variability", unitText(hrv, "ms"),
+                vitalRow(String(localized: "Heart-rate variability"), unitText(hrv, "ms"),
                          StrandPalette.metricCyan, fracOver(hrv, 120))
-                vitalRow("Resting heart rate", unitText(rhr, "bpm"),
+                vitalRow(String(localized: "Resting heart rate"), unitText(rhr, "bpm"),
                          StrandPalette.metricRose, fracOver(rhr, 100))
-                vitalRow("Breaths per minute", unitText(resp, "rpm", decimals: 1),
+                vitalRow(String(localized: "Breaths per minute"), unitText(resp, "rpm", decimals: 1),
                          StrandPalette.accent, fracOver(resp, 24))
             }
         }
@@ -690,12 +690,12 @@ struct LiquidTodayView: View {
         return VStack(spacing: 8) {
             sectionHead("KEY METRICS", trailing: "14-day trend")
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
-                ktile("Recovery", intText(displayDay?.recovery), "%", StrandPalette.chargeColor, frac(displayDay?.recovery))
-                ktile("Strain", intText(displayDay?.strain), "%", StrandPalette.effortColor, frac(displayDay?.strain))
-                ktile("Sleep", sleepText, "", StrandPalette.restColor, fracOver(displayDay?.totalSleepMin, 480))
-                ktile("HRV", intText(hrv), "ms", StrandPalette.metricCyan, fracOver(hrv, 120))
-                ktile("Rest HR", intText(rhr), "bpm", StrandPalette.metricRose, fracOver(rhr, 100))
-                ktile("Steps", stepsText, "", StrandPalette.chargeColor, fracOver(stepCount, 10000))
+                ktile(String(localized: "Recovery"), intText(displayDay?.recovery), "%", StrandPalette.chargeColor, frac(displayDay?.recovery))
+                ktile(String(localized: "Strain"), intText(displayDay?.strain), "%", StrandPalette.effortColor, frac(displayDay?.strain))
+                ktile(String(localized: "Sleep"), sleepText, "", StrandPalette.restColor, fracOver(displayDay?.totalSleepMin, 480))
+                ktile(String(localized: "HRV"), intText(hrv), "ms", StrandPalette.metricCyan, fracOver(hrv, 120))
+                ktile(String(localized: "Rest HR"), intText(rhr), "bpm", StrandPalette.metricRose, fracOver(rhr, 100))
+                ktile(String(localized: "Steps"), stepsText, "", StrandPalette.chargeColor, fracOver(stepCount, 10000))
             }
             NavigationLink { MetricExplorerView() } label: {
                 Text("Show all metrics").font(StrandFont.subhead).foregroundStyle(StrandPalette.accent)
@@ -795,9 +795,9 @@ struct LiquidTodayView: View {
 
     private func sectionHead(_ title: String, trailing: String) -> some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(title).font(StrandFont.overline).tracking(1.6).foregroundStyle(StrandPalette.textTertiary)
+            Text(LocalizedStringKey(title)).font(StrandFont.overline).tracking(1.6).foregroundStyle(StrandPalette.textTertiary)
             Spacer()
-            Text(trailing).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+            Text(LocalizedStringKey(trailing)).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
         }
         .padding(.horizontal, 2)
         .padding(.top, 4)
@@ -889,26 +889,28 @@ struct LiquidTodayView: View {
 
     private var readinessWord: String? {
         switch readiness.level {
-        case .primed: return "Push"
-        case .balanced: return "Maintain"
-        case .strained, .rundown: return "Rest"
+        case .primed: return String(localized: "Push")
+        case .balanced: return String(localized: "Maintain")
+        case .strained, .rundown: return String(localized: "Rest")
         case .insufficient: return nil
         }
     }
 
     private var synthLine: String {
         switch readiness.level {
-        case .primed: return "You're primed. A hard session should land well today."
-        case .balanced: return "You're in a good spot for training."
-        case .strained: return "Signals are down a touch. Keep it easy today."
-        case .rundown: return "Several recovery signals are down. Prioritise rest today."
-        case .insufficient: return "Still learning your baseline. A few more nights and this fills in."
+        case .primed: return String(localized: "You're primed. A hard session should land well today.")
+        case .balanced: return String(localized: "You're in a good spot for training.")
+        case .strained: return String(localized: "Signals are down a touch. Keep it easy today.")
+        case .rundown: return String(localized: "Several recovery signals are down. Prioritise rest today.")
+        case .insufficient: return String(localized: "Still learning your baseline. A few more nights and this fills in.")
         }
     }
 
     private var greeting: String {
         let h = Calendar.current.component(.hour, from: Date())
-        return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"
+        return h < 12 ? String(localized: "Good morning")
+            : h < 17 ? String(localized: "Good afternoon")
+            : String(localized: "Good evening")
     }
 
     private var stepCount: Double? { displayDay?.steps.map(Double.init) ?? stepsEst }
@@ -1102,7 +1104,7 @@ private struct HeroScoreCell: View {
                 .foregroundStyle(StrandPalette.onDarkSecondary)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(Text("\(label), \(score.map { String(Int($0.rounded())) } ?? "no data yet"). See how it is scored."))
+            .accessibilityLabel(Text("\(label), \(score.map { String(Int($0.rounded())) } ?? String(localized: "no data yet")). See how it is scored."))
             if let pill {
                 Text(pill)
                     .font(StrandFont.overlineScaled(8.5)).tracking(1.2)
@@ -1167,9 +1169,9 @@ private struct LiquidLiveHR: View {
         return nil
     }
     private var subtitle: String {
-        if isLive { return "Live · beat by beat" }
-        if fallback.count >= 2 { return "5-minute average · since midnight" }
-        return live.connected ? "Waiting for the strap" : "Strap not connected"
+        if isLive { return String(localized: "Live · beat by beat") }
+        if fallback.count >= 2 { return String(localized: "5-minute average · since midnight") }
+        return live.connected ? String(localized: "Waiting for the strap") : String(localized: "Strap not connected")
     }
 
     var body: some View {
@@ -1200,11 +1202,11 @@ private struct LiquidLiveHR: View {
             if series.count >= 2 {
                 LiquidThread(bpm: series, tint: tint, height: 92, animated: animated)
                 HStack {
-                    stat("Min", series.min())
+                    stat(String(localized: "Min"), series.min())
                     Spacer()
-                    stat("Avg", series.reduce(0, +) / Double(series.count))
+                    stat(String(localized: "Avg"), series.reduce(0, +) / Double(series.count))
                     Spacer()
-                    stat("Max", series.max())
+                    stat(String(localized: "Max"), series.max())
                 }
             } else {
                 Text(live.connected ? "Waiting for a live heartbeat…" : "Connect your strap to see live heart rate")
@@ -1270,8 +1272,11 @@ private struct LiquidBatteryButton: View {
         .accessibilityLabel(batteryAccessibility)
     }
     private var batteryAccessibility: String {
-        let base = live.batteryPct.map { "Strap battery \(Int($0.rounded())) percent" } ?? "Strap battery"
-        return live.charging == true ? base + ", charging" : base
+        guard let pct = live.batteryPct else { return String(localized: "Strap battery") }
+        let n = Int(pct.rounded())
+        return live.charging == true
+            ? String(localized: "Strap battery \(n) percent, charging")
+            : String(localized: "Strap battery \(n) percent")
     }
     private func ringColor(_ p: Double) -> Color {
         p < 15 ? StrandPalette.statusCritical : p < 35 ? StrandPalette.statusWarning : StrandPalette.chargeColor

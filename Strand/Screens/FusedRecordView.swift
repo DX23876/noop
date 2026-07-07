@@ -213,7 +213,7 @@ private struct FusedMetricRowView: View {
         VStack(alignment: .leading, spacing: 6) {
             // Top line: metric label + the winning value (best-sourced), right-aligned.
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text(row.label)
+                Text(LocalizedStringKey(row.label))
                     .font(StrandFont.headline)
                     .foregroundStyle(StrandPalette.textPrimary)
                 Spacer(minLength: 8)
