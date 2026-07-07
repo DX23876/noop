@@ -16,10 +16,7 @@
   <a href="LICENSE"><img alt="License: PolyForm Noncommercial 1.0.0" src="https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-6B737B?style=flat-square"></a>
   <a href="https://www.reddit.com/r/NOOPApp/"><img alt="Community: r/NOOPApp" src="https://img.shields.io/badge/community-r%2FNOOPApp-E8B84B?style=flat-square&logo=reddit&logoColor=white"></a>
   <a href="https://discord.com/invite/nHK9FHczu"><img alt="Chat: Discord" src="https://img.shields.io/badge/chat-Discord-5865F2?style=flat-square&logo=discord&logoColor=white"></a>
-  <a href="https://noop.fans"><img alt="Mirror: noop.fans" src="https://img.shields.io/badge/mirror-noop.fans-C8902F?style=flat-square"></a>
 </p>
-
-<p align="center"><sub><b>GitHub down?</b> Every release is mirrored at <a href="https://noop.fans"><b>noop.fans</b></a> &mdash; same downloads, release for release, as a fallback.</sub></p>
 
 <p align="center">
   <a href="https://github.com/NoopApp/noop/releases/latest"><img alt="Latest release" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FNoopApp%2Fnoop%2Fmain%2Fdocs%2Fstats%2Frelease.json&style=flat-square"></a>
@@ -34,7 +31,6 @@
 <p align="center">
   <a href="#keeping-noop-alive">♥&nbsp;Support</a> ·
   <a href="#download">⬇&nbsp;Download</a> ·
-  <a href="https://noop.fans">🪞&nbsp;Mirror</a> ·
   <a href="https://github.com/NoopApp/noop/wiki/FAQ">❓&nbsp;FAQ</a> ·
   <a href="https://discord.com/invite/nHK9FHczu">💬&nbsp;Discord</a> ·
   <a href="https://www.reddit.com/r/NOOPApp/">👽&nbsp;Reddit</a> ·
@@ -582,7 +578,7 @@ NOOP is public and built to be hard to erase. **Clone it freely** — `git clone
 Two simple asks:
 
 - **Keep it non-commercial** and keep the [`LICENSE`](LICENSE) + `Copyright 2026 NoopApp` notice intact (PolyForm Noncommercial — mirror and use freely, just don't sell it or ship it in a paid product).
-- **Point people back to the canonical home, [github.com/NoopApp/noop](https://github.com/NoopApp/noop)** (also mirrored at [noop.fans](https://noop.fans/NoopApp/noop)), so everyone lands on the current code and releases rather than a stale fork.
+- **Point people back to the canonical home, [github.com/NoopApp/noop](https://github.com/NoopApp/noop)**, so everyone lands on the current code and releases rather than a stale fork.
 
 That's it — copy away.
 
