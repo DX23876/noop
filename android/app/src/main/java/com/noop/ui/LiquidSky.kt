@@ -145,6 +145,9 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.renderLiquidSky(
     now: Double,
     settle: Color,
     animate: Boolean,
+    // How fully the sky dissolves into the canvas at the bottom (1 = the default seamless fade to the flat
+    // page; <1 holds the atmosphere so the sky still reads under a full-height "sky behind cards" backdrop).
+    settleStrength: Float = 1f,
 ) {
     val s = liquidSkyAt(hour)
     val w = size.width
@@ -227,7 +230,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.renderLiquidSky(
         brush = Brush.verticalGradient(
             colors = listOf(
                 settle.copy(alpha = 0f),
-                settle,
+                settle.copy(alpha = settleStrength.coerceIn(0f, 1f)),
             ),
             startY = h * 0.45f,
             endY = h,
@@ -293,11 +296,11 @@ fun LiquidSky(hour: Double? = null, modifier: Modifier = Modifier) {
  * [hour] defaults to live local time when null.
  */
 @Composable
-fun LiquidSkyStatic(hour: Double? = null, modifier: Modifier = Modifier) {
+fun LiquidSkyStatic(hour: Double? = null, modifier: Modifier = Modifier, settleStrength: Float = 1f) {
     val settle = liquidSettleColor
     val h = hour ?: liquidLiveHour()
     Canvas(modifier = modifier) {
-        renderLiquidSky(hour = h, now = 0.0, settle = settle, animate = false)
+        renderLiquidSky(hour = h, now = 0.0, settle = settle, animate = false, settleStrength = settleStrength)
     }
 }
 

@@ -467,6 +467,9 @@ fun SettingsScreen(
     // Day-cycle background (#698) — the time-of-day scene behind Today. Default ON. SharedPreferences
     // isn't reactive, so the Switch mirrors into local state; TodayScreen reads the same pref on entry.
     var showDayCycleBackground by remember { mutableStateOf(NoopPrefs.showDayCycleBackground(context)) }
+    // "Sky behind cards" (opt-in, default OFF) — extend the day-cycle sky behind the whole Today scroll so
+    // Card transparency reveals it under every card. Mirrors into local state; TodayScreen reads on entry.
+    var skyBehindCards by remember { mutableStateOf(NoopPrefs.skyBehindCards(context)) }
     // Card-surface opacity (0f = clear, 1f = solid), for the "Card transparency" slider. Live-previews via
     // CardAppearance; saved on release.
     var cardOpacity by remember { mutableStateOf(NoopPrefs.cardOpacityPercent(context) / 100f) }
@@ -945,6 +948,43 @@ fun SettingsScreen(
                     onCheckedChange = {
                         showDayCycleBackground = it
                         NoopPrefs.setShowDayCycleBackground(context, it)
+                    },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Palette.surfaceBase,
+                        checkedTrackColor = Palette.accent,
+                        uncheckedThumbColor = Palette.textSecondary,
+                        uncheckedTrackColor = Palette.surfaceInset,
+                        uncheckedBorderColor = Palette.hairline,
+                    ),
+                )
+            }
+
+            // Sky behind cards (opt-in): extend the day-cycle sky behind the WHOLE Today scroll so the Card
+            // transparency slider reveals it under every card, not just the hero. Off = the sky stays a top
+            // band and lower cards fade toward the flat canvas. Needs the day-cycle background to be on.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Sky behind cards",
+                        style = NoopType.subhead,
+                        color = if (showDayCycleBackground) Palette.textPrimary else Palette.textTertiary,
+                    )
+                    Text(
+                        "Extends the sky behind the whole Today screen, so lowering Card transparency lets it show through every card. Needs the day-cycle background on.",
+                        style = NoopType.footnote,
+                        color = Palette.textTertiary,
+                    )
+                }
+                Switch(
+                    enabled = showDayCycleBackground,
+                    checked = skyBehindCards && showDayCycleBackground,
+                    onCheckedChange = {
+                        skyBehindCards = it
+                        NoopPrefs.setSkyBehindCards(context, it)
                     },
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = Palette.surfaceBase,

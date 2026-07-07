@@ -489,6 +489,18 @@ object NoopPrefs {
         of(context).edit().putInt(KEY_CARD_OPACITY, percent.coerceIn(0, 100)).apply()
     }
 
+    /** "Sky behind cards" (opt-in, default OFF): extend the day-cycle sky behind the WHOLE Today scroll
+     *  (not just the top band) so the Card-transparency slider reveals it under every card. Pairs with
+     *  [showDayCycleBackground] — no effect when the scene is off. Read once on Today entry. */
+    const val KEY_SKY_BEHIND_CARDS = "noop.skyBehindCards"
+
+    fun skyBehindCards(context: Context): Boolean =
+        of(context).getBoolean(KEY_SKY_BEHIND_CARDS, false)
+
+    fun setSkyBehindCards(context: Context, enabled: Boolean) {
+        of(context).edit().putBoolean(KEY_SKY_BEHIND_CARDS, enabled).apply()
+    }
+
     /** Coach on-device signals (v5): when ON, the opt-in BYO-key Coach's grounding context may include a
      *  SUMMARY-ONLY line of on-device correlations + Lab Book markers (no raw egress). A SECOND opt-in on
      *  top of the existing "let the coach use my data" consent. Default OFF, keeps the anonymity posture. */
