@@ -58,13 +58,13 @@ android {
             versionNameSuffix = "-debug"
         }
         release {
-            // Optimised release: R8 code shrink + resource shrink ON. The earlier crash-on-launch was
-            // R8 *full-mode* over-stripping reflective paths (Compose/Room/Tink) — that aggressive mode is
-            // now OFF (android.enableR8.fullMode=false in gradle.properties) and the reflective survivors
-            // (Tink via security-crypto, WorkManager Workers, Room, enums/Parcelable/native) are pinned by
-            // explicit keep rules in proguard-rules.pro. Device-verify a launch before trusting a real ship.
-            isMinifyEnabled = true
-            isShrinkResources = true
+            // Shipped UNMINIFIED for reliability. R8 minification crashes this app at runtime: full-mode
+            // over-strips reflective paths, and even with full-mode OFF + broad keeps (com.noop.** +
+            // Tink/Worker/ViewModel) a minified build STILL died right after the terms gate on a real
+            // device — a library reflective path we couldn't pin without a device to trace. Offline app,
+            // a ~18 MB APK is fine. Re-enabling minify needs the exact crash trace + device verification.
+            isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
