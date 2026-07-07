@@ -92,11 +92,67 @@ object AndroidDiagnostics {
         }.onFailure { add("(funnels unavailable: ${it.message})") }
     }
 
+    /** Workout & imported-activity source breakdown. The "counted but not shown" bug class (#28: strap
+     *  workouts banked under "my-whoop" while the load queried the active strap id; #29: "activity-file"
+     *  imports the load path never read) is invisible in a strap log without this. Surfaces the RESOLVED
+     *  active deviceId + a per-source STORED workout count + the most-recent workout, so a report reveals
+     *  WHERE workouts live vs what the Workouts screen loads. Best-effort. */
+    suspend fun workoutSourceLines(context: Context): List<String> = buildList {
+        add("─".repeat(40))
+        add("Workouts by source")
+        runCatching {
+            val repo = com.noop.data.WhoopRepository.from(context)
+            val now = System.currentTimeMillis() / 1000
+            val active = runCatching {
+                (context.applicationContext as com.noop.NoopApplication).activeDeviceId
+            }.getOrNull() ?: "unknown"
+            add("Active deviceId: $active" + if (active == "my-whoop") "" else "  (imports + spine under my-whoop)")
+            // Per-source STORED counts; ids de-duped so a single-WHOOP install (active == my-whoop) lists once.
+            val ids = listOf(active, "my-whoop", "$active-noop", "my-whoop-noop",
+                "activity-file", "lifting", "apple-health", "health-connect").distinct()
+            val perSource = ids.map { it to repo.workouts(it, 0L, now) }
+            add("Stored: " + perSource.joinToString("  ") { "${it.first}=${it.second.size}" })
+            val latest = perSource.flatMap { it.second }.maxByOrNull { it.startTs }
+            add(if (latest != null) "Latest: ${dayStamp(latest.startTs)} · ${latest.sport} (${latest.source})" else "Latest: none")
+        }.onFailure { add("(workout sources unavailable: ${it.message})") }
+    }
+
+    /** Daily-data source breakdown + on-device volume. The active-strap↔"my-whoop" id mismatch strands
+     *  DAYS / steps / sleep / recovery the same way it strands workouts (#28), so a "no data / no steps /
+     *  0% REM" report needs the same reconciliation: per-source day counts, which metrics are actually
+     *  populated over the recent week, and the raw-row footprint. Best-effort. */
+    suspend fun dailyDataLines(context: Context): List<String> = buildList {
+        add("─".repeat(40))
+        add("Daily data by source")
+        runCatching {
+            val repo = com.noop.data.WhoopRepository.from(context)
+            val active = runCatching {
+                (context.applicationContext as com.noop.NoopApplication).activeDeviceId
+            }.getOrNull() ?: "unknown"
+            val ids = listOf(active, "my-whoop", "$active-noop", "my-whoop-noop",
+                "apple-health", "health-connect").distinct()
+            val dayCounts = ids.map { it to repo.days(it).size }
+            add("Days: " + dayCounts.joinToString("  ") { "${it.first}=${it.second}" })
+            // Which metrics are actually populated over the recent week on the imported spine.
+            val recent = repo.days("my-whoop").takeLast(7)
+            if (recent.isNotEmpty()) {
+                val n = recent.size
+                add("Recent ${n}d (my-whoop): " +
+                    "sleep=${recent.count { (it.totalSleepMin ?: 0.0) > 0 }}/$n  " +
+                    "recovery=${recent.count { it.recovery != null }}/$n  " +
+                    "steps=${recent.count { it.steps != null }}/$n  " +
+                    "kcal=${recent.count { it.activeKcalEst != null }}/$n")
+            } else add("Recent: no day rows")
+            val dv = repo.dataVolumeSnapshot(active)
+            add("Volume: rawRows=${dv.dbRows}  importedDays=${dv.importedDays}  workouts=${dv.workouts}")
+        }.onFailure { add("(daily data unavailable: ${it.message})") }
+    }
+
     /** The DB/prefs-backed diagnostic lines appended to the export header. Suspends (reads the local store);
      *  guarded per-section so it never throws into the export. */
     suspend fun dynamicLines(context: Context): List<String> =
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-            strapAndDataLines(context) + funnelLines(context)
+            strapAndDataLines(context) + funnelLines(context) + workoutSourceLines(context) + dailyDataLines(context)
         }
 
     /** "3h 12m ago" style relative stamp for a positive age in ms. */
