@@ -37,6 +37,13 @@ enum StorePaths {
         if containerAppSupport != appSupport {
             migrateLegacyStoreIfNeeded(from: appSupport.appendingPathComponent("OpenWhoop", isDirectory: true),
                                        to: base, dbURL: dbURL)
+        } else {
+            // Fork ".staging" build: it installs BESIDE the official app, so its store lives at the plain
+            // ~/Library/Application Support/OpenWhoop, NOT the official app's sandbox container. The first
+            // launch (our store still empty) COPIES the official com.noopapp.noop container store in, so a
+            // user coming from official NOOP keeps their history (#39). (Prod/sandboxed builds took the
+            // branch above and never reach here.)
+            importOfficialContainerStoreIfNeeded(into: base, dbURL: dbURL)
         }
         #endif
 
@@ -103,6 +110,33 @@ enum StorePaths {
                 // original in place so the data is never lost.
                 try? fm.copyItem(at: src, to: dst)
             }
+        }
+    }
+
+    /// Fork ".staging" builds keep their store outside the official app's sandbox container, so a user
+    /// moving from official NOOP would otherwise see an empty database (#39). The first time (our store
+    /// still empty), COPY the official `com.noopapp.noop` container store in. COPY — never move — because
+    /// the official app may still be installed and using it. The distributed build is unsigned (so it isn't
+    /// sandboxed and CAN read the sibling container); if a sandbox is unexpectedly engaged,
+    /// `homeDirectoryForCurrentUser` points inside OUR container and the official store is unreachable, so
+    /// we bail rather than guess a path.
+    private static func importOfficialContainerStoreIfNeeded(into stagingDir: URL, dbURL: URL) {
+        guard !destinationHasData(dbURL) else { return }
+        let fm = FileManager.default
+        let home = fm.homeDirectoryForCurrentUser
+        guard !home.standardizedFileURL.path.contains("/Library/Containers/") else { return }
+
+        let officialDir = home.appendingPathComponent(
+            "Library/Containers/com.noopapp.noop/Data/Library/Application Support/OpenWhoop", isDirectory: true)
+        let officialDB = officialDir.appendingPathComponent("whoop.sqlite")
+        guard fm.fileExists(atPath: officialDB.path), fileSize(of: officialDB) > 0 else { return }
+
+        for suffix in ["", "-wal", "-shm"] {
+            let src = officialDir.appendingPathComponent("whoop.sqlite\(suffix)")
+            let dst = stagingDir.appendingPathComponent("whoop.sqlite\(suffix)")
+            guard fm.fileExists(atPath: src.path) else { continue }
+            if fm.fileExists(atPath: dst.path) { try? fm.removeItem(at: dst) }
+            try? fm.copyItem(at: src, to: dst)
         }
     }
 
