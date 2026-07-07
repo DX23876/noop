@@ -10,7 +10,7 @@ brew upgrade --cask noop   # later updates
 ```
 
 The cask lives in the **`NoopApp/homebrew-noop`** tap on GitHub and points at the macOS `.zip`
-attached to each release. (The tap is also mirrored at `noop.fans/NoopApp/homebrew-noop`.)
+attached to each release.
 
 > **Why `brew trust`?** Since **Homebrew 6.0.0** (June 2026), non-official taps must be explicitly
 > trusted before Homebrew will load their code — otherwise you'll see

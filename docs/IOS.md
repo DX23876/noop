@@ -33,8 +33,7 @@ releases then show up (and re-sign) automatically:
 
 > Make sure you copy the **raw** URL above exactly. If a sideloader says **"given data not valid
 > JSON"** when you add the source, you've pasted a normal web page URL (which returns HTML) instead of
-> the raw file — use the `raw.githubusercontent.com` URL above. (It's also mirrored at
-> `https://noop.fans/NoopApp/noop/raw/branch/main/altstore-source.json`.)
+> the raw file — use the `raw.githubusercontent.com` URL above.
 
 - **AltStore:** open AltStore → **Browse** tab → tap **＋** (top-left) → paste the URL → **Add Source**.
   NOOP appears under the source; tap **Free** / **Get** to install. From then on it updates itself on

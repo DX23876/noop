@@ -29,8 +29,5 @@ Batch API operations; don't burst-create commits, issues, or comments. Stats bad
 **5. GitHub Actions stays OFF.**
 We build and verify **centrally/locally**, so we don't need CI runners. Actions is disabled on the repo (`gh api -X PUT repos/NoopApp/noop/actions/permissions -F enabled=false`). This removes the "unusual Actions volume" flag vector and the supply-chain exposure of third-party actions. Re-enable only deliberately, and SHA-pin every `uses:` if you do.
 
-**6. Keep the mirror.**
-`noop.fans` remains a permanent live mirror (`git push origin` pushes to both; `Tools/release.sh` releases to both). If GitHub ever flags us again, the project is still fully available, and we appeal — calmly, on the facts above.
-
 ## If it happens again
 Don't evade or create replacement accounts (that makes a suspension permanent and violates the rules). Appeal at support.github.com with the facts: NOOP reads a device the user owns, offline, no account/cloud/credentials, no proprietary code — there is nothing to violate. The appeal worked once; the facts haven't changed.

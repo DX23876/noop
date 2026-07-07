@@ -1,0 +1,142 @@
+# Fork-only: cut a proper RELEASE (not a rolling snapshot) so the in-app "Check for updates"
+# — which reads GitHub `releases/latest`, and GitHub excludes prereleases — points at this fork.
+#
+# Contrast with fork-testing-build.yml: THAT publishes the rolling `testing-latest` PRERELEASE
+# (a snapshot), which releases/latest deliberately ignores. THIS publishes a fixed, non-prerelease
+# `v<VERSION>` tag → it becomes "latest release", so UpdateCheck (`.../releases/latest`) finds it and
+# compares versions (isNewer strips the `-staging` suffix, so an installed staging build reads clean).
+# Only release-variant artifacts, each stamped with the version. Trigger from the Actions tab.
+name: Release build (fork)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version, e.g. 8.2.2 (blank = read MARKETING_VERSION from project.yml)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-build
+  cancel-in-progress: false   # never cancel a release mid-publish
+
+jobs:
+  meta:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.m.outputs.tag }}
+      ver: ${{ steps.m.outputs.ver }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: m
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VER="${{ github.event.inputs.version }}"
+          if [ -z "$VER" ]; then VER=$(grep -m1 'MARKETING_VERSION' project.yml | sed -E 's/.*"([^"]+)".*/\1/'); fi
+          TAG="v${VER}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "ver=$VER" >> "$GITHUB_OUTPUT"
+          # A real, IMMUTABLE release at a fixed per-version tag — NOT a prerelease, so releases/latest
+          # returns it. Create it only if missing (so a re-run after a failed platform job just refreshes
+          # assets rather than duplicating/clobbering the release + notes). To re-cut a version, delete its
+          # release first. This never touches the `testing-latest` snapshot.
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists — re-run: platform jobs will refresh its assets."
+          else
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "${{ github.sha }}" \
+              --title "NOOP ${VER}" \
+              --notes "NOOP **${VER}** — release build (NOOP Staging identity; installs **beside** the official app, separate data). This is the version the in-app **Check for updates** compares against. Filenames carry the version (\`v${VER}\`).
+
+          - **Android** — \`app-full-release-v${VER}.apk\` — non-debuggable release build. \`com.noop.whoop.staging\`.
+          - **macOS** — \`NOOP-macos-v${VER}.zip\` — unzip, then **right-click → Open** (unsigned; Gatekeeper warns once).
+          - **iOS** — \`NOOP-ios-unsigned-v${VER}.ipa\` — sideload via **AltStore / Sideloadly** (re-signs on-device); embedded watch app stripped.
+
+          For the newest in-development build instead, see the rolling \`testing-latest\` prerelease."
+          fi
+
+  android:
+    needs: meta
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/wrapper-validation@v4
+      - uses: gradle/actions/setup-gradle@v4
+      # Release-only (no debug APK on a release). Signed with the committed fork-debug.keystore via the
+      # debug signingConfig storeFile (release falls back to it when no keystore.properties is present);
+      # -PstagingRelease gives it the .staging app id so it installs beside the official app.
+      - name: Build staging-release APK
+        run: ./gradlew assembleFullRelease -PstagingRelease
+      - name: Version the filename + attach
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VER: ${{ needs.meta.outputs.ver }}
+        run: |
+          cp app/build/outputs/apk/full/release/*.apk "app-full-release-v${VER}.apk"
+          gh release upload "${{ needs.meta.outputs.tag }}" "app-full-release-v${VER}.apk" \
+            --repo "$GITHUB_REPOSITORY" --clobber
+
+  macos:
+    needs: meta
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        run: xcodegen generate
+      - name: Build NOOP.app (macOS, unsigned)
+        run: >-
+          xcodebuild -scheme Strand -configuration Debug -destination 'platform=macOS'
+          -derivedDataPath build/dd
+          CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+          build
+      - name: Package + attach
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VER: ${{ needs.meta.outputs.ver }}
+        run: |
+          APP=$(find build/dd/Build/Products -maxdepth 3 -name '*.app' -type d | head -1)
+          test -n "$APP" || { echo ".app not found"; exit 1; }
+          ditto -c -k --keepParent "$APP" "NOOP-macos-v${VER}.zip"
+          gh release upload "${{ needs.meta.outputs.tag }}" "NOOP-macos-v${VER}.zip" --repo "$GITHUB_REPOSITORY" --clobber
+
+  ios:
+    needs: meta
+    # iOS 26 Liquid Glass (glassEffect) needs the iOS 26 SDK → Xcode 26 → macos-26.
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        run: xcodegen generate
+      - name: Build NOOPiOS for device (unsigned)
+        run: >-
+          xcodebuild -scheme NOOPiOS -configuration Debug -destination 'generic/platform=iOS'
+          -derivedDataPath build/dd
+          CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+          build
+      - name: Package unsigned .ipa (strip the embedded watch app) + attach
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VER: ${{ needs.meta.outputs.ver }}
+        run: |
+          APP=$(find build/dd/Build/Products/Debug-iphoneos -maxdepth 1 -name '*.app' -type d | head -1)
+          test -n "$APP" || { echo ".app (iphoneos) not found"; exit 1; }
+          rm -rf "$APP/Watch"
+          rm -rf Payload && mkdir Payload && cp -R "$APP" Payload/
+          zip -qr "NOOP-ios-unsigned-v${VER}.ipa" Payload
+          gh release upload "${{ needs.meta.outputs.tag }}" "NOOP-ios-unsigned-v${VER}.ipa" --repo "$GITHUB_REPOSITORY" --clobber
