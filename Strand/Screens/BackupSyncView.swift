@@ -11,6 +11,7 @@ struct BackupSyncView: View {
     @State private var auto = FolderBackup.autoEnabled
     @State private var folderLabel = FolderBackup.folderLabel()
     @State private var lastMs = FolderBackup.lastBackupMs
+    @State private var keep = FolderBackup.keepCount
     @State private var busy = false
 
     // Result alert (backup outcome / restore outcome).
@@ -88,7 +89,7 @@ struct BackupSyncView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Daily auto-backup")
                             .font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
-                        Text("Backs up to your folder about once a day and keeps the latest \(FolderBackup.keepCount). On this platform it runs when you next open NOOP.")
+                        Text("Backs up to your folder about once a day and keeps the latest \(keep). On this platform it runs when you next open NOOP.")
                             .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -97,6 +98,23 @@ struct BackupSyncView: View {
                         .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
                         .disabled(folderLabel == nil)
                         .onChangeCompat(of: auto) { on in FolderBackup.autoEnabled = on }
+                }
+                // Retention: how many dated snapshots to keep. Wired to FolderBackup.keepCount; the next
+                // backup prunes the oldest beyond this count (BackupSync.snapshotsToPrune, unchanged).
+                HStack(alignment: .center, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Keep last snapshots")
+                            .font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
+                        Text("Older backups beyond this many are pruned, oldest first (≈ that many days). If data ever corrupts, restore the newest.")
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 0)
+                    Picker("Keep last snapshots", selection: $keep) {
+                        ForEach(FolderBackup.keepOptions, id: \.self) { n in Text("\(n)").tag(n) }
+                    }
+                    .labelsHidden().pickerStyle(.menu).tint(StrandPalette.accent)
+                    .onChangeCompat(of: keep) { n in FolderBackup.keepCount = n }
                 }
                 Text(lastMs > 0 ? "Last backup: \(relativeTime(lastMs))" : "No backup yet.")
                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)

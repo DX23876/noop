@@ -112,9 +112,24 @@ enum FolderBackup {
     private static let bookmarkKey = "backupSync.folderBookmark"
     private static let autoKey = "backupSync.auto"
     private static let lastKey = "backupSync.lastMs"
+    private static let keepKey = "backupSync.keepCount"
 
-    /// Keep the latest N snapshots in the folder; older ones are pruned. Matches the Android default.
-    static let keepCount = 10
+    /// Default snapshots kept by prune: 7, i.e. a week of daily rollback points. (Mirrors the Android
+    /// DEFAULT_KEEP; the Android keep-count is likewise user-adjustable.)
+    static let defaultKeep = 7
+
+    /// Retention choices offered by the Backup & Sync keep-count picker (mirrors Android KEEP_OPTIONS).
+    static let keepOptions = [1, 3, 5, 7, 10, 14]
+
+    /// How many latest snapshots to keep; older ones are pruned (oldest-first). User-adjustable via the
+    /// picker; unset reads back as [defaultKeep]. Clamped to a sane 1...100.
+    static var keepCount: Int {
+        get {
+            let v = UserDefaults.standard.integer(forKey: keepKey)   // 0 when never set
+            return v == 0 ? defaultKeep : min(max(v, 1), 100)
+        }
+        set { UserDefaults.standard.set(min(max(newValue, 1), 100), forKey: keepKey) }
+    }
     private static let dayMs = 24 * 60 * 60 * 1000
 
     // MARK: - Persisted state
