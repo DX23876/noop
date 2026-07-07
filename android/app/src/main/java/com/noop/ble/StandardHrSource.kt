@@ -375,9 +375,9 @@ class StandardHrSource(
             // exposes — a footpod / bike speed-cadence sensor / power meter read ALONGSIDE HR. Separate
             // services from HR; a device without them yields no characteristic and the HR path is untouched.
             for ((svcUuid, charUuid) in FITNESS_SENSOR_CHARS) {
-                val ch = g.getService(svcUuid)?.getCharacteristic(charUuid) ?: continue
+                val sensorCh = g.getService(svcUuid)?.getCharacteristic(charUuid) ?: continue
                 log("HR-strap: fitness-sensor characteristic $charUuid found — enabling notifications")
-                enableFitnessNotify(g, ch)
+                enableFitnessNotify(g, sensorCh)
             }
         }
 
