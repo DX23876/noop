@@ -117,11 +117,42 @@ object AndroidDiagnostics {
         }.onFailure { add("(workout sources unavailable: ${it.message})") }
     }
 
+    /** Daily-data source breakdown + on-device volume. The active-strap↔"my-whoop" id mismatch strands
+     *  DAYS / steps / sleep / recovery the same way it strands workouts (#28), so a "no data / no steps /
+     *  0% REM" report needs the same reconciliation: per-source day counts, which metrics are actually
+     *  populated over the recent week, and the raw-row footprint. Best-effort. */
+    suspend fun dailyDataLines(context: Context): List<String> = buildList {
+        add("─".repeat(40))
+        add("Daily data by source")
+        runCatching {
+            val repo = com.noop.data.WhoopRepository.from(context)
+            val active = runCatching {
+                (context.applicationContext as com.noop.NoopApplication).activeDeviceId
+            }.getOrNull() ?: "unknown"
+            val ids = listOf(active, "my-whoop", "$active-noop", "my-whoop-noop",
+                "apple-health", "health-connect").distinct()
+            val dayCounts = ids.map { it to repo.days(it).size }
+            add("Days: " + dayCounts.joinToString("  ") { "${it.first}=${it.second}" })
+            // Which metrics are actually populated over the recent week on the imported spine.
+            val recent = repo.days("my-whoop").takeLast(7)
+            if (recent.isNotEmpty()) {
+                val n = recent.size
+                add("Recent ${n}d (my-whoop): " +
+                    "sleep=${recent.count { (it.totalSleepMin ?: 0.0) > 0 }}/$n  " +
+                    "recovery=${recent.count { it.recovery != null }}/$n  " +
+                    "steps=${recent.count { it.steps != null }}/$n  " +
+                    "kcal=${recent.count { it.activeKcalEst != null }}/$n")
+            } else add("Recent: no day rows")
+            val dv = repo.dataVolumeSnapshot(active)
+            add("Volume: rawRows=${dv.dbRows}  importedDays=${dv.importedDays}  workouts=${dv.workouts}")
+        }.onFailure { add("(daily data unavailable: ${it.message})") }
+    }
+
     /** The DB/prefs-backed diagnostic lines appended to the export header. Suspends (reads the local store);
      *  guarded per-section so it never throws into the export. */
     suspend fun dynamicLines(context: Context): List<String> =
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-            strapAndDataLines(context) + funnelLines(context) + workoutSourceLines(context)
+            strapAndDataLines(context) + funnelLines(context) + workoutSourceLines(context) + dailyDataLines(context)
         }
 
     /** "3h 12m ago" style relative stamp for a positive age in ms. */

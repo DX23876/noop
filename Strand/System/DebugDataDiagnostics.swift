@@ -54,6 +54,7 @@ enum DebugDataDiagnostics {
         // Workout & imported-activity source breakdown (#28/#29 "counted but not shown" class). Runs BEFORE
         // the funnels since those can early-return, so this always lands in the export.
         lines += await workoutSourceLines(repo: repo)
+        lines += await dailyDataLines(repo: repo)
 
         // Funnels for the latest night — best-effort, self-reporting.
         lines.append(String(repeating: "─", count: 40))
@@ -120,6 +121,46 @@ enum DebugDataDiagnostics {
         }
         lines.append("Stored: " + parts.joined(separator: "  "))
         lines.append(latestTs >= 0 ? "Latest: \(latestDesc)" : "Latest: none")
+        return lines
+    }
+
+    /// Daily-data source breakdown + on-device volume: per-source day counts, which metrics are populated
+    /// over the recent week on the imported spine, and the raw-row footprint — the same source reconciliation
+    /// the workout block gives, for the "no data / no steps / 0% REM" report class. Best-effort.
+    @MainActor static func dailyDataLines(repo: Repository) async -> [String] {
+        var lines: [String] = []
+        lines.append(String(repeating: "─", count: 40))
+        lines.append("Daily data by source")
+        let did = repo.deviceId
+        guard let store = await repo.storeHandle() else {
+            lines.append("(on-device store not open yet)")
+            return lines
+        }
+        var seen = Set<String>()
+        let ids = [did, "my-whoop", "\(did)-noop", "my-whoop-noop",
+                   "apple-health", "health-connect"].filter { seen.insert($0).inserted }
+        var parts: [String] = []
+        var spine: [DailyMetric] = []
+        for id in ids {
+            let rows = (try? await store.dailyMetrics(deviceId: id, from: "0000-01-01", to: "9999-12-31")) ?? []
+            parts.append("\(id)=\(rows.count)")
+            if id == "my-whoop" { spine = rows }
+        }
+        lines.append("Days: " + parts.joined(separator: "  "))
+        let recent = Array(spine.suffix(7))
+        if !recent.isEmpty {
+            let n = recent.count
+            lines.append("Recent \(n)d (my-whoop): "
+                + "sleep=\(recent.filter { ($0.totalSleepMin ?? 0) > 0 }.count)/\(n)  "
+                + "recovery=\(recent.filter { $0.recovery != nil }.count)/\(n)  "
+                + "steps=\(recent.filter { $0.steps != nil }.count)/\(n)  "
+                + "kcal=\(recent.filter { $0.activeKcalEst != nil }.count)/\(n)")
+        } else {
+            lines.append("Recent: no day rows")
+        }
+        if let dv = await repo.dataVolumeSnapshot() {
+            lines.append("Volume: rawRows=\(dv.dbRows)  importedDays=\(dv.importedDays)  workouts=\(dv.workouts)")
+        }
         return lines
     }
 
