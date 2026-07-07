@@ -25,7 +25,7 @@ object AppChangelog {
      * Bump this when you add a release below. The "What's New" sheet shows automatically when the
      * stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
      */
-    const val CURRENT_VERSION = "8.3.1"
+    const val CURRENT_VERSION = "8.3.2"
 
     data class Release(
         val version: String,
@@ -36,6 +36,15 @@ object AppChangelog {
 
     /** Newest first. */
     val releases: List<Release> = listOf(
+        Release(
+            version = "8.3.2",
+            title = "Workout display fixes",
+            date = "July 2026",
+            items = listOf(
+                "**Imported workout files show up.** A FIT / GPX / TCX file you import now appears in Workouts — it was saved and counted, but the list wasn't reading that source.",
+                "**Workouts return after re-pairing your strap.** Re-adding a strap could hide workouts recorded before it; the Workouts screen now finds them again.",
+            ),
+        ),
         Release(
             version = "8.3.1",
             title = "Backup restore fixed, plus appearance controls",
