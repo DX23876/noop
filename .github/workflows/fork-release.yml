@@ -99,6 +99,21 @@ jobs:
               echo "::warning::No ${NOTES_MD} — write the release notes there first. Using a placeholder."
               printf 'NOOP **%s** — release build.\n' "$NEW" > "$BODY"
             fi
+            # Auto "What's Changed" breakdown: GitHub's generate-notes API lists every merged PR since the
+            # previous RELEASE (non-prerelease, so testing-latest snapshots are ignored), + contributors +
+            # a full-changelog compare link. Appended below the curated notes. Skipped on the very first
+            # release (no prior tag → the diff would run to repo start). Best-effort: a failure is ignored.
+            PREV=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 30 \
+              --json tagName,isPrerelease,isDraft \
+              --jq 'map(select(.isPrerelease==false and .isDraft==false)) | .[0].tagName // empty' 2>/dev/null || true)
+            if [ -n "$PREV" ]; then
+              AUTO=$(gh api --method POST "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+                -f tag_name="$TAG" -f previous_tag_name="$PREV" -f target_commitish="$(git rev-parse HEAD)" \
+                --jq '.body' 2>/dev/null || true)
+              [ -n "$AUTO" ] && printf '\n---\n\n%s\n' "$AUTO" >> "$BODY"
+            else
+              echo "First release (no prior release tag) — skipping the auto PR breakdown."
+            fi
             {
               printf '\n---\n\n**Downloads** — NOOP Staging identity, installs **beside** the official app (separate data):\n'
               printf -- '- **Android** — `app-full-release-v%s.apk` (`com.noop.whoop.staging`)\n' "$NEW"
