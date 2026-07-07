@@ -314,6 +314,7 @@ private fun TestModeRow(
 @Composable
 private fun DiagnosticToolsCard(vm: AppViewModel) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var showRecalibrate by remember { mutableStateOf(false) }
     SettingsSectionTC(
         icon = Icons.Filled.Info,
@@ -327,7 +328,7 @@ private fun DiagnosticToolsCard(vm: AppViewModel) {
                 leadingIcon = Icons.Filled.Upload,
                 kind = NoopButtonKind.Secondary,
                 fullWidth = true,
-                onClick = { LogExport.shareStrapLog(context, vm.ble.exportLogText()) },
+                onClick = { scope.launch { LogExport.shareStrapLog(context, vm.ble.exportLogText()) } },
             )
             // Recalibrate Charge baseline, the same Baselines.recalibrateRecoveryBaselines call.
             NoopButton(
@@ -343,7 +344,7 @@ private fun DiagnosticToolsCard(vm: AppViewModel) {
                 leadingIcon = Icons.Filled.Info,
                 kind = NoopButtonKind.Secondary,
                 fullWidth = true,
-                onClick = { LogExport.shareStrapLog(context, vm.ble.exportLogText()) },
+                onClick = { scope.launch { LogExport.shareStrapLog(context, vm.ble.exportLogText()) } },
             )
         }
     }

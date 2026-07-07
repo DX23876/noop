@@ -3430,7 +3430,11 @@ class WhoopBleClient(
                 // resp_cmd, so a single branch covers both families. Stable for the connection, so we
                 // only republish state when it actually changes.
                 (parsed.parsed["fw_version"] as? String ?: parsed.parsed["fw_harvard"] as? String)?.let { fw ->
-                    if (_state.value.strapFirmware != fw) _state.update { it.copy(strapFirmware = fw) }
+                    if (_state.value.strapFirmware != fw) {
+                        _state.update { it.copy(strapFirmware = fw) }
+                        // Persist so the debug export can name the firmware offline (state clears on disconnect).
+                        runCatching { NoopPrefs.setLastFirmware(context, fw) }
+                    }
                 }
                 val respCmd = parsed.parsed["resp_cmd"] as? String
                 val result = parsed.parsed["result"] as? String

@@ -27,6 +27,100 @@ object AndroidDiagnostics {
         add("Permissions: ${permissionsText(context)}")
     }
 
+    /**
+     * Strap identity + data-state lines for the debug export. Offline-safe: reads persisted prefs and the
+     * canonical "my-whoop" daily spine, so it works from the scheduled background export too. Model,
+     * last-known firmware, last-sync, timezone, days of history, and the most recent sleep + recovery day.
+     * Best-effort: guarded so it never throws into the export.
+     */
+    suspend fun strapAndDataLines(context: Context): List<String> = buildList {
+        add("─".repeat(40))
+        add("Strap & data")
+        runCatching {
+            val dev = com.noop.ui.NoopPrefs.lastDevice(context)
+            add("Model:       ${dev?.second?.displayName ?: "unknown (never paired)"}")
+            add("Firmware:    ${com.noop.ui.NoopPrefs.lastFirmware(context) ?: "unknown (connect to record)"}")
+            val syncSec = com.noop.ui.NoopPrefs.lastSyncAt(context)
+            add("Last sync:   ${if (syncSec > 0L) relTime(System.currentTimeMillis() - syncSec * 1000L) else "never"}")
+            add("Timezone:    ${tzLine()}")
+            val repo = com.noop.data.WhoopRepository.from(context)
+            val days = repo.days("my-whoop")
+            add("History:     ${days.size} day rows (my-whoop spine)")
+            add("Last sleep:  ${days.lastOrNull { (it.totalSleepMin ?: 0.0) > 0.0 }?.let { "${it.day} · ${it.totalSleepMin?.toInt()} min" } ?: "none"}")
+            add("Last recov.: ${days.lastOrNull { it.recovery != null }?.let { "${it.day} · ${it.recovery?.toInt()}%" } ?: "none"}")
+        }.onFailure { add("(strap/data state unavailable: ${it.message})") }
+    }
+
+    /**
+     * Analytics-funnel lines: recompute the REM + skin-temp funnels for the most recent night so a "0% REM"
+     * / "skin temp absent" report arrives with the funnel breakdown. BEST-EFFORT and self-reporting — it
+     * prints the sample counts it read and says plainly when it can't compute (e.g. a freshly re-added strap
+     * whose raw samples aren't yet under the canonical id), so it never fabricates a misleading verdict.
+     */
+    suspend fun funnelLines(context: Context): List<String> = buildList {
+        add("─".repeat(40))
+        add("Analytics funnels (latest night, best-effort)")
+        runCatching {
+            val repo = com.noop.data.WhoopRepository.from(context)
+            val id = "my-whoop"
+            val nowSec = System.currentTimeMillis() / 1000L
+            val session = repo.sleepSessions(id, nowSec - 14L * 86400L, nowSec, 1).lastOrNull()
+            if (session == null) {
+                add("(no sleep session in the last 14 days to analyze)")
+                return@runCatching
+            }
+            val grav = repo.gravitySamples(id, session.startTs, session.endTs, Int.MAX_VALUE)
+            val hr = repo.hrSamples(id, session.startTs, session.endTs, Int.MAX_VALUE)
+            val rr = repo.rrIntervals(id, session.startTs, session.endTs, Int.MAX_VALUE)
+            val resp = repo.respSamples(id, session.startTs, session.endTs, Int.MAX_VALUE)
+            val skin = repo.skinTempSamples(id, session.startTs, session.endTs, Int.MAX_VALUE)
+            add("Night ${dayStamp(session.startTs)}: grav=${grav.size} hr=${hr.size} rr=${rr.size} resp=${resp.size} skin=${skin.size}")
+            if (grav.isEmpty() && hr.isEmpty()) {
+                add("(no raw biometric samples under '$id' for this night — expected on a freshly re-added strap; reconnect + let a history sync run, then re-export)")
+                return@runCatching
+            }
+            com.noop.analytics.SleepStager.remFunnelDiagnostic(session.startTs, session.endTs, grav, hr, rr, resp)
+                ?.let { add(it.summary) } ?: add("REM funnel: insufficient motion data (<2 gravity samples)")
+            val det = com.noop.analytics.DetectedSleep(
+                start = session.startTs, end = session.endTs,
+                efficiency = session.efficiency ?: 0.0, stages = emptyList(),
+                restingHR = session.restingHr, avgHRV = session.avgHrv,
+            )
+            val family = if (com.noop.ui.NoopPrefs.lastDevice(context)?.second == com.noop.ble.WhoopModel.WHOOP5_MG)
+                com.noop.protocol.DeviceFamily.WHOOP5 else com.noop.protocol.DeviceFamily.WHOOP4
+            add(com.noop.analytics.AnalyticsEngine.skinTempFunnel(listOf(det), hr, skin, family).summary)
+        }.onFailure { add("(funnels unavailable: ${it.message})") }
+    }
+
+    /** The DB/prefs-backed diagnostic lines appended to the export header. Suspends (reads the local store);
+     *  guarded per-section so it never throws into the export. */
+    suspend fun dynamicLines(context: Context): List<String> =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            strapAndDataLines(context) + funnelLines(context)
+        }
+
+    /** "3h 12m ago" style relative stamp for a positive age in ms. */
+    private fun relTime(deltaMs: Long): String {
+        if (deltaMs < 60_000L) return "just now"
+        val min = deltaMs / 60_000L
+        return when {
+            min < 60 -> "${min}m ago"
+            min < 1440 -> "${min / 60}h ${min % 60}m ago"
+            else -> "${min / 1440}d ago"
+        }
+    }
+
+    private fun tzLine(): String = runCatching {
+        val tz = java.util.TimeZone.getDefault()
+        val offMin = tz.getOffset(System.currentTimeMillis()) / 60_000
+        val a = kotlin.math.abs(offMin)
+        "${tz.id} (UTC${if (offMin >= 0) "+" else "-"}${a / 60}:${"%02d".format(a % 60)})"
+    }.getOrDefault("unknown")
+
+    private fun dayStamp(epochSec: Long): String = runCatching {
+        java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(epochSec * 1000L)
+    }.getOrDefault("?")
+
     /** Doze exemption: an app NOT exempt from battery optimisation is the #1 cause of missed overnight
      *  background work on Android. */
     private fun batteryOptimisationText(context: Context): String = runCatching {
