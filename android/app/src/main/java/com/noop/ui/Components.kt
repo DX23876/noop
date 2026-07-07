@@ -1256,6 +1256,9 @@ fun LazyScreenScaffold(
     // the scene paints in the wrapping Box (promoted to its own compositing layer) and the LazyColumn is
     // transparent so the scene shows through behind the rows. Mirrors the iOS scaffold's topBackground.
     topBackground: (@Composable () -> Unit)? = null,
+    // When true, the [topBackground] fills the WHOLE scaffold (viewport) instead of the top band — the
+    // "sky behind cards" mode, so a full-height backdrop shows behind every scrolling row.
+    fullBleedBackground: Boolean = false,
     content: LazyListScope.() -> Unit,
 ) {
     // The header row: optional leading action, the title/subtitle, optional trailing action. Omitted
@@ -1324,11 +1327,16 @@ fun LazyScreenScaffold(
         val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
         Box(modifier = modifier.fillMaxSize().background(Palette.surfaceBase)) {
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.TopCenter)
-                    .offset(y = -statusBarTop)
-                    .graphicsLayer { },
+                modifier = (
+                    if (fullBleedBackground) {
+                        // Sky-behind-cards: the backdrop fills the whole viewport (covers under the status
+                        // bar already), so the transparent rows scroll OVER a full-height sky.
+                        Modifier.fillMaxSize()
+                    } else {
+                        // Default: a top-anchored band bled up behind the status bar.
+                        Modifier.fillMaxWidth().align(Alignment.TopCenter).offset(y = -statusBarTop)
+                    }
+                    ).graphicsLayer { },
             ) {
                 topBackground()
             }

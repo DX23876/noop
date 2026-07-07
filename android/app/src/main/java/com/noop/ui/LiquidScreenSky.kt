@@ -2,6 +2,7 @@ package com.noop.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
@@ -46,20 +47,21 @@ import androidx.compose.ui.unit.dp
  *  `topBackground` slot. [height] is the sky band; the sky fades into the theme canvas within it, so the
  *  cards below sit on the flat surface. Mirrors the iOS `liquidScaffoldSky`. */
 @Composable
-fun LiquidScreenSky(height: Dp = 340.dp) {
+fun LiquidScreenSky(height: Dp = 340.dp, fillHeight: Boolean = false) {
+    // "Sky behind cards" (opt-in): fill the whole viewport and hold the atmosphere with a softer settle so
+    // the sky still reads UNDER the lower cards, instead of the default top-band that dissolves to canvas.
+    val sizeMod = if (fillHeight) Modifier.fillMaxSize() else Modifier.fillMaxWidth().height(height)
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(height)
+        modifier = sizeMod
             .background(Palette.surfaceBase)
             .clearAndSetSemantics {}, // decorative — invisible to TalkBack
     ) {
         // The static time-of-day sky, top-aligned, settling into Palette.surfaceBase over its lower half.
         LiquidSkyStatic(
             hour = null, // live local hour (hour + minute/60)
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(height),
+            modifier = if (fillHeight) Modifier.fillMaxSize() else Modifier.fillMaxWidth().height(height),
+            // A partial settle in fill-height mode keeps the horizon tint alive behind the scroll.
+            settleStrength = if (fillHeight) 0.78f else 1f,
         )
     }
 }

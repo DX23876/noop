@@ -486,6 +486,9 @@ fun TodayScreen(
     // the scaffold paints the plain dark surface canvas instead. SharedPreferences isn't reactive, so
     // this is read once into local state (mirrors iOS @AppStorage in TodayView).
     val showDayCycleBackground = remember { NoopPrefs.showDayCycleBackground(context) }
+    // "Sky behind cards" (opt-in, default OFF): extend the day-cycle sky behind the WHOLE scroll so the
+    // Card-transparency slider reveals it under every card (no effect when the scene is off). Read once.
+    val skyBehindCards = remember { NoopPrefs.skyBehindCards(context) }
     var hydrationTotalMl by remember { mutableStateOf(0.0) }
     // #989: `days` only changes on a data refresh, which a hydration write never causes, so the card sat
     // stale after logging a drink until an unrelated sync landed. Keying on the store's mutationSeq too
@@ -955,7 +958,9 @@ fun TodayScreen(
         // LiquidScreenSky() slot verbatim.
         // #698, gated on the "Day-cycle background" setting (default ON). Off passes null, so the scaffold
         // paints the plain dark surface canvas instead, mirroring iOS's `showDayCycleBackground ? ... : nil`.
-        topBackground = if (showDayCycleBackground) { { LiquidScreenSky() } } else null,
+        topBackground = if (showDayCycleBackground) { { LiquidScreenSky(fillHeight = skyBehindCards) } } else null,
+        // Sky-behind-cards fills the viewport so the transparent cards reveal the sky the whole way down.
+        fullBleedBackground = showDayCycleBackground && skyBehindCards,
     ) {
         item {
         // LIQUID Today header (iOS LiquidTodayView.scene parity), a full structural rebuild to mirror the
