@@ -24,12 +24,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Videocam
@@ -97,7 +97,7 @@ internal enum class NotifCategory(
     val defaultPattern: BuzzPattern,
 ) {
     Email("Email", Icons.Filled.Email, BuzzPattern.Double),
-    Messaging("Messaging", Icons.Filled.Chat, BuzzPattern.Single),
+    Messaging("Messaging", Icons.AutoMirrored.Filled.Chat, BuzzPattern.Single),
     Meetings("Meetings", Icons.Filled.Videocam, BuzzPattern.Triple),
     Calendar("Calendar & Reminders", Icons.Filled.CalendarMonth, BuzzPattern.Double),
 }
@@ -118,14 +118,14 @@ internal data class NotifApp(
 private val notifCatalog: List<NotifApp> = listOf(
     NotifApp("com.google.android.gm", "Gmail", NotifCategory.Email, Icons.Filled.Email),
     NotifApp("com.microsoft.office.outlook", "Outlook", NotifCategory.Email, Icons.Filled.Email),
-    NotifApp("com.whatsapp", "WhatsApp", NotifCategory.Messaging, Icons.Filled.Chat),
-    NotifApp("com.google.android.apps.messaging", "Messages", NotifCategory.Messaging, Icons.Filled.Chat),
-    NotifApp("com.Slack", "Slack", NotifCategory.Messaging, Icons.Filled.Chat),
-    NotifApp("org.telegram.messenger", "Telegram", NotifCategory.Messaging, Icons.Filled.Chat),
+    NotifApp("com.whatsapp", "WhatsApp", NotifCategory.Messaging, Icons.AutoMirrored.Filled.Chat),
+    NotifApp("com.google.android.apps.messaging", "Messages", NotifCategory.Messaging, Icons.AutoMirrored.Filled.Chat),
+    NotifApp("com.Slack", "Slack", NotifCategory.Messaging, Icons.AutoMirrored.Filled.Chat),
+    NotifApp("org.telegram.messenger", "Telegram", NotifCategory.Messaging, Icons.AutoMirrored.Filled.Chat),
     // Teams' ringing-call notifications are handled by the Calls card below (VoIP path). This
     // per-app row covers everything else Teams sends to the shade (chats, @-mentions, channel
     // posts), which read as messages, so it lives under Messaging with the chat glyph.
-    NotifApp("com.microsoft.teams", "Microsoft Teams", NotifCategory.Messaging, Icons.Filled.Chat),
+    NotifApp("com.microsoft.teams", "Microsoft Teams", NotifCategory.Messaging, Icons.AutoMirrored.Filled.Chat),
     NotifApp("us.zoom.videomeetings", "Zoom", NotifCategory.Meetings, Icons.Filled.Videocam),
     NotifApp("com.google.android.calendar", "Calendar", NotifCategory.Calendar, Icons.Filled.CalendarMonth),
 )
@@ -614,7 +614,7 @@ private fun DeliveryNote() {
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Icon(
-                Icons.Filled.OpenInNew,
+                Icons.AutoMirrored.Filled.OpenInNew,
                 contentDescription = null,
                 tint = Palette.accent,
                 modifier = Modifier.size(14.dp),

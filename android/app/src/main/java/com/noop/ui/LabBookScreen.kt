@@ -23,7 +23,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -175,7 +175,7 @@ fun LabBookScreen(vm: AppViewModel) {
                             .background(Palette.metricCyan.copy(alpha = 0.14f)),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(Icons.Filled.MenuBook, contentDescription = null, tint = Palette.metricCyan, modifier = Modifier.size(16.dp))
+                        Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, tint = Palette.metricCyan, modifier = Modifier.size(16.dp))
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Text(countLine(markers), style = NoopType.headline, color = Palette.textPrimary)

@@ -17,7 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Air
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Favorite
@@ -25,8 +25,8 @@ import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material.icons.filled.VolumeOff
-import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -570,7 +570,7 @@ fun BreatheScreen(viewModel: AppViewModel) {
 private fun AudioCueToggle(checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Icon(
-            if (checked) Icons.Filled.VolumeUp else Icons.Filled.VolumeOff,
+            if (checked) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
             contentDescription = null,
             tint = if (checked) Palette.restBright else Palette.textTertiary,
             modifier = Modifier.size(16.dp).padding(end = 10.dp),
@@ -1113,7 +1113,7 @@ private fun CalmMode(viewModel: AppViewModel, live: com.noop.ble.LiveState, bpm:
                     Row(verticalAlignment = Alignment.Bottom,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(bpm?.toString() ?: "—", style = NoopType.number(48f), color = Palette.metricRose)
-                        Icon(Icons.Filled.ArrowForward, contentDescription = null,
+                        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null,
                             tint = Palette.textTertiary, modifier = Modifier.padding(bottom = 8.dp))
                         Column {
                             Text("target", style = NoopType.footnote, color = Palette.textTertiary)

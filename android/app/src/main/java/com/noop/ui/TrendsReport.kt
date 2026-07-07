@@ -217,7 +217,7 @@ object TrendsReportRenderer {
         } else {
             y = drawHeadlines(canvas, report, y)
             y += 18f
-            y = drawMetrics(canvas, report, series, y)
+            drawMetrics(canvas, report, series, y)
         }
         drawFooter(canvas, generatedOn)
 

@@ -502,7 +502,7 @@ internal object WhoopTime {
         else if (s.startsWith("-")) { sign = -1; s = s.substring(1) }
 
         // Accept HH:MM or HHMM.
-        var hours = 0
+        var hours: Int
         var minutes = 0
         val colonIdx = s.indexOf(':')
         if (colonIdx >= 0) {

@@ -362,12 +362,12 @@ class Backfiller(
                 for (f in frames) {
                     if (spo2Dumped >= com.noop.analytics.Spo2ReTrace.MAX_SAMPLES) break
                     val d = decodeHistorical(f, family) ?: continue
-                    val unix = d["unix"] as? Int ?: continue
+                    val recUnix = d["unix"] as? Int ?: continue
                     connectionLog(
                         com.noop.analytics.Spo2ReTrace.recordLine(
                             frame = f,
                             version = d["hist_version"] as? Int,
-                            unix = unix,
+                            unix = recUnix,
                             red = d["spo2_red"] as? Int,
                             ir = d["spo2_ir"] as? Int,
                             skinRaw = d["skin_temp_raw"] as? Int,

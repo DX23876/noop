@@ -20,7 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.CompareArrows
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -329,7 +329,7 @@ private fun RecordsAndSourcesSection(
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
         SectionHeader("Records & sources", overline = "On this phone")
         RecordRow(
-            icon = Icons.Filled.MenuBook,
+            icon = Icons.AutoMirrored.Filled.MenuBook,
             tint = Palette.metricCyan,
             title = "Lab Book",
             subtitle = "Your bloods, BP and body numbers. Kept private here.",
@@ -475,7 +475,7 @@ private fun HealthContributorsSection(day: DailyMetric?) {
     if (hrv == null && rhr == null && sleepMin == null && resp == null) return
 
     // SOLID once recovery has been scored from these signals; CALIBRATING while the baseline seeds.
-    val solid = day?.recovery != null
+    val solid = day.recovery != null
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.weight(1f)) {

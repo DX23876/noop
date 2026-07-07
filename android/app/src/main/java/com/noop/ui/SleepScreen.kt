@@ -499,15 +499,15 @@ fun SleepScreen(
                             val now = System.currentTimeMillis() / 1000L
                             // Same active∪canonical union as the main loader (#814/#1008), so the
                             // post-nap reload can't snap the browse back to a canonical-only night set.
-                            val imported = vm.repo.sleepSessionsUnion(vm.activeStrapId, 0L, now)
+                            val importedSessions = vm.repo.sleepSessionsUnion(vm.activeStrapId, 0L, now)
                             val computed = vm.repo.computedSleepSessionsUnion(vm.activeStrapId, 0L, now)
                             fun localEndDay(ts: Long): String {
                                 val offsetSec = (java.util.TimeZone.getDefault().getOffset(ts * 1000) / 1000).toLong()
                                 return AnalyticsEngine.dayString(ts, offsetSec)
                             }
-                            val importedDays = imported.map { localEndDay(it.endTs) }.toHashSet()
+                            val importedDays = importedSessions.map { localEndDay(it.endTs) }.toHashSet()
                             val computedOnly = computed.filter { localEndDay(it.endTs) !in importedDays }
-                            (imported + computedOnly).sortedBy { it.effectiveStartTs }
+                            (importedSessions + computedOnly).sortedBy { it.effectiveStartTs }
                         }.getOrDefault(sleeps)
                     }
                 },

@@ -361,7 +361,7 @@ class SourceCoordinator(
             // The ring generation is carried on the row's model ("Oura Ring 3/4/5"); recover it so the
             // transport clamps the MTU + picks the gen-appropriate live-HR enable command set. Defaults to
             // gen3 if the model is missing/unrecognised (OuraRingGen.from).
-            val ringGen = OuraRingGen.from(row?.model ?: "")
+            val ringGen = OuraRingGen.from(row.model ?: "")
             val source = OuraLiveSource(
                 context = ctx,
                 deviceId = id,

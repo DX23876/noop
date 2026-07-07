@@ -151,7 +151,7 @@ data class CaffeineActiveEstimate(
                     mgSum += CaffeineDecay.remainingMg(it, hours, halfLifeHours)
                     anyMg = true
                 }
-                if (mostRecentActiveHours == null || hours < mostRecentActiveHours!!) {
+                if (mostRecentActiveHours == null || hours < mostRecentActiveHours) {
                     mostRecentActiveHours = hours
                 }
             }

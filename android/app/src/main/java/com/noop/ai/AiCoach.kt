@@ -409,7 +409,7 @@ class AiCoach(private val repo: WhoopRepository) {
 
         // Local servers (notably Ollama) stop with finish_reason "length" at the context-window edge
         // and give NO error, keep the partial text and append the actionable notice so it isn't silent.
-        val truncated = firstChoice?.optString("finish_reason")?.lowercase() == "length"
+        val truncated = firstChoice.optString("finish_reason").lowercase() == "length"
         return if (truncated) content + TRUNCATION_NOTE else content
     }
 

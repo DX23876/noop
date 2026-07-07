@@ -22,7 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -747,7 +747,7 @@ private fun SendButton(enabled: Boolean, sending: Boolean, onClick: () -> Unit) 
             CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = Palette.accent)
         } else {
             Icon(
-                Icons.Filled.Send,
+                Icons.AutoMirrored.Filled.Send,
                 contentDescription = null,
                 tint = if (enabled) Palette.surfaceBase else Palette.textTertiary,
                 modifier = Modifier.size(20.dp),
