@@ -251,7 +251,7 @@ targets:
           - $(APP_GROUP_ID)
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.noopapp.noop.staging
+        PRODUCT_BUNDLE_IDENTIFIER: com.noopapp.noop
         PRODUCT_NAME: "NOOP Staging"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # Ship every *.appiconset (not just the primary AppIcon) so the alternate "AppIcon-Navy"
@@ -310,7 +310,7 @@ targets:
           - $(APP_GROUP_ID)
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.noopapp.noop.staging.widgets
+        PRODUCT_BUNDLE_IDENTIFIER: com.noopapp.noop.widgets
         PRODUCT_NAME: NOOPWidgets
         GENERATE_INFOPLIST_FILE: NO
         TARGETED_DEVICE_FAMILY: "1,2"
@@ -350,7 +350,7 @@ targets:
         # Modern single-target watchOS app — no separate WatchKit extension.
         WKApplication: true
         # Pairs this watch app to the iPhone companion (must match NOOPiOS PRODUCT_BUNDLE_IDENTIFIER).
-        WKCompanionAppBundleIdentifier: com.noopapp.noop.staging
+        WKCompanionAppBundleIdentifier: com.noopapp.noop
         NSHealthShareUsageDescription: "NOOP reads your heart rate from the Watch sensor to show a live readout on your wrist. It stays on your device."
         NSHealthUpdateUsageDescription: "NOOP records a basic workout session on your Watch for a higher-fidelity heart rate. The session stays on your device."
     entitlements:
@@ -362,7 +362,7 @@ targets:
           - $(APP_GROUP_ID)
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.noopapp.noop.staging.watch
+        PRODUCT_BUNDLE_IDENTIFIER: com.noopapp.noop.watch
         # The bundle FILE is NOOPWatch.app so it doesn't collide with the iPhone app's NOOP.app when it is
         # embedded at NOOP.app/Watch/NOOPWatch.app. The user still sees "NOOP" on the wrist via the
         # CFBundleName / CFBundleDisplayName above.
@@ -412,7 +412,7 @@ targets:
           - $(APP_GROUP_ID)
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.noopapp.noop.staging.watch.complications
+        PRODUCT_BUNDLE_IDENTIFIER: com.noopapp.noop.watch.complications
         PRODUCT_NAME: NOOPWatchComplications
         GENERATE_INFOPLIST_FILE: NO
         TARGETED_DEVICE_FAMILY: "4"
