@@ -155,8 +155,8 @@ fun BackupSyncScreen() {
                         ) {
                             Text("Daily auto-backup", style = NoopType.body, color = Palette.textPrimary)
                             Text(
-                                "Writes a fresh dated backup to your folder about once a day (keeps the latest " +
-                                    "$keep). Off by default - flip it on if you want it.",
+                                "Writes a fresh dated backup to your folder once a day (around 1am), keeping the " +
+                                    "latest $keep. Off by default - flip it on if you want it.",
                                 style = NoopType.footnote, color = Palette.textTertiary,
                             )
                         }
@@ -187,7 +187,8 @@ fun BackupSyncScreen() {
                         ) {
                             Text("Keep last snapshots", style = NoopType.body, color = Palette.textPrimary)
                             Text(
-                                "Older backups beyond this many are pruned, oldest first.",
+                                "Older backups beyond this many are pruned, oldest first (≈ that many days of " +
+                                    "daily backups). For recovery: if data ever corrupts, grab the newest snapshot.",
                                 style = NoopType.footnote, color = Palette.textTertiary,
                             )
                         }
