@@ -76,10 +76,27 @@ class BackfillerSessionTallyTest {
         assertFalse(line.contains("fully charge"))
     }
 
+    // #42: trim=0xFFFFFFFF on the EMPTY tail of an auto-continue burst (this session banked 0 rows, but an
+    // earlier session in the burst did \u2014 continuedAfterRows=true) means "caught up", NOT "no history". It
+    // must NOT emit the scary fully-charge guidance even though rowsPersisted is 0.
+    @Test fun noCursorLineContinuedAfterRowsGivesCaughtUpLine() {
+        val line = Backfiller.noCursorLine(0, continuedAfterRows = true)
+        assertTrue(line.contains("caught up"))
+        assertFalse(line.contains("no banked history"))
+        assertFalse(line.contains("fully charge"))
+    }
+
+    // #42: continuedAfterRows only softens the ZERO-row tail; a genuinely empty FRESH run (default false)
+    // still gets the honest no-history guidance.
+    @Test fun noCursorLineFreshEmptyStillGivesNoHistoryGuidance() {
+        assertTrue(Backfiller.noCursorLine(0, continuedAfterRows = false).contains("no banked history"))
+    }
+
     // No em-dash leaks into either branch (project hard rule).
     @Test fun noCursorLineHasNoEmDash() {
         assertFalse(Backfiller.noCursorLine(0).contains("\u2014"))
         assertFalse(Backfiller.noCursorLine(5).contains("\u2014"))
+        assertFalse(Backfiller.noCursorLine(0, continuedAfterRows = true).contains("\u2014"))
     }
 
     // ---- #773 corrupt future-RTC detection ----

@@ -1502,7 +1502,10 @@ public final class BLEManager: NSObject, ObservableObject {
         }
         // Capture the family at begin() (not init): selectedModel is reliably set by connect() before any
         // backfill starts, whereas bootstrapStore() can build the Backfiller before the family is known.
-        backfiller.begin(family: selectedModel.deviceFamily)
+        // #42/#364: consecutiveAutoContinues > 0 means this offload is re-kicked after an EARLIER session in
+        // the same burst banked rows — tell the backfiller so its no-cursor END reads as "caught up", not
+        // "no banked history / charge to 100%". A fresh offload (count 0) keeps the honest guidance.
+        backfiller.begin(family: selectedModel.deviceFamily, continuedAfterRows: consecutiveAutoContinues > 0)
         backfilling = true
         state.backfilling = true
         state.syncChunksThisSession = 0
@@ -1674,9 +1677,14 @@ public final class BLEManager: NSObject, ObservableObject {
                 consoleChunks: state.consoleChunksThisSession,
                 rowsPersisted: backfiller?.sessionRowsPersisted ?? 0)
             let bankedSensorRecords = banking.bankedSensorRecords
-            let bankedNothing = banking.bankedNothing
-            let sustainedEmpty = emptySyncTracker.recordCompletedSync(
-                bankedSensorRecords: bankedSensorRecords, consoleOnly: bankedNothing)
+            // #42: the empty tail of an auto-continue burst (consecutiveAutoContinues > 0) isn't a "banked
+            // nothing" sync — an EARLIER session in the same burst handed over real rows and this pass just
+            // confirms we're caught up. Don't surface the "charge to 100%" framing, and don't count it toward
+            // the sustained-empty streak (the productive session already cleared it).
+            let productiveBurstTail = consecutiveAutoContinues > 0
+            let bankedNothing = banking.bankedNothing && !productiveBurstTail
+            let sustainedEmpty = productiveBurstTail ? false : emptySyncTracker.recordCompletedSync(
+                bankedSensorRecords: bankedSensorRecords, consoleOnly: banking.bankedNothing)
             if unarchived > 0 {
                 state.lastSyncError = "Synced, but \(archived + unarchived) record(s) couldn't be decoded (unrecognised strap firmware layout), and the on-device archive is full - the \(unarchived) newest weren't preserved. Please share a strap log so the layout can be mapped."
             } else if archived > 0 {

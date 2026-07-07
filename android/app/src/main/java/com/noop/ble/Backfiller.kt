@@ -167,6 +167,12 @@ class Backfiller(
      */
     var sessionRowsPersisted = 0
         private set
+    /** #42: set by [begin] when this session continues an auto-continue burst (#364) that already banked
+     *  rows in an earlier session, so a trim=0xFFFFFFFF END here reads as "caught up", not "no history".
+     *  Without it, the fresh session's `sessionRowsPersisted` is 0 and the scary "charge to 100%" line
+     *  false-fires on the empty tail of a sync that just offloaded real records. */
+    var continuedAfterRows = false
+        private set
     var sessionMotionRows = 0
         private set
     /**
@@ -239,8 +245,9 @@ class Backfiller(
      * HISTORY_START then repeated HISTORY_ENDs, so we must accumulate from the outset.
      * Port of Swift `begin()`.
      */
-    fun begin(family: DeviceFamily = DeviceFamily.WHOOP4) {
+    fun begin(family: DeviceFamily = DeviceFamily.WHOOP4, continuedAfterRows: Boolean = false) {
         this.family = family
+        this.continuedAfterRows = continuedAfterRows
         isBackfilling = true
         sessionRowsPersisted = 0
         sessionMotionRows = 0
@@ -474,7 +481,7 @@ class Backfiller(
         // session (loggedNoCursor) and the ack still proceeds below.
         if (trim == 0xFFFFFFFFL && !loggedNoCursor) {
             loggedNoCursor = true
-            log(noCursorLine(sessionRowsPersisted))
+            log(noCursorLine(sessionRowsPersisted, continuedAfterRows))
             // Connection test mode: the no-cursor sentinel as a compact tagged line (gated zero-cost).
             emitConnection { com.noop.analytics.ConnectionTrace.noCursorLine() }
         }
@@ -559,14 +566,21 @@ class Backfiller(
          * > 0 gives a neutral caught-up line; 0 gives the genuine no-history guidance. Pure so a fixture pins both.
          * Twin of the Swift `Backfiller.noCursorLine(rowsPersisted:)`.
          */
-        fun noCursorLine(rowsPersisted: Int): String =
-            if (rowsPersisted > 0) {
-                "Backfill: reached the end of available history (trim=0xFFFFFFFF) - caught up after " +
-                    "persisting $rowsPersisted row(s) this run. Nothing more to offload."
-            } else {
-                "Backfill: strap reported no flash cursor (trim=0xFFFFFFFF) - it has no banked history to " +
-                    "offload. This is a clock/charge state on the strap, not a decode problem; fully charge " +
-                    "it and reconnect so it starts banking."
+        fun noCursorLine(rowsPersisted: Int, continuedAfterRows: Boolean = false): String =
+            when {
+                rowsPersisted > 0 ->
+                    "Backfill: reached the end of available history (trim=0xFFFFFFFF) - caught up after " +
+                        "persisting $rowsPersisted row(s) this run. Nothing more to offload."
+                // #42: the empty tail of an auto-continue burst (#364) that banked rows in an EARLIER
+                // session. The strap synced fine — this pass just confirms we're caught up — so DON'T
+                // false-alarm "no banked history / charge to 100%".
+                continuedAfterRows ->
+                    "Backfill: reached the end of available history (trim=0xFFFFFFFF) - caught up; the " +
+                        "strap handed over its banked history earlier this sync. Nothing more to offload."
+                else ->
+                    "Backfill: strap reported no flash cursor (trim=0xFFFFFFFF) - it has no banked history " +
+                        "to offload. This is a clock/charge state on the strap, not a decode problem; fully " +
+                        "charge it and reconnect so it starts banking."
             }
 
         /**
