@@ -123,8 +123,11 @@ struct TestCentreView: View {
                     Button("Copy") { PlatformPasteboard.copy(live.exportableLogText()) }
                         .buttonStyle(.plain).font(StrandFont.mono).foregroundStyle(StrandPalette.accent)
                     Button("Save…") {
-                        FileExport.exportText(live.exportableLogText(),
-                                              suggestedName: FileExport.timestampedName("noop-strap-log", ext: "txt"))
+                        Task {
+                            let extra = await DebugDataDiagnostics.dynamicLines(repo: model.repo)
+                            FileExport.exportText(live.exportableLogText(extraHeaderLines: extra),
+                                                  suggestedName: FileExport.timestampedName("noop-strap-log", ext: "txt"))
+                        }
                     }
                     .buttonStyle(.plain).font(StrandFont.mono).foregroundStyle(StrandPalette.accent)
                 }

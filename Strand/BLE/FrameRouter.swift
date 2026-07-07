@@ -81,6 +81,8 @@ public final class FrameRouter {
             if let fw = parsed.parsed["fw_version"]?.stringValue ?? parsed.parsed["fw_harvard"]?.stringValue,
                state.strapFirmware != fw {
                 state.strapFirmware = fw
+                // Persist so the debug export can name the firmware offline (state clears on disconnect).
+                UserDefaults.standard.set(fw, forKey: "noop.lastFirmware")
             }
             // Advertising-name replies (WHOOP 4.0 / Harvard). GET (cmd 76) carries the current name in
             // its payload; SET (cmd 77) carries only a result byte. The schema has no field decode for

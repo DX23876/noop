@@ -164,7 +164,8 @@ enum ScheduledDebugExport {
         let stamp = FileExport.timestamp()
         let logURL = docs.appendingPathComponent("noop-strap-log-\(stamp).txt")
         do {
-            try LiveState.scheduledExportText().write(to: logURL, atomically: true, encoding: .utf8)
+            try LiveState.scheduledExportText(extraHeaderLines: DebugDataDiagnostics.strapStateLines())
+                .write(to: logURL, atomically: true, encoding: .utf8)
         } catch {
             return nil
         }
