@@ -1267,27 +1267,29 @@ private fun HypnogramWithAxis(
             val total = weights.sum()
             if (stages.isEmpty() || total <= 0f) return@Canvas
 
-            // WIDTH floor: a segment narrower than this reads as a tick. Floor it to ~one strip-height
-            // square so short stages are legible blocks (the Android analogue of the Swift band-min
-            // thickness). Stretches sub-floor stages slightly; proportions of normal stages are intact.
-            val minSegW = h
-            val gap = if (stages.size > 1) 1.5f else 0f
+            // WIDTH floor: a segment narrower than this reads as a hairline, so floor short stages to a
+            // legible block. But the FLOORED widths can sum past the canvas on a fragmented night (many
+            // short segments), and the old loop advanced `x` by the floored width — so the tail ran off
+            // the canvas and clipped, leaving only the first ~w/h segments visible as a row of circles
+            // (#36). Fix: floor every segment, then if the floored total overflows, scale them ALL to fit
+            // so the strip stays a continuous bar for the WHOLE night. Draw rounded RECTS (not round-capped
+            // lines, whose h-wide round cap turned any sub-h segment into a full circle) advancing by the
+            // SAME width we draw, so `x` can never exceed the canvas.
+            val minSegW = h / 2f
+            val floored = weights.map { wt -> if (wt > 0f) maxOf(w * (wt / total), minSegW) else 0f }
+            val flooredSum = floored.sum()
+            val scale = if (flooredSum > w) w / flooredSum else 1f
+            val radius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
             var x = 0f
             stages.forEachIndexed { i, (name, _) ->
-                val rawW = w * (weights[i] / total)
-                if (rawW <= 0f) return@forEachIndexed
-                val segW = maxOf(rawW, minSegW)
-                val drawW = (segW - if (i < stages.size - 1) gap else 0f).coerceAtLeast(0f)
-                if (drawW > 0f) {
-                    val cap = (h / 2f).coerceAtMost(drawW / 2f)
-                    drawLine(
-                        color = stageColorFor(name),
-                        start = Offset(x + cap, h / 2f),
-                        end = Offset((x + drawW - cap).coerceAtLeast(x + cap), h / 2f),
-                        strokeWidth = h,
-                        cap = StrokeCap.Round,
-                    )
-                }
+                val segW = floored[i] * scale
+                if (segW <= 0f) return@forEachIndexed
+                drawRoundRect(
+                    color = stageColorFor(name),
+                    topLeft = Offset(x, 0f),
+                    size = Size(segW.coerceAtMost(w - x), h),
+                    cornerRadius = radius,
+                )
                 x += segW
             }
 
