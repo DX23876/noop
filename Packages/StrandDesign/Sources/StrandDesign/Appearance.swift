@@ -106,6 +106,14 @@ public enum CardAppearancePrefs {
     public static let defaultPercent = 100
 }
 
+/// "Sky behind cards" (opt-in, default OFF): extend the day-cycle sky behind the WHOLE Today scroll (not
+/// just the top band) so the Card-transparency setting reveals it under every card. Read in `LiquidTodayView`
+/// via `@AppStorage(SkyBehindCardsPrefs.enabledKey)` and toggled from Settings → Appearance. Mirror in
+/// Kotlin via `NoopPrefs.skyBehindCards`.
+public enum SkyBehindCardsPrefs {
+    public static let enabledKey = "noop.skyBehindCards"
+}
+
 // MARK: - Light-idiom helpers
 
 /// An additive glow (ring blooms, sparkline heads, hero halos) only reads on a DARK canvas —

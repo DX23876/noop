@@ -82,6 +82,9 @@ struct LiquidTodayView: View {
     /// Content sits above the surface so it stays readable. Mirrors Kotlin `NoopPrefs.cardOpacityPercent`.
     @AppStorage(CardAppearancePrefs.opacityKey) private var cardOpacityPercent = CardAppearancePrefs.defaultPercent
     private var cardOpacity: Double { max(0, min(1, Double(cardOpacityPercent) / 100)) }
+    /// "Sky behind cards" (opt-in, default OFF): extend the day-cycle sky behind the WHOLE scroll so the
+    /// Card-transparency slider reveals it under every card. Mirrors Kotlin `NoopPrefs.skyBehindCards`.
+    @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = false
 
     // MARK: - Day navigation (ported from classic Today: swipe + calendar, day-keyed reads)
 
@@ -222,12 +225,14 @@ struct LiquidTodayView: View {
                 StrandPalette.surfaceBase
                 // Reduce-motion (and low-power) users get the same sky posed still — no twinkle/breath.
                 // Also static until the first data load settles, so launch isn't fighting a live sky too.
+                // "Sky behind cards" (opt-in): fill the whole backdrop with a softer settle so the sky reads
+                // under every card, instead of the default 340 top band that dissolves into the canvas.
                 Group {
-                    if reduceMotion || !dataLoaded { LiquidSkyStatic(hour: liveHour) }
-                    else { LiquidSky(hour: liveHour) }
+                    if reduceMotion || !dataLoaded { LiquidSkyStatic(hour: liveHour, settleStrength: skyBehindCards ? 0.78 : 1) }
+                    else { LiquidSky(hour: liveHour, settleStrength: skyBehindCards ? 0.78 : 1) }
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 340, alignment: .top)
+                .frame(height: skyBehindCards ? nil : 340, alignment: .top)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
             }
