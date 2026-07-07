@@ -29,7 +29,6 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
     case automation = "Automations"
     case smartAlarm = "Smart Alarm"
     case settings = "Settings"
-    case support = "Support"
     case testCentre = "Test Centre"
 
     var id: String { rawValue }
@@ -68,7 +67,6 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         // The case name and rawValue stay `smartAlarm`/"Smart Alarm" as the in-memory nav identifier only.
         case .smartAlarm: return "Alarms"
         case .settings: return "Settings"
-        case .support: return "Support"
         case .testCentre: return "Test Centre"
         }
     }
@@ -109,7 +107,6 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         // Mirrors the `titleKey` remap above (#766): the row reads "Alarms", not the raw "Smart Alarm".
         case .smartAlarm: return String(localized: "Alarms")
         case .settings: return String(localized: "Settings")
-        case .support: return String(localized: "Support")
         case .testCentre: return String(localized: "Test Centre")
         }
     }
@@ -143,13 +140,12 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         case .automation: return "wand.and.stars"
         case .smartAlarm: return "alarm.fill"
         case .settings: return "gearshape.fill"
-        case .support: return "heart.fill"
         case .testCentre: return "stethoscope"
         }
     }
 }
 
-/// One collapsible sidebar section (S1, #805): the 28 flat `NavItem` cases are grouped into ~5
+/// One collapsible sidebar section (S1, #805): the 27 flat `NavItem` cases are grouped into ~5
 /// labelled sections so the macOS sidebar stops being a 28-item flat wall. The enum cases are NOT
 /// touched (M5 gate): only the layout that consumes them changes. `NavGroup.all` is the single source
 /// of truth for what each section holds, so the M5 routability test can assert every `NavItem` case is
@@ -163,7 +159,7 @@ struct NavGroup: Identifiable {
     /// The 5 sidebar sections, in order, mirroring the iOS More-tab grouping idiom (Insights / Body /
     /// Data & App) plus Today + Sleep as their own top sections. Devices/pairing sits at the TOP of the
     /// Data & App group so the first thing a new user reaches for stays near the surface. Every one of the
-    /// 28 `NavItem` cases appears exactly once across these groups (asserted by the M5 routability test).
+    /// 27 `NavItem` cases appears exactly once across these groups (asserted by the M5 routability test).
     static let all: [NavGroup] = [
         NavGroup(title: "Today", id: "today", items: [.today]),
         NavGroup(title: "Sleep", id: "sleep", items: [.sleep]),
@@ -178,7 +174,7 @@ struct NavGroup: Identifiable {
         ]),
         NavGroup(title: "Data & App", id: "data_app", items: [
             .devices, .dataSources, .appleHealth, .xiaomi, .backupSync, .fusedRecord,
-            .notifications, .automation, .smartAlarm, .settings, .support, .testCentre,
+            .notifications, .automation, .smartAlarm, .settings, .testCentre,
         ]),
     ]
 
@@ -440,7 +436,6 @@ struct RootView: View {
         case .automation: AutomationsView()
         case .smartAlarm: SmartAlarmView()
         case .settings: settingsDetail
-        case .support: SupportView()
         case .testCentre: TestCentreView()
         }
     }

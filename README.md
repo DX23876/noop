@@ -19,19 +19,13 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/NoopApp/noop/releases/latest"><img alt="Latest release" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FNoopApp%2Fnoop%2Fmain%2Fdocs%2Fstats%2Frelease.json&style=flat-square"></a>
-  <a href="https://github.com/NoopApp/noop/stargazers"><img alt="Stars" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FNoopApp%2Fnoop%2Fmain%2Fdocs%2Fstats%2Fstars.json&style=flat-square"></a>
+  <a href="https://github.com/ryanbr/noop/releases/latest"><img alt="Latest release" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FNoopApp%2Fnoop%2Fmain%2Fdocs%2Fstats%2Frelease.json&style=flat-square"></a>
+  <a href="https://github.com/ryanbr/noop/stargazers"><img alt="Stars" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FNoopApp%2Fnoop%2Fmain%2Fdocs%2Fstats%2Fstars.json&style=flat-square"></a>
 </p>
 
 <p align="center">
-  <a href="#keeping-noop-alive"><img alt="Keep NOOP alive" src="https://img.shields.io/badge/%E2%99%A5-keep%20NOOP%20alive-C8902F?style=for-the-badge"></a>
-</p>
-<p align="center"><sub><b>NOOP is free, account-free and ad-free</b> &mdash; and it costs us real money to keep running (servers + development time). Only a handful of people chip in. If NOOP&rsquo;s earned a place on your wrist, <a href="#keeping-noop-alive"><b>buy us a coffee&nbsp;&#9749;</b></a> &mdash; it genuinely keeps the lights on.</sub></p>
-
-<p align="center">
-  <a href="#keeping-noop-alive">♥&nbsp;Support</a> ·
   <a href="#download">⬇&nbsp;Download</a> ·
-  <a href="https://github.com/NoopApp/noop/wiki/FAQ">❓&nbsp;FAQ</a> ·
+  <a href="https://github.com/ryanbr/noop/wiki/FAQ">❓&nbsp;FAQ</a> ·
   <a href="https://discord.com/invite/nHK9FHczu">💬&nbsp;Discord</a> ·
   <a href="https://www.reddit.com/r/NOOPApp/">👽&nbsp;Reddit</a> ·
   <a href="#features">Features</a> ·
@@ -40,7 +34,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/NoopApp/noop/releases/latest"><img src="docs/assets/hero-v8.jpg" alt="NOOP in the new Liquid Metal design, on iPhone, Mac and Android" width="820"></a>
+  <a href="https://github.com/ryanbr/noop/releases/latest"><img src="docs/assets/hero-v8.jpg" alt="NOOP in the new Liquid Metal design, on iPhone, Mac and Android" width="820"></a>
 </p>
 
 <p align="center">
@@ -54,53 +48,20 @@
 
 ---
 
-## Keeping NOOP alive
-
-NOOP is **free, forever** — no account, no cloud, no subscription, every feature unlocked, no nag. That doesn't change.
-
-But here's the honest reality, up front: **NOOP is built and maintained by one person, out of pocket.** Building interoperability support for WHOOP's hardware — and keeping up as its firmware changes — takes real time and real test hardware. **The project continues if the people who use it help fund it. If that doesn't happen, it can't.** No drama, no guilt — just the maths of an unfunded project.
-
-📰 **Featured in** [AOL](https://www.aol.com/articles/open-source-app-lets-whoop-231700000.html) · [Yahoo](https://tech.yahoo.com/wearables/articles/open-source-app-lets-whoop-081754863.html) · [Android Authority](https://www.androidauthority.com/open-source-whoop-app-3673542/) · [TechRadar](https://www.techradar.com/health-fitness/fitness-trackers/this-looks-awesome-theres-now-an-unofficial-open-source-app-for-reading-whoop-data-that-doesnt-need-a-subscription) · [BGR](https://www.bgr.com/2193528/noop-app-use-whoop-band-without-subscription-fee/) · [Android Central](https://www.androidcentral.com/wearables/this-open-source-app-lets-you-use-your-whoop-without-a-monthly-fee) · [Android Police](https://www.androidpolice.com/i-tried-open-source-whoop-app/) · [Notebookcheck](https://www.notebookcheck.net/Whoop-users-could-soon-be-free-from-expensive-subscriptions-thanks-to-this-open-source-app.1314364.0.html) · [Trusted Reviews](https://www.trustedreviews.com/news/this-open-source-app-could-let-whoop-users-ditch-the-subscription) — **and used by thousands.** If even a small fraction of them tipped, NOOP's future would be secure for a long time to come.
-
-If NOOP saves you a subscription, or you just want WHOOP 5.0/MG support finished and the work to keep going, **chipping in is what genuinely decides that.** It's optional, one-off, and tied to nothing about your data or access — there's no server and no record of who has or hasn't.
-
-### How to donate — 2 minutes, even if you've never touched crypto
-
-Donations are **crypto-only**, on purpose: staying anonymous (for the project *and* for you) rules out PayPal, Patreon, or anything with a name attached. If you don't already hold any:
-
-1. **Install a mainstream exchange app** — Coinbase, Binance, Kraken, or **Cash App** (Cash App handles Bitcoin directly).
-2. **Buy some Bitcoin (BTC) or Ethereum (ETH)** — a suggested **$50+** genuinely keeps the project alive (it's a fraction of a year's WHOOP subscription). Anything is appreciated, but $50+ is what moves the needle.
-3. **Tap Send / Withdraw, paste the matching address below, and send.** That's it. (Only ever send a coin to its own network.)
-
-| Coin | Network | Address |
-|---|---|---|
-| **BTC** | Bitcoin | `bc1qn2gkl7wslwpws06mvazjn2uu689zlkv7kg3kf5` |
-| **ETH** | Ethereum | `0xd64D508b531c4b1297Ca4023C774e0E97aA67B7F` |
-| **ADA** | Cardano | `addr1qxsju3y0mlke2h6h2g6qgnq4r3jstngtyjxs0nnp5zrv28zv8p5rgzruxyjz33j9k23pffta8z639e2snjdd4vcetfqsn4vwr3` |
-| **XRP** | XRP Ledger | `rpvijHi2nVY9WWAJhojsAX5tJmHdmLtFhq`<br>⚠️ **Destination Tag: `3338312747` (required)** |
-
-> ⚠️ **XRP donors:** this address **requires the destination tag `3338312747`**. XRP sent without the tag cannot be credited and may be lost — most wallets and exchanges have a "Destination Tag" field, paste it there.
-
-Each address also has a scan-to-donate **QR code** in the app under **Support** (and they're listed in [`docs/DONATIONS.md`](docs/DONATIONS.md)). *Always copy the full address and double-check the first and last characters; crypto transactions are irreversible, and only ever send a coin to its own network.*
-
-**Can't or would rather not?** Also genuinely valued: **⭐ star this repo**, file a good bug report, share a strap log, test on hardware you own, or just tell another WHOOP user. That moves NOOP forward too. **Want to help directly? → [Roadmap & help wanted](https://github.com/NoopApp/noop/issues/132)** lists exactly what we need — some of NOOP's biggest blockers are data only your strap can provide (a single raw frame capture can unlock a feature for everyone on that firmware).
-
----
-
 ## Download
 
 Pre-built apps you can run right now:
 
 <p>
-  <a href="https://github.com/NoopApp/noop/releases/latest"><img alt="Version" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FNoopApp%2Fnoop%2Fmain%2Fdocs%2Fstats%2Frelease.json&style=flat-square"></a>
+  <a href="https://github.com/ryanbr/noop/releases/latest"><img alt="Version" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FNoopApp%2Fnoop%2Fmain%2Fdocs%2Fstats%2Frelease.json&style=flat-square"></a>
   <img alt="Released" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FNoopApp%2Fnoop%2Fmain%2Fdocs%2Fstats%2Freleased.json&style=flat-square">
 </p>
 
 | Platform | Build | Notes |
 |---|---|---|
-| **macOS** | `NOOP.app` (see [Releases](https://github.com/NoopApp/noop/releases)) or Homebrew: `brew tap noopapp/noop && brew trust noopapp/noop && brew install --cask noop` | Apple Silicon + Intel. Drag to Applications. Not notarized — see **First launch on macOS** below. The one-time `brew trust noopapp/noop` is needed on Homebrew 6.0+ (harmless on older versions) — see [Homebrew docs](docs/HOMEBREW.md). |
-| **Android** | `NOOP-full.apk` (see [Releases](https://github.com/NoopApp/noop/releases)) | The full app. `minSdk 26` (Android 8+). Sideload — enable "install unknown apps". Blocked by Play Protect? See **Installing on Android** below. |
-| **iOS** | `NOOP-vX-ios.ipa` (see [Releases](https://github.com/NoopApp/noop/releases)) — sideload with AltStore/SideStore | Now a **direct download**. The `.ipa` is unsigned; **you** sign it on your iPhone with your own free Apple ID (no App Store, no developer account — NOOP stays anonymous). Re-signs every 7 days (AltStore automates it); Apple Health + Live Activity widgets may be limited under a free signing identity. See [docs/IOS.md](docs/IOS.md). Or build from source in Xcode. |
+| **macOS** | `NOOP.app` (see [Releases](https://github.com/ryanbr/noop/releases)) or Homebrew: `brew tap noopapp/noop && brew trust noopapp/noop && brew install --cask noop` | Apple Silicon + Intel. Drag to Applications. Not notarized — see **First launch on macOS** below. The one-time `brew trust noopapp/noop` is needed on Homebrew 6.0+ (harmless on older versions) — see [Homebrew docs](docs/HOMEBREW.md). |
+| **Android** | `NOOP-full.apk` (see [Releases](https://github.com/ryanbr/noop/releases)) | The full app. `minSdk 26` (Android 8+). Sideload — enable "install unknown apps". Blocked by Play Protect? See **Installing on Android** below. |
+| **iOS** | `NOOP-vX-ios.ipa` (see [Releases](https://github.com/ryanbr/noop/releases)) — sideload with AltStore/SideStore | Now a **direct download**. The `.ipa` is unsigned; **you** sign it on your iPhone with your own free Apple ID (no App Store, no developer account — NOOP stays anonymous). Re-signs every 7 days (AltStore automates it); Apple Health + Live Activity widgets may be limited under a free signing identity. See [docs/IOS.md](docs/IOS.md). Or build from source in Xcode. |
 
 > **First launch on macOS.** NOOP is **not notarized** by Apple — notarization needs a paid Apple
 > Developer ID tied to a real identity, which doesn't fit an anonymous, free project. The app *is*
@@ -168,7 +129,6 @@ from **their own device**, on a machine **they** control.
 - [How your data flows](#how-your-data-flows)
 - [Privacy](#privacy)
 - [Attribution](#attribution)
-- [Support (optional)](#support-optional)
 - [Disclaimer](#disclaimer)
 - [License](#license)
 - [Docs](#docs)
@@ -227,7 +187,6 @@ shared cross-platform code.
 | **Automations** | Turn the strap's physical inputs and live biometrics into Mac actions — all on-device (see below). |
 | **Coach** | An optional **AI Coach** you can ask about your data in plain language. It's the one feature that can ever use the network: off until you add your own key — Anthropic, OpenAI, or any OpenAI-compatible endpoint including a local/self-hosted model (Ollama, LM Studio) — and it sends only a short text summary of recent metrics plus your question, never raw streams or identifiers. With a local model the conversation never leaves your machine. Available on macOS, Android, and iOS. See [`docs/PRIVACY_SECURITY.md`](docs/PRIVACY_SECURITY.md). |
 | **Settings** | Profile, preferences, **step calibration** (tune the stride/step estimate to your own walking), unit choices, the in-app **What's new** changelog, and an opt-in **Experimental** section (WHOOP 5/MG protocol probes). On **iOS**, also **Export for Shortcuts** — a HealthKit-free path that hands your metrics to Apple Health via the Shortcuts app. |
-| **Support** | Attribution + **optional** crypto donations. The whole app works without them. |
 
 There is also a **menu-bar extra** (`Strand/MenuBar/MenuBarContent.swift`) with a
 glanceable live HR readout and a compact popover, a first-run **onboarding wizard**
@@ -263,7 +222,7 @@ with the strap and **score recovery, strain and sleep on your own device** — n
 import required.
 
 <p>
-  <a href="https://github.com/NoopApp/noop/releases/latest"><img alt="Latest across all platforms" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FNoopApp%2Fnoop%2Fmain%2Fdocs%2Fstats%2Frelease.json&style=flat-square"></a>
+  <a href="https://github.com/ryanbr/noop/releases/latest"><img alt="Latest across all platforms" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FNoopApp%2Fnoop%2Fmain%2Fdocs%2Fstats%2Frelease.json&style=flat-square"></a>
   <img alt="Commits per month" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FNoopApp%2Fnoop%2Fmain%2Fdocs%2Fstats%2Flastcommit.json&style=flat-square">
   <img alt="Top language" src="https://img.shields.io/badge/languages-Swift%20%C2%B7%20Kotlin-E8B84B?style=flat-square">
   <img alt="Code size" src="https://img.shields.io/badge/build-from%20source-6B737B?style=flat-square">
@@ -272,7 +231,7 @@ import required.
 | Platform | Status |
 |---|---|
 | **macOS** | ✅ Full app (`Strand/`, SwiftUI, macOS 13+). Pairs over BLE, offloads the strap's history, and scores recovery / strain / sleep on-device. The complete feature set above runs here. |
-| **Android** | ✅ Full app (`android/`, Jetpack Compose, Android 8+). Pairs over BLE, persists and scores on-device, and imports WHOOP / Apple Health / Health Connect. Grab the APK from [Releases](https://github.com/NoopApp/noop/releases). |
+| **Android** | ✅ Full app (`android/`, Jetpack Compose, Android 8+). Pairs over BLE, persists and scores on-device, and imports WHOOP / Apple Health / Health Connect. Grab the APK from [Releases](https://github.com/ryanbr/noop/releases). |
 | **iOS** | 📲 **Direct download**: an unsigned `.ipa` you sideload with AltStore/SideStore — it signs on your iPhone with your *own* free Apple ID, so there's an anonymous install path with no App Store / developer account (see [docs/IOS.md](docs/IOS.md)). Also still builds from source in Xcode. Shares the cross-platform Swift packages, so scoring matches macOS. Newer and less battle-tested than macOS/Android — live BLE on a real iPhone is still being validated; Apple Health + Live Activity widgets can be limited under a free signing identity. |
 
 ### Strap support
@@ -524,20 +483,6 @@ no DRM circumvention. Full detail in [`ATTRIBUTION.md`](ATTRIBUTION.md).
 
 ---
 
-## Support (optional)
-
-NOOP is free and always will be, and never gates a feature behind payment. If it's
-useful to you and you want to help with the development and testing costs, optional
-crypto donation addresses are shown on the in-app **Support** screen and listed in
-[`docs/DONATIONS.md`](docs/DONATIONS.md). Donations are 100% optional and the app
-never asks twice.
-
-**Community:** questions, setup help, tips, and release news → **[r/NOOPApp](https://www.reddit.com/r/NOOPApp/)**.
-**Bug reports:** please use **[GitHub Issues](https://github.com/NoopApp/noop/issues)** — there's a template, and they're tracked, deduped and linked to fixes (include a strap log).
-**Contact:** [thenoopapp@gmail.com](mailto:thenoopapp@gmail.com)
-
----
-
 ## Disclaimer
 
 NOOP is an independent, unofficial, non-commercial interoperability project. It is
@@ -573,12 +518,12 @@ under the same terms — see [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md).
 
 ### Mirroring & forking
 
-NOOP is public and built to be hard to erase. **Clone it freely** — `git clone https://github.com/NoopApp/noop.git` — and you're welcome to **mirror or fork it** to Codeberg, GitLab or your own server. More copies make the project more resilient, which is the whole point after being deplatformed.
+NOOP is public and built to be hard to erase. **Clone it freely** — `git clone https://github.com/ryanbr/noop.git` — and you're welcome to **mirror or fork it** to Codeberg, GitLab or your own server. More copies make the project more resilient, which is the whole point after being deplatformed.
 
 Two simple asks:
 
 - **Keep it non-commercial** and keep the [`LICENSE`](LICENSE) + `Copyright 2026 NoopApp` notice intact (PolyForm Noncommercial — mirror and use freely, just don't sell it or ship it in a paid product).
-- **Point people back to the canonical home, [github.com/NoopApp/noop](https://github.com/NoopApp/noop)**, so everyone lands on the current code and releases rather than a stale fork.
+- **Point people back to the canonical home, [github.com/ryanbr/noop](https://github.com/ryanbr/noop)**, so everyone lands on the current code and releases rather than a stale fork.
 
 That's it — copy away.
 
@@ -589,7 +534,6 @@ That's it — copy away.
 - [`CHANGELOG.md`](CHANGELOG.md) — release history and what to expect (also shown in-app under **What's new**).
 - [`DISCLAIMER.md`](DISCLAIMER.md) — trademark, interoperability, and medical/legal notice.
 - [`ATTRIBUTION.md`](ATTRIBUTION.md) — full credits and licensing notes.
-- [`docs/DONATIONS.md`](docs/DONATIONS.md) — optional donation addresses (also in-app under **Support**).
 - [`project.yml`](project.yml) — XcodeGen project definition (source of `Strand.xcodeproj`).
 
 ---
@@ -603,7 +547,7 @@ protocol alongside us — this project is built on it.
 <p>
   <img alt="Open issues" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FNoopApp%2Fnoop%2Fmain%2Fdocs%2Fstats%2Fopen.json&style=flat-square">
   <img alt="Issues resolved" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FNoopApp%2Fnoop%2Fmain%2Fdocs%2Fstats%2Fresolved.json&style=flat-square">
-  <a href="https://github.com/NoopApp/noop/stargazers"><img alt="Stars" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FNoopApp%2Fnoop%2Fmain%2Fdocs%2Fstats%2Fstars.json&style=flat-square"></a>
+  <a href="https://github.com/ryanbr/noop/stargazers"><img alt="Stars" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FNoopApp%2Fnoop%2Fmain%2Fdocs%2Fstats%2Fstars.json&style=flat-square"></a>
   <img alt="Forks" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FNoopApp%2Fnoop%2Fmain%2Fdocs%2Fstats%2Fforks.json&style=flat-square">
   <img alt="Commits per month" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FNoopApp%2Fnoop%2Fmain%2Fdocs%2Fstats%2Flastcommit.json&style=flat-square">
   <img alt="Last commit" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FNoopApp%2Fnoop%2Fmain%2Fdocs%2Fstats%2Flastcommit.json&style=flat-square">
@@ -615,4 +559,4 @@ protocol alongside us — this project is built on it.
 
 If NOOP's useful to you, a ⭐ genuinely helps it reach more WHOOP users — and it's the single best free way to support the project.
 
-[![Star History Chart](https://api.star-history.com/svg?repos=NoopApp/noop&type=Date)](https://star-history.com/#NoopApp/noop&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=ryanbr/noop&type=Date)](https://star-history.com/#ryanbr/noop&Date)

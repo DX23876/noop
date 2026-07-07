@@ -2018,11 +2018,11 @@ fun SettingsScreen(
                             interactionSource = projectHomeInteraction,
                             indication = null,
                         ) {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/NoopApp/noop"))
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/ryanbr/noop"))
                             try {
                                 context.startActivity(intent)
                             } catch (_: ActivityNotFoundException) {
-                                Toast.makeText(context, "github.com/NoopApp/noop", Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, "github.com/ryanbr/noop", Toast.LENGTH_LONG).show()
                             }
                         }
                         .padding(horizontal = 14.dp, vertical = 12.dp)
