@@ -87,6 +87,11 @@ final class Backfiller {
     /// tell a banking strap from a broken one. Reset at begin(); read by BLEManager at session end to emit
     /// "persisted N rows (M with motion) across K night(s)". Nights are day-keys (ts / 86400).
     private(set) var sessionRowsPersisted = 0
+    /// #42: set by `begin` when this session continues an auto-continue burst (#364) that already banked
+    /// rows in an earlier session, so a trim=0xFFFFFFFF END here reads as "caught up", not "no history".
+    /// Without it the fresh session's `sessionRowsPersisted` is 0 and the scary "charge to 100%" line
+    /// false-fires on the empty tail of a sync that just offloaded real records.
+    private(set) var continuedAfterRows = false
     private(set) var sessionMotionRows = 0
     /// #727: skin-temp samples banked this session. WHOOP 4.0 carries skin temp (and the raw SpO2 channel)
     /// ONLY in its full DSP sleep records; a strap banking HR/RR-only records reports 0 here even on a
@@ -184,8 +189,9 @@ final class Backfiller {
     /// Called by BLEManager when the strap signals a historical offload is beginning.
     /// chunkOpen starts TRUE: the high-freq-sync biometric replay streams records immediately and
     /// sends one HISTORY_START then repeated HISTORY_ENDs, so we must accumulate from the outset.
-    func begin(family: DeviceFamily) {
+    func begin(family: DeviceFamily, continuedAfterRows: Bool = false) {
         self.family = family
+        self.continuedAfterRows = continuedAfterRows
         isBackfilling = true
         chunk.removeAll(keepingCapacity: true)
         chunkOpen = true
@@ -264,9 +270,15 @@ final class Backfiller {
     /// "caught up, nothing left past the last trim", NOT "no history". Emitting the alarming "fully charge
     /// it" line there falsely scared users whose strap had just synced fine. So pick by `rowsPersisted`:
     /// > 0 gives a neutral caught-up line; 0 gives the genuine no-history guidance. Pure so a fixture pins both.
-    nonisolated static func noCursorLine(rowsPersisted: Int) -> String {
+    nonisolated static func noCursorLine(rowsPersisted: Int, continuedAfterRows: Bool = false) -> String {
         if rowsPersisted > 0 {
             return "Backfill: reached the end of available history (trim=0xFFFFFFFF) - caught up after persisting \(rowsPersisted) row(s) this run. Nothing more to offload."
+        }
+        // #42: the empty tail of an auto-continue burst (#364) that banked rows in an EARLIER session. The
+        // strap synced fine — this pass just confirms we're caught up — so DON'T false-alarm "no banked
+        // history / charge to 100%".
+        if continuedAfterRows {
+            return "Backfill: reached the end of available history (trim=0xFFFFFFFF) - caught up; the strap handed over its banked history earlier this sync. Nothing more to offload."
         }
         return "Backfill: strap reported no flash cursor (trim=0xFFFFFFFF) - it has no banked history to offload. This is a clock/charge state on the strap, not a decode problem; fully charge it and reconnect so it starts banking."
     }
@@ -527,7 +539,7 @@ final class Backfiller {
         // session (loggedNoCursor) and the ack still proceeds below.
         if trim == 0xFFFFFFFF, !loggedNoCursor {
             loggedNoCursor = true
-            log?(Backfiller.noCursorLine(rowsPersisted: sessionRowsPersisted))
+            log?(Backfiller.noCursorLine(rowsPersisted: sessionRowsPersisted, continuedAfterRows: continuedAfterRows))
             // Connection test mode: the no-cursor sentinel as a compact tagged line (gated zero-cost).
             emitConnection(ConnectionTrace.noCursorLine())
         }
