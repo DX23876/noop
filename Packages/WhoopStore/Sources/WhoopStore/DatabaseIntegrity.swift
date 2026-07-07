@@ -32,18 +32,22 @@ public enum DatabaseIntegrity {
         guard FileManager.default.fileExists(atPath: path) else {
             return "no database file at that path"
         }
-        var config = Configuration()
-        config.readonly = true
-        do {
+        func quickCheckRows(readonly: Bool) throws -> [String] {
+            var config = Configuration()
+            config.readonly = readonly
             let dbQueue = try DatabaseQueue(path: path, configuration: config)
-            let rows = try dbQueue.read { db in
-                try String.fetchAll(db, sql: "PRAGMA quick_check(1)")
-            }
-            return verdict(fromRows: rows)
+            return try dbQueue.read { db in try String.fetchAll(db, sql: "PRAGMA quick_check(1)") }
+        }
+        do {
+            // Read-only first — never mutates the probed file, and sits safely beside the app's open pool.
+            return verdict(fromRows: try quickCheckRows(readonly: true))
         } catch {
-            // Open or query failed outright (SQLITE_NOTADB on a garbage file, malformed header, …).
-            // That IS the verdict: the file is not a usable database.
-            return error.localizedDescription
+            // A checkpointed WAL backup keeps journal_mode=WAL in its header but ships WITHOUT its -wal/-shm
+            // siblings, so a read-only open can't build the -shm and fails SQLITE_CANTOPEN (#18). Retry
+            // read-write, which builds the -shm and reads it — the probed file is always ours (a staged temp
+            // copy or the just-swapped file). Mirrors the Android probe's read-write fallback.
+            do { return verdict(fromRows: try quickCheckRows(readonly: false)) }
+            catch { return error.localizedDescription }
         }
     }
 
