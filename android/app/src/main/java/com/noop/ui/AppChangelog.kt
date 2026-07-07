@@ -25,7 +25,7 @@ object AppChangelog {
      * Bump this when you add a release below. The "What's New" sheet shows automatically when the
      * stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
      */
-    const val CURRENT_VERSION = "8.3.2"
+    const val CURRENT_VERSION = "8.3.3"
 
     data class Release(
         val version: String,
@@ -36,6 +36,16 @@ object AppChangelog {
 
     /** Newest first. */
     val releases: List<Release> = listOf(
+        Release(
+            version = "8.3.3",
+            title = "Your macOS data is back — and full French",
+            date = "July 2026",
+            items = listOf(
+                "**macOS: your history is back.** Upgrading the Mac app could open an empty database — your data was never lost, just looked for in the wrong place. It now finds your existing store and imports it on first launch (the original is left untouched).",
+                "**Full French.** The app is now completely translated into French, alongside German and Spanish.",
+                "**Sleep stages read right.** On nights with fine-grained staging the stage graphic no longer collapses into a single row of dots — it draws as a continuous timeline again.",
+            ),
+        ),
         Release(
             version = "8.3.2",
             title = "Workout display fixes",
