@@ -49,8 +49,8 @@ object WatchRecovery {
     ): Result {
         // Build both baselines through the production model (Winsorized EWMA + cold-start gating), exactly
         // as the strap path does. HRV feeds the HRV config; resting HR feeds the RHR config.
-        val hrvBase = Baselines.foldHistory(hrvHistory.map { it as Double? }, Baselines.hrvCfg)
-        val rhrBase = Baselines.foldHistory(rhrHistory.map { it as Double? }, Baselines.restingHRCfg)
+        val hrvBase = Baselines.foldHistory(hrvHistory, Baselines.hrvCfg)
+        val rhrBase = Baselines.foldHistory(rhrHistory, Baselines.restingHRCfg)
 
         // Confidence is the SAME helper the strap Charge uses, so the calibrating -> building -> solid arc
         // matches. It reads CALIBRATING whenever recovery would be null (no usable HRV baseline).
