@@ -26,12 +26,12 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.MergeType
+import androidx.compose.material.icons.automirrored.filled.MergeType
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.DirectionsBike
-import androidx.compose.material.icons.filled.DirectionsRun
-import androidx.compose.material.icons.filled.DirectionsWalk
+import androidx.compose.material.icons.automirrored.filled.DirectionsBike
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
+import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pool
@@ -46,7 +46,7 @@ import androidx.compose.material.icons.filled.SportsGymnastics
 import androidx.compose.material.icons.filled.SportsMartialArts
 import androidx.compose.material.icons.filled.SportsVolleyball
 import androidx.compose.material.icons.filled.Terrain
-import androidx.compose.material.icons.filled.ShowChart
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.SportsSoccer
 import androidx.compose.material.icons.filled.SportsTennis
 import androidx.compose.foundation.text.KeyboardOptions
@@ -349,7 +349,7 @@ private fun PostLogNoteBanner(text: String) {
         verticalAlignment = Alignment.Top,
     ) {
         Icon(
-            Icons.Filled.ShowChart,
+            Icons.AutoMirrored.Filled.ShowChart,
             contentDescription = null,
             tint = Palette.effortColor,
             modifier = Modifier.size(16.dp),
@@ -1042,7 +1042,7 @@ private fun SelectionToolbar(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         ToolbarAction(
-            "Merge (${chosen.size})", Icons.Filled.MergeType,
+            "Merge (${chosen.size})", Icons.AutoMirrored.Filled.MergeType,
             tint = if (canMerge) Palette.effortColor else Palette.textTertiary,
             enabled = canMerge, onClick = { onMerge(chosen) },
         )
@@ -1588,7 +1588,7 @@ private fun ManualWorkoutDialog(
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        Icons.Filled.DirectionsRun,
+                        Icons.AutoMirrored.Filled.DirectionsRun,
                         contentDescription = null,
                         tint = Palette.effortColor,
                         modifier = Modifier.size(18.dp),
@@ -1978,9 +1978,9 @@ private fun grouped(v: Double): String = String.format(Locale.US, "%,d", v.round
 internal fun sportIcon(sport: String): ImageVector {
     val s = sport.lowercase()
     return when {
-        s.contains("run") -> Icons.Filled.DirectionsRun
-        s.contains("walk") || s.contains("hike") -> Icons.Filled.DirectionsWalk
-        s.contains("cycl") || s.contains("bike") || s.contains("ride") -> Icons.Filled.DirectionsBike
+        s.contains("run") -> Icons.AutoMirrored.Filled.DirectionsRun
+        s.contains("walk") || s.contains("hike") -> Icons.AutoMirrored.Filled.DirectionsWalk
+        s.contains("cycl") || s.contains("bike") || s.contains("ride") -> Icons.AutoMirrored.Filled.DirectionsBike
         s.contains("swim") -> Icons.Filled.Pool
         s.contains("row") -> Icons.Filled.Rowing
         s.contains("yoga") || s.contains("pilates") || s.contains("meditat") || s.contains("stretch") -> Icons.Filled.SelfImprovement

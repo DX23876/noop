@@ -72,13 +72,13 @@ data class UpdateItem(
     companion object {
         fun fromJson(o: JSONObject): UpdateItem = UpdateItem(
             id = o.optString("id", UUID.randomUUID().toString()),
-            kind = UpdateKind.fromStorage(o.optString("kind", null)),
+            kind = UpdateKind.fromStorage(if (o.has("kind")) o.optString("kind") else null),
             title = o.optString("title", ""),
             message = o.optString("message", ""),
             date = o.optLong("date", System.currentTimeMillis()),
             read = o.optBoolean("read", false),
-            deepLink = if (o.has("deepLink")) o.optString("deepLink", null) else null,
-            restorePayload = if (o.has("restorePayload")) o.optString("restorePayload", null) else null,
+            deepLink = if (o.has("deepLink")) o.optString("deepLink") else null,
+            restorePayload = if (o.has("restorePayload")) o.optString("restorePayload") else null,
         )
     }
 }
