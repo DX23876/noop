@@ -34,7 +34,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Accessibility
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Air
-import androidx.compose.material.icons.filled.BatteryUnknown
+import androidx.compose.material.icons.automirrored.filled.BatteryUnknown
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
@@ -537,10 +537,6 @@ fun TodayScreen(
     var metricsExpanded by remember { mutableStateOf(false) }
     var sourcesExpanded by remember { mutableStateOf(false) }
     var scoringCardSeen by remember { mutableStateOf(ScoringGuidePrefs.cardSeen(context)) }
-    val dismissScoringCard: () -> Unit = {
-        ScoringGuidePrefs.setCardSeen(context)
-        scoringCardSeen = true
-    }
 
     // Per-card "dismissed into the inbox" flags for the two Today info-cards. A small × on each card
     // sets these (and posts a `.dismissedCard` update); "Restore to Today" in the inbox flips them back
@@ -1266,8 +1262,8 @@ fun TodayScreen(
         // day, so this can't resurrect a stale day, it only stops the gauge dropping below what's earned.
         item {
         val todayEffort = if (selectedDayOffset == 0) {
-            val live = liveTodayStrain; val stored = displayMetric?.strain
-            if (live != null && stored != null) maxOf(live, stored) else (live ?: stored)
+            val liveStrain = liveTodayStrain; val stored = displayMetric?.strain
+            if (liveStrain != null && stored != null) maxOf(liveStrain, stored) else (liveStrain ?: stored)
         } else null
         if (todayEffort != null && todayEffort < 1.0) {
             Row(
@@ -2058,7 +2054,7 @@ private fun LiquidBatteryRing(batteryPct: Double?, onClick: () -> Unit) {
             )
         } else {
             Icon(
-                Icons.Filled.BatteryUnknown,
+                Icons.AutoMirrored.Filled.BatteryUnknown,
                 contentDescription = null,
                 tint = Color.White.copy(alpha = 0.5f),
                 modifier = Modifier.size(15.dp),
@@ -4959,7 +4955,7 @@ private fun OverviewHRChart(
                     )
                 }
                 // Charge rule at wake.
-                if (chargeX != null && recovery != null) {
+                if (chargeX != null) {
                     drawLine(
                         color = Palette.recoveryColor(recovery).copy(alpha = 0.85f),
                         start = Offset(chargeX.coerceIn(0f, size.width), 0f),
@@ -4970,7 +4966,7 @@ private fun OverviewHRChart(
                     )
                 }
                 // Effort rule at now.
-                if (effortX != null && strain != null) {
+                if (effortX != null) {
                     val x = (size.width - 1f).coerceIn(0f, size.width)
                     drawLine(
                         color = Palette.effortTint(strain / StrainScorer.maxStrain).copy(alpha = 0.85f),
@@ -4997,7 +4993,7 @@ private fun OverviewHRChart(
             // 3) Marker labels + sport glyphs, positioned composables (crisp text/icons vs Canvas).
             val topPadDp = 10.dp
             // Sleep duration pill at the band's leading edge.
-            if (sleepStartX != null && sleep != null && (sleepEndX ?: 0f) > (sleepStartX)) {
+            if (sleepStartX != null && (sleepEndX ?: 0f) > (sleepStartX)) {
                 val durLabel = hrHoursMinutes((sleep.endTs - sleep.effectiveStartTs).toInt())
                 ChartMarkerPill(
                     text = durLabel,
@@ -5006,14 +5002,14 @@ private fun OverviewHRChart(
                     modifier = Modifier.markerOffset(sleepStartX, density, topPadDp),
                 )
             }
-            if (chargeX != null && recovery != null) {
+            if (chargeX != null) {
                 ChartMarkerPill(
                     text = "${recovery.roundToInt()}% Charge",
                     color = Palette.recoveryColor(recovery),
                     modifier = Modifier.markerOffset(chargeX, density, topPadDp),
                 )
             }
-            if (effortX != null && strain != null) {
+            if (effortX != null) {
                 ChartMarkerPill(
                     text = "${UnitFormatter.effortDisplay(strain, effortScale)} Effort",
                     color = Palette.effortTint(strain / StrainScorer.maxStrain),

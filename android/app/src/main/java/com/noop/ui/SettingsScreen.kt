@@ -45,7 +45,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SaveAlt
@@ -2276,7 +2276,7 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         Icon(
-                            Icons.Filled.MenuBook,
+                            Icons.AutoMirrored.Filled.MenuBook,
                             contentDescription = null,
                             tint = Palette.accent,
                             modifier = Modifier.size(18.dp),

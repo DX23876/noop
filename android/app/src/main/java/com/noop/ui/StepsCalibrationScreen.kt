@@ -17,7 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import com.noop.data.WhoopRepository
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DirectionsWalk
+import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.SyncProblem
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -241,7 +241,7 @@ private fun ExplainerCard() {
     NoopCard(padding = 20.dp) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(Icons.Filled.DirectionsWalk, contentDescription = null, tint = Palette.accent, modifier = Modifier.size(20.dp))
+                Icon(Icons.AutoMirrored.Filled.DirectionsWalk, contentDescription = null, tint = Palette.accent, modifier = Modifier.size(20.dp))
                 Text("How this works", style = NoopType.headline, color = Palette.textPrimary)
             }
             Text(
