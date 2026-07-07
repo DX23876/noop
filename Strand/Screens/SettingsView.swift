@@ -701,11 +701,13 @@ struct SettingsView: View {
                 Toggle(isOn: $skyBehindCards) {
                     Text("Sky behind cards")
                         .font(StrandFont.subhead)
-                        .foregroundStyle(StrandPalette.textPrimary)
+                        // Greyed when day-cycle is off — the sky it extends isn't drawn then (Android parity).
+                        .foregroundStyle(showDayCycleBackground ? StrandPalette.textPrimary : StrandPalette.textTertiary)
                 }
                 .toggleStyle(.switch)
                 .tint(StrandPalette.accent)
-                Text("Extends the sky behind the whole Today screen, so lowering Card transparency lets it show through every card.")
+                .disabled(!showDayCycleBackground)
+                Text("Extends the sky behind the whole Today screen, so lowering Card transparency lets it show through every card. Needs the day-cycle background on.")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)

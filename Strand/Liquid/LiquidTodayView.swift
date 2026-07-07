@@ -85,6 +85,10 @@ struct LiquidTodayView: View {
     /// "Sky behind cards" (opt-in, default OFF): extend the day-cycle sky behind the WHOLE scroll so the
     /// Card-transparency slider reveals it under every card. Mirrors Kotlin `NoopPrefs.skyBehindCards`.
     @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = false
+    /// Day-cycle scene backdrop (#698). Default ON. When off, the liquid Today drops the sky for the plain
+    /// dark canvas — parity with Android and the classic TodayView, which already honour this pref. Mirrors
+    /// Kotlin `NoopPrefs.showDayCycleBackground`.
+    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = true
 
     // MARK: - Day navigation (ported from classic Today: swipe + calendar, day-keyed reads)
 
@@ -223,18 +227,22 @@ struct LiquidTodayView: View {
         .background(alignment: .top) {
             ZStack(alignment: .top) {
                 StrandPalette.surfaceBase
-                // Reduce-motion (and low-power) users get the same sky posed still — no twinkle/breath.
-                // Also static until the first data load settles, so launch isn't fighting a live sky too.
-                // "Sky behind cards" (opt-in): fill the whole backdrop with a softer settle so the sky reads
-                // under every card, instead of the default 340 top band that dissolves into the canvas.
-                Group {
-                    if reduceMotion || !dataLoaded { LiquidSkyStatic(hour: liveHour, settleStrength: skyBehindCards ? 0.78 : 1) }
-                    else { LiquidSky(hour: liveHour, settleStrength: skyBehindCards ? 0.78 : 1) }
+                // Day-cycle scene (#698): the sky only paints when the toggle is ON; off = the plain
+                // surfaceBase canvas above (parity with Android + the classic TodayView).
+                if showDayCycleBackground {
+                    // Reduce-motion (and low-power) users get the same sky posed still — no twinkle/breath.
+                    // Also static until the first data load settles, so launch isn't fighting a live sky too.
+                    // "Sky behind cards" (opt-in): fill the whole backdrop with a softer settle so the sky
+                    // reads under every card, instead of the default 340 top band that dissolves to canvas.
+                    Group {
+                        if reduceMotion || !dataLoaded { LiquidSkyStatic(hour: liveHour, settleStrength: skyBehindCards ? 0.78 : 1) }
+                        else { LiquidSky(hour: liveHour, settleStrength: skyBehindCards ? 0.78 : 1) }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: skyBehindCards ? nil : 340, alignment: .top)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
                 }
-                .frame(maxWidth: .infinity)
-                .frame(height: skyBehindCards ? nil : 340, alignment: .top)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
             }
             .ignoresSafeArea()
         }
