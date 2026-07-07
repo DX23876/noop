@@ -77,6 +77,9 @@ struct SettingsView: View {
     // Day-cycle scene backdrop behind Today (#698). Default ON. Off swaps the scene for a plain dark
     // canvas. TodayView reads the same key to gate its SceneScreenBackground.
     @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = true
+    // "Sky behind cards" (opt-in, default OFF): extend the day-cycle sky behind the whole Today scroll so
+    // Card transparency reveals it under every card. Mirrors Kotlin NoopPrefs.skyBehindCards.
+    @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = false
     // Card-surface opacity percent (100 = solid). Reactive — moving the slider live-updates every card.
     @AppStorage(CardAppearancePrefs.opacityKey) private var cardOpacityPercent = CardAppearancePrefs.defaultPercent
     // Hydration tracker (opt-in, MVP). Default OFF — when off the hydration dashboard card + detail are
@@ -687,6 +690,22 @@ struct SettingsView: View {
                 .toggleStyle(.switch)
                 .tint(StrandPalette.accent)
                 Text("Shows a soft sunrise, day, dusk and night scene behind the Today screen. Turn it off for a plain dark canvas. Your cards stay exactly as readable.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                // MARK: Sky behind cards — extend the day-cycle sky behind the WHOLE Today scroll so the
+                // Card-transparency slider reveals it under every card (not just the hero). Opt-in, off by
+                // default; pairs with Card transparency below.
+                Toggle(isOn: $skyBehindCards) {
+                    Text("Sky behind cards")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                }
+                .toggleStyle(.switch)
+                .tint(StrandPalette.accent)
+                Text("Extends the sky behind the whole Today screen, so lowering Card transparency lets it show through every card.")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)

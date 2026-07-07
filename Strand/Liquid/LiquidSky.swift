@@ -61,6 +61,9 @@ private let liquidStars: [LiquidStar] = (0..<70).map { _ in
 struct LiquidSky: View {
     /// Hour of day 0...24. Defaults to live time when nil.
     var hour: Double?
+    /// How fully the sky dissolves into the canvas at the bottom (1 = the default seamless fade; <1 holds
+    /// the atmosphere so the sky still reads under a full-height "sky behind cards" backdrop).
+    var settleStrength: Double = 1
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
@@ -123,7 +126,7 @@ struct LiquidSky: View {
         // Settle into the page: a long fade to the theme's surfaceBase over the lower half so the sky
         // dissolves seamlessly into the body — no hard cut (the light-mode dark→white slam is gone).
         ctx.fill(Path(CGRect(x: 0, y: h * 0.45, width: w, height: h * 0.55)),
-                 with: .linearGradient(Gradient(colors: [settle.opacity(0), settle]),
+                 with: .linearGradient(Gradient(colors: [settle.opacity(0), settle.opacity(settleStrength)]),
                                        startPoint: CGPoint(x: 0, y: h * 0.45), endPoint: CGPoint(x: 0, y: h)))
     }
 }
@@ -148,6 +151,9 @@ func liquidScaffoldSky(height: CGFloat = 240) -> AnyView {
 /// minus the twinkle/breath, matching the classic app's static scene image for scroll perf.
 struct LiquidSkyStatic: View {
     var hour: Double?
+    /// See `LiquidSky.settleStrength` — 1 = default seamless fade; <1 holds the atmosphere for the
+    /// full-height "sky behind cards" backdrop.
+    var settleStrength: Double = 1
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
@@ -177,7 +183,7 @@ struct LiquidSkyStatic: View {
                 }
             }
             ctx.fill(Path(CGRect(x: 0, y: hh * 0.45, width: w, height: hh * 0.55)),
-                     with: .linearGradient(Gradient(colors: [settle.opacity(0), settle]),
+                     with: .linearGradient(Gradient(colors: [settle.opacity(0), settle.opacity(settleStrength)]),
                                            startPoint: CGPoint(x: 0, y: hh * 0.45), endPoint: CGPoint(x: 0, y: hh)))
         }
     }
