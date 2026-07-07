@@ -68,6 +68,16 @@ class BackupSyncTest {
         assertEquals(0, fire.get(java.util.Calendar.MINUTE))
     }
 
+    @Test fun backupDelayHonoursAChosenTime() {
+        // A configured time (06:30 = 390 min) must land the next fire at 06:30, within the next 24h.
+        val now = 1_700_000_000_000L
+        val delay = BackupSync.delayToNextBackupMs(now, minuteOfDay = 6 * 60 + 30)
+        assertTrue(delay in 1..(24L * 60 * 60 * 1000))
+        val fire = java.util.Calendar.getInstance().apply { timeInMillis = now + delay }
+        assertEquals(6, fire.get(java.util.Calendar.HOUR_OF_DAY))
+        assertEquals(30, fire.get(java.util.Calendar.MINUTE))
+    }
+
     @Test fun catchUpDueOnlyAfterADay() {
         val last = 1_782_000_000_000L
         assertFalse(BackupSync.isCatchUpDue(last, last))                       // same instant

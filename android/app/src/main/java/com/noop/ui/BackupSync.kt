@@ -51,17 +51,19 @@ object BackupSync {
     /** A day in ms - the catch-up cadence (mirrors the Apple `dayMs`). */
     private const val DAY_MS = 24L * 60L * 60L * 1000L
 
-    /** Time-of-day the daily snapshot fires: 01:00 (minutes since midnight). A quiet hour; WorkManager
-     *  isn't exact and may slide it into a maintenance window, which is fine for a backup. */
+    /** DEFAULT time-of-day the daily snapshot fires: 01:00 (minutes since midnight). A quiet hour; the
+     *  user can change it (BackupSyncPrefs.backupMinute). WorkManager isn't exact and may slide it into
+     *  a maintenance window, which is fine for a backup. */
     const val BACKUP_MINUTE_OF_DAY = 60
 
-    /** Ms from [nowMs] to the next 01:00 wall-clock (today if still ahead, else tomorrow). Pure +
-     *  injectable so the arithmetic is unit-testable without a real clock. Mirrors DebugExportScheduler. */
-    fun delayToNextBackupMs(nowMs: Long = System.currentTimeMillis()): Long {
+    /** Ms from [nowMs] to the next occurrence of [minuteOfDay] (minutes since midnight) wall-clock —
+     *  today if still ahead, else tomorrow. Pure + injectable so the arithmetic is unit-testable without
+     *  a real clock. Mirrors DebugExportScheduler. */
+    fun delayToNextBackupMs(nowMs: Long = System.currentTimeMillis(), minuteOfDay: Int = BACKUP_MINUTE_OF_DAY): Long {
         val next = Calendar.getInstance().apply {
             timeInMillis = nowMs
-            set(Calendar.HOUR_OF_DAY, BACKUP_MINUTE_OF_DAY / 60)
-            set(Calendar.MINUTE, BACKUP_MINUTE_OF_DAY % 60)
+            set(Calendar.HOUR_OF_DAY, minuteOfDay / 60)
+            set(Calendar.MINUTE, minuteOfDay % 60)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
             if (timeInMillis <= nowMs) add(Calendar.DAY_OF_YEAR, 1)
@@ -266,13 +268,21 @@ object BackupSync {
             wm.cancelUniqueWork(WORK)
             return
         }
-        // Anchor the first run to the next 01:00, then repeat daily. KEEP so an already-scheduled job keeps
-        // its anchor rather than resetting on every app-start (matches DebugExportScheduler); toggling auto
-        // off then on re-anchors. On-launch [catchUpIfDue] still covers any missed day regardless of timing.
+        // Anchor the first run to the next chosen time-of-day, then repeat daily. KEEP so an already-
+        // scheduled job keeps its anchor rather than resetting on every app-start (matches
+        // DebugExportScheduler); toggling auto off/on OR changing the time via [applyTimeChange]
+        // re-anchors. On-launch [catchUpIfDue] still covers any missed day regardless of timing.
         val req = PeriodicWorkRequestBuilder<BackupSyncWorker>(1, TimeUnit.DAYS)
-            .setInitialDelay(delayToNextBackupMs(), TimeUnit.MILLISECONDS)
+            .setInitialDelay(delayToNextBackupMs(minuteOfDay = BackupSyncPrefs.backupMinute(context)), TimeUnit.MILLISECONDS)
             .build()
         wm.enqueueUniquePeriodicWork(WORK, ExistingPeriodicWorkPolicy.KEEP, req)
+    }
+
+    /** Re-anchor the daily backup to the (just-changed) [BackupSyncPrefs.backupMinute] immediately —
+     *  cancel then reschedule, since KEEP would otherwise leave the old time in place. */
+    fun applyTimeChange(context: Context) {
+        WorkManager.getInstance(context.applicationContext).cancelUniqueWork(WORK)
+        reschedule(context)
     }
 
     /**
@@ -320,6 +330,13 @@ object BackupSyncPrefs {
     /** Master enable for the daily auto-backup. Default OFF (every NOOP automation is opt-in). */
     fun autoEnabled(c: Context): Boolean = p(c).getBoolean("auto", false)
     fun setAutoEnabled(c: Context, on: Boolean) = p(c).edit().putBoolean("auto", on).apply()
+
+    /** Time-of-day the daily backup runs, minutes since local midnight. Default [BackupSync.BACKUP_MINUTE_OF_DAY]
+     *  (01:00). Clamped to a valid minute so a corrupt value can't schedule at nonsense o'clock. */
+    fun backupMinute(c: Context): Int =
+        p(c).getInt("backup_minute", BackupSync.BACKUP_MINUTE_OF_DAY).coerceIn(0, 24 * 60 - 1)
+    fun setBackupMinute(c: Context, m: Int) =
+        p(c).edit().putInt("backup_minute", m.coerceIn(0, 24 * 60 - 1)).apply()
 
     fun lastBackupMs(c: Context): Long = p(c).getLong("last_ms", 0L)
     fun setLastBackupMs(c: Context, ms: Long) = p(c).edit().putLong("last_ms", ms).apply()
