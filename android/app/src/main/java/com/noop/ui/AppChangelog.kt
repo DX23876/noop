@@ -25,7 +25,7 @@ object AppChangelog {
      * Bump this when you add a release below. The "What's New" sheet shows automatically when the
      * stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
      */
-    const val CURRENT_VERSION = "8.2.2"
+    const val CURRENT_VERSION = "8.3.0"
 
     data class Release(
         val version: String,
@@ -36,6 +36,17 @@ object AppChangelog {
 
     /** Newest first. */
     val releases: List<Release> = listOf(
+        Release(
+            version = "8.3.0",
+            title = "Backup controls, and a lighter app",
+            date = "July 2026",
+            items = listOf(
+                "**Choose how many backups to keep.** Automatic backups now lets you pick how many daily snapshots to keep (a week by default); older ones are pruned oldest-first.",
+                "**A set backup time.** The daily auto-backup runs around 1 am, so a fresh dated snapshot is waiting overnight without opening the app.",
+                "**Easier to find.** Settings → Backup & restore now links straight to Automatic backups.",
+                "**Lighter.** The donation prompts and the Support screen have been removed.",
+            ),
+        ),
         Release(
             version = "8.2.2",
             title = "Steadier connections, fixes, and a nicer sleep view",
