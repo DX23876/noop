@@ -88,15 +88,25 @@ jobs:
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release $TAG already exists — re-run: platform jobs will refresh its assets."
           else
+            # Release body = the maintained per-version changelog docs/releases/<TAG>.md, plus a
+            # downloads footer. Warn (don't fail) if that file is missing so you notice a forgotten
+            # changelog. (CHANGELOG.md is the stale legacy file; docs/releases/ is the source of truth.)
+            BODY=$(mktemp)
+            NOTES_MD="docs/releases/${TAG}.md"
+            if [ -f "$NOTES_MD" ]; then
+              cat "$NOTES_MD" > "$BODY"
+            else
+              echo "::warning::No ${NOTES_MD} — write the release notes there first. Using a placeholder."
+              printf 'NOOP **%s** — release build.\n' "$NEW" > "$BODY"
+            fi
+            {
+              printf '\n---\n\n**Downloads** — NOOP Staging identity, installs **beside** the official app (separate data):\n'
+              printf -- '- **Android** — `app-full-release-v%s.apk` (`com.noop.whoop.staging`)\n' "$NEW"
+              printf -- '- **macOS** — `NOOP-macos-v%s.zip` (unzip, then right-click → Open)\n' "$NEW"
+              printf -- '- **iOS** — `NOOP-ios-unsigned-v%s.ipa` (AltStore / Sideloadly)\n' "$NEW"
+            } >> "$BODY"
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$(git rev-parse HEAD)" \
-              --title "NOOP ${NEW}" \
-              --notes "NOOP **${NEW}** — release build (NOOP Staging identity; installs **beside** the official app, separate data). This is the version the in-app **Check for updates** compares against. Filenames carry the version (\`v${NEW}\`).
-
-          - **Android** — \`app-full-release-v${NEW}.apk\` — non-debuggable release build. \`com.noop.whoop.staging\`.
-          - **macOS** — \`NOOP-macos-v${NEW}.zip\` — unzip, then **right-click → Open** (unsigned; Gatekeeper warns once).
-          - **iOS** — \`NOOP-ios-unsigned-v${NEW}.ipa\` — sideload via **AltStore / Sideloadly** (re-signs on-device); embedded watch app stripped.
-
-          For the newest in-development build instead, see the rolling \`testing-latest\` prerelease."
+              --title "NOOP ${NEW}" --notes-file "$BODY"
           fi
 
   android:
