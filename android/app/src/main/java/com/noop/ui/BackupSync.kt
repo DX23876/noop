@@ -13,6 +13,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
 /**
@@ -43,11 +44,30 @@ object BackupSync {
     /** Generic binary MIME for the SAF createDocument call (the bytes are a ZIP container). */
     const val MIME = "application/octet-stream"
 
-    /** Default snapshots kept by prune. Identical to the Apple `FolderBackup.keepCount`. */
-    const val DEFAULT_KEEP = 10
+    /** Default snapshots kept by prune: 7, i.e. a week of daily rollback points. (The Apple twin still
+     *  defaults to 10; this fork lowered it — parity dropdown on iOS is a follow-up.) */
+    const val DEFAULT_KEEP = 7
 
     /** A day in ms - the catch-up cadence (mirrors the Apple `dayMs`). */
     private const val DAY_MS = 24L * 60L * 60L * 1000L
+
+    /** Time-of-day the daily snapshot fires: 01:00 (minutes since midnight). A quiet hour; WorkManager
+     *  isn't exact and may slide it into a maintenance window, which is fine for a backup. */
+    const val BACKUP_MINUTE_OF_DAY = 60
+
+    /** Ms from [nowMs] to the next 01:00 wall-clock (today if still ahead, else tomorrow). Pure +
+     *  injectable so the arithmetic is unit-testable without a real clock. Mirrors DebugExportScheduler. */
+    fun delayToNextBackupMs(nowMs: Long = System.currentTimeMillis()): Long {
+        val next = Calendar.getInstance().apply {
+            timeInMillis = nowMs
+            set(Calendar.HOUR_OF_DAY, BACKUP_MINUTE_OF_DAY / 60)
+            set(Calendar.MINUTE, BACKUP_MINUTE_OF_DAY % 60)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+            if (timeInMillis <= nowMs) add(Calendar.DAY_OF_YEAR, 1)
+        }
+        return next.timeInMillis - nowMs
+    }
 
     // ── Pure helpers (unit-tested; mirror the Apple BackupSync) ─────────────────
 
@@ -246,7 +266,12 @@ object BackupSync {
             wm.cancelUniqueWork(WORK)
             return
         }
-        val req = PeriodicWorkRequestBuilder<BackupSyncWorker>(1, TimeUnit.DAYS).build()
+        // Anchor the first run to the next 01:00, then repeat daily. KEEP so an already-scheduled job keeps
+        // its anchor rather than resetting on every app-start (matches DebugExportScheduler); toggling auto
+        // off then on re-anchors. On-launch [catchUpIfDue] still covers any missed day regardless of timing.
+        val req = PeriodicWorkRequestBuilder<BackupSyncWorker>(1, TimeUnit.DAYS)
+            .setInitialDelay(delayToNextBackupMs(), TimeUnit.MILLISECONDS)
+            .build()
         wm.enqueueUniquePeriodicWork(WORK, ExistingPeriodicWorkPolicy.KEEP, req)
     }
 

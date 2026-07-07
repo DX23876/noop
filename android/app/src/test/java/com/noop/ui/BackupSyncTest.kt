@@ -51,9 +51,21 @@ class BackupSyncTest {
         assertTrue(BackupSync.snapshotsToPrune(names, keep = 10).isEmpty())
     }
 
-    @Test fun defaultKeepMatchesApple() {
-        // Must-fix #6: the keep-N default is 10 on both platforms.
-        assertEquals(10, BackupSync.DEFAULT_KEEP)
+    @Test fun defaultKeepIsAWeek() {
+        // Fork choice: a week of daily rollback points. (Apple twin still defaults to 10; the keep-count
+        // is now user-adjustable via the Backup & Sync dropdown regardless.)
+        assertEquals(7, BackupSync.DEFAULT_KEEP)
+    }
+
+    @Test fun backupDelayLandsAtOneAm() {
+        // The daily snapshot is anchored to 01:00 local: from any instant, the delay must put the next
+        // fire at hour 01:00, within the next 24h. TZ-agnostic (checks the resolved wall-clock).
+        val now = 1_700_000_000_000L
+        val delay = BackupSync.delayToNextBackupMs(now)
+        assertTrue(delay in 1..(24L * 60 * 60 * 1000))
+        val fire = java.util.Calendar.getInstance().apply { timeInMillis = now + delay }
+        assertEquals(1, fire.get(java.util.Calendar.HOUR_OF_DAY))
+        assertEquals(0, fire.get(java.util.Calendar.MINUTE))
     }
 
     @Test fun catchUpDueOnlyAfterADay() {

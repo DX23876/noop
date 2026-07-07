@@ -425,7 +425,11 @@ fun AppRoot(viewModel: AppViewModel = viewModel()) {
                 composable(Destination.BackupSync.route) { BackupSyncScreen() }
                 composable(Destination.Notifications.route) { NotificationsSettingsScreen(viewModel) }
                 composable(Destination.Settings.route) {
-                    SettingsScreen(viewModel, onOpenTestCentre = { nav.navigate(Destination.TestCentre.route) })
+                    SettingsScreen(
+                        viewModel,
+                        onOpenTestCentre = { nav.navigate(Destination.TestCentre.route) },
+                        onOpenBackupSync = { nav.navigate(Destination.BackupSync.route) },
+                    )
                 }
                 composable(Destination.TestCentre.route) { TestCentreScreen(viewModel) }
                 // The "More" page — the iOS More tab's twin: a navigated ScreenScaffold page hosting the
