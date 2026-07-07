@@ -1064,6 +1064,8 @@ private struct ActiveWorkoutLive: View {
 /// re-render only this card. Wrapped in the liquid frosted card style.
 private struct LiveLogCard: View {
     @EnvironmentObject private var live: LiveState
+    @AppStorage(CardAppearancePrefs.opacityKey) private var cardOpacityPercent = CardAppearancePrefs.defaultPercent
+    private var cardOpacity: Double { max(0, min(1, Double(cardOpacityPercent) / 100)) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -1156,6 +1158,9 @@ private enum LiveSyncFormat {
 /// and a one-line detail. The whole card is combined into a single accessibility element so VoiceOver
 /// reads "Heart rate: 62 bpm. Streaming now." rather than three disjoint fragments.
 private struct SignalTrustTile: View {
+    @AppStorage(CardAppearancePrefs.opacityKey) private var cardOpacityPercent = CardAppearancePrefs.defaultPercent
+    private var cardOpacity: Double { max(0, min(1, Double(cardOpacityPercent) / 100)) }
+
     struct Model: Identifiable {
         let title: String
         let value: String

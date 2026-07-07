@@ -294,6 +294,8 @@ struct LiveSessionSummarySheet: View {
     let row: LiveSessionRow
     let guardedCount: Int?
     let onDone: () -> Void
+    @AppStorage(CardAppearancePrefs.opacityKey) private var cardOpacityPercent = CardAppearancePrefs.defaultPercent
+    private var cardOpacity: Double { max(0, min(1, Double(cardOpacityPercent) / 100)) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
