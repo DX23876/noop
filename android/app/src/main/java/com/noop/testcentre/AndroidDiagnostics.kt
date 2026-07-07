@@ -92,11 +92,36 @@ object AndroidDiagnostics {
         }.onFailure { add("(funnels unavailable: ${it.message})") }
     }
 
+    /** Workout & imported-activity source breakdown. The "counted but not shown" bug class (#28: strap
+     *  workouts banked under "my-whoop" while the load queried the active strap id; #29: "activity-file"
+     *  imports the load path never read) is invisible in a strap log without this. Surfaces the RESOLVED
+     *  active deviceId + a per-source STORED workout count + the most-recent workout, so a report reveals
+     *  WHERE workouts live vs what the Workouts screen loads. Best-effort. */
+    suspend fun workoutSourceLines(context: Context): List<String> = buildList {
+        add("─".repeat(40))
+        add("Workouts by source")
+        runCatching {
+            val repo = com.noop.data.WhoopRepository.from(context)
+            val now = System.currentTimeMillis() / 1000
+            val active = runCatching {
+                (context.applicationContext as com.noop.NoopApplication).activeDeviceId
+            }.getOrNull() ?: "unknown"
+            add("Active deviceId: $active" + if (active == "my-whoop") "" else "  (imports + spine under my-whoop)")
+            // Per-source STORED counts; ids de-duped so a single-WHOOP install (active == my-whoop) lists once.
+            val ids = listOf(active, "my-whoop", "$active-noop", "my-whoop-noop",
+                "activity-file", "lifting", "apple-health", "health-connect").distinct()
+            val perSource = ids.map { it to repo.workouts(it, 0L, now) }
+            add("Stored: " + perSource.joinToString("  ") { "${it.first}=${it.second.size}" })
+            val latest = perSource.flatMap { it.second }.maxByOrNull { it.startTs }
+            add(if (latest != null) "Latest: ${dayStamp(latest.startTs)} · ${latest.sport} (${latest.source})" else "Latest: none")
+        }.onFailure { add("(workout sources unavailable: ${it.message})") }
+    }
+
     /** The DB/prefs-backed diagnostic lines appended to the export header. Suspends (reads the local store);
      *  guarded per-section so it never throws into the export. */
     suspend fun dynamicLines(context: Context): List<String> =
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-            strapAndDataLines(context) + funnelLines(context)
+            strapAndDataLines(context) + funnelLines(context) + workoutSourceLines(context)
         }
 
     /** "3h 12m ago" style relative stamp for a positive age in ms. */
