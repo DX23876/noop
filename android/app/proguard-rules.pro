@@ -12,6 +12,20 @@
 # future reflective/serialized path can't be broken by minification. They are small.
 -keep class com.noop.protocol.** { *; }
 
+# Keep ALL of NOOP's own code. The app's reflective surface is broader than data/protocol:
+# Compose viewModel() instantiates ViewModels (com.noop.ui.*ViewModel) by reflection, Glance
+# instantiates widget classes, and manifest components are resolved by name. R8 renaming any of
+# these crashes the app the first time real content composes (observed: "Accept & Continue" on the
+# terms gate → exit, because the post-gate content resolves AppViewModel/CoachViewModel reflectively).
+# App code is not the size bulk — the shrink win is in the androidx/Compose/kotlin libraries, which
+# still shrink — so keeping our own classes buys reliability cheaply.
+-keep class com.noop.** { *; }
+
+# Generic safety net for any ViewModel (incl. non-com.noop): keep the constructors reflective
+# instantiation needs.
+-keep class * extends androidx.lifecycle.ViewModel { <init>(...); }
+-keep class * extends androidx.lifecycle.AndroidViewModel { <init>(...); }
+
 # --- Reflective survivors that R8 would otherwise strip/rename ---
 
 # Google Tink (via androidx.security:security-crypto → EncryptedSharedPreferences for the
