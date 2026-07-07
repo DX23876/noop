@@ -1,7 +1,7 @@
 # Fork-only: ONE on-demand testing build that publishes ALL platforms into ONE release.
 #
 # A `meta` job creates a single dated prerelease, then the android / macOS / iOS jobs each attach
-# their artifact to that SAME tag — so every release has app-full-release + app-full-debug (Android)
+# their artifact to that SAME tag — so every release has NOOP-android + NOOP-android-debug (Android)
 # + NOOP-macos.zip + NOOP-ios-unsigned.ipa together, each stamped with the base app version.
 # Replaces the older split fork-testing-apk.yml + fork-testing-apple.yml.
 # Unsigned/debug-keyed, no secrets. Trigger from the Actions tab. (Built from noop-staging via --ref.)
@@ -42,8 +42,8 @@ jobs:
             --title "NOOP Staging — base ${VER} · ${DATE} · ${SHA}" \
             --notes "Rolling **latest** testing build — refreshed in place, so this tag is always the newest. NOOP main + ryanbr's open PRs + vetted community PRs, built with the **NOOP Staging** identity (installs **beside** the official app, separate data). Filenames carry the base app version (\`v${VER}\`).
 
-          - **Android (release)** — \`app-full-release-v${VER}.apk\` — optimized, non-debuggable build; installs beside the official app. \`com.noop.whoop.staging\`.
-          - **Android (debug)** — \`app-full-debug-v${VER}.apk\` — debuggable build. \`com.noop.whoop.debug\`.
+          - **Android (release)** — \`NOOP-android-v${VER}.apk\` — optimized, non-debuggable build; installs beside the official app. \`com.noop.whoop.staging\`.
+          - **Android (debug)** — \`NOOP-android-debug-v${VER}.apk\` — debuggable build. \`com.noop.whoop.debug\`.
           - **macOS** — \`NOOP-macos-v${VER}.zip\` — unzip, then **right-click → Open** (unsigned; Gatekeeper warns once).
           - **iOS** — \`NOOP-ios-unsigned-v${VER}.ipa\` — sideload via **AltStore / Sideloadly** (re-signs on-device); embedded watch app stripped.
 
@@ -76,10 +76,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VER: ${{ needs.meta.outputs.ver }}
         run: |
-          cp app/build/outputs/apk/full/debug/*.apk "app-full-debug-v${VER}.apk"
-          cp app/build/outputs/apk/full/release/*.apk "app-full-release-v${VER}.apk"
+          cp app/build/outputs/apk/full/debug/*.apk "NOOP-android-debug-v${VER}.apk"
+          cp app/build/outputs/apk/full/release/*.apk "NOOP-android-v${VER}.apk"
           gh release upload "${{ needs.meta.outputs.tag }}" \
-            "app-full-release-v${VER}.apk" "app-full-debug-v${VER}.apk" \
+            "NOOP-android-v${VER}.apk" "NOOP-android-debug-v${VER}.apk" \
             --repo "$GITHUB_REPOSITORY" --clobber
 
   macos:

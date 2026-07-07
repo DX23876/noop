@@ -128,7 +128,7 @@ jobs:
             fi
             {
               printf '\n---\n\n**Downloads** — NOOP Staging identity, installs **beside** the official app (separate data):\n'
-              printf -- '- **Android** — `app-full-release-v%s.apk` (`com.noop.whoop.staging`)\n' "$NEW"
+              printf -- '- **Android** — `NOOP-android-v%s.apk` (`com.noop.whoop.staging`)\n' "$NEW"
               printf -- '- **macOS** — `NOOP-macos-v%s.zip` (unzip, then right-click → Open)\n' "$NEW"
               printf -- '- **iOS** — `NOOP-ios-unsigned-v%s.ipa` (AltStore / Sideloadly)\n' "$NEW"
             } >> "$BODY"
@@ -162,8 +162,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VER: ${{ needs.bump.outputs.ver }}
         run: |
-          cp app/build/outputs/apk/full/release/*.apk "app-full-release-v${VER}.apk"
-          gh release upload "${{ needs.bump.outputs.tag }}" "app-full-release-v${VER}.apk" \
+          cp app/build/outputs/apk/full/release/*.apk "NOOP-android-v${VER}.apk"
+          gh release upload "${{ needs.bump.outputs.tag }}" "NOOP-android-v${VER}.apk" \
             --repo "$GITHUB_REPOSITORY" --clobber
 
   macos:
