@@ -148,11 +148,44 @@ object AndroidDiagnostics {
         }.onFailure { add("(daily data unavailable: ${it.message})") }
     }
 
+    /** Alarm state for the debug export: the configured wake + the last arm's sent-vs-strap-reports (#34), so
+     *  a "didn't buzz" report shows whether the strap accepted the time. Reads persisted prefs (written by
+     *  WhoopBleClient.armStrapAlarm + the GET_ALARM_TIME readback). Best-effort. */
+    fun alarmLines(context: Context): List<String> = buildList {
+        add("─".repeat(40))
+        add("Alarm")
+        runCatching {
+            val p = com.noop.ui.NoopPrefs.of(context)
+            val on = com.noop.ui.NoopPrefs.smartAlarmEnabled(context)
+            val mins = com.noop.ui.NoopPrefs.smartAlarmMinutes(context)
+            add("Enabled: ${if (on) "yes" else "no"} · set ${"%02d:%02d".format(mins / 60, mins % 60)}")
+            val sent = p.getLong("alarm.lastArmSentEpoch", 0L)
+            if (sent > 0L) {
+                val at = p.getLong("alarm.lastArmAt", 0L)
+                var line = "Last arm: sent ${alarmStamp(sent)}"
+                if (at > 0L) line += " · ${relTime(System.currentTimeMillis() - at)}"
+                if (!p.getBoolean("alarm.lastArmConnected", false)) line += " · strap NOT connected (queued)"
+                add(line)
+                val reported = p.getLong("alarm.lastReportedEpoch", 0L)
+                if (reported > 0L) {
+                    val mismatch = kotlin.math.abs(reported - sent) > 120
+                    add("Strap reports: ${alarmStamp(reported)}" +
+                        if (mismatch) "  ⚠️ MISMATCH — strap didn't accept the time" else "  ✓ matches")
+                } else add("Strap reports: (no readback)")
+            } else add("Last arm: never")
+        }.onFailure { add("(alarm state unavailable: ${it.message})") }
+    }
+
+    private fun alarmStamp(epochSec: Long): String = runCatching {
+        java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.US).format(epochSec * 1000L)
+    }.getOrDefault("?")
+
     /** The DB/prefs-backed diagnostic lines appended to the export header. Suspends (reads the local store);
      *  guarded per-section so it never throws into the export. */
     suspend fun dynamicLines(context: Context): List<String> =
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-            strapAndDataLines(context) + funnelLines(context) + workoutSourceLines(context) + dailyDataLines(context)
+            strapAndDataLines(context) + funnelLines(context) + workoutSourceLines(context) +
+                dailyDataLines(context) + alarmLines(context)
         }
 
     /** "3h 12m ago" style relative stamp for a positive age in ms. */

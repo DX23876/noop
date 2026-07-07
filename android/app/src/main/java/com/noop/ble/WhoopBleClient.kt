@@ -2360,12 +2360,18 @@ class WhoopBleClient(
                 return
             }
             send(CommandNumber.SET_ALARM_TIME, AlarmPayload.build(epochSec * 1000L))
-            log("Alarm: armed 5/MG rev4 EXPERIMENTAL (epoch $epochSec)")
+            recordAlarmArm(epochSec)
+            log(if (_state.value.connected) "Alarm: armed 5/MG rev4 EXPERIMENTAL (epoch $epochSec)"
+                else "Alarm: queued 5/MG rev4 EXPERIMENTAL (epoch $epochSec) — strap not connected")
             return
         }
         sendSetClockBothForms()
         send(CommandNumber.SET_ALARM_TIME, whoop4AlarmPayload(epochSec))
-        log("Alarm: armed (epoch $epochSec)")
+        recordAlarmArm(epochSec)
+        // #34: only claim "armed" when the strap is connected (the send actually went out); otherwise it's
+        // queued and re-sent on the next connect.
+        if (_state.value.connected) log("Alarm: armed (epoch $epochSec)")
+        else log("Alarm: queued (epoch $epochSec) — strap not connected; will send on next connect")
         // Arm READBACK (#401 close-out): ask the strap what it now has armed (GET_ALARM_TIME, cmd 67) so
         // the strap log carries armed + strap-reports + fired as one decidable sequence in any future
         // "didn't buzz" report. WHOOP 4.0 ONLY (this branch): the 5/MG puffin readback semantics are
@@ -2373,6 +2379,18 @@ class WhoopBleClient(
         // ([whoop4ArmedAlarmEpoch]) and NEVER gates behaviour on it (the 4.0 response layout is
         // undocumented; unparseable replies log raw hex). Twin of macOS armStrapAlarm.
         send(CommandNumber.GET_ALARM_TIME, byteArrayOf(0x01))
+    }
+
+    /** #34: persist the last alarm arm for the debug export's Alarm block (sent epoch + when + whether the
+     *  strap was connected when we sent it), so a "didn't buzz" report shows sent-vs-strap-reports. */
+    private fun recordAlarmArm(sentEpoch: Long) {
+        runCatching {
+            NoopPrefs.of(context).edit()
+                .putLong("alarm.lastArmSentEpoch", sentEpoch)
+                .putLong("alarm.lastArmAt", System.currentTimeMillis())
+                .putBoolean("alarm.lastArmConnected", _state.value.connected)
+                .apply()
+        }
     }
 
     /** Clear the strap's firmware alarm. Port of macOS `BLEManager.disableStrapAlarm`. */
@@ -3467,6 +3485,13 @@ class WhoopBleClient(
                     val epoch = whoop4ArmedAlarmEpoch(frame)
                     if (epoch != null) {
                         log("Alarm: strap reports armed for ${alarmReadbackLocalTime(epoch)} (epoch $epoch)")
+                        // #34: persist what the strap reports so the debug export can show sent-vs-reported.
+                        runCatching {
+                            NoopPrefs.of(context).edit()
+                                .putLong("alarm.lastReportedEpoch", epoch)
+                                .putLong("alarm.lastReportedAt", System.currentTimeMillis())
+                                .apply()
+                        }
                     } else {
                         val raw = whoop4AlarmReadbackPayloadHex(frame) ?: "empty"
                         log("Alarm: strap answered the alarm readback with an unrecognised payload (raw $raw) - layout undocumented, log-only")

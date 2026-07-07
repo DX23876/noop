@@ -55,6 +55,7 @@ enum DebugDataDiagnostics {
         // the funnels since those can early-return, so this always lands in the export.
         lines += await workoutSourceLines(repo: repo)
         lines += await dailyDataLines(repo: repo)
+        lines += alarmLines()
 
         // Funnels for the latest night — best-effort, self-reporting.
         lines.append(String(repeating: "─", count: 40))
@@ -162,6 +163,44 @@ enum DebugDataDiagnostics {
             lines.append("Volume: rawRows=\(dv.dbRows)  importedDays=\(dv.importedDays)  workouts=\(dv.workouts)")
         }
         return lines
+    }
+
+    /// Alarm state for the debug export: the configured wake + the last arm's sent-vs-strap-reports (#34), so
+    /// a "didn't buzz" report shows at a glance whether the strap accepted the time. Reads persisted defaults
+    /// (written by BLEManager.armStrapAlarm + the FrameRouter readback); sync + guarded.
+    static func alarmLines() -> [String] {
+        var lines: [String] = []
+        lines.append(String(repeating: "─", count: 40))
+        lines.append("Alarm")
+        let d = UserDefaults.standard
+        let on = d.bool(forKey: "behavior.smartAlarmEnabled")
+        let mins = (d.object(forKey: "behavior.smartAlarmMinutes") as? Int) ?? 7 * 60
+        lines.append("Enabled: \(on ? "yes" : "no") · set \(String(format: "%02d:%02d", mins / 60, mins % 60))")
+        if let sent = d.object(forKey: "alarm.lastArmSentEpoch") as? Int {
+            var line = "Last arm: sent \(alarmStamp(sent))"
+            if let at = d.object(forKey: "alarm.lastArmAt") as? Double {
+                line += " · \(relTime(Date().timeIntervalSince1970 - at))"
+            }
+            if !d.bool(forKey: "alarm.lastArmConnected") { line += " · strap NOT connected (queued)" }
+            lines.append(line)
+            if let reported = d.object(forKey: "alarm.lastReportedEpoch") as? Int {
+                let mismatch = abs(reported - sent) > 120
+                lines.append("Strap reports: \(alarmStamp(reported))"
+                    + (mismatch ? "  ⚠️ MISMATCH — strap didn't accept the time" : "  ✓ matches"))
+            } else {
+                lines.append("Strap reports: (no readback)")
+            }
+        } else {
+            lines.append("Last arm: never")
+        }
+        return lines
+    }
+
+    private static func alarmStamp(_ epochSec: Int) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd HH:mm"
+        return f.string(from: Date(timeIntervalSince1970: TimeInterval(epochSec)))
     }
 
     // MARK: - Formatting helpers

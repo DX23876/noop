@@ -108,6 +108,9 @@ public final class FrameRouter {
                     // answer format must never mislead a triage).
                     if let epoch = Self.armedAlarmEpoch(in: frame) {
                         state.append(log: "Alarm: strap reports armed for \(Self.alarmLocalTime(epoch: epoch)) (epoch \(epoch))")
+                        // #34: persist what the strap reports so the debug export can show sent-vs-reported.
+                        UserDefaults.standard.set(Int(epoch), forKey: "alarm.lastReportedEpoch")
+                        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "alarm.lastReportedAt")
                     } else {
                         state.append(log: "Alarm: strap answered the alarm readback with an unrecognised payload (raw \(Self.commandResponsePayloadHex(in: frame) ?? "empty")) - layout undocumented, log-only")
                     }

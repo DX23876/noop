@@ -2402,14 +2402,26 @@ public final class BLEManager: NSObject, ObservableObject {
             // pattern, overallLoop 7, 30 s]. No SET_CLOCK preamble (see doc comment above).
             let wakeMs = Int64((date.timeIntervalSince1970 * 1000).rounded())
             send(.setAlarmTime, payload: AlarmPayload.setAlarmRev4(wakeEpochMs: wakeMs))
-            log("Alarm: armed 5/MG rev4 for \(localFmt.string(from: date)) — your local wake time")
+            recordAlarmArm(sentEpoch: Int(wakeMs / 1000))
+            // #34: don't claim "armed" when the strap isn't connected (the send was dropped) — the arm
+            // re-fires on the next connect.
+            log(connectedPeripheralUUID != nil
+                ? "Alarm: armed 5/MG rev4 for \(localFmt.string(from: date)) — your local wake time"
+                : "Alarm: queued 5/MG rev4 for \(localFmt.string(from: date)) — strap not connected; will send on next connect")
             return
         }
         // Clamp rather than trap: an out-of-range alarm date (pre-1970 / post-2106) must not crash.
         let epochSec = UInt32(clamping: Int64(date.timeIntervalSince1970))
         sendSetClockBothForms()
         send(.setAlarmTime, payload: WhoopCommand.setAlarmPayload(epochSec: epochSec))
-        log("Alarm: armed for \(localFmt.string(from: date)) — your local wake time (sent as UTC epoch \(epochSec))")
+        recordAlarmArm(sentEpoch: Int(epochSec))
+        // #34: only claim "armed" when the strap is connected (the send actually went out); otherwise it's
+        // queued and re-sent on the next connect.
+        if connectedPeripheralUUID != nil {
+            log("Alarm: armed for \(localFmt.string(from: date)) — your local wake time (sent as UTC epoch \(epochSec))")
+        } else {
+            log("Alarm: queued for \(localFmt.string(from: date)) — strap not connected; will send on next connect")
+        }
         // Arm READBACK (#401 close-out): ask the strap what it now has armed (GET_ALARM_TIME, cmd 67) so
         // the strap log carries armed + strap-reports + fired as one decidable sequence in any future
         // "didn't buzz" report. WHOOP 4.0 ONLY: cmd 67 is allowlisted for 5/MG but its puffin readback
@@ -2417,6 +2429,15 @@ public final class BLEManager: NSObject, ObservableObject {
         // Log-only: FrameRouter parses the cmd-67 COMMAND_RESPONSE defensively and NEVER gates behaviour
         // on it (the 4.0 response layout is undocumented; unparseable replies log raw hex).
         send(.getAlarmTime, payload: [0x01])
+    }
+
+    /// #34: persist the last alarm arm for the debug export's Alarm block (sent epoch + when + whether the
+    /// strap was connected when we sent it), so a "didn't buzz" report shows sent-vs-strap-reports at a glance.
+    private func recordAlarmArm(sentEpoch: Int) {
+        let d = UserDefaults.standard
+        d.set(sentEpoch, forKey: "alarm.lastArmSentEpoch")
+        d.set(Date().timeIntervalSince1970, forKey: "alarm.lastArmAt")
+        d.set(connectedPeripheralUUID != nil, forKey: "alarm.lastArmConnected")
     }
 
     /// Disarm the currently-armed firmware alarm.
