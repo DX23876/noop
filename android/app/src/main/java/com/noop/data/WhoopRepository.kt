@@ -1049,6 +1049,19 @@ class WhoopRepository(private val dao: WhoopDao) {
         List<SleepSession> =
         dedupSleepBlocks(computedSourceIds(deviceId).flatMap { dao.sleepSessions(it, from, to, limit) })
 
+    /** Workouts over the read-side UNION of the active strap id AND the canonical "my-whoop" (#814 twin of
+     *  [hrSamplesUnion] / [sleepSessionsUnion]): a re-added / newly-paired strap owns "whoop-<uuid>" while
+     *  imports + prior data live under "my-whoop", so a read pinned to a SINGLE id strands the other's
+     *  workouts — the Workouts screen then reads empty while Data Sources (which queries "my-whoop") shows
+     *  them (#28). Exact-duplicate rows are dropped on the (startTs, sport) natural key, active-strap-first. */
+    suspend fun workoutsUnion(deviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT): List<WorkoutRow> =
+        dedupWorkoutsByKey(importedSourceIds(deviceId).flatMap { dao.workouts(it, from, to, limit) })
+
+    /** The COMPUTED ("-noop") twin of [workoutsUnion] for detected workouts (the engine writes detected
+     *  sessions under "<importedDeviceId>-noop"), across the computed union ids. */
+    suspend fun detectedWorkoutsUnion(deviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT): List<WorkoutRow> =
+        dedupWorkoutsByKey(computedSourceIds(deviceId).flatMap { dao.workouts(it, from, to, limit) })
+
     /** Cached daily metrics for the inclusive day range [from, to] (YYYY-MM-DD), oldest first. */
     suspend fun dailyMetrics(deviceId: String, from: String, to: String): List<DailyMetric> =
         dao.dailyMetricsRange(deviceId, from, to)
@@ -1270,6 +1283,14 @@ class WhoopRepository(private val dao: WhoopDao) {
         internal fun dedupSleepBlocks(sessions: List<SleepSession>): List<SleepSession> {
             val seen = HashSet<Pair<Long, Long>>()
             return sessions.filter { seen.add(it.startTs to it.endTs) }
+        }
+
+        /** Drop exact-duplicate workouts sharing an identical (startTs, sport) natural key — the same
+         *  session read under two #814 union ids — keeping the FIRST seen (callers pass active-strap-first
+         *  lists). Twin of [dedupSleepBlocks]. (#28) */
+        internal fun dedupWorkoutsByKey(rows: List<WorkoutRow>): List<WorkoutRow> {
+            val seen = HashSet<Pair<Long, String>>()
+            return rows.filter { seen.add(it.startTs to it.sport) }
         }
 
         /** Build a repository backed by the process-wide singleton database. */
