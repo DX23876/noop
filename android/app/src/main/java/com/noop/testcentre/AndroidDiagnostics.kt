@@ -166,12 +166,16 @@ object AndroidDiagnostics {
             } else {
                 add("Model: WHOOP 4.0")
             }
-            // #4: strap clock health — a reset/stale clock (the #34 cause) breaks the alarm even when armed.
+            // #4: strap clock health — a reset/stale OR future-dated clock (the #34 / #928 causes) breaks
+            // the alarm even when armed.
             val newest = p.getLong("strap.newestRecordTs", 0L)
             if (newest > 0L) {
                 val behind = System.currentTimeMillis() / 1000L - newest
-                add(if (behind > 3 * 86400L) "Strap clock: ${behind / 86400L}d behind wall (reset/stale — alarm unreliable)"
-                    else "Strap clock: OK")
+                add(when {
+                    behind > 3 * 86400L -> "Strap clock: ${behind / 86400L}d behind wall (reset/stale — alarm unreliable)"
+                    behind < -3 * 86400L -> "Strap clock: ${-behind / 86400L}d AHEAD of wall (future-dated — alarm unreliable)"
+                    else -> "Strap clock: OK"
+                })
             }
             val sent = p.getLong("alarm.lastArmSentEpoch", 0L)
             if (sent > 0L) {

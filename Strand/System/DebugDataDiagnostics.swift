@@ -177,17 +177,24 @@ enum DebugDataDiagnostics {
         let mins = (d.object(forKey: "behavior.smartAlarmMinutes") as? Int) ?? 7 * 60
         lines.append("Enabled: \(on ? "yes" : "no") · set \(String(format: "%02d:%02d", mins / 60, mins % 60))")
         // #3: model + the 5/MG experimental gate — a 5/MG firmware alarm is NOT armed unless Experimental is on.
-        if d.string(forKey: "selectedWhoopModel") == "whoop5" {
-            lines.append("Model: WHOOP 5.0/MG · experimental: \(PuffinExperiment.isEnabled ? "on" : "off → firmware alarm NOT armed")")
+        // (selectedWhoopModel stores the WhoopModel rawValue — "WHOOP 5.0 / MG" / "WHOOP 4.0" — not "whoop5".)
+        let model = d.string(forKey: "selectedWhoopModel") ?? WhoopModel.whoop4.rawValue
+        if model == WhoopModel.whoop5mg.rawValue {
+            lines.append("Model: \(model) · experimental: \(PuffinExperiment.isEnabled ? "on" : "off → firmware alarm NOT armed")")
         } else {
-            lines.append("Model: WHOOP 4.0")
+            lines.append("Model: \(model)")
         }
-        // #4: strap clock health — a reset/stale clock (the #34 cause) breaks the alarm even when armed.
+        // #4: strap clock health — a reset/stale OR future-dated clock (the #34 / #928 causes) breaks the
+        // alarm even when armed.
         if let newest = d.object(forKey: "strap.newestRecordTs") as? Int, newest > 0 {
             let behind = Int(Date().timeIntervalSince1970) - newest
-            lines.append(behind > 3 * 86400
-                ? "Strap clock: \(behind / 86400)d behind wall (reset/stale — alarm unreliable)"
-                : "Strap clock: OK")
+            if behind > 3 * 86400 {
+                lines.append("Strap clock: \(behind / 86400)d behind wall (reset/stale — alarm unreliable)")
+            } else if behind < -3 * 86400 {
+                lines.append("Strap clock: \(-behind / 86400)d AHEAD of wall (future-dated — alarm unreliable)")
+            } else {
+                lines.append("Strap clock: OK")
+            }
         }
         if let sent = d.object(forKey: "alarm.lastArmSentEpoch") as? Int {
             var line = "Last arm: sent \(alarmStamp(sent))"
