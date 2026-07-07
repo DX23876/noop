@@ -176,6 +176,19 @@ enum DebugDataDiagnostics {
         let on = d.bool(forKey: "behavior.smartAlarmEnabled")
         let mins = (d.object(forKey: "behavior.smartAlarmMinutes") as? Int) ?? 7 * 60
         lines.append("Enabled: \(on ? "yes" : "no") · set \(String(format: "%02d:%02d", mins / 60, mins % 60))")
+        // #3: model + the 5/MG experimental gate — a 5/MG firmware alarm is NOT armed unless Experimental is on.
+        if d.string(forKey: "selectedWhoopModel") == "whoop5" {
+            lines.append("Model: WHOOP 5.0/MG · experimental: \(PuffinExperiment.isEnabled ? "on" : "off → firmware alarm NOT armed")")
+        } else {
+            lines.append("Model: WHOOP 4.0")
+        }
+        // #4: strap clock health — a reset/stale clock (the #34 cause) breaks the alarm even when armed.
+        if let newest = d.object(forKey: "strap.newestRecordTs") as? Int, newest > 0 {
+            let behind = Int(Date().timeIntervalSince1970) - newest
+            lines.append(behind > 3 * 86400
+                ? "Strap clock: \(behind / 86400)d behind wall (reset/stale — alarm unreliable)"
+                : "Strap clock: OK")
+        }
         if let sent = d.object(forKey: "alarm.lastArmSentEpoch") as? Int {
             var line = "Last arm: sent \(alarmStamp(sent))"
             if let at = d.object(forKey: "alarm.lastArmAt") as? Double {
@@ -192,6 +205,12 @@ enum DebugDataDiagnostics {
             }
         } else {
             lines.append("Last arm: never")
+        }
+        // #1: did the strap actually fire? (STRAP_DRIVEN_ALARM_EXECUTED)
+        if let firedAt = d.object(forKey: "alarm.lastFiredAt") as? Double {
+            lines.append("Last fired: \(relTime(Date().timeIntervalSince1970 - firedAt))")
+        } else {
+            lines.append("Last fired: never observed")
         }
         return lines
     }

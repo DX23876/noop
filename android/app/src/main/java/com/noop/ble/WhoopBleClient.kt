@@ -3272,6 +3272,8 @@ class WhoopBleClient(
                         log("Get Data Range raw frame (#451 — for offset analysis): $hex")
                         dataRangeNewestUnix(frame)?.let {
                             strapNewestTs = it
+                            // #34: persist the strap's newest banked record so the debug export can flag a reset clock.
+                            runCatching { NoopPrefs.of(context).edit().putLong("strap.newestRecordTs", it).apply() }
                             // #928: flag an implausibly FUTURE "newest" (strap clock set ahead) right where
                             // it lands, so a Test Centre export shows WHY auto-continue refused the range.
                             val wallNowForSkew = System.currentTimeMillis() / 1000L
@@ -3548,6 +3550,8 @@ class WhoopBleClient(
                         // FrameRouter → LiveState.onSmartAlarmFired.
                         if (smartAlarmFiredForEvent(ev, replayedOffload)) {
                             log("Strap fired its smart alarm (event 57) — re-arming the next day's instant")
+                            // #34: persist the fire so the debug export's Alarm block shows "last fired".
+                            runCatching { NoopPrefs.of(context).edit().putLong("alarm.lastFiredAt", System.currentTimeMillis()).apply() }
                             onSmartAlarmFired?.invoke()
                         }
                     } else {

@@ -156,6 +156,7 @@ public final class FrameRouter {
                     // line (GET_ALARM_TIME) this makes every future report one-log decidable. The re-arm
                     // below writes a fresh "armed" line, so the two read as one sequence, not a bug.
                     state.append(log: "Alarm: strap-driven wake fired (event 57), re-arming the next day's instant")
+                    UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "alarm.lastFiredAt")  // #34 debug export
                     // The strap fired its firmware smart alarm → re-arm the next day's instant (the
                     // alarm is a single absolute time with no recurrence). Belt-and-suspenders to the
                     // daily/foreground re-arm in AppModel, since this event isn't always observed.

@@ -159,6 +159,20 @@ object AndroidDiagnostics {
             val on = com.noop.ui.NoopPrefs.smartAlarmEnabled(context)
             val mins = com.noop.ui.NoopPrefs.smartAlarmMinutes(context)
             add("Enabled: ${if (on) "yes" else "no"} · set ${"%02d:%02d".format(mins / 60, mins % 60)}")
+            // #3: model + the 5/MG experimental gate (a 5/MG firmware alarm is NOT armed unless it's on).
+            if (com.noop.ui.NoopPrefs.lastDevice(context)?.second == com.noop.ble.WhoopModel.WHOOP5_MG) {
+                val exp = com.noop.ble.PuffinExperiment.from(context).isEnabled
+                add("Model: WHOOP 5.0/MG · experimental: ${if (exp) "on" else "off → firmware alarm NOT armed"}")
+            } else {
+                add("Model: WHOOP 4.0")
+            }
+            // #4: strap clock health — a reset/stale clock (the #34 cause) breaks the alarm even when armed.
+            val newest = p.getLong("strap.newestRecordTs", 0L)
+            if (newest > 0L) {
+                val behind = System.currentTimeMillis() / 1000L - newest
+                add(if (behind > 3 * 86400L) "Strap clock: ${behind / 86400L}d behind wall (reset/stale — alarm unreliable)"
+                    else "Strap clock: OK")
+            }
             val sent = p.getLong("alarm.lastArmSentEpoch", 0L)
             if (sent > 0L) {
                 val at = p.getLong("alarm.lastArmAt", 0L)
@@ -173,6 +187,9 @@ object AndroidDiagnostics {
                         if (mismatch) "  ⚠️ MISMATCH — strap didn't accept the time" else "  ✓ matches")
                 } else add("Strap reports: (no readback)")
             } else add("Last arm: never")
+            // #1: did the strap actually fire? (STRAP_DRIVEN_ALARM_EXECUTED)
+            val firedAt = p.getLong("alarm.lastFiredAt", 0L)
+            add(if (firedAt > 0L) "Last fired: ${relTime(System.currentTimeMillis() - firedAt)}" else "Last fired: never observed")
         }.onFailure { add("(alarm state unavailable: ${it.message})") }
     }
 
