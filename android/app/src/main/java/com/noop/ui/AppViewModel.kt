@@ -1273,10 +1273,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun loadWorkouts() {
         viewModelScope.launch {
             val now = System.currentTimeMillis() / 1000
-            val whoop = repository.workouts(deviceId, 0L, now)
+            // #28: read across the strap-id + "my-whoop" union (like HR/sleep), so a re-added/newly-paired
+            // strap whose workouts live under "my-whoop" isn't shown an empty Workouts screen.
+            val whoop = repository.workoutsUnion(deviceId, 0L, now)
             val apple = repository.workouts("apple-health", 0L, now) +
                 repository.workouts("health-connect", 0L, now)
-            val detected = repository.workouts(repository.computedDeviceId(deviceId), 0L, now)
+            val detected = repository.detectedWorkoutsUnion(deviceId, 0L, now)
             // Imported lifting sessions (Hevy / Liftosaur) carry a volume-load note but no HR — they're
             // a strength-volume estimate, not cardio. Kept OUT of the strap HR-fill below so we never
             // fabricate a heart rate the lift never measured.
