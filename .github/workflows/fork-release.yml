@@ -126,6 +126,11 @@ jobs:
               AUTO=$(gh api --method POST "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
                 -f tag_name="$TAG" -f previous_tag_name="$PREV" -f target_commitish="$(git rev-parse HEAD)" \
                 --jq '.body' 2>/dev/null || true)
+              # Drop the per-PR "by @author" credit and any "New Contributors" block — this is a solo fork,
+              # so the auto notes needn't stamp the handle on every line. Keeps the PR titles + links.
+              AUTO=$(printf '%s' "$AUTO" \
+                | sed -E 's/ by @[A-Za-z0-9_-]+//g' \
+                | awk 'BEGIN{skip=0} /^#+ *New Contributors/{skip=1; next} /^#+ /{skip=0} skip{next} {print}')
               [ -n "$AUTO" ] && printf '\n---\n\n%s\n' "$AUTO" >> "$BODY"
             else
               echo "First release (no prior release tag) — skipping the auto PR breakdown."
