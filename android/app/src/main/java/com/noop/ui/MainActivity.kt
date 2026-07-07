@@ -723,6 +723,18 @@ object NoopPrefs {
     fun setLastSyncAt(context: Context, epochSec: Long) {
         of(context).edit().putLong(KEY_LAST_SYNC_AT, epochSec).apply()
     }
+
+    /** Last-known strap firmware string, persisted on connect so the debug export can name it OFFLINE
+     *  (LiveState.strapFirmware is cleared on disconnect and gone in the scheduled/background export). */
+    const val KEY_LAST_FIRMWARE = "noop.lastFirmware"
+
+    fun lastFirmware(context: Context): String? = of(context).getString(KEY_LAST_FIRMWARE, null)
+
+    fun setLastFirmware(context: Context, fw: String?) {
+        of(context).edit().apply {
+            if (fw.isNullOrBlank()) remove(KEY_LAST_FIRMWARE) else putString(KEY_LAST_FIRMWARE, fw)
+        }.apply()
+    }
 }
 
 /**

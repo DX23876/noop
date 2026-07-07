@@ -118,7 +118,7 @@ object LogExport {
      * empty string and we fall back to the rolling buffer alone. Best-effort: returns an empty list on
      * failure rather than throwing into the worker.
      */
-    fun writeScheduledExport(context: Context, logText: String, nowMs: Long = System.currentTimeMillis()): List<File> =
+    suspend fun writeScheduledExport(context: Context, logText: String, nowMs: Long = System.currentTimeMillis()): List<File> =
         runCatching {
             if (logText.isNotBlank()) StrapLogBuffer.replaceWith(logText, nowMs)
             val body = StrapLogBuffer.snapshot(nowMs)
@@ -126,10 +126,12 @@ object LogExport {
             val dir = exportDir(context)
             val out = arrayListOf<File>()
 
+            val dynamic = com.noop.testcentre.AndroidDiagnostics.dynamicLines(context)
             val header = buildString {
                 appendLine("NOOP strap log (scheduled debug export)")
                 appendLine("App:     ${BuildConfig.VERSION_NAME} (${BuildConfig.TIER})")
                 for (line in com.noop.testcentre.AndroidDiagnostics.summaryLines(context)) appendLine(line)
+                for (line in dynamic) appendLine(line)
                 appendLine("─".repeat(40))
             }
             val text = body.ifBlank { "(rolling strap-log buffer is empty; connect to your strap so lines accrue)" }
@@ -161,14 +163,16 @@ object LogExport {
      * Build the shareable strap-log file (header + body + last crash) under cache/logs and return it,
      * so both the single-share and the "raw + log" matched-pair export write the SAME content.
      */
-    private fun writeStrapLogFile(context: Context, logText: String): File {
+    private suspend fun writeStrapLogFile(context: Context, logText: String): File {
         // Mirror every interactively-shared tail into the durable rolling buffer (#510) so the scheduled
         // background export has a current source even when the live BLE client is gone.
         mirrorToRollingBuffer(logText)
+        val dynamic = com.noop.testcentre.AndroidDiagnostics.dynamicLines(context)
         val header = buildString {
             appendLine("NOOP strap log")
             appendLine("App:     ${BuildConfig.VERSION_NAME} (${BuildConfig.TIER})")
             for (line in com.noop.testcentre.AndroidDiagnostics.summaryLines(context)) appendLine(line)
+            for (line in dynamic) appendLine(line)
             appendLine("─".repeat(40))
         }
         val body = logText.ifBlank { "(strap log is empty; connect to your strap, reproduce the issue, then share again)" }
@@ -211,7 +215,7 @@ object LogExport {
     private fun fileUri(context: Context, file: File) =
         FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
 
-    fun shareStrapLog(context: Context, logText: String) {
+    suspend fun shareStrapLog(context: Context, logText: String) {
         runCatching {
             val file = writeStrapLogFile(context, logText)
             val send = Intent(Intent.ACTION_SEND).apply {
@@ -275,7 +279,7 @@ object LogExport {
      * end. Reuses the same file-builders the single-share paths use; both entries are already redacted by
      * their writers.
      */
-    fun shareRawAndLog(context: Context, logText: String, whoop5Connected: Boolean) {
+    suspend fun shareRawAndLog(context: Context, logText: String, whoop5Connected: Boolean) {
         runCatching {
             val logFile = writeStrapLogFile(context, logText)
             val capture = writeCaptureFile(context)

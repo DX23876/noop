@@ -1311,7 +1311,7 @@ fun SettingsScreen(
                     leadingIcon = Icons.Filled.Upload,
                     kind = NoopButtonKind.Secondary,
                     fullWidth = true,
-                    onClick = { LogExport.shareStrapLog(context, vm.ble.exportLogText()) },
+                    onClick = { scope.launch { LogExport.shareStrapLog(context, vm.ble.exportLogText()) } },
                 )
 
                 // "WHOOP 4.0 vs 5.0/MG — what each can read and why" (FI-2 / #490). Shown to BOTH model
@@ -1572,7 +1572,7 @@ fun SettingsScreen(
                     leadingIcon = Icons.Filled.IosShare,
                     kind = NoopButtonKind.Secondary,
                     fullWidth = true,
-                    onClick = { LogExport.shareRawAndLog(context, vm.ble.exportLogText(), live.whoop5Detected) },
+                    onClick = { scope.launch { LogExport.shareRawAndLog(context, vm.ble.exportLogText(), live.whoop5Detected) } },
                 )
             }
         }
