@@ -67,6 +67,8 @@ fun BackupSyncScreen() {
     // How many dated snapshots to keep; pruning deletes the oldest beyond this (BackupSync.snapshotsToPrune).
     var keep by remember { mutableStateOf(BackupSyncPrefs.keepCount(context)) }
     var keepMenu by remember { mutableStateOf(false) }
+    // Time-of-day the daily backup runs (minutes since midnight); default 01:00, user-adjustable.
+    var backupMinute by remember { mutableStateOf(BackupSyncPrefs.backupMinute(context)) }
 
     // Restore-from-folder sheet state: the listed snapshots, and the one pending confirmation.
     var snapshots by remember { mutableStateOf<List<BackupSync.SnapshotDoc>>(emptyList()) }
@@ -155,8 +157,8 @@ fun BackupSyncScreen() {
                         ) {
                             Text("Daily auto-backup", style = NoopType.body, color = Palette.textPrimary)
                             Text(
-                                "Writes a fresh dated backup to your folder once a day (around 1am), keeping the " +
-                                    "latest $keep. Off by default - flip it on if you want it.",
+                                "Writes a fresh dated backup to your folder once a day at the time below, keeping " +
+                                    "the latest $keep. Off by default - flip it on if you want it.",
                                 style = NoopType.footnote, color = Palette.textTertiary,
                             )
                         }
@@ -222,6 +224,30 @@ fun BackupSyncScreen() {
                                 }
                             }
                         }
+                    }
+                    // Backup time-of-day. Picking a new time re-anchors the schedule immediately
+                    // (BackupSync.applyTimeChange); WorkManager isn't exact so it's best-effort.
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            Text("Backup time", style = NoopType.body, color = Palette.textPrimary)
+                            Text(
+                                "Roughly when the daily backup runs (best-effort — the system may slide it a little).",
+                                style = NoopType.footnote, color = Palette.textTertiary,
+                            )
+                        }
+                        Spacer(Modifier.width(16.dp))
+                        TimeChip(
+                            minutes = backupMinute,
+                            accessibilityLabel = "Daily backup time",
+                            onPicked = { m ->
+                                backupMinute = m
+                                BackupSyncPrefs.setBackupMinute(context, m)
+                                runCatching { BackupSync.applyTimeChange(context) }
+                            },
+                        )
                     }
                     Text(
                         if (lastMs > 0L) {
