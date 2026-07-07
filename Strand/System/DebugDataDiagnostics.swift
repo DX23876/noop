@@ -55,6 +55,7 @@ enum DebugDataDiagnostics {
         // the funnels since those can early-return, so this always lands in the export.
         lines += await workoutSourceLines(repo: repo)
         lines += await dailyDataLines(repo: repo)
+        lines += alarmLines()
 
         // Funnels for the latest night — best-effort, self-reporting.
         lines.append(String(repeating: "─", count: 40))
@@ -162,6 +163,70 @@ enum DebugDataDiagnostics {
             lines.append("Volume: rawRows=\(dv.dbRows)  importedDays=\(dv.importedDays)  workouts=\(dv.workouts)")
         }
         return lines
+    }
+
+    /// Alarm state for the debug export: the configured wake + the last arm's sent-vs-strap-reports (#34), so
+    /// a "didn't buzz" report shows at a glance whether the strap accepted the time. Reads persisted defaults
+    /// (written by BLEManager.armStrapAlarm + the FrameRouter readback); sync + guarded.
+    static func alarmLines() -> [String] {
+        var lines: [String] = []
+        lines.append(String(repeating: "─", count: 40))
+        lines.append("Alarm")
+        let d = UserDefaults.standard
+        let on = d.bool(forKey: "behavior.smartAlarmEnabled")
+        let mins = (d.object(forKey: "behavior.smartAlarmMinutes") as? Int) ?? 7 * 60
+        lines.append("Enabled: \(on ? "yes" : "no") · set \(String(format: "%02d:%02d", mins / 60, mins % 60))")
+        // #3: model + the 5/MG experimental gate — a 5/MG firmware alarm is NOT armed unless Experimental is on.
+        // (selectedWhoopModel stores the WhoopModel rawValue — "WHOOP 5.0 / MG" / "WHOOP 4.0" — not "whoop5".)
+        let model = d.string(forKey: "selectedWhoopModel") ?? WhoopModel.whoop4.rawValue
+        if model == WhoopModel.whoop5mg.rawValue {
+            lines.append("Model: \(model) · experimental: \(PuffinExperiment.isEnabled ? "on" : "off → firmware alarm NOT armed")")
+        } else {
+            lines.append("Model: \(model)")
+        }
+        // #4: strap clock health — a reset/stale OR future-dated clock (the #34 / #928 causes) breaks the
+        // alarm even when armed.
+        if let newest = d.object(forKey: "strap.newestRecordTs") as? Int, newest > 0 {
+            let behind = Int(Date().timeIntervalSince1970) - newest
+            if behind > 3 * 86400 {
+                lines.append("Strap clock: \(behind / 86400)d behind wall (reset/stale — alarm unreliable)")
+            } else if behind < -3 * 86400 {
+                lines.append("Strap clock: \(-behind / 86400)d AHEAD of wall (future-dated — alarm unreliable)")
+            } else {
+                lines.append("Strap clock: OK")
+            }
+        }
+        if let sent = d.object(forKey: "alarm.lastArmSentEpoch") as? Int {
+            var line = "Last arm: sent \(alarmStamp(sent))"
+            if let at = d.object(forKey: "alarm.lastArmAt") as? Double {
+                line += " · \(relTime(Date().timeIntervalSince1970 - at))"
+            }
+            if !d.bool(forKey: "alarm.lastArmConnected") { line += " · strap NOT connected (queued)" }
+            lines.append(line)
+            if let reported = d.object(forKey: "alarm.lastReportedEpoch") as? Int {
+                let mismatch = abs(reported - sent) > 120
+                lines.append("Strap reports: \(alarmStamp(reported))"
+                    + (mismatch ? "  ⚠️ MISMATCH — strap didn't accept the time" : "  ✓ matches"))
+            } else {
+                lines.append("Strap reports: (no readback)")
+            }
+        } else {
+            lines.append("Last arm: never")
+        }
+        // #1: did the strap actually fire? (STRAP_DRIVEN_ALARM_EXECUTED)
+        if let firedAt = d.object(forKey: "alarm.lastFiredAt") as? Double {
+            lines.append("Last fired: \(relTime(Date().timeIntervalSince1970 - firedAt))")
+        } else {
+            lines.append("Last fired: never observed")
+        }
+        return lines
+    }
+
+    private static func alarmStamp(_ epochSec: Int) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd HH:mm"
+        return f.string(from: Date(timeIntervalSince1970: TimeInterval(epochSec)))
     }
 
     // MARK: - Formatting helpers

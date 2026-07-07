@@ -162,6 +162,8 @@ public final class LiveState: ObservableObject {
         let firmware = strapRange?.firmwareLayout
         let oldest = oldestUnix ?? strapRange?.oldestUnix
         strapRange = StrapRange(newestUnix: newestUnix, oldestUnix: oldest, firmwareLayout: firmware)
+        // #34: persist the strap's newest banked record so the debug export can flag a reset/stale clock.
+        UserDefaults.standard.set(newestUnix, forKey: "strap.newestRecordTs")
     }
 
     /// Bank the historical record-layout version (hist_version: 18/24/25/26) the strap emits, so the
