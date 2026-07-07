@@ -25,7 +25,7 @@ object AppChangelog {
      * Bump this when you add a release below. The "What's New" sheet shows automatically when the
      * stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
      */
-    const val CURRENT_VERSION = "8.3.3"
+    const val CURRENT_VERSION = "8.3.4"
 
     data class Release(
         val version: String,
@@ -36,6 +36,14 @@ object AppChangelog {
 
     /** Newest first. */
     val releases: List<Release> = listOf(
+        Release(
+            version = "8.3.4",
+            title = "Clearer sync status",
+            date = "July 2026",
+            items = listOf(
+                "**A finished sync no longer looks like a failure.** After your strap hands over its history, NOOP could flash a \"no banked history — charge to 100%\" warning even though it had just offloaded hundreds of records. That false alarm is gone — a caught-up sync now reads as caught up.",
+            ),
+        ),
         Release(
             version = "8.3.3",
             title = "Your macOS data is back — and full French",
