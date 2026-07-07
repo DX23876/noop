@@ -97,6 +97,15 @@ public enum SceneBackgroundPrefs {
     public static let enabledKey = "noop.showDayCycleBackground"
 }
 
+/// Card-surface opacity as a PERCENT (0 = fully see-through, 100 = solid; default 100). `FrostedCardSurface`
+/// reads it via `@AppStorage(CardAppearancePrefs.opacityKey)` and fades the whole glass by it, so cards
+/// (Heart Rate, Key Metrics, Recovery Vitals, …) can be made see-through from Settings → Appearance; the
+/// card content stays fully readable. Mirror in Kotlin via `NoopPrefs.cardOpacityPercent`.
+public enum CardAppearancePrefs {
+    public static let opacityKey = "noop.cardOpacityPercent"
+    public static let defaultPercent = 100
+}
+
 // MARK: - Light-idiom helpers
 
 /// An additive glow (ring blooms, sparkline heads, hero halos) only reads on a DARK canvas —
