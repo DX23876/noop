@@ -94,7 +94,9 @@ jobs:
             BODY=$(mktemp)
             NOTES_MD="docs/releases/${TAG}.md"
             if [ -f "$NOTES_MD" ]; then
-              cat "$NOTES_MD" > "$BODY"
+              # Strip a leading YAML front-matter block (the `whatsnew:` used by appchangelog-gen) so it
+              # never leaks into the GitHub release body; files without front-matter pass through unchanged.
+              awk 'NR==1 && $0=="---"{fm=1; next} fm && $0=="---"{fm=0; next} !fm{print}' "$NOTES_MD" > "$BODY"
             else
               echo "::warning::No ${NOTES_MD} — write the release notes there first. Using a placeholder."
               printf 'NOOP **%s** — release build.\n' "$NEW" > "$BODY"
