@@ -52,6 +52,7 @@ import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.Straighten
+import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.filled.Vibration
@@ -312,7 +313,11 @@ class ProfileStore(private val prefs: SharedPreferences) {
 // MARK: - Screen
 
 @Composable
-fun SettingsScreen(vm: AppViewModel, onOpenTestCentre: () -> Unit = {}) {
+fun SettingsScreen(
+    vm: AppViewModel,
+    onOpenTestCentre: () -> Unit = {},
+    onOpenBackupSync: () -> Unit = {},
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val live by vm.live.collectAsStateWithLifecycle()
@@ -1965,6 +1970,24 @@ fun SettingsScreen(vm: AppViewModel, onOpenTestCentre: () -> Unit = {}) {
                         "Export CSV writes a WHOOP-format zip of your days, sleeps, workouts and journal that re-imports into NOOP on Android or Mac. On-device computed rows are marked APPROXIMATE in its Source column; the .noopbak backup stays the lossless restore path.",
                 )
             }
+        }
+
+        // --- Automatic backups ---
+        // Discoverability signpost: the daily-backup toggle, folder picker and keep-count live on the
+        // separate Backup & Sync screen; surface an entry here, right under the one-off Backup & restore,
+        // since that's where a user looks for "turn on automatic backups".
+        SettingsSection(
+            icon = Icons.Filled.CloudSync,
+            title = "Automatic backups",
+            blurb = "Have NOOP save a dated backup to a folder every day (around 1am) and keep the last several - so if data ever corrupts, restore the newest. Point the folder at Drive/Dropbox for off-device copies. Off until you switch it on.",
+        ) {
+            NoopButton(
+                text = "Set up automatic backups",
+                leadingIcon = Icons.Filled.CloudSync,
+                kind = NoopButtonKind.Primary,
+                fullWidth = true,
+                onClick = onOpenBackupSync,
+            )
         }
 
         // --- About ---
