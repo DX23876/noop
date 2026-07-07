@@ -20,7 +20,7 @@ enum DonationStats {
     /// Distinct on-chain donations received across the BTC + ETH addresses.
     static let donors = 12
     /// The canonical donations page (wiki).
-    static let donateURL = URL(string: "https://github.com/NoopApp/noop/wiki/Donations")!
+    static let donateURL = URL(string: "https://github.com/ryanbr/noop/wiki/Donations")!
 }
 
 struct DonationNudgeCard: View {

@@ -46,7 +46,7 @@ import androidx.compose.ui.unit.dp
 object DonationStats {
     const val DOWNLOADS = 8_500
     const val DONORS = 12
-    const val DONATE_URL = "https://github.com/NoopApp/noop/wiki/Donations"
+    const val DONATE_URL = "https://github.com/ryanbr/noop/wiki/Donations"
 }
 
 /** Plain-prefs persistence for the nudge cadence (12 h) + permanent opt-out. */

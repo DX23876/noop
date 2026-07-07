@@ -5,7 +5,7 @@ import StrandAnalytics
 /// the bug form's existing id fields (version, platform, os_version, test_profile, title) and
 /// self-applies the "bug,test:<id>" labels so a submission lands pre-labelled on the right cluster.
 /// No network, no cloud: this only composes a URL the caller opens in the browser. Repo is
-/// NoopApp/noop (confirmed in bug_report.yml).
+/// ryanbr/noop (confirmed in bug_report.yml).
 ///
 /// CAPTURE-A (#812): a report submitted WITHOUT the .zip attached used to land empty, because the form's
 /// `log` / `what_happens` textareas were blank and the user often forgot the paperclip. We now PREFILL
@@ -93,7 +93,7 @@ enum TestReportLink {
         if let seed = whatHappensSeed, !seed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             query.append("what_happens=" + enc(seed))
         }
-        let base = "https://github.com/NoopApp/noop/issues/new?"
+        let base = "https://github.com/ryanbr/noop/issues/new?"
         // Add the log block ONLY if the whole URL stays under the GitHub prefill ceiling. If it would
         // breach maxURLLength, drop `log` entirely (never truncate it into a broken <details>); the full
         // trace is in the attached .zip. The seed + id fields alone keep the body non-empty (#812).

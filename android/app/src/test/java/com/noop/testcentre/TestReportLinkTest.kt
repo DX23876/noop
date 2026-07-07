@@ -18,7 +18,7 @@ class TestReportLinkTest {
         val s = TestReportLink.reportUrlString(
             profile = TestDomain.SLEEP, title = "no score last night",
             version = "7.3.0", platform = "Android", osVersion = "15")
-        assertTrue(s.startsWith("https://github.com/NoopApp/noop/issues/new?"))
+        assertTrue(s.startsWith("https://github.com/ryanbr/noop/issues/new?"))
         assertTrue(s.contains("template=bug_report.yml"))
         assertTrue(s.contains("labels=bug%2Ctest:sleep"))
         assertTrue(s.contains("version=7.3.0"))
