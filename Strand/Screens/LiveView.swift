@@ -31,6 +31,11 @@ struct LiveView: View {
     @AppStorage("selectedWhoopModel") private var selectedModelRaw = WhoopModel.whoop4.rawValue
     private var selectedModel: WhoopModel { WhoopModel(rawValue: selectedModelRaw) ?? .whoop4 }
 
+    /// "Card transparency" (0–100, default 100): fades the live console cards in lockstep with the frosted
+    /// cards; content stays readable. Mirrors Kotlin `NoopPrefs.cardOpacityPercent`.
+    @AppStorage(CardAppearancePrefs.opacityKey) private var cardOpacityPercent = CardAppearancePrefs.defaultPercent
+    private var cardOpacity: Double { max(0, min(1, Double(cardOpacityPercent) / 100)) }
+
     /// Maps the picked strap model to the HRV-reading source so the spot caveat is honest (#537): a
     /// WHOOP 5/MG's R-R is optical PPG (noisier), a WHOOP 4 is electrical R-R. Mirrors the Android
     /// `LiveScreen` mapping.
@@ -148,6 +153,7 @@ struct LiveView: View {
                     .fill(StrandPalette.surfaceRaised)
                     .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous)
                         .strokeBorder(StrandPalette.hairline, lineWidth: 1))
+                    .opacity(cardOpacity)
             )
     }
 
@@ -1112,6 +1118,7 @@ private struct LiveLogCard: View {
                 .fill(StrandPalette.surfaceRaised)
                 .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous)
                     .strokeBorder(StrandPalette.hairline, lineWidth: 1))
+                .opacity(cardOpacity)
         )
     }
 
@@ -1195,6 +1202,7 @@ private struct SignalTrustTile: View {
                 .fill(StrandPalette.surfaceRaised)
                 .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous)
                     .strokeBorder(StrandPalette.hairline, lineWidth: 1))
+                .opacity(cardOpacity)
         )
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(tile.title): \(tile.value). \(tile.detail)")

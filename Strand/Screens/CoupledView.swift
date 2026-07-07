@@ -28,6 +28,11 @@ import Foundation
 struct CoupledView: View {
     @EnvironmentObject var repo: Repository
 
+    /// "Card transparency" (0–100, default 100): fades the coupled glance cards in lockstep with the
+    /// frosted cards; content stays readable. Mirrors Kotlin `NoopPrefs.cardOpacityPercent`.
+    @AppStorage(CardAppearancePrefs.opacityKey) private var cardOpacityPercent = CardAppearancePrefs.defaultPercent
+    private var cardOpacity: Double { max(0, min(1, Double(cardOpacityPercent) / 100)) }
+
     // Effort is stored 0–100; the coupled read is always the 0–21 Day-Strain axis regardless of the user's
     // #268 display toggle, so the gauge reads like the classic coupled home. Display-only conversion.
     private let strainScale: EffortScale = .whoop
@@ -639,6 +644,7 @@ struct CoupledView: View {
                     .fill(StrandPalette.surfaceRaised)
                     .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous)
                         .strokeBorder(StrandPalette.hairline, lineWidth: 1))
+                    .opacity(cardOpacity)
             )
     }
 
