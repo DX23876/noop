@@ -52,7 +52,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
+import android.content.Context
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.shadow
@@ -96,63 +98,68 @@ import kotlin.math.sin
  * near-neutral gold wash. Drawn with `drawBehind` so the animation/recomposition of the card's
  * content never reaches this surface subtree. Mirrors StrandDesign's FrostedCardSurface.
  */
+/** App-wide card-surface opacity (0f = fully see-through, 1f = solid), driven by the "Card transparency"
+ *  setting. Reactive (a mutableState) so the Settings slider live-previews; initialised from NoopPrefs at
+ *  app start via [init]. Only the card SURFACE (fill + border + wash) fades — the card's CONTENT is drawn
+ *  above and stays fully readable over the background. */
+object CardAppearance {
+    var opacity by mutableStateOf(1f)
+    fun init(context: Context) {
+        opacity = (NoopPrefs.cardOpacityPercent(context) / 100f).coerceIn(0f, 1f)
+    }
+}
+
 fun Modifier.frostedCardSurface(
     tint: Color? = null,
     cornerRadius: Dp = Metrics.cardRadius,
     washStrength: Float = 1f,
-): Modifier = this
-    // Elevation idiom: DARK is flat (the hairline + hue carry the edge). LIGHT raises the white card
-    // off the warm-paper canvas with a soft drop shadow — the hairline alone is too faint on paper.
-    .then(
-        if (Palette.isLight)
-            Modifier.shadow(elevation = 6.dp, shape = RoundedCornerShape(cornerRadius), clip = false)
-        else Modifier
-    )
-    .drawBehind {
-    val radiusPx = cornerRadius.toPx()
-    val corner = androidx.compose.ui.geometry.CornerRadius(radiusPx, radiusPx)
+): Modifier = composed {
+    // "Card transparency" setting: scale the whole glass surface (fill + border + wash) by the user's
+    // opacity so cards fade toward the background. Reading the reactive value here makes the slider
+    // live-preview. Content drawn above the surface is unaffected, so numbers/labels stay readable.
+    val op = CardAppearance.opacity
+    this
+        // Elevation idiom: DARK is flat (the hairline + hue carry the edge). LIGHT raises the white card
+        // off the warm-paper canvas with a soft drop shadow — the hairline alone is too faint on paper.
+        .then(
+            if (Palette.isLight)
+                Modifier.shadow(elevation = (6f * op).dp, shape = RoundedCornerShape(cornerRadius), clip = false)
+            else Modifier
+        )
+        .drawBehind {
+            val radiusPx = cornerRadius.toPx()
+            val corner = androidx.compose.ui.geometry.CornerRadius(radiusPx, radiusPx)
+            val fill = Palette.surfaceRaised.copy(alpha = Palette.surfaceRaised.alpha * op)
+            val border = Palette.hairline.copy(alpha = Palette.hairline.alpha * op)
 
-    if (tint == null) {
-        // NEUTRAL card (iOS FrostedCardSurface tint == nil): a FLAT raised surface — no vertical
-        // bevel gradient, no accent wash, and a PLAIN hairline border (no accent bias).
-        drawRoundRect(
-            color = Palette.surfaceRaised,
-            cornerRadius = corner,
-        )
-        drawRoundRect(
-            color = Palette.hairline,
-            cornerRadius = corner,
-            style = Stroke(width = 1.dp.toPx()),
-        )
-    } else {
-        // TINTED card (iOS parity, 2026-06-23 "synthesis has the old blue style"): a FLAT raised
-        // surface — the SAME WHOOP grey as the neutral card, NO navy bevel gradient — carrying only a
-        // whisper of the domain tint as a diagonal hue wash so it stays in the grey family.
-        // 1) Flat raised fill — identical to the neutral card.
-        drawRoundRect(
-            color = Palette.surfaceRaised,
-            cornerRadius = corner,
-        )
-        // 2) Faint diagonal accent hue wash over the flat fill (matches iOS FrostedCardSurface ~0.05).
-        drawRoundRect(
-            brush = Brush.linearGradient(
-                colorStops = arrayOf(
-                    0.0f to tint.copy(alpha = 0.05f * washStrength),
-                    0.5f to tint.copy(alpha = 0.015f * washStrength),
-                    1.0f to Color.Transparent,
-                ),
-                start = Offset(0f, 0f),
-                end = Offset(size.width, size.height),
-            ),
-            cornerRadius = corner,
-        )
-        // 3) Plain 1px hairline (no accent bias) — matches the neutral card.
-        drawRoundRect(
-            color = Palette.hairline,
-            cornerRadius = corner,
-            style = Stroke(width = 1.dp.toPx()),
-        )
-    }
+            if (tint == null) {
+                // NEUTRAL card (iOS FrostedCardSurface tint == nil): a FLAT raised surface — no vertical
+                // bevel gradient, no accent wash, and a PLAIN hairline border (no accent bias).
+                drawRoundRect(color = fill, cornerRadius = corner)
+                drawRoundRect(color = border, cornerRadius = corner, style = Stroke(width = 1.dp.toPx()))
+            } else {
+                // TINTED card (iOS parity, 2026-06-23 "synthesis has the old blue style"): a FLAT raised
+                // surface — the SAME WHOOP grey as the neutral card, NO navy bevel gradient — carrying only
+                // a whisper of the domain tint as a diagonal hue wash so it stays in the grey family.
+                // 1) Flat raised fill — identical to the neutral card.
+                drawRoundRect(color = fill, cornerRadius = corner)
+                // 2) Faint diagonal accent hue wash over the flat fill (matches iOS FrostedCardSurface ~0.05).
+                drawRoundRect(
+                    brush = Brush.linearGradient(
+                        colorStops = arrayOf(
+                            0.0f to tint.copy(alpha = 0.05f * washStrength * op),
+                            0.5f to tint.copy(alpha = 0.015f * washStrength * op),
+                            1.0f to Color.Transparent,
+                        ),
+                        start = Offset(0f, 0f),
+                        end = Offset(size.width, size.height),
+                    ),
+                    cornerRadius = corner,
+                )
+                // 3) Plain 1px hairline (no accent bias) — matches the neutral card.
+                drawRoundRect(color = border, cornerRadius = corner, style = Stroke(width = 1.dp.toPx()))
+            }
+        }
 }
 
 // MARK: - NoopCard — the one card surface (Titanium & Gold frosted card, 16dp radius)

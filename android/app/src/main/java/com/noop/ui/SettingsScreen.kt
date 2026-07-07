@@ -65,6 +65,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -465,6 +467,9 @@ fun SettingsScreen(
     // Day-cycle background (#698) — the time-of-day scene behind Today. Default ON. SharedPreferences
     // isn't reactive, so the Switch mirrors into local state; TodayScreen reads the same pref on entry.
     var showDayCycleBackground by remember { mutableStateOf(NoopPrefs.showDayCycleBackground(context)) }
+    // Card-surface opacity (0f = clear, 1f = solid), for the "Card transparency" slider. Live-previews via
+    // CardAppearance; saved on release.
+    var cardOpacity by remember { mutableStateOf(NoopPrefs.cardOpacityPercent(context) / 100f) }
 
     // SAF launchers — CreateDocument for export, OpenDocument for import.
     val exportLauncher = rememberLauncherForActivityResult(
@@ -947,6 +952,50 @@ fun SettingsScreen(
                         uncheckedThumbColor = Palette.textSecondary,
                         uncheckedTrackColor = Palette.surfaceInset,
                         uncheckedBorderColor = Palette.hairline,
+                    ),
+                )
+            }
+
+            // Card transparency: scale every frosted card's glass toward the background. Live-preview (the
+            // cards on THIS screen update as you drag) via CardAppearance; saved on release. Default solid.
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Text(
+                        "Card transparency",
+                        style = NoopType.subhead,
+                        color = Palette.textPrimary,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        "${((1f - cardOpacity) * 100).toInt()}%",
+                        style = NoopType.number(15f),
+                        color = Palette.accent,
+                    )
+                }
+                Text(
+                    "How see-through the cards (Heart Rate, Key Metrics, Recovery Vitals, …) are. Left = solid, right = clear.",
+                    style = NoopType.footnote,
+                    color = Palette.textTertiary,
+                )
+                Slider(
+                    // The slider shows TRANSPARENCY (0 = solid, 1 = fully clear); we store the OPACITY.
+                    value = 1f - cardOpacity,
+                    onValueChange = { t ->
+                        cardOpacity = 1f - t
+                        CardAppearance.opacity = cardOpacity   // live preview on every card on-screen
+                    },
+                    onValueChangeFinished = {
+                        NoopPrefs.setCardOpacityPercent(context, (cardOpacity * 100).toInt())
+                    },
+                    valueRange = 0f..1f,
+                    colors = SliderDefaults.colors(
+                        thumbColor = Palette.accent,
+                        activeTrackColor = Palette.accent,
+                        inactiveTrackColor = Palette.surfaceInset,
                     ),
                 )
             }
