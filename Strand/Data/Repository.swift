@@ -1931,6 +1931,10 @@ final class Repository: ObservableObject {
         rows += (try? await store.workouts(deviceId: "apple-health", from: lo, to: hi, limit: 5000)) ?? []
         // Imported lifting sessions (Hevy / Liftosaur) live under their own "lifting" source.
         rows += (try? await store.workouts(deviceId: "lifting", from: lo, to: hi, limit: 5000)) ?? []
+        // #29: imported activity FILES (FIT / GPX / TCX) live under their own "activity-file" source — read
+        // them too, or a successful file import never appears in the Workouts list (Data Sources counts it,
+        // the load didn't). HR is reconciled from the strap trace at the end like every other row.
+        rows += (try? await store.workouts(deviceId: "activity-file", from: lo, to: hi, limit: 5000)) ?? []
         rows = Self.dedupWorkoutsByNaturalKey(rows)
         let spans = WorkoutSource.parseDismissedSpans(dismissedDetectedSpans)
         // #687: collapse the SAME activity tracked live under the strap AND imported from Health Connect /
