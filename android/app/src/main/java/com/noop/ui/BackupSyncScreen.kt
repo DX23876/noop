@@ -8,6 +8,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,6 +20,8 @@ import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -61,6 +64,9 @@ fun BackupSyncScreen() {
     var auto by remember { mutableStateOf(BackupSyncPrefs.autoEnabled(context)) }
     var lastMs by remember { mutableStateOf(BackupSyncPrefs.lastBackupMs(context)) }
     var busy by remember { mutableStateOf(false) }
+    // How many dated snapshots to keep; pruning deletes the oldest beyond this (BackupSync.snapshotsToPrune).
+    var keep by remember { mutableStateOf(BackupSyncPrefs.keepCount(context)) }
+    var keepMenu by remember { mutableStateOf(false) }
 
     // Restore-from-folder sheet state: the listed snapshots, and the one pending confirmation.
     var snapshots by remember { mutableStateOf<List<BackupSync.SnapshotDoc>>(emptyList()) }
@@ -149,8 +155,8 @@ fun BackupSyncScreen() {
                         ) {
                             Text("Daily auto-backup", style = NoopType.body, color = Palette.textPrimary)
                             Text(
-                                "Writes a fresh backup to your folder about once a day (keeps the latest " +
-                                    "${BackupSyncPrefs.keepCount(context)}). Off by default - flip it on if you want it.",
+                                "Writes a fresh dated backup to your folder about once a day (keeps the latest " +
+                                    "$keep). Off by default - flip it on if you want it.",
                                 style = NoopType.footnote, color = Palette.textTertiary,
                             )
                         }
@@ -171,6 +177,50 @@ fun BackupSyncScreen() {
                                 uncheckedBorderColor = Palette.hairline,
                             ),
                         )
+                    }
+                    // Retention: how many dated snapshots to keep. Wired to the existing setKeepCount; the
+                    // next backup (auto or "Back up now") prunes the oldest beyond this count.
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            Text("Keep last snapshots", style = NoopType.body, color = Palette.textPrimary)
+                            Text(
+                                "Older backups beyond this many are pruned, oldest first.",
+                                style = NoopType.footnote, color = Palette.textTertiary,
+                            )
+                        }
+                        Spacer(Modifier.width(16.dp))
+                        Box {
+                            TextButton(
+                                enabled = treeUri != null && !busy,
+                                onClick = { keepMenu = true },
+                            ) {
+                                Text("$keep", style = NoopType.body, color = Palette.accent)
+                            }
+                            DropdownMenu(
+                                expanded = keepMenu,
+                                onDismissRequest = { keepMenu = false },
+                            ) {
+                                KEEP_OPTIONS.forEach { n ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                "$n",
+                                                style = NoopType.body,
+                                                color = if (n == keep) Palette.accent else Palette.textPrimary,
+                                            )
+                                        },
+                                        onClick = {
+                                            keep = n
+                                            BackupSyncPrefs.setKeepCount(context, n)
+                                            keepMenu = false
+                                        },
+                                    )
+                                }
+                            }
+                        }
                     }
                     Text(
                         if (lastMs > 0L) {
@@ -337,6 +387,10 @@ fun BackupSyncScreen() {
  * slips through still meets importFrom's magic-byte + Room/GRDB-origin validation before it can touch
  * the live DB.
  */
+/** Retention choices for the "Keep last snapshots" menu. Each snapshot is a dated .noopbak; the daily
+ *  job keeps this many and prunes the oldest. Kept modest — a few days of rollback without hoarding. */
+private val KEEP_OPTIONS = listOf(1, 3, 5, 7, 10, 14)
+
 private val RESTORE_MIME_TYPES = arrayOf(
     "application/octet-stream",
     "application/zip",
