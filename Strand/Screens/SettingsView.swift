@@ -1906,8 +1906,7 @@ struct SettingsView: View {
                         .foregroundStyle(StrandPalette.textTertiary)
                 }
 
-                // Project home — NOOP's code, releases, issues and wiki live on GitHub
-                // (canonical; noop.fans is kept as a mirror).
+                // Project home — NOOP's code, releases, issues and wiki live on GitHub.
                 Link(destination: URL(string: "https://github.com/ryanbr/noop")!) {
                     HStack(spacing: 10) {
                         Image(systemName: "chevron.left.forwardslash.chevron.right")
@@ -1931,32 +1930,6 @@ struct SettingsView: View {
                     .contentShape(Rectangle())
                 }
                 .accessibilityLabel("Project home and source code on GitHub")
-
-                // Mirror: noop.fans carries every release alongside GitHub, so users have a
-                // fallback if GitHub is ever unreachable (#606). Same downloads, release for release.
-                Link(destination: URL(string: "https://noop.fans")!) {
-                    HStack(spacing: 10) {
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                            .foregroundStyle(StrandPalette.accent)
-                            .accessibilityHidden(true)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text("Mirror: noop.fans")
-                                .font(StrandFont.body)
-                                .foregroundStyle(StrandPalette.textPrimary)
-                            Text("Every release, mirrored. A fallback if GitHub is ever down.")
-                                .font(StrandFont.footnote)
-                                .foregroundStyle(StrandPalette.textTertiary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        Spacer()
-                        Image(systemName: "arrow.up.right")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(StrandPalette.textTertiary)
-                            .accessibilityHidden(true)
-                    }
-                    .contentShape(Rectangle())
-                }
-                .accessibilityLabel("Mirror at noop dot fans, a fallback if GitHub is down")
 
                 Text("A standalone companion for your WHOOP. Everything stays on this device: your history, your live stream, your numbers. Nothing is uploaded. NOOP is an independent, experimental project, not the WHOOP app.")
                     .font(StrandFont.subhead)
