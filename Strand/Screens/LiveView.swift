@@ -52,6 +52,13 @@ struct LiveView: View {
 
     private var activeConnection: Bool { live.connected && live.bonded }
 
+    /// A non-WHOOP live source (the Oura ring) that is connected and actively streaming live HR. It
+    /// authenticates and streams but never reaches a WHOOP encrypted bond, so `bonded` stays false and
+    /// `activeConnection` never trips — which left the console reading "stream not yet trusted" for a
+    /// perfectly good ring stream. The status copy below treats this as a trusted live stream; the
+    /// bond-only feature gates (buzz, alarm, HRV snapshot) keep keying off `activeConnection`. (#69 twin.)
+    private var ringStreaming: Bool { live.connected && live.streamingLiveHR }
+
     /// The display name of the active device from the registry ("WHOOP", a strap's nickname, …) — what
     /// the user is connected to, or would connect to. Falls back to "WHOOP" before the registry opens or
     /// when none is resolvable, keeping the WHOOP-first tone. Drives the active-device readout + copy.
@@ -197,6 +204,7 @@ struct LiveView: View {
     private var connectionModeBadge: LocalizedStringKey {
         if activeConnection && live.encryptedBond { return "FULL BOND" }
         if activeConnection { return "LIVE HR ONLY" }
+        if ringStreaming { return "STREAMING" }
         if live.connected { return "CONNECTING" }
         if live.encryptedBond { return "PAIRED" }
         return "OFFLINE"
@@ -212,7 +220,7 @@ struct LiveView: View {
     }
 
     private var connectionModeColor: Color {
-        if activeConnection && live.encryptedBond { return StrandPalette.accent }
+        if (activeConnection && live.encryptedBond) || ringStreaming { return StrandPalette.accent }
         if activeConnection || live.connected { return StrandPalette.statusWarning }
         return StrandPalette.metricRose
     }
@@ -224,6 +232,7 @@ struct LiveView: View {
         let (label, color): (String, Color) =
             (activeConnection && live.encryptedBond) ? (String(localized: "Bonded · streaming"), StrandPalette.accent)
             : activeConnection ? (String(localized: "Live HR (not fully paired)"), StrandPalette.statusWarning)
+            : ringStreaming ? (String(localized: "Streaming"), StrandPalette.accent)
             : live.connected ? (String(localized: "Connected"), StrandPalette.statusWarning)
             : live.encryptedBond ? (String(localized: "Paired · idle"), StrandPalette.statusWarning)
             : (String(localized: "Disconnected"), StrandPalette.metricRose)
@@ -820,6 +829,8 @@ private struct LivePhysiology: View {
     @EnvironmentObject private var live: LiveState
 
     private var activeConnection: Bool { live.connected && live.bonded }
+    /// Oura ring actively streaming live HR — trusted stream without a WHOOP bond (see LiveView.ringStreaming).
+    private var ringStreaming: Bool { live.connected && live.streamingLiveHR }
 
     /// The liquid heart pink (matches LiquidThread's default + the mockup #ff6b81).
     private let liquidHeart = Color(.sRGB, red: 1, green: 107 / 255, blue: 129 / 255, opacity: 1)
@@ -929,7 +940,7 @@ private struct LivePhysiology: View {
 
     private var connectionModeDetail: String {
         if activeConnection && live.encryptedBond { return String(localized: "Full strap stream is active.") }
-        if activeConnection { return String(localized: "Heart rate stream is active.") }
+        if activeConnection || ringStreaming { return String(localized: "Heart rate stream is active.") }
         if live.connected { return String(localized: "Radio connected, stream not yet trusted.") }
         return String(localized: "No live stream.")
     }
@@ -942,6 +953,8 @@ private struct LiveSignalTrustRail: View {
     let activeConnection: Bool
 
     private var displayHR: Int? { model.bpm }
+    /// Oura ring actively streaming live HR — trusted stream without a WHOOP bond (see LiveView.ringStreaming).
+    private var ringStreaming: Bool { live.connected && live.streamingLiveHR }
 
     var body: some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 168), spacing: NoopMetrics.gap)],
@@ -954,7 +967,7 @@ private struct LiveSignalTrustRail: View {
     }
 
     private var connectionModeColor: Color {
-        if activeConnection && live.encryptedBond { return StrandPalette.accent }
+        if (activeConnection && live.encryptedBond) || ringStreaming { return StrandPalette.accent }
         if activeConnection || live.connected { return StrandPalette.statusWarning }
         return StrandPalette.metricRose
     }
@@ -984,7 +997,7 @@ private struct LiveSignalTrustRail: View {
         [
             .init(title: String(localized: "Heart rate"),
                   value: displayHR.map { "\($0) bpm" } ?? String(localized: "Missing"),
-                  detail: activeConnection ? String(localized: "Streaming now") : String(localized: "No active stream"),
+                  detail: (activeConnection || ringStreaming) ? String(localized: "Streaming now") : String(localized: "No active stream"),
                   icon: "waveform.path.ecg",
                   tint: displayHR == nil ? StrandPalette.textTertiary : StrandPalette.accent,
                   frac: displayHR.map { min(1, Double($0) / Double(max(1, model.profile.hrMax))) }),
@@ -995,11 +1008,11 @@ private struct LiveSignalTrustRail: View {
                   tint: live.rrRecent.isEmpty ? StrandPalette.textTertiary : StrandPalette.metricCyan,
                   frac: live.rrRecent.isEmpty ? nil : min(1, Double(live.rrRecent.count) / 30)),
             .init(title: String(localized: "Connection"),
-                  value: activeConnection && live.encryptedBond ? String(localized: "Encrypted") : activeConnection ? String(localized: "Partial") : live.connected ? String(localized: "Connected") : String(localized: "Offline"),
-                  detail: activeConnection && live.encryptedBond ? String(localized: "Controls unlocked") : String(localized: "Standard HR is not a full bond"),
+                  value: activeConnection && live.encryptedBond ? String(localized: "Encrypted") : activeConnection ? String(localized: "Partial") : ringStreaming ? String(localized: "Streaming") : live.connected ? String(localized: "Connected") : String(localized: "Offline"),
+                  detail: activeConnection && live.encryptedBond ? String(localized: "Controls unlocked") : ringStreaming ? String(localized: "Authenticated ring stream") : String(localized: "Standard HR is not a full bond"),
                   icon: "lock.shield",
                   tint: connectionModeColor,
-                  frac: activeConnection && live.encryptedBond ? 1 : activeConnection ? 0.66 : live.connected ? 0.33 : nil),
+                  frac: activeConnection && live.encryptedBond ? 1 : activeConnection ? 0.66 : ringStreaming ? 0.66 : live.connected ? 0.33 : nil),
             .init(title: String(localized: "History sync"),
                   value: live.backfilling ? String(localized: "\(live.syncChunksThisSession) chunks") : LiveSyncFormat.lastSyncLabel(live.lastSyncedAt),
                   detail: syncDetail,
