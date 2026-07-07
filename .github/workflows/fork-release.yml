@@ -40,6 +40,7 @@ jobs:
       ver: ${{ steps.b.outputs.ver }}
       tag: ${{ steps.b.outputs.tag }}
       sha: ${{ steps.b.outputs.sha }}
+      buildVersion: ${{ steps.b.outputs.buildVersion }}
     steps:
       - uses: actions/checkout@v4
       - id: b
@@ -87,11 +88,14 @@ jobs:
               echo "::warning::No docs/releases/${TAG}.md — GitHub notes + in-app 'What's New' will use placeholders."
             fi
             git config user.name 'ryanbr'
-            git config user.email 'ryan.borsix@gmail.com'
+            git config user.email 'mp3geek@gmail.com'
             git commit -am "Release ${NEW}: bump version (${BUMP}) + build numbers + What's New"
             git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          # The iOS build number (CURRENT_PROJECT_VERSION as it now stands in project.yml, bumped or not),
+          # for the AltStore manifest's buildVersion.
+          echo "buildVersion=$(grep -m1 'CURRENT_PROJECT_VERSION:' project.yml | sed -E 's/.*\"([0-9]+)\".*/\1/')" >> "$GITHUB_OUTPUT"
 
           # Immutable, NON-prerelease release at the (possibly bumped) commit so releases/latest returns it.
           # Create only if missing (a re-run refreshes assets rather than clobbering the release/notes).
@@ -224,3 +228,68 @@ jobs:
           rm -rf Payload && mkdir Payload && cp -R "$APP" Payload/
           zip -qr "NOOP-ios-unsigned-v${VER}.ipa" Payload
           gh release upload "${{ needs.bump.outputs.tag }}" "NOOP-ios-unsigned-v${VER}.ipa" --repo "$GITHUB_REPOSITORY" --clobber
+
+  # Prepend this release to the AltStore / SideStore source manifest — the one AltStore reads from
+  # raw.githubusercontent.com/<repo>/main/altstore-source.json (docs/IOS.md) — so a sideload user is
+  # offered this version automatically. Replaces the manual per-release altstore-source.json PR (#19).
+  # Best-effort: a missing manifest / IPA asset / push conflict WARNS and skips, never failing the release.
+  altstore:
+    needs: [bump, ios]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main   # AltStore reads the manifest from main, so commit there regardless of the release branch.
+      - name: Add this release to the AltStore source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VER: ${{ needs.bump.outputs.ver }}
+          TAG: ${{ needs.bump.outputs.tag }}
+          BUILD: ${{ needs.bump.outputs.buildVersion }}
+        run: |
+          set -euo pipefail
+          if [ ! -f altstore-source.json ]; then
+            echo "::warning::no altstore-source.json on main — skipping AltStore update."; exit 0
+          fi
+          IPA="NOOP-ios-unsigned-v${VER}.ipa"
+          # The freshly-uploaded IPA's byte size, straight off the release asset (the `ios` job just pushed it).
+          SIZE=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets \
+            --jq '.assets[] | select(.name=="'"$IPA"'") | .size' || true)
+          if [ -z "${SIZE:-}" ]; then
+            echo "::warning::IPA asset $IPA not found on release $TAG — skipping AltStore update."; exit 0
+          fi
+          [ -n "${BUILD:-}" ] || BUILD=$(grep -m1 'CURRENT_PROJECT_VERSION:' project.yml | sed -E 's/.*"([0-9]+)".*/\1/')
+          DATE=$(date -u +%Y-%m-%d)
+          URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${IPA}"
+          DESC="NOOP ${VER}. See the release notes for what changed."
+          MINOS=$(jq -r '.apps[0].minOSVersion // "17.0"' altstore-source.json)
+
+          # Prepend to versions[] (dedup this version so a re-run is idempotent) AND mirror into the
+          # app-level legacy fields older AltStore clients read, so both source shapes point at this release.
+          tmp=$(mktemp)
+          jq \
+            --arg v "$VER" --arg b "$BUILD" --arg d "$DATE" --arg desc "$DESC" \
+            --arg url "$URL" --argjson size "$SIZE" --arg min "$MINOS" \
+            '
+            .apps[0].versions |= ([{
+                version: $v, buildVersion: $b, date: $d,
+                localizedDescription: $desc, downloadURL: $url, size: $size, minOSVersion: $min
+              }] + (map(select(.version != $v))))
+            | .apps[0].version            = $v
+            | .apps[0].buildVersion       = $b
+            | .apps[0].versionDate        = $d
+            | .apps[0].versionDescription = $desc
+            | .apps[0].downloadURL        = $url
+            | .apps[0].size               = $size
+            ' altstore-source.json > "$tmp" && mv "$tmp" altstore-source.json
+
+          if git diff --quiet altstore-source.json; then
+            echo "altstore-source.json already current for ${VER}."; exit 0
+          fi
+          git config user.name 'ryanbr'
+          git config user.email 'mp3geek@gmail.com'
+          git add altstore-source.json
+          git commit -m "Release ${VER}: add to AltStore source"
+          git push origin HEAD:main || {
+            echo "::warning::couldn't push altstore-source.json (main moved?); add the ${VER} entry manually."; exit 0
+          }
