@@ -76,9 +76,19 @@ jobs:
             sed -i -E "s/versionCode = [0-9]+/versionCode = $((ACODE+1))/" "$GRADLE"
             sed -i -E "s/MARKETING_VERSION: \"[^\"]+\"/MARKETING_VERSION: \"$NEW\"/" project.yml
             sed -i -E "s/CURRENT_PROJECT_VERSION: \"[0-9]+\"/CURRENT_PROJECT_VERSION: \"$((ICODE+1))\"/" project.yml
+            # In-app "What's New": generate the AppChangelog entry (both platforms) + bump its constant
+            # from docs/releases/<TAG>.md's whatsnew: front-matter, so the in-app card ships in sync with
+            # this version. Warn (don't fail) if the notes file / its front-matter is missing.
+            if [ -f "docs/releases/${TAG}.md" ]; then
+              python3 -m pip install --quiet pyyaml >/dev/null 2>&1 || true
+              python3 Tools/appchangelog-gen.py "docs/releases/${TAG}.md" \
+                || echo "::warning::appchangelog-gen failed for ${TAG} — in-app 'What's New' not updated."
+            else
+              echo "::warning::No docs/releases/${TAG}.md — GitHub notes + in-app 'What's New' will use placeholders."
+            fi
             git config user.name 'ryanbr'
             git config user.email 'ryan.borsix@gmail.com'
-            git commit -am "Release ${NEW}: bump version (${BUMP}) + build numbers"
+            git commit -am "Release ${NEW}: bump version (${BUMP}) + build numbers + What's New"
             git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
