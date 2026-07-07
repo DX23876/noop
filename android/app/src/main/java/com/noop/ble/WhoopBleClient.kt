@@ -4366,7 +4366,10 @@ class WhoopBleClient(
             return
         }
         if (backfilling) return
-        backfiller.begin(connectedFamily)   // family drives the +4 puffin offset for 5/MG (#78)
+        // #42/#364: consecutiveAutoContinues > 0 means this offload is re-kicked after an EARLIER session
+        // in the same burst banked rows — tell the backfiller so its no-cursor END reads as "caught up",
+        // not "no banked history / charge to 100%". A fresh offload (count 0) keeps the honest guidance.
+        backfiller.begin(connectedFamily, continuedAfterRows = consecutiveAutoContinues > 0)   // family drives the +4 puffin offset for 5/MG (#78)
         backfilling = true
         ackedChunksThisSession = 0
         decodedChunksThisSession = 0
@@ -4536,11 +4539,16 @@ class WhoopBleClient(
             consoleChunks = consoleChunksThisSession,
             rowsPersisted = backfiller.sessionRowsPersisted,
         )
-        val bankedNothing = reason == "HISTORY_COMPLETE" && bankedNothingRaw
+        // #42: the empty tail of an auto-continue burst (consecutiveAutoContinues > 0) isn't a "banked
+        // nothing" sync — an EARLIER session in the same burst handed over real rows and this pass just
+        // confirms we're caught up. Don't surface the "charge to 100%" framing, and don't count it toward
+        // the sustained-empty streak (the productive session already cleared it).
+        val productiveBurstTail = consecutiveAutoContinues > 0
+        val bankedNothing = reason == "HISTORY_COMPLETE" && bankedNothingRaw && !productiveBurstTail
         // #126: only escalate to the clock-lost banner once emptiness is SUSTAINED. A banking cycle (any
         // decoded records / rows persisted) clears the streak, so a single transient empty cycle on a
         // healthy strap stays silent. Track on every completed sync so banking cycles reset it.
-        val sustainedEmpty = if (reason == "HISTORY_COMPLETE")
+        val sustainedEmpty = if (reason == "HISTORY_COMPLETE" && !productiveBurstTail)
             emptySyncTracker.recordCompletedSync(
                 bankedSensorRecords = bankedSensorRecords,
                 consoleOnly = bankedNothingRaw,
