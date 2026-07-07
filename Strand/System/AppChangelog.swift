@@ -7,7 +7,7 @@ enum AppChangelog {
 
     /// Bump this when you add a release below. The "What's New" sheet shows automatically when the
     /// stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
-    static let currentVersion = "8.3.0"
+    static let currentVersion = "8.3.1"
 
     struct Release: Identifiable {
         let version: String
@@ -19,6 +19,17 @@ enum AppChangelog {
 
     /// Newest first.
     static let releases: [Release] = [
+        Release(
+            version: "8.3.1",
+            title: "Backup restore fixed, plus appearance controls",
+            date: "July 2026",
+            items: [
+                "**Restoring a backup works again.** A good backup could fail to restore with a database error; NOOP now reads it correctly during its safety check, so your snapshots restore.",
+                "**Card transparency.** Settings → Appearance now lets you dial how see-through the cards are — solid to clear, saved and applied live.",
+                "**Sky behind cards.** An optional setting extends the day-cycle sky behind the whole Today screen, so it shows through transparent cards.",
+                "**More useful bug reports.** The shared strap log now includes your strap + data state and the sleep-analysis funnels, so a report arrives with the detail to fix it.",
+            ]
+        ),
         Release(
             version: "8.3.0",
             title: "Backup controls, and a lighter app",
