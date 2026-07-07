@@ -1510,7 +1510,7 @@ struct TodayView: View {
                         HStack(spacing: 10) {
                             Circle().fill(readinessColor(r.level)).frame(width: 10, height: 10)
                                 .accessibilityHidden(true)
-                            Text(r.headline).font(StrandFont.headline)
+                            Text(LocalizedStringKey(r.headline)).font(StrandFont.headline)
                                 .foregroundStyle(StrandPalette.textPrimary)
                                 .accessibilityLabel("Readiness: \(levelWord(r.level)). \(r.headline)")
                             Spacer()
@@ -1521,7 +1521,7 @@ struct TodayView: View {
                                     .help("Acute (7-day) vs chronic (28-day) training load. 0.8-1.3 is the sweet spot.")
                             }
                         }
-                        Text(r.summary).font(StrandFont.subhead)
+                        Text(LocalizedStringKey(r.summary)).font(StrandFont.subhead)
                             .foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                         if !r.signals.isEmpty {
@@ -1537,7 +1537,7 @@ struct TodayView: View {
                                         .padding(.top, 4)
                                         .accessibilityHidden(true)
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text(s.label).font(StrandFont.caption)
+                                        Text(LocalizedStringKey(s.label)).font(StrandFont.caption)
                                             .foregroundStyle(StrandPalette.textSecondary)
                                         if let evidence = s.evidence {
                                             Text(evidence).font(StrandFont.captionNumber)
@@ -1547,13 +1547,13 @@ struct TodayView: View {
                                         }
                                     }
                                         .frame(width: 104, alignment: .leading)
-                                    Text(s.detail).font(StrandFont.caption)
+                                    Text(LocalizedStringKey(s.detail)).font(StrandFont.caption)
                                         .foregroundStyle(StrandPalette.textTertiary)
                                         .fixedSize(horizontal: false, vertical: true)
                                     Spacer(minLength: 0)
                                 }
                                 .accessibilityElement(children: .ignore)
-                                .accessibilityLabel("\(s.label), \(flagWord(s.flag)): \(s.detail)")
+                                .accessibilityLabel(Text("\(Text(LocalizedStringKey(s.label))), \(flagWord(s.flag)): \(Text(LocalizedStringKey(s.detail)))"))
                             }
                         }
                     }
