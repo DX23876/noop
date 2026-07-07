@@ -25,7 +25,7 @@ object AppChangelog {
      * Bump this when you add a release below. The "What's New" sheet shows automatically when the
      * stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
      */
-    const val CURRENT_VERSION = "7.9.0"
+    const val CURRENT_VERSION = "8.2.2"
 
     data class Release(
         val version: String,
@@ -36,6 +36,18 @@ object AppChangelog {
 
     /** Newest first. */
     val releases: List<Release> = listOf(
+        Release(
+            version = "8.2.2",
+            title = "Steadier connections, fixes, and a nicer sleep view",
+            date = "July 2026",
+            items = listOf(
+                "**Steadier Bluetooth.** A dropped strap reconnects without tearing down a live one, and the HR re-broadcast survives a Bluetooth toggle.",
+                "**Sharper HRV.** R-R intervals are rounded to match the other paths, and HRV windows need a few clean beats before they count.",
+                "**No more crash loops.** A corrupt local database sets the bad file aside and rebuilds a clean one instead of crashing on every launch.",
+                "**Fresh-install fix.** Your WHOOP shows up in the Devices list on a brand-new install.",
+                "**Readable in light mode.** Charge / Effort / Rest labels stay legible in both themes, and more of the app is translated.",
+            ),
+        ),
         Release(
             version = "7.9.0",
             title = "Coupled view, workouts rebuilt, journal numbers",

@@ -7,7 +7,7 @@ enum AppChangelog {
 
     /// Bump this when you add a release below. The "What's New" sheet shows automatically when the
     /// stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
-    static let currentVersion = "7.9.0"
+    static let currentVersion = "8.2.2"
 
     struct Release: Identifiable {
         let version: String
@@ -19,6 +19,18 @@ enum AppChangelog {
 
     /// Newest first.
     static let releases: [Release] = [
+        Release(
+            version: "8.2.2",
+            title: "Steadier connections, fixes, and a nicer sleep view",
+            date: "July 2026",
+            items: [
+                "**Steadier Bluetooth.** A dropped strap reconnects without tearing down a live one, and the HR re-broadcast survives a Bluetooth toggle.",
+                "**Sharper HRV.** R-R intervals are rounded to match the other paths, and HRV windows need a few clean beats before they count.",
+                "**No more crash loops.** A corrupt local database sets the bad file aside and rebuilds a clean one instead of crashing on every launch.",
+                "**Fresh-install fix.** Your WHOOP shows up in the Devices list on a brand-new install.",
+                "**Readable in light mode.** Charge / Effort / Rest labels stay legible in both themes, and more of the app is translated.",
+            ]
+        ),
         Release(
             version: "7.9.0",
             title: "Coupled view, workouts rebuilt, journal numbers",
