@@ -36,6 +36,7 @@ import com.noop.data.DailyMetric
 import com.noop.data.HrSample
 import com.noop.data.WhoopRepository
 import com.noop.data.WorkoutRow
+import com.noop.ingest.ActivityFileImporter
 import com.noop.ingest.HealthConnectImporter
 import com.noop.ingest.HealthConnectWriter
 import com.noop.ingest.LiftingImporter
@@ -1283,13 +1284,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             // a strength-volume estimate, not cardio. Kept OUT of the strap HR-fill below so we never
             // fabricate a heart rate the lift never measured.
             val lifting = repository.workouts(LiftingImporter.SOURCE_ID, 0L, now)
+            // #29: imported activity FILES (FIT / GPX / TCX) live under their own "activity-file" source, so
+            // without reading it a successful file import never appears in the Workouts list (Data Sources
+            // counts it, the load didn't). They're cardio (often GPS + HR), so they go through the strap
+            // HR-fill below like the imported Apple sessions — a GPX with no HR borrows the strap's, while a
+            // FIT that already carries HR is untouched (fill only fills nulls).
+            val activityFiles = repository.workouts(ActivityFileImporter.SOURCE_ID, 0L, now)
             val markers = repository.dismissedDetected(deviceId)
             // Fill imported sessions' missing HR from strap samples (#77), same as before; detected /
             // manual rows already carry their own HR so they pass through unchanged. #961: also backfill a
             // strap-native row's Effort (strain) from the strap trace when it's null, so a live/manual
             // session that ended with sparse HR can't show a blank Effort while the day total counted it.
             val filled = repository.fillWorkoutHrFromStrap(
-                (whoop + apple + detected),
+                (whoop + apple + detected + activityFiles),
                 strainMaxHR = profileStore.hrMax.toDouble(),
                 strainSex = profileStore.sex,
             )
