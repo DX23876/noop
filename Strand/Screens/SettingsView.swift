@@ -77,6 +77,8 @@ struct SettingsView: View {
     // Day-cycle scene backdrop behind Today (#698). Default ON. Off swaps the scene for a plain dark
     // canvas. TodayView reads the same key to gate its SceneScreenBackground.
     @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = true
+    // Card-surface opacity percent (100 = solid). Reactive — moving the slider live-updates every card.
+    @AppStorage(CardAppearancePrefs.opacityKey) private var cardOpacityPercent = CardAppearancePrefs.defaultPercent
     // Hydration tracker (opt-in, MVP). Default OFF — when off the hydration dashboard card + detail are
     // hidden. Mirrors the Android pref so the toggle reads the same on both platforms.
     @AppStorage(HydrationStore.enabledKey) private var hydrationEnabled = false
@@ -685,6 +687,32 @@ struct SettingsView: View {
                 .toggleStyle(.switch)
                 .tint(StrandPalette.accent)
                 Text("Shows a soft sunrise, day, dusk and night scene behind the Today screen. Turn it off for a plain dark canvas. Your cards stay exactly as readable.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                // MARK: Card transparency — fade every frosted card's glass toward the background. Reactive
+                // @AppStorage, so all cards (incl. the ones on this screen) update live as you drag. The
+                // slider shows TRANSPARENCY (0 = solid, 100 = clear); we store the OPACITY percent.
+                HStack {
+                    Text("Card transparency")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                    Spacer()
+                    Text("\(100 - cardOpacityPercent)%")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.accent)
+                }
+                Slider(
+                    value: Binding(
+                        get: { Double(100 - cardOpacityPercent) },
+                        set: { cardOpacityPercent = 100 - Int($0.rounded()) }
+                    ),
+                    in: 0...100, step: 1
+                )
+                .tint(StrandPalette.accent)
+                Text("How see-through the cards (Heart Rate, Key Metrics, Recovery Vitals, …) are. Left = solid, right = clear.")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)

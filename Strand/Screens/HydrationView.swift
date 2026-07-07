@@ -34,6 +34,11 @@ struct HydrationView: View {
     @AppStorage(HydrationStore.customSizeKey) private var customSizeML = HydrationGoal.cupML
     @State private var showCustomSizeSheet = false
 
+    /// "Card transparency" (0–100, default 100): fades the hydration cards in lockstep with the frosted
+    /// cards; content stays readable. Mirrors Kotlin `NoopPrefs.cardOpacityPercent`.
+    @AppStorage(CardAppearancePrefs.opacityKey) private var cardOpacityPercent = CardAppearancePrefs.defaultPercent
+    private var cardOpacity: Double { max(0, min(1, Double(cardOpacityPercent) / 100)) }
+
     private var goalML: Int { repo.hydrationGoalML(profileSex: profile.sex) }
     private var fraction: Double { HydrationGoal.fraction(totalML: totalML, goalML: goalML) }
     private var percent: Int { min(100, Int((fraction * 100).rounded(.towardZero))) }
@@ -129,6 +134,7 @@ struct HydrationView: View {
                     .fill(StrandPalette.surfaceRaised)
                     .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous)
                         .strokeBorder(StrandPalette.hairline, lineWidth: 1))
+                    .opacity(cardOpacity)
             )
     }
 

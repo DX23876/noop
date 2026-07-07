@@ -22,6 +22,11 @@ struct LiveSessionView: View {
     @EnvironmentObject private var profile: ProfileStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// "Card transparency" (0–100, default 100): fades the live-session cards in lockstep with the frosted
+    /// cards; content stays readable. Mirrors Kotlin `NoopPrefs.cardOpacityPercent`.
+    @AppStorage(CardAppearancePrefs.opacityKey) private var cardOpacityPercent = CardAppearancePrefs.defaultPercent
+    private var cardOpacity: Double { max(0, min(1, Double(cardOpacityPercent) / 100)) }
+
     /// One runner per presentation — created here, started on appear, never restarted.
     @StateObject private var runner = LiveSessionRunner()
     let onClose: () -> Void
@@ -368,6 +373,7 @@ struct LiveSessionSummarySheet: View {
                     .fill(StrandPalette.surfaceRaised)
                     .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous)
                         .strokeBorder(StrandPalette.hairline, lineWidth: 1))
+                    .opacity(cardOpacity)
             )
     }
 
