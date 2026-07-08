@@ -104,9 +104,9 @@ jobs:
       - name: Verify universal binary
         run: |
           APP=$(find build/dd/Build/Products -maxdepth 3 -name '*.app' -type d | head -1)
-          EXE="$APP/Contents/MacOS/$(defaults read "$APP/Contents/Info" CFBundleExecutable)"
+          EXE=$(find "$APP/Contents/MacOS" -maxdepth 1 -type f ! -name '*.dylib' | head -1)
           echo "archs: $(lipo -archs "$EXE")"
-          { lipo -archs "$EXE" | grep -q x86_64 && lipo -archs "$EXE" | grep -q arm64; } \
+          { lipo -archs "$EXE" | grep -qw x86_64 && lipo -archs "$EXE" | grep -qw arm64; } \
             || { echo "::error::macOS binary is not universal (expected x86_64 + arm64)"; exit 1; }
       - name: Package + attach
         env:
