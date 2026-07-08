@@ -38,6 +38,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.noop.data.DataBackup
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -91,12 +92,18 @@ fun BackupSyncScreen() {
                     // Relaunching the process re-opens Room against the restored file. Do it automatically
                     // rather than trust the user to read a toast (which is exactly how #57 happened).
                     Toast.makeText(context, "Backup restored — restarting NOOP…", Toast.LENGTH_LONG).show()
-                    delay(800)   // let the toast render before the process dies
-                    val ctx = context.applicationContext
-                    ctx.packageManager.getLaunchIntentForPackage(ctx.packageName)
-                        ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                        ?.let { ctx.startActivity(it) }
-                    Runtime.getRuntime().exit(0)
+                    // NonCancellable: this coroutine runs in the screen's scope, which is cancelled the
+                    // instant the user navigates away. The restart is a data-safety guarantee (the DB is
+                    // already swapped), so it must complete even if the composition leaves — otherwise the
+                    // user could keep syncing into the closed DB, the very bug we're fixing.
+                    withContext(NonCancellable) {
+                        delay(800)   // let the toast render before the process dies
+                        val ctx = context.applicationContext
+                        ctx.packageManager.getLaunchIntentForPackage(ctx.packageName)
+                            ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                            ?.let { ctx.startActivity(it) }
+                        Runtime.getRuntime().exit(0)
+                    }
                 }
                 is DataBackup.ImportResult.Failed ->
                     Toast.makeText(context, r.message, Toast.LENGTH_LONG).show()
