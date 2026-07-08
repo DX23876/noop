@@ -84,13 +84,25 @@ final class BatteryEstimatorTests: XCTestCase {
         XCTAssertEqual(e.remainingHours, 285.12, accuracy: 1e-6)   // 99 / (100/288)
     }
 
-    func testClampsToOneAndAHalfTimesRated() {
-        // A slow drain near full charge must not report more than 1.5x the rated life. 100% to 90% over
-        // 20h is 0.5 %/h, current 90% -> 180h raw, clamped to 108*1.5 = 162h.
+    func testClampsToOneAndAHalfTimesRatedScaledToSoc() {
+        // #99: the cap scales with CURRENT SoC (was a flat 1.5x of the FULL rated life). 100% to 90% over
+        // 20h is 0.5 %/h, current 90% -> 180h raw, clamped to 108 * 1.5 * 0.90 = 145.8h (was 162h).
         let e = BatteryEstimator.estimate(samples: [(0, 100), (20 * h, 90)],
                                           ratedHours: BatteryEstimator.ratedLifeHoursWhoop4)!
         XCTAssertEqual(e.source, .measured)
-        XCTAssertEqual(e.remainingHours, 162, accuracy: 1e-6)   // clamped, not 200
+        XCTAssertEqual(e.remainingHours, 145.8, accuracy: 1e-6)   // 108 * 1.5 * 0.90
+    }
+
+    func testLowSocClampScalesWithCurrentCharge() {
+        // #99 (the report): a too-slow discharge (25% -> 9% over 100h ≈ 0.16 %/h, e.g. idle / off-wrist spans
+        // or sparse 5/MG SoC readings) extrapolates 9% to ~56h raw — but 9% of a 12-day MG can't be ~2.3 days.
+        // The SoC-scaled cap bounds it to 288 * 1.5 * 0.09 = 38.88h (~1.6 days), where the OLD flat 1.5x-rated
+        // cap (432h) let the "9% = 3 days" nonsense through.
+        let e = BatteryEstimator.estimate(samples: [(0, 25), (100 * h, 9)],
+                                          ratedHours: BatteryEstimator.ratedLifeHoursWhoop5)!
+        XCTAssertEqual(e.source, .measured)
+        XCTAssertEqual(e.currentSoc, 9, accuracy: 1e-6)
+        XCTAssertEqual(e.remainingHours, 38.88, accuracy: 1e-6)   // 288 * 1.5 * 0.09, not ~56h
     }
 
     func testUnsortedSamplesAreHandled() {
