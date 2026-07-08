@@ -3407,7 +3407,15 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                     router.dispatchLiveGestureIfFresh(frame: frame, now: strapClockNow)
                     continue
                 }
-                router.handle(frame: frame)                       // live/UI path
+                // #47: decode this live WHOOP4 frame ONCE here and thread the result to every consumer
+                // (router / clock-correlation / collector) instead of each re-parsing it — steady-state
+                // drops 2→1 parse per frame, pre-clock 3→1. This is the WHOOP4 custom-notify case (5/MG has
+                // its own case), so parse with `.whoop4` explicitly — the same family this loop already uses
+                // for isOffloadFrame, and byte-identical to all three original parses (router.family /
+                // collector.family / the no-family clock parse all resolve to .whoop4 here; a DEBUG assert in
+                // the router + collector re-checks the invariant).
+                let parsed = parseFrame(frame, family: .whoop4)
+                router.handle(parsed: parsed, frame: frame)       // live/UI path
                 if frame.count > 6, frame[6] == WhoopCommand.getDataRange.rawValue {
                     // #451: the decoded "newest" can latch a stale/wrong-epoch field (claypilat saw 2024 when
                     // the real newest was 2026). To tell a genuinely-stale strap apart from a frame-alignment
@@ -3467,7 +3475,7 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                 // Clock correlation runs in both live and backfill modes. Once established it
                 // unblocks both the Collector (live path) and the Backfiller (chunk decoding).
                 if clockRef == nil {
-                    let parsed = parseFrame(frame)
+                    // #47: reuse the single decode above (byte-identical for WHOOP4) instead of re-parsing.
                     if let ref = ClockCorrelation.clockRef(from: parsed, wall: Int(Date().timeIntervalSince1970)) {
                         clockRef = ref
                         collector?.clockRef = ref                  // unblocks buffered persistence
@@ -3483,8 +3491,9 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                     }
                 }
                 if !backfilling {
-                    // Live path (unchanged): synchronous ingest preserves delegate arrival order.
-                    collector?.ingest(frame)
+                    // Live path: synchronous ingest preserves delegate arrival order. #47: thread the
+                    // single parse so the collector's flush doesn't re-decode the batch.
+                    collector?.ingest(frame: frame, parsed: parsed)
                 }
             }
         default:

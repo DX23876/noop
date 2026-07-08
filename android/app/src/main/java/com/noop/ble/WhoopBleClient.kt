@@ -1444,7 +1444,9 @@ class WhoopBleClient(
     private val collectorLock = Any()
 
     /** Buffered complete custom-channel frames awaiting a batched decode+insert. */
-    private val liveBuffer = ArrayList<ByteArray>()
+    // #47: buffer the (raw frame, pre-parsed) pair. Raw bytes stay for the raw path; the parse is the one
+    // the dispatcher already did, so flushLive doesn't re-decode the batch.
+    private val liveBuffer = ArrayList<Pair<ByteArray, com.noop.protocol.ParsedFrame>>()
     private var batchStartedAtMs = System.currentTimeMillis()
 
     /** Standard 0x2A37 HR/RR buffer — the reliable, always-on stream (port of Collector.stdHR/stdRR). */
@@ -3260,10 +3262,14 @@ class WhoopBleClient(
                     // every offloaded frame for nothing. (The Swift 5/MG inbound loop already hoists this.)
                     val offloadFrame = backfilling && isOffloadFrame(frame, connectedFamily)
                     noteWhoop5R22Telemetry(frame, offloadFrame)  // #174
+                    // #47: decode this frame ONCE and thread it to both consumers (the router below and the
+                    // live collector) instead of each re-parsing it — steady-state drops 2→1 parse per live
+                    // frame. Family-aware, so it's correct for WHOOP4 and 5/MG alike.
+                    val parsed = Framing.parseFrame(frame, connectedFamily)
                     // A frame replayed as part of the historical offload (type 47/48/… during a backfill)
                     // must not drive LIVE-only state (the charging pill). Mirrors iOS, where the offload
                     // path skips the live router entirely. (PR #568 reimpl)
-                    handleFrame(frame, replayedOffload = offloadFrame)
+                    handleFrame(frame, parsed, replayedOffload = offloadFrame)
 
                     // Capture the strap's newest stored record from a GET_DATA_RANGE reply, feeding
                     // the liveness watchdog. The response command byte is family-dependent: @6 on
@@ -3347,8 +3353,9 @@ class WhoopBleClient(
                             routeBackfillFrame(frame)
                         }
                     } else {
-                        // Live path: buffer the frame for a batched decode+insert (port of Collector.ingest).
-                        ingestLiveFrame(frame)
+                        // Live path: buffer the frame + its parse for a batched insert (port of Collector.ingest).
+                        // #47: thread the single parse so flushLive doesn't re-decode the batch.
+                        ingestLiveFrame(frame, parsed)
                     }
                   } catch (t: Throwable) {
                     log("inbound frame handling threw ${t.javaClass.simpleName} — dropping this frame, link stays up")
@@ -3416,8 +3423,15 @@ class WhoopBleClient(
      * Pure decode→state router for one COMPLETE frame.
      * Direct port of `FrameRouter.handle(frame:)`.
      */
-    private fun handleFrame(frame: ByteArray, replayedOffload: Boolean = false) {
-        val parsed = Framing.parseFrame(frame, connectedFamily)
+    /** Parse-then-route shim (#47). Kept for any caller/test that passes raw bytes; the live dispatcher
+     *  parses ONCE and calls the overload below with the result. */
+    private fun handleFrame(frame: ByteArray, replayedOffload: Boolean = false) =
+        handleFrame(frame, Framing.parseFrame(frame, connectedFamily), replayedOffload)
+
+    /** #47: the dispatcher decodes each frame ONCE and threads it here, so a live frame is parsed once
+     *  instead of twice (this router path + the live-collector flush). `frame` is still passed for the
+     *  byte-level sub-decoders. */
+    private fun handleFrame(frame: ByteArray, parsed: com.noop.protocol.ParsedFrame, replayedOffload: Boolean = false) {
         if (!parsed.ok) return
         // Reject frames that failed their checksum — never let bad bytes drive state.
         if (parsed.crcOk == false) return
@@ -4281,9 +4295,14 @@ class WhoopBleClient(
      * serves GET_CLOCK on this firmware) and REALTIME_DATA's `timestamp` is mapped through it; the
      * historical store, which is the real metric source, carries its own unix ts and needs no clock.
      */
-    private fun ingestLiveFrame(frame: ByteArray) {
+    /** Parse-then-buffer shim (#47). Kept for callers that pass raw bytes; the live dispatcher passes the
+     *  parse it already did. */
+    private fun ingestLiveFrame(frame: ByteArray) =
+        ingestLiveFrame(frame, Framing.parseFrame(frame, connectedFamily))
+
+    private fun ingestLiveFrame(frame: ByteArray, parsed: com.noop.protocol.ParsedFrame) {
         val shouldFlush = synchronized(collectorLock) {
-            liveBuffer.add(frame)   // synchronous append preserves GATT-callback arrival order
+            liveBuffer.add(frame to parsed)   // synchronous append preserves GATT-callback arrival order
             liveBuffer.size >= FLUSH_MAX_FRAMES ||
                 (System.currentTimeMillis() - batchStartedAtMs) >= FLUSH_MAX_INTERVAL_MS
         }
@@ -4311,7 +4330,7 @@ class WhoopBleClient(
         // on today's timeline whatever the strap's clock says, and is a no-op when the clock is already
         // valid (newest frame ≈ now). The dense, authoritative source is still the type-47 history store.
         val now = (System.currentTimeMillis() / 1000L).toInt()
-        val parsed = frames.map { Framing.parseFrame(it, connectedFamily) }
+        val parsed = frames.map { it.second }   // #47: the dispatcher already decoded these — don't re-parse
         val newestRealtimeTs = parsed.asSequence()
             .filter { it.ok && it.crcOk != false && it.typeName == "REALTIME_DATA" }
             .mapNotNull { (it.parsed["timestamp"] as? Number)?.toInt() }

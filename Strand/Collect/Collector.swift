@@ -63,7 +63,9 @@ final class Collector {
     /// activity sample" action can persist raw even when `enableRawCapture` is off. The window's
     /// monotonic deadline auto-expires so a missed stop callback can't leak raw forever.
     private var rawCapture = RawCaptureWindow()
-    private var buffer: [[UInt8]] = []
+    /// #47: buffer the (raw frame, pre-parsed) pair. The raw bytes are still needed for the raw-capture
+    /// outbox; the parse is the one the BLE seam already did, so `flush` doesn't re-decode the batch.
+    private var buffer: [(frame: [UInt8], parsed: ParsedFrame)] = []
     /// Standard 0x2A37 HR/RR buffer — the reliable, always-on stream, recorded continuously
     /// (independent of the custom realtime stream or which screen is open).
     private var stdHR: [HRSample] = []
@@ -114,10 +116,20 @@ final class Collector {
                                 maxUnsyncedBytes: PrunePolicy.maxUnsyncedBytes)) ?? 0
     }
 
-    /// Buffer one complete frame (synchronous: preserves delegate arrival order).
-    /// Auto-flushes via a detached Task when the cadence threshold is hit (flush is async).
+    /// Parse-then-buffer shim (#47). Kept for callers/tests that pass raw bytes; the live seam calls
+    /// `ingest(frame:parsed:)` with the parse it already did.
     func ingest(_ frame: [UInt8]) {
-        buffer.append(frame)
+        ingest(frame: frame, parsed: parseFrame(frame, family: family))
+    }
+
+    /// Buffer one complete frame + its pre-parsed decode (synchronous: preserves delegate arrival order).
+    /// Auto-flushes via a detached Task when the cadence threshold is hit (flush is async). (#47)
+    func ingest(frame: [UInt8], parsed: ParsedFrame) {
+        #if DEBUG
+        assert(parsed == parseFrame(frame, family: family),
+               "Collector.ingest: threaded ParsedFrame != fresh parse (#47 parse-once invariant)")
+        #endif
+        buffer.append((frame, parsed))
         // Pre-clock only: bound memory if GET_CLOCK never lands while data keeps flowing.
         // Drop OLDEST beyond the cap (keep most recent). Post-clock this branch is skipped —
         // the cadence flush below bounds the buffer instead.
@@ -137,16 +149,17 @@ final class Collector {
         guard let ref = clockRef, !buffer.isEmpty else { return }
         // SNAPSHOT + CLEAR before any await: decoded-before-raw ordering AND the
         // buffer-snapshot-before-await invariant are both satisfied here.
-        let frames = buffer
+        let batch = buffer
         buffer.removeAll(keepingCapacity: true)
 
-        let parsed = frames.map { parseFrame($0, family: family) }
+        let frames = batch.map(\.frame)         // still needed for the raw-capture outbox
+        let parsed = batch.map(\.parsed)        // #47: the seam already decoded these — don't re-parse
         let streams = extractStreams(parsed, deviceClockRef: ref.device, wallClockRef: ref.wall)
         do {
             try await store.insert(streams, deviceId: deviceId)   // DECODED FIRST (durable)
         } catch {
-            // Re-buffer at the front so these frames are retried on the next cadence.
-            buffer.insert(contentsOf: frames, at: 0)
+            // Re-buffer at the front so these frames (and their parses) are retried on the next cadence.
+            buffer.insert(contentsOf: batch, at: 0)
             return
         }
         // Reset only after a successful insert so the interval trigger keeps firing if

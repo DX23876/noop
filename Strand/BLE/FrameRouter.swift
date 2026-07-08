@@ -21,8 +21,22 @@ public final class FrameRouter {
     }
 
     /// Handle one complete frame (bytes including 0xAA SOF and the crc32 trailer).
+    /// Parse-then-forward shim (#47). Kept so existing callers/tests that pass raw bytes are unchanged;
+    /// the live BLE seam now parses ONCE and calls `handle(parsed:frame:)` directly.
     public func handle(frame: [UInt8]) {
-        let parsed = parseFrame(frame, family: family)
+        handle(parsed: parseFrame(frame, family: family), frame: frame)
+    }
+
+    /// #47: the caller parses the frame ONCE at the BLE seam and threads the result here, so a live
+    /// WHOOP4 frame is decoded once instead of 2–3× (router + clock-correlation + collector). `frame` is
+    /// still passed for the byte-level sub-decoders below.
+    public func handle(parsed: ParsedFrame, frame: [UInt8]) {
+        #if DEBUG
+        // Guard the "parse once == parse per consumer" invariant in dev/test builds only (assert is stripped
+        // from Release): a threading bug (wrong family / stale frame) trips here, never on a user's wrist.
+        assert(parsed == parseFrame(frame, family: family),
+               "FrameRouter.handle: threaded ParsedFrame != fresh parse (#47 parse-once invariant)")
+        #endif
         guard parsed.ok else { return }
         // Reject frames that failed their checksum — never let bad bytes drive state.
         if parsed.crcOK == false { return }
