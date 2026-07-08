@@ -78,6 +78,15 @@ struct BackupSyncView: View {
                 NoopButton(folderLabel == nil ? "Choose folder" : "Change folder",
                            systemImage: "folder", kind: .secondary) { chooseFolder() }
                     .disabled(busy)
+                #if os(iOS)
+                // #52: some iOS 26 users can't select a folder in the system picker (its "Open" button
+                // never fires). This backs up inside NOOP's own Files-visible folder instead — no picker.
+                if !FolderBackup.useInternalFolder {
+                    NoopButton("Use NOOP's own folder (browse in Files)",
+                               systemImage: "iphone", kind: .tertiary) { useNoopFolder() }
+                        .disabled(busy)
+                }
+                #endif
             }
         }
     }
@@ -155,14 +164,29 @@ struct BackupSyncView: View {
         Task {
             if await FolderBackup.pickFolder() != nil {
                 folderLabel = FolderBackup.folderLabel()
-            } else {
+            } else if !FolderBackup.useInternalFolder {
+                // Only nag when there's no working destination. If the internal fallback is already
+                // active, a cancelled picker changed nothing — and the button the message points at is
+                // hidden, so alerting here would send the user chasing a control that isn't shown.
                 alertTitle = String(localized: "No folder selected")
-                alertMessage = String(localized: "NOOP didn't get a folder back from the picker. If the Select button won't enable, try creating a fresh folder in Files (under On My iPhone or iCloud Drive) and choosing that instead.")
+                alertMessage = String(localized: "NOOP didn't get a folder back from the picker. If the Open button won't do anything, tap \"Use NOOP's own folder\" below to back up inside NOOP instead — you can read those backups from the Files app.")
                 showAlert = true
             }
         }
         #endif
     }
+
+    #if os(iOS)
+    // #52: picker-free fallback. Back up inside NOOP's own Files-visible folder (On My iPhone → NOOP →
+    // Backups). No folder picker, no security-scoped bookmark — works even where the picker won't select.
+    private func useNoopFolder() {
+        FolderBackup.useNoopFolder()
+        folderLabel = FolderBackup.folderLabel()
+        alertTitle = String(localized: "Using NOOP's folder")
+        alertMessage = String(localized: "Backups will be saved inside NOOP. Open the Files app → On My iPhone → NOOP → Backups to see them, or drag that folder into iCloud Drive to read it on your Mac. To use a different folder later, tap Change folder.")
+        showAlert = true
+    }
+    #endif
 
     private func backupNow() {
         busy = true

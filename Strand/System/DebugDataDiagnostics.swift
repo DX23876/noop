@@ -45,6 +45,21 @@ enum DebugDataDiagnostics {
                 + "(if you restored a backup, fully restart the app — #57)")
         }
         if restoreAt > 0 { lines.append("Last restore: \(relTime(now - restoreAt))") }
+        #if os(iOS)
+        // #52: iOS Backup & Sync folder-picker health. When users report "won't let me pick a folder",
+        // this pins the failure stage: "cancelled"/"never used" ⇒ the picker's Open button never fired
+        // (an iOS-side picker issue — the in-app "Use NOOP's own folder" fallback sidesteps it);
+        // "picked" + a FAILED flag ⇒ a returned folder failed to bookmark HERE (our bug).
+        let pickEvent = d.string(forKey: "backupPicker.lastEvent") ?? "never used"
+        let pickAt = d.double(forKey: "backupPicker.lastEventAt")
+        lines.append("Folder picker: \(pickEvent)\(pickAt > 0 ? " (\(relTime(now - pickAt)))" : "")")
+        if pickEvent == "picked" {
+            let scoped = d.bool(forKey: "backupPicker.lastScopedOpen")
+            let bmOk = d.bool(forKey: "backupPicker.lastBookmarkOk")
+            lines.append("             scoped-access \(scoped ? "ok" : "FAILED"), bookmark \(bmOk ? "ok" : "FAILED")")
+        }
+        lines.append("Backup mode:  \(FolderBackup.useInternalFolder ? "NOOP's own folder (#52 fallback)" : (FolderBackup.hasFolder ? "external folder" : "none chosen"))")
+        #endif
         lines.append("Timezone:    \(tzLine())")
         return lines
     }
