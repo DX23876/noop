@@ -129,6 +129,22 @@ final class FastPathParityTests: XCTestCase {
         }
     }
 
+    /// #47: `frameTypeName` (the cheap type-only peek used by the offload gesture pre-filter) must return
+    /// EXACTLY the `typeName` a full `parseFrame` produces, for every valid frame in the corpus and both
+    /// families — otherwise the pre-filter's `== "EVENT"` guard could diverge from the full-parse guard and
+    /// drop (or over-admit) a gesture. Pins the byte-identity the optimisation rests on.
+    func testFrameTypeNameMatchesFullParseTypeName() throws {
+        func check(_ frame: [UInt8], _ family: DeviceFamily, _ label: String) {
+            XCTAssertEqual(frameTypeName(frame, family: family), parseFrame(frame, family: family).typeName,
+                           "frameTypeName != parseFrame.typeName at \(label)")
+        }
+        for (i, frame) in try loadFrames("frames").enumerated() { check(frame, .whoop4, "frames.json #\(i)") }
+        for (i, frame) in try loadFrames("historical_frames").enumerated() {
+            check(frame, .whoop4, "historical_frames.json #\(i)")
+        }
+        for v in Self.whoop5Vectors { check(hexToBytes(v.hex), .whoop5, v.label) }
+    }
+
     /// The DEFAULT call is the fast path on both entry points, so every live/offload call site
     /// (FrameRouter, Collector, Backfiller, rejectedHistoricalRecords, BLEManager clock
     /// correlation) gets the optimisation without a call-site change.
