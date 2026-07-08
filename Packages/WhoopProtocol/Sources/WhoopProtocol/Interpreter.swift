@@ -190,6 +190,27 @@ public func parseFrame(_ frame: [UInt8], collectFields: Bool = false) -> ParsedF
                        fields: fb.fields, parsed: fb.parsed)
 }
 
+/// #47: the packet type NAME only — NO CRC verify, NO FieldBuilder — for hot-path pre-filters that just
+/// need a frame's TYPE (e.g. "is this an EVENT?") before deciding whether to pay a full `parseFrame`. On a
+/// multi-minute offload of thousands of type-47 records that only ever act on rare EVENT frames, this skips
+/// the redundant decode for the ~99% that aren't. Mirrors `parseFrame`'s family split EXACTLY — the inner
+/// type byte is at [4] on WHOOP4 and [8] on 5/MG, with the same lookup each uses (`schema.typeName` /
+/// `canonicalTypeName`). Returns nil for a frame too short / wrong SOF — which `parseFrame` would also mark
+/// INVALID (never "EVENT") — so a pre-filter guarded on `== "EVENT"` is byte-identical to the full-parse
+/// guard.
+public func frameTypeName(_ frame: [UInt8], family: DeviceFamily) -> String? {
+    guard frame.first == 0xAA else { return nil }
+    let schema = loadSchema()
+    switch family {
+    case .whoop4:
+        guard frame.count >= 8 else { return nil }        // parseFrame's `count < 8` INVALID guard
+        return schema.typeName(Int(frame[4]))
+    case .whoop5:
+        guard frame.count >= 12 else { return nil }       // parseFrameWhoop5's `count < 12` INVALID guard
+        return canonicalTypeName(Int(frame[8]), schema: schema)
+    }
+}
+
 /// Family-aware frame parsing.
 ///
 /// `whoop4` behaves EXACTLY like the no-family `parseFrame(_:)` above (back-compat). `whoop5`

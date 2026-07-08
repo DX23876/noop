@@ -290,6 +290,12 @@ public final class FrameRouter {
     /// Deliberately does NOT touch lastEvent / sync trigger / bonded / battery — those stay on the normal
     /// handle(frame:) path, so backfill UI behaviour is otherwise unchanged.
     func dispatchLiveGestureIfFresh(frame: [UInt8], now: Int = Int(Date().timeIntervalSince1970)) {
+        // #47: this fires for EVERY frame on the OFFLOAD path (thousands of type-47 records over a
+        // multi-minute sync) purely to catch a rare EVENT gesture. Cheap type-only pre-check skips the full
+        // CRC + FieldBuilder decode for non-EVENT frames — byte-identical: an EVENT frame still gets the
+        // full parse + CRC guard below; a non-EVENT frame was discarded at the `typeName == "EVENT"` guard
+        // anyway. Family-aware (WHOOP4 type @[4], 5/MG @[8]).
+        guard frameTypeName(frame, family: family) == "EVENT" else { return }
         let parsed = parseFrame(frame, family: family)
         guard parsed.ok, parsed.crcOK != false else { return }
         guard parsed.typeName == "EVENT", let ev = parsed.parsed["event"]?.stringValue else { return }
