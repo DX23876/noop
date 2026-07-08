@@ -2461,10 +2461,18 @@ public final class BLEManager: NSObject, ObservableObject {
         d.set(sentEpoch, forKey: "alarm.lastArmSentEpoch")
         d.set(Date().timeIntervalSince1970, forKey: "alarm.lastArmAt")
         d.set(connectedPeripheralUUID != nil, forKey: "alarm.lastArmConnected")
+        // #34: the strap-clock skew (its own RTC minus wall, seconds) AT THE MOMENT we armed. A wrong RTC
+        // is a top cause of the firmware alarm never firing, and knowing the clock state at arm — not just
+        // now — tells whether the arm even had a chance (skew ~0 but the strap still rejects ⇒ a corrupted
+        // alarm register, not a clock problem).
+        d.set(strapClockNow - Int(Date().timeIntervalSince1970), forKey: "alarm.lastArmClockSkew")
     }
 
     /// Disarm the currently-armed firmware alarm.
     func disableStrapAlarm() {
+        // #34: clear the "strap keeps rejecting the alarm" streak/warning — it's about an ACTIVE arm being
+        // refused, and there's nothing armed to refuse once disarmed.
+        UserDefaults.standard.set(0, forKey: "alarm.rejectStreak")
         if selectedModel.deviceFamily == .whoop5 {
             // 5/MG DISABLE_ALARM is REVISION_2 [0x02, 0xFF]; the rev-1 [0x01] form below is WHOOP4.
             send(.disableAlarm, payload: AlarmPayload.disableRev2())

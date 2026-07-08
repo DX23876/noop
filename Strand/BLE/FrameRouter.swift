@@ -123,8 +123,18 @@ public final class FrameRouter {
                     if let epoch = Self.armedAlarmEpoch(in: frame) {
                         state.append(log: "Alarm: strap reports armed for \(Self.alarmLocalTime(epoch: epoch)) (epoch \(epoch))")
                         // #34: persist what the strap reports so the debug export can show sent-vs-reported.
-                        UserDefaults.standard.set(Int(epoch), forKey: "alarm.lastReportedEpoch")
-                        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "alarm.lastReportedAt")
+                        let d = UserDefaults.standard
+                        d.set(Int(epoch), forKey: "alarm.lastReportedEpoch")
+                        d.set(Date().timeIntervalSince1970, forKey: "alarm.lastReportedAt")
+                        // #34: count CONSECUTIVE rejections (reported ≠ what we last sent) — the signature of
+                        // a corrupted strap alarm register. A matching readback resets it, so a transient
+                        // (first read stale, then correct) never trips the warning; only a persistent refusal
+                        // climbs. SmartAlarmView surfaces the warning at ≥2; the debug export shows the count.
+                        // Observability only — never gates the BLE arm.
+                        if let sent = d.object(forKey: "alarm.lastArmSentEpoch") as? Int {
+                            d.set(abs(Int(epoch) - sent) > 120 ? d.integer(forKey: "alarm.rejectStreak") + 1 : 0,
+                                  forKey: "alarm.rejectStreak")
+                        }
                     } else {
                         state.append(log: "Alarm: strap answered the alarm readback with an unrecognised payload (raw \(Self.commandResponsePayloadHex(in: frame) ?? "empty")) - layout undocumented, log-only")
                     }
