@@ -231,11 +231,22 @@ enum DebugDataDiagnostics {
                 line += " · \(relTime(Date().timeIntervalSince1970 - at))"
             }
             if !d.bool(forKey: "alarm.lastArmConnected") { line += " · strap NOT connected (queued)" }
+            // #34: the strap-clock skew AT ARM. Skew ~0 but the strap still rejects ⇒ a corrupted alarm
+            // register, not a clock problem (which pins whether a re-clock could ever help).
+            if let skew = d.object(forKey: "alarm.lastArmClockSkew") as? Int, abs(skew) > 3600 {
+                let mag = abs(skew) >= 86400 ? "\(skew / 86400)d" : "\(skew / 3600)h"
+                line += " · strap clock at arm \(skew > 0 ? "+" : "")\(mag)"
+            }
             lines.append(line)
             if let reported = d.object(forKey: "alarm.lastReportedEpoch") as? Int {
                 let mismatch = abs(reported - sent) > 120
-                lines.append("Strap reports: \(alarmStamp(reported))"
-                    + (mismatch ? "  ⚠️ MISMATCH — strap didn't accept the time" : "  ✓ matches"))
+                var rline = "Strap reports: \(alarmStamp(reported))"
+                    + (mismatch ? "  ⚠️ MISMATCH — strap didn't accept the time" : "  ✓ matches")
+                // #34: consecutive rejections — a persistent refusal (vs a one-off) points at a strap whose
+                // alarm register needs a reset, and is what SmartAlarmView warns the user about at ≥2.
+                let streak = d.integer(forKey: "alarm.rejectStreak")
+                if streak >= 2 { rline += " · \(streak) in a row (register likely needs a reset, #34)" }
+                lines.append(rline)
             } else {
                 lines.append("Strap reports: (no readback)")
             }
