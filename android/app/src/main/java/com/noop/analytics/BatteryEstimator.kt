@@ -92,9 +92,11 @@ object BatteryEstimator {
 
         val rate = measuredRate ?: (100.0 / maxOf(ratedHours, 1.0))
         val remaining = maxOf(0.0, current) / rate
-        // A fresh full charge can't realistically beat about 1.5x the rated life, so clamp out any wild
-        // estimate from a near-flat measured run that still squeaked past the drop gate.
-        val clamped = minOf(remaining, ratedHours * 1.5)
+        // #99: cap scaled to the CURRENT SoC, not a flat multiple of the FULL rated life. The old
+        // `ratedHours * 1.5` ignored SoC, so a too-slow measured slope at low charge (idle/off-wrist spans,
+        // sparse 5/MG SoC readings) extrapolated 9% to ~3 days — more than a full 12-day MG charge. You can't
+        // realistically stretch the rated per-% runtime past ~1.5x, so bound to that scaled to `current`%.
+        val clamped = minOf(remaining, ratedHours * 1.5 * (maxOf(0.0, current) / 100.0))
         return Estimate(clamped, if (measuredRate != null) Source.MEASURED else Source.RATED, current)
     }
 

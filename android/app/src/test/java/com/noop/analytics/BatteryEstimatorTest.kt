@@ -84,13 +84,25 @@ class BatteryEstimatorTest {
         assertEquals(285.12, e.remainingHours, 1e-6)   // 99 / (100/288)
     }
 
-    @Test fun clampsToOneAndAHalfTimesRated() {
-        // A slow drain near full charge must not report more than 1.5x the rated life. 100% to 90% over
-        // 20h is 0.5 %/h, current 90% -> 180h raw, clamped to 108*1.5 = 162h.
+    @Test fun clampsToOneAndAHalfTimesRatedScaledToSoc() {
+        // #99: the cap scales with CURRENT SoC (was a flat 1.5x of the FULL rated life). 100% to 90% over
+        // 20h is 0.5 %/h, current 90% -> 180h raw, clamped to 108 * 1.5 * 0.90 = 145.8h (was 162h).
         val e = BatteryEstimator.estimate(listOf(0L to 100.0, 20 * h to 90.0),
             BatteryEstimator.ratedLifeHoursWhoop4)!!
         assertEquals(BatteryEstimator.Source.MEASURED, e.source)
-        assertEquals(162.0, e.remainingHours, 1e-6)   // clamped, not 200
+        assertEquals(145.8, e.remainingHours, 1e-6)   // 108 * 1.5 * 0.90
+    }
+
+    @Test fun lowSocClampScalesWithCurrentCharge() {
+        // #99 (the report): a too-slow discharge (25% -> 9% over 100h ~= 0.16 %/h, e.g. idle / off-wrist
+        // spans or sparse 5/MG SoC readings) extrapolates 9% to ~56h raw — but 9% of a 12-day MG can't be
+        // ~2.3 days. The SoC-scaled cap bounds it to 288 * 1.5 * 0.09 = 38.88h (~1.6 days), where the OLD
+        // flat 1.5x-rated cap (432h) let the "9% = 3 days" nonsense through.
+        val e = BatteryEstimator.estimate(listOf(0L to 25.0, 100 * h to 9.0),
+            BatteryEstimator.ratedLifeHoursWhoop5)!!
+        assertEquals(BatteryEstimator.Source.MEASURED, e.source)
+        assertEquals(9.0, e.currentSoc, 1e-6)
+        assertEquals(38.88, e.remainingHours, 1e-6)   // 288 * 1.5 * 0.09, not ~56h
     }
 
     @Test fun unsortedSamplesAreHandled() {
