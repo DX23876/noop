@@ -201,7 +201,8 @@ data class LiveState(
     /** Blank all live biometric readouts (HR + R-R + the rolling buffer) so a stale heart rate or R-R
      *  strip can't outlive the link. Applied on disconnect alongside the charging/bond clears. Twin of
      *  macOS LiveState.clearBiometrics (PR#191). */
-    fun clearedBiometrics(): LiveState = copy(heartRate = null, rr = emptyList(), rrRecent = emptyList())
+    fun clearedBiometrics(): LiveState = copy(heartRate = null, rr = emptyList(), rrRecent = emptyList(),
+                                              streamingLiveHR = false)   // #56: a dropped link is no longer streaming
 }
 
 /**
@@ -1027,7 +1028,13 @@ class WhoopBleClient(
     fun publishExternalLiveHr(hr: Int, rr: List<Int>) {
         if (rr.isNotEmpty()) _state.update { it.withRRIntervals(rr) }
         if (hr in 30..220) {
-            _state.update { it.copy(heartRate = hr, connected = true) }
+            // #56: a non-WHOOP source (the Oura ring, an FTMS machine, a generic HR strap) is actively
+            // streaming live HR. Set streamingLiveHR so the Live console reads it as a trusted stream
+            // instead of "connecting / not trusted" — this seam is invoked ONLY when WHOOP's own BLE is
+            // paused, so it never sets the flag for a WHOOP. `bonded` stays false (no encrypted bond), so
+            // the buzz/alarm/HRV feature gates keep keying off the WHOOP bond. Twin of iOS OuraLiveSource
+            // → LiveState.streamingLiveHR (PR #56).
+            _state.update { it.copy(heartRate = hr, connected = true, streamingLiveHR = true) }
         }
     }
 
@@ -1716,7 +1723,7 @@ class WhoopBleClient(
             // teardownAfterGattFailure → handleDisconnect already publishes connected=false; make the
             // "off" reason explicit for the UI so it reads "Bluetooth is off" rather than "Reconnecting…".
             _state.update { it.copy(
-                connected = false, scanning = false,
+                connected = false, scanning = false, streamingLiveHR = false,   // #56: keep streamingLiveHR ⟹ connected
                 statusNote = "Bluetooth is off. Turn it on to reconnect.",
             ) }
         }
@@ -1784,6 +1791,7 @@ class WhoopBleClient(
         disconnect()
         lastDevice = null   // don't auto-reconnect to the old strap; the next connect scans for the new model
         _state.update { it.copy(connected = false, bonded = false, encryptedBond = false,
+                                streamingLiveHR = false,   // #56: a device switch drops any external stream too
                                 r22FlagsAccepted = 0, deepPacketsThisSession = 0) }   // #174 reset per session
     }
 
