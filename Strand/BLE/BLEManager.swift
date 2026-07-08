@@ -1625,6 +1625,15 @@ public final class BLEManager: NSObject, ObservableObject {
         if let bf = backfiller,
            let summary = Backfiller.sessionSummaryLine(rows: bf.sessionRowsPersisted, motion: bf.sessionMotionRows, skinTemp: bf.sessionSkinTempRows, nights: bf.sessionNights) {
             log(summary)
+            // #67: WHERE the rows landed + WHY (the clock ref that decoded them). A reset-RTC strap banks
+            // last night into the past; this line makes the misdating self-evident in the strap log instead
+            // of leaving "persisted N rows across 1 night(s)" looking like a clean sync.
+            if let diag = Backfiller.sessionClockDiagLine(nightKeys: bf.sessionNightKeys,
+                                                          device: bf.sessionClockDevice,
+                                                          wall: bf.sessionClockWall,
+                                                          usedIdentityRef: bf.sessionUsedIdentityRef) {
+                log(diag)
+            }
         }
         // Connection test mode: the offload OUTCOME the readout's lastOffloadResult id binds. Gated
         // zero-cost (the .connection bool is read before any string is built). Diagnostic only - it reads

@@ -50,6 +50,58 @@ final class BackfillerSessionTallyTests: XCTestCase {
             "Backfill: session persisted 872 rows (172 with motion, 0 skin-temp) across 1 night(s).")
     }
 
+    // MARK: - #67 offload clock-diagnostic line (WHERE rows landed + WHY)
+
+    // No nights persisted → no line (nothing to date).
+    func testClockDiagNilWhenNoNights() {
+        XCTAssertNil(Backfiller.sessionClockDiagLine(nightKeys: [], device: 1_700_000_000, wall: 1_700_000_000, usedIdentityRef: false))
+    }
+
+    // The #67 signature: rows landed years in the past AND the offload used the identity fallback (no
+    // GET_CLOCK correlation), so the stale-RTC correction never engaged. Day-key formats as a UTC date.
+    func testClockDiagIdentityFallbackShowsPastDateAndCorrectionOff() {
+        let marchDay = 1_711_276_123 / 86_400          // 2024-03-24
+        let line = Backfiller.sessionClockDiagLine(nightKeys: [marchDay],
+                                                   device: 1_783_486_611, wall: 1_783_486_611,
+                                                   usedIdentityRef: true)
+        XCTAssertEqual(line, "Backfill: rows landed on 2024-03-24 · clock ref: IDENTITY fallback (GET_CLOCK never correlated) - stale-record correction OFF")
+    }
+
+    // A genuinely stale-but-correlated ref: the correction IS engaged and the behind-by days are named.
+    func testClockDiagCorrelatedStaleRefReportsCorrectionEngaged() {
+        let day = 1_711_276_123 / 86_400
+        let line = Backfiller.sessionClockDiagLine(nightKeys: [day],
+                                                   device: 1_711_276_123, wall: 1_783_486_123,
+                                                   usedIdentityRef: false)
+        XCTAssertNotNil(line)
+        XCTAssertTrue(line!.contains("835d behind wall - correction engaged"), line ?? "")
+    }
+
+    // A healthy strap: in-sync ref, single night, and the date range collapses to one day.
+    func testClockDiagInSyncSingleDay() {
+        let day = 1_783_400_000 / 86_400
+        let line = Backfiller.sessionClockDiagLine(nightKeys: [day],
+                                                   device: 1_783_400_000, wall: 1_783_400_050,
+                                                   usedIdentityRef: false)
+        XCTAssertTrue(line!.hasSuffix("· clock ref in sync"), line ?? "")
+        XCTAssertFalse(line!.contains("…"))   // one day, not a range
+    }
+
+    // Multi-night chunk shows a lo…hi UTC range.
+    func testClockDiagMultiNightRange() {
+        let d0 = 1_711_276_123 / 86_400
+        let d1 = d0 + 2
+        let line = Backfiller.sessionClockDiagLine(nightKeys: [d0, d1], device: nil, wall: nil, usedIdentityRef: false)
+        XCTAssertTrue(line!.contains("2024-03-24…2024-03-26"), line ?? "")
+    }
+
+    // No em-dash leaks (matches the noCursorLine/futureRtcLine convention).
+    func testClockDiagHasNoEmDash() {
+        let line = Backfiller.sessionClockDiagLine(nightKeys: [1_711_276_123 / 86_400],
+                                                   device: 1_783_486_611, wall: 1_783_486_611, usedIdentityRef: true)
+        XCTAssertFalse(line!.contains("\u{2014}"))
+    }
+
     // #783: trim=0xFFFFFFFF on a fresh run that banked NOTHING means "no banked history": the genuine
     // clock/charge guidance with the "fully charge it" hint.
     func testNoCursorLineNoRowsGivesNoHistoryGuidance() {

@@ -104,8 +104,19 @@ final class Backfiller {
     /// ONLY in its full DSP sleep records; a strap banking HR/RR-only records reports 0 here even on a
     /// healthy-looking sync, so surfacing it makes "skin temp never appears" reports self-diagnosing.
     private(set) var sessionSkinTempRows = 0
-    private var sessionNightKeys: Set<Int> = []
+    private(set) var sessionNightKeys: Set<Int> = []
     var sessionNights: Int { sessionNightKeys.count }
+
+    /// #67 diag: the clock reference the offload ACTUALLY decoded with, captured on the first chunk of the
+    /// session. Surfaces whether the stale-RTC timestamp correction (FIX #72's `correctedWall`) could even
+    /// engage. `sessionUsedIdentityRef` = GET_CLOCK never correlated, so decode fell back to an identity
+    /// ref (device==wall==now) → clock offset 0 → correction OFF. On a strap whose RTC has reset, that
+    /// silently stores the strap's stale (years-old) timestamps verbatim, so the night lands off the recent
+    /// timeline and reads as "missed sleep". Paired with the persisted-nights DATE RANGE below, one strap
+    /// log now shows both WHERE the rows landed and WHY. Reset in begin(). Log-only.
+    private(set) var sessionClockDevice: Int?
+    private(set) var sessionClockWall: Int?
+    private(set) var sessionUsedIdentityRef = false
     /// Logged once per session when the strap reports trim=0xFFFFFFFF — the "no valid flash cursor"
     /// sentinel: it has no banked history to offload (a clock/charge state, not a decode bug).
     private var loggedNoCursor = false
@@ -207,6 +218,9 @@ final class Backfiller {
         sessionMotionRows = 0
         sessionSkinTempRows = 0
         sessionNightKeys.removeAll(keepingCapacity: true)
+        sessionClockDevice = nil          // #67: re-capture the decode clock ref for this session
+        sessionClockWall = nil
+        sessionUsedIdentityRef = false
         loggedNoCursor = false
         loggedFutureRtc = false
         sessionDroppedImplausible = 0
@@ -269,6 +283,37 @@ final class Backfiller {
     nonisolated static func sessionSummaryLine(rows: Int, motion: Int, skinTemp: Int, nights: Int) -> String? {
         guard rows > 0 else { return nil }
         return "Backfill: session persisted \(rows) rows (\(motion) with motion, \(skinTemp) skin-temp) across \(nights) night(s)."
+    }
+
+    /// #67 diag: the persisted-nights DATE RANGE plus the offload's effective clock state — the two facts
+    /// the summary above omits. `nightKeys` are UTC day-keys (ts / 86400); their min/max are the day(s) the
+    /// rows LANDED on. When those days sit years in the past while the clock ref reads ~now (an identity
+    /// fallback, or an in-sync ref on a strap that banked stale), the night is misdated off the recent
+    /// timeline — the "missed sleep" signature (#67). Returns nil when nothing landed. Log-only, pure.
+    nonisolated static func sessionClockDiagLine(nightKeys: Set<Int>,
+                                                 device: Int?, wall: Int?, usedIdentityRef: Bool) -> String? {
+        guard let lo = nightKeys.min(), let hi = nightKeys.max() else { return nil }
+        let day: (Int) -> String = { key in
+            let f = DateFormatter()
+            f.locale = Locale(identifier: "en_US_POSIX")   // fixed Gregorian yyyy — not the device calendar
+            f.dateFormat = "yyyy-MM-dd"
+            f.timeZone = TimeZone(identifier: "UTC")
+            return f.string(from: Date(timeIntervalSince1970: Double(key) * 86_400))
+        }
+        let range = lo == hi ? day(lo) : "\(day(lo))…\(day(hi))"
+        var line = "Backfill: rows landed on \(range)"
+        if let device, let wall {
+            let offset = wall - device
+            let days = offset / 86_400
+            if usedIdentityRef {
+                line += " · clock ref: IDENTITY fallback (GET_CLOCK never correlated) - stale-record correction OFF"
+            } else if abs(offset) > 86_400 {
+                line += " · strap clock \(days >= 0 ? "\(days)d behind" : "\(-days)d ahead") wall - correction engaged"
+            } else {
+                line += " · clock ref in sync"
+            }
+        }
+        return line
     }
 
     /// The trim=0xFFFFFFFF sentinel line (#783). 0xFFFFFFFF means two different things depending on whether
@@ -355,6 +400,13 @@ final class Backfiller {
             // decodes to correct wall time, and we can persist + ack + upload. The correlation is only
             // truly required to map REALTIME (type-40/43) device-epoch timestamps, never in a hist chunk.
             let ref = clockRef ?? { let now = Int(Date().timeIntervalSince1970); return ClockRef(device: now, wall: now) }()
+            // #67 diag: remember the ref (and whether it was the identity fallback) for the session summary,
+            // so a strap log shows whether stale-RTC correction could engage. Captured on the first chunk.
+            if sessionClockDevice == nil {
+                sessionClockDevice = ref.device
+                sessionClockWall = ref.wall
+                sessionUsedIdentityRef = (clockRef == nil)
+            }
             // PERF (2026-07-03): the heavy decode — parseFrame ×N, extractHistoricalStreams, and the
             // reject-classifier's SECOND full parse — runs OFF the main actor so a long history offload no
             // longer freezes the UI (was ~54K parseFrame calls on main for a 27K-row import). Pure functions
