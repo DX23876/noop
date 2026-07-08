@@ -32,6 +32,19 @@ enum DebugDataDiagnostics {
         lines.append("Firmware:    \(d.string(forKey: "noop.lastFirmware") ?? "unknown (connect to record)")")
         let syncSec = d.double(forKey: "lastSyncedAt")
         lines.append("Last sync:   \(syncSec > 0 ? relTime(Date().timeIntervalSince1970 - syncSec) : "never")")
+        // #57: write-health. "Last sync" fires even on an empty/failed offload, so distinguish "rows
+        // actually landed" from "an offload STALLED on a persist failure" (history won't persist — usually a
+        // backup restored without an app restart, the closed-store class).
+        let now = Date().timeIntervalSince1970
+        let okAt = d.double(forKey: "sync.lastWriteOkAt")
+        let stalledAt = d.double(forKey: "sync.lastWriteStalledAt")
+        let restoreAt = d.double(forKey: "backup.lastRestoreAt")
+        lines.append("Data write:  \(okAt > 0 ? "rows last landed \(relTime(now - okAt))" : "no rows ever persisted")")
+        if stalledAt > 0, stalledAt >= okAt {
+            lines.append("             ⚠ history NOT persisting — last offload STALLED \(relTime(now - stalledAt)) "
+                + "(if you restored a backup, fully restart the app — #57)")
+        }
+        if restoreAt > 0 { lines.append("Last restore: \(relTime(now - restoreAt))") }
         lines.append("Timezone:    \(tzLine())")
         return lines
     }

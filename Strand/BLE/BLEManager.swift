@@ -1685,6 +1685,12 @@ public final class BLEManager: NSObject, ObservableObject {
             let bankedNothing = banking.bankedNothing && !productiveBurstTail
             let sustainedEmpty = productiveBurstTail ? false : emptySyncTracker.recordCompletedSync(
                 bankedSensorRecords: bankedSensorRecords, consoleOnly: banking.bankedNothing)
+            // #57 debug: write-health for the export. Distinguish "rows actually landed" from "an offload
+            // STALLED on a persist failure" — the latter (usually a restore without a restart) is otherwise
+            // invisible in a report that just shows "0 synced".
+            let du = UserDefaults.standard
+            if (backfiller?.sessionRowsPersisted ?? 0) > 0 { du.set(Date().timeIntervalSince1970, forKey: "sync.lastWriteOkAt") }
+            if backfiller?.persistStalled == true { du.set(Date().timeIntervalSince1970, forKey: "sync.lastWriteStalledAt") }
             if unarchived > 0 {
                 state.lastSyncError = "Synced, but \(archived + unarchived) record(s) couldn't be decoded (unrecognised strap firmware layout), and the on-device archive is full - the \(unarchived) newest weren't preserved. Please share a strap log so the layout can be mapped."
             } else if archived > 0 {

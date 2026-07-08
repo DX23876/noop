@@ -92,6 +92,13 @@ final class Backfiller {
     /// Without it the fresh session's `sessionRowsPersisted` is 0 and the scary "charge to 100%" line
     /// false-fires on the empty tail of a sync that just offloaded real records.
     private(set) var continuedAfterRows = false
+    /// #57: set true the moment ANY chunk's persist (decoded rows / reject archive / raw enqueue / trim
+    /// cursor) fails this session. While set, `finishChunk` must NOT ack — not even a subsequent EMPTY END,
+    /// which skips the insert and would otherwise advance the strap's trim PAST the held records-carrying
+    /// chunks, freeing history we never stored. The offload stalls safely (strap keeps everything past the
+    /// last GOOD ack); a fresh session (`begin`) clears it. Twin of the Android guard. Exposed read-only so
+    /// the client can surface a "history isn't persisting" signal in the debug export (#57).
+    private(set) var persistStalled = false
     private(set) var sessionMotionRows = 0
     /// #727: skin-temp samples banked this session. WHOOP 4.0 carries skin temp (and the raw SpO2 channel)
     /// ONLY in its full DSP sleep records; a strap banking HR/RR-only records reports 0 here even on a
@@ -193,6 +200,7 @@ final class Backfiller {
         self.family = family
         self.continuedAfterRows = continuedAfterRows
         isBackfilling = true
+        persistStalled = false   // #57: fresh session starts un-stalled
         chunk.removeAll(keepingCapacity: true)
         chunkOpen = true
         sessionRowsPersisted = 0
@@ -476,6 +484,7 @@ final class Backfiller {
                 // works" class. We return WITHOUT acking so the strap keeps this chunk and re-sends it next
                 // session (no data loss), but a silent return left a strap log with no trace of the stall.
                 log?("Backfill: failed to persist decoded rows (trim=\(trim)): \(error) — holding ack so the strap re-sends this chunk; history won't advance until the write succeeds.")
+                persistStalled = true   // #57: stall ALL further acks so an empty END can't advance past this
                 return
             }
             // Success-side observability (#150): tally what actually persisted so the session can emit
@@ -499,6 +508,7 @@ final class Backfiller {
             if !rejected.isEmpty, let rejectedSink {
                 guard rejectedSink(rejected, trim, family) else {
                     log?("Backfill: rejected-frame archive failed (trim=\(trim)) — holding ack so the strap re-sends.")
+                    persistStalled = true   // #57
                     return
                 }
             }
@@ -520,6 +530,7 @@ final class Backfiller {
                     // (return) so the strap re-sends — the research toggle's contract is that raw is durable
                     // before the trim advances. Surface it so a stalled offload with raw-capture on is visible.
                     log?("Backfill: failed to enqueue raw batch (trim=\(trim)): \(error) — holding ack so the strap re-sends this chunk; raw capture must be durable before the trim advances.")
+                    persistStalled = true   // #57
                     return
                 }
             }
@@ -544,6 +555,16 @@ final class Backfiller {
             emitConnection(ConnectionTrace.noCursorLine())
         }
 
+        // #57: if an EARLIER chunk this session failed to persist, do NOT advance the cursor or ack — not
+        // even for this (possibly empty/metadata) END. An empty END skips the insert and never throws;
+        // acking it would trim the strap PAST the held records-carrying chunks, freeing history we never
+        // stored. Stall the whole offload until a fresh session with a working store re-offers everything
+        // past the last GOOD ack. Twin of the Android guard.
+        if persistStalled {
+            log?("Backfill: persist stalled earlier this session — NOT acking trim=\(trim) so the strap can't trim past un-stored history. Reconnect once the store is healthy (#57).")
+            return
+        }
+
         do { try await store.setCursor("strap_trim", Int(trim)) } catch {
             // Diag (#601): decoded (and raw, if on) are durable but the strap_trim cursor write failed. We
             // return WITHOUT acking — acking now would let the strap trim past records the cursor hasn't
@@ -551,6 +572,7 @@ final class Backfiller {
             // strap re-offers this chunk next session. A silent return here was a prime "history won't advance"
             // suspect with nothing in the log to confirm it.
             log?("Backfill: failed to write strap_trim cursor (trim=\(trim)): \(error) — holding ack so the strap re-sends this chunk; history won't advance until the cursor write succeeds.")
+            persistStalled = true   // #57
             return
         }
 

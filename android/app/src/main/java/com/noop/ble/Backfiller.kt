@@ -173,6 +173,15 @@ class Backfiller(
      *  false-fires on the empty tail of a sync that just offloaded real records. */
     var continuedAfterRows = false
         private set
+    /** #57: set true the moment ANY chunk's persist (decoded rows / reject archive / trim cursor) fails
+     *  this session. While set, [finishChunk] must NOT ack — not even a subsequent EMPTY/metadata END, which
+     *  skips the insert and would otherwise advance the strap's trim PAST the held records-carrying chunks,
+     *  freeing history we never stored (the closed-DB-after-restore data-loss in #57). The offload stalls
+     *  safely (strap keeps everything past the last GOOD ack); a fresh session ([begin]) clears it.
+     *  Exposed read-only so the client can surface a "history isn't persisting" signal in the debug export
+     *  (#57 was invisible to a report — the UI just showed "0 synced"). */
+    var persistStalled = false
+        private set
     var sessionMotionRows = 0
         private set
     /**
@@ -253,6 +262,7 @@ class Backfiller(
         sessionMotionRows = 0
         sessionSkinTempRows = 0
         sessionNightKeys.clear()
+        persistStalled = false   // #57: fresh session starts un-stalled
         loggedNoCursor = false
         loggedFutureRtc = false
         loggedLayoutVersions.clear()
@@ -452,6 +462,7 @@ class Backfiller(
                 // session (no data loss), but a silent return left a strap log with no trace of the stall.
                 // Mirrors the Swift twin's log so a write-stall is falsifiable here too.
                 log("Backfill: failed to persist decoded rows (trim=$trim): $t, holding ack so the strap re-sends this chunk; history won't advance until the write succeeds.")
+                persistStalled = true   // #57: stall ALL further acks so an empty END can't advance past this
                 return // do NOT advance/ack, chunk was never durably committed
             }
             // #77 / #91: any genuinely-undecodable record in this chunk must be ARCHIVED durably before
@@ -463,6 +474,7 @@ class Backfiller(
             // idempotent no-op while the archive retries. No data loss either way.
             if (rejected.isNotEmpty() && !rejectedSink(rejected, trim)) {
                 log("Backfill: rejected-frame archive failed (trim=$trim) — holding ack so the strap re-sends.")
+                persistStalled = true   // #57
                 return
             }
         }
@@ -486,6 +498,17 @@ class Backfiller(
             emitConnection { com.noop.analytics.ConnectionTrace.noCursorLine() }
         }
 
+        // #57: if an EARLIER chunk this session failed to persist, do NOT advance the cursor or ack — not
+        // even for this (possibly empty/metadata) END. `insert` short-circuits empty batches without
+        // touching the store, so an empty END never throws; acking it would trim the strap PAST the held
+        // records-carrying chunks, freeing history we never stored (the closed-DB-after-restore loss). Stall
+        // the whole offload until a fresh session with a working store re-offers everything past the last
+        // GOOD ack.
+        if (persistStalled) {
+            log("Backfill: persist stalled earlier this session — NOT acking trim=$trim so the strap can't trim past un-stored history. Reconnect once the store is healthy (a backup restore needs an app restart, #57).")
+            return
+        }
+
         // Persist the trim cursor BEFORE acking (so a crash between persist and ack still resumes
         // from the right place). Stored via [TrimCursorStore] because the Room schema has no cursor
         // table — see the port FLAG. trim is a u32 carried as Long (unsigned-safe).
@@ -498,6 +521,7 @@ class Backfiller(
             // this chunk next session. A silent return here was a prime "history won't advance" suspect with
             // nothing in the log to confirm it. Mirrors the Swift twin's log.
             log("Backfill: failed to write strap_trim cursor (trim=$trim): $t, holding ack so the strap re-sends this chunk; history won't advance until the cursor write succeeds.")
+            persistStalled = true   // #57
             return
         }
 

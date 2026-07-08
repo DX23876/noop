@@ -4573,6 +4573,16 @@ class WhoopBleClient(
         // PR #556 reimpl: persist the HISTORY_COMPLETE instant so "Last synced N ago" survives a BLE-client
         // recreation / process restart and stops reverting to "Never".
         if (reason == "HISTORY_COMPLETE") NoopPrefs.setLastSyncAt(context, nowSec)
+        // #57 debug: write-health signal for the export. "Last sync" fires even on an empty/failed offload,
+        // so it can't distinguish "0 rows because the strap was empty" from "0 rows because writes FAILED".
+        // Record the last time rows actually landed, and the last time an offload STALLED on a persist
+        // failure (the closed-DB-after-restore class) — so a future "sync stuck at 0" report is decidable.
+        runCatching {
+            val p = NoopPrefs.of(context).edit()
+            if (backfiller.sessionRowsPersisted > 0) p.putLong("sync.lastWriteOkAt", nowSec)
+            if (backfiller.persistStalled) p.putLong("sync.lastWriteStalledAt", nowSec)
+            p.apply()
+        }
         // #580: a WHOOP 5/MG whose firmware serves no history offload (acks SEND_HISTORICAL_DATA but emits
         // zero type-0x2F frames) times out every session — but that's NOT a failure: live HR streams fine,
         // the offload is just experimental on that firmware. "Banked" = this offload made ANY offload
