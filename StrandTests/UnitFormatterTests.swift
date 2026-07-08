@@ -101,6 +101,23 @@ final class UnitFormatterTests: XCTestCase {
         XCTAssertEqual(UnitFormatter.temperatureDeltaFromCelsius(0.6, unit: .celsius), "0.6 °C")
     }
 
+    // #111: skin_temp holds EITHER a signed deviation (v < 20 °C) or an absolute reading (v >= 20 °C).
+    // A DEVIATION must convert ×9/5 with NO +32 — the absolute formula turned a −4.2 °C deviation into the
+    // reported nonsense "24.4 °F". An ABSOLUTE reading must still get the full C→F. Pin both branches.
+    func testSkinTempMetricPicksDeltaVsAbsoluteByValue() {
+        guard let skin = MetricCatalog.all.first(where: { $0.key == "skin_temp" }) else {
+            return XCTFail("skin_temp descriptor missing")
+        }
+        // DEVIATION (< 20 °C): ×9/5, no +32 — NOT the bogus absolute 24.4 °F.
+        XCTAssertEqual(skin.format(-4.2, system: .imperial, temperature: .fahrenheit), "-7.6 °F")
+        XCTAssertEqual(skin.format(0.6, system: .imperial, temperature: .fahrenheit), "1.1 °F")
+        // ABSOLUTE (>= 20 °C, e.g. an imported WHOOP export reading): full C→F with +32 — 34 °C = 93.2 °F.
+        XCTAssertEqual(skin.format(34.0, system: .imperial, temperature: .fahrenheit), "93.2 °F")
+        // Celsius is unchanged for both — this always looked right; only °F was broken.
+        XCTAssertEqual(skin.format(0.6, system: .metric, temperature: .celsius), "0.6 °C")
+        XCTAssertEqual(skin.format(34.0, system: .metric, temperature: .celsius), "34.0 °C")
+    }
+
     // MARK: - Preference resolution
 
     func testTemperatureOverrideResolution() {

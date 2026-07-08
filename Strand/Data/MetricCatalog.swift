@@ -1,4 +1,5 @@
 import Foundation
+import StrandAnalytics
 
 /// One interrogable metric: how to fetch it (key+source), how to label/format it, and whether
 /// higher is better (drives delta tinting). The Metric Explorer + Compare are built from this list.
@@ -32,6 +33,15 @@ struct MetricDescriptor: Identifiable, Hashable {
     /// gate (`key == "strain"`) — the only value-converting metric in the catalog.
     private var isEffort: Bool { key == "strain" }
 
+    /// #111: the skin_temp metric's stored value is EITHER an absolute skin temperature (WHOOP export gives
+    /// absolute °C) OR a signed DEVIATION from the personal baseline (±°C, the live/computed pipeline) —
+    /// `VitalBands.isAbsoluteSkinTemp(v)` (v >= 20 °C) tells them apart per value. A DEVIATION must convert
+    /// to °F by ×9/5 with NO +32 offset; adding +32 to a deviation produced nonsense ONLY in Fahrenheit
+    /// (a −4.2 °C deviation rendered as "24.4 °F" — the bug), while Celsius appended the raw deviation and
+    /// looked fine. An ABSOLUTE reading still uses the full C→F (×9/5 + 32). Key-based, mirroring `isEffort`
+    /// and the Android HealthScreen per-value branch.
+    private var isSkinTemp: Bool { key == "skin_temp" }
+
     func format(_ v: Double) -> String {
         let n = decimals == 0 ? String(Int(v.rounded())) : String(format: "%.\(decimals)f", v)
         return unit.isEmpty ? n : "\(n) \(unit)"
@@ -55,7 +65,13 @@ struct MetricDescriptor: Identifiable, Hashable {
                 effortScale: EffortScale = .hundred) -> String {
         switch unit {
         case "kg":  return UnitFormatter.massFromKilograms(v, system: system)
-        case "°C":  return UnitFormatter.temperatureFromCelsius(v, unit: temperature, decimals: decimals)
+        case "°C":
+            // #111: a skin-temp DEVIATION (v < 20 °C) scales without the +32 offset; an absolute reading
+            // (WHOOP export, v >= 20 °C) keeps the full C→F. Every other °C metric is absolute.
+            if isSkinTemp && !VitalBands.isAbsoluteSkinTemp(v) {
+                return UnitFormatter.temperatureDeltaFromCelsius(v, unit: temperature, decimals: decimals)
+            }
+            return UnitFormatter.temperatureFromCelsius(v, unit: temperature, decimals: decimals)
         default:    return isEffort ? format(v, effortScale: effortScale) : format(v)
         }
     }
