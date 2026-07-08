@@ -187,12 +187,25 @@ jobs:
         run: brew install xcodegen
       - name: Generate Xcode project
         run: xcodegen generate
-      - name: Build NOOP.app (macOS, unsigned)
+      - name: Build NOOP.app (macOS, unsigned, universal)
+        # #51: 'platform=macOS' on an Apple-Silicon runner resolves to the host arch and thins the binary to
+        # arm64-only (project.yml's ONLY_ACTIVE_ARCH: NO is set only under configs.Release, so the Debug build
+        # inherits the default YES). That shipped an arm64-only app that won't launch on Intel Macs. Force a
+        # true universal build with the generic destination + explicit ARCHS/ONLY_ACTIVE_ARCH; these
+        # command-line settings override the config, so it stays Debug (unchanged shipping behaviour).
         run: >-
-          xcodebuild -scheme Strand -configuration Debug -destination 'platform=macOS'
+          xcodebuild -scheme Strand -configuration Debug
+          -destination 'generic/platform=macOS' ARCHS="x86_64 arm64" ONLY_ACTIVE_ARCH=NO
           -derivedDataPath build/dd
           CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
           build
+      - name: Verify universal binary
+        run: |
+          APP=$(find build/dd/Build/Products -maxdepth 3 -name '*.app' -type d | head -1)
+          EXE="$APP/Contents/MacOS/$(defaults read "$APP/Contents/Info" CFBundleExecutable)"
+          echo "archs: $(lipo -archs "$EXE")"
+          { lipo -archs "$EXE" | grep -q x86_64 && lipo -archs "$EXE" | grep -q arm64; } \
+            || { echo "::error::macOS binary is not universal (expected x86_64 + arm64)"; exit 1; }
       - name: Package + attach
         env:
           GH_TOKEN: ${{ github.token }}

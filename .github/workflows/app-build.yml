@@ -42,10 +42,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # #51: the macOS build must be universal — 'platform=macOS' on an Apple-Silicon runner thins to
+          # arm64-only. Use the generic destination + explicit ARCHS so this CI verify catches an x86_64
+          # break at PR time (matches the release/testing workflows).
           - scheme: Strand
-            destination: 'platform=macOS'
+            destination: 'generic/platform=macOS'
+            extra_args: 'ARCHS="x86_64 arm64" ONLY_ACTIVE_ARCH=NO'
           - scheme: NOOPiOS
             destination: 'generic/platform=iOS Simulator'
+            extra_args: ''
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -59,6 +64,6 @@ jobs:
       - name: Build ${{ matrix.scheme }}
         run: >-
           xcodebuild -scheme '${{ matrix.scheme }}' -configuration Debug
-          -destination '${{ matrix.destination }}'
+          -destination '${{ matrix.destination }}' ${{ matrix.extra_args }}
           CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
           build
