@@ -7,16 +7,16 @@ body:
       value: |
         ### 💬 Just have a question, or "how do I…"?
         **Stop — this form is only for confirmed bugs.** If you want help, want to know how something works, or you're not sure it's a bug, you'll get a faster answer here:
-        - **[Discussions](https://github.com/NoopApp/noop/discussions)** — questions, ideas, "is this normal?", feature requests.
+        - **[Discussions](https://github.com/ryanbr/noop/discussions)** — questions, ideas, "is this normal?", feature requests.
         - **[Discord](https://discord.com/invite/nHK9FHczu)** — the quickest place for a quick question or setup help.
 
         Please use those instead of opening an issue. A question filed as a bug just gets pointed back here, so you'll get sorted faster by starting in the right place. 🙏
 
         ### ⛔ Next — is this already answered?
         Many "bugs" are expected behaviour or a known limit. **Please check these before filing — it's the fastest way to an answer:**
-        - **[FAQ](https://github.com/NoopApp/noop/wiki/FAQ)** — live HR, recovery/sleep, steps, importing, privacy, updates.
-        - **[WHOOP 5.0 / MG status](https://github.com/NoopApp/noop/wiki/WHOOP-5.0-and-MG-Status)** — SpO₂, steps, recovery/sleep on the newer straps (the most common topic).
-        - **[Troubleshooting](https://github.com/NoopApp/noop/wiki/Troubleshooting)** — pairing, "syncs but no data", generic HR straps.
+        - **[FAQ](https://github.com/ryanbr/noop/wiki/FAQ)** — live HR, recovery/sleep, steps, importing, privacy, updates.
+        - **[WHOOP 5.0 / MG status](https://github.com/ryanbr/noop/wiki/WHOOP-5.0-and-MG-Status)** — SpO₂, steps, recovery/sleep on the newer straps (the most common topic).
+        - **[Troubleshooting](https://github.com/ryanbr/noop/wiki/Troubleshooting)** — pairing, "syncs but no data", generic HR straps.
 
         ---
 
@@ -145,9 +145,9 @@ body:
           required: true
         - label: I attached or pasted a strap log above — **or** my bug is a clearly reproducible UI issue that doesn't need one (e.g. a typo, a button that does nothing) and I've described exactly how to see it.
           required: true
-        - label: I checked the [Troubleshooting guide](https://github.com/NoopApp/noop/wiki/Troubleshooting) — especially "history syncs but no data" (most often the strap isn't banking history to flash; charge it to 100% and reconnect).
+        - label: I checked the [Troubleshooting guide](https://github.com/ryanbr/noop/wiki/Troubleshooting) — especially "history syncs but no data" (most often the strap isn't banking history to flash; charge it to 100% and reconnect).
           required: true
-        - label: I checked the [FAQ](https://github.com/NoopApp/noop/wiki/FAQ) and — if I'm on a WHOOP 5.0 / MG — the [5.0/MG status page](https://github.com/NoopApp/noop/wiki/WHOOP-5.0-and-MG-Status), and this isn't an already-known limit (e.g. SpO₂, or recovery/sleep on the 5/MG).
+        - label: I checked the [FAQ](https://github.com/ryanbr/noop/wiki/FAQ) and — if I'm on a WHOOP 5.0 / MG — the [5.0/MG status page](https://github.com/ryanbr/noop/wiki/WHOOP-5.0-and-MG-Status), and this isn't an already-known limit (e.g. SpO₂, or recovery/sleep on the 5/MG).
           required: true
         - label: I've left out anything personal (strap serial, account email, raw export).
           required: true

@@ -4,16 +4,16 @@ contact_links:
     url: https://discord.com/invite/nHK9FHczu
     about: "Got a question, stuck on setup, or not sure something's a bug? Discord is the fastest place for a quick answer. (Confirmed bugs still go to a GitHub issue, with a strap log.)"
   - name: ❓ FAQ — start here (most questions are answered)
-    url: https://github.com/NoopApp/noop/wiki/FAQ
+    url: https://github.com/ryanbr/noop/wiki/FAQ
     about: "Live HR, recovery/sleep, steps, importing data, privacy, updates — the common questions are answered here. Please check before filing."
   - name: ⌚ WHOOP 5.0 / MG — what works & what doesn't
-    url: https://github.com/NoopApp/noop/wiki/WHOOP-5.0-and-MG-Status
+    url: https://github.com/ryanbr/noop/wiki/WHOOP-5.0-and-MG-Status
     about: "SpO₂, steps, recovery/sleep on the 5.0 and MG — what's supported today, what's still being decoded, and why. Read this before reporting a 5/MG issue."
   - name: 🔧 Troubleshooting — pairing, sync & no-data
-    url: https://github.com/NoopApp/noop/wiki/Troubleshooting
+    url: https://github.com/ryanbr/noop/wiki/Troubleshooting
     about: '"History syncs but no data", pairing/bond failures, generic heart-rate straps, "no recovery/sleep" — most connection issues are solved here first.'
   - name: 💡 Feature ideas & questions — Discussions
-    url: https://github.com/NoopApp/noop/discussions
+    url: https://github.com/ryanbr/noop/discussions
     about: "Got an idea, or not sure if something's a bug? Open a Discussion. Issues are for confirmed bugs with a strap log."
   - name: 👽 Community, tips & release news — r/NOOPApp
     url: https://www.reddit.com/r/NOOPApp/
