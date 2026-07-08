@@ -197,14 +197,15 @@ enum DebugDataDiagnostics {
         } else {
             lines.append("Model: \(model)")
         }
-        // #4: strap clock health — a reset/stale OR future-dated clock (the #34 / #928 causes) breaks the
-        // alarm even when armed.
+        // #4 / #67: strap clock health — a reset/stale OR future-dated clock (the #34 / #928 causes) breaks
+        // the alarm even when armed, AND misdates offloaded sleep: the strap banks last night with its wrong
+        // RTC, so the night lands on the stale date and reads as "missed sleep" on the recent timeline (#67).
         if let newest = d.object(forKey: "strap.newestRecordTs") as? Int, newest > 0 {
             let behind = Int(Date().timeIntervalSince1970) - newest
             if behind > 3 * 86400 {
-                lines.append("Strap clock: \(behind / 86400)d behind wall (reset/stale — alarm unreliable)")
+                lines.append("Strap clock: \(behind / 86400)d behind wall (reset/stale — alarm unreliable; recent sleep may be filed ~\(behind / 86400)d in the past, #67)")
             } else if behind < -3 * 86400 {
-                lines.append("Strap clock: \(-behind / 86400)d AHEAD of wall (future-dated — alarm unreliable)")
+                lines.append("Strap clock: \(-behind / 86400)d AHEAD of wall (future-dated — alarm unreliable; recent sleep may be misdated, #67)")
             } else {
                 lines.append("Strap clock: OK")
             }
