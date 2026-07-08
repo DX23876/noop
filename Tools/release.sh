@@ -8,7 +8,7 @@
 #          dist/NOOP-v4.7.0-macos.zip dist/NOOP-v4.7.0.ipa dist/NOOP-v4.7.0.apk \
 #          -- "Bug fixes and the new Lab Book."
 #
-# GitHub is CANONICAL — the release is created there FIRST (NoopApp/noop, marked
+# GitHub is CANONICAL — the release is created there FIRST (ryanbr/noop, marked
 # --latest). The self-hosted Forgejo is published SECOND as a mirror by handing
 # the same args straight to forgejo-release.sh. A Forgejo failure is tolerated:
 # it warns but does NOT abort or fail the run, because the GitHub release already
@@ -26,7 +26,7 @@ set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 
 # canonical GitHub mirror coordinates (override via env if ever needed)
-GH_REPO="${GH_REPO:-NoopApp/noop}"
+GH_REPO="${GH_REPO:-ryanbr/noop}"
 
 VER="${1:?usage: release.sh <version> <asset...> [-- notes]}"; shift
 TAG="v$VER"

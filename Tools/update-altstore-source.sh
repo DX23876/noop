@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # update-altstore-source.sh <version> <ipa> [desc] — refresh altstore-source.json with a new iOS release.
-# The downloadURL points at the canonical GitHub release asset (github.com/NoopApp/noop/releases);
+# The downloadURL points at the canonical GitHub release asset (github.com/ryanbr/noop/releases);
 # noop.fans stays a mirror. Everything else reads CFBundleVersion + size from the IPA,
 # prepends/replaces apps[0].versions[0], and mirrors legacy top-level fields.
 #
