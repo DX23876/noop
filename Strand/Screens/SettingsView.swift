@@ -656,6 +656,7 @@ struct SettingsView: View {
                     .fixedSize()
                     .accessibilityLabel("Theme")
                 }
+                rowDivider   // #79: the segmented rows sat flush against each other (missing separator)
                 FormRow(label: "Chart colours") {
                     // Default = NOOP's clean metric ramps; Classic = the throwback red→amber→green
                     // readiness scale (cool→hot zones, green→red stress). Both schemes.
@@ -670,6 +671,7 @@ struct SettingsView: View {
                     .accessibilityLabel("Chart colours")
                 }
                 #if os(iOS)
+                rowDivider   // #79: separator before App icon (inside #if so macOS keeps a single divider)
                 FormRow(label: "App icon") {
                     Picker("App icon", selection: $useNavyIcon) {
                         Text("Default").tag(false)
