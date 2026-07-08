@@ -92,12 +92,22 @@ jobs:
         run: brew install xcodegen
       - name: Generate Xcode project
         run: xcodegen generate
-      - name: Build NOOP.app (macOS, unsigned)
+      - name: Build NOOP.app (macOS, unsigned, universal)
+        # #51: force a true universal (x86_64 + arm64) build — 'platform=macOS' on an Apple-Silicon runner
+        # thins to arm64-only. Mirrors the release workflow so testing builds match what ships.
         run: >-
-          xcodebuild -scheme Strand -configuration Debug -destination 'platform=macOS'
+          xcodebuild -scheme Strand -configuration Debug
+          -destination 'generic/platform=macOS' ARCHS="x86_64 arm64" ONLY_ACTIVE_ARCH=NO
           -derivedDataPath build/dd
           CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
           build
+      - name: Verify universal binary
+        run: |
+          APP=$(find build/dd/Build/Products -maxdepth 3 -name '*.app' -type d | head -1)
+          EXE=$(find "$APP/Contents/MacOS" -maxdepth 1 -type f ! -name '*.dylib' | head -1)
+          echo "archs: $(lipo -archs "$EXE")"
+          { lipo -archs "$EXE" | grep -qw x86_64 && lipo -archs "$EXE" | grep -qw arm64; } \
+            || { echo "::error::macOS binary is not universal (expected x86_64 + arm64)"; exit 1; }
       - name: Package + attach
         env:
           GH_TOKEN: ${{ github.token }}
