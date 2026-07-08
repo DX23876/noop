@@ -64,7 +64,7 @@ final class BackfillerSessionTallyTests: XCTestCase {
         let line = Backfiller.sessionClockDiagLine(nightKeys: [marchDay],
                                                    device: 1_783_486_611, wall: 1_783_486_611,
                                                    usedIdentityRef: true)
-        XCTAssertEqual(line, "Backfill: rows landed on 2024-03-24 · clock ref: IDENTITY fallback (GET_CLOCK never correlated) - stale-record correction OFF")
+        XCTAssertEqual(line, "Backfill: rows landed on 2024-03-24 · clock ref: IDENTITY fallback (no clock correlation at decode) - stale-record correction OFF")
     }
 
     // A genuinely stale-but-correlated ref: the correction IS engaged and the behind-by days are named.

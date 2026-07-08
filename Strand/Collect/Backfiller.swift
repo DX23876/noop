@@ -109,7 +109,8 @@ final class Backfiller {
 
     /// #67 diag: the clock reference the offload ACTUALLY decoded with, captured on the first chunk of the
     /// session. Surfaces whether the stale-RTC timestamp correction (FIX #72's `correctedWall`) could even
-    /// engage. `sessionUsedIdentityRef` = GET_CLOCK never correlated, so decode fell back to an identity
+    /// engage. `sessionUsedIdentityRef` = no clock correlation had landed when the first chunk decoded, so
+    /// that decode fell back to an identity
     /// ref (device==wall==now) → clock offset 0 → correction OFF. On a strap whose RTC has reset, that
     /// silently stores the strap's stale (years-old) timestamps verbatim, so the night lands off the recent
     /// timeline and reads as "missed sleep". Paired with the persisted-nights DATE RANGE below, one strap
@@ -306,7 +307,7 @@ final class Backfiller {
             let offset = wall - device
             let days = offset / 86_400
             if usedIdentityRef {
-                line += " · clock ref: IDENTITY fallback (GET_CLOCK never correlated) - stale-record correction OFF"
+                line += " · clock ref: IDENTITY fallback (no clock correlation at decode) - stale-record correction OFF"
             } else if abs(offset) > 86_400 {
                 line += " · strap clock \(days >= 0 ? "\(days)d behind" : "\(-days)d ahead") wall - correction engaged"
             } else {
