@@ -3403,9 +3403,12 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                 }
                 // #47: decode this live WHOOP4 frame ONCE here and thread the result to every consumer
                 // (router / clock-correlation / collector) instead of each re-parsing it — steady-state
-                // drops 2→1 parse per frame, pre-clock 3→1. `selectedModel.deviceFamily` is .whoop4 on this
-                // path and matches both router.family and collector.family (a DEBUG assert in each verifies).
-                let parsed = parseFrame(frame, family: selectedModel.deviceFamily)
+                // drops 2→1 parse per frame, pre-clock 3→1. This is the WHOOP4 custom-notify case (5/MG has
+                // its own case), so parse with `.whoop4` explicitly — the same family this loop already uses
+                // for isOffloadFrame, and byte-identical to all three original parses (router.family /
+                // collector.family / the no-family clock parse all resolve to .whoop4 here; a DEBUG assert in
+                // the router + collector re-checks the invariant).
+                let parsed = parseFrame(frame, family: .whoop4)
                 router.handle(parsed: parsed, frame: frame)       // live/UI path
                 if frame.count > 6, frame[6] == WhoopCommand.getDataRange.rawValue {
                     // #451: the decoded "newest" can latch a stale/wrong-epoch field (claypilat saw 2024 when
