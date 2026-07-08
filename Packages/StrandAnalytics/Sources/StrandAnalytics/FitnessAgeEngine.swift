@@ -198,6 +198,12 @@ extension FitnessAgeEngine {
     /// Coverage at/above which an input reads as fully satisfied (a "confident" week).
     public static let goodCoverageDays = 6
 
+    /// Nights of resting-HR still needed before the headline can compute AT ALL — the countdown the
+    /// not-ready card shows ("N more nights of wear…"). 0 once `minCoverageDays` is met. Assumes continued
+    /// nightly wear (a skipped night just doesn't advance the count). Shared with the Android engine so both
+    /// platforms show the same number.
+    public static func nightsUntilReady(rhrDays: Int) -> Int { max(0, minCoverageDays - rhrDays) }
+
     private static func coverageStatus(_ days: Int, floor: Int) -> FitnessReadinessStatus {
         if days >= goodCoverageDays { return .satisfied }
         if days >= floor || days > 0 { return .partial }

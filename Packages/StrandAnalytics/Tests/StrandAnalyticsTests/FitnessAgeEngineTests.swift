@@ -156,4 +156,17 @@ final class FitnessAgeEngineTests: XCTestCase {
                                                  hasHeightWeight: false, hasWaist: false)
         XCTAssertEqual(r.confidence, .ready)
     }
+
+    // The not-ready countdown: nights of RHR still needed to reach the floor (minCoverageDays = 4).
+    func testNightsUntilReadyCountsDownToTheFloor() {
+        XCTAssertEqual(FitnessAgeEngine.nightsUntilReady(rhrDays: 0), 4)
+        XCTAssertEqual(FitnessAgeEngine.nightsUntilReady(rhrDays: 1), 3)
+        XCTAssertEqual(FitnessAgeEngine.nightsUntilReady(rhrDays: 3), 1)
+    }
+
+    // At/above the floor it's 0 (never negative), so the card flips to "ready" with no leftover countdown.
+    func testNightsUntilReadyZeroAtOrAboveFloor() {
+        XCTAssertEqual(FitnessAgeEngine.nightsUntilReady(rhrDays: 4), 0)
+        XCTAssertEqual(FitnessAgeEngine.nightsUntilReady(rhrDays: 7), 0)
+    }
 }

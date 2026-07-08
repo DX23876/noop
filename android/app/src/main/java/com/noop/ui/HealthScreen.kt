@@ -598,10 +598,10 @@ private fun FitnessAgeSection(vm: AppViewModel, days: List<DailyMetric>, profile
     // age; activity (a scored strain day) is an enrichment signal; height/weight/waist sit under the
     // VO₂max role. Age/sex come from the profile. Approximate by design — the weekly value is the
     // authority; this just explains the gaps.
+    // rhrDays drives BOTH the readiness verdict AND the not-ready countdown lead, so hoist it out.
+    val rhrDays = remember(days) { days.takeLast(7).count { it.restingHr != null } }
     val readiness = remember(days, profile.age, profile.sex, profile.waistCm) {
-        val last7 = days.takeLast(7)
-        val rhrDays = last7.count { it.restingHr != null }
-        val activityDays = last7.count { it.strain != null }
+        val activityDays = days.takeLast(7).count { it.strain != null }
         FitnessAgeEngine.assessReadiness(
             hasAge = profile.age > 0,
             hasSex = profile.sex.isNotBlank(),
@@ -629,8 +629,9 @@ private fun FitnessAgeSection(vm: AppViewModel, days: List<DailyMetric>, profile
                 FitnessReadinessCard(readiness = readiness, headed = false)
             }
         } else {
-            // No weekly value yet — surface the checklist directly so the user knows what's pending.
-            FitnessReadinessCard(readiness = readiness, headed = true)
+            // No weekly value yet — lead with a concrete countdown, then the checklist.
+            FitnessReadinessCard(readiness = readiness, headed = true,
+                lead = fitnessReadyLead(rhrDays, profile.age > 0, profile.sex.isNotBlank()))
         }
     }
 }
@@ -897,11 +898,27 @@ private fun FitnessAgeHero(
     }
 }
 
+/** The not-ready card's lead: a concrete countdown of nights-of-wear still needed (from the shared
+ *  [FitnessAgeEngine.nightsUntilReady]), noting the profile basics only when actually missing. Copy is kept
+ *  WORD-FOR-WORD identical to the iOS `fitnessReadyLead` (HealthView) so the two platforms match. */
+private fun fitnessReadyLead(rhrDays: Int, hasAge: Boolean, hasSex: Boolean): String {
+    val remaining = FitnessAgeEngine.nightsUntilReady(rhrDays)
+    val needsBasics = !hasAge || !hasSex
+    return when {
+        remaining == 0 && !needsBasics -> "A few more days and we can show your Fitness Age."
+        remaining == 0 && needsBasics  -> "Add your age and sex below and we can show your Fitness Age."
+        remaining == 1 && !needsBasics -> "1 more night of wear and we can show your Fitness Age."
+        remaining == 1 && needsBasics  -> "1 more night of wear, plus your age and sex below, and we can show your Fitness Age."
+        !needsBasics -> "$remaining more nights of wear and we can show your Fitness Age."
+        else         -> "$remaining more nights of wear, plus your age and sex below, and we can show your Fitness Age."
+    }
+}
+
 /** The readiness checklist card: each input as a ✓ / ⚠ / ○ glyph + its detail, grouped by role into
- *  "Drives your Fitness Age" and "Unlocks your VO₂max". When [headed] (no value yet) it leads with a
- *  "a few more days" heading and floats the required-missing items to the top of their group. */
+ *  "Drives your Fitness Age" and "Unlocks your VO₂max". When [headed] (no value yet) it leads with the
+ *  [lead] countdown and floats the required-missing items to the top of their group. */
 @Composable
-private fun FitnessReadinessCard(readiness: FitnessAgeReadiness, headed: Boolean) {
+private fun FitnessReadinessCard(readiness: FitnessAgeReadiness, headed: Boolean, lead: String = "") {
     val drivesAge = readiness.items
         .filter { it.role == FitnessReadinessRole.DRIVES_AGE }
         .sortedBy { if (headed) readinessSortKey(it) else 0 }
@@ -914,7 +931,7 @@ private fun FitnessReadinessCard(readiness: FitnessAgeReadiness, headed: Boolean
             if (headed) {
                 Column(verticalArrangement = Arrangement.spacedBy(Metrics.space4)) {
                     Text(
-                        "A few more days and we can show your Fitness Age",
+                        lead.ifBlank { "A few more days and we can show your Fitness Age." },
                         style = NoopType.headline,
                         color = Palette.textPrimary,
                     )
