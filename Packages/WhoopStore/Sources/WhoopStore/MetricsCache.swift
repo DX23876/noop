@@ -270,6 +270,66 @@ extension WhoopStore {
         }
     }
 
+    /// Batched twin of `sessionMotion` for a SET of session starts: the persisted per-epoch motion series
+    /// for each of `sessionStarts` that HAS one, in a SINGLE query, keyed by startTs. Same contract as the
+    /// single-key accessor — a start whose column is NULL/absent (or an empty series) is simply omitted from
+    /// the result (absent stays absent, never a fabricated zero array) — but without the per-session
+    /// round-trip the Sleep tab's main-night group used to pay (N single-row reads → one). The `IN (…)` list
+    /// is de-duplicated and chunked to stay well under SQLite's bound-parameter ceiling.
+    public func sessionMotions(deviceId: String, sessionStarts: [Int]) async throws -> [Int: [Double]] {
+        guard !sessionStarts.isEmpty else { return [:] }
+        return try syncRead { db in
+            var out: [Int: [Double]] = [:]
+            let uniq = Array(Set(sessionStarts))
+            var lo = 0
+            while lo < uniq.count {
+                let chunk = Array(uniq[lo ..< min(lo + Self.inClauseChunk, uniq.count)])
+                lo += Self.inClauseChunk
+                let placeholders = chunk.map { _ in "?" }.joined(separator: ",")
+                var args: [DatabaseValueConvertible] = [deviceId]
+                args.append(contentsOf: chunk)
+                let rows = try Row.fetchAll(db, sql: """
+                    SELECT startTs, motionJSON FROM sleepSession
+                    WHERE deviceId = ? AND startTs IN (\(placeholders)) AND motionJSON IS NOT NULL
+                    """, arguments: StatementArguments(args))
+                for row in rows {
+                    let startTs: Int = row["startTs"]
+                    guard let json: String = row["motionJSON"],
+                          let arr = Self.decodeDoubleArray(json), !arr.isEmpty else { continue }
+                    out[startTs] = arr
+                }
+            }
+            return out
+        }
+    }
+
+    /// Batched twin of `sessionSleepState` over a RANGE: every session in `[from, to]` (by startTs) that has
+    /// banked per-epoch band sleep_state, in ONE query, keyed by startTs. The H7 re-onset guard reads the
+    /// SAME `[from, to]` window as its `sleepSessions` call, so a single range scan replaces the per-session
+    /// round-trip (N single-row reads → one); the caller looks each kept (deduped) session up by startTs.
+    /// NULL/absent columns are omitted (absent stays absent), identical to the single-key accessor.
+    public func sessionSleepStates(deviceId: String, from: Int, to: Int) async throws -> [Int: [Int]] {
+        try syncRead { db in
+            var out: [Int: [Int]] = [:]
+            let rows = try Row.fetchAll(db, sql: """
+                SELECT startTs, sleepStateJSON FROM sleepSession
+                WHERE deviceId = ? AND startTs >= ? AND startTs <= ? AND sleepStateJSON IS NOT NULL
+                """, arguments: [deviceId, from, to])
+            for row in rows {
+                let startTs: Int = row["startTs"]
+                guard let json: String = row["sleepStateJSON"],
+                      let arr = Self.decodeIntArray(json), !arr.isEmpty else { continue }
+                out[startTs] = arr
+            }
+            return out
+        }
+    }
+
+    /// SQLite caps the number of bound `?` parameters per statement (SQLITE_MAX_VARIABLE_NUMBER — 999 on the
+    /// system SQLite iOS ships). Chunk `IN (…)` lists comfortably under it, leaving room for the leading
+    /// `deviceId` bind.
+    static let inClauseChunk = 900
+
     /// Compact JSON encoders/decoders for the per-epoch series — a bare `[Double]`/`[Int]` array (no
     /// pretty-printing) so the column stays small and round-trips byte-for-byte with the Android port.
     static func encodeDoubleArray(_ xs: [Double]) -> String? {

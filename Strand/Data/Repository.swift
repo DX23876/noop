@@ -958,13 +958,10 @@ final class Repository: ObservableObject {
     /// A start with no stored series is omitted from the result (its key is absent).
     func sessionMotions(starts: [Int]) async -> [Int: [Double]] {
         guard !starts.isEmpty, let store = await ensureStore() else { return [:] }
-        var out: [Int: [Double]] = [:]
-        for start in starts {
-            if let m = try? await store.sessionMotion(deviceId: computedDeviceId, sessionStart: start), !m.isEmpty {
-                out[start] = m
-            }
-        }
-        return out
+        // One batched read keyed by startTs, not a single-row SELECT per session start. The store's
+        // batched accessor keeps the exact contract of the old loop: starts with no (or an empty) series
+        // are omitted from the result.
+        return (try? await store.sessionMotions(deviceId: computedDeviceId, sessionStarts: starts)) ?? [:]
     }
 
     /// The user's learned habitual midsleep (local time-of-day seconds), or nil under

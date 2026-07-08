@@ -1521,11 +1521,14 @@ final class IntelligenceEngine: ObservableObject {
         let sessions = SleepSessionDedup.dedupe(
             (try? await store.sleepSessions(deviceId: computedId, from: from, to: to,
                                             limit: 4000)) ?? []).kept
+        // One range read of the window's banked band state, keyed by startTs, instead of a single-row SELECT
+        // per kept session. We still expand ONLY the kept (deduped) sessions, in order, so the output is
+        // identical to the old per-session loop — just without the N round-trips.
+        let stateByStart = (try? await store.sessionSleepStates(deviceId: computedId,
+                                                                from: from, to: to)) ?? [:]
         var samples: [(ts: Int, state: Int)] = []
         for s in sessions {
-            guard let states = try? await store.sessionSleepState(deviceId: computedId,
-                                                                  sessionStart: s.startTs),
-                  !states.isEmpty else { continue }
+            guard let states = stateByStart[s.startTs], !states.isEmpty else { continue }
             for (i, st) in states.enumerated() {
                 samples.append((ts: s.startTs + i * epochS, state: st))
             }
