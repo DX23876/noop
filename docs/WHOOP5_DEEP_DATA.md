@@ -1,7 +1,7 @@
 # WHOOP 5.0 / MG deep data — the "R22" unlock
 
 **Status:** experimental, opt-in, awaiting on-hardware confirmation.
-**Tracking:** [#174](https://github.com/ryanbr/noop/issues/174).
+**Tracking:** [#103](https://github.com/ryanbr/noop/issues/103) (raw HCI captures + new deep-record layouts).
 
 ## The problem
 
@@ -23,7 +23,7 @@ This was reached independently three ways, which is why we trust it:
 |---|---|---|
 | [judes.club — "Cracking the WHOOP 5 Bluetooth Protocol"](https://judes.club/writing/cracking-the-whoop-5-bluetooth-protocol/) + [interactive spec](https://judes.club/experiments/whoop5/) | iOS HCI capture of the official app | The full frame format + the exact 15-flag enable sequence **with values**. Our `Whoop5Config` golden test is validated byte-for-byte against its frame-builder. |
 | [Asherlc/dofek](https://github.com/Asherlc/dofek/blob/main/docs/whoop-ble-protocol.md) | Android APK decompilation | The config opcodes (`0x73 START_DEVICE_CONFIG_KEY_EXCHANGE`, `0x78 SET_FF_VALUE`) and the same key names/values. |
-| A community BTSnoop capture (#174) | Bluetooth HCI log of the official app on a real strap | Independently surfaced the same `enable_r22_*` console report + the channel layout. |
+| A community BTSnoop capture ([#103](https://github.com/ryanbr/noop/issues/103)) | Bluetooth HCI log of the official app on a real strap | Independently surfaced the same `enable_r22_*` console report + the channel layout. |
 
 ## Channel layout (5.0 / MG)
 
@@ -92,10 +92,13 @@ tune channel selection, wear detection and sleep behaviour.
 
 1. Update to the latest NOOP, **Settings → Experimental → "Unlock WHOOP 5/MG deep data (R22)"**.
 2. With the strap **on and bonded**, tap **Send enable sequence to strap**.
-3. Keep wearing it, let it sync, then **share your strap log** on #174 — we're looking for new deep
+3. Keep wearing it, let it sync, then **share your strap log** on [#103](https://github.com/ryanbr/noop/issues/103) — we're looking for new deep
    records (type `0x2F`) to start arriving.
-4. Even better: a Bluetooth HCI capture of the **official app syncing a night's history** shows the deep
-   packets actually flowing and their layout. See the capture guide in the wiki.
+4. Even better: a Bluetooth HCI capture of the **official app syncing a full night's history** shows the deep
+   packets actually flowing and their layout. Method: iOS **PacketLogger** (Bluetooth diagnostic profile → `.pklg`)
+   or Android **Developer Options → Bluetooth HCI snoop log** → `btsnoop_hci.log`, opened in Wireshark — the
+   same iOS-HCI approach the [judes.club write-up](https://judes.club/writing/cracking-the-whoop-5-bluetooth-protocol/)
+   used. Filter to just the WHOOP peripheral and attach it to [#103](https://github.com/ryanbr/noop/issues/103).
 
 Credit to **judes.club**, **Asherlc/dofek**, and **b-nnett/goose** for the public protocol work this
 builds on.
