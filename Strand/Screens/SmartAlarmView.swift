@@ -26,6 +26,11 @@ struct SmartAlarmView: View {
     // behaves exactly as before (one wake time for every evening).
     @State private var perDayOn = WindDownNudge.hasPerDayOverrides
     @State private var overrides: [Int: Int] = WindDownNudge.perDayWakeOverrides
+
+    // #34: consecutive times the strap reported back a DIFFERENT alarm time than we sent (set in
+    // FrameRouter). ≥2 = the strap is persistently refusing the alarm (a corrupted clock/alarm register),
+    // which the strapRejectedCard surfaces with reset guidance. @AppStorage so it updates live.
+    @AppStorage("alarm.rejectStreak") private var alarmRejectStreak = 0
     /// Calendar weekday numbers laid out Monday-first (Mon…Sun → 2,3,4,5,6,7,1), matching AutomationsView.
     private static let weekdayOrder = [2, 3, 4, 5, 6, 7, 1]
 
@@ -37,6 +42,7 @@ struct SmartAlarmView: View {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
                 windowHero
                 strapAlarmCard
+                strapRejectedCard   // #34: only shows when the strap keeps refusing the alarm
                 honestyCard
                 windDownCard
             }
@@ -83,6 +89,31 @@ struct SmartAlarmView: View {
             Text(time)
                 .font(StrandFont.number(28))
                 .foregroundStyle(tint)
+        }
+    }
+
+    // #34: shown ONLY when the strap has repeatedly reported back a different alarm time than we sent —
+    // i.e. its firmware is refusing the write (a reset/corrupted clock/alarm register). Gated on the alarm
+    // being on and a rejection STREAK (≥2) so a one-off readback quirk never nags. Actionable: a strap
+    // reset via the official app clears it; the phone Clock alarm covers the gap meanwhile.
+    @ViewBuilder private var strapRejectedCard: some View {
+        if behavior.smartAlarmEnabled && alarmRejectStreak >= 2 {
+            StrandCard(padding: 20) {
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(StrandPalette.statusWarning)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Your strap isn't accepting the alarm")
+                            .font(StrandFont.headline)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                        Text("The strap keeps reporting a different time than NOOP sends, so its firmware alarm won't fire at your wake time — usually a strap whose clock or alarm has reset. Reset the strap in the official WHOOP app (or fully charge it and reconnect), and keep your phone's Clock alarm as your wake until it takes.")
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
         }
     }
 
