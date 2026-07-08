@@ -1052,15 +1052,15 @@ final class AppModel: ObservableObject {
     /// HONEST: this is NOT a guaranteed loud alarm. A sideloaded build has no critical-alert entitlement,
     /// so iOS Focus / silent mode can still suppress the sound. The UI copy says to keep a real backup.
     ///
-    /// Gated on the wrist-alerts master (the same switch `postWristAlert` honours) and on the OS already
-    /// having authorized notifications (no second prompt). Always removes the prior set first, so a re-arm
-    /// replaces rather than stacks. `weekdays` empty = every day (single daily trigger); a non-empty set
-    /// fans out to one weekday-pinned trigger per selected day. No-op on macOS.
-    /// `log` (optional): strap-log sink for the two guard bails below (#401 close-out). The bails were
-    /// silent no-ops, so a user whose backup never fired (wrist-alerts master off, or notification
-    /// permission revoked after arming) had NOTHING in the log to explain the missed backup. The caller
-    /// wraps the sink in a main-actor hop (the auth check completes off-main). Diagnostic only - both
-    /// guards bail exactly as before.
+    /// Gated on the ALARM being enabled (its sole caller `applySmartAlarm()` already enforces that) plus
+    /// notification permission — NOT the wrist-alerts master (#34): a wake backup must not depend on the
+    /// unrelated HR/strain-alerts switch. When permission is undetermined the user is prompted here (they
+    /// just enabled the alarm) and scheduled on grant, so the FIRST night is covered. Always removes the
+    /// prior set first, so a re-arm replaces rather than stacks. `weekdays` empty = every day (single daily
+    /// trigger); a non-empty set fans out to one weekday-pinned trigger per selected day. No-op on macOS.
+    /// `log` (optional): strap-log sink for the not-authorized bail (#401 close-out) — a silent no-op left a
+    /// user whose backup never fired with nothing in the log. The caller wraps the sink in a main-actor hop
+    /// (the auth check completes off-main). Diagnostic only.
     static func scheduleSmartAlarmBackupNotification(minutes: Int, weekdays: Set<Int>,
                                                      log: ((String) -> Void)? = nil) {
         #if os(iOS)
@@ -1068,18 +1068,18 @@ final class AppModel: ObservableObject {
         // Always clear BOTH the single and the per-day ids so switching modes (or editing the weekday set)
         // never leaves an orphaned trigger or double-fires.
         center.removePendingNotificationRequests(withIdentifiers: smartAlarmBackupIds)
-        guard UserDefaults.standard.bool(forKey: wristAlertsMasterKey) else {
-            log?("Smart alarm: backup notification NOT scheduled (wrist-alerts master is off)")
-            return
-        }
+        // #34: the backup follows THE ALARM, not the wrist-alerts master. This is only reached from
+        // applySmartAlarm() with the alarm enabled, so the alarm being on IS the correct gate — a user who
+        // sets a smart alarm but never turned on the separate wrist HR/strain alerts must still get a backup
+        // wake. The old `notif.masterEnabled` guard suppressed it for exactly those users, so a strap that
+        // couldn't arm left them with nothing.
         let valid = weekdays.filter { (1...7).contains($0) }
         // A non-empty selection that filters to nothing (only out-of-range numbers) has no day to fire on.
         if !weekdays.isEmpty && valid.isEmpty { return }
-        center.getNotificationSettings { settings in
-            guard settings.authorizationStatus == .authorized else {
-                log?("Smart alarm: backup notification NOT scheduled (notifications not authorized)")
-                return
-            }
+
+        // Build + add the repeating trigger(s). Factored so the already-authorized and the just-granted
+        // paths schedule identically.
+        func addRequests() {
             let content = UNMutableNotificationContent()
             content.title = String(localized: "Smart alarm")
             content.body = String(localized: "Backup wake: your smart alarm time is here.")
@@ -1102,6 +1102,23 @@ final class AppModel: ObservableObject {
                     center.add(UNNotificationRequest(identifier: "\(smartAlarmBackupId)-d\(weekday)",
                                                      content: content, trigger: trigger))
                 }
+            }
+        }
+
+        center.getNotificationSettings { settings in
+            switch settings.authorizationStatus {
+            case .authorized:
+                addRequests()
+            case .notDetermined:
+                // The user just enabled the alarm but was never asked for notification permission (nothing
+                // else prompted — wrist alerts, which used to, may be off). Ask now, then schedule on grant
+                // so the FIRST night is covered rather than only after some later re-arm.
+                center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
+                    if granted { addRequests() }
+                    else { log?("Smart alarm: backup notification NOT scheduled (notification permission denied)") }
+                }
+            default:
+                log?("Smart alarm: backup notification NOT scheduled (notifications not authorized)")
             }
         }
         #endif
