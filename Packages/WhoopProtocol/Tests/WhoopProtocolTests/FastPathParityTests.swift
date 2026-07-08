@@ -129,20 +129,36 @@ final class FastPathParityTests: XCTestCase {
         }
     }
 
-    /// #47: `frameTypeName` (the cheap type-only peek used by the offload gesture pre-filter) must return
-    /// EXACTLY the `typeName` a full `parseFrame` produces, for every valid frame in the corpus and both
-    /// families — otherwise the pre-filter's `== "EVENT"` guard could diverge from the full-parse guard and
-    /// drop (or over-admit) a gesture. Pins the byte-identity the optimisation rests on.
-    func testFrameTypeNameMatchesFullParseTypeName() throws {
+    /// #47: `frameTypeName` (the cheap type-only peek used by the offload gesture pre-filter) must agree with
+    /// a full `parseFrame` on TWO things, or the pre-filter's `guard frameTypeName == "EVENT"` could diverge
+    /// from the full-parse `guard typeName == "EVENT"` — over-admitting (a wasted parse) or, dangerously,
+    /// DROPPING a real gesture:
+    ///   1. for a VALID frame, the exact type name matches;
+    ///   2. for ANY frame (incl. malformed/short/wrong-SOF), the EVENT *decision* matches — this is the
+    ///      property the pre-filter actually rests on, and it must hold even where the two disagree on the
+    ///      name (frameTypeName returns nil for a short frame; parseFrame calls it "INVALID/FRAGMENT" — both
+    ///      are "not EVENT", so the pre-filter skips exactly as the full parse would).
+    func testFrameTypeNamePreFilterMatchesFullParse() throws {
         func check(_ frame: [UInt8], _ family: DeviceFamily, _ label: String) {
-            XCTAssertEqual(frameTypeName(frame, family: family), parseFrame(frame, family: family).typeName,
-                           "frameTypeName != parseFrame.typeName at \(label)")
+            let peek = frameTypeName(frame, family: family)
+            let full = parseFrame(frame, family: family)
+            if full.ok {
+                XCTAssertEqual(peek, full.typeName, "frameTypeName != parseFrame.typeName at \(label)")
+            }
+            // The contract the offload gesture pre-filter depends on: never drop/over-admit an EVENT.
+            XCTAssertEqual(peek == "EVENT", full.typeName == "EVENT", "EVENT-decision drift at \(label)")
         }
         for (i, frame) in try loadFrames("frames").enumerated() { check(frame, .whoop4, "frames.json #\(i)") }
         for (i, frame) in try loadFrames("historical_frames").enumerated() {
             check(frame, .whoop4, "historical_frames.json #\(i)")
         }
         for v in Self.whoop5Vectors { check(hexToBytes(v.hex), .whoop5, v.label) }
+        // Malformed / boundary frames the corpus doesn't carry, where a false-negative would silently drop a
+        // gesture on real BLE (fragments, corruption). Both peek and full parse must land on "not EVENT".
+        check([], .whoop4, "empty")
+        check([0xAA, 0x01, 0x02], .whoop4, "short (below the 8-byte min)")
+        check([0x00, 0x18, 0x00, 0xff, 0x28, 0x02, 0x0f, 0x00], .whoop4, "wrong SOF")
+        check(hexToBytes("aa010c000001"), .whoop5, "short 5/MG (below the 12-byte min)")
     }
 
     /// The DEFAULT call is the fast path on both entry points, so every live/offload call site
