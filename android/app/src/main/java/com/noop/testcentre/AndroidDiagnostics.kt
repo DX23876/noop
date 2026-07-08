@@ -42,6 +42,20 @@ object AndroidDiagnostics {
             add("Firmware:    ${com.noop.ui.NoopPrefs.lastFirmware(context) ?: "unknown (connect to record)"}")
             val syncSec = com.noop.ui.NoopPrefs.lastSyncAt(context)
             add("Last sync:   ${if (syncSec > 0L) relTime(System.currentTimeMillis() - syncSec * 1000L) else "never"}")
+            // #57: write-health. "Last sync" fires even on an empty/failed offload, so distinguish "rows
+            // actually landed" from "an offload STALLED on a persist failure" (history won't persist —
+            // usually a backup restored without an app restart, the closed-DB class).
+            val p = com.noop.ui.NoopPrefs.of(context)
+            val okAt = p.getLong("sync.lastWriteOkAt", 0L)
+            val stalledAt = p.getLong("sync.lastWriteStalledAt", 0L)
+            val restoreAt = p.getLong("backup.lastRestoreAt", 0L)
+            val now = System.currentTimeMillis()
+            add("Data write:  ${if (okAt > 0L) "rows last landed ${relTime(now - okAt * 1000L)}" else "no rows ever persisted"}")
+            if (stalledAt > 0L && stalledAt >= okAt) {
+                add("             ⚠ history NOT persisting — last offload STALLED ${relTime(now - stalledAt * 1000L)} " +
+                    "(if you restored a backup, fully restart the app — #57)")
+            }
+            if (restoreAt > 0L) add("Last restore: ${relTime(now - restoreAt * 1000L)}")
             add("Timezone:    ${tzLine()}")
             val repo = com.noop.data.WhoopRepository.from(context)
             val days = repo.days("my-whoop")

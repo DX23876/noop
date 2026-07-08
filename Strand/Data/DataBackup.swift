@@ -416,6 +416,9 @@ enum DataBackup {
                     BackupSettings.apply(BackupSettings.decode(data), to: settingsDefaults)
                 }
             }
+            // #57 debug: record when a restore swapped the DB, so the export can correlate a restore with a
+            // later write stall (a restore not followed by a relaunch is the #57 failure).
+            UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "backup.lastRestoreAt")
             return .imported(sidecar: sidecar)
         } catch {
             return .failure(String(localized: "Import failed: \(error.localizedDescription)"))

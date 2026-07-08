@@ -177,8 +177,11 @@ class Backfiller(
      *  this session. While set, [finishChunk] must NOT ack — not even a subsequent EMPTY/metadata END, which
      *  skips the insert and would otherwise advance the strap's trim PAST the held records-carrying chunks,
      *  freeing history we never stored (the closed-DB-after-restore data-loss in #57). The offload stalls
-     *  safely (strap keeps everything past the last GOOD ack); a fresh session ([begin]) clears it. */
-    private var persistStalled = false
+     *  safely (strap keeps everything past the last GOOD ack); a fresh session ([begin]) clears it.
+     *  Exposed read-only so the client can surface a "history isn't persisting" signal in the debug export
+     *  (#57 was invisible to a report — the UI just showed "0 synced"). */
+    var persistStalled = false
+        private set
     var sessionMotionRows = 0
         private set
     /**

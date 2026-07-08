@@ -319,6 +319,12 @@ object DataBackup {
 
         rollbackFile.delete()
         tempSqlite.delete()
+        // #57 debug: record when a restore swapped the DB, so the export can correlate a restore with a
+        // subsequent write stall (a restore that wasn't followed by a restart is exactly the #57 failure).
+        runCatching {
+            com.noop.ui.NoopPrefs.of(appContext).edit()
+                .putLong("backup.lastRestoreAt", System.currentTimeMillis() / 1000L).apply()
+        }
         return ImportResult.NeedsRestart
     }
 

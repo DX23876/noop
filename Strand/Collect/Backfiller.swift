@@ -96,8 +96,9 @@ final class Backfiller {
     /// cursor) fails this session. While set, `finishChunk` must NOT ack — not even a subsequent EMPTY END,
     /// which skips the insert and would otherwise advance the strap's trim PAST the held records-carrying
     /// chunks, freeing history we never stored. The offload stalls safely (strap keeps everything past the
-    /// last GOOD ack); a fresh session (`begin`) clears it. Twin of the Android guard.
-    private var persistStalled = false
+    /// last GOOD ack); a fresh session (`begin`) clears it. Twin of the Android guard. Exposed read-only so
+    /// the client can surface a "history isn't persisting" signal in the debug export (#57).
+    private(set) var persistStalled = false
     private(set) var sessionMotionRows = 0
     /// #727: skin-temp samples banked this session. WHOOP 4.0 carries skin temp (and the raw SpO2 channel)
     /// ONLY in its full DSP sleep records; a strap banking HR/RR-only records reports 0 here even on a
