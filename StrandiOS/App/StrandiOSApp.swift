@@ -122,6 +122,19 @@ struct StrandiOSApp: App {
                     // so a refresh storm can't burn the ~50/day complication transfer budget.
                     Task { await watch.pushLatest(from: model) }
                 }
+                // #114: strap battery % and connection are LIVE (model.live), not repo-cache, so they never
+                // bump refreshSeq — the widget's battery would otherwise never move while the app is open
+                // (the "battery not updating" report). Republish on those too, foreground-gated. Both are
+                // low-frequency (battery ~every 8 min; connection flips are rare), so no throttle is needed
+                // and foreground-initiated reloads are budget-exempt. dropFirst() skips the attach replay.
+                .onReceive(model.live.$batteryPct.dropFirst()) { _ in
+                    guard scenePhase == .active else { return }
+                    Task { await WidgetSnapshot.publish(from: model) }
+                }
+                .onReceive(model.live.$connected.dropFirst()) { _ in
+                    guard scenePhase == .active else { return }
+                    Task { await WidgetSnapshot.publish(from: model) }
+                }
                 // #581: the `noop://import-health` deep link the iOS Shortcut opens after building the
                 // HealthKit-free payload. Filter on the host so other future schemes don't trip the
                 // importer; macOS never registers the scheme so this stays iOS-only.
@@ -163,6 +176,10 @@ struct StrandiOSApp: App {
                     await watch.pushLatest(from: model)
                 }
             } else if phase == .background {
+                // #114: capture the LAST in-app live state on the way out so the Home widget matches what
+                // the user just saw — its battery/HR/score otherwise lag to the last FOREGROUND refreshSeq
+                // bump. One reload per app-exit is low-frequency and well within WidgetKit's daily budget.
+                Task { await WidgetSnapshot.publish(from: model) }
                 // #155: refresh the Documents/noop_sync.txt drop file the user's Siri Shortcut logs
                 // into Apple Health. Gated inside writeIfEnabled on the opt-in default (OFF) — a
                 // no-op until the user turns on Shortcuts Export.
