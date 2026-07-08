@@ -313,8 +313,12 @@ struct SettingsView: View {
                         Text("Non-binary").tag("nonbinary")
                     }
                     .labelsHidden()
-                    .pickerStyle(.segmented)
-                    .fixedSize()
+                    // #43: .menu, not .segmented + .fixedSize(). In FormRow's label(∞)+control HStack a
+                    // segmented picker collapses WITHOUT .fixedSize() but OVERFLOWS the screen WITH it once
+                    // the labels are long (German "Nicht-binär") or Text Size is enlarged — the oversized
+                    // Settings screen users reported. A menu is a compact button that fits any label length.
+                    .pickerStyle(.menu)
+                    .tint(StrandPalette.accent)
                     .accessibilityLabel("Sex")
                 }
                 rowDivider
