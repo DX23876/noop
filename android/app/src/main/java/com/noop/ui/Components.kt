@@ -396,6 +396,8 @@ fun SourceBadge(text: String, tint: Color = Palette.accent, modifier: Modifier =
         text = text.uppercase(),
         style = NoopType.overline.copy(fontSize = 10.sp, letterSpacing = 0.5.sp),
         color = tint,
+        maxLines = 1,                          // #74: e.g. "ON-DEVICE" stays on one line, never wraps the hero
+        overflow = TextOverflow.Ellipsis,
         modifier = modifier
             .clip(shape)
             .background(tint.copy(alpha = 0.14f))

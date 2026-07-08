@@ -1095,7 +1095,10 @@ private struct HeroScoreCell: View {
             }
             Button(action: onGuide) {
                 HStack(spacing: 3) {
+                    // #74: one line, shrink-to-fit rather than wrap under large Dynamic Type (mirrors the
+                    // score number above) so CHARGE/EFFORT/REST never grow the hero card to two lines.
                     Text(label.uppercased()).font(StrandFont.overline).tracking(1.6)
+                        .lineLimit(1).minimumScaleFactor(0.7)
                     Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).opacity(0.6)
                 }
                 // The hero card fill is pinned dark in BOTH themes, so the CHARGE/EFFORT/REST label must use
@@ -1108,6 +1111,7 @@ private struct HeroScoreCell: View {
             if let pill {
                 Text(pill)
                     .font(StrandFont.overlineScaled(8.5)).tracking(1.2)
+                    .lineLimit(1).minimumScaleFactor(0.8)   // #74: source pill never wraps the hero card
                     // WHOOP pill on the pinned-dark hero card → on-dark token, not the theme-flipping one (#1013).
                     .foregroundStyle(StrandPalette.onDarkSecondary)
                     .padding(.horizontal, 8).padding(.vertical, 2.5)
