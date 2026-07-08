@@ -381,7 +381,10 @@ struct FullDayChartView: View {
         case .skinTemp: return "°C"
         case .respiration: return ""
         case .hrv: return " ms"
-        case .spo2, .motion, .bandSleepState: return ""
+        // Gravity-vector magnitude (#102): tag it "g" so the readout doesn't read as a bare, unexplained
+        // number — spo2/bandSleepState stay unitless (unitless ratio / a named state, not a magnitude).
+        case .motion: return " g"
+        case .spo2, .bandSleepState: return ""
         }
     }
 
