@@ -35,8 +35,12 @@ enum BatteryNotifier {
             var full = fullAlerted
             // The stale 100%-full note must be cleared the moment we re-arm below the full line.
             let clearFull = fullAlerted && pct < fullThreshold
-            // Re-arm (hysteresis) so jitter near a threshold can't re-fire.
-            if charging == true || pct >= lowRearmAbove { low = false }
+            // Re-arm (hysteresis) so jitter near a threshold can't re-fire. #80: re-arm ONLY on genuine
+            // recovery (pct >= lowRearmAbove), NOT on charging. The strap reports its charge bit only every
+            // ~8 min, so it flickers true→nil; re-arming on `true` then firing on the `nil` gap re-fired the
+            // low alert repeatedly WHILE charging. `fireLow`'s `charging != true` still suppresses an explicit
+            // charging reading, and a null-charging strap (generic/FTMS) still alerts.
+            if pct >= lowRearmAbove { low = false }
             if pct < fullThreshold { full = false }
             // Fire at most once per genuine crossing.
             let fireLow = !low && pct <= lowThreshold && charging != true

@@ -49,8 +49,12 @@ internal object BatteryAlertPolicy {
         var full = fullAlerted
         // The stale 100%-full note must be cleared the moment we re-arm below the full line.
         val clearFull = fullAlerted && pct < FULL_THRESHOLD
-        // Re-arm (hysteresis) so jitter near a threshold can't re-fire.
-        if (charging == true || pct >= LOW_REARM_ABOVE) low = false
+        // Re-arm (hysteresis) so jitter near a threshold can't re-fire. #80: re-arm ONLY on genuine recovery
+        // (pct >= LOW_REARM_ABOVE), NOT on charging. The strap reports its charge bit only every ~8 min, so
+        // it flickers true→null; re-arming on `true` then firing on the `null` gap re-fired the low alert
+        // repeatedly WHILE charging. `fireLow`'s `charging != true` still suppresses an explicit charging
+        // reading, and a null-charging strap (generic/FTMS) still alerts.
+        if (pct >= LOW_REARM_ABOVE) low = false
         if (pct < FULL_THRESHOLD) full = false
         // Fire at most once per genuine crossing.
         val fireLow = !low && pct <= LOW_THRESHOLD && charging != true
