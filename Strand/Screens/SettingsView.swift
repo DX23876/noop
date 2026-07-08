@@ -2379,6 +2379,13 @@ struct StepsCalibrationSheet: View {
     @State private var draftManual: Double = 0
     @State private var didLoad = false
 
+    /// #107: the sheet's guidance depends on the strap family. A WHOOP 4.0 streams motion automatically, so
+    /// "let it sync" is right; a 5/MG only streams motion once the experimental deep-data unlock is on, so
+    /// the 4.0 advice is futile there and the empty state must say so instead.
+    @AppStorage("selectedWhoopModel") private var selectedWhoopModelRaw = WhoopModel.whoop4.rawValue
+    @AppStorage(PuffinExperiment.deepDataKey) private var deepDataEnabled = false
+    private var is5MG: Bool { selectedWhoopModelRaw == WhoopModel.whoop5mg.rawValue }
+
     /// The coefficient the slider's max anchors to — generous headroom over whatever the auto-fit found so
     /// a manual nudge in either direction is reachable. Floor keeps the slider usable before any fit.
     private var sliderMax: Double {
@@ -2422,7 +2429,7 @@ struct StepsCalibrationSheet: View {
                     .foregroundStyle(StrandPalette.textTertiary)
                 Text("Calibrate your steps").font(StrandFont.rounded(26, weight: .bold))
                     .foregroundStyle(StrandPalette.textPrimary)
-                Text("WHOOP 4.0 · motion → steps").font(StrandFont.caption)
+                Text(is5MG ? "WHOOP 5.0 / MG · motion → steps" : "WHOOP 4.0 · motion → steps").font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textSecondary)
             }
             Spacer()
@@ -2458,7 +2465,9 @@ struct StepsCalibrationSheet: View {
                 Label("How this works", systemImage: "figure.walk.motion")
                     .font(StrandFont.headline)
                     .foregroundStyle(StrandPalette.textPrimary)
-                Text("NOOP estimates your steps from your WHOOP's motion, calibrated to your phone's step count. It's an estimate, not a step counter. A WHOOP 4.0 doesn't transmit steps.")
+                Text(is5MG
+                     ? String(localized: "NOOP estimates your steps from your WHOOP's motion, calibrated to your phone's step count. It's an estimate, not a step counter — a WHOOP 5.0 / MG streams motion (not a step count) only with deep data on.")
+                     : String(localized: "NOOP estimates your steps from your WHOOP's motion, calibrated to your phone's step count. It's an estimate, not a step counter. A WHOOP 4.0 doesn't transmit steps."))
                     .font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -2473,22 +2482,45 @@ struct StepsCalibrationSheet: View {
     /// Shown when the strap has banked NO motion yet (sampleMotion is nil) — the real reason a fresh
     /// WHOOP 4.0 shows zero steps (#37 bringiton321). Steps are built from the strap's synced motion
     /// history, so without a backfill there is nothing to estimate from — calibration can't help yet.
+    ///
+    /// #107: family-aware. A 4.0 streams motion automatically → "let it sync" is right. A 5/MG only streams
+    /// motion once the experimental deep-data unlock is ON — so on a 5/MG the honest advice is "turn that on
+    /// and reconnect", not "wait for a sync" (which never comes). Imports don't supply strap motion either.
     private var noMotionNote: some View {
         NoopCard(tint: StrandPalette.metricAmber) {
             VStack(alignment: .leading, spacing: 10) {
                 Label("No motion synced yet", systemImage: "antenna.radiowaves.left.and.right.slash")
                     .font(StrandFont.headline)
                     .foregroundStyle(StrandPalette.textPrimary)
-                Text("We're not seeing any motion from your strap yet. Steps are estimated from your WHOOP's banked motion history, so your strap needs to sync that history before NOOP has anything to count.")
+                Text(noMotionLead)
                     .font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
-                Text("Open NOOP near your strap and let it catch up (a full history sync can take a while on first run). Once a day or two of motion lands, your step estimate and the calibration below will start to fill in.")
+                Text(noMotionAction)
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+    }
+
+    /// The "why it's empty" line — a 5/MG needs the deep-data unlock before it streams motion at all.
+    private var noMotionLead: String {
+        if is5MG {
+            return String(localized: "We're not seeing any motion from your WHOOP 5.0 / MG yet. Unlike a 4.0, a 5/MG only streams motion (and history) once the experimental deep-data unlock is on — so until then there's nothing to estimate steps from. Importing history from WHOOP or Apple Health doesn't provide the strap motion this needs.")
+        }
+        return String(localized: "We're not seeing any motion from your strap yet. Steps are estimated from your WHOOP's banked motion history, so your strap needs to sync that history before NOOP has anything to count.")
+    }
+
+    /// The "what to do" line — 5/MG points at the deep-data toggle (unless it's already on, then just sync).
+    private var noMotionAction: String {
+        if is5MG && !deepDataEnabled {
+            return String(localized: "Turn on Settings → \u{201C}Unlock WHOOP 5/MG deep data (R22)\u{201D}, reconnect your strap, then open NOOP near it and let a day or two of motion sync. Your step estimate and the calibration below fill in once motion lands.")
+        }
+        if is5MG {
+            return String(localized: "Deep data is on — open NOOP near your strap and let it sync its motion history (a full first-run sync can take a while). Once a day or two of motion lands, your step estimate and the calibration below fill in.")
+        }
+        return String(localized: "Open NOOP near your strap and let it catch up (a full history sync can take a while on first run). Once a day or two of motion lands, your step estimate and the calibration below will start to fill in.")
     }
 
     /// The current calibration read-out: coefficient, sample days, and a Low/Medium/High confidence —
