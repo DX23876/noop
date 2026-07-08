@@ -113,6 +113,7 @@ enum FolderBackup {
     private static let autoKey = "backupSync.auto"
     private static let lastKey = "backupSync.lastMs"
     private static let keepKey = "backupSync.keepCount"
+    private static let internalKey = "backupSync.useInternalFolder"   // #52 picker-free fallback
 
     /// Default snapshots kept by prune: 7, i.e. a week of daily rollback points. (Mirrors the Android
     /// DEFAULT_KEEP; the Android keep-count is likewise user-adjustable.)
@@ -141,10 +142,44 @@ enum FolderBackup {
     }
 
     static var lastBackupMs: Int { UserDefaults.standard.integer(forKey: lastKey) }
-    static var hasFolder: Bool { UserDefaults.standard.data(forKey: bookmarkKey) != nil }
+    static var hasFolder: Bool { useInternalFolder || UserDefaults.standard.data(forKey: bookmarkKey) != nil }
 
-    /// A short, human label for the chosen folder (its last path component), or nil if none chosen.
-    static func folderLabel() -> String? { resolveFolder()?.lastPathComponent }
+    /// #52: on some iOS 26 builds the system folder picker's "Open" button never enables/fires, so users
+    /// can't choose an external folder at all (three reports, works for one). This opt-in falls back to
+    /// NOOP's OWN Documents/Backups folder — already exposed in Files (UIFileSharingEnabled +
+    /// LSSupportsOpeningDocumentsInPlace) under "On My iPhone → NOOP" — so Backup & Sync works with zero
+    /// dependence on the picker. No security-scoped bookmark is involved (the folder is inside our own
+    /// sandbox), so `resolveFolder`/`saveFolder`'s scoped-access brackets simply no-op for it. The user
+    /// can drag that folder into iCloud Drive to read backups on the Mac; a first-class iCloud container
+    /// is a separate, larger change. An explicit external pick (`saveFolder`) turns this back off.
+    static var useInternalFolder: Bool {
+        get { UserDefaults.standard.bool(forKey: internalKey) }
+        set { UserDefaults.standard.set(newValue, forKey: internalKey) }
+    }
+
+    /// Opt into backing up inside NOOP's own Files-visible folder (see `useInternalFolder`). Returns the
+    /// folder URL so the caller can refresh its label. iOS-only in practice; harmless elsewhere.
+    @discardableResult
+    static func useNoopFolder() -> URL? {
+        useInternalFolder = true
+        return internalFolderURL()
+    }
+
+    /// NOOP's own Files-visible backup folder: `<sandbox>/Documents/Backups`, created on first use.
+    /// Returns nil only if Documents can't be located (never in practice).
+    private static func internalFolderURL() -> URL? {
+        guard let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return nil }
+        let dir = docs.appendingPathComponent("Backups", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
+    /// A short, human label for the chosen folder, or nil if none chosen. The internal fallback gets a
+    /// friendly name instead of the raw "Backups" path component.
+    static func folderLabel() -> String? {
+        if useInternalFolder { return String(localized: "NOOP (in Files)") }
+        return resolveFolder()?.lastPathComponent
+    }
 
     // MARK: - Security-scoped bookmark
 
@@ -157,6 +192,7 @@ enum FolderBackup {
     }
 
     private static func resolveFolder() -> URL? {
+        if useInternalFolder { return internalFolderURL() }   // #52: no bookmark — our own sandbox folder
         guard let data = UserDefaults.standard.data(forKey: bookmarkKey) else { return nil }
         var stale = false
         #if os(macOS)
@@ -175,10 +211,18 @@ enum FolderBackup {
     static func saveFolder(_ url: URL) {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-        if let data = try? url.bookmarkData(options: bookmarkCreationOptions(),
-                                            includingResourceValuesForKeys: nil, relativeTo: nil) {
+        let data = try? url.bookmarkData(options: bookmarkCreationOptions(),
+                                         includingResourceValuesForKeys: nil, relativeTo: nil)
+        if let data {
             UserDefaults.standard.set(data, forKey: bookmarkKey)
+            useInternalFolder = false   // #52: an explicit external pick overrides the internal fallback
         }
+        // #52 instrumentation: record whether scoped access opened and whether the bookmark actually
+        // minted, so a debug export can tell a folder that failed to persist HERE apart from a picker
+        // that never returned a URL at all. Cheap UserDefaults writes; see DebugDataDiagnostics.
+        let d = UserDefaults.standard
+        d.set(scoped, forKey: "backupPicker.lastScopedOpen")
+        d.set(data != nil, forKey: "backupPicker.lastBookmarkOk")
     }
 
     // MARK: - Backup / prune

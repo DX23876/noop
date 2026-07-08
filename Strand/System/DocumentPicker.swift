@@ -96,10 +96,12 @@ enum DocumentPicker {
         }
 
         func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+            DocumentPicker.recordEvent(urls.isEmpty ? "picked-empty" : "picked", url: urls.first)
             finish(urls.first)
         }
 
         func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+            DocumentPicker.recordEvent("cancelled", url: nil)
             finish(nil)
         }
 
@@ -108,6 +110,18 @@ enum DocumentPicker {
             resumed = true
             continuation.resume(returning: url)
         }
+    }
+
+    /// #52 instrumentation: persist the last picker delegate outcome so a debug export can distinguish
+    /// "the picker never called back / user cancelled" (its Open button never fired — an iOS picker
+    /// issue the internal-folder fallback sidesteps) from "it returned a URL we then failed to bookmark"
+    /// (our bug, see `FolderBackup.saveFolder`'s scoped/bookmark flags). Shared by all three pickers, so
+    /// the export labels it "last picker event"; the folder pick is the one under investigation.
+    static func recordEvent(_ kind: String, url: URL?) {
+        let d = UserDefaults.standard
+        d.set(kind, forKey: "backupPicker.lastEvent")
+        d.set(Date().timeIntervalSince1970, forKey: "backupPicker.lastEventAt")
+        d.set(url?.lastPathComponent ?? "", forKey: "backupPicker.lastName")
     }
 }
 #endif
