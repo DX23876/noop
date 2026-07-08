@@ -94,6 +94,66 @@ final class SleepMotionStateTests: XCTestCase {
         XCTAssertNil(cleared)
     }
 
+    // MARK: batched aux-blob reads (one query, not N)
+
+    private func upsertBareSession(_ store: WhoopStore, _ s: Int) async throws {
+        try await store.upsertSleepSessions([
+            CachedSleepSession(startTs: s, endTs: s + 8 * 3_600, efficiency: 0.9,
+                               restingHr: 52, avgHrv: 70, stagesJSON: "[]")
+        ], deviceId: dev)
+    }
+
+    /// The batched `sessionMotions` returns EXACTLY what N single `sessionMotion` calls would, keyed by
+    /// start: only starts with a non-empty series appear; absent, empty, and non-existent starts are omitted.
+    func testBatchedSessionMotionsMatchesSingles() async throws {
+        let store = try await WhoopStore.inMemory()
+        let starts = [start, start + 1_000, start + 2_000, start + 3_000]
+        for s in starts { try await upsertBareSession(store, s) }
+        try await store.persistSessionMotion(deviceId: dev, sessionStart: starts[0], motionEpochs: [1.0, 2.0])
+        try await store.persistSessionMotion(deviceId: dev, sessionStart: starts[2], motionEpochs: [3.5])
+        try await store.persistSessionMotion(deviceId: dev, sessionStart: starts[3], motionEpochs: [])  // empty → NULL
+        // starts[1] never written; start+9_999 never a session at all.
+        let query = starts + [start + 9_999]
+
+        let batched = try await store.sessionMotions(deviceId: dev, sessionStarts: query)
+        var singles: [Int: [Double]] = [:]
+        for s in query {
+            if let m = try await store.sessionMotion(deviceId: dev, sessionStart: s), !m.isEmpty { singles[s] = m }
+        }
+        XCTAssertEqual(batched, singles)
+        XCTAssertEqual(batched, [starts[0]: [1.0, 2.0], starts[2]: [3.5]])
+    }
+
+    func testBatchedSessionMotionsEmptyInputNoQuery() async throws {
+        let store = try await storeWithSession()
+        let out = try await store.sessionMotions(deviceId: dev, sessionStarts: [])
+        XCTAssertTrue(out.isEmpty)
+    }
+
+    /// The batched range `sessionSleepStates` returns EXACTLY what per-session `sessionSleepState` reads
+    /// would for the in-window sessions, keyed by start; sessions outside `[from, to]` and NULL-state
+    /// sessions are omitted.
+    func testBatchedSessionSleepStatesMatchesSingles() async throws {
+        let store = try await WhoopStore.inMemory()
+        let inWindow = [start, start + 1_000, start + 2_000]
+        let outside = start + 10 * 24 * 3_600
+        for s in inWindow + [outside] { try await upsertBareSession(store, s) }
+        try await store.persistSessionSleepState(deviceId: dev, sessionStart: inWindow[0], states: [0, 1, 2])
+        try await store.persistSessionSleepState(deviceId: dev, sessionStart: inWindow[2], states: [3])
+        try await store.persistSessionSleepState(deviceId: dev, sessionStart: outside, states: [1, 1])
+        // inWindow[1] never written.
+
+        let from = start, to = start + 5_000
+        let batched = try await store.sessionSleepStates(deviceId: dev, from: from, to: to)
+        var singles: [Int: [Int]] = [:]
+        for s in inWindow {
+            if let st = try await store.sessionSleepState(deviceId: dev, sessionStart: s), !st.isEmpty { singles[s] = st }
+        }
+        XCTAssertEqual(batched, singles)
+        XCTAssertEqual(batched, [inWindow[0]: [0, 1, 2], inWindow[2]: [3]])
+        XCTAssertNil(batched[outside])   // out of window is not returned
+    }
+
     /// A later recompute/import upsert of the SAME session (which never names the two aux columns) must
     /// PRESERVE the banked motion/state — they are not in its column list, so ON CONFLICT leaves them.
     func testUpsertPreservesMotionAndState() async throws {
