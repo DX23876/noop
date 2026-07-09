@@ -882,7 +882,9 @@ private struct FitnessAgeSection: View {
 private struct ReadinessChecklistCard: View {
     let readiness: FitnessAgeReadiness
     /// Optional intro line shown above the groups (e.g. the "a few more days" no-value message).
-    let lead: LocalizedStringKey?
+    /// Already-localized text (from `fitnessReadyLead()`, which returns `String(localized:)`), so it's a
+    /// plain `String` rendered verbatim — not a `LocalizedStringKey` (which would re-key a resolved string).
+    let lead: String?
     /// Invoked when the user taps a required-missing row's "Fix in Settings".
     let onFix: () -> Void
 
