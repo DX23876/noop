@@ -688,6 +688,23 @@ private struct FitnessAgeSection: View {
             hasWaist: profile.waistCm > 0)
     }
 
+    /// The not-ready card's lead: a concrete countdown of nights-of-wear still needed (from the shared
+    /// `nightsUntilReady`), noting the profile basics only when they're actually missing. Copy is kept
+    /// WORD-FOR-WORD identical to the Android `fitnessReadyLead` so the two platforms match.
+    private func fitnessReadyLead() -> String {
+        let rhrDays = repo.days.suffix(7).compactMap { $0.restingHr }.count
+        let remaining = FitnessAgeEngine.nightsUntilReady(rhrDays: rhrDays)
+        let needsBasics = profile.age <= 0 || profile.sex.isEmpty
+        switch (remaining, needsBasics) {
+        case (0, false): return String(localized: "A few more days and we can show your Fitness Age.")
+        case (0, true):  return String(localized: "Add your age and sex below and we can show your Fitness Age.")
+        case (1, false): return String(localized: "1 more night of wear and we can show your Fitness Age.")
+        case (1, true):  return String(localized: "1 more night of wear, plus your age and sex below, and we can show your Fitness Age.")
+        case (let n, false): return String(localized: "\(n) more nights of wear and we can show your Fitness Age.")
+        case (let n, true):  return String(localized: "\(n) more nights of wear, plus your age and sex below, and we can show your Fitness Age.")
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
             SectionHeader("Fitness Age", overline: "Weekly",
@@ -720,12 +737,11 @@ private struct FitnessAgeSection: View {
                     .transition(.opacity)
             }
         } else if loaded {
-            // No value yet: lead with the checklist so the user sees exactly what's still needed.
+            // No value yet: lead with a concrete countdown ("N more nights of wear…") so the user knows
+            // how far off it is, then the checklist shows exactly what's still needed.
             ReadinessChecklistCard(
                 readiness: readiness,
-                lead: readiness.canCompute
-                    ? "A few more days and we can show your Fitness Age."
-                    : "A few more days of wear, plus the basics below, and we can show your Fitness Age.",
+                lead: fitnessReadyLead(),
                 onFix: { fitnessSheet = .settings })
         } else {
             // Brief read of the weekly value; honest placeholder rather than an empty gap.
