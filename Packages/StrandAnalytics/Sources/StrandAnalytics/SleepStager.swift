@@ -1920,6 +1920,10 @@ public enum SleepStager {
     /// (from `stages`) — the SINGLE source `sessionAvgHRV` averages, and the HRV nightly trace reads.
     /// Passing `[]` for `stages` tags every window "?" (the plain-average path needs no stages). (#141)
     static func sessionHrvWindows(start: Int, end: Int, rr: [RRInterval], stages: [StageSegment]) -> [HrvWindow] {
+        // CONTRACT: `rr` MUST already be ts-sorted (RMSSD is built from SUCCESSIVE differences, so a bucket
+        // has to be chronological). The value path passes the loop's pre-sorted `rrS`; the trace caller sorts
+        // its own copy. Not sorted here on purpose — re-sorting the value path could reorder same-second RR
+        // under Swift's unstable sort and shift the shipped avgHrv. Same contract the original sessionAvgHRV had.
         let seg = rr.filter { $0.ts >= start && $0.ts <= end }
         guard !seg.isEmpty else { return [] }
         let windowS = 5 * 60

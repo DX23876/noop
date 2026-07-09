@@ -323,9 +323,12 @@ object AnalyticsEngine {
         // lift it, and lets a deep-sleep-windowed fix be validated before it ships. Reuses the SAME
         // sessionHrvWindows the value is built from (can't diverge). Zero cost when the sink is null.
         if (hrvTraceSink != null) {
+            // sessionHrvWindows requires ts-sorted rr (RMSSD = successive diffs); the value path passes the
+            // stager's pre-sorted rrS, so sort our own copy of the day's raw rr once here for the re-window.
+            val rrSorted = rr.sortedBy { it.ts }
             val allWin = ArrayList<SleepStager.HrvWindow>()
             for (s in matched) {
-                val wins = SleepStager.sessionHrvWindows(s.start, s.end, rr, s.stages)
+                val wins = SleepStager.sessionHrvWindows(s.start, s.end, rrSorted, s.stages)
                 for (w in wins) {
                     hrvTraceSink(
                         "hrv window t=${(w.startTs - s.start) / 60}min stage=${w.stage} " +

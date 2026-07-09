@@ -469,9 +469,12 @@ public enum AnalyticsEngine {
         // sessionHrvWindows the value is built from (can't diverge). Zero cost when the sink is nil.
         if let hrvTraceSink {
             func r2(_ x: Double) -> Double { (x * 100).rounded() / 100 }
+            // sessionHrvWindows requires ts-sorted rr (RMSSD = successive diffs); the value path passes the
+            // stager's pre-sorted rrS, so sort our own copy of the day's raw rr once here for the re-window.
+            let rrSorted = rr.sorted { $0.ts < $1.ts }
             var allWin: [SleepStager.HrvWindow] = []
             for s in matched {
-                let wins = SleepStager.sessionHrvWindows(start: s.start, end: s.end, rr: rr, stages: s.stages)
+                let wins = SleepStager.sessionHrvWindows(start: s.start, end: s.end, rr: rrSorted, stages: s.stages)
                 for w in wins {
                     let rm = w.rmssd.map { "\(r2($0))ms" } ?? "nil"
                     hrvTraceSink("hrv window t=\((w.startTs - s.start) / 60)min stage=\(w.stage) beats=\(w.cleanBeats) rmssd=\(rm)")

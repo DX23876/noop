@@ -2160,6 +2160,10 @@ object SleepStager {
     internal fun sessionHrvWindows(
         start: Long, end: Long, rr: List<RrInterval>, stages: List<StageSegment>,
     ): List<HrvWindow> {
+        // CONTRACT: `rr` MUST already be ts-sorted (RMSSD is built from SUCCESSIVE differences, so a bucket
+        // has to be chronological). The value path passes the loop's pre-sorted `rrS`; the trace caller sorts
+        // its own copy. Not sorted here on purpose — re-sorting the value path could reorder same-second RR
+        // under an unstable sort and shift the shipped avgHrv. Same contract the original sessionAvgHRV had.
         val seg = rr.filter { it.ts in start..end }
         if (seg.isEmpty()) return emptyList()
         val windowS = 5 * 60L
