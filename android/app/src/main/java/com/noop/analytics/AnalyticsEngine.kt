@@ -220,6 +220,11 @@ object AnalyticsEngine {
         // per-5-min-window RMSSDs (tagged by sleep stage) + a whole-night vs deep-only vs last-SWS summary
         // are forwarded so an "HRV reads ~2x higher than WHOOP" report shows WHICH stages lift it.
         hrvTraceSink: ((String) -> Unit)? = null,
+        // Whether to emit the ~90 per-window `hrv window …` lines (vs just the 1-line summary). The caller
+        // sets it TRUE only for the most-recent night so the 5000-line ring buffer isn't flooded (21 nights ×
+        // ~90 windows would evict the always-on diagnostics); the 1-line `hrv nightSummary` is kept for EVERY
+        // night so the whole-night-vs-deep pattern is still visible across the week.
+        hrvWindowDetail: Boolean = false,
     ): DayResult {
 
         // ── Sleep detection + staging ─────────────────────────────────────────
@@ -329,11 +334,13 @@ object AnalyticsEngine {
             val allWin = ArrayList<SleepStager.HrvWindow>()
             for (s in matched) {
                 val wins = SleepStager.sessionHrvWindows(s.start, s.end, rrSorted, s.stages)
-                for (w in wins) {
-                    hrvTraceSink(
-                        "hrv window t=${(w.startTs - s.start) / 60}min stage=${w.stage} " +
-                            "beats=${w.cleanBeats} rmssd=${w.rmssd?.let { "${round2(it)}ms" } ?: "nil"}",
-                    )
+                if (hrvWindowDetail) {
+                    for (w in wins) {
+                        hrvTraceSink(
+                            "hrv window t=${(w.startTs - s.start) / 60}min stage=${w.stage} " +
+                                "beats=${w.cleanBeats} rmssd=${w.rmssd?.let { "${round2(it)}ms" } ?: "nil"}",
+                        )
+                    }
                 }
                 allWin.addAll(wins)
             }

@@ -532,6 +532,9 @@ object IntelligenceEngine {
                 // strap log. The sink is already the routing closure, so there is no per-day collect/replay.
                 traceSink = sleepTraceSink,
                 hrvTraceSink = hrvTraceSink,
+                // Per-window HRV detail ONLY for the most-recent night (dayStart == today's local midnight),
+                // so the 5000-line ring buffer isn't flooded; every night still emits the 1-line summary.
+                hrvWindowDetail = dayStart == nowLocalMidnight,
             )
 
             // Steps test mode: emit the 5/MG raw-counter trace for this day (cumulative @57 series +

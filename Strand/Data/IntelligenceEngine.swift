@@ -631,7 +631,11 @@ final class IntelligenceEngine: ObservableObject {
                                                      // it affects detected nights, not just the self-heal restage.
                                                      useSleepStagerV2: useSleepStagerV2,
                                                      traceSink: traceSink,
-                                                     hrvTraceSink: hrvTraceSink)
+                                                     hrvTraceSink: hrvTraceSink,
+                                                     // Per-window HRV detail ONLY for the most-recent night
+                                                     // (dayStart == today's local midnight), so the 5000-line
+                                                     // ring buffer isn't flooded; every night keeps the summary.
+                                                     hrvWindowDetail: dayStart == nowLocalMidnight)
                 // ── Steps test mode: 5/MG raw-counter trace ──────────────────────────────────────────────
                 // Only built when the Steps mode is on (the gate was read once before the loop). Recomputes
                 // the SAME wrap-aware @57 sum analyzeDay just ran, over the SAME `daySteps` calendar-day

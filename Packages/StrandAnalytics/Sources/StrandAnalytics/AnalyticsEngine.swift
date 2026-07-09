@@ -330,7 +330,12 @@ public enum AnalyticsEngine {
                                   // non-nil, the nightly per-5-min-window RMSSDs (tagged by sleep stage) + a
                                   // whole-night vs deep-only vs last-SWS summary are forwarded so an "HRV reads
                                   // ~2x higher than WHOOP" report shows WHICH stages lift it.
-                                  hrvTraceSink: ((String) -> Void)? = nil) -> DayResult {
+                                  hrvTraceSink: ((String) -> Void)? = nil,
+                                  // Whether to emit the ~90 per-window `hrv window …` lines (vs just the 1-line
+                                  // summary). The caller sets it TRUE only for the most-recent night so the
+                                  // 5000-line ring buffer isn't flooded (21 nights × ~90 windows would evict the
+                                  // always-on diagnostics); the 1-line `hrv nightSummary` is kept for EVERY night.
+                                  hrvWindowDetail: Bool = false) -> DayResult {
 
         // Precompute the day's UTC bounds ONCE (#996). `dayString(ts, offsetSec:)` formats the UTC
         // calendar day of (ts + offset) with a FIXED offset, so "== day" is exactly membership in
@@ -475,9 +480,11 @@ public enum AnalyticsEngine {
             var allWin: [SleepStager.HrvWindow] = []
             for s in matched {
                 let wins = SleepStager.sessionHrvWindows(start: s.start, end: s.end, rr: rrSorted, stages: s.stages)
-                for w in wins {
-                    let rm = w.rmssd.map { "\(r2($0))ms" } ?? "nil"
-                    hrvTraceSink("hrv window t=\((w.startTs - s.start) / 60)min stage=\(w.stage) beats=\(w.cleanBeats) rmssd=\(rm)")
+                if hrvWindowDetail {
+                    for w in wins {
+                        let rm = w.rmssd.map { "\(r2($0))ms" } ?? "nil"
+                        hrvTraceSink("hrv window t=\((w.startTs - s.start) / 60)min stage=\(w.stage) beats=\(w.cleanBeats) rmssd=\(rm)")
+                    }
                 }
                 allWin.append(contentsOf: wins)
             }
