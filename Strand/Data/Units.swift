@@ -40,6 +40,20 @@ enum EffortScale: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+/// How the trend charts (Trends tab) are drawn — a purely cosmetic, display-only toggle. The plotted
+/// data is identical on both settings; only the mark geometry changes (gradient line + area vs vertical
+/// bars). Default is the classic line. Distinct from `ChartStyle`, which chooses the colour ramp; this
+/// chooses line-vs-bar. Mirrored on Android by NoopPrefs("trend.chart.style").
+enum TrendChartStyle: String, CaseIterable, Identifiable {
+    /// The classic gradient-stroked line with a soft area fill (the long-standing look).
+    case line
+    /// Vertical bars from the axis baseline, one per sample, value-ramp filled.
+    case bar
+    var id: String { rawValue }
+    /// Segmented-control label.
+    var label: String { self == .bar ? "Bars" : "Line" }
+}
+
 /// UserDefaults keys for the two unit preferences. Public-ish (internal) so `SettingsView`'s
 /// `@AppStorage(UnitPrefs.systemKey)` and the formatter read the SAME key — no drift.
 enum UnitPrefs {
@@ -49,6 +63,11 @@ enum UnitPrefs {
     /// Effort display scale (#268). Stored raw is an `EffortScale` rawValue; an unset/unknown value
     /// resolves to `.hundred` (NOOP's native axis). Mirrored on Android by NoopPrefs("effort.scale").
     static let effortScaleKey = "effort.scale"
+
+    /// Trend chart style (line vs bar). Stored raw is a `TrendChartStyle` rawValue; an unset/unknown
+    /// value resolves to `.line` (the classic look). Display-only — the plotted data never changes.
+    /// Mirrored on Android by NoopPrefs("trend.chart.style").
+    static let trendChartStyleKey = "trend.chart.style"
 
     /// Display factor for the #268 Effort scale: the stored 0-100 value multiplied by this renders on
     /// the user's chosen axis (1.0 for the native 0-100, 0.21 for the WHOOP-style 0-21). Display-only,

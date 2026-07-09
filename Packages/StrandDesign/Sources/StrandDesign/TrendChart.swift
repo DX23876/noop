@@ -37,6 +37,10 @@ public struct TrendChart: View {
     public var valueRange: ClosedRange<Double>
     /// Whether to draw the soft area fill below the line.
     public var showsArea: Bool
+    /// Draw vertical bars from the axis baseline instead of the line + area + points. One value-ramp-
+    /// filled `BarMark` per (down-sampled) sample. Display-only — the plotted series is identical; only
+    /// the mark geometry changes. Default false (the classic line). `showsArea` is ignored in bar mode.
+    public var showsBars: Bool
     public var height: CGFloat
     /// Whether hovering reveals a crosshair + tooltip for the nearest point.
     public var showsHover: Bool
@@ -70,6 +74,7 @@ public struct TrendChart: View {
         gradient: Gradient = StrandPalette.recoveryGradient,
         valueRange: ClosedRange<Double> = 0...100,
         showsArea: Bool = true,
+        showsBars: Bool = false,
         height: CGFloat = 220,
         showsHover: Bool = true,
         valueFormat: @escaping (Double) -> String = { String(Int($0.rounded())) },
@@ -83,6 +88,7 @@ public struct TrendChart: View {
         self.gradient = gradient
         self.valueRange = valueRange
         self.showsArea = showsArea
+        self.showsBars = showsBars
         self.height = height
         self.showsHover = showsHover
         self.valueFormat = valueFormat
@@ -164,44 +170,58 @@ public struct TrendChart: View {
 
     public var body: some View {
         Chart {
-            if showsArea {
+            if showsBars {
+                // Bar mode: one value-ramp-filled BarMark per (down-sampled) sample, from the baseline.
+                // The line, area and point marks are all replaced. The same `displayPoints` feed it, so a
+                // dense window is min/max-bucketed to the vertex budget exactly as the line is; hover, the
+                // axes, the domain and accessibility are unchanged (they read the full `points`).
                 ForEach(displayPoints) { p in
-                    AreaMark(
+                    BarMark(
+                        x: .value("Date", p.date),
+                        y: .value("Value", p.value)
+                    )
+                    .foregroundStyle(valueGradient)
+                }
+            } else {
+                if showsArea {
+                    ForEach(displayPoints) { p in
+                        AreaMark(
+                            x: .value("Date", p.date),
+                            y: .value("Value", p.value)
+                        )
+                        .interpolationMethod(.catmullRom)
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [
+                                    StrandPalette.sample(stops: gradient.toStops(), at: unit(averageValue)).opacity(0.28),
+                                    Color.clear
+                                ],
+                                startPoint: .top, endPoint: .bottom
+                            )
+                        )
+                    }
+                }
+                ForEach(displayPoints) { p in
+                    LineMark(
                         x: .value("Date", p.date),
                         y: .value("Value", p.value)
                     )
                     .interpolationMethod(.catmullRom)
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [
-                                StrandPalette.sample(stops: gradient.toStops(), at: unit(averageValue)).opacity(0.28),
-                                Color.clear
-                            ],
-                            startPoint: .top, endPoint: .bottom
-                        )
-                    )
+                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                    .foregroundStyle(valueGradient)
                 }
-            }
-            ForEach(displayPoints) { p in
-                LineMark(
-                    x: .value("Date", p.date),
-                    y: .value("Value", p.value)
-                )
-                .interpolationMethod(.catmullRom)
-                .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
-                .foregroundStyle(valueGradient)
-            }
-            // 18pt dots are invisible on dense series (e.g. a 365-day year) but still cost the
-            // GPU a mark each — hide them past a threshold; the line carries the data there. The gate
-            // stays on the full `points.count` (≤60 is never downsampled, so displayPoints == points).
-            if points.count <= 60 {
-                ForEach(displayPoints) { p in
-                    PointMark(
-                        x: .value("Date", p.date),
-                        y: .value("Value", p.value)
-                    )
-                    .symbolSize(18)
-                    .foregroundStyle(StrandPalette.sample(stops: gradient.toStops(), at: unit(p.value)))
+                // 18pt dots are invisible on dense series (e.g. a 365-day year) but still cost the
+                // GPU a mark each — hide them past a threshold; the line carries the data there. The gate
+                // stays on the full `points.count` (≤60 is never downsampled, so displayPoints == points).
+                if points.count <= 60 {
+                    ForEach(displayPoints) { p in
+                        PointMark(
+                            x: .value("Date", p.date),
+                            y: .value("Value", p.value)
+                        )
+                        .symbolSize(18)
+                        .foregroundStyle(StrandPalette.sample(stops: gradient.toStops(), at: unit(p.value)))
+                    }
                 }
             }
         }
@@ -264,7 +284,7 @@ public struct TrendChart: View {
                     // "Now" end-cap on the latest point (#458). Positioned with the SAME proxy mapping the
                     // line uses (position(forX:/forY:) + plot origin), so it lands exactly on the curve —
                     // not via a sibling overlay guessing the axis insets, which floated it left/below.
-                    if let capColor = nowCapColor, let last = points.last,
+                    if !showsBars, let capColor = nowCapColor, let last = points.last,
                        let px = proxy.position(forX: last.date),
                        let py = proxy.position(forY: last.value) {
                         NowCapDot(color: capColor)
