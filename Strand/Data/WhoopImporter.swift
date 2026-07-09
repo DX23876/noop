@@ -155,6 +155,13 @@ enum WhoopImporter {
                                 answeredYes: (j.answer ?? "").lowercased() == "true",
                                 notes: j.notes)
         }
+        // #136: the wake-day fix moves an entry's day, so a naive re-import would leave the pre-fix
+        // onset-keyed rows behind as duplicates. Clear EXACTLY the day span we re-write, then upsert —
+        // bounded to the imported range, so journal outside it (e.g. from an earlier, wider export) is
+        // never touched. Same "re-import replaces this period" semantics daily/sleep already have.
+        if let lo = journal.map(\.day).min(), let hi = journal.map(\.day).max() {
+            _ = try await store.deleteJournalRange(deviceId: deviceId, from: lo, to: hi)
+        }
         try await store.upsertJournal(journal, deviceId: deviceId)
 
         // Workouts.

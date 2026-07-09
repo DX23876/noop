@@ -121,7 +121,16 @@ object WhoopCsvImporter {
         if (daily.isNotEmpty()) repo.upsertDailyMetrics(daily)
         if (sleepSessions.isNotEmpty()) repo.upsertSleepSessions(sleepSessions)
         if (workouts.isNotEmpty()) repo.upsertWorkouts(workouts)
-        if (journal.isNotEmpty()) repo.upsertJournal(journal)
+        if (journal.isNotEmpty()) {
+            // #136: the wake-day fix moves an entry's day, so a naive re-import would leave the pre-fix
+            // onset-keyed rows behind as duplicates. Clear this device's imported journal across EXACTLY
+            // the day span we're re-writing, then upsert. Bounded to [min, max] of the imported days, so
+            // journal outside the imported range (e.g. from an earlier, wider export) is never touched —
+            // the same "re-import replaces this period" semantics daily/sleep already have.
+            val jDays = journal.map { it.day }
+            repo.deleteJournalRange(deviceId, jDays.min(), jDays.max())
+            repo.upsertJournal(journal)
+        }
         if (cycleSeries.isNotEmpty()) repo.upsertMetricSeries(cycleSeries)
 
         val counts = LinkedHashMap<String, Int>()

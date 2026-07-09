@@ -108,6 +108,19 @@ extension WhoopStore {
         }
     }
 
+    /// Delete a device's journal within a day range (#136). The WHOOP importer clears exactly the span it
+    /// re-writes before upserting, so the wake-day keying fix leaves no pre-fix onset-keyed duplicates.
+    /// Bounded to [from, to] — journal outside the imported range is never touched. Returns rows deleted.
+    @discardableResult
+    public func deleteJournalRange(deviceId: String, from: String, to: String) async throws -> Int {
+        try syncWrite { db in
+            try db.execute(sql: """
+                DELETE FROM journal WHERE deviceId = ? AND day >= ? AND day <= ?
+                """, arguments: [deviceId, from, to])
+            return db.changesCount
+        }
+    }
+
     /// Upsert workouts. Natural key (deviceId, startTs, sport). Returns rows changed.
     @discardableResult
     public func upsertWorkouts(_ rows: [WorkoutRow], deviceId: String) async throws -> Int {
