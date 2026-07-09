@@ -216,6 +216,15 @@ object AnalyticsEngine {
         // Sleep & Rest test-mode trace sink (E11). null = byte-identical default. When non-null the gate
         // trace from detectSleep and the Rest sub-score line are forwarded line-by-line. Mirrors Swift.
         traceSink: ((String) -> Unit)? = null,
+        // HRV & Autonomic test-mode sink (#141). null = byte-identical default. When non-null, the nightly
+        // per-5-min-window RMSSDs (tagged by sleep stage) + a whole-night vs deep-only vs last-SWS summary
+        // are forwarded so an "HRV reads ~2x higher than WHOOP" report shows WHICH stages lift it.
+        hrvTraceSink: ((String) -> Unit)? = null,
+        // Whether to emit the ~90 per-window `hrv window …` lines (vs just the 1-line summary). The caller
+        // sets it TRUE only for the most-recent night so the 5000-line ring buffer isn't flooded (21 nights ×
+        // ~90 windows would evict the always-on diagnostics); the 1-line `hrv nightSummary` is kept for EVERY
+        // night so the whole-night-vs-deep pattern is still visible across the week.
+        hrvWindowDetail: Boolean = false,
     ): DayResult {
 
         // ── Sleep detection + staging ─────────────────────────────────────────
@@ -310,6 +319,46 @@ object AnalyticsEngine {
                 val weight = pairs.sumOf { it.second }
                 if (weight > 0) total / weight else null
             }
+        }
+
+        // ── HRV & Autonomic nightly trace (#141) ──────────────────────────────
+        // Per-5-min-window RMSSD tagged by the sleep stage at its center, then a night summary comparing
+        // NOOP's whole-night mean (what it reports) against a deep-only mean and a WHOOP-style
+        // last-slow-wave-sleep value — so an "HRV reads ~2x higher than WHOOP" report shows WHICH stages
+        // lift it, and lets a deep-sleep-windowed fix be validated before it ships. Reuses the SAME
+        // sessionHrvWindows the value is built from (can't diverge). Zero cost when the sink is null.
+        if (hrvTraceSink != null) {
+            // sessionHrvWindows requires ts-sorted rr (RMSSD = successive diffs); the value path passes the
+            // stager's pre-sorted rrS, so sort our own copy of the day's raw rr once here for the re-window.
+            val rrSorted = rr.sortedBy { it.ts }
+            val allWin = ArrayList<SleepStager.HrvWindow>()
+            for (s in matched) {
+                val wins = SleepStager.sessionHrvWindows(s.start, s.end, rrSorted, s.stages)
+                if (hrvWindowDetail) {
+                    for (w in wins) {
+                        hrvTraceSink(
+                            "hrv window t=${(w.startTs - s.start) / 60}min stage=${w.stage} " +
+                                "beats=${w.cleanBeats} rmssd=${w.rmssd?.let { "${round2(it)}ms" } ?: "nil"}",
+                        )
+                    }
+                }
+                allWin.addAll(wins)
+            }
+            fun meanMs(ws: List<SleepStager.HrvWindow>): String {
+                val v = ws.mapNotNull { it.rmssd }
+                return if (v.isEmpty()) "nil" else "${round2(v.sum() / v.size)}ms"
+            }
+            val withR = allWin.filter { it.rmssd != null }
+            val deepW = withR.filter { it.stage == "deep" }
+            val lastSws = SleepStager.lastDeepRun(allWin).filter { it.rmssd != null }
+            // `reported` is the value NOOP actually displays (duration-weighted session-mean-of-means);
+            // `wholeNight` is the pooled-window mean it equals on single-session nights and the apples-to-
+            // apples baseline for the deepOnly/lastSWS comparison (all three are pooled window means).
+            hrvTraceSink(
+                "hrv nightSummary reported=${avgHRVDaily?.let { "${round2(it)}ms" } ?: "nil"} " +
+                    "wholeNight=${meanMs(withR)} deepOnly=${meanMs(deepW)} " +
+                    "lastSWS=${meanMs(lastSws)} nWin=${withR.size} nDeep=${deepW.size}",
+            )
         }
 
         // Nightly APPROXIMATE respiratory rate (breaths/min) from the R-R stream via

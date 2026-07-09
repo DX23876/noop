@@ -111,6 +111,10 @@ final class IntelligenceEngine: ObservableObject {
         /// Empty unless the Steps mode is active (the gate is read once before the loop), so the default path
         /// is byte-identical: the trace recomputes the SAME wrap-aware sum analyzeDay already computed.
         let stepsTrace: [String]
+        /// HRV test-mode nightly trace lines (per-5-min-window RMSSD by sleep stage + the whole-night vs
+        /// deep-only vs last-SWS summary) for this day, collected off the main actor and replayed tagged
+        /// `.hrv` in per-day order. Empty unless the HRV mode is active. (#141)
+        let hrvTrace: [String]
     }
 
     struct Computed: Identifiable {
@@ -477,6 +481,10 @@ final class IntelligenceEngine: ObservableObject {
         // runs its byte-identical default path. When true, each day collects its gate-trace + Rest line,
         // replayed below through `diagnosticSink` tagged `.sleep` in per-day order.
         let sleepTraceActive = TestCentre.active(.sleep)
+        // HRV & Autonomic test mode (#141): read the zero-cost gate ONCE. When true, each day collects the
+        // nightly per-window RMSSD (by stage) + the whole-night/deep-only/last-SWS summary, replayed below
+        // tagged `.hrv`. When false (the default), no HRV trace is built and analyzeDay's path is unchanged.
+        let hrvTraceActive = TestCentre.active(.hrv)
         // Steps test mode: read the zero-cost gate ONCE here (a single Bool) and capture it into the detached
         // loop. When false (the default), no raw-counter trace is built per day. When true, each day collects
         // the 5/MG cumulative @57 series + wrap-aware deltas + dropped deltas, replayed below tagged `.steps`.
@@ -606,6 +614,9 @@ final class IntelligenceEngine: ObservableObject {
                 // built ONLY when the mode is active. nil otherwise = analyzeDay's byte-identical default path.
                 var sleepTrace: [String] = []
                 let traceSink: ((String) -> Void)? = sleepTraceActive ? { sleepTrace.append($0) } : nil
+                // HRV mode (#141): a per-day collector for the nightly per-window RMSSD + summary; nil = default.
+                var hrvTrace: [String] = []
+                let hrvTraceSink: ((String) -> Void)? = hrvTraceActive ? { hrvTrace.append($0) } : nil
                 let res = AnalyticsEngine.analyzeDay(day: day, hr: hr, rr: rr, resp: resp, gravity: grav,
                                                      steps: steps, dayHr: dayHr, daySteps: daySteps,
                                                      dayGravity: dayGrav,
@@ -619,7 +630,12 @@ final class IntelligenceEngine: ObservableObject {
                                                      // #690: thread the V2 toggle into the NORMAL staging path so
                                                      // it affects detected nights, not just the self-heal restage.
                                                      useSleepStagerV2: useSleepStagerV2,
-                                                     traceSink: traceSink)
+                                                     traceSink: traceSink,
+                                                     hrvTraceSink: hrvTraceSink,
+                                                     // Per-window HRV detail ONLY for the most-recent night
+                                                     // (dayStart == today's local midnight), so the 5000-line
+                                                     // ring buffer isn't flooded; every night keeps the summary.
+                                                     hrvWindowDetail: dayStart == nowLocalMidnight)
                 // ── Steps test mode: 5/MG raw-counter trace ──────────────────────────────────────────────
                 // Only built when the Steps mode is on (the gate was read once before the loop). Recomputes
                 // the SAME wrap-aware @57 sum analyzeDay just ran, over the SAME `daySteps` calendar-day
@@ -657,7 +673,7 @@ final class IntelligenceEngine: ObservableObject {
                 }
                 out.append(DayScan(result: res, rhrLine: rhrLine,
                                    readOwner: owner, hrRows: hr.count,
-                                   sleepTrace: sleepTrace, stepsTrace: stepsTrace))
+                                   sleepTrace: sleepTrace, stepsTrace: stepsTrace, hrvTrace: hrvTrace))
             }
             return out
         }.value
@@ -683,6 +699,9 @@ final class IntelligenceEngine: ObservableObject {
             // Sleep & Rest test mode (E5): replay this day's gate-trace + Rest lines tagged `.sleep` so they
             // land under the profile tag in the export. Empty unless the mode is active.
             for line in scan.sleepTrace { diagnosticSink?(line, .sleep) }
+            // HRV test mode (#141): replay this day's nightly per-window RMSSD + summary tagged `.hrv`.
+            // Empty unless the HRV mode is active, so the default path emits zero `.hrv` lines here.
+            for line in scan.hrvTrace { diagnosticSink?(line, .hrv) }
             // Steps test mode: replay this day's 5/MG raw-counter trace tagged `.steps`. Empty unless the
             // mode is active, so the default path emits zero `.steps` lines here.
             for line in scan.stepsTrace { diagnosticSink?(line, .steps) }

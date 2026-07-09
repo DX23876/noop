@@ -204,6 +204,11 @@ object IntelligenceEngine {
         // detected-bout persist/drop decision to the .workouts-tagged strap log. null (the default) =
         // byte-identical default path (no lines). Mirrors the Swift workoutsTraceActive wiring.
         workoutsTraceSink: ((String) -> Unit)? = null,
+        // HRV & Autonomic test-mode sink (#141). Context-free layer, so the caller reads TestCentre.active(HRV)
+        // and passes a non-null sink ONLY when the mode is on, routing the nightly per-5-min-window RMSSD (by
+        // sleep stage) + the whole-night/deep-only/last-SWS summary to the .hrv-tagged strap log. null (the
+        // default) = byte-identical default path (no lines). Mirrors the Swift hrvTraceActive wiring.
+        hrvTraceSink: ((String) -> Unit)? = null,
     ): List<Computed> = withContext(Dispatchers.Default) {
         // Serialise the whole pass so overlapping callers never run two rescores in parallel (see
         // [analyzeGate]). The heavy scoring already ran off the caller's thread via withContext above; the
@@ -212,7 +217,7 @@ object IntelligenceEngine {
             val (out, healed) = analyzeRecentOnCpu(repo, profile, maxDays, importedDeviceId, maxHROverride,
                 nowSeconds, ownerSource, manualStepCoefficient, persistStepsCalibration, baselineEpoch,
                 recoveryEpoch, diag, useExperimentalSleepV2, sleepTraceSink, recoveryTraceSink, stepsTraceSink,
-                universalSink, workoutsTraceSink)
+                universalSink, workoutsTraceSink, hrvTraceSink)
             if (healed == 0) out
             // #899 heal re-pass: the pass above deleted overlapping duplicate sleep sessions AFTER its days
             // were scored, and the read-side dedup those days consumed had no bank-recency witness (the fresh
@@ -222,7 +227,7 @@ object IntelligenceEngine {
             else analyzeRecentOnCpu(repo, profile, maxDays, importedDeviceId, maxHROverride,
                 nowSeconds, ownerSource, manualStepCoefficient, persistStepsCalibration, baselineEpoch,
                 recoveryEpoch, diag, useExperimentalSleepV2, sleepTraceSink, recoveryTraceSink, stepsTraceSink,
-                universalSink, workoutsTraceSink).first
+                universalSink, workoutsTraceSink, hrvTraceSink).first
         }
     }
 
@@ -303,6 +308,10 @@ object IntelligenceEngine {
         // each detected bout emits a `detectedBout verdict=persisted|droppedOverlap …` line to the .workouts-
         // tagged strap log, so an "auto workout appeared then vanished" is explainable from an export. Swift twin.
         workoutsTraceSink: ((String) -> Unit)? = null,
+        // HRV & Autonomic test-mode sink (#141). null = byte-identical default (no lines); when non-null,
+        // analyzeDay forwards the nightly per-window RMSSD (by stage) + the whole-night/deep-only/last-SWS
+        // summary to the .hrv-tagged strap log. Swift twin.
+        hrvTraceSink: ((String) -> Unit)? = null,
         // #899 heal re-pass: the second component of the return is how many overlapping duplicate sleep
         // sessions the heal below deleted this pass. The public wrapper re-runs ONCE when it is non-zero
         // so the affected days re-score against the cleaned store.
@@ -522,6 +531,10 @@ object IntelligenceEngine {
                 // sink (mode on), detectSleep's gate trace + the Rest sub-score line route to the .sleep-tagged
                 // strap log. The sink is already the routing closure, so there is no per-day collect/replay.
                 traceSink = sleepTraceSink,
+                hrvTraceSink = hrvTraceSink,
+                // Per-window HRV detail ONLY for the most-recent night (dayStart == today's local midnight),
+                // so the 5000-line ring buffer isn't flooded; every night still emits the 1-line summary.
+                hrvWindowDetail = dayStart == nowLocalMidnight,
             )
 
             // Steps test mode: emit the 5/MG raw-counter trace for this day (cumulative @57 series +

@@ -816,6 +816,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                                     .active(com.noop.testcentre.TestDomain.WORKOUTS))
                                 { line -> ble.externalLog(line, com.noop.testcentre.TestDomain.WORKOUTS) }
                             else null,
+                        // HRV & Autonomic test mode (#141): when on, route the nightly per-window RMSSD (by
+                        // sleep stage) + the whole-night/deep-only/last-SWS summary to the .hrv-tagged strap
+                        // log, so an "HRV reads high vs WHOOP" report shows which stages lift the average.
+                        hrvTraceSink =
+                            if (com.noop.testcentre.TestCentre.from(appContext)
+                                    .active(com.noop.testcentre.TestDomain.HRV))
+                                { line -> ble.externalLog(line, com.noop.testcentre.TestDomain.HRV) }
+                            else null,
                     )
                     // analyzeRecent now hops to Dispatchers.Default; a scope cancellation surfaces as a
                     // CancellationException that runCatching would otherwise swallow, breaking the loop's

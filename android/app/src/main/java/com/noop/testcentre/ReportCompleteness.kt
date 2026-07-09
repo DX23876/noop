@@ -67,6 +67,10 @@ object ReportCompleteness {
      */
     val evidenceTokens: Map<TestDomain, String> = linkedMapOf(
         TestDomain.SLEEP to "sleep day=",
+        // #141: the NIGHTLY HRV trace proves the HRV mode captured, even when the user never took a manual
+        // (spot) reading — `hrv rmssd=` only fires on the Live-screen snapshot, but the overnight per-window
+        // trace emits `hrv nightSummary …`. So a wear-overnight-and-export HRV capture reads complete.
+        TestDomain.HRV to "hrv nightSummary",
     )
 
     /** Per-domain presence map for [reportText], over [checkedDomains]. PRESENT iff the killer token OR the
