@@ -78,6 +78,25 @@ enum class TrendChartStyle(val raw: String) {
 }
 
 /**
+ * Which sleep window the nightly HRV is measured over (#141). NOOP historically averages RMSSD across the
+ * WHOLE night (every stage); WHOOP/Polar/etc. sample the last slow-wave-sleep window, which reads lower.
+ * This lets a user match that. It CHANGES the computed avgHrv (not display-only), so a switch re-scores +
+ * re-baselines. Default is the historical whole-night value. Mirrors the macOS [HrvWindow].
+ */
+enum class HrvWindow(val raw: String) {
+    /** RMSSD averaged over every 5-min window of the night (NOOP's long-standing value). */
+    WHOLE_NIGHT("whole"),
+
+    /** RMSSD over DEEP (slow-wave) sleep windows only — comparable to WHOOP's reading. */
+    DEEP_SLEEP("deep");
+
+    companion object {
+        /** An unset/unknown value resolves to the historical whole-night window. */
+        fun fromRaw(raw: String?): HrvWindow = entries.firstOrNull { it.raw == raw } ?: WHOLE_NIGHT
+    }
+}
+
+/**
  * Reads the two unit preferences from [NoopPrefs] and resolves the "match the system" default for
  * temperature. SharedPreferences isn't reactive, so Compose screens read these once into remembered
  * state (exactly like the other toggles) and re-read on a recomposition triggered by the Settings write.
@@ -121,6 +140,18 @@ object UnitPrefs {
     /** Persist the Trends chart style. */
     fun setTrendChartStyle(context: Context, style: TrendChartStyle) {
         NoopPrefs.of(context).edit().putString(KEY_TREND_CHART_STYLE, style.raw).apply()
+    }
+
+    /** SharedPreferences key for the nightly-HRV window (#141). Mirrors macOS @AppStorage("hrv.window"). */
+    const val KEY_HRV_WINDOW = "hrv.window"
+
+    /** The nightly-HRV window (default whole-night). Threaded into the engine's avgHrv computation. */
+    fun hrvWindow(context: Context): HrvWindow =
+        HrvWindow.fromRaw(NoopPrefs.of(context).getString(KEY_HRV_WINDOW, null))
+
+    /** Persist the nightly-HRV window. Changing it re-scores + re-baselines (the value itself moves). */
+    fun setHrvWindow(context: Context, window: HrvWindow) {
+        NoopPrefs.of(context).edit().putString(KEY_HRV_WINDOW, window.raw).apply()
     }
 }
 

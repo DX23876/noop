@@ -66,6 +66,7 @@ struct SettingsView: View {
     // it's shown on NOOP's 0–100 axis or WHOOP's 0–21 Day Strain axis.
     @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
     @AppStorage(UnitPrefs.trendChartStyleKey) private var trendChartStyleRaw = TrendChartStyle.line.rawValue
+    @AppStorage(UnitPrefs.hrvWindowKey) private var hrvWindowRaw = HrvWindow.whole.rawValue
     // Live-HR Live Activity (Lock Screen + Dynamic Island), iOS only (#336). Default on.
     @AppStorage(UnitPrefs.liveActivityKey) private var liveActivityEnabled = true
     // Alternate app icon (iOS only) — false = Titanium (primary AppIcon), true = Blue Titanium
@@ -629,6 +630,25 @@ struct SettingsView: View {
                     .pickerStyle(.segmented)
                     .fixedSize()
                     .accessibilityLabel("Effort scale")
+                }
+                rowDivider
+                // HRV window (#141) — measure nightly HRV over the whole night (NOOP's long-standing value)
+                // or DEEP sleep only (WHOOP-style, reads lower and more comparable to WHOOP/Polar). Unlike the
+                // Effort scale this CHANGES the number, so a switch re-scores + re-baselines (like a sleep edit).
+                FormRow(label: "HRV window") {
+                    Picker("HRV window", selection: $hrvWindowRaw) {
+                        Text("Whole night").tag(HrvWindow.whole.rawValue)
+                        Text("Deep sleep").tag(HrvWindow.deep.rawValue)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .fixedSize()
+                    .accessibilityLabel("HRV window")
+                    .onChangeCompat(of: hrvWindowRaw) { _ in
+                        // The engine reads UnitPrefs.hrvWindowKey each pass; re-score + refresh so the change
+                        // is reflected without a relaunch (same path as a sleep edit). History is kept.
+                        Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() }
+                    }
                 }
             }
         }
