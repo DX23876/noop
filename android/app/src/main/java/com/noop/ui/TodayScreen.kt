@@ -2328,7 +2328,10 @@ private fun HeroRingColumn(
                     .size(14.dp)
                     .alpha(0f),
             )
-            Text(domain.label.uppercase(), style = NoopType.overline, color = Palette.textSecondary)
+            // #74: never wrap the hero label onto a second line — at a larger font/screen-zoom (Samsung
+            // One UI defaults) "REST" could wrap, growing the whole hero card. One line, ellipsis if forced.
+            Text(domain.label.uppercase(), style = NoopType.overline, color = Palette.textSecondary,
+                 maxLines = 1, overflow = TextOverflow.Ellipsis)
             Icon(
                 Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = "How ${domain.label} is calculated",
@@ -2365,6 +2368,8 @@ private fun HeroSourcePill(text: String) {
         text = text.uppercase(),
         style = NoopType.overline.copy(fontSize = 8.5.sp, letterSpacing = 1.2.sp),
         color = Palette.textSecondary,
+        maxLines = 1,                          // #74: source pill stays on one line
+        overflow = TextOverflow.Ellipsis,
         modifier = Modifier
             .clip(shape)
             .background(Color.White.copy(alpha = 0.05f))
