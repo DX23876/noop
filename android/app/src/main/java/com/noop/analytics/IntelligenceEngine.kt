@@ -880,6 +880,14 @@ object IntelligenceEngine {
             }
         }
 
+        // Snapshot the persisted/merged daily history BEFORE the delete+re-upsert below rewrites the
+        // computed window. This is the accumulated view the readiness card + dashboard read ("N of 7
+        // nights"); captured here so the Fitness Age gate (further down) can't be undercut by this pass's
+        // OWN pruning , a recompute only re-scores nights whose raw HR still lives in the store, so reading
+        // after the rewrite would see only the freshly scorable subset. Windowed to the recompute range so
+        // it stays bounded (daysMerged is full-history) and can't drag in stale nights older than the window.
+        val faPriorDaily = repo.daysMerged(importedDeviceId).filter { it.day in oldestDay..newestDay }
+
         repo.deleteComputedDailyInRange(computedId, oldestDay, newestDay)
 
         // Persist the computed scores under the dedicated "-noop" source so the WHOLE
@@ -892,26 +900,21 @@ object IntelligenceEngine {
         // ── Fitness Age (Phase 2) , weekly, keyed to the week's Saturday ──
         val fa7 = dailies.sortedBy { it.day }.takeLast(7)
         val faRHRs = fa7.mapNotNull { it.restingHr }.map { it.toDouble() }
-        val faActiveStrains = fa7.mapNotNull { it.strain }.filter { it >= 30.0 }
-        val faMeanActiveStrain = if (faActiveStrains.isEmpty()) 0.0 else faActiveStrains.average()
-        val faWaist = if (profile.waistCm > 0) profile.waistCm else null
-        val faReady = FitnessAgeEngine.assessReadiness(
-            hasAge = profile.age > 0, hasSex = profile.sex.isNotEmpty(),
-            rhrDays = faRHRs.size, activityDays = fa7.mapNotNull { it.strain }.size,
-            hasHeightWeight = profile.heightCm > 0 && profile.weightKg > 0, hasWaist = faWaist != null)
-        if (faReady.canCompute) {
-            val faRes = FitnessAgeEngine.compute(
-                age = profile.age, sex = profile.sex,
-                restingHR = medianOfDoubles(faRHRs),
-                paIndex = FitnessAgeEngine.physicalActivityIndexFromStrain(faActiveStrains.size, faMeanActiveStrain),
-                waistCm = faWaist)
-            if (faRes != null) {
-                val satKey = saturdayKeyOnOrBefore(newestDay)
-                val faPts = mutableListOf(MetricSeriesRow(deviceId = computedId, day = satKey, key = "fitness_age", value = faRes.fitnessAge))
-                faRes.vo2max?.let { faPts.add(MetricSeriesRow(deviceId = computedId, day = satKey, key = "vo2max_est", value = it)) }
-                repo.upsertMetricSeries(faPts)
-            }
-        }
+        // Gate + compute Fitness Age on the UNION of the pre-rewrite persisted history and THIS pass's
+        // fresh scores (by day, fresh wins) , so an RHR night counts whether it survives in the store OR was
+        // just scored, whether it sits under this id or a re-added strap's sibling id, or came from an
+        // import. Kept SEPARATE from `fa7` so Vitality (below), which already computes, is untouched. The
+        // gate + compute live in [fitnessAgeRows] so the manual "refresh Fitness Age" button applies the
+        // SAME rule (no drift).
+        val faGateByDay = LinkedHashMap<String, DailyMetric>()
+        for (d in faPriorDaily) faGateByDay[d.day] = d
+        for (d in dailies) faGateByDay[d.day] = d
+        val faGate7 = faGateByDay.values.sortedBy { it.day }.takeLast(7)
+        val faPts = fitnessAgeRows(faGate7, profile, computedId, saturdayKeyOnOrBefore(newestDay))
+        // Strap-log proof: the RHR-night count the engine sees for the gate , should equal the "N of last 7
+        // nights" the readiness card shows; `computed` says whether the value was (re)written this pass.
+        diag("fitnessAge gate day=$newestDay rhrNights=${faGate7.mapNotNull { it.restingHr }.size} activityDays=${faGate7.mapNotNull { it.strain }.size} computed=${faPts.isNotEmpty()}")
+        if (faPts.isNotEmpty()) repo.upsertMetricSeries(faPts)
 
         // ── Vitality / Body Age (Phase 7) , weekly, keyed to the week's Saturday ──
         // Roll the last 7 days' wearable signals into the mortality-hazard model; VitalityEngine gates on
@@ -1383,6 +1386,53 @@ object IntelligenceEngine {
      * the skin-temp baseline isn't usable yet (< minNightsSeed) , honest cold-start. Rounded to 2 dp
      * to match the imported/demo precision. APPROXIMATE. (PR #85)
      */
+    /** Assess Fitness Age readiness from [gateDays] (the merged last-7 the readiness card counts) and,
+     *  when ready, build the fitness_age (+ optional vo2max) rows keyed to [satKey]. Empty when not ready.
+     *  The SINGLE source of the gate + compute , shared by the recompute pass and the manual "refresh
+     *  Fitness Age" button so the two can never drift. */
+    fun fitnessAgeRows(
+        gateDays: List<DailyMetric>, profile: UserProfile, computedId: String, satKey: String,
+    ): List<MetricSeriesRow> {
+        val rhrs = gateDays.mapNotNull { it.restingHr }.map { it.toDouble() }
+        val strains = gateDays.mapNotNull { it.strain }.filter { it >= 30.0 }
+        val meanStrain = if (strains.isEmpty()) 0.0 else strains.average()
+        val waist = if (profile.waistCm > 0) profile.waistCm else null
+        val ready = FitnessAgeEngine.assessReadiness(
+            hasAge = profile.age > 0, hasSex = profile.sex.isNotEmpty(),
+            rhrDays = rhrs.size, activityDays = gateDays.mapNotNull { it.strain }.size,
+            hasHeightWeight = profile.heightCm > 0 && profile.weightKg > 0, hasWaist = waist != null)
+        if (!ready.canCompute) return emptyList()
+        val res = FitnessAgeEngine.compute(
+            age = profile.age, sex = profile.sex,
+            restingHR = medianOfDoubles(rhrs),
+            paIndex = FitnessAgeEngine.physicalActivityIndexFromStrain(strains.size, meanStrain),
+            waistCm = waist) ?: return emptyList()
+        val rows = mutableListOf(MetricSeriesRow(deviceId = computedId, day = satKey, key = "fitness_age", value = res.fitnessAge))
+        res.vo2max?.let { rows.add(MetricSeriesRow(deviceId = computedId, day = satKey, key = "vo2max_est", value = it)) }
+        return rows
+    }
+
+    /** Manual "refresh Fitness Age" (the button on the not-ready card): recompute the weekly Fitness Age
+     *  NOW from the PERSISTED merged daily history , NO raw-HR rescoring , and upsert it. Uses the same gate
+     *  ([fitnessAgeRows]) and the same date/window logic as the recompute pass, so it reads exactly what the
+     *  readiness card shows. Light + connection-independent (stored data only), so it works even when the
+     *  strap is offline. Returns true if a value was written. */
+    suspend fun recomputeFitnessAgeOnly(
+        repo: WhoopRepository, profile: UserProfile, importedDeviceId: String, maxDays: Int = 21,
+    ): Boolean {
+        val computedId = importedDeviceId + "-noop"
+        val nowSeconds = System.currentTimeMillis() / 1_000L
+        val tzOffsetSeconds = java.util.TimeZone.getDefault().getOffset(nowSeconds * 1_000L) / 1_000L
+        val nowLocalMidnight = midnightLocal(nowSeconds, tzOffsetSeconds)
+        val newestDay = AnalyticsEngine.dayString(nowLocalMidnight, tzOffsetSeconds)
+        val oldestDay = AnalyticsEngine.dayString(nowLocalMidnight - (maxDays - 1) * SECONDS_PER_DAY, tzOffsetSeconds)
+        val gate7 = repo.daysMerged(importedDeviceId)
+            .filter { it.day in oldestDay..newestDay }.sortedBy { it.day }.takeLast(7)
+        val rows = fitnessAgeRows(gate7, profile, computedId, saturdayKeyOnOrBefore(newestDay))
+        if (rows.isNotEmpty()) repo.upsertMetricSeries(rows)
+        return rows.isNotEmpty()
+    }
+
     private fun recomputeSkinTempDev(nightly: Double?, base: BaselineState?): Double? {
         val v = nightly ?: return null
         val b = base?.takeIf { it.usable } ?: return null

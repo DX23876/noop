@@ -399,6 +399,13 @@ private struct MetricRow: View {
 struct MetricDetailView: View {
     let metric: MetricDescriptor
     @EnvironmentObject var repo: Repository
+    // Profile basics for the Fitness Age not-ready countdown (age/sex gate its readiness lead). Injected
+    // app-wide at the root; previews supply their own. Only read on the fitness_age empty-state path.
+    @EnvironmentObject var profile: ProfileStore
+    // Drives the fitness_age not-ready "refresh" button (force an immediate recompute). App-wide injected.
+    @EnvironmentObject var intelligence: IntelligenceEngine
+    /// True while a manual Fitness Age refresh runs (spinner on the not-ready empty state).
+    @State private var refreshing = false
 
     // Imperial/Metric display preference (D#103). Display-only: weight (kg) and skin temp (°C) re-label
     // here; everything else is unit-agnostic and renders unchanged.
@@ -557,7 +564,38 @@ struct MetricDetailView: View {
                     // the ranges to misrepresent, and hiding the bar here would regress this
                     // "for context" intent.
                     rangeBar(effectiveRange: effRange, windowed: win, windowFellBack: fellBack)
-                    ComingSoon(what: "Import your history first. A WHOOP export in Data Sources fills every metric you can explore here in about a minute.")
+                    if metric.key == "fitness_age" {
+                        // Fitness Age is COMPUTED on-device from resting HR + activity — not imported — so
+                        // the generic "import your history" copy was wrong (and a dead end) here. Lead with
+                        // the same "N more nights of wear" countdown the Health hub shows, from the shared
+                        // engine + `fitnessReadyLeadCopy` (parity with Android's VitalDetailScreen fix).
+                        // `what` is a LocalizedStringKey; the lead is an already-resolved String, so wrap
+                        // it in an interpolation (renders verbatim) rather than passing it as a lookup key.
+                        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                            ComingSoon(what: "\(fitnessReadyLeadCopy(rhrDays: repo.days.suffix(7).compactMap { $0.restingHr }.count, hasAge: profile.age > 0, hasSex: !profile.sex.isEmpty))", symbol: "figure.run")
+                            // Force the weekly recompute NOW from stored data (works offline), then re-read.
+                            if refreshing {
+                                ProgressView().controlSize(.small).tint(StrandPalette.accent)
+                            } else {
+                                Button {
+                                    guard !refreshing else { return }
+                                    refreshing = true
+                                    Task {
+                                        _ = await intelligence.recomputeFitnessAgeOnly()
+                                        await load()
+                                        refreshing = false
+                                    }
+                                } label: {
+                                    Label("Refresh Fitness Age", systemImage: "arrow.clockwise")
+                                        .font(StrandFont.subhead)
+                                        .foregroundStyle(StrandPalette.accent)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    } else {
+                        ComingSoon(what: "Import your history first. A WHOOP export in Data Sources fills every metric you can explore here in about a minute.")
+                    }
                 } else if !loaded {
                     rangeBar(effectiveRange: effRange, windowed: win, windowFellBack: fellBack)
                     ComingSoon(what: "Reading your \(metric.title.lowercased())…")
@@ -996,10 +1034,13 @@ private func explorerPreviewRepo() -> Repository {
 }
 
 #Preview("Metric Detail") {
-    NavigationStack {
+    let repo = explorerPreviewRepo()
+    return NavigationStack {
         MetricDetailView(metric: MetricCatalog.all.first { $0.key == "recovery" }!)
     }
-    .environmentObject(explorerPreviewRepo())
+    .environmentObject(repo)
+    .environmentObject(ProfileStore())
+    .environmentObject(IntelligenceEngine(repo: repo, profile: ProfileStore(), deviceId: "preview"))
     .frame(width: 900, height: 820)
     .preferredColorScheme(.dark)
 }
