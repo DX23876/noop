@@ -631,29 +631,6 @@ struct SettingsView: View {
                     .fixedSize()
                     .accessibilityLabel("Effort scale")
                 }
-                rowDivider
-                // HRV window (#141) — measure nightly HRV over the whole night (NOOP's long-standing value)
-                // or DEEP sleep only (WHOOP-style, reads lower and more comparable to WHOOP/Polar). Unlike the
-                // Effort scale this CHANGES the number, so a switch re-scores + re-baselines (like a sleep edit).
-                FormRow(label: "HRV window") {
-                    Picker("HRV window", selection: $hrvWindowRaw) {
-                        Text("Whole night").tag(HrvWindow.whole.rawValue)
-                        Text("Deep sleep").tag(HrvWindow.deep.rawValue)
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.segmented)
-                    .fixedSize()
-                    .accessibilityLabel("HRV window")
-                    .onChangeCompat(of: hrvWindowRaw) { _ in
-                        // The new window shifts every night's avgHrv, so the HRV BASELINE must re-learn or
-                        // recovery would compare the new value against a baseline still folded from the old
-                        // window (the EWMA spans further than the ~21 nights that re-score → skewed for weeks).
-                        // Re-anchor the HRV baseline to now (HRV-only sibling of "Recalibrate Charge baseline"),
-                        // then re-score + refresh so the recent trend + fresh baseline both reflect the window.
-                        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Baselines.hrvBaselineEpochKey)
-                        Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() }
-                    }
-                }
             }
         }
     }
@@ -900,6 +877,34 @@ struct SettingsView: View {
                         .foregroundStyle(StrandPalette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+
+                // HRV window (#141) — grouped with the other HRV settings (#155). Whole night (NOOP's
+                // long-standing value) or DEEP sleep only (WHOOP-style, reads lower and more comparable to
+                // WHOOP/Polar). Unlike the Effort scale this CHANGES the number, so a switch re-scores +
+                // re-baselines (like a sleep edit).
+                FormRow(label: "HRV window") {
+                    Picker("HRV window", selection: $hrvWindowRaw) {
+                        Text("Whole night").tag(HrvWindow.whole.rawValue)
+                        Text("Deep sleep").tag(HrvWindow.deep.rawValue)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .fixedSize()
+                    .accessibilityLabel("HRV window")
+                    .onChangeCompat(of: hrvWindowRaw) { _ in
+                        // The new window shifts every night's avgHrv, so the HRV BASELINE must re-learn or
+                        // recovery would compare the new value against a baseline still folded from the old
+                        // window (the EWMA spans further than the ~21 nights that re-score → skewed for weeks).
+                        // Re-anchor the HRV baseline to now (HRV-only sibling of "Recalibrate Charge baseline"),
+                        // then re-score + refresh so the recent trend + fresh baseline both reflect the window.
+                        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Baselines.hrvBaselineEpochKey)
+                        Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() }
+                    }
+                }
+                Text("Whole night is NOOP's default measure; Deep sleep pools HRV over slow-wave sleep only, reading lower and matching WHOOP. Switching re-scores recent nights and recalibrates Charge over a few nights.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 // MARK: Strap name — rename the WHOOP 4.0's BLE advertising name (Harvard command set).
                 if live.connected && selectedWhoopModelRaw == WhoopModel.whoop4.rawValue {
