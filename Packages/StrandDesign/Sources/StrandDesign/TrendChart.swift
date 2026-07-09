@@ -229,7 +229,15 @@ public struct TrendChart: View {
         // peak (and the top axis label) to clear the clip passes a `yDomain` whose upper bound sits a
         // little above the data — pure data-space headroom, so no macOS14/iOS17 plot-dimension endPadding
         // API is needed (#974). The value→color gradient still keys off `valueRange`, unchanged.
-        .chartYScale(domain: resolvedYDomain)
+        // Bars must read from a zero baseline to be truthful: a BarMark's length is only proportional to
+        // its value when 0 is in the domain. The LINE uses a data-FITTED domain (often non-zero — e.g. an
+        // RHR window of ~48…61) to show variation; reusing that for bars would float every bar near full
+        // height with the real differences squashed into the top. So in bar mode we drop the floor to 0
+        // (or below, should a caller ever plot negatives), matching Android's zero-based BarChart. The
+        // upper bound (with the caller's headroom) is unchanged, so the line's domain is untouched.
+        .chartYScale(domain: showsBars
+            ? min(0, resolvedYDomain.lowerBound)...resolvedYDomain.upperBound
+            : resolvedYDomain)
         // Clip the plot to its own bounds. catmullRom interpolation overshoots past the data extremes
         // on sharp turns, and the AreaMark gradient is drawn UNCLIPPED — so on a spiky HR curve the
         // rose fill bled down the page behind the cards below the chart. Clipping the plot area bounds
