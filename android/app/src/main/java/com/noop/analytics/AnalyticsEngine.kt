@@ -329,7 +329,7 @@ object AnalyticsEngine {
                 for (w in wins) {
                     hrvTraceSink(
                         "hrv window t=${(w.startTs - s.start) / 60}min stage=${w.stage} " +
-                            "beats=${w.cleanBeats} rmssd=${w.rmssd?.let { round2(it) } ?: "nil"}ms",
+                            "beats=${w.cleanBeats} rmssd=${w.rmssd?.let { "${round2(it)}ms" } ?: "nil"}",
                     )
                 }
                 allWin.addAll(wins)
@@ -341,8 +341,12 @@ object AnalyticsEngine {
             val withR = allWin.filter { it.rmssd != null }
             val deepW = withR.filter { it.stage == "deep" }
             val lastSws = SleepStager.lastDeepRun(allWin).filter { it.rmssd != null }
+            // `reported` is the value NOOP actually displays (duration-weighted session-mean-of-means);
+            // `wholeNight` is the pooled-window mean it equals on single-session nights and the apples-to-
+            // apples baseline for the deepOnly/lastSWS comparison (all three are pooled window means).
             hrvTraceSink(
-                "hrv nightSummary wholeNight=${meanMs(withR)} deepOnly=${meanMs(deepW)} " +
+                "hrv nightSummary reported=${avgHRVDaily?.let { "${round2(it)}ms" } ?: "nil"} " +
+                    "wholeNight=${meanMs(withR)} deepOnly=${meanMs(deepW)} " +
                     "lastSWS=${meanMs(lastSws)} nWin=${withR.size} nDeep=${deepW.size}",
             )
         }

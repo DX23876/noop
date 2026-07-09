@@ -485,7 +485,11 @@ public enum AnalyticsEngine {
             let withR = allWin.filter { $0.rmssd != nil }
             let deepW = withR.filter { $0.stage == "deep" }
             let lastSws = SleepStager.lastDeepRun(allWin).filter { $0.rmssd != nil }
-            hrvTraceSink("hrv nightSummary wholeNight=\(meanMs(withR)) deepOnly=\(meanMs(deepW)) lastSWS=\(meanMs(lastSws)) nWin=\(withR.count) nDeep=\(deepW.count)")
+            // `reported` is the value NOOP actually displays (duration-weighted session-mean-of-means);
+            // `wholeNight` is the pooled-window mean it equals on single-session nights and the apples-to-
+            // apples baseline for the deepOnly/lastSWS comparison (all three are pooled window means).
+            let reported = avgHRVDaily.map { "\(r2($0))ms" } ?? "nil"
+            hrvTraceSink("hrv nightSummary reported=\(reported) wholeNight=\(meanMs(withR)) deepOnly=\(meanMs(deepW)) lastSWS=\(meanMs(lastSws)) nWin=\(withR.count) nDeep=\(deepW.count)")
         }
 
         // Nightly APPROXIMATE respiratory rate (breaths/min) from the R-R stream via
