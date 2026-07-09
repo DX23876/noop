@@ -134,12 +134,23 @@ enum WhoopImporter {
         try await store.upsertMetricSeries(points, deviceId: deviceId)
 
         // Journal behaviours → correlation insights.
+        // #136: journal_entries.csv keys only by cycle_start (the onset evening). Map each cycle's onset to
+        // its WAKE day so an entry lands on the same day as the recovery/sleep it correlates against — the
+        // day parseCycles and the native journal use. Keying off the onset put every entry one day early,
+        // so it never matched its outcome and all historic days collapsed into "Without" (issue #136).
+        var wakeDayByStart: [Int: String] = [:]
+        for c in result.cycles {
+            guard let start = c.cycleStart,
+                  let wake = cycleDay(wake: c.wakeOnset, end: c.cycleEnd, start: c.cycleStart,
+                                      tzOffsetMin: c.tzOffsetMin) else { continue }
+            wakeDayByStart[Int(start.timeIntervalSince1970)] = wake
+        }
         let journal: [JournalEntry] = result.journal.compactMap { j in
-            // journal_entries.csv carries only cycle_start (the onset evening), no wake time, so entries
-            // stay keyed to the onset day rather than the wake day the cycle metrics now use. A minor
-            // correlation-only offset; aligning it needs the parser to thread each cycle's wake day.
             guard let start = j.cycleStart, let q = j.question else { return nil }
-            return JournalEntry(day: dayString(start, tzOffsetMin: j.tzOffsetMin),
+            // Fall back to the onset day only when the cycle isn't in the export.
+            let day = wakeDayByStart[Int(start.timeIntervalSince1970)]
+                ?? dayString(start, tzOffsetMin: j.tzOffsetMin)
+            return JournalEntry(day: day,
                                 question: q,
                                 answeredYes: (j.answer ?? "").lowercased() == "true",
                                 notes: j.notes)
