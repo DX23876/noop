@@ -216,6 +216,10 @@ object AnalyticsEngine {
         // Sleep & Rest test-mode trace sink (E11). null = byte-identical default. When non-null the gate
         // trace from detectSleep and the Rest sub-score line are forwarded line-by-line. Mirrors Swift.
         traceSink: ((String) -> Unit)? = null,
+        // HRV & Autonomic test-mode sink (#141). null = byte-identical default. When non-null, the nightly
+        // per-5-min-window RMSSDs (tagged by sleep stage) + a whole-night vs deep-only vs last-SWS summary
+        // are forwarded so an "HRV reads ~2x higher than WHOOP" report shows WHICH stages lift it.
+        hrvTraceSink: ((String) -> Unit)? = null,
     ): DayResult {
 
         // ── Sleep detection + staging ─────────────────────────────────────────
@@ -310,6 +314,37 @@ object AnalyticsEngine {
                 val weight = pairs.sumOf { it.second }
                 if (weight > 0) total / weight else null
             }
+        }
+
+        // ── HRV & Autonomic nightly trace (#141) ──────────────────────────────
+        // Per-5-min-window RMSSD tagged by the sleep stage at its center, then a night summary comparing
+        // NOOP's whole-night mean (what it reports) against a deep-only mean and a WHOOP-style
+        // last-slow-wave-sleep value — so an "HRV reads ~2x higher than WHOOP" report shows WHICH stages
+        // lift it, and lets a deep-sleep-windowed fix be validated before it ships. Reuses the SAME
+        // sessionHrvWindows the value is built from (can't diverge). Zero cost when the sink is null.
+        if (hrvTraceSink != null) {
+            val allWin = ArrayList<SleepStager.HrvWindow>()
+            for (s in matched) {
+                val wins = SleepStager.sessionHrvWindows(s.start, s.end, rr, s.stages)
+                for (w in wins) {
+                    hrvTraceSink(
+                        "hrv window t=${(w.startTs - s.start) / 60}min stage=${w.stage} " +
+                            "beats=${w.cleanBeats} rmssd=${w.rmssd?.let { round2(it) } ?: "nil"}ms",
+                    )
+                }
+                allWin.addAll(wins)
+            }
+            fun meanMs(ws: List<SleepStager.HrvWindow>): String {
+                val v = ws.mapNotNull { it.rmssd }
+                return if (v.isEmpty()) "nil" else "${round2(v.sum() / v.size)}ms"
+            }
+            val withR = allWin.filter { it.rmssd != null }
+            val deepW = withR.filter { it.stage == "deep" }
+            val lastSws = SleepStager.lastDeepRun(allWin).filter { it.rmssd != null }
+            hrvTraceSink(
+                "hrv nightSummary wholeNight=${meanMs(withR)} deepOnly=${meanMs(deepW)} " +
+                    "lastSWS=${meanMs(lastSws)} nWin=${withR.size} nDeep=${deepW.size}",
+            )
         }
 
         // Nightly APPROXIMATE respiratory rate (breaths/min) from the R-R stream via

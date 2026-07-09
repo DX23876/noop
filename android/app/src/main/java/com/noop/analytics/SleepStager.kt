@@ -2139,15 +2139,31 @@ object SleepStager {
         return all.roundToInt()
     }
 
+    /** One 5-min HRV window: its start ts, the sleep stage at its center, the clean-beat count, and the
+     *  window RMSSD (null when <2 clean beats). Drives both [sessionAvgHRV] and the HRV test-mode trace. */
+    data class HrvWindow(val startTs: Long, val stage: String, val cleanBeats: Int, val rmssd: Double?)
+
     /**
      * Mean RMSSD over 5-min tumbling windows across the session (ms), or null.
      * Uses the same range-filter + ≥2-valid-interval rule as hrv.rmssd().
      */
     internal fun sessionAvgHRV(start: Long, end: Long, rr: List<RrInterval>): Double? {
+        val vals = sessionHrvWindows(start, end, rr, emptyList()).mapNotNull { it.rmssd }
+        return if (vals.isEmpty()) null else vals.sum() / vals.size.toDouble()
+    }
+
+    /**
+     * Per-5-min-window RMSSD across a session, each window tagged with the sleep stage at its CENTER (from
+     * [stages]) — the SINGLE source [sessionAvgHRV] averages, and the HRV test-mode nightly trace reads.
+     * Passing `emptyList()` for [stages] tags every window "?" (the plain-average path doesn't need stages).
+     */
+    internal fun sessionHrvWindows(
+        start: Long, end: Long, rr: List<RrInterval>, stages: List<StageSegment>,
+    ): List<HrvWindow> {
         val seg = rr.filter { it.ts in start..end }
-        if (seg.isEmpty()) return null
+        if (seg.isEmpty()) return emptyList()
         val windowS = 5 * 60L
-        val vals = ArrayList<Double>()
+        val out = ArrayList<HrvWindow>()
         var t = start
         while (t < end) {
             val bucket = seg.filter { it.ts >= t && it.ts < t + windowS }.map { it.rrMs.toDouble() }
@@ -2156,14 +2172,29 @@ object SleepStager {
             // than a 4.0's; rMSSD is built from SUCCESSIVE differences, so an un-rejected
             // jitter spike inflates the session HRV. Ectopic rejection drops those (#262/#235).
             val cleaned = HrvAnalyzer.cleanRR(bucket)
-            if (cleaned.size >= 2) {
-                val r = HrvAnalyzer.rmssdRaw(cleaned)
-                if (r != null) vals.add(r)
-            }
+            val rmssd = if (cleaned.size >= 2) HrvAnalyzer.rmssdRaw(cleaned) else null
+            val center = t + windowS / 2
+            val stage = stages.firstOrNull { center >= it.start && center < it.end }?.stage ?: "?"
+            out.add(HrvWindow(startTs = t, stage = stage, cleanBeats = cleaned.size, rmssd = rmssd))
             t += windowS
         }
-        if (vals.isEmpty()) return null
-        return vals.sum() / vals.size.toDouble()
+        return out
+    }
+
+    /** The LAST contiguous run of deep-stage windows in [windows] — the WHOOP-style "last slow-wave-sleep"
+     *  comparator for the HRV nightly trace. Empty when no deep window is present. */
+    internal fun lastDeepRun(windows: List<HrvWindow>): List<HrvWindow> {
+        var lastRun: List<HrvWindow> = emptyList()
+        val cur = ArrayList<HrvWindow>()
+        for (w in windows) {
+            if (w.stage == "deep") {
+                cur.add(w)
+            } else if (cur.isNotEmpty()) {
+                lastRun = ArrayList(cur); cur.clear()
+            }
+        }
+        if (cur.isNotEmpty()) lastRun = cur
+        return lastRun
     }
 
     // ── AASM hypnogram metrics ───────────────────────────────────────────────

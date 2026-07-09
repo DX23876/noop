@@ -325,7 +325,12 @@ public enum AnalyticsEngine {
                                   // Sleep & Rest test-mode trace sink (zero-cost default nil = byte-identical).
                                   // When non-nil, the gate trace from detectSleep and the Rest sub-score line
                                   // are forwarded line-by-line. Side-effect-only; never alters the DayResult.
-                                  traceSink: ((String) -> Void)? = nil) -> DayResult {
+                                  traceSink: ((String) -> Void)? = nil,
+                                  // HRV & Autonomic test-mode sink (#141). nil = byte-identical default. When
+                                  // non-nil, the nightly per-5-min-window RMSSDs (tagged by sleep stage) + a
+                                  // whole-night vs deep-only vs last-SWS summary are forwarded so an "HRV reads
+                                  // ~2x higher than WHOOP" report shows WHICH stages lift it.
+                                  hrvTraceSink: ((String) -> Void)? = nil) -> DayResult {
 
         // Precompute the day's UTC bounds ONCE (#996). `dayString(ts, offsetSec:)` formats the UTC
         // calendar day of (ts + offset) with a FIXED offset, so "== day" is exactly membership in
@@ -455,6 +460,33 @@ public enum AnalyticsEngine {
             let weight = pairs.reduce(0.0) { $0 + $1.1 }
             return weight > 0 ? total / weight : nil
         }()
+
+        // ── HRV & Autonomic nightly trace (#141) ──────────────────────────────
+        // Per-5-min-window RMSSD tagged by the sleep stage at its center, then a night summary comparing
+        // NOOP's whole-night mean (what it reports) against a deep-only mean and a WHOOP-style
+        // last-slow-wave-sleep value — so an "HRV reads ~2x higher than WHOOP" report shows WHICH stages
+        // lift it, and lets a deep-sleep-windowed fix be validated before it ships. Reuses the SAME
+        // sessionHrvWindows the value is built from (can't diverge). Zero cost when the sink is nil.
+        if let hrvTraceSink {
+            func r2(_ x: Double) -> Double { (x * 100).rounded() / 100 }
+            var allWin: [SleepStager.HrvWindow] = []
+            for s in matched {
+                let wins = SleepStager.sessionHrvWindows(start: s.start, end: s.end, rr: rr, stages: s.stages)
+                for w in wins {
+                    let rm = w.rmssd.map { "\(r2($0))ms" } ?? "nil"
+                    hrvTraceSink("hrv window t=\((w.startTs - s.start) / 60)min stage=\(w.stage) beats=\(w.cleanBeats) rmssd=\(rm)")
+                }
+                allWin.append(contentsOf: wins)
+            }
+            func meanMs(_ ws: [SleepStager.HrvWindow]) -> String {
+                let v = ws.compactMap { $0.rmssd }
+                return v.isEmpty ? "nil" : "\(r2(v.reduce(0, +) / Double(v.count)))ms"
+            }
+            let withR = allWin.filter { $0.rmssd != nil }
+            let deepW = withR.filter { $0.stage == "deep" }
+            let lastSws = SleepStager.lastDeepRun(allWin).filter { $0.rmssd != nil }
+            hrvTraceSink("hrv nightSummary wholeNight=\(meanMs(withR)) deepOnly=\(meanMs(deepW)) lastSWS=\(meanMs(lastSws)) nWin=\(withR.count) nDeep=\(deepW.count)")
+        }
 
         // Nightly APPROXIMATE respiratory rate (breaths/min) from the R-R stream via
         // RSA. WHOOP5 v18 carries no raw resp ADC, so this is an on-device estimate,

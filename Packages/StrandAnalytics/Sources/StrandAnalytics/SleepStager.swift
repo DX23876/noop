@@ -1900,13 +1900,30 @@ public enum SleepStager {
         return Int(all.rounded())
     }
 
+    /// One 5-min HRV window: its start ts, the sleep stage at its center, the clean-beat count, and the
+    /// window RMSSD (nil when <2 clean beats). Drives both `sessionAvgHRV` and the HRV test-mode trace. (#141)
+    public struct HrvWindow: Sendable {
+        public let startTs: Int
+        public let stage: String
+        public let cleanBeats: Int
+        public let rmssd: Double?
+    }
+
     /// Mean RMSSD over 5-min tumbling windows across the session (ms), or nil.
     /// Uses the same range-filter + ≥2-valid-interval rule as hrv.rmssd().
     static func sessionAvgHRV(start: Int, end: Int, rr: [RRInterval]) -> Double? {
+        let vals = sessionHrvWindows(start: start, end: end, rr: rr, stages: []).compactMap { $0.rmssd }
+        return vals.isEmpty ? nil : vals.reduce(0, +) / Double(vals.count)
+    }
+
+    /// Per-5-min-window RMSSD across a session, each window tagged with the sleep stage at its CENTER
+    /// (from `stages`) — the SINGLE source `sessionAvgHRV` averages, and the HRV nightly trace reads.
+    /// Passing `[]` for `stages` tags every window "?" (the plain-average path needs no stages). (#141)
+    static func sessionHrvWindows(start: Int, end: Int, rr: [RRInterval], stages: [StageSegment]) -> [HrvWindow] {
         let seg = rr.filter { $0.ts >= start && $0.ts <= end }
-        guard !seg.isEmpty else { return nil }
+        guard !seg.isEmpty else { return [] }
         let windowS = 5 * 60
-        var vals: [Double] = []
+        var out: [HrvWindow] = []
         var t = start
         while t < end {
             let bucket = seg.filter { $0.ts >= t && $0.ts < t + windowS }.map { Double($0.rrMs) }
@@ -1915,11 +1932,25 @@ public enum SleepStager {
             // than a 4.0's; rMSSD is built from SUCCESSIVE differences, so an un-rejected
             // jitter spike inflates the session HRV. Ectopic rejection drops those (#262/#235).
             let cleaned = HRVAnalyzer.cleanRR(bucket)
-            if cleaned.count >= 2, let r = HRVAnalyzer.rmssdRaw(cleaned) { vals.append(r) }
+            let rmssd: Double? = (cleaned.count >= 2) ? HRVAnalyzer.rmssdRaw(cleaned) : nil
+            let center = t + windowS / 2
+            let stage = stages.first { center >= $0.start && center < $0.end }?.stage ?? "?"
+            out.append(HrvWindow(startTs: t, stage: stage, cleanBeats: cleaned.count, rmssd: rmssd))
             t += windowS
         }
-        guard !vals.isEmpty else { return nil }
-        return vals.reduce(0, +) / Double(vals.count)
+        return out
+    }
+
+    /// The LAST contiguous run of deep-stage windows in `windows` — the WHOOP-style "last slow-wave-sleep"
+    /// comparator for the HRV nightly trace. Empty when no deep window is present. (#141)
+    static func lastDeepRun(_ windows: [HrvWindow]) -> [HrvWindow] {
+        var lastRun: [HrvWindow] = []
+        var cur: [HrvWindow] = []
+        for w in windows {
+            if w.stage == "deep" { cur.append(w) } else if !cur.isEmpty { lastRun = cur; cur.removeAll() }
+        }
+        if !cur.isEmpty { lastRun = cur }
+        return lastRun
     }
 
     // MARK: - AASM hypnogram metrics
