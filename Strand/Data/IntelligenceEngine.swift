@@ -950,20 +950,30 @@ final class IntelligenceEngine: ObservableObject {
         // (StrandAnalytics), fully unit-tested; the body term cancels so the headline needs no body metric.
         let fa7 = dailies.sorted { $0.day < $1.day }.suffix(7)
         let faRHRs = fa7.compactMap { $0.restingHr }.map(Double.init)
-        let faActiveStrains = fa7.compactMap { $0.strain }.filter { $0 >= 30 }
-        let faMeanActiveStrain = faActiveStrains.isEmpty ? 0
-            : faActiveStrains.reduce(0, +) / Double(faActiveStrains.count)
         let faWaist: Double? = profile.waistCm > 0 ? profile.waistCm : nil
+        // The Fitness Age gate + compute read the PERSISTED/MERGED last-7 days , the SAME history the
+        // readiness card + dashboard show , NOT this pass's freshly scored `dailies`. A recompute only
+        // re-scores nights whose raw HR still lives in the store, so a nightly wearer whose card reads
+        // "7 of 7 nights" could still leave the engine seeing <4 RHR nights on `dailies`, and Fitness Age
+        // never computed (Vitality did , it needs only 3 of ANY input, which is why Body Age showed but
+        // Fitness Age did not). Kept SEPARATE from `fa7` so Vitality (below), which already computes, is
+        // untouched. Mirrors the Android fix.
+        let faGate7 = (await repo.dailyMetrics(fromDay: oldestDay, toDay: newestDay))
+            .sorted { $0.day < $1.day }.suffix(7)
+        let faGateRHRs = faGate7.compactMap { $0.restingHr }.map(Double.init)
+        let faGateStrains = faGate7.compactMap { $0.strain }.filter { $0 >= 30 }
+        let faGateMeanStrain = faGateStrains.isEmpty ? 0
+            : faGateStrains.reduce(0, +) / Double(faGateStrains.count)
         let faReady = FitnessAgeEngine.assessReadiness(
             hasAge: profile.age > 0, hasSex: !profile.sex.isEmpty,
-            rhrDays: faRHRs.count, activityDays: fa7.compactMap { $0.strain }.count,
+            rhrDays: faGateRHRs.count, activityDays: faGate7.compactMap { $0.strain }.count,
             hasHeightWeight: profile.heightCm > 0 && profile.weightKg > 0, hasWaist: faWaist != nil)
         if faReady.canCompute,
            let faRes = FitnessAgeEngine.compute(
                 age: Double(profile.age), sex: profile.sex,
-                restingHR: IntelligenceEngine.medianOf(faRHRs),
+                restingHR: IntelligenceEngine.medianOf(faGateRHRs),
                 paIndex: FitnessAgeEngine.physicalActivityIndexFromStrain(
-                    activeDaysPerWeek: faActiveStrains.count, meanActiveStrain: faMeanActiveStrain),
+                    activeDaysPerWeek: faGateStrains.count, meanActiveStrain: faGateMeanStrain),
                 waistCm: faWaist) {
             let satKey = IntelligenceEngine.saturdayKey(onOrBefore: newestDay)
             var faPts = [MetricPoint(day: satKey, key: "fitness_age", value: faRes.fitnessAge)]

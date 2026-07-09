@@ -892,18 +892,29 @@ object IntelligenceEngine {
         // ── Fitness Age (Phase 2) , weekly, keyed to the week's Saturday ──
         val fa7 = dailies.sortedBy { it.day }.takeLast(7)
         val faRHRs = fa7.mapNotNull { it.restingHr }.map { it.toDouble() }
-        val faActiveStrains = fa7.mapNotNull { it.strain }.filter { it >= 30.0 }
-        val faMeanActiveStrain = if (faActiveStrains.isEmpty()) 0.0 else faActiveStrains.average()
         val faWaist = if (profile.waistCm > 0) profile.waistCm else null
+        // The Fitness Age gate + compute read the PERSISTED/MERGED last-7 days , the SAME history the
+        // readiness card and dashboard show , NOT this pass's freshly scored `dailies`. A recompute only
+        // re-scores nights whose raw HR still lives in the DB, so a nightly wearer whose card reads "7 of 7
+        // nights" could still leave the engine seeing <4 RHR nights on `dailies`, and Fitness Age never
+        // computed (Vitality did , it needs only 3 of ANY input, which is why Body Age showed but Fitness
+        // Age did not). Kept SEPARATE from `fa7` so Vitality (below), which already computes, is untouched.
+        val faGate7 = repo.daysMerged(importedDeviceId).sortedBy { it.day }.takeLast(7)
+        val faGateRHRs = faGate7.mapNotNull { it.restingHr }.map { it.toDouble() }
+        val faGateStrains = faGate7.mapNotNull { it.strain }.filter { it >= 30.0 }
+        val faGateMeanStrain = if (faGateStrains.isEmpty()) 0.0 else faGateStrains.average()
         val faReady = FitnessAgeEngine.assessReadiness(
             hasAge = profile.age > 0, hasSex = profile.sex.isNotEmpty(),
-            rhrDays = faRHRs.size, activityDays = fa7.mapNotNull { it.strain }.size,
+            rhrDays = faGateRHRs.size, activityDays = faGate7.mapNotNull { it.strain }.size,
             hasHeightWeight = profile.heightCm > 0 && profile.weightKg > 0, hasWaist = faWaist != null)
+        // Strap-log proof: the RHR-night count the ENGINE sees for the gate , should equal the
+        // "N of last 7 nights" the readiness card shows. A divergence is the symptom this fix addresses.
+        diag("fitnessAge gate day=$newestDay rhrNights=${faGateRHRs.size} activityDays=${faGate7.mapNotNull { it.strain }.size} conf=${faReady.confidence} canCompute=${faReady.canCompute}")
         if (faReady.canCompute) {
             val faRes = FitnessAgeEngine.compute(
                 age = profile.age, sex = profile.sex,
-                restingHR = medianOfDoubles(faRHRs),
-                paIndex = FitnessAgeEngine.physicalActivityIndexFromStrain(faActiveStrains.size, faMeanActiveStrain),
+                restingHR = medianOfDoubles(faGateRHRs),
+                paIndex = FitnessAgeEngine.physicalActivityIndexFromStrain(faGateStrains.size, faGateMeanStrain),
                 waistCm = faWaist)
             if (faRes != null) {
                 val satKey = saturdayKeyOnOrBefore(newestDay)
