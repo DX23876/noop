@@ -21,8 +21,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.CompareArrows
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Sync
+import android.widget.Toast
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -601,11 +605,16 @@ private fun rememberFitnessReadiness(days: List<DailyMetric>, profile: ProfileSt
 
 @Composable
 private fun FitnessAgeSection(vm: AppViewModel, days: List<DailyMetric>, profile: ProfileStore) {
+    val context = LocalContext.current
     // Latest weekly value + its optional VO₂max companion, read once (metricSeries has no Flow, so we
     // re-read whenever the merged history changes — a fresh sync/import is what moves these).
     var fitnessAge by remember { mutableStateOf<Double?>(null) }
     var vo2max by remember { mutableStateOf<Double?>(null) }
-    LaunchedEffect(days) {
+    // Manual-refresh plumbing: the not-ready card's refresh button recomputes Fitness Age NOW and bumps
+    // this tick, which re-keys the read below so a freshly written value shows without waiting for a sync.
+    var refreshTick by remember { mutableStateOf(0) }
+    var refreshing by remember { mutableStateOf(false) }
+    LaunchedEffect(days, refreshTick) {
         val fa = runCatching {
             vm.repo.metricSeries(COMPUTED_SOURCE, "fitness_age", "0000-01-01", "9999-12-31")
         }.getOrDefault(emptyList()).lastOrNull()?.value
@@ -641,9 +650,26 @@ private fun FitnessAgeSection(vm: AppViewModel, days: List<DailyMetric>, profile
                 FitnessReadinessCard(readiness = readiness, headed = false)
             }
         } else {
-            // No weekly value yet — lead with a concrete countdown, then the checklist.
-            FitnessReadinessCard(readiness = readiness, headed = true,
-                lead = fitnessReadyLead(rhrDays, profile.age > 0, profile.sex.isNotBlank()))
+            // No weekly value yet — lead with a concrete countdown, then the checklist. The refresh button
+            // forces the weekly recompute now (from stored data), so a ready user doesn't have to wait.
+            FitnessReadinessCard(
+                readiness = readiness, headed = true,
+                lead = fitnessReadyLead(rhrDays, profile.age > 0, profile.sex.isNotBlank()),
+                refreshing = refreshing,
+                onRefresh = {
+                    refreshing = true
+                    vm.refreshFitnessAgeNow { wrote ->
+                        refreshing = false
+                        refreshTick++
+                        Toast.makeText(
+                            context,
+                            if (wrote) "Fitness Age updated."
+                            else "Not enough wear yet — keep your strap on overnight.",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }
+                },
+            )
         }
     }
 }
@@ -930,7 +956,15 @@ private fun fitnessReadyLead(rhrDays: Int, hasAge: Boolean, hasSex: Boolean): St
  *  "Drives your Fitness Age" and "Unlocks your VO₂max". When [headed] (no value yet) it leads with the
  *  [lead] countdown and floats the required-missing items to the top of their group. */
 @Composable
-private fun FitnessReadinessCard(readiness: FitnessAgeReadiness, headed: Boolean, lead: String = "") {
+private fun FitnessReadinessCard(
+    readiness: FitnessAgeReadiness,
+    headed: Boolean,
+    lead: String = "",
+    // When set (the headed/not-ready state), a small refresh affordance sits by the lead and forces an
+    // immediate Fitness Age recompute; [refreshing] swaps it for a spinner while that runs.
+    onRefresh: (() -> Unit)? = null,
+    refreshing: Boolean = false,
+) {
     val drivesAge = readiness.items
         .filter { it.role == FitnessReadinessRole.DRIVES_AGE }
         .sortedBy { if (headed) readinessSortKey(it) else 0 }
@@ -942,11 +976,33 @@ private fun FitnessReadinessCard(readiness: FitnessAgeReadiness, headed: Boolean
         Column(verticalArrangement = Arrangement.spacedBy(Metrics.space16)) {
             if (headed) {
                 Column(verticalArrangement = Arrangement.spacedBy(Metrics.space4)) {
-                    Text(
-                        lead.ifBlank { "A few more days and we can show your Fitness Age." },
-                        style = NoopType.headline,
-                        color = Palette.textPrimary,
-                    )
+                    Row(verticalAlignment = Alignment.Top) {
+                        Text(
+                            lead.ifBlank { "A few more days and we can show your Fitness Age." },
+                            style = NoopType.headline,
+                            color = Palette.textPrimary,
+                            modifier = Modifier.weight(1f),
+                        )
+                        // Force-recompute affordance: NOOP scores Fitness Age weekly, so this lets an
+                        // impatient user apply it NOW from stored data (no strap needed). Spinner while it runs.
+                        if (onRefresh != null) {
+                            if (refreshing) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Palette.accent,
+                                )
+                            } else {
+                                IconButton(onClick = onRefresh, modifier = Modifier.size(28.dp)) {
+                                    Icon(
+                                        Icons.Filled.Refresh,
+                                        contentDescription = "Refresh Fitness Age now",
+                                        tint = Palette.accent,
+                                    )
+                                }
+                            }
+                        }
+                    }
                     Text(
                         "It compares your resting heart rate and recent activity against people your age. " +
                             "Wear your strap for a full week and it appears here.",
@@ -1883,8 +1939,12 @@ fun VitalDetailScreen(vm: AppViewModel, key: String) {
     // "not enough history" before its rows arrive.
     var seriesDetail by remember(key) { mutableStateOf<VitalDetailModel?>(null) }
     var seriesLoaded by remember(key) { mutableStateOf(false) }
+    // Manual-refresh plumbing for the Fitness Age not-ready state (readiness branch below): the refresh
+    // button recomputes then bumps this tick, re-running the series read so a fresh value shows at once.
+    var refreshTick by remember { mutableStateOf(0) }
+    var refreshing by remember { mutableStateOf(false) }
     if (isSeriesBacked) {
-        LaunchedEffect(key) {
+        LaunchedEffect(key, refreshTick) {
             seriesDetail = buildSeriesVitalDetail(vm, key)
             seriesLoaded = true
         }
@@ -1919,6 +1979,20 @@ fun VitalDetailScreen(vm: AppViewModel, key: String) {
                 FitnessReadinessCard(
                     readiness = readiness, headed = true,
                     lead = fitnessReadyLead(rhrDays, profile.age > 0, profile.sex.isNotBlank()),
+                    refreshing = refreshing,
+                    onRefresh = {
+                        refreshing = true
+                        vm.refreshFitnessAgeNow { wrote ->
+                            refreshing = false
+                            refreshTick++
+                            Toast.makeText(
+                                context,
+                                if (wrote) "Fitness Age updated."
+                                else "Not enough wear yet — keep your strap on overnight.",
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                    },
                 )
                 return@ScreenScaffold
             }

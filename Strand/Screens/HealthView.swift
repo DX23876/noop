@@ -648,12 +648,16 @@ private struct ContributorBar: View {
 private struct FitnessAgeSection: View {
     @EnvironmentObject var repo: Repository
     @EnvironmentObject var profile: ProfileStore
+    /// Drives the not-ready card's "refresh Fitness Age" button (force an immediate recompute).
+    @EnvironmentObject var intelligence: IntelligenceEngine
 
     /// Latest weekly Fitness Age (years) read from the "fitness_age" metricSeries, nil until loaded/computed.
     @State private var fitnessAge: Double?
     /// Latest estimated VO₂max (ml/kg/min) from "vo2max_est" — only present once a waist is set.
     @State private var vo2max: Double?
     @State private var loaded = false
+    /// True while a manual "refresh Fitness Age" recompute is running (spinner in the readiness card).
+    @State private var refreshing = false
 
     /// Reveal the readiness checklist (the "ⓘ How accurate is this?" disclosure under a shown value).
     @State private var showReadiness = false
@@ -733,7 +737,17 @@ private struct FitnessAgeSection: View {
             ReadinessChecklistCard(
                 readiness: readiness,
                 lead: fitnessReadyLead(),
-                onFix: { fitnessSheet = .settings })
+                onFix: { fitnessSheet = .settings },
+                onRefresh: {
+                    guard !refreshing else { return }
+                    refreshing = true
+                    Task {
+                        _ = await intelligence.recomputeFitnessAgeOnly()
+                        await load()
+                        refreshing = false
+                    }
+                },
+                refreshing: refreshing)
         } else {
             // Brief read of the weekly value; honest placeholder rather than an empty gap.
             ComingSoon(what: "Reading your Fitness Age…", symbol: "figure.run")
@@ -896,6 +910,10 @@ private struct ReadinessChecklistCard: View {
     let lead: String?
     /// Invoked when the user taps a required-missing row's "Fix in Settings".
     let onFix: () -> Void
+    /// Optional force-recompute action (the "refresh Fitness Age" button, not-ready state only);
+    /// `refreshing` swaps it for a spinner while the recompute runs. nil = no button.
+    var onRefresh: (() -> Void)? = nil
+    var refreshing: Bool = false
 
     private var drivesAge: [FitnessReadinessItem] { readiness.items.filter { $0.role == .drivesAge } }
     private var unlocksVO2: [FitnessReadinessItem] { readiness.items.filter { $0.role == .unlocksVO2max } }
@@ -906,6 +924,21 @@ private struct ReadinessChecklistCard: View {
                 HStack(spacing: NoopMetrics.rowSpacing) {
                     confidencePill
                     Spacer(minLength: 0)
+                    // Force-recompute affordance: NOOP scores Fitness Age weekly, so this applies it NOW
+                    // from stored data. Spinner while it runs.
+                    if let onRefresh {
+                        if refreshing {
+                            ProgressView().controlSize(.small).tint(StrandPalette.accent)
+                        } else {
+                            Button(action: onRefresh) {
+                                Image(systemName: "arrow.clockwise")
+                                    .font(StrandFont.subhead)
+                                    .foregroundStyle(StrandPalette.accent)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Refresh Fitness Age now")
+                        }
+                    }
                 }
                 if let lead {
                     Text(lead)
@@ -1411,6 +1444,7 @@ private struct HealthHubLinksSection: View {
         .environmentObject(ProfileStore())
         .environmentObject(AppModel())
         .environmentObject(NavRouter())
+        .environmentObject(IntelligenceEngine(repo: repo, profile: ProfileStore(), deviceId: "preview"))
         .frame(width: 900, height: 760)
         .preferredColorScheme(.dark)
 }

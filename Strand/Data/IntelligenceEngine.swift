@@ -195,6 +195,58 @@ final class IntelligenceEngine: ObservableObject {
         return fmt.string(from: sat)
     }
 
+    /// Assess Fitness Age readiness from `gateDays` (the merged last-7 the readiness card counts) and, when
+    /// ready, build the fitness_age (+ optional vo2max) points for `satKey`. Empty when not ready. The
+    /// SINGLE source of the gate + compute , shared by the recompute pass and the manual "refresh Fitness
+    /// Age" button so the two can never drift. Profile passed as primitives (no cross-actor object read).
+    /// Mirrors the Android `IntelligenceEngine.fitnessAgeRows`.
+    static func fitnessAgeRows(
+        gateDays: [DailyMetric], age: Int, sex: String, waistCm: Double, heightCm: Double, weightKg: Double,
+        computedId: String, satKey: String,
+    ) -> [MetricPoint] {
+        let rhrs = gateDays.compactMap { $0.restingHr }.map(Double.init)
+        let strains = gateDays.compactMap { $0.strain }.filter { $0 >= 30 }
+        let meanStrain = strains.isEmpty ? 0 : strains.reduce(0, +) / Double(strains.count)
+        let waist: Double? = waistCm > 0 ? waistCm : nil
+        let ready = FitnessAgeEngine.assessReadiness(
+            hasAge: age > 0, hasSex: !sex.isEmpty,
+            rhrDays: rhrs.count, activityDays: gateDays.compactMap { $0.strain }.count,
+            hasHeightWeight: heightCm > 0 && weightKg > 0, hasWaist: waist != nil)
+        guard ready.canCompute,
+              let res = FitnessAgeEngine.compute(
+                age: Double(age), sex: sex,
+                restingHR: medianOf(rhrs),
+                paIndex: FitnessAgeEngine.physicalActivityIndexFromStrain(
+                    activeDaysPerWeek: strains.count, meanActiveStrain: meanStrain),
+                waistCm: waist) else { return [] }
+        var rows = [MetricPoint(day: satKey, key: "fitness_age", value: res.fitnessAge)]
+        if let v = res.vo2max { rows.append(MetricPoint(day: satKey, key: "vo2max_est", value: v)) }
+        return rows
+    }
+
+    /// Manual "refresh Fitness Age" (the button on the not-ready card): recompute the weekly Fitness Age NOW
+    /// from the PERSISTED merged daily history , NO raw-HR rescoring , and upsert it. Same gate
+    /// (`fitnessAgeRows`) + date/window logic as the recompute pass, so it reads exactly what the readiness
+    /// card shows. Light + works offline (stored data only). Returns true if a value was written. Mirrors
+    /// the Android `recomputeFitnessAgeOnly`.
+    func recomputeFitnessAgeOnly(maxDays: Int = 21) async -> Bool {
+        guard let store = await repo.storeHandle() else { return false }
+        let computedId = deviceId + "-noop"
+        let now = Int(Date().timeIntervalSince1970)
+        let tzOffset = TimeZone.current.secondsFromGMT()
+        let nowLocalMidnight = Self.midnightLocal(now, offsetSec: tzOffset)
+        let newestDay = AnalyticsEngine.dayString(nowLocalMidnight, offsetSec: tzOffset)
+        let oldestDay = AnalyticsEngine.dayString(nowLocalMidnight - (maxDays - 1) * 86_400, offsetSec: tzOffset)
+        let gate7 = Array((await repo.dailyMetrics(fromDay: oldestDay, toDay: newestDay))
+            .sorted { $0.day < $1.day }.suffix(7))
+        let rows = Self.fitnessAgeRows(
+            gateDays: gate7, age: profile.age, sex: profile.sex, waistCm: profile.waistCm,
+            heightCm: profile.heightCm, weightKg: profile.weightKg, computedId: computedId,
+            satKey: Self.saturdayKey(onOrBefore: newestDay))
+        if !rows.isEmpty { _ = try? await store.upsertMetricSeries(rows, deviceId: computedId) }
+        return !rows.isEmpty
+    }
+
     /// UserDefaults flag guarding the one-shot #313 full-history Effort rescore (below). Set once the
     /// pass completes so it never re-runs.
     static let effortRescoreFlagKey = "intelligence.effortRescore.v313.done"
@@ -956,40 +1008,25 @@ final class IntelligenceEngine: ObservableObject {
         // (StrandAnalytics), fully unit-tested; the body term cancels so the headline needs no body metric.
         let fa7 = dailies.sorted { $0.day < $1.day }.suffix(7)
         let faRHRs = fa7.compactMap { $0.restingHr }.map(Double.init)
-        let faWaist: Double? = profile.waistCm > 0 ? profile.waistCm : nil
         // The Fitness Age gate + compute read the PERSISTED/MERGED last-7 days , the SAME history the
         // readiness card + dashboard show , NOT this pass's freshly scored `dailies`. A recompute only
         // re-scores nights whose raw HR still lives in the store, so a nightly wearer whose card reads
         // "7 of 7 nights" could still leave the engine seeing <4 RHR nights on `dailies`, and Fitness Age
         // never computed (Vitality did , it needs only 3 of ANY input, which is why Body Age showed but
         // Fitness Age did not). Kept SEPARATE from `fa7` so Vitality (below), which already computes, is
-        // untouched. Mirrors the Android fix. Gate on the UNION of the pre-rewrite persisted history and
-        // THIS pass's fresh scores (by day, fresh wins), so an RHR night counts whether it survives in the
-        // store, was just scored, or came from an import.
+        // untouched. Gate on the UNION of the pre-rewrite persisted history and THIS pass's fresh scores
+        // (by day, fresh wins), so an RHR night counts whether it survives in the store, was just scored,
+        // or came from an import. The gate + compute live in `fitnessAgeRows`, shared with the manual
+        // "refresh Fitness Age" button so the two can never drift.
         var faGateByDay: [String: DailyMetric] = [:]
         for d in faPriorDaily { faGateByDay[d.day] = d }
         for d in dailies { faGateByDay[d.day] = d }
-        let faGate7 = faGateByDay.values.sorted { $0.day < $1.day }.suffix(7)
-        let faGateRHRs = faGate7.compactMap { $0.restingHr }.map(Double.init)
-        let faGateStrains = faGate7.compactMap { $0.strain }.filter { $0 >= 30 }
-        let faGateMeanStrain = faGateStrains.isEmpty ? 0
-            : faGateStrains.reduce(0, +) / Double(faGateStrains.count)
-        let faReady = FitnessAgeEngine.assessReadiness(
-            hasAge: profile.age > 0, hasSex: !profile.sex.isEmpty,
-            rhrDays: faGateRHRs.count, activityDays: faGate7.compactMap { $0.strain }.count,
-            hasHeightWeight: profile.heightCm > 0 && profile.weightKg > 0, hasWaist: faWaist != nil)
-        if faReady.canCompute,
-           let faRes = FitnessAgeEngine.compute(
-                age: Double(profile.age), sex: profile.sex,
-                restingHR: IntelligenceEngine.medianOf(faGateRHRs),
-                paIndex: FitnessAgeEngine.physicalActivityIndexFromStrain(
-                    activeDaysPerWeek: faGateStrains.count, meanActiveStrain: faGateMeanStrain),
-                waistCm: faWaist) {
-            let satKey = IntelligenceEngine.saturdayKey(onOrBefore: newestDay)
-            var faPts = [MetricPoint(day: satKey, key: "fitness_age", value: faRes.fitnessAge)]
-            if let v = faRes.vo2max { faPts.append(MetricPoint(day: satKey, key: "vo2max_est", value: v)) }
-            _ = try? await store.upsertMetricSeries(faPts, deviceId: computedId)
-        }
+        let faGate7 = Array(faGateByDay.values.sorted { $0.day < $1.day }.suffix(7))
+        let faPts = Self.fitnessAgeRows(
+            gateDays: faGate7, age: profile.age, sex: profile.sex, waistCm: profile.waistCm,
+            heightCm: profile.heightCm, weightKg: profile.weightKg, computedId: computedId,
+            satKey: IntelligenceEngine.saturdayKey(onOrBefore: newestDay))
+        if !faPts.isEmpty { _ = try? await store.upsertMetricSeries(faPts, deviceId: computedId) }
 
         // ── Vitality / Body Age (Phase 7) , weekly, keyed to the week's Saturday ────────────────────
         // Roll the last 7 days' wearable signals into the mortality-hazard model and upsert a weekly
