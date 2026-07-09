@@ -7,7 +7,7 @@ enum AppChangelog {
 
     /// Bump this when you add a release below. The "What's New" sheet shows automatically when the
     /// stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
-    static let currentVersion = "8.4.0"
+    static let currentVersion = "8.5.0"
 
     struct Release: Identifiable {
         let version: String
@@ -19,6 +19,19 @@ enum AppChangelog {
 
     /// Newest first.
     static let releases: [Release] = [
+        Release(
+            version: "8.5.0",
+            title: "Raw SpO₂, honest units, and a lighter app",
+            date: "July 2026",
+            items: [
+                "**See your raw blood-oxygen signal (WHOOP 4.0).** The Health screen now surfaces the strap's raw red/IR SpO₂ sensor reading natively — honest, uncalibrated data, no export needed. It's not a clinical %, which needs WHOOP's own calibration.",
+                "**Skin temperature and Effort now respect your settings.** The Deep Timeline shows skin temp in °F when you've chosen Fahrenheit, and the Today \"Effort\" ring finally follows your 0–100 vs WHOOP 0–21 scale (with a decimal on the 21 scale).",
+                "**The \"workout in progress\" card is back on Home.** The Liquid redesign dropped it; an active manual workout is once again visible on the Home screen and taps straight through to Live.",
+                "**Apple Health steps count again.** Steps imported from an Apple Health export now reach your daily totals instead of quietly going missing.",
+                "**Steadier battery alerts and fresher widgets.** The low-battery alert no longer re-fires while you're charging, and the home-screen widget shows your current battery instead of a stale value.",
+                "**Lighter and faster.** A snappier Sleep screen, fewer per-frame allocations on Today, and export imports that can't balloon memory.",
+            ]
+        ),
         Release(
             version: "8.4.0",
             title: "Faster, and fewer sharp edges",
