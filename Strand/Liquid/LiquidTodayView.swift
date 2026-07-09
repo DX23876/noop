@@ -200,6 +200,11 @@ struct LiquidTodayView: View {
 
                 VStack(alignment: .leading, spacing: 12) {
                     scene
+                    // #105: the live "workout in progress" card, dropped in the liquid Home rewrite. Restored
+                    // here as the SAME leaf the classic TodayView renders (and Android's WorkoutInProgressCard),
+                    // sitting right under the hero so an active manual workout is immediately visible and taps
+                    // straight through to Live. Renders nothing when no workout is active.
+                    ActiveWorkoutIndicatorSection()
                     heartRateSection
                     yourCardsSection
                     synthesisSection

@@ -148,7 +148,12 @@ private struct ActiveWorkoutIndicatorCard: View {
 /// rewritten `activeWorkout`) re-renders ONLY this card, never the whole Today dashboard, the same
 /// leaf-isolation pattern the file documents for the live status/sync rows. Renders nothing when no workout
 /// is active, so the card auto-appears/clears purely off `AppModel.activeWorkout`.
-private struct ActiveWorkoutIndicatorSection: View {
+///
+/// Non-private so the liquid Home (`LiquidTodayView`) renders the SAME leaf — the liquid rewrite dropped this
+/// indicator (#105), and sharing one implementation keeps the two Today screens (and Android's
+/// `WorkoutInProgressCard`) from drifting. It carries its own `app`/`router` environment objects, so a caller
+/// only needs to place `ActiveWorkoutIndicatorSection()` in its body.
+struct ActiveWorkoutIndicatorSection: View {
     @EnvironmentObject var app: AppModel
     @EnvironmentObject var router: NavRouter
 
