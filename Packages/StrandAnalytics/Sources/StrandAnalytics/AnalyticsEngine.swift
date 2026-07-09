@@ -335,7 +335,11 @@ public enum AnalyticsEngine {
                                   // summary). The caller sets it TRUE only for the most-recent night so the
                                   // 5000-line ring buffer isn't flooded (21 nights × ~90 windows would evict the
                                   // always-on diagnostics); the 1-line `hrv nightSummary` is kept for EVERY night.
-                                  hrvWindowDetail: Bool = false) -> DayResult {
+                                  hrvWindowDetail: Bool = false,
+                                  // #141: when true, the nightly HRV is RMSSD over DEEP-sleep windows only
+                                  // (WHOOP-style), instead of the whole-night mean. Threaded from the caller
+                                  // (UnitPrefs.hrvWindowKey). Default false = byte-identical whole-night value.
+                                  deepHrvWindow: Bool = false) -> DayResult {
 
         // Precompute the day's UTC bounds ONCE (#996). `dayString(ts, offsetSec:)` formats the UTC
         // calendar day of (ts + offset) with a FIXED offset, so "== day" is exactly membership in
@@ -457,6 +461,19 @@ public enum AnalyticsEngine {
         let restingHRDaily = matched.compactMap { $0.restingHR }.min()
         // Daily avg HRV = in-bed-weighted mean of per-session avg HRV.
         let avgHRVDaily: Double? = {
+            if deepHrvWindow {
+                // #141: WHOOP-style HRV — pool RMSSD over DEEP-stage 5-min windows only (slow-wave sleep),
+                // instead of the whole-night mean. Reuses the SAME sessionHrvWindows the HRV trace is built
+                // from, so the displayed value equals the `deepOnly` figure the trace logs. rr sorted (RMSSD
+                // = successive diffs). nil when no deep sleep is detected (WHOOP-4.0 staging can be sparse) —
+                // the caller shows calibrating, never a fabricated number.
+                let rrSorted = rr.sorted { $0.ts < $1.ts }
+                let deep = matched.flatMap { s in
+                    SleepStager.sessionHrvWindows(start: s.start, end: s.end, rr: rrSorted, stages: s.stages)
+                        .filter { $0.stage == "deep" }.compactMap { $0.rmssd }
+                }
+                return deep.isEmpty ? nil : deep.reduce(0, +) / Double(deep.count)
+            }
             let pairs = matched.compactMap { s -> (Double, Double)? in
                 s.avgHRV.map { ($0, Double(s.end - s.start)) }
             }

@@ -54,6 +54,20 @@ enum TrendChartStyle: String, CaseIterable, Identifiable {
     var label: String { self == .bar ? "Bars" : "Line" }
 }
 
+/// Which sleep window the nightly HRV is measured over (#141). NOOP historically averages RMSSD across the
+/// WHOLE night (every stage); WHOOP/Polar/etc. sample the last slow-wave-sleep window, which reads lower.
+/// This lets a user match that. It CHANGES the computed avgHrv (NOT display-only), so a switch re-scores +
+/// re-baselines. Default is the historical whole-night value. Mirrored on Android by NoopPrefs("hrv.window").
+enum HrvWindow: String, CaseIterable, Identifiable {
+    /// RMSSD averaged over every 5-min window of the night (NOOP's long-standing value).
+    case whole
+    /// RMSSD over DEEP (slow-wave) sleep windows only — comparable to WHOOP's reading.
+    case deep
+    var id: String { rawValue }
+    /// Segmented-control label.
+    var label: String { self == .deep ? "Deep sleep" : "Whole night" }
+}
+
 /// UserDefaults keys for the two unit preferences. Public-ish (internal) so `SettingsView`'s
 /// `@AppStorage(UnitPrefs.systemKey)` and the formatter read the SAME key — no drift.
 enum UnitPrefs {
@@ -68,6 +82,11 @@ enum UnitPrefs {
     /// value resolves to `.line` (the classic look). Display-only — the plotted data never changes.
     /// Mirrored on Android by NoopPrefs("trend.chart.style").
     static let trendChartStyleKey = "trend.chart.style"
+
+    /// Nightly-HRV window (#141). Stored raw is an `HrvWindow` rawValue; unset/unknown resolves to `.whole`
+    /// (the historical whole-night value). NOT display-only — it changes the computed avgHrv, so the engine
+    /// reads it and a Settings switch re-scores. Mirrored on Android by NoopPrefs("hrv.window").
+    static let hrvWindowKey = "hrv.window"
 
     /// Display factor for the #268 Effort scale: the stored 0-100 value multiplied by this renders on
     /// the user's chosen axis (1.0 for the native 0-100, 0.21 for the WHOOP-style 0-21). Display-only,

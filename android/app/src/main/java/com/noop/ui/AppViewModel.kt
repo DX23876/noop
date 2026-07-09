@@ -824,6 +824,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                                     .active(com.noop.testcentre.TestDomain.HRV))
                                 { line -> ble.externalLog(line, com.noop.testcentre.TestDomain.HRV) }
                             else null,
+                        // #141: nightly HRV over deep-sleep windows only when the user picked WHOOP-style.
+                        deepHrvWindow = UnitPrefs.hrvWindow(appContext) == HrvWindow.DEEP_SLEEP,
                     )
                     // analyzeRecent now hops to Dispatchers.Default; a scope cancellation surfaces as a
                     // CancellationException that runCatching would otherwise swallow, breaking the loop's

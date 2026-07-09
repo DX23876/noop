@@ -225,6 +225,10 @@ object AnalyticsEngine {
         // ~90 windows would evict the always-on diagnostics); the 1-line `hrv nightSummary` is kept for EVERY
         // night so the whole-night-vs-deep pattern is still visible across the week.
         hrvWindowDetail: Boolean = false,
+        // #141: when true, the nightly HRV is RMSSD over DEEP-sleep windows only (WHOOP-style), instead of
+        // the whole-night mean. Display-only preference threaded from the caller (UnitPrefs.hrvWindow). The
+        // default (false) is byte-identical to the historical whole-night value.
+        deepHrvWindow: Boolean = false,
     ): DayResult {
 
         // ── Sleep detection + staging ─────────────────────────────────────────
@@ -308,7 +312,19 @@ object AnalyticsEngine {
         // Daily resting HR = lowest per-session resting HR across matched sessions.
         val restingHRDaily: Int? = matched.mapNotNull { it.restingHR }.minOrNull()
         // Daily avg HRV = in-bed-weighted mean of per-session avg HRV.
-        val avgHRVDaily: Double? = run {
+        val avgHRVDaily: Double? = if (deepHrvWindow) {
+            // #141: WHOOP-style HRV — pool RMSSD over DEEP-stage 5-min windows only (slow-wave sleep),
+            // instead of the whole-night mean below. Reuses the SAME sessionHrvWindows the HRV trace is
+            // built from, so the displayed value equals the `deepOnly` figure the trace logs. rr is sorted
+            // (RMSSD = successive diffs). null when the night has no detected deep sleep (WHOOP-4.0 staging
+            // can be sparse) — the caller then shows calibrating, never a fabricated number.
+            val rrSorted = rr.sortedBy { it.ts }
+            val deep = matched.flatMap { s ->
+                SleepStager.sessionHrvWindows(s.start, s.end, rrSorted, s.stages)
+                    .filter { it.stage == "deep" }.mapNotNull { it.rmssd }
+            }
+            if (deep.isEmpty()) null else deep.sum() / deep.size
+        } else run {
             val pairs = matched.mapNotNull { s ->
                 s.avgHRV?.let { it to (s.end - s.start).toDouble() }
             }
