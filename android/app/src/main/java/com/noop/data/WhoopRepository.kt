@@ -1588,6 +1588,10 @@ class WhoopRepository(private val dao: WhoopDao) {
                     respRateBpm = d.respRateBpm ?: c.respRateBpm,
                     steps = d.steps ?: c.steps,
                     activeKcalEst = d.activeKcalEst ?: c.activeKcalEst,
+                    // Raw SpO2 is on-device only (imports never carry it), so the imported row's null
+                    // is backfilled from the computed row — otherwise the nightly means would be lost. (#93)
+                    spo2Red = d.spo2Red ?: c.spo2Red,
+                    spo2Ir = d.spo2Ir ?: c.spo2Ir,
                 )
                 // #993: a BARE imported sleep total must never override a night the strap actually
                 // scored. HealthConnectImporter backfills a "my-whoop" daily row carrying ONLY

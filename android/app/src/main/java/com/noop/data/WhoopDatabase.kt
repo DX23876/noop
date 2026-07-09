@@ -48,7 +48,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         LabMarkerRow::class,
         LiveSessionRow::class,
     ],
-    version = 16,
+    version = 17,
     exportSchema = false,
 )
 abstract class WhoopDatabase : RoomDatabase() {
@@ -426,6 +426,26 @@ abstract class WhoopDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v16 -> v17: ADDITIVE, adds the WHOOP 4.0 raw SpO2 PPG ADC means (red/IR) to `dailyMetric`,
+         * cached beside the other in-sleep aggregates (#93). Two nullable INTEGER columns, mirroring the
+         * v7 spo2Pct/skinTempDevC/respRateBpm add and the Swift WhoopStore v23 migration. Existing rows
+         * read NULL (ALTER ADD COLUMN, no table rebuild, no data loss), so an in-place upgrade of an older
+         * database is unaffected — pre-upgrade rows + non-4.0 nights simply stay null. No destructive
+         * fallback (see the class doc). Room's Int? maps to a nullable INTEGER (no NOT NULL / no DEFAULT),
+         * so the SQL must match Room's generated schema exactly. Exposed for a plain-JVM unit test.
+         */
+        internal val DAILY_SPO2_RAW_MIGRATION_SQL: List<String> = listOf(
+            "ALTER TABLE `dailyMetric` ADD COLUMN `spo2Red` INTEGER",
+            "ALTER TABLE `dailyMetric` ADD COLUMN `spo2Ir` INTEGER",
+        )
+
+        internal val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                for (stmt in DAILY_SPO2_RAW_MIGRATION_SQL) db.execSQL(stmt)
+            }
+        }
+
         private fun build(appContext: Context): WhoopDatabase =
             Room.databaseBuilder(appContext, WhoopDatabase::class.java, DB_NAME)
                 // #1014: replace ONLY the corruption handling of the default open-helper. The
@@ -440,7 +460,7 @@ abstract class WhoopDatabase : RoomDatabase() {
                     MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
                     MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
                     MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
-                    MIGRATION_14_15, MIGRATION_15_16,
+                    MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17,
                 )
                 // #1037: a FRESH install builds the schema straight at the current version and runs NO
                 // migrations, so the MIGRATION_7_8 "my-whoop" registry seed never fires and the WHOOP,

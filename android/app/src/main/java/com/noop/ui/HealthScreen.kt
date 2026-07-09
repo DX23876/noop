@@ -1523,6 +1523,9 @@ private data class Vital(
     /** The in-range caption that stands in for a StatePill inside the fixed-height tile.
      *  The wording says which yardstick judged it: your baseline vs typical ranges. */
     val stateCaption: String = when {
+        // Raw SpO₂ is a device-dependent ADC, not a clinical value — never claim an in/out-of-range
+        // judgment. Show a plain "uncalibrated" note when a value decoded, "No data" otherwise. (#93)
+        key == "spo2raw" -> if (banding.band == VitalBands.Band.NO_DATA) "No data" else "Uncalibrated"
         banding.band == VitalBands.Band.NO_DATA -> "No data"
         banding.basis == VitalBands.Basis.PERSONAL ->
             if (banding.band == VitalBands.Band.IN_RANGE) "In your range" else "Off your baseline"
@@ -1620,6 +1623,13 @@ private fun vitalsFor(
         skinUnitLabel,
         skinFormat,
     )
+    // WHOOP 4.0 raw SpO₂: the (red + IR) / 2 ADC mean per night, present only when both channels
+    // decoded for the day. Averaged for a single "signal decoded" tile; both channels stay in the DB. (#93)
+    val spo2RawMean: (DailyMetric) -> Double? = { row ->
+        if (row.spo2Red != null && row.spo2Ir != null) (row.spo2Red + row.spo2Ir) / 2.0 else null
+    }
+    val spo2rawRangeCaption =
+        rangeCaption(days.mapNotNull(spo2RawMean), "ADC") { String.format(Locale.US, "%.0f", it) }
     return listOf(
         Vital(
             key = "resp", label = "Resp Rate", unit = "rpm",
@@ -1644,6 +1654,22 @@ private fun vitalsFor(
             banding = VitalBands.band(d?.spo2Pct, emptyList(), 95.0..100.0, null),
             metricColor = Palette.metricCyan,
             sparkline = trail(d?.spo2Pct) { it.spo2Pct },
+        ),
+        Vital(
+            // Issue #93: WHOOP 4.0 raw SpO₂ PPG ADC mean (red+IR)/2 per night. NOT a calibrated
+            // blood-oxygen % — that needs WHOOP's proprietary curve. Shown as RAW ADC so users can SEE
+            // the sensor data decoded, without fabricating a clinical-looking number. Banding over the
+            // full u16 span just keeps the tile cyan (never "off range"); `stateCaption` labels it
+            // uncalibrated, so we never assert an in/out-of-range clinical judgment on raw sensor data.
+            key = "spo2raw", label = "Raw SpO₂", unit = "ADC",
+            value = d?.let(spo2RawMean), format = { String.format("%.0f", it) },
+            deltaText = deltaText(d?.let(spo2RawMean), previous(spo2RawMean), decimals = 0),
+            readingDay = todayKey,
+            asOfLabel = asOfLabel(todayKey),
+            rangeCaption = spo2rawRangeCaption,
+            banding = VitalBands.band(d?.let(spo2RawMean), emptyList(), 0.0..65535.0, null),
+            metricColor = Palette.metricCyan,
+            sparkline = trail(d?.let(spo2RawMean)) { spo2RawMean(it) },
         ),
         Vital(
             key = "rhr", label = "Resting HR", unit = "bpm",
@@ -1950,6 +1976,7 @@ private fun latestVitals(days: List<DailyMetric>, tempUnit: TemperatureUnit): Li
     return listOf(
         latestVital("resp", days, tempUnit, emptyByKey) { it.respRateBpm != null },
         latestVital("spo2", days, tempUnit, emptyByKey) { it.spo2Pct != null },
+        latestVital("spo2raw", days, tempUnit, emptyByKey) { it.spo2Red != null && it.spo2Ir != null },
         latestVital("rhr", days, tempUnit, emptyByKey) { it.restingHr != null },
         latestVital("hrv", days, tempUnit, emptyByKey) { it.avgHrv != null },
         latestVital("skin", days, tempUnit, emptyByKey) { it.skinTempDevC != null },
