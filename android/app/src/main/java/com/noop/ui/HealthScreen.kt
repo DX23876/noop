@@ -577,6 +577,28 @@ private fun ContributorBar(
  *  same convention every screen uses for on-device-computed series (imported is plain "my-whoop"). */
 private const val COMPUTED_SOURCE = "my-whoop-noop"
 
+/** Fitness Age readiness from what a screen can see: RHR coverage over the last 7 merged daily rows
+ *  (drives the "N more nights" countdown), a scored-strain day as the activity signal, and the profile
+ *  basics. Shared by the Health hub's [FitnessAgeSection] and the Today card's [VitalDetailScreen]
+ *  tap-through so ONE gate feeds both surfaces (no drift). Returns (rhrDays, readiness) — rhrDays also
+ *  feeds the not-ready lead. Approximate by design; the weekly value is the authority, this explains gaps. */
+@Composable
+private fun rememberFitnessReadiness(days: List<DailyMetric>, profile: ProfileStore): Pair<Int, FitnessAgeReadiness> {
+    val rhrDays = remember(days) { days.takeLast(7).count { it.restingHr != null } }
+    val readiness = remember(days, profile.age, profile.sex, profile.waistCm) {
+        val activityDays = days.takeLast(7).count { it.strain != null }
+        FitnessAgeEngine.assessReadiness(
+            hasAge = profile.age > 0,
+            hasSex = profile.sex.isNotBlank(),
+            rhrDays = rhrDays,
+            activityDays = activityDays,
+            hasHeightWeight = profile.heightCm > 0 && profile.weightKg > 0,
+            hasWaist = profile.waistCm > 0,
+        )
+    }
+    return rhrDays to readiness
+}
+
 @Composable
 private fun FitnessAgeSection(vm: AppViewModel, days: List<DailyMetric>, profile: ProfileStore) {
     // Latest weekly value + its optional VO₂max companion, read once (metricSeries has no Flow, so we
@@ -598,19 +620,9 @@ private fun FitnessAgeSection(vm: AppViewModel, days: List<DailyMetric>, profile
     // age; activity (a scored strain day) is an enrichment signal; height/weight/waist sit under the
     // VO₂max role. Age/sex come from the profile. Approximate by design — the weekly value is the
     // authority; this just explains the gaps.
-    // rhrDays drives BOTH the readiness verdict AND the not-ready countdown lead, so hoist it out.
-    val rhrDays = remember(days) { days.takeLast(7).count { it.restingHr != null } }
-    val readiness = remember(days, profile.age, profile.sex, profile.waistCm) {
-        val activityDays = days.takeLast(7).count { it.strain != null }
-        FitnessAgeEngine.assessReadiness(
-            hasAge = profile.age > 0,
-            hasSex = profile.sex.isNotBlank(),
-            rhrDays = rhrDays,
-            activityDays = activityDays,
-            hasHeightWeight = profile.heightCm > 0 && profile.weightKg > 0,
-            hasWaist = profile.waistCm > 0,
-        )
-    }
+    // rhrDays drives BOTH the readiness verdict AND the not-ready countdown lead. Shared with the Today
+    // card's tap-through (VitalDetailScreen) via one helper so a single gate feeds both surfaces.
+    val (rhrDays, readiness) = rememberFitnessReadiness(days, profile)
 
     var showChecklist by remember { mutableStateOf(false) }
 
@@ -1860,7 +1872,10 @@ private val SERIES_BACKED_VITAL_KEYS = setOf("fitness_age", "vitality", "steps_e
 @Composable
 fun VitalDetailScreen(vm: AppViewModel, key: String) {
     val days by vm.recentDays.collectAsStateWithLifecycle()
-    val tempUnit = UnitPrefs.temperature(LocalContext.current)
+    val context = LocalContext.current
+    val tempUnit = UnitPrefs.temperature(context)
+    // Profile drives the Fitness Age readiness/countdown shown when that vital has no value yet.
+    val profile = remember { ProfileStore.from(context.applicationContext) }
     val isSeriesBacked = key in SERIES_BACKED_VITAL_KEYS
 
     // Series-backed metrics are loaded async from metricSeries; the plain daily vitals build synchronously
@@ -1878,9 +1893,13 @@ fun VitalDetailScreen(vm: AppViewModel, key: String) {
     else remember(days, key, tempUnit) { buildVitalDetail(days, key, tempUnit) }
     var range by remember { mutableStateOf(VitalDetailRange.MONTH) }
 
+    // When Fitness Age has no value yet we show the readiness countdown, not a trend — so the subtitle
+    // reflects that instead of promising a "historical trend" the card isn't about.
+    val fitnessNotReady = key == "fitness_age" && seriesLoaded && (detail?.points?.isEmpty() != false)
     ScreenScaffold(
         title = detail?.title ?: "Vital Signs",
-        subtitle = "Historical trend from cached daily metrics.",
+        subtitle = if (fitnessNotReady) "What your Fitness Age still needs."
+        else "Historical trend from cached daily metrics.",
     ) {
         if (isSeriesBacked && !seriesLoaded) {
             DataPendingNote(
@@ -1890,6 +1909,19 @@ fun VitalDetailScreen(vm: AppViewModel, key: String) {
             return@ScreenScaffold
         }
         if (detail == null || detail.points.size < 2) {
+            // Fitness Age with NO weekly value yet (zero points): show the readiness checklist + the
+            // "N more nights of wear" countdown — what it actually needs — instead of the generic
+            // "needs two readings to chart" note, which describes the trend line and left the Today
+            // card's tap-through a dead end. A single reading (size 1) keeps the generic note: the value
+            // already shows on the card, only the trend needs a second weekly point.
+            if (key == "fitness_age" && (detail?.points?.isEmpty() != false)) {
+                val (rhrDays, readiness) = rememberFitnessReadiness(days, profile)
+                FitnessReadinessCard(
+                    readiness = readiness, headed = true,
+                    lead = fitnessReadyLead(rhrDays, profile.age > 0, profile.sex.isNotBlank()),
+                )
+                return@ScreenScaffold
+            }
             DataPendingNote(
                 title = "Not enough history yet",
                 body = "This vital needs at least two historical readings before NOOP can chart it.",
