@@ -68,13 +68,27 @@ class BatteryAlertPolicyTest {
         assertTrue(refired.fireLow)
     }
 
-    /** 4. charging == true suppresses the low alert even at 10%, and re-arms the low flag. */
+    /** 4. charging == true suppresses the low alert even at 10%, and (#80) does NOT re-arm — an
+     *  already-alerted flag stays set so the charge bit flickering to null can't re-fire it. */
     @Test
-    fun chargingSuppressesLowAndRearms() {
+    fun chargingSuppressesLowWithoutRearming() {
         val r = BatteryAlertPolicy.evaluate(pct = 10, charging = true, lowAlerted = true, fullAlerted = false)
         assertFalse(r.fireLow)
-        // charging re-arms so once it's unplugged and drains again the alert can fire.
-        assertFalse(r.newLowAlerted)
+        // #80: charging must NOT re-arm. It used to zero the flag here, and the next null-charging read then
+        // re-fired the alert WHILE charging. The already-alerted flag now stays set.
+        assertTrue(r.newLowAlerted)
+    }
+
+    /** 4b. (#80) The strap reports its charge bit only every ~8 min, so it flickers true→null. While low,
+     *  a charging read followed by a null read must NOT re-fire the low alert. */
+    @Test
+    fun chargeBitFlickerToNullDoesNotRefireLow() {
+        var low = true   // low alert already fired (before plugging in, or on the first not-charging read)
+        val charging = BatteryAlertPolicy.evaluate(pct = 12, charging = true, lowAlerted = low, fullAlerted = false)
+        assertFalse(charging.fireLow); low = charging.newLowAlerted
+        // Next BATTERY_LEVEL event hasn't landed yet → charge state unknown. Must stay silent.
+        val gap = BatteryAlertPolicy.evaluate(pct = 12, charging = null, lowAlerted = low, fullAlerted = false)
+        assertFalse(gap.fireLow)   // was `true` before the #80 fix
     }
 
     /** 5. Full fires once at 100; stays armed until pct drops below 100, then 100 again re-fires. */

@@ -56,16 +56,28 @@ final class BatteryAlertPolicyTests: XCTestCase {
         XCTAssertTrue(again.fireLow)
     }
 
-    // 4. charging == true suppresses the low alert even at 10%, and re-arms the low flag.
-    func testChargingSuppressesAndReArmsLow() {
-        // Already alerted, but now plugged in at 10% — must not fire, and the flag re-arms.
+    // 4. charging == true suppresses the low alert even at 10%, and (#80) does NOT re-arm — an
+    //    already-alerted flag stays set so the charge bit flickering to nil can't re-fire it.
+    func testChargingSuppressesLowWithoutReArming() {
+        // Already alerted, but now plugged in at 10% — must not fire, and the flag must STAY set.
         let r = Policy.evaluate(pct: 10, charging: true, lowAlerted: true, fullAlerted: false)
         XCTAssertFalse(r.fireLow)
-        XCTAssertFalse(r.newLowAlerted)
+        XCTAssertTrue(r.newLowAlerted)   // #80: charging must NOT re-arm
 
         // From a clean state, charging at 10% still suppresses.
         let clean = Policy.evaluate(pct: 10, charging: true, lowAlerted: false, fullAlerted: false)
         XCTAssertFalse(clean.fireLow)
+    }
+
+    // 4b. (#80) The strap reports its charge bit only every ~8 min, so it flickers true→nil. While low, a
+    //     charging read followed by a nil read must NOT re-fire the low alert.
+    func testChargeBitFlickerToNilDoesNotReFireLow() {
+        var low = true   // low alert already fired (before plugging in, or on the first not-charging read)
+        let charging = Policy.evaluate(pct: 12, charging: true, lowAlerted: low, fullAlerted: false)
+        XCTAssertFalse(charging.fireLow); low = charging.newLowAlerted
+        // Next BATTERY_LEVEL event hasn't landed yet → charge state unknown. Must stay silent.
+        let gap = Policy.evaluate(pct: 12, charging: nil, lowAlerted: low, fullAlerted: false)
+        XCTAssertFalse(gap.fireLow)   // was `true` before the #80 fix
     }
 
     // 5. Full fires once at 100%; stays quiet until pct drops below 100, then 100 again re-fires.
