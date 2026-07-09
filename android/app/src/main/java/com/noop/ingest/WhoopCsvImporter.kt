@@ -53,6 +53,12 @@ object WhoopCsvImporter {
     /** Per-CSV uncompressed ceiling (zip-bomb guard). Mirrors Swift maxEntryBytes = 256 MB. */
     private const val MAX_ENTRY_BYTES = 256L shl 20
 
+    /** Aggregate RAM ceiling across ALL retained CSVs from one import. The per-entry cap bounds a single
+     *  file but NOT the sum of the retained set — this backstops a crafted export from accumulating
+     *  unbounded ByteArray in the map before parsing. A real WHOOP bundle is a few MB, so 1 GB never trips
+     *  in practice. Mirrors the Swift WhoopExportImporter.maxTotalBytes (#70). */
+    internal const val MAX_TOTAL_BYTES = 1L shl 30
+
     /**
      * Charge/Effort/Rest redesign (2026-06-12): WHOOP "Day Strain" is on WHOOP's 0–21 scale, but
      * NOOP's "Effort" score lives on 0–100 (StrainScorer.maxStrain = 100). Rescale an imported Day
@@ -78,7 +84,7 @@ object WhoopCsvImporter {
         repo: WhoopRepository,
         deviceId: String = WHOOP_DEVICE,
     ): ImportSummary {
-        val csvData: Map<String, ByteArray> = try {
+        val (csvData, truncated) = try {
             loadCsvData(context, uri)
         } catch (e: Exception) {
             return ImportSummary.failure(SOURCE_LABEL, "Could not read export: ${e.message ?: "unknown error"}")
@@ -138,6 +144,9 @@ object WhoopCsvImporter {
             append(" WHOOP rows")
             if (firstDay != null && lastDay != null) append(" ($firstDay → $lastDay)")
             append(".")
+            // #70: never silently truncate. If the aggregate RAM budget tripped, the retained CSV set was
+            // partial — say so plainly instead of reporting a clean import over incomplete data.
+            if (truncated) append(" (partial — export exceeded the ${MAX_TOTAL_BYTES shr 30} GB import memory budget)")
         }
 
         return ImportSummary(
@@ -156,9 +165,15 @@ object WhoopCsvImporter {
      * Accepts a `.zip` (iterated with [ZipInputStream], routed by base filename) or a single
      * `.csv`. Mirrors Swift `loadCSVData` filename routing.
      */
-    private fun loadCsvData(context: Context, uri: Uri): Map<String, ByteArray> {
+    private fun loadCsvData(
+        context: Context,
+        uri: Uri,
+        maxTotalBytes: Long = MAX_TOTAL_BYTES,
+    ): Pair<Map<String, ByteArray>, Boolean> {
         val wanted = setOf(CYCLES_NAME, SLEEPS_NAME, WORKOUTS_NAME, JOURNAL_NAME)
         val result = LinkedHashMap<String, ByteArray>()
+        var total = 0L
+        var truncated = false
 
         // First attempt: treat as a zip. WHOOP exports are zips; this also covers a .zip Uri
         // whose displayName we cannot read. If the stream is not a valid zip, ZipInputStream
@@ -187,7 +202,9 @@ object WhoopCsvImporter {
                                             else -> localizedAlias(base) ?: sniffCsvKind(bytes)
                                         }
                                         if (canonical != null && !result.containsKey(canonical)) {
+                                            if (total + bytes.size > maxTotalBytes) { truncated = true; break }
                                             result[canonical] = bytes
+                                            total += bytes.size
                                         }
                                     }
                                 }
@@ -198,7 +215,7 @@ object WhoopCsvImporter {
                     }
                 }
             }
-            if (result.isNotEmpty()) return result
+            if (result.isNotEmpty()) return result to truncated
         }
 
         // Not a (useful) zip — treat the input as a single CSV. Route by display name; if the
@@ -212,7 +229,7 @@ object WhoopCsvImporter {
         if (routed != null) {
             result[routed] = firstBytes
         }
-        return result
+        return result to false   // single-CSV path holds one file — the budget can't trip here
     }
 
     /** Whether the leading bytes are a local-file-header zip signature ("PK"). */
