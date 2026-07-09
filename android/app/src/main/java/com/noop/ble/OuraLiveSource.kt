@@ -1081,13 +1081,32 @@ class OuraLiveSource(
             is OuraEvent.Hrv -> enqueueAnchoredOrPark(e, e.value.ringTimestamp, d)
             is OuraEvent.SleepPhaseEvent -> enqueueAnchoredOrPark(e, e.value.ringTimestamp, d)
             is OuraEvent.TimeSyncEvent -> {
-                if (!loggedAnchor) {
-                    loggedAnchor = true
-                    log("Oura: UTC time anchor acquired - history-fetched samples now get their real time")
+                // #91: a 0x42 whose epoch is outside the 2020–2035 plausibility window is silently ignored,
+                // so history samples stay unanchored (no sleep/daily). Log the rejection with the offending
+                // epoch; only announce "acquired" when the sync ACTUALLY anchored (the old unconditional
+                // "acquired" line fired even on a rejected sync). `epochMs` holds the raw wire value, which
+                // is unix SECONDS despite the name (s6.11).
+                if (d.isPlausibleAnchorEpoch(e.value.epochMs)) {
+                    if (!loggedAnchor) {
+                        loggedAnchor = true
+                        log("Oura: UTC time anchor acquired - history-fetched samples now get their real time")
+                    }
+                } else {
+                    log("Oura: 0x42 time-sync REJECTED - implausible epoch ${e.value.epochMs}s (outside the " +
+                        "2020–2035 anchor window); history samples stay unanchored (#91)")
                 }
                 // The 0x42 time-sync can arrive ANYWHERE in a history-fetch stream, not necessarily first.
                 // Anything parked while unanchored gets its real time retroactively the moment it lands.
                 drainPendingAnchorEvents()
+            }
+            is OuraEvent.RtcBeaconEvent -> {
+                // #91: the 0x85 beacon is the SECONDARY anchor (fills the gap only until a 0x42 arrives). A
+                // beacon ignored because a primary anchor already exists is NORMAL and not logged; only an
+                // IMPLAUSIBLE-epoch beacon is a real failure (it can never anchor), so log just that.
+                if (!d.isPlausibleAnchorEpoch(e.value.unixSeconds)) {
+                    log("Oura: 0x85 RTC beacon REJECTED - implausible epoch ${e.value.unixSeconds}s (outside " +
+                        "the 2020–2035 anchor window) (#91)")
+                }
             }
             is OuraEvent.TierB -> {
                 // INVESTIGATION ONLY (real_steps / activity-summary / sleep-summary / smoothed-SpO2,
