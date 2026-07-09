@@ -217,4 +217,61 @@ final class WorkoutDetectorTests: XCTestCase {
         let sessions = WorkoutDetector.detect(hr: hr, gravity: grav, age: 30)
         XCTAssertEqual(sessions.count, 2, "separate workouts were over-merged")
     }
+
+    func testWarmupBeforeHrRisesBackdatesStartToMotionOnset() {
+        // #148: motion (walking / cycling) starts, but HR lags ~10 min behind during cardiac
+        // warm-up. The HR-AND-motion gate used to clip that warm-up, dropping the first ~10 min
+        // (the reporter's "way there not tracked, way back tracked"). Motion is continuous from
+        // onset, so a confirmed run's start must back-date to the motion onset, not the HR crossing.
+        let motionStart = 12_000_000
+        let warmupS = 10 * 60   // moving, HR still ~resting (below the floor) → used to be clipped
+        let coreS = 20 * 60     // moving, HR elevated → the HR-gated core
+        var hr: [HRSample] = []
+        var grav: [GravitySample] = []
+        let dayStart = motionStart - 30 * 60
+        let dayEnd = motionStart + warmupS + coreS + 30 * 60
+        for t in dayStart..<dayEnd {
+            let inWarm = t >= motionStart && t < motionStart + warmupS
+            let inCore = t >= motionStart + warmupS && t < motionStart + warmupS + coreS
+            let moving = inWarm || inCore
+            hr.append(HRSample(ts: t, bpm: inCore ? 150 : (inWarm ? 60 : 52)))
+            let phase = moving ? Double(t % 2) * 0.5 : 0.0
+            grav.append(GravitySample(ts: t, x: phase, y: 0, z: 1))
+        }
+        // resting 52 → floor 67: warm-up 60 is below it (clipped without the fix), core 150 clears it.
+        let sessions = WorkoutDetector.detect(hr: hr, gravity: grav, restingHR: 52, age: 30)
+        XCTAssertEqual(sessions.count, 1)
+        let w = sessions[0]
+        XCTAssertLessThanOrEqual(w.start, motionStart + 120,
+            "start \(w.start) not back-dated to motion onset \(motionStart) (HR crossed ~\(motionStart + warmupS))")
+        XCTAssertGreaterThanOrEqual(w.durationS, Double(warmupS + coreS) * 0.9,
+            "duration \(Int(w.durationS))s still excludes the warm-up")
+    }
+
+    func testBackdateDoesNotCrossPreviousWorkoutContinuousMotion() {
+        // #148 guard: you keep walking the whole time (motion never stops), but HR spikes, dips to
+        // resting for a few minutes, then spikes again → two separate efforts (bridgeRuns won't merge
+        // across an HR-to-resting lull). Back-dating the second effort must NOT walk its start across
+        // the still-moving lull into the first one — the two sessions must stay non-overlapping.
+        let startA = 13_000_000
+        let durA = 15 * 60
+        let lull = 6 * 60          // HR at resting, but STILL WALKING
+        let durB = 15 * 60
+        let moveEnd = startA + durA + lull + durB
+        var hr: [HRSample] = []
+        var grav: [GravitySample] = []
+        let dayStart = startA - 30 * 60
+        let dayEnd = moveEnd + 30 * 60
+        for t in dayStart..<dayEnd {
+            let inA = t >= startA && t < startA + durA
+            let inB = t >= startA + durA + lull && t < moveEnd
+            let moving = t >= startA && t < moveEnd   // continuous through the lull
+            hr.append(HRSample(ts: t, bpm: (inA || inB) ? 155 : 52))
+            grav.append(GravitySample(ts: t, x: moving ? Double(t % 2) * 0.5 : 0.0, y: 0, z: 1))
+        }
+        let sessions = WorkoutDetector.detect(hr: hr, gravity: grav, restingHR: 52, age: 30)
+        XCTAssertEqual(sessions.count, 2, "continuous-motion lull did not split into two efforts")
+        XCTAssertGreaterThan(sessions[1].start, sessions[0].end,
+            "second workout (\(sessions[1].start)) overlaps the first (ends \(sessions[0].end))")
+    }
 }

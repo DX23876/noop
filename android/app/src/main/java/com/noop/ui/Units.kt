@@ -59,6 +59,44 @@ enum class EffortScale(val raw: String) {
 }
 
 /**
+ * How the Trends charts are drawn — line vs bar. A purely cosmetic, display-only toggle: the plotted
+ * data is identical on both settings, only the mark geometry changes. Default is the classic line.
+ * Distinct from [ChartStyle] (which picks the colour ramp); this picks the shape. Mirrors the macOS
+ * [TrendChartStyle].
+ */
+enum class TrendChartStyle(val raw: String) {
+    /** The classic gradient-stroked line with a soft area fill (the long-standing look). */
+    LINE("line"),
+
+    /** Vertical bars from the axis baseline, one per sample. */
+    BAR("bar");
+
+    companion object {
+        /** An unset/unknown value resolves to the classic line. */
+        fun fromRaw(raw: String?): TrendChartStyle = entries.firstOrNull { it.raw == raw } ?: LINE
+    }
+}
+
+/**
+ * Which sleep window the nightly HRV is measured over (#141). NOOP historically averages RMSSD across the
+ * WHOLE night (every stage); WHOOP/Polar/etc. sample the last slow-wave-sleep window, which reads lower.
+ * This lets a user match that. It CHANGES the computed avgHrv (not display-only), so a switch re-scores +
+ * re-baselines. Default is the historical whole-night value. Mirrors the macOS [HrvWindow].
+ */
+enum class HrvWindow(val raw: String) {
+    /** RMSSD averaged over every 5-min window of the night (NOOP's long-standing value). */
+    WHOLE_NIGHT("whole"),
+
+    /** RMSSD over DEEP (slow-wave) sleep windows only — comparable to WHOOP's reading. */
+    DEEP_SLEEP("deep");
+
+    companion object {
+        /** An unset/unknown value resolves to the historical whole-night window. */
+        fun fromRaw(raw: String?): HrvWindow = entries.firstOrNull { it.raw == raw } ?: WHOLE_NIGHT
+    }
+}
+
+/**
  * Reads the two unit preferences from [NoopPrefs] and resolves the "match the system" default for
  * temperature. SharedPreferences isn't reactive, so Compose screens read these once into remembered
  * state (exactly like the other toggles) and re-read on a recomposition triggered by the Settings write.
@@ -90,6 +128,30 @@ object UnitPrefs {
     /** Persist the Effort display scale. */
     fun setEffortScale(context: Context, scale: EffortScale) {
         NoopPrefs.of(context).edit().putString(KEY_EFFORT_SCALE, scale.raw).apply()
+    }
+
+    /** SharedPreferences key for the Trends chart style. Mirrors macOS @AppStorage("trend.chart.style"). */
+    const val KEY_TREND_CHART_STYLE = "trend.chart.style"
+
+    /** The Trends chart style (default line). Read once into Compose state like the other prefs. */
+    fun trendChartStyle(context: Context): TrendChartStyle =
+        TrendChartStyle.fromRaw(NoopPrefs.of(context).getString(KEY_TREND_CHART_STYLE, null))
+
+    /** Persist the Trends chart style. */
+    fun setTrendChartStyle(context: Context, style: TrendChartStyle) {
+        NoopPrefs.of(context).edit().putString(KEY_TREND_CHART_STYLE, style.raw).apply()
+    }
+
+    /** SharedPreferences key for the nightly-HRV window (#141). Mirrors macOS @AppStorage("hrv.window"). */
+    const val KEY_HRV_WINDOW = "hrv.window"
+
+    /** The nightly-HRV window (default whole-night). Threaded into the engine's avgHrv computation. */
+    fun hrvWindow(context: Context): HrvWindow =
+        HrvWindow.fromRaw(NoopPrefs.of(context).getString(KEY_HRV_WINDOW, null))
+
+    /** Persist the nightly-HRV window. Changing it re-scores + re-baselines (the value itself moves). */
+    fun setHrvWindow(context: Context, window: HrvWindow) {
+        NoopPrefs.of(context).edit().putString(KEY_HRV_WINDOW, window.raw).apply()
     }
 }
 

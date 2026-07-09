@@ -464,6 +464,12 @@ fun SettingsScreen(
     var themeMode by remember { mutableStateOf(AppearancePrefs.mode) }
     // Chart colours (Titanium / Classic) — re-colours gauges + charts; ChartStylePrefs mirrors it live.
     var chartStyle by remember { mutableStateOf(ChartStylePrefs.style) }
+    // Trend charts (Line / Bar) — flips the Trends tab between the gradient line and value-ramp bars.
+    // Display-only; SharedPreferences isn't reactive, so mirror into local state and persist on select.
+    var trendChartStyle by remember { mutableStateOf(UnitPrefs.trendChartStyle(context)) }
+    // HRV window (#141) — whole-night vs deep-sleep (WHOOP-style). NOT display-only: it changes the computed
+    // avgHrv, so a switch clears the analyze watermark to force a re-score + re-baseline on the next pass.
+    var hrvWindow by remember { mutableStateOf(UnitPrefs.hrvWindow(context)) }
     // Day-cycle background (#698) — the time-of-day scene behind Today. Default ON. SharedPreferences
     // isn't reactive, so the Switch mirrors into local state; TodayScreen reads the same pref on entry.
     var showDayCycleBackground by remember { mutableStateOf(NoopPrefs.showDayCycleBackground(context)) }
@@ -889,6 +895,37 @@ fun SettingsScreen(
                         },
                     )
                 }
+                RowDivider()
+                // HRV window (#141) — measure nightly HRV over the whole night (NOOP's long-standing value)
+                // or DEEP sleep only (WHOOP-style, reads lower and more comparable to WHOOP/Polar). Unlike the
+                // Effort scale this CHANGES the number, so a switch forces a re-score + re-baseline.
+                FormRow(label = "HRV window") {
+                    SegmentedPillControl(
+                        items = listOf(HrvWindow.WHOLE_NIGHT, HrvWindow.DEEP_SLEEP),
+                        selection = hrvWindow,
+                        label = { if (it == HrvWindow.DEEP_SLEEP) "Deep sleep" else "Whole night" },
+                        onSelect = {
+                            hrvWindow = it
+                            UnitPrefs.setHrvWindow(context, it)
+                            // The new window shifts every night's avgHrv, so the HRV BASELINE must re-learn or
+                            // recovery would compare the new value against a baseline still folded from the old
+                            // window (only the recent ~21 nights re-score, but the baseline EWMA spans further —
+                            // it would read skewed for weeks). Re-anchor the HRV baseline to now (same key +
+                            // mechanism as "Recalibrate Charge baseline"), then force a re-score so the recent
+                            // trend + the fresh baseline both reflect the new window. A few nights to settle.
+                            NoopPrefs.of(context).edit()
+                                .putLong(Baselines.hrvBaselineEpochKey, System.currentTimeMillis() / 1000L)
+                                .apply()
+                            NoopPrefs.setAnalyzeWatermark(context, "")
+                            vm.syncNow()
+                            Toast.makeText(
+                                context,
+                                "Re-learning your HRV over the ${if (it == HrvWindow.DEEP_SLEEP) "deep-sleep" else "whole-night"} window. Charge recalibrates over the next few nights.",
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        },
+                    )
+                }
             }
         }
 
@@ -921,6 +958,20 @@ fun SettingsScreen(
                     onSelect = { style ->
                         chartStyle = style
                         ChartStylePrefs.set(context, style)
+                    },
+                )
+            }
+            RowDivider()
+            // Trend chart style (line vs bar). Display-only: flips the Trends tab's charts between the
+            // gradient line and value-ramp bars. The plotted data is identical either way.
+            FormRow(label = "Trend charts") {
+                SegmentedPillControl(
+                    items = listOf(TrendChartStyle.LINE, TrendChartStyle.BAR),
+                    selection = trendChartStyle,
+                    label = { if (it == TrendChartStyle.BAR) "Bars" else "Line" },
+                    onSelect = { style ->
+                        trendChartStyle = style
+                        UnitPrefs.setTrendChartStyle(context, style)
                     },
                 )
             }

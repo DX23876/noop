@@ -71,7 +71,7 @@ public enum CaptureCompleteness {
         .steps:      ["stepsRaw", "stepsCal"],
         .battery:    ["bank soc=", "socSeries"],
         .recovery:   ["charge term", "charge score=", "charge nilScore"],
-        .hrv:        ["hrv rmssd=", "hrv result="],
+        .hrv:        ["hrv rmssd=", "hrv result=", "hrv nightSummary"],
         .universal:  ["dayOwner ", "strapClock "],
     ]
 

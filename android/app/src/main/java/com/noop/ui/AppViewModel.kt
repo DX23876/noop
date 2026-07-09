@@ -816,6 +816,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                                     .active(com.noop.testcentre.TestDomain.WORKOUTS))
                                 { line -> ble.externalLog(line, com.noop.testcentre.TestDomain.WORKOUTS) }
                             else null,
+                        // HRV & Autonomic test mode (#141): when on, route the nightly per-window RMSSD (by
+                        // sleep stage) + the whole-night/deep-only/last-SWS summary to the .hrv-tagged strap
+                        // log, so an "HRV reads high vs WHOOP" report shows which stages lift the average.
+                        hrvTraceSink =
+                            if (com.noop.testcentre.TestCentre.from(appContext)
+                                    .active(com.noop.testcentre.TestDomain.HRV))
+                                { line -> ble.externalLog(line, com.noop.testcentre.TestDomain.HRV) }
+                            else null,
+                        // #141: nightly HRV over deep-sleep windows only when the user picked WHOOP-style.
+                        deepHrvWindow = UnitPrefs.hrvWindow(appContext) == HrvWindow.DEEP_SLEEP,
                     )
                     // analyzeRecent now hops to Dispatchers.Default; a scope cancellation surfaces as a
                     // CancellationException that runCatching would otherwise swallow, breaking the loop's
@@ -1725,6 +1735,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      * when the strap isn't ready or a session is already running. Progress is unknowable from the
      * protocol, so the UI shows an indeterminate indicator + live.syncChunksThisSession, never a percent. */
     fun syncNow() = ble.syncNow()
+
+    /** Force an immediate Fitness Age recompute from stored history , the not-ready card's refresh button.
+     *  Light (no raw-HR rescoring), so it returns fast and works even when the strap is offline. Applies the
+     *  SAME gate as the recompute pass (IntelligenceEngine.fitnessAgeRows). Calls back on the main thread
+     *  with whether a value landed, so the card can re-read + confirm. */
+    fun refreshFitnessAgeNow(onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val wrote = runCatching {
+                IntelligenceEngine.recomputeFitnessAgeOnly(repository, currentProfile(), deviceId)
+            }.getOrDefault(false)
+            onResult(wrote)
+        }
+    }
 
     // --- Smart alarm (persisted; arms the strap's firmware alarm). Port of macOS BehaviorStore +
     // AppModel.applySmartAlarm. The previous Android UI was a non-persisted mock-up (issue #51).
