@@ -383,11 +383,16 @@ struct LiquidPressStyle: ButtonStyle {
 struct CountUpNumber: View, Animatable {
     var value: Double
     var font: Font
+    /// Decimal places to render. 0 (default) keeps the whole-number scores (Charge/Rest/100-scale Effort)
+    /// byte-identical; the WHOOP 0–21 Effort scale passes 1 so the hero matches the app-wide one-decimal
+    /// `effortDisplay` convention instead of rounding 12.6 → "13" (#45).
+    var decimals: Int = 0
     var animatableData: Double {
         get { value }
         set { value = newValue }
     }
     var body: some View {
-        Text("\(Int(value.rounded()))").font(font).monospacedDigit()
+        Text(decimals > 0 ? String(format: "%.\(decimals)f", value) : "\(Int(value.rounded()))")
+            .font(font).monospacedDigit()
     }
 }
