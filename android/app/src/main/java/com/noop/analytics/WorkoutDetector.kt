@@ -229,6 +229,33 @@ object WorkoutDetector {
         return merged
     }
 
+    /**
+     * #148: back-date a confirmed run's start over the warm-up. Motion leads HR at the onset of
+     * the first effort — cardiac warm-up climbs over minutes, so the HR-AND-motion gate clips the
+     * leading "moving but HR not yet elevated" stretch (the reporter's first 10-15 min). Once a run
+     * has ALREADY QUALIFIED on its HR-elevated core, extend the start backward across contiguous
+     * above-[motionThreshold] samples, stopping at the first motion gap > [mergeGapS] (a real pause)
+     * or the series start. Same motion gate as detection — recovers the warm-up without inventing
+     * activity, and can't bridge a genuine rest into the workout. [coreStart] is an active-sample ts,
+     * so it exists in [motionTs]; [smooth] is index-aligned to [motionTs].
+     */
+    internal fun backdatedStart(coreStart: Long, motionTs: List<Long>, smooth: List<Double>): Long {
+        // indexOfFirst (not binarySearch): mirrors Swift's firstIndex exactly, so duplicate same-second
+        // motion timestamps resolve to the SAME index on both platforms (byte-parity).
+        var i = motionTs.indexOfFirst { it >= coreStart }
+        if (i !in motionTs.indices) return coreStart
+        var start = coreStart
+        var prevTs = motionTs[i]
+        while (i > 0) {
+            i--
+            if (smooth[i] <= motionThreshold) break                    // motion dropped → warm-up start
+            if ((prevTs - motionTs[i]).toDouble() > mergeGapS) break   // real pause → stop
+            start = motionTs[i]
+            prevTs = motionTs[i]
+        }
+        return start
+    }
+
     // ---- Public API ----
 
     /**
@@ -271,6 +298,7 @@ object WorkoutDetector {
         val hrTs = hrSeg.map { it.ts }
         val hrBpm = hrSeg.map { it.bpm.toDouble() }
         val smooth = smoothedIntensity(motion, motionSmoothS)
+        val motionTs = motion.map { it.ts }
 
         // Walk the gravity timeline; flag samples where BOTH gates hold.
         val activeTs = ArrayList<Long>()
@@ -305,18 +333,20 @@ object WorkoutDetector {
 
         val minDurS = minExerciseMin * 60.0
         val sessions = ArrayList<ExerciseSession>()
-        for ((start, end) in runs) {
+        for ((idx, run) in runs.withIndex()) {
+            val (start, end) = run
             // Onset latency tolerance equal to the smoothing window.
             if ((end - start).toDouble() < minDurS - motionSmoothS) continue
-            val window = hrSeg.filter { it.ts in start..end }
-            if (window.isEmpty()) continue
-            val bpms = window.map { it.bpm.toDouble() }
+            // Qualify on the HR-elevated CORE (unchanged gates) so the warm-up's low intensity
+            // can't dilute a real workout below the zone-2 bar and drop it (#148).
+            val core = hrSeg.filter { it.ts in start..end }
+            if (core.isEmpty()) continue
 
             var zonePct: Map<Int, Double> = emptyMap()
             var avgHRR: Double? = null
             val m = effMaxHR
             if (m != null && m > restHR) {
-                val (zp, ah) = boutIntensity(window, restHR, m)
+                val (zp, ah) = boutIntensity(core, restHR, m)
                 zonePct = zp
                 avgHRR = ah
             }
@@ -326,6 +356,15 @@ object WorkoutDetector {
                 val z2plus = (2..5).sumOf { zonePct[it] ?: 0.0 } / 100.0
                 if (z2plus < minIntensityZ2Plus) continue
             }
+
+            // Qualified → back-date the start over the warm-up and report stats on the full window (#148).
+            // Never back-date past the previous run's end: a continuous-motion stretch whose HR dipped to
+            // resting BETWEEN two efforts (so bridgeRuns kept them separate) must not overlap the earlier one.
+            val floor = if (idx > 0) runs[idx - 1].second + 1 else Long.MIN_VALUE
+            val effStart = maxOf(backdatedStart(start, motionTs, smooth), floor)
+            val window = hrSeg.filter { it.ts in effStart..end }
+            if (window.isEmpty()) continue
+            val bpms = window.map { it.bpm.toDouble() }
 
             var kcal: Double? = null
             var kj: Double? = null
@@ -341,12 +380,12 @@ object WorkoutDetector {
 
             sessions.add(
                 ExerciseSession(
-                    start = start,
+                    start = effStart,
                     end = end,
                     avgHR = avg,
                     peakHR = peak,
                     strain = strain,
-                    durationS = (end - start).toDouble(),
+                    durationS = (end - effStart).toDouble(),
                     zoneTimePct = zonePct,
                     avgHRRPct = avgHRR,
                     hrmax = effMaxHR,
