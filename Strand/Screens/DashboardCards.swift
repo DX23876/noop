@@ -93,7 +93,7 @@ enum DashboardCard: String, CaseIterable, Identifiable {
         case .skinTemp:    return "thermometer.medium"
         case .sleep:       return "bed.double.fill"
         case .calories:    return "flame.fill"
-        case .hydration:   return "drop.fill"
+        case .hydration:   return "waterbottle.fill"
         case .coupled:     return "circle.hexagongrid.fill"
         }
     }
