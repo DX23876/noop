@@ -446,6 +446,16 @@ extension WhoopStore {
                 t.primaryKey(["deviceId", "startTs"])
             }
         }
+        migrator.registerMigration("v23-daily-spo2-raw") { db in
+            // WHOOP 4.0 raw SpO2 PPG ADC means (red/IR) over detected sleep, cached beside the other
+            // in-sleep aggregates (#93). ADDITIVE, mirroring v7's SpO2/skin-temp/resp add: two nullable
+            // INTEGER columns. Existing rows read NULL (no rebuild, no data loss), so an older database
+            // upgraded in place is unaffected — non-4.0 nights + pre-upgrade rows simply stay nil.
+            try db.alter(table: "dailyMetric") { t in
+                t.add(column: "spo2Red", .integer)
+                t.add(column: "spo2Ir", .integer)
+            }
+        }
         return migrator
     }
 }
