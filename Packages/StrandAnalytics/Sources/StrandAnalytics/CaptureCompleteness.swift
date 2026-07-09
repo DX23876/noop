@@ -58,7 +58,12 @@ public enum CaptureCompleteness {
     /// found no raw counter STILL emits an honest "noRawCounter"-style line and that counts as a real
     /// trace (the mode worked; the strap just had nothing), not an INCOMPLETE.
     public static let tokens: [TestDomain: [String]] = [
-        .sleep:      ["gate run=", "sleepProvenance"],
+        // `sleep day=` (#127): the always-on per-day provenance line (from the diagnostic sink, not the
+        // SLEEP-gated gate/provenance traces). A night scored on the backfill pass, or already scored so
+        // analyzeRecent skips the traced gate, still emits it and proves sleep was computed — so a valid
+        // capture is not flagged INCOMPLETE just because the deeper `gate run=`/`sleepProvenance` traces
+        // didn't re-fire. Same "the mode worked even if the strap had nothing" rule as `steps` below.
+        .sleep:      ["gate run=", "sleepProvenance", "sleep day="],
         .connection: ["clockDrift", "bondState"],
         .workouts:   ["autoDetect", "session event=", "detectedBout"],
         .display:    ["dataVolume", "frameSummary"],

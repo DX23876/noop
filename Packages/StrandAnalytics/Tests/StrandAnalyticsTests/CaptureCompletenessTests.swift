@@ -103,6 +103,28 @@ final class CaptureCompletenessTests: XCTestCase {
         XCTAssertEqual(CaptureCompleteness.reportSection([]), "")
     }
 
+    func testSleepOKFromComputedProvenanceLineWithoutGateTrace() {
+        // #127: `gate run=` / `sleepProvenance` only emit when the sleep-stager gate re-runs under the SLEEP
+        // trace sink; a night scored on the backfill/post-sync pass (or already scored) won't re-fire them.
+        // The always-on per-day `sleep day=` diagnostic still proves sleep was computed, so the capture must
+        // read OK rather than INCOMPLETE. This is the exact #127 report shape (no gate run=).
+        let report = """
+        [universal] dayOwner day=2026-07-09 readId=my-whoop writeActiveId=my-whoop hrRows=27001 provenance=measured
+        sleep day=2026-07-09 totalSleepMin=426 matched=1 source=computed
+        """
+        let checks = CaptureCompleteness.evaluate(activeDomains: [.sleep, .universal], reportText: report)
+        XCTAssertEqual(checks.first { $0.domain == "sleep" }?.status, .ok,
+                       "a computed-sleep capture is not INCOMPLETE even without the gate trace")
+        XCTAssertFalse(CaptureCompleteness.anyIncomplete(checks))
+    }
+
+    func testSleepStillIncompleteWithNoSleepDiagnosticAtAll() {
+        // The guard still fires when the capture carries NO sleep evidence of any kind.
+        let report = "[universal] dayOwner day=2026-07-09 readId=x writeActiveId=x hrRows=0 provenance=none"
+        let checks = CaptureCompleteness.evaluate(activeDomains: [.sleep, .universal], reportText: report)
+        XCTAssertEqual(checks.first { $0.domain == "sleep" }?.status, .incomplete)
+    }
+
     func testTokenMapMatchesEmitterTokensExactly() {
         // Guard against a silent emitter rename: each token must be the verbatim leading text the live
         // emitter writes. These literals mirror the *Trace files (verified at authoring time).

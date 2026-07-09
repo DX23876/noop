@@ -54,13 +54,30 @@ object ReportCompleteness {
     fun checkedDomains(active: Set<TestDomain>): List<TestDomain> =
         killerTokens.keys.filter { it == TestDomain.UNIVERSAL || it in active }
 
-    /** Per-domain presence map for [reportText], over [checkedDomains]. A token is PRESENT iff its
-     *  substring occurs anywhere in the report text. Deterministic order (killerTokens order). */
+    /**
+     * Secondary EVIDENCE tokens: a domain also counts as PRESENT if one of these appears, for when its
+     * primary killer TRACE legitimately didn't re-emit in this capture (#127). SLEEP's `gate run=` only
+     * fires when the sleep-stager gate actually (re-)runs under the SLEEP-gated trace sink; a night scored
+     * on the backfill/post-sync pass, or already scored so `analyzeRecent(force=false)` skips the gate,
+     * won't re-emit it — yet the always-on per-day diagnostic line (`sleep day=… totalSleepMin=… source=…`)
+     * IS in the report and proves the sleep pipeline evaluated the day. Accepting it mirrors the Swift
+     * twin's multi-token `.sleep` and the same "the mode worked, even if the strap had nothing" rule the
+     * steps domain already uses, so a valid capture is no longer flagged INCOMPLETE for a trace that just
+     * didn't re-run. `gate run=` stays the preferred (deeper) trace; this only rescues the legit gap.
+     */
+    val evidenceTokens: Map<TestDomain, String> = linkedMapOf(
+        TestDomain.SLEEP to "sleep day=",
+    )
+
+    /** Per-domain presence map for [reportText], over [checkedDomains]. PRESENT iff the killer token OR the
+     *  domain's evidence token (if any, #127) occurs anywhere in the report. Deterministic order. */
     fun statuses(reportText: String, active: Set<TestDomain>): LinkedHashMap<TestDomain, Status> {
         val out = LinkedHashMap<TestDomain, Status>()
         for (d in checkedDomains(active)) {
             val token = killerTokens[d] ?: continue
-            out[d] = if (reportText.contains(token)) Status.PRESENT else Status.MISSING
+            val present = reportText.contains(token) ||
+                evidenceTokens[d]?.let { reportText.contains(it) } == true
+            out[d] = if (present) Status.PRESENT else Status.MISSING
         }
         return out
     }
