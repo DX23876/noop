@@ -51,6 +51,23 @@ class TodayChargeTapCollapseTest {
     }
 
     @Test
+    fun syncedFromSummary_healthConnectReadsAsHealthConnect() {
+        // #176: a Health-Connect-only user must NOT see "Synced from: Apple Watch".
+        assertEquals(
+            "Synced from: Health Connect",
+            syncedFromSummary(hasWhoop = false, hasApple = false, hasHealthConnect = true, hasXiaomi = false),
+        )
+        assertEquals(
+            "Synced from: WHOOP, Health Connect",
+            syncedFromSummary(hasWhoop = true, hasApple = false, hasHealthConnect = true, hasXiaomi = false),
+        )
+        assertEquals(
+            "Synced from: WHOOP, Apple Watch, Health Connect",
+            syncedFromSummary(hasWhoop = true, hasApple = true, hasHealthConnect = true, hasXiaomi = false),
+        )
+    }
+
+    @Test
     fun syncedFromSummary_noSourcesIsHonest() {
         assertEquals(
             "No sources yet",
