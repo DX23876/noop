@@ -37,6 +37,14 @@ struct FullDayChartView: View {
     }
 
     @State private var metric: Repository.TimelineMetric = .hr
+    // Imperial/Metric temperature preference (#101) — mirrors MetricExplorerView so skin temp here
+    // respects the same °C/°F override instead of always showing Celsius.
+    @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
+    @AppStorage(UnitPrefs.temperatureKey) private var temperatureRaw = ""
+    private var temperatureUnit: TemperatureUnit {
+        let system = UnitSystem(rawValue: unitSystemRaw) ?? .metric
+        return UnitPrefs.resolveTemperature(system: system, override: temperatureRaw)
+    }
     /// "Owned only" hides empty non-strap rows; "All sources" surfaces the disclosure (#574). The strap is
     /// always the owned source, so this currently scopes the empty-state copy rather than swapping reads.
     @State private var ownedOnly = true
@@ -199,9 +207,21 @@ struct FullDayChartView: View {
         }
     }
 
+    /// `series.points` in the DISPLAYED unit (#101) — for every metric but skin temp this is just the raw
+    /// points; skin temp is stored/read in °C, so when the user has °F selected the chart's line, y-axis
+    /// domain AND gridlines (which plot the raw value, not `format`'s output) need the converted number,
+    /// not just the readout label. The timeline series is the ABSOLUTE skin temp (`skinTempCelsius`), so
+    /// the absolute °C→°F conversion (×9/5 + 32) is the right one here — not a deviation rescale.
+    private var displayPoints: [TrendPoint] {
+        guard metric == .skinTemp, temperatureUnit == .fahrenheit else { return series.points }
+        return series.points.map {
+            TrendPoint(date: $0.date, value: UnitFormatter.celsiusToFahrenheit($0.value))
+        }
+    }
+
     private var chart: some View {
         OverviewHRChart(
-            points: series.points,
+            points: displayPoints,
             // #979 spin-off — the same sleep-band + workout-glyph layers the classic Today feeds. Passed
             // on EVERY metric track (they're time annotations, so "when was I asleep / training" reads
             // against skin temp or HRV just as it does against HR); the glyph anchors at the shown
@@ -209,7 +229,7 @@ struct FullDayChartView: View {
             sleep: sleepSpan,
             workouts: workoutSpans,
             gradient: gradientFor(metric),
-            valueRange: valueRange(series.points),
+            valueRange: valueRange(displayPoints),
             xRange: dayBounds,
             height: 280,
             // #979 spin-off — iPhone touch scrub: hold to pin the crosshair, drag to read values under
@@ -290,7 +310,7 @@ struct FullDayChartView: View {
     }
 
     private var statsFooter: some View {
-        let v = series.points.map(\.value)
+        let v = displayPoints.map(\.value)
         return ChartFooter([
             ("Min", format(v.min() ?? 0)),
             ("Avg", format(v.reduce(0, +) / Double(max(1, v.count)))),
@@ -372,13 +392,13 @@ struct FullDayChartView: View {
     }
 
     private var latestReadout: String? {
-        series.points.last.map { "\(format($0.value))\(unitSuffix)" }
+        displayPoints.last.map { "\(format($0.value))\(unitSuffix)" }
     }
 
     private var unitSuffix: String {
         switch metric {
         case .hr: return " bpm"
-        case .skinTemp: return "°C"
+        case .skinTemp: return UnitFormatter.temperatureUnit(temperatureUnit)   // #101: °C / °F per preference
         case .respiration: return ""
         case .hrv: return " ms"
         // Gravity-vector magnitude (#102): tag it "g" so the readout doesn't read as a bare, unexplained
@@ -391,6 +411,8 @@ struct FullDayChartView: View {
     private func format(_ v: Double) -> String {
         switch metric {
         case .hr, .respiration, .hrv: return String(Int(v.rounded()))
+        // `v` already arrives in the displayed unit — callers read from `displayPoints`, which converts
+        // skin temp to °F upfront so the chart's own axis (plotted from the same points) agrees. (#101)
         case .skinTemp: return String(format: "%.1f", v)
         case .spo2, .motion: return String(format: "%.2f", v)
         // #175: name the band's own state at the nearest code so the readout reads "asleep", not "2.0".
