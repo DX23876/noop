@@ -1320,6 +1320,11 @@ fun SettingsScreen(
                         },
                     )
                 }
+                Text(
+                    "Whole night is NOOP's default measure; Deep sleep pools HRV over slow-wave sleep only, reading lower and matching WHOOP. Switching re-scores recent nights and recalibrates Charge over a few nights.",
+                    style = NoopType.footnote,
+                    color = Palette.textTertiary,
+                )
 
                 // Diagnostics: "Debug logging" mirrors the strap log to logcat (adb). Default OFF — a
                 // normal user never needs to write the connection log to the system log; the in-app log

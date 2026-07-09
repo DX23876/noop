@@ -901,6 +901,10 @@ struct SettingsView: View {
                         Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() }
                     }
                 }
+                Text("Whole night is NOOP's default measure; Deep sleep pools HRV over slow-wave sleep only, reading lower and matching WHOOP. Switching re-scores recent nights and recalibrates Charge over a few nights.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 // MARK: Strap name — rename the WHOOP 4.0's BLE advertising name (Harvard command set).
                 if live.connected && selectedWhoopModelRaw == WhoopModel.whoop4.rawValue {
