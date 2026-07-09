@@ -909,6 +909,8 @@ fun SettingsScreen(
                     },
                 )
             }
+            RowDivider()   // #79 parity: the hairline every other section has between FormRows (Android rows
+                           // were already 16dp-spaced, unlike iOS where they touched — this matches both)
             FormRow(label = "Chart colours") {
                 // Titanium = brand gold/amber/blue ramps; Classic = throwback red→green readiness scale
                 // (cool→hot zones, green→red stress). Re-colours every gauge/chart, in both schemes.
