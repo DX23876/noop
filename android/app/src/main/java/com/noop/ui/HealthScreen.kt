@@ -1996,6 +1996,36 @@ fun VitalDetailScreen(vm: AppViewModel, key: String) {
                 )
                 return@ScreenScaffold
             }
+            // Fitness Age with exactly ONE weekly reading: the card already shows this value, so the
+            // generic "Not enough history yet" note read as a contradiction on tap-through. Fitness Age is
+            // WEEKLY — only the TREND needs a second point — so show the value + when the chart fills in,
+            // never a no-data dead end. Brings Android to parity with iOS (which renders the value hero at
+            // a single point).
+            if (key == "fitness_age" && detail != null && detail.points.size == 1) {
+                val fa = detail.points.first()
+                NoopCard {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Overline("Latest")
+                        Text(
+                            text = "${detail.format(fa.second)} ${detail.unit}".trim(),
+                            style = NoopType.chartValueLarge,
+                            color = detail.color,
+                        )
+                        Text(
+                            text = "as of ${fa.first}",
+                            style = NoopType.footnote,
+                            color = Palette.textTertiary,
+                        )
+                        Text(
+                            text = "Fitness Age updates weekly — your trend chart fills in here once a " +
+                                "second weekly reading lands.",
+                            style = NoopType.subhead,
+                            color = Palette.textSecondary,
+                        )
+                    }
+                }
+                return@ScreenScaffold
+            }
             DataPendingNote(
                 title = "Not enough history yet",
                 body = "This vital needs at least two historical readings before NOOP can chart it.",
