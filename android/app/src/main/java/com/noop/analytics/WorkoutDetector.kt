@@ -240,7 +240,9 @@ object WorkoutDetector {
      * so it exists in [motionTs]; [smooth] is index-aligned to [motionTs].
      */
     internal fun backdatedStart(coreStart: Long, motionTs: List<Long>, smooth: List<Double>): Long {
-        var i = motionTs.binarySearch(coreStart).let { if (it < 0) -it - 1 else it }
+        // indexOfFirst (not binarySearch): mirrors Swift's firstIndex exactly, so duplicate same-second
+        // motion timestamps resolve to the SAME index on both platforms (byte-parity).
+        var i = motionTs.indexOfFirst { it >= coreStart }
         if (i !in motionTs.indices) return coreStart
         var start = coreStart
         var prevTs = motionTs[i]
