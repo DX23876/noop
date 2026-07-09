@@ -99,4 +99,70 @@ class WorkoutDetectorTest {
         val sessions = WorkoutDetector.detect(hr = hrList, gravity = gravList, age = 30.0)
         assertEquals("separate workouts were over-merged", 2, sessions.size)
     }
+
+    @Test fun warmupBeforeHrRises_backdatesStartToMotionOnset() {
+        // #148: motion (walking / cycling) starts, but HR lags ~10 min behind during cardiac
+        // warm-up. The HR-AND-motion gate used to clip that warm-up, dropping the first ~10 min
+        // (the reporter's "way there not tracked, way back tracked"). Motion is continuous from
+        // onset, so a confirmed run's start must back-date to the motion onset, not the HR crossing.
+        val motionStart = 12_000_000L
+        val warmupS = 10L * 60   // moving, HR still ~resting (below the floor) → used to be clipped
+        val coreS = 20L * 60     // moving, HR elevated → the HR-gated core
+        val hrList = ArrayList<HrSample>()
+        val gravList = ArrayList<GravitySample>()
+        val dayStart = motionStart - 30 * 60
+        val dayEnd = motionStart + warmupS + coreS + 30 * 60
+        var t = dayStart
+        while (t < dayEnd) {
+            val inWarm = t >= motionStart && t < motionStart + warmupS
+            val inCore = t >= motionStart + warmupS && t < motionStart + warmupS + coreS
+            val moving = inWarm || inCore
+            hrList.add(hr(t, if (inCore) 150 else if (inWarm) 60 else 52))
+            gravList.add(grav(t, if (moving) (t.mod(2L)).toDouble() * 0.5 else 0.0))
+            t += 1
+        }
+        // resting 52 → floor 67: warm-up 60 is below it (clipped without the fix), core 150 clears it.
+        val sessions = WorkoutDetector.detect(hr = hrList, gravity = gravList, restingHR = 52.0, age = 30.0)
+        assertEquals(1, sessions.size)
+        val w = sessions[0]
+        assertTrue(
+            "start ${w.start} not back-dated to motion onset $motionStart (HR crossed ~${motionStart + warmupS})",
+            w.start <= motionStart + 120,
+        )
+        assertTrue(
+            "duration ${w.durationS.toInt()}s still excludes the warm-up",
+            w.durationS >= (warmupS + coreS).toDouble() * 0.9,
+        )
+    }
+
+    @Test fun backdateDoesNotCrossPreviousWorkout_continuousMotion() {
+        // #148 guard: you keep walking the whole time (motion never stops), but HR spikes, dips to
+        // resting for a few minutes, then spikes again → two separate efforts (bridgeRuns won't merge
+        // across an HR-to-resting lull). Back-dating the second effort must NOT walk its start across
+        // the still-moving lull into the first one — the two sessions must stay non-overlapping.
+        val startA = 13_000_000L
+        val durA = 15L * 60
+        val lull = 6L * 60          // HR at resting, but STILL WALKING
+        val durB = 15L * 60
+        val moveEnd = startA + durA + lull + durB
+        val hrList = ArrayList<HrSample>()
+        val gravList = ArrayList<GravitySample>()
+        val dayStart = startA - 30 * 60
+        val dayEnd = moveEnd + 30 * 60
+        var t = dayStart
+        while (t < dayEnd) {
+            val inA = t >= startA && t < startA + durA
+            val inB = t >= startA + durA + lull && t < moveEnd
+            val moving = t in startA until moveEnd   // continuous through the lull
+            hrList.add(hr(t, if (inA || inB) 155 else 52))
+            gravList.add(grav(t, if (moving) (t.mod(2L)).toDouble() * 0.5 else 0.0))
+            t += 1
+        }
+        val sessions = WorkoutDetector.detect(hr = hrList, gravity = gravList, restingHR = 52.0, age = 30.0)
+        assertEquals("continuous-motion lull did not split into two efforts", 2, sessions.size)
+        assertTrue(
+            "second workout (${sessions[1].start}) overlaps the first (ends ${sessions[0].end})",
+            sessions[1].start > sessions[0].end,
+        )
+    }
 }

@@ -229,6 +229,28 @@ public enum WorkoutDetector {
         return merged
     }
 
+    /// #148: back-date a confirmed run's start over the warm-up. Motion leads HR at the onset of the
+    /// first effort — cardiac warm-up climbs over minutes, so the HR-AND-motion gate clips the leading
+    /// "moving but HR not yet elevated" stretch. Once a run has ALREADY QUALIFIED on its HR-elevated
+    /// core, extend the start backward across contiguous above-`motionThreshold` samples, stopping at
+    /// the first motion gap > `mergeGapS` (a real pause) or the series start. Same motion gate as
+    /// detection — recovers the warm-up without inventing activity, and can't bridge a genuine rest.
+    /// `coreStart` is an active-sample ts (so it exists in `motionTs`); `smooth` is index-aligned.
+    static func backdatedStart(_ coreStart: Int, _ motionTs: [Int], _ smooth: [Double]) -> Int {
+        var i = motionTs.firstIndex(where: { $0 >= coreStart }) ?? motionTs.count
+        guard i < motionTs.count else { return coreStart }
+        var start = coreStart
+        var prevTs = motionTs[i]
+        while i > 0 {
+            i -= 1
+            if smooth[i] <= motionThreshold { break }                    // motion dropped → warm-up start
+            if Double(prevTs - motionTs[i]) > mergeGapS { break }        // real pause → stop
+            start = motionTs[i]
+            prevTs = motionTs[i]
+        }
+        return start
+    }
+
     // MARK: - Public API
 
     /// Detect workouts from the 1 Hz HR + gravity store.
@@ -267,6 +289,7 @@ public enum WorkoutDetector {
         let hrTs = hrSeg.map { $0.ts }
         let hrBpm = hrSeg.map { $0.bpm }
         let smooth = smoothedIntensity(motion, windowS: motionSmoothS)
+        let motionTs = motion.map { $0.ts }
 
         // Walk the gravity timeline; flag samples where BOTH gates hold.
         var activeTs: [Int] = []
@@ -294,18 +317,19 @@ public enum WorkoutDetector {
 
         let minDurS = minExerciseMin * 60.0
         var sessions: [ExerciseSession] = []
-        for (start, end) in runs {
+        for (idx, run) in runs.enumerated() {
+            let (start, end) = run
             // Onset latency tolerance equal to the smoothing window.
             if Double(end - start) < minDurS - motionSmoothS { continue }
-            let window = hrSeg.filter { $0.ts >= start && $0.ts <= end }
-            if window.isEmpty { continue }
-            let bpms = window.map { $0.bpm }
-            let hrSamples = window.map { HRSample(ts: $0.ts, bpm: Int($0.bpm.rounded())) }
+            // Qualify on the HR-elevated CORE (unchanged gates) so the warm-up's low intensity
+            // can't dilute a real workout below the zone-2 bar and drop it (#148).
+            let core = hrSeg.filter { $0.ts >= start && $0.ts <= end }
+            if core.isEmpty { continue }
 
             var zonePct: [Int: Double] = [:]
             var avgHRR: Double? = nil
             if let m = effMaxHR, m > restHR {
-                (zonePct, avgHRR) = boutIntensity(window, restingHR: restHR, maxHR: m)
+                (zonePct, avgHRR) = boutIntensity(core, restingHR: restHR, maxHR: m)
             }
 
             // Intensity qualification: require ≥ MIN_INTENSITY_Z2PLUS in zone 2+.
@@ -313,6 +337,16 @@ public enum WorkoutDetector {
                 let z2plus = (2...5).reduce(0.0) { $0 + (zonePct[$1] ?? 0.0) } / 100.0
                 if z2plus < minIntensityZ2Plus { continue }
             }
+
+            // Qualified → back-date the start over the warm-up and report stats on the full window (#148).
+            // Never back-date past the previous run's end: a continuous-motion stretch whose HR dipped to
+            // resting BETWEEN two efforts (so bridgeRuns kept them separate) must not overlap the earlier one.
+            let floor = idx > 0 ? runs[idx - 1].1 + 1 : Int.min
+            let effStart = max(Self.backdatedStart(start, motionTs, smooth), floor)
+            let window = hrSeg.filter { $0.ts >= effStart && $0.ts <= end }
+            if window.isEmpty { continue }
+            let bpms = window.map { $0.bpm }
+            let hrSamples = window.map { HRSample(ts: $0.ts, bpm: Int($0.bpm.rounded())) }
 
             var kcal: Double? = nil
             var kj: Double? = nil
@@ -328,8 +362,8 @@ public enum WorkoutDetector {
             let strain = StrainScorer.strain(hrSamples, maxHR: effMaxHR, restingHR: restHR)
 
             sessions.append(ExerciseSession(
-                start: start, end: end, avgHR: avg, peakHR: peak, strain: strain,
-                durationS: Double(end - start), zoneTimePct: zonePct, avgHRRPct: avgHRR,
+                start: effStart, end: end, avgHR: avg, peakHR: peak, strain: strain,
+                durationS: Double(end - effStart), zoneTimePct: zonePct, avgHRRPct: avgHRR,
                 hrmax: effMaxHR, hrmaxSource: hrmaxSource, caloriesKcal: kcal, caloriesKJ: kj))
         }
         return sessions
