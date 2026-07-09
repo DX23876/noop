@@ -420,8 +420,16 @@ struct LiquidTodayView: View {
         HStack(alignment: .top, spacing: 4) {
             HeroScoreCell(label: String(localized: "Charge"), score: displayDay?.recovery, tint: StrandPalette.chargeColor,
                           pill: "WHOOP", animated: dataLoaded, onGuide: { guideSection = .charge })
-            HeroScoreCell(label: String(localized: "Effort"), score: displayDay?.strain, tint: StrandPalette.effortColor,
-                          pill: nil, animated: dataLoaded, onGuide: { guideSection = .effort })
+            // #45: the hero Effort must honour the user's Effort scale like every other Effort read-out.
+            // Show the value on the chosen scale (0–100 or WHOOP 0–21) with the matching vessel max, and
+            // one decimal on the compressed 0–21 axis to match the app-wide `effortDisplay` convention
+            // (12.6, not a rounded "13"); the 0–100 hero stays a whole number as before.
+            HeroScoreCell(label: String(localized: "Effort"),
+                          score: displayDay?.strain.map { UnitFormatter.effortValue($0, scale: effortScale) },
+                          tint: StrandPalette.effortColor, pill: nil, animated: dataLoaded,
+                          onGuide: { guideSection = .effort },
+                          maxValue: effortScale == .whoop ? 21 : 100,
+                          decimals: effortScale == .whoop ? 1 : 0)
             HeroScoreCell(label: String(localized: "Rest"), score: restScore, tint: StrandPalette.restColor,
                           pill: "WHOOP", animated: dataLoaded, onGuide: { guideSection = .rest })
         }
@@ -1065,15 +1073,21 @@ private struct LiquidWordmark: View {
 /// hit-transparent so the tap reaches the vessel). The label row taps through to the scoring guide.
 private struct HeroScoreCell: View {
     let label: String
-    let score: Double?            // 0–100 (nil = no data yet)
+    let score: Double?            // on whatever scale the caller passes (nil = no data yet)
     let tint: Color
     let pill: String?
     let animated: Bool
     let onGuide: () -> Void
+    // The scale `score` is already expressed on — 100 for Charge/Rest, or the user's chosen Effort scale
+    // max (100 or 21, #45) — so the vessel fill matches the displayed number.
+    var maxValue: Double = 100
+    // Decimal places for the displayed number. 0 keeps the whole-number scores; the WHOOP 0–21 Effort
+    // scale passes 1 to match the app-wide one-decimal `effortDisplay` convention (#45).
+    var decimals: Int = 0
 
     @State private var shown: Double = 0
 
-    private var frac: Double? { score.map { max(0, min(1, $0 / 100)) } }
+    private var frac: Double? { score.map { max(0, min(1, $0 / maxValue)) } }
 
     var body: some View {
         VStack(spacing: 7) {
@@ -1082,7 +1096,7 @@ private struct HeroScoreCell: View {
                     .frame(width: 96, height: 96)
                 Group {
                     if score != nil {
-                        CountUpNumber(value: shown, font: StrandFont.rounded(26))
+                        CountUpNumber(value: shown, font: StrandFont.rounded(26), decimals: decimals)
                     } else {
                         Text("–").font(StrandFont.rounded(26))
                     }
@@ -1104,7 +1118,7 @@ private struct HeroScoreCell: View {
                 .foregroundStyle(StrandPalette.onDarkSecondary)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(Text("\(label), \(score.map { String(Int($0.rounded())) } ?? String(localized: "no data yet")). See how it is scored."))
+            .accessibilityLabel(Text("\(label), \(score.map { decimals > 0 ? String(format: "%.\(decimals)f", $0) : String(Int($0.rounded())) } ?? String(localized: "no data yet")). See how it is scored."))
             if let pill {
                 Text(pill)
                     .font(StrandFont.overlineScaled(8.5)).tracking(1.2)
