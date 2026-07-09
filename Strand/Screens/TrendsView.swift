@@ -64,6 +64,9 @@ struct TrendsView: View {
 
     // Effort display scale (#268) — routes the Effort small-multiple's numbers + unit. Display-only.
     @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
+    // Trend chart style (line vs bar) — display-only; flips every trend card between the gradient line
+    // and value-ramp bars. Read here at the screen root so a Settings change re-renders on return.
+    @AppStorage(UnitPrefs.trendChartStyleKey) private var trendChartStyleRaw = TrendChartStyle.line.rawValue
     private var effortScale: EffortScale { UnitPrefs.resolveEffortScale(effortScaleRaw) }
 
     // yyyy-MM-dd → Date (en_US_POSIX, UTC), per task spec.
@@ -755,7 +758,9 @@ struct TrendsView: View {
         // scales and lands on the line — the previous sibling overlay guessed the plot insets and
         // floated the dot left/below the curve (#458).
         TrendChart(points: pts, gradient: gradient, valueRange: valueRange,
-                   showsArea: true, height: NoopMetrics.chartHeight, valueFormat: valueFormat,
+                   showsArea: true,
+                   showsBars: TrendChartStyle(rawValue: trendChartStyleRaw) == .bar,
+                   height: NoopMetrics.chartHeight, valueFormat: valueFormat,
                    accessibilityLabel: accessibilityLabel, nowCapColor: tip)
     }
 

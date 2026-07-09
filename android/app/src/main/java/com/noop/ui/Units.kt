@@ -59,6 +59,25 @@ enum class EffortScale(val raw: String) {
 }
 
 /**
+ * How the Trends charts are drawn — line vs bar. A purely cosmetic, display-only toggle: the plotted
+ * data is identical on both settings, only the mark geometry changes. Default is the classic line.
+ * Distinct from [ChartStyle] (which picks the colour ramp); this picks the shape. Mirrors the macOS
+ * [TrendChartStyle].
+ */
+enum class TrendChartStyle(val raw: String) {
+    /** The classic gradient-stroked line with a soft area fill (the long-standing look). */
+    LINE("line"),
+
+    /** Vertical bars from the axis baseline, one per sample. */
+    BAR("bar");
+
+    companion object {
+        /** An unset/unknown value resolves to the classic line. */
+        fun fromRaw(raw: String?): TrendChartStyle = entries.firstOrNull { it.raw == raw } ?: LINE
+    }
+}
+
+/**
  * Reads the two unit preferences from [NoopPrefs] and resolves the "match the system" default for
  * temperature. SharedPreferences isn't reactive, so Compose screens read these once into remembered
  * state (exactly like the other toggles) and re-read on a recomposition triggered by the Settings write.
@@ -90,6 +109,18 @@ object UnitPrefs {
     /** Persist the Effort display scale. */
     fun setEffortScale(context: Context, scale: EffortScale) {
         NoopPrefs.of(context).edit().putString(KEY_EFFORT_SCALE, scale.raw).apply()
+    }
+
+    /** SharedPreferences key for the Trends chart style. Mirrors macOS @AppStorage("trend.chart.style"). */
+    const val KEY_TREND_CHART_STYLE = "trend.chart.style"
+
+    /** The Trends chart style (default line). Read once into Compose state like the other prefs. */
+    fun trendChartStyle(context: Context): TrendChartStyle =
+        TrendChartStyle.fromRaw(NoopPrefs.of(context).getString(KEY_TREND_CHART_STYLE, null))
+
+    /** Persist the Trends chart style. */
+    fun setTrendChartStyle(context: Context, style: TrendChartStyle) {
+        NoopPrefs.of(context).edit().putString(KEY_TREND_CHART_STYLE, style.raw).apply()
     }
 }
 

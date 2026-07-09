@@ -464,6 +464,9 @@ fun SettingsScreen(
     var themeMode by remember { mutableStateOf(AppearancePrefs.mode) }
     // Chart colours (Titanium / Classic) — re-colours gauges + charts; ChartStylePrefs mirrors it live.
     var chartStyle by remember { mutableStateOf(ChartStylePrefs.style) }
+    // Trend charts (Line / Bar) — flips the Trends tab between the gradient line and value-ramp bars.
+    // Display-only; SharedPreferences isn't reactive, so mirror into local state and persist on select.
+    var trendChartStyle by remember { mutableStateOf(UnitPrefs.trendChartStyle(context)) }
     // Day-cycle background (#698) — the time-of-day scene behind Today. Default ON. SharedPreferences
     // isn't reactive, so the Switch mirrors into local state; TodayScreen reads the same pref on entry.
     var showDayCycleBackground by remember { mutableStateOf(NoopPrefs.showDayCycleBackground(context)) }
@@ -921,6 +924,20 @@ fun SettingsScreen(
                     onSelect = { style ->
                         chartStyle = style
                         ChartStylePrefs.set(context, style)
+                    },
+                )
+            }
+            RowDivider()
+            // Trend chart style (line vs bar). Display-only: flips the Trends tab's charts between the
+            // gradient line and value-ramp bars. The plotted data is identical either way.
+            FormRow(label = "Trend charts") {
+                SegmentedPillControl(
+                    items = listOf(TrendChartStyle.LINE, TrendChartStyle.BAR),
+                    selection = trendChartStyle,
+                    label = { if (it == TrendChartStyle.BAR) "Bars" else "Line" },
+                    onSelect = { style ->
+                        trendChartStyle = style
+                        UnitPrefs.setTrendChartStyle(context, style)
                     },
                 )
             }
