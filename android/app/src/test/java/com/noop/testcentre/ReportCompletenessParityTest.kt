@@ -62,6 +62,31 @@ class ReportCompletenessParityTest {
         assertEquals(ReportCompleteness.Status.MISSING, s[TestDomain.CONNECTION])
     }
 
+    @Test fun sleepIsPresentFromComputedProvenanceLineWithoutGateRun() {
+        // #127: `gate run=` only re-emits when the sleep-stager gate re-runs under the SLEEP trace sink; a
+        // night scored on the backfill/post-sync pass (or already scored, so analyzeRecent(force=false)
+        // skips the gate) won't re-fire it. The always-on per-day provenance line still proves sleep was
+        // computed, so a valid capture must NOT read INCOMPLETE just because the deeper trace didn't re-run.
+        val report = buildString {
+            appendLine("dayOwner day=2026-07-09 readId=my-whoop writeActiveId=my-whoop hrRows=27001 provenance=measured")
+            appendLine("sleep day=2026-07-09 totalSleepMin=426 matched=1 source=computed")
+            // NOTE: no `gate run=` in this capture — exactly the #127 report.
+        }
+        val s = ReportCompleteness.statuses(report, active = setOf(TestDomain.SLEEP))
+        assertEquals(ReportCompleteness.Status.PRESENT, s[TestDomain.SLEEP])
+        val section = ReportCompleteness.captureCheckSection(report, active = setOf(TestDomain.SLEEP))
+        assertTrue("a computed-sleep capture must read complete, not INCOMPLETE",
+            section.endsWith("complete: all active traces present"))
+    }
+
+    @Test fun sleepStillMissingWhenNoSleepDiagnosticAtAll() {
+        // The guard still fires when the capture carries NO sleep evidence of any kind (neither the gate
+        // trace nor a per-day provenance line) — a genuinely thin report.
+        val report = "dayOwner day=2026-07-09 readId=x writeActiveId=x hrRows=0 provenance=none"
+        val s = ReportCompleteness.statuses(report, active = setOf(TestDomain.SLEEP))
+        assertEquals(ReportCompleteness.Status.MISSING, s[TestDomain.SLEEP])
+    }
+
     @Test fun captureCheckSectionExactText_complete() {
         val report = "x dayOwner day=D y\nz [sleep] gate run=1 KEPT gate=accepted w"
         val section = ReportCompleteness.captureCheckSection(report, active = setOf(TestDomain.SLEEP))
