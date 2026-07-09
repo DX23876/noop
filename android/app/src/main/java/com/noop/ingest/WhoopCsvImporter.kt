@@ -103,7 +103,10 @@ object WhoopCsvImporter {
         val sleepSessions = sleepParse?.sessions ?: emptyList()
         val sleepDaily = sleepParse?.daily ?: emptyList()
         val workouts = csvData[WORKOUTS_NAME]?.let { parseWorkouts(CsvTable.fromData(it), deviceId) } ?: emptyList()
-        val journal = csvData[JOURNAL_NAME]?.let { parseJournal(CsvTable.fromData(it), deviceId) } ?: emptyList()
+        // #136: journal rows key only by cycle_start; map that to the cycle's wake day so entries land on
+        // the same day as their recovery/sleep outcome (else they read one day early and never correlate).
+        val journalWake = csvData[CYCLES_NAME]?.let { journalWakeDayMap(CsvTable.fromData(it)) } ?: emptyMap()
+        val journal = csvData[JOURNAL_NAME]?.let { parseJournal(CsvTable.fromData(it), deviceId, journalWake) } ?: emptyList()
 
         // Merge cycle-derived and sleep-derived daily rows on (deviceId, day): cycle fields
         // (recovery / strain / RHR / HRV / SpO2 / skin-temp / resp) win where present, sleep
@@ -118,7 +121,15 @@ object WhoopCsvImporter {
         if (daily.isNotEmpty()) repo.upsertDailyMetrics(daily)
         if (sleepSessions.isNotEmpty()) repo.upsertSleepSessions(sleepSessions)
         if (workouts.isNotEmpty()) repo.upsertWorkouts(workouts)
-        if (journal.isNotEmpty()) repo.upsertJournal(journal)
+        if (journal.isNotEmpty()) {
+            // #136: the wake-day fix moves an entry's day, so a naive re-import would leave the pre-fix
+            // onset-keyed rows behind as duplicates. Atomically clear + re-write EXACTLY the day span we
+            // import ([min, max] of its days), so journal outside the imported range (e.g. from an earlier,
+            // wider export) is never touched, and a crash mid-import can't drop the range. Same
+            // "re-import replaces this period" semantics daily/sleep already have.
+            val jDays = journal.map { it.day }
+            repo.replaceJournalRange(deviceId, jDays.min(), jDays.max(), journal)
+        }
         if (cycleSeries.isNotEmpty()) repo.upsertMetricSeries(cycleSeries)
 
         val counts = LinkedHashMap<String, Int>()
@@ -539,7 +550,27 @@ object WhoopCsvImporter {
 
     // MARK: - journal_entries.csv -> JournalEntry
 
-    private fun parseJournal(table: CsvTable, deviceId: String): List<JournalEntry> {
+    /** #136: map each cycle's onset (cycle_start_time epoch) to its WAKE day, so journal entries — which
+     *  the export keys only by cycle_start — store on the same wake day as the cycle's recovery/sleep
+     *  outcome (and the native journal), not the onset evening. Same day rule as parseCycles. */
+    internal fun journalWakeDayMap(cycles: CsvTable): Map<Long, String> {
+        val out = HashMap<Long, String>()
+        for (row in cycles.rows) {
+            val tz = WhoopTime.tzOffsetMinutes(row["cycle_timezone"])
+            val start = WhoopTime.parseEpochSeconds(row.cell("cycle_start_time"), tz) ?: continue
+            val wake = WhoopTime.parseEpochSeconds(row.cell("wake_onset"), tz)
+                ?: WhoopTime.parseEpochSeconds(row.cell("cycle_end_time"), tz)
+                ?: continue
+            out[start] = epochSecondsToDay(wake, tz)
+        }
+        return out
+    }
+
+    internal fun parseJournal(
+        table: CsvTable,
+        deviceId: String,
+        wakeDayByStart: Map<Long, String> = emptyMap(),
+    ): List<JournalEntry> {
         val out = ArrayList<JournalEntry>(table.rows.size)
         for (row in table.rows) {
             val tz = WhoopTime.tzOffsetMinutes(row["cycle_timezone"])
@@ -553,10 +584,13 @@ object WhoopCsvImporter {
             // Our JournalEntry PK is (deviceId, day, question); a question is required to store.
             if (question == null) continue
 
-            // journal_entries.csv carries only cycle_start (the onset evening), no wake time, so entries
-            // stay keyed to the onset day rather than the wake day the cycle metrics now use — a minor
-            // correlation-only offset (v8.2.1); aligning it needs the cycle's wake day threaded in.
-            val day = cycleStart?.let { epochSecondsToDay(it, tz) }
+            // #136: journal_entries.csv carries only cycle_start (the onset evening), no wake time. Key the
+            // entry to the cycle's WAKE day — the same day parseCycles/parseSleeps and the native journal
+            // use — via wakeDayByStart, so it lines up with the recovery/sleep outcome Insights correlates
+            // it against. Without this every imported entry sat one day early and never matched its outcome,
+            // so all historic days collapsed into "Without". Fall back to the onset day only when the cycle
+            // row isn't in the export.
+            val day = cycleStart?.let { wakeDayByStart[it] ?: epochSecondsToDay(it, tz) }
                 ?: epochSecondsToDay(System.currentTimeMillis() / 1000)
 
             val answeredYes = parseYesNo(answer)

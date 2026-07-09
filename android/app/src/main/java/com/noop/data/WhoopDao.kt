@@ -493,6 +493,25 @@ interface WhoopDao : DeviceRegistryDao {
     suspend fun deleteJournalEntry(deviceId: String, day: String, question: String)
 
     /**
+     * Delete a device's journal within a day range (#136). The WHOOP importer clears exactly the span
+     * it re-writes before upserting, so the wake-day keying fix doesn't leave pre-fix onset-keyed rows
+     * behind as duplicates. Bounded to [from, to] — journal outside the imported range is never touched.
+     * Source-scoped by deviceId, so the native ("noop-journal") log is never touched.
+     */
+    @Query("DELETE FROM journal WHERE deviceId = :deviceId AND day >= :from AND day <= :to")
+    suspend fun deleteJournalRange(deviceId: String, from: String, to: String)
+
+    /**
+     * Atomically replace a device's journal within a day range (#136): clear [from, to] then upsert
+     * [rows] in ONE transaction, so a crash mid-import can't leave the range deleted-but-not-repopulated.
+     */
+    @Transaction
+    suspend fun replaceJournalRange(deviceId: String, from: String, to: String, rows: List<JournalEntry>) {
+        deleteJournalRange(deviceId, from, to)
+        upsertJournal(rows)
+    }
+
+    /**
      * Workouts whose startTs falls in [from, to] (unix seconds), oldest first, row-limited.
      * Port of JournalWorkoutAppleCache.swift workouts(deviceId:from:to:limit:).
      */

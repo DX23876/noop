@@ -134,17 +134,35 @@ enum WhoopImporter {
         try await store.upsertMetricSeries(points, deviceId: deviceId)
 
         // Journal behaviours → correlation insights.
+        // #136: journal_entries.csv keys only by cycle_start (the onset evening). Map each cycle's onset to
+        // its WAKE day so an entry lands on the same day as the recovery/sleep it correlates against — the
+        // day parseCycles and the native journal use. Keying off the onset put every entry one day early,
+        // so it never matched its outcome and all historic days collapsed into "Without" (issue #136).
+        var wakeDayByStart: [Int: String] = [:]
+        for c in result.cycles {
+            guard let start = c.cycleStart,
+                  let wake = cycleDay(wake: c.wakeOnset, end: c.cycleEnd, start: c.cycleStart,
+                                      tzOffsetMin: c.tzOffsetMin) else { continue }
+            wakeDayByStart[Int(start.timeIntervalSince1970)] = wake
+        }
         let journal: [JournalEntry] = result.journal.compactMap { j in
-            // journal_entries.csv carries only cycle_start (the onset evening), no wake time, so entries
-            // stay keyed to the onset day rather than the wake day the cycle metrics now use. A minor
-            // correlation-only offset; aligning it needs the parser to thread each cycle's wake day.
             guard let start = j.cycleStart, let q = j.question else { return nil }
-            return JournalEntry(day: dayString(start, tzOffsetMin: j.tzOffsetMin),
+            // Fall back to the onset day only when the cycle isn't in the export.
+            let day = wakeDayByStart[Int(start.timeIntervalSince1970)]
+                ?? dayString(start, tzOffsetMin: j.tzOffsetMin)
+            return JournalEntry(day: day,
                                 question: q,
                                 answeredYes: (j.answer ?? "").lowercased() == "true",
                                 notes: j.notes)
         }
-        try await store.upsertJournal(journal, deviceId: deviceId)
+        // #136: the wake-day fix moves an entry's day, so a naive re-import would leave the pre-fix
+        // onset-keyed rows behind as duplicates. Atomically clear + re-write EXACTLY the day span we
+        // import, so journal outside the imported range (e.g. from an earlier, wider export) is never
+        // touched, and a crash mid-import can't drop the range. Same "re-import replaces this period"
+        // semantics daily/sleep already have. Empty journal → nothing cleared, nothing written.
+        if let lo = journal.map(\.day).min(), let hi = journal.map(\.day).max() {
+            _ = try await store.replaceJournalRange(journal, deviceId: deviceId, from: lo, to: hi)
+        }
 
         // Workouts.
         let workouts: [WorkoutRow] = result.workouts.compactMap { w in

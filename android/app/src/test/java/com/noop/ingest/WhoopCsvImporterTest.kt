@@ -118,6 +118,57 @@ class WhoopCsvImporterTest {
         assertEquals("2026-06-06", rows.single().day)
     }
 
+    // --- #136: imported journal keys to the WAKE day, not the onset evening -------------------
+
+    private fun journalWakeMap(csv: String): Map<Long, String> =
+        WhoopCsvImporter.journalWakeDayMap(CsvTable.fromData(csv.trimIndent().toByteArray()))
+
+    private fun journal(csv: String, wake: Map<Long, String>) =
+        WhoopCsvImporter.parseJournal(CsvTable.fromData(csv.trimIndent().toByteArray()), device, wake)
+
+    /**
+     * A journal entry is keyed in the export only by cycle_start (the onset evening), but it must land on
+     * the cycle's WAKE day — the day parseCycles and the native journal use — so it correlates against the
+     * recovery/sleep it belongs to. Onset 2026-06-05 evening, wake 2026-06-06 → the entry belongs to the
+     * 6th. Keying off the onset put it a day early and it never matched its outcome (all days read
+     * "Without" in Insights).
+     */
+    @Test
+    fun importedJournalKeysToWakeDayNotOnset() {
+        val wake = journalWakeMap(
+            """
+            Cycle start time,Cycle end time,Cycle timezone,Wake onset
+            2026-06-05 22:37:00,2026-06-06 22:40:00,UTC+01:00,2026-06-06 07:22:00
+            """
+        )
+        val entries = journal(
+            """
+            Cycle start time,Cycle timezone,Question text,Answered yes/no,Notes
+            2026-06-05 22:37:00,UTC+01:00,Any alcohol?,true,
+            """,
+            wake,
+        )
+        assertEquals(1, entries.size)
+        val e = entries.single()
+        assertEquals("2026-06-06", e.day)   // wake day, not the 2026-06-05 onset evening
+        assertEquals(true, e.answeredYes)
+        assertEquals("Any alcohol?", e.question)
+    }
+
+    /** Fallback: with the cycle absent from the export (empty map), the entry keys to the onset day —
+     *  the prior behaviour, so a journal-only export still stores something rather than dropping it. */
+    @Test
+    fun importedJournalFallsBackToOnsetDayWhenCycleMissing() {
+        val entries = journal(
+            """
+            Cycle start time,Cycle timezone,Question text,Answered yes/no
+            2026-06-05 22:37:00,UTC+01:00,Any alcohol?,true
+            """,
+            emptyMap(),
+        )
+        assertEquals("2026-06-05", entries.single().day)
+    }
+
     // --- Localized (Brazilian Portuguese) headers, issue #692 ---------------------------------
 
     /** Diacritic-folded pt-BR headers land on the canonical English keys (parity with Swift). */
