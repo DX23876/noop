@@ -67,6 +67,17 @@ final class OuraDriverTests: XCTestCase {
         XCTAssertEqual(d.phase, .needsKeyInstall)
     }
 
+    func testIsPlausibleAnchorEpochBounds() {
+        // The anchor plausibility window is [2020-01-01, 2035-01-01] UTC. OuraLiveSource reads this same
+        // predicate to log WHY an anchor was rejected (#91), so the boundaries are pinned here.
+        XCTAssertTrue(OuraDriver.isPlausibleAnchorEpoch(1_577_836_800))   // 2020-01-01, inclusive min
+        XCTAssertTrue(OuraDriver.isPlausibleAnchorEpoch(2_051_222_400))   // 2035-01-01, inclusive max
+        XCTAssertTrue(OuraDriver.isPlausibleAnchorEpoch(1_700_000_000))   // ~2023, mid-window
+        XCTAssertFalse(OuraDriver.isPlausibleAnchorEpoch(1_577_836_799))  // one second before min
+        XCTAssertFalse(OuraDriver.isPlausibleAnchorEpoch(2_051_222_401))  // one second past max
+        XCTAssertFalse(OuraDriver.isPlausibleAnchorEpoch(0))              // epoch 0 — the ~1970 anchor #91 must avoid
+    }
+
     func testFactoryResetStatusDrivesNeedsKeyInstall() {
         let d = OuraDriver(ringGen: .gen3, authKey: key)
         _ = d.nextStep(after: .ready)

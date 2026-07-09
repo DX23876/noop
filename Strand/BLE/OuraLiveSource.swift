@@ -657,14 +657,31 @@ public final class OuraLiveSource: NSObject, ObservableObject {
                     pendingAnchorEvents.append((e, v.ringTimestamp))
                 }
 
-            case .timeSync:
-                if !loggedAnchor {
-                    loggedAnchor = true
-                    log("Oura: UTC time anchor acquired - history-fetched samples now get their real time")
+            case .timeSync(let ts):
+                // #91: a 0x42 whose epoch is outside the 2020–2035 plausibility window is silently ignored,
+                // so history samples stay unanchored (no sleep/daily). Log the rejection with the offending
+                // epoch; only announce "acquired" when the sync ACTUALLY anchored (the old unconditional
+                // "acquired" line fired even on a rejected sync). `epochMs` holds the raw wire value, which
+                // is unix SECONDS despite the name (s6.11).
+                if OuraDriver.isPlausibleAnchorEpoch(ts.epochMs) {
+                    if !loggedAnchor {
+                        loggedAnchor = true
+                        log("Oura: UTC time anchor acquired - history-fetched samples now get their real time")
+                    }
+                } else {
+                    log("Oura: 0x42 time-sync REJECTED - implausible epoch \(ts.epochMs)s (outside the 2020–2035 anchor window); history samples stay unanchored (#91)")
                 }
                 // The 0x42 time-sync can arrive ANYWHERE in a history-fetch stream, not necessarily first.
                 // Anything parked while unanchored gets its real time retroactively the moment an anchor lands.
                 drainPendingAnchorEvents()
+
+            case .rtcBeacon(let r):
+                // #91: the 0x85 beacon is the SECONDARY anchor (fills the gap only until a 0x42 arrives). A
+                // beacon ignored because a primary anchor already exists is NORMAL and not logged; only an
+                // IMPLAUSIBLE-epoch beacon is a real failure (it can never anchor), so log just that.
+                if !OuraDriver.isPlausibleAnchorEpoch(Int64(r.unixSeconds)) {
+                    log("Oura: 0x85 RTC beacon REJECTED - implausible epoch \(r.unixSeconds)s (outside the 2020–2035 anchor window) (#91)")
+                }
 
             case .tierB(let summary):
                 // INVESTIGATION ONLY (real_steps / activity-summary / sleep-summary / smoothed-SpO2,
@@ -688,7 +705,7 @@ public final class OuraLiveSource: NSObject, ObservableObject {
                 log("Oura: activity (Tier-B) state=\(info.state) met=\(info.met)")
 
             default:
-                break   // motion / state / rtcBeacon / debugText: not a durable Streams row (see OuraStreamMapping)
+                break   // motion / state / debugText: not a durable Streams row (see OuraStreamMapping)
             }
         }
     }

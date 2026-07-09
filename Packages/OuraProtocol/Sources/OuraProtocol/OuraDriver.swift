@@ -241,6 +241,14 @@ public final class OuraDriver {
         return seconds * 1000   // safe: bounded input, cannot overflow
     }
 
+    /// True when `seconds` falls inside the anchor plausibility window (2020-01-01 .. 2035-01-01), i.e. the
+    /// `.timeSync` / `.rtcBeacon` ingest would accept it. A record whose epoch is outside this is silently
+    /// ignored so a garbage value can't anchor history to ~1970. Exposed READ-ONLY so OuraLiveSource can log
+    /// WHY an anchor was rejected (#91) without duplicating the bounds or reaching into anchor state. Pure.
+    public static func isPlausibleAnchorEpoch(_ seconds: Int64) -> Bool {
+        plausibleAnchorMs(fromEpochSeconds: seconds) != nil
+    }
+
     // MARK: - Record ingest (decode)
 
     /// Decode one parsed TLV inner record into zero or more events. A malformed/short record (or an

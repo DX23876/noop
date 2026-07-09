@@ -330,6 +330,14 @@ class OuraDriver(
         return epochSeconds * 1000   // safe: bounded input, cannot overflow
     }
 
+    /**
+     * True when [epochSeconds] falls inside the anchor plausibility window (2020-01-01 .. 2035-01-01), i.e.
+     * `setAnchorIfPlausible` would accept it. A 0x42/0x85 whose epoch is outside this is silently ignored so
+     * a garbage value can't anchor history to ~1970. Exposed READ-ONLY so OuraLiveSource can log WHY an
+     * anchor was rejected (#91) without duplicating the bounds or reaching into anchor state. Pure.
+     */
+    fun isPlausibleAnchorEpoch(epochSeconds: Long): Boolean = plausibleAnchorMs(epochSeconds) != null
+
     // MARK: - Record ingest (decode)
 
     /**
