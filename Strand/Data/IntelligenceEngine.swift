@@ -928,6 +928,12 @@ final class IntelligenceEngine: ObservableObject {
         // (Today / Recovery / Strain / Sleep / Trends), not just this screen, reads them. The
         // Repository merges these UNDER any imported "my-whoop" rows, so a real WHOOP import
         // always wins; this only fills the days the strap collected but no import covered.
+        // Snapshot the persisted/merged daily history BEFORE the upsert + stale-evict below , the
+        // accumulated view the readiness card + dashboard read (incl. IMPORTED Apple Health / Health Connect
+        // resting HR, which the engine's computed-only `dailies` never carries). Captured here so the
+        // Fitness Age gate can't be undercut by this pass's own scoring/eviction. Windowed to the range.
+        let faPriorDaily = await repo.dailyMetrics(fromDay: oldestDay, toDay: newestDay)
+
         // Upsert FIRST so the row count never transiently dips (#521).
         if !dailies.isEmpty { _ = try? await store.upsertDailyMetrics(dailies, deviceId: computedId) }
 
@@ -957,9 +963,13 @@ final class IntelligenceEngine: ObservableObject {
         // "7 of 7 nights" could still leave the engine seeing <4 RHR nights on `dailies`, and Fitness Age
         // never computed (Vitality did , it needs only 3 of ANY input, which is why Body Age showed but
         // Fitness Age did not). Kept SEPARATE from `fa7` so Vitality (below), which already computes, is
-        // untouched. Mirrors the Android fix.
-        let faGate7 = (await repo.dailyMetrics(fromDay: oldestDay, toDay: newestDay))
-            .sorted { $0.day < $1.day }.suffix(7)
+        // untouched. Mirrors the Android fix. Gate on the UNION of the pre-rewrite persisted history and
+        // THIS pass's fresh scores (by day, fresh wins), so an RHR night counts whether it survives in the
+        // store, was just scored, or came from an import.
+        var faGateByDay: [String: DailyMetric] = [:]
+        for d in faPriorDaily { faGateByDay[d.day] = d }
+        for d in dailies { faGateByDay[d.day] = d }
+        let faGate7 = faGateByDay.values.sorted { $0.day < $1.day }.suffix(7)
         let faGateRHRs = faGate7.compactMap { $0.restingHr }.map(Double.init)
         let faGateStrains = faGate7.compactMap { $0.strain }.filter { $0 >= 30 }
         let faGateMeanStrain = faGateStrains.isEmpty ? 0

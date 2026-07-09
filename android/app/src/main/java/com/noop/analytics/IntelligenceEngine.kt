@@ -880,6 +880,14 @@ object IntelligenceEngine {
             }
         }
 
+        // Snapshot the persisted/merged daily history BEFORE the delete+re-upsert below rewrites the
+        // computed window. This is the accumulated view the readiness card + dashboard read ("N of 7
+        // nights"); captured here so the Fitness Age gate (further down) can't be undercut by this pass's
+        // OWN pruning , a recompute only re-scores nights whose raw HR still lives in the store, so reading
+        // after the rewrite would see only the freshly scorable subset. Windowed to the recompute range so
+        // it stays bounded (daysMerged is full-history) and can't drag in stale nights older than the window.
+        val faPriorDaily = repo.daysMerged(importedDeviceId).filter { it.day in oldestDay..newestDay }
+
         repo.deleteComputedDailyInRange(computedId, oldestDay, newestDay)
 
         // Persist the computed scores under the dedicated "-noop" source so the WHOLE
@@ -893,13 +901,16 @@ object IntelligenceEngine {
         val fa7 = dailies.sortedBy { it.day }.takeLast(7)
         val faRHRs = fa7.mapNotNull { it.restingHr }.map { it.toDouble() }
         val faWaist = if (profile.waistCm > 0) profile.waistCm else null
-        // The Fitness Age gate + compute read the PERSISTED/MERGED last-7 days , the SAME history the
-        // readiness card and dashboard show , NOT this pass's freshly scored `dailies`. A recompute only
-        // re-scores nights whose raw HR still lives in the DB, so a nightly wearer whose card reads "7 of 7
-        // nights" could still leave the engine seeing <4 RHR nights on `dailies`, and Fitness Age never
-        // computed (Vitality did , it needs only 3 of ANY input, which is why Body Age showed but Fitness
-        // Age did not). Kept SEPARATE from `fa7` so Vitality (below), which already computes, is untouched.
-        val faGate7 = repo.daysMerged(importedDeviceId).sortedBy { it.day }.takeLast(7)
+        // Gate + compute Fitness Age on the UNION of the pre-rewrite persisted history and THIS pass's
+        // fresh scores (by day, fresh wins) , so an RHR night counts whether it survives in the store OR was
+        // just scored, and whether it sits under this id or a re-added strap's sibling id. The original
+        // (fa7 = dailies) worked while the whole week's raw was always still present; once older raw ages
+        // out, `dailies` alone under-counts vs the card (which reads the merged view) and Fitness Age
+        // silently stops. Kept SEPARATE from `fa7` so Vitality (below), which already computes, is untouched.
+        val faGateByDay = LinkedHashMap<String, DailyMetric>()
+        for (d in faPriorDaily) faGateByDay[d.day] = d
+        for (d in dailies) faGateByDay[d.day] = d
+        val faGate7 = faGateByDay.values.sortedBy { it.day }.takeLast(7)
         val faGateRHRs = faGate7.mapNotNull { it.restingHr }.map { it.toDouble() }
         val faGateStrains = faGate7.mapNotNull { it.strain }.filter { it >= 30.0 }
         val faGateMeanStrain = if (faGateStrains.isEmpty()) 0.0 else faGateStrains.average()
