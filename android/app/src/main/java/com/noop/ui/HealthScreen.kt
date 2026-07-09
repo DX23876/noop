@@ -1953,15 +1953,15 @@ fun VitalDetailScreen(vm: AppViewModel, key: String) {
     else remember(days, key, tempUnit) { buildVitalDetail(days, key, tempUnit) }
     var range by remember { mutableStateOf(VitalDetailRange.MONTH) }
 
-    // Fitness Age drives the subtitle by how much history it has, so we never promise a "historical
-    // trend" the view isn't showing: no reading yet -> what it still needs; a single weekly reading ->
-    // that reading (trend to follow); two+ -> the trend. Non-fitness or pre-load falls through to trend.
-    val faPoints = if (key == "fitness_age" && seriesLoaded) (detail?.points?.size ?: 0) else -1
+    // The subtitle tracks how much history the metric has, so we never promise a "historical trend" the
+    // view isn't showing: Fitness Age with no reading yet -> what it still needs; ANY metric with a single
+    // reading -> that reading (trend to follow); two+ -> the trend. Pre-load falls through to trend.
+    val loadedPoints = if (seriesLoaded) (detail?.points?.size ?: 0) else -1
     ScreenScaffold(
         title = detail?.title ?: "Vital Signs",
-        subtitle = when (faPoints) {
-            0 -> "What your Fitness Age still needs."
-            1 -> "Your latest weekly reading — trend to follow."
+        subtitle = when {
+            key == "fitness_age" && loadedPoints == 0 -> "What your Fitness Age still needs."
+            loadedPoints == 1 -> "Your latest reading — trend to follow."
             else -> "Historical trend from cached daily metrics."
         },
     ) {
@@ -1973,11 +1973,10 @@ fun VitalDetailScreen(vm: AppViewModel, key: String) {
             return@ScreenScaffold
         }
         if (detail == null || detail.points.size < 2) {
-            // Fitness Age with NO weekly value yet (zero points): show the readiness checklist + the
-            // "N more nights of wear" countdown — what it actually needs — instead of the generic
-            // "needs two readings to chart" note, which describes the trend line and left the Today
-            // card's tap-through a dead end. A single reading (size 1) keeps the generic note: the value
-            // already shows on the card, only the trend needs a second weekly point.
+            // Fitness Age with NO value yet (zero points): show the readiness checklist + the "N more
+            // nights of wear" countdown — what it actually needs — instead of the generic "needs two
+            // readings to chart" note, which describes the trend line and left the Today card's tap-through
+            // a dead end. (A single reading is handled below, generically, for every metric.)
             if (key == "fitness_age" && (detail?.points?.isEmpty() != false)) {
                 val (rhrDays, readiness) = rememberFitnessReadiness(days, profile)
                 FitnessReadinessCard(
@@ -2000,29 +1999,29 @@ fun VitalDetailScreen(vm: AppViewModel, key: String) {
                 )
                 return@ScreenScaffold
             }
-            // Fitness Age with exactly ONE weekly reading: the card already shows this value, so the
-            // generic "Not enough history yet" note read as a contradiction on tap-through. Fitness Age is
-            // WEEKLY — only the TREND needs a second point — so show the value + when the chart fills in,
-            // never a no-data dead end. Brings Android to parity with iOS (which renders the value hero at
-            // a single point).
-            if (key == "fitness_age" && detail != null && detail.points.size == 1) {
-                val fa = detail.points.last()   // size 1: the single reading (last == the latest)
+            // ANY metric with exactly ONE reading: the Today card already shows this value, so the generic
+            // "Not enough history yet" note read as a contradiction on tap-through — only the TREND CHART
+            // needs a second point. Show the value + when the chart fills in, never a no-data dead end.
+            // Matches iOS, which renders the value hero at a single point. First hit on Fitness Age, then
+            // Vitality — both weekly-ish computed scores that sit at one reading for a while.
+            if (detail != null && detail.points.size == 1) {
+                val one = detail.points.last()   // size 1: the single reading (last == the latest)
                 NoopCard {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Overline("Latest")
                         Text(
-                            text = "${detail.format(fa.second)} ${detail.unit}".trim(),
+                            text = "${detail.format(one.second)} ${detail.unit}".trim(),
                             style = NoopType.chartValueLarge,
                             color = detail.color,
                         )
                         Text(
-                            text = "as of ${fa.first}",
+                            text = "as of ${one.first}",
                             style = NoopType.footnote,
                             color = Palette.textTertiary,
                         )
                         Text(
-                            text = "Fitness Age updates weekly — your trend chart fills in here once a " +
-                                "second weekly reading lands.",
+                            text = "One reading so far — your trend chart fills in here once a second " +
+                                "reading lands.",
                             style = NoopType.subhead,
                             color = Palette.textSecondary,
                         )
