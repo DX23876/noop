@@ -156,13 +156,13 @@ enum WhoopImporter {
                                 notes: j.notes)
         }
         // #136: the wake-day fix moves an entry's day, so a naive re-import would leave the pre-fix
-        // onset-keyed rows behind as duplicates. Clear EXACTLY the day span we re-write, then upsert —
-        // bounded to the imported range, so journal outside it (e.g. from an earlier, wider export) is
-        // never touched. Same "re-import replaces this period" semantics daily/sleep already have.
+        // onset-keyed rows behind as duplicates. Atomically clear + re-write EXACTLY the day span we
+        // import, so journal outside the imported range (e.g. from an earlier, wider export) is never
+        // touched, and a crash mid-import can't drop the range. Same "re-import replaces this period"
+        // semantics daily/sleep already have. Empty journal → nothing cleared, nothing written.
         if let lo = journal.map(\.day).min(), let hi = journal.map(\.day).max() {
-            _ = try await store.deleteJournalRange(deviceId: deviceId, from: lo, to: hi)
+            _ = try await store.replaceJournalRange(journal, deviceId: deviceId, from: lo, to: hi)
         }
-        try await store.upsertJournal(journal, deviceId: deviceId)
 
         // Workouts.
         let workouts: [WorkoutRow] = result.workouts.compactMap { w in

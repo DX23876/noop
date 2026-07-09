@@ -502,6 +502,16 @@ interface WhoopDao : DeviceRegistryDao {
     suspend fun deleteJournalRange(deviceId: String, from: String, to: String)
 
     /**
+     * Atomically replace a device's journal within a day range (#136): clear [from, to] then upsert
+     * [rows] in ONE transaction, so a crash mid-import can't leave the range deleted-but-not-repopulated.
+     */
+    @Transaction
+    suspend fun replaceJournalRange(deviceId: String, from: String, to: String, rows: List<JournalEntry>) {
+        deleteJournalRange(deviceId, from, to)
+        upsertJournal(rows)
+    }
+
+    /**
      * Workouts whose startTs falls in [from, to] (unix seconds), oldest first, row-limited.
      * Port of JournalWorkoutAppleCache.swift workouts(deviceId:from:to:limit:).
      */
