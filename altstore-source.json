@@ -18,6 +18,15 @@
       "screenshotURLs": [],
       "versions": [
         {
+          "version": "8.5.2",
+          "buildVersion": "181",
+          "date": "2026-07-09",
+          "localizedDescription": "NOOP 8.5.2. See the release notes for what changed.",
+          "downloadURL": "https://github.com/ryanbr/noop/releases/download/v8.5.2/NOOP-ios-unsigned-v8.5.2.ipa",
+          "size": 14916350,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "8.5.1",
           "buildVersion": "180",
           "date": "2026-07-09",
@@ -1234,12 +1243,12 @@
           "NSHealthUpdateUsageDescription": "NOOP writes the metrics it computes from your strap back into Apple Health, on-device and only when you allow it."
         }
       },
-      "version": "8.5.1",
-      "buildVersion": "180",
+      "version": "8.5.2",
+      "buildVersion": "181",
       "versionDate": "2026-07-09",
-      "versionDescription": "NOOP 8.5.1. See the release notes for what changed.",
-      "downloadURL": "https://github.com/ryanbr/noop/releases/download/v8.5.1/NOOP-ios-unsigned-v8.5.1.ipa",
-      "size": 14910005,
+      "versionDescription": "NOOP 8.5.2. See the release notes for what changed.",
+      "downloadURL": "https://github.com/ryanbr/noop/releases/download/v8.5.2/NOOP-ios-unsigned-v8.5.2.ipa",
+      "size": 14916350,
       "minOSVersion": "17.0"
     }
   ],
