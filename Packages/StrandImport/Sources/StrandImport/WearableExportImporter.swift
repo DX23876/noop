@@ -31,7 +31,14 @@ import ZIPFoundation
 
 public struct WearableExportImporter {
 
-    public init() {}
+    /// Aggregate ceiling on the bytes held in RAM across ALL retained wellness files from one import. This
+    /// is the real backstop here: a folder/zip can carry up to `maxFiles` (200k) entries, and the per-entry
+    /// cap bounds each one but NOT their sum — without this a crafted export could accumulate unbounded
+    /// `Data` in the result dict. A whole multi-year export is tens of MB, so 1 GB never trips in practice.
+    /// Injectable so tests can exercise the budget with tiny inputs.
+    let maxTotalBytes: Int
+
+    public init(maxTotalBytes: Int = 1 << 30) { self.maxTotalBytes = maxTotalBytes }
 
     /// Hard ceilings (DoS guards, parity with ActivityFileImporter / WhoopExportImporter).
     /// A whole multi-year wellness export is tens of MB of JSON; 256 MB per entry is generous.
@@ -196,6 +203,7 @@ public struct WearableExportImporter {
     private func loadFromFolder(_ folder: URL) throws -> [String: Data] {
         let fm = FileManager.default
         var result: [String: Data] = [:]
+        var total = 0
         guard let e = fm.enumerator(at: folder, includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey],
                                     options: [.skipsHiddenFiles]) else {
             throw ImportError.fileNotFound(folder.path)
@@ -211,7 +219,11 @@ public struct WearableExportImporter {
             guard Self.isWellnessFile(name, data: data) else { continue }
             // Key on the path RELATIVE to the folder so brand detection can see "di_connect/..." etc.
             let rel = u.path.hasPrefix(base) ? String(u.path.dropFirst(base.count)).lowercased() : name
-            result[rel.hasPrefix("/") ? String(rel.dropFirst()) : rel] = data
+            let key = rel.hasPrefix("/") ? String(rel.dropFirst()) : rel
+            guard result[key] == nil else { continue }
+            if total + data.count > maxTotalBytes { break }   // aggregate RAM ceiling across retained files
+            result[key] = data
+            total += data.count
         }
         return result
     }
@@ -222,6 +234,7 @@ public struct WearableExportImporter {
         catch { throw ImportError.notAZipOrFolder(zipURL.path) }
 
         var result: [String: Data] = [:]
+        var total = 0
         for entry in archive {
             if result.count >= Self.maxFiles { break }
             guard entry.type == .file else { continue }
@@ -240,7 +253,11 @@ public struct WearableExportImporter {
                 }
             } catch { continue }   // corrupt / truncated / oversized → skip, never import partial
             guard !buffer.isEmpty, Self.isWellnessFile(base, data: buffer) else { continue }
-            if result[path] == nil { result[path] = buffer }
+            if result[path] == nil {
+                if total + buffer.count > maxTotalBytes { break }   // aggregate RAM ceiling across retained files
+                result[path] = buffer
+                total += buffer.count
+            }
         }
         return result
     }
