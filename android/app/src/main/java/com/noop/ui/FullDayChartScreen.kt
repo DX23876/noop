@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.noop.analytics.HrvAnalyzer
@@ -128,6 +129,22 @@ fun FullDayChartScreen(vm: AppViewModel, onBack: () -> Unit) {
     var bucketSeconds by remember { mutableStateOf(0L) }
     var loading by remember { mutableStateOf(true) }
 
+    // Imperial/Metric temperature preference (#101) — skin temp is stored/read in °C, so when the user
+    // has °F selected the chart line, y-axis, stats AND readout need the converted number, not just a
+    // relabelled suffix. Mirrors CompareScreen (read once per composition, like the app's other unit reads).
+    val context = LocalContext.current
+    val tempUnit = UnitPrefs.temperature(context)
+
+    // `points` in the DISPLAYED unit (#101). For every metric but skin temp this is just the raw points;
+    // skin temp is the ABSOLUTE per-timestamp °C (skinTempCelsius), so when °F is selected convert with the
+    // absolute ×9/5+32 (not a deviation rescale) so the chart line, y-axis AND stats read in °F — the
+    // suffix relabel alone would leave the plotted numbers in Celsius. Mirrors the Swift FullDayChartView.
+    val displayPoints = if (metric == TimelineMetric.SkinTemp && tempUnit == TemperatureUnit.FAHRENHEIT) {
+        points.map { TimelinePoint(it.ts, UnitFormatter.celsiusToFahrenheit(it.value)) }
+    } else {
+        points
+    }
+
     // Re-read on metric / source / settled-window / fresh-data change. The DB read picks raw vs buckets.
     LaunchedEffect(metric, ownedOnly, visible.first, visible.last, recentDays) {
         // PERF (#scroll-jank): a pinch/pan reports a NEW window on every gesture frame, each of which
@@ -207,8 +224,8 @@ fun FullDayChartScreen(vm: AppViewModel, onBack: () -> Unit) {
                         Text(resolutionSubtitle(points, isRaw, bucketSeconds),
                             style = NoopType.footnote, color = Palette.textTertiary)
                     }
-                    points.lastOrNull()?.let {
-                        Text(formatValue(metric, it.value) + unitSuffix(metric),
+                    displayPoints.lastOrNull()?.let {
+                        Text(formatValue(metric, it.value) + unitSuffix(metric, tempUnit),
                             style = NoopType.bodyNumber, color = Palette.textPrimary)
                     }
                 }
@@ -219,7 +236,7 @@ fun FullDayChartScreen(vm: AppViewModel, onBack: () -> Unit) {
                             Text("Loading the day…", style = NoopType.footnote, color = Palette.textTertiary)
                         points.isEmpty() -> EmptyTimelineState(metric, ownedOnly)
                         else -> TimelineChart(
-                            points = points,
+                            points = displayPoints,
                             windowStart = visible.first,
                             windowEnd = visible.last,
                             bounds = panBounds,   // #986: pan clamp is the rolling 3-day window, not one day
@@ -230,8 +247,8 @@ fun FullDayChartScreen(vm: AppViewModel, onBack: () -> Unit) {
                     }
                 }
 
-                if (points.isNotEmpty()) {
-                    val vals = points.map { it.value }
+                if (displayPoints.isNotEmpty()) {
+                    val vals = displayPoints.map { it.value }
                     Row(modifier = Modifier.fillMaxWidth()) {
                         TimelineStat("MIN", formatValue(metric, vals.minOrNull() ?: 0.0), Modifier.weight(1f))
                         TimelineStat("AVG", formatValue(metric, vals.average()), Modifier.weight(1f))
@@ -398,15 +415,17 @@ private fun metricColor(metric: TimelineMetric): Color = when (metric) {
     TimelineMetric.BandSleepState -> Palette.sleepDeep
 }
 
-private fun unitSuffix(metric: TimelineMetric): String = when (metric) {
+private fun unitSuffix(metric: TimelineMetric, tempUnit: TemperatureUnit): String = when (metric) {
     TimelineMetric.Hr -> " bpm"
-    TimelineMetric.SkinTemp -> "°C"
+    TimelineMetric.SkinTemp -> UnitFormatter.temperatureUnit(tempUnit)   // #101: °C / °F per preference
     TimelineMetric.Hrv -> " ms"
     else -> ""
 }
 
 private fun formatValue(metric: TimelineMetric, v: Double): String = when (metric) {
     TimelineMetric.Hr, TimelineMetric.Respiration, TimelineMetric.Hrv -> v.toInt().toString()
+    // `v` already arrives in the displayed unit — callers read from `displayPoints`, which converts skin
+    // temp to °F upfront so the chart's axis (plotted from the same points) agrees with this readout (#101).
     TimelineMetric.SkinTemp -> String.format(Locale.US, "%.1f", v)
     TimelineMetric.Spo2, TimelineMetric.Motion -> String.format(Locale.US, "%.2f", v)
     // #175: name the band's own state at the nearest code so the readout reads "asleep", not "2.0". A
