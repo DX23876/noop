@@ -372,7 +372,7 @@ object AppleHealthImporter {
             // skinTempDevC) are not derivable from an Apple Health export and stay null.
             val hasDailyMetric = d.restingHr != null || d.hrvSDNN != null || d.spo2Pct != null ||
                 d.respRate != null || d.asleepMin != null || d.deepMin != null || d.remMin != null ||
-                d.coreMin != null
+                d.coreMin != null || d.steps != null
             if (hasDailyMetric) {
                 dailyMetricRows += DailyMetric(
                     deviceId = deviceId,
@@ -385,6 +385,10 @@ object AppleHealthImporter {
                     avgHrv = d.hrvSDNN,
                     spo2Pct = d.spo2Pct,
                     respRateBpm = d.respRate,
+                    // #89: Apple Health steps must land in DailyMetric.steps too — FusionDayAdapter reads the
+                    // daily step total via WhoopRepository.dailyColumn("steps") = d.steps, so leaving it null
+                    // (the pre-fix state) meant imported Apple steps never surfaced. `d.steps` is a Double.
+                    steps = d.steps?.let { Math.round(it).toInt() },
                 )
             }
 
