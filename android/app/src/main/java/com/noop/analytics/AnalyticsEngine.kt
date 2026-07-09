@@ -596,7 +596,7 @@ object AnalyticsEngine {
      * computing one needs WHOOP's proprietary curve, so we surface the RAW means only. Deliberately NO
      * wear gate (unlike skin temp): the strap only streams SpO2 on-wrist, so there is no off-charger
      * drift to exclude, and the value is surfaced honestly as raw ADC — never scored — so there is
-     * nothing to poison into a fake %. Pure + deterministic; twin of the Swift `wornNightlySpo2Raw`. (#93)
+     * nothing to poison into a fake %. Pure + deterministic; twin of the Swift `nightlySpo2RawMeans`. (#93)
      */
     internal fun nightlySpo2RawMeans(
         sessions: List<DetectedSleep>,

@@ -487,7 +487,7 @@ public enum AnalyticsEngine {
         // Nightly red/IR ADC means over the detected in-bed spans, or nil when the night carried no raw
         // SpO2 samples in any span. Baseline-independent (unlike skin temp): a RAW device reading, banked
         // as-is for the Health "Raw SpO₂" tile — NOT a calibrated blood-oxygen %. (#93)
-        let nightlySpo2Raw = wornNightlySpo2Raw(matched, spo2: spo2)
+        let nightlySpo2Raw = nightlySpo2RawMeans(matched, spo2: spo2)
 
         // ── Recovery / "Charge" ───────────────────────────────────────────────
         var recovery: Double? = nil
@@ -809,8 +809,10 @@ public enum AnalyticsEngine {
     /// banked as-is (unit "raw_adc"); this is NOT a calibrated blood-oxygen %, which needs WHOOP's
     /// proprietary curve. Unlike skin temp there is deliberately no worn-HR / plausible-range gate: the
     /// value is surfaced honestly as raw ADC, never scored, so there's nothing to poison into a fake %.
-    /// Mirrors the Kotlin `wornNightlySpo2Raw` (#93).
-    static func wornNightlySpo2Raw(_ sessions: [SleepSession], spo2: [SpO2Sample]) -> (red: Int, ir: Int)? {
+    /// No wear gate (unlike skin temp): the strap streams SpO2 only on-wrist, so there's nothing to
+    /// exclude, and this name — matching the Kotlin `nightlySpo2RawMeans` twin — avoids the "worn"
+    /// prefix's false implication of a gate. (#93)
+    static func nightlySpo2RawMeans(_ sessions: [SleepSession], spo2: [SpO2Sample]) -> (red: Int, ir: Int)? {
         guard !sessions.isEmpty, !spo2.isEmpty else { return nil }
         var redSum = 0, irSum = 0, kept = 0
         for s in spo2 where sessions.contains(where: { $0.start <= s.ts && s.ts <= $0.end }) {

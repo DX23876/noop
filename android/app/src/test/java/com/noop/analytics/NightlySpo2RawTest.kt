@@ -7,7 +7,7 @@ import org.junit.Test
 
 /**
  * Pure unit test for [AnalyticsEngine.nightlySpo2RawMeans] (WHOOP 4.0 raw SpO2 red/IR ADC means over
- * detected sleep, #93). Twin of the Swift `wornNightlySpo2Raw`. No wear gate: the strap streams SpO2
+ * detected sleep, #93). Twin of the Swift `nightlySpo2RawMeans`. No wear gate: the strap streams SpO2
  * only on-wrist, so a sample counts purely by whether its timestamp lands inside a detected in-bed span.
  */
 class NightlySpo2RawTest {

@@ -64,7 +64,7 @@ struct BodyVitalReading: Identifiable {
         // judgment. Show a plain "uncalibrated" note when a value decoded, "No data" otherwise. (#93)
         if key == "spo2raw" {
             return banding.band == .noData ? String(localized: "No data")
-                                           : String(localized: "Raw · uncalibrated")
+                                           : String(localized: "Uncalibrated")
         }
         switch (banding.band, banding.basis) {
         case (.noData, _):               return String(localized: "No data")
