@@ -460,19 +460,20 @@ public enum AnalyticsEngine {
         // Daily resting HR = lowest per-session resting HR across matched sessions.
         let restingHRDaily = matched.compactMap { $0.restingHR }.min()
         // Daily avg HRV = in-bed-weighted mean of per-session avg HRV.
-        let avgHRVDaily: Double? = deepHrvWindow ? {
-            // #141: WHOOP-style HRV — pool RMSSD over DEEP-stage 5-min windows only (slow-wave sleep),
-            // instead of the whole-night mean. Reuses the SAME sessionHrvWindows the HRV trace is built from,
-            // so the displayed value equals the `deepOnly` figure the trace logs. rr sorted (RMSSD =
-            // successive diffs). nil when no deep sleep detected (WHOOP-4.0 staging can be sparse) — the
-            // caller shows calibrating, never a fabricated number.
-            let rrSorted = rr.sorted { $0.ts < $1.ts }
-            let deep = matched.flatMap { s in
-                SleepStager.sessionHrvWindows(start: s.start, end: s.end, rr: rrSorted, stages: s.stages)
-                    .filter { $0.stage == "deep" }.compactMap { $0.rmssd }
+        let avgHRVDaily: Double? = {
+            if deepHrvWindow {
+                // #141: WHOOP-style HRV — pool RMSSD over DEEP-stage 5-min windows only (slow-wave sleep),
+                // instead of the whole-night mean. Reuses the SAME sessionHrvWindows the HRV trace is built
+                // from, so the displayed value equals the `deepOnly` figure the trace logs. rr sorted (RMSSD
+                // = successive diffs). nil when no deep sleep is detected (WHOOP-4.0 staging can be sparse) —
+                // the caller shows calibrating, never a fabricated number.
+                let rrSorted = rr.sorted { $0.ts < $1.ts }
+                let deep = matched.flatMap { s in
+                    SleepStager.sessionHrvWindows(start: s.start, end: s.end, rr: rrSorted, stages: s.stages)
+                        .filter { $0.stage == "deep" }.compactMap { $0.rmssd }
+                }
+                return deep.isEmpty ? nil : deep.reduce(0, +) / Double(deep.count)
             }
-            return deep.isEmpty ? nil : deep.reduce(0, +) / Double(deep.count)
-        }() : {
             let pairs = matched.compactMap { s -> (Double, Double)? in
                 s.avgHRV.map { ($0, Double(s.end - s.start)) }
             }

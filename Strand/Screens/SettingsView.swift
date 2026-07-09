@@ -645,8 +645,12 @@ struct SettingsView: View {
                     .fixedSize()
                     .accessibilityLabel("HRV window")
                     .onChangeCompat(of: hrvWindowRaw) { _ in
-                        // The engine reads UnitPrefs.hrvWindowKey each pass; re-score + refresh so the change
-                        // is reflected without a relaunch (same path as a sleep edit). History is kept.
+                        // The new window shifts every night's avgHrv, so the HRV BASELINE must re-learn or
+                        // recovery would compare the new value against a baseline still folded from the old
+                        // window (the EWMA spans further than the ~21 nights that re-score → skewed for weeks).
+                        // Re-anchor the HRV baseline to now (HRV-only sibling of "Recalibrate Charge baseline"),
+                        // then re-score + refresh so the recent trend + fresh baseline both reflect the window.
+                        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Baselines.hrvBaselineEpochKey)
                         Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() }
                     }
                 }

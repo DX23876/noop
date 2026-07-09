@@ -907,14 +907,20 @@ fun SettingsScreen(
                         onSelect = {
                             hrvWindow = it
                             UnitPrefs.setHrvWindow(context, it)
-                            // Force the next analyze pass to re-score history under the new window (the value
-                            // + its baseline both move); clearing the watermark bypasses the unchanged-stream
-                            // skip, and syncNow nudges it now rather than at the next 15-min tick.
+                            // The new window shifts every night's avgHrv, so the HRV BASELINE must re-learn or
+                            // recovery would compare the new value against a baseline still folded from the old
+                            // window (only the recent ~21 nights re-score, but the baseline EWMA spans further —
+                            // it would read skewed for weeks). Re-anchor the HRV baseline to now (same key +
+                            // mechanism as "Recalibrate Charge baseline"), then force a re-score so the recent
+                            // trend + the fresh baseline both reflect the new window. A few nights to settle.
+                            NoopPrefs.of(context).edit()
+                                .putLong(Baselines.hrvBaselineEpochKey, System.currentTimeMillis() / 1000L)
+                                .apply()
                             NoopPrefs.setAnalyzeWatermark(context, "")
                             vm.syncNow()
                             Toast.makeText(
                                 context,
-                                "Re-scoring your HRV over the ${if (it == HrvWindow.DEEP_SLEEP) "deep-sleep" else "whole-night"} window. It settles over the next few nights.",
+                                "Re-learning your HRV over the ${if (it == HrvWindow.DEEP_SLEEP) "deep-sleep" else "whole-night"} window. Charge recalibrates over the next few nights.",
                                 Toast.LENGTH_LONG,
                             ).show()
                         },
