@@ -688,21 +688,12 @@ private struct FitnessAgeSection: View {
             hasWaist: profile.waistCm > 0)
     }
 
-    /// The not-ready card's lead: a concrete countdown of nights-of-wear still needed (from the shared
-    /// `nightsUntilReady`), noting the profile basics only when they're actually missing. Copy is kept
-    /// WORD-FOR-WORD identical to the Android `fitnessReadyLead` so the two platforms match.
+    /// The not-ready card's lead — delegates to the file-scope `fitnessReadyLeadCopy(rhrDays:hasAge:hasSex:)`,
+    /// shared with the Today card's `MetricDetailView` tap-through so both surfaces show the SAME countdown.
     private func fitnessReadyLead() -> String {
-        let rhrDays = repo.days.suffix(7).compactMap { $0.restingHr }.count
-        let remaining = FitnessAgeEngine.nightsUntilReady(rhrDays: rhrDays)
-        let needsBasics = profile.age <= 0 || profile.sex.isEmpty
-        switch (remaining, needsBasics) {
-        case (0, false): return String(localized: "A few more days and we can show your Fitness Age.")
-        case (0, true):  return String(localized: "Add your age and sex below and we can show your Fitness Age.")
-        case (1, false): return String(localized: "1 more night of wear and we can show your Fitness Age.")
-        case (1, true):  return String(localized: "1 more night of wear, plus your age and sex below, and we can show your Fitness Age.")
-        case (let n, false): return String(localized: "\(n) more nights of wear and we can show your Fitness Age.")
-        case (let n, true):  return String(localized: "\(n) more nights of wear, plus your age and sex below, and we can show your Fitness Age.")
-        }
+        fitnessReadyLeadCopy(
+            rhrDays: repo.days.suffix(7).compactMap { $0.restingHr }.count,
+            hasAge: profile.age > 0, hasSex: !profile.sex.isEmpty)
     }
 
     var body: some View {
@@ -872,6 +863,24 @@ private struct FitnessAgeSection: View {
         fitnessAge = faPts.last?.value
         vo2max = vo2Pts.last?.value
         loaded = true
+    }
+}
+
+/// The Fitness Age not-ready lead: a concrete countdown of nights-of-wear still needed (from the shared
+/// `nightsUntilReady`), noting the profile basics only when they're actually missing. File-scope (not a
+/// view method) so BOTH the Health hub's `FitnessAgeCard` and the Today card's `MetricDetailView`
+/// tap-through render the SAME copy from one source. Kept WORD-FOR-WORD identical to the Android
+/// `fitnessReadyLead` so the two platforms match.
+func fitnessReadyLeadCopy(rhrDays: Int, hasAge: Bool, hasSex: Bool) -> String {
+    let remaining = FitnessAgeEngine.nightsUntilReady(rhrDays: rhrDays)
+    let needsBasics = !hasAge || !hasSex
+    switch (remaining, needsBasics) {
+    case (0, false): return String(localized: "A few more days and we can show your Fitness Age.")
+    case (0, true):  return String(localized: "Add your age and sex below and we can show your Fitness Age.")
+    case (1, false): return String(localized: "1 more night of wear and we can show your Fitness Age.")
+    case (1, true):  return String(localized: "1 more night of wear, plus your age and sex below, and we can show your Fitness Age.")
+    case (let n, false): return String(localized: "\(n) more nights of wear and we can show your Fitness Age.")
+    case (let n, true):  return String(localized: "\(n) more nights of wear, plus your age and sex below, and we can show your Fitness Age.")
     }
 }
 
