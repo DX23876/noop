@@ -337,15 +337,24 @@ struct HydrationView: View {
 
     /// The single-letter weekday for a yyyy-MM-dd key (M T W T F S S), or "·" when unparseable. Mirrors
     /// the Android `weekdayInitial` (EEE → first letter, US locale).
+    // #perf: fixed-locale formatters, hoisted to static so the history-bar ForEach doesn't allocate two
+    // DateFormatters per bar per render (label + a11y both call this). Locale is pinned (en_US_POSIX /
+    // en_US), so caching is behaviour-identical — no dependence on the device locale.
+    private static let dayKeyParser: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+    private static let weekdayAbbrev: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US")
+        f.dateFormat = "EEE"
+        return f
+    }()
     private func weekdayInitial(_ dayKey: String) -> String {
-        let parse = DateFormatter()
-        parse.locale = Locale(identifier: "en_US_POSIX")
-        parse.dateFormat = "yyyy-MM-dd"
-        guard let date = parse.date(from: dayKey) else { return "·" }
-        let out = DateFormatter()
-        out.locale = Locale(identifier: "en_US")
-        out.dateFormat = "EEE"
-        return String(out.string(from: date).prefix(1))
+        guard let date = Self.dayKeyParser.date(from: dayKey) else { return "·" }
+        return String(Self.weekdayAbbrev.string(from: date).prefix(1))
     }
 
     /// Log `ml` (additive day total + a per-entry row, #798) and refresh.

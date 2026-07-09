@@ -4016,15 +4016,20 @@ struct TodayView: View {
         }
     }
 
-    private var dateLine: String {
+    // #perf: fixed-locale (en_US_POSIX), hoisted to static so the ~1 Hz Today body doesn't allocate a
+    // DateFormatter every render. Behaviour-identical — the format + locale are pinned.
+    private static let dateLineFmt: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "EEEE, d MMMM"
+        return f
+    }()
+    private var dateLine: String {
         // The selected day's date when navigated; today's banked-row date (or today) at offset 0.
         if selectedDayOffset == 0, let day = repo.today?.day, let date = Self.dayParser.date(from: day) {
-            return f.string(from: date)
+            return Self.dateLineFmt.string(from: date)
         }
-        return f.string(from: selectedLogicalDay)
+        return Self.dateLineFmt.string(from: selectedLogicalDay)
     }
 
     /// Hero title that names the selected day, "Today's"/"Yesterday's"/"Day's" Synthesis.
@@ -4162,12 +4167,17 @@ struct TodayView: View {
 
     /// "d MMM · HH:mm–HH:mm", start-only when the row has no real end (#157). The "· N bpm"
     /// segment was dropped: the StatTile caption is lineLimit(1) and date + range + bpm clips,     /// avg HR remains on the Workouts screen.
-    private func workoutCaption(_ w: WorkoutRow) -> String {
+    // #perf: fixed-locale (en_US_POSIX), hoisted to static so a workout list doesn't allocate a
+    // DateFormatter per row per render. Behaviour-identical — format + locale pinned. (mirrors `hrTimeFmt`)
+    private static let workoutDateFmt: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "d MMM"
+        return f
+    }()
+    private func workoutCaption(_ w: WorkoutRow) -> String {
         let start = Date(timeIntervalSince1970: TimeInterval(w.startTs))
-        let date = f.string(from: start)
+        let date = Self.workoutDateFmt.string(from: start)
         guard w.endTs > w.startTs else { return "\(date) · \(Self.hrTimeFmt.string(from: start))" }
         let end = Date(timeIntervalSince1970: TimeInterval(w.endTs))
         return "\(date) · \(Self.hrTimeFmt.string(from: start))-\(Self.hrTimeFmt.string(from: end))"
