@@ -5,6 +5,7 @@ import com.noop.data.EventRow
 import com.noop.data.GravitySample
 import com.noop.data.HrSample
 import com.noop.data.SkinTempSample
+import com.noop.data.Spo2Sample
 import com.noop.data.RespSample
 import com.noop.data.RrInterval
 import com.noop.data.StepSample
@@ -168,6 +169,11 @@ object AnalyticsEngine {
         // Default WHOOP5 keeps every 5/MG + pure-function caller byte-identical; IntelligenceEngine passes
         // the day owner's real family.
         skinTempFamily: DeviceFamily = DeviceFamily.WHOOP5,
+        // WHOOP 4.0 raw SpO2 PPG ADC samples (red/IR) for the night window (#93). The nightly red/IR
+        // means over detected sleep are banked on the DailyMetric as RAW ADC — honest "the sensor
+        // decoded" data, NOT a calibrated blood-oxygen % (that needs WHOOP's proprietary curve). Default
+        // empty keeps pure-function callers/tests + non-4.0 nights null.
+        spo2: List<Spo2Sample> = emptyList(),
         profile: UserProfile,
         baselines: ProfileBaselines = ProfileBaselines(),
         maxHROverride: Double? = null,
@@ -333,6 +339,12 @@ object AnalyticsEngine {
             baselines.skinTemp?.takeIf { it.usable }?.let { round2(Baselines.deviation(v, it).delta) }
         }
 
+        // ── Raw SpO2 (WHOOP 4.0 v24 PPG ADC) ──────────────────────────────────
+        // Nightly red/IR ADC means over the detected in-bed spans, or null when the night carried no raw
+        // SpO2 samples in any span. Baseline-independent (unlike skin temp): a RAW device reading banked
+        // as-is for the Health "Raw SpO2" tile — NOT a calibrated blood-oxygen %. (#93)
+        val nightlySpo2Raw = nightlySpo2RawMeans(matched, spo2)
+
         // ── Rest (sleep_performance composite, 0–100) ─────────────────────────
         // Replaces the bare efficiency proxy: duration-vs-personal-need 0.50 + efficiency 0.20 +
         // restorative (deep+REM)/asleep 0.20 + consistency 0.10. Stored under the sleep_performance
@@ -488,6 +500,8 @@ object AnalyticsEngine {
             respRateBpm = respRateDaily,
             steps = stepsTotal,
             activeKcalEst = activeKcalEst,
+            spo2Red = nightlySpo2Raw?.first,
+            spo2Ir = nightlySpo2Raw?.second,
         )
 
         // ── Per-score confidence tiers (mirror Swift ScoreConfidence.derive decisions) ──
@@ -573,6 +587,34 @@ object AnalyticsEngine {
         family: DeviceFamily = DeviceFamily.WHOOP5,
         minSamples: Int = MIN_SKIN_TEMP_SAMPLES_INLINE,
     ): Double? = skinTempFunnel(sessions, hr, skinTemp, family, minSamples).mean
+
+    /**
+     * Nightly means of the WHOOP 4.0 raw SpO2 PPG channels (red/IR ADC) over the detected in-bed
+     * [sessions], or null when no raw SpO2 sample fell inside any span. A sample counts when its
+     * timestamp lies within a session's [start, end]. WHOOP 4.0 banks these as raw PPG ADC values
+     * (spo2_red@68 / spo2_ir@70 on the v24 historical layout) but NOT a calibrated blood-oxygen % —
+     * computing one needs WHOOP's proprietary curve, so we surface the RAW means only. Deliberately NO
+     * wear gate (unlike skin temp): the strap only streams SpO2 on-wrist, so there is no off-charger
+     * drift to exclude, and the value is surfaced honestly as raw ADC — never scored — so there is
+     * nothing to poison into a fake %. Pure + deterministic; twin of the Swift `nightlySpo2RawMeans`. (#93)
+     */
+    internal fun nightlySpo2RawMeans(
+        sessions: List<DetectedSleep>,
+        spo2: List<Spo2Sample>,
+    ): Pair<Int, Int>? {
+        if (sessions.isEmpty() || spo2.isEmpty()) return null
+        var redSum = 0L
+        var irSum = 0L
+        var kept = 0
+        for (s in spo2) {
+            if (sessions.none { s.ts in it.start..it.end }) continue
+            redSum += s.red
+            irSum += s.ir
+            kept++
+        }
+        if (kept == 0) return null
+        return (redSum / kept).toInt() to (irSum / kept).toInt()
+    }
 
     /** Plausible worn skin-temperature range (°C). Off-wrist/charging samples drift to ambient and are
      *  excluded; the strap's own decode gate is the looser 20–45. (PR #85) */

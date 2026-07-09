@@ -60,6 +60,12 @@ struct BodyVitalReading: Identifiable {
     /// Which yardstick judged the value: your own baseline vs the typical adult range. String(localized:)
     /// — StatTile's caption is a plain String rendered via Text(String), which never consults the catalog.
     private var stateText: String {
+        // Raw SpO₂ is a device-dependent ADC, not a clinical value — never claim an in/out-of-range
+        // judgment. Show a plain "uncalibrated" note when a value decoded, "No data" otherwise. (#93)
+        if key == "spo2raw" {
+            return banding.band == .noData ? String(localized: "No data")
+                                           : String(localized: "Uncalibrated")
+        }
         switch (banding.band, banding.basis) {
         case (.noData, _):               return String(localized: "No data")
         case (.inRange, .personal):      return String(localized: "In your range")
@@ -141,12 +147,19 @@ enum BodyVitalSigns {
 
         let respPoints = points(key: "resp", \.respRateBpm)
         let spo2Points = points(key: "spo2", \.spo2Pct)
+        // WHOOP 4.0 raw SpO₂: the (red + IR) / 2 ADC mean per night, present only when both channels
+        // decoded for the day. On-device only, so this resolves to the NOOP-computed row. (#93)
+        let spo2rawPoints = points(key: "spo2raw") { m in
+            guard let r = m.spo2Red, let i = m.spo2Ir else { return nil }
+            return (Double(r) + Double(i)) / 2.0
+        }
         let rhrPoints = points(key: "rhr") { $0.restingHr.map(Double.init) }
         let hrvPoints = points(key: "hrv", \.avgHrv)
         let skinPoints = points(key: "skin", \.skinTempDevC)
 
         let respRow = latest(respPoints)
         let spo2Row = latest(spo2Points)
+        let spo2rawRow = latest(spo2rawPoints)
         let rhrRow = latest(rhrPoints)
         let hrvRow = latest(hrvPoints)
         let skinRow = latest(skinPoints)
@@ -223,6 +236,28 @@ enum BodyVitalSigns {
                 source: spo2Row?.source,
                 missingCaption: String(localized: "No SpO₂ import or Health value"),
                 sparkline: trail(spo2Points)
+            ),
+            BodyVitalReading(
+                key: "spo2raw",
+                label: String(localized: "Raw SpO₂"),
+                unit: "ADC",
+                value: spo2rawRow?.value,
+                format: { String(format: "%.0f", $0) },
+                // Unbanded on purpose: this is the WHOOP 4.0 raw PPG ADC mean, device/placement-dependent
+                // with no clinical range — NOT a calibrated blood-oxygen %. Banding over the full u16 span
+                // just keeps the tile cyan (never "off range") while `stateText` labels it uncalibrated, so
+                // we never fabricate an in-range / out-of-range clinical judgment on raw sensor data. (#93)
+                banding: VitalBands.band(
+                    value: spo2rawRow?.value,
+                    history: [],
+                    populationRange: 0...65535,
+                    cfg: nil
+                ),
+                metricColor: StrandPalette.metricCyan,
+                day: spo2rawRow?.day,
+                source: spo2rawRow?.source,
+                missingCaption: String(localized: "No raw SpO₂ decode for the night"),
+                sparkline: trail(spo2rawPoints)
             ),
             BodyVitalReading(
                 key: "rhr",

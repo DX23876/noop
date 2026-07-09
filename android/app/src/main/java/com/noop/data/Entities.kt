@@ -230,6 +230,12 @@ data class DailyMetric(
     // by AnalyticsEngine (Keytel active + Harris–Benedict BMR). Null when the day has no scored HR
     // window. NOT cloud/clinical parity, a heart-rate estimate. (#78)
     val activeKcalEst: Double? = null,
+    // WHOOP 4.0 raw SpO2 PPG ADC means over detected sleep (v17 columns, #93). The RAW red/IR optical
+    // channels banked on the v24 historical layout (spo2_red@68 / spo2_ir@70), NOT a calibrated
+    // blood-oxygen % — that needs WHOOP's proprietary curve. Both nullable and on-device only
+    // (imports/cloud never carry them), so old rows + non-4.0 nights stay null.
+    val spo2Red: Int? = null,           // mean raw red PPG ADC during detected sleep
+    val spo2Ir: Int? = null,            // mean raw IR PPG ADC during detected sleep
 )
 
 /**

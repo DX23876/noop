@@ -1225,6 +1225,7 @@ private struct LiquidVitalTile: View {
         case "rhr":        return over(100)
         case "resp_rate":  return over(24)
         case "spo2":       return across(90, 100)
+        case "spo2raw":    return across(0, 65535)   // raw PPG ADC mean over the u16 sensor span (#93)
         case "skin_temp":
             // Absolute skin temp (>= 20 °C) maps across a plausible wrist band; a small ±deviation
             // maps around a half-full centre so a normal night reads mid-gauge, not empty.

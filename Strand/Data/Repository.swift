@@ -2493,7 +2493,11 @@ private extension DailyMetric {
             skinTempDevC: skinTempDevC ?? fallback.skinTempDevC,
             respRateBpm: respRateBpm ?? fallback.respRateBpm,
             steps: steps ?? fallback.steps,
-            activeKcalEst: activeKcalEst ?? fallback.activeKcalEst
+            activeKcalEst: activeKcalEst ?? fallback.activeKcalEst,
+            // Raw SpO2 is on-device only (imports never carry it), so the imported row's nil is
+            // backfilled from the computed fallback — otherwise the nightly means would be lost. (#93)
+            spo2Red: spo2Red ?? fallback.spo2Red,
+            spo2Ir: spo2Ir ?? fallback.spo2Ir
         )
     }
 
@@ -2519,7 +2523,9 @@ private extension DailyMetric {
             skinTempDevC: skinTempDevC,
             respRateBpm: respRateBpm,
             steps: steps,
-            activeKcalEst: activeKcalEst
+            activeKcalEst: activeKcalEst,
+            spo2Red: spo2Red,   // non-sleep field: preserved as-is (#93)
+            spo2Ir: spo2Ir
         )
     }
 }

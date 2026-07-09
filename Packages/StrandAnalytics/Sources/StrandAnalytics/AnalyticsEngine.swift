@@ -264,6 +264,12 @@ public enum AnalyticsEngine {
                                   // keeps every 5/MG + pure-function caller byte-identical;
                                   // IntelligenceEngine passes the day owner's real family.
                                   skinTempFamily: DeviceFamily = .whoop5,
+                                  // WHOOP 4.0 raw SpO2 PPG ADC samples (red/IR) for the night window
+                                  // (#93). The nightly red/IR means over detected sleep are banked on the
+                                  // DailyMetric as RAW ADC — honest "the sensor decoded" data, NOT a
+                                  // calibrated blood-oxygen % (that needs WHOOP's proprietary curve).
+                                  // Default empty keeps pure-function callers/tests + non-4.0 nights nil.
+                                  spo2: [SpO2Sample] = [],
                                   profile: UserProfile,
                                   baselines: ProfileBaselines = ProfileBaselines(),
                                   maxHROverride: Double? = nil,
@@ -477,6 +483,12 @@ public enum AnalyticsEngine {
             return round2(Baselines.deviation(v, state: b).delta)
         }
 
+        // ── Raw SpO2 (WHOOP 4.0 v24 PPG ADC) ──────────────────────────────────
+        // Nightly red/IR ADC means over the detected in-bed spans, or nil when the night carried no raw
+        // SpO2 samples in any span. Baseline-independent (unlike skin temp): a RAW device reading, banked
+        // as-is for the Health "Raw SpO₂" tile — NOT a calibrated blood-oxygen %. (#93)
+        let nightlySpo2Raw = nightlySpo2RawMeans(matched, spo2: spo2)
+
         // ── Recovery / "Charge" ───────────────────────────────────────────────
         var recovery: Double? = nil
         // Ordered "why is Charge what it is" rows, built from the SAME inputs as the score
@@ -601,7 +613,9 @@ public enum AnalyticsEngine {
             skinTempDevC: skinTempDevC,
             respRateBpm: respRateDaily,
             steps: stepsTotal,
-            activeKcalEst: activeKcalEst)
+            activeKcalEst: activeKcalEst,
+            spo2Red: nightlySpo2Raw?.red,
+            spo2Ir: nightlySpo2Raw?.ir)
         _ = sleepStart; _ = sleepEnd  // available for callers wiring sleep_start/end columns
 
         // ── Cache rows ────────────────────────────────────────────────────────
@@ -787,6 +801,25 @@ public enum AnalyticsEngine {
                                      family: DeviceFamily = .whoop5,
                                      minSamples: Int = minSkinTempSamples) -> Double? {
         skinTempFunnel(sessions, hr: hr, skinTemp: skinTemp, family: family, minSamples: minSamples).mean
+    }
+
+    /// Nightly means of the WHOOP 4.0 raw SpO2 PPG channels (red/IR ADC) over the detected in-bed
+    /// `sessions`, or nil when no raw SpO2 sample fell inside any span. A sample counts when its
+    /// timestamp lies within a session's [start, end]. RAW device output — the red/IR optical means are
+    /// banked as-is (unit "raw_adc"); this is NOT a calibrated blood-oxygen %, which needs WHOOP's
+    /// proprietary curve. Unlike skin temp there is deliberately no worn-HR / plausible-range gate: the
+    /// value is surfaced honestly as raw ADC, never scored, so there's nothing to poison into a fake %.
+    /// No wear gate (unlike skin temp): the strap streams SpO2 only on-wrist, so there's nothing to
+    /// exclude, and this name — matching the Kotlin `nightlySpo2RawMeans` twin — avoids the "worn"
+    /// prefix's false implication of a gate. (#93)
+    static func nightlySpo2RawMeans(_ sessions: [SleepSession], spo2: [SpO2Sample]) -> (red: Int, ir: Int)? {
+        guard !sessions.isEmpty, !spo2.isEmpty else { return nil }
+        var redSum = 0, irSum = 0, kept = 0
+        for s in spo2 where sessions.contains(where: { $0.start <= s.ts && s.ts <= $0.end }) {
+            redSum += s.red; irSum += s.ir; kept += 1
+        }
+        guard kept > 0 else { return nil }
+        return (red: redSum / kept, ir: irSum / kept)
     }
 
     // MARK: - Skin-temp funnel diagnostic (#752)
