@@ -1370,6 +1370,10 @@ public final class BLEManager: NSObject, ObservableObject {
             guard command == .toggleRealtimeHR || command == .runHapticsPattern
                 || command == .setAlarmTime || command == .getAlarmTime
                 || command == .runAlarm || command == .disableAlarm
+                // REBOOT_STRAP (29) over puffin: opcode shared with 4.0, framing is the puffin form built
+                // below. NOT hardware-confirmed on 5/MG — rebootStrap() logs the COMMAND_RESPONSE so a strap
+                // log confirms whether the frame is accepted. User-initiated + confirmation-gated only.
+                || command == .rebootStrap
                 || command == .sendHistoricalData || command == .historicalDataResult
                 || command == .setClock || command == .getClock
                 // SET_CONFIG (the R22 deep-stream unlock) is allowed ONLY while the deep-data
@@ -2169,6 +2173,91 @@ public final class BLEManager: NSObject, ObservableObject {
         }
     }
 
+    // MARK: Reboot (user-initiated, confirmation-gated) — see docs/PROTOCOL.md "Destructive commands"
+
+    /// Monotonic timestamp of the last user-requested reboot, or nil. Set when `rebootStrap()` sends the
+    /// command; consumed by `didDisconnectPeripheral` (to log how long the link stayed up = the strap acting
+    /// on the reboot) and by the connect handshake (to log the reconnect round-trip). Cleared on reconnect
+    /// or by the no-disconnect timeout. The whole point is a self-contained strap-log trail for a reboot,
+    /// so a "restart did nothing" report — especially on the unverified 5/MG framing — is triageable.
+    private var rebootRequestedAt: DispatchTime?
+    private var rebootTimeoutWork: DispatchWorkItem?
+    private var rebootSettleWork: DispatchWorkItem?
+
+    /// Clear all reboot-in-flight state: the pending timestamp, both timers, and the `rebootInProgress`
+    /// flag that drives the Devices "Reconnecting…" pill. Called from every terminal path (reconnect,
+    /// no-disconnect, settle backstop) so the pill can never wedge.
+    private func clearRebootState() {
+        rebootRequestedAt = nil
+        rebootTimeoutWork?.cancel(); rebootTimeoutWork = nil
+        rebootSettleWork?.cancel(); rebootSettleWork = nil
+        if state.rebootInProgress { state.rebootInProgress = false }
+    }
+
+    /// Restart the connected strap (REBOOT_STRAP / opcode 29, empty body). Non-destructive: the strap keeps
+    /// its stored data and re-advertises after boot, but the BLE link drops and NOOP auto-reconnects. Gated
+    /// to a connected + bonded strap; user-initiated and confirmation-gated at the call site (DevicesView).
+    ///
+    /// Emits a full debug trail to the strap log so a reboot is diagnosable end to end:
+    ///   `reboot: request …`  — family / firmware / link state at send time
+    ///   `reboot: sent …`     — opcode, framing (harvard-crc8 vs puffin-crc16), payload, seq
+    ///   `reboot: strap acked result=0x…` — the COMMAND_RESPONSE (FrameRouter), the accept/reject signal
+    ///                                        that caught 5/MG haptics rejection (result=0x03)
+    ///   `reboot: link dropped …` — didDisconnectPeripheral, proves the strap acted
+    ///   `reboot: no disconnect within …` — strap ignored it (esp. an unverified 5/MG frame)
+    ///   `reboot: reconnected …` — the connect handshake, round-trip complete
+    public func rebootStrap() {
+        let family = selectedModel.deviceFamily
+        guard state.connected, state.bonded, let p = peripheral, p.state == .connected else {
+            log("reboot: connect + bond first — ignored (connected=\(state.connected) bonded=\(state.bonded))")
+            return
+        }
+        // Supersede any still-pending reboot (cancels its timers + resets the flag) so a repeat tap can't
+        // leave a stale watchdog/settle timer that fires during this new reboot's window.
+        clearRebootState()
+        let framing = family == .whoop5 ? "puffin-crc16 (UNVERIFIED on 5/MG)" : "harvard-crc8"
+        let fw = state.strapFirmware ?? "unknown"
+        log("reboot: request family=\(family) fw=\(fw) connected=true bonded=true")
+        log("reboot: sent opcode=29 framing=\(framing) payload=empty writeType=withResponse")
+        // Empty body per the official app's builder (rh0.C45476d0). .withResponse so the write itself is
+        // acknowledged at the ATT layer before the strap drops the link.
+        send(.rebootStrap, payload: [], writeType: .withResponse)
+        rebootRequestedAt = .now()
+        // Drive the Devices "Reconnecting…" pill: true from here until the strap reconnects (or a terminal
+        // path clears it). The pill only shows it once the link actually drops (it gates on !connected).
+        state.rebootInProgress = true
+        // No-disconnect watchdog: if the link is still up after 12 s the strap didn't act on the command —
+        // the key signal that a 5/MG puffin reboot frame was silently rejected. (A real reboot drops the
+        // link within a second or two.) Cancelled by didDisconnectPeripheral when the reboot takes.
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, self.rebootRequestedAt != nil, self.state.connected else { return }
+            self.log("reboot: no disconnect within 12s — strap may have ignored the command"
+                     + (self.selectedModel.deviceFamily == .whoop5 ? " (5/MG puffin framing is unverified — please share this log on #166)" : ""))
+            self.clearRebootState()
+        }
+        rebootTimeoutWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(12), execute: work)
+        // Absolute settle backstop: if the reboot never resolves (link dropped but the strap never comes
+        // back), clear the pill after 60 s so it can't wedge on "Reconnecting…". A normal reboot+reconnect
+        // completes well inside this and clears it earlier via noteRebootReconnectIfNeeded.
+        let settle = DispatchWorkItem { [weak self] in
+            guard let self, self.state.rebootInProgress else { return }
+            self.log("reboot: not settled within 60s — clearing the reconnecting state")
+            self.clearRebootState()
+        }
+        rebootSettleWork = settle
+        DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(60), execute: settle)
+    }
+
+    /// Closes the reboot trail: when the connect handshake completes and a reboot was in flight, log the
+    /// full round-trip (send → reboot → reconnect) and clear the pending state. No-op otherwise.
+    private func noteRebootReconnectIfNeeded() {
+        guard let t = rebootRequestedAt else { return }
+        let s = Double(DispatchTime.now().uptimeNanoseconds &- t.uptimeNanoseconds) / 1_000_000_000
+        log(String(format: "reboot: reconnected %.1fs after send — round trip complete", s))
+        clearRebootState()   // clears the "Reconnecting…" pill → back to "Active · Live"
+    }
+
     private func startKeepAlive() {
         keepAliveTimer?.cancel()
         let s = BLEManager.keepAliveIntervalSeconds
@@ -2758,6 +2847,15 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
                                didDisconnectPeripheral peripheral: CBPeripheral,
                                error: Error?) {
         Task { @MainActor in await collector?.flush() }
+        // Reboot trail: if a user reboot is in flight, this drop is the strap acting on it. Log how long
+        // the link stayed up (a real reboot drops within ~1-2 s) and cancel the no-disconnect watchdog. The
+        // reconnect time is logged separately once the handshake completes. `rebootRequestedAt` stays set so
+        // the handshake can compute the round-trip; it's cleared there (or by the watchdog).
+        if let t = rebootRequestedAt {
+            let ms = Int(Double(DispatchTime.now().uptimeNanoseconds &- t.uptimeNanoseconds) / 1_000_000)
+            rebootTimeoutWork?.cancel(); rebootTimeoutWork = nil
+            log("reboot: link dropped \(ms)ms after send — reboot took effect; awaiting reconnect")
+        }
         // #80 marginal-radio detection: judge this drop BEFORE the state resets below clobber the
         // arm timestamp. A drop that is unintentional, error-bearing, and lands shortly after we armed
         // the R10/R11 burst is the marginal-radio tell. Feed the detector; if it trips, the NEXT connect
@@ -3217,6 +3315,7 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                 whoop5SessionStarted = true
                 connectHandshakeDone = true     // unblocks beginBackfill()'s guard
                 log("WHOOP 5/MG: connect handshake done — backfill unblocked")
+                noteRebootReconnectIfNeeded()
                 // Re-apply the Broadcast-HR device-config flag if the user opted in (#181).
                 if PuffinExperiment.broadcastHrEnabled { setBroadcastHr(true) }
                 // Clock the strap BEFORE history: an un-clocked WHOOP 5 discards sensor data ("RTC
@@ -3254,6 +3353,7 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
         // type-47 fine because it runs the sequence once on a stable connection; the app stormed it.
         guard !connectHandshakeDone else { return }
         connectHandshakeDone = true
+        noteRebootReconnectIfNeeded()
         backfillStarted = true
 
         // WHOOP-faithful connect lifecycle: hello → set RTC,

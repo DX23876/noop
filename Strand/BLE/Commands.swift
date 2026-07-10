@@ -4,9 +4,15 @@ import WhoopProtocol
 /// Curated, SAFE WHOOP command set for *sending* to the strap.
 ///
 /// Raw values are the on-wire command codes (from whoomp/scripts/packet.py `CommandNumber`).
-/// This is intentionally a *subset*: destructive / dangerous commands
-/// (reboot, firmware load, force-trim, ship-mode, power-cycle, fuel-gauge reset, BLE DFU)
-/// are deliberately EXCLUDED so the in-app command sender can never brick or wipe the device.
+/// This is intentionally a *subset*: DESTRUCTIVE commands that wipe data or brick the strap
+/// (firmware load/DFU, force-trim, ship-mode, power-cycle, fuel-gauge reset) stay deliberately
+/// EXCLUDED so the in-app command sender can never form those bytes.
+///
+/// The ONE exception is `rebootStrap` (29): a plain restart is non-destructive (the strap keeps
+/// its stored data and just re-advertises after boot), and NOOP already triggers a reboot today via
+/// `setAdvertisingNameHarvard` (rename applies on reboot). It is a deliberate, user-initiated,
+/// confirmation-gated action — never sent automatically. See `BLEManager.rebootStrap()` and the
+/// "Destructive commands" note in docs/PROTOCOL.md.
 public enum WhoopCommand: UInt8, CaseIterable {
     case toggleRealtimeHR      = 3
     case reportVersionInfo     = 7
@@ -15,6 +21,15 @@ public enum WhoopCommand: UInt8, CaseIterable {
     case sendHistoricalData    = 22
     case historicalDataResult  = 23
     case getBatteryLevel       = 26
+    /// REBOOT_STRAP (29) — restart the strap. Payload is an **empty body** (the official app's builder
+    /// `rh0.C45476d0` passes a null payload). The strap drops the BLE link and re-advertises after boot;
+    /// **stored data is kept** (non-destructive), but any in-flight offload is interrupted (chunk-acked,
+    /// so nothing is lost — it re-offloads on reconnect). Opcode 29 is shared across WHOOP 4.0 (harvard,
+    /// crc8) and 5/MG (puffin, crc16); the 4.0 form is confirmed from the app builder, the 5/MG framing is
+    /// NOT hardware-confirmed yet — `BLEManager.rebootStrap()` logs the strap's COMMAND_RESPONSE so a 5/MG
+    /// owner's strap log confirms whether the puffin frame is accepted. User-initiated + confirmation-gated
+    /// only; never sent automatically. Driven only by `BLEManager.rebootStrap()`.
+    case rebootStrap           = 29
     case getDataRange          = 34
     case getHelloHarvard       = 35
     /// WHOOP 5.0/MG hello (the puffin generation's GET_HELLO). The response carries the device name
@@ -91,6 +106,7 @@ public enum WhoopCommand: UInt8, CaseIterable {
         case .sendHistoricalData:    return "Send Historical Data"
         case .historicalDataResult:  return "Historical Data Result"
         case .getBatteryLevel:       return "Get Battery Level"
+        case .rebootStrap:           return "Reboot Strap"
         case .getDataRange:          return "Get Data Range"
         case .getHelloHarvard:       return "Get Hello (Harvard)"
         case .getHello:              return "Get Hello (5/MG)"

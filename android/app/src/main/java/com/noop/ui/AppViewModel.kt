@@ -1518,6 +1518,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _bpm.value = null
     }
 
+    /** Restart the connected strap (user-initiated, confirmation-gated in DevicesScreen). Non-destructive —
+     *  the strap keeps its data and re-advertises after boot; NOOP auto-reconnects. See WhoopBleClient.rebootStrap. */
+    fun rebootStrap() = ble.rebootStrap()
+
     /**
      * Flip the "keep connected in the background" preference (driven by Settings). Turning it on
      * while a strap is live promotes to the foreground immediately; turning it off drops the

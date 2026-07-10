@@ -203,6 +203,11 @@ public final class LiveState: ObservableObject {
     /// cleared on disconnect so a stale version can't outlive the link. Twin of the Android
     /// LiveState.strapFirmware.
     @Published public var strapFirmware: String? = nil
+    /// True while a user-initiated reboot (#166) is in flight — from sending REBOOT_STRAP until the strap
+    /// reconnects (or the settle timeout gives up). Combined with `!connected` it drives the Devices
+    /// card's transient "Reconnecting…" pill so the restart reads as intentional. Twin of the Android
+    /// LiveState.rebootInProgress.
+    @Published public var rebootInProgress: Bool = false
     /// Transient, human-readable result of the most recent strap-rename attempt — the
     /// SET_ADVERTISING_NAME_HARVARD ack, or a local validation message from BLEManager.renameStrap.
     /// Surfaced under the rename field; overwritten by the next attempt.

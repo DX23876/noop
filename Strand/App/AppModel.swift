@@ -790,6 +790,9 @@ final class AppModel: ObservableObject {
         ble.connect(model: chosen)
     }
     func disconnect() { ble.disconnect() }
+    /// Restart the connected strap (user-initiated, confirmation-gated in DevicesView). Non-destructive —
+    /// the strap keeps its data and re-advertises after boot; NOOP auto-reconnects. See BLEManager.rebootStrap().
+    func rebootStrap() { ble.rebootStrap() }
 
     /// Drop the current strap and clear bond state so a newly-picked strap model connects fresh
     /// (lets a user with both a WHOOP 4 and a 5/MG switch between them).

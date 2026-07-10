@@ -22,6 +22,7 @@ import androidx.core.content.ContextCompat
 import android.os.Handler
 import android.os.Looper
 import android.os.ParcelUuid
+import android.os.SystemClock
 import android.util.Log
 import com.noop.data.HrRow
 import com.noop.data.RrRow
@@ -122,6 +123,10 @@ data class LiveState(
      *  Devices card. Null until the handshake response decodes. The Swift WhoopProtocol decodes the
      *  same fields; this is the Android send → state → UI wiring. */
     val strapFirmware: String? = null,
+    /** True while a user-initiated reboot (#166) is in flight — from sending REBOOT_STRAP until the strap
+     *  reconnects (or the settle timeout gives up). With `!connected` it drives the Devices card's
+     *  transient "Reconnecting…" pill. Twin of macOS LiveState.rebootInProgress. */
+    val rebootInProgress: Boolean = false,
     /** Charging flag from BATTERY_LEVEL events — wire observation: u8 bit0 (4.0 @26 / 5.0 @30,
      *  ~every 8 min on captured links). Flag only; battery % keeps its family source (#77).
      *  Cleared on disconnect so a stale flag can't outlive the link. Twin of macOS
@@ -2016,6 +2021,10 @@ class WhoopBleClient(
                 cmd != CommandNumber.SET_CLOCK && cmd != CommandNumber.GET_CLOCK &&
                 cmd != CommandNumber.GET_DATA_RANGE &&
                 cmd != CommandNumber.SET_ALARM_TIME && cmd != CommandNumber.DISABLE_ALARM &&
+                // REBOOT_STRAP (29) over puffin: opcode shared with 4.0, framing is the puffin form built
+                // below. NOT hardware-confirmed on 5/MG — rebootStrap() logs the COMMAND_RESPONSE so a strap
+                // log confirms whether the frame is accepted. User-initiated + confirmation-gated only.
+                cmd != CommandNumber.REBOOT_STRAP &&
                 // SET_CONFIG (the R22 deep-stream unlock) is allowed ONLY while the deep-data experiment
                 // is opted in — it writes a persistent feature flag to the strap, so it must never fire
                 // on a default install. Reversible; driven only by enableWhoop5DeepData(). (#174)
@@ -2338,6 +2347,88 @@ class WhoopBleClient(
         _state.update { it.copy(
             renameStatus = "Sent - your strap will reboot to apply, then reconnect with the new name.",
         ) }
+    }
+
+    // Reboot (user-initiated, confirmation-gated) — see docs/PROTOCOL.md "Destructive commands".
+
+    /** elapsedRealtime (ms) of the last user reboot, or null. Set by [rebootStrap]; consumed by the
+     *  disconnect handler (link-up duration = the strap acting on the reboot) and the connect handshake
+     *  (the reconnect round-trip). Cleared on reconnect or the no-disconnect watchdog. Twin of macOS
+     *  BLEManager.rebootRequestedAt. */
+    private var rebootRequestedAtMs: Long? = null
+    private var rebootWatchdog: Runnable? = null
+    private var rebootSettle: Runnable? = null
+
+    /** Clear all reboot-in-flight state: the pending timestamp, both timers, and the `rebootInProgress`
+     *  flag that drives the Devices "Reconnecting…" pill. Called from every terminal path (reconnect,
+     *  no-disconnect, settle backstop) so the pill can never wedge. Twin of macOS clearRebootState. */
+    private fun clearRebootState() {
+        rebootRequestedAtMs = null
+        rebootWatchdog?.let { handler.removeCallbacks(it) }; rebootWatchdog = null
+        rebootSettle?.let { handler.removeCallbacks(it) }; rebootSettle = null
+        if (_state.value.rebootInProgress) _state.update { it.copy(rebootInProgress = false) }
+    }
+
+    /**
+     * Restart the connected strap (REBOOT_STRAP / opcode 29, empty body). Non-destructive: the strap keeps
+     * its stored data and re-advertises after boot; the BLE link drops and NOOP auto-reconnects. Gated to a
+     * connected + bonded strap; user-initiated and confirmation-gated at the call site (DevicesScreen).
+     * Twin of macOS BLEManager.rebootStrap — emits the same reboot trail (request / sent / ack / link
+     * dropped / reconnected) so a "restart did nothing" report, especially on the unverified 5/MG puffin
+     * framing, is triageable from a strap log.
+     */
+    fun rebootStrap() {
+        val family = connectedFamily
+        if (!_state.value.connected || !_state.value.bonded || gatt == null) {
+            log("reboot: connect + bond first — ignored (connected=${_state.value.connected} bonded=${_state.value.bonded})")
+            return
+        }
+        // Supersede any still-pending reboot (cancels its timers + resets the flag) so a repeat tap can't
+        // leave a stale watchdog/settle timer that fires during this new reboot's window.
+        clearRebootState()
+        val framing = if (family == DeviceFamily.WHOOP5) "puffin-crc16 (UNVERIFIED on 5/MG)" else "harvard-crc8"
+        val fw = _state.value.strapFirmware ?: "unknown"
+        log("reboot: request family=$family fw=$fw connected=true bonded=true")
+        log("reboot: sent opcode=29 framing=$framing payload=empty writeType=withResponse")
+        // Empty body per the official app's builder. withResponse so the ATT write is acked before the drop.
+        send(CommandNumber.REBOOT_STRAP, byteArrayOf(), withResponse = true)
+        rebootRequestedAtMs = SystemClock.elapsedRealtime()
+        // Drive the Devices "Reconnecting…" pill: true until the strap reconnects (or a terminal path
+        // clears it). The pill only shows it once the link actually drops (it gates on !connected).
+        _state.update { it.copy(rebootInProgress = true) }
+        rebootWatchdog?.let { handler.removeCallbacks(it) }
+        // No-disconnect watchdog: still connected after 12s ⇒ the strap didn't act on the command (the key
+        // signal that a 5/MG puffin reboot frame was silently rejected). A real reboot drops within ~1-2s.
+        val work = Runnable {
+            if (rebootRequestedAtMs != null && _state.value.connected) {
+                log("reboot: no disconnect within 12s — strap may have ignored the command" +
+                    if (connectedFamily == DeviceFamily.WHOOP5) " (5/MG puffin framing is unverified — please share this log on #166)" else "")
+                clearRebootState()
+            }
+        }
+        rebootWatchdog = work
+        handler.postDelayed(work, 12_000)
+        // Absolute settle backstop: if the reboot never resolves (link dropped but the strap never comes
+        // back), clear the pill after 60s so it can't wedge on "Reconnecting…". A normal reboot+reconnect
+        // clears it earlier via noteRebootReconnectIfNeeded.
+        val settle = Runnable {
+            if (_state.value.rebootInProgress) {
+                log("reboot: not settled within 60s — clearing the reconnecting state")
+                clearRebootState()
+            }
+        }
+        rebootSettle = settle
+        handler.postDelayed(settle, 60_000)
+    }
+
+    /** Closes the reboot trail: when the connect handshake completes and a reboot was in flight, log the
+     *  full round-trip (send → reboot → reconnect) and clear the pending state. No-op otherwise. Twin of
+     *  macOS BLEManager.noteRebootReconnectIfNeeded. */
+    private fun noteRebootReconnectIfNeeded() {
+        val t = rebootRequestedAtMs ?: return
+        val s = (SystemClock.elapsedRealtime() - t) / 1000.0
+        log("reboot: reconnected %.1fs after send — round trip complete".format(s))
+        clearRebootState()   // clears the "Reconnecting…" pill → back to "Active · Live"
     }
 
     /**
@@ -3202,6 +3293,7 @@ class WhoopBleClient(
             // WHOOP 5.0/MG uses CLIENT_HELLO, not this WHOOP4 command sequence, so it is skipped for it.
             if (!connectHandshakeDone && connectedFamily == DeviceFamily.WHOOP4) {
                 connectHandshakeDone = true
+                noteRebootReconnectIfNeeded()
                 runConnectHandshake()
             }
 
@@ -3519,6 +3611,18 @@ class WhoopBleClient(
                 }
                 val respCmd = parsed.parsed["resp_cmd"] as? String
                 val result = parsed.parsed["result"] as? String
+                // Reboot ack (#166): log the COMMAND_RESPONSE result for a user reboot on BOTH families —
+                // the accept/reject signal (the same one that exposed 5/MG haptics rejection). So a 5/MG
+                // owner's strap log confirms whether the (unverified) puffin reboot frame is accepted. The
+                // decoded result name is Android's richer twin of the macOS raw result byte. Log-only.
+                if (respCmd?.startsWith("REBOOT_STRAP") == true) {
+                    val verdict = when {
+                        result == null -> "no result"
+                        result.startsWith("SUCCESS") -> "accepted"
+                        else -> "REJECTED"
+                    }
+                    log("reboot: strap acked result=${result ?: "none"} ($verdict)")
+                }
                 // 5/MG range-query gate: a GET_DATA_RANGE SUCCESS releases the history request
                 // (PENDING precedes it; the 2s fail-open fallback covers a swallowed reply). (#78 fork)
                 if (connectedFamily == DeviceFamily.WHOOP5 && backfilling && !historicalKickSent &&
@@ -4275,6 +4379,7 @@ class WhoopBleClient(
             // once-per-connection (keep-alive resubscribes also land here). (#78 fork, hardware-proven)
             if (connectedFamily == DeviceFamily.WHOOP5 && didBond && !connectHandshakeDone) {
                 connectHandshakeDone = true
+                noteRebootReconnectIfNeeded()
                 send(CommandNumber.SET_CLOCK, setClockPayload(), withResponse = true)
                 send(CommandNumber.GET_CLOCK, byteArrayOf(), withResponse = true)
                 // Populate the battery ring right after connect, not only once the Live screen opens. Posted
@@ -4937,6 +5042,14 @@ class WhoopBleClient(
 
     @SuppressLint("MissingPermission")
     private fun handleDisconnect(status: Int) {
+        // Reboot trail: if a user reboot is in flight, this drop is the strap acting on it. Log how long the
+        // link stayed up (a real reboot drops within ~1-2s) and cancel the no-disconnect watchdog. The
+        // reconnect time is logged separately once the handshake completes; rebootRequestedAtMs stays set so
+        // the handshake can compute the round-trip. Twin of macOS didDisconnectPeripheral.
+        rebootRequestedAtMs?.let { t ->
+            rebootWatchdog?.let { handler.removeCallbacks(it) }; rebootWatchdog = null
+            log("reboot: link dropped ${SystemClock.elapsedRealtime() - t}ms after send — reboot took effect; awaiting reconnect")
+        }
         // Connection test mode: capture whether THIS attempt ever reached STATE_CONNECTED before the
         // state copy below clears `connected`. Android delivers BOTH a post-connect involuntary drop AND a
         // connect attempt that never reached connected through this one onConnectionStateChange(DISCONNECTED)

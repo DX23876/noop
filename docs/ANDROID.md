@@ -336,11 +336,13 @@ discovery; transcribe it verbatim (`DeviceFamily.whoop5ClientHello`).
 
 ### Commands (`Commands.swift` → `Commands.kt`, ported)
 
-`Commands.kt` ports the **curated, safe** `WhoopCommand` enum from `Strand/BLE/Commands.swift`. It
-intentionally **excludes** destructive commands (reboot, firmware load, force-trim, ship-mode,
-power-cycle, fuel-gauge reset, BLE DFU) so the command sender can never brick or wipe the strap —
-preserve that exclusion. Raw values are the on-wire command codes; the ones the connect/offload
-lifecycle relies on:
+The `CommandNumber` sender set ports the **curated, safe** `WhoopCommand` enum from
+`Strand/BLE/Commands.swift`. It intentionally **excludes** destructive commands (firmware load,
+force-trim, ship-mode, power-cycle, fuel-gauge reset, BLE DFU) so the command sender can never brick
+or wipe the strap — preserve that exclusion. The one guarded exception is `REBOOT_STRAP` (a plain,
+non-destructive restart), sent only from the user-initiated, confirmation-gated Restart action
+(`WhoopBleClient.rebootStrap()`) — never automatically (#166). Raw values are the on-wire command
+codes; the ones the connect/offload lifecycle relies on:
 
 | Command | Code | Role |
 | --- | --- | --- |

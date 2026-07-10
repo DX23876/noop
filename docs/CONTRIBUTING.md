@@ -313,16 +313,19 @@ The app's outbound command set lives in `Strand/BLE/Commands.swift` as `WhoopCom
 ```swift
 /// Curated, SAFE WHOOP command set for *sending* to the strap.
 ///
-/// This is intentionally a *subset*: destructive / dangerous commands
-/// (reboot, firmware load, force-trim, ship-mode, power-cycle, fuel-gauge reset, BLE DFU)
-/// are deliberately EXCLUDED so the in-app command sender can never brick or wipe the device.
+/// This is intentionally a *subset*: DESTRUCTIVE commands that wipe data or brick the strap
+/// (firmware load/DFU, force-trim, ship-mode, power-cycle, fuel-gauge reset) stay deliberately
+/// EXCLUDED so the in-app command sender can never form those bytes. The ONE exception is
+/// `rebootStrap` (a plain, non-destructive restart), sent only from a user-initiated, confirmed action.
 ```
 
-Every command currently in the enum is **safe and reversible** — toggle realtime HR, read clock /
+Every other command in the enum is **safe and reversible** — toggle realtime HR, read clock /
 battery / version / data range, run/stop a haptic pattern, arm/read/cancel the firmware alarm,
-enter/exit high-frequency sync, start/stop raw data. **Do not add reboot, firmware/DFU,
+enter/exit high-frequency sync, start/stop raw data. **Do not add firmware/DFU,
 ship-mode/power-cycle, force-trim, fuel-gauge reset, or any command that can brick, wipe, or
-permanently alter the device.** If you believe a non-trivial command is genuinely needed, open an
+permanently alter the device.** The lone reboot exception is deliberate and narrow: a restart keeps
+all stored data and NOOP already reboots the strap via rename — it is confirmation-gated and never
+sent automatically (#166). If you believe another non-trivial command is genuinely needed, open an
 issue first, justify why it's reversible, and document its payload and on-device verification before
 any code.
 

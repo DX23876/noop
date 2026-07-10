@@ -56,6 +56,7 @@ private struct DevicesContent: View {
     @State private var renameDraft = ""
     @State private var removeTarget: PairedDevice?
     @State private var deleteDataTarget: PairedDevice?
+    @State private var rebootTarget: PairedDevice?
     /// After removing the ACTIVE device with other devices still paired, prompt to pick a new active one.
     @State private var pickNewActive = false
 
@@ -91,6 +92,8 @@ private struct DevicesContent: View {
                     device: device,
                     isActive: device.status == .active,
                     isLiveConnected: device.status == .active && live.connected,
+                    // Reboot in flight + link currently down → "Reconnecting…" (#166).
+                    isReconnecting: device.status == .active && live.rebootInProgress && !live.connected,
                     // The live battery belongs to whichever device is ACTIVE + connected (the WHOOP, a
                     // generic strap, or an FTMS machine all funnel into live.batteryPct). nil otherwise.
                     liveBatteryPct: (device.status == .active && live.connected) ? live.batteryPct.map { Int($0.rounded()) } : nil,
@@ -102,7 +105,8 @@ private struct DevicesContent: View {
                     liveClockWarning: device.status == .active ? strapClockState?.warning : nil,
                     onMakeActive: { switchTarget = device },
                     onRename: { renameDraft = device.nickname ?? device.displayName; renameTarget = device },
-                    onRemove: { removeTarget = device })
+                    onRemove: { removeTarget = device },
+                    onReboot: { rebootTarget = device })
                     .staggeredAppear(index: idx)
             }
 
@@ -156,6 +160,16 @@ private struct DevicesContent: View {
             Button("Remove", role: .destructive) { confirmRemove(device) }
         } message: { device in
             Text("Remove \(device.displayName)? NOOP will stop connecting to it. Its recorded data is kept and you can re-add it any time.")
+        }
+        // Restart strap confirm (#166)
+        .alert("Restart this strap?",
+               isPresented: Binding(get: { rebootTarget != nil },
+                                    set: { if !$0 { rebootTarget = nil } }),
+               presenting: rebootTarget) { _ in
+            Button("Cancel", role: .cancel) { rebootTarget = nil }
+            Button("Restart") { model.rebootStrap(); rebootTarget = nil }
+        } message: { device in
+            Text("Restart \(device.displayName)? It disconnects for about 30 seconds while it reboots, then reconnects on its own. Your recorded data is kept. On WHOOP 5.0/MG this is experimental — if it doesn't restart, your strap log helps us confirm the command.")
         }
         // Second, strongly-worded delete-data confirm (reached from the Remove card's secondary control)
         .alert("Delete all of this device's data?",
@@ -274,6 +288,9 @@ private struct DeviceCard: View {
     let device: PairedDevice
     let isActive: Bool
     let isLiveConnected: Bool
+    /// The active strap's link dropped for a user-initiated reboot and NOOP is auto-reconnecting (#166).
+    /// Drives the transient "Reconnecting…" pill; false for every non-reboot state.
+    var isReconnecting: Bool = false
     /// The active+connected device's live battery percent (0–100), surfaced on the card the same way
     /// for WHOOP, a generic strap, or an FTMS machine. nil when not the active/connected device or
     /// the source hasn't reported a battery (e.g. a strap/machine without the 0x180F service).
@@ -292,6 +309,9 @@ private struct DeviceCard: View {
     var onMakeActive: () -> Void
     var onRename: () -> Void
     var onRemove: (() -> Void)?
+    /// Restart the strap (WHOOP-only, connected-only; confirmation-gated by the parent). nil for a
+    /// non-WHOOP source or a device that isn't the live-connected one. (#166)
+    var onReboot: (() -> Void)? = nil
     /// Removed-section affordances (re-add as active / delete its data).
     var onReAdd: (() -> Void)? = nil
     var onDeleteData: (() -> Void)? = nil
@@ -466,8 +486,15 @@ private struct DeviceCard: View {
             if device.status == .archived {
                 StatePill("Removed", tone: .neutral, showsDot: false)
             } else if isActive {
-                StatePill(isLiveConnected ? "Active · Live" : "Active",
-                          tone: .positive, pulsing: isLiveConnected)
+                // Reboot window (#166): the user's Restart dropped the link and NOOP is auto-reconnecting.
+                // Show it as intentional rather than a silent drop to "Active"; clears to "Active · Live"
+                // the instant the link is back.
+                if isReconnecting {
+                    StatePill("Reconnecting…", tone: .warning, pulsing: true)
+                } else {
+                    StatePill(isLiveConnected ? "Active · Live" : "Active",
+                              tone: .positive, pulsing: isLiveConnected)
+                }
             } else {
                 StatePill("Paired", tone: .neutral)
             }
@@ -492,6 +519,11 @@ private struct DeviceCard: View {
                     Button { onMakeActive() } label: { Label("Make active", systemImage: "bolt.fill") }
                 }
                 Button { onRename() } label: { Label("Rename", systemImage: "pencil") }
+                // Restart the strap — only for the live-connected WHOOP (the reboot travels over the active
+                // BLE link). Confirmation-gated by the parent. (#166)
+                if isLiveConnected, SourceCoordinator.isWhoop(device), let onReboot {
+                    Button { onReboot() } label: { Label("Restart strap…", systemImage: "arrow.clockwise") }
+                }
                 if let onRemove {
                     Divider()
                     Button(role: .destructive) { onRemove() } label: {

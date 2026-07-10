@@ -84,6 +84,14 @@ enum class CommandNumber(val rawValue: Int) {
     // Port of Swift `WhoopCommand.historicalDataResult` (whoop_protocol.json: 23 HISTORICAL_DATA_RESULT).
     HISTORICAL_DATA_RESULT(23),
     GET_BATTERY_LEVEL(26),
+    // REBOOT_STRAP (29) — restart the strap. Empty body (the official app's builder passes a null
+    // payload). The strap drops the link and re-advertises after boot; stored data is KEPT
+    // (non-destructive), though an in-flight offload is interrupted (chunk-acked, so nothing is lost).
+    // Opcode 29 is shared across WHOOP 4.0 (harvard/crc8) and 5/MG (puffin/crc16); the 4.0 form is
+    // confirmed, the 5/MG framing is NOT hardware-confirmed — rebootStrap() logs the COMMAND_RESPONSE
+    // so a strap log confirms acceptance. User-initiated + confirmation-gated only; never automatic.
+    // Port of Swift WhoopCommand.rebootStrap.
+    REBOOT_STRAP(29),
     GET_DATA_RANGE(34),
     GET_HELLO_HARVARD(35),
     // GET_HELLO (145): WHOOP 5.0/MG hello. The response carries the device name plus `fw_version`

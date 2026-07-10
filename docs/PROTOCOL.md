@@ -403,18 +403,26 @@ data, brick, or power-cycle the strap. NOOP must never send them.
 | Code | Command | Hazard |
 |-----:|---------|--------|
 | 25 | `FORCE_TRIM` | discards stored data |
-| 29 | `REBOOT_STRAP` | reboots |
 | 32 | `POWER_CYCLE_STRAP` | power-cycles |
 | 36 | `START_FIRMWARE_LOAD` | firmware write |
 | 37 | `LOAD_FIRMWARE_DATA` | firmware write |
 | 38 | `PROCESS_FIRMWARE_IMAGE` | firmware write |
 | 45 | `ENTER_BLE_DFU` | enters DFU bootloader |
+
+**One guarded exception — `REBOOT_STRAP` (29).** A plain restart is the one command on this list that
+is *non-destructive*: the strap keeps its stored data and just re-advertises after boot, and NOOP
+already triggers a reboot today via `SET_ADVERTISING_NAME_HARVARD` (rename applies on reboot). It is
+in `WhoopCommand` as `rebootStrap`, but sent **only** from the user-initiated, confirmation-gated
+"Restart strap" action (`BLEManager.rebootStrap()` / `WhoopBleClient.rebootStrap()`) — never
+automatically, and never as part of any connect/offload path (#166). Everything else in this table
+stays out of the enum entirely.
 | 99 | `RESET_FUEL_GAUGE` | resets battery fuel gauge |
 
-**Payload forms** (decoded from the official app's command builders — recorded here only so the
-wire format is *known and avoidable*, not so it can be sent). The opcodes are shared across WHOOP 4
-(harvard) and WHOOP 5/MG (puffin): the app's unified command enum (`EnumC58479e`) uses the same
-`25`/`29`/`32` on both transports — unlike haptics, which has a maverick-specific `0x13`.
+**Payload forms** (decoded from the official app's command builders — recorded so the wire format is
+*known*: for the destructive commands, known-and-avoidable; for the one guarded exception,
+`REBOOT_STRAP`, known-and-used by `rebootStrap()`). The opcodes are shared across WHOOP 4 (harvard)
+and WHOOP 5/MG (puffin): the app's unified command enum (`EnumC58479e`) uses the same `25`/`29`/`32`
+on both transports — unlike haptics, which has a maverick-specific `0x13`.
 
 - `FORCE_TRIM` (25) — body is **two little-endian int32 range args**. The app's "erase everything"
   form sets both to `-16843010` (`0xFEFEFEFE`), an 8-byte sentinel that trims the entire stored
