@@ -19,6 +19,15 @@ import kotlin.math.sqrt
  *      (Malik-style filter).
  *   3. Require >= MIN_BEATS (20) valid intervals before a trustworthy result.
  *
+ * Gap-aware successive differences: cleaning DROPS beats, which makes two beats that were not
+ * adjacent in the source become neighbours in the cleaned list. A successive-difference metric
+ * (RMSSD, pNN50) must NOT count the difference across such a splice, or one removed beat injects a
+ * spurious large delta that dominates the mean. [cleanRRGapAware] cleans while remembering where beats
+ * were dropped, and [rmssdGapAware] / [pnn50GapAware] skip any difference that straddles a gap. On a
+ * series with no drops these are identical to the plain versions, so clean data is unchanged. This is
+ * an intentional divergence from the Swift twin, which still splices; porting the same change to
+ * StrandAnalytics/HRVAnalyzer.swift is a follow-up.
+ *
  * Named [HrvAnalyzer] (NOT Hrv) to avoid clashing with the existing
  * com.noop.analytics.Hrv object in Analytics.kt. The two compute RMSSD the same
  * way (sqrt of mean successive squared diffs); HrvAnalyzer additionally cleans
@@ -153,6 +162,95 @@ object HrvAnalyzer {
     /** Full clean: range filter → ectopic rejection. Returns the clean NN series. */
     fun cleanRR(rr: List<Double>): List<Double> = rejectEctopic(rangeFilter(rr))
 
+    // ── Gap-aware cleaning (successive-difference safety) ─────────────────────
+
+    /**
+     * A cleaned NN series that remembers where beats were dropped. [nn] is byte-identical to [cleanRR]
+     * over the same input. [contiguous] has the same length: `contiguous[i]` is true when `nn[i]` and
+     * `nn[i - 1]` were adjacent beats in the ORIGINAL series (no beat removed between them by the range
+     * or ectopic filter) and false when a beat was dropped in between (a splice). Index 0 is always
+     * false: the first beat has no predecessor.
+     */
+    data class CleanSeries(val nn: List<Double>, val contiguous: List<Boolean>)
+
+    /**
+     * Clean the RR series (range filter then Malik ectopic rejection, exactly like [cleanRR]) while
+     * tracking which original beats were dropped, so a downstream successive-difference metric can skip
+     * the difference across a removed beat. [CleanSeries.nn] equals [cleanRR] value for value.
+     */
+    fun cleanRRGapAware(rr: List<Double>): CleanSeries {
+        // Pass 1: range filter, keeping each survivor's index in the ORIGINAL series.
+        val rangedIdx = ArrayList<Int>(rr.size)
+        val rangedVal = ArrayList<Double>(rr.size)
+        for (i in rr.indices) {
+            val v = rr[i]
+            if (v >= RR_MIN_MS && v <= RR_MAX_MS) { rangedIdx.add(i); rangedVal.add(v) }
+        }
+        // Pass 2: Malik ectopic rejection over the range-filtered values, mirroring [rejectEctopic]
+        // (same windows, same median, same threshold) so the kept values match cleanRR exactly, while
+        // carrying each survivor's original index forward.
+        val keptOrig = ArrayList<Int>(rangedVal.size)
+        val keptVal = ArrayList<Double>(rangedVal.size)
+        if (rangedVal.size <= ECTOPIC_WINDOW_RADIUS) {
+            // rejectEctopic returns the input unchanged for a series this short.
+            for (k in rangedVal.indices) { keptOrig.add(rangedIdx[k]); keptVal.add(rangedVal[k]) }
+        } else {
+            for (i in rangedVal.indices) {
+                val lo = maxOf(0, i - ECTOPIC_WINDOW_RADIUS)
+                val hi = minOf(rangedVal.size - 1, i + ECTOPIC_WINDOW_RADIUS)
+                val neighbours = ArrayList<Double>(hi - lo)
+                for (j in lo..hi) if (j != i) neighbours.add(rangedVal[j])
+                val keep = when {
+                    neighbours.size < 2 -> true
+                    else -> {
+                        val med = median(neighbours)
+                        if (med <= 0) true else abs(rangedVal[i] - med) / med <= ECTOPIC_THRESHOLD
+                    }
+                }
+                if (keep) { keptOrig.add(rangedIdx[i]); keptVal.add(rangedVal[i]) }
+            }
+        }
+        // A survivor is contiguous with its predecessor only when their ORIGINAL indices are adjacent.
+        val contiguous = ArrayList<Boolean>(keptVal.size)
+        for (i in keptVal.indices) contiguous.add(i > 0 && keptOrig[i] == keptOrig[i - 1] + 1)
+        return CleanSeries(keptVal, contiguous)
+    }
+
+    /**
+     * Task Force RMSSD that counts a successive difference only when the two beats were adjacent in the
+     * source ([CleanSeries.contiguous]). A difference spanning a dropped beat is skipped, so removing an
+     * out-of-range or ectopic beat cannot splice its neighbours into a spurious delta. Identical to
+     * [rmssdRaw] when there are no gaps. Returns null when no valid successive difference exists.
+     */
+    fun rmssdGapAware(nn: List<Double>, contiguous: List<Boolean>): Double? {
+        require(nn.size == contiguous.size) { "nn and contiguous must be the same length" }
+        var sumSq = 0.0
+        var count = 0
+        for (i in 1 until nn.size) {
+            if (!contiguous[i]) continue
+            val d = nn[i] - nn[i - 1]
+            sumSq += d * d
+            count += 1
+        }
+        return if (count < 1) null else sqrt(sumSq / count.toDouble())
+    }
+
+    /**
+     * pNN50 (% of successive |ΔNN| > 50 ms) counting only gap-free pairs, mirroring [rmssdGapAware].
+     * Identical to the plain pNN50 when there are no gaps. Returns null when no valid pair exists.
+     */
+    fun pnn50GapAware(nn: List<Double>, contiguous: List<Boolean>): Double? {
+        require(nn.size == contiguous.size) { "nn and contiguous must be the same length" }
+        var nn50 = 0
+        var pairs = 0
+        for (i in 1 until nn.size) {
+            if (!contiguous[i]) continue
+            if (abs(nn[i] - nn[i - 1]) > 50.0) nn50 += 1
+            pairs += 1
+        }
+        return if (pairs < 1) null else nn50.toDouble() / pairs.toDouble() * 100.0
+    }
+
     // ── Windowed analysis ────────────────────────────────────────────────────
 
     /**
@@ -186,7 +284,8 @@ object HrvAnalyzer {
      */
     fun analyzeRaw(rawRR: List<Double>, maxRejectedFraction: Double? = null): HrvResult {
         val nInput = rawRR.size
-        val clean = cleanRR(rawRR)
+        val cleaned = cleanRRGapAware(rawRR)
+        val clean = cleaned.nn
         if (clean.size < MIN_BEATS) {
             return HrvResult.empty(nInput)
         }
@@ -198,16 +297,13 @@ object HrvAnalyzer {
                 return HrvResult.empty(nInput)
             }
         }
-        val rmssd = rmssdRaw(clean)
+        // RMSSD and pNN50 are gap-aware: a successive difference across a dropped beat is skipped so a
+        // removed out-of-range/ectopic beat cannot splice its neighbours into a spurious delta. SDNN and
+        // meanNN use every clean beat (no successive differences), so they are unchanged.
+        val rmssd = rmssdGapAware(cleaned.nn, cleaned.contiguous)
         val sdnn = sdnnRaw(clean)
         val mean = clean.sum() / clean.size.toDouble()
-
-        // pNN50 over the clean NN series.
-        var nn50 = 0
-        for (i in 1 until clean.size) {
-            if (abs(clean[i] - clean[i - 1]) > 50.0) nn50 += 1
-        }
-        val pnn50 = nn50.toDouble() / (clean.size - 1).toDouble() * 100.0
+        val pnn50 = pnn50GapAware(cleaned.nn, cleaned.contiguous)
 
         return HrvResult(rmssd = rmssd, sdnn = sdnn, meanNN = mean, pnn50 = pnn50,
             nInput = nInput, nClean = clean.size)

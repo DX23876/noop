@@ -2140,7 +2140,8 @@ object SleepStager {
     }
 
     /** One 5-min HRV window: its start ts, the sleep stage at its center, the clean-beat count, and the
-     *  window RMSSD (null when <2 clean beats). Drives both [sessionAvgHRV] and the HRV test-mode trace. */
+     *  window RMSSD (null when fewer than 2 clean beats, or when every successive pair straddles a dropped
+     *  beat). Drives both [sessionAvgHRV] and the HRV test-mode trace. */
     data class HrvWindow(val startTs: Long, val stage: String, val cleanBeats: Int, val rmssd: Double?)
 
     /**
@@ -2175,11 +2176,14 @@ object SleepStager {
             // analyze() pipeline. The 0x2A37 RR on a WHOOP 5/MG is PPG-derived and noisier
             // than a 4.0's; rMSSD is built from SUCCESSIVE differences, so an un-rejected
             // jitter spike inflates the session HRV. Ectopic rejection drops those (#262/#235).
-            val cleaned = HrvAnalyzer.cleanRR(bucket)
-            val rmssd = if (cleaned.size >= 2) HrvAnalyzer.rmssdRaw(cleaned) else null
+            // Gap-aware: a dropped ectopic/out-of-range beat must not splice its two neighbours into a
+            // spurious successive difference, which is the exact spike the rejection above is meant to
+            // remove. See HrvAnalyzer.rmssdGapAware.
+            val cleaned = HrvAnalyzer.cleanRRGapAware(bucket)
+            val rmssd = if (cleaned.nn.size >= 2) HrvAnalyzer.rmssdGapAware(cleaned.nn, cleaned.contiguous) else null
             val center = t + windowS / 2
             val stage = stages.firstOrNull { center >= it.start && center < it.end }?.stage ?: "?"
-            out.add(HrvWindow(startTs = t, stage = stage, cleanBeats = cleaned.size, rmssd = rmssd))
+            out.add(HrvWindow(startTs = t, stage = stage, cleanBeats = cleaned.nn.size, rmssd = rmssd))
             t += windowS
         }
         return out
