@@ -146,9 +146,15 @@
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.NOOP">
-            <!-- Health Connect permissions-rationale route (Android 13 and below). -->
+            <!-- Health Connect permissions-rationale route for Android 13 and below (#226). The standalone
+                 Health Connect APK on API ≤33 DISCOVERS + lists compatible apps by this intent-filter, so
+                 the action name must be the legacy `androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE`.
+                 The previous `androidx.health.connect.action.SHOW_PERMISSIONS_RATIONALE` is neither the
+                 API-33 nor API-34 form, so an Android-13 HC APK never enumerated NOOP — it was absent from
+                 Health Connect's "App permissions" entirely and permissions couldn't be granted. Android 14+
+                 (HC in the platform) uses the `ViewPermissionUsageActivity` alias below instead. -->
             <intent-filter>
-                <action android:name="androidx.health.connect.action.SHOW_PERMISSIONS_RATIONALE" />
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
             </intent-filter>
         </activity>
 
