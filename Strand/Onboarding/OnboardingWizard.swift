@@ -712,9 +712,14 @@ private struct ProfileStep: View {
             VStack(spacing: 16) {
                 StrandCard {
                     VStack(spacing: 18) {
-                        Stepper(value: $profile.age, in: 13...100) {
-                            FieldRow(label: String(localized: "Age"), value: String(localized: "\(profile.age) yrs"))
+                        // #146: capture a date of birth so age advances on its own instead of going stale.
+                        DatePicker(selection: $profile.dateOfBirth,
+                                   in: ProfileStore.dateOfBirthRange,
+                                   displayedComponents: .date) {
+                            FieldRow(label: String(localized: "Date of birth"),
+                                     value: String(localized: "\(profile.age) yrs"))
                         }
+                        .tint(StrandPalette.accent)
 
                         Divider().overlay(StrandPalette.hairline)
 

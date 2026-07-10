@@ -682,8 +682,9 @@ private fun ProfileStep() {
                         value = "${profile.age}",
                         unit = "yrs",
                         accessibility = "Age, ${profile.age} years",
-                        onMinus = { mutate { profile.age -= 1 } },
-                        onPlus = { mutate { profile.age += 1 } },
+                        // #146: age derives from a stored date of birth; setAge re-anchors it (clamped 13..100).
+                        onMinus = { mutate { profile.setAge(profile.age - 1) } },
+                        onPlus = { mutate { profile.setAge(profile.age + 1) } },
                     )
                 }
                 ThinDivider()

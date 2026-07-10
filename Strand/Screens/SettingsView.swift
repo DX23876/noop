@@ -296,15 +296,20 @@ struct SettingsView: View {
             blurb: "These power your heart-rate zones, calorie estimates and recovery baselines. Keep them accurate."
         ) {
             VStack(spacing: 0) {
-                FormRow(label: "Age") {
+                FormRow(label: "Date of birth") {
                     HStack(spacing: 12) {
                         Text("\(profile.age)")
                             .font(StrandFont.bodyNumber)
                             .foregroundStyle(StrandPalette.textPrimary)
                             .frame(minWidth: 28, alignment: .trailing)
-                        Stepper("Age", value: $profile.age, in: 13...100)
+                        // #146: age is derived from the date of birth, so it advances on its own.
+                        DatePicker("Date of birth",
+                                   selection: $profile.dateOfBirth,
+                                   in: ProfileStore.dateOfBirthRange,
+                                   displayedComponents: .date)
                             .labelsHidden()
-                            .accessibilityLabel("Age, \(profile.age) years")
+                            .tint(StrandPalette.accent)
+                            .accessibilityLabel("Date of birth, age \(profile.age) years")
                     }
                 }
                 rowDivider

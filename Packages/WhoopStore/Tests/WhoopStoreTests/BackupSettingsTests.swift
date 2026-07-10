@@ -136,6 +136,32 @@ final class BackupSettingsTests: XCTestCase {
                      "The canonical name itself is never written to defaults")
     }
 
+    /// #146: applying a restored age must clear a pre-existing `profile.dateOfBirth`, so the target's
+    /// old DOB can't silently override the restore — `ProfileStore` re-derives the DOB from the
+    /// restored age on the forced post-restore relaunch.
+    func testApplyClearsStaleDateOfBirthWhenAgeRestored() throws {
+        let defaults = try freshDefaults()
+        defaults.set(Date(timeIntervalSince1970: 0), forKey: "profile.dateOfBirth") // target's own DOB
+
+        BackupSettings.apply(["profile.age": 44], to: defaults)
+
+        XCTAssertEqual(defaults.object(forKey: "profile.age") as? Int, 44)
+        XCTAssertNil(defaults.object(forKey: "profile.dateOfBirth"),
+                     "A restored age must clear the target's stale DOB so it re-derives from the restore")
+    }
+
+    /// A restore payload with no age must leave a target's date of birth alone.
+    func testApplyLeavesDateOfBirthWhenNoAgeInPayload() throws {
+        let defaults = try freshDefaults()
+        let dob = Date(timeIntervalSince1970: 500_000_000)
+        defaults.set(dob, forKey: "profile.dateOfBirth")
+
+        BackupSettings.apply(["profile.weightKg": 70.0], to: defaults)
+
+        XCTAssertEqual(defaults.object(forKey: "profile.dateOfBirth") as? Date, dob,
+                       "No age in the payload → the target's DOB is untouched")
+    }
+
     func testFullExportImportShapedRoundTripThroughDefaults() throws {
         // Device A: user-set values → snapshot → encode (what export writes into the zip).
         let deviceA = try freshDefaults()

@@ -140,9 +140,39 @@ import kotlin.math.roundToInt
  */
 class ProfileStore(private val prefs: SharedPreferences) {
 
-    var age: Int
-        get() = prefs.getInt(KEY_AGE, 30).coerceIn(AGE_MIN, AGE_MAX)
-        set(v) = prefs.edit().putInt(KEY_AGE, v.coerceIn(AGE_MIN, AGE_MAX)).apply()
+    /**
+     * Current age in whole years (#146), DERIVED from [dateOfBirthMillis] so it advances on its own
+     * instead of going stale until the user bumps a number. Read-only; change age via [setAge] (the
+     * +/- stepper) or [dateOfBirthMillis] directly. Every existing reader (Fitness Age / Vitality /
+     * Tanaka) keeps reading `profile.age` unchanged.
+     */
+    val age: Int
+        get() = yearsFromDob(dateOfBirthMillis).coerceIn(AGE_MIN, AGE_MAX)
+
+    /**
+     * Date of birth as epoch millis — the canonical source of truth for [age] (#146). The getter
+     * lazily migrates a pre-#146 stored age (or a restored legacy `age`, see [applyBackup]) into an
+     * anchored DOB the first time it's read, then persists it so the derivation is stable. The setter
+     * mirrors the derived Int age under the legacy [KEY_AGE] so the `.noopbak` backup whitelist keeps
+     * exporting an age with no change to the cross-platform contract.
+     */
+    var dateOfBirthMillis: Long
+        get() {
+            if (prefs.contains(KEY_DOB)) return prefs.getLong(KEY_DOB, 0L)
+            val legacyAge = (if (prefs.contains(KEY_AGE)) prefs.getInt(KEY_AGE, 30) else 30)
+                .coerceIn(AGE_MIN, AGE_MAX)
+            val dob = dobForAge(legacyAge)
+            prefs.edit().putLong(KEY_DOB, dob).putInt(KEY_AGE, legacyAge).apply()
+            return dob
+        }
+        set(v) = prefs.edit()
+            .putLong(KEY_DOB, v)
+            .putInt(KEY_AGE, yearsFromDob(v).coerceIn(AGE_MIN, AGE_MAX))
+            .apply()
+
+    /** Set age by anchoring a date of birth `years` before today (the +/- stepper and backup restore
+     *  both go through here, so age always flows from a DOB). Clamped to [AGE_MIN]..[AGE_MAX]. */
+    fun setAge(years: Int) { dateOfBirthMillis = dobForAge(years.coerceIn(AGE_MIN, AGE_MAX)) }
 
     /** "male" | "female" | "nonbinary" — matches the macOS tag values. */
     var sex: String
@@ -233,7 +263,10 @@ class ProfileStore(private val prefs: SharedPreferences) {
     /** The user-SET profile fields, keyed canonically, for the backup exporter. */
     fun backupSnapshot(): Map<String, Any> {
         val out = LinkedHashMap<String, Any>()
-        if (prefs.contains(KEY_AGE)) out["profile.age"] = age
+        // #146: age is now derived from a DOB; export the current derived Int under the legacy
+        // `profile.age` key (the whitelist carries an Int, not a Date). A never-touched profile
+        // (neither key set) still stays out of the snapshot.
+        if (prefs.contains(KEY_DOB) || prefs.contains(KEY_AGE)) out["profile.age"] = age
         if (prefs.contains(KEY_SEX)) out["profile.sex"] = sex
         if (prefs.contains(KEY_WEIGHT)) out["profile.weightKg"] = weightKg
         if (prefs.contains(KEY_HEIGHT)) out["profile.heightCm"] = heightCm
@@ -248,7 +281,10 @@ class ProfileStore(private val prefs: SharedPreferences) {
      * through the property setters, so the usual range clamps apply.
      */
     fun applyBackup(values: Map<String, Any>) {
-        (values["profile.age"] as? Number)?.let { age = it.toInt() }
+        // #146: a restore carries only an Int age. Route it through setAge so the restored age
+        // re-anchors this device's DOB (clearing any stale local DOB) and then advances on its own —
+        // the deterministic twin of the Apple side clearing `profile.dateOfBirth` on apply.
+        (values["profile.age"] as? Number)?.let { setAge(it.toInt()) }
         (values["profile.sex"] as? String)?.let { sex = it }
         (values["profile.weightKg"] as? Number)?.let { weightKg = it.toDouble() }
         (values["profile.heightCm"] as? Number)?.let { heightCm = it.toDouble() }
@@ -258,6 +294,10 @@ class ProfileStore(private val prefs: SharedPreferences) {
 
     companion object {
         private const val PREFS = "noop_profile"
+        /** Date of birth as epoch millis — the #146 source of truth for [age]. */
+        private const val KEY_DOB = "date_of_birth"
+        /** Pre-#146 age key, now kept mirrored from the DOB so the `.noopbak` whitelist (Int age)
+         *  keeps round-tripping unchanged. */
         private const val KEY_AGE = "age"
         private const val KEY_SEX = "sex"
         private const val KEY_WEIGHT = "weight_kg"
@@ -293,6 +333,24 @@ class ProfileStore(private val prefs: SharedPreferences) {
             value < 2.0 -> 0.1
             value < 5.0 -> 0.5
             else -> 1.0
+        }
+
+        // ── #146 age <-> date-of-birth ──────────────────────────────────────────────────────────
+        /** Whole years between the DOB and today (floor — a birthday not yet reached doesn't count).
+         *  Uses the device's default zone so the rollover matches the user's local calendar. Mirrors
+         *  the Apple `ProfileStore.years(from:to:)`. */
+        fun yearsFromDob(dobMillis: Long): Int {
+            val zone = java.time.ZoneId.systemDefault()
+            val dob = java.time.Instant.ofEpochMilli(dobMillis).atZone(zone).toLocalDate()
+            return java.time.temporal.ChronoUnit.YEARS.between(dob, java.time.LocalDate.now(zone)).toInt()
+        }
+
+        /** A date of birth `age` whole years before today (anchored to today's month/day, so the
+         *  derived age is exactly `age`). Mirrors the Apple `ProfileStore.dateOfBirth(forAge:)`. */
+        fun dobForAge(age: Int): Long {
+            val zone = java.time.ZoneId.systemDefault()
+            return java.time.LocalDate.now(zone).minusYears(age.toLong())
+                .atStartOfDay(zone).toInstant().toEpochMilli()
         }
 
         /**
@@ -639,11 +697,11 @@ fun SettingsScreen(
                     StepperField(
                         value = profile.age.toString(),
                         accessibility = "Age, ${profile.age} years",
-                        // Bound to 13..100 to match iOS — and, since v4, age feeds the Fitness Age + Vitality
-                        // engines which gate on age > 0, an unbounded stepper let an Android user drive age to
-                        // 0/negative and silently switch both cards off with no explanation (code review).
-                        onMinus = { mutate { profile.age = (profile.age - 1).coerceIn(13, 100) } },
-                        onPlus = { mutate { profile.age = (profile.age + 1).coerceIn(13, 100) } },
+                        // #146: age is derived from a stored date of birth, so it advances on its own. The
+                        // stepper re-anchors the DOB via setAge (which clamps to 13..100 — age feeds the
+                        // Fitness Age + Vitality engines that gate on age > 0, so it must never go 0/negative).
+                        onMinus = { mutate { profile.setAge(profile.age - 1) } },
+                        onPlus = { mutate { profile.setAge(profile.age + 1) } },
                     )
                 }
                 RowDivider()

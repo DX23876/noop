@@ -95,7 +95,21 @@ public enum BackupSettings {
                   let storageKey = appleDefaultsKey[canonical] else { continue }
             defaults.set(coerced, forKey: storageKey)
         }
+        // #146: the whitelist carries an Int `profile.age`, not a Date, so a restore can only bring an
+        // age. Clear any stale `profile.dateOfBirth` on this device whenever an age is applied, so
+        // `ProfileStore` re-derives the date of birth from the RESTORED age on next launch instead of a
+        // pre-existing local DOB silently overriding the restore. (A restore forces a relaunch, so the
+        // re-derivation always runs.) `dobDefaultsKey` is spelled out here rather than added to the
+        // whitelist to keep the cross-platform JSON contract unchanged.
+        if values["profile.age"] != nil {
+            defaults.removeObject(forKey: dobDefaultsKey)
+        }
     }
+
+    /// UserDefaults key `ProfileStore` stores the #146 date of birth under. Not a whitelisted backup
+    /// key (a Date can't ride the Int/Double/String JSON contract) — only cleared on restore so the
+    /// restored Int age re-derives it. Must match `ProfileStore.K.dateOfBirth`.
+    static let dobDefaultsKey = "profile.dateOfBirth"
 
     // MARK: - JSON codec
 

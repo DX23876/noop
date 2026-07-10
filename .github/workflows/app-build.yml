@@ -37,7 +37,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: macos-15
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
@@ -48,9 +48,14 @@ jobs:
           - scheme: Strand
             destination: 'generic/platform=macOS'
             extra_args: 'ARCHS="x86_64 arm64" ONLY_ACTIVE_ARCH=NO'
+            runner: macos-15
+          # iOS needs the iOS 26 SDK (Liquid Glass's `glassEffect`, landed 2026-07-07) which macos-15's
+          # default Xcode doesn't ship — matches the runner fork-testing-build.yml / fork-release.yml
+          # already use for their NOOPiOS legs. macos-15 stays correct for the macOS/Strand leg above.
           - scheme: NOOPiOS
             destination: 'generic/platform=iOS Simulator'
             extra_args: ''
+            runner: macos-26
     steps:
       - name: Checkout
         uses: actions/checkout@v4

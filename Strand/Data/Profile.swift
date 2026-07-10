@@ -6,7 +6,18 @@ import SwiftUI
 /// Powers HR zones, calories and recovery baselines.
 @MainActor
 final class ProfileStore: ObservableObject {
-    @Published var age: Int { didSet { d.set(age, forKey: K.age) } }
+    /// Canonical source of truth for age (#146): a date of birth, so age advances on its own instead
+    /// of silently going stale until the user remembers to bump a number. `age` is derived from this.
+    @Published var dateOfBirth: Date {
+        didSet {
+            d.set(dateOfBirth, forKey: K.dateOfBirth)
+            // Mirror the DERIVED age under the legacy `profile.age` key so the `.noopbak` backup
+            // whitelist (which carries an Int age, not a Date) keeps exporting a correct value with no
+            // change to the cross-platform backup contract. `BackupSettings.apply` clears
+            // `profile.dateOfBirth` on restore so a restored Int age re-derives the DOB here.
+            d.set(age, forKey: K.legacyAge)
+        }
+    }
     @Published var sex: String { didSet { d.set(sex, forKey: K.sex) } }          // "male" | "female" | "nonbinary"
     @Published var weightKg: Double { didSet { d.set(weightKg, forKey: K.weight) } }
     @Published var heightCm: Double { didSet { d.set(heightCm, forKey: K.height) } }
@@ -52,7 +63,11 @@ final class ProfileStore: ObservableObject {
 
     private let d = UserDefaults.standard
     private enum K {
-        static let age = "profile.age", sex = "profile.sex", weight = "profile.weightKg"
+        static let dateOfBirth = "profile.dateOfBirth"
+        /// Pre-#146 age key. No longer the source of truth; kept mirrored from `dateOfBirth` so the
+        /// cross-platform `.noopbak` whitelist keeps round-tripping an Int age unchanged.
+        static let legacyAge = "profile.age"
+        static let sex = "profile.sex", weight = "profile.weightKg"
         static let height = "profile.heightCm", hrMax = "profile.hrMaxOverride"
         static let stepScale = "profile.stepTicksPerStep"
         static let waist = "profile.waistCm"
@@ -65,7 +80,27 @@ final class ProfileStore: ObservableObject {
     }
 
     init() {
-        age = d.object(forKey: K.age) as? Int ?? 30
+        // #146 age migration. `dateOfBirth` is authoritative whenever it exists, so age advances on
+        // its own. A pre-#146 install — or a `.noopbak` restore, which writes only the legacy Int age
+        // and clears any stale DOB (see `BackupSettings.apply`) — has no DOB yet, so derive one from
+        // the stored age. Nothing stored → the age-30 default. Deliberately NO equality heuristic: a
+        // present DOB is never second-guessed against the mirrored age (doing so would re-freeze age
+        // every birthday, the exact staleness #146 fixes).
+        let resolvedDOB: Date
+        if let dob = d.object(forKey: K.dateOfBirth) as? Date {
+            resolvedDOB = dob
+        } else if let legacyAge = d.object(forKey: K.legacyAge) as? Int {
+            resolvedDOB = Self.dateOfBirth(forAge: legacyAge)
+        } else {
+            resolvedDOB = Self.dateOfBirth(forAge: 30)
+        }
+        dateOfBirth = resolvedDOB
+        // `didSet` doesn't fire for the initial assignment inside `init`, so persist the resolved DOB
+        // and its mirrored age explicitly — otherwise a migrated/derived DOB never reaches storage
+        // until the user next edits it. Written from the LOCAL (not `self.dateOfBirth`, which Swift
+        // forbids reading before every stored property is initialized).
+        d.set(resolvedDOB, forKey: K.dateOfBirth)
+        d.set(Self.years(from: resolvedDOB, to: Date()), forKey: K.legacyAge)
         sex = d.string(forKey: K.sex) ?? "male"
         weightKg = d.object(forKey: K.weight) as? Double ?? 75
         heightCm = d.object(forKey: K.height) as? Double ?? 178
@@ -110,6 +145,28 @@ final class ProfileStore: ObservableObject {
     /// The manual override to feed into `StepsEstimateEngine.calibrate(_:manualOverride:)`:
     /// nil when 0 (auto-fit), the positive value otherwise.
     var stepsManualOverride: Double? { stepsManualCoefficient > 0 ? stepsManualCoefficient : nil }
+
+    /// Current age in whole years, derived from `dateOfBirth` (#146) rather than a number the user has
+    /// to remember to update. Every existing caller (HR zones, calories, Fitness/Body Age) reads this
+    /// unchanged.
+    var age: Int { Self.years(from: dateOfBirth, to: Date()) }
+
+    /// Whole years elapsed `from`→`to` (floor — a birthday not yet reached this year doesn't count).
+    nonisolated static func years(from: Date, to: Date) -> Int {
+        Calendar.current.dateComponents([.year], from: from, to: to).year ?? 0
+    }
+
+    /// A date of birth `age` whole years before today, anchored to today's month/day so the derived
+    /// age is exactly `age`. Used to migrate a stored manual age and to seed the DOB picker.
+    nonisolated static func dateOfBirth(forAge age: Int) -> Date {
+        Calendar.current.date(byAdding: .year, value: -age, to: Date()) ?? Date()
+    }
+
+    /// Bounds for the DOB picker, matching the old 13...100 age `Stepper` range so a pick can't derive
+    /// an out-of-range age.
+    nonisolated static var dateOfBirthRange: ClosedRange<Date> {
+        dateOfBirth(forAge: 100)...dateOfBirth(forAge: 13)
+    }
 
     /// Tanaka estimate unless overridden.
     var hrMax: Int { hrMaxOverride > 0 ? hrMaxOverride : Int((208 - 0.7 * Double(age)).rounded()) }
