@@ -29,10 +29,12 @@ object Whoop5Config {
     /** One persistent feature flag and the value the official app writes for it (ASCII '1'/'2'). */
     data class Flag(val name: String, val value: Int)
 
-    /** The exact ordered enable sequence the official app sends, transcribed verbatim from
-     *  judes.club's frame-builder FLAGS array. `enable_r22_packets` opens the type-0x2F biometric
-     *  stream; the rest tune channel selection, wear detection and sleep behaviour. Keep in lockstep
-     *  with the Swift `Whoop5Config.enableR22Sequence`. */
+    /** The exact ordered enable sequence the official app sends (values ASCII '1'/'2').
+     *  `enable_r22_packets` opens the type-0x2F biometric stream; the rest tune channel selection, wear
+     *  detection and sleep behaviour. Flags 1–15 are transcribed verbatim from judes.club's frame-builder
+     *  FLAGS array; flag 16 `enable_sig12` is NOT in that array — it was observed as a 16th SET_FF_VALUE
+     *  write in a real on-strap iOS HCI capture (WHOOP 5.0, #103) that otherwise reproduced flags 1–15
+     *  byte-for-byte in this order. Keep in lockstep with the Swift `Whoop5Config.enableR22Sequence`. */
     val enableR22Sequence: List<Flag> = listOf(
         Flag("enable_r22_packets", 0x32),
         Flag("enable_r22_v2_packets", 0x32),
@@ -49,6 +51,7 @@ object Whoop5Config {
         Flag("enable_passive_strap_fit_gen5", 0x31),
         Flag("enable_sig11_during_sleep", 0x32),
         Flag("dorset_inhibit_wpt", 0x32),
+        Flag("enable_sig12", 0x32),   // #103: 16th flag seen in a real on-strap capture, not in judes.club
     )
 
     /** The 40-byte SET_CONFIG payload body: flag name as ASCII NUL-padded to 32 bytes, value byte at

@@ -37,9 +37,15 @@ public enum Whoop5Config {
         public init(_ name: String, _ value: UInt8) { self.name = name; self.value = value }
     }
 
-    /// The exact ordered enable sequence the official app sends, transcribed verbatim from judes.club's
-    /// frame-builder `FLAGS` array (values are ASCII '1'/'2'). `enable_r22_packets` is what opens the
-    /// type-0x2F biometric stream; the rest tune channel selection, wear detection and sleep behaviour.
+    /// The exact ordered enable sequence the official app sends (values are ASCII '1'/'2').
+    /// `enable_r22_packets` is what opens the type-0x2F biometric stream; the rest tune channel
+    /// selection, wear detection and sleep behaviour.
+    ///
+    /// Flags 1–15 are transcribed verbatim from judes.club's frame-builder `FLAGS` array. Flag 16,
+    /// `enable_sig12`, is NOT in that array: it was observed as a 16th `SET_FF_VALUE` write in a real
+    /// on-strap iOS HCI capture of the official app (WHOOP 5.0, #103), which otherwise reproduced flags
+    /// 1–15 byte-for-byte in this exact order. Its effect is undocumented (like `enable_sig11_during_sleep`);
+    /// it is included because it is part of what the official app actually writes on every connect.
     public static let enableR22Sequence: [Flag] = [
         Flag("enable_r22_packets", 0x32),
         Flag("enable_r22_v2_packets", 0x32),
@@ -56,6 +62,7 @@ public enum Whoop5Config {
         Flag("enable_passive_strap_fit_gen5", 0x31),
         Flag("enable_sig11_during_sleep", 0x32),
         Flag("dorset_inhibit_wpt", 0x32),
+        Flag("enable_sig12", 0x32),   // #103: 16th flag seen in a real on-strap capture, not in judes.club
     ]
 
     /// The 40-byte SET_CONFIG payload body: flag name as UTF-8/ASCII NUL-padded to 32 bytes, value byte

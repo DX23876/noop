@@ -39,16 +39,33 @@ final class Whoop5ConfigTests: XCTestCase {
         XCTAssertTrue(check.ok, "SET_CONFIG frame must pass whoop5 CRC verification")
     }
 
-    func testEnableSequenceIsFifteenFlagsWithDistinctSeqs() {
+    func testEnableSequenceIsSixteenFlagsWithDistinctSeqs() {
         let frames = Whoop5Config.enableSequenceFrames(firstSeq: 1)
-        XCTAssertEqual(frames.count, 15)
+        XCTAssertEqual(frames.count, 16)
         XCTAssertEqual(Whoop5Config.enableR22Sequence.first?.name, "enable_r22_packets")
-        // seq byte lives at inner offset 1 (frame offset 9): 1,2,3,…,15 for this sequence
+        // seq byte lives at inner offset 1 (frame offset 9): 1,2,3,…,16 for this sequence
         let seqs = frames.map { $0[9] }
-        XCTAssertEqual(seqs, Array(1...15))
+        XCTAssertEqual(seqs, Array(1...16))
         // v4 is the one flag whose value is ASCII '1' (0x31), per the documented table
         let v4 = Whoop5Config.enableR22Sequence.first { $0.name == "enable_r22_v4_packets" }
         XCTAssertEqual(v4?.value, 0x31)
+    }
+
+    func testEnableSequenceEndsWithSig12FromRealCapture() {
+        // #103: the 16th flag `enable_sig12` (value ASCII '2') was observed in a real on-strap HCI capture
+        // of the official app, appended after the 15 judes.club-documented flags. It uses the identical
+        // SET_CONFIG encoding, so its frame must build, verify, and carry the exact name+value body.
+        let seq = Whoop5Config.enableR22Sequence
+        XCTAssertEqual(seq.count, 16)
+        XCTAssertEqual(seq.last?.name, "enable_sig12")
+        XCTAssertEqual(seq.last?.value, 0x32)
+        let frame = Whoop5Config.frame(flag: Whoop5Config.Flag("enable_sig12", 0x32), seq: 16)
+        XCTAssertTrue(verifyFrame(frame, family: .whoop5).ok, "enable_sig12 SET_CONFIG must pass CRC")
+        // The 40-byte body carried in the frame is name-NUL-padded with the value at offset 32.
+        let body = Whoop5Config.payloadBody(name: "enable_sig12", value: 0x32)
+        XCTAssertEqual(Array(body[0..<12]), Array("enable_sig12".utf8))
+        XCTAssertTrue(body[12..<32].allSatisfy { $0 == 0 })
+        XCTAssertEqual(body[32], 0x32)
     }
 
     /// Broadcast-HR device-config body (#181): key name ASCII NUL-padded to 32 bytes, then the value

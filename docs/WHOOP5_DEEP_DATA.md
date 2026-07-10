@@ -60,7 +60,9 @@ bytes, the value byte (an ASCII `'1'`/`'2'`) at offset 32, then 7 zeros. The exa
 values, is in [`Whoop5Config.swift`](../Packages/WhoopProtocol/Sources/WhoopProtocol/Whoop5Config.swift)
 and [`Whoop5Config.kt`](../android/app/src/main/java/com/noop/protocol/Whoop5Config.kt), golden-tested on
 both platforms. `enable_r22_packets` is the one that opens the type-`0x2F` biometric stream; the rest
-tune channel selection, wear detection and sleep behaviour.
+tune channel selection, wear detection and sleep behaviour. Flags 1–15 come from judes.club's
+frame-builder; the 16th, `enable_sig12`, was added from a real on-strap HCI capture ([#103](https://github.com/ryanbr/noop/issues/103))
+that otherwise reproduced flags 1–15 byte-for-byte in this order.
 
 ## How NOOP uses it (opt-in, reversible)
 
@@ -68,7 +70,7 @@ tune channel selection, wear detection and sleep behaviour.
   *writes* to the strap.
 - A manual **"Send enable sequence to strap"** button (not auto-run on connect), enabled only when a
   5/MG is **bonded and worn** (the R22 stream is on-wrist gated).
-- The 15 flags are written with-response, ~80 ms apart.
+- The 16 flags are written with-response, ~80 ms apart.
 - It's **reversible** — it only changes which data the strap chooses to emit — and is the same thing the
   official app does on every connect.
 - **iOS / Android only on real hardware:** macOS CoreBluetooth can't complete the authenticated SMP bond
