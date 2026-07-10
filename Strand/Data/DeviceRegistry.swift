@@ -102,17 +102,4 @@ final class DeviceRegistry: ObservableObject {
     func device(forPeripheralId peripheralId: String) -> PairedDevice? {
         (try? store.device(forPeripheralId: peripheralId)) ?? nil
     }
-
-    /// Refine the seeded neutral "WHOOP" model on the 'my-whoop' row to the strap the user actually
-    /// picked (migration v15 seeds a placeholder the app can't fill at migration time, since the
-    /// selected model lives in the app's UserDefaults). No-op when it already matches. Best-effort.
-    func reconcileWhoopModel(_ model: String) {
-        guard let rows = try? store.all(),
-              let existing = rows.first(where: { $0.id == "my-whoop" }),
-              existing.model != model else { return }
-        var updated = existing
-        updated.model = model
-        try? store.add(updated)
-        reload()
-    }
 }
