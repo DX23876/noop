@@ -249,10 +249,17 @@ struct SettingsView: View {
     /// iOS 16+ and macOS 13+ (NOOP's floor), so the same control serves both platforms — no
     /// availability gating needed. The photo is stored only on this device (NOOP is fully offline).
     private var profilePhotoCard: some View {
-        SettingsSection(
+        // #153: resolve the whole blurb through `String(localized:)` first, then hand SwiftUI the plain
+        // String via `LocalizedStringKey(_:)`. Interpolating `Platform.deviceNounPhrase` (itself an
+        // already-resolved localized String) straight into the `blurb:` `LocalizedStringKey` literal
+        // confused SwiftUI's text-measurement pass — the blurb rendered with zero trailing margin and
+        // clipped to the card edge instead of wrapping inside the card padding. The localization key is
+        // unchanged (`…Stored only on %@…`), so the existing translations still apply.
+        let blurbText = String(localized: "Optional. Add a photo for the avatar in the top-left. Stored only on \(Platform.deviceNounPhrase). NOOP is offline, so it's never uploaded.")
+        return SettingsSection(
             icon: "person.crop.circle",
             title: "Profile photo",
-            blurb: "Optional. Add a photo for the avatar in the top-left. Stored only on \(Platform.deviceNounPhrase). NOOP is offline, so it's never uploaded."
+            blurb: LocalizedStringKey(blurbText)
         ) {
             HStack(spacing: 16) {
                 ProfileAvatarView(imageData: profile.avatarImageData, size: 64)
@@ -270,7 +277,6 @@ struct SettingsView: View {
                             .accessibilityHint("Reverts to the default profile icon")
                     }
                 }
-                .frame(maxWidth: .infinity)
             }
         }
         // Load the picked photo's bytes, then hand them to the store (which downscales + persists).
@@ -889,7 +895,10 @@ struct SettingsView: View {
                 // re-baselines (like a sleep edit).
                 FormRow(label: "HRV window") {
                     Picker("HRV window", selection: $hrvWindowRaw) {
-                        Text("Whole night").tag(HrvWindow.whole.rawValue)
+                        // #153: "Night" (not "Whole night") — a single short word so the two-segment
+                        // control doesn't truncate once it sizes to the row (some locales' longer
+                        // translations overflowed), matching the Temperature/Theme pickers above.
+                        Text("Night").tag(HrvWindow.whole.rawValue)
                         Text("Deep sleep").tag(HrvWindow.deep.rawValue)
                     }
                     .labelsHidden()

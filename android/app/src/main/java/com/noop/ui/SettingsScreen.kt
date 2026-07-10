@@ -1355,7 +1355,9 @@ fun SettingsScreen(
                     SegmentedPillControl(
                         items = listOf(HrvWindow.WHOLE_NIGHT, HrvWindow.DEEP_SLEEP),
                         selection = hrvWindow,
-                        label = { if (it == HrvWindow.DEEP_SLEEP) "Deep sleep" else "Whole night" },
+                        // #153: "Night" (not "Whole night") so the two-segment pill reads the same as the iOS
+                        // picker and stays short — keeps the label consistent across platforms.
+                        label = { if (it == HrvWindow.DEEP_SLEEP) "Deep sleep" else "Night" },
                         onSelect = {
                             hrvWindow = it
                             UnitPrefs.setHrvWindow(context, it)
