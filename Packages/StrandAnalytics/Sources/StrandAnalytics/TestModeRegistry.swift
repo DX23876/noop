@@ -67,8 +67,14 @@ public enum TestModeRegistry {
         domain: .sleep, title: "Sleep & Rest",
         blurb: "Wear it a few nights so we can see which gate kept or dropped each sleep run.",
         icon: "bed.double.fill", priority: .high,
-        captures: ["gateTrace", "gravityCoverage", "hrDensity", "wristOff", "perEpochFeatures",
-                   "hypnogramV1V2", "ppgOnlyNight", "skinTempDsp", "restSubScores"],
+        // Only the captures the sleep sink actually receives are kept: the SleepStager gate-verdict ladder
+        // (SleepStagerTrace.runLine) plus the RestScorer.subScoreLine composite, i.e. gateTrace, wristOff
+        // (the offWristFrac field of the offWrist gate) and restSubScores. Dropped, all unemitted, same
+        // rationale Import used for firstFailingRow/failingFileSample/dedupMerge: hrDensity, perEpochFeatures,
+        // hypnogramV1V2 (flipLine has no call site), ppgOnlyNight, gravityCoverage (only the sparseBridge
+        // gate's sparse= flag, which already rides gateTrace) and skinTempDsp (skin-temp is a Recovery input,
+        // never written to the sleep sink). The live-readout keys (hrDensityNow/gravityCoverageNow) are separate.
+        captures: ["gateTrace", "wristOff", "restSubScores"],
         questionnaire: [
             Question(id: "sleepTimes", prompt: "Your actual sleep, wake and out-of-bed times?", kind: .text),
             Question(id: "awakeStill", prompt: "Any awake-but-still windows in bed?", kind: .text),
@@ -123,12 +129,12 @@ public enum TestModeRegistry {
         domain: .dataImport, title: "Import & Data Ingest",
         blurb: "Turn this on if a file import dropped rows or came in wrong.",
         icon: "square.and.arrow.down", priority: .high,
-        // Only the captures a production import actually emits: parser identity, file meta, per-stage
-        // rows, reject counts and day deltas. firstFailingRow / failingFileSample / dedupMerge were
-        // advertised but no emitter on either platform produces them (the import emit runs after the full
-        // parse, not at the parser reject seam), so they were dropped from BOTH registries to keep the
-        // mode honest and the platforms in parity rather than over-promising.
-        captures: ["parserVersion", "fileMeta", "perStageRows", "rejectCounts", "dayDeltas"],
+        // Only the captures a production import actually emits: parser identity, per-stage rows, reject
+        // counts and day deltas. firstFailingRow / failingFileSample / dedupMerge (earlier) and now fileMeta
+        // (the import trace emits parser/stage/reject/dayDelta lines but never a file-meta line) were
+        // advertised with no emitter on either platform, so they were dropped from BOTH registries to keep
+        // the mode honest and the platforms in parity rather than over-promising.
+        captures: ["parserVersion", "perStageRows", "rejectCounts", "dayDeltas"],
         questionnaire: [
             Question(id: "appFormatExpected", prompt: "Which app/format, and what did you expect to import?", kind: .text),
         ],
@@ -153,7 +159,8 @@ public enum TestModeRegistry {
         domain: .battery, title: "Battery & Charging",
         blurb: "Wear it a few days so we can fit your real discharge slope.",
         icon: "battery.50", priority: .med,
-        captures: ["socSeries", "chargeSteps", "offWristGaps", "dischargeRun", "fittedSlope",
+        // Dropped offWristGaps: nothing emits an off-wrist-gap line for the battery discharge run.
+        captures: ["socSeries", "chargeSteps", "dischargeRun", "fittedSlope",
                    "sourceMeasuredVsRated", "batteryGates"],
         questionnaire: [
             Question(id: "whoopAppInstalled", prompt: "Is the official WHOOP app installed?", kind: .yesNo),
@@ -169,8 +176,8 @@ public enum TestModeRegistry {
         domain: .recovery, title: "Recovery (Charge)",
         blurb: "Turn this on if Charge looks wrong, to see which term moved it.",
         icon: "heart.text.square.fill", priority: .med,
-        captures: ["chargeTermBreakdown", "baselinesPerNight", "termZScores", "nilTerm",
-                   "forecastInputs"],
+        // Dropped forecastInputs: the recovery trace emits baseline/term/nilTerm/renorm/score, no forecast line.
+        captures: ["chargeTermBreakdown", "baselinesPerNight", "termZScores", "nilTerm"],
         questionnaire: [
             Question(id: "recalHealthHrv", prompt: "Recent recalibration? Is Apple Health / Health Connect feeding HRV?", kind: .text),
         ],
@@ -182,8 +189,11 @@ public enum TestModeRegistry {
         domain: .hrv, title: "HRV & Autonomic",
         blurb: "Turn this on if HRV reads nil or looks off, to see the clean beats.",
         icon: "waveform.path.ecg", priority: .med,
-        captures: ["rawRR", "nInputCleanRejected", "rmssdSdnn", "minBeatsCleared",
-                   "spotVsContinuous", "respRsa"],
+        // The HRV trace emits the path/nInput/nClean/reject line, the minBeats gate and the
+        // "hrv rmssd=... sdnn=... meanNN=..." line. Dropped: respRsa (RSA respiration isn't computed in the
+        // HRV path), rawRR (the trace emits the beat COUNT nInput=, never the raw R-R list) and
+        // spotVsContinuous (the sole call site hardcodes path="spot", so it never emits "continuous").
+        captures: ["nInputCleanRejected", "rmssdSdnn", "minBeatsCleared"],
         questionnaire: [
             Question(id: "otherAppHrv", prompt: "Is another app feeding HRV to Apple Health / Health Connect?", kind: .yesNo),
         ],

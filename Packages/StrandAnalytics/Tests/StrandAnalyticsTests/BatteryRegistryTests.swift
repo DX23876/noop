@@ -13,7 +13,7 @@ final class BatteryRegistryTests: XCTestCase {
                        ["whoopAppInstalled", "otherPhonePaired", "chargedInWindow", "batterySaverApps"])
         XCTAssertEqual(m.liveReadout, ["currentSoc", "estimateDaysLeft", "slopeSource"])
         XCTAssertEqual(m.captures,
-                       ["socSeries", "chargeSteps", "offWristGaps", "dischargeRun", "fittedSlope",
+                       ["socSeries", "chargeSteps", "dischargeRun", "fittedSlope",
                         "sourceMeasuredVsRated", "batteryGates"])
         if case .guided(let unit, let count) = m.capture {
             XCTAssertEqual(unit, .days)

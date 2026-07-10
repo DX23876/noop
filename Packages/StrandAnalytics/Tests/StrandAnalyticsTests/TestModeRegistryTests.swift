@@ -28,8 +28,7 @@ final class TestModeRegistryTests: XCTestCase {
 
     func testSleepCaptureSet() {
         XCTAssertEqual(TestModeRegistry.mode(.sleep)?.captures, [
-            "gateTrace", "gravityCoverage", "hrDensity", "wristOff", "perEpochFeatures",
-            "hypnogramV1V2", "ppgOnlyNight", "skinTempDsp", "restSubScores",
+            "gateTrace", "wristOff", "restSubScores",
         ])
     }
 
@@ -51,7 +50,7 @@ final class TestModeRegistryTests: XCTestCase {
 
     func testBatteryCaptureSetAndReadout() {
         XCTAssertEqual(TestModeRegistry.mode(.battery)?.captures, [
-            "socSeries", "chargeSteps", "offWristGaps", "dischargeRun", "fittedSlope",
+            "socSeries", "chargeSteps", "dischargeRun", "fittedSlope",
             "sourceMeasuredVsRated", "batteryGates",
         ])
         XCTAssertEqual(TestModeRegistry.mode(.battery)?.liveReadout, ["currentSoc", "estimateDaysLeft", "slopeSource"])
@@ -100,17 +99,17 @@ final class TestModeRegistryTests: XCTestCase {
             "screenshot", "deviceMetrics", "frameTimeTrace", "memoryHighWater",
         ])
         XCTAssertEqual(TestModeRegistry.mode(.dataImport)?.captures, [
-            "parserVersion", "fileMeta", "perStageRows", "rejectCounts", "dayDeltas",
+            "parserVersion", "perStageRows", "rejectCounts", "dayDeltas",
         ])
         XCTAssertEqual(TestModeRegistry.mode(.steps)?.captures, [
             "motionVolume", "stepCalibration", "phoneReferenceCount", "rawStepCounter",
             "wrapAwareDeltas", "droppedDeltas",
         ])
         XCTAssertEqual(TestModeRegistry.mode(.recovery)?.captures, [
-            "chargeTermBreakdown", "baselinesPerNight", "termZScores", "nilTerm", "forecastInputs",
+            "chargeTermBreakdown", "baselinesPerNight", "termZScores", "nilTerm",
         ])
         XCTAssertEqual(TestModeRegistry.mode(.hrv)?.captures, [
-            "rawRR", "nInputCleanRejected", "rmssdSdnn", "minBeatsCleared", "spotVsContinuous", "respRsa",
+            "nInputCleanRejected", "rmssdSdnn", "minBeatsCleared",
         ])
     }
 

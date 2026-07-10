@@ -55,8 +55,15 @@ object TestModeRegistry {
         domain = TestDomain.SLEEP, title = "Sleep & Rest",
         blurb = "Wear it a few nights so we can see which gate kept or dropped each sleep run.",
         icon = "ic_bed", priority = TestPriority.HIGH,
-        captures = listOf("gateTrace", "gravityCoverage", "hrDensity", "wristOff", "perEpochFeatures",
-            "hypnogramV1V2", "ppgOnlyNight", "skinTempDsp", "restSubScores"),
+        // Only the captures the .sleep sink actually receives are kept. That sink only ever gets the
+        // SleepStager gate-verdict ladder (SleepStagerTrace.runLine) plus the RestScorer.subScoreLine
+        // composite, so gateTrace, wristOff (the offWristFrac field of the offWrist gate) and restSubScores
+        // are the whole set. Dropped, all unemitted, same rationale the Import mode used for
+        // firstFailingRow/failingFileSample/dedupMerge: hrDensity, perEpochFeatures, hypnogramV1V2 (flipLine
+        // has no call site), ppgOnlyNight, gravityCoverage (only the sparseBridge gate's sparse= flag, which
+        // already rides gateTrace) and skinTempDsp (skin-temp is a Recovery input, never written to the
+        // sleep sink). The live-readout keys (hrDensityNow/gravityCoverageNow) are separate and unchanged.
+        captures = listOf("gateTrace", "wristOff", "restSubScores"),
         questionnaire = listOf(
             Question("sleepTimes", "Your actual sleep, wake and out-of-bed times?", Question.Kind.TEXT),
             Question("awakeStill", "Any awake-but-still windows in bed?", Question.Kind.TEXT),
@@ -115,11 +122,12 @@ object TestModeRegistry {
         domain = TestDomain.IMPORT, title = "Import & Data Ingest",
         blurb = "Turn this on if a file import dropped rows or came in wrong.",
         icon = "ic_import", priority = TestPriority.HIGH,
-        // Only the captures a production import actually emits (parser identity, file meta, per-stage rows,
-        // reject counts, day deltas). firstFailingRow / failingFileSample / dedupMerge were advertised but
-        // no emitter on either platform produces them, so they are dropped from BOTH registries (parity)
+        // Only the captures a production import actually emits (parser identity, per-stage rows, reject
+        // counts, day deltas). firstFailingRow / failingFileSample / dedupMerge (earlier) and now fileMeta
+        // (the import trace emits parser/stage/reject/dayDelta lines but never a file-meta line) were
+        // advertised with no emitter on either platform, so they are dropped from BOTH registries (parity)
         // rather than over-promising the mode.
-        captures = listOf("parserVersion", "fileMeta", "perStageRows", "rejectCounts", "dayDeltas"),
+        captures = listOf("parserVersion", "perStageRows", "rejectCounts", "dayDeltas"),
         questionnaire = listOf(
             Question("appFormatExpected", "Which app/format, and what did you expect to import?", Question.Kind.TEXT),
         ),
@@ -146,7 +154,8 @@ object TestModeRegistry {
         domain = TestDomain.BATTERY, title = "Battery & Charging",
         blurb = "Wear it a few days so we can fit your real discharge slope.",
         icon = "ic_battery", priority = TestPriority.MED,
-        captures = listOf("socSeries", "chargeSteps", "offWristGaps", "dischargeRun", "fittedSlope",
+        // Dropped offWristGaps: nothing emits an off-wrist-gap line for the battery discharge run.
+        captures = listOf("socSeries", "chargeSteps", "dischargeRun", "fittedSlope",
             "sourceMeasuredVsRated", "batteryGates"),
         questionnaire = listOf(
             Question("whoopAppInstalled", "Is the official WHOOP app installed?", Question.Kind.YES_NO),
@@ -163,8 +172,8 @@ object TestModeRegistry {
         domain = TestDomain.RECOVERY, title = "Recovery (Charge)",
         blurb = "Turn this on if Charge looks wrong, to see which term moved it.",
         icon = "ic_recovery", priority = TestPriority.MED,
-        captures = listOf("chargeTermBreakdown", "baselinesPerNight", "termZScores", "nilTerm",
-            "forecastInputs"),
+        // Dropped forecastInputs: the recovery trace emits baseline/term/nilTerm/renorm/score, no forecast line.
+        captures = listOf("chargeTermBreakdown", "baselinesPerNight", "termZScores", "nilTerm"),
         questionnaire = listOf(
             Question("recalHealthHrv", "Recent recalibration? Is Apple Health / Health Connect feeding HRV?", Question.Kind.TEXT),
         ),
@@ -177,8 +186,11 @@ object TestModeRegistry {
         domain = TestDomain.HRV, title = "HRV & Autonomic",
         blurb = "Turn this on if HRV reads nil or looks off, to see the clean beats.",
         icon = "ic_hrv", priority = TestPriority.MED,
-        captures = listOf("rawRR", "nInputCleanRejected", "rmssdSdnn", "minBeatsCleared",
-            "spotVsContinuous", "respRsa"),
+        // The HRV trace (HrvAnalyzerTrace) emits the path/nInput/nClean/reject line, the minBeats gate and
+        // the "hrv rmssd=... sdnn=... meanNN=..." line. Dropped: respRsa (RSA respiration isn't computed in
+        // the HRV path), rawRR (the trace emits the beat COUNT nInput=, never the raw R-R list) and
+        // spotVsContinuous (the sole call site hardcodes path="spot", so it never emits "continuous").
+        captures = listOf("nInputCleanRejected", "rmssdSdnn", "minBeatsCleared"),
         questionnaire = listOf(
             Question("otherAppHrv", "Is another app feeding HRV to Apple Health / Health Connect?", Question.Kind.YES_NO),
         ),
