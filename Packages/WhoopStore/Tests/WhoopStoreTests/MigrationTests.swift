@@ -1,5 +1,6 @@
 import XCTest
 import GRDB
+import WhoopProtocol
 @testable import WhoopStore
 
 final class MigrationTests: XCTestCase {
