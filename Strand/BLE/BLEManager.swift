@@ -2247,9 +2247,10 @@ public final class BLEManager: NSObject, ObservableObject {
             connected: state.connected, bonded: state.bonded, backfilling: backfilling) else { return }
         let now = Date().timeIntervalSince1970
         let last = UserDefaults.standard.object(forKey: BLEManager.backfillLastAtKey) as? Double
-        // #160: fold the strap's already-tracked future-dated clock (#928/#1012) into the SAME rate
-        // limiter the empty-streak backoff uses, so a clock-broken strap's automatic retries stop
-        // competing with realtime HR streaming for BLE airtime as often.
+        // #160: a future-dated-clock strap's recurring automatic offloads (#928/#1012) are near-useless
+        // AND each ~60s session blocks the WHOOP4 realtime-HR keep-alive re-arm (guard !backfilling), so
+        // live HR lapses. Feed the already-tracked future-dated signal into BackfillPolicy, which SKIPS
+        // the .strap/.periodic triggers entirely for such a strap (the .connect pass still re-checks it).
         let clockUntrusted = BackfillContinuation.isFutureDatedNewest(strapNewestTs, wallNowUnix: Int(now))
         guard BackfillPolicy.shouldRun(trigger: trigger, now: now, lastBackfillAt: last,
                                        emptyStreak: emptySyncTracker.consecutiveEmptySyncs,

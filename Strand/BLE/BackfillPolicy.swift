@@ -33,33 +33,31 @@ enum BackfillPolicy {
     /// `clockUntrusted` = the strap's own RTC currently reads future-dated (#928: `BackfillContinuation
     /// .isFutureDatedNewest`). Such a strap still BANKS real rows every pass, so it never trips the
     /// `emptyStreak` backoff above, yet #1012 already refuses to chase that range past one pass per
-    /// connection — so the AUTOMATIC triggers get near-zero value from retrying it on the baseline
-    /// cadence, at the cost of BLE airtime that competes with realtime HR streaming for the link (#160:
-    /// reported as "HR not displaying while band is active" on a strap whose logs showed exactly this
-    /// future-dated clock). Maxes the SAME backoff the empty-streak uses immediately — there's no
-    /// "streak" to build for a clock fault the way there is for an empty offload, and it's the automatic
-    /// triggers this exists to protect, so `.connect`/`.foreground`/`.manual`/`.autoContinue` stay
-    /// un-floored exactly as they do for `emptyStreak`.
+    /// connection — so the recurring AUTOMATIC triggers get near-zero value from retrying it, at a real
+    /// cost: each ~60s offload holds the link and blocks the WHOOP4 realtime-HR keep-alive re-arm
+    /// (BLEManager `guard !backfilling`), so live HR lapses (#160: "HR not displaying while band is
+    /// active" on a strap whose logs showed exactly this future-dated clock). So `.strap`/`.periodic` are
+    /// SKIPPED ENTIRELY while the clock is untrusted — the per-connection `.connect` pass still runs, so a
+    /// clock that later self-corrects is picked up on the next connection (or a manual sync). As with
+    /// `emptyStreak`, `.connect`/`.foreground`/`.manual`/`.autoContinue` are never affected.
     static func shouldRun(trigger: BackfillTrigger, now: TimeInterval,
                           lastBackfillAt: TimeInterval?, emptyStreak: Int = 0,
                           clockUntrusted: Bool = false) -> Bool {
         guard let last = lastBackfillAt else { return true }
         let elapsed = now - last
-        let backoff: Double
-        if clockUntrusted {
-            backoff = maxEmptyBackoff
-        } else if emptyStreak >= emptyBackoffThreshold {
-            backoff = min(pow(2.0, Double(emptyStreak - emptyBackoffThreshold + 1)), maxEmptyBackoff)
-        } else {
-            backoff = 1.0
-        }
+        let backoff: Double = emptyStreak >= emptyBackoffThreshold
+            ? min(pow(2.0, Double(emptyStreak - emptyBackoffThreshold + 1)), maxEmptyBackoff)
+            : 1.0
         switch trigger {
         // .manual (user-tapped) and .autoContinue (#364 expedited backlog drain) always run — both are
         // deliberately un-floored; .autoContinue's runaway protection lives in BLEManager's cap, not here.
         case .manual, .autoContinue: return true
         case .connect, .foreground:  return elapsed >= eventFloorSeconds
-        case .strap:                 return elapsed >= eventFloorSeconds * backoff
-        case .periodic:              return elapsed >= periodicFloorSeconds * backoff
+        // #160: a future-dated-clock strap's recurring automatic offloads are near-useless (#1012 won't
+        // trust the range) but each holds the link ~60s and starves the WHOOP4 realtime-HR re-arm, so skip
+        // them entirely — not just stretch the floor. The .connect pass above still re-checks the clock.
+        case .strap:                 return !clockUntrusted && elapsed >= eventFloorSeconds * backoff
+        case .periodic:              return !clockUntrusted && elapsed >= periodicFloorSeconds * backoff
         }
     }
 }
