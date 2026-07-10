@@ -837,7 +837,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 // cycle just upserts. Never let an HC hiccup (perm revoked mid-flight, provider
                 // update) break the analysis loop.
                 if (_hcWriteback.value) {
-                    runCatching { HealthConnectWriter.write(appContext, repository) }
+                    runCatching { HealthConnectWriter.write(appContext, repository, deviceId) }
                 }
                 delay(ANALYZE_INTERVAL_MS) // 15 min, matches the offload cadence
             }
@@ -1665,7 +1665,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun writebackHealthConnectNow() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                runCatching { HealthConnectWriter.write(appContext, repository) }
+                runCatching { HealthConnectWriter.write(appContext, repository, deviceId) }
             }
         }
     }

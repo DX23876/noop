@@ -1337,7 +1337,8 @@ class WhoopBleClient(
                 }
                 // Keep the opt-in Health Connect writeback fresh in background-only operation too.
                 if (NoopPrefs.hcWriteback(context)) {
-                    runCatching { HealthConnectWriter.write(context, repository) }
+                    runCatching { HealthConnectWriter.write(context, repository, deviceId) }
+                        .onSuccess { log("HC writeback: $it record(s)") }
                 }
             } finally {
                 analyzeAfterBackfillScheduled.set(false)

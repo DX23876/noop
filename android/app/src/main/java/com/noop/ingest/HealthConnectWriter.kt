@@ -66,6 +66,11 @@ object HealthConnectWriter {
      * Write the last [WINDOW_DAYS] of computed metrics. Returns the number of records written,
      * 0 when HC is unavailable / nothing computed yet. Assumes [PERMISSIONS] are granted (HC
      * throws SecurityException otherwise — callers wrap in runCatching).
+     *
+     * [deviceId] must be the registry's ACTIVE strap id (SPINE / #814): a wizard-paired strap banks
+     * rows under `whoop-<address>`, so the legacy "my-whoop" default reads empty tables and exports
+     * nothing. The default fits only legacy single-WHOOP installs, where the active id resolves to
+     * "my-whoop" anyway.
      */
     suspend fun write(context: Context, repo: WhoopRepository, deviceId: String = "my-whoop"): Int {
         if (HealthConnectClient.getSdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) return 0
