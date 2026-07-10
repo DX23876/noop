@@ -1935,11 +1935,13 @@ public enum SleepStager {
             // analyze() pipeline. The 0x2A37 RR on a WHOOP 5/MG is PPG-derived and noisier
             // than a 4.0's; rMSSD is built from SUCCESSIVE differences, so an un-rejected
             // jitter spike inflates the session HRV. Ectopic rejection drops those (#262/#235).
-            let cleaned = HRVAnalyzer.cleanRR(bucket)
-            let rmssd: Double? = (cleaned.count >= 2) ? HRVAnalyzer.rmssdRaw(cleaned) : nil
+            // #204/#195: gap-aware — a successive difference straddling a dropped beat is skipped so a
+            // removed out-of-range/ectopic beat can't splice its neighbours into a spurious delta.
+            let cleaned = HRVAnalyzer.cleanRRGapAware(bucket)
+            let rmssd: Double? = (cleaned.nn.count >= 2) ? HRVAnalyzer.rmssdGapAware(cleaned.nn, cleaned.contiguous) : nil
             let center = t + windowS / 2
             let stage = stages.first { center >= $0.start && center < $0.end }?.stage ?? "?"
-            out.append(HrvWindow(startTs: t, stage: stage, cleanBeats: cleaned.count, rmssd: rmssd))
+            out.append(HrvWindow(startTs: t, stage: stage, cleanBeats: cleaned.nn.count, rmssd: rmssd))
             t += windowS
         }
         return out

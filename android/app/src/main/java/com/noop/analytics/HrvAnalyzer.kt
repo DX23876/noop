@@ -24,9 +24,9 @@ import kotlin.math.sqrt
  * (RMSSD, pNN50) must NOT count the difference across such a splice, or one removed beat injects a
  * spurious large delta that dominates the mean. [cleanRRGapAware] cleans while remembering where beats
  * were dropped, and [rmssdGapAware] / [pnn50GapAware] skip any difference that straddles a gap. On a
- * series with no drops these are identical to the plain versions, so clean data is unchanged. This is
- * an intentional divergence from the Swift twin, which still splices; porting the same change to
- * StrandAnalytics/HRVAnalyzer.swift is a follow-up.
+ * series with no drops these are identical to the plain versions, so clean data is unchanged. Kept in
+ * lockstep with the Swift twin `StrandAnalytics/HRVAnalyzer.cleanRRGapAware` / `rmssdGapAware` /
+ * `pnn50GapAware` (ported alongside; both platforms are gap-aware).
  *
  * Named [HrvAnalyzer] (NOT Hrv) to avoid clashing with the existing
  * com.noop.analytics.Hrv object in Analytics.kt. The two compute RMSSD the same
