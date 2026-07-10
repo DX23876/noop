@@ -58,4 +58,54 @@ final class SkinTempConversionTests: XCTestCase {
         XCTAssertGreaterThan(c, 28.0)
         XCTAssertLessThan(c, 42.0)
     }
+
+    // MARK: - per-device worn anchor (#938 second capture)
+    // The @72 ADC's register offset is per-device: a second real 4.0 strap shares the floor (~509) +
+    // saturation (2047) but a worn band ~1100–1600 (nightly mean raw ~1290). The anchor is learned from the
+    // device's OWN worn median so the worn band lands in range; the offset cancels in skinTempDevC.
+
+    /// Odd count: the anchor is the middle in-band raw.
+    func testDeviceAnchorRawIsMedianOfInBandRaws() throws {
+        let raws = Array(1250...1350) // 101 in-band values, median is the middle one (1300)
+        XCTAssertEqual(raws.count, 101)
+        XCTAssertEqual(try XCTUnwrap(Whoop4SkinTemp.deviceAnchorRaw(raws)), 1300.0, accuracy: 1e-9)
+    }
+
+    /// The no-contact floor (509) and 11-bit saturation (2047) are filtered out of the anchor median entirely.
+    func testDeviceAnchorRawExcludesFloorAndSaturation() throws {
+        let worn = Array(repeating: 1290, count: 100)                       // 100 real worn raws
+        let contaminated = worn + Array(repeating: 509, count: 40) + Array(repeating: 2047, count: 40)
+        // Only the 100 in-band 1290s survive the band filter → median 1290 (floor/ceiling never enter the sort).
+        XCTAssertEqual(try XCTUnwrap(Whoop4SkinTemp.deviceAnchorRaw(contaminated)), 1290.0, accuracy: 1e-9)
+    }
+
+    /// Fewer than `minAnchorSamples` in-band raws → nil, so the caller falls back to the global anchor.
+    func testDeviceAnchorRawNilBelowMinSamples() throws {
+        XCTAssertEqual(Whoop4SkinTemp.minAnchorSamples, 100)
+        XCTAssertNil(Whoop4SkinTemp.deviceAnchorRaw(Array(repeating: 1290, count: 99)))           // 99 < 100
+        XCTAssertEqual(try XCTUnwrap(Whoop4SkinTemp.deviceAnchorRaw(Array(repeating: 1290, count: 100))),
+                       1290.0, accuracy: 1e-9)                                                     // exactly 100
+    }
+
+    /// Even count: the anchor averages the two middle in-band raws.
+    func testDeviceAnchorRawEvenCountAveragesMiddleTwo() throws {
+        let raws = Array(1201...1300) // 100 values, middle two are 1250 and 1251
+        XCTAssertEqual(raws.count, 100)
+        XCTAssertEqual(try XCTUnwrap(Whoop4SkinTemp.deviceAnchorRaw(raws)), 1250.5, accuracy: 1e-9)
+    }
+
+    /// The learned per-device anchor raw maps to 33.0 °C, and +20 raw above it is +1.0 °C (slope 0.05); the
+    /// anchor is ignored on `.whoop5`.
+    func testWhoop4PerDeviceAnchorMapsToAnchorCelsius() {
+        XCTAssertEqual(skinTempCelsius(raw: 1290, family: .whoop4, anchorRaw: 1290.0), 33.0, accuracy: 1e-9)
+        XCTAssertEqual(skinTempCelsius(raw: 1310, family: .whoop4, anchorRaw: 1290.0), 34.0, accuracy: 1e-9)
+        XCTAssertEqual(skinTempCelsius(raw: 3400, family: .whoop5, anchorRaw: 1290.0), 34.0, accuracy: 1e-9)
+    }
+
+    /// Omitting `anchorRaw` uses the global `anchorRaw` (826) → byte-identical to the pre-per-device behaviour.
+    func testWhoop4DefaultAnchorIsGlobal826() {
+        XCTAssertEqual(skinTempCelsius(raw: 859, family: .whoop4, anchorRaw: Whoop4SkinTemp.anchorRaw),
+                       skinTempCelsius(raw: 859, family: .whoop4), accuracy: 1e-12)
+        XCTAssertEqual(skinTempCelsius(raw: 826, family: .whoop4), 33.0, accuracy: 1e-9)
+    }
 }

@@ -10,6 +10,7 @@ import com.noop.data.RespSample
 import com.noop.data.RrInterval
 import com.noop.data.StepSample
 import com.noop.protocol.DeviceFamily
+import com.noop.protocol.Whoop4SkinTemp
 import com.noop.protocol.skinTempCelsius
 import org.json.JSONObject
 import java.time.Instant
@@ -169,6 +170,13 @@ object AnalyticsEngine {
         // Default WHOOP5 keeps every 5/MG + pure-function caller byte-identical; IntelligenceEngine passes
         // the day owner's real family.
         skinTempFamily: DeviceFamily = DeviceFamily.WHOOP5,
+        // Per-device WHOOP 4.0 worn anchor raw (#938 second capture): the raw that maps to 33.0 °C for THIS
+        // device. The @72 skin-temp ADC's register offset is per-device — a second real 4.0 strap shares the
+        // floor (~509) + saturation (2047) but has a worn band ~1100–1600, which the global 826 anchor maps
+        // to 47–72 °C, failing 100% of the worn gate. IntelligenceEngine learns it once per run from the
+        // owner's own worn median. null → the family-aware conversion uses the global Whoop4SkinTemp.ANCHOR_RAW,
+        // so every 5/MG + pure-function caller stays byte-identical (WHOOP5 ignores the anchor entirely).
+        skinTempAnchorRaw: Double? = null,
         // WHOOP 4.0 raw SpO2 PPG ADC samples (red/IR) for the night window (#93). The nightly red/IR
         // means over detected sleep are banked on the DailyMetric as RAW ADC — honest "the sensor
         // decoded" data, NOT a calibrated blood-oxygen % (that needs WHOOP's proprietary curve). Default
@@ -399,7 +407,7 @@ object AnalyticsEngine {
         // mean is harvested; IntelligenceEngine seeds the baseline from those means and re-derives the
         // deviation in pass 2 (mirrors avgHrv→recovery). Computed BEFORE Charge so the Charge skin-temp
         // penalty can read it. APPROXIMATE. (PR #85)
-        val nightlySkinTempC = wornNightlySkinTempC(matched, hr, skinTemp, skinTempFamily)
+        val nightlySkinTempC = wornNightlySkinTempC(matched, hr, skinTemp, skinTempFamily, skinTempAnchorRaw)
         val skinTempDevC: Double? = nightlySkinTempC?.let { v ->
             baselines.skinTemp?.takeIf { it.usable }?.let { round2(Baselines.deviation(v, it).delta) }
         }
@@ -650,8 +658,11 @@ object AnalyticsEngine {
         hr: List<HrSample>,
         skinTemp: List<SkinTempSample>,
         family: DeviceFamily = DeviceFamily.WHOOP5,
+        // Per-device WHOOP 4.0 worn anchor raw (#938); null → the global Whoop4SkinTemp.ANCHOR_RAW, keeping
+        // 5/MG + pure-function callers byte-identical. Threaded straight to the funnel's conversion.
+        anchorRaw: Double? = null,
         minSamples: Int = MIN_SKIN_TEMP_SAMPLES_INLINE,
-    ): Double? = skinTempFunnel(sessions, hr, skinTemp, family, minSamples).mean
+    ): Double? = skinTempFunnel(sessions, hr, skinTemp, family, anchorRaw, minSamples).mean
 
     /**
      * Nightly means of the WHOOP 4.0 raw SpO2 PPG channels (red/IR ADC) over the detected in-bed
@@ -727,6 +738,9 @@ object AnalyticsEngine {
         hr: List<HrSample>,
         skinTemp: List<SkinTempSample>,
         family: DeviceFamily = DeviceFamily.WHOOP5,
+        // Per-device WHOOP 4.0 worn anchor raw (#938 second capture); null → the global
+        // Whoop4SkinTemp.ANCHOR_RAW, so 5/MG + pure-function callers are byte-identical.
+        anchorRaw: Double? = null,
         minSamples: Int = MIN_SKIN_TEMP_SAMPLES_INLINE,
     ): SkinTempFunnelDiagnostic {
         val total = skinTemp.size
@@ -749,7 +763,18 @@ object AnalyticsEngine {
         for (t in skinTemp) {
             if (t.ts !in wornSeconds) { notWorn++; continue }
             if (sessions.none { t.ts in it.start..it.end }) { outOfWindow++; continue }
-            val c = skinTempCelsius(t.raw, family)   // #938: family-aware (5/MG=raw/100, 4.0=raw ADC map)
+            // WHOOP 4.0 ONLY (#938 second capture): drop raws outside the plausible worn ADC band BEFORE the
+            // anchor map. The no-contact floor (~509) and the 11-bit saturation ceiling (2047) are doff /
+            // charging transients, not worn skin — with a per-device anchor a floor or pegged raw could
+            // otherwise map into the 28–42 °C window and poison the mean. Attributed to the SAME `outOfRange`
+            // bucket the °C gate uses ("out of plausible range"), so the four drop buckets + kept still sum to
+            // totalSamples. WHOOP5 is untouched here → its centidegree path stays byte-identical.
+            if (family == DeviceFamily.WHOOP4 &&
+                t.raw !in Whoop4SkinTemp.WORN_MIN_RAW..Whoop4SkinTemp.WORN_MAX_RAW
+            ) { outOfRange++; continue }
+            // Per-device anchor (#938): null anchorRaw → the global Whoop4SkinTemp.ANCHOR_RAW (826), byte-
+            // identical to the pre-change conversion; WHOOP5 ignores the anchor.
+            val c = skinTempCelsius(t.raw, family, anchorRaw ?: Whoop4SkinTemp.ANCHOR_RAW)
             if (c < SKIN_TEMP_MIN_C || c > SKIN_TEMP_MAX_C) { outOfRange++; continue }
             sum += c
             kept++

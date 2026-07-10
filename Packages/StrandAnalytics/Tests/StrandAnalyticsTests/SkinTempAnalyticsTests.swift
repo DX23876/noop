@@ -211,6 +211,86 @@ final class SkinTempAnalyticsTests: XCTestCase {
         XCTAssertFalse(w4.isAbsent)
     }
 
+    // MARK: - per-device worn anchor, end-to-end (#938 second capture)
+
+    /// A second real 4.0 strap: worn raws ~1250–1330 (nightly mean raw ~1290). Under the GLOBAL 826 anchor
+    /// those map to ~54–58 °C, all failing the 28–42 °C worn gate (kept=0, no mean). With the device's OWN
+    /// learned anchor the worn band lands ~33 °C and the night is kept.
+    func testHighRegisterDeviceKeptWithLearnedAnchor() throws {
+        let start = 20_000_000
+        let sess = [session(start: start, durSec: 600)]
+        let hrs = (0..<600).map { hr(start + $0) }
+        // 600 worn samples sweeping raw 1250..1329 (nightly mean ~1290), a whole session inside worn seconds.
+        let temps = (0..<600).map { SkinTempSample(ts: start + $0, raw: 1250 + ($0 % 80)) }
+        let anchor = try XCTUnwrap(Whoop4SkinTemp.deviceAnchorRaw(temps.map { $0.raw }))
+        // GLOBAL anchor (nil → 826): every worn raw maps to ~54–58 °C, all out of range → absent.
+        XCTAssertNil(AnalyticsEngine.wornNightlySkinTempC(sess, hr: hrs, skinTemp: temps, family: .whoop4, anchorRaw: nil))
+        // LEARNED anchor: kept, and the mean sits in the plausible worn band ≈ 33 °C.
+        let mean = try XCTUnwrap(AnalyticsEngine.wornNightlySkinTempC(sess, hr: hrs, skinTemp: temps, family: .whoop4, anchorRaw: anchor))
+        XCTAssertGreaterThan(mean, 28.0)
+        XCTAssertLessThan(mean, 42.0)
+        XCTAssertEqual(mean, 33.0, accuracy: 1.5)
+    }
+
+    /// Two nights whose raw means differ by +20, converted with the SAME window-wide anchor → nightly °C
+    /// means differ by exactly +1.0 (20 × 0.05 slope). This is WHY the anchor is window-wide, not per-night:
+    /// the shared constant offset cancels, leaving the true cross-night deviation intact.
+    func testDeviationPreservedAcrossNightsWithSameAnchor() throws {
+        let anchor = 1290.0
+        func nightMean(_ startTs: Int, raw: Int) throws -> Double {
+            let sess = [session(start: startTs, durSec: 600)]
+            let hrs = (0..<600).map { hr(startTs + $0) }
+            let temps = (0..<600).map { SkinTempSample(ts: startTs + $0, raw: raw) }
+            return try XCTUnwrap(AnalyticsEngine.wornNightlySkinTempC(sess, hr: hrs, skinTemp: temps, family: .whoop4, anchorRaw: anchor))
+        }
+        let n1 = try nightMean(21_000_000, raw: 1290)
+        let n2 = try nightMean(22_000_000, raw: 1310) // +20 raw
+        XCTAssertEqual(n2 - n1, 1.0, accuracy: 1e-9)
+    }
+
+    /// Byte-compat: WHOOP4 with anchorRaw=nil and reporter-band raws (~826) produces the IDENTICAL mean as
+    /// the explicit global anchor (`Whoop4SkinTemp.anchorRaw`=826) — the pre-per-device behaviour.
+    func testWhoop4NilAnchorByteIdenticalToGlobal() throws {
+        let start = 23_000_000
+        let sess = [session(start: start, durSec: 600)]
+        let hrs = (0..<600).map { hr(start + $0) }
+        let temps = (0..<600).map { SkinTempSample(ts: start + $0, raw: 826) }
+        let nilAnchor = try XCTUnwrap(AnalyticsEngine.wornNightlySkinTempC(sess, hr: hrs, skinTemp: temps, family: .whoop4, anchorRaw: nil))
+        let explicitGlobal = try XCTUnwrap(AnalyticsEngine.wornNightlySkinTempC(sess, hr: hrs, skinTemp: temps, family: .whoop4, anchorRaw: Whoop4SkinTemp.anchorRaw))
+        XCTAssertEqual(nilAnchor, 33.0, accuracy: 1e-9) // raw 826 → exactly the 33.0 °C anchor
+        XCTAssertEqual(nilAnchor, explicitGlobal, accuracy: 1e-12)
+    }
+
+    /// WHOOP5 is unchanged by the anchor parameter: a centidegree night is byte-identical with or without one.
+    func testWhoop5IgnoresAnchor() throws {
+        let start = 24_000_000
+        let sess = [session(start: start, durSec: 600)]
+        let hrs = (0..<600).map { hr(start + $0) }
+        let temps = (0..<600).map { skin(start + $0, rawX100: 3400) } // 34 °C centidegrees
+        let noAnchor = try XCTUnwrap(AnalyticsEngine.wornNightlySkinTempC(sess, hr: hrs, skinTemp: temps, family: .whoop5, anchorRaw: nil))
+        let withAnchor = try XCTUnwrap(AnalyticsEngine.wornNightlySkinTempC(sess, hr: hrs, skinTemp: temps, family: .whoop5, anchorRaw: 1290.0))
+        XCTAssertEqual(noAnchor, 34.0, accuracy: 1e-9)
+        XCTAssertEqual(noAnchor, withAnchor, accuracy: 1e-12)
+    }
+
+    /// Doff-floor (509) and pegged-saturation (2047) samples on a WHOOP4 night count as `droppedOutOfRange`
+    /// (dropped BEFORE the anchor map) and the four buckets + kept still sum to totalSamples.
+    func testWhoop4FloorAndSaturationCountAsOutOfRange() throws {
+        let start = 25_000_000
+        let sess = [session(start: start, durSec: 900)]
+        let hrs = (0..<900).map { hr(start + $0) }
+        let worn = (0..<600).map { SkinTempSample(ts: start + $0, raw: 1290) }      // in-band worn
+        let floor = (600..<750).map { SkinTempSample(ts: start + $0, raw: 509) }    // no-contact floor
+        let pegged = (750..<900).map { SkinTempSample(ts: start + $0, raw: 2047) }  // 11-bit saturation
+        let temps = worn + floor + pegged
+        let anchor = try XCTUnwrap(Whoop4SkinTemp.deviceAnchorRaw(temps.map { $0.raw })) // learned from the 600 in-band raws
+        let f = AnalyticsEngine.skinTempFunnel(sess, hr: hrs, skinTemp: temps, family: .whoop4, anchorRaw: anchor)
+        XCTAssertEqual(f.totalSamples, 900)
+        XCTAssertEqual(f.droppedOutOfRange, 300) // 150 floor + 150 saturation, out of the plausible worn ADC band
+        XCTAssertEqual(f.kept, 600)
+        XCTAssertEqual(f.droppedNotWorn + f.droppedOutOfWindow + f.droppedOutOfRange + f.kept, f.totalSamples)
+    }
+
     // MARK: - seed → deviation (skin_temp baseline)
 
     private let skinCfg = Baselines.metricCfg["skin_temp"]!

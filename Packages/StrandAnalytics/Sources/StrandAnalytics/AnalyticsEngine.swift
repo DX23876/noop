@@ -264,6 +264,15 @@ public enum AnalyticsEngine {
                                   // keeps every 5/MG + pure-function caller byte-identical;
                                   // IntelligenceEngine passes the day owner's real family.
                                   skinTempFamily: DeviceFamily = .whoop5,
+                                  // Per-device WHOOP 4.0 worn anchor raw (#938 second capture): the raw that
+                                  // maps to 33.0 °C for THIS device. The @72 skin-temp ADC's register offset is
+                                  // per-device — a second real 4.0 strap shares the floor (~509) + saturation
+                                  // (2047) but has a worn band ~1100–1600, which the global 826 anchor maps to
+                                  // 47–72 °C, failing 100% of the worn gate. IntelligenceEngine learns it once
+                                  // per run from the owner's own worn median. nil → the family-aware conversion
+                                  // uses the global `Whoop4SkinTemp.anchorRaw`, so every 5/MG + pure-function
+                                  // caller stays byte-identical (`.whoop5` ignores the anchor entirely).
+                                  skinTempAnchorRaw: Double? = nil,
                                   // WHOOP 4.0 raw SpO2 PPG ADC samples (red/IR) for the night window
                                   // (#93). The nightly red/IR means over detected sleep are banked on the
                                   // DailyMetric as RAW ADC — honest "the sensor decoded" data, NOT a
@@ -540,7 +549,8 @@ public enum AnalyticsEngine {
         // personal baseline. In pass 1 baselines.skinTemp is nil so the deviation is nil
         // and the mean is harvested; IntelligenceEngine seeds the baseline from those means
         // and re-derives the deviation in pass 2 (mirrors avgHrv→recovery). APPROXIMATE.
-        let nightlySkinTempC = wornNightlySkinTempC(matched, hr: hr, skinTemp: skinTemp, family: skinTempFamily)
+        let nightlySkinTempC = wornNightlySkinTempC(matched, hr: hr, skinTemp: skinTemp,
+                                                    family: skinTempFamily, anchorRaw: skinTempAnchorRaw)
         let skinTempDevC: Double? = nightlySkinTempC.flatMap { (v: Double) -> Double? in
             guard let b = baselines.skinTemp, b.usable else { return nil }
             return round2(Baselines.deviation(v, state: b).delta)
@@ -862,8 +872,13 @@ public enum AnalyticsEngine {
                                      hr: [HRSample],
                                      skinTemp: [SkinTempSample],
                                      family: DeviceFamily = .whoop5,
+                                     // Per-device WHOOP 4.0 worn anchor raw (#938); nil → the global
+                                     // `Whoop4SkinTemp.anchorRaw`, keeping 5/MG + pure-function callers
+                                     // byte-identical. Threaded straight to the funnel's conversion.
+                                     anchorRaw: Double? = nil,
                                      minSamples: Int = minSkinTempSamples) -> Double? {
-        skinTempFunnel(sessions, hr: hr, skinTemp: skinTemp, family: family, minSamples: minSamples).mean
+        skinTempFunnel(sessions, hr: hr, skinTemp: skinTemp, family: family,
+                       anchorRaw: anchorRaw, minSamples: minSamples).mean
     }
 
     /// Nightly means of the WHOOP 4.0 raw SpO2 PPG channels (red/IR ADC) over the detected in-bed
@@ -945,6 +960,10 @@ public enum AnalyticsEngine {
                                       hr: [HRSample],
                                       skinTemp: [SkinTempSample],
                                       family: DeviceFamily = .whoop5,
+                                      // Per-device WHOOP 4.0 worn anchor raw (#938 second capture); nil → the
+                                      // global `Whoop4SkinTemp.anchorRaw`, so 5/MG + pure-function callers are
+                                      // byte-identical.
+                                      anchorRaw: Double? = nil,
                                       minSamples: Int = minSkinTempSamples) -> SkinTempFunnelDiagnostic {
         let total = skinTemp.count
         // No sessions ⇒ every sample is out of window; no samples ⇒ an empty funnel. Either way the mean is
@@ -962,7 +981,19 @@ public enum AnalyticsEngine {
         for t in skinTemp {
             if !wornSeconds.contains(t.ts) { notWorn += 1; continue }
             if !sessions.contains(where: { t.ts >= $0.start && t.ts <= $0.end }) { outOfWindow += 1; continue }
-            let c = skinTempCelsius(raw: t.raw, family: family)   // #938: family-aware (5/MG=raw/100, 4.0=raw ADC map)
+            // WHOOP 4.0 ONLY (#938 second capture): drop raws outside the plausible worn ADC band BEFORE the
+            // anchor map. The no-contact floor (~509) and the 11-bit saturation ceiling (2047) are doff /
+            // charging transients, not worn skin — with a per-device anchor a floor or pegged raw could
+            // otherwise map into the 28–42 °C window and poison the mean. Attributed to the SAME `outOfRange`
+            // bucket the °C gate uses ("out of plausible range"), so the four drop buckets + kept still sum to
+            // totalSamples. `.whoop5` is untouched here → its centidegree path stays byte-identical.
+            if family == .whoop4,
+               t.raw < Whoop4SkinTemp.wornMinRaw || t.raw > Whoop4SkinTemp.wornMaxRaw {
+                outOfRange += 1; continue
+            }
+            // Per-device anchor (#938): nil anchorRaw → the global `Whoop4SkinTemp.anchorRaw` (826), byte-
+            // identical to the pre-change conversion; `.whoop5` ignores the anchor.
+            let c = skinTempCelsius(raw: t.raw, family: family, anchorRaw: anchorRaw ?? Whoop4SkinTemp.anchorRaw)
             if c < skinTempMinC || c > skinTempMaxC { outOfRange += 1; continue }
             sum += c
             kept += 1

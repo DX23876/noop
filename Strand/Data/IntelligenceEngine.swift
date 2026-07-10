@@ -532,6 +532,18 @@ final class IntelligenceEngine: ObservableObject {
                 // registry knows each device's model; unknown/non-WHOOP owners fall back to `.whoop5` (the prior
                 // /100 behaviour), so this only changes the mapping for a device positively identified as a 4.0.
                 let skinFamily = Self.skinTempFamily(forOwner: owner, devices: regDevices)
+                // #938 (second capture): learn THIS device's worn skin-temp anchor raw ONCE, WINDOW-WIDE (the
+                // whole scan window's skin samples), not per-night. The @72 skin-temp ADC's register offset is
+                // per-device — a second real 4.0 strap shares the no-contact floor (~509) + 11-bit saturation
+                // (2047) but a worn band ~1100–1600 (nightly mean raw ~1290), which the global 826 anchor maps
+                // to 47–72 °C, so 100% of its worn samples fail the 28–42 °C gate (kept=0, no baseline, no
+                // signal). WINDOW-WIDE, not per-night: a per-night re-centre would subtract each night's own
+                // mean and ERASE the cross-night deviation the skinTempDevC signal exists to carry.
+                // Deterministic per run; SAFE because the skin baseline is re-folded from the SAME window's
+                // nightly means every run, so this constant offset cancels in the deviation. nil for a non-4.0
+                // owner (`.whoop5` ignores the anchor) or when <100 in-band samples exist → the conversion
+                // falls back to the global anchor (byte-identical to today).
+                let skinAnchorRaw = skinFamily == .whoop4 ? Whoop4SkinTemp.deviceAnchorRaw(skin.map { $0.raw }) : nil
                 // Wrist-wear events in the night window, paired into off-wrist [start, end) intervals for the
                 // off-wrist sleep backstop (#500). The HR-gap proxy in the stager is the always-on guard;
                 // these explicit intervals sharpen it under the FRACTIONAL rule (#504) , a session is dropped
@@ -625,6 +637,7 @@ final class IntelligenceEngine: ObservableObject {
                                                      dayGravity: dayGrav,
                                                      skinTemp: skin,
                                                      skinTempFamily: skinFamily,   // #938
+                                                     skinTempAnchorRaw: skinAnchorRaw,   // #938 second capture
                                                      spo2: spo2,                   // #93
                                                      profile: up, baselines: baselines1, maxHROverride: maxHR,
                                                      tzOffsetSeconds: tzOffset, wristOff: wristOff,

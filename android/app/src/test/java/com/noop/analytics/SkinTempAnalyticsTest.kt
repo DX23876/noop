@@ -3,6 +3,7 @@ package com.noop.analytics
 import com.noop.data.HrSample
 import com.noop.data.SkinTempSample
 import com.noop.protocol.DeviceFamily
+import com.noop.protocol.Whoop4SkinTemp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -221,6 +222,97 @@ class SkinTempAnalyticsTest {
         val w4 = AnalyticsEngine.skinTempFunnel(sess, hrs, temps, DeviceFamily.WHOOP4)
         assertEquals(600, w4.kept)
         assertFalse(w4.isAbsent)
+    }
+
+    // ── per-device worn anchor, end-to-end (#938 second capture) ─────────────
+
+    /** A second real 4.0 strap: worn raws ~1250–1330 (nightly mean raw ~1290). Under the GLOBAL 826 anchor
+     *  those map to ~54–58 °C, all failing the 28–42 °C worn gate (kept=0, no mean). With the device's OWN
+     *  learned anchor the worn band lands ~33 °C and the night is kept. Mirrors Swift
+     *  testHighRegisterDeviceKeptWithLearnedAnchor. */
+    @Test
+    fun highRegisterDeviceKeptWithLearnedAnchor() {
+        val start = 20_000_000L
+        val sess = listOf(session(start, 600))
+        val hrs = (0 until 600).map { hr(start + it) }
+        // 600 worn samples sweeping raw 1250..1329 (nightly mean ~1290), a whole session inside worn seconds.
+        val temps = (0 until 600).map { skin(start + it, 1250 + (it % 80)) }
+        val anchor = Whoop4SkinTemp.deviceAnchorRaw(temps.map { it.raw })!!
+        // GLOBAL anchor (null → 826): every worn raw maps to ~54–58 °C, all out of range → absent.
+        assertNull(AnalyticsEngine.wornNightlySkinTempC(sess, hrs, temps, DeviceFamily.WHOOP4, null))
+        // LEARNED anchor: kept, and the mean sits in the plausible worn band ≈ 33 °C.
+        val mean = AnalyticsEngine.wornNightlySkinTempC(sess, hrs, temps, DeviceFamily.WHOOP4, anchor)!!
+        assertTrue("worn high-register 4.0 night must clear the 28 °C gate, was $mean", mean > 28.0)
+        assertTrue("worn high-register 4.0 night must stay under 42 °C, was $mean", mean < 42.0)
+        assertEquals("mean sits near the anchor's 33.0 °C", 33.0, mean, 1.5)
+    }
+
+    /** Two nights whose raw means differ by +20, converted with the SAME window-wide anchor → nightly °C
+     *  means differ by exactly +1.0 (20 × 0.05 slope). This is WHY the anchor is window-wide, not per-night:
+     *  the shared constant offset cancels, leaving the true cross-night deviation intact. Mirrors Swift
+     *  testDeviationPreservedAcrossNightsWithSameAnchor. */
+    @Test
+    fun deviationPreservedAcrossNightsWithSameAnchor() {
+        val anchor = 1290.0
+        fun nightMean(startTs: Long, raw: Int): Double {
+            val sess = listOf(session(startTs, 600))
+            val hrs = (0 until 600).map { hr(startTs + it) }
+            val temps = (0 until 600).map { skin(startTs + it, raw) }
+            return AnalyticsEngine.wornNightlySkinTempC(sess, hrs, temps, DeviceFamily.WHOOP4, anchor)!!
+        }
+        val n1 = nightMean(21_000_000L, 1290)
+        val n2 = nightMean(22_000_000L, 1310) // +20 raw
+        assertEquals(1.0, n2 - n1, 1e-9)
+    }
+
+    /** Byte-compat: WHOOP4 with anchorRaw=null and reporter-band raws (~826) produces the IDENTICAL mean as
+     *  the explicit global anchor (ANCHOR_RAW=826) — the pre-per-device behaviour. Mirrors Swift
+     *  testWhoop4NullAnchorByteIdenticalToGlobal. */
+    @Test
+    fun whoop4NullAnchorByteIdenticalToGlobal() {
+        val start = 23_000_000L
+        val sess = listOf(session(start, 600))
+        val hrs = (0 until 600).map { hr(start + it) }
+        val temps = (0 until 600).map { skin(start + it, 826) }
+        val nullAnchor = AnalyticsEngine.wornNightlySkinTempC(sess, hrs, temps, DeviceFamily.WHOOP4, null)!!
+        val explicitGlobal =
+            AnalyticsEngine.wornNightlySkinTempC(sess, hrs, temps, DeviceFamily.WHOOP4, Whoop4SkinTemp.ANCHOR_RAW)!!
+        assertEquals(33.0, nullAnchor, 1e-9) // raw 826 → exactly the 33.0 °C anchor
+        assertEquals(explicitGlobal, nullAnchor, 1e-12)
+    }
+
+    /** WHOOP5 is unchanged by the anchor parameter: a centidegree night is byte-identical with or without one.
+     *  Mirrors Swift testWhoop5IgnoresAnchor. */
+    @Test
+    fun whoop5IgnoresAnchor() {
+        val start = 24_000_000L
+        val sess = listOf(session(start, 600))
+        val hrs = (0 until 600).map { hr(start + it) }
+        val temps = (0 until 600).map { skin(start + it, 3400) } // 34 °C centidegrees
+        val noAnchor = AnalyticsEngine.wornNightlySkinTempC(sess, hrs, temps, DeviceFamily.WHOOP5, null)!!
+        val withAnchor = AnalyticsEngine.wornNightlySkinTempC(sess, hrs, temps, DeviceFamily.WHOOP5, 1290.0)!!
+        assertEquals(34.0, noAnchor, 1e-9)
+        assertEquals(noAnchor, withAnchor, 1e-12)
+    }
+
+    /** Doff-floor (509) and pegged-saturation (2047) samples on a WHOOP4 night count as outOfRange (dropped
+     *  BEFORE the anchor map) and the four buckets + kept still sum to totalSamples. Mirrors Swift
+     *  testWhoop4FloorAndSaturationCountAsOutOfRange. */
+    @Test
+    fun whoop4FloorAndSaturationCountAsOutOfRangeAndBucketsSum() {
+        val start = 25_000_000L
+        val sess = listOf(session(start, 900))
+        val hrs = (0 until 900).map { hr(start + it) }
+        val worn = (0 until 600).map { skin(start + it, 1290) }        // in-band worn
+        val floor = (600 until 750).map { skin(start + it, 509) }      // no-contact floor
+        val pegged = (750 until 900).map { skin(start + it, 2047) }    // 11-bit saturation
+        val temps = worn + floor + pegged
+        val anchor = Whoop4SkinTemp.deviceAnchorRaw(temps.map { it.raw })!! // learned from the 600 in-band raws
+        val f = AnalyticsEngine.skinTempFunnel(sess, hrs, temps, DeviceFamily.WHOOP4, anchor)
+        assertEquals(900, f.totalSamples)
+        assertEquals(300, f.droppedOutOfRange) // 150 floor + 150 saturation, out of the plausible worn ADC band
+        assertEquals(600, f.kept)
+        assertEquals(f.totalSamples, f.droppedNotWorn + f.droppedOutOfWindow + f.droppedOutOfRange + f.kept)
     }
 
     // ── seed → deviation (skin_temp baseline) ───────────────────────────────

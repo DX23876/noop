@@ -2,6 +2,7 @@ package com.noop.protocol
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -58,5 +59,67 @@ class SkinTempConversionTest {
         val c = skinTempCelsius(900, DeviceFamily.WHOOP4)
         assertTrue(c > 28.0)
         assertTrue(c < 42.0)
+    }
+
+    // ── per-device worn anchor (#938 second capture) ────────────────────────
+    // The @72 ADC's register offset is per-device: a second real 4.0 strap shares the floor (~509) +
+    // saturation (2047) but a worn band ~1100–1600 (nightly mean raw ~1290). The anchor is learned from the
+    // device's OWN worn median so the worn band lands in range; the offset cancels in skinTempDevC.
+
+    /** Odd count: the anchor is the middle in-band raw. Mirrors Swift testDeviceAnchorRawIsMedianOfInBandRaws. */
+    @Test
+    fun deviceAnchorRawIsMedianOfInBandRaws() {
+        val raws = (1250..1350).toList() // 101 in-band values, median is the middle one (1300)
+        assertEquals(101, raws.size)
+        assertEquals(1300.0, Whoop4SkinTemp.deviceAnchorRaw(raws)!!, 1e-9)
+    }
+
+    /** The no-contact floor (509) and 11-bit saturation ceiling (2047) are filtered out of the anchor median
+     *  entirely. Mirrors Swift testDeviceAnchorRawExcludesFloorAndSaturation. */
+    @Test
+    fun deviceAnchorRawExcludesFloorAndSaturation() {
+        val worn = List(100) { 1290 }                          // 100 real worn raws
+        val contaminated = worn + List(40) { 509 } + List(40) { 2047 } // doff floor + pegged saturation
+        // Only the 100 in-band 1290s survive the band filter → median 1290 (floor/ceiling never enter the sort).
+        assertEquals(1290.0, Whoop4SkinTemp.deviceAnchorRaw(contaminated)!!, 1e-9)
+    }
+
+    /** Fewer than MIN_ANCHOR_SAMPLES in-band raws → null, so the caller falls back to the global anchor
+     *  (byte-identical to today). Mirrors Swift testDeviceAnchorRawNilBelowMinSamples. */
+    @Test
+    fun deviceAnchorRawNullBelowMinSamples() {
+        assertEquals(100, Whoop4SkinTemp.MIN_ANCHOR_SAMPLES)
+        assertNull(Whoop4SkinTemp.deviceAnchorRaw(List(99) { 1290 }))            // 99 < 100 → null
+        assertEquals(1290.0, Whoop4SkinTemp.deviceAnchorRaw(List(100) { 1290 })!!, 1e-9) // exactly 100 → learned
+    }
+
+    /** Even count: the anchor averages the two middle in-band raws. Mirrors Swift
+     *  testDeviceAnchorRawEvenCountAveragesMiddleTwo. */
+    @Test
+    fun deviceAnchorRawEvenCountAveragesMiddleTwo() {
+        val raws = (1201..1300).toList() // 100 values, middle two are 1250 and 1251
+        assertEquals(100, raws.size)
+        assertEquals(1250.5, Whoop4SkinTemp.deviceAnchorRaw(raws)!!, 1e-9)
+    }
+
+    /** The learned per-device anchor raw maps to 33.0 °C, and +20 raw above it is +1.0 °C (slope 0.05); the
+     *  anchor is ignored on WHOOP5. Mirrors Swift testWhoop4PerDeviceAnchorMapsToAnchorCelsius. */
+    @Test
+    fun whoop4PerDeviceAnchorMapsToAnchorCelsius() {
+        assertEquals(33.0, skinTempCelsius(1290, DeviceFamily.WHOOP4, 1290.0), 1e-9)
+        assertEquals(34.0, skinTempCelsius(1310, DeviceFamily.WHOOP4, 1290.0), 1e-9) // +20 raw = +1.0 °C
+        assertEquals(34.0, skinTempCelsius(3400, DeviceFamily.WHOOP5, 1290.0), 1e-9) // WHOOP5 ignores the anchor
+    }
+
+    /** Omitting anchorRaw uses the global ANCHOR_RAW (826) → byte-identical to the pre-per-device behaviour.
+     *  Mirrors Swift testWhoop4DefaultAnchorIsGlobal826. */
+    @Test
+    fun whoop4DefaultAnchorIsGlobal826() {
+        assertEquals(
+            skinTempCelsius(859, DeviceFamily.WHOOP4, Whoop4SkinTemp.ANCHOR_RAW),
+            skinTempCelsius(859, DeviceFamily.WHOOP4),
+            1e-12,
+        )
+        assertEquals(33.0, skinTempCelsius(826, DeviceFamily.WHOOP4), 1e-9)
     }
 }
