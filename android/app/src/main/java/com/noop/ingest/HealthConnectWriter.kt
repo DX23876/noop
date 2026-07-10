@@ -68,11 +68,10 @@ object HealthConnectWriter {
      * throws SecurityException otherwise — callers wrap in runCatching).
      *
      * [deviceId] must be the registry's ACTIVE strap id (SPINE / #814): a wizard-paired strap banks
-     * rows under `whoop-<address>`, so the legacy "my-whoop" default reads empty tables and exports
-     * nothing. The default fits only legacy single-WHOOP installs, where the active id resolves to
-     * "my-whoop" anyway.
+     * rows under `whoop-<address>`, so a hardcoded legacy "my-whoop" id reads empty tables and
+     * exports nothing.
      */
-    suspend fun write(context: Context, repo: WhoopRepository, deviceId: String = "my-whoop"): Int {
+    suspend fun write(context: Context, repo: WhoopRepository, deviceId: String): Int {
         if (HealthConnectClient.getSdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) return 0
         val client = HealthConnectClient.getOrCreate(context)
 
