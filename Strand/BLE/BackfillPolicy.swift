@@ -29,13 +29,30 @@ enum BackfillPolicy {
     /// every 90s isn't re-offloaded console-only every 90s, draining its battery and ours (#77/#120/#216).
     /// `.manual`/`.connect`/`.foreground` never back off, and the first real record resets the streak,
     /// so baseline cadence resumes instantly — a user- or connection-driven sync is never delayed.
+    ///
+    /// `clockUntrusted` = the strap's own RTC currently reads future-dated (#928: `BackfillContinuation
+    /// .isFutureDatedNewest`). Such a strap still BANKS real rows every pass, so it never trips the
+    /// `emptyStreak` backoff above, yet #1012 already refuses to chase that range past one pass per
+    /// connection — so the AUTOMATIC triggers get near-zero value from retrying it on the baseline
+    /// cadence, at the cost of BLE airtime that competes with realtime HR streaming for the link (#160:
+    /// reported as "HR not displaying while band is active" on a strap whose logs showed exactly this
+    /// future-dated clock). Maxes the SAME backoff the empty-streak uses immediately — there's no
+    /// "streak" to build for a clock fault the way there is for an empty offload, and it's the automatic
+    /// triggers this exists to protect, so `.connect`/`.foreground`/`.manual`/`.autoContinue` stay
+    /// un-floored exactly as they do for `emptyStreak`.
     static func shouldRun(trigger: BackfillTrigger, now: TimeInterval,
-                          lastBackfillAt: TimeInterval?, emptyStreak: Int = 0) -> Bool {
+                          lastBackfillAt: TimeInterval?, emptyStreak: Int = 0,
+                          clockUntrusted: Bool = false) -> Bool {
         guard let last = lastBackfillAt else { return true }
         let elapsed = now - last
-        let backoff: Double = emptyStreak >= emptyBackoffThreshold
-            ? min(pow(2.0, Double(emptyStreak - emptyBackoffThreshold + 1)), maxEmptyBackoff)
-            : 1.0
+        let backoff: Double
+        if clockUntrusted {
+            backoff = maxEmptyBackoff
+        } else if emptyStreak >= emptyBackoffThreshold {
+            backoff = min(pow(2.0, Double(emptyStreak - emptyBackoffThreshold + 1)), maxEmptyBackoff)
+        } else {
+            backoff = 1.0
+        }
         switch trigger {
         // .manual (user-tapped) and .autoContinue (#364 expedited backlog drain) always run — both are
         // deliberately un-floored; .autoContinue's runaway protection lives in BLEManager's cap, not here.

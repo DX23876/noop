@@ -2247,8 +2247,13 @@ public final class BLEManager: NSObject, ObservableObject {
             connected: state.connected, bonded: state.bonded, backfilling: backfilling) else { return }
         let now = Date().timeIntervalSince1970
         let last = UserDefaults.standard.object(forKey: BLEManager.backfillLastAtKey) as? Double
+        // #160: fold the strap's already-tracked future-dated clock (#928/#1012) into the SAME rate
+        // limiter the empty-streak backoff uses, so a clock-broken strap's automatic retries stop
+        // competing with realtime HR streaming for BLE airtime as often.
+        let clockUntrusted = BackfillContinuation.isFutureDatedNewest(strapNewestTs, wallNowUnix: Int(now))
         guard BackfillPolicy.shouldRun(trigger: trigger, now: now, lastBackfillAt: last,
-                                       emptyStreak: emptySyncTracker.consecutiveEmptySyncs) else {
+                                       emptyStreak: emptySyncTracker.consecutiveEmptySyncs,
+                                       clockUntrusted: clockUntrusted) else {
             log("Backfill: \(trigger) skipped (rate-limited; last \(last.map { Int(now - $0) } ?? -1)s ago)")
             return
         }

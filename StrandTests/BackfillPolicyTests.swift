@@ -52,4 +52,41 @@ final class BackfillPolicyTests: XCTestCase {
         XCTAssertTrue(BackfillPolicy.shouldRun(trigger: .connect, now: 1000, lastBackfillAt: last, emptyStreak: 99))
         XCTAssertTrue(BackfillPolicy.shouldRun(trigger: .foreground, now: 1000, lastBackfillAt: last, emptyStreak: 99))
     }
+
+    // MARK: - #160: future-dated clock backoff
+
+    /// A strap whose RTC reads future-dated (#928) still banks real rows every pass, so it never trips
+    /// emptyStreak — clockUntrusted must independently stretch the .strap floor to the SAME cap.
+    func testClockUntrustedBacksOffStrapEvenWithNoEmptyStreak() {
+        let last = 1000.0 - 200   // passes the baseline (90s) floor, blocked once the 4x cap applies (360s)
+        XCTAssertTrue (BackfillPolicy.shouldRun(trigger: .strap, now: 1000, lastBackfillAt: last,
+                                                emptyStreak: 0, clockUntrusted: false))
+        XCTAssertFalse(BackfillPolicy.shouldRun(trigger: .strap, now: 1000, lastBackfillAt: last,
+                                                emptyStreak: 0, clockUntrusted: true))
+    }
+
+    func testClockUntrustedBacksOffPeriodicToo() {
+        let last = 10000.0 - 1000   // passes the baseline (900s) floor, blocked once the 4x cap applies (3600s)
+        XCTAssertTrue (BackfillPolicy.shouldRun(trigger: .periodic, now: 10000, lastBackfillAt: last,
+                                                clockUntrusted: false))
+        XCTAssertFalse(BackfillPolicy.shouldRun(trigger: .periodic, now: 10000, lastBackfillAt: last,
+                                                clockUntrusted: true))
+    }
+
+    /// clockUntrusted maxes the backoff immediately (no streak to build), so it's already at the 4x cap
+    /// a huge emptyStreak would also reach — the two signals must not stack past maxEmptyBackoff.
+    func testClockUntrustedDoesNotStackBeyondCapWithEmptyStreak() {
+        let last = 1000.0 - fe * 4   // exactly at the 4x-capped floor
+        XCTAssertTrue(BackfillPolicy.shouldRun(trigger: .strap, now: 1000, lastBackfillAt: last,
+                                               emptyStreak: 99, clockUntrusted: true))
+    }
+
+    /// Same invariant as emptyStreak: clockUntrusted must never delay a user- or connection-driven sync.
+    func testClockUntrustedNeverDelaysConnectForegroundManualOrAutoContinue() {
+        let last = 1000 - fe
+        XCTAssertTrue(BackfillPolicy.shouldRun(trigger: .connect, now: 1000, lastBackfillAt: last, clockUntrusted: true))
+        XCTAssertTrue(BackfillPolicy.shouldRun(trigger: .foreground, now: 1000, lastBackfillAt: last, clockUntrusted: true))
+        XCTAssertTrue(BackfillPolicy.shouldRun(trigger: .manual, now: 1000, lastBackfillAt: 999, clockUntrusted: true))
+        XCTAssertTrue(BackfillPolicy.shouldRun(trigger: .autoContinue, now: 1000, lastBackfillAt: 999, clockUntrusted: true))
+    }
 }
