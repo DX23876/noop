@@ -2226,12 +2226,14 @@ private fun DurationTrend(m: SleepModel) {
         ) {
             if (pts.size >= 2) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    LineChart(
+                    // #85: sleep duration reads as a per-night histogram (zero-based bars), matching the
+                    // iOS Sleep tab's TrendChart(showsBars:) — a BarMark is proportional to hours slept,
+                    // clearer than a line for a nightly total. BarChart floors at 0 like the iOS bar domain.
+                    BarChart(
                         values = pts,
                         modifier = Modifier.fillMaxWidth().height(Metrics.compactChartHeight)
                             .semantics { contentDescription = "Sleep hours trend chart" },
                         color = Palette.restColor,
-                        fill = true,
                         selectionEnabled = true,
                     )
                     DateAxisRow(m.trendDates)
