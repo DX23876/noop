@@ -711,7 +711,10 @@ private class Aggregator {
     }
 
     private val byDay = HashMap<String, DayAcc>()
-    private val seen = HashSet<String>()
+    // Dedupe over sample keys, stored as the key's 64-bit HASH not the full String (#183). A large Apple
+    // Health export has tens of millions of unique samples; retaining a ~50-100 B String each was ~1-2 GB
+    // of RAM, enough to hang the import under memory pressure. 8 B/entry is ~10x smaller. See [hash64].
+    private val seen = HashSet<Long>()
     private val workouts = ArrayList<PendingWorkout>()
 
     /** True once any relevant, date-valid record / workout / sleep row was dispatched. Drives the
@@ -730,8 +733,20 @@ private class Aggregator {
         val energyKcal: Double?,
     )
 
-    /** Returns true if [key] was not seen before (i.e. this row should be processed). */
-    fun markSeen(key: String): Boolean = seen.add(key)
+    /** Returns true if [key] was not seen before (i.e. this row should be processed). Dedupes on the
+     *  key's 64-bit hash, not the full String, to bound memory on a huge export (#183). */
+    fun markSeen(key: String): Boolean = seen.add(hash64(key))
+
+    /** 64-bit FNV-1a over [s]'s UTF-16 code units. Kotlin's `String.hashCode` is only 32-bit — that's
+     *  ~46k collisions over 20M keys, silently dropping tens of thousands of real samples; a 64-bit hash
+     *  keeps that ~1e-5. A rare collision just drops a look-alike duplicate — the effect dedup intends. */
+    private fun hash64(s: String): Long {
+        var h = 0xcbf29ce484222325uL.toLong()   // FNV-1a 64-bit offset basis
+        for (i in s.indices) {
+            h = (h xor s[i].code.toLong()) * 0x100000001b3L   // xor code unit, × FNV prime (wraps, intended)
+        }
+        return h
+    }
 
     fun hasAnyRecord(): Boolean = sawAnyRecord
 

@@ -270,8 +270,24 @@ final class HealthXMLDelegate: NSObject, XMLParserDelegate {
     // Correlation are skipped (they also appear top-level).
     private var correlationDepth = 0
 
-    // Dedupe set over HealthSample dedupeKeys.
-    private var seenSampleKeys: Set<String> = []
+    // Dedupe set over HealthSample dedupeKeys — stored as the key's 64-bit HASH, not the full String
+    // (#183). A large Apple Health export has tens of millions of unique samples; retaining a ~50-100 B
+    // String each was ~1-2 GB of RAM, enough to push an import into sustained memory pressure and hang.
+    // A 64-bit hash is 8 B/entry (~10x less); a collision across even 20M samples is ~1e-5, and a rare
+    // one just drops a look-alike duplicate — the same effect dedup intends. Within one import run the
+    // hash is stable, so identical keys always dedupe.
+    private var seenSampleKeys: Set<Int> = []
+
+    /// 64-bit FNV-1a over `s`'s UTF-16 code units — byte-identical to the Android `hash64` (both iterate
+    /// UTF-16 units with the same offset basis + prime, wrapping at 64 bits), so the two platforms produce
+    /// the same dedupe hashes and drop the exact same look-alike duplicates (#183).
+    static func hash64(_ s: String) -> Int {
+        var h: UInt64 = 0xcbf29ce484222325   // FNV-1a 64-bit offset basis
+        for u in s.utf16 {
+            h = (h ^ UInt64(u)) &* 0x100000001b3   // xor code unit, ×= FNV prime (wraps, intended)
+        }
+        return Int(bitPattern: UInt(h))
+    }
 
     /// True once at least one usable record/workout/sleep row was parsed. Drives the tolerant-parse
     /// decision: a hard error AFTER real data was seen keeps the partial result instead of failing.
@@ -439,9 +455,10 @@ final class HealthXMLDelegate: NSObject, XMLParserDelegate {
             tzOffsetMin: tzOffsetMin,
             sourceName: sourceName
         )
-        // Dedupe on type+start+end+source+value (correctness-critical; the
-        // dedupe set is the smaller, retained cost).
-        if seenSampleKeys.insert(sample.dedupeKey).inserted {
+        // Dedupe on type+start+end+source+value (correctness-critical). Retain only the key's 64-bit
+        // hash, not the String, so the set stays ~10x smaller on a huge export (#183). Uses the SAME
+        // FNV-1a as Android (NOT Swift's per-run-randomized hashValue) so both platforms dedupe identically.
+        if seenSampleKeys.insert(Self.hash64(sample.dedupeKey)).inserted {
             // Always fold into the bounded per-day accumulator.
             dailyAcc.add(sample)
             anyRecordSeen = true
