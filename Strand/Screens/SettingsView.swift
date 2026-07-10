@@ -906,16 +906,18 @@ struct SettingsView: View {
                     .tint(StrandPalette.accent)
                     .accessibilityLabel("HRV window")
                     .onChangeCompat(of: hrvWindowRaw) { _ in
-                        // The new window shifts every night's avgHrv, so the HRV BASELINE must re-learn or
-                        // recovery would compare the new value against a baseline still folded from the old
-                        // window (the EWMA spans further than the ~21 nights that re-score → skewed for weeks).
-                        // Re-anchor the HRV baseline to now (HRV-only sibling of "Recalibrate Charge baseline"),
-                        // then re-score + refresh so the recent trend + fresh baseline both reflect the window.
-                        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Baselines.hrvBaselineEpochKey)
+                        // #201: the new window shifts every night's avgHrv, so the HRV baseline must reflect it
+                        // too — but a plain re-score already achieves that. analyzeRecent re-scores the recent
+                        // ~21 nights' avgHrv under the new window AND re-folds the HRV baseline from them in the
+                        // same pass, and the baseline's 14-night-half-life EWMA is dominated by that fresh
+                        // re-scored tail. So DON'T re-anchor the baseline epoch: doing so would drop all history
+                        // and force a multi-night "calibrating" reset for someone who already has plenty of nights
+                        // (that reset reading as "the setting is broken" was #195). A genuine cold-start user
+                        // (<4 valid nights) still calibrates honestly; established users see the switch immediately.
                         Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() }
                     }
                 }
-                Text("Whole night is NOOP's default measure; Deep sleep pools HRV over slow-wave sleep only, reading lower and matching WHOOP. Switching re-scores recent nights and recalibrates Charge over a few nights.")
+                Text("Whole night is NOOP's default measure; Deep sleep pools HRV over slow-wave sleep only, reading lower and matching WHOOP. Switching re-scores your recent nights over the new window and takes effect right away once you have a few nights of data.")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)

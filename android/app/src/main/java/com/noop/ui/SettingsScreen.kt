@@ -1361,27 +1361,27 @@ fun SettingsScreen(
                         onSelect = {
                             hrvWindow = it
                             UnitPrefs.setHrvWindow(context, it)
-                            // The new window shifts every night's avgHrv, so the HRV BASELINE must re-learn or
-                            // recovery would compare the new value against a baseline still folded from the old
-                            // window (only the recent ~21 nights re-score, but the baseline EWMA spans further —
-                            // it would read skewed for weeks). Re-anchor the HRV baseline to now (same key +
-                            // mechanism as "Recalibrate Charge baseline"), then force a re-score so the recent
-                            // trend + the fresh baseline both reflect the new window. A few nights to settle.
-                            NoopPrefs.of(context).edit()
-                                .putLong(Baselines.hrvBaselineEpochKey, System.currentTimeMillis() / 1000L)
-                                .apply()
+                            // #201: the new window shifts every night's avgHrv, so the HRV baseline must reflect
+                            // it too — but a plain re-score already achieves that. analyzeRecent re-scores the
+                            // recent ~21 nights' avgHrv under the new window AND re-folds the HRV baseline from
+                            // them in the same pass, and the baseline's 14-night-half-life EWMA is dominated by
+                            // that fresh re-scored tail. So DON'T re-anchor the baseline epoch: doing so would
+                            // drop all history and force a multi-night "calibrating" reset for someone who already
+                            // has plenty of nights (that reset reading as "the setting is broken" was #195). Clear
+                            // the analyze watermark so the re-score runs even though the raw HR fingerprint is
+                            // unchanged. A genuine cold-start user (<4 valid nights) still calibrates honestly.
                             NoopPrefs.setAnalyzeWatermark(context, "")
                             vm.syncNow()
                             Toast.makeText(
                                 context,
-                                "Re-learning your HRV over the ${if (it == HrvWindow.DEEP_SLEEP) "deep-sleep" else "whole-night"} window. Charge recalibrates over the next few nights.",
+                                "Re-scoring your recent nights over the ${if (it == HrvWindow.DEEP_SLEEP) "deep-sleep" else "whole-night"} window. Charge updates as soon as it's done.",
                                 Toast.LENGTH_LONG,
                             ).show()
                         },
                     )
                 }
                 Text(
-                    "Whole night is NOOP's default measure; Deep sleep pools HRV over slow-wave sleep only, reading lower and matching WHOOP. Switching re-scores recent nights and recalibrates Charge over a few nights.",
+                    "Whole night is NOOP's default measure; Deep sleep pools HRV over slow-wave sleep only, reading lower and matching WHOOP. Switching re-scores your recent nights over the new window and takes effect right away once you have a few nights of data.",
                     style = NoopType.footnote,
                     color = Palette.textTertiary,
                 )

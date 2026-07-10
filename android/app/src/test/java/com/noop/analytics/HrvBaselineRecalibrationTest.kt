@@ -113,6 +113,34 @@ class HrvBaselineRecalibrationTest {
         assertEquals(BaselineStatus.CALIBRATING, s.status)
     }
 
+    // ── 2b. #201: HRV window switch re-folds instead of restarting calibration ───────────────────
+
+    /**
+     * #201: switching the HRV window re-scores the recent nights under the new window and folds the
+     * baseline from them WITHOUT re-anchoring the epoch. An established user (≥ minNightsSeed valid
+     * nights) keeps a usable baseline centered on the new (here lower, deep-window) values immediately —
+     * not a multi-night calibrating reset. Contrast [recalibrateEpoch_afterAllNights_resetsToColdStart],
+     * the old window-switch behaviour that dropped every night to cold-start and read as "the deep-sleep
+     * setting is broken" (#195). Parity twin of the Swift
+     * testWindowSwitchRefoldStaysUsableWithoutEpochReset.
+     */
+    @Test
+    fun windowSwitchRefold_staysUsableWithoutEpochReset() {
+        // 21 recent nights, all re-scored under the new deep window → the lower deep-only value.
+        val days = (1..21).map { "2026-06-%02d".format(it) }
+        val deepVals: List<Double?> = List(21) { 48.0 }
+
+        // #201 path: fold with no recalibration epoch → usable, centered on the new deep value.
+        val refolded = Baselines.foldHistory(deepVals, days, hrvCfg, 0.0)
+        assertTrue("established user keeps a usable baseline after a window switch", refolded.usable)
+        assertEquals(48.0, refolded.baseline, 2.0)
+
+        // Old behaviour: re-anchoring the epoch to "now" drops every re-scored night → calibrating.
+        val reset = Baselines.foldHistory(deepVals, days, hrvCfg, 4_000_000_000.0)
+        assertTrue("epoch reset drops all nights back to calibrating", !reset.usable)
+        assertEquals(BaselineStatus.CALIBRATING, reset.status)
+    }
+
     // ── 3. "Recalibrate Charge baseline" reset helper (writes BOTH epoch keys) ───────────────────
 
     /**

@@ -205,6 +205,32 @@ final class BaselinesTests: XCTestCase {
         XCTAssertEqual(s.status, .calibrating)
     }
 
+    // MARK: - #201: HRV window switch re-folds instead of restarting calibration
+
+    /// #201: switching the HRV window re-scores the recent nights under the new window and folds the
+    /// baseline from them WITHOUT re-anchoring the epoch. An established user (≥ minNightsSeed valid
+    /// nights) therefore keeps a usable baseline centered on the new (here lower, deep-window) values
+    /// immediately — not a multi-night calibrating reset. Contrast the epoch-reset path
+    /// (testRecalibrateEpochAfterAllNightsResetsToColdStart), the old window-switch behaviour that dropped
+    /// every night to cold-start and read as "the deep-sleep setting is broken" (#195).
+    func testWindowSwitchRefoldStaysUsableWithoutEpochReset() {
+        // 21 recent nights, all re-scored under the new deep window → the lower deep-only value.
+        let days = (1...21).map { String(format: "2026-06-%02d", $0) }
+        let deepVals: [Double?] = Array(repeating: 48.0, count: 21)
+
+        // #201 path: fold with no recalibration epoch → usable, centered on the new deep value.
+        let refolded = Baselines.foldHistory(deepVals, dayKeys: days, cfg: Baselines.hrvCfg, baselineEpoch: 0)
+        XCTAssertTrue(refolded.usable)
+        XCTAssertEqual(refolded.baseline, 48.0, accuracy: 2.0)
+
+        // Old behaviour: re-anchoring the epoch to "now" (after every re-scored night) drops them all →
+        // calibrating cold-start.
+        let reset = Baselines.foldHistory(deepVals, dayKeys: days, cfg: Baselines.hrvCfg,
+                                          baselineEpoch: 4_000_000_000)
+        XCTAssertFalse(reset.usable)
+        XCTAssertEqual(reset.status, .calibrating)
+    }
+
     // MARK: - "Recalibrate Charge baseline" reset helper (noop.hrvBaselineEpoch + noop.recoveryBaselineEpoch)
 
     /// An isolated UserDefaults suite so these tests never touch the real app domain.
