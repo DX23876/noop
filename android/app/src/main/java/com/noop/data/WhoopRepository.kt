@@ -50,6 +50,31 @@ data class StreamBatch(
 data class HrRow(val ts: Long, val bpm: Int)
 data class RrRow(val ts: Long, val rrMs: Int)
 
+/**
+ * Attach a tiebreaker `seq` to each R-R interval before insert (Room v18). Multiple beats share one
+ * whole-second `ts`; the old PK (deviceId, ts, rrMs) + IGNORE-on-conflict silently dropped the second of
+ * two EQUAL successive intervals in the same second, removing a zero-difference pair and biasing RMSSD/HRV
+ * high. `seq` counts occurrences of each EQUAL (ts, rrMs) beat (0, 1, …), so both survive.
+ *
+ * Keying by (ts, rrMs) — not ts alone — is deliberate: DISTINCT intervals keep seq 0 and thus their own
+ * (deviceId, ts, rrMs, 0) key, so a distinct beat is NEVER dropped even when same-second beats arrive in
+ * SEPARATE insert batches or via the live/historical merge (an earlier ts-only index would have restarted
+ * per batch and collided distinct beats — a data-loss regression). Re-syncing identical records reproduces
+ * the same (ts, rrMs, seq) → the insert stays idempotent. The residual: two EQUAL beats in one second that
+ * straddle a live-flush boundary still collide (batch-local), the same narrow case the old key dropped and
+ * strictly no worse; the authoritative historical path delivers a second's beats atomically in one batch.
+ * Pure so it is unit-testable.
+ */
+internal fun assignRrSeq(deviceId: String, rows: List<RrRow>): List<RrInterval> {
+    val seqByBeat = HashMap<Pair<Long, Int>, Int>()
+    return rows.map { row ->
+        val key = row.ts to row.rrMs
+        val s = seqByBeat.getOrDefault(key, 0)
+        seqByBeat[key] = s + 1
+        RrInterval(deviceId = deviceId, ts = row.ts, rrMs = row.rrMs, seq = s)
+    }
+}
+
 /** payloadJSON is the deterministic sorted-keys JSON for the remaining parsed fields. */
 data class EventEntry(val ts: Long, val kind: String, val payloadJSON: String)
 data class BatteryRow(val ts: Long, val soc: Double?, val mv: Int?, val charging: Boolean? = null)
@@ -172,7 +197,7 @@ class WhoopRepository(private val dao: WhoopDao) {
         val hrIds = if (streams.hr.isEmpty()) emptyList() else
             dao.insertHr(streams.hr.map { HrSample(deviceId, it.ts, it.bpm) })
         val rrIds = if (streams.rr.isEmpty()) emptyList() else
-            dao.insertRr(streams.rr.map { RrInterval(deviceId, it.ts, it.rrMs) })
+            dao.insertRr(assignRrSeq(deviceId, streams.rr))
         val evIds = if (streams.events.isEmpty()) emptyList() else
             dao.insertEvents(streams.events.map { EventRow(deviceId, it.ts, it.kind, it.payloadJSON) })
         val batIds = if (streams.battery.isEmpty()) emptyList() else

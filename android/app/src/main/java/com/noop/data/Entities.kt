@@ -8,10 +8,12 @@ import androidx.room.Index
  * Room entities mirroring the verified GRDB schema in
  * Packages/WhoopStore/Sources/WhoopStore/Database.swift (+ MetricsCache.swift).
  *
- * Natural keys are preserved EXACTLY so insert dedupe (OnConflictStrategy.IGNORE)
- * behaves identically to the Swift `ON CONFLICT(...) DO NOTHING` upserts:
+ * Natural keys mirror the Swift `ON CONFLICT(...) DO NOTHING` upserts so insert dedupe behaves identically,
+ * with ONE deliberate exception noted inline:
  *   - hrSample        PK (deviceId, ts)
- *   - rrInterval      PK (deviceId, ts, rrMs)
+ *   - rrInterval      PK (deviceId, ts, rrMs, seq)  // v18: `seq` tiebreaks EQUAL same-second beats.
+ *                                                   // Diverges from Swift (still deviceId, ts, rrMs) — see
+ *                                                   // the RrInterval doc + PR; Swift needs the same fix.
  *   - event           PK (deviceId, ts, kind)
  *   - battery         PK (deviceId, ts)
  *   - spo2Sample      PK (deviceId, ts)
@@ -82,12 +84,26 @@ data class HrWindowStats(
     val max: Int?,
 )
 
-/** R-R interval. Swift `rrInterval` (v1). PK (deviceId, ts, rrMs), multiple R-R per ts. */
-@Entity(tableName = "rrInterval", primaryKeys = ["deviceId", "ts", "rrMs"])
+/**
+ * R-R interval. Swift `rrInterval` (v1); PK widened in Room v18 to (deviceId, ts, rrMs, **seq**), adding
+ * `seq` as a tiebreaker for two EQUAL R-R intervals that fall in the same 1-second `ts` bucket. Keying by
+ * value alone (deviceId, ts, rrMs) + `ON CONFLICT DO NOTHING` silently dropped the second of two equal
+ * successive beats in a second, removing a zero-difference pair and biasing RMSSD/HRV **high** — the bias
+ * matters most at rest/sleep, exactly when HRV is scored. `seq` counts equal (ts, rrMs) beats (0, 1, …) so
+ * both survive. DISTINCT intervals keep their own (ts, rrMs) slot exactly as before, so no distinct beat is
+ * ever dropped — including across separate insert batches or the live/historical merge (rrMs stays in the
+ * key). Re-syncing identical records reproduces the same (ts, rrMs, seq), so the insert stays idempotent.
+ *
+ * PARITY NOTE: this intentionally diverges from the Swift `rrInterval` key, which is still
+ * (deviceId, ts, rrMs); the identical value-key drop exists in `WhoopStore` (Database.swift / StreamStore /
+ * Reads) and should get the same widening in a follow-up. See the PR description.
+ */
+@Entity(tableName = "rrInterval", primaryKeys = ["deviceId", "ts", "rrMs", "seq"])
 data class RrInterval(
     val deviceId: String,
     val ts: Long,
     val rrMs: Int,
+    val seq: Int = 0,
     val synced: Int = 0,
 )
 
