@@ -604,6 +604,10 @@ class WhoopBleClient(
         // disconnect/reconnect fixes is really a missing keep-alive. We re-arm + poll battery every
         // 30s, and bounce a truly silent link after 120s (the auto version of disconnect+reconnect).
         private const val KEEPALIVE_INTERVAL_MS = 30_000L
+        /** Delay after the 5/MG connect handshake before the first battery read (0x2A19), so it does not
+         *  race the clock writes on a slow stack while still populating the ring within a couple of seconds
+         *  of connect. */
+        private const val BATTERY_ON_CONNECT_DELAY_MS = 1_500L
         /** No inbound data for this long ⇒ the link/stream stalled; bounce it to resume streaming. */
         private const val KEEPALIVE_STALL_MS = 120_000L
         /** #580: longer stall fuse for a known history-empty 5/MG. Live HR over 0x2A37 keeps the link alive
@@ -1584,23 +1588,24 @@ class WhoopBleClient(
             log("Scan already in progress — ignoring")
             return
         }
-        // 5/MG fast path: a strap the OS already bonded connects DIRECTLY — no scan, no advertisement
-        // needed. Real hardware showed scan-reconnects against an OS-bonded 5/MG failing their first
-        // protected GATT operation (status=133), while the direct path reached a working puffin
-        // session. Falls open to the normal scan when no bonded WHOOP is found; a stale bond falls
-        // back to a scan via handleDisconnect. Never used for WHOOP 4. (#78 fork)
-        if (model == WhoopModel.WHOOP5_MG) {
-            val bonded = bondedWhoopDevice()
-            if (bonded != null) {
-                log("Connecting directly to OS-bonded ${bonded.name ?: "WHOOP"}")
-                _state.update { it.copy(
-                    scanning = false, whoop5Detected = false,
-                    statusNote = "Connecting to your bonded ${model.displayName}…",
-                ) }
-                connectToDevice(bonded)
-                bondedDirectAttempt = true   // after connectToDevice: reset() must not clear it
-                return
-            }
+        // Reach a WHOOP 5/MG without a scan. Prefer a band the OS already holds connected
+        // (getConnectedDevices returns it even after it stops advertising), then a bonded band that is not
+        // currently connected (a direct connect avoids the status=133 first-operation failure seen on
+        // scan-based 5/MG reconnects). Both helpers match only a 5/MG strap, so a WHOOP 4 falls through to
+        // the scan below. The family is resolved from the discovered services rather than the selected
+        // model, so this runs for any selected model and pins selectedModel to 5/MG on a hit to keep the
+        // pipeline consistent. A stale connection or bond falls back to a scan via handleDisconnect.
+        val direct = getConnectedWhoopDevice() ?: bondedWhoopDevice()
+        if (direct != null) {
+            selectedModel = WhoopModel.WHOOP5_MG
+            log("Easy-connect: attaching directly to ${direct.name ?: "WHOOP"} (no scan needed)")
+            _state.update { it.copy(
+                scanning = false, whoop5Detected = false,
+                statusNote = "Connecting to your ${WhoopModel.WHOOP5_MG.displayName}…",
+            ) }
+            connectToDevice(direct)
+            bondedDirectAttempt = true   // after connectToDevice: reset() must not clear it
+            return
         }
         startScan(model, allowFallback = true)
     }
@@ -1907,6 +1912,13 @@ class WhoopBleClient(
         selectedModel = model
         scanningForList = true
         _discoveredWhoops.value = emptyList()   // fresh list each time the wizard opens the scan
+        // Also list a WHOOP 5/MG the OS already holds connected, so the wizard can add a band that is not
+        // advertising (rssi 0 marks a connected, non-advertised entry). The scan below still adds any
+        // advertising straps.
+        getConnectedWhoopDevice()?.let { d ->
+            val n = try { d.name } catch (se: SecurityException) { null }
+            _discoveredWhoops.value = listOf(DiscoveredWhoop(address = d.address, name = n, rssi = 0))
+        }
         val filters = listOf(
             ScanFilter.Builder().setServiceUuid(ParcelUuid(model.service)).build(),
         )
@@ -2497,6 +2509,24 @@ class WhoopBleClient(
     /** The OS-bonded 5/MG-family strap, if any (name "WHOOP …" but not "WHOOP 4…" — MG-named units
      *  match too). Fails open to a scan on any lookup problem. (#78 fork) */
     @SuppressLint("MissingPermission")
+    /**
+     * A WHOOP 5/MG the OS already holds GATT-connected. Android multiplexes one ACL across GATT clients, so
+     * a band connected to another app is still returned by getConnectedDevices even after it stops
+     * advertising, and a client can attach to it without a scan. Uses the same 5/MG name filter and
+     * multi-strap pin selection as [bondedWhoopDevice]; a WHOOP 4 is excluded and left to the scan.
+     */
+    private fun getConnectedWhoopDevice(): BluetoothDevice? = try {
+        val connected = bluetoothManager?.getConnectedDevices(BluetoothProfile.GATT)?.filter { d ->
+            val n = try { d.name } catch (se: SecurityException) { null } ?: return@filter false
+            n.startsWith("WHOOP", ignoreCase = true) && !n.startsWith("WHOOP 4", ignoreCase = true)
+        }.orEmpty()
+        val preferred = preferredAddress
+        if (preferred != null) connected.firstOrNull { it.address.equals(preferred, ignoreCase = true) }
+        else connected.firstOrNull()
+    } catch (se: SecurityException) {
+        null
+    }
+
     private fun bondedWhoopDevice(): BluetoothDevice? = try {
         val bonded = adapter?.bondedDevices?.filter { d ->
             val n = try { d.name } catch (se: SecurityException) { null } ?: return@filter false
@@ -3829,10 +3859,18 @@ class WhoopBleClient(
                 // WHOOP 4.0 only: re-arm realtime HR so the firmware can't let it lapse (while the Live
                 // screen wants it), and poll battery (~60s) — which also keeps the link warm. A 5/MG
                 // strap rejects WHOOP4-framed commands, so we skip them and rely on re-subscribe + bounce.
+                // Advance the tick for both families so the ~60s battery cadence also fires on 5/MG (it
+                // previously incremented only inside the WHOOP 4 branch).
+                keepAliveTick += 1
                 if (connectedFamily == DeviceFamily.WHOOP4) {
                     if (wantsRealtime) { realtimeArmed = true; send(CommandNumber.TOGGLE_REALTIME_HR, byteArrayOf(1)) }
-                    keepAliveTick += 1
                     if (keepAliveTick % 2 == 0) send(CommandNumber.GET_BATTERY_LEVEL)
+                } else if (connectedFamily == DeviceFamily.WHOOP5 && keepAliveTick % 2 == 0) {
+                    // 5/MG battery comes only from a 0x2A19 read and the strap sends no unsolicited battery
+                    // notification, so poll it here (about every 60s) rather than only while the Live screen
+                    // is open. The ring then stays current on any screen without a manual sync, and the read
+                    // keeps the link warm.
+                    refreshBattery()
                 }
             }
         }
@@ -4231,6 +4269,9 @@ class WhoopBleClient(
                 connectHandshakeDone = true
                 send(CommandNumber.SET_CLOCK, setClockPayload(), withResponse = true)
                 send(CommandNumber.GET_CLOCK, byteArrayOf(), withResponse = true)
+                // Populate the battery ring right after connect, not only once the Live screen opens. Posted
+                // after the clock writes settle so the 0x2A19 read does not race them on a slow stack.
+                handler.postDelayed({ refreshBattery() }, BATTERY_ON_CONNECT_DELAY_MS)
                 log("WHOOP 5/MG: clock synced (set/get) — strap can persist history now")
                 if (!backfillStarted) {
                     backfillStarted = true
@@ -5074,9 +5115,16 @@ class WhoopBleClient(
                 // range stops hammering BLE — replaces the old fixed RECONNECT_DELAY_MS. The counter
                 // resets on the next STATE_CONNECTED and on an explicit user Connect. (#48)
                 val directDelay = nextReconnectDelayMs()
-                log("Disconnected (status=$status); reconnecting directly in ${directDelay / 1000}s (attempt $failedReconnectAttempts)")
+                // The first reconnect attempts use the fast direct connect (autoConnect=false), the same
+                // path as the initial connect. A 5/MG the OS still holds bonded and ACL-connected never
+                // re-emits the advertisement or connection-complete event that autoConnect=true waits for,
+                // so the passive mode stalls. Fall back to autoConnect=true from the third attempt for a
+                // strap that is genuinely out of range (#61: reconnect once it returns to range, with no
+                // scan or advertisement needed).
+                val passiveReconnect = failedReconnectAttempts >= 3
+                log("Disconnected (status=$status); reconnecting ${if (passiveReconnect) "passively" else "directly"} in ${directDelay / 1000}s (attempt $failedReconnectAttempts)")
                 // #1030 (ryanbr): cancellable backoff timer (see scheduleReconnect).
-                scheduleReconnect(directDelay) { connectToDevice(dev, autoConnect = true) }
+                scheduleReconnect(directDelay) { connectToDevice(dev, autoConnect = passiveReconnect) }
             } else {
                 val rescanDelay = nextReconnectDelayMs()
                 log("Disconnected (status=$status); rescanning in ${rescanDelay / 1000}s (attempt $failedReconnectAttempts)")
