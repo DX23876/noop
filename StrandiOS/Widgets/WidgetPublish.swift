@@ -62,5 +62,25 @@ extension WidgetSnapshot {
         snap.save()
         WidgetCenter.shared.reloadAllTimelines()
     }
+
+    /// #114/#169: HR is the ONE high-frequency widget-publish trigger — `model.bpm` moves every few
+    /// seconds during activity, unlike battery (~8 min) or connection flips (rare). Left ungated, the
+    /// `model.$bpm` hook re-ran `publish`'s `exploreSeries` read + `reloadAllTimelines()` on every tick.
+    /// This caps HR-DRIVEN publishes to one per `interval`, mirroring Android's `PushGate` 60 s
+    /// `HR_REFRESH_MS` cadence. Only the bpm hook consults it; the low-frequency score/battery/connection/
+    /// scenePhase publish sites stay ungated, exactly as before. `@MainActor` (the hook already runs there),
+    /// so the shared timestamp needs no locking.
+    @MainActor
+    enum HRPublishThrottle {
+        static let interval: TimeInterval = 60
+        private static var lastPublishedAt: Date = .distantPast
+        /// True (and stamps `now`) when at least `interval` has elapsed since the last HR-driven publish;
+        /// false to skip this HR change. The first call always admits (`.distantPast`).
+        static func admit(now: Date = Date()) -> Bool {
+            guard now.timeIntervalSince(lastPublishedAt) >= interval else { return false }
+            lastPublishedAt = now
+            return true
+        }
+    }
 }
 #endif

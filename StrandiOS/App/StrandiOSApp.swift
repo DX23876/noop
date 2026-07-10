@@ -138,11 +138,14 @@ struct StrandiOSApp: App {
                 // #114 (follow-up): `WidgetSnapshot.bpm` reads `model.bpm` (WidgetPublish.swift), the
                 // smoothed live HR — same LIVE-not-repo-cache category as battery/connected above, so it
                 // has the same gap: nothing bumped `refreshSeq` while a heart-rate stream was live, so the
-                // widget's HR froze at the last foreground snapshot for the rest of the session. `model.bpm`
-                // already change-guards itself in `ingestHR()` (only assigns when the smoothed median
-                // actually moves), so this can't out-pace the battery/connected hooks' throttling story.
+                // widget's HR froze at the last foreground snapshot for the rest of the session. UNLIKE
+                // battery/connection, HR is HIGH-frequency (the smoothed median moves every few seconds
+                // under activity), so — unlike the ungated hooks above — this one is throttled through
+                // `HRPublishThrottle` (60 s, mirroring Android's PushGate HR cadence) so it can't re-run
+                // publish's `exploreSeries` read + `reloadAllTimelines()` on every tick.
                 .onReceive(model.$bpm.dropFirst()) { _ in
                     guard scenePhase == .active else { return }
+                    guard WidgetSnapshot.HRPublishThrottle.admit() else { return }
                     Task { await WidgetSnapshot.publish(from: model) }
                 }
                 // #581: the `noop://import-health` deep link the iOS Shortcut opens after building the
