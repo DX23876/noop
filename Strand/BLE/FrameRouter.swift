@@ -131,7 +131,13 @@ public final class FrameRouter {
                     // exactly as diagnostic. Labelled "strap reports", not "verified" (one firmware's
                     // answer format must never mislead a triage).
                     if let epoch = Self.armedAlarmEpoch(in: frame) {
-                        state.append(log: "Alarm: strap reports armed for \(Self.alarmLocalTime(epoch: epoch)) (epoch \(epoch))")
+                        // #34: log the RAW response bytes alongside the decoded epoch (previously only the
+                        // decode-FAILURE branch below carried them). A successful-but-mismatched decode — the
+                        // strap reporting a plausible epoch that never matches what we armed, the corrupted-
+                        // register signature — needs the raw frame to tell a genuinely-stored stale alarm from
+                        // a misdecode of a fixed response field. Log-only; the decode/behaviour is unchanged.
+                        let raw = Self.commandResponsePayloadHex(in: frame) ?? "empty"
+                        state.append(log: "Alarm: strap reports armed for \(Self.alarmLocalTime(epoch: epoch)) (epoch \(epoch)) [raw \(raw)]")
                         // #34: persist what the strap reports so the debug export can show sent-vs-reported.
                         let d = UserDefaults.standard
                         d.set(Int(epoch), forKey: "alarm.lastReportedEpoch")
