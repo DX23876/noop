@@ -21,14 +21,12 @@ struct RootTabView: View {
     /// Selected tab — bound so tab switches can crossfade (README §Motion: ~240ms opacity swap
     /// between tab roots, calm easing). Defaults to Today.
     @State private var selectedTab: Int = 0
-    /// Bumped per-tab when the user re-taps the already-active tab (#135). Feeds `.id()` on that
-    /// tab's `NavigationStack`, forcing SwiftUI to rebuild it from its root — the near-universal
-    /// iOS convention that re-tapping the active tab pops back to the tab's main page. Each tab's
-    /// stack is independent, so only the reselected tab rebuilds.
-    @State private var todayResetID = 0
-    @State private var trendsResetID = 0
-    @State private var sleepResetID = 0
-    @State private var moreResetID = 0
+    /// One `NavigationPath` per tab, indexed by tab tag. Re-tapping the already-active tab pops
+    /// that tab's stack to its root (#135) by clearing its path — an animated pop that leaves the
+    /// root view alive, so an at-root re-tap keeps scroll position and never re-runs `.task`
+    /// (#198; the #197 resetID/`.id()` rebuild reset both). Requires the tab roots' first-hop
+    /// links to push `TabRoute`/`MoreDestination` VALUES — closure-destination links bypass the path.
+    @State private var tabPaths: [NavigationPath] = Array(repeating: NavigationPath(), count: 4)
     /// Which More-tab groups are expanded (S2). Insights + Body stay open at rest; Data + App collapse to
     /// just their header until tapped. Persisted (#860 item 2): the user's open/closed choice must SURVIVE
     /// leaving and re-entering the More tab (and relaunch), not reset to the seed every visit. Backed by an
@@ -69,10 +67,10 @@ struct RootTabView: View {
             // cleanly in the gap between them — replaces the native tab bar: no overlap, no glow. The
             // native TabView still drives content + per-tab nav state; only its bar is hidden.
             TabView(selection: $selectedTab) {
-                tab(todayTabRoot, "Today", "square.grid.2x2", resetID: todayResetID).tag(0)
-                tab(TrendsView(), "Trends", "chart.line.uptrend.xyaxis", resetID: trendsResetID).tag(1)
-                tab(SleepView(), "Sleep", "bed.double", resetID: sleepResetID).tag(2)
-                moreTab(resetID: moreResetID).tag(3)
+                tab(todayTabRoot, "Today", "square.grid.2x2", path: $tabPaths[0]).tag(0)
+                tab(TrendsView(), "Trends", "chart.line.uptrend.xyaxis", path: $tabPaths[1]).tag(1)
+                tab(SleepView(), "Sleep", "bed.double", path: $tabPaths[2]).tag(2)
+                moreTab(path: $tabPaths[3]).tag(3)
             }
             .tint(StrandPalette.accent)
             .toolbar(.hidden, for: .tabBar)
@@ -96,15 +94,12 @@ struct RootTabView: View {
             )
 
             FloatingTabBar(selection: $selectedTab, onReselect: { tag in
-                // Re-tapping the active tab refreshes that page's data (2026-07-02) and pops its
-                // NavigationStack back to the root (#135) by bumping that tab's resetID.
+                // Re-tapping the active tab refreshes that page's data (2026-07-02) and, from a
+                // subpage, pops that tab's stack back to its root (#135) — an animated pop via the
+                // path, not a rebuild. At the root the pop is skipped, so scroll position survives
+                // and the refresh doesn't double with a re-run of the root's `.task` (#198).
                 Task { await repo.refresh() }
-                switch tag {
-                case 0: todayResetID += 1
-                case 1: trendsResetID += 1
-                case 2: sleepResetID += 1
-                default: moreResetID += 1
-                }
+                if !tabPaths[tag].isEmpty { tabPaths[tag] = NavigationPath() }
             })
         }
         .task {
@@ -193,6 +188,9 @@ struct RootTabView: View {
                 case .liveSession: LiquidTodayView()
                 }
             }
+            // The Trends/Today fallbacks above emit TabRoute value pushes (#198), which need a
+            // destination registered in THIS sheet's stack to resolve.
+            .tabRouteDestinations()
             .background(StrandPalette.surfaceBase.ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)
             // #1027: same fix as quickScreen — the pillar screens draw the full-bleed liquid sky, so a
@@ -279,21 +277,22 @@ struct RootTabView: View {
         }
     }
 
-    private func tab<V: View>(_ view: V, _ title: LocalizedStringKey, _ icon: String, resetID: Int) -> some View {
+    private func tab<V: View>(_ view: V, _ title: LocalizedStringKey, _ icon: String,
+                              path: Binding<NavigationPath>) -> some View {
         // Each primary tab gets its OWN NavigationStack so the in-content NavigationLinks (e.g. the Today
         // dashboard card rows) both navigate AND render opaque. An ORPHANED NavigationLink (no
         // NavigationStack ancestor) renders its whole label in a disabled/translucent state — that was
         // washing the Today cards over the hero scene and dimming their text to grey (2026-06-23).
         // The root view hides the system nav bar (each screen draws its own in-content header); pushed
-        // detail screens get their own nav bar + back button.
-        NavigationStack {
+        // detail screens get their own nav bar + back button. The stack is bound to the tab's path so a
+        // re-tap of the active tab can pop it to the root (#135/#198); the roots' first-hop links push
+        // TabRoute values, registered here ONCE per stack (a double registration double-pushes, #38).
+        NavigationStack(path: path) {
             view
                 .background(StrandPalette.surfaceBase.ignoresSafeArea())
                 .toolbar(.hidden, for: .navigationBar)
+                .tabRouteDestinations()
         }
-        // #135: identity keyed on resetID, so bumping it (re-tap while active) tears down and
-        // rebuilds this stack from its root, popping any pushed subpage.
-        .id(resetID)
         .toolbar(.hidden, for: .tabBar)   // we draw our own FloatingTabBar
         .tabItem { Label(title, systemImage: icon) }
     }
@@ -303,39 +302,39 @@ struct RootTabView: View {
     // + SectionHeader's UPPERCASE overline + the 28pt section rhythm). Rebuilt on the shared page chrome:
     // ScreenScaffold for the title1 "More" + subtitle, a `SectionHeader` overline per group, and the group's
     // rows in a single grouped NoopCard with hairline dividers — the same row idiom Settings/Health use.
-    private func moreTab(resetID: Int) -> some View {
-        NavigationStack {
+    private func moreTab(path: Binding<NavigationPath>) -> some View {
+        NavigationStack(path: path) {
             ScreenScaffold(title: "More", subtitle: "Everything else, one tap away",
                            onRefresh: { await repo.refresh() },
                            topBackground: liquidScaffoldSky()) {
                 moreSection("Insights") {
-                    MoreRow("What Moves You", "wand.and.sparkles") { InsightsHubView() }
-                    MoreRow("Intelligence", "brain.head.profile") { IntelligenceView() }
-                    MoreRow("Coach", "sparkles") { CoachView() }
-                    MoreRow("Insights", "lightbulb.fill") { InsightsView() }
-                    MoreRow("Explore", "square.grid.2x2.fill") { MetricExplorerView() }
-                    MoreRow("Compare", "rectangle.split.2x1.fill") { CompareView() }
+                    MoreRow("What Moves You", "wand.and.sparkles", .insightsHub)
+                    MoreRow("Intelligence", "brain.head.profile", .intelligence)
+                    MoreRow("Coach", "sparkles", .coach)
+                    MoreRow("Insights", "lightbulb.fill", .insights)
+                    MoreRow("Explore", "square.grid.2x2.fill", .explore)
+                    MoreRow("Compare", "rectangle.split.2x1.fill", .compare)
                 }
                 moreSection("Body") {
-                    MoreRow("Live", "waveform.path.ecg") { LiveView() }
-                    MoreRow("Workouts", "figure.run") { WorkoutsView() }
-                    MoreRow("Health", "heart.text.square.fill") { HealthView() }
-                    MoreRow("Lab Book", "books.vertical.fill") { LabBookView() }
-                    MoreRow("Stress", "bolt.heart.fill") { StressView() }
-                    MoreRow("Breathe", "wind") { BreathingView() }
-                    MoreRow("Intervals", "timer") { IntervalTimerView() }
+                    MoreRow("Live", "waveform.path.ecg", .live)
+                    MoreRow("Workouts", "figure.run", .workouts)
+                    MoreRow("Health", "heart.text.square.fill", .health)
+                    MoreRow("Lab Book", "books.vertical.fill", .labBook)
+                    MoreRow("Stress", "bolt.heart.fill", .stress)
+                    MoreRow("Breathe", "wind", .breathe)
+                    MoreRow("Intervals", "timer", .intervals)
                     // Experimental beat-to-beat regularity visualization — self-gates on its own consent.
-                    MoreRow("Rhythm", "waveform.path") { RhythmHost() }
+                    MoreRow("Rhythm", "waveform.path", .rhythm)
                 }
                 moreSection("Data") {
-                    MoreRow("Your Data, Fused", "square.stack.3d.up.fill") { FusedRecordHost() }
-                    MoreRow("Apple Health", "heart.fill") { AppleHealthView() }
-                    MoreRow("Mi Band", "figure.walk.motion") { XiaomiBandView() }
-                    MoreRow("Data Sources", "externaldrive.fill") { DataSourcesView() }
-                    MoreRow("Backup & Sync", "externaldrive.fill.badge.icloud") { BackupSyncView() }
+                    MoreRow("Your Data, Fused", "square.stack.3d.up.fill", .fusedRecord)
+                    MoreRow("Apple Health", "heart.fill", .appleHealth)
+                    MoreRow("Mi Band", "figure.walk.motion", .miBand)
+                    MoreRow("Data Sources", "externaldrive.fill", .dataSources)
+                    MoreRow("Backup & Sync", "externaldrive.fill.badge.icloud", .backupSync)
                     // #155: HealthKit-free Apple Health path for sideloaded installs (Siri Shortcut
                     // reads the opt-in Documents/noop_sync.txt drop file).
-                    MoreRow("Shortcuts Export", "square.and.arrow.up.fill") { ShortcutExportSettingsView() }
+                    MoreRow("Shortcuts Export", "square.and.arrow.up.fill", .shortcutsExport)
                 }
                 moreSection("App") {
                     // #805/#811: the v7.3.1 #766 alarm consolidation moved Smart Alarm under a single
@@ -348,19 +347,30 @@ struct RootTabView: View {
                     // and project.yml excludes Screens/NotificationSettingsView.swift from the iOS target),
                     // so it can't compile or apply on iPhone. iPhone's wrist-alert controls live on the
                     // Automations screen instead. Its absence from the iPhone More list is correct.
-                    MoreRow("Alarms", "alarm.fill") { SmartAlarmView() }
-                    MoreRow("Automations", "wand.and.stars") { AutomationsView() }
+                    MoreRow("Alarms", "alarm.fill", .alarms)
+                    MoreRow("Automations", "wand.and.stars", .automations)
                     // The Test Centre (the diagnostics + bug-report hub) gets a first-class home here, not
                     // just buried in Settings, so the feedback loop is one tap from the More tab.
-                    MoreRow("Test Centre", "stethoscope") { TestCentreView() }
-                    MoreRow("Siri & Shortcuts", "mic.fill") { SiriShortcutsSettingsView() }
-                    MoreRow("Settings", "gearshape.fill") { SettingsView() }
+                    MoreRow("Test Centre", "stethoscope", .testCentre)
+                    MoreRow("Siri & Shortcuts", "mic.fill", .siriShortcuts)
+                    MoreRow("Settings", "gearshape.fill", .settings)
                 }
             }
             .toolbar(.hidden, for: .tabBar)   // we draw our own FloatingTabBar
+            // The rows push MoreDestination VALUES so a re-tap of the More tab can pop them off the
+            // bound path (#135/#198). Each destination keeps the per-screen wrapper the rows used to
+            // apply inline (surfaceBase background, inline title bar, hidden bar background):
+            // #1027 — a pushed sky-scaffold screen (Live, Workouts, Health, …) draws a full-bleed liquid
+            // sky; an opaque surfaceBase nav-bar band sat over it and clipped the top on scroll. A hidden
+            // bar background keeps the sky edge-to-edge. On the flat (no-sky) screens this is visually
+            // identical at rest — the destination's own surfaceBase background shows through the bar.
+            .navigationDestination(for: MoreDestination.self) { route in
+                route.destination
+                    .background(StrandPalette.surfaceBase.ignoresSafeArea())
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbarBackground(.hidden, for: .navigationBar)
+            }
         }
-        // #135: same reset-on-reselect identity as the other tabs (see `tab(_:_:_:resetID:)`).
-        .id(resetID)
         .tabItem { Label("More", systemImage: "ellipsis.circle.fill") }
     }
 
@@ -419,32 +429,62 @@ struct RootTabView: View {
     }
 }
 
+/// Every screen the More index links to, as a `Hashable` value the tab's `NavigationPath` can carry
+/// (#198): a closure-destination push would bypass the path and be un-poppable on tab re-tap. The
+/// per-screen chrome the old inline links applied lives at the single `navigationDestination(for:)`
+/// registration in `moreTab`.
+private enum MoreDestination: Hashable {
+    case insightsHub, intelligence, coach, insights, explore, compare
+    case live, workouts, health, labBook, stress, breathe, intervals, rhythm
+    case fusedRecord, appleHealth, miBand, dataSources, backupSync, shortcutsExport
+    case alarms, automations, testCentre, siriShortcuts, settings
+
+    @ViewBuilder var destination: some View {
+        switch self {
+        case .insightsHub:     InsightsHubView()
+        case .intelligence:    IntelligenceView()
+        case .coach:           CoachView()
+        case .insights:        InsightsView()
+        case .explore:         MetricExplorerView()
+        case .compare:         CompareView()
+        case .live:            LiveView()
+        case .workouts:        WorkoutsView()
+        case .health:          HealthView()
+        case .labBook:         LabBookView()
+        case .stress:          StressView()
+        case .breathe:         BreathingView()
+        case .intervals:       IntervalTimerView()
+        case .rhythm:          RhythmHost()
+        case .fusedRecord:     FusedRecordHost()
+        case .appleHealth:     AppleHealthView()
+        case .miBand:          XiaomiBandView()
+        case .dataSources:     DataSourcesView()
+        case .backupSync:      BackupSyncView()
+        case .shortcutsExport: ShortcutExportSettingsView()
+        case .alarms:          SmartAlarmView()
+        case .automations:     AutomationsView()
+        case .testCentre:      TestCentreView()
+        case .siriShortcuts:   SiriShortcutsSettingsView()
+        case .settings:        SettingsView()
+        }
+    }
+}
+
 /// One tappable destination row in the More index. A `NavigationLink` whose label is the standard app row:
 /// the SF Symbol icon tinted `StrandPalette.accent`, the title in the body text colour, a `Spacer`, and a
 /// trailing `chevron.right` in `textTertiary`. ~44pt min height + the card's row insets keep the whole row a
-/// comfortable tap target. Each destination keeps the per-screen wrapper the old `link()` applied
-/// (`surfaceBase` background, inline title-bar, toolbar background) so pushed pages look identical to before.
-private struct MoreRow<Destination: View>: View {
+/// comfortable tap target.
+private struct MoreRow: View {
     let title: LocalizedStringKey
     let icon: String
-    @ViewBuilder let destination: () -> Destination
+    let route: MoreDestination
 
-    init(_ title: LocalizedStringKey, _ icon: String,
-         @ViewBuilder _ destination: @escaping () -> Destination) {
-        self.title = title; self.icon = icon; self.destination = destination
+    init(_ title: LocalizedStringKey, _ icon: String, _ route: MoreDestination) {
+        self.title = title; self.icon = icon; self.route = route
     }
 
     var body: some View {
-        NavigationLink {
-            destination()
-                .background(StrandPalette.surfaceBase.ignoresSafeArea())
-                .navigationBarTitleDisplayMode(.inline)
-                // #1027: a pushed sky-scaffold screen (Live, Workouts, Health, …) draws a full-bleed liquid
-                // sky; an opaque surfaceBase nav-bar band sat over it and clipped the top on scroll. A hidden
-                // bar background keeps the sky edge-to-edge. On the flat (no-sky) screens this is visually
-                // identical at rest — the destination's own surfaceBase background shows through the bar.
-                .toolbarBackground(.hidden, for: .navigationBar)
-        } label: {
+        NavigationLink(value: route) {
             HStack(spacing: 14) {
                 // Pin the icon to the accent explicitly. A plain inherited tint gets re-resolved by iOS to
                 // its default blue a beat after first render — so the icons flashed green→blue (#184). The

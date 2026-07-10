@@ -460,7 +460,7 @@ struct LiquidTodayView: View {
             // "Full day" affordance so it's discoverable again. (This comment used to claim the Deep
             // Timeline already drew sleep + activity bands — it didn't at the time; the #979 spin-off
             // added that parity in FullDayChartView.)
-            NavigationLink { FullDayChartView() } label: {
+            NavigationLink(value: TabRoute.fullDayChart) {
                 card {
                     VStack(spacing: 10) {
                         // Isolated leaf: it observes LiveState so the ~1 Hz HR notifies re-render ONLY
@@ -513,67 +513,57 @@ struct LiquidTodayView: View {
     private func liquidCard(for card: DashboardCard) -> some View {
         switch card {
         case .stress:
-            cardLink(dest: StressView(), title: card.title, sub: card.subtitle,
+            cardLink(.stress, title: card.title, sub: card.subtitle,
                      value: stressText, tint: StrandPalette.accent, frac: fracOver(stress, 3))
         case .fitnessAge:
-            cardLink(dest: metricDetail("fitness_age"), title: card.title, sub: card.subtitle,
+            cardLink(.metric("fitness_age"), title: card.title, sub: card.subtitle,
                      value: unitText(fitnessAge, card.unit), tint: StrandPalette.chargeColor, frac: 0.5)
         case .vitality:
-            cardLink(dest: metricDetail("vitality"), title: card.title, sub: card.subtitle,
+            cardLink(.metric("vitality"), title: card.title, sub: card.subtitle,
                      value: intText(vitality), tint: liquidPurple, frac: frac(vitality))
         case .hrv:
-            cardLink(dest: metricDetail("hrv"), title: card.title, sub: card.subtitle,
+            cardLink(.metric("hrv"), title: card.title, sub: card.subtitle,
                      value: unitText(displayDay?.avgHrv, card.unit), tint: StrandPalette.metricCyan,
                      frac: fracOver(displayDay?.avgHrv, 120))
         case .restingHr:
-            cardLink(dest: metricDetail("rhr"), title: card.title, sub: card.subtitle,
+            cardLink(.metric("rhr"), title: card.title, sub: card.subtitle,
                      value: unitText(displayDay?.restingHr.map(Double.init), card.unit),
                      tint: StrandPalette.metricRose, frac: fracOver(displayDay?.restingHr.map(Double.init), 100))
         case .respiratory:
-            cardLink(dest: metricDetail("resp_rate"), title: card.title, sub: card.subtitle,
+            cardLink(.metric("resp_rate"), title: card.title, sub: card.subtitle,
                      value: unitText(displayDay?.respRateBpm, card.unit, decimals: 1),
                      tint: StrandPalette.accent, frac: fracOver(displayDay?.respRateBpm, 24))
         case .steps:
-            cardLink(dest: metricDetail("steps_est"), title: card.title, sub: card.subtitle,
+            cardLink(.metric("steps_est"), title: card.title, sub: card.subtitle,
                      value: stepsText, tint: StrandPalette.metricCyan, frac: fracOver(stepCount, 10000))
         case .bloodOxygen:
             // Not wired to a real read yet — render EMPTY (not half-full) so it doesn't imply a reading.
-            cardLink(dest: metricDetail("spo2"), title: card.title, sub: card.subtitle,
+            cardLink(.metric("spo2"), title: card.title, sub: card.subtitle,
                      value: "–", tint: StrandPalette.metricCyan, frac: nil)
         case .skinTemp:
-            cardLink(dest: metricDetail("skin_temp"), title: card.title, sub: card.subtitle,
+            cardLink(.metric("skin_temp"), title: card.title, sub: card.subtitle,
                      value: "–", tint: StrandPalette.metricAmber, frac: nil)
         case .calories:
-            cardLink(dest: metricDetail("active_kcal"), title: card.title, sub: card.subtitle,
+            cardLink(.metric("active_kcal"), title: card.title, sub: card.subtitle,
                      value: "–", tint: StrandPalette.metricAmber, frac: nil)
         case .sleep:
-            cardLink(dest: SleepView(), title: card.title, sub: card.subtitle,
+            cardLink(.sleep, title: card.title, sub: card.subtitle,
                      value: sleepText, tint: StrandPalette.restColor, frac: fracOver(displayDay?.totalSleepMin, 480))
         case .hydration:
-            cardLink(dest: HydrationView(), title: card.title, sub: card.subtitle,
+            cardLink(.hydration, title: card.title, sub: card.subtitle,
                      value: "–", tint: StrandPalette.metricCyan, frac: nil)
         case .coupled:
             // A tap-through to the full Coupled day screen. No value.
-            cardLink(dest: CoupledView(), title: card.title, sub: card.subtitle,
+            cardLink(.coupled, title: card.title, sub: card.subtitle,
                      value: "", tint: StrandPalette.chargeColor, frac: 0.6)
         }
     }
 
-    /// The per-metric detail page (its own data screen with chart + history), looked up by catalog key.
-    /// Each card opens ITS metric (2026-07-02: not the shared Health screen). Falls back to Health
-    /// only if the key is somehow absent from the catalog.
-    @ViewBuilder
-    private func metricDetail(_ key: String) -> some View {
-        if let m = MetricCatalog.all.first(where: { $0.key == key }) {
-            MetricDetailView(metric: m)
-        } else {
-            HealthView()
-        }
-    }
-
-    private func cardLink<Dest: View>(dest: Dest, title: String, sub: String,
-                                      value: String, tint: Color, frac: Double?) -> some View {
-        NavigationLink { dest } label: {
+    /// One card row pushing its `TabRoute` by value — the first hop off the Today root must ride
+    /// the tab's `NavigationPath` so a re-tap of the Today tab can pop it (#198; see TabRoute.swift).
+    private func cardLink(_ route: TabRoute, title: String, sub: String,
+                          value: String, tint: Color, frac: Double?) -> some View {
+        NavigationLink(value: route) {
             HStack(spacing: 12) {
                 LiquidVessel(value: frac, tint: tint, animated: false).frame(width: 30, height: 30)
                 VStack(alignment: .leading, spacing: 1) {
@@ -710,7 +700,7 @@ struct LiquidTodayView: View {
                 ktile(String(localized: "Rest HR"), intText(rhr), "bpm", StrandPalette.metricRose, fracOver(rhr, 100))
                 ktile(String(localized: "Steps"), stepsText, "", StrandPalette.chargeColor, fracOver(stepCount, 10000))
             }
-            NavigationLink { MetricExplorerView() } label: {
+            NavigationLink(value: TabRoute.metricExplorer) {
                 Text("Show all metrics").font(StrandFont.subhead).foregroundStyle(StrandPalette.accent)
                     .frame(maxWidth: .infinity).padding(.top, 2)
             }
@@ -747,7 +737,7 @@ struct LiquidTodayView: View {
         VStack(spacing: 8) {
             sectionHead("LAST WORKOUTS", trailing: "\(workouts.count) total")
             if let w = workouts.first {
-                NavigationLink { WorkoutsView() } label: { workoutCard(w) }
+                NavigationLink(value: TabRoute.workouts) { workoutCard(w) }
                     .buttonStyle(LiquidPressStyle())
             } else {
                 card {
@@ -784,7 +774,7 @@ struct LiquidTodayView: View {
     private var dataSourcesSection: some View {
         VStack(spacing: 8) {
             sectionHead("DATA SOURCES", trailing: "Provenance")
-            NavigationLink { DataSourcesView() } label: {
+            NavigationLink(value: TabRoute.dataSources) {
                 card {
                     VStack(spacing: 12) {
                         HStack {

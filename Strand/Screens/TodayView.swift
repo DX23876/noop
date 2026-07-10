@@ -2006,34 +2006,25 @@ struct TodayView: View {
         switch card {
         case .stress:
             pinnedCardRow(icon: card.icon, tint: tint, title: card.title, subtitle: card.subtitle,
-                          value: dashboardValue(card)) { StressView() }
-        case .fitnessAge:
+                          value: dashboardValue(card), route: .stress)
+        case .fitnessAge, .vitality, .steps, .calories:
             pinnedCardRow(icon: card.icon, tint: tint, title: card.title, subtitle: card.subtitle,
-                          value: dashboardValue(card)) { HealthView() }
-        case .vitality:
-            pinnedCardRow(icon: card.icon, tint: tint, title: card.title, subtitle: card.subtitle,
-                          value: dashboardValue(card)) { HealthView() }
+                          value: dashboardValue(card), route: .health)
         case .hrv, .restingHr, .respiratory, .bloodOxygen, .skinTemp:
             // The overnight vitals share the Health detail screen (the vital-signs surface).
             pinnedCardRow(icon: card.icon, tint: tint, title: card.title, subtitle: card.subtitle,
-                          value: dashboardValue(card)) { HealthView() }
+                          value: dashboardValue(card), route: .health)
         case .sleep:
             pinnedCardRow(icon: card.icon, tint: tint, title: card.title, subtitle: card.subtitle,
-                          value: dashboardValue(card)) { SleepView() }
-        case .steps:
-            pinnedCardRow(icon: card.icon, tint: tint, title: card.title, subtitle: card.subtitle,
-                          value: dashboardValue(card)) { HealthView() }
-        case .calories:
-            pinnedCardRow(icon: card.icon, tint: tint, title: card.title, subtitle: card.subtitle,
-                          value: dashboardValue(card)) { HealthView() }
+                          value: dashboardValue(card), route: .sleep)
         case .hydration:
             pinnedCardRow(icon: card.icon, tint: tint, title: card.title, subtitle: card.subtitle,
-                          value: dashboardValue(card)) { HydrationView() }
+                          value: dashboardValue(card), route: .hydration)
         case .coupled:
             // The Coupled view row (#43) carries NO metric value, it is a tap-through to the full
             // coupled day screen. An empty value renders just the icon + title + subtitle + chevron.
             pinnedCardRow(icon: card.icon, tint: tint, title: card.title, subtitle: card.subtitle,
-                          value: dashboardValue(card)) { CoupledView() }
+                          value: dashboardValue(card), route: .coupled)
         }
     }
 
@@ -2125,14 +2116,13 @@ struct TodayView: View {
     }
 
     /// One WHOOP "My Dashboard" metric row: a thin-line tinted icon, an UPPERCASE tracked label over a grey
-    /// baseline caption, the big white value, and a chevron, the whole row navigates to `destination`. Flat
-    /// WHOOP styling (FrostedCardSurface, no glow), tokens only.
-    @ViewBuilder
-    private func pinnedCardRow<Dest: View>(icon: String, tint: Color, title: String, subtitle: String,
-                                           value: String, @ViewBuilder destination: @escaping () -> Dest) -> some View {
-        NavigationLink {
-            destination()
-        } label: {
+    /// baseline caption, the big white value, and a chevron, the whole row navigates to `route`. Flat
+    /// WHOOP styling (FrostedCardSurface, no glow), tokens only. Pushed by VALUE — the first hop off the
+    /// Today root must ride the tab's `NavigationPath` so a re-tap of the Today tab can pop it (#198;
+    /// see TabRoute.swift).
+    private func pinnedCardRow(icon: String, tint: Color, title: String, subtitle: String,
+                               value: String, route: TabRoute) -> some View {
+        NavigationLink(value: route) {
             HStack(spacing: 12) {
                 RoundedRectangle(cornerRadius: 9, style: .continuous)
                     .fill(tint.opacity(0.14))
