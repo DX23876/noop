@@ -25,7 +25,7 @@ object AppChangelog {
      * Bump this when you add a release below. The "What's New" sheet shows automatically when the
      * stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
      */
-    const val CURRENT_VERSION = "8.5.2"
+    const val CURRENT_VERSION = "8.6.0"
 
     data class Release(
         val version: String,
@@ -36,6 +36,16 @@ object AppChangelog {
 
     /** Newest first. */
     val releases: List<Release> = listOf(
+        Release(
+            version = "8.6.0",
+            title = "HRV that reads true, and a tidier workout list",
+            date = "July 2026",
+            items = listOf(
+                "**Overnight HRV reads true, not roughly twice as high (#195).** When cleaning drops a single noisy heartbeat, its neighbours no longer splice together into a phantom spike — the flaw that had some nights reading HRV about 2× too high, and skewing the recovery built on it. iPhone, Mac and Android.",
+                "**The deep-sleep HRV setting takes effect right away (#201).** Switching between whole-night and deep-sleep no longer drops Charge back to \"calibrating\" for several nights — with a few nights of history behind you, the change applies immediately. Thanks digitalerdude.",
+                "**Latest Workouts, tidied up (#200).** The Today workout section shows your true most-recent sessions in one clean list, drops the duplicate that appeared when a workout came from more than one source, keeps up when you re-pair your strap, and names more sports. Thanks TheBoroer.",
+            ),
+        ),
         Release(
             version = "8.5.2",
             title = "Your WHOOP journal in Insights, clearer metric taps",
