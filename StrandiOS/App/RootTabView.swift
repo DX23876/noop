@@ -21,6 +21,14 @@ struct RootTabView: View {
     /// Selected tab — bound so tab switches can crossfade (README §Motion: ~240ms opacity swap
     /// between tab roots, calm easing). Defaults to Today.
     @State private var selectedTab: Int = 0
+    /// Bumped per-tab when the user re-taps the already-active tab (#135). Feeds `.id()` on that
+    /// tab's `NavigationStack`, forcing SwiftUI to rebuild it from its root — the near-universal
+    /// iOS convention that re-tapping the active tab pops back to the tab's main page. Each tab's
+    /// stack is independent, so only the reselected tab rebuilds.
+    @State private var todayResetID = 0
+    @State private var trendsResetID = 0
+    @State private var sleepResetID = 0
+    @State private var moreResetID = 0
     /// Which More-tab groups are expanded (S2). Insights + Body stay open at rest; Data + App collapse to
     /// just their header until tapped. Persisted (#860 item 2): the user's open/closed choice must SURVIVE
     /// leaving and re-entering the More tab (and relaunch), not reset to the seed every visit. Backed by an
@@ -61,10 +69,10 @@ struct RootTabView: View {
             // cleanly in the gap between them — replaces the native tab bar: no overlap, no glow. The
             // native TabView still drives content + per-tab nav state; only its bar is hidden.
             TabView(selection: $selectedTab) {
-                tab(todayTabRoot, "Today", "square.grid.2x2").tag(0)
-                tab(TrendsView(), "Trends", "chart.line.uptrend.xyaxis").tag(1)
-                tab(SleepView(), "Sleep", "bed.double").tag(2)
-                moreTab.tag(3)
+                tab(todayTabRoot, "Today", "square.grid.2x2", resetID: todayResetID).tag(0)
+                tab(TrendsView(), "Trends", "chart.line.uptrend.xyaxis", resetID: trendsResetID).tag(1)
+                tab(SleepView(), "Sleep", "bed.double", resetID: sleepResetID).tag(2)
+                moreTab(resetID: moreResetID).tag(3)
             }
             .tint(StrandPalette.accent)
             .toolbar(.hidden, for: .tabBar)
@@ -87,9 +95,16 @@ struct RootTabView: View {
                     }
             )
 
-            FloatingTabBar(selection: $selectedTab, onReselect: { _ in
-                // Re-tapping the active tab refreshes that page's data (2026-07-02).
+            FloatingTabBar(selection: $selectedTab, onReselect: { tag in
+                // Re-tapping the active tab refreshes that page's data (2026-07-02) and pops its
+                // NavigationStack back to the root (#135) by bumping that tab's resetID.
                 Task { await repo.refresh() }
+                switch tag {
+                case 0: todayResetID += 1
+                case 1: trendsResetID += 1
+                case 2: sleepResetID += 1
+                default: moreResetID += 1
+                }
             })
         }
         .task {
@@ -264,7 +279,7 @@ struct RootTabView: View {
         }
     }
 
-    private func tab<V: View>(_ view: V, _ title: LocalizedStringKey, _ icon: String) -> some View {
+    private func tab<V: View>(_ view: V, _ title: LocalizedStringKey, _ icon: String, resetID: Int) -> some View {
         // Each primary tab gets its OWN NavigationStack so the in-content NavigationLinks (e.g. the Today
         // dashboard card rows) both navigate AND render opaque. An ORPHANED NavigationLink (no
         // NavigationStack ancestor) renders its whole label in a disabled/translucent state — that was
@@ -276,6 +291,9 @@ struct RootTabView: View {
                 .background(StrandPalette.surfaceBase.ignoresSafeArea())
                 .toolbar(.hidden, for: .navigationBar)
         }
+        // #135: identity keyed on resetID, so bumping it (re-tap while active) tears down and
+        // rebuilds this stack from its root, popping any pushed subpage.
+        .id(resetID)
         .toolbar(.hidden, for: .tabBar)   // we draw our own FloatingTabBar
         .tabItem { Label(title, systemImage: icon) }
     }
@@ -285,7 +303,7 @@ struct RootTabView: View {
     // + SectionHeader's UPPERCASE overline + the 28pt section rhythm). Rebuilt on the shared page chrome:
     // ScreenScaffold for the title1 "More" + subtitle, a `SectionHeader` overline per group, and the group's
     // rows in a single grouped NoopCard with hairline dividers — the same row idiom Settings/Health use.
-    private var moreTab: some View {
+    private func moreTab(resetID: Int) -> some View {
         NavigationStack {
             ScreenScaffold(title: "More", subtitle: "Everything else, one tap away",
                            onRefresh: { await repo.refresh() },
@@ -341,6 +359,8 @@ struct RootTabView: View {
             }
             .toolbar(.hidden, for: .tabBar)   // we draw our own FloatingTabBar
         }
+        // #135: same reset-on-reselect identity as the other tabs (see `tab(_:_:_:resetID:)`).
+        .id(resetID)
         .tabItem { Label("More", systemImage: "ellipsis.circle.fill") }
     }
 
