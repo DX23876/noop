@@ -135,6 +135,16 @@ struct StrandiOSApp: App {
                     guard scenePhase == .active else { return }
                     Task { await WidgetSnapshot.publish(from: model) }
                 }
+                // #114 (follow-up): `WidgetSnapshot.bpm` reads `model.bpm` (WidgetPublish.swift), the
+                // smoothed live HR — same LIVE-not-repo-cache category as battery/connected above, so it
+                // has the same gap: nothing bumped `refreshSeq` while a heart-rate stream was live, so the
+                // widget's HR froze at the last foreground snapshot for the rest of the session. `model.bpm`
+                // already change-guards itself in `ingestHR()` (only assigns when the smoothed median
+                // actually moves), so this can't out-pace the battery/connected hooks' throttling story.
+                .onReceive(model.$bpm.dropFirst()) { _ in
+                    guard scenePhase == .active else { return }
+                    Task { await WidgetSnapshot.publish(from: model) }
+                }
                 // #581: the `noop://import-health` deep link the iOS Shortcut opens after building the
                 // HealthKit-free payload. Filter on the host so other future schemes don't trip the
                 // importer; macOS never registers the scheme so this stays iOS-only.
