@@ -125,6 +125,48 @@ final class Whoop5HistoricalTests: XCTestCase {
         XCTAssertEqual(p["unknown_f32_113"]?.doubleValue ?? 0, -5.2307, accuracy: 0.001)
     }
 
+    func testHistoricalV18OpticalRegionFields() {
+        // The @82–119 "optical/tail" span, reverse-engineered over 18,602 real v18 records (a third strap's
+        // overnight R22 stream) and cross-checked here on the two fixture devices. It is ~85% zero padding;
+        // only @106 (u16), @108/@109 (a paired channel) and the @113 float carry data. These are carried
+        // RAW — none is named to a physiological metric (no SpO2/respiratory ground truth exists).
+        let worn = parseFrame(bytes(historicalHex), family: .whoop5).parsed
+        // @106: analog optical baseline (worn nonzero; see the off-wrist case below for the 0 sentinel).
+        XCTAssertEqual(worn["optical_baseline_106"]?.intValue, 28517)
+        // @108/@109: a tightly-coupled pair (here 30/30). Both < 128 ⇒ the optical channel is valid.
+        XCTAssertEqual(worn["optical_amp_a"]?.intValue, 30)
+        XCTAssertEqual(worn["optical_amp_b"]?.intValue, 30)
+
+        // Off-wrist (HR=0): @106 collapses to 0 and BOTH channels read the 128 invalid sentinel.
+        let off = parseFrame(bytes(historicalOffWristHex), family: .whoop5).parsed
+        XCTAssertEqual(off["optical_baseline_106"]?.intValue, 0)
+        XCTAssertEqual(off["optical_amp_a"]?.intValue, 128)
+        XCTAssertEqual(off["optical_amp_b"]?.intValue, 128)
+
+        // Cross-device: on the SECOND strap, HR=57 decodes fine yet the optical channel is 128/128 — proof
+        // that 128 is a per-CHANNEL invalid marker independent of HR validity (HR is derived elsewhere),
+        // while HR=63 on the same strap carries a valid pair (36/28).
+        let d2a = parseFrame(bytes(secondDeviceHR57), family: .whoop5).parsed
+        XCTAssertEqual(d2a["heart_rate"]?.intValue, 57)
+        XCTAssertEqual(d2a["optical_amp_a"]?.intValue, 128)
+        XCTAssertEqual(d2a["optical_amp_b"]?.intValue, 128)
+        let d2b = parseFrame(bytes(secondDeviceHR63), family: .whoop5).parsed
+        XCTAssertEqual(d2b["heart_rate"]?.intValue, 63)
+        XCTAssertEqual(d2b["optical_amp_a"]?.intValue, 36)
+        XCTAssertEqual(d2b["optical_amp_b"]?.intValue, 28)
+    }
+
+    func testHistoricalV18OpticalFieldsAreNotNamedPhysiologically() {
+        // Guard the project rule (never invent physiology): the paired optical channel must NOT be surfaced
+        // as SpO2 or a named perfusion metric — those keys stay absent on v18 until real ground truth pins
+        // them. If a future edit wires @108/@109 into spo2_red/spo2_ir, this fails instead of silently
+        // shipping an unvalidated SpO2 reading into the datastore.
+        let p = parseFrame(bytes(historicalHex), family: .whoop5).parsed
+        XCTAssertNil(p["spo2_red"])
+        XCTAssertNil(p["spo2_ir"])
+        XCTAssertNil(p["resp_rate_raw"])
+    }
+
     func testHistoricalV18StatusWordSiblings() {
         // @77 / @79 are near-static siblings of status_word@75, distinguished by their low nibble (1, 2).
         // Read off this real worn frame (3073 = 0x0C01, 3074 = 0x0C02).

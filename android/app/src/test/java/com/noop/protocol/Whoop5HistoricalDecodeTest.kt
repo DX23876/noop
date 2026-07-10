@@ -244,4 +244,40 @@ class Whoop5HistoricalDecodeTest {
             assertEquals(1.0, sqrt(gx * gx + gy * gy + gz * gz), 0.2)
         }
     }
+
+    @Test
+    fun decodesV18OpticalRegionFields() {
+        // Mirror of Swift testHistoricalV18OpticalRegionFields. The @82-119 "optical/tail" span is ~85%
+        // zero padding; only @106 (u16), @108/@109 (a paired channel) and the @113 float carry data, all
+        // RAW (no SpO2/respiratory ground truth). Cross-checked on both fixture devices.
+        val worn = decodeHistorical(bytes(wornV18), DeviceFamily.WHOOP5)!!
+        assertEquals(28517, worn["optical_baseline_106"])
+        assertEquals(30, worn["optical_amp_a"])
+        assertEquals(30, worn["optical_amp_b"])
+        // Off-wrist: @106 collapses to 0 and BOTH channels read the 128 invalid sentinel.
+        val off = decodeHistorical(bytes(offWristV18), DeviceFamily.WHOOP5)!!
+        assertEquals(0, off["optical_baseline_106"])
+        assertEquals(128, off["optical_amp_a"])
+        assertEquals(128, off["optical_amp_b"])
+        // Cross-device: HR=57 decodes fine yet the optical channel is 128/128 (per-channel invalid,
+        // independent of HR validity); HR=63 on the same strap carries a valid 36/28 pair.
+        val d57 = decodeHistorical(bytes(secondDeviceHR57), DeviceFamily.WHOOP5)!!
+        assertEquals(57, d57["heart_rate"])
+        assertEquals(128, d57["optical_amp_a"])
+        assertEquals(128, d57["optical_amp_b"])
+        val d63 = decodeHistorical(bytes(secondDeviceHR63), DeviceFamily.WHOOP5)!!
+        assertEquals(63, d63["heart_rate"])
+        assertEquals(36, d63["optical_amp_a"])
+        assertEquals(28, d63["optical_amp_b"])
+    }
+
+    @Test
+    fun v18OpticalFieldsAreNotNamedPhysiologically() {
+        // Guard the project rule: the paired optical channel must NOT be surfaced as SpO2/perfusion
+        // without on-device ground truth — those keys stay absent on v18 (mirror of the Swift guard).
+        val p = decodeHistorical(bytes(wornV18), DeviceFamily.WHOOP5)!!
+        assertNull(p["spo2_red"])
+        assertNull(p["spo2_ir"])
+        assertNull(p["resp_rate_raw"])
+    }
 }

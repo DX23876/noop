@@ -337,6 +337,19 @@ private fun decodeWhoop5Historical(frame: ByteArray): Map<String, Any?>? {
     }
     // @82 a single raw byte adjacent to the flag byte; carried raw, meaning not pinned.
     frame.histU8(82)?.let { out["aux_byte_82"] = it }
+    // ── The @82–119 "optical/tail" span, reverse-engineered over 18,602 real v18 records (a third strap's
+    // overnight R22 stream) + cross-checked on two fixture devices: it is ~85% ZERO PADDING (83–103,
+    // 110–112, 117–119 constant 0x00; @104 a constant 0x01 marker). Only @106 (u16), @108/@109 (a paired
+    // channel) and the @113 float carry data, and none is physiologically ground-truth-named (no
+    // SpO2/respiratory reference), so each is carried RAW. Mirror of Swift decodeWhoop5Historical.
+    // @106 an analog u16 optical/ADC baseline: wanders overnight, reads 0 only off-wrist; raw, not pinned.
+    frame.histU16(106)?.let { out["optical_baseline_106"] = it }
+    // @108/@109 a tightly-coupled PAIR (equal ~24% of records, within ±2 ~80%). Both rise monotonically
+    // with HR/motion and read 128 as a per-CHANNEL invalid sentinel — seen off-wrist AND on worn records
+    // that still carry a valid HR. Amplitude/quality-like; carried raw, NOT named SpO2/perfusion without
+    // on-device ground truth.
+    frame.histU8(108)?.let { out["optical_amp_a"] = it }
+    frame.histU8(109)?.let { out["optical_amp_b"] = it }
     // @113 a float32 (observed range ~ -5.3..0, 0 = unset); purpose unknown, carried raw. EMPIRICAL.
     frame.histF32(113)?.let { if (it.isFinite()) out["unknown_f32_113"] = it }
     // PROVENANCE / lossless-tail note (A10): this decoder maps only the fields above; bytes past @113

@@ -484,12 +484,38 @@ private func decodeWhoop5Historical(_ frame: [UInt8], fb: FieldBuilder, payloadE
         fb.add(82, 1, "aux_byte_82", "status", value: .int(v),
                note: "raw; observed nonzero only while sleep_state = asleep (meaning not pinned)")
     }
+    // ── The @82–119 "optical/perfusion + tail" span, characterised over 18,602 real v18 records from a
+    // third strap (overnight R22 live stream) + cross-checked on the two fixture devices above. The span
+    // is ~85% ZERO PADDING: bytes 83–103, 110–112 and 117–119 are constant 0x00 on every record, and @104
+    // is a constant 0x01 marker (5/5 fixtures, both devices). Only four groups carry data — @106 (u16),
+    // @108/@109 (a paired channel) and the @113 float — and none is physiologically ground-truth-named
+    // (no SpO2/respiratory reference exists), so each is carried RAW with its observed behaviour, never
+    // mapped to a named metric. This documents the region honestly instead of leaving 38 opaque bytes.
+    if let v = readDType(frame, 106, "u16") {
+        // An analog u16 that wanders across the night with no clean correlate to HR/motion/skin-temp, and
+        // reads 0 only when the strap is off-wrist (HR=0). Optical/ADC-baseline-like; raw, not pinned.
+        fb.add(106, 2, "optical_baseline_106", "optical", value: .int(v),
+               note: "u16 LE analog optical/ADC baseline; wanders overnight, 0 = off-wrist; raw, not pinned")
+    }
+    // @108/@109 are a tightly-coupled PAIR (equal in 23.5% of records, within ±2 in ~80%). Both rise
+    // monotonically with heart rate (mean ~34 at HR 40–49 → ~58 at HR 80–89) and with motion, and both
+    // read 128 as a per-channel INVALID sentinel — observed off-wrist AND on some worn records that still
+    // carry a valid HR (the optical channel can be invalid while HR is derived elsewhere). Amplitude- or
+    // signal-quality-like; carried raw, NOT named SpO2/perfusion without on-device ground truth.
+    if let a = readDType(frame, 108, "u8") {
+        fb.add(108, 1, "optical_amp_a", "optical", value: .int(a),
+               note: "paired optical channel A (≈ optical_amp_b@109); rises with HR/motion; 128 = channel invalid; raw")
+    }
+    if let b = readDType(frame, 109, "u8") {
+        fb.add(109, 1, "optical_amp_b", "optical", value: .int(b),
+               note: "paired optical channel B (see optical_amp_a@108); 128 = channel invalid; raw")
+    }
     if let d = readF32(frame, 113), d.isFinite {
         // A float32 at @113 (observed range ~ -5.3…0, 0 = unset); purpose unknown, carried raw.
         fb.add(113, 4, "unknown_f32_113", "aux", value: .double(d), note: "float32, purpose unknown")
     }
-    // The remaining bytes (optical/perfusion + the unmapped tail) are not ground-truth-mapped; keep them
-    // as one honest raw region.
+    // The bytes NOT annotated above are the constant zero padding (83–103, 105, 110–112, 117–119) and the
+    // @104 = 0x01 marker; keep one honest raw region over the whole span so nothing is silently dropped.
     // PROVENANCE / lossless-tail note (A10): the fields above split into VERIFIED (physiologically
     // cross-checked vs the live 2A37 HR / |gravity|~1g: unix, heart_rate, rr, gravity, skin_temp) and
     // EMPIRICAL / not-pinned (status words, aux bytes, unknown_f32_113). This decoder never truncates
@@ -497,7 +523,7 @@ private func decodeWhoop5Historical(_ frame: [UInt8], fb: FieldBuilder, payloadE
     // undecodable records, the raw-capture batch when that toggle is on), so a future re-decode is
     // lossless. Kept in lockstep with the Android decodeWhoop5Historical provenance note.
     if let payloadEnd = payloadEnd, 82 < payloadEnd, payloadEnd <= frame.count {
-        fb.region(82, payloadEnd, "unmapped (optical/perfusion + tail)", "unknown")
+        fb.region(82, payloadEnd, "optical/tail (mostly zero padding; see @106/@108/@109/@113)", "unknown")
     }
 }
 
