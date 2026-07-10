@@ -185,9 +185,16 @@ struct LiquidTodayView: View {
         return f
     }()
 
+    /// Scroll-to-top on an at-root Today re-tap (#198 follow-up); default 0 so macOS/other contexts stay inert.
+    @Environment(\.scrollToTopSignal) private var scrollToTopSignal
+    private static let topAnchorID = "liquidToday.top"
+
     var body: some View {
+        ScrollViewReader { proxy in
         ScrollView {
             VStack(spacing: 0) {
+                // Zero-height scroll-to-top anchor (#198 follow-up): the target for an at-root Today re-tap.
+                Color.clear.frame(height: 0).id(Self.topAnchorID)
                 // Scroll-offset probe at the very top (before padding), so its minY in the scroll's
                 // coordinate space reads the top OVERSCROLL: ~0 at rest, positive as you pull down.
                 GeometryReader { g in
@@ -282,6 +289,13 @@ struct LiquidTodayView: View {
         // at the top instead of the white scroll-under-titlebar wash.
         .toolbarBackground(.hidden, for: .windowToolbar)
         #endif
+        #if os(iOS)
+        // Scroll-to-top on an at-root Today re-tap (#198 follow-up); iOS-only — the tab shell is the only driver.
+        .onChange(of: scrollToTopSignal) { _, _ in
+            withAnimation(.easeOut(duration: 0.35)) { proxy.scrollTo(Self.topAnchorID, anchor: .top) }
+        }
+        #endif
+        }
     }
 
     // MARK: - Liquid pull-to-refresh

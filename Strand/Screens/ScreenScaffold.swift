@@ -33,8 +33,17 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
     @Environment(\.horizontalSizeClass) private var hSizeClass
     #endif
 
+    /// Bumped (via the environment) when the iOS tab shell wants THIS screen scrolled to the top — an
+    /// at-root re-tap of the active tab (#198 follow-up). Default 0 never changes, so macOS and every
+    /// non-tab screen keep their exact prior scroll behaviour.
+    @Environment(\.scrollToTopSignal) private var scrollToTopSignal
+
     var body: some View {
+        ScrollViewReader { proxy in
         ScrollView {
+            // Scroll-to-top anchor (#198 follow-up): a zero-height marker pinned above the content so an
+            // at-root tab re-tap can bring the screen back to the very top. Layout-neutral.
+            Color.clear.frame(height: 0).id(screenScaffoldTopAnchorID)
             column
             #if os(iOS)
             // Unified side margins matching the liquid home (16pt) so every page's cards + header line up
@@ -77,6 +86,14 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
         // (the scroll-under-titlebar blend). Hide it so the sky reads edge-to-edge and dark, like iOS.
         .toolbarBackground(.hidden, for: .windowToolbar)
         #endif
+        #if os(iOS)
+        // Scroll-to-top on an at-root tab re-tap (#198 follow-up). iOS-only: the tab shell is the only
+        // driver, and gating here keeps the two-param onChange off macOS 13. Inert until the signal moves.
+        .onChange(of: scrollToTopSignal) { _, _ in
+            withAnimation(.easeOut(duration: 0.35)) { proxy.scrollTo(screenScaffoldTopAnchorID, anchor: .top) }
+        }
+        #endif
+        }
     }
 
     /// The header + content column. `lazy` swaps the eager `VStack` for a `LazyVStack` so a long
@@ -233,5 +250,27 @@ struct DataPendingNote: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Scroll-to-top signal (#198 follow-up)
+
+/// An incrementing token the iOS tab shell bumps when the user re-taps the ALREADY-at-root active tab,
+/// to scroll that tab's root screen to the top (the other half of the iOS tab convention #197/#198 left
+/// unserved — an at-root re-tap is otherwise a no-op). `ScreenScaffold` and `LiquidTodayView` observe it
+/// and scroll to their top anchor when it changes. Default 0 is never bumped outside the tab shell, so
+/// macOS (sidebar, no tab re-tap) and every non-tab screen are completely unaffected.
+/// Zero-height scroll-to-top target id. File scope, not a `static` on `ScreenScaffold` — the latter is
+/// generic (`<Content, Trailing>`) and Swift forbids stored static properties on generic types.
+private let screenScaffoldTopAnchorID = "screenScaffold.top"
+
+private struct ScrollToTopSignalKey: EnvironmentKey {
+    static let defaultValue: Int = 0
+}
+
+extension EnvironmentValues {
+    var scrollToTopSignal: Int {
+        get { self[ScrollToTopSignalKey.self] }
+        set { self[ScrollToTopSignalKey.self] = newValue }
     }
 }

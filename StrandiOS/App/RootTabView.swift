@@ -27,6 +27,11 @@ struct RootTabView: View {
     /// (#198; the #197 resetID/`.id()` rebuild reset both). Requires the tab roots' first-hop
     /// links to push `TabRoute`/`MoreDestination` VALUES — closure-destination links bypass the path.
     @State private var tabPaths: [NavigationPath] = Array(repeating: NavigationPath(), count: 4)
+    /// One scroll-to-top token per tab. Bumped when the user re-taps the active tab while it's ALREADY
+    /// at its root — the other half of the iOS convention #197/#198 left unserved (an at-root re-tap was
+    /// a no-op). Threaded into each tab's root via `\.scrollToTopSignal`; ScreenScaffold / LiquidTodayView
+    /// scroll to their top anchor when their tab's token changes.
+    @State private var scrollTop: [Int] = Array(repeating: 0, count: 4)
     /// Which More-tab groups are expanded (S2). Insights + Body stay open at rest; Data + App collapse to
     /// just their header until tapped. Persisted (#860 item 2): the user's open/closed choice must SURVIVE
     /// leaving and re-entering the More tab (and relaunch), not reset to the seed every visit. Backed by an
@@ -67,10 +72,10 @@ struct RootTabView: View {
             // cleanly in the gap between them — replaces the native tab bar: no overlap, no glow. The
             // native TabView still drives content + per-tab nav state; only its bar is hidden.
             TabView(selection: $selectedTab) {
-                tab(todayTabRoot, "Today", "square.grid.2x2", path: $tabPaths[0]).tag(0)
-                tab(TrendsView(), "Trends", "chart.line.uptrend.xyaxis", path: $tabPaths[1]).tag(1)
-                tab(SleepView(), "Sleep", "bed.double", path: $tabPaths[2]).tag(2)
-                moreTab(path: $tabPaths[3]).tag(3)
+                tab(todayTabRoot, "Today", "square.grid.2x2", path: $tabPaths[0], scrollSignal: scrollTop[0]).tag(0)
+                tab(TrendsView(), "Trends", "chart.line.uptrend.xyaxis", path: $tabPaths[1], scrollSignal: scrollTop[1]).tag(1)
+                tab(SleepView(), "Sleep", "bed.double", path: $tabPaths[2], scrollSignal: scrollTop[2]).tag(2)
+                moreTab(path: $tabPaths[3], scrollSignal: scrollTop[3]).tag(3)
             }
             .tint(StrandPalette.accent)
             .toolbar(.hidden, for: .tabBar)
@@ -99,7 +104,11 @@ struct RootTabView: View {
                 // path, not a rebuild. At the root the pop is skipped, so scroll position survives
                 // and the refresh doesn't double with a re-run of the root's `.task` (#198).
                 Task { await repo.refresh() }
-                if !tabPaths[tag].isEmpty { tabPaths[tag] = NavigationPath() }
+                if !tabPaths[tag].isEmpty {
+                    tabPaths[tag] = NavigationPath()   // on a subpage: animated pop back to the root
+                } else {
+                    scrollTop[tag] += 1                // already at root: scroll to the top (#198 follow-up)
+                }
             })
         }
         .task {
@@ -278,7 +287,7 @@ struct RootTabView: View {
     }
 
     private func tab<V: View>(_ view: V, _ title: LocalizedStringKey, _ icon: String,
-                              path: Binding<NavigationPath>) -> some View {
+                              path: Binding<NavigationPath>, scrollSignal: Int) -> some View {
         // Each primary tab gets its OWN NavigationStack so the in-content NavigationLinks (e.g. the Today
         // dashboard card rows) both navigate AND render opaque. An ORPHANED NavigationLink (no
         // NavigationStack ancestor) renders its whole label in a disabled/translucent state — that was
@@ -293,6 +302,9 @@ struct RootTabView: View {
                 .toolbar(.hidden, for: .navigationBar)
                 .tabRouteDestinations()
         }
+        // Drive this tab's root scroll-to-top on an at-root re-tap (#198 follow-up); read by ScreenScaffold
+        // / LiquidTodayView inside. Only THIS tab's token changes on its reselect, so the others don't scroll.
+        .environment(\.scrollToTopSignal, scrollSignal)
         .toolbar(.hidden, for: .tabBar)   // we draw our own FloatingTabBar
         .tabItem { Label(title, systemImage: icon) }
     }
@@ -302,7 +314,7 @@ struct RootTabView: View {
     // + SectionHeader's UPPERCASE overline + the 28pt section rhythm). Rebuilt on the shared page chrome:
     // ScreenScaffold for the title1 "More" + subtitle, a `SectionHeader` overline per group, and the group's
     // rows in a single grouped NoopCard with hairline dividers — the same row idiom Settings/Health use.
-    private func moreTab(path: Binding<NavigationPath>) -> some View {
+    private func moreTab(path: Binding<NavigationPath>, scrollSignal: Int) -> some View {
         NavigationStack(path: path) {
             ScreenScaffold(title: "More", subtitle: "Everything else, one tap away",
                            onRefresh: { await repo.refresh() },
@@ -371,6 +383,8 @@ struct RootTabView: View {
                     .toolbarBackground(.hidden, for: .navigationBar)
             }
         }
+        // Scroll the More index to the top on an at-root re-tap (#198 follow-up); read by its ScreenScaffold.
+        .environment(\.scrollToTopSignal, scrollSignal)
         .tabItem { Label("More", systemImage: "ellipsis.circle.fill") }
     }
 
