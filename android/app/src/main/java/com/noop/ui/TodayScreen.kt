@@ -5161,9 +5161,9 @@ private fun TodaySourcesSection(
     val applePresent = (footer.appleDays ?: 0) > 0 || (footer.appleWorkouts ?: 0) > 0
     val hcPresent = (footer.hcDays ?: 0) > 0 || (footer.hcWorkouts ?: 0) > 0
     if (!expanded) {
-        // Collapsed: one tappable "Synced from: ..." line. Health Connect folds under the "Apple Watch"
-        // bucket in the summary (both are the phone's health store to the audience); the expanded card
-        // still lists every source by name, so no provenance detail is lost.
+        // Collapsed: one tappable "Synced from: ..." line. Each source is named for what it is —
+        // Health Connect must NOT fold under "Apple Watch" (issue #176: Health-Connect-only users
+        // saw "Synced from: Apple Watch"); the expanded card lists every source by name too.
         val collapsedInteraction = remember { MutableInteractionSource() }
         NoopCard(
             modifier = Modifier
@@ -5178,7 +5178,7 @@ private fun TodaySourcesSection(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    syncedFromSummary(hasWhoop = whoopPresent, hasApple = applePresent || hcPresent, hasXiaomi = false),
+                    syncedFromSummary(hasWhoop = whoopPresent, hasApple = applePresent, hasHealthConnect = hcPresent, hasXiaomi = false),
                     style = NoopType.subhead,
                     color = Palette.textSecondary,
                     maxLines = 1,
@@ -5412,12 +5412,15 @@ internal fun readinessWord(level: ReadinessEngine.Level): String? = when (level)
 /**
  * S5: the collapsed Data Sources footer summary, "Synced from: WHOOP, Apple Watch", listing only sources
  * with data (Apple Health reads as "Apple Watch", the device the audience knows), or "No sources yet".
- * PURE + unit-tested. Byte-identical twin of the Swift TodayView.syncedFromSummary.
+ * PURE + unit-tested. Twin of the Swift TodayView.syncedFromSummary, plus the Android-only
+ * hasHealthConnect source — Health Connect is named for what it is, never folded under "Apple Watch"
+ * (issue #176).
  */
-internal fun syncedFromSummary(hasWhoop: Boolean, hasApple: Boolean, hasXiaomi: Boolean): String {
+internal fun syncedFromSummary(hasWhoop: Boolean, hasApple: Boolean, hasHealthConnect: Boolean = false, hasXiaomi: Boolean): String {
     val names = buildList {
         if (hasWhoop) add("WHOOP")
         if (hasApple) add("Apple Watch")
+        if (hasHealthConnect) add("Health Connect")
         if (hasXiaomi) add("Mi Band")
     }
     return if (names.isEmpty()) "No sources yet" else "Synced from: " + names.joinToString(", ")
