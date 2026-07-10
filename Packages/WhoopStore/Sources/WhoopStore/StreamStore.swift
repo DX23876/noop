@@ -57,11 +57,18 @@ extension WhoopStore {
             }
             if !streams.rr.isEmpty {
                 let stmt = try db.cachedStatement(sql: """
-                    INSERT INTO rrInterval (deviceId, ts, rrMs) VALUES (?, ?, ?)
-                    ON CONFLICT(deviceId, ts, rrMs) DO NOTHING
+                    INSERT INTO rrInterval (deviceId, ts, rrMs, seq) VALUES (?, ?, ?, ?)
+                    ON CONFLICT(deviceId, ts, rrMs, seq) DO NOTHING
                     """)
+                // v24 (#163): number EQUAL (ts, rrMs) beats 0, 1, … within this batch so both survive;
+                // distinct beats keep seq 0 and their own (ts, rrMs, 0) key, so a distinct beat is never
+                // dropped even across batches (rrMs stays in the key). Re-syncing identical rows reproduces
+                // the same (ts, rrMs, seq) → still idempotent. Nested dict = (ts, rrMs) occurrence counter.
+                var seqByTsRr: [Int: [Int: Int]] = [:]
                 for r in streams.rr {
-                    try stmt.execute(arguments: [deviceId, r.ts, r.rrMs])
+                    let seq = seqByTsRr[r.ts]?[r.rrMs] ?? 0
+                    seqByTsRr[r.ts, default: [:]][r.rrMs] = seq + 1
+                    try stmt.execute(arguments: [deviceId, r.ts, r.rrMs, seq])
                     rr += db.changesCount
                 }
             }

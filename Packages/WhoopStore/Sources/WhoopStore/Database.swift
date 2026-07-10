@@ -456,6 +456,30 @@ extension WhoopStore {
                 t.add(column: "spo2Ir", .integer)
             }
         }
+        migrator.registerMigration("v24-rr-seq") { db in
+            // Widen rrInterval's PK to (deviceId, ts, rrMs, seq). The value-only key + ON CONFLICT DO
+            // NOTHING silently dropped the second of two EQUAL successive R-R intervals in one 1-second
+            // ts bucket, removing a zero-difference beat and biasing RMSSD/HRV high at rest/sleep (when
+            // HRV is scored). `seq` distinguishes equal (ts, rrMs) beats; distinct beats keep seq 0.
+            // Android parity: Room v18 (#163). SQLite can't ALTER a PK, so REBUILD — LOSS-LESS: every row
+            // copied with seq = 0, exact because the old PK made (deviceId, ts, rrMs) unique per row.
+            // Forward-only: already-dropped beats can't be recovered. rrInterval is a leaf table (no FKs
+            // in or out), so the drop/rename is safe.
+            try db.create(table: "rrInterval_new") { t in
+                t.column("deviceId", .text).notNull()
+                t.column("ts", .integer).notNull()
+                t.column("rrMs", .integer).notNull()
+                t.column("seq", .integer).notNull().defaults(to: 0)
+                t.column("synced", .integer).notNull().defaults(to: 0)
+                t.primaryKey(["deviceId", "ts", "rrMs", "seq"])
+            }
+            try db.execute(sql: """
+                INSERT INTO rrInterval_new (deviceId, ts, rrMs, seq, synced)
+                SELECT deviceId, ts, rrMs, 0, synced FROM rrInterval
+                """)
+            try db.execute(sql: "DROP TABLE rrInterval")
+            try db.execute(sql: "ALTER TABLE rrInterval_new RENAME TO rrInterval")
+        }
         return migrator
     }
 }

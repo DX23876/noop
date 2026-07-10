@@ -112,7 +112,7 @@ extension WhoopStore {
             try Row.fetchAll(db, sql: """
                 SELECT ts, rrMs FROM rrInterval
                 WHERE deviceId = ? AND ts >= ? AND ts <= ?
-                ORDER BY ts ASC, rrMs ASC LIMIT ?
+                ORDER BY ts ASC, rrMs ASC, seq ASC LIMIT ?
                 """, arguments: [deviceId, from, to, limit])
                 .map { RRInterval(ts: $0["ts"], rrMs: $0["rrMs"]) }
         }
