@@ -562,6 +562,23 @@ object IntelligenceEngine {
                 deepHrvWindow = deepHrvWindow,
             )
 
+            // #195: whole-night HRV cleaning-pipeline summary to the always-on strap log, so a "reads ~2x too
+            // high" report is triageable without the HRV test mode: RMSSD vs SDNN (rmssd >> sdnn = beat-to-beat
+            // jitter surviving the ectopic filter, not real HRV), meanNN as an HR sanity-check, and how many R-R
+            // intervals survived cleaning (a low count also flags the sparse-capture / calibration side —
+            // `nInput` is set before the min-beats gate, so a sparse night still shows its count with
+            // rmssd=nil). A SEPARATE analyzeRaw pass over the in-sleep R-R — does NOT touch the shipped
+            // windowed avgHrv. Emitted here where `rr` is in scope; byte-identical to the Swift line.
+            val sleepRr = rr.filter { r -> res.sleepSessions.any { r.ts >= it.start && r.ts < it.end } }
+                .map { it.rrMs.toDouble() }
+            if (sleepRr.isNotEmpty()) {
+                val h = HrvAnalyzer.analyzeRaw(sleepRr)
+                val ms = { v: Double? -> v?.let { String.format(java.util.Locale.US, "%.0f", it) } ?: "nil" }
+                val rej = if (h.nInput > 0) String.format(java.util.Locale.US, "%.0f", 100.0 * (1.0 - h.nClean.toDouble() / h.nInput)) else "0"
+                diag("hrv diag day=${res.daily.day} rmssd=${ms(h.rmssd)}ms sdnn=${ms(h.sdnn)}ms meanNN=${ms(h.meanNN)}ms " +
+                    "rr=${h.nInput}/${h.nClean} rejected=$rej%")
+            }
+
             // Steps test mode: emit the 5/MG raw-counter trace for this day (cumulative @57 series +
             // wrap-aware deltas + dropped deltas), tagged .steps. Only when the mode is on (the sink is
             // non-null), so the default path emits zero .steps lines. The trace recomputes the SAME
