@@ -80,6 +80,26 @@ enum class DeviceFamily {
         }
 
     companion object {
+        /**
+         * Resolve a device-registry `model` label to the strap family that wrote its rows (#171).
+         *
+         * The registry holds several historical spellings for the same hardware: the Add-Device
+         * wizard stores bare "4.0" / "5.0 MG", other paths match the full picker labels
+         * ("WHOOP 4.0" / "WHOOP 5.0 / MG"), and the legacy seeded "my-whoop" row stores just
+         * "WHOOP". Matching any single spelling silently misses the others (#171), so this is
+         * the ONE place allowed to interpret registry model labels.
+         *
+         * "WHOOP" predates the wizard and was written identically for 4.0 and 5/MG installs, so
+         * it carries no family information; it keeps the prior WHOOP5 fallback, as do
+         * null/unknown labels (non-WHOOP imports whose skin temp is already °C) — only a
+         * positively-identified 4.0 changes scale (#938). Mirrors the Swift
+         * `DeviceFamily.forRegistryModel`.
+         */
+        fun forRegistryModel(model: String?): DeviceFamily = when (model) {
+            "4.0", "WHOOP 4.0" -> WHOOP4
+            else -> WHOOP5
+        }
+
         /** Whoop 5.0 CLIENT_HELLO bytes (16 bytes). Exposed as a named constant for test/debug use. */
         val WHOOP5_CLIENT_HELLO: ByteArray = byteArrayOf(
             0xAA.toByte(), 0x01, 0x08, 0x00, 0x00, 0x01, 0xE6.toByte(), 0x71,

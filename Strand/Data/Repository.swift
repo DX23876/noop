@@ -1441,16 +1441,14 @@ final class Repository: ObservableObject {
     }
 
     /// Map each device id to the strap family that wrote its rows (#938), for the family-aware skin-temp
-    /// raw→°C conversion. Reads the registry ONCE; a device whose model is "WHOOP 4.0" maps to `.whoop4`,
-    /// and every other id — a 5/MG, a non-WHOOP import, or an id absent from the registry — maps to
-    /// `.whoop5` (the prior /100 behaviour), so only a KNOWN 4.0 changes scale. Best-effort: an unreadable
+    /// raw→°C conversion. Reads the registry ONCE; the model-label → family mapping (and the `.whoop5`
+    /// fallback for unknowns) lives in `DeviceFamily.forRegistryModel` (#171). Best-effort: an unreadable
     /// registry yields an empty map, so every caller falls back to `.whoop5`.
     private static func skinTempFamilies(store: WhoopStore, ids: [String]) -> [String: DeviceFamily] {
         let devices = (try? DeviceRegistryStore(dbQueue: store.registryWriter).all()) ?? []
         var out: [String: DeviceFamily] = [:]
         for id in ids {
-            let isW4 = devices.first(where: { $0.id == id }).map { WhoopModel(rawValue: $0.model) == .whoop4 } ?? false
-            out[id] = isW4 ? .whoop4 : .whoop5
+            out[id] = DeviceFamily.forRegistryModel(devices.first(where: { $0.id == id })?.model)
         }
         return out
     }

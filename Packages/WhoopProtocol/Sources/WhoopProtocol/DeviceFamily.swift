@@ -21,6 +21,25 @@ public enum HeaderCRCKind: String, Sendable, CaseIterable {
 }
 
 public extension DeviceFamily {
+    /// Resolve a device-registry `model` label to the strap family that wrote its rows (#171).
+    ///
+    /// The registry holds several historical spellings for the same hardware: the Add-Device wizard
+    /// stores bare "4.0" / "5.0 MG", other paths match the full picker labels ("WHOOP 4.0" /
+    /// "WHOOP 5.0 / MG"), and the legacy seeded "my-whoop" row stores just "WHOOP". Matching any
+    /// single spelling silently misses the others (#171), so this is the ONE place allowed to
+    /// interpret registry model labels.
+    ///
+    /// "WHOOP" predates the wizard and was written identically for 4.0 and 5/MG installs, so it
+    /// carries no family information; it keeps the prior `.whoop5` fallback, as do nil/unknown
+    /// labels (non-WHOOP imports whose skin temp is already °C) — only a positively-identified 4.0
+    /// changes scale (#938). Mirrors the Kotlin `DeviceFamily.forRegistryModel`.
+    static func forRegistryModel(_ model: String?) -> DeviceFamily {
+        switch model {
+        case "4.0", "WHOOP 4.0": return .whoop4
+        default: return .whoop5
+        }
+    }
+
     /// The header-CRC algorithm this family uses. This is the single switch that the family-aware
     /// `verifyFrame`/`parseFrame` overloads branch on; the payload CRC32 is identical for both.
     var headerCRCKind: HeaderCRCKind {
