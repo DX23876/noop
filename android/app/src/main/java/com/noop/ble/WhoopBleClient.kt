@@ -54,11 +54,13 @@ import com.noop.data.NapStore
 import com.noop.ingest.HealthConnectWriter
 import com.noop.notif.InactivityNotifier
 import com.noop.ui.BiofeedbackPrefs
+import com.noop.ui.HrvWindow
 import com.noop.ui.InactivityPrefs
 import com.noop.ui.NoopPrefs
 import com.noop.ui.NotifPrefs
 import com.noop.ui.ProfileStore
 import com.noop.ui.StressNudgeCenter
+import com.noop.ui.UnitPrefs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -1282,6 +1284,12 @@ class WhoopBleClient(
                             .getLong(Baselines.hrvBaselineEpochKey, 0L).toDouble(),
                         recoveryEpoch = NoopPrefs.of(context)
                             .getLong(Baselines.recoveryBaselineEpochKey, 0L).toDouble(),
+                        // #195/#141: nightly HRV over deep-sleep windows only when the user picked WHOOP-style.
+                        // Read here (the analytics layer is Context-free) and thread it down, exactly like
+                        // baselineEpoch above — otherwise this post-backfill pass would recompute + persist every
+                        // night's HRV over the WHOLE night, silently overwriting the deep-window value the UI
+                        // loop just wrote (the "deep sleep window changes nothing" bug).
+                        deepHrvWindow = UnitPrefs.hrvWindow(context) == HrvWindow.DEEP_SLEEP,
                         // #691: route the engine's per-day diagnostics (incl. the new RHR floor-vs-mean
                         // line) into THIS sync's strap log, so a "NOOP RHR reads lower than my sleeping-HR
                         // app" report carries the proof — the floor (NOOP's WHOOP-style resting HR) beside

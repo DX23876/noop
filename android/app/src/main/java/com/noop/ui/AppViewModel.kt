@@ -1273,6 +1273,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     .getLong(Baselines.hrvBaselineEpochKey, 0L).toDouble(),
                 recoveryEpoch = NoopPrefs.of(appContext)
                     .getLong(Baselines.recoveryBaselineEpochKey, 0L).toDouble(),
+                // #195/#141: keep the HRV window consistent with the 15-min loop — without this a sleep edit
+                // would re-score + persist every night's HRV over the WHOLE night, silently overwriting the
+                // deep-window value (the "deep sleep window changes nothing" bug).
+                deepHrvWindow = UnitPrefs.hrvWindow(appContext) == HrvWindow.DEEP_SLEEP,
                 // Opt-in experimental sleep staging (V2) — same flag the 15-min loop reads, so a manual
                 // re-score after an edit stages with the same engine the user chose. (V7 Pillar 3b)
                 useExperimentalSleepV2 = PuffinExperiment.from(appContext).experimentalSleepV2,
