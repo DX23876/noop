@@ -32,6 +32,9 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -214,8 +217,17 @@ fun LineChart(
     // the 0-21 scale) pass their axis formatter so the label can't leak the stored scale as a bare
     // unconverted number. Default null keeps every other caller byte-identical.
     formatValue: ((Double) -> String)? = null,
+    // Optional per-point unix-second timestamps, index-aligned with [values]: when supplied, the
+    // tap/drag pinpoint read-out prefixes the selected sample's local clock time ("14:32 · 87 bpm").
+    timestamps: List<Long>? = null,
 ) {
     val cleanValues = remember(values) { values.filter { it.isFinite() } }
+    // Timestamps filtered by the SAME finiteness cut as cleanValues so indices stay aligned;
+    // dropped entirely on a length mismatch rather than mislabelling times.
+    val cleanTimestamps = remember(values, timestamps) {
+        if (timestamps == null || timestamps.size != values.size) null
+        else values.indices.filter { values[it].isFinite() }.map { timestamps[it] }
+    }
     var selectedIndex by remember(cleanValues) { mutableIntStateOf(-1) }
     val interactiveModifier = if (selectionEnabled) {
         Modifier
@@ -368,7 +380,11 @@ fun LineChart(
                             drawCircle(color = Palette.surfaceBase.copy(alpha = StrandAlpha.chartShadow), radius = 9f, center = p)
                             drawCircle(color = color, radius = 4.5f, center = p)
                             drawContext.canvas.nativeCanvas.apply {
-                                val label = lineChartSelectionLabel(cleanValues[selectedIndex], formatValue)
+                                val label = lineChartSelectionLabel(
+                                    cleanValues[selectedIndex],
+                                    formatValue,
+                                    cleanTimestamps?.getOrNull(selectedIndex),
+                                )
                                 drawText(label, 8f, 32f, markerPaint)
                             }
                         }
@@ -439,9 +455,20 @@ private fun nearestIndexForX(count: Int, width: Float, x: Float): Int {
 }
 
 /** The tap/drag pinpoint label: the caller's display formatter when supplied (#463), else the raw
- *  near-integer-collapsing default. Split out so the fallback choice is JVM-testable. */
-internal fun lineChartSelectionLabel(value: Double, formatValue: ((Double) -> String)?): String =
-    formatValue?.invoke(value) ?: formatLineValue(value)
+ *  near-integer-collapsing default. When the caller also supplies the sample's [epochSec] the local
+ *  clock time PREFIXES the formatted value ("14:32 · 87 bpm"). Split out so both choices are
+ *  JVM-testable. */
+internal fun lineChartSelectionLabel(
+    value: Double,
+    formatValue: ((Double) -> String)?,
+    epochSec: Long? = null,
+    zone: ZoneId = ZoneId.systemDefault(),
+): String {
+    val base = formatValue?.invoke(value) ?: formatLineValue(value)
+    if (epochSec == null) return base
+    val time = Instant.ofEpochSecond(epochSec).atZone(zone).format(chartTickTimeFormat)
+    return "$time · $base"
+}
 
 private fun formatLineValue(value: Double): String {
     if (!value.isFinite()) return "-"
@@ -791,6 +818,68 @@ fun zoomedWindow(
     if (newHi > bounds.last) { newHi = bounds.last; newLo = newHi - newSpan }
     newLo = newLo.coerceAtLeast(bounds.first)
     return newLo..(newLo + newSpan).coerceAtLeast(newLo + 1)
+}
+
+// MARK: - Round-time x-axis ticks (prototype hr-chart-time-axis)
+
+/** Shared "HH:mm" tick/readout clock format — one instance, DateTimeFormatter is thread-safe. */
+private val chartTickTimeFormat = DateTimeFormatter.ofPattern("HH:mm", Locale.US)
+
+/**
+ * Round wall-clock x-axis ticks for a `[startEpochSec, endEpochSec]` window: (epochSec, "HH:mm")
+ * pairs at fixed round intervals chosen by the visible span (a full day ticks every 6h, a 1h zoom
+ * every 15min). Ticks step in LOCAL wall-clock time from the window's local midnight — a window
+ * crossing midnight labels "00:00" and DST labels stay round; java.time resolves the spring-forward
+ * gap to a valid time and the epoch-dedupe drops the resulting double tick. Pure and clock-free
+ * (ChartTimeTicksTest).
+ */
+fun chartTimeTicks(startEpochSec: Long, endEpochSec: Long, zone: ZoneId): List<Pair<Long, String>> {
+    if (endEpochSec <= startEpochSec) return emptyList()
+    val spanHours = (endEpochSec - startEpochSec) / 3600.0
+    // Thresholds sit below the nominal Today-card windows (24h/12h/6h/3h/1h) so a window whose
+    // banked data covers slightly less than nominal still lands on its intended interval.
+    val stepMinutes = when {
+        spanHours >= 20.0 -> 360L
+        spanHours >= 10.0 -> 180L
+        spanHours >= 5.0 -> 120L
+        spanHours >= 2.0 -> 60L
+        else -> 15L
+    }
+    var tick = Instant.ofEpochSecond(startEpochSec).atZone(zone).toLocalDate().atStartOfDay()
+    val out = ArrayList<Pair<Long, String>>()
+    var lastEpoch = Long.MIN_VALUE
+    // Bounded walk: even a multi-day window at 15-min steps stays well under the guard.
+    var guard = 0
+    while (guard++ < 4096) {
+        val zoned = tick.atZone(zone)
+        val epoch = zoned.toEpochSecond()
+        if (epoch > endEpochSec) break
+        if (epoch in startEpochSec..endEpochSec && epoch > lastEpoch) {
+            out.add(epoch to zoned.format(chartTickTimeFormat))
+            lastEpoch = epoch
+        }
+        tick = tick.plusMinutes(stepMinutes)
+    }
+    return out
+}
+
+/**
+ * Where wall-clock [ts] falls (0…1) across an INDEX-spaced line, interpolating between the
+ * per-point [timestamps] exactly like OverviewHRChart's marker mapping — so a tick's gridline and
+ * its axis label land on the same pixel even when the series has gaps. Null when [ts] is outside
+ * the plotted extent (an off-window tick draws nothing rather than pinning to an edge).
+ */
+fun timestampFraction(timestamps: List<Long>, ts: Long): Float? {
+    val n = timestamps.size
+    if (n < 2) return null
+    if (ts < timestamps.first() || ts > timestamps.last()) return null
+    val hi = timestamps.indexOfFirst { it >= ts }
+    if (hi <= 0) return 0f
+    val lo = hi - 1
+    val t0 = timestamps[lo]
+    val t1 = timestamps[hi]
+    val f = if (t1 > t0) (ts - t0).toFloat() / (t1 - t0).toFloat() else 0f
+    return (lo + f) / (n - 1)
 }
 
 /** Pan [base] by [deltaSeconds], clamped into [bounds] (span preserved). Pure — twin of OverviewHRChart.panned. */

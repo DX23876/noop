@@ -30,4 +30,18 @@ class ChartSelectionLabelTest {
         lineChartSelectionLabel(41.5, { v -> seen = v; "x" })
         assertEquals(41.5, seen!!, 0.0)
     }
+
+    // Prototype (hr-chart-time-axis): a caller-supplied sample timestamp PREFIXES the local clock
+    // time, so the scrub answers "when" — "14:32 · 87 bpm", not a bare value.
+    @Test fun aSuppliedTimestampPrefixesTheLocalClockTime() {
+        val zone = java.time.ZoneId.of("Europe/Kyiv")   // UTC+3 in July
+        val ts = java.time.ZonedDateTime.of(2026, 7, 10, 14, 32, 0, 0, zone).toEpochSecond()
+        assertEquals("14:32 · 87 bpm", lineChartSelectionLabel(87.2, { "${it.toInt()} bpm" }, ts, zone))
+        // Without a formatter the raw default still carries the time prefix.
+        assertEquals("14:32 · 87", lineChartSelectionLabel(87.0, null, ts, zone))
+    }
+
+    @Test fun withoutATimestampTheLabelIsUnchanged() {
+        assertEquals("87", lineChartSelectionLabel(87.0, null, null))
+    }
 }
