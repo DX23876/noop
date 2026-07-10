@@ -168,6 +168,14 @@ public struct TrendChart: View {
     /// Exposed internally so a unit test can pin the resolution without rendering the chart.
     var resolvedYDomain: ClosedRange<Double> { yDomain ?? valueRange }
 
+    /// `resolvedYDomain`, floored at (or below) 0 in bar mode so a `BarMark`'s length stays
+    /// proportional to its value — see the `.chartYScale` comment in `body` for why. Line mode is
+    /// unaffected. Exposed internally alongside `resolvedYDomain` for the same test-without-rendering
+    /// reason.
+    var plotYDomain: ClosedRange<Double> {
+        showsBars ? min(0, resolvedYDomain.lowerBound)...resolvedYDomain.upperBound : resolvedYDomain
+    }
+
     public var body: some View {
         Chart {
             if showsBars {
@@ -235,9 +243,7 @@ public struct TrendChart: View {
         // height with the real differences squashed into the top. So in bar mode we drop the floor to 0
         // (or below, should a caller ever plot negatives), matching Android's zero-based BarChart. The
         // upper bound (with the caller's headroom) is unchanged, so the line's domain is untouched.
-        .chartYScale(domain: showsBars
-            ? min(0, resolvedYDomain.lowerBound)...resolvedYDomain.upperBound
-            : resolvedYDomain)
+        .chartYScale(domain: plotYDomain)
         // Clip the plot to its own bounds. catmullRom interpolation overshoots past the data extremes
         // on sharp turns, and the AreaMark gradient is drawn UNCLIPPED — so on a spiky HR curve the
         // rose fill bled down the page behind the cards below the chart. Clipping the plot area bounds

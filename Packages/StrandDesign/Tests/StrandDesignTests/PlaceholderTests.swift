@@ -212,4 +212,33 @@ final class StrandDesignTests: XCTestCase {
         XCTAssertEqual(chart.resolvedYDomain.upperBound, 1, accuracy: 0.0001)
         XCTAssertGreaterThan(chart.resolvedYDomain.upperBound, chart.resolvedYDomain.lowerBound)
     }
+
+    // MARK: - TrendChart bar mode (#85: sleep duration as a bar histogram)
+
+    /// Bar mode must floor the plotted domain at 0 even when the data-fitted `resolvedYDomain` sits
+    /// entirely above it (e.g. a trailing-30-days sleep-hours window like 5...9h) — otherwise a
+    /// BarMark's length would no longer be proportional to its value.
+    func testTrendChartBarModeFloorsPlotDomainAtZero() {
+        let pts = [
+            TrendPoint(date: Date(timeIntervalSince1970: 0), value: 6.5),
+            TrendPoint(date: Date(timeIntervalSince1970: 86_400), value: 7.8),
+        ]
+        let chart = TrendChart(points: pts, valueRange: 5...9, showsBars: true)
+        XCTAssertEqual(chart.resolvedYDomain.lowerBound, 5, accuracy: 0.0001,
+                       "the gradient/axis-fitted domain itself is untouched")
+        XCTAssertEqual(chart.plotYDomain.lowerBound, 0, accuracy: 0.0001,
+                       "but the domain actually applied to the plot floors at 0 for bars")
+        XCTAssertEqual(chart.plotYDomain.upperBound, chart.resolvedYDomain.upperBound, accuracy: 0.0001)
+    }
+
+    /// Line mode (the default) must NOT floor at 0 — `plotYDomain` should equal `resolvedYDomain`
+    /// unchanged, preserving the data-fitted-axis behavior the other tests above pin.
+    func testTrendChartLineModeDoesNotFloorPlotDomain() {
+        let pts = [
+            TrendPoint(date: Date(timeIntervalSince1970: 0), value: 6.5),
+            TrendPoint(date: Date(timeIntervalSince1970: 86_400), value: 7.8),
+        ]
+        let chart = TrendChart(points: pts, valueRange: 5...9)
+        XCTAssertEqual(chart.plotYDomain.lowerBound, chart.resolvedYDomain.lowerBound, accuracy: 0.0001)
+    }
 }

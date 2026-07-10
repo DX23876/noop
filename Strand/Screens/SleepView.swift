@@ -1685,7 +1685,7 @@ struct SleepView: View {
                         TrendChart(points: pts,
                                    gradient: StrandPalette.restGradient,
                                    valueRange: trendRange(pts),
-                                   showsArea: true,
+                                   showsBars: true,
                                    height: NoopMetrics.chartHeight,
                                    valueFormat: { String(format: "%.1f h", $0) },
                                    accessibilityLabel: String(localized: "Hours asleep trend"))
