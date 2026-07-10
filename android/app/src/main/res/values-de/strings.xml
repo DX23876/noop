@@ -48,6 +48,9 @@
     <string name="action_log_journal">Journal notieren</string>
     <string name="action_breathe">Atmen</string>
 
+    <!-- Today screen: workouts feed header. Matches the iOS German entry for "Latest Workouts". -->
+    <string name="today_latest_workouts">Neueste Workouts</string>
+
     <!-- First-run Terms gate (clickwrap). Wording kept identical to the iOS German entries in
          Localizable.xcstrings (PR #984) so both platforms present the same text. The German gate is
          a courtesy translation; the binding text stays the English TERMS.md. -->

@@ -53,6 +53,10 @@
     <string name="action_log_journal">Log journal</string>
     <string name="action_breathe">Breathe</string>
 
+    <!-- Today screen: header of the workouts feed. Renamed from "Last Workouts" ("Last" read as
+         "final", #34/#53 follow-up); wording mirrored on iOS in Localizable.xcstrings. -->
+    <string name="today_latest_workouts">Latest Workouts</string>
+
     <!-- First-run Terms gate (clickwrap). Moved out of TermsGate.kt string literals so the gate is
          localizable (PR #984); English wording kept byte-identical to the macOS/iOS `Terms.points` /
          `TermsGateView`. The binding text is TERMS.md — bump Terms.CURRENT_VERSION on material change. -->

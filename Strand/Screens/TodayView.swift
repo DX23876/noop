@@ -3278,7 +3278,7 @@ struct TodayView: View {
     private var workoutsSection: some View {
         if !workouts.isEmpty {
             VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-                SectionHeader("Last Workouts", overline: "Activity",
+                SectionHeader("Latest Workouts", overline: "Activity",
                               trailing: String(localized: "\(workouts.count) total"))
                 LazyVGrid(columns: grid, alignment: .leading, spacing: NoopMetrics.gap) {
                     ForEach(Array(workouts.prefix(6).enumerated()), id: \.offset) { _, w in
