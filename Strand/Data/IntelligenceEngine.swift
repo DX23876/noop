@@ -879,6 +879,13 @@ final class IntelligenceEngine: ObservableObject {
             let tsmLog = daily.totalSleepMin.map { String(Int($0.rounded())) } ?? "nil"
             diagnosticSink?("sleep day=\(daily.day) totalSleepMin=\(tsmLog) "
                             + "matched=\(night.cachedSleep.count) source=\(source.logToken)", nil)
+            // #195: one always-on line per scored night with the computed HRV value + the window it used,
+            // so an "HRV reads high / deep-sleep window not changing" report is self-diagnosing straight
+            // from the strap log — the whole-night vs deep-sleep value, and `avgHrv=nil window=deep` when a
+            // deep-window night has no detected deep sleep — without needing the HRV & Autonomic test mode.
+            // Counts-only (a rounded ms + the window), PII-free; byte-identical to the Kotlin line.
+            let hrvLog = daily.avgHrv.map { String(format: "%.1f", $0) } ?? "nil"
+            diagnosticSink?("hrv day=\(daily.day) window=\(deepHrvWindow ? "deep" : "whole") avgHrv=\(hrvLog)", nil)
             // ── CAPTURE-B: universal dayOwner self-diagnostic (#814/#799) ────────────────────────────────
             // ONE line per scored day, tagged `.universal` so it rides EVERY Test Centre export regardless
             // of which mode is on. It pins down the read/write split #814 is about: `readId` is the owner

@@ -783,6 +783,13 @@ object IntelligenceEngine {
                     "matched=${res.sleepSessions.size} " +
                     "source=${daySourceToken(daily.day, importedWhoopDays, appleHealthDays)}",
             )
+            // #195: one always-on line per scored night with the computed HRV value + the window it used,
+            // so an "HRV reads high / deep-sleep window not changing" report is self-diagnosing straight
+            // from the strap log — the whole-night vs deep-sleep value, and `avgHrv=nil window=deep` when a
+            // deep-window night has no detected deep sleep — without needing the HRV & Autonomic test mode.
+            // Counts-only (a rounded ms + the window), PII-free; byte-identical to the Swift line.
+            val hrvLog = daily.avgHrv?.let { String.format(java.util.Locale.US, "%.1f", it) } ?: "nil"
+            diag("hrv day=${daily.day} window=${if (deepHrvWindow) "deep" else "whole"} avgHrv=$hrvLog")
             // ── CAPTURE-B: universal dayOwner self-diagnostic (#814/#799) ────────────────────────────────
             // ONE line per SCORED day, tagged .universal so it rides EVERY Test Centre export regardless of
             // which mode is on. It pins the read/write split #814 is about: readId is the owner this day was
