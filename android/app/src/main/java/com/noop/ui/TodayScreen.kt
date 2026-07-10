@@ -93,6 +93,7 @@ import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -4489,6 +4490,13 @@ private fun HeartRateTrendCard(
     val visAvg = visBpm.average().roundToInt()
     val visMin = visBpm.min().roundToInt()
 
+    // Round wall-clock ticks for the RENDERED extent, shared by the gridlines (drawn inside
+    // OverviewHRChart) and the axis-label strip below so they align.
+    val timeTicks = remember(visBuckets) {
+        chartTimeTicks(visBuckets.first().bucket, visBuckets.last().bucket, ZoneId.systemDefault())
+    }
+    val visTimestamps = remember(visBuckets) { visBuckets.map { it.bucket } }
+
     SectionHeader("Heart Rate", overline = selectedLabel)
     NoopCard {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -4538,52 +4546,43 @@ private fun HeartRateTrendCard(
                 // #829 - renders the zoom window's subset, with the pinch/pan/double-tap transform
                 // detector attached (keyed on the #985-windowed buckets so its captured bounds track
                 // both a reload and a window change — the pinch operates INSIDE the selected window).
-                OverviewHRChart(
-                    buckets = visBuckets,
-                    bpm = visBpm,
-                    sleep = sleepToday,
-                    workouts = workoutsToday,
-                    recovery = displayMetric?.recovery,
-                    strain = displayMetric?.strain,
-                    effortScale = effortScale,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(Metrics.chartHeight)
-                        .pointerInput(winBuckets) {
-                            hrChartTransformGestures(
-                                buckets = winBuckets,
-                                bounds = zoomBounds,
-                                window = { hrZoom },
-                                onWindow = { hrZoom = it },
-                            )
-                        },
-                )
-            }
-            // X-axis: start / midpoint / end of the loaded window. Each label is read from the
-            // ACTUAL bucket timestamp at that index, converted to the device-local wall clock,             // NOT idx*5 from midnight. hrBuckets only emits filled 5-min slots (gaps when the strap
-            // wasn't worn) and its bucket key is epoch-aligned, so idx*5 mislabelled every tick once
-            // the day had a gap and the labels drifted out of step with the time-positioned markers
-            // (an evening workout read as if it sat earlier in the day) (#544). The line/markers are
-            // already placed by real timestamp, so labelling by real timestamp makes the axis agree.
-            Row(modifier = Modifier.fillMaxWidth()) {
-                val zone = ZoneId.systemDefault()
-                val hhmm = DateTimeFormatter.ofPattern("HH:mm", Locale.US)
-                // #829 - the axis reads the RENDERED subset, so a zoomed window's ticks describe the
-                // visible curve; the "Now" end label only applies to the un-zoomed live day (a zoomed
-                // window's right edge is wherever the user panned it, so it gets its real timestamp).
-                val bucketToTime = { idx: Int ->
-                    val b = visBuckets.getOrNull(idx) ?: visBuckets.last()
-                    Instant.ofEpochSecond(b.bucket).atZone(zone).format(hhmm)
-                }
-                val xLabels = if (visBuckets.size >= 3) {
-                    listOf(
-                        bucketToTime(0),
-                        bucketToTime(visBuckets.size / 2),
-                        if (selectedDay == today && hrZoom == null) "Now" else bucketToTime(visBuckets.size - 1),
+                // The chart and its axis-label strip share this Column so both span exactly the
+                // plot width (not the card width, which includes the y-rail) — a label centred at
+                // a tick fraction lands under its gridline.
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    OverviewHRChart(
+                        buckets = visBuckets,
+                        bpm = visBpm,
+                        sleep = sleepToday,
+                        workouts = workoutsToday,
+                        recovery = displayMetric?.recovery,
+                        strain = displayMetric?.strain,
+                        effortScale = effortScale,
+                        timeTicks = timeTicks,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(Metrics.chartHeight)
+                            .pointerInput(winBuckets) {
+                                hrChartTransformGestures(
+                                    buckets = winBuckets,
+                                    bounds = zoomBounds,
+                                    window = { hrZoom },
+                                    onWindow = { hrZoom = it },
+                                )
+                            },
                     )
-                } else listOf("Start", "", "Now")
-                xLabels.forEach { lbl ->
-                    Text(lbl, style = NoopType.footnote, color = Palette.textTertiary, modifier = Modifier.weight(1f))
+                    // X-axis: labels use the SAME timestamp interpolation as the line and markers,
+                    // so the axis agrees with the curve even when the day has gaps (#544). "Now"
+                    // only on the un-zoomed live day — a zoomed window's right edge is wherever
+                    // the user panned it (#829).
+                    HrTimeAxisLabels(
+                        ticks = timeTicks,
+                        timestamps = visTimestamps,
+                        showNow = selectedDay == today && hrZoom == null,
+                    )
                 }
             }
             Box(
@@ -4622,6 +4621,50 @@ private fun HeartRateTrendCard(
                             .clickable(onClickLabel = "Reset the heart rate zoom") { hrZoom = null }
                             .padding(horizontal = 6.dp, vertical = 2.dp),
                     )
+                }
+            }
+        }
+    }
+}
+
+// The Today HR x-axis label strip: one Text per round-time tick, centred under its gridline via
+// the SAME per-bucket timestamp interpolation the chart uses (timestampFraction, Charts.kt) and
+// clamped into the strip. "Now" keeps its right-edge slot; a tick label that would collide with
+// it (or with its left neighbour) is skipped rather than overlapped.
+@Composable
+private fun HrTimeAxisLabels(
+    ticks: List<Pair<Long, String>>,
+    timestamps: List<Long>,
+    showNow: Boolean,
+) {
+    Layout(
+        modifier = Modifier.fillMaxWidth(),
+        content = {
+            ticks.forEach { (_, label) ->
+                Text(label, style = NoopType.footnote, color = Palette.textTertiary, maxLines = 1)
+            }
+            if (showNow) {
+                Text("Now", style = NoopType.footnote, color = Palette.textTertiary, maxLines = 1)
+            }
+        },
+    ) { measurables, constraints ->
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val placeables = measurables.map { it.measure(loose) }
+        val width = constraints.maxWidth
+        val height = placeables.maxOfOrNull { it.height } ?: 0
+        layout(width, height) {
+            val nowPlaceable = if (showNow) placeables.last() else null
+            val nowLeft = nowPlaceable?.let { width - it.width } ?: Int.MAX_VALUE
+            nowPlaceable?.place(width - nowPlaceable.width, 0)
+            var lastRight = Int.MIN_VALUE
+            ticks.forEachIndexed { i, (ts, _) ->
+                val p = placeables[i]
+                val frac = timestampFraction(timestamps, ts) ?: return@forEachIndexed
+                val x = (frac * width - p.width / 2f).roundToInt().coerceIn(0, (width - p.width).coerceAtLeast(0))
+                // Skip a label that would overlap its neighbour or the "Now" marker.
+                if (x > lastRight && x + p.width <= nowLeft - 8) {
+                    p.place(x, 0)
+                    lastRight = x + p.width + 8
                 }
             }
         }
@@ -4747,8 +4790,13 @@ private fun OverviewHRChart(
     strain: Double?,
     effortScale: EffortScale,
     modifier: Modifier,
+    // Round wall-clock (epochSec, "HH:mm") ticks, each drawn as a dotted gridline under the curve.
+    // The matching labels render OUTSIDE this plot-height composable (HrTimeAxisLabels), sharing
+    // the same tick list + timestamp mapping so they align. Empty = no gridlines.
+    timeTicks: List<Pair<Long, String>> = emptyList(),
 ) {
     // The line itself stays the existing shared component, unchanged, markers are a sibling overlay.
+    val bucketTimestamps = remember(buckets) { buckets.map { it.bucket } }
     val minV = bpm.min()
     val maxV = bpm.max()
     val span = (maxV - minV).takeIf { it > 0.0 } ?: 1.0
@@ -4836,6 +4884,23 @@ private fun OverviewHRChart(
         // puts it under the curve, exactly like iOS; the wake divider, Charge/Effort rules and glow end-cap
         // stay in the Canvas AFTER the line (iOS draws those marks after the LineMark too, so they read on
         // top). Only the fill moved; same geometry, same colours.
+        // Dotted round-time gridlines, FIRST so everything (band, curve, markers) reads over them.
+        if (plotW > 0f && plotH > 0f && timeTicks.isNotEmpty()) {
+            val gridDash = remember { PathEffect.dashPathEffect(floatArrayOf(4f, 6f), 0f) }
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                timeTicks.forEach { (ts, _) ->
+                    val frac = timestampFraction(bucketTimestamps, ts) ?: return@forEach
+                    val x = frac * size.width
+                    drawLine(
+                        color = Palette.hairline,
+                        start = Offset(x, 0f),
+                        end = Offset(x, size.height),
+                        strokeWidth = 1f,
+                        pathEffect = gridDash,
+                    )
+                }
+            }
+        }
         if (plotW > 0f && plotH > 0f &&
             sleepStartX != null && sleepEndX != null && sleepEndX > sleepStartX) {
             Canvas(modifier = Modifier.fillMaxSize()) {
@@ -4855,6 +4920,10 @@ private fun OverviewHRChart(
             color = Palette.metricRose,
             fill = true,
             selectionEnabled = true,
+            // Scrub read-out: the timestamps prefix the sample's local clock time and the #463
+            // formatter carries the unit — "14:32 · 87 bpm" instead of a bare "87".
+            formatValue = { "${it.roundToInt()} bpm" },
+            timestamps = bucketTimestamps,
         )
 
         // 2) Wake divider + dashed rules + glow end-cap, drawn in one Canvas ON TOP of the line.
