@@ -2339,7 +2339,8 @@ private suspend fun buildSeriesVitalDetail(vm: AppViewModel, key: String): Vital
         title = "Steps",
         unit = "steps",
         color = Palette.metricCyan,
-        points = vm.repo.resolvedSeries("steps_est", "my-whoop", "0000-00-00", "9999-99-99").values,
+        points = vm.repo.resolvedSeries("steps_est", "my-whoop", "0000-00-00", "9999-99-99",
+            strapDeviceId = vm.activeStrapId).values,
         format = { it.roundToInt().toString() },
     )
     "active_kcal" -> {

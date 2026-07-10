@@ -517,7 +517,7 @@ private suspend fun loadFullSeries(
     // Wide window covering all of history (the macOS days = 4000 default).
     val to = todayDay(1)
     val from = todayDay(-4000)
-    return vm.repo.resolvedSeries(metric.key, metric.source, from, to).values
+    return vm.repo.resolvedSeries(metric.key, metric.source, from, to, strapDeviceId = vm.activeStrapId).values
 }
 
 /** "yyyy-MM-dd" for today offset by [deltaDays], fixed UTC. */

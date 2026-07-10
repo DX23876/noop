@@ -391,7 +391,7 @@ private fun MarkerDetailSheet(
         val to = labDay(1)
         val from = labDay(-4000)
         val markerSeries = vm.repo.metricSeries(WhoopDao.LAB_BOOK_SOURCE_ID, markerKey, from, to).map { it.day to it.value }
-        val wearable = vm.repo.resolvedSeries(s.key, s.source, from, to).values
+        val wearable = vm.repo.resolvedSeries(s.key, s.source, from, to, strapDeviceId = vm.activeStrapId).values
         val built = LabBookProjection.pairMarkerToWearable(markerSeries, wearable, window.days)
         pairs = built
         correlation = if (built.size >= LAB_FLOOR) {

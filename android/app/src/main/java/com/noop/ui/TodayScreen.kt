@@ -662,7 +662,8 @@ fun TodayScreen(
     var stepsEstForDay by remember { mutableStateOf<Int?>(null) }
     LaunchedEffect(days, selectedDayKey) {
         val byDay = runCatching {
-            viewModel.repo.resolvedSeries("steps_est", "my-whoop", "0000-00-00", "9999-99-99")
+            viewModel.repo.resolvedSeries("steps_est", "my-whoop", "0000-00-00", "9999-99-99",
+                strapDeviceId = viewModel.activeStrapId)
                 .values.associate { it.first to it.second }
         }.getOrDefault(emptyMap())
         stepsEstForDay = byDay[selectedDayKey]?.let { Math.round(it).toInt() }
@@ -698,7 +699,8 @@ fun TodayScreen(
     var restScoreForDay by remember { mutableStateOf<Double?>(null) }
     LaunchedEffect(days, selectedDayKey, selectedDayOffset) {
         val byDay = runCatching {
-            viewModel.repo.resolvedSeries("sleep_performance", "my-whoop", "0000-00-00", "9999-99-99")
+            viewModel.repo.resolvedSeries("sleep_performance", "my-whoop", "0000-00-00", "9999-99-99",
+                strapDeviceId = viewModel.activeStrapId)
                 .values.associate { it.first to it.second }
         }.getOrDefault(emptyMap())
         // #977: the tail-fallback (latest scored night) is now freshness-gated. A live 5.0 whose sleep never
@@ -720,7 +722,8 @@ fun TodayScreen(
     var restCompositeSpark by remember { mutableStateOf<List<Double>>(emptyList()) }
     LaunchedEffect(days, selectedDay) {
         val byDay = runCatching {
-            viewModel.repo.resolvedSeries("sleep_performance", "my-whoop", "0000-00-00", "9999-99-99")
+            viewModel.repo.resolvedSeries("sleep_performance", "my-whoop", "0000-00-00", "9999-99-99",
+                strapDeviceId = viewModel.activeStrapId)
                 .values.associate { it.first to it.second }
         }.getOrDefault(emptyMap())
         val cutoff = selectedDay.minusDays(13).toString()
@@ -743,7 +746,8 @@ fun TodayScreen(
         val resolved = mutableMapOf<String, String>()
         for (key in listOf("recovery", "sleep_performance")) {
             val win = runCatching {
-                viewModel.repo.resolvedSeries(key, "my-whoop", "0000-00-00", "9999-99-99")
+                viewModel.repo.resolvedSeries(key, "my-whoop", "0000-00-00", "9999-99-99",
+                    strapDeviceId = viewModel.activeStrapId)
                     .points.lastOrNull { it.day == selectedDayKey }?.source
             }.getOrNull()
             if (win != null) resolved[key] = win
@@ -865,11 +869,11 @@ fun TodayScreen(
     // day-level deviceId, so an imported metric on an otherwise-computed day reads honestly. Gated on the
     // ring having a value (a calibrating / empty ring shows no badge). Null → no badge. Mirrors the Swift
     // Today lane (per-ring SourceBadge from provenanceByMetric, gated by ringHasValue).
-    val chargeProvenance = remember(provenanceByMetric, displayMetric) {
-        if (displayMetric?.recovery != null) provenanceByMetric["recovery"]?.let { provenanceDisplayLabel(it) } else null
+    val chargeProvenance = remember(provenanceByMetric, displayMetric, viewModel.activeStrapId) {
+        if (displayMetric?.recovery != null) provenanceByMetric["recovery"]?.let { provenanceDisplayLabel(it, viewModel.activeStrapId) } else null
     }
-    val restProvenance = remember(provenanceByMetric, restScoreForDay) {
-        if (restScoreForDay != null) provenanceByMetric["sleep_performance"]?.let { provenanceDisplayLabel(it) } else null
+    val restProvenance = remember(provenanceByMetric, restScoreForDay, viewModel.activeStrapId) {
+        if (restScoreForDay != null) provenanceByMetric["sleep_performance"]?.let { provenanceDisplayLabel(it, viewModel.activeStrapId) } else null
     }
 
     // 14-day trailing calendar window ending on the phone's actual local day.
