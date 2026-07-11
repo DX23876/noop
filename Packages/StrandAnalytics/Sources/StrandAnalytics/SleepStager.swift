@@ -504,8 +504,16 @@ public enum SleepStager {
         guard let baseline = baseline else { return true }
         let seg = rowsBetween(hr, start: p.start, end: p.end) { $0.ts }
         if seg.count < hrRefineMinSamples { return true }
-        let meanHR = Double(seg.reduce(0) { $0 + $1.bpm }) / Double(seg.count)
-        return meanHR <= baseline * hrSleepBaselineMult
+        // Confirm on the run's MEDIAN, not its mean. A real sleep night carries brief arousal / wake HR
+        // spikes (observed to ~190 bpm) that pull the MEAN above baseline × mult and reject the run — and for
+        // a typical single main-sleep run per night that means zero sessions ("no sleep recorded") — while
+        // the spike-robust median stays at the true sleep level. Baseline is itself a median, so both sides
+        // use the same robust statistic; a genuinely elevated (awake) run still has a high median and fails.
+        // Median ≤ mean for the right-skewed HR of a real night, so this only ever RELAXES the gate — every
+        // run the mean already accepted still passes, and runs the mean wrongly dropped are recovered.
+        // Mirrors Kotlin `confirmSleepWithHR`.
+        let medHR = HRVAnalyzer.median(seg.map { Double($0.bpm) })
+        return medHR <= baseline * hrSleepBaselineMult
     }
 
     /// True when the run's CENTER, shifted to LOCAL time by tzOffsetSeconds, lands in the
