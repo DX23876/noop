@@ -1651,14 +1651,19 @@ final class Repository: ObservableObject {
         }
 
         if preferredSource == whoopSource || preferredSource == actualWhoopSource {
-            // Active strap first (live/measured wins per day), then the CANONICAL "my-whoop" import + its
-            // computed sibling so history banked under the canonical id before a re-add still resolves (the
-            // union model). `uniqued` collapses these to one pair on a single-device install (active ==
-            // canonical), so that path is byte-identical. Apple is the final cross-source fallback.
+            // Active strap first (live/measured wins per day), then the CANONICAL "my-whoop" import, THEN
+            // the computed siblings, so history banked under the canonical id before a re-add still
+            // resolves (the union model) and imports outrank computed estimates — the documented
+            // `imported WHOOP > NOOP-computed` order. The computed sibling used to sit ahead of the
+            // canonical import, so after a device re-add (active != canonical) the new strap's computed
+            // estimates shadowed richer imported my-whoop history (Swift twin of the ryanbr/noop#240
+            // precedence fix). `uniqued` collapses these to one pair per source on a single-device
+            // install (active == canonical), so that path is byte-identical. Apple is the final
+            // cross-source fallback.
             var candidates = [
                 MetricSourceCandidate(source: actualWhoopSource, key: key),
-                MetricSourceCandidate(source: computedSource, key: key),
                 MetricSourceCandidate(source: whoopSource, key: key),
+                MetricSourceCandidate(source: computedSource, key: key),
                 MetricSourceCandidate(source: whoopSource + "-noop", key: key),
             ]
             if let appleKey = appleCompatibleKey(forWhoopKey: key) {

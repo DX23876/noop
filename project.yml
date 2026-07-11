@@ -142,7 +142,8 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: com.noopapp.strandtests
         # Host the unit tests in the app so `@testable import Strand` links against the real app module.
-        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/NOOP.app/Contents/MacOS/NOOP"
+        # NOTE: must track the app target's PRODUCT_NAME ("NOOP Staging" since the staging rename).
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/NOOP Staging.app/Contents/MacOS/NOOP Staging"
         BUNDLE_LOADER: "$(TEST_HOST)"
 
   # ---------------------------------------------------------------------------
