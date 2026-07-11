@@ -468,7 +468,10 @@ private struct FitDecoder {
             ascentM: ascent,
             gpsPointCount: gpsPointCount,
             hrSampleCount: hrSampleCount,
-            route: ActivityFileImporter.cappedRoute(route)
+            route: ActivityFileImporter.cappedRoute(route),
+            // #137: the real per-record HR series, via the SHARED extractor so FIT persists a
+            // byte-identical HR stream to the GPX/TCX paths (and the Kotlin twin).
+            hrSamples: ActivityFileImporter.hrSamples(from: samples)
         )
         return ActivityFileImportResult(activity: activity, kind: .fit, skipped: skipped)
     }

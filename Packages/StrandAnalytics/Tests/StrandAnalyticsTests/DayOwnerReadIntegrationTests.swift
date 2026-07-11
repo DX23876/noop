@@ -22,7 +22,12 @@ final class DayOwnerReadIntegrationTests: XCTestCase {
         var candidates: [DayOwnerResolver.Candidate] = []
         for d in try registry.all() where d.status != .archived {
             let isImport = d.sourceKind == .cloudImport || d.sourceKind == .fileImport
-            let priority = d.id == activeId ? 0 : (isImport ? 2 : 1)
+            // Mirrors IntelligenceEngine.resolveDayOwner: activity-file rides rank BELOW whole-day imports.
+            let priority: Int
+            if d.id == activeId { priority = 0 }
+            else if d.sourceKind == .activityFile { priority = 3 }
+            else if isImport { priority = 2 }
+            else { priority = 1 }
             let hasData = !((try? await store.hrSamples(deviceId: d.id, from: from, to: to, limit: 1)) ?? []).isEmpty
             candidates.append(.init(deviceId: d.id, priority: priority, hasData: hasData))
         }
@@ -81,6 +86,70 @@ final class DayOwnerReadIntegrationTests: XCTestCase {
 
         let read = try await store.hrSamples(deviceId: owner!, from: from, to: to, limit: 200_000)
         XCTAssertTrue(read.allSatisfy { $0.bpm == 99 }, "read must follow the locked owner")
+    }
+
+    /// #137 (B1): on a STRAP-LESS day — the active WHOOP collected NO HR — an imported activity file's
+    /// HR (source "activity-file", an `.activityFile` device) makes it the day owner, so `dayHr` reads the
+    /// ride's HR and the day Effort ring can light. This is the whole point of registering `activity-file`
+    /// as a candidate: with the strap absent it's the only source with data, so priority-3 still wins (an
+    /// owner is the lowest-priority candidate that HAS data, not merely the lowest priority).
+    /// On a day the strap DID collect HR, the strap (priority 0) would win instead — proven by the first
+    /// test above — so imported HR only ever surfaces where there's no strap data to override it.
+    func testActivityFileOwnsStrapLessDayAndReadReturnsItsHR() async throws {
+        let store = try await WhoopStore.inMemory()    // migration v15 seeds active 'my-whoop' (no data yet)
+        let registry = DeviceRegistryStore(dbQueue: store.registryWriter)
+
+        // The activity-file import device, exactly as DataSourcesView registers it (#137 B1).
+        try registry.add(PairedDevice(id: "activity-file", brand: "Workout files", model: "",
+                                      sourceKind: .activityFile, capabilities: [.hr],
+                                      status: .paired, addedAt: 1, lastSeenAt: 1))
+
+        // ONLY the imported ride has HR this day; the active strap has none (strap-less day).
+        let base = dayStart + 3 * 3_600
+        let rideHR = (0..<300).map { HRSample(ts: base + $0, bpm: 132) }
+        _ = try await store.insert(Streams(hr: rideHR), deviceId: "activity-file")
+
+        let from = dayStart - 30 * 3_600, to = dayStart + 12 * 3_600
+        let owner = try await resolveOwner(store: store, registry: registry, from: from, to: to)
+        XCTAssertEqual(owner, "activity-file",
+                       "with no strap HR, the imported file (priority 3, has data) must own the day")
+
+        let read = try await store.hrSamples(deviceId: owner!, from: from, to: to, limit: 200_000)
+        XCTAssertEqual(read.count, rideHR.count)
+        XCTAssertTrue(read.allSatisfy { $0.bpm == 132 }, "the day read must return the imported ride's HR")
+    }
+
+    /// #137 tie-break: on a strap-less day where BOTH a whole-day WHOOP import (priority 2) and an
+    /// activity-file ride (priority 3) have HR, the whole-day import must OWN the day — a 90-minute ride
+    /// can never displace a full-day source. This is why `activity-file` is a distinct `.activityFile`
+    /// kind ranked below `.fileImport`/`.cloudImport`, rather than sharing priority 2 where a stable-sort
+    /// tie would let array order decide.
+    func testWholeDayImportBeatsActivityFileRideOnStrapLessDay() async throws {
+        let store = try await WhoopStore.inMemory()
+        let registry = DeviceRegistryStore(dbQueue: store.registryWriter)
+
+        // A whole-day WHOOP CSV import (priority 2) and the ride (priority 3), both paired, neither active.
+        try registry.add(PairedDevice(id: "whoop-import", brand: "WHOOP", model: "WHOOP (import)",
+                                      sourceKind: .fileImport, capabilities: [.hr],
+                                      status: .paired, addedAt: 1, lastSeenAt: 1))
+        try registry.add(PairedDevice(id: "activity-file", brand: "Workout files", model: "",
+                                      sourceKind: .activityFile, capabilities: [.hr],
+                                      status: .paired, addedAt: 1, lastSeenAt: 1))
+
+        // Both sources carry HR for the SAME strap-less day, distinguishable by bpm.
+        let base = dayStart + 3 * 3_600
+        _ = try await store.insert(Streams(hr: (0..<300).map { HRSample(ts: base + $0, bpm: 132) }),
+                                   deviceId: "activity-file")
+        _ = try await store.insert(Streams(hr: (0..<300).map { HRSample(ts: base + 3_600 + $0, bpm: 58) }),
+                                   deviceId: "whoop-import")
+
+        let from = dayStart - 30 * 3_600, to = dayStart + 12 * 3_600
+        let owner = try await resolveOwner(store: store, registry: registry, from: from, to: to)
+        XCTAssertEqual(owner, "whoop-import",
+                       "a whole-day import (priority 2) must beat the activity-file ride (priority 3)")
+
+        let read = try await store.hrSamples(deviceId: owner!, from: from, to: to, limit: 200_000)
+        XCTAssertTrue(read.allSatisfy { $0.bpm == 58 }, "the day read must follow the whole-day import, not the ride")
     }
 
     /// Single-device install (the default): only the seeded active 'my-whoop' is paired. The owner

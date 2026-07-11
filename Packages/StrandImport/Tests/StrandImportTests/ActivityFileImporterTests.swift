@@ -47,6 +47,54 @@ final class ActivityFileImporterTests: XCTestCase {
         XCTAssertEqual(dist, 222, accuracy: 30)
         // Ascent: +10 then +5 (both > 1 m hysteresis) = 15 m.
         XCTAssertEqual(a.ascentM ?? 0, 15, accuracy: 0.001)
+        // #137: the REAL per-sample HR series is now carried through (not just the avg/max summary),
+        // so the app layer can persist it under the activity-file source and light a strap-less day's
+        // Effort ring. Values in order, timestamped at each point's own time (start + 0/60/120 s).
+        XCTAssertEqual(a.hrSamples.map { $0.bpm }, [120, 140, 160])
+        let base = Int(a.start.timeIntervalSince1970)
+        XCTAssertEqual(a.hrSamples.map { $0.ts }, [base, base + 60, base + 120])
+    }
+
+    func testHrSamplesRequireBothTimestampAndHr() {
+        // #137: a sample must carry BOTH a timestamp and an HR to be persisted — a point with HR but
+        // no <time> can't key into the (deviceId, ts) HR store, and one with a time but no HR has
+        // nothing to store. Here: point 1 has time+HR (kept), point 2 has time but no HR (excluded),
+        // point 3 has HR but no time (excluded). `hrSampleCount` still counts every HR-bearing point.
+        let gpx = """
+        <gpx><trk><trkseg>
+          <trkpt lat="51.5000" lon="-0.1000"><time>2026-06-01T10:00:00Z</time>
+            <extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>120</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>
+          <trkpt lat="51.5010" lon="-0.1000"><time>2026-06-01T10:01:00Z</time></trkpt>
+          <trkpt lat="51.5020" lon="-0.1000">
+            <extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>160</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>
+        </trkseg></trk></gpx>
+        """
+        let r = ActivityFileImporter.parse(data: Data(gpx.utf8), filename: "mixed.gpx")
+        let a = try! XCTUnwrap(r.activity)
+        XCTAssertEqual(a.hrSampleCount, 2)                        // both HR-bearing points counted
+        XCTAssertEqual(a.hrSamples.map { $0.bpm }, [120])        // only the timestamped-with-HR one persisted
+        XCTAssertEqual(a.hrSamples.first?.ts, Int(a.start.timeIntervalSince1970))
+    }
+
+    func testHrSampleTimestampFloorsFractionalSecondsForKotlinParity() {
+        // #137 byte-parity: `hrSample.ts` is the `(deviceId, ts)` store key, so Apple and Android must
+        // derive the SAME whole second from a fractional timestamp. Kotlin's `OffsetDateTime.toEpochSecond()`
+        // FLOORS the fraction; Swift keeps it in the `Date`, so `hrSamples` must truncate (`Int(secs)`),
+        // NOT round — else `…00.500Z` would store ts+1 on Apple while Android stored ts. Parse the same
+        // trackpoint time both as a whole second and as `.500`, and assert both land on the SAME ts.
+        func ts(forTime t: String) -> Int? {
+            let gpx = """
+            <gpx><trk><trkseg>
+              <trkpt lat="51.5000" lon="-0.1000"><time>\(t)</time>
+                <extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>130</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>
+            </trkseg></trk></gpx>
+            """
+            let r = ActivityFileImporter.parse(data: Data(gpx.utf8), filename: "frac.gpx")
+            return r.activity?.hrSamples.first?.ts
+        }
+        let whole = try! XCTUnwrap(ts(forTime: "2026-06-01T10:00:00Z"))
+        let half = try! XCTUnwrap(ts(forTime: "2026-06-01T10:00:00.500Z"))
+        XCTAssertEqual(half, whole, "a .5-second fraction must FLOOR to the same whole second (Kotlin parity), not round up")
     }
 
     func testGpxRejectsNullIslandAndKeepsValidPoints() {
@@ -162,6 +210,11 @@ final class ActivityFileImporterTests: XCTestCase {
         XCTAssertEqual(a.route.first?.lon ?? 0, lon, accuracy: 1e-4)
         // start from the FIT epoch: 631065600 + 100000.
         XCTAssertEqual(a.start.timeIntervalSince1970, 631_065_600 + 100_000, accuracy: 1)
+        // #137: FIT persists the same real per-record HR series as GPX/TCX (shared extractor). Records
+        // are 0/10/20 s apart from the FIT-epoch start; HR 120/140/160.
+        let fitBase = 631_065_600 + 100_000
+        XCTAssertEqual(a.hrSamples.map { $0.bpm }, [120, 140, 160])
+        XCTAssertEqual(a.hrSamples.map { $0.ts }, [fitBase, fitBase + 10, fitBase + 20])
     }
 
     func testFitDetectionFromMagicBytes() {

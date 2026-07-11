@@ -1423,7 +1423,14 @@ final class IntelligenceEngine: ObservableObject {
         var candidates: [DayOwnerResolver.Candidate] = []
         for d in liveDevices {
             let isImport = d.sourceKind == .cloudImport || d.sourceKind == .fileImport
-            let priority = d.id == activeId ? 0 : (isImport ? 2 : 1)
+            // #137: an activity-file ride ranks BELOW whole-day imports (priority 3 vs 2), so a full-day
+            // WHOOP CSV/cloud import keeps ownership of a day it has HR for; the ride only wins a day that
+            // nothing else covers (a strap-less day). Kotlin RegistryDayOwnerSource mirrors this ordering.
+            let priority: Int
+            if d.id == activeId { priority = 0 }
+            else if d.sourceKind == .activityFile { priority = 3 }
+            else if isImport { priority = 2 }
+            else { priority = 1 }
             // Cheap presence check: a single HR row for this device in the night window is enough to
             // mark it a candidate. (LIMIT 1 , not the full pull the caller does once an owner is chosen.)
             let hasData = !((try? await store.hrSamples(deviceId: d.id, from: from, to: to, limit: 1)) ?? []).isEmpty

@@ -66,6 +66,53 @@ class ActivityFileImporterTest {
         assertEquals(120.0, a.durationS!!, 1e-6)
         assertEquals(222.0, a.distanceM!!, 30.0)
         assertEquals(15.0, a.ascentM!!, 1e-3)
+        // #137: the REAL per-sample HR series is now carried through (not just avg/max), so the app
+        // layer can persist it under the activity-file source and light a strap-less day's Effort ring.
+        // Values in order, timestamped at each point's own time (start + 0/60/120 s). Parity with Swift.
+        assertEquals(listOf(120, 140, 160), a.hrSamples.map { it.bpm })
+        val base = a.startTs
+        assertEquals(listOf(base, base + 60, base + 120), a.hrSamples.map { it.ts })
+    }
+
+    @Test
+    fun hrSamplesRequireBothTimestampAndHr() {
+        // #137: a sample must carry BOTH a timestamp and an HR to be persisted — a point with HR but no
+        // <time> can't key into the (deviceId, ts) HR store, and one with a time but no HR has nothing to
+        // store. Point 1: time+HR (kept). Point 2: time, no HR (excluded). Point 3: HR, no time
+        // (excluded). `hrSampleCount` still counts every HR-bearing point. Parity with the Swift twin.
+        val gpx = """
+            <gpx><trk><trkseg>
+              <trkpt lat="51.5000" lon="-0.1000"><time>2026-06-01T10:00:00Z</time>
+                <extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>120</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>
+              <trkpt lat="51.5010" lon="-0.1000"><time>2026-06-01T10:01:00Z</time></trkpt>
+              <trkpt lat="51.5020" lon="-0.1000">
+                <extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>160</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>
+            </trkseg></trk></gpx>
+        """.trimIndent()
+        val r = ActivityFileImporter.parse(gpx.toByteArray(Charsets.UTF_8), "mixed.gpx")
+        val a = r.activity!!
+        assertEquals(2, a.hrSampleCount)                    // both HR-bearing points counted
+        assertEquals(listOf(120), a.hrSamples.map { it.bpm }) // only the timestamped-with-HR one persisted
+        assertEquals(a.startTs, a.hrSamples.first().ts)
+    }
+
+    @Test
+    fun hrSampleTimestampFloorsFractionalSecondsForSwiftParity() {
+        // #137 byte-parity anchor: `hrSample.ts` is the `(deviceId, ts)` store key, so Android and Apple
+        // must derive the SAME whole second from a fractional timestamp. Kotlin floors via
+        // OffsetDateTime.toEpochSecond(); Swift truncates its fractional Date to match. Parse the same
+        // trackpoint time as a whole second and as `.500`, and assert both land on the SAME ts (floor).
+        fun ts(time: String): Long {
+            val gpx = """
+                <gpx><trk><trkseg>
+                  <trkpt lat="51.5000" lon="-0.1000"><time>$time</time>
+                    <extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>130</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>
+                </trkseg></trk></gpx>
+            """.trimIndent()
+            return ActivityFileImporter.parse(gpx.toByteArray(Charsets.UTF_8), "frac.gpx").activity!!.hrSamples.first().ts
+        }
+        assertEquals("a .5-second fraction must FLOOR to the same whole second (Swift parity), not round up",
+            ts("2026-06-01T10:00:00Z"), ts("2026-06-01T10:00:00.500Z"))
     }
 
     @Test
@@ -172,6 +219,11 @@ class ActivityFileImporterTest {
         assertEquals(lat, a.route.first().lat, 1e-4)
         assertEquals(lon, a.route.first().lon, 1e-4)
         assertEquals((631_065_600L + 100_000L).toDouble(), a.startTs.toDouble(), 1.0)
+        // #137: FIT persists the same real per-record HR series as GPX/TCX (shared extractor). Records
+        // are 0/10/20 s apart from the FIT-epoch start; HR 120/140/160. Parity with the Swift twin.
+        val fitBase = 631_065_600L + 100_000L
+        assertEquals(listOf(120, 140, 160), a.hrSamples.map { it.bpm })
+        assertEquals(listOf(fitBase, fitBase + 10, fitBase + 20), a.hrSamples.map { it.ts })
     }
 
     @Test

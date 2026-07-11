@@ -25,8 +25,12 @@ class RegistryDayOwnerSource(private val registry: DeviceRegistry) : Intelligenc
             .map { d ->
                 val isImport = d.sourceKind == SourceKind.cloudImport.name ||
                     d.sourceKind == SourceKind.fileImport.name
+                // #137: an activity-file ride ranks BELOW whole-day imports (priority 3 vs 2), so a
+                // full-day WHOOP CSV/cloud import keeps ownership of a day it has HR for; the ride only
+                // wins a day nothing else covers. Mirrors Swift IntelligenceEngine.resolveDayOwner.
                 val priority = when {
                     d.id == activeId -> 0
+                    d.sourceKind == SourceKind.activityFile.name -> 3
                     isImport -> 2
                     else -> 1
                 }

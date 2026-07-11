@@ -34,6 +34,33 @@ final class StrainScorerTests: XCTestCase {
         XCTAssertEqual(s!, 44.27, accuracy: 1e-2)
     }
 
+    /// #137 (partial-day sanity, PR #236 review): an imported ride is a short HR ISLAND — a 1–2 h
+    /// window, not a full day of HR. Prove the day Effort from that island is SENSIBLE: it equals the
+    /// Effort the same ride would score if worn on a strap for a full day. Edwards TRIMP integrates only
+    /// over the samples present, and resting HR (≤ restingHR → zone weight 0) adds zero TRIMP, so a
+    /// strap-less imported ride is neither diluted by the empty hours nor inflated by them — the number
+    /// the user sees is the ride's own honest cardiovascular load, identical to a worn strap.
+    func testImportedRidePartialDayEffortMatchesWornStrap() {
+        // A 90-minute ride @ 150 bpm (moderate), mid-morning, sampled at 1 Hz.
+        let ride = hr(150, 90 * 60, start: 8 * 3_600)
+
+        // Import case (strap-less day): the ride is the ONLY HR on the day.
+        let importEffort = StrainScorer.strain(ride, maxHR: 190, restingHR: 60)
+
+        // Worn-strap case: the SAME ride embedded in a full 24 h of resting HR (60 bpm) around it.
+        let restBefore = hr(60, 8 * 3_600, start: 0)
+        let restAfter  = hr(60, 24 * 3_600 - 8 * 3_600 - 90 * 60, start: 8 * 3_600 + 90 * 60)
+        let wornEffort = StrainScorer.strain(restBefore + ride + restAfter, maxHR: 190, restingHR: 60)
+
+        XCTAssertNotNil(importEffort, "a 90-min HR island clears the minReadings/minSpan gates")
+        // Identical: resting time contributes zero TRIMP, so the island scores the same either way.
+        XCTAssertEqual(importEffort!, wornEffort!, accuracy: 1e-9,
+                       "imported-ride Effort must equal the same ride worn on a strap")
+        // A sensible MODERATE Effort for a 90-min zone-3 ride — not 0 (dark), not saturated (~100).
+        XCTAssertGreaterThan(importEffort!, 20)
+        XCTAssertLessThan(importEffort!, 90)
+    }
+
     func testStrainReturnsNilTooFewReadings() {
         XCTAssertNil(StrainScorer.strain(hr(150, 599), maxHR: 190, restingHR: 60))
     }

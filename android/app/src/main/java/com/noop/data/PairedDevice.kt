@@ -70,7 +70,11 @@ enum class DeviceStatus { active, paired, archived }
  *  encrypted readiness/sleep scores). Carried on string rawValue "oura"; no DB migration (the column is
  *  free-text and existing rows never carry it).
  *  Additive: existing rows never carry [ftms]/[huami]/[oura]; only the respective wizard paths write them. */
-enum class SourceKind { liveBLE, historyBLE, cloudImport, fileImport, ftms, huami, oura }
+// `activityFile` (#137): a GPX/TCX/FIT activity file under the `activity-file` device. Distinct from
+// `fileImport` (a whole-day WHOOP CSV export) so the day-owner resolver ranks it BELOW day-spanning
+// imports — a 90-minute ride must never displace a full-day source with HR for the same day. It owns a
+// day only when nothing else has data (a strap-less day). Additive: only the activity-file importer writes it.
+enum class SourceKind { liveBLE, historyBLE, cloudImport, fileImport, ftms, huami, oura, activityFile }
 
 /** A canonical metric a source can provide — drives capability-aware UI + the day-owner resolver.
  *  Stored as the enum name (Swift `Metric` rawValue) inside the comma-joined `capabilities` string. */
