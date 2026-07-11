@@ -5158,7 +5158,15 @@ class WhoopBleClient(
         // the handshake can compute the round-trip. Twin of macOS didDisconnectPeripheral.
         rebootRequestedAtMs?.let { t ->
             rebootWatchdog?.let { handler.removeCallbacks(it) }; rebootWatchdog = null
-            log("reboot: link dropped ${SystemClock.elapsedRealtime() - t}ms after send — reboot took effect; awaiting reconnect")
+            val ms = SystemClock.elapsedRealtime() - t
+            // #275: a dropped LINK only proves a reboot on WHOOP 5.0 (verified fw). On WHOOP 4.0 the frame
+            // is unconfirmed — opcode 29/payload01 was observed to drop the BLE link WITHOUT power-cycling
+            // the strap (the sensor stayed on) — so don't claim a reboot; report the drop honestly. Twin of
+            // Swift didDisconnectPeripheral.
+            log(if (connectedFamily == DeviceFamily.WHOOP5)
+                "reboot: link dropped ${ms}ms after send — reboot took effect; awaiting reconnect"
+            else
+                "reboot: link dropped ${ms}ms after send — but a WHOOP 4.0 reboot isn't confirmed; a dropped link alone isn't proof (a real reboot also switches the sensor light off). Awaiting reconnect")
         }
         // Connection test mode: capture whether THIS attempt ever reached STATE_CONNECTED before the
         // state copy below clears `connected`. Android delivers BOTH a post-connect involuntary drop AND a

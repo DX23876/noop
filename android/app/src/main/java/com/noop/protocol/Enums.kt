@@ -171,6 +171,16 @@ enum class RebootProbeVariant(
     POWER_CYCLE_32_EMPTY(CommandNumber.POWER_CYCLE_STRAP, byteArrayOf(),
         "B · POWER_CYCLE(32) empty", "B/powercycle32-empty"),
     // C — opcode 29 REBOOT_STRAP, payload [0x01]: same opcode with a non-empty sub-command byte.
+    // On a real 4.0 this DROPPED THE LINK but did NOT power-cycle (sensor stayed on) — a BLE
+    // disconnect, not a reboot (#275). So the sub-command byte reaches the strap; the next two try it
+    // on the harder power-cycle opcode and a different byte on reboot.
     REBOOT_29_PAYLOAD1(CommandNumber.REBOOT_STRAP, byteArrayOf(0x01),
         "C · REBOOT_STRAP(29) payload=01", "C/reboot29-payload01"),
+    // D — opcode 32 POWER_CYCLE_STRAP, payload [0x01]: the "harder restart" opcode with the sub-command
+    // byte that made 29 react (#275). Best remaining safe candidate for a genuine power-cycle.
+    POWER_CYCLE_32_PAYLOAD1(CommandNumber.POWER_CYCLE_STRAP, byteArrayOf(0x01),
+        "D · POWER_CYCLE(32) payload=01", "D/powercycle32-payload01"),
+    // E — opcode 29 REBOOT_STRAP, payload [0x00]: the zero-byte sub-command (vs empty vs 0x01).
+    REBOOT_29_PAYLOAD0(CommandNumber.REBOOT_STRAP, byteArrayOf(0x00),
+        "E · REBOOT_STRAP(29) payload=00", "E/reboot29-payload00"),
 }

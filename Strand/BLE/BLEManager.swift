@@ -2886,7 +2886,15 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         if let t = rebootRequestedAt {
             let ms = Int(Double(DispatchTime.now().uptimeNanoseconds &- t.uptimeNanoseconds) / 1_000_000)
             rebootTimeoutWork?.cancel(); rebootTimeoutWork = nil
-            log("reboot: link dropped \(ms)ms after send — reboot took effect; awaiting reconnect")
+            // #275: a dropped LINK only proves a reboot on WHOOP 5.0 (verified fw). On WHOOP 4.0 the frame
+            // is unconfirmed — opcode 29/payload01 was observed to drop the BLE link WITHOUT power-cycling
+            // the strap (the sensor stayed on) — so don't claim a reboot; report the drop honestly. Twin of
+            // Kotlin handleDisconnect.
+            if selectedModel.deviceFamily == .whoop5 {
+                log("reboot: link dropped \(ms)ms after send — reboot took effect; awaiting reconnect")
+            } else {
+                log("reboot: link dropped \(ms)ms after send — but a WHOOP 4.0 reboot isn't confirmed; a dropped link alone isn't proof (a real reboot also switches the sensor light off). Awaiting reconnect")
+            }
         }
         // #80 marginal-radio detection: judge this drop BEFORE the state resets below clobber the
         // arm timestamp. A drop that is unintentional, error-bearing, and lands shortly after we armed

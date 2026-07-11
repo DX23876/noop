@@ -232,26 +232,49 @@ public enum RebootProbeVariant: String, CaseIterable, Sendable {
     /// B — opcode 32 POWER_CYCLE_STRAP, empty body: a harder restart, never tried.
     case powerCycle32Empty
     /// C — opcode 29 REBOOT_STRAP, payload [0x01]: same opcode with a non-empty sub-command byte.
+    /// On a real 4.0 this DROPPED THE LINK but did NOT power-cycle (sensor stayed on) — a BLE
+    /// disconnect, not a reboot (#275). So the sub-command byte reaches the strap; D/E try it on the
+    /// harder power-cycle opcode and a different byte on reboot.
     case reboot29Payload1
+    /// D — opcode 32 POWER_CYCLE_STRAP, payload [0x01]: the "harder restart" opcode with the sub-command
+    /// byte that made 29 react (#275). Best remaining safe candidate for a genuine power-cycle.
+    case powerCycle32Payload1
+    /// E — opcode 29 REBOOT_STRAP, payload [0x00]: the zero-byte sub-command (vs empty vs 0x01).
+    case reboot29Payload0
 
-    var command: WhoopCommand { self == .powerCycle32Empty ? .powerCycleStrap : .rebootStrap }
-    var payload: [UInt8] { self == .reboot29Payload1 ? [0x01] : [] }
+    var command: WhoopCommand {
+        switch self {
+        case .powerCycle32Empty, .powerCycle32Payload1: return .powerCycleStrap
+        default:                                         return .rebootStrap
+        }
+    }
+    var payload: [UInt8] {
+        switch self {
+        case .reboot29Payload1, .powerCycle32Payload1: return [0x01]
+        case .reboot29Payload0:                        return [0x00]
+        default:                                       return []
+        }
+    }
 
     /// Short menu label, e.g. "A · REBOOT_STRAP(29) empty".
     public var menuLabel: String {
         switch self {
-        case .reboot29Empty:     return "A · REBOOT_STRAP(29) empty"
-        case .powerCycle32Empty: return "B · POWER_CYCLE(32) empty"
-        case .reboot29Payload1:  return "C · REBOOT_STRAP(29) payload=01"
+        case .reboot29Empty:        return "A · REBOOT_STRAP(29) empty"
+        case .powerCycle32Empty:    return "B · POWER_CYCLE(32) empty"
+        case .reboot29Payload1:     return "C · REBOOT_STRAP(29) payload=01"
+        case .powerCycle32Payload1: return "D · POWER_CYCLE(32) payload=01"
+        case .reboot29Payload0:     return "E · REBOOT_STRAP(29) payload=00"
         }
     }
 
     /// Tag written to the strap log so each attempt is correlatable (byte-identical to Kotlin).
     public var logTag: String {
         switch self {
-        case .reboot29Empty:     return "A/reboot29-empty"
-        case .powerCycle32Empty: return "B/powercycle32-empty"
-        case .reboot29Payload1:  return "C/reboot29-payload01"
+        case .reboot29Empty:        return "A/reboot29-empty"
+        case .powerCycle32Empty:    return "B/powercycle32-empty"
+        case .reboot29Payload1:     return "C/reboot29-payload01"
+        case .powerCycle32Payload1: return "D/powercycle32-payload01"
+        case .reboot29Payload0:     return "E/reboot29-payload00"
         }
     }
 }
