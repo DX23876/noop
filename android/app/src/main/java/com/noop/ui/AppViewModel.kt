@@ -363,6 +363,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Whether strap low/full battery notifications fire. */
     val batteryAlertsEnabled: StateFlow<Boolean> = _batteryAlertsEnabled.asStateFlow()
 
+    // Predictive ~24h-runtime warning: a sub-gate under batteryAlerts (default ON), so the naggier
+    // once-per-discharge-cycle alert can be silenced without losing the 15% safety net.
+    private val _predictiveBatteryAlertsEnabled = MutableStateFlow(NoopPrefs.predictiveBatteryAlerts(appContext))
+    /** Whether the predictive ~24h-runtime warning fires (in addition to batteryAlertsEnabled). */
+    val predictiveBatteryAlertsEnabled: StateFlow<Boolean> = _predictiveBatteryAlertsEnabled.asStateFlow()
+
     // Declared BEFORE the init block for the SAME reason as _illnessWatchEnabled above: the bond
     // collector launched from init runs synchronously on Main.immediate and reads _smartAlarmEnabled on
     // its first (cached) emission. A declaration after init is null there and NPEs the constructor on a
@@ -1917,6 +1923,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setBatteryAlertsEnabled(enabled: Boolean) {
         _batteryAlertsEnabled.value = enabled
         NoopPrefs.setBatteryAlerts(appContext, enabled)
+    }
+
+    /** Toggle the predictive ~24h-runtime warning on its own; same persist-only mechanics as above. */
+    fun setPredictiveBatteryAlertsEnabled(enabled: Boolean) {
+        _predictiveBatteryAlertsEnabled.value = enabled
+        NoopPrefs.setPredictiveBatteryAlerts(appContext, enabled)
     }
 
     /** Re-evaluate the strap's single firmware-alarm slot from BOTH features that want it (#5).

@@ -77,6 +77,46 @@ object BatteryAlertNotifier {
     private const val CHANNEL_ID = "noop_battery_alert"
     private const val NOTIF_ID_LOW = 4203
     private const val NOTIF_ID_FULL = 4204
+    private const val NOTIF_ID_RUNTIME = 4205
+
+    /**
+     * Predictive twin of [onBatteryUpdate]: run the runtime estimate against
+     * [com.noop.analytics.BatteryEstimator.runtimeAlert] (fire ≤24 h, re-arm ≥36 h — a runtime
+     * threshold gives the same warning lead time on a 4.0 and a 5.0/MG, which a fixed SoC line
+     * can't) and post at most one notification per discharge cycle. The 15% SoC alert stays as the
+     * safety net for straps with no usable estimate (null skips here). Same gating discipline as
+     * #368: persisted flag advances even when delivery is deferred; no-ops when battery alerts are
+     * off. iOS/macOS twin: BatteryNotifier.onRuntimeEstimate.
+     */
+    @SuppressLint("MissingPermission") // guarded by areNotificationsEnabled() + runCatching
+    fun onRuntimeEstimate(context: Context, remainingHours: Double?, charging: Boolean?) {
+        if (remainingHours == null) return
+        if (!NoopPrefs.batteryAlerts(context)) return
+        if (!NoopPrefs.predictiveBatteryAlerts(context)) return
+        runCatching {
+            val decision = com.noop.analytics.BatteryEstimator.runtimeAlert(
+                remainingHours = remainingHours,
+                charging = charging,
+                alerted = NoopPrefs.batteryRuntimeAlerted(context),
+            )
+            // ALWAYS persist the updated gate — re-arming must stick even when nothing fired.
+            NoopPrefs.setBatteryRuntimeAlerted(context, decision.newAlerted)
+            if (!decision.fire) return
+            if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return
+            ensureChannel(context)
+            val label = com.noop.analytics.BatteryEstimator.label(remainingHours)
+            val n = NotificationCompat.Builder(context, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_stat_heart)
+                .setContentTitle("Strap battery low")
+                .setContentText("$label left on your WHOOP — recharge tonight.")
+                .setContentIntent(openAppIntent(context))
+                .setAutoCancel(true)
+                .setCategory(NotificationCompat.CATEGORY_STATUS)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .build()
+            NotificationManagerCompat.from(context).notify(NOTIF_ID_RUNTIME, n)
+        }
+    }
 
     @SuppressLint("MissingPermission") // guarded by areNotificationsEnabled() + runCatching
     fun onBatteryUpdate(context: Context, currPct: Int?, charging: Boolean?) {

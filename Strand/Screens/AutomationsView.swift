@@ -367,6 +367,11 @@ struct AutomationsView: View {
                 .onChangeCompat(of: behavior.batteryAlerts) { on in
                     if on { BatteryNotifier.requestAuthorization() }
                 }
+            if behavior.batteryAlerts {
+                ToggleRow(label: String(localized: "Predictive runtime warning"),
+                          help: String(localized: "An early \"recharge tonight\" heads-up when the strap has about a day of estimated runtime left, at most once per discharge cycle. Turn off to keep only the 15% warning."),
+                          isOn: $behavior.batteryPredictiveAlerts)
+            }
         }
     }
 

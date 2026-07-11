@@ -246,4 +246,32 @@ public enum BatteryEstimator {
         if hours < 48 { return "~\(Int(hours.rounded()))h" }
         return "~\(String(format: "%.1f", hours / 24)) days"
     }
+
+    // MARK: - Predictive low-battery alert policy
+
+    /// Fire the runtime alert when the estimate drops to this many hours of remaining life. A fixed
+    /// SoC threshold gives wildly different lead time per strap generation (15% is ~16 h on a 4.0 but
+    /// ~1.8 days on a 5.0/MG); a runtime threshold means the same "charge it tonight" warning for both.
+    public static let runtimeAlertHours: Double = 24
+    /// Re-arm only when the estimate recovers to this. The 12 h hysteresis band means jitter in the
+    /// fitted slope around the alert line can't re-fire; only a genuine charge opens the gate again.
+    public static let runtimeRearmHours: Double = 36
+
+    /// Crossing-with-hysteresis decision for the predictive alert, mirroring
+    /// `BatteryNotifier.BatteryAlertPolicy.evaluate`'s shape: PERSISTED `alerted` gate in, fire
+    /// decision plus next gate state out. Pure so it's `swift test`-covered here (the SoC policy
+    /// lives in the app target where only xcodebuild tests reach it).
+    ///
+    /// `charging == nil` means unknown — the alert still fires (only a confirmed `true` suppresses
+    /// it), the same null-tolerant rule as the SoC low alert: the strap reports its charge bit only
+    /// every ~8 min, and a strap that never reports one should still warn.
+    public static func runtimeAlert(remainingHours: Double,
+                                    charging: Bool?,
+                                    alerted: Bool) -> (fire: Bool, newAlerted: Bool) {
+        var armedOff = alerted
+        if remainingHours >= runtimeRearmHours { armedOff = false }
+        let fire = !armedOff && remainingHours <= runtimeAlertHours && charging != true
+        if fire { armedOff = true }
+        return (fire, armedOff)
+    }
 }

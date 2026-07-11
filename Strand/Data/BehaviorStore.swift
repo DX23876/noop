@@ -50,6 +50,9 @@ final class BehaviorStore: ObservableObject {
     // MARK: Strap battery alerts
     /// Notify on low strap battery (≤15%) and full charge (100%). Default ON (#368).
     @Published var batteryAlerts: Bool { didSet { d.set(batteryAlerts, forKey: K.batteryAlerts) } }
+    /// Predictive "recharge tonight" warning at ~24h of estimated runtime left. Sub-gate under
+    /// batteryAlerts (both must be on). Default ON so pre-toggle behavior is unchanged.
+    @Published var batteryPredictiveAlerts: Bool { didSet { d.set(batteryPredictiveAlerts, forKey: K.batteryPredictiveAlerts) } }
 
     private let d = UserDefaults.standard
     private enum K {
@@ -73,6 +76,7 @@ final class BehaviorStore: ObservableObject {
         // preserved should a real light-sleep watcher ever land.
         static let illness = "behavior.illnessWatch"
         static let batteryAlerts = "behavior.batteryAlerts"
+        static let batteryPredictiveAlerts = "behavior.batteryPredictiveAlerts"
     }
 
     init() {
@@ -94,6 +98,7 @@ final class BehaviorStore: ObservableObject {
         smartAlarmWeekdays = Set((d.array(forKey: K.alarmWeekdays) as? [Int] ?? []).filter { (1...7).contains($0) })
         illnessWatch = d.object(forKey: K.illness) as? Bool ?? false
         batteryAlerts = d.object(forKey: K.batteryAlerts) as? Bool ?? true
+        batteryPredictiveAlerts = d.object(forKey: K.batteryPredictiveAlerts) as? Bool ?? true
     }
 
     // MARK: Charge baseline recalibration

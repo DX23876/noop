@@ -1,5 +1,6 @@
 import Foundation
 import UserNotifications
+import StrandAnalytics
 
 /// Surfaces the strap battery state as a user notification — a LOW warning when the cell falls to
 /// the threshold so the user can top up before tonight's sleep, and a CHARGED note when it reaches
@@ -9,6 +10,7 @@ import UserNotifications
 enum BatteryNotifier {
     private static let lowAlertedKey = "behavior.batteryLowAlerted"
     private static let fullAlertedKey = "behavior.batteryFullAlerted"
+    private static let runtimeAlertedKey = "behavior.batteryRuntimeAlerted"
 
     /// Pure crossing-with-hysteresis policy, identical on macOS/iOS and Android (#368). The two
     /// `*Alerted` flags are PERSISTED, so they survive process death — and the 25% re-arm band means
@@ -90,6 +92,26 @@ enum BatteryNotifier {
             let center = UNUserNotificationCenter.current()
             center.removeDeliveredNotifications(withIdentifiers: ["battery-full"])
             center.removePendingNotificationRequests(withIdentifiers: ["battery-full"])
+        }
+    }
+
+    /// Predictive twin of `onBatteryUpdate`: run the runtime estimate against
+    /// `BatteryEstimator.runtimeAlert` (fire ≤24 h, re-arm ≥36 h — see the policy for why a runtime
+    /// threshold beats a fixed SoC one) and post at most one notification per discharge cycle. The
+    /// 15% SoC alert stays as the safety net for straps with no usable estimate (`estimate == nil`
+    /// is a no-op here). Same gating discipline as #368: the persisted flag advances even when
+    /// delivery is deferred, and the whole thing no-ops when the "Battery alerts" setting is off.
+    static func onRuntimeEstimate(remainingHours: Double?, charging: Bool?, enabled: Bool) {
+        guard enabled, let remainingHours else { return }
+        let d = UserDefaults.standard
+        let result = BatteryEstimator.runtimeAlert(remainingHours: remainingHours,
+                                                   charging: charging,
+                                                   alerted: d.bool(forKey: runtimeAlertedKey))
+        d.set(result.newAlerted, forKey: runtimeAlertedKey)
+        if result.fire {
+            post(identifier: "battery-runtime",
+                 title: String(localized: "Strap battery low"),
+                 body: String(localized: "\(BatteryEstimator.label(hours: remainingHours)) left on your WHOOP — recharge tonight."))
         }
     }
 

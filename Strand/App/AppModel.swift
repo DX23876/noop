@@ -257,6 +257,13 @@ final class AppModel: ObservableObject {
             BatteryNotifier.onBatteryUpdate(pct: Int(pct.rounded()),
                                             charging: self.live.charging,
                                             enabled: self.behavior.batteryAlerts)
+            // Predictive runtime alert: the same reading just banked into the SoC buffer, so
+            // batteryEstimate is fresh here. Nil estimate (no readings yet) is a no-op — the 15%
+            // alert above remains the safety net.
+            BatteryNotifier.onRuntimeEstimate(remainingHours: self.live.batteryEstimate?.remainingHours,
+                                              charging: self.live.charging,
+                                              enabled: self.behavior.batteryAlerts
+                                                    && self.behavior.batteryPredictiveAlerts)
         }
         // HR-zone haptic coaching watches the smoothed bpm.
         $bpm.sink { [weak self] hr in self?.coachZone(hr) }.store(in: &hrCancellables)

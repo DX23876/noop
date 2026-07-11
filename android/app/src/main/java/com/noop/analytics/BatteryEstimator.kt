@@ -248,4 +248,34 @@ object BatteryEstimator {
     fun label(hours: Double): String =
         if (hours < 48) "~${hours.roundToLong()}h"
         else "~${String.format(Locale.US, "%.1f", hours / 24)} days"
+
+    // ---- Predictive low-battery alert policy ----
+
+    /** Fire the runtime alert when the estimate drops to this many hours of remaining life. A fixed
+     *  SoC threshold gives wildly different lead time per strap generation (15% is ~16 h on a 4.0 but
+     *  ~1.8 days on a 5.0/MG); a runtime threshold means the same "charge it tonight" warning for both. */
+    const val runtimeAlertHours = 24.0
+
+    /** Re-arm only when the estimate recovers to this. The 12 h hysteresis band means jitter in the
+     *  fitted slope around the alert line can't re-fire; only a genuine charge opens the gate again. */
+    const val runtimeRearmHours = 36.0
+
+    data class RuntimeAlertDecision(val fire: Boolean, val newAlerted: Boolean)
+
+    /**
+     * Crossing-with-hysteresis decision for the predictive alert, mirroring BatteryAlertPolicy's
+     * shape: PERSISTED `alerted` gate in, fire decision plus next gate state out. Behaviour-identical
+     * twin of the Swift `BatteryEstimator.runtimeAlert` (same fixtures, same numbers).
+     *
+     * `charging == null` means unknown — the alert still fires (only a confirmed `true` suppresses
+     * it), the same null-tolerant rule as the SoC low alert: the strap reports its charge bit only
+     * every ~8 min, and a strap that never reports one should still warn.
+     */
+    fun runtimeAlert(remainingHours: Double, charging: Boolean?, alerted: Boolean): RuntimeAlertDecision {
+        var armedOff = alerted
+        if (remainingHours >= runtimeRearmHours) armedOff = false
+        val fire = !armedOff && remainingHours <= runtimeAlertHours && charging != true
+        if (fire) armedOff = true
+        return RuntimeAlertDecision(fire, armedOff)
+    }
 }

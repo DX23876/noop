@@ -76,6 +76,7 @@ fun AutomationsScreen(viewModel: AppViewModel) {
     val illnessWatch by viewModel.illnessWatchEnabled.collectAsStateWithLifecycle()
     // Battery alerts are real + persisted (opt-OUT, default ON; #368, thanks @ujix).
     val batteryAlerts by viewModel.batteryAlertsEnabled.collectAsStateWithLifecycle()
+    val predictiveBatteryAlerts by viewModel.predictiveBatteryAlertsEnabled.collectAsStateWithLifecycle()
     val ctx = LocalContext.current
 
     // HR-zone coaching is real + persisted (zone-based, mirrors macOS): the ViewModel owns the toggle +
@@ -347,6 +348,14 @@ fun AutomationsScreen(viewModel: AppViewModel) {
                 checked = batteryAlerts,
                 onChange = { viewModel.setBatteryAlertsEnabled(it) },
             )
+            if (batteryAlerts) {
+                ToggleRow(
+                    label = "Predictive runtime warning",
+                    help = "An early \"recharge tonight\" heads-up when the strap has about a day of estimated runtime left, at most once per discharge cycle. Turn off to keep only the 15% warning.",
+                    checked = predictiveBatteryAlerts,
+                    onChange = { viewModel.setPredictiveBatteryAlertsEnabled(it) },
+                )
+            }
         }
         }
     }
