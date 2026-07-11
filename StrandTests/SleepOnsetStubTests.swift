@@ -45,6 +45,30 @@ final class SleepOnsetStubTests: XCTestCase {
                                                      asleepMin: SleepView.preOnsetStubAsleepMaxMin + 1))
     }
 
+    /// #259: a leading fragment carrying SOME sleep (over the 3-min sleepless cap) but MINOR relative to the
+    /// main block (below the fraction of the group's largest asleep span) is a spurious lead and IS a stub.
+    /// Without a reference (default 0) the relative test is OFF, so the same fragment is NOT a stub — existing
+    /// callers stay byte-identical.
+    func testMinorRelativeLeadingFragmentIsStub() {
+        // 30 min span, 10 asleep; main block asleep 400 -> 10 < 0.15*400 = 60 -> spurious.
+        XCTAssertTrue(SleepView.isPreOnsetAwakeStub(spanMin: 30, asleepMin: 10, refAsleepMin: 400))
+        XCTAssertFalse(SleepView.isPreOnsetAwakeStub(spanMin: 30, asleepMin: 10))
+    }
+
+    /// #259 guard: a substantial earlier sleep (comparable to the main block) is a genuine biphasic first
+    /// sleep and is NEVER dropped, even with a reference size.
+    func testSubstantialBiphasicFragmentIsNotStubEvenWithRef() {
+        // 90 asleep vs main block 240 -> 90 >= 0.15*240 = 36 -> kept.
+        XCTAssertFalse(SleepView.isPreOnsetAwakeStub(spanMin: 100, asleepMin: 90, refAsleepMin: 240))
+    }
+
+    /// #259 GOLDEN at the walk level: a minor leading SLEEP fragment (10 asleep, over the old 3-min cap but
+    /// tiny next to the 400-asleep main block) is now skipped, so the displayed onset comes from the main
+    /// block (index 1) instead of jumping to the stray 1am lead. Before this rule it returned 0.
+    func testMinorLeadingSleepFragmentSkippedByOnsetIndex() {
+        XCTAssertEqual(SleepView.nightOnsetIndex(spansMin: [30, 420], asleepsMin: [10, 400]), 1)
+    }
+
     // MARK: - nightOnsetIndex (which fragment supplies the displayed bedtime)
 
     /// THE #736 GOLDEN: a two-fragment night where fragment 1 is a brief pre-sleep awake stub. The displayed

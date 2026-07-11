@@ -1904,9 +1904,13 @@ struct SleepView: View {
     private func nightOnsetTs(_ group: [CachedSleepSession]) -> Int {
         // group is ascending by effective onset; first is the earliest fragment.
         guard let first = group.first else { return 0 }
+        // #259: reference size for the "minor relative to the main block" test = the group's largest asleep
+        // span (≈ the main block). A genuine biphasic first sleep is comparable and is kept; a small stray
+        // lead is skipped, so the onset no longer jumps hours early.
+        let refAsleepMin = group.map { decodeStages($0.stagesJSON)?.asleep ?? 0 }.max() ?? 0
         // Walk past any leading spurious pre-onset awake stubs to the first real-sleep fragment.
         for frag in group {
-            if !isPreOnsetAwakeStub(frag) { return frag.effectiveStartTs }
+            if !isPreOnsetAwakeStub(frag, refAsleepMin: refAsleepMin) { return frag.effectiveStartTs }
         }
         // Whole group is stub-like (shouldn't reach the hero, mergeDay gates on stages.asleep > 0): keep the
         // earliest onset rather than inventing one.
@@ -1916,10 +1920,10 @@ struct SleepView: View {
     /// A fragment is a spurious pre-onset awake stub when it's within the lie-in cap (<= `preOnsetStubMaxMin`)
     /// and carries essentially no sleep (asleep minutes <= `preOnsetStubAsleepMaxMin`). Used only to skip such
     /// a stub when it leads the main-night group, so the displayed bedtime tracks where real sleep began. (#736)
-    private func isPreOnsetAwakeStub(_ frag: CachedSleepSession) -> Bool {
+    private func isPreOnsetAwakeStub(_ frag: CachedSleepSession, refAsleepMin: Double = 0) -> Bool {
         let spanMin = Double(frag.endTs - frag.effectiveStartTs) / 60.0
         let asleepMin = decodeStages(frag.stagesJSON)?.asleep ?? 0
-        return SleepView.isPreOnsetAwakeStub(spanMin: spanMin, asleepMin: asleepMin)
+        return SleepView.isPreOnsetAwakeStub(spanMin: spanMin, asleepMin: asleepMin, refAsleepMin: refAsleepMin)
     }
 
     /// Longest a leading block can be and still be treated as a spurious pre-sleep awake stub (lying in bed
@@ -1931,11 +1935,22 @@ struct SleepView: View {
     /// Most asleep minutes a fragment can carry and still count as a (sleepless) pre-onset awake stub. A real
     /// first sleep fragment of a biphasic night carries far more, so it's never mistaken for a stub. (#736)
     static let preOnsetStubAsleepMaxMin: Double = 3
+    /// A leading pre-onset fragment carrying SOME sleep is still spurious when it is minor RELATIVE to the
+    /// night's main block: its asleep minutes are below this fraction of the largest fragment's. A genuine
+    /// biphasic first sleep is comparable to the main block (well above this) and is kept; only a small stray
+    /// lead is dropped. Extends the essentially-sleepless `preOnsetStubAsleepMaxMin` rule (#736), which missed
+    /// a lead carrying a few minutes more than 3. Mirrors Android PRE_ONSET_STUB_MINOR_FRAC. (#259)
+    static let preOnsetStubMinorFrac: Double = 0.15
 
     /// Pure stub test on a fragment's span + asleep minutes, so the rule is unit-testable without decoding
-    /// JSON or building a view. BRIEF and essentially sleepless = a spurious pre-onset awake stub. (#736)
-    static func isPreOnsetAwakeStub(spanMin: Double, asleepMin: Double) -> Bool {
-        spanMin <= preOnsetStubMaxMin && asleepMin <= preOnsetStubAsleepMaxMin
+    /// JSON or building a view. Spurious when BRIEF and EITHER essentially sleepless OR minor relative to the
+    /// main block (`refAsleepMin`, the group's largest asleep span): asleep below `preOnsetStubMinorFrac` of
+    /// it. `refAsleepMin` defaults to 0 (relative test off) so existing callers/tests are byte-identical.
+    /// (#736 / #259)
+    static func isPreOnsetAwakeStub(spanMin: Double, asleepMin: Double, refAsleepMin: Double = 0) -> Bool {
+        guard spanMin <= preOnsetStubMaxMin else { return false }
+        if asleepMin <= preOnsetStubAsleepMaxMin { return true }
+        return refAsleepMin > 0 && asleepMin < preOnsetStubMinorFrac * refAsleepMin
     }
 
     /// The index into an ascending-by-onset group whose fragment supplies the DISPLAYED bedtime: the first
@@ -1943,9 +1958,10 @@ struct SleepView: View {
     /// stub-like. Pure mirror of `nightOnsetTs`'s walk, driven by per-fragment (spanMin, asleepMin) so a
     /// golden test can pin the #736 behaviour without view internals. (#736)
     static func nightOnsetIndex(spansMin: [Double], asleepsMin: [Double]) -> Int {
+        let refAsleepMin = asleepsMin.max() ?? 0
         for i in spansMin.indices {
             let asleep = i < asleepsMin.count ? asleepsMin[i] : 0
-            if !isPreOnsetAwakeStub(spanMin: spansMin[i], asleepMin: asleep) { return i }
+            if !isPreOnsetAwakeStub(spanMin: spansMin[i], asleepMin: asleep, refAsleepMin: refAsleepMin) { return i }
         }
         return 0
     }

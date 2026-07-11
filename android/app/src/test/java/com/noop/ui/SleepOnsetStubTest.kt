@@ -54,6 +54,27 @@ class SleepOnsetStubTest {
         assertTrue(isPreOnsetAwakeStub(b))
     }
 
+    /** #259: a leading fragment carrying SOME sleep (> the 3-min sleepless cap) but MINOR relative to the
+     *  main block (below the fraction of the group's largest asleep span) is a spurious lead and IS a stub —
+     *  so it no longer hijacks the displayed onset. Without a reference (default) the relative test is OFF,
+     *  so the same fragment is NOT a stub: existing callers stay byte-identical. */
+    @Test
+    fun minorRelativeLeadingFragmentIsStub() {
+        // 30 min span, 10 asleep min; main block asleep 400 -> 10 < 0.15*400 = 60 -> spurious.
+        val b = block(0, 30 * 60, """{"awake":20,"light":10,"deep":0,"rem":0}""")
+        assertTrue(isPreOnsetAwakeStub(b, refAsleepMin = 400.0))
+        assertFalse(isPreOnsetAwakeStub(b))
+    }
+
+    /** #259 guard: a substantial earlier sleep (comparable to the main block) is a genuine biphasic first
+     *  sleep and is NEVER dropped, even with a reference size. */
+    @Test
+    fun substantialBiphasicFragmentIsNotStubEvenWithRef() {
+        // 90 asleep min vs main block 240 -> 90 >= 0.15*240 = 36 -> kept.
+        val b = block(0, 100 * 60, """{"awake":10,"light":60,"deep":30,"rem":0}""")
+        assertFalse(isPreOnsetAwakeStub(b, refAsleepMin = 240.0))
+    }
+
     /**
      * THE #736 GOLDEN at selectNight level: a three-fragment night — a brief pre-sleep awake stub, then two
      * real sleep fragments split by a short wake (biphasic). The hero's reconstructed segments must start at
