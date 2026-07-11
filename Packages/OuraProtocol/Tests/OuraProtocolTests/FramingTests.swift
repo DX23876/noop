@@ -2,7 +2,8 @@ import XCTest
 @testable import OuraProtocol
 
 /// Framing tests: outer command/response frames, the 0x2F secure-session sub-frame, and the TLV
-/// inner-record Reassembler (multi-record-per-notification + partial-trailing-bytes buffering).
+/// inner-record parse — open_oura's ONE-packet-per-notification model (lenient `len`, no buffering,
+/// no multi-record loop, no byte-drop resync).
 final class FramingTests: XCTestCase {
     private func bytes(_ s: String) -> [UInt8] {
         var out = [UInt8](); out.reserveCapacity(s.count / 2)
@@ -121,74 +122,72 @@ final class FramingTests: XCTestCase {
         XCTAssertNil(OuraFraming.parseRecord([0x7B, 0x03, 0x00, 0x01, 0x02]))
     }
 
-    // MARK: - Reassembler: multiple records per notification
+    func testTLVBelowSixBytesIsRejected() {
+        // A record floor is 6 bytes (2 header + 4 timestamp). Fewer than that cannot yield a ring time.
+        XCTAssertNil(OuraFraming.parseRecord([0x7B, 0x06, 0x02, 0x00, 0x01]))   // only 5 bytes
+    }
 
-    func testReassemblerMultipleRecordsInOneNotification() {
-        // Two complete records packed into one notification value.
+    // MARK: - Lenient parse (open_oura Packet::parse): len need not equal notification length
+
+    func testParseRecordIgnoresTrailingBytesBeyondLen() {
+        // A notification carrying a complete record PLUS trailing bytes (BLE padding, or a following
+        // packet the ring did not pack for us) yields exactly ONE record whose payload is the declared
+        // `len - 4` bytes; the trailing bytes are ignored, never minted into a phantom record.
+        let rec = OuraFraming.parseRecord(bytes("7b060200010003ca" + "ffeeddcc"))
+        XCTAssertEqual(rec?.type, 0x7B)
+        XCTAssertEqual(rec?.ringTimestamp, 0x0001_0002)
+        XCTAssertEqual(rec?.payload, bytes("03ca"), "payload is exactly len-4; trailing bytes dropped")
+    }
+
+    func testParseRecordTooBigLenUsesWhatArrived() {
+        // `len` claims a longer payload than the notification carries. open_oura tolerates the
+        // disagreement and uses the bytes present, rather than waiting for (and swallowing) the next
+        // notification. Here len=0x0A (payload 6) but only 2 payload bytes arrived.
+        let rec = OuraFraming.parseRecord(bytes("7b0a0200010003ca"))
+        XCTAssertEqual(rec?.type, 0x7B)
+        XCTAssertEqual(rec?.ringTimestamp, 0x0001_0002)
+        XCTAssertEqual(rec?.payload, bytes("03ca"), "uses the 2 payload bytes present, no wait")
+    }
+
+    // MARK: - One packet per notification (no buffering, no multi-record loop, no resync)
+
+    func testFeedReturnsAtMostOneRecordPerNotification() {
+        // What LOOKS like two packed records is treated as ONE lenient packet: the first record only,
+        // trailing bytes ignored. The ring never packs several events into one notification (it streams
+        // one event per notification + a 0x11 summary), so this is the honest interpretation.
         let r = OuraReassembler()
         let recs = r.feed(bytes("7b060200010003ca" + "4e0602000100006c"))
-        XCTAssertEqual(recs.count, 2)
-        XCTAssertEqual(recs[0].type, 0x7B)
-        XCTAssertEqual(recs[1].type, 0x4E)
-        XCTAssertEqual(r.bufferedByteCount, 0)
-    }
-
-    // MARK: - Reassembler: partial trailing bytes buffered across notifications
-
-    func testReassemblerPartialTrailingBytesBuffered() {
-        let full = bytes("7b060200010003ca")   // one complete 8-byte record
-        let r = OuraReassembler()
-        // Feed only the first 5 bytes -> nothing complete yet, the rest is buffered.
-        XCTAssertTrue(r.feed(Array(full[0..<5])).isEmpty)
-        XCTAssertEqual(r.bufferedByteCount, 5)
-        // Feed the remaining 3 bytes -> the record now completes.
-        let recs = r.feed(Array(full[5...]))
         XCTAssertEqual(recs.count, 1)
         XCTAssertEqual(recs[0].type, 0x7B)
+        XCTAssertEqual(recs[0].payload, bytes("03ca"))
+    }
+
+    func testFeedNeverBuffersAcrossNotifications() {
+        // A too-short notification is dropped whole (no leftover bytes carried); the NEXT notification is
+        // parsed independently. This is the property the old buffering reassembler lacked — a leftover
+        // partial used to corrupt the following notification into the phantom-record storm.
+        let r = OuraReassembler()
+        XCTAssertTrue(r.feed(bytes("7b0602")).isEmpty, "3-byte fragment is below the record floor")
+        XCTAssertEqual(r.bufferedByteCount, 0, "nothing is retained between notifications")
+        let recs = r.feed(bytes("4e0602000100006c"))
+        XCTAssertEqual(recs.map { $0.type }, [0x4E], "next notification parses cleanly on its own")
+    }
+
+    func testFeedDropsUnusableNotificationWholeNoResync() {
+        // A notification whose len is < 4 is not walked byte-by-byte looking for a later record (there is
+        // no start-of-frame marker to realign to, and byte-walking is exactly what minted phantoms). It
+        // is dropped whole: no record, no buffered tail.
+        let r = OuraReassembler()
+        let recs = r.feed([0x00, 0x01, 0x02, 0x03, 0x01, 0x02])   // len byte 0x01 < 4
+        XCTAssertTrue(recs.isEmpty)
         XCTAssertEqual(r.bufferedByteCount, 0)
     }
 
-    func testReassemblerSplitAcrossThreeFragments() {
-        // A record split byte-by-byte still reassembles, and a second record packed behind it emerges.
-        let recHex = "4e0602000100006c"          // 8 bytes
-        let trailing = "7b060200010003ca"         // 8 bytes
-        let all = bytes(recHex + trailing)
+    func testResetIsANoOpWithNoBufferedState() {
         let r = OuraReassembler()
-        var out: [OuraRecord] = []
-        // Feed in 3-byte chunks.
-        var i = 0
-        while i < all.count {
-            out.append(contentsOf: r.feed(Array(all[i..<min(i + 3, all.count)])))
-            i += 3
-        }
-        XCTAssertEqual(out.map { $0.type }, [0x4E, 0x7B])
-    }
-
-    func testReassemblerResetClearsBuffer() {
-        let r = OuraReassembler()
-        _ = r.feed([0x7B, 0x06, 0x02])   // partial
-        XCTAssertGreaterThan(r.bufferedByteCount, 0)
+        _ = r.feed(bytes("7b0602"))            // below floor, nothing retained
+        XCTAssertEqual(r.bufferedByteCount, 0)
         r.reset()
         XCTAssertEqual(r.bufferedByteCount, 0)
-    }
-
-    func testReassemblerDrainsPureNoiseWithoutEmittingOrWedging() {
-        // The TLV format has NO start-of-frame marker, so a stream of bytes whose len field is < 4
-        // cannot be realigned to an arbitrary later record (unlike WHOOP's 0xAA SOF). The len < 4
-        // guard's job is narrower but important: never EMIT a garbage record, and never WEDGE waiting
-        // for bytes that cannot complete. A pure-noise burst drains to a tiny tail with no emissions.
-        let r = OuraReassembler()
-        let recs = r.feed([0x00, 0x01, 0x02, 0x03, 0x01, 0x02])   // every len field < 4
-        XCTAssertTrue(recs.isEmpty, "noise must not produce false records")
-        XCTAssertLessThanOrEqual(r.bufferedByteCount, 1, "noise must drain, not accumulate forever")
-    }
-
-    func testReassemblerLenBelowFourDoesNotEmitGarbageBeforeValidRecord() {
-        // A 2-byte garbage header whose len is < 4 is dropped one byte at a time; because TLV has no
-        // SOF this does not realign to the trailing valid record, but it must NOT emit a bogus record.
-        let valid = bytes("4e0602000100006c")
-        let r = OuraReassembler()
-        let recs = r.feed([0x00, 0x01] + valid)   // 00 01 = len 1 (< 4)
-        XCTAssertTrue(recs.allSatisfy { $0.type != 0x00 }, "must never emit a type-0 garbage record")
     }
 }

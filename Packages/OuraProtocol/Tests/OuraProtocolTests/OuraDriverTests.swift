@@ -313,6 +313,23 @@ final class OuraDriverTests: XCTestCase {
         }
     }
 
+    func testSleepPhase0x4BReclassifiedAsTierAHypnogram() {
+        // 0x4B was previously a Tier-B "sleep summary" (dropped by default). It is actually a hypnogram
+        // alias (open_oura `0x4b | 0x4e | 0x5a => decode_sleep_phases`), so it now decodes with the SAME
+        // validated 2-bit phase decoder as 0x4E/0x5A and emits Tier-A sleep-phase events even when
+        // allowTierB == false. Same payload as the 0x4E golden -> light, deep, rem, awake.
+        XCTAssertEqual(OuraEventTag(rawValue: 0x4B), .sleepPhaseB)
+        XCTAssertEqual(OuraEventTag.sleepPhaseB.tier, .tierA)
+        let d = OuraDriver(ringGen: .gen3, authKey: key)   // allowTierB defaults to false
+        let rec = OuraFraming.parseRecord(bytes("4b0602000100006c"))!
+        XCTAssertEqual(d.ingest(record: rec), [
+            .sleepPhase(OuraSleepPhase(ringTimestamp: rt, index: 0, stage: .light)),
+            .sleepPhase(OuraSleepPhase(ringTimestamp: rt, index: 1, stage: .deep)),
+            .sleepPhase(OuraSleepPhase(ringTimestamp: rt, index: 2, stage: .rem)),
+            .sleepPhase(OuraSleepPhase(ringTimestamp: rt, index: 3, stage: .awake)),
+        ])
+    }
+
     // MARK: - Activity info (0x50, Tier B, third-party formula) - real Gen 3 captures (PR #960)
     //
     // The six payloads below are byte-for-byte what a real Gen 3 ring sent across the PR #960
@@ -447,19 +464,31 @@ final class OuraDriverTests: XCTestCase {
         ])
     }
 
-    // MARK: - Notification-level ingest via reassembler
+    // MARK: - Notification-level ingest (open_oura: one record per notification)
 
-    func testIngestNotificationReassemblesAndDecodes() {
+    func testIngestDecodesOneRecordPerNotification() {
         let d = OuraDriver(ringGen: .gen3, authKey: key)
         let reassembler = OuraReassembler()
-        // Two records packed together: 0x7B SpO2 then 0x46 temp.
-        let value = bytes("7b060200010003ca" + "460802000100420e470e")
-        let events = d.ingest(notification: value, reassembler: reassembler)
-        XCTAssertEqual(events, [
-            .spo2(OuraSpO2(ringTimestamp: rt, value: 970)),
+        // The ring streams one event per notification; feed them separately, not packed. A 0x7B SpO2
+        // notification, then a 0x46 temp notification (whose payload holds two int16 samples).
+        let spo2 = d.ingest(notification: bytes("7b060200010003ca"), reassembler: reassembler)
+        XCTAssertEqual(spo2, [.spo2(OuraSpO2(ringTimestamp: rt, value: 970))])
+        let temp = d.ingest(notification: bytes("460802000100420e470e"), reassembler: reassembler)
+        XCTAssertEqual(temp, [
             .temp(OuraTemp(ringTimestamp: rt, celsius: 36.50)),
             .temp(OuraTemp(ringTimestamp: rt, celsius: 36.55)),
         ])
+    }
+
+    func testIngestNotificationDecodesOnlyFirstPacketWhenBytesLookPacked() {
+        // Defensive: if a notification ever carries bytes that LOOK like two packed records, only the
+        // first is decoded (one lenient packet per notification) — the trailing bytes are ignored, never
+        // walked into phantom records. Documents the open_oura contract.
+        let d = OuraDriver(ringGen: .gen3, authKey: key)
+        let reassembler = OuraReassembler()
+        let value = bytes("7b060200010003ca" + "460802000100420e470e")
+        let events = d.ingest(notification: value, reassembler: reassembler)
+        XCTAssertEqual(events, [.spo2(OuraSpO2(ringTimestamp: rt, value: 970))])
     }
 
     // MARK: - Generation-driven command set / MTU

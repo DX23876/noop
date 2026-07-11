@@ -121,78 +121,67 @@ public extension OuraFraming {
     /// The minimum legal TLV `len` field: it must cover the 4 timestamp bytes. Per OURA_PROTOCOL.md s2.3.
     static let minRecordLen = 4
 
-    /// Parse one TLV inner record from the front of `bytes`. Returns nil when the header or the full
-    /// `len`-described body is not present (so the Reassembler can wait), or when `len < 4` (a record
-    /// must cover its 4 timestamp bytes). A malformed/short record decodes to nil, never a guess
-    /// (honest-data invariant). Per OURA_PROTOCOL.md s2.3.
+    /// Parse ONE TLV inner record from a single BLE notification, the open_oura way (protocol.rs
+    /// `Packet::parse`): read `type`/`len` from the first two bytes, then take the payload LENIENTLY —
+    /// exactly `len - 4` payload bytes when the notification carries them, otherwise whatever payload
+    /// bytes are present (`frame.get(2..2+len).unwrap_or(frame[2..])`). The `len` field is NOT required
+    /// to equal the notification length; open_oura tolerates that disagreement, and honoring it is what
+    /// keeps NOOP from (a) minting phantom records out of a "too-small" len's leftover bytes or (b)
+    /// swallowing the next notification on a "too-big" len. Returns nil only when the 4 timestamp bytes
+    /// are not even present (`count < 6`) or `len < 4` (a record must cover its timestamp) — a genuinely
+    /// unusable frame, never a guess (honest-data invariant). Per OURA_PROTOCOL.md s2.3.
     static func parseRecord(_ bytes: [UInt8]) -> OuraRecord? {
-        guard bytes.count >= 2 else { return nil }
+        guard bytes.count >= 6 else { return nil }   // 2 header + 4 timestamp bytes, the record floor
         let type = bytes[0]
         let len = Int(bytes[1])
         guard len >= minRecordLen else { return nil }
-        let total = 2 + len
-        guard bytes.count >= total else { return nil }
         // ringTimestamp is the 4 bytes at offset 2 as a u32 LE (counter low, session high).
         let rt = UInt32(bytes[2])
             | (UInt32(bytes[3]) << 8)
             | (UInt32(bytes[4]) << 16)
             | (UInt32(bytes[5]) << 24)
-        let payload = Array(bytes[6..<total])
+        // Lenient payload: min(declared end, notification end). Trailing bytes beyond `len` (BLE padding
+        // / a following packet the ring did not pack for us) are ignored; a truncated payload uses what
+        // arrived. Never reaches past the notification, never waits for a next one.
+        let end = min(2 + len, bytes.count)
+        let payload = end > 6 ? Array(bytes[6..<end]) : []
         return OuraRecord(type: type, ringTimestamp: rt, payload: payload)
     }
 }
 
-// MARK: - Reassembler
+// MARK: - Notification → record (open_oura one-packet-per-notification model)
 
-/// Accumulate BLE notification fragments into complete TLV inner records. A record never spans two
-/// notifications in the verified corpus, but the parser is still defensive: it buffers partial
-/// trailing bytes across feeds and only emits complete `2 + len` records (OURA_PROTOCOL.md s2.4).
+/// Turn each BLE notification into (at most) one TLV inner record, matching open_oura's `Packet::parse`
+/// (protocol.rs): ONE packet per notification, parsed leniently, with NO cross-notification buffering,
+/// NO multi-record loop, and NO byte-drop "resync". The ring emits each event as its own notification —
+/// `get_events` streams up to `max_events` separate event notifications, then a `0x11` summary reporting
+/// `events_received` (OURA_PROTOCOL.md s5.2); records are neither packed several-to-a-notification nor
+/// split across notifications.
 ///
-/// This handles BOTH the multi-record-per-notification case (several records packed into one value)
-/// and the partial-trailing-bytes case (a record split across two notifications). Mirrors the
-/// WhoopProtocol Reassembler shape but for the Oura TLV layout, value-type and platform-pure.
+/// HISTORY (why this replaced a buffering reassembler): the old design accumulated bytes across feeds
+/// and looped extracting `2+len` records. Whenever a packet's `len` disagreed with the notification
+/// length — which open_oura explicitly tolerates — a too-small `len` made the loop mint phantom records
+/// from the leftover bytes (aliased `0x42`/`0x85`/`0x57`/`0x70` tags → the reject/drop storm), and a
+/// too-big `len` made it wait and swallow the following notification. Parsing exactly one lenient packet
+/// per notification removes both failure modes at the source.
+///
+/// The type name and `feed`/`reset` API are kept so the driver call sites are unchanged; there is simply
+/// no longer any state to carry. Platform-pure, value types only.
 public final class OuraReassembler {
-    private var buf: [UInt8] = []
-
-    /// A declared total beyond this is a corrupt/misaligned length, not a real record. The largest
-    /// real Oura record is ~18 bytes (s6); cap generously at one MTU (247) so a bit-flipped length
-    /// byte resyncs instead of stalling. `len` is a single byte (max 255), so 2 + 255 = 257 is the
-    /// hard ceiling regardless; this constant documents the intent.
-    public static let maxRecordBytes = 257
-
     public init() {}
 
-    /// Feed one notification value. Returns every complete TLV record now available, in order. Partial
-    /// trailing bytes are retained for the next feed. Per OURA_PROTOCOL.md s2.3 / s2.4.
+    /// Parse one notification value into at most one record (open_oura `Packet::parse`, lenient). Returns
+    /// `[]` when the notification is not a usable TLV record (too short, or `len < 4`). Never buffers,
+    /// never spans, never resyncs — a garbled notification is dropped whole, not walked byte-by-byte.
     public func feed(_ fragment: [UInt8]) -> [OuraRecord] {
-        buf.append(contentsOf: fragment)
-        var out: [OuraRecord] = []
-        while buf.count >= 2 {
-            let len = Int(buf[1])
-            // A record must cover its 4 timestamp bytes. A len < 4 here is a misaligned byte: drop one
-            // and resync rather than emit garbage (honest-data invariant).
-            if len < OuraFraming.minRecordLen {
-                buf.removeFirst(1)
-                continue
-            }
-            let total = 2 + len
-            if buf.count < total {
-                break   // wait for the rest of this record
-            }
-            if let rec = OuraFraming.parseRecord(Array(buf[0..<total])) {
-                out.append(rec)
-            }
-            buf.removeFirst(total)
-        }
-        return out
+        guard let rec = OuraFraming.parseRecord(fragment) else { return [] }
+        return [rec]
     }
 
-    /// Discard any buffered partial bytes (call on disconnect so a half-record does not bleed into the
-    /// next session). Mirrors the StandardHRSource stop()/reset discipline.
-    public func reset() {
-        buf.removeAll(keepingCapacity: true)
-    }
+    /// No-op retained for call-site compatibility (disconnect teardown). There is no buffered state to
+    /// clear in the one-packet-per-notification model, so a half-record can never bleed across sessions.
+    public func reset() {}
 
-    /// Number of bytes currently buffered awaiting completion (observability only).
-    public var bufferedByteCount: Int { buf.count }
+    /// Always 0: no bytes are ever buffered between notifications (observability only).
+    public var bufferedByteCount: Int { 0 }
 }
