@@ -667,8 +667,8 @@ final class IntelligenceEngine: ObservableObject {
                 // shipped windowed avgHrv. Built here (loop 1) where `rr` is in scope, but EMITTED in the
                 // main-actor replay loop below (diagnosticSink is main-actor isolated), carried on `hrvDiag`.
                 // Byte-identical to the Kotlin line.
-                let sleepRr = rr.filter { r in res.cachedSleep.contains { r.ts >= $0.startTs && r.ts < $0.endTs } }
-                    .map { Double($0.rrMs) }
+                let sleepRrRows = rr.filter { r in res.cachedSleep.contains { r.ts >= $0.startTs && r.ts < $0.endTs } }
+                let sleepRr = sleepRrRows.map { Double($0.rrMs) }
                 let hrvDiag: String?
                 if sleepRr.isEmpty {
                     hrvDiag = nil
@@ -676,8 +676,14 @@ final class IntelligenceEngine: ObservableObject {
                     let h = HRVAnalyzer.analyze(rawRR: sleepRr)
                     func ms(_ v: Double?) -> String { v.map { String(format: "%.0f", $0) } ?? "nil" }
                     let rej = h.nInput > 0 ? String(format: "%.0f", 100 * (1 - Double(h.nClean) / Double(h.nInput))) : "0"
+                    // #257: coverage (sum of NN ÷ wall-clock span; > 1.0 is impossible without double-counted
+                    // R-R) + exact-duplicate beat count, so a "reads ~2x too high" report is self-diagnosing
+                    // from the always-on log instead of hand-computing beat density.
+                    let ts = sleepRrRows.map { $0.ts }
+                    let cov = String(format: "%.2f", HRVAnalyzer.rrCoverage(tsSec: ts, rrMs: sleepRr))
+                    let dup = HRVAnalyzer.duplicateBeatCount(tsSec: ts, rrMs: sleepRr)
                     hrvDiag = "hrv diag day=\(res.daily.day) rmssd=\(ms(h.rmssd))ms sdnn=\(ms(h.sdnn))ms "
-                        + "meanNN=\(ms(h.meanNN))ms rr=\(h.nInput)/\(h.nClean) rejected=\(rej)%"
+                        + "meanNN=\(ms(h.meanNN))ms rr=\(h.nInput)/\(h.nClean) rejected=\(rej)% coverage=\(cov) dupBeats=\(dup)"
                 }
                 // ── Steps test mode: 5/MG raw-counter trace ──────────────────────────────────────────────
                 // Only built when the Steps mode is on (the gate was read once before the loop). Recomputes

@@ -569,14 +569,20 @@ object IntelligenceEngine {
             // `nInput` is set before the min-beats gate, so a sparse night still shows its count with
             // rmssd=nil). A SEPARATE analyzeRaw pass over the in-sleep R-R — does NOT touch the shipped
             // windowed avgHrv. Emitted here where `rr` is in scope; byte-identical to the Swift line.
-            val sleepRr = rr.filter { r -> res.sleepSessions.any { r.ts >= it.start && r.ts < it.end } }
-                .map { it.rrMs.toDouble() }
+            val sleepRrRows = rr.filter { r -> res.sleepSessions.any { r.ts >= it.start && r.ts < it.end } }
+            val sleepRr = sleepRrRows.map { it.rrMs.toDouble() }
             if (sleepRr.isNotEmpty()) {
                 val h = HrvAnalyzer.analyzeRaw(sleepRr)
                 val ms = { v: Double? -> v?.let { String.format(java.util.Locale.US, "%.0f", it) } ?: "nil" }
                 val rej = if (h.nInput > 0) String.format(java.util.Locale.US, "%.0f", 100.0 * (1.0 - h.nClean.toDouble() / h.nInput)) else "0"
+                // #257: coverage (sum of NN ÷ wall-clock span; > 1.0 is impossible without double-counted
+                // R-R) + exact-duplicate beat count, so a "reads ~2x too high" report is self-diagnosing
+                // from the always-on log instead of hand-computing beat density.
+                val ts = sleepRrRows.map { it.ts }
+                val cov = String.format(java.util.Locale.US, "%.2f", HrvAnalyzer.rrCoverage(ts, sleepRr))
+                val dup = HrvAnalyzer.duplicateBeatCount(ts, sleepRr)
                 diag("hrv diag day=${res.daily.day} rmssd=${ms(h.rmssd)}ms sdnn=${ms(h.sdnn)}ms meanNN=${ms(h.meanNN)}ms " +
-                    "rr=${h.nInput}/${h.nClean} rejected=$rej%")
+                    "rr=${h.nInput}/${h.nClean} rejected=$rej% coverage=$cov dupBeats=$dup")
             }
 
             // Steps test mode: emit the 5/MG raw-counter trace for this day (cumulative @57 series +

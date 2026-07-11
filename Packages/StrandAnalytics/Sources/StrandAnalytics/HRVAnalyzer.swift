@@ -341,6 +341,32 @@ public enum HRVAnalyzer {
         return out
     }
 
+    // MARK: - R-R integrity diagnostics (#257)
+
+    /// Total heartbeat-time (sum of NN intervals, ms) ÷ wall-clock span of the R-R window (ms). A value
+    /// > ~1.0 is physically impossible — you can't record more beat-time than elapsed time — so it
+    /// directly flags DOUBLE-COUNTED / overlapping R-R (e.g. a live + historical merge storing the same
+    /// beat under two timestamps, which inflates HRV and drags resting HR down, #257). Returns 0 for
+    /// < 2 beats or a zero span. Byte-parity twin of Kotlin `HrvAnalyzer.rrCoverage`.
+    public static func rrCoverage(tsSec: [Int], rrMs: [Double]) -> Double {
+        guard tsSec.count >= 2, !rrMs.isEmpty, let lo = tsSec.min(), let hi = tsSec.max() else { return 0 }
+        let spanMs = Double(hi - lo) * 1000
+        guard spanMs > 0 else { return 0 }
+        return rrMs.reduce(0, +) / spanMs
+    }
+
+    /// How many R-R rows are EXACT duplicates of another — same (ts, rrMs). Extra copies of one beat;
+    /// `total − distinct(ts, rrMs)`. Points at the double-insert mechanism when `rrCoverage` > 1.
+    /// Byte-parity twin of Kotlin `HrvAnalyzer.duplicateBeatCount`.
+    public static func duplicateBeatCount(tsSec: [Int], rrMs: [Double]) -> Int {
+        struct Key: Hashable { let ts: Int; let rr: Double }
+        let n = min(tsSec.count, rrMs.count)
+        var seen = Set<Key>()
+        var dups = 0
+        for i in 0..<n where !seen.insert(Key(ts: tsSec[i], rr: rrMs[i])).inserted { dups += 1 }
+        return dups
+    }
+
     // MARK: - Helpers
 
     /// Median of a non-empty array. (Caller guarantees non-empty.)

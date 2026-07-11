@@ -309,6 +309,31 @@ object HrvAnalyzer {
             nInput = nInput, nClean = clean.size)
     }
 
+    /** #257: total heartbeat-time (sum of NN intervals, ms) ÷ wall-clock span of the R-R window (ms).
+     *  A value > ~1.0 is physically impossible — you can't record more beat-time than elapsed time — so
+     *  it directly flags DOUBLE-COUNTED / overlapping R-R (e.g. a live + historical merge storing the same
+     *  beat under two timestamps, which inflates HRV and drags resting HR down, #257). Returns 0.0 for
+     *  < 2 beats or a zero span. Byte-parity twin of Swift `HRVAnalyzer.rrCoverage`. */
+    fun rrCoverage(tsSec: List<Long>, rrMs: List<Double>): Double {
+        if (tsSec.size < 2 || rrMs.isEmpty()) return 0.0
+        val hi = tsSec.maxOrNull() ?: return 0.0
+        val lo = tsSec.minOrNull() ?: return 0.0
+        val spanMs = (hi - lo) * 1000.0
+        if (spanMs <= 0.0) return 0.0
+        return rrMs.sum() / spanMs
+    }
+
+    /** #257: how many R-R rows are EXACT duplicates of another — same (ts, rrMs). Extra copies of one
+     *  beat; `total − distinct(ts, rrMs)`. Points at the double-insert mechanism when [rrCoverage] > 1.
+     *  Byte-parity twin of Swift `HRVAnalyzer.duplicateBeatCount`. */
+    fun duplicateBeatCount(tsSec: List<Long>, rrMs: List<Double>): Int {
+        val n = minOf(tsSec.size, rrMs.size)
+        val seen = HashSet<Pair<Long, Double>>()
+        var dups = 0
+        for (i in 0 until n) if (!seen.add(tsSec[i] to rrMs[i])) dups++
+        return dups
+    }
+
     // ── Rolling / windowed rMSSD (#803) ──────────────────────────────────────
     //
     // The Deep Timeline's "HRV" trace used to plot RAW RR-interval values (ms) and label them "HRV",

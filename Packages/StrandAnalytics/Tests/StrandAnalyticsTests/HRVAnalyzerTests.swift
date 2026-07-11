@@ -186,4 +186,31 @@ final class HRVAnalyzerTests: XCTestCase {
         XCTAssertEqual(result.nClean, 31)
         XCTAssertEqual(result.rmssd!, 0.0, accuracy: 1e-9)  // all 800 → no successive diffs
     }
+
+    // MARK: - #257 R-R integrity diagnostics (byte-parity twin of Kotlin HrvRrCoverageTest)
+
+    func testCoverageCleanStreamIsNearOne() {
+        // 5 beats of 1000 ms spanning ts 100..104 (4 s wall clock). sum=5000, span=4000 → 1.25.
+        XCTAssertEqual(HRVAnalyzer.rrCoverage(tsSec: [100, 101, 102, 103, 104],
+                                              rrMs: [1000, 1000, 1000, 1000, 1000]), 1.25, accuracy: 1e-9)
+    }
+
+    func testCoverageDoubleCountedBeatsExceedsOne() {
+        // Each beat stored TWICE at the same second (#257 over-count): sum=6000 over a 2 s span → 3.0.
+        XCTAssertEqual(HRVAnalyzer.rrCoverage(tsSec: [100, 100, 101, 101, 102, 102],
+                                              rrMs: [1000, 1000, 1000, 1000, 1000, 1000]), 3.0, accuracy: 1e-9)
+    }
+
+    func testCoverageZeroForTooFewBeatsOrZeroSpan() {
+        XCTAssertEqual(HRVAnalyzer.rrCoverage(tsSec: [], rrMs: []), 0, accuracy: 1e-9)
+        XCTAssertEqual(HRVAnalyzer.rrCoverage(tsSec: [100], rrMs: [1000]), 0, accuracy: 1e-9)
+        XCTAssertEqual(HRVAnalyzer.rrCoverage(tsSec: [100, 100], rrMs: [1000, 1000]), 0, accuracy: 1e-9)
+    }
+
+    func testDuplicateBeatsCountsExactRepeats() {
+        XCTAssertEqual(HRVAnalyzer.duplicateBeatCount(tsSec: [100, 101, 102], rrMs: [1000, 1010, 1020]), 0)
+        XCTAssertEqual(HRVAnalyzer.duplicateBeatCount(tsSec: [100, 100, 101], rrMs: [1000, 1000, 1010]), 1)
+        XCTAssertEqual(HRVAnalyzer.duplicateBeatCount(tsSec: [100, 100, 100], rrMs: [1000, 1000, 1000]), 2)
+        XCTAssertEqual(HRVAnalyzer.duplicateBeatCount(tsSec: [100, 100], rrMs: [1000, 1010]), 0)  // diff rr = distinct
+    }
 }
