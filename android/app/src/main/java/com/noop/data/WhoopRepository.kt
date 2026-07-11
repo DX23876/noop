@@ -1377,17 +1377,19 @@ class WhoopRepository(private val dao: WhoopDao) {
                 return seen.toList()
             }
             if (preferredSource == WHOOP_SOURCE || preferredSource == strapDeviceId) {
-                // Active strap first (live/measured wins per day), then the CANONICAL "my-whoop" import +
-                // its computed sibling so history banked under the canonical id BEFORE a re-add still
-                // resolves , the #814 union model the rest of the read spine already follows
-                // ([importedSourceIdsFor]); the resolver never got wired into it (#1008). uniqued()
-                // collapses these to one pair on a single-device install (active == canonical), so that
-                // path stays byte-identical. Apple is the final cross-source fallback. Mirrors Swift
-                // Repository.sourceCandidates.
+                // Active strap first (live/measured wins per day), then the CANONICAL "my-whoop" import,
+                // THEN the computed siblings, so history banked under the canonical id before a re-add
+                // still resolves (the #814/#1008 union model) AND imports outrank computed estimates — the
+                // documented `imported WHOOP > NOOP-computed` order. The computed sibling used to sit ahead
+                // of the canonical import, so after a device re-add (active != canonical) the new strap's
+                // computed estimates shadowed richer imported my-whoop history. uniqued() collapses these
+                // to one pair per source on a single-device install (active == canonical), so that path
+                // stays byte-identical. Apple is the final cross-source fallback. Mirrors Swift
+                // Repository.sourceCandidates (ryanbr/noop#241).
                 val candidates = mutableListOf(
                     MetricSourceCandidate(strapDeviceId, key),
-                    MetricSourceCandidate(computedSource, key),
                     MetricSourceCandidate(WHOOP_SOURCE, key),
+                    MetricSourceCandidate(computedSource, key),
                     MetricSourceCandidate("$WHOOP_SOURCE-noop", key),
                 )
                 appleCompatibleKey(key)?.let {

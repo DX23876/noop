@@ -40,13 +40,14 @@ class ResolverUnionTest {
         assertEquals(listOf("my-whoop", "my-whoop-noop"), candidateSources(strap = canonical))
     }
 
-    /** After a re-add the resolver tries the ACTIVE id + its computed sibling FIRST (live/measured wins
-     *  per day), then falls back to the canonical "my-whoop"/"my-whoop-noop" so daily metrics + scores
-     *  banked BEFORE the re-add still resolve. Before #1008 the canonical fallback was missing. */
+    /** After a re-add the resolver tries the ACTIVE strap first (live/measured wins per day), then the
+     *  CANONICAL "my-whoop" IMPORT, then the computed siblings — imports outrank computed estimates, so a
+     *  fresh strap's computed rows no longer shadow richer imported my-whoop history (ryanbr/noop#241
+     *  precedence fix). Before #1008 the canonical fallback was missing entirely. */
     @Test
     fun reAddCandidatesUnionActiveThenCanonical() {
         assertEquals(
-            listOf(reAdded, "$reAdded-noop", "my-whoop", "my-whoop-noop"),
+            listOf(reAdded, "my-whoop", "$reAdded-noop", "my-whoop-noop"),
             candidateSources(strap = reAdded),
         )
     }
@@ -58,7 +59,7 @@ class ResolverUnionTest {
     fun appleFallbackAppendsLastWithMappedKey() {
         val candidates = WhoopRepository.sourceCandidates("rhr", canonical, reAdded)
         assertEquals(
-            listOf(reAdded, "$reAdded-noop", "my-whoop", "my-whoop-noop", "apple-health"),
+            listOf(reAdded, "my-whoop", "$reAdded-noop", "my-whoop-noop", "apple-health"),
             candidates.map { it.source },
         )
         assertEquals("resting_hr", candidates.last().key)
