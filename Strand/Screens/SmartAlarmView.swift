@@ -1,5 +1,10 @@
 import SwiftUI
 import StrandDesign
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
 
 /// Smart alarm (#207) — the iOS/macOS surface.
 ///
@@ -18,6 +23,9 @@ struct SmartAlarmView: View {
     @EnvironmentObject private var behavior: BehaviorStore
 
     @State private var windDownOn = WindDownNudge.isEnabled
+    /// Shown when the user flips the nudge on but notifications are denied at the OS level — the reminder
+    /// can never fire, so we revert the switch and point them to Settings instead of failing silently.
+    @State private var showNotifDeniedAlert = false
     /// Earliest wake time the nudge is derived from (minutes since midnight). Seeded from the store.
     @State private var wakeMinutes = WindDownNudge.wakeMinutes
 
@@ -47,6 +55,26 @@ struct SmartAlarmView: View {
                 windDownCard
             }
         }
+        .alert(String(localized: "Notifications are off"), isPresented: $showNotifDeniedAlert) {
+            Button(String(localized: "Open Settings")) { Self.openNotificationSettings() }
+            Button(String(localized: "Not now"), role: .cancel) {}
+        } message: {
+            Text("Turn on notifications for NOOP in Settings to get your wind-down reminder.")
+        }
+    }
+
+    /// Deep-link to the OS notification settings so a user who denied can flip it back on — the system
+    /// permission dialog only appears once, so Settings is the only recovery path.
+    private static func openNotificationSettings() {
+        #if os(iOS)
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(url)
+        }
+        #elseif os(macOS)
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.notifications") {
+            NSWorkspace.shared.open(url)
+        }
+        #endif
     }
 
     // A small Rest-tinted hero — the wind-down readout as a clean time pairing (wind-down → wake)
@@ -253,7 +281,16 @@ struct SmartAlarmView: View {
                     Toggle("", isOn: $windDownOn)
                         .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
                         .accessibilityLabel("Remind me to wind down")
-                        .onChangeCompat(of: windDownOn) { on in WindDownNudge.setEnabled(on) }
+                        .onChangeCompat(of: windDownOn) { on in
+                            WindDownNudge.setEnabled(on) { outcome in
+                                // Denied at the OS level: the reminder can never fire, so reflect reality
+                                // (revert the switch) and surface the path to Settings.
+                                if outcome == .denied {
+                                    windDownOn = false
+                                    showNotifDeniedAlert = true
+                                }
+                            }
+                        }
                 }
                 .frame(minHeight: 42)
 

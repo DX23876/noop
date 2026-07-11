@@ -97,24 +97,61 @@ enum WindDownNudge {
 
     // MARK: - Public API
 
-    /// Ask up front (when the user enables the nudge) so the system dialog appears at a predictable
-    /// moment rather than silently failing the first night.
-    static func requestAuthorization() {
-        UNUserNotificationCenter.current()
-            .requestAuthorization(options: [.alert, .sound]) { _, _ in }
-    }
+    /// The result of enabling the nudge — lets the UI react instead of silently persisting an "on" toggle
+    /// that can never fire. `.denied` means the OS won't deliver (permission off), so the caller should
+    /// revert the switch and point the user at Settings.
+    enum EnableOutcome { case scheduled, denied, off }
 
-    /// Enable/disable and (re)schedule. Enabling requests authorization and schedules the repeating
-    /// nudge; disabling removes it.
-    static func setEnabled(_ on: Bool) {
-        UserDefaults.standard.set(on, forKey: K.enabled)
-        if on {
-            requestAuthorization()
-            schedule()
-        } else {
+    /// Enable/disable and (re)schedule. Enabling gates on notification authorization FIRST — mirroring the
+    /// smart-alarm backup path in `AppModel.scheduleSmartAlarmBackupNotification`: if undetermined it asks
+    /// once and schedules on grant; if already denied it reports back rather than persisting a dead toggle.
+    ///
+    /// Why this matters: the old version called `requestAuthorization` with an empty completion and then
+    /// scheduled unconditionally. `requestAuthorization` only shows the system dialog when the status is
+    /// `.notDetermined`; once a user (or a prior sideload install with the same bundle id) has denied, the
+    /// dialog never returns and the app silently scheduled reminders the OS would never deliver — with
+    /// nothing in the UI to explain it. Now denial surfaces.
+    ///
+    /// `completion` always runs on the main actor (the settings/authorization callbacks fire off-main).
+    static func setEnabled(_ on: Bool, completion: (@MainActor (EnableOutcome) -> Void)? = nil) {
+        guard on else {
+            UserDefaults.standard.set(false, forKey: K.enabled)
             // Clear the single trigger AND any per-day triggers (PR#554) so disabling leaves nothing behind.
             UNUserNotificationCenter.current()
                 .removePendingNotificationRequests(withIdentifiers: [requestId] + perDayRequestIds)
+            completion?(.off)
+            return
+        }
+
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            Task { @MainActor in
+                switch settings.authorizationStatus {
+                case .authorized, .provisional, .ephemeral:
+                    UserDefaults.standard.set(true, forKey: K.enabled)
+                    schedule()
+                    completion?(.scheduled)
+                case .notDetermined:
+                    // First ask — the system dialog appears now (a predictable moment), then we schedule on
+                    // grant so the FIRST night is covered rather than only after some later re-arm.
+                    UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, _ in
+                        Task { @MainActor in
+                            if granted {
+                                UserDefaults.standard.set(true, forKey: K.enabled)
+                                schedule()
+                                completion?(.scheduled)
+                            } else {
+                                UserDefaults.standard.set(false, forKey: K.enabled)
+                                completion?(.denied)
+                            }
+                        }
+                    }
+                default:
+                    // .denied (or any future non-authorized case) — don't fake an enabled toggle. The caller
+                    // surfaces a "notifications are off" prompt with a jump to Settings.
+                    UserDefaults.standard.set(false, forKey: K.enabled)
+                    completion?(.denied)
+                }
+            }
         }
     }
 

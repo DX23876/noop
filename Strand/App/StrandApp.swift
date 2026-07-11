@@ -1,5 +1,6 @@
 import SwiftUI
 import StrandDesign
+import UserNotifications
 
 @main
 struct StrandApp: App {
@@ -11,6 +12,9 @@ struct StrandApp: App {
         // Release is unaffected (whole harness is `#if DEBUG`). See DemoDayHarness.swift.
         DemoDayHarness.applyLaunchArgsIfNeeded()
         #endif
+        // Foreground presentation: without a delegate, macOS suppresses a notification's banner while the
+        // app is frontmost, so a reminder tested with NOOP open would show nothing. Mirrors iOS.
+        UNUserNotificationCenter.current().delegate = NotificationPresenter.shared
     }
 
     @StateObject private var model = AppModel()

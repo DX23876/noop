@@ -1,6 +1,7 @@
 #if os(iOS)
 import SwiftUI
 import StrandDesign
+import UserNotifications
 
 /// iOS entry point. Unlike the macOS app (which adds a `MenuBarExtra` scene), iOS uses a single
 /// `WindowGroup`; the glanceable menu-bar role is filled by the Home/Lock-Screen widget instead.
@@ -45,6 +46,10 @@ struct StrandiOSApp: App {
         // target's BGTaskSchedulerPermittedIdentifiers (project.yml). Without this the overnight drop
         // never fires; the macOS timer, foreground catch-up, and "Run now" already work without it.
         ScheduledDebugExport.register()
+        // Foreground presentation: without a delegate, iOS suppresses a notification's banner while the app
+        // is open, so a user testing the wind-down reminder with NOOP foregrounded sees nothing. Register
+        // before the first scene so any early-fired notification is presented.
+        UNUserNotificationCenter.current().delegate = NotificationPresenter.shared
         let model = AppModel()
         _model = StateObject(wrappedValue: model)
         _health = StateObject(wrappedValue: HealthKitBridge(
