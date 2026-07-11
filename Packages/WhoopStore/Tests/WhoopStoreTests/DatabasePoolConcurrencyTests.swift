@@ -137,5 +137,34 @@ final class DatabasePoolConcurrencyTests: XCTestCase {
         XCTAssertEqual(journalMode.lowercased(), "wal", "DatabasePool must put the file in WAL mode")
     }
 
+    /// #261: two openers hit the SAME file at once (BLEManager's backfill store + the MetricsRepository)
+    /// on a cold background relaunch right after an update adds a migration. Before the `StoreOpenGate`,
+    /// both migrators read "migration unapplied", both applied it, and the loser's bookkeeping INSERT
+    /// threw `UNIQUE constraint failed: grdb_migrations.identifier` — that open failed and the offload
+    /// stalled. This opens the same FRESH (unmigrated) path from many tasks concurrently — the exact
+    /// window — and asserts every open succeeds AND lands on a usable, fully-migrated store. Serialized
+    /// open+migrate makes this deterministic; without it the concurrent migrators race and some throw.
+    func testConcurrentOpensOfSameFreshFileAllSucceed() async throws {
+        let path = tempPath()
+        defer { removeDB(path) }
+
+        // Open the same not-yet-created file from 16 tasks at once. Each gets its own pool; the gate
+        // ensures their migrators never overlap. All 16 must open without throwing.
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            for _ in 0..<16 {
+                group.addTask {
+                    let store = try await WhoopStore(path: path)
+                    // A trivial read proves the returned store is migrated and usable, not a half-open
+                    // handle that merely dodged the throw.
+                    let applied = try await store.registryWriter.read { db in
+                        try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM grdb_migrations") ?? 0
+                    }
+                    XCTAssertGreaterThan(applied, 0, "each concurrent open must land on a fully-migrated store")
+                }
+            }
+            try await group.waitForAll()
+        }
+    }
+
     private enum ConcurrencyTimeout: Error { case readBlockedOnWriter }
 }
