@@ -25,7 +25,7 @@ object AppChangelog {
      * Bump this when you add a release below. The "What's New" sheet shows automatically when the
      * stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
      */
-    const val CURRENT_VERSION = "8.6.1"
+    const val CURRENT_VERSION = "8.6.2"
 
     data class Release(
         val version: String,
@@ -36,6 +36,19 @@ object AppChangelog {
 
     /** Newest first. */
     val releases: List<Release> = listOf(
+        Release(
+            version = "8.6.2",
+            title = "Apple Health export, sleep nights recovered, and imported-ride Effort",
+            date = "July 2026",
+            items = listOf(
+                "**Your data in Apple Health (iPhone) (#249).** Sleep stages, minute-by-minute heart rate, and your workouts now write to Apple Health, so other apps can read them. Thanks vishk23.",
+                "**Sleep nights no longer go missing (#268).** Nights with a few brief heart-rate spikes were being dropped as \"no sleep recorded\" — those nights are recovered now. Thanks tanarchytan.",
+                "**Sleep times and totals read right after an edit (#259).** A corrected bedtime no longer shows the wrong hour on the Sleep tab, and a night can never read as more sleep than time in bed.",
+                "**Imported rides count toward Effort (#137).** On a day you didn't wear the strap, an imported GPX / TCX / FIT ride's real heart rate now lights that day's Effort ring instead of being ignored.",
+                "**Low-battery heads-up (#250).** NOOP warns you when your strap has roughly a day of charge left, on iPhone, Mac and Android. Thanks vishk23.",
+                "**Automatic sync no longer stalls (#266).** A strap whose clock briefly read ahead could stop syncing and freeze the battery reading until you reconnected; it now recovers on its own. Thanks digitalerdude.",
+            ),
+        ),
         Release(
             version = "8.6.1",
             title = "Restart your strap, lighter on battery, and Health Connect on Android 13",
