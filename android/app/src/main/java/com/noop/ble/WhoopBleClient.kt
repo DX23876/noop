@@ -4710,6 +4710,17 @@ class WhoopBleClient(
         handler.post { requestSync(BackfillTrigger.MANUAL) }
     }
 
+    /**
+     * App-active entry point (#267): call when NOOP comes to the foreground so opening the app pulls a
+     * reasonably fresh sync instead of relying on the 900s periodic timer or an incidental reconnect.
+     * Forwards to the SAME gated [requestSync] every other trigger uses — floored at the 90s event floor
+     * and never empty-streak/clock-suppressed (see [BackfillPolicy.shouldRun]'s `.FOREGROUND` case) — so
+     * it's a safe, cheap no-op no matter how often the caller invokes it.
+     */
+    fun onForeground() {
+        handler.post { requestSync(BackfillTrigger.FOREGROUND) }
+    }
+
     /** Periodic-timer callback: re-runs the type-47 offload (the primary metric sync). */
     private fun triggerPeriodicBackfill() {
         requestSync(BackfillTrigger.PERIODIC)

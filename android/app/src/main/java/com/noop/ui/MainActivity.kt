@@ -772,6 +772,20 @@ fun NoopRoot() {
     val prefs = remember { NoopPrefs.of(context) }
     val appViewModel: AppViewModel = viewModel()
 
+    // #267: app-wide "came to foreground" hook, mirrors the iOS/macOS scenePhase == .active trigger.
+    // requestSync(FOREGROUND) is a safe no-op when nothing's connected/bonded yet (e.g. during
+    // onboarding), so this is placed above the onboarding/terms gates rather than duplicated below them.
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner, appViewModel) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                appViewModel.ble.onForeground()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     var onboarded by remember {
         mutableStateOf(prefs.getBoolean(NoopPrefs.KEY_ONBOARDED, false))
     }

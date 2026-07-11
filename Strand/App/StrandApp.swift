@@ -21,6 +21,9 @@ struct StrandApp: App {
     /// Shared cross-screen navigation hook (e.g. Live → Devices). The macOS shell (`RootView`)
     /// observes it and drives the sidebar selection.
     @StateObject private var router = NavRouter()
+    /// #267: drives a foreground sync kick when the window becomes active (no scenePhase hook
+    /// existed on macOS before this).
+    @Environment(\.scenePhase) private var scenePhase
     /// Appearance preference (System/Light/Dark). Default follows the OS; the Settings picker writes it.
     @AppStorage(AppearanceMode.storageKey) private var appearanceRaw = AppearanceMode.system.rawValue
     /// Chart data-colour style (Titanium / Classic throwback). Re-colours gauges + charts.
@@ -48,6 +51,15 @@ struct StrandApp: App {
                 // fixed-geometry tiles/gauges stay legible at the largest accessibility sizes rather than
                 // clipping; the common Larger-Text range still scales fully.
                 .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+                // #267: pull a reasonably fresh sync when the window comes to the foreground rather than
+                // waiting for the 900s periodic timer or an incidental reconnect. Floored at 90s and never
+                // clock/empty-streak-suppressed (BackfillPolicy.shouldRun's .foreground case), so this is
+                // a safe no-op on rapid re-focusing. Mirrors the iOS scenePhase == .active handler.
+                // Single-param form (not the two-param `{ _, phase in }`) — that overload needs macOS 14,
+                // this target is macOS 13.
+                .onChange(of: scenePhase) { phase in
+                    if phase == .active { model.ble.requestSync(.foreground) }
+                }
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1180, height: 820)
