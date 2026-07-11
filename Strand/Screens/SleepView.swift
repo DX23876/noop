@@ -2403,9 +2403,14 @@ struct SleepView: View {
         var stages = Stages(awake: 0, light: 0, deep: 0, rem: 0)
         var intervals: [SleepInterval] = []
         for seg in arr {
-            guard let start = (seg["start"] as? NSNumber)?.intValue,
-                  let end = (seg["end"] as? NSNumber)?.intValue, end > start,
+            guard let rawStart = (seg["start"] as? NSNumber)?.intValue,
+                  let end = (seg["end"] as? NSNumber)?.intValue,
                   let name = seg["stage"] as? String else { continue }
+            // #259: trim each segment to the effective onset (`sessionStart`) so a hand-edited bedtime the
+            // raw was too sparse to re-stage (WHOOP 4.0) can't sum pre-onset stages past time-in-bed — nor
+            // draw bars before the onset. No-op when segments already start at/after it (the common case).
+            let start = max(rawStart, sessionStart)
+            guard end > start else { continue }
             let minutes = Double(end - start) / 60.0
             let stage: SleepStage
             switch name {

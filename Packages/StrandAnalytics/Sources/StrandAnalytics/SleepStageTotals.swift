@@ -45,6 +45,35 @@ public enum SleepStageTotals {
         return nil
     }
 
+    /// #259: return `stagesJSON` with its `[{start,end,stage}]` segments trimmed to begin no earlier than
+    /// `onsetSec` — segments fully before the onset are dropped, one straddling it is cut to `[onsetSec, end]`.
+    /// Only the computed segment-array shape carries the timestamps a trim needs, so the `{stage:min}` /
+    /// dict (imported) shape and any unparseable JSON are returned UNCHANGED. A no-op when every segment
+    /// already starts at/after the onset (the common, already-consistent case). The result is re-parsed by
+    /// `minutes` / `dailyAggregate` on the SAME platform, so only the decoded minute totals need
+    /// cross-platform parity, not the exact string. Mirrors Kotlin `clampStagesToOnset`.
+    public static func clampStagesToOnset(_ stagesJSON: String?, onsetSec: Int) -> String? {
+        guard let stagesJSON, let data = stagesJSON.data(using: .utf8),
+              let arr = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] else {
+            return stagesJSON   // dict/imported shape or unparseable → unchanged
+        }
+        var out: [[String: Any]] = []
+        for seg in arr {
+            // Shape check is start+end only (matches Kotlin): a {stage:min} entry has neither → bail
+            // unchanged. A malformed segment missing only `stage` defaults to "" (minutes() ignores it),
+            // exactly as the Kotlin twin's `optString("stage", "")` does.
+            guard let rawS = (seg["start"] as? NSNumber)?.intValue,
+                  let e = (seg["end"] as? NSNumber)?.intValue else { return stagesJSON }
+            let name = seg["stage"] as? String ?? ""
+            let s = max(rawS, onsetSec)
+            guard e > s else { continue }                                        // fully before the onset → drop
+            out.append(["start": s, "end": e, "stage": name])
+        }
+        guard let outData = try? JSONSerialization.data(withJSONObject: out),
+              let str = String(data: outData, encoding: .utf8) else { return stagesJSON }
+        return str
+    }
+
     /// The sleep-derived daily fields for a night made of these blocks' `stagesJSON`, or nil if none
     /// decode. `efficiency` is asleep / in-bed (TST / Σ stage minutes) in [0,1]. For the segment stages
     /// noop stores (which TILE the window, last segment clamped to the wake), Σ stage minutes equals the
@@ -511,15 +540,25 @@ public enum SleepStageTotals {
             // effective span is `[onset, onset + decoded in-bed]`; the gap between consecutive fragments is
             // awake the fragments' own stages don't cover.
             if let group {
-                let spans: [(start: Int, end: Int)] = group.map { i in
-                    let b = blocks[i]
-                    let onset = onsetByStart[b.startTs] ?? b.startTs
-                    let inBedSec = Int((minutes(fromStagesJSON: b.stagesJSON)?.inBed ?? 0) * 60.0)
+                // #259: trim each SELECTED block's stages to its EFFECTIVE onset before summing. A hand-edited
+                // or onset-trimmed bedtime that the raw was too sparse to re-stage (WHOOP 4.0) leaves pre-onset
+                // segments in the stored stagesJSON; summing them in full pushes asleep past time-in-bed (the
+                // impossible "6h41m asleep / 4h33m in bed" card). Selection above ran on the ORIGINAL blocks,
+                // so no #525/#547 pick regression — only the SUMMED main-night total is clamped. A block
+                // already staged from its onset (the common case) is unchanged. Mirrors Kotlin.
+                let clampedStages: [String?] = group.map { i in
+                    if let onset = onsetByStart[blocks[i].startTs] {
+                        return clampStagesToOnset(blocks[i].stagesJSON, onsetSec: onset)
+                    }
+                    return blocks[i].stagesJSON
+                }
+                let spans: [(start: Int, end: Int)] = group.enumerated().map { (gi, i) in
+                    let onset = onsetByStart[blocks[i].startTs] ?? blocks[i].startTs
+                    let inBedSec = Int((minutes(fromStagesJSON: clampedStages[gi])?.inBed ?? 0) * 60.0)
                     return (start: onset, end: onset + inBedSec)
                 }
                 let gapAwakeS = interFragmentAwakeSeconds(spans)
-                if let agg = dailyAggregate(group.map { blocks[$0].stagesJSON },
-                                            interFragmentAwakeSeconds: gapAwakeS) {
+                if let agg = dailyAggregate(clampedStages, interFragmentAwakeSeconds: gapAwakeS) {
                     return (agg, applied)
                 }
             }

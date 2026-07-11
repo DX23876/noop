@@ -87,6 +87,34 @@ final class SleepStageTotalsTests: XCTestCase {
         XCTAssertEqual(r.sleep.totalSleepMin, 392, accuracy: 0.001)
     }
 
+    func testHonoringEditsClampsPreOnsetStagesSoAsleepNeverExceedsTimeInBed() throws {
+        // #259: WHOOP 4.0 over-staged a long low-motion pre-onset stretch as sleep. The detected block is
+        // one contiguous 8h49m "light" span [0, 31740], but the user's EFFECTIVE onset is 15300 (they
+        // actually slept 4h34m from there). Before the fix the aggregate summed the full 8h49m, so asleep
+        // exceeded the 4h34m the card shows as "in bed". After: pre-onset segments are trimmed to the onset.
+        // Byte-parity twin of Kotlin Issue259PreOnsetClampTest.
+        let json = #"[{"start":0,"end":31740,"stage":"light"}]"#
+        let r = try XCTUnwrap(SleepStageTotals.dailyAggregateHonoringEdits(
+            detected: [detected(0, json)],
+            edited: [0: json],               // an edit is present (onset moved); stages not re-staged
+            onsetByStart: [0: 15300]))
+        let inBedMin = Double(31740 - 15300) / 60.0   // 274 min — time-in-bed the card shows
+        XCTAssertEqual(r.sleep.totalSleepMin, inBedMin, accuracy: 0.001, "asleep clamped to the post-onset window")
+        XCTAssertLessThanOrEqual(r.sleep.totalSleepMin, inBedMin + 1e-6, "asleep must never exceed time-in-bed (#259)")
+        XCTAssertLessThan(r.sleep.totalSleepMin, Double(31740) / 60.0, "must not sum the pre-onset stretch")
+    }
+
+    func testHonoringEditsNonEditedNightUnchangedByClamp() throws {
+        // Onset == start → clamping to its own onset is a no-op, so the aggregate is identical to before
+        // the fix (no regression for the common, already-consistent case).
+        let json = #"[{"start":1000,"end":28000,"stage":"light"}]"#   // 27000 s = 450 min
+        let r = try XCTUnwrap(SleepStageTotals.dailyAggregateHonoringEdits(
+            detected: [detected(1000, json)],
+            edited: [:],
+            onsetByStart: [1000: 1000]))
+        XCTAssertEqual(r.sleep.totalSleepMin, 450, accuracy: 0.001)
+    }
+
     func testHonoringEditsMultiBlockSubstitutesOnlyTheEditedBlock() throws {
         // A nap (startTs 100, untouched) + a main sleep (startTs 1000, edited shorter).
         let r = try XCTUnwrap(SleepStageTotals.dailyAggregateHonoringEdits(
