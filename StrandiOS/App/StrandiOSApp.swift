@@ -334,6 +334,10 @@ enum DemoScreens {
         // Oura device card: the locally-adopted Oura ring card (Beta chip + per-gen honest capability copy
         // + battery + local-state note), rendered with mock data, no ring required.
         case "ouradevice": return AnyView(OuraDeviceDemoScreen())
+        // #221: a WHOOP 5/MG whose encrypted bond was refused (#78) — the "Connected · not paired" pill
+        // + self-service pairing guidance, screenshot-able WITHOUT reproducing the bond refusal on real
+        // hardware.
+        case "bondrefused": return AnyView(BondRefusedDemoScreen())
         default:         return nil
         }
     }
