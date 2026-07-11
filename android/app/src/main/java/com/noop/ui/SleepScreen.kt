@@ -85,6 +85,7 @@ import com.noop.analytics.SleepEditGuard
 import com.noop.analytics.SleepStageTotals
 import com.noop.data.DailyMetric
 import com.noop.data.SleepSession
+import com.noop.data.WhoopRepository
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
@@ -178,10 +179,12 @@ fun SleepScreen(
                 val offsetSec = (java.util.TimeZone.getDefault().getOffset(ts * 1000) / 1000).toLong()
                 return AnalyticsEngine.dayString(ts, offsetSec)
             }
-            val importedDays = imported.map { localEndDay(it.endTs) }.toHashSet()
-            val computedOnly = computed.filter { localEndDay(it.endTs) !in importedDays }
-            // Sort by the EFFECTIVE onset so a hand-edited bedtime orders the night correctly. (PR #395)
-            (imported + computedOnly).sortedBy { it.effectiveStartTs }
+            // Imported wins per local wake-day, WITH the #241 richness exception (a stage-less import
+            // yields to a computed day that has stages) — the SAME rule the browse/CSV path uses via
+            // WhoopRepository.mergeSleep. Sort by the EFFECTIVE onset so a hand-edited bedtime orders the
+            // night correctly (PR #395).
+            WhoopRepository.mergeSleepRichness(imported, computed) { localEndDay(it.endTs) }
+                .sortedBy { it.effectiveStartTs }
         }.getOrDefault(emptyList())
         nightOffset = 0
     }
@@ -505,9 +508,9 @@ fun SleepScreen(
                                 val offsetSec = (java.util.TimeZone.getDefault().getOffset(ts * 1000) / 1000).toLong()
                                 return AnalyticsEngine.dayString(ts, offsetSec)
                             }
-                            val importedDays = importedSessions.map { localEndDay(it.endTs) }.toHashSet()
-                            val computedOnly = computed.filter { localEndDay(it.endTs) !in importedDays }
-                            (importedSessions + computedOnly).sortedBy { it.effectiveStartTs }
+                            // Same imported-wins + #241 richness merge as the main loader.
+                            WhoopRepository.mergeSleepRichness(importedSessions, computed) { localEndDay(it.endTs) }
+                                .sortedBy { it.effectiveStartTs }
                         }.getOrDefault(sleeps)
                     }
                 },
