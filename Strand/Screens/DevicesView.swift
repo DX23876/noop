@@ -57,6 +57,8 @@ private struct DevicesContent: View {
     @State private var removeTarget: PairedDevice?
     @State private var deleteDataTarget: PairedDevice?
     @State private var rebootTarget: PairedDevice?
+    /// WHOOP 4.0 reboot probe (Test Centre → Connection, 4.0 only) — the device whose probe sheet is open.
+    @State private var probeTarget: PairedDevice?
     /// After removing the ACTIVE device with other devices still paired, prompt to pick a new active one.
     @State private var pickNewActive = false
 
@@ -106,7 +108,13 @@ private struct DevicesContent: View {
                     onMakeActive: { switchTarget = device },
                     onRename: { renameDraft = device.nickname ?? device.displayName; renameTarget = device },
                     onRemove: { removeTarget = device },
-                    onReboot: { rebootTarget = device })
+                    onReboot: { rebootTarget = device },
+                    // 4.0 reboot probe: only offered when Test Centre → Connection is on AND the live
+                    // strap is a WHOOP 4.0 (a 5.0 already reboots on the production frame). nil otherwise.
+                    onRebootProbe: (device.status == .active && live.connected
+                                    && SourceCoordinator.isWhoop(device)
+                                    && model.ble.isWhoop4
+                                    && TestCentre.active(.connection)) ? { probeTarget = device } : nil)
                     .staggeredAppear(index: idx)
             }
 
@@ -169,7 +177,21 @@ private struct DevicesContent: View {
             Button("Cancel", role: .cancel) { rebootTarget = nil }
             Button("Restart") { model.rebootStrap(); rebootTarget = nil }
         } message: { device in
-            Text("Restart \(device.displayName)? It disconnects for about 30 seconds while it reboots, then reconnects on its own. Your recorded data is kept. On WHOOP 5.0/MG this is experimental — if it doesn't restart, your strap log helps us confirm the command.")
+            Text("Restart \(device.displayName)? It disconnects for about 30 seconds while it reboots, then reconnects on its own. Your recorded data is kept. Confirmed on WHOOP 5.0; on WHOOP 4.0 the reboot command isn't confirmed yet — if nothing happens, your strap log helps us pin it down.")
+        }
+        // WHOOP 4.0 reboot probe (#235): only reachable with Test Centre → Connection on and a 4.0 connected.
+        // Tries each candidate frame one at a time so the strap log shows which one actually reboots.
+        .confirmationDialog("WHOOP 4.0 reboot probe",
+                            isPresented: Binding(get: { probeTarget != nil },
+                                                 set: { if !$0 { probeTarget = nil } }),
+                            titleVisibility: .visible,
+                            presenting: probeTarget) { _ in
+            ForEach(RebootProbeVariant.allCases, id: \.self) { variant in
+                Button(variant.menuLabel) { model.rebootProbe(variant); probeTarget = nil }
+            }
+            Button("Cancel", role: .cancel) { probeTarget = nil }
+        } message: { _ in
+            Text("The WHOOP 4.0 reboot frame isn't confirmed — a normal Restart is ignored (#235). Send each candidate and watch the strap log: “link dropped” means it worked; “no disconnect within 12s” means the strap ignored it. Non-destructive — your data is kept. Please share the log so we can pin the real frame.")
         }
         // Second, strongly-worded delete-data confirm (reached from the Remove card's secondary control)
         .alert("Delete all of this device's data?",
@@ -312,6 +334,9 @@ private struct DeviceCard: View {
     /// Restart the strap (WHOOP-only, connected-only; confirmation-gated by the parent). nil for a
     /// non-WHOOP source or a device that isn't the live-connected one. (#166)
     var onReboot: (() -> Void)? = nil
+    /// WHOOP 4.0 reboot probe (Test Centre → Connection, 4.0 only). Non-nil only when the parent has
+    /// decided the probe applies (live-connected WHOOP 4.0 + Connection test mode on); nil otherwise. (#235)
+    var onRebootProbe: (() -> Void)? = nil
     /// Removed-section affordances (re-add as active / delete its data).
     var onReAdd: (() -> Void)? = nil
     var onDeleteData: (() -> Void)? = nil
@@ -523,6 +548,11 @@ private struct DeviceCard: View {
                 // BLE link). Confirmation-gated by the parent. (#166)
                 if isLiveConnected, SourceCoordinator.isWhoop(device), let onReboot {
                     Button { onReboot() } label: { Label("Restart strap…", systemImage: "arrow.clockwise") }
+                }
+                // 4.0 reboot probe (RE): only present when the parent passed a closure (Test Centre →
+                // Connection on + a live WHOOP 4.0). Finds the real reboot frame the 4.0 accepts (#235).
+                if let onRebootProbe {
+                    Button { onRebootProbe() } label: { Label("Reboot probe (4.0 RE)…", systemImage: "ladybug") }
                 }
                 if let onRemove {
                     Divider()

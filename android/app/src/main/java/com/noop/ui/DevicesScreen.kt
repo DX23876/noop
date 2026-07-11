@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -65,6 +66,9 @@ import com.noop.ble.SourceCoordinator
 import com.noop.data.DeviceStatus
 import com.noop.data.PairedDeviceRow
 import com.noop.data.SourceKind
+import com.noop.protocol.RebootProbeVariant
+import com.noop.testcentre.TestCentre
+import com.noop.testcentre.TestDomain
 import kotlinx.coroutines.launch
 
 // MARK: - Devices
@@ -118,6 +122,8 @@ fun DevicesScreen(
     var removeTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
     var deleteDataTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
     var rebootTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
+    // WHOOP 4.0 reboot probe (Test Centre → Connection, 4.0 only) — the device whose probe sheet is open.
+    var probeTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
     // After removing the ACTIVE device with other devices still paired, prompt to pick a new active one.
     var pickNewActive by remember { mutableStateOf(false) }
 
@@ -178,6 +184,12 @@ fun DevicesScreen(
                     { Toast.makeText(context, "Disconnecting", Toast.LENGTH_SHORT).show(); viewModel.disconnect() }
                 } else null,
                 onReboot = { rebootTarget = device },
+                // 4.0 reboot probe: only offered when Test Centre → Connection is on AND the live strap is
+                // a WHOOP 4.0 (a 5.0 already reboots on the production frame). null otherwise.
+                onRebootProbe = if (device.status == DeviceStatus.active.name && live.connected &&
+                    SourceCoordinator.isWhoop(device) && !live.whoop5Detected &&
+                    TestCentre.from(context).active(TestDomain.CONNECTION)
+                ) { { probeTarget = device } } else null,
             )
         }
 
@@ -272,12 +284,22 @@ fun DevicesScreen(
         ConfirmDialog(
             title = "Restart this strap?",
             message = "Restart ${displayName(device)}? It disconnects for about 30 seconds while it " +
-                "reboots, then reconnects on its own. Your recorded data is kept. On WHOOP 5.0/MG this is " +
-                "experimental — if it doesn't restart, your strap log helps us confirm the command.",
+                "reboots, then reconnects on its own. Your recorded data is kept. Confirmed on WHOOP 5.0; " +
+                "on WHOOP 4.0 the reboot command isn't confirmed yet — if nothing happens, your strap log " +
+                "helps us pin it down.",
             confirmLabel = "Restart",
             destructive = false,
             onConfirm = { viewModel.rebootStrap(); rebootTarget = null },
             onDismiss = { rebootTarget = null },
+        )
+    }
+
+    // --- WHOOP 4.0 reboot probe (#235): only reachable with Test Centre → Connection on + a 4.0 connected.
+    //     Tries each candidate frame one at a time so the strap log shows which one actually reboots. ---
+    probeTarget?.let {
+        RebootProbeDialog(
+            onSend = { variant -> viewModel.rebootProbe(variant); probeTarget = null },
+            onDismiss = { probeTarget = null },
         )
     }
 
@@ -337,6 +359,9 @@ private fun DeviceCard(
     onConnect: (() -> Unit)? = null,
     onDisconnect: (() -> Unit)? = null,
     onReboot: (() -> Unit)? = null,
+    // WHOOP 4.0 reboot probe (Test Centre → Connection, 4.0 only). Non-null only when the parent has
+    // decided the probe applies (live-connected WHOOP 4.0 + Connection test mode on); null otherwise. (#235)
+    onRebootProbe: (() -> Unit)? = null,
 ) {
     val profile = deviceProfile(device)
     // The per-device actions menu's open state is hoisted here so the WHOLE card is a tap target that opens
@@ -437,6 +462,7 @@ private fun DeviceCard(
                     onConnect = onConnect,
                     onDisconnect = onDisconnect,
                     onReboot = onReboot,
+                    onRebootProbe = onRebootProbe,
                 )
             }
         }
@@ -527,6 +553,7 @@ private fun DeviceActionsMenu(
     onConnect: (() -> Unit)? = null,
     onDisconnect: (() -> Unit)? = null,
     onReboot: (() -> Unit)? = null,
+    onRebootProbe: (() -> Unit)? = null,
 ) {
     Box {
         IconButton(
@@ -569,6 +596,11 @@ private fun DeviceActionsMenu(
                 // BLE link). Confirmation-gated by the parent. (#166)
                 if (isLiveConnected && SourceCoordinator.isWhoop(device) && onReboot != null) {
                     MenuItem("Restart strap…", Icons.Filled.Refresh) { onOpenChange(false); onReboot() }
+                }
+                // 4.0 reboot probe (RE): only present when the parent passed a closure (Test Centre →
+                // Connection on + a live WHOOP 4.0). Finds the real reboot frame the 4.0 accepts (#235).
+                if (onRebootProbe != null) {
+                    MenuItem("Reboot probe (4.0 RE)…", Icons.Filled.BugReport) { onOpenChange(false); onRebootProbe() }
                 }
                 if (onRemove != null) {
                     HorizontalDivider(color = Palette.hairline)
@@ -665,6 +697,48 @@ private fun ConfirmDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(cancelLabel, style = NoopType.body, color = Palette.textSecondary)
+            }
+        },
+    )
+}
+
+/** WHOOP 4.0 reboot probe (#235): a candidate list, one button per unconfirmed reboot frame. Gated to
+ *  Test Centre → Connection + a live 4.0 at the call site. Twin of the macOS DevicesView confirmationDialog. */
+@Composable
+private fun RebootProbeDialog(
+    onSend: (RebootProbeVariant) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Palette.surfaceOverlay,
+        title = { Text("WHOOP 4.0 reboot probe", style = NoopType.title2, color = Palette.textPrimary) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "The WHOOP 4.0 reboot frame isn't confirmed — a normal Restart is ignored (#235). " +
+                        "Send each candidate and watch the strap log: “link dropped” means it worked; " +
+                        "“no disconnect within 12s” means the strap ignored it. Non-destructive — your data " +
+                        "is kept. Please share the log so we can pin the real frame.",
+                    style = NoopType.subhead,
+                    color = Palette.textSecondary,
+                )
+                RebootProbeVariant.entries.forEach { variant ->
+                    TextButton(onClick = { onSend(variant) }, modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            variant.menuLabel,
+                            style = NoopType.body,
+                            color = Palette.accent,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", style = NoopType.body, color = Palette.textSecondary)
             }
         },
     )

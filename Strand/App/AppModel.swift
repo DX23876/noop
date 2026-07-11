@@ -793,6 +793,9 @@ final class AppModel: ObservableObject {
     /// Restart the connected strap (user-initiated, confirmation-gated in DevicesView). Non-destructive —
     /// the strap keeps its data and re-advertises after boot; NOOP auto-reconnects. See BLEManager.rebootStrap().
     func rebootStrap() { ble.rebootStrap() }
+    /// Send one WHOOP 4.0 reboot-probe candidate (Test Centre → Connection, 4.0 only). Confirmation-gated
+    /// in DevicesView; finds the real 4.0 reboot frame when the production one is ignored (#235).
+    func rebootProbe(_ variant: RebootProbeVariant) { ble.rebootProbe(variant) }
 
     /// Drop the current strap and clear bond state so a newly-picked strap model connects fresh
     /// (lets a user with both a WHOOP 4 and a 5/MG switch between them).

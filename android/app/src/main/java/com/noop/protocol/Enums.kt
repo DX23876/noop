@@ -87,11 +87,20 @@ enum class CommandNumber(val rawValue: Int) {
     // REBOOT_STRAP (29) — restart the strap. Empty body (the official app's builder passes a null
     // payload). The strap drops the link and re-advertises after boot; stored data is KEPT
     // (non-destructive), though an in-flight offload is interrupted (chunk-acked, so nothing is lost).
-    // Opcode 29 is shared across WHOOP 4.0 (harvard/crc8) and 5/MG (puffin/crc16); the 4.0 form is
-    // confirmed, the 5/MG framing is NOT hardware-confirmed — rebootStrap() logs the COMMAND_RESPONSE
-    // so a strap log confirms acceptance. User-initiated + confirmation-gated only; never automatic.
+    // Opcode 29 is shared across WHOOP 4.0 (harvard/crc8) and 5/MG (puffin/crc16). The 5.0 form is
+    // hardware-confirmed (fw 50.40.1.0, #227); the 4.0 form is NOT — a real 4.0 silently IGNORES this
+    // empty-body frame (#235: no reboot, no disconnect, no COMMAND_RESPONSE), so the correct 4.0 frame
+    // still needs an HCI capture. rebootStrap() logs the COMMAND_RESPONSE + a no-disconnect watchdog so a
+    // strap log shows which case it hit. User-initiated + confirmation-gated only; never automatic.
     // Port of Swift WhoopCommand.rebootStrap.
     REBOOT_STRAP(29),
+    // POWER_CYCLE_STRAP (32) — a harder restart than REBOOT_STRAP (a full power cycle of the strap SoC
+    // vs a warm reboot). Non-destructive: stored data lives in flash and survives, the strap re-advertises
+    // after boot. Included ONLY as a gated candidate for the WHOOP 4.0 reboot probe (#235: a real 4.0
+    // silently ignores opcode 29/empty, and the correct 4.0 reboot frame is unknown). NOT hardware-confirmed
+    // on any family. Sent only via rebootProbe(POWER_CYCLE_32_EMPTY), itself gated behind Test Centre →
+    // Connection + a confirmation. Never sent automatically. Port of Swift WhoopCommand.powerCycleStrap.
+    POWER_CYCLE_STRAP(32),
     GET_DATA_RANGE(34),
     GET_HELLO_HARVARD(35),
     // GET_HELLO (145): WHOOP 5.0/MG hello. The response carries the device name plus `fw_version`
@@ -131,4 +140,37 @@ enum class CommandNumber(val rawValue: Int) {
         private val byRaw = entries.associateBy { it.rawValue }
         fun fromRaw(raw: Int): CommandNumber? = byRaw[raw]
     }
+}
+
+/**
+ * Candidate reboot frames for the WHOOP 4.0 reboot probe (Test Centre → Connection, WHOOP 4.0 only).
+ *
+ * A real WHOOP 4.0 silently ignores NOOP's production reboot frame (opcode 29 REBOOT_STRAP, empty body
+ * — #235: no reboot, no disconnect, no COMMAND_RESPONSE), and the correct 4.0 frame is unknown. These
+ * are the plausible NON-DESTRUCTIVE candidates — a restart / power-cycle only, never a data-wiping
+ * opcode — tried one at a time on real hardware so the strap log tells which one works: `reboot: link
+ * dropped …` = the strap acted; `reboot: no disconnect within 12s …` = ignored.
+ *
+ * The definitive fix is still an HCI capture of the official app rebooting a 4.0 (exactly how the alarm
+ * frame was pinned — @ujix's capture, #535). This probe is the interim way to find the frame when a 4.0
+ * is in hand. Twin of Swift `RebootProbeVariant` (Commands.swift); the [logTag] strings are byte-identical
+ * across platforms so a strap log reads the same either side.
+ */
+enum class RebootProbeVariant(
+    val command: CommandNumber,
+    val payload: ByteArray,
+    /** Short menu label, e.g. "A · REBOOT_STRAP(29) empty". */
+    val menuLabel: String,
+    /** Tag written to the strap log so each attempt is correlatable (byte-identical to Swift). */
+    val logTag: String,
+) {
+    // A — opcode 29 REBOOT_STRAP, empty body: NOOP's current production frame (ignored on 4.0).
+    REBOOT_29_EMPTY(CommandNumber.REBOOT_STRAP, byteArrayOf(),
+        "A · REBOOT_STRAP(29) empty", "A/reboot29-empty"),
+    // B — opcode 32 POWER_CYCLE_STRAP, empty body: a harder restart, never tried.
+    POWER_CYCLE_32_EMPTY(CommandNumber.POWER_CYCLE_STRAP, byteArrayOf(),
+        "B · POWER_CYCLE(32) empty", "B/powercycle32-empty"),
+    // C — opcode 29 REBOOT_STRAP, payload [0x01]: same opcode with a non-empty sub-command byte.
+    REBOOT_29_PAYLOAD1(CommandNumber.REBOOT_STRAP, byteArrayOf(0x01),
+        "C · REBOOT_STRAP(29) payload=01", "C/reboot29-payload01"),
 }

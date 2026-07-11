@@ -109,7 +109,9 @@ public final class FrameRouter {
             // the accept/reject signal — the same one that exposed 5/MG haptics rejection (result=0x03) — so
             // a 5/MG owner's strap log confirms whether the (unverified) puffin reboot frame is accepted
             // (0x00) or rejected. Log-only. A reboot that's accepted may drop the link before/after this ack.
-            if let cmd = parsed.cmdName, cmd.hasPrefix("REBOOT_STRAP") {
+            // POWER_CYCLE_STRAP is matched too: it's the 4.0 reboot probe's candidate B (#235), and its
+            // result byte is exactly what tells "opcode rejected (recognized, wrong args)" from "ignored".
+            if let cmd = parsed.cmdName, cmd.hasPrefix("REBOOT_STRAP") || cmd.hasPrefix("POWER_CYCLE_STRAP") {
                 let r = Self.commandResultByte(in: frame)
                 let rhex = r.map { String(format: "0x%02x", UInt8(truncatingIfNeeded: $0)) } ?? "none"
                 let verdict = r == nil ? "no result byte" : (r == 0 ? "accepted" : "REJECTED")

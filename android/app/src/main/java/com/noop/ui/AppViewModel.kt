@@ -1522,6 +1522,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      *  the strap keeps its data and re-advertises after boot; NOOP auto-reconnects. See WhoopBleClient.rebootStrap. */
     fun rebootStrap() = ble.rebootStrap()
 
+    /** Send one WHOOP 4.0 reboot-probe candidate (Test Centre → Connection, 4.0 only). Confirmation-gated
+     *  in DevicesScreen; finds the real 4.0 reboot frame when the production one is ignored (#235). */
+    fun rebootProbe(variant: com.noop.protocol.RebootProbeVariant) = ble.rebootProbe(variant)
+
     /**
      * Flip the "keep connected in the background" preference (driven by Settings). Turning it on
      * while a strap is live promotes to the foreground immediately; turning it off drops the
