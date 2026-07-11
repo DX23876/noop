@@ -6,71 +6,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * #528 — pure planning logic for the Health Connect export (daily steps/active-energy aggregates,
- * HR decimation/windowing/chunking, sleep AWAKE/SLEEPING mapping). All offline-on-JVM; the SDK glue
- * in [HealthConnectWriter] is the thin untestable layer.
+ * Pure planning logic for the Health Connect export (HR decimation/windowing/chunking, sleep
+ * AWAKE/SLEEPING mapping). All offline-on-JVM; the SDK glue in [HealthConnectWriter] is the thin
+ * untestable layer. (Daily steps/active-energy aggregates were removed with the steps/kcal
+ * write-back — see HealthConnectWriter.)
  */
 class HealthExportPlanTest {
-
-    // Fixed bounds: day "D" -> (1000, 2000) so tests are zone-independent.
-    private val bounds: (String) -> Pair<Long, Long>? =
-        { day -> if (day == "D") 1000L to 2000L else null }
-
-    @Test fun dailyAggregate_emitsStepsAndKcalForADayWithBoth() {
-        val out = HealthExportPlan.dailyAggregates(
-            listOf(HealthExportPlan.DayInput(day = "D", steps = 5000, activeKcal = 420.0)),
-            bounds,
-        )
-        assertEquals(1, out.size)
-        assertEquals("D", out[0].day)
-        assertEquals(1000L, out[0].startEpochSec)
-        assertEquals(2000L, out[0].endEpochSec)
-        assertEquals(5000L, out[0].steps)
-        assertEquals(420.0, out[0].activeKcal!!, 0.001)
-    }
-
-    @Test fun dailyAggregate_skipsDayWithNoStepsAndNoKcal() {
-        val out = HealthExportPlan.dailyAggregates(
-            listOf(HealthExportPlan.DayInput("D", steps = null, activeKcal = null)),
-            bounds,
-        )
-        assertTrue(out.isEmpty())
-    }
-
-    @Test fun dailyAggregate_treatsZeroAsAbsent() {
-        val out = HealthExportPlan.dailyAggregates(
-            listOf(HealthExportPlan.DayInput("D", steps = 0, activeKcal = 0.0)),
-            bounds,
-        )
-        assertTrue(out.isEmpty())
-    }
-
-    @Test fun dailyAggregate_skipsDayWithUnresolvableBounds() {
-        val out = HealthExportPlan.dailyAggregates(
-            listOf(HealthExportPlan.DayInput("UNKNOWN", steps = 100, activeKcal = null)),
-            bounds,
-        )
-        assertTrue(out.isEmpty())
-    }
-
-    @Test fun dailyAggregate_emitsStepsOnlyWhenKcalAbsent() {
-        val out = HealthExportPlan.dailyAggregates(
-            listOf(HealthExportPlan.DayInput("D", steps = 100, activeKcal = null)),
-            bounds,
-        )
-        assertEquals(100L, out[0].steps)
-        assertNull(out[0].activeKcal)
-    }
-
-    @Test fun dailyAggregate_emitsKcalWhenStepsZero() {
-        val out = HealthExportPlan.dailyAggregates(
-            listOf(HealthExportPlan.DayInput("D", steps = 0, activeKcal = 300.0)),
-            bounds,
-        )
-        assertEquals(1, out.size)
-        assertNull(out[0].steps)
-        assertEquals(300.0, out[0].activeKcal!!, 0.001)
-    }
 
     // ---- Heart-rate series tests ----
 

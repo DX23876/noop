@@ -14,38 +14,6 @@ package com.noop.ingest
  */
 object HealthExportPlan {
 
-    // ---- Daily aggregates: Active Energy + Steps (one record per local calendar day) ----
-
-    data class DayInput(val day: String, val steps: Int?, val activeKcal: Double?)
-
-    data class DailyAgg(
-        val day: String,
-        val startEpochSec: Long,
-        val endEpochSec: Long,
-        val steps: Long?,
-        val activeKcal: Double?,
-    )
-
-    /**
-     * One descriptor per day that has positive steps and/or positive active kcal and resolvable
-     * day bounds. [bounds] maps a "YYYY-MM-DD" day to (startOfDayEpochSec, startOfNextDayEpochSec);
-     * inject it so zone math stays out of this pure function.
-     */
-    fun dailyAggregates(
-        days: List<DayInput>,
-        bounds: (String) -> Pair<Long, Long>?,
-    ): List<DailyAgg> {
-        val out = ArrayList<DailyAgg>()
-        for (d in days) {
-            val steps = d.steps?.toLong()?.takeIf { it > 0 }
-            val kcal = d.activeKcal?.takeIf { it > 0.0 }
-            if (steps == null && kcal == null) continue
-            val b = bounds(d.day) ?: continue
-            out.add(DailyAgg(d.day, b.first, b.second, steps, kcal))
-        }
-        return out
-    }
-
     // ---- Heart-rate series: full-res inside workout/sleep windows, decimated elsewhere ----
 
     data class HrPoint(val tsSec: Long, val bpm: Int)
