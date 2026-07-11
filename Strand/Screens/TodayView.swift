@@ -2015,7 +2015,12 @@ struct TodayView: View {
             pinnedCardRow(icon: card.icon, tint: tint, title: card.title, subtitle: card.subtitle,
                           value: dashboardValue(card), route: .health)
         case .sleep:
-            pinnedCardRow(icon: card.icon, tint: tint, title: card.title, subtitle: card.subtitle,
+            // #110: the value is `totalSleepMin` — WHOOP's imported TST, which can legitimately differ
+            // from the Sleep tab's on-device re-staged night. Label the row with its source + which night
+            // so a WHOOP figure (or an older night) is never silently shown as "last night" with no
+            // provenance; fall back to the card's static description when there's no banked sleep.
+            pinnedCardRow(icon: card.icon, tint: tint, title: card.title,
+                          subtitle: sleepSourceSubtitle(displayDay) ?? card.subtitle,
                           value: dashboardValue(card), route: .sleep)
         case .hydration:
             pinnedCardRow(icon: card.icon, tint: tint, title: card.title, subtitle: card.subtitle,
@@ -4101,6 +4106,25 @@ struct TodayView: View {
         guard let m = d?.totalSleepMin else { return "—" }
         let h = Int(m) / 60, mm = Int(m) % 60
         return String(localized: "\(h)h \(mm)m")
+    }
+
+    /// #110: the Home sleep row's value is `totalSleepMin` — WHOOP's imported TST for the day, which can
+    /// legitimately differ from the Sleep tab's on-device re-staged night (with a WHOOP CSV *and* Apple
+    /// Health both imported). Label the row with its source + which night — the same "Whoop"/"On-device"
+    /// winner logic the Sleep tab's `nightSource` badge uses (`repo.importedSleep` keyed by the row's
+    /// wake-day, exactly as `sleepScoreSource` keys it) — so a WHOOP figure, or an older night at a
+    /// split-sleep / timezone edge, is never silently presented as "last night" with no provenance.
+    /// nil → the row keeps its static description (no banked sleep for the day).
+    private func sleepSourceSubtitle(_ d: DailyMetric?) -> String? {
+        guard let d, d.totalSleepMin != nil else { return nil }
+        let source = repo.importedSleep[d.day] != nil
+            ? String(localized: "Whoop") : String(localized: "On-device")
+        // At offset 0 the row IS last night; a navigated past day names its real date so the label never
+        // over-claims "last night".
+        let night = selectedDayOffset == 0
+            ? String(localized: "last night")
+            : Self.lastChargeDateFmt(d.day)
+        return String(localized: "\(source) · \(night)")
     }
 
     /// The Rest tile's caption, hours-in-bed for the day, the figure that used to be the tile's

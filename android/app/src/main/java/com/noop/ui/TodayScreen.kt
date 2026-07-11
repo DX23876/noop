@@ -2824,6 +2824,10 @@ private fun YourCardsSection(
                         estimatedStepsForDay = estimatedStepsForDay,
                     ),
                     tint = dashboardCardTint(card),
+                    // #110: label the sleep row with its source + night (this section renders at offset 0
+                    // only, so it IS last night), so a WHOOP-imported figure is never silently shown as
+                    // "last night" with no provenance. iOS TodayView.sleepSourceSubtitle twin.
+                    subtitleOverride = sleepSourceSubtitle(card, day),
                     // #706/#684: every card now opens its OWN detail, matching iOS. The Stress card -> Stress;
                     // the overnight vitals (HRV / Resting HR / Respiratory / SpO₂ / Skin Temp) + Fitness age /
                     // Vitality / Steps / Calories -> each metric's focused trend (vital_detail/<key>, the iOS
@@ -2840,6 +2844,22 @@ private fun YourCardsSection(
             }
         }
     }
+}
+
+/** #110: the sleep row's value is `totalSleepMin` — WHOOP's imported TST, which can legitimately differ
+ *  from the Sleep tab's on-device re-staged night (WHOOP CSV + Apple Health both imported). Label the row
+ *  with its source (the SAME `daySourceBadge` winner the Sleep tab's `MainSleepFooter` uses) + "last
+ *  night" — `YourCardsSection` renders at offset 0 only, so the row IS last night — so a WHOOP figure is
+ *  never silently shown as "last night" with no provenance. null → the card keeps its static subtitle
+ *  (not the sleep card, or no banked sleep). Twin of iOS `TodayView.sleepSourceSubtitle`; the source
+ *  mechanism differs per platform (Android keys on the day's session source, iOS on `importedSleep`),
+ *  exactly as the two Sleep-tab badges already do, so the label — not the wiring — is what stays in parity. */
+private fun sleepSourceSubtitle(card: DashboardCard, day: DailyMetric?): String? {
+    if (card != DashboardCard.SLEEP) return null
+    val d = day ?: return null
+    if (d.totalSleepMin == null) return null
+    val source = daySourceBadge(d.deviceId).first
+    return "$source · last night"
 }
 
 /** The `vital_detail/<key>` key a metric/vital card opens, or null when the card has its OWN dedicated
@@ -3041,6 +3061,9 @@ private fun DashboardCardRow(
     value: String,
     fraction: Double?,
     tint: Color,
+    // #110: a per-card dynamic subtitle (currently the sleep row's source + night); null keeps the
+    // card's static description.
+    subtitleOverride: String? = null,
     onClick: (() -> Unit)? = null,
 ) {
     // A real number renders white; a placeholder (No Data, or the Stress calibrating state) renders dimmed.
@@ -3091,7 +3114,7 @@ private fun DashboardCardRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                card.subtitle,
+                subtitleOverride ?: card.subtitle,
                 style = NoopType.caption,
                 color = Palette.textTertiary,
                 maxLines = 1,
