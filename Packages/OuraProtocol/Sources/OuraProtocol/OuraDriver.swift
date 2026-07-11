@@ -308,7 +308,9 @@ public final class OuraDriver {
             return []
 
         // --- Tier A: Sleep phase (2-bit codes are verified) ---
-        case .sleepPhase, .sleepPhaseAlt:
+        // 0x4B/0x4E/0x5A are the three hypnogram aliases (open_oura decode_sleep_phases); 0x4B was
+        // previously misfiled as a Tier-B sleep summary. Same validated layout, one decoder.
+        case .sleepPhaseB, .sleepPhase, .sleepPhaseAlt:
             return (OuraDecoders.decodeSleepPhase(record) ?? []).map { OuraEvent.sleepPhase($0) }
 
         // --- Tier A: Lifecycle / state / time ---
@@ -352,7 +354,7 @@ public final class OuraDriver {
             return []
 
         // --- Tier B (only reached when allowTierB == true; otherwise dropped above) ---
-        case .sleepSummary1, .sleepSummaryB, .sleepSummaryC, .sleepSummaryD, .sleepSummaryE, .sleepSummaryF:
+        case .sleepSummary1, .sleepSummaryC, .sleepSummaryD, .sleepSummaryE, .sleepSummaryF:
             return [.tierB(OuraTierBSummary(tag: record.type, ringTimestamp: record.ringTimestamp,
                                             rawPayload: record.payload, kind: "sleep_summary"))]
         case .activityInfo:
