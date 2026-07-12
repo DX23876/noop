@@ -59,29 +59,25 @@ final class SourceCoordinator: ObservableObject {
 
     // MARK: - State
 
-    /// The lazily-created generic-strap source. nil until the first switch to a strap; reused after.
-    private var standardSource: StandardHRSource?
-    /// The lazily-created FTMS gym-equipment source. nil until the first switch to a gym machine. An FTMS
-    /// device (sourceKind `.ftms`) is a non-WHOOP live source, so it runs through the SAME strap edge as
-    /// `standardSource` — only the source object differs. Exactly one of the two is ever live at a time.
-    private var ftmsSource: FTMSSource?
-    /// The lazily-created EXPERIMENTAL Huami source (Amazfit / Zepp / Mi Band). nil until the first switch
-    /// to a `.huami` device. Like the others it's a non-WHOOP live source sharing the same strap edge —
-    /// exactly one of the non-WHOOP sources is ever live at a time.
-    private var huamiSource: HuamiHRSource?
-    /// The lazily-created EXPERIMENTAL Oura source (Oura Ring gen 3/4/5). nil until the first switch to a
-    /// `.oura` device. Like the others it's a non-WHOOP live source sharing the same strap edge: exactly
-    /// one of the non-WHOOP sources is ever live at a time. It owns its OWN `CBCentralManager` and never
-    /// references `BLEManager`/`WhoopBleClient`, so the WHOOP path cannot regress.
+    /// The single non-WHOOP source currently live — a generic HR strap, FTMS machine, Huami band, or Oura
+    /// ring — held behind the `LiveHRSource` protocol. nil while WHOOP is active or nothing else is paired.
+    /// Exactly one non-WHOOP source is ever live at a time, and the coordinator only ever `connect`s /
+    /// `scan`s / `stop`s it. Built by `makeSource(for:)`; each source owns its OWN `CBCentralManager` and
+    /// never references `BLEManager`/`WhoopBleClient`, so the WHOOP path cannot regress.
+    private var activeSource: (any LiveHRSource)?
+    /// The live Oura source, TYPED, kept ALONGSIDE `activeSource` purely so `AppModel` can observe its
+    /// `adoptPhase` / `needsPairing` for the adopt wizard (`coordinator.$ouraSource`). Set in `makeOura`
+    /// (the same object as `activeSource` while an Oura ring is live) and cleared in
+    /// `tearDownNonWhoopSource`. The coordinator's lifecycle logic uses `activeSource`; this is only the
+    /// published UI handle.
     @Published private(set) var ouraSource: OuraLiveSource?
     /// The deviceId for which the user has granted explicit adopt consent (the wizard's irreversible gate +
-    /// "Take over this ring?" confirm). The NEXT `startOuraSource` for THIS id builds its live source with
+    /// "Take over this ring?" confirm). The NEXT `makeOuraSource` for THIS id builds its live source with
     /// `adoptIntent == true`, so the dangerous `0x24` key install can run for exactly that adopt session and
     /// nothing else. Cleared as soon as it is consumed (or when adopt is cancelled), so a later reconnect of
     /// the same ring is a normal read-only session that never re-installs a key.
     private var pendingAdoptDeviceId: String?
-    /// The deviceId the active non-WHOOP source (`standardSource` / `ftmsSource` / `huamiSource` /
-    /// `ouraSource`) runs for.
+    /// The deviceId the active non-WHOOP source (`activeSource`) runs for.
     private var activeStrapId: String?
     /// True once we've transitioned onto a generic strap. While false (the default / WHOOP-active
     /// state), switching to WHOOP is a pure no-op — we never issue a redundant WHOOP (re)scan.
@@ -264,33 +260,10 @@ final class SourceCoordinator: ObservableObject {
         // Switching source→source: stop the previous non-WHOOP source before starting the new one.
         tearDownNonWhoopSource()
 
-        // Route by sourceKind: an FTMS gym machine runs FTMSSource; an EXPERIMENTAL Huami device
-        // (Amazfit / Zepp / Mi Band) runs the HuamiHRSource; an EXPERIMENTAL Oura ring runs the
-        // OuraLiveSource; everything else is a generic HR strap on StandardHRSource. All are non-WHOOP
-        // live sources sharing this same strap edge. (`.liveAppleWatch` never reaches this switch: it's
-        // short-circuited above.)
-        switch sourceKind(for: id) {
-        case .ftms:  startFTMSSource(id: id)
-        case .huami: startHuamiSource(id: id)
-        case .oura:  startOuraSource(id: id)
-        default:     startStandardSource(id: id)
-        }
-        activeStrapId = id
-        onStrap = true
-    }
-
-    /// Start the isolated `StandardHRSource` for a generic HR strap `id`.
-    private func startStandardSource(id: String) {
-        let source = StandardHRSource(
-            live: live,
-            deviceId: id,
-            persist: { [storeHandle] streams in
-                Task { if let store = await storeHandle() { _ = try? await store.insert(streams, deviceId: id) } }
-            },
-            log: straplog,   // generic-HR lifecycle → the SAME exported strap log (issue #421)
-            // Surface the generic strap's standard Battery Service (0x180F) charge the SAME place the
-            // WHOOP strap battery shows (the Live/device status), via the shared LiveState funnel.
-            onBattery: { [live] pct in live.setBattery(Double(pct)) })
+        // Build the isolated source for this device's registered kind (the ONE place that maps a kind to a
+        // concrete driver), then bring it up. `.liveAppleWatch` never reaches here — it's short-circuited
+        // above — so `makeSource` only ever sees a real BLE source kind.
+        let source = makeSource(for: id)
         // CONNECT to the active strap's known peripheral, don't just scan. scan() only discovered + listed
         // it but never connected, so a Polar etc. showed as "found" yet never streamed (#421). connect()
         // reaches the cached peripheral by identifier (or scans-then-connects if not yet cached); a bare
@@ -300,30 +273,54 @@ final class SourceCoordinator: ObservableObject {
         } else {
             source.scan()
         }
-        standardSource = source
+        activeSource = source
+        activeStrapId = id
+        onStrap = true
     }
 
-    /// Start the isolated `FTMSSource` for a gym machine `id`. HR (when the machine reports it) rides the
+    /// Build the isolated `LiveHRSource` for a device id from its registered `sourceKind` — the ONE place
+    /// that maps a kind to a concrete driver. Adding a brand adds ONE arm here (and a conforming source);
+    /// nothing else in the coordinator changes. Each arm keeps its own bespoke construction (persist / log /
+    /// onBattery closures, plus Oura's ringGen / authKey / adoptIntent). Returns the source WITHOUT
+    /// connecting — the caller (`switchToStrap`) does the connect-by-identifier-else-scan bring-up.
+    private func makeSource(for id: String) -> any LiveHRSource {
+        switch sourceKind(for: id) {
+        case .ftms:  return makeFTMSSource(id: id)
+        case .huami: return makeHuamiSource(id: id)
+        case .oura:  return makeOuraSource(id: id)
+        default:     return makeStandardSource(id: id)
+        }
+    }
+
+    /// Build the isolated `StandardHRSource` for a generic HR strap `id`.
+    private func makeStandardSource(id: String) -> any LiveHRSource {
+        StandardHRSource(
+            live: live,
+            deviceId: id,
+            persist: { [storeHandle] streams in
+                Task { if let store = await storeHandle() { _ = try? await store.insert(streams, deviceId: id) } }
+            },
+            log: straplog,   // generic-HR lifecycle → the SAME exported strap log (issue #421)
+            // Surface the generic strap's standard Battery Service (0x180F) charge the SAME place the
+            // WHOOP strap battery shows (the Live/device status), via the shared LiveState funnel.
+            onBattery: { [live] pct in live.setBattery(Double(pct)) })
+    }
+
+    /// Build the isolated `FTMSSource` for a gym machine `id`. HR (when the machine reports it) rides the
     /// SAME `LiveState` channel, so the existing live-workout recorder scores it — no new scoring loop.
-    private func startFTMSSource(id: String) {
-        let source = FTMSSource(
+    private func makeFTMSSource(id: String) -> any LiveHRSource {
+        FTMSSource(
             live: live,
             log: straplog,
             onBattery: { [live] pct in live.setBattery(Double(pct)) })
-        if let pid = peripheralId(for: id), let uuid = UUID(uuidString: pid) {
-            source.connect(uuid)
-        } else {
-            source.scan()
-        }
-        ftmsSource = source
     }
 
-    /// Start the EXPERIMENTAL Huami source (Amazfit / Zepp / Mi Band) for `id`. HR (standard 0x180D when
+    /// Build the EXPERIMENTAL Huami source (Amazfit / Zepp / Mi Band) for `id`. HR (standard 0x180D when
     /// exposed, else the documented Huami custom characteristic) rides the SAME `LiveState` channel as the
     /// other sources, so the existing live UI + recorder handle it — no new scoring loop, no fabricated
     /// data (the source stays at "—" when it can't read a real HR).
-    private func startHuamiSource(id: String) {
-        let source = HuamiHRSource(
+    private func makeHuamiSource(id: String) -> any LiveHRSource {
+        HuamiHRSource(
             live: live,
             deviceId: id,
             persist: { [storeHandle] streams in
@@ -331,24 +328,22 @@ final class SourceCoordinator: ObservableObject {
             },
             log: straplog,
             onBattery: { [live] pct in live.setBattery(Double(pct)) })
-        if let pid = peripheralId(for: id), let uuid = UUID(uuidString: pid) {
-            source.connect(uuid)
-        } else {
-            source.scan()
-        }
-        huamiSource = source
     }
 
-    /// Start the EXPERIMENTAL Oura source (Oura Ring gen 3/4/5) for `id`, driven by the clean-room
+    /// Build the EXPERIMENTAL Oura source (Oura Ring gen 3/4/5) for `id`, driven by the clean-room
     /// `OuraProtocol.OuraDriver`. Decoded raw signals (HR / IBI / HRV / SpO2 / temp / sleep-phase / battery)
     /// ride the SAME `LiveState` + persist channels as the other sources, so NOOP scores the Oura day with
     /// its OWN Charge/Rest exactly like a WHOOP day, while Oura's encrypted readiness/sleep scores are never
     /// read or surfaced. The ring generation is recovered from the registry row's `model` string via
     /// `OuraRingGen.from(model:)`; the 16-byte install key is read from the Keychain via `OuraKeyStore`
     /// (nil → the source drives its HONEST `needsPairing` path and streams nothing, never a fake value).
-    private func startOuraSource(id: String) {
+    ///
+    /// Also publishes the typed `ouraSource` handle (`AppModel` observes it for the adopt wizard) and
+    /// consumes the one-shot adopt consent — both side effects the coordinator must own, so they live here
+    /// rather than in the plain `makeStandard/FTMS/Huami` factories.
+    private func makeOuraSource(id: String) -> any LiveHRSource {
         let ringGen = OuraRingGen.from(model: model(for: id) ?? "")
-        // Adopt consent is consumed for exactly this start: only the session the user explicitly granted may
+        // Adopt consent is consumed for exactly this build: only the session the user explicitly granted may
         // install a key (s3.2). Clearing it here means a later reconnect of the SAME ring is a normal
         // read-only session that re-authenticates with the now-stored key and never re-installs.
         let adoptIntent = (pendingAdoptDeviceId == id)
@@ -365,12 +360,8 @@ final class SourceCoordinator: ObservableObject {
             onBattery: { [live] pct in live.setBattery(Double(pct)) },
             adoptIntent: adoptIntent)
         if adoptIntent { straplog("Oura: adopt consent granted - this session may install NOOP's key") }
-        if let pid = peripheralId(for: id), let uuid = UUID(uuidString: pid) {
-            source.connect(uuid)
-        } else {
-            source.scan()
-        }
-        ouraSource = source
+        ouraSource = source   // the published typed handle for the adopt mirror (same object as activeSource)
+        return source
     }
 
     /// Grant explicit adopt consent for `deviceId` so the NEXT live Oura session for it (started when it
@@ -381,13 +372,14 @@ final class SourceCoordinator: ObservableObject {
         pendingAdoptDeviceId = deviceId
     }
 
-    /// Stop whichever non-WHOOP source (standard strap, FTMS machine, Huami device, or Oura ring) is live,
-    /// and drop the reference. Idempotent. Exactly one is ever live, but we stop all defensively.
+    /// Stop the live non-WHOOP source (standard strap, FTMS machine, Huami device, or Oura ring) and drop
+    /// the reference. Idempotent — exactly one source is ever live. Also nils the published `ouraSource`
+    /// handle so the adopt mirror resets to `.idle` (when an Oura ring was live it is the same object as
+    /// `activeSource`; otherwise it is already nil and this is a no-op).
     private func tearDownNonWhoopSource() {
-        standardSource?.stop(); standardSource = nil
-        ftmsSource?.stop(); ftmsSource = nil
-        huamiSource?.stop(); huamiSource = nil
-        ouraSource?.stop(); ouraSource = nil
+        activeSource?.stop()
+        activeSource = nil
+        ouraSource = nil
     }
 
     // MARK: - Identity adoption

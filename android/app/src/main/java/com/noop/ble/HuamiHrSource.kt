@@ -64,7 +64,7 @@ class HuamiHrSource(
     private val log: (String) -> Unit = {},
     /** Fired with the band's battery percent (0–100) when read off 0x2A19. */
     private val onBattery: (Int) -> Unit = {},
-) {
+) : LiveHrSource {
 
     /** A Huami-family device seen during a scan (UI affordance). */
     data class DiscoveredDevice(val address: String, val name: String, val rssi: Int)
@@ -116,7 +116,7 @@ class HuamiHrSource(
      * 0xFEE0, some neither), so scan broadly and keep only the ones whose advertised name reads as an
      * Amazfit / Zepp / Mi Band ([ExperimentalBrand]).
      */
-    fun scan() {
+    override fun scan() {
         seen.clear()
         _discovered.value = emptyList()
         _scanning.value = true
@@ -144,7 +144,7 @@ class HuamiHrSource(
 
     // MARK: - Connecting
 
-    fun connect(address: String) {
+    override fun connect(address: String) {
         stopScan()
         _needsPairing.value = null
         val device = seen[address] ?: runCatching { adapter?.getRemoteDevice(address) }.getOrNull()
@@ -169,7 +169,7 @@ class HuamiHrSource(
         }
     }
 
-    fun stop() {
+    override fun stop() {
         stopScan()
         pendingConnectAddress = null
         gatt?.let { runCatching { it.disconnect(); it.close() } }

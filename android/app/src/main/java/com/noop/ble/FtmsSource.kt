@@ -56,7 +56,7 @@ class FtmsSource(
     /** Diagnostic sink for the connect lifecycle — the SAME exportable strap log (issue #421). Every line
      *  is prefixed "FTMS: " so it's distinguishable in the shared log. Default no-op keeps tests silent. */
     private val log: (String) -> Unit = {},
-) {
+) : LiveHrSource {
 
     /** An FTMS machine seen during a scan (UI affordance). */
     data class DiscoveredMachine(val address: String, val name: String, val rssi: Int)
@@ -96,7 +96,7 @@ class FtmsSource(
     // MARK: - Scanning
 
     /** Begin scanning for FTMS machines advertising the 0x1826 service. */
-    fun scan() {
+    override fun scan() {
         seen.clear()
         _discovered.value = emptyList()
         _scanning.value = true
@@ -125,7 +125,7 @@ class FtmsSource(
     // MARK: - Connecting
 
     /** Connect to the chosen machine (by address) and start streaming its machine data. */
-    fun connect(address: String) {
+    override fun connect(address: String) {
         stopScan()
         val device = seen[address] ?: runCatching { adapter?.getRemoteDevice(address) }.getOrNull()
         if (device == null) { pendingConnectAddress = address; return }
@@ -150,7 +150,7 @@ class FtmsSource(
     }
 
     /** Tear down: cancel the connection and stop scanning. Idempotent. */
-    fun stop() {
+    override fun stop() {
         stopScan()
         pendingConnectAddress = null
         gatt?.let { runCatching { it.disconnect(); it.close() } }

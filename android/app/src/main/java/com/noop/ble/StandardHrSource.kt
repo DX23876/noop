@@ -73,7 +73,7 @@ class StandardHrSource(
      *  in-exercise readout — it never touches HR/R-R/persistence/scoring. Called on the main looper.
      *  Mirrors [FtmsSource.readingSink]. Default no-op keeps existing call sites compiling. */
     private val sensorSink: (SensorMetrics) -> Unit = {},
-) {
+) : LiveHrSource {
 
     /** Live instantaneous fitness-sensor metrics surfaced via [sensorSink]. Any field is null when it
      *  isn't available yet (no such sensor, or a first CSC/CPS packet — derived values need two). */
@@ -148,7 +148,7 @@ class StandardHrSource(
     // MARK: - Scanning
 
     /** Begin scanning for generic HR straps advertising the 0x180D service. */
-    fun scan() {
+    override fun scan() {
         synchronized(bufferLock) { /* keep buffer across a rescan */ }
         seen.clear()
         _discovered.value = emptyList()
@@ -182,7 +182,7 @@ class StandardHrSource(
     // MARK: - Connecting
 
     /** Connect to the chosen discovered strap (by address) and start streaming its HR. */
-    fun connect(address: String) {
+    override fun connect(address: String) {
         stopScan()
         val device = seen[address] ?: runCatching { adapter?.getRemoteDevice(address) }.getOrNull()
         if (device == null) { pendingConnectAddress = address; return }
@@ -211,7 +211,7 @@ class StandardHrSource(
     }
 
     /** Tear down: cancel the connection and stop scanning, persisting anything still buffered. Idempotent. */
-    fun stop() {
+    override fun stop() {
         stopScan()
         pendingConnectAddress = null
         gatt?.let { runCatching { it.disconnect(); it.close() } }

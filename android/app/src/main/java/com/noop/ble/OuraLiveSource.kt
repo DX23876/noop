@@ -105,7 +105,7 @@ class OuraLiveSource(
      * on RNG failure (then provisioning stays honest rather than installing a weak key).
      */
     private val randomKey: () -> IntArray? = { secureRandom16() },
-) {
+) : LiveHrSource {
 
     /**
      * The live outcome of an in-flight adopt (the wizard observes this to leave its Adopting step). Kotlin
@@ -456,7 +456,7 @@ class OuraLiveSource(
     // MARK: - Scanning
 
     /** Begin scanning for Oura rings advertising the ring's base service. */
-    fun scan() {
+    override fun scan() {
         seen.clear()
         _discovered.value = emptyList()
         _scanning.value = true
@@ -492,7 +492,7 @@ class OuraLiveSource(
     // MARK: - Connecting
 
     /** Connect to the chosen discovered ring (by address) and start the auth → enable → stream flow. */
-    fun connect(address: String) {
+    override fun connect(address: String) {
         stopScan()
         _needsPairing.value = null
         // Remember the paired ring so an involuntary drop auto-reconnects to it (#912). An explicit connect
@@ -550,7 +550,7 @@ class OuraLiveSource(
     }
 
     /** Tear down: cancel the connection and stop scanning, persisting anything still buffered. Idempotent. */
-    fun stop() {
+    override fun stop() {
         // A deliberate teardown (device switch / removal) must NOT auto-reconnect: mark it intentional and
         // drop the reconnect target so any pending backoff bails and no fresh one is scheduled (#912). Remove
         // any already-posted reconnect from the main-looper handler too, so it isn't retained for the full
