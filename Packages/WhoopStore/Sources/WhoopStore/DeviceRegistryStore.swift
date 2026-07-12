@@ -87,6 +87,9 @@ public struct DeviceRegistryStore: Sendable {
         // asserts this list covers every deviceId-keyed table in Database.swift so future migrations
         // can't reintroduce the gap.
         "rawBatch", "labMarker", "sleepStateSample", "liveSession",
+        // v25-oura-raw: the opt-in Oura cloud-import raw archive is deviceId-keyed too, so "delete this
+        // device's data" must clear it — else an imported Oura source's payloads would survive deletion.
+        "ouraRaw",
     ]
 
     /// Permanently delete every recorded sample/derived row belonging to one device, across all
