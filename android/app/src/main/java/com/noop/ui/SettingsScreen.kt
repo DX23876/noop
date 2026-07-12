@@ -469,9 +469,6 @@ fun SettingsScreen(
     // instead of 24/7. Default OFF so existing users keep the always-on behaviour. Local mirror.
     var continuousHrvOvernight by remember { mutableStateOf(NoopPrefs.continuousHrvOvernight(context)) }
 
-    // "Debug logging" — mirror the strap log to logcat (adb). Default OFF so normal users don't.
-    var debugLogging by remember { mutableStateOf(NoopPrefs.debugLogging(context)) }
-
     // --- v5 Health & wellness toggle group. All SharedPreferences-backed (not reactive), so each Switch
     // drives a local mirror that writes straight through to the same keys the v5 engine readers use.
     // Illness watch routes through the ViewModel so the banner recomputes live; the rest are pref writes
@@ -493,13 +490,6 @@ fun SettingsScreen(
     // Live Sessions (beta) — gates the Today "Start session" entry. Unlike its section-mates this is a
     // BETA feature flag, default ON (`live_sessions_beta`, see LiveSessionPrefs); off hides the entry.
     var liveSessionsBeta by remember { mutableStateOf(LiveSessionPrefs.enabled(context)) }
-
-    // Scheduled debug export (#510) — the daily auto-export toggle + time-of-day. The settings object is
-    // its own SharedPreferences store; SharedPreferences isn't reactive, so the Switch + TimeChip mirror
-    // into local state and write straight through, then (re)schedule via DebugExportScheduler.
-    val debugExportSettings = remember { DebugExportSettings.from(context) }
-    var debugExportEnabled by remember { mutableStateOf(debugExportSettings.enabled) }
-    var debugExportMinutes by remember { mutableStateOf(debugExportSettings.timeMinutes) }
 
     // Imperial/Metric display preference (D#103). Display-only — stored data stays SI. The system drives
     // the profile fields below (imperial entry) too, so it's local state the whole screen reads.
@@ -1386,46 +1376,6 @@ fun SettingsScreen(
                     color = Palette.textTertiary,
                 )
 
-                // Diagnostics: "Debug logging" mirrors the strap log to logcat (adb). Default OFF — a
-                // normal user never needs to write the connection log to the system log; the in-app log
-                // (and the "Share strap log" export below) work regardless. Developers flip this on to
-                // watch the connection live over `adb logcat -s WhoopBleClient`.
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            "Debug logging",
-                            style = NoopType.subhead,
-                            color = Palette.textPrimary,
-                        )
-                        Text(
-                            "Also write the strap log to the system log (logcat) for development over adb. Off by default; the in-app log and “Share strap log” below work either way.",
-                            style = NoopType.footnote,
-                            color = Palette.textTertiary,
-                        )
-                    }
-                    Switch(
-                        checked = debugLogging,
-                        onCheckedChange = {
-                            debugLogging = it
-                            vm.setDebugLogging(it)
-                        },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Palette.surfaceBase,
-                            checkedTrackColor = Palette.accent,
-                            uncheckedThumbColor = Palette.textSecondary,
-                            uncheckedTrackColor = Palette.surfaceInset,
-                            uncheckedBorderColor = Palette.hairline,
-                        ),
-                        modifier = Modifier.semantics {
-                            contentDescription = "Debug logging"
-                        },
-                    )
-                }
-
                 // Diagnostics: export the strap connection log so people can attach it to a bug report.
                 NoopButton(
                     text = "Share strap log (for bug reports)",
@@ -1539,7 +1489,7 @@ fun SettingsScreen(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     Text(
-                        "Broadcast heart rate (Garmin/ANT)",
+                        "Broadcast strap HR (Garmin/ANT)",
                         style = NoopType.subhead,
                         color = Palette.textPrimary,
                         modifier = Modifier.weight(1f),
@@ -1780,105 +1730,6 @@ fun SettingsScreen(
                     "Feel the current time as a sequence of buzzes (#460). Does nothing unless your strap is connected.",
                     style = NoopType.caption,
                     color = Palette.textTertiary,
-                )
-            }
-        }
-
-        // --- Scheduled debug export (#510, maddognik) --- a daily, no-UI drop of the timestamped strap
-        // log (+ raw .bin when a 5/MG capture exists) into the app's export folder at a time you choose, so
-        // an intermittent overnight fault leaves a dated log waiting instead of needing a manual share. The
-        // feature core lives in DebugExportScheduler/DebugExportSettings; this is just the controls. OFF by
-        // default. SharedPreferences isn't reactive, so the Switch + time mirror into local state.
-        SettingsSection(
-            icon = Icons.Filled.Storage,
-            title = "Scheduled debug export (#510)",
-            blurb = "Once a day at a time you choose, NOOP writes a timestamped strap log (plus the raw 5/MG capture, if you have one) to its export folder. No sharing, nothing leaves the phone. Useful for chasing an intermittent overnight fault. Off by default.",
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            "Daily auto-export",
-                            style = NoopType.subhead,
-                            color = Palette.textPrimary,
-                        )
-                        Text(
-                            "Writes a timestamped strap log (and the raw .bin if a 5/MG capture exists) to the app's export folder once a day at the time below.",
-                            style = NoopType.footnote,
-                            color = Palette.textTertiary,
-                        )
-                    }
-                    Switch(
-                        checked = debugExportEnabled,
-                        onCheckedChange = {
-                            debugExportEnabled = it
-                            debugExportSettings.enabled = it
-                            DebugExportScheduler.reschedule(context)
-                        },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Palette.surfaceBase,
-                            checkedTrackColor = Palette.accent,
-                            uncheckedThumbColor = Palette.textSecondary,
-                            uncheckedTrackColor = Palette.surfaceInset,
-                            uncheckedBorderColor = Palette.hairline,
-                        ),
-                        modifier = Modifier.semantics {
-                            contentDescription = "Daily auto-export"
-                        },
-                    )
-                }
-
-                if (debugExportEnabled) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Export time", style = NoopType.subhead, color = Palette.textPrimary)
-                            Text(
-                                "The daily export runs at this time.",
-                                style = NoopType.footnote,
-                                color = Palette.textTertiary,
-                            )
-                        }
-                        TimeChip(
-                            minutes = debugExportMinutes,
-                            accessibilityLabel = "Daily export time",
-                            onPicked = {
-                                debugExportMinutes = it
-                                debugExportSettings.timeMinutes = it
-                                DebugExportScheduler.applyTimeChange(context)
-                            },
-                        )
-                    }
-                }
-
-                // "Export now" writes the dated file immediately (off the main thread, like the CSV export
-                // above) and confirms with a Toast naming the folder, so the user sees the feature work
-                // without waiting for the scheduled run.
-                NoopButton(
-                    text = "Export now",
-                    leadingIcon = Icons.Filled.SaveAlt,
-                    kind = NoopButtonKind.Secondary,
-                    fullWidth = true,
-                    onClick = {
-                        scope.launch {
-                            val files = withContext(Dispatchers.IO) {
-                                LogExport.writeScheduledExport(context, vm.ble.exportLogText())
-                            }
-                            Toast.makeText(
-                                context,
-                                if (files.isNotEmpty()) "Wrote a dated debug export (${files.size} file${if (files.size == 1) "" else "s"}) to the app's export folder."
-                                else "Couldn't write the debug export.",
-                                Toast.LENGTH_LONG,
-                            ).show()
-                        }
-                    },
                 )
             }
         }

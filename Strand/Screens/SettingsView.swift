@@ -1330,7 +1330,7 @@ struct SettingsView: View {
 
                 // MARK: Broadcast HR — make the strap a standard BLE HR sensor (Garmin/Zwift/gym).
                 Toggle(isOn: $broadcastHrEnabled) {
-                    Text("Broadcast heart rate (Garmin/ANT)")
+                    Text("Broadcast strap HR (Garmin/ANT)")
                         .font(StrandFont.subhead)
                         .foregroundStyle(StrandPalette.textPrimary)
                 }

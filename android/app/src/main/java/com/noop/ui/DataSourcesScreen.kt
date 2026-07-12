@@ -158,49 +158,10 @@ fun DataSourcesScreen(vm: AppViewModel) {
         }
     }
 
-    // Whole-store backup: export to a user-created document; import from a picked one.
+    // Busy flag shared by every importer's Export/Import buttons.
     var busy by remember { mutableStateOf(false) }
-    var restartNeeded by remember { mutableStateOf(false) }
     // ah-delete (#616): drives the "Remove Apple Health imported data" confirm dialog.
     var confirmDeleteApple by remember { mutableStateOf(false) }
-
-    val exportLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/octet-stream"),
-    ) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        busy = true
-        scope.launch {
-            val message = withContext(Dispatchers.IO) {
-                runCatching { DataBackup.exportTo(context, uri) }
-                    .fold({ "Backup saved." }, { "Backup failed: ${it.message}" })
-            }
-            busy = false
-            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-        }
-    }
-
-    val importLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument(),
-    ) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        busy = true
-        scope.launch {
-            val result = withContext(Dispatchers.IO) { DataBackup.importFrom(context, uri) }
-            busy = false
-            when (result) {
-                is DataBackup.ImportResult.NeedsRestart -> {
-                    restartNeeded = true
-                    Toast.makeText(
-                        context,
-                        "Imported. Fully close and reopen NOOP to load it.",
-                        Toast.LENGTH_LONG,
-                    ).show()
-                }
-                is DataBackup.ImportResult.Failed ->
-                    Toast.makeText(context, result.message, Toast.LENGTH_LONG).show()
-            }
-        }
-    }
 
     suspend fun refreshCounts() {
         val nowS = System.currentTimeMillis() / 1000
@@ -745,7 +706,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
         // --- Broadcast heart rate (NOOP as a standard BLE HR peripheral) ---
         item {
         SourceCard(
-            title = "Broadcast heart rate",
+            title = "Broadcast HR from this phone",
             icon = Icons.Filled.MonitorHeart,
             tint = DomainTheme.Effort.color,
             subtitle = "Re-share your live strap heart rate over Bluetooth as a standard heart-rate " +
@@ -781,7 +742,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Broadcast heart rate", style = NoopType.subhead, color = Palette.textPrimary)
+                    Text("Broadcast HR from this phone", style = NoopType.subhead, color = Palette.textPrimary)
                     Text(
                         "Acts as a standard Bluetooth heart-rate strap. Pair NOOP from your treadmill, " +
                             "bike or app to see your strap's heart rate there.",
@@ -853,44 +814,6 @@ fun DataSourcesScreen(vm: AppViewModel) {
         }
         }
 
-        // --- Whole-store backup (the real Android migration path) ---
-        item {
-        SourceCard(
-            title = "Backup & Move",
-            icon = Icons.Filled.FileDownload,
-            subtitle = "Your whole history is one file on this phone. Export it to keep a copy " +
-                "or move to a new phone, then import it there. Nothing leaves the device " +
-                "except through the file you choose.",
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                BackupButton(
-                    label = "Export…",
-                    icon = Icons.Filled.FileDownload,
-                    enabled = !busy,
-                    modifier = Modifier.weight(1f),
-                ) { exportLauncher.launch("noop-backup-${java.time.LocalDate.now()}.noopbak") }
-                BackupButton(
-                    label = "Import…",
-                    icon = Icons.Filled.FileUpload,
-                    enabled = !busy,
-                    modifier = Modifier.weight(1f),
-                ) { importLauncher.launch(arrayOf("*/*")) }
-            }
-            if (busy) {
-                Text("Working…", style = NoopType.footnote, color = Palette.textTertiary)
-            }
-            if (restartNeeded) {
-                Text(
-                    "Import staged. Fully close and reopen NOOP to load the new data.",
-                    style = NoopType.subhead,
-                    color = Palette.statusWarning,
-                )
-            }
-        }
-        }
     }
 
     // ah-delete (#616): strongly-worded confirm before purging the "apple-health" source. On confirm,

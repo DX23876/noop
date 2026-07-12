@@ -781,12 +781,12 @@ struct DataSourcesView: View {
                         tone: hrBroadcaster.advertising ? .positive : .warning,
                         pulsing: !hrBroadcaster.advertising)
             : nil
-        return card(title: String(localized: "Broadcast heart rate"), icon: "dot.radiowaves.up.forward",
+        return card(title: String(localized: "Broadcast HR from this phone"), icon: "dot.radiowaves.up.forward",
              tint: DomainTheme.effort.color,
              status: status ?? StatePill("Off", tone: .neutral, showsDot: false),
              subtitle: String(localized: "Re-share your live strap heart rate over Bluetooth as a standard heart-rate sensor, so a gym treadmill, bike, Zwift, Peloton or any fitness app nearby can read it. Local Bluetooth only. Nothing leaves \(Platform.deviceNounPhrase). Off by default.")) {
             Toggle(isOn: $broadcastHrEnabled) {
-                Text("Broadcast heart rate")
+                Text("Broadcast HR from this phone")
                     .font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.textPrimary)
             }

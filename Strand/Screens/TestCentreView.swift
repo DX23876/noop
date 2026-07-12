@@ -31,15 +31,6 @@ struct TestCentreView: View {
     @State private var debugExportOn = ScheduledDebugExport.isEnabled
     @State private var debugExportMinutes = ScheduledDebugExport.timeMinutes
 
-    // Section 4: the experimental toggles, on the SAME @AppStorage keys as SettingsView (preserved per
-    // spec section 10), so toggling here and there is one and the same setting.
-    @AppStorage(PuffinExperiment.experimentalSleepV2Key) private var experimentalSleepV2Enabled = true
-    @AppStorage(PuffinExperiment.keepRealtimeForDataKey) private var continuousHrvEnabled = false
-    @AppStorage(PuffinExperiment.defaultsKey) private var puffinExperiments = false
-    @AppStorage(PuffinExperiment.deepDataKey) private var deepDataEnabled = false
-    @AppStorage(PuffinExperiment.broadcastHrKey) private var broadcastHrEnabled = false
-    @AppStorage(PuffinFrameRecorder.enabledKey) private var puffinCapture = false
-
     /// The strap model the user last picked, the same key SettingsView's showFiveMGControls gate reads.
     @AppStorage("selectedWhoopModel") private var selectedWhoopModelRaw = WhoopModel.whoop4.rawValue
 
@@ -61,7 +52,6 @@ struct TestCentreView: View {
                 domainModesCard.staggeredAppear(index: 0)
                 diagnosticToolsCard.staggeredAppear(index: 1)
                 exportCard.staggeredAppear(index: 2)
-                advancedCard.staggeredAppear(index: 3)
             }
         }
         .id(refreshToken)
@@ -222,68 +212,6 @@ struct TestCentreView: View {
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-            }
-        }
-    }
-
-    // MARK: - Section 4: Advanced / experimental
-
-    @ViewBuilder private var advancedCard: some View {
-        NoopCard {
-            VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-                Text("ADVANCED")
-                    .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
-                    .foregroundStyle(StrandPalette.textSecondary)
-
-                // Model-agnostic advanced toggles (shown on every strap), same @AppStorage keys as Settings.
-                Toggle(isOn: $experimentalSleepV2Enabled) {
-                    Text("Sleep staging (V2)")
-                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                }
-                .toggleStyle(.switch).tint(StrandPalette.accent)
-
-                Toggle(isOn: $continuousHrvEnabled) {
-                    Text("Continuous HRV capture")
-                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                }
-                .toggleStyle(.switch).tint(StrandPalette.accent)
-                .onChangeCompat(of: continuousHrvEnabled) { on in model.ble.setKeepRealtimeForData(on) }
-
-                // 5/MG-only probes, hidden off a 4.0 strap (the #22 gate, same as SettingsView).
-                if is5MG {
-                    Divider().overlay(StrandPalette.hairline)
-                    Text("WHOOP 5 / MG").font(StrandFont.overline).tracking(StrandFont.overlineTracking)
-                        .foregroundStyle(StrandPalette.textSecondary)
-
-                    Toggle(isOn: $puffinExperiments) {
-                        Text("Try WHOOP 5/MG protocol probes")
-                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                    }
-                    .toggleStyle(.switch).tint(StrandPalette.accent)
-
-                    Toggle(isOn: $deepDataEnabled) {
-                        Text("Unlock WHOOP 5/MG deep data (R22)")
-                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                    }
-                    .toggleStyle(.switch).tint(StrandPalette.accent)
-
-                    Toggle(isOn: $broadcastHrEnabled) {
-                        Text("Broadcast heart rate (Garmin/ANT)")
-                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                    }
-                    .toggleStyle(.switch).tint(StrandPalette.accent)
-                    .onChangeCompat(of: broadcastHrEnabled) { on in model.ble.setBroadcastHr(on) }
-
-                    Toggle(isOn: $puffinCapture) {
-                        Text("Record puffin frames to a file")
-                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                    }
-                    .toggleStyle(.switch).tint(StrandPalette.accent)
-                }
-
-                Text("These are experimental probes, off by default. The fuller WHOOP 5/MG controls and the raw-sensor CSV export still live in Settings under Diagnostics.")
-                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
