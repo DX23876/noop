@@ -424,12 +424,6 @@ class WhoopBleClient(
          *  stays un-backed-off. The ordinary involuntary-reconnect paths use the capped-exponential
          *  [ReconnectBackoff] instead (#48). (BLEManager: "rescanning in 3s".) */
         private const val RECONNECT_DELAY_MS = 3_000L
-        /** A connection must SURVIVE this long before it's "healthy" enough to clear the involuntary-
-         *  reconnect backoff (see the STATE_CONNECTED handler). A band whose ACL is contended by the
-         *  official WHOOP app reaches STATE_CONNECTED briefly each cycle; without this dwell the backoff
-         *  reset there would pin it at attempt 1 = active DIRECT reconnect (#173) forever, churning the
-         *  phone + strap radios. 8s matches the bond-loop quick-timeout window (a link this short is a flap). */
-        private const val RECONNECT_HEALTHY_DWELL_MS = 8_000L
         /** PR #588: after this many CONSECUTIVE involuntary reconnect attempts, drop the scan from the
          *  battery-hungry LOW_LATENCY mode to a lower-power mode. A strap that's genuinely out of range
          *  (left at home, dead battery) would otherwise hold the radio at full power indefinitely while
@@ -2736,8 +2730,9 @@ class WhoopBleClient(
 
     /** Run [action] after [delayMs], but ONLY if the SAME continuous connection is still up when it fires.
      *  A reconnect (or bond-loop cycle) bumps [connectGeneration], so a transient cycle-connect can't
-     *  satisfy the guard even though the device address is identical across cycles. Both STATE_CONNECTED
-     *  survived-the-dwell timers use it: the re-pair-guide clear (#711) and the reconnect-backoff reset. */
+     *  satisfy the guard even though the device address is identical across cycles. Used by the
+     *  STATE_CONNECTED re-pair-guide clear (#711) — clear the guide only once the link proves it survived
+     *  the bond-loop's quick-timeout window. */
     private fun runIfConnectionSurvives(delayMs: Long, action: () -> Unit) {
         val gen = connectGeneration
         handler.postDelayed({
@@ -3078,12 +3073,16 @@ class WhoopBleClient(
                     // #1030 (ryanbr): a real link is up — cancel any pending involuntary reconnect so a
                     // stale backoff timer can't fire and reset+close this connection.
                     cancelPendingReconnect()
-                    // A successful connect clears the reconnect backoff (iOS didConnect:
-                    // failedConnectAttempts=0, #48) — but DEFERRED behind the connectGeneration guard below
-                    // (see the reset after the re-pair-guide block) so it only fires once THIS connection has
-                    // SURVIVED [RECONNECT_HEALTHY_DWELL_MS]. Resetting immediately would let a WHOOP-app-
-                    // contended band that flaps through STATE_CONNECTED every few seconds churn active DIRECT
-                    // reconnects forever (#173); deferring lets the backoff escalate to PASSIVE instead.
+                    // A successful connect clears the reconnect backoff — the next involuntary drop starts
+                    // the 3,6,12…s schedule afresh (iOS didConnect: failedConnectAttempts=0, #48). Reset
+                    // IMMEDIATELY, not behind a survival dwell: a band the OS holds bonded/ACL-connected
+                    // (co-resident with the official WHOOP app) can ONLY be recovered by the fast DIRECT
+                    // reconnect (failedReconnectAttempts < 3). The PASSIVE autoConnect a dwell-gate escalates
+                    // to STALLS on such a band — it waits for an advertisement/connection-complete the OS
+                    // never re-emits (see handleDisconnect, "passive mode stalls"). So letting the counter
+                    // climb on a flapping co-resident band froze the link, and with it the keep-alive battery
+                    // poll and every historical offload: sync + battery stopped updating (regression of #173).
+                    resetReconnectBackoff()
                     // A connect succeeded → clear the stale-bond re-pair guide UNLESS we are in a known
                     // bond-loop (#617). In that loop the strap "connects" every ~3 s before timing out
                     // again, so clearing here wiped the guide on EVERY cycle: it flashed for ~1 s and
@@ -3106,14 +3105,6 @@ class WhoopBleClient(
                             _state.update { it.copy(reconnectGuide = null) }
                         }
                     }
-                    // Clear the involuntary-reconnect backoff only once THIS connection has SURVIVED the dwell
-                    // — same connectGeneration guard as the guide-clear above. A flapping (ACL-contended) band
-                    // bumps connectGeneration on its next brief connect, so this no-ops and failedReconnect-
-                    // Attempts keeps accumulating → the involuntary reconnect escalates to low-power PASSIVE
-                    // autoConnect (>= 3) instead of hammering active DIRECT connects. A genuinely healthy link
-                    // survives the dwell and resets, keeping the snappy 3s first retry. Android hardening for
-                    // the shared-ACL flap; no iOS analogue (iOS isn't co-resident with the WHOOP app).
-                    runIfConnectionSurvives(RECONNECT_HEALTHY_DWELL_MS) { resetReconnectBackoff() }
                     // Multi-WHOOP: publish the connected strap's stable BLE address so SourceCoordinator can
                     // adopt it onto the active registry device's peripheralId on first connect. Additive twin
                     // of macOS BLEManager.connectedPeripheralUUID (set in didConnect). Decoupled from the
