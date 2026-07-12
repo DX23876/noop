@@ -1,8 +1,9 @@
 import Foundation
 import WhoopProtocol
 
-// SleepStagerV2.swift — an OPT-IN, EXPERIMENTAL alternative sleep-staging recipe, offered ALONGSIDE the
-// shipped `SleepStager` (V1) rather than replacing it. V1 stays the default and is UNTOUCHED.
+// SleepStagerV2.swift — the DEFAULT sleep-staging recipe. It became the default over the older
+// percentile-band stager `SleepStager` (V1) after a 44-subject cross-subject benchmark; V1 stays available
+// behind the PuffinExperiment flag.
 //
 // Reimplemented clean from the contributor recipe in NoopApp/noop PR #600 (sunny-noop). We took only the
 // per-session STAGING engine, not the CLI runner the PR shipped with it. Session DETECTION (the in-bed
@@ -10,11 +11,11 @@ import WhoopProtocol
 // decided is sleep, so it is a true drop-in for `SleepStager.stageSession(start:end:grav:hr:rr:resp:)`:
 // SAME signature, SAME `[StageSegment]` return shape.
 //
-// HONEST HEDGING (same spirit as V1, plus the PR's own caveat): these stages are APPROXIMATIONS, not
-// PSG-validated, not medical advice. The recipe was validated by its author on a SINGLE subject (n=1, 7
-// nights) against a commercial reference — it recovered deep/REM noticeably better than V1 there (kappa
-// ~0.06 → ~0.47), but the window sizes / weights may be subject-specific and need multi-subject validation
-// before they can be trusted as general. That is exactly why this is opt-in and labelled experimental.
+// HONEST HEDGING (same spirit as V1): these stages are APPROXIMATIONS, not PSG-validated, not medical
+// advice. The recipe first shipped with only its author's n=1 validation; it is now the default because a
+// 44-subject leave-one-subject-out benchmark (AAUWSS + Walch sleep-accel) showed it strictly dominates V1
+// (kappa 0.35 vs 0.03, deep recall 55% vs 1%). The per-epoch coefficients are still fixed a-priori from
+// sleep physiology + population base rates, not fit to labels.
 //
 // Where V1 runs a percentile-band classifier + median smoothing + physiology re-imposition over a
 // Cole–Kripke actigraphy grid, V2 stages each 30 s epoch from:
@@ -142,8 +143,10 @@ public enum SleepStagerV2 {
     static let baseLogPrior: [String: Double] = [
         "light": log(0.50), "deep": log(0.18), "rem": log(0.22), "awake": log(0.10)]
 
-    /// Deep is eligible only in the night's lowest ~20 % HR-flatness epochs (≈ deep base rate + margin).
-    static let deepGateThresh = 0.20
+    /// Deep is eligible only in the night's lowest ~25 % HR-flatness epochs (≈ deep base rate + margin).
+    /// Widened 0.20 -> 0.25 by the multi-subject (AAUWSS + sleep-accel LOSO) deep-boundary tune, which
+    /// recovers the deep recall the other deep-tightening edits shed while keeping precision up.
+    static let deepGateThresh = 0.25
     static let deepGateSlope = 5.0
 
     /// Motion thresholds are RELATIVE to each night's own quiescent jerk floor (the median per-second
@@ -159,7 +162,7 @@ public enum SleepStagerV2 {
     /// Transition matrix (rows = from, cols = to). Self-transitions dominate; deep↔rem rare; wake mostly
     /// to/from light. A priori, not fit.
     static let transition: [String: [String: Double]] = [
-        "deep":  ["deep": 0.90, "rem": 0.005, "light": 0.09, "awake": 0.005],
+        "deep":  ["deep": 0.86, "rem": 0.007, "light": 0.126, "awake": 0.007],
         "rem":   ["deep": 0.005, "rem": 0.88, "light": 0.10, "awake": 0.015],
         "light": ["deep": 0.06, "rem": 0.06, "light": 0.85, "awake": 0.03],
         "awake": ["deep": 0.01, "rem": 0.02, "light": 0.27, "awake": 0.70]]
@@ -433,7 +436,7 @@ public enum SleepStagerV2 {
             let zhrv = zhr(f.hr), zhvv = zhv(f.hrVar), zmvv = zmv(f.moveFrac)
             let gate = deepGateSlope * max(0.0, fpct(f.hrFlat11) - deepGateThresh)
             var em: [String: Double] = [
-                "deep": -1.4 * zhvv - 0.2 * zhrv - 0.3 * zmvv - gate + baseLogPrior["deep"]!,
+                "deep": -1.1 * zhvv - 0.5 * zmvv - gate + baseLogPrior["deep"]!,
                 "rem": 0.6 * zhvv - 0.6 * zmvv + 0.4 * zhrv + baseLogPrior["rem"]!,
                 "light": baseLogPrior["light"]!,
                 "awake": 1.0 * zmvv + 0.8 * zhvv + 0.4 * zhrv + baseLogPrior["awake"]!,

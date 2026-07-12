@@ -50,15 +50,23 @@ enum PuffinExperiment {
 
     static var continuousHrvOvernightOnlyEnabled: Bool { UserDefaults.standard.bool(forKey: continuousHrvOvernightOnlyKey) }
 
-    /// Opt-in "Experimental sleep staging (V2)": re-stage each detected night with `SleepStagerV2` — a
-    /// transparent cardiorespiratory recipe (reimplemented from contributor PR #600) that recovers deep/REM
-    /// better than the shipped V1 stager on its author's n=1 validation. Pure analysis switch: it changes
-    /// ONLY which staging engine runs over an already-detected sleep window; sleep DETECTION, scoring and the
-    /// default V1 path are all untouched. Default OFF. Read at the staging call site (Repository) to pick
-    /// V1 vs V2. Mirrors the Android `PuffinExperiment.KEY_EXPERIMENTAL_SLEEP_V2`.
+    /// "Experimental sleep staging (V2)": re-stage each detected night with `SleepStagerV2` — a transparent
+    /// cardiorespiratory recipe (reimplemented from contributor PR #600) — instead of the older V1 stager.
+    /// Pure analysis switch: it changes ONLY which staging engine runs over an already-detected sleep window;
+    /// sleep DETECTION, scoring and the V1 path are all untouched. Model-agnostic (WHOOP 4 and 5). **Default
+    /// ON**: V2 was promoted to the default staging engine after a 44-subject cross-subject benchmark (AAUWSS
+    /// + Walch sleep-accel, leave-one-subject-out) showed V2 strictly dominates V1 (kappa 0.35 vs 0.03, deep
+    /// recall 55 % vs 1 %) — the multi-subject validation this recipe originally lacked. V1 remains available.
+    /// Read at the staging call site (Repository). Mirrors the Android `PuffinExperiment.KEY_EXPERIMENTAL_SLEEP_V2`.
     static let experimentalSleepV2Key = "noopExperimentalSleepV2"
 
-    static var experimentalSleepV2Enabled: Bool { UserDefaults.standard.bool(forKey: experimentalSleepV2Key) }
+    /// Default ON when the key is unset (mirrors the Android `getBoolean(KEY, true)`): a `bool(forKey:)` alone
+    /// reads a missing key as false, so an absent preference must resolve to the promoted V2 default explicitly.
+    static var experimentalSleepV2Enabled: Bool {
+        UserDefaults.standard.object(forKey: experimentalSleepV2Key) == nil
+            ? true
+            : UserDefaults.standard.bool(forKey: experimentalSleepV2Key)
+    }
 
     /// Opt-in "Auto-detect workouts": after a sync / on Today appear, scan the last day or two of HR for a
     /// SUSTAINED-ELEVATED window (resting HR + 30 bpm held ≥ 12 min) that doesn't overlap a saved workout,

@@ -1707,14 +1707,15 @@ fun SettingsScreen(
             blurb = "A read-only export of the decoded sensor streams NOOP already stores. Works on any strap. Nothing is written to your device, and nothing is uploaded.",
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                // --- Experimental sleep staging (V2) — opt-in, default OFF, every model. (V7 Pillar 3b) ---
+                // --- Sleep staging (V2) — the DEFAULT engine after the 44-subject benchmark; toggle off to
+                //     fall back to V1. Every model. (V7 Pillar 3b) ---
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     Text(
-                        "Experimental sleep staging (V2)",
+                        "Sleep staging (V2)",
                         style = NoopType.subhead,
                         color = Palette.textPrimary,
                         modifier = Modifier.weight(1f),
@@ -1733,15 +1734,15 @@ fun SettingsScreen(
                             uncheckedBorderColor = Palette.hairline,
                         ),
                         modifier = Modifier.semantics {
-                            contentDescription = "Experimental sleep staging V2"
+                            contentDescription = "Sleep staging V2"
                         },
                     )
                 }
                 Text(
-                    "A transparent cardiorespiratory recipe that recovers deep and REM better than the " +
-                        "default staging. Opt-in and experimental: it only changes how already-detected " +
-                        "nights are split into stages (detection and scores are unchanged), and the default " +
-                        "staging stays in place if you leave this off. Takes effect on the next nights staged.",
+                    "A transparent cardiorespiratory recipe that recovers deep and REM better than the older " +
+                        "V1 staging, and is now the default. It only changes how already-detected nights are " +
+                        "split into stages (detection and scores are unchanged); turn it off to fall back to " +
+                        "V1. Takes effect on the next nights staged.",
                     style = NoopType.caption,
                     color = Palette.textTertiary,
                 )

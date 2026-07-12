@@ -52,10 +52,11 @@ struct SettingsView: View {
     /// See [PuffinExperiment.continuousHrvOvernightOnlyKey].
     @AppStorage(PuffinExperiment.continuousHrvOvernightOnlyKey) private var continuousHrvOvernightOnly = false
 
-    /// Opt-in "Experimental sleep staging (V2)" (off by default). When on, detected nights are re-staged with
-    /// `SleepStagerV2` (the transparent cardiorespiratory recipe) instead of the default V1 stager. Read at
-    /// the staging call site in `Repository`. See [PuffinExperiment.experimentalSleepV2Key].
-    @AppStorage(PuffinExperiment.experimentalSleepV2Key) private var experimentalSleepV2Enabled = false
+    /// "Experimental sleep staging (V2)" (ON by default, promoted after the 44-subject cross-subject
+    /// benchmark). When on, detected nights are re-staged with `SleepStagerV2` (the transparent
+    /// cardiorespiratory recipe) instead of the older V1 stager. Read at the staging call site in
+    /// `Repository`. See [PuffinExperiment.experimentalSleepV2Key].
+    @AppStorage(PuffinExperiment.experimentalSleepV2Key) private var experimentalSleepV2Enabled = true
 
     // Imperial/Metric display preference (D#103). Stored data is always SI; this only changes how
     // distances/weights/heights/temperatures are SHOWN — and lets the profile fields below take
@@ -1207,24 +1208,25 @@ struct SettingsView: View {
         }
     }
 
-    /// Opt-in experimental sleep staging (V2). Model-agnostic — the V2 recipe works on WHOOP 4 and 5 — so it
-    /// renders on every strap, separate from the 5/MG probe card. Default OFF; flipping it on re-stages
-    /// future (and re-derived) nights with `SleepStagerV2`. The default V1 stager is untouched.
+    /// Sleep staging engine. V2 (the transparent cardiorespiratory recipe) is the DEFAULT after a 44-subject
+    /// cross-subject benchmark; model-agnostic — it works on WHOOP 4 and 5 — so it renders on every strap.
+    /// Turning the toggle OFF falls back to the older V1 percentile-band stager; either way only future
+    /// (and re-derived) nights are affected.
     private var sleepStagingCard: some View {
         SettingsSection(
             icon: "bed.double.fill",
-            title: "Experimental · Sleep staging",
-            blurb: "How NOOP splits a night into light / deep / REM. This is a separate, opt-in recipe. Your default staging is unchanged unless you turn it on."
+            title: "Sleep staging",
+            blurb: "How NOOP splits a night into light / deep / REM. The V2 recipe is the default; turn it off to fall back to the older V1 staging."
         ) {
             VStack(alignment: .leading, spacing: NoopMetrics.rowSpacing) {
                 Toggle(isOn: $experimentalSleepV2Enabled) {
-                    Text("Experimental sleep staging (V2)")
+                    Text("Sleep staging (V2)")
                         .font(StrandFont.subhead)
                         .foregroundStyle(StrandPalette.textPrimary)
                 }
                 .toggleStyle(.switch)
                 .tint(StrandPalette.accent)
-                Text("A transparent cardiorespiratory recipe that recovers deep and REM better than the default staging. Opt-in and experimental: it only changes how already-detected nights are split into stages (detection and scores are unchanged), and the default staging stays in place if you leave this off. Takes effect on the next nights staged.")
+                Text("A transparent cardiorespiratory recipe that recovers deep and REM better than the older V1 staging, and is now the default. It only changes how already-detected nights are split into stages (detection and scores are unchanged); turn it off to fall back to V1. Takes effect on the next nights staged.")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
