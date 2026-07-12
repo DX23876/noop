@@ -651,6 +651,10 @@ public final class BLEManager: NSObject, ObservableObject {
     /// Non-nil signals that `centralManagerDidUpdateState` should reconnect this
     /// specific peripheral rather than starting a fresh scan.
     private var restoredPeripheral: CBPeripheral?
+    /// #280: true while `lastSyncError` currently holds a radio-state message (off / unauthorized /
+    /// unsupported) that `centralManagerDidUpdateState` set. Lets the poweredOn transition clear ONLY
+    /// that message, never a genuine mid-sync error (e.g. "Sync interrupted").
+    private var radioStateErrorShown = false
     private var cmdCharacteristic: CBCharacteristic?
     private var cmdNotifyCharacteristic: CBCharacteristic?
     private var eventNotifyCharacteristic: CBCharacteristic?
@@ -2759,7 +2763,47 @@ public final class BLEManager: NSObject, ObservableObject {
 extension BLEManager: @preconcurrency CBCentralManagerDelegate {
     public func centralManagerDidUpdateState(_ central: CBCentralManager) {
         log("Central state: \(central.state.rawValue) (5 = poweredOn)")
-        guard central.state == .poweredOn else { return }
+        guard central.state == .poweredOn else {
+            // #280: a non-poweredOn radio state used to be a SILENT return — the strap log showed only
+            // "Central state: 3" and the UI just read "not connected", so a user whose Mac had denied NOOP
+            // Bluetooth (.unauthorized == raw 3) had nothing explaining why no strap was ever found. This is
+            // the #280 case: an unsigned universal rebuild (8.4.0) gets a new code identity, so the earlier
+            // macOS Bluetooth TCC grant no longer applied and CoreBluetooth reported .unauthorized before
+            // any scan/connect. Surface the actionable states via lastSyncError (shown in Live + Today);
+            // leave .unknown/.resetting alone — they're transient and the next state update resolves them.
+            // Android already surfaces all three (WhoopBleClient: no-LE / off / permission), so this brings
+            // iOS+macOS up to that parity rather than adding a new behaviour.
+            switch central.state {
+            case .unauthorized:
+                // #295: an unsigned/ad-hoc build's code identity changes on every release, so a Bluetooth
+                // toggle that already reads "on" from a PRIOR build's grant may not carry over — the
+                // message needs to tell the user to re-toggle it, not just check that it's on.
+                #if os(macOS)
+                state.lastSyncError = "NOOP isn't allowed to use Bluetooth. Open System Settings → Privacy & Security → Bluetooth — if NOOP is already listed there, toggle it off and back on (a new NOOP build needs a fresh grant), then quit and reopen NOOP."
+                #else
+                state.lastSyncError = "NOOP isn't allowed to use Bluetooth. Open iPhone Settings → NOOP → Bluetooth — if it's already on, toggle it off and back on, then quit and reopen NOOP."
+                #endif
+                log("Bluetooth permission not granted (unauthorized) — cannot scan or connect")
+                radioStateErrorShown = true
+            case .poweredOff:
+                state.lastSyncError = "Bluetooth is off. Turn it on to connect to your strap."
+                log("Bluetooth is off — cannot scan or connect")
+                radioStateErrorShown = true
+            case .unsupported:
+                state.lastSyncError = "This device can't use Bluetooth Low Energy."
+                log("Bluetooth LE unsupported on this device")
+                radioStateErrorShown = true
+            default:
+                break
+            }
+            return
+        }
+        // #280: radio is back — clear a stale radio-state banner (only one WE set), so a "Bluetooth is off"
+        // message doesn't outlive the radio coming on. A genuine sync error is left untouched.
+        if radioStateErrorShown {
+            state.lastSyncError = nil
+            radioStateErrorShown = false
+        }
         // Bootstrap the async store once on first poweredOn (idempotent if already set).
         Task { @MainActor in await bootstrapStore() }
         if let p = restoredPeripheral {
