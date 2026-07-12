@@ -192,7 +192,13 @@ fun DevicesScreen(
                 onDisconnect = if (device.brand.equals("WHOOP", ignoreCase = true)) {
                     { Toast.makeText(context, "Disconnecting", Toast.LENGTH_SHORT).show(); viewModel.disconnect() }
                 } else null,
-                onReboot = { rebootTarget = device },
+                // Restart is offered only for a live-connected WHOOP that is NOT a 4.0: the strap-log
+                // analysis on #275 showed no safe frame reboots a 4.0 (empty bodies are ignored; any
+                // non-empty body just wedges the BLE link for ~7s, sensor stays on), so a 4.0 Restart
+                // button could never work. 5.0/MG reboot on the production frame. null otherwise.
+                onReboot = if (device.status == DeviceStatus.active.name && live.connected &&
+                    SourceCoordinator.isWhoop(device) && live.whoop5Detected
+                ) { { rebootTarget = device } } else null,
                 // 4.0 reboot probe: only offered when Test Centre → Connection is on AND the live strap is
                 // a WHOOP 4.0 (a 5.0 already reboots on the production frame). null otherwise.
                 onRebootProbe = if (device.status == DeviceStatus.active.name && live.connected &&
@@ -293,9 +299,7 @@ fun DevicesScreen(
         ConfirmDialog(
             title = "Restart this strap?",
             message = "Restart ${displayName(device)}? It disconnects for about 30 seconds while it " +
-                "reboots, then reconnects on its own. Your recorded data is kept. Confirmed on WHOOP 5.0; " +
-                "on WHOOP 4.0 the reboot command isn't confirmed yet — if nothing happens, your strap log " +
-                "helps us pin it down.",
+                "reboots, then reconnects on its own. Your recorded data is kept.",
             confirmLabel = "Restart",
             destructive = false,
             onConfirm = { viewModel.rebootStrap(); rebootTarget = null },

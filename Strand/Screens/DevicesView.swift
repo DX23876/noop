@@ -118,7 +118,13 @@ private struct DevicesContent: View {
                     onMakeActive: { switchTarget = device },
                     onRename: { renameDraft = device.nickname ?? device.displayName; renameTarget = device },
                     onRemove: { removeTarget = device },
-                    onReboot: { rebootTarget = device },
+                    // Restart is offered only for a live-connected WHOOP that is NOT a 4.0: the strap-log
+                    // analysis on #275 showed no safe frame reboots a 4.0 (empty bodies are ignored; any
+                    // non-empty body just wedges the BLE link for ~7s, sensor stays on), so a 4.0 Restart
+                    // button could never work. 5.0/MG reboot on the production frame. nil otherwise.
+                    onReboot: (device.status == .active && live.connected
+                               && SourceCoordinator.isWhoop(device)
+                               && !model.ble.isWhoop4) ? { rebootTarget = device } : nil,
                     // 4.0 reboot probe: only offered when Test Centre → Connection is on AND the live
                     // strap is a WHOOP 4.0 (a 5.0 already reboots on the production frame). nil otherwise.
                     onRebootProbe: (device.status == .active && live.connected
@@ -187,7 +193,7 @@ private struct DevicesContent: View {
             Button("Cancel", role: .cancel) { rebootTarget = nil }
             Button("Restart") { model.rebootStrap(); rebootTarget = nil }
         } message: { device in
-            Text("Restart \(device.displayName)? It disconnects for about 30 seconds while it reboots, then reconnects on its own. Your recorded data is kept. Confirmed on WHOOP 5.0; on WHOOP 4.0 the reboot command isn't confirmed yet — if nothing happens, your strap log helps us pin it down.")
+            Text("Restart \(device.displayName)? It disconnects for about 30 seconds while it reboots, then reconnects on its own. Your recorded data is kept.")
         }
         // WHOOP 4.0 reboot probe (#235): only reachable with Test Centre → Connection on and a 4.0 connected.
         // Tries each candidate frame one at a time so the strap log shows which one actually reboots.
