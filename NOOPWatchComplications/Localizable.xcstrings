@@ -3,6 +3,12 @@
   "strings": {
     "%@ %lld": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ %lld"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -19,6 +25,12 @@
     },
     "%@ calibrating": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ wird kalibriert"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -35,6 +47,12 @@
     },
     "%@ unavailable": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ nicht verfügbar"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -109,6 +127,12 @@
     },
     "Charge %lld out of 100": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ladung %lld von 100"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -125,6 +149,12 @@
     },
     "Charge %lld · %lld bpm%@": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ladung %lld · %lld bpm%@"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -141,6 +171,12 @@
     },
     "Charge %lld%@": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ladung %lld%@"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -157,6 +193,12 @@
     },
     "Charge calibrating": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ladung wird kalibriert"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -173,6 +215,12 @@
     },
     "Charge calibrating, needs more data": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ladung wird kalibriert, mehr Daten nötig"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -189,6 +237,12 @@
     },
     "Charge out of date, last synced %@. Open NOOP on iPhone.": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ladung veraltet, zuletzt synchronisiert %@. Öffne NOOP auf dem iPhone."
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -205,6 +259,12 @@
     },
     "Charge stale · %@": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ladung veraltet · %@"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -221,6 +281,12 @@
     },
     "Charge unavailable": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ladung nicht verfügbar"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -237,6 +303,12 @@
     },
     "Charge · %@": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ladung · %@"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -253,6 +325,12 @@
     },
     "Charge · cal": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ladung · cal"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -269,6 +347,12 @@
     },
     "Charge –": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ladung –"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -343,6 +427,12 @@
     },
     "NOOP Charge": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP Ladung"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -383,6 +473,12 @@
     },
     "NOOP · open on iPhone": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP · auf iPhone öffnen"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -399,6 +495,12 @@
     },
     "NOOP. %@, %@, %@.": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP. %@, %@, %@."
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -415,6 +517,12 @@
     },
     "NOOP. No data yet, open NOOP on your iPhone to sync.": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP. Noch keine Daten, öffne NOOP auf deinem iPhone zum Synchronisieren."
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -431,6 +539,12 @@
     },
     "NOOP. Scores out of date, last synced %@. Open NOOP on iPhone to refresh.": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP. Werte veraltet, zuletzt synchronisiert %@. Öffne NOOP auf dem iPhone zum Aktualisieren."
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -447,6 +561,12 @@
     },
     "No data, open NOOP on iPhone": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Daten, öffne NOOP auf dem iPhone"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -463,6 +583,12 @@
     },
     "Open NOOP": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP öffnen"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -537,6 +663,12 @@
     },
     "Your Charge (recovery) on the watch face, with Effort and Rest in the rectangular card.": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Ladung (Erholung) auf dem Zifferblatt, mit Anstrengung und Ruhe in der rechteckigen Karte."
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -577,6 +709,12 @@
     },
     "a while ago": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "vor einer Weile"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -593,6 +731,12 @@
     },
     "cal": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "cal"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -609,6 +753,12 @@
     },
     "old": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "alt"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -625,6 +775,12 @@
     },
     "open iPhone": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone öffnen"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -641,6 +797,12 @@
     },
     "stale": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "veraltet"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",

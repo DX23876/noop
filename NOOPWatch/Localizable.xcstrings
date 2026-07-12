@@ -3,6 +3,12 @@
   "strings": {
     "%@ br/min": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ Atemzüge/Min"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -43,6 +49,12 @@
     },
     "%@ pace": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ Tempo"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -83,6 +95,12 @@
     },
     "%@ · %@s in / %@s out": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %@s ein / %@s aus"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -123,6 +141,12 @@
     },
     "%@ · %lld kcal": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %lld kcal"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -163,6 +187,12 @@
     },
     "%lld breaths · %@": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Atemzüge · %@"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -203,6 +233,12 @@
     },
     "%lld seconds remaining in %@": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Sekunden verbleibend in %@"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "new",
@@ -243,6 +279,12 @@
     },
     "Allow access": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zugriff erlauben"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -283,6 +325,12 @@
     },
     "Box": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Box"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -381,6 +429,12 @@
     },
     "Breathe in": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einatmen"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -421,6 +475,12 @@
     },
     "Breathe in for %lld seconds": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einatmen für %lld Sekunden"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -461,6 +521,12 @@
     },
     "Breathe out": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausatmen"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -501,6 +567,12 @@
     },
     "Breathe out for %lld seconds": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausatmen für %lld Sekunden"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -599,6 +671,12 @@
     },
     "Coherence": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kohärenz"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -639,6 +717,12 @@
     },
     "DONE": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FERTIG"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -679,6 +763,12 @@
     },
     "Done": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fertig"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -777,6 +867,12 @@
     },
     "End": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ende"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -817,6 +913,12 @@
     },
     "End workout": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workout beenden"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -857,6 +959,12 @@
     },
     "Functional strength": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Funktionelles Krafttraining"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -897,6 +1005,12 @@
     },
     "Grant Health access": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Health-Zugriff gewähren"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -995,6 +1109,12 @@
     },
     "HR unavailable": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HF nicht verfügbar"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -1035,6 +1155,12 @@
     },
     "Live heart rate and energy, recorded on your wrist. Stays on device.": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live-Herzfrequenz und -Energie, aufgezeichnet an deinem Handgelenk. Bleibt auf dem Gerät."
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -1075,6 +1201,12 @@
     },
     "Open NOOP on your iPhone to sync": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öffne NOOP auf deinem iPhone zum Synchronisieren"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -1115,6 +1247,12 @@
     },
     "PAUSED": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PAUSIERT"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -1213,6 +1351,12 @@
     },
     "RECORDING": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AUFNAHME"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -1253,6 +1397,12 @@
     },
     "REST": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "RUHE"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -1293,6 +1443,12 @@
     },
     "Ready to breathe": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bereit zum Atmen"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -1333,6 +1489,12 @@
     },
     "Relax": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entspannen"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -1547,6 +1709,12 @@
     },
     "Resume": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fortsetzen"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -1587,6 +1755,12 @@
     },
     "Round %lld of %lld": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Runde %lld von %lld"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -1627,6 +1801,12 @@
     },
     "SEC": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SEK"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -1667,6 +1847,12 @@
     },
     "Session done": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sitzung beendet"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -1823,6 +2009,12 @@
     },
     "Stop": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stopp"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -1921,6 +2113,12 @@
     },
     "WORK": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AKTIV"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -1961,6 +2159,12 @@
     },
     "Workout": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workout"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -2001,6 +2205,12 @@
     },
     "Workout saved": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workout gespeichert"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -2041,6 +2251,12 @@
     },
     "as of %@": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stand: %@"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -2139,6 +2355,12 @@
     },
     "cal": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "cal"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
@@ -2155,6 +2377,12 @@
     },
     "stale · %@": {
       "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "veraltet · %@"
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",

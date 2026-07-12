@@ -60,7 +60,7 @@ public struct DayNavBar: View {
             // Centre accent block — the selected day's label + full date, tappable to jump.
             Button { showingPicker = true } label: {
                 VStack(spacing: 2) {
-                    Text(label)
+                    Text(label, bundle: .module)
                         .font(StrandFont.caption)
                         .foregroundStyle(StrandPalette.textPrimary)
                         .lineLimit(1)
