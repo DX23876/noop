@@ -166,7 +166,7 @@ object SleepStagerV2 {
     /** Deep is eligible only in the night's lowest ~25 % HR-flatness epochs (≈ deep base rate + margin).
      *  Widened 0.20 -> 0.25 by the multi-subject (AAUWSS + sleep-accel LOSO) deep-boundary tune, which
      *  recovers the deep recall the other deep-tightening edits shed while keeping precision up. */
-    private const val deepGateThresh = 0.25
+    internal const val deepGateThresh = 0.25
     private const val deepGateSlope = 5.0
 
     /** Motion thresholds are RELATIVE to each night's own quiescent jerk floor (median per-second jerk over
@@ -180,7 +180,7 @@ object SleepStagerV2 {
 
     /** Transition matrix (rows = from, cols = to). Self-transitions dominate; deep↔rem rare; wake mostly
      *  to/from light. A priori, not fit. */
-    private val transition: Map<String, Map<String, Double>> = mapOf(
+    internal val transition: Map<String, Map<String, Double>> = mapOf(
         "deep" to mapOf("deep" to 0.86, "rem" to 0.007, "light" to 0.126, "awake" to 0.007),
         "rem" to mapOf("deep" to 0.005, "rem" to 0.88, "light" to 0.10, "awake" to 0.015),
         "light" to mapOf("deep" to 0.06, "rem" to 0.06, "light" to 0.85, "awake" to 0.03),

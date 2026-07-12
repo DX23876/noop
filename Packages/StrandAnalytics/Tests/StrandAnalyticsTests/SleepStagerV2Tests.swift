@@ -161,7 +161,7 @@ final class SleepStagerV2Tests: XCTestCase {
         XCTAssertTrue(v2Stages.contains("rem"), "V2 night should express REM")
     }
 
-    // MARK: - #277 frozen golden: pin the tuned V2 recipe (deepGateThresh / deep emission / transition row)
+    // MARK: - #277: lock the V2 recipe shape + parity (golden) and the tuned deep-boundary values (directly)
 
     /// Fixed integer "breathing" wave — no float rounding, so Swift + Kotlin build byte-identical samples
     /// (Kotlin `roundToInt` is half-up, Swift `.rounded()` is half-away-from-zero; integers avoid the gap).
@@ -170,13 +170,13 @@ final class SleepStagerV2Tests: XCTestCase {
         return [0, amp, 0, -amp][i % 4]
     }
 
-    /// Byte-parity twin of Kotlin `SleepStagerV2Test.frozenGoldenHypnogramPinsTheTunedRecipe`. A crafted
-    /// 4-phase night (deep-favorable → high-RSA → mild → restless) staged by V2 must reproduce this EXACT
-    /// hypnogram. #277 set the deep boundary (deepGateThresh, the deep emission weights, the deep transition
-    /// row) a-priori, validated only by an OFFLINE 44-subject benchmark — nothing in CI pinned the constants,
-    /// so a later edit or a Swift↔Kotlin drift could shift stages silently. This locks them on both platforms;
-    /// a one-sided constant change fails here or in the Kotlin twin. Integer-only / fixed-literal input so the
-    /// two languages build identical samples. Regenerate deliberately if the recipe is intentionally retuned.
+    /// Byte-parity twin of Kotlin `SleepStagerV2Test.frozenGoldenHypnogramPinsTheRecipeShapeAndParity`. A
+    /// crafted 4-phase night must reproduce this EXACT hypnogram. This locks the recipe's END-TO-END behaviour
+    /// and, asserting the SAME sequence from byte-identical input as the Kotlin twin, proves the full staging
+    /// path stays Swift↔Kotlin parity-identical (the whole Viterbi path). It catches GROSS regressions; it is
+    /// deliberately NOT the guard for the exact #277 tuned VALUES (on this stark input reverting them doesn't
+    /// move a boundary) — those are pinned in `testTunedDeepBoundaryConstantsArePinned`. Integer-only /
+    /// fixed-literal input so both languages build identical samples. Regenerate deliberately if retuned.
     func testFrozenGoldenHypnogram() {
         let start = 1_749_517_200
         let phase = 90 * 60
@@ -209,6 +209,21 @@ final class SleepStagerV2Tests: XCTestCase {
             XCTAssertEqual(segs[k].start, start + golden[k].0, "seg \(k) start")
             XCTAssertEqual(segs[k].end, start + golden[k].1, "seg \(k) end")
             XCTAssertEqual(segs[k].stage, golden[k].2, "seg \(k) stage")
+        }
+    }
+
+    /// Directly pin the #277 deep-boundary tune — the reliable guard the end-to-end golden can't be (a golden
+    /// is only sensitive where the input sits near a decision boundary). Asserts the exact tuned VALUES and
+    /// their Swift↔Kotlin equality (twin: `SleepStagerV2Test.tunedDeepBoundaryConstantsArePinned`), so a
+    /// fat-finger or a one-sided edit to deepGateThresh / the deep transition row fails immediately. The
+    /// row-sum invariant catches a renormalisation typo in the hand-edited matrix. (The inline deep EMISSION
+    /// weights aren't named constants, so they stay guarded only at the gross level by the golden.)
+    func testTunedDeepBoundaryConstantsArePinned() {
+        XCTAssertEqual(SleepStagerV2.deepGateThresh, 0.25)
+        XCTAssertEqual(SleepStagerV2.transition["deep"]!,
+                       ["deep": 0.86, "rem": 0.007, "light": 0.126, "awake": 0.007])
+        for (from, row) in SleepStagerV2.transition {
+            XCTAssertEqual(row.values.reduce(0, +), 1.0, accuracy: 1e-9, "transition row '\(from)' must sum to 1.0")
         }
     }
 }

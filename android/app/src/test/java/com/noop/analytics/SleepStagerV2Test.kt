@@ -166,15 +166,16 @@ class SleepStagerV2Test {
 
     /**
      * A crafted 4-phase night (deep-favorable → high-RSA → mild → restless) staged by V2 must reproduce this
-     * EXACT hypnogram. #277 set the deep boundary (deepGateThresh, the deep emission weights, the deep
-     * transition row) a-priori, validated only by an OFFLINE 44-subject benchmark — nothing in CI pinned the
-     * constants, so a later edit or a Swift↔Kotlin parity drift could shift stages silently. This golden locks
-     * them on BOTH platforms (the Swift twin `SleepStagerV2Tests.testFrozenGoldenHypnogram` asserts the same
-     * sequence), so a one-sided constant change fails here. Input is integer-only / fixed-literal so the two
-     * languages build identical samples. Regenerate deliberately if the recipe is intentionally retuned.
+     * EXACT hypnogram. This locks the recipe's END-TO-END behaviour and — because the Swift twin
+     * (`SleepStagerV2Tests.testFrozenGoldenHypnogram`) asserts the SAME sequence from byte-identical input —
+     * proves the full staging path stays Swift↔Kotlin parity-identical (the whole Viterbi path, not just the
+     * constants). It catches GROSS regressions; it is deliberately NOT the guard for the exact #277 tuned
+     * VALUES — on this stark input reverting deepGateThresh/emission/transition doesn't move a boundary — those
+     * are pinned directly in [tunedDeepBoundaryConstantsArePinned]. Input is integer-only / fixed-literal so the
+     * two languages build identical samples. Regenerate deliberately if the recipe is intentionally retuned.
      */
     @Test
-    fun frozenGoldenHypnogramPinsTheTunedRecipe() {
+    fun frozenGoldenHypnogramPinsTheRecipeShapeAndParity() {
         val start = refMidnight + 3_600L
         val phase = 90 * 60
         val dur = phase * 4
@@ -210,6 +211,25 @@ class SleepStagerV2Test {
             assertEquals("seg $k start", start + golden[k].first, segs[k].start)
             assertEquals("seg $k end", start + golden[k].second, segs[k].end)
             assertEquals("seg $k stage", golden[k].third, segs[k].stage)
+        }
+    }
+
+    /**
+     * Directly pin the #277 deep-boundary tune — the reliable guard the end-to-end golden can't be (a golden is
+     * only sensitive where the input sits near a decision boundary). Asserts the exact tuned VALUES and their
+     * Swift↔Kotlin equality (twin: `SleepStagerV2Tests.testTunedDeepBoundaryConstantsArePinned`), so a fat-finger
+     * or a one-sided edit to deepGateThresh / the deep transition row fails immediately. The row-sum invariant
+     * catches a renormalisation typo in the hand-edited matrix. (The inline deep EMISSION weights aren't named
+     * constants, so they stay guarded only at the gross level by the golden — retune deliberately.)
+     */
+    @Test
+    fun tunedDeepBoundaryConstantsArePinned() {
+        assertEquals(0.25, SleepStagerV2.deepGateThresh, 0.0)
+        assertEquals(
+            mapOf("deep" to 0.86, "rem" to 0.007, "light" to 0.126, "awake" to 0.007),
+            SleepStagerV2.transition["deep"])
+        for ((from, row) in SleepStagerV2.transition) {
+            assertEquals("transition row '$from' must sum to 1.0", 1.0, row.values.sum(), 1e-9)
         }
     }
 }
