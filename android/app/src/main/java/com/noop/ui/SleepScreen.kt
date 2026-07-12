@@ -66,6 +66,7 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
@@ -518,6 +519,7 @@ fun SleepScreen(
                 napBlocks = night?.napBlocks ?: emptyList(),
                 habitualMidsleepSec = habitualMidsleep,
                 motionEpochs = night?.groupMotion ?: emptyList(),
+                groupInBedMin = night?.groupInBedMin,
             )
             }
             // Tiles / ledger / trends read the FULL-history model (#940): they stay up when only the
@@ -791,6 +793,10 @@ private fun Hero(
     // Per-epoch MOTION for the main-night GROUP (#407), laid in group order by `selectNight`. Empty → honest
     // empty state. Drawn UNDER the hypnogram on the same timeline. Mirrors iOS SleepView.Night.motionEpochs.
     motionEpochs: List<Double> = emptyList(),
+    // Whole-group time-in-bed minutes for a fragmented night (#561): Σ fragment windows, gaps
+    // excluded, computed by `selectNight`. Null for single-block days → the session-window /
+    // stage-total fallbacks below apply unchanged.
+    groupInBedMin: Double? = null,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
         NightNavHeader(nightOffset, lastIndex, clock, onNavigate, session, onUpdateTimes, onDeleteSession, onAddNap, onPickNightDate)
@@ -815,51 +821,58 @@ private fun Hero(
             // After a bed/wake edit the session window is the source of truth for time-in-bed,
             // so the subtitle tracks the edit even before the stage minutes are recomputed. Uses the
             // EFFECTIVE onset so a hand-edited bedtime is reflected. (#160 / PR #395)
-            val inBedMin = session?.let { (it.endTs - it.effectiveStartTs) / 60.0 } ?: s.total
-            ChartCard(
-                title = "Stage breakdown",
-                subtitle = "${durationText(inBedMin)} in bed · ${display.efficiencyText} efficiency" +
-                    (if (display.realSegments != null) " · approx. stages (on-device)" else ""),
-                trailing = durationText(s.asleep),
-                tint = Palette.restColor,
-                footer = {
-                    // WHOOP-style stage rows in the NOOP pip language: swatch + UPPERCASE stage +
-                    // coloured % + a segmented PipBar of the share-of-night + right-aligned duration.
-                    // Same minutes/percentages the old "label · value" footer carried — no new numbers.
-                    // Mirrors the macOS SleepView.stageBreakdownRows. (PipBar)
-                    StageBreakdownRows(s)
-                },
-            ) {
-                // True per-epoch segments when the stager persisted them; else the reconstructed
-                // architecture: light → deep → light → rem → light → awake.
-                val segments = display.realSegments ?: stageSegments(s)
-                if (segments.isNotEmpty()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        // Hero strip with the band-min-thickness floor (so a short Awake reads as a
-                        // bar, not a tick) + an onset · midpoint · wake time axis when the session
-                        // gives clock times. Mirrors the Swift Hypnogram(showsTimeAxis:).
+            // A fragmented night prefers the GROUP total (#561): `session` is only the WINNING
+            // fragment, so its window alone undershot the summed stage minutes shown beside it.
+            val inBedMin = groupInBedMin
+                ?: session?.let { (it.endTs - it.effectiveStartTs) / 60.0 }
+                ?: s.total
+            val subtitle = "${durationText(inBedMin)} in bed · ${display.efficiencyText} efficiency" +
+                (if (display.realSegments != null) " · approx. stages (on-device)" else "")
+            // iOS #988 port: true per-epoch segments (≥ 2 — a single run has no transitions to lay
+            // out) get the per-stage timeline rows; the rows ARE the legend, so no footer. Anything
+            // else keeps the honest proportional strip + StageBreakdownRows footer.
+            val real = display.realSegments?.takeIf { it.size >= 2 }
+            if (real != null) {
+                ChartCard(
+                    title = "Stage breakdown",
+                    subtitle = subtitle,
+                    trailing = durationText(s.asleep),
+                    tint = Palette.restColor,
+                    footer = {},
+                ) {
+                    StageTimeline(
+                        realSegments = real,
+                        s = s,
+                        onsetTs = session?.effectiveStartTs,
+                        wakeTs = session?.endTs,
+                        motionEpochs = motionEpochs,
+                    )
+                }
+            } else {
+                ChartCard(
+                    title = "Stage breakdown",
+                    subtitle = subtitle,
+                    trailing = durationText(s.asleep),
+                    tint = Palette.restColor,
+                    footer = { StageBreakdownRows(s) },
+                ) {
+                    // Reconstructed architecture (light → deep → light → rem → light → awake) as the
+                    // flat proportional strip. No MotionStrip and no fake steps here: invented
+                    // architecture has no genuine timeline to anchor to (mirrors the iOS else-branch).
+                    val segments = stageSegments(s)
+                    if (segments.isNotEmpty()) {
                         HypnogramWithAxis(
                             stages = segments,
                             onsetTs = session?.effectiveStartTs,
                             wakeTs = session?.endTs,
                         )
-                        // #407 — subordinate movement/restlessness trace UNDER the hypnogram, on the SAME
-                        // timeline, for the SAME main-night GROUP blocks the hero resolved (selectNight's
-                        // group). Honest empty state when no fragment has persisted motion (older rows).
-                        MotionStrip(motionEpochs)
-                        Row(horizontalArrangement = Arrangement.spacedBy(Metrics.space16)) {
-                            StageLegend("Deep", Palette.sleepDeep)
-                            StageLegend("Light", Palette.sleepLight)
-                            StageLegend("REM", Palette.sleepREM)
-                            StageLegend("Awake", Palette.sleepAwake)
-                        }
+                    } else {
+                        Text(
+                            "No stage breakdown for this night.",
+                            style = NoopType.subhead,
+                            color = Palette.textTertiary,
+                        )
                     }
-                } else {
-                    Text(
-                        "No stage breakdown for this night.",
-                        style = NoopType.subhead,
-                        color = Palette.textTertiary,
-                    )
                 }
             }
         }
@@ -1310,38 +1323,240 @@ private fun HypnogramWithAxis(
             }
         }
         if (showsAxis && onsetTs != null && wakeTs != null) {
-            val onset = clockTimeLabel(onsetTs)
-            val mid = clockTimeLabel((onsetTs + wakeTs) / 2L)
-            val wake = clockTimeLabel(wakeTs)
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    onset,
-                    style = NoopType.footnote,
-                    color = Palette.textTertiary,
-                    textAlign = TextAlign.Start,
-                    maxLines = 1,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    mid,
-                    style = NoopType.footnote,
-                    color = Palette.textTertiary,
-                    textAlign = TextAlign.Center,
-                    overflow = TextOverflow.Ellipsis,
-                    maxLines = 1,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    wake,
-                    style = NoopType.footnote,
-                    color = Palette.textTertiary,
-                    textAlign = TextAlign.End,
-                    maxLines = 1,
-                    modifier = Modifier.weight(1f),
-                )
-            }
+            ClockLabelRow(onsetTs, wakeTs)
         }
     }
+}
+
+/**
+ * The onset · midpoint · wake clock-label row under a night timeline. Extracted from
+ * [HypnogramWithAxis] so the #988 stage-timeline rows share the exact same axis rendering.
+ */
+@Composable
+private fun ClockLabelRow(onsetTs: Long, wakeTs: Long) {
+    val onset = clockTimeLabel(onsetTs)
+    val mid = clockTimeLabel((onsetTs + wakeTs) / 2L)
+    val wake = clockTimeLabel(wakeTs)
+    Row(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            onset,
+            style = NoopType.footnote,
+            color = Palette.textTertiary,
+            textAlign = TextAlign.Start,
+            maxLines = 1,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            mid,
+            style = NoopType.footnote,
+            color = Palette.textTertiary,
+            textAlign = TextAlign.Center,
+            overflow = TextOverflow.Ellipsis,
+            maxLines = 1,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            wake,
+            style = NoopType.footnote,
+            color = Palette.textTertiary,
+            textAlign = TextAlign.End,
+            maxLines = 1,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+/** 90 s display floor for the stage rows — rows tolerate fine texture, so 90 s, not the staircase's 300 s. */
+private const val STAGE_ROW_SMOOTH_SEC = 90.0
+
+/**
+ * iOS #988 port — the WHOOP-style per-stage timeline stack that replaces the flat hypnogram strip
+ * for real-stage nights. Four tappable rows in WHOOP order (AWAKE · LIGHT · DEEP · REM), each a
+ * hatched full-night track with solid segments on the shared onset→wake axis; MotionStrip and the
+ * clock-label axis sit under the rows on the SAME timeline; a fixed-height insight slot closes the
+ * stack. The rows ARE the legend — no dot row, no footer. Mirrors SleepView.stageTimeline.
+ */
+@Composable
+private fun StageTimeline(
+    realSegments: List<Pair<String, Float>>,
+    s: Stages,
+    onsetTs: Long?,
+    wakeTs: Long?,
+    motionEpochs: List<Double>,
+) {
+    // Night span: the session window when we have one (the clock axis uses the same span), else
+    // the segments' own summed minutes — the fractions are identical either way.
+    val weightSec = realSegments.sumOf { (_, wt) -> if (wt.isFinite() && wt > 0f) wt.toDouble() * 60.0 else 0.0 }
+    val spanSec = if (onsetTs != null && wakeTs != null && wakeTs > onsetTs) {
+        (wakeTs - onsetTs).toDouble()
+    } else {
+        weightSec
+    }
+    val intervals = remember(realSegments, spanSec) {
+        displaySmoothed(stageIntervalsFromWeights(realSegments, spanSec), STAGE_ROW_SMOOTH_SEC)
+    }
+    // Tap-to-highlight; keyed on the night's segments so navigating nights clears the selection.
+    var selectedStage by remember(realSegments) { mutableStateOf<String?>(null) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(Metrics.space8)) {
+        listOf(
+            Triple("Awake", s.awake, Palette.sleepAwake),
+            Triple("Light", s.light, Palette.sleepLight),
+            Triple("Deep", s.deep, Palette.sleepDeep),
+            Triple("REM", s.rem, Palette.sleepREM),
+        ).forEach { (label, minutes, color) ->
+            StageTimelineRow(
+                label = label,
+                minutes = minutes,
+                total = s.total,
+                color = color,
+                spans = stageRowSpans(intervals, label, spanSec),
+                selected = selectedStage == label,
+                dimmed = selectedStage != null && selectedStage != label,
+                onTap = { selectedStage = if (selectedStage == label) null else label },
+            )
+        }
+        // #407 — MotionStrip component + data path untouched; relocated UNDER the rows on the SAME
+        // timeline. Same inner insets as the rows' tracks so epochs don't skew against the segments.
+        Box(modifier = Modifier.padding(horizontal = Metrics.stageRowPadH)) {
+            MotionStrip(motionEpochs)
+        }
+        if (onsetTs != null && wakeTs != null) {
+            Box(modifier = Modifier.padding(horizontal = Metrics.stageRowPadH)) {
+                ClockLabelRow(onsetTs, wakeTs)
+            }
+        }
+        StageInsight(selectedStage, s)
+    }
+}
+
+/**
+ * One per-stage timeline row: STAGE overline + coloured % + right-aligned duration over a hatched
+ * full-night track with the stage's solid segments. Selected row gets a hairlineStrong stroke;
+ * when ANOTHER row is selected this row's segments and % dim to tertiary. One collapsed a11y node —
+ * "Awake: 49 min, 10 percent of the night". Mirrors SleepView.stageTimelineRow.
+ */
+@Composable
+private fun StageTimelineRow(
+    label: String,
+    minutes: Double,
+    total: Double,
+    color: Color,
+    spans: List<Pair<Float, Float>>,
+    selected: Boolean,
+    dimmed: Boolean,
+    onTap: () -> Unit,
+) {
+    val percent = if (total > 0.0) (minutes / total * 100.0).roundToInt() else 0
+    val segColor = if (dimmed) Palette.textTertiary.copy(alpha = 0.55f) else color
+    val pctColor = if (dimmed) Palette.textTertiary else color
+    val shape = RoundedCornerShape(Metrics.stageRowCorner)
+    Column(
+        verticalArrangement = Arrangement.spacedBy(Metrics.space6),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(Palette.textPrimary.copy(alpha = 0.045f))
+            .then(if (selected) Modifier.border(1.5.dp, Palette.hairlineStrong, shape) else Modifier)
+            .clickable(onClickLabel = "Highlights this stage on the sleep chart", onClick = onTap)
+            .padding(horizontal = Metrics.stageRowPadH, vertical = Metrics.stageRowPadV)
+            .semantics(mergeDescendants = true) {
+                contentDescription = "$label: ${durationText(minutes)}, $percent percent of the night"
+            },
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                label.uppercase(Locale.getDefault()),
+                style = NoopType.overline,
+                color = Palette.textPrimary,
+                maxLines = 1,
+            )
+            Spacer(modifier = Modifier.width(Metrics.space8))
+            Text("$percent%", style = NoopType.captionNumber, color = pctColor, maxLines = 1)
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                durationText(minutes),
+                style = NoopType.captionNumber,
+                color = Palette.textPrimary,
+                maxLines = 1,
+            )
+        }
+        StageRowTrack(spans = spans, color = segColor)
+    }
+}
+
+/**
+ * The row's track, drawn in a SINGLE Canvas (PERF: a fragmented night must not become hundreds of
+ * composables — Charts.kt hoist convention): a recessed full-night base with faint diagonal
+ * hatching ("no segment here" reads as "elsewhere in the night", not missing data), then the
+ * stage's solid rounded segments with a width floor, clamped so floored widths stay on-canvas
+ * (same #36 lesson as HypnogramWithAxis).
+ */
+@Composable
+private fun StageRowTrack(spans: List<Pair<Float, Float>>, color: Color) {
+    Canvas(modifier = Modifier.fillMaxWidth().height(Metrics.stageRowTrackHeight)) {
+        val w = size.width
+        val h = size.height
+        if (w <= 0f || h <= 0f) return@Canvas
+
+        val trackRadius = CornerRadius(Metrics.stageSegCorner.toPx(), Metrics.stageSegCorner.toPx())
+        drawRoundRect(color = Palette.surfaceInset, size = Size(w, h), cornerRadius = trackRadius)
+        clipRect(0f, 0f, w, h) {
+            val step = 6.dp.toPx()
+            var x = -h
+            while (x < w) {
+                drawLine(
+                    color = Palette.hairline,
+                    start = Offset(x, h),
+                    end = Offset(x + h, 0f),
+                    strokeWidth = 1f,
+                )
+                x += step
+            }
+        }
+
+        val minW = Metrics.stageSegMinWidth.toPx()
+        val segRadius = CornerRadius(Metrics.stageSegCorner.toPx(), Metrics.stageSegCorner.toPx())
+        spans.forEach { (fracStart, fracWidth) ->
+            if (!fracStart.isFinite() || !fracWidth.isFinite() || fracWidth <= 0f) return@forEach
+            val segW = maxOf(w * fracWidth, minW).coerceAtMost(w)
+            val x0 = (w * fracStart).coerceIn(0f, w - segW)
+            drawRoundRect(
+                color = color,
+                topLeft = Offset(x0, 0f),
+                size = Size(segW, h),
+                cornerRadius = segRadius,
+            )
+        }
+    }
+}
+
+/**
+ * Fixed-height per-stage insight slot under the axis: with a stage selected, that stage tonight;
+ * otherwise the quiet "tap a row" hint. Fixed height so selection never reflows the card. The
+ * 30-day typical-range compare is a follow-up — no such repo call exists on Android yet (design
+ * §Real-stage nights item 6).
+ */
+@Composable
+private fun StageInsight(selectedStage: String?, s: Stages) {
+    val text = when (selectedStage) {
+        "Awake" -> stageInsightLine("Awake", s.awake, s.total)
+        "Light" -> stageInsightLine("Light", s.light, s.total)
+        "Deep" -> stageInsightLine("Deep", s.deep, s.total)
+        "REM" -> stageInsightLine("REM", s.rem, s.total)
+        else -> "Tap a stage to highlight it across the night."
+    }
+    Box(
+        modifier = Modifier.fillMaxWidth().height(Metrics.stageInsightHeight),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Text(text, style = NoopType.footnote, color = Palette.textTertiary, maxLines = 2)
+    }
+}
+
+private fun stageInsightLine(label: String, minutes: Double, total: Double): String {
+    val percent = if (total > 0.0) (minutes / total * 100.0).roundToInt() else 0
+    return "$label tonight: ${durationText(minutes)} — $percent% of the night."
 }
 
 /**
@@ -1894,23 +2109,6 @@ private fun NightNavHeader(
                 }
             },
         )
-    }
-}
-
-@Composable
-private fun StageLegend(label: String, color: Color) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(Metrics.space6),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier
-                .height(Metrics.legendSwatch)
-                .width(Metrics.legendSwatch)
-                .clip(RoundedCornerShape(Metrics.cornerXs))
-                .background(color),
-        )
-        Text(label, style = NoopType.footnote, color = Palette.textTertiary)
     }
 }
 
@@ -2535,6 +2733,14 @@ internal data class HeroNight(
     // → the hero shows an honest empty state instead of a fabricated zero trace. Read off the already-
     // resolved group, NOT a re-resolution of the night.
     val groupMotion: List<Double> = emptyList(),
+    // Time-in-bed for the whole main-night GROUP (#561): Σ(endTs − effectiveStartTs) across the
+    // hero fragments, in minutes. The hero subtitle previously derived in-bed from `session` alone
+    // (the single WINNING fragment), so a fragmented night's "Xh in bed" undershot the stage total
+    // it sat next to. Summing fragment windows (NOT wall-clock first-onset→last-wake) excludes the
+    // inter-fragment awake gaps, mirroring sumGroupStages/AnalyticsEngine, so asleep ≤ in-bed and
+    // the efficiency shown beside it stays coherent. Null for a single-block day → the hero keeps
+    // its session-window / stage-total fallbacks.
+    val groupInBedMin: Double? = null,
 )
 
 /** What the hero card draws for the selected night — null means no usable stage data
@@ -2636,8 +2842,13 @@ internal fun selectNight(
     // nightOnsetTs / synth.startTs), closed by the group's latest wake. `session` stays the edit anchor only.
     val heroOnsetTs = heroGroup.firstOrNull()?.effectiveStartTs ?: session.effectiveStartTs
     val heroWakeTs = heroGroup.maxOfOrNull { it.endTs } ?: session.endTs
+    // #561: whole-group time-in-bed (minutes) — fragment windows summed, gaps excluded — so the hero
+    // subtitle matches the multi-fragment stage total it is shown with. Single-block days stay null.
+    val groupInBedMin = if (heroGroup.size > 1) {
+        heroGroup.sumOf { (it.endTs - it.effectiveStartTs).coerceAtLeast(0L) } / 60.0
+    } else null
     return HeroNight(session, dayKey, segments, clockLabelFor(heroOnsetTs, heroWakeTs), napBlocks, groupStages,
-        groupSegments, groupMotion)
+        groupSegments, groupMotion, groupInBedMin)
 }
 
 /**
@@ -3225,6 +3436,117 @@ internal fun parsePersistedSegments(json: String?): List<PersistedSegment>? {
         }
         out.takeIf { it.size >= 2 }
     }.getOrNull()
+}
+
+// MARK: - Stage timeline logic (iOS #988 port — pure, unit-tested)
+
+/** One contiguous run of a single sleep stage, in seconds from the night's onset. */
+internal data class StageInterval(val stage: String, val startSec: Double, val endSec: Double) {
+    val durationSec: Double get() = endSec - startSec
+}
+
+/**
+ * Reconstruct absolute (stage, startSec, endSec) intervals from the hero's ordered
+ * `realSegments` weight pairs (name, minutes) by walking cumulative fractions across [spanSec]
+ * (design 2026-07-10, §Real-stage nights item 3). Non-finite / non-positive weights are skipped —
+ * they carry no drawable width. Returns [] when nothing is drawable.
+ */
+internal fun stageIntervalsFromWeights(
+    segments: List<Pair<String, Float>>,
+    spanSec: Double,
+): List<StageInterval> {
+    if (segments.isEmpty() || !spanSec.isFinite() || spanSec <= 0.0) return emptyList()
+    val weights = segments.map { (_, wt) -> if (wt.isFinite() && wt > 0f) wt.toDouble() else 0.0 }
+    val total = weights.sum()
+    if (total <= 0.0) return emptyList()
+    val out = ArrayList<StageInterval>(segments.size)
+    var cum = 0.0
+    segments.forEachIndexed { i, (name, _) ->
+        val w = weights[i]
+        if (w <= 0.0) return@forEachIndexed
+        val start = spanSec * (cum / total)
+        cum += w
+        out.add(StageInterval(name, start, spanSec * (cum / total)))
+    }
+    return out
+}
+
+/**
+ * Display-time smoothing — a straight port of Swift `Hypnogram.displaySmoothed` (WHOOP-style,
+ * Packages/StrandDesign/Sources/StrandDesign/Hypnogram.swift:92). The on-device stager emits
+ * 30 s-epoch runs, so a real night arrives as 60–100 fragments; brief flickers are absorbed into
+ * their surroundings AT DISPLAY TIME. Render-only: totals, percentages and stored data are
+ * computed from the raw segments elsewhere and are untouched. Pass minDurationSec = 0 for raw.
+ */
+internal fun displaySmoothed(
+    intervals: List<StageInterval>,
+    minDurationSec: Double,
+): List<StageInterval> {
+    if (intervals.size <= 2 || minDurationSec <= 0.0) return intervals   // Swift: guard count > 2
+
+    // Coalesce adjacent same-stage runs (also bridges the zero-length seams between epochs).
+    fun coalesce(ivs: List<StageInterval>): MutableList<StageInterval> {
+        val out = mutableListOf<StageInterval>()
+        for (iv in ivs) {
+            val last = out.lastOrNull()
+            if (last != null && last.stage == iv.stage && iv.startSec - last.endSec < 1.0) {
+                out[out.size - 1] = StageInterval(last.stage, last.startSec, iv.endSec)
+            } else {
+                out.add(iv)
+            }
+        }
+        return out
+    }
+
+    var ivs = coalesce(intervals)
+    // Repeatedly absorb the shortest sub-threshold fragment into its longer neighbour,
+    // re-coalescing after each pass, until every remaining block clears the threshold.
+    while (ivs.size > 1) {
+        val idx = ivs.indices
+            .filter { ivs[it].durationSec < minDurationSec }
+            .minByOrNull { ivs[it].durationSec } ?: break
+        val victim = ivs[idx]
+        val prev = if (idx > 0) ivs[idx - 1] else null
+        val next = if (idx < ivs.size - 1) ivs[idx + 1] else null
+        when {
+            prev != null && next != null ->
+                // Absorb into the longer neighbour so the dominant surrounding stage wins.
+                if (prev.durationSec >= next.durationSec) {
+                    ivs[idx - 1] = StageInterval(prev.stage, prev.startSec, victim.endSec)
+                } else {
+                    ivs[idx + 1] = StageInterval(next.stage, victim.startSec, next.endSec)
+                }
+            prev != null -> ivs[idx - 1] = StageInterval(prev.stage, prev.startSec, victim.endSec)
+            next != null -> ivs[idx + 1] = StageInterval(next.stage, victim.startSec, next.endSec)
+            else -> break
+        }
+        ivs.removeAt(idx)
+        ivs = coalesce(ivs)
+    }
+    return ivs
+}
+
+/** Canonical stage key: trims, lowercases, and folds the "wake"/"awake" alias (stageColorFor parity). */
+internal fun canonicalStage(name: String): String {
+    val n = name.trim().lowercase()
+    return if (n == "wake") "awake" else n
+}
+
+/**
+ * The (startFraction, widthFraction) spans of [rowStage]'s intervals within the night — one entry
+ * per solid segment in that stage's timeline row track. Fractions of [spanSec]; the draw side
+ * applies the min-width floor and canvas clamping.
+ */
+internal fun stageRowSpans(
+    intervals: List<StageInterval>,
+    rowStage: String,
+    spanSec: Double,
+): List<Pair<Float, Float>> {
+    if (spanSec <= 0.0 || !spanSec.isFinite()) return emptyList()
+    val key = canonicalStage(rowStage)
+    return intervals
+        .filter { canonicalStage(it.stage) == key }
+        .map { iv -> (iv.startSec / spanSec).toFloat() to (iv.durationSec / spanSec).toFloat() }
 }
 
 // MARK: - Hours vs Needed card

@@ -863,6 +863,27 @@ class WhoopRepository(private val dao: WhoopDao) {
     /** All cached daily metrics for a device, oldest first. Feeds com.noop.analytics.IllnessWatch. */
     suspend fun days(deviceId: String): List<DailyMetric> = dao.days(deviceId)
 
+    /** Every distinct source id with at least one cached daily row. Feeds the Health Connect
+     *  backfill's strap-coverage gate (see HealthConnectImporter.isStrapNativeSourceId). */
+    suspend fun dailyMetricDeviceIds(): List<String> = dao.dailyMetricDeviceIds()
+
+    /**
+     * #112 follow-up heal: delete the Health-Connect-shaped "my-whoop" shadow rows an older import
+     * wrote over strap-covered days, back when the backfill's covered-days gate only knew the
+     * canonical "my-whoop"/"my-whoop-noop" pair and missed active-strap ("whoop-<mac>") ids.
+     *
+     *  - Sleep sessions: un-edited, signal-less windows (no efficiency/HR/HRV/motion — the HC shape)
+     *    that overlap ANY computed ("-noop") session.
+     *  - Daily rows: HC-shaped rows (no efficiency/stages/recovery/strain/steps) on a day a computed
+     *    source also covers.
+     *
+     * The discriminators never match a WHOOP CSV / wearable-export import (those carry efficiency /
+     * stage minutes) or user-edited rows, so real data survives. Idempotent — a re-run matches
+     * nothing. Returns the TOTAL rows deleted (for the heal log).
+     */
+    suspend fun purgeHcShadowedStrapDays(): Int =
+        dao.purgeHcShadowedSleepSessions() + dao.purgeHcShadowedDailyMetrics()
+
     /**
      * One-time #34 refile: move legacy Health Connect data out of the shared "apple-health" bucket into
      * its own "health-connect" source, so it stops being shown as Apple Health. HC workouts are tagged

@@ -141,6 +141,12 @@ object HealthConnectImporter {
         // Refile any legacy Health Connect data that landed in the shared "apple-health" bucket before
         // #34 BEFORE importing, so a re-import refiles cleanly instead of duplicating across both sources.
         try { repo.refileLegacyHealthConnect() } catch (_: Exception) { /* best-effort */ }
+        // #112 follow-up heal: purge the shadow rows earlier imports wrote while the covered-days
+        // gate missed active-strap ids — sparse HC-shaped "my-whoop" sleep/daily rows sitting over
+        // nights the strap's computed ("-noop") source already covers. Runs BEFORE this import's
+        // own gate is read so the healed coverage is what gets consulted. Idempotent, best-effort
+        // like the refile above.
+        try { repo.purgeHcShadowedStrapDays() } catch (_: Exception) { /* best-effort */ }
 
         val client = client(context)
 
@@ -411,12 +417,17 @@ object HealthConnectImporter {
         }
 
         // Days the strap already covers: read ONCE so we never clobber richer strap data. This is
-        // the UNION of raw imported "my-whoop" rows AND computed "my-whoop-noop" rows — the latter
-        // is the ONLY source for a strap-only WHOOP user (no raw daily rows exist), so without it
-        // the sparse HC backfill (recovery/strain/stages = null) shadows the computed day and blanks
-        // Today / regresses Sleep stages (#112). Each read is wrapped so a missing source is empty,
-        // not fatal; HC still gap-fills any day the strap did NOT cover.
-        val coveredDays: Set<String> = strapDays(repo, WHOOP) + strapDays(repo, WHOOP_COMPUTED)
+        // the UNION across EVERY strap-native source id — the canonical raw "my-whoop" + computed
+        // "my-whoop-noop" pair AND any actively paired strap's "whoop-<mac>" / "whoop-<mac>-noop"
+        // rows (#112 follow-up: the gate previously knew only the canonical pair, so a re-paired
+        // strap's fresh nights were invisible to it and the sparse HC backfill shadowed them). The
+        // computed rows are the ONLY source for a strap-only WHOOP user (no raw daily rows exist),
+        // so without them the sparse HC backfill (recovery/strain/stages = null) shadows the computed
+        // day and blanks Today / regresses Sleep stages (#112). Each read is wrapped so a missing
+        // source is empty, not fatal; HC still gap-fills any day the strap did NOT cover.
+        val coveredDays: Set<String> = buildSet {
+            for (id in strapSourceIds(repo)) addAll(strapDays(repo, id))
+        }
 
         val appleRows = ArrayList<AppleDaily>(acc.size)
         val dailyRows = ArrayList<DailyMetric>(acc.size)
@@ -661,7 +672,7 @@ object HealthConnectImporter {
     /**
      * The set of "YYYY-MM-DD" days the strap already covers under [deviceId], read defensively:
      * a missing/empty source (the normal case for raw "my-whoop" on a strap-only user) yields an
-     * empty set rather than throwing. The caller unions the raw and computed sources (#112).
+     * empty set rather than throwing. The caller unions every strap-native source (#112).
      */
     private suspend fun strapDays(repo: WhoopRepository, deviceId: String): Set<String> =
         try {
@@ -669,6 +680,34 @@ object HealthConnectImporter {
         } catch (e: Exception) {
             emptySet()
         }
+
+    /**
+     * Every source id whose daily rows count as STRAP coverage for the #112 skip-set: the discovered
+     * strap-native ids present in the daily cache, always unioned with the canonical
+     * [WHOOP] / [WHOOP_COMPUTED] pair (so an empty/failed discovery degrades to the old behaviour,
+     * never below it). Read defensively — a DB error must not fail the import.
+     */
+    private suspend fun strapSourceIds(repo: WhoopRepository): Set<String> =
+        try {
+            repo.dailyMetricDeviceIds().filterTo(hashSetOf(WHOOP, WHOOP_COMPUTED)) {
+                isStrapNativeSourceId(it)
+            }
+        } catch (e: Exception) {
+            setOf(WHOOP, WHOOP_COMPUTED)
+        }
+
+    /**
+     * True when [id] is a strap-native daily-metric source: the canonical raw "my-whoop", ANY
+     * on-device computed "-noop" source, or an actively paired strap's raw "whoop-<mac>" id.
+     * These are the sources whose days the HC backfill must never shadow; importer-owned sources
+     * ("health-connect", "apple-health", band importers) are NOT strap coverage. Internal (not
+     * private) so the #112 skip-set semantics stay unit-testable without Room/Context, like
+     * [coveredDaySet].
+     */
+    internal fun isStrapNativeSourceId(id: String): Boolean {
+        val s = id.lowercase()
+        return s == WHOOP || s.endsWith("-noop") || s.startsWith("whoop-")
+    }
 
     /**
      * Pure mapper: the distinct local days carried by [rows]. Factored out (and internal) so the

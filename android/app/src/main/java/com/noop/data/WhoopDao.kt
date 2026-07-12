@@ -320,6 +320,50 @@ interface WhoopDao : DeviceRegistryDao {
     fun daysFlow(deviceId: String): Flow<List<DailyMetric>>
 
     /**
+     * Every distinct source id with at least one cached daily row. The Health Connect backfill's
+     * covered-days gate filters these to the strap-native ids
+     * (HealthConnectImporter.isStrapNativeSourceId), so its #112 skip-set also covers an actively
+     * paired strap's "whoop-<mac>" / "whoop-<mac>-noop" rows — not just the canonical
+     * "my-whoop" / "my-whoop-noop" pair.
+     */
+    @Query("SELECT DISTINCT deviceId FROM dailyMetric")
+    suspend fun dailyMetricDeviceIds(): List<String>
+
+    /**
+     * #112 follow-up heal: delete un-edited "my-whoop" sleep sessions that carry NO signal beyond a
+     * window (no efficiency / restingHr / avgHrv / motionJSON / sleepStateJSON — exactly the shape the
+     * Health Connect backfill writes) when a computed ("-noop") session overlaps the same window.
+     * These are the shadow rows an HC import wrote while the covered-days gate missed active-strap
+     * ids; once purged, the richer computed night wins the merge again. Rows a WHOOP CSV / wearable
+     * export wrote carry efficiency (or HR/HRV), and userEdited rows are never touched, so real data
+     * survives. Idempotent: a re-run matches nothing.
+     */
+    @Query(
+        "DELETE FROM sleepSession WHERE deviceId = 'my-whoop' AND userEdited = 0 " +
+            "AND efficiency IS NULL AND restingHr IS NULL AND avgHrv IS NULL " +
+            "AND motionJSON IS NULL AND sleepStateJSON IS NULL " +
+            "AND EXISTS (SELECT 1 FROM sleepSession c WHERE c.deviceId LIKE '%-noop' " +
+            "AND c.startTs < sleepSession.endTs AND c.endTs > sleepSession.startTs)"
+    )
+    suspend fun purgeHcShadowedSleepSessions(): Int
+
+    /**
+     * #112 follow-up heal (daily half): delete "my-whoop" daily rows shaped like the Health Connect
+     * backfill (no efficiency / stage minutes / disturbances / recovery / strain / steps — HC only
+     * writes totals + vitals) on a day a computed ("-noop") source also covers. A sparse row like
+     * this shadows the computed day in the imported-wins merge (#112), blanking Today / regressing
+     * Sleep stages. CSV-imported days carry stage minutes + efficiency and are never matched.
+     */
+    @Query(
+        "DELETE FROM dailyMetric WHERE deviceId = 'my-whoop' " +
+            "AND efficiency IS NULL AND deepMin IS NULL AND remMin IS NULL AND lightMin IS NULL " +
+            "AND disturbances IS NULL AND recovery IS NULL AND strain IS NULL " +
+            "AND steps IS NULL AND activeKcalEst IS NULL " +
+            "AND day IN (SELECT day FROM dailyMetric d WHERE d.deviceId LIKE '%-noop')"
+    )
+    suspend fun purgeHcShadowedDailyMetrics(): Int
+
+    /**
      * #797: the most-recent [limit] daily metrics for a device, returned oldest-first. Backs the bounded
      * dashboard merge: the SQL takes the newest rows (ORDER BY day DESC LIMIT), and the repository flips
      * them to ascending so every downstream consumer sees the SAME oldest-first order as [daysFlow]. A
