@@ -1082,6 +1082,12 @@ struct TodayView: View {
 
             Spacer(minLength: 8)
 
+            // #245: a compact sync-status chip, visible to EVERY user (not only those still building
+            // scores — the big SyncingHistoryNote below is gated on `recovery == nil`). Three states
+            // (syncing / last-synced / experimental), so the absence of active syncing reads as caught-up;
+            // nothing only on a cold start. Owns its LiveState observation so a tick refreshes only it.
+            SyncStatusChip()
+
             // Uniform 36pt circular icon set: recording-status light, updates bell, quick-add (+), menu.
             HStack(spacing: 8) {
                 // Recording status, a colour-coded light (green recording / amber synced / red not
@@ -4390,6 +4396,58 @@ struct TodayDayScopedCache {
 // type). These small leaves each hold their OWN `@EnvironmentObject var live`, so a connected strap's
 // ~1 Hz publish re-renders only the affected dot / note / row, never the rings, scene, sparklines,
 // HR chart or cards. They render byte-for-byte what the inline code did before the extraction.
+
+/// #245: a compact sync-status chip for the Today top bar, shown to EVERY user. The full-width
+/// `SyncingHistoryNote` only renders while scores are still building (`recovery == nil`), so an
+/// established user — and especially a WHOOP 5/MG owner, whose history offloads are rare — saw no sync
+/// feedback on Today, only on the Live screen. THREE states so the ABSENCE of active syncing reads as
+/// "caught up", not "missing indicator" (the real #245 confusion): actively offloading → `⟳ N`; idle
+/// with a known last-sync → `✓ Xm`; a 5/MG whose history sync is experimental (live-connected, no
+/// completed offload yet) → `✓ live`. Nothing shows only on a true cold start (the building-scores note
+/// owns that). Owns its `LiveState` observation so a live tick refreshes only this chip. Twin of Android
+/// `SyncStatusChip`. DRAFT (#245): final styling/wording still to be finalised.
+private struct SyncStatusChip: View {
+    @EnvironmentObject private var live: LiveState
+
+    var body: some View {
+        if live.backfilling {
+            chip(system: "arrow.triangle.2.circlepath", text: "\(live.syncChunksThisSession)",
+                 tint: StrandPalette.accent,
+                 a11y: "Syncing strap history, \(live.syncChunksThisSession) chunks")
+        } else if let ts = live.lastSyncedAt {
+            chip(system: "checkmark", text: Self.shortAgo(ts), tint: StrandPalette.textSecondary,
+                 a11y: "Strap history synced \(Self.shortAgo(ts)) ago")
+        } else if live.historySyncExperimental {
+            chip(system: "checkmark", text: "live", tint: StrandPalette.textSecondary,
+                 a11y: "Connected; strap history sync is experimental on this strap")
+        }
+        // else: cold start — render nothing; the building-scores SyncingHistoryNote covers it.
+    }
+
+    private func chip(system: String, text: String, tint: Color, a11y: String) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: system).font(.system(size: 11, weight: .semibold))
+            Text(text).font(StrandFont.captionNumber)
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(Capsule().fill(StrandPalette.surfaceInset))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(a11y))
+    }
+
+    /// Compact relative age for the header chip ("now" / "Nm" / "Nh" / "Nd") — deliberately terse.
+    private static func shortAgo(_ ts: TimeInterval) -> String {
+        let secs = max(0, Int(Date().timeIntervalSince1970 - ts))
+        if secs < 60 { return "now" }
+        let mins = secs / 60
+        if mins < 60 { return "\(mins)m" }
+        let hrs = mins / 60
+        if hrs < 24 { return "\(hrs)h" }
+        return "\(hrs / 24)d"
+    }
+}
 
 /// The compact 36pt recording-status light in the iOS top bar, a colour-coded dot (green recording,
 /// amber last-synced, red not recording, accent for experimental 5.0 history). Taps to Devices. Owns

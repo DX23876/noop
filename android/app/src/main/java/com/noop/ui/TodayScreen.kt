@@ -34,8 +34,10 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Accessibility
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Air
+import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.automirrored.filled.BatteryUnknown
 import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Functions
@@ -1019,6 +1021,10 @@ fun TodayScreen(
                 humanDate = humanDate,
                 selectedDay = selectedDay,
                 batteryPct = if (liveSnap.connected) liveSnap.batteryPct else null,
+                backfilling = liveSnap.backfilling,
+                syncChunksThisSession = liveSnap.syncChunksThisSession,
+                lastSyncAt = liveSnap.lastSyncAt,
+                historySyncExperimental = liveSnap.historySyncExperimental,
                 onPickDay = { offset -> selectedDayOffset = offset },
                 onQuickActions = onQuickActions,
                 onOpenSettings = onOpenSettings,
@@ -1883,6 +1889,11 @@ private fun LiquidTodayHeader(
     humanDate: String,
     selectedDay: LocalDate,
     batteryPct: Double?,
+    // #245: sync state for the compact header chip (twin of iOS SyncStatusChip).
+    backfilling: Boolean = false,
+    syncChunksThisSession: Int = 0,
+    lastSyncAt: Long? = null,
+    historySyncExperimental: Boolean = false,
     onPickDay: (Int) -> Unit,
     onQuickActions: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -1959,11 +1970,18 @@ private fun LiquidTodayHeader(
             )
         }
 
-        // RIGHT: the controls, in order — avatar · + · battery ring. Each ~34dp, 8dp apart.
+        // RIGHT: the controls, in order — [sync chip] · avatar · + · battery ring. Each ~34dp, 8dp apart.
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            // #245: compact sync-status chip, shown for EVERY user — syncing / last-synced / experimental,
+            // so the absence of active syncing reads as caught-up (the full SyncingHistoryNote is gated on
+            // recovery == null). Twin of iOS SyncStatusChip.
+            SyncStatusChip(
+                backfilling = backfilling, chunks = syncChunksThisSession,
+                lastSyncAt = lastSyncAt, historySyncExperimental = historySyncExperimental,
+            )
             // (a) Profile avatar (the photo set in Settings, or the NOOP loop mark) → Settings. Mirrors iOS.
             Box(
                 modifier = Modifier
@@ -1988,8 +2006,63 @@ private fun LiquidTodayHeader(
     }
 }
 
-/** The strap battery ring (iOS LiquidBatteryButton): a 34dp translucent disc with a hairline rim; when a
- *  reading exists it draws a trimmed ring in the charge/warning/critical hue plus the % inside, else a
+/** #245: compact sync-status chip for the Today top bar, shown to EVERY user. The full-width
+ *  SyncingHistoryNote is gated on `recovery == null`, so an established user (and especially a WHOOP 5/MG
+ *  owner, whose history offloads are rare) saw no sync feedback on Today. THREE states so the ABSENCE of
+ *  active syncing reads as "caught up", not "missing indicator" (the real #245 confusion): actively
+ *  offloading → ⟳ N; idle with a known last-sync → ✓ Xm; a 5/MG whose history sync is experimental
+ *  (live-connected, no completed offload yet) → ✓ live. Nothing shows only on a true cold start (the
+ *  building-scores note owns that). Twin of iOS SyncStatusChip. DRAFT (#245): final styling/wording TBD. */
+@Composable
+private fun SyncStatusChip(
+    backfilling: Boolean,
+    chunks: Int,
+    lastSyncAt: Long?,
+    historySyncExperimental: Boolean,
+) {
+    when {
+        backfilling -> ChipCapsule(
+            Icons.Filled.Autorenew, "$chunks", Palette.accent, "Syncing strap history, $chunks chunks")
+        lastSyncAt != null -> ChipCapsule(
+            Icons.Filled.Check, shortSyncAgo(lastSyncAt), Palette.textSecondary,
+            "Strap history synced ${shortSyncAgo(lastSyncAt)} ago")
+        historySyncExperimental -> ChipCapsule(
+            Icons.Filled.Check, "live", Palette.textSecondary,
+            "Connected; strap history sync is experimental on this strap")
+        // else: cold start — render nothing; the building-scores note covers it.
+    }
+}
+
+/** The shared sync-chip capsule (icon + terse label). Twin of the iOS `SyncStatusChip.chip`. */
+@Composable
+private fun ChipCapsule(icon: ImageVector, text: String, tint: Color, desc: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(Palette.surfaceInset)
+            .padding(horizontal = 8.dp, vertical = 5.dp),
+    ) {
+        Icon(icon, contentDescription = desc, tint = tint, modifier = Modifier.size(14.dp))
+        Text(text, style = NoopType.caption, color = tint)
+    }
+}
+
+/** Compact relative age for the header chip ("now" / "Nm" / "Nh" / "Nd") from a unix-SECONDS timestamp —
+ *  deliberately terse. Twin of the iOS `SyncStatusChip.shortAgo`. */
+private fun shortSyncAgo(unixSec: Long): String {
+    val secs = (System.currentTimeMillis() / 1000L - unixSec).coerceAtLeast(0)
+    return when {
+        secs < 60 -> "now"
+        secs < 3600 -> "${secs / 60}m"
+        secs < 86_400 -> "${secs / 3600}h"
+        else -> "${secs / 86_400}d"
+    }
+}
+
+/** The liquid header strap-battery ring: when connected + a reading exists it draws a trimmed ring in
+ *  the charge/warning/critical hue plus the % inside, else a
  *  bolt-slash glyph. Tap → Devices. Mirrors the iOS liquid header battery ring. */
 @Composable
 private fun LiquidBatteryRing(batteryPct: Double?, onClick: () -> Unit) {
