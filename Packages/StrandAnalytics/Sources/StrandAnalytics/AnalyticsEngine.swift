@@ -463,6 +463,22 @@ public enum AnalyticsEngine {
             traceSink(sleepProvenanceLine(provenance: sleepProvenance,
                                           hoursAsleepMin: tstS / 60.0,
                                           sourceRowId: String(mainStart)))
+            // #271: the ONSET decision — did HR actually dip when the window opened, or did it open on a
+            // still-but-awake stretch (HR still ~baseline)? Both the day-median baseline AND the at-onset
+            // window read from the SAME HR that DETECTION ran over (`dayHr ?? hr` — the full calendar day
+            // when the caller supplies it, else the night window), so the onset instant is guaranteed to be
+            // inside it and the baseline reads as a real DAY median (a real onset sits BELOW it, matching the
+            // daytime/re-onset guards). Emitted only when both have HR, so a motion-only night stays silent.
+            let onsetHr = dayHr ?? hr
+            if mainStart > 0,
+               let baselineHr = AnalyticsEngine.medianBpm(onsetHr.map { $0.bpm }),
+               let hrAtOnset = AnalyticsEngine.medianBpm(
+                   onsetHr.filter { $0.ts >= mainStart && $0.ts < mainStart + AnalyticsEngine.onsetTraceWindowSec }
+                     .map { $0.bpm }) {
+                traceSink(AnalyticsEngine.sleepOnsetLine(onsetTs: mainStart,
+                                                         hrAtOnsetBpm: hrAtOnset,
+                                                         baselineHrBpm: baselineHr))
+            }
         }
 
         // #525 NOTE: the sleep-DURATION figures above are main-night-only (the headline "your night"),

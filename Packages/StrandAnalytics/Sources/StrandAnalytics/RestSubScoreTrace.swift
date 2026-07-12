@@ -49,6 +49,33 @@ extension AnalyticsEngine {
         "sleep-motion day=\(day) grav=\(grav) hr=\(hr) sparse=\(sparse) "
             + "stager=\(useSleepStagerV2 ? "V2" : "V1") family=\(family.rawValue)"
     }
+
+    /// How long AFTER the detected onset to sample HR for the #271 onset trace (seconds). The first
+    /// several minutes of the window: if onset opened on a still-but-awake stretch, HR here is still near
+    /// baseline; a real onset has already dipped. 10 min is long enough to average out beat noise.
+    public static let onsetTraceWindowSec: Int = 600
+
+    /// Median of a bpm list — the deterministic "sorted, element at count/2" rule (upper-middle on an even
+    /// count) so Swift and Kotlin agree byte-for-byte. nil on an empty list. Used to build the #271 onset
+    /// trace's baseline + at-onset HR from the SAME rule on both platforms.
+    public static func medianBpm(_ bpms: [Int]) -> Int? {
+        if bpms.isEmpty { return nil }
+        let s = bpms.sorted()
+        return s[s.count / 2]
+    }
+
+    /// #271 diagnostic (Sleep & Rest test mode): the ONSET decision behind an over-early WHOOP 4.0 bedtime.
+    /// `onsetTs` is where the detected sleep window OPENED; `hrAtOnsetBpm` is the median HR in the first
+    /// `onsetTraceWindowSec` of it; `baselineHrBpm` is the day's median HR. `hrRatio` = atOnset / baseline:
+    /// near 1.0 means HR had NOT dipped when the window opened — the pre-onset-awake over-staging this issue
+    /// tracks (sparse 4.0 motion classifies "lying still, awake" as sleep); a real onset dips well below
+    /// baseline (cf. the wake-side `morningReonsetRestingHRMult` = 0.90). PURE; byte-identical to Android.
+    public static func sleepOnsetLine(onsetTs: Int, hrAtOnsetBpm: Int, baselineHrBpm: Int) -> String {
+        let ratio = baselineHrBpm > 0 ? Double(hrAtOnsetBpm) / Double(baselineHrBpm) : 0.0
+        let r2 = (ratio * 100.0).rounded() / 100.0
+        return "sleep-onset onsetTs=\(onsetTs) hrAtOnset=\(hrAtOnsetBpm) "
+            + "baselineHr=\(baselineHrBpm) hrRatio=\(r2)"
+    }
 }
 
 extension AnalyticsEngine.Rest {

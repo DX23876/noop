@@ -445,6 +445,20 @@ object AnalyticsEngine {
             // epochs default to sleep → over-counted duration → high Rest; `stager` says whether V1/V2 ran.
             traceSink(RestScorer.sleepMotionLine(day, gravity.size, hr.size,
                 SleepStager.isGravitySparse(gravity, hr), useSleepStagerV2, skinTempFamily))
+            // #271: the ONSET decision — did HR dip when the window opened, or did it open on a still-but-
+            // awake stretch (HR still ~baseline)? Both the day-median baseline AND the at-onset window read
+            // from the SAME HR that DETECTION ran over (`dayHr ?: hr` — the full calendar day when the caller
+            // supplies it, else the night window), so the onset instant is guaranteed inside it and the
+            // baseline reads as a real DAY median (a real onset sits BELOW it, matching the daytime/re-onset
+            // guards). Emitted only when both have HR, so a motion-only night stays silent.
+            val onsetHr = dayHr ?: hr
+            val onsetTs = (mainGroup.minOfOrNull { it.start } ?: matched.minOfOrNull { it.start }) ?: 0L
+            val baselineHr = RestScorer.medianBpm(onsetHr.map { it.bpm })
+            val hrAtOnset = RestScorer.medianBpm(
+                onsetHr.filter { it.ts >= onsetTs && it.ts < onsetTs + RestScorer.onsetTraceWindowSec }.map { it.bpm })
+            if (onsetTs > 0 && baselineHr != null && hrAtOnset != null) {
+                traceSink(RestScorer.sleepOnsetLine(onsetTs, hrAtOnset, baselineHr))
+            }
         }
 
         // ── Recovery / Charge ─────────────────────────────────────────────────
@@ -907,6 +921,38 @@ object RestScorer {
         day: String, grav: Int, hr: Int, sparse: Boolean, useSleepStagerV2: Boolean, family: DeviceFamily,
     ): String = "sleep-motion day=$day grav=$grav hr=$hr sparse=$sparse " +
         "stager=${if (useSleepStagerV2) "V2" else "V1"} family=${family.name.lowercase()}"
+
+    /**
+     * How long AFTER the detected onset to sample HR for the #271 onset trace (seconds). The first several
+     * minutes of the window: if onset opened on a still-but-awake stretch, HR here is still near baseline; a
+     * real onset has already dipped. 10 min is long enough to average out beat noise. Long for `ts` math.
+     */
+    const val onsetTraceWindowSec: Long = 600L
+
+    /**
+     * Median of a bpm list — the deterministic "sorted, element at size/2" rule (upper-middle on an even
+     * count) so Swift and Kotlin agree byte-for-byte. null on an empty list. Byte-identical to Swift
+     * `AnalyticsEngine.medianBpm`.
+     */
+    fun medianBpm(bpms: List<Int>): Int? {
+        if (bpms.isEmpty()) return null
+        val s = bpms.sorted()
+        return s[s.size / 2]
+    }
+
+    /**
+     * #271 diagnostic (Sleep & Rest test mode): the ONSET decision behind an over-early WHOOP 4.0 bedtime.
+     * `onsetTs` is where the detected window OPENED; `hrAtOnsetBpm` is the median HR in the first
+     * `onsetTraceWindowSec` of it; `baselineHrBpm` is the day's median HR. `hrRatio` = atOnset / baseline:
+     * near 1.0 means HR had NOT dipped when the window opened — the pre-onset-awake over-staging this tracks
+     * (sparse 4.0 motion classifies "lying still, awake" as sleep); a real onset dips well below baseline
+     * (cf. the wake-side `morningReonsetRestingHRMult` = 0.90). Byte-identical to Swift `sleepOnsetLine`.
+     */
+    fun sleepOnsetLine(onsetTs: Long, hrAtOnsetBpm: Int, baselineHrBpm: Int): String {
+        val ratio = if (baselineHrBpm > 0) hrAtOnsetBpm.toDouble() / baselineHrBpm.toDouble() else 0.0
+        val r2 = Math.round(ratio * 100.0) / 100.0
+        return "sleep-onset onsetTs=$onsetTs hrAtOnset=$hrAtOnsetBpm baselineHr=$baselineHrBpm hrRatio=$r2"
+    }
 
     fun subScoreLine(
         tstSeconds: Double, inBedSeconds: Double, efficiency: Double, restorativeSeconds: Double,
