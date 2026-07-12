@@ -242,6 +242,20 @@
                 android:resource="@xml/noop_widget_info" />
         </receiver>
 
+        <!-- Compact home-screen widget, offered as a separate picker entry so the existing 2x2 widget
+             remains available unchanged. -->
+        <receiver
+            android:name="com.noop.widget.NoopCompactWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_compact_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/noop_compact_widget_info" />
+        </receiver>
+
         <!-- Optional native phone-call alerts. The receiver only reacts to ringing/offhook/idle state
              and never reads the incoming-number extra. Delivery is gated by the Notifications screen
              settings and by the just-in-time READ_PHONE_STATE runtime permission. -->
