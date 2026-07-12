@@ -797,19 +797,37 @@ class WhoopBleClient(
          * record. Mirrors Swift `BLEManager.dataRangeNewestUnix`: scan u32 LE words in the response
          * body (starts at frame[7], after [type,seq,cmd]), keep those in the unix range, return max.
          */
-        fun dataRangeNewestUnix(frame: ByteArray): Long? {
-            if (frame.size <= 7) return null
-            var newest: Long? = null
-            var i = 7
+        fun dataRangeNewestUnix(
+            frame: ByteArray,
+            wallNowUnix: Long = System.currentTimeMillis() / 1000L,
+        ): Long? {
+            if (frame.size < 4) return null
+            // Scan EVERY byte offset (was: 4-byte words aligned FROM offset 7). The strap's newest-record
+            // u32 does not always land on that grid — on WHOOP 4 it sits at byte offset 8, so the aligned
+            // scan straddled it and returned null, leaving a stale/garbage word from an earlier misaligned
+            // read latched in [strapNewestTs]. Harmless until #228 wired that value into BackfillPolicy:
+            // a FUTURE-reading strapNewestTs now SKIPS the automatic periodic/strap offload
+            // ([isFutureDatedNewest]), so one bad read stalls auto-sync (#451/#928/#1012).
+            var newestNotFuture: Long? = null
+            var newestAny: Long? = null
+            val futureCutoff = wallNowUnix + AUTO_CONTINUE_FUTURE_SKEW_SECONDS
+            var i = 0
             while (i + 4 <= frame.size) {
                 val w = (frame[i].toLong() and 0xFFL) or
                     ((frame[i + 1].toLong() and 0xFFL) shl 8) or
                     ((frame[i + 2].toLong() and 0xFFL) shl 16) or
                     ((frame[i + 3].toLong() and 0xFFL) shl 24)
-                if (w in 1_700_000_000L..1_900_000_000L) newest = maxOf(newest ?: 0L, w)
-                i += 4
+                if (w in 1_700_000_000L..1_900_000_000L) {
+                    newestAny = maxOf(newestAny ?: 0L, w)
+                    if (w <= futureCutoff) newestNotFuture = maxOf(newestNotFuture ?: 0L, w)
+                }
+                i += 1
             }
-            return newest
+            // A device cannot record the future: prefer the newest word AT/BEHIND the wall clock (the true
+            // frontier), so a lone future-dated straddle can't hijack it. Only when EVERY plausible word is
+            // future — a genuinely future-set RTC (#928) — return the future max, so [isFutureDatedNewest]
+            // still fires and the auto-continue / periodic guards correctly refuse the range.
+            return newestNotFuture ?: newestAny
         }
 
         /** OLDEST plausible record timestamp in a GET_DATA_RANGE frame — the start of the strap's stored
