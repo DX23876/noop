@@ -492,8 +492,23 @@ final class Backfiller {
                 let wasZero = sessionDroppedImplausible == 0
                 sessionDroppedImplausible += decoded.droppedImplausible
                 if wasZero {
-                    log?("Backfill: dropped record(s) with an implausible timestamp (trim=\(trim)) — the strap's clock is wrong (records dated far in the past or future), so those samples were skipped rather than misfiled onto the wrong day. Fully charge and reconnect the strap so its clock re-syncs.")
+                    // #324: append the epoch SPAN of the dropped block + how far off it sits, so the strap log
+                    // shows WHETHER the whole banked range is future-dated (safe to fast-forward-discard) or
+                    // just a slice. `droppedImplausibleOldestTs/NewestTs` are the records' OWN dated values
+                    // (the strap's wrong clock), captured by the #547 gate as it dropped them.
+                    let span = BadClockDiagnostics.droppedSpanClause(
+                        oldest: decoded.droppedImplausibleOldestTs,
+                        newest: decoded.droppedImplausibleNewestTs,
+                        now: Int(Date().timeIntervalSince1970))
+                    log?("Backfill: dropped record(s) with an implausible timestamp (trim=\(trim))\(span) — the strap's clock is wrong (records dated far in the past or future), so those samples were skipped rather than misfiled onto the wrong day. Fully charge and reconnect the strap so its clock re-syncs.")
                 }
+            }
+            // #324: the strap RTC-state events (RTC_LOST / BOOT / SET_RTC) the #547 gate dropped for a bad
+            // own-timestamp — the GROUND TRUTH that the clock reset. Sparse (not per-record), so log each as
+            // it appears; the bad `rawTs` is the future/past base the RTC jumped to.
+            let nowForRtc = Int(Date().timeIntervalSince1970)
+            for ev in decoded.droppedRtcEvents {
+                log?("Backfill: strap reported \(ev.kind) with an implausible own-timestamp \(BadClockDiagnostics.isoDay(ev.rawTs)) (\(BadClockDiagnostics.hoursOffset(ev.rawTs, now: nowForRtc)) vs now) — the strap's RTC reset to a wrong base (#324/#928); this is the ground-truth cause of the future-dated banking, not a NOOP decode bug.")
             }
             // Diagnostic (#77): the AGGREGATE silent-loss case — frames arrived but produced no rows at
             // all (CRC fail / unmapped layout / out-of-range timestamp), so this chunk persists nothing

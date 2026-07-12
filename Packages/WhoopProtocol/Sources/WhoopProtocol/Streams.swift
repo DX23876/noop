@@ -224,6 +224,17 @@ public struct Streams: Equatable, Codable {
     /// and NOT round-tripped through Codable (excluded from `CodingKeys`) — it is a transient observability
     /// count the Backfiller surfaces to the strap log. Defaults to 0 so it never affects golden fixtures.
     public var droppedImplausible: Int = 0
+    /// #324 diagnostic: the OLDEST / NEWEST own-timestamp (unix seconds, the strap's OWN dated value) among
+    /// records DROPPED this chunk for an implausible ts. Lets the Backfiller log the epoch SPAN of a bad-clock
+    /// strap's poisoned range - so a future-dated strap shows "2028-06-24 -> 2029-07" and we can tell a
+    /// WHOLE-range-future strap (safe to fast-forward-discard) from one mixed with real data. Transient (not
+    /// in CodingKeys), nil when nothing dropped. Defaults keep golden fixtures byte-identical.
+    public var droppedImplausibleOldestTs: Int? = nil
+    public var droppedImplausibleNewestTs: Int? = nil
+    /// #324 diagnostic: strap RTC-STATE events (RTC_LOST / BOOT / SET_RTC) DROPPED for an implausible own-ts.
+    /// The #547 gate discards them like any bad-ts record, but these are the GROUND TRUTH that the clock reset
+    /// - so we capture (kind, rawTs) for the strap log before dropping. Transient, empty by default, not encoded.
+    public var droppedRtcEvents: [DroppedRtcEvent] = []
     public init(hr: [HRSample] = [], rr: [RRInterval] = [],
                 spo2: [SpO2Sample] = [], skinTemp: [SkinTempSample] = [],
                 resp: [RespSample] = [], gravity: [GravitySample] = [],
@@ -271,6 +282,21 @@ public struct Streams: Equatable, Codable {
 }
 
 extension Streams { public static let empty = Streams() }
+
+/// #324 diagnostic record: a strap RTC-STATE event (RTC_LOST / BOOT / SET_RTC) that the #547 plausibility
+/// gate dropped for an implausible own-timestamp. `rawTs` is the event's OWN dated value (unix seconds) - on
+/// a future-dated strap this is the bad epoch the RTC jumped to, the single most useful signal for #324.
+public struct DroppedRtcEvent: Equatable, Codable, Sendable {
+    public let kind: String
+    public let rawTs: Int
+    public init(kind: String, rawTs: Int) { self.kind = kind; self.rawTs = rawTs }
+
+    /// The RTC-state event kinds worth capturing when dropped. Kinds are formatted "NAME(n)" (e.g.
+    /// "RTC_LOST(13)"), matched by prefix - "BOOT" covers both BOOT and BOOT_REPORT.
+    public static func isRtcStateKind(_ kind: String) -> Bool {
+        kind.hasPrefix("RTC_LOST") || kind.hasPrefix("SET_RTC") || kind.hasPrefix("BOOT")
+    }
+}
 
 /// Map a device-epoch timestamp to wall-clock unix seconds via a pure linear offset.
 /// Assumes strap clock and wall clock tick at the same rate (no skew/drift). Port of _to_wall.

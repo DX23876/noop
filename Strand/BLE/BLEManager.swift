@@ -1679,6 +1679,17 @@ public final class BLEManager: NSObject, ObservableObject {
         let currentTrim = backfiller?.lastAckedTrim
         let trimAdvanced = currentTrim != nil && currentTrim != lastSessionEndTrim
         lastSessionEndTrim = currentTrim
+        // #324/#928: a strap whose newest banked record is dated in the FUTURE (RTC relatched ahead) is
+        // future-dated regardless of HOW this offload ended — a deep future-dated backlog TIMES OUT as
+        // readily as it completes (the reporter's #324 session ended on timeout, not HISTORY_COMPLETE).
+        // Compute the banner once so BOTH outcomes name the real cause instead of "strap went quiet".
+        let wallNowForBanner = Int(Date().timeIntervalSince1970)
+        let futureClockBanner = BLEManager.futureDatedStrapBanner(
+            strapNewestTs: strapNewestTs, wallNowUnix: wallNowForBanner)
+        if futureClockBanner != nil {
+            let aheadH = ((strapNewestTs ?? 0) - wallNowForBanner) / 3600
+            log("Backfill: the strap's newest banked record is \(aheadH)h AHEAD of the wall clock (#324/#928) - clock set in the future; showing the future-clock banner and importing nothing from this range.")
+        }
         // Honest sync outcome for a cloud-free user (mirrors Android exitBackfilling, ed6a31d):
         // HISTORY_COMPLETE stamps lastSyncedAt + clears any error; the idle-watchdog timeout surfaces
         // a non-silent error. A disconnect mid-sync bypasses this path (didDisconnectPeripheral resets
@@ -1729,6 +1740,12 @@ public final class BLEManager: NSObject, ObservableObject {
                 state.lastSyncError = sustainedEmpty
                     ? "Synced, but your strap had no stored history to hand over - only its diagnostic output. This usually means its clock has lost sync, so it isn't saving data to flash. Fully charge it to 100%, then reconnect, and it should start banking again."
                     : nil
+            } else if let futureBanner = futureClockBanner {
+                // #324/#928: the strap banked records but its newest is dated implausibly in the FUTURE
+                // (RTC relatched ahead). #773 drops the future-dated samples so nothing is misfiled, but
+                // the "banked something" path above would otherwise report a clean sync and leave the
+                // user with no data and no reason. Name the real cause + the strap-side remedy.
+                state.lastSyncError = futureBanner
             } else {
                 state.lastSyncError = nil
             }
@@ -1771,7 +1788,11 @@ public final class BLEManager: NSObject, ObservableObject {
                     state.lastSyncError = nil
                 }
             } else {
-                state.lastSyncError = "Sync interrupted - the strap went quiet. It will retry on the next sync."
+                // #324/#928: a future-dated strap TIMES OUT on its deep future-dated backlog — that's not
+                // "the strap went quiet", it's the clock being set ahead. Prefer the honest future-clock
+                // banner so the reporter's timeout case (the common one) names the real cause + remedy.
+                state.lastSyncError = futureClockBanner
+                    ?? "Sync interrupted - the strap went quiet. It will retry on the next sync."
             }
         }
         checkStrapLiveness()         // safety-net: strap ahead of us AND our frontier frozen ⇒ stuck?
@@ -1928,6 +1949,23 @@ public final class BLEManager: NSObject, ObservableObject {
         let bankedSensorRecords = decodedChunks > 0 || archivedFrames > 0 || unarchivedFrames > 0
         let bankedNothing = !bankedSensorRecords && (consoleChunks >= 3 || rowsPersisted == 0)
         return (bankedSensorRecords, bankedNothing)
+    }
+
+    /// #324/#928: the post-sync banner for a strap whose clock is set in the FUTURE. Unlike the
+    /// "clock lost / not banking" case (`bankedNothing`), this strap DOES bank records every pass — but
+    /// its RTC relatched to a future base, so every banked timestamp reads ahead of the wall clock and
+    /// NOOP won't import them (importing would misfile the night days or years ahead). The existing
+    /// clock-lost banner is gated on empty syncs and never fires here, so this failure mode was silent
+    /// (#324). Returns the user-facing string when the strap-reported newest record is future-dated
+    /// beyond the 48 h skew allowance (`BackfillContinuation.isFutureDatedNewest`), else nil. Pure and
+    /// deterministic — one detection is decisive (nothing legitimate banks 48 h ahead), so no streak
+    /// gate is needed. Mirrors Android `futureDatedStrapBanner`.
+    nonisolated static func futureDatedStrapBanner(strapNewestTs: Int?, wallNowUnix: Int) -> String? {
+        guard BackfillContinuation.isFutureDatedNewest(strapNewestTs, wallNowUnix: wallNowUnix) else { return nil }
+        return "Synced, but your strap's clock is set in the future - its banked history is dated ahead of "
+            + "today, so NOOP can't trust those timestamps and didn't import them (importing them would "
+            + "misfile your data days or years ahead). Fully charge the strap to 100% and power-cycle it so "
+            + "its clock re-syncs, then reconnect."
     }
 
     /// Start (or restart) the periodic backfill timer. Each tick re-runs the type-47 historical

@@ -4,6 +4,7 @@ import android.content.Context
 import com.noop.data.InsertCounts
 import com.noop.data.StreamBatch
 import com.noop.data.WhoopRepository
+import com.noop.protocol.BadClockDiagnostics
 import com.noop.protocol.DeviceFamily
 import com.noop.protocol.Framing
 import com.noop.protocol.HistoricalMeta
@@ -400,11 +401,32 @@ class Backfiller(
             sessionDroppedImplausible += decoded.droppedImplausibleTs
             if (decoded.droppedImplausibleTs > 0 && !loggedImplausibleClock) {
                 loggedImplausibleClock = true
+                // #324: append the epoch SPAN of the dropped block + how far off it sits, so the strap log
+                // shows WHETHER the whole banked range is future-dated (safe to fast-forward-discard) or a slice.
+                val span = BadClockDiagnostics.droppedSpanClause(
+                    decoded.droppedImplausibleOldestTs,
+                    decoded.droppedImplausibleNewestTs,
+                    System.currentTimeMillis() / 1000L,
+                )
                 log(
                     "Backfill: WARNING dropped ${decoded.droppedImplausibleTs} record(s) with an " +
-                        "implausible timestamp (bad strap clock — far-past or future-dated); they are " +
+                        "implausible timestamp$span (bad strap clock — far-past or future-dated); they are " +
                         "excluded so they can't misdate history.",
                 )
+            }
+            // #324: the strap RTC-state events (RTC_LOST / BOOT / SET_RTC) the #547 gate dropped for a bad
+            // own-timestamp — the GROUND TRUTH that the clock reset. Sparse (not per-record), so log each as
+            // it appears; the bad rawTs is the future/past base the RTC jumped to.
+            if (decoded.droppedRtcEvents.isNotEmpty()) {
+                val nowForRtc = System.currentTimeMillis() / 1000L
+                for (ev in decoded.droppedRtcEvents) {
+                    log(
+                        "Backfill: strap reported ${ev.kind} with an implausible own-timestamp " +
+                            "${BadClockDiagnostics.isoDay(ev.rawTs)} (${BadClockDiagnostics.hoursOffset(ev.rawTs, nowForRtc)} " +
+                            "vs now) — the strap's RTC reset to a wrong base (#324/#928); this is the ground-truth " +
+                            "cause of the future-dated banking, not a NOOP decode bug.",
+                    )
+                }
             }
             // #77 / #91: HISTORICAL_DATA record frames that fail decode (CRC failure, or an unmapped
             // layout the v24 fallback's plausibility gate also rejects) used to be acked anyway — the

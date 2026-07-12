@@ -512,6 +512,12 @@ fun extractHistoricalStreams(
     // Count of records dropped by the #547 plausibility gate this batch, surfaced on the returned
     // StreamBatch so the Backfiller can log "bad strap clock" once per session via its existing seam.
     var droppedImplausible = 0
+    // #324: oldest/newest own-timestamp among the dropped records (the poisoned-range epoch span), and the
+    // dropped RTC-state events (RTC_LOST / BOOT / SET_RTC) — the ground truth that the clock reset. Declared
+    // before correctedWall so the local function can capture them (Kotlin: no forward reference to locals).
+    var droppedOldest: Long? = null
+    var droppedNewest: Long? = null
+    val droppedRtcEvents = ArrayList<DroppedRtcEvent>()
 
     // The plausible-timestamp window for this batch (#547): the absolute floor [MIN_PLAUSIBLE_UNIX,
     // wallNow + FUTURE_MARGIN] PLUS, when the strap's GET_DATA_RANGE markers are known AND well-formed
@@ -565,6 +571,10 @@ fun extractHistoricalStreams(
         }
         if (!plausible(candidate)) {
             droppedImplausible++
+            // #324: track the epoch SPAN of the dropped (bad-clock) records — the strap's OWN dated value,
+            // so the Backfiller can log whether the whole poisoned range is future-dated or mixed.
+            droppedOldest = minOf(droppedOldest ?: candidate, candidate)
+            droppedNewest = maxOf(droppedNewest ?: candidate, candidate)
             return null
         }
         return candidate
@@ -677,10 +687,18 @@ fun extractHistoricalStreams(
                 // suppressed, so the offload extractor MUST handle these.
                 val parsed = Framing.parseFrame(frame, family)
                 if (!parsed.ok || parsed.crcOk == false) continue
-                // #547: correctedWall now nullable — an EVENT with an implausible event_timestamp is
-                // skipped via `?: continue` so a bad-clock wrist/charge/battery event can't enter the DB.
-                val ts = (parsed.parsed.intOrNull("event_timestamp")?.toLong())?.let { correctedWall(it) } ?: continue
+                val rawTs = parsed.parsed.intOrNull("event_timestamp")?.toLong() ?: continue
                 val kind = (parsed.parsed["event"] as? String) ?: ""
+                // #547: correctedWall now nullable — an EVENT with an implausible event_timestamp is
+                // skipped so a bad-clock wrist/charge/battery event can't enter the DB.
+                val ts = correctedWall(rawTs)
+                if (ts == null) {
+                    // #324: the #547 gate just dropped this event for an implausible ts. If it's an RTC-STATE
+                    // event (RTC_LOST / BOOT / SET_RTC), that IS the ground truth that the clock reset —
+                    // capture (kind, rawTs) for the strap log before discarding.
+                    if (DroppedRtcEvent.isRtcStateKind(kind)) droppedRtcEvents.add(DroppedRtcEvent(kind, rawTs))
+                    continue
+                }
                 if (kind.startsWith("BATTERY_LEVEL")) appendHistBattery(battery, ts, parsed.parsed)
                 val payload = LinkedHashMap(parsed.parsed)
                 payload.remove("event")
@@ -709,6 +727,9 @@ fun extractHistoricalStreams(
         sleepState = sleepState,
         ppgHr = ppgHr,
         droppedImplausibleTs = droppedImplausible,
+        droppedImplausibleOldestTs = droppedOldest,   // #324 poisoned-range epoch span (diag only)
+        droppedImplausibleNewestTs = droppedNewest,
+        droppedRtcEvents = droppedRtcEvents,
     )
 }
 

@@ -1,6 +1,7 @@
 package com.noop.data
 
 import android.content.Context
+import com.noop.protocol.DroppedRtcEvent
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlin.math.roundToInt
@@ -39,6 +40,20 @@ data class StreamBatch(
      * visible in a shared log. Defaulted so every existing constructor/copy call site is unchanged.
      */
     val droppedImplausibleTs: Int = 0,
+    /**
+     * #324 diagnostic: the OLDEST / NEWEST own-timestamp (unix seconds, the strap's OWN dated value) among
+     * records dropped this batch for an implausible ts. Lets the Backfiller log the epoch SPAN of a bad-clock
+     * strap's poisoned range, so a whole-range-future strap can be told from one mixed with real data. Diag
+     * only (excluded from [isEmpty]); null when nothing dropped. Mirrors Swift `Streams.droppedImplausible*Ts`.
+     */
+    val droppedImplausibleOldestTs: Long? = null,
+    val droppedImplausibleNewestTs: Long? = null,
+    /**
+     * #324 diagnostic: strap RTC-STATE events (RTC_LOST / BOOT / SET_RTC) dropped for an implausible own-ts.
+     * The #547 gate discards them like any bad-ts record, but they are the GROUND TRUTH that the clock reset,
+     * so they are captured here for the strap log. Diag only; empty when none. Mirrors Swift `droppedRtcEvents`.
+     */
+    val droppedRtcEvents: List<DroppedRtcEvent> = emptyList(),
 ) {
     val isEmpty: Boolean
         get() = hr.isEmpty() && rr.isEmpty() && events.isEmpty() && battery.isEmpty() &&

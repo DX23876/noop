@@ -154,6 +154,23 @@ fun skinTempCelsius(
 data class WhoopEvent(val ts: Int, val kind: String, val payload: Map<String, Any?>)
 
 /**
+ * #324 diagnostic record: a strap RTC-STATE event (RTC_LOST / BOOT / SET_RTC) that the #547 plausibility
+ * gate dropped for an implausible own-timestamp. [rawTs] is the event's OWN dated value (unix seconds) - on
+ * a future-dated strap this is the bad epoch the RTC jumped to, the single most useful signal for #324.
+ * Mirrors the Swift `DroppedRtcEvent`.
+ */
+data class DroppedRtcEvent(val kind: String, val rawTs: Long) {
+    companion object {
+        /**
+         * The RTC-state event kinds worth capturing when dropped. Kinds are formatted "NAME(n)" (e.g.
+         * "RTC_LOST(13)"), matched by prefix - "BOOT" covers both BOOT and BOOT_REPORT.
+         */
+        fun isRtcStateKind(kind: String): Boolean =
+            kind.startsWith("RTC_LOST") || kind.startsWith("SET_RTC") || kind.startsWith("BOOT")
+    }
+}
+
+/**
  * A battery reading. [ts] is event RTC for BATTERY_LEVEL events, else the wall-clock reference.
  * [charging] is a real Boolean only when the frame reported it (BATTERY_LEVEL events); `null`
  * otherwise (command responses).

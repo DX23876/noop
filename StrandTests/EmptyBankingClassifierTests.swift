@@ -76,6 +76,41 @@ final class EmptyBankingClassifierTests: XCTestCase {
                       "#214 + #126: three consecutive metadata-only completions trip the guidance")
     }
 
+    // MARK: - #324/#928 future-dated strap banner
+
+    // A strap whose newest banked record is far in the FUTURE gets the "clock set in the future" banner.
+    // This strap BANKS records (bankedNothing = false), so the clock-lost banner never covers it (#324).
+    func testFutureDatedNewestSurfacesBanner() {
+        let now = 1_783_843_824                     // ~2026-07-12, the reporter's wall clock
+        let newest = now + 26_445 * 3600            // 26445 h ahead — the #324 log's banked frontier
+        let banner = BLEManager.futureDatedStrapBanner(strapNewestTs: newest, wallNowUnix: now)
+        XCTAssertNotNil(banner)
+        XCTAssertTrue(banner?.contains("set in the future") == true, banner ?? "nil")
+        XCTAssertTrue(banner?.contains("power-cycle") == true, banner ?? "nil")
+    }
+
+    // A healthy strap (newest at/behind the wall clock) gets NO future-clock banner.
+    func testCurrentStrapNoFutureBanner() {
+        let now = 1_783_843_824
+        XCTAssertNil(BLEManager.futureDatedStrapBanner(strapNewestTs: now - 3600, wallNowUnix: now))
+        XCTAssertNil(BLEManager.futureDatedStrapBanner(strapNewestTs: now, wallNowUnix: now))
+    }
+
+    // Inside the 48 h skew allowance (timezone confusion / mild drift) stays silent — matches the gate
+    // shared with shouldAutoContinue so the banner and the backfill decision never disagree.
+    func testWithinSkewAllowanceNoFutureBanner() {
+        let now = 1_783_843_824
+        XCTAssertNil(BLEManager.futureDatedStrapBanner(strapNewestTs: now + 24 * 3600, wallNowUnix: now),
+                     "24 h ahead is within the 48 h allowance — not flagged")
+        XCTAssertNotNil(BLEManager.futureDatedStrapBanner(strapNewestTs: now + 49 * 3600, wallNowUnix: now),
+                        "just past 48 h is future-dated")
+    }
+
+    // An unknown (nil) strap frontier is UNKNOWN, not future-dated — no banner.
+    func testNilNewestNoFutureBanner() {
+        XCTAssertNil(BLEManager.futureDatedStrapBanner(strapNewestTs: nil, wallNowUnix: 1_783_843_824))
+    }
+
     // A banking cycle between metadata-only completions resets the streak — no false alarm for a strap
     // that's genuinely caught up after banking earlier.
     func testBankingCycleResetsTheMetadataOnlyStreak() {

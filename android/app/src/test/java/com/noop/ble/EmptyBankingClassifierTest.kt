@@ -2,6 +2,7 @@ package com.noop.ble
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -74,6 +75,39 @@ class EmptyBankingClassifierTest {
         assertFalse(recordMetadataOnly())
         assertTrue("#214 + #126: three consecutive metadata-only completions trip the guidance",
             recordMetadataOnly())
+    }
+
+    // #324/#928 future-dated strap banner — Kotlin twin of the macOS futureDatedStrapBanner tests.
+
+    @Test
+    fun futureDatedNewestSurfacesBanner() {
+        val now = 1_783_843_824L                    // ~2026-07-12, the reporter's wall clock
+        val newest = now + 26_445L * 3600L          // 26445 h ahead — the #324 log's banked frontier
+        val banner = WhoopBleClient.futureDatedStrapBanner(newest, now)
+        assertNotNull(banner)
+        assertTrue(banner!!.contains("set in the future"))
+        assertTrue(banner.contains("power-cycle"))
+    }
+
+    @Test
+    fun currentStrapNoFutureBanner() {
+        val now = 1_783_843_824L
+        assertEquals(null, WhoopBleClient.futureDatedStrapBanner(now - 3600L, now))
+        assertEquals(null, WhoopBleClient.futureDatedStrapBanner(now, now))
+    }
+
+    @Test
+    fun withinSkewAllowanceNoFutureBanner() {
+        val now = 1_783_843_824L
+        assertEquals("24 h ahead is within the 48 h allowance — not flagged",
+            null, WhoopBleClient.futureDatedStrapBanner(now + 24L * 3600L, now))
+        assertTrue("just past 48 h is future-dated",
+            WhoopBleClient.futureDatedStrapBanner(now + 49L * 3600L, now) != null)
+    }
+
+    @Test
+    fun nilNewestNoFutureBanner() {
+        assertEquals(null, WhoopBleClient.futureDatedStrapBanner(null, 1_783_843_824L))
     }
 
     @Test

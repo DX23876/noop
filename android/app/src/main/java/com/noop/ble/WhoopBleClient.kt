@@ -853,6 +853,24 @@ class WhoopBleClient(
         ): Boolean = strapNewestTs != null && strapNewestTs > wallNowUnix + futureSkewSeconds
 
         /**
+         * #324/#928: the post-sync banner for a strap whose clock is set in the FUTURE. Unlike the
+         * "clock lost / not banking" case ([classifyCompletedOffload]'s bankedNothing), this strap DOES
+         * bank records every pass — but its RTC relatched to a future base, so every banked timestamp
+         * reads ahead of the wall clock and NOOP won't import them (importing would misfile the night
+         * days or years ahead). The clock-lost banner is gated on empty syncs and never fires here, so
+         * this failure mode was silent (#324). Returns the user-facing string when the strap-reported
+         * newest is future-dated beyond the 48 h skew allowance ([isFutureDatedNewest]), else null. Pure
+         * and deterministic — one detection is decisive (nothing legitimate banks 48 h ahead), so no
+         * streak gate is needed. Mirrors the Swift `BLEManager.futureDatedStrapBanner`.
+         */
+        fun futureDatedStrapBanner(strapNewestTs: Long?, wallNowUnix: Long): String? =
+            if (!isFutureDatedNewest(strapNewestTs, wallNowUnix)) null
+            else "Synced, but your strap's clock is set in the future - its banked history is dated ahead of " +
+                "today, so NOOP can't trust those timestamps and didn't import them (importing them would " +
+                "misfile your data days or years ahead). Fully charge the strap to 100% and power-cycle it so " +
+                "its clock re-syncs, then reconnect."
+
+        /**
          * Decides whether a backfill session that ended on the 60s IDLE cap (NOT a true HISTORY_COMPLETE)
          * should immediately re-kick another offload instead of tearing down to wait the 900s periodic
          * floor (#364). The strap offloads OLDEST-first at ~60s/session with no auto-continue, so on a
@@ -4848,6 +4866,15 @@ class WhoopBleClient(
                     "consecutive empty syncs = ${emptySyncTracker.consecutiveEmptySyncs}.",
             )
         }
+        // #324/#928: a strap whose newest banked record is dated in the FUTURE (RTC relatched ahead) is
+        // future-dated regardless of HOW this offload ended — a deep future-dated backlog TIMES OUT as
+        // readily as it completes (the reporter's #324 session ended on timeout, not HISTORY_COMPLETE).
+        // Compute the banner once so BOTH outcomes name the real cause instead of "strap went quiet".
+        val futureClockBanner = futureDatedStrapBanner(strapNewestTs, nowSec)
+        if (futureClockBanner != null) {
+            val aheadH = ((strapNewestTs ?: 0L) - nowSec) / 3600
+            log("Backfill: the strap's newest banked record is ${aheadH}h AHEAD of the wall clock (#324/#928) - clock set in the future; showing the future-clock banner and importing nothing from this range.")
+        }
         // PR #556 reimpl: persist the HISTORY_COMPLETE instant so "Last synced N ago" survives a BLE-client
         // recreation / process restart and stops reverting to "Never".
         if (reason == "HISTORY_COMPLETE") NoopPrefs.setLastSyncAt(context, nowSec)
@@ -4888,9 +4915,18 @@ class WhoopBleClient(
                 backfilling = false,
                 syncChunksThisSession = ackedChunksThisSession,
                 lastSyncAt = nowSec,
-                lastSyncError = if (bankedNothing && sustainedEmpty)
-                    "Synced, but your strap had no stored history to hand over - only its diagnostic output. This usually means its clock has lost sync, so it isn't saving data to flash. Fully charge it to 100%, then reconnect, and it should start banking again."
-                else null,
+                // bankedNothing keeps its own sustained-empty precedence (#126/#214) — future-dated is
+                // checked ONLY on the banked-something path, matching the Swift else-if order exactly so
+                // the two platforms never disagree on which banner a given sync shows.
+                lastSyncError = when {
+                    bankedNothing && sustainedEmpty ->
+                        "Synced, but your strap had no stored history to hand over - only its diagnostic output. This usually means its clock has lost sync, so it isn't saving data to flash. Fully charge it to 100%, then reconnect, and it should start banking again."
+                    bankedNothing -> null   // banked nothing but not yet sustained — stay silent (matches Swift)
+                    // #324/#928: the strap banked records but its newest is dated implausibly in the future
+                    // (RTC relatched ahead). #773 drops the samples so nothing is misfiled, but this path
+                    // would otherwise report a clean sync and leave the user with no data + no reason.
+                    else -> futureClockBanner
+                },
                 historySyncExperimental = whoop5HistoryExperimental,
             )
             "timeout" -> it.copy(
@@ -4898,8 +4934,10 @@ class WhoopBleClient(
                 syncChunksThisSession = ackedChunksThisSession,
                 // #580: on a history-experimental 5/MG this isn't a sync failure — suppress the "went quiet"
                 // error (it's just the empty offload), and surface the experimental flag instead.
+                // #324/#928: a future-dated WHOOP-4 TIMES OUT on its deep future-dated backlog — prefer the
+                // honest future-clock banner over "strap went quiet" (the reporter's #324 case timed out).
                 lastSyncError = if (isWhoop5) null
-                    else "Sync interrupted - the strap went quiet. It will retry on the next sync.",
+                    else futureClockBanner ?: "Sync interrupted - the strap went quiet. It will retry on the next sync.",
                 historySyncExperimental = whoop5HistoryExperimental,
             )
             else -> it.copy(

@@ -185,4 +185,40 @@ class HistoricalStreamsClockCorrectionTest {
         assertEquals(realRecent, st.hr.first().ts)
         assertEquals(0, st.droppedImplausibleTs)
     }
+
+    // ── #324 bad-clock diagnostics: dropped-record epoch span ─────────────────────────────────────────
+    // The EVENT-frame RTC-state capture (RTC_LOST / BOOT / SET_RTC → droppedRtcEvents) is exercised by the
+    // Swift twin HistoricalTimestampGateTests (ParsedFrame fixtures); here we pin the HISTORICAL_DATA span
+    // capture + the pure kind gate, which don't need a synthetic EVENT byte frame.
+
+    @Test fun capturesDroppedEpochSpanForFutureDatedRecords() {
+        val now = 1_780_916_150L
+        val older = now + 100L * 86_400        // ~100 days ahead — future-dated, dropped
+        val newer = now + 300L * 86_400        // ~300 days ahead — future-dated, dropped
+        val st = extractHistoricalStreams(
+            listOf(wornV18WithUnix(newer), wornV18WithUnix(older)), 0, 0, DeviceFamily.WHOOP5, wallNow = now,
+        )
+        assertEquals(2, st.droppedImplausibleTs)
+        assertEquals(older, st.droppedImplausibleOldestTs)   // span brackets both, regardless of arrival order
+        assertEquals(newer, st.droppedImplausibleNewestTs)
+        assertTrue(st.droppedRtcEvents.isEmpty())
+    }
+
+    @Test fun noDropLeavesSpanNull() {
+        val st = extractHistoricalStreams(
+            listOf(wornV18WithUnix(1_780_916_150L)), 0, 0, DeviceFamily.WHOOP5, wallNow = 1_780_916_150L + 3_600,
+        )
+        assertEquals(null, st.droppedImplausibleOldestTs)
+        assertEquals(null, st.droppedImplausibleNewestTs)
+        assertTrue(st.droppedRtcEvents.isEmpty())
+    }
+
+    @Test fun rtcStateKindMatch() {
+        assertTrue(DroppedRtcEvent.isRtcStateKind("RTC_LOST(13)"))
+        assertTrue(DroppedRtcEvent.isRtcStateKind("SET_RTC(16)"))
+        assertTrue(DroppedRtcEvent.isRtcStateKind("BOOT(15)"))
+        assertTrue(DroppedRtcEvent.isRtcStateKind("BOOT_REPORT(30)"))
+        assertTrue(!DroppedRtcEvent.isRtcStateKind("WRIST_ON(9)"))
+        assertTrue(!DroppedRtcEvent.isRtcStateKind("BATTERY_LEVEL(3)"))
+    }
 }

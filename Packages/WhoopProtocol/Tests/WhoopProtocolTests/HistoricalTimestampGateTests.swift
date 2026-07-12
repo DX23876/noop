@@ -28,6 +28,15 @@ final class HistoricalTimestampGateTests: XCTestCase {
         )
     }
 
+    /// Build a synthetic EVENT ParsedFrame carrying `event` (kind, "NAME(n)") + `event_timestamp`.
+    private func eventFrame(kind: String, unix: Int) -> ParsedFrame {
+        ParsedFrame(
+            ok: true, typeName: "EVENT", seq: 48, cmdName: nil, crcOK: true,
+            lenBytes: 0, rawHex: "", fields: [],
+            parsed: ["event": .string(kind), "event_timestamp": .int(unix)]
+        )
+    }
+
     // MARK: - bounds parity
 
     func testBoundsMatchAndroid() {
@@ -153,6 +162,61 @@ final class HistoricalTimestampGateTests: XCTestCase {
             sessionOldestUnix: 12_345, sessionNewestUnix: newest)   // oldest < MIN_PLAUSIBLE_UNIX → malformed
         XCTAssertEqual(st.hr.count, 1, "a malformed (below-floor) oldest marker must not reject real data")
         XCTAssertEqual(st.droppedImplausible, 0)
+    }
+
+    // MARK: - #324 bad-clock diagnostics capture (epoch span + dropped RTC-state events)
+
+    func testCapturesDroppedEpochSpan() {
+        // Three dropped bad-clock records — the returned span must bracket their OWN dated values so the
+        // strap log can show whether the whole poisoned range is future-dated.
+        let frames = [histFrame(unix: 1_250_000_000), histFrame(unix: FAR_FUTURE), histFrame(unix: 1_827_642_881)]
+        let st = extractHistoricalStreams(frames, deviceClockRef: wallNow, wallClockRef: wallNow)
+        XCTAssertEqual(st.droppedImplausible, 3)
+        XCTAssertEqual(st.droppedImplausibleOldestTs, 1_250_000_000)
+        XCTAssertEqual(st.droppedImplausibleNewestTs, FAR_FUTURE)
+    }
+
+    func testNoDropLeavesSpanNil() {
+        let st = extractHistoricalStreams([histFrame(unix: wallNow)], deviceClockRef: wallNow, wallClockRef: wallNow)
+        XCTAssertNil(st.droppedImplausibleOldestTs)
+        XCTAssertNil(st.droppedImplausibleNewestTs)
+        XCTAssertTrue(st.droppedRtcEvents.isEmpty)
+    }
+
+    func testCapturesDroppedRtcStateEvent() {
+        // A future-dated RTC_LOST: the #547 gate still DROPS it from persistence (bad ts), but #324 captures
+        // it (kind + rawTs) as the ground-truth signal that the clock reset.
+        let st = extractHistoricalStreams([eventFrame(kind: "RTC_LOST(13)", unix: FAR_FUTURE)],
+                                          deviceClockRef: wallNow, wallClockRef: wallNow)
+        XCTAssertEqual(st.events.count, 0, "the future-dated event is still dropped from persistence")
+        XCTAssertEqual(st.droppedRtcEvents.count, 1)
+        XCTAssertEqual(st.droppedRtcEvents.first?.kind, "RTC_LOST(13)")
+        XCTAssertEqual(st.droppedRtcEvents.first?.rawTs, FAR_FUTURE)
+    }
+
+    func testPlausibleRtcEventKeptNotCaptured() {
+        // A plausible RTC_LOST is a normal kept event — never captured as "dropped".
+        let st = extractHistoricalStreams([eventFrame(kind: "RTC_LOST(13)", unix: wallNow)],
+                                          deviceClockRef: wallNow, wallClockRef: wallNow)
+        XCTAssertEqual(st.droppedRtcEvents.count, 0)
+        XCTAssertEqual(st.events.count, 1)
+    }
+
+    func testNonRtcDroppedEventNotCaptured() {
+        // A future-dated NON-rtc event (WRIST_ON) is dropped + counted, but NOT captured (only RTC-state kinds).
+        let st = extractHistoricalStreams([eventFrame(kind: "WRIST_ON(9)", unix: FAR_FUTURE)],
+                                          deviceClockRef: wallNow, wallClockRef: wallNow)
+        XCTAssertEqual(st.droppedRtcEvents.count, 0)
+        XCTAssertEqual(st.droppedImplausible, 1, "still counted as a dropped implausible record")
+    }
+
+    func testRtcStateKindMatch() {
+        XCTAssertTrue(DroppedRtcEvent.isRtcStateKind("RTC_LOST(13)"))
+        XCTAssertTrue(DroppedRtcEvent.isRtcStateKind("SET_RTC(16)"))
+        XCTAssertTrue(DroppedRtcEvent.isRtcStateKind("BOOT(15)"))
+        XCTAssertTrue(DroppedRtcEvent.isRtcStateKind("BOOT_REPORT(30)"))
+        XCTAssertFalse(DroppedRtcEvent.isRtcStateKind("WRIST_ON(9)"))
+        XCTAssertFalse(DroppedRtcEvent.isRtcStateKind("BATTERY_LEVEL(3)"))
     }
 
     func testIdentityRefTrustsRealRawTimestamp() {

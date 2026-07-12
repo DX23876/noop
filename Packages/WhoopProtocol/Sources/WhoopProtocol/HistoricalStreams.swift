@@ -152,6 +152,10 @@ public func extractHistoricalStreams(_ parsed: [ParsedFrame],
                                         sessionOldestUnix: sessionOldestUnix,
                                         sessionNewestUnix: sessionNewestUnix) else {
             droppedImplausible += 1
+            // #324: track the epoch SPAN of the dropped (bad-clock) records — the strap's OWN dated value,
+            // so the Backfiller can log whether the whole poisoned range is future-dated or mixed.
+            droppedOldest = min(droppedOldest ?? candidate, candidate)
+            droppedNewest = max(droppedNewest ?? candidate, candidate)
             return nil
         }
         return candidate
@@ -159,6 +163,9 @@ public func extractHistoricalStreams(_ parsed: [ParsedFrame],
     // #547: how many records this chunk dropped for an implausible ts. Surfaced to the Backfiller via
     // `Streams.droppedImplausible` so the strap log can show a bad-clock strap (observability only).
     var droppedImplausible = 0
+    // #324: oldest/newest own-timestamp among the dropped records (the poisoned-range epoch span).
+    var droppedOldest: Int? = nil
+    var droppedNewest: Int? = nil
     var out = Streams()
     // v26 optical-PPG records (issue #156): no measured HR/motion, just the 24 Hz waveform. Collect
     // (corrected-wall ts, samples) here and derive a per-second HR after the loop (PpgHr.derivePpgHr),
@@ -231,8 +238,18 @@ public func extractHistoricalStreams(_ parsed: [ParsedFrame],
             // EVENT carries the strap RTC's real-unix seconds. Correct for a grossly-stale RTC
             // (FIX #72); a normal strap is unchanged (offset < threshold). #547 gate: skip the event
             // when `correctedWall` rejects an implausible ts so no future/far-past event is banked.
-            guard let rawTs = p["event_timestamp"]?.intValue, let ts = correctedWall(rawTs) else { continue }
+            guard let rawTs = p["event_timestamp"]?.intValue else { continue }
             let kind = p["event"]?.stringValue ?? ""
+            guard let ts = correctedWall(rawTs) else {
+                // #324: the #547 gate just dropped this event for an implausible ts. If it's an RTC-STATE
+                // event (RTC_LOST / BOOT / SET_RTC), that IS the ground truth that the clock reset — capture
+                // (kind, rawTs) for the strap log before discarding, so a future-dated strap's cause isn't
+                // silently swallowed by the very gate the bad clock trips.
+                if DroppedRtcEvent.isRtcStateKind(kind) {
+                    out.droppedRtcEvents.append(DroppedRtcEvent(kind: kind, rawTs: rawTs))
+                }
+                continue
+            }
             if kind.hasPrefix("BATTERY_LEVEL") { appendBattery(&out, ts: ts, p: p) }  // "BATTERY_LEVEL(3)"
             var payload = p
             payload.removeValue(forKey: "event")
@@ -249,5 +266,7 @@ public func extractHistoricalStreams(_ parsed: [ParsedFrame],
     // records (the WHOOP 4 / v18-only common case), so this is a no-op cost there.
     out.ppgHr = PpgHr.derivePpgHr(records: ppgRecords)
     out.droppedImplausible = droppedImplausible   // #547 diag count (not persisted, not encoded)
+    out.droppedImplausibleOldestTs = droppedOldest   // #324 poisoned-range epoch span (diag only)
+    out.droppedImplausibleNewestTs = droppedNewest
     return out
 }
