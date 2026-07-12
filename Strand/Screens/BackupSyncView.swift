@@ -161,8 +161,12 @@ struct BackupSyncView: View {
         // apart from that dead-button dead-end (both come back nil), so when no folder arrives we show
         // the screen's normal result alert with a concrete workaround instead of staying silent. Mildly
         // chatty on a genuine Cancel; honest and actionable when the picker is actually broken.
+        // `busy` guards against a double-tap stacking a second picker presentation on top of the first.
+        busy = true
         Task {
-            if await FolderBackup.pickFolder() != nil {
+            let picked = await FolderBackup.pickFolder()
+            busy = false
+            if picked != nil {
                 folderLabel = FolderBackup.folderLabel()
             } else if !FolderBackup.useInternalFolder {
                 // Only nag when there's no working destination. If the internal fallback is already
