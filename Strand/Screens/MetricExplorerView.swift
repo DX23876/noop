@@ -148,6 +148,70 @@ enum ExploreRangeGating {
     }
 }
 
+// MARK: - Readings table projection (task #8)
+
+/// One windowed reading behind a vital's detail chart: its day ("YYYY-MM-DD"), the value, and the RAW
+/// source id it came from (a strap id, the "-noop" computed sibling, "apple-health", or "health-connect").
+/// The readings TABLE and the "N readings" caption both derive from this ONE windowed list, so they can
+/// never disagree; the raw source maps to a human label via `TodayView.provenanceDisplayLabel` — the SAME
+/// resolver Today uses, so no source vocabulary is invented. Swift twin of Android's `VitalReading`.
+struct VitalReading: Equatable {
+    let day: String
+    let value: Double
+    let source: String
+}
+
+/// One row of a vital detail's readings table: the reading's day (localized), its formatted value with
+/// unit, and a human source label. Plain strings so the view is a thin renderer and the projection stays
+/// unit-testable. Swift twin of Android's `VitalReadingRow`.
+struct VitalReadingRow: Equatable {
+    let time: String
+    let value: String
+    let source: String
+}
+
+/// Project a vital's windowed `readings` into table rows, NEWEST FIRST — the same list (so the same count)
+/// the "N readings" caption shows, guaranteeing the two never drift. Each row pairs the reading's DAY
+/// (these vital series carry one aggregated reading per night, so a row's "time" is its localized calendar
+/// date; the date always shows since a charted window spans 2+ days) with the model's own `format`ted
+/// value + `unit` and the source label from `TodayView.provenanceDisplayLabel` (a strap id → "Whoop", its
+/// "-noop" sibling → "On-device", "apple-health" → "Apple Health", "health-connect" → "Health Connect").
+/// `strapDeviceId` is the active strap id the resolver needs. Byte-identical projection to Android's
+/// `vitalReadingRows`.
+func vitalReadingRows(readings: [VitalReading], unit: String, strapDeviceId: String,
+                      now: Date = Date(), format: (Double) -> String) -> [VitalReadingRow] {
+    readings.reversed().map { reading in
+        let value = format(reading.value)
+        return VitalReadingRow(
+            time: vitalReadingDateLabel(reading.day, now: now),
+            value: unit.isEmpty ? value : "\(value) \(unit)",
+            source: TodayView.provenanceDisplayLabel(rawSource: reading.source, deviceId: strapDeviceId)
+        )
+    }
+}
+
+/// "9 Jun" for a "YYYY-MM-DD" reading day (today / yesterday read as words to match the hero "as of"
+/// line); the verbatim string if it doesn't parse. UTC-fixed en_US_POSIX, matching this file's other date
+/// labels. Swift twin of Android's `vitalReadingDateLabel`.
+func vitalReadingDateLabel(_ day: String, now: Date = Date()) -> String {
+    guard let date = parseDay(day) else { return day }
+    var cal = Calendar(identifier: .gregorian)
+    cal.timeZone = TimeZone(identifier: "UTC")!
+    if cal.isDate(date, inSameDayAs: now) { return String(localized: "Today") }
+    if let yesterday = cal.date(byAdding: .day, value: -1, to: now),
+       cal.isDate(date, inSameDayAs: yesterday) { return String(localized: "Yesterday") }
+    return readingShortDateFormatter.string(from: date)
+}
+
+/// "d MMM" (e.g. "9 Jun"), UTC / en_US_POSIX so the label is locale-stable, matching `longDate`.
+private let readingShortDateFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.locale = Locale(identifier: "en_US_POSIX")
+    f.timeZone = TimeZone(identifier: "UTC")
+    f.dateFormat = "d MMM"
+    return f
+}()
+
 // MARK: - Root: categorized list
 
 /// The "Explore" picker — categories as sections, metrics as rows, each pushing a
@@ -429,6 +493,10 @@ struct MetricDetailView: View {
     @State private var heroAnimatedFraction: Double = 0
     /// Full ascending series for this metric — ALL history.
     @State private var series: [(day: String, value: Double)] = []
+    /// day → the RAW source id that supplied that day's value (task #8). Loaded from `resolvedSeries`
+    /// alongside `series` and used ONLY for the readings-table provenance column, so the plotted line
+    /// (which rides `series`/`exploreSeries`) is never changed by adding source labels.
+    @State private var sourceByDay: [String: String] = [:]
     /// Every OTHER catalog series, loaded once for the correlation scan.
     @State private var others: [(metric: MetricDescriptor, series: [(day: String, value: Double)])] = []
     @State private var loaded = false
@@ -606,6 +674,7 @@ struct MetricDetailView: View {
                     heroHeader(effectiveRange: effRange, windowed: win, windowFellBack: fellBack)
                     heroChart(effectiveRange: effRange, windowed: win, windowFellBack: fellBack)
                     statRow(effectiveRange: effRange, windowed: win)
+                    readingsTable(windowed: win)
                     correlationCard
                 }
             }
@@ -622,6 +691,12 @@ struct MetricDetailView: View {
 
     private func load() async {
         series = await repo.exploreSeries(key: metric.key, source: metric.source)
+        // Per-day provenance for the readings table (task #8). resolvedSeries names the source that
+        // actually supplied each day (imported strap / on-device / Apple Health / Health Connect); the
+        // chart still rides `series` above, so this only ADDS the source column, never moves the line.
+        let resolution = await repo.resolvedSeries(key: metric.key, source: metric.source)
+        sourceByDay = Dictionary(resolution.points.map { ($0.day, $0.source) },
+                                 uniquingKeysWith: { first, _ in first })
         var loadedOthers: [(metric: MetricDescriptor, series: [(day: String, value: Double)])] = []
         for other in MetricCatalog.all where other.id != metric.id {
             let s = await repo.exploreSeries(key: other.key, source: other.source)
@@ -897,6 +972,75 @@ struct MetricDetailView: View {
     private var latestCaption: String? {
         guard let day = latest?.day, let d = parseDay(day) else { return nil }
         return longDate(d)
+    }
+
+    // MARK: Readings table (task #8)
+
+    /// The per-reading breakdown below the stats, so the provenance behind the trend is visible — whether
+    /// each reading came from the WHOOP strap, a Health Connect / Apple Health import, or the on-device
+    /// pipeline — not just the "N readings" caption. Rows derive from the SAME `windowed` slice the caption
+    /// counts (so the two never disagree), NEWEST FIRST, and reuse `TodayView.provenanceDisplayLabel` for
+    /// the source words. Swift twin of Android's `VitalReadingsTable`.
+    @ViewBuilder
+    private func readingsTable(windowed: [(day: String, value: Double)]) -> some View {
+        let readings = windowed.map {
+            VitalReading(day: $0.day, value: $0.value, source: sourceByDay[$0.day] ?? metric.source)
+        }
+        let rows = vitalReadingRows(readings: readings, unit: metric.unit,
+                                    strapDeviceId: repo.deviceId, format: fmt)
+        if !rows.isEmpty {
+            NoopCard {
+                VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+                    Text("Readings").strandOverline()
+                    // Slim column header naming the three columns — SAME frames as the data rows below so
+                    // each label sits over its column. Android twin (VitalReadingsTable) mirrors this.
+                    HStack(spacing: 12) {
+                        Text("Date")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Text("Value")
+                        Text("Source")
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    VStack(spacing: 0) {
+                        ForEach(Array(rows.enumerated()), id: \.offset) { idx, row in
+                            HStack(spacing: 12) {
+                                Text(row.time)
+                                    .font(StrandFont.subhead)
+                                    .foregroundStyle(StrandPalette.textSecondary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                Text(row.value)
+                                    .font(StrandFont.number(15))
+                                    .foregroundStyle(StrandPalette.textPrimary)
+                                Text(row.source)
+                                    .font(StrandFont.footnote)
+                                    .foregroundStyle(readingSourceTint(row.source))
+                                    .frame(maxWidth: .infinity, alignment: .trailing)
+                            }
+                            .padding(.vertical, 8)
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel("\(row.time), \(row.value), \(row.source)")
+                            if idx < rows.count - 1 {
+                                Divider().overlay(StrandPalette.hairline)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// The tint for a resolved provenance label — gold for Whoop, cyan for Apple Health, purple for Health
+    /// Connect, the positive status hue for on-device (and anything else). Mirrors Android's
+    /// `provenanceLabelTint` so the same source reads the same colour across the twins.
+    private func readingSourceTint(_ label: String) -> Color {
+        switch label {
+        case "Whoop":         return StrandPalette.accent
+        case "Apple Health":  return StrandPalette.metricCyan
+        case "Health Connect": return StrandPalette.metricPurple
+        default:              return StrandPalette.statusPositive
+        }
     }
 
     // MARK: Correlations

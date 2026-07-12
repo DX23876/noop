@@ -245,6 +245,16 @@ final class TodayExplainabilityTests: XCTestCase {
                        "Whoop")
     }
 
+    func testProvenance_crossStrapComputedSibling_stillOnDevice() {
+        // A "-noop" sibling banked under a DIFFERENT strap id (the user re-paired straps) is still a
+        // score NOOP computed on-device. The resolver matches the "-noop" suffix, not the exact
+        // "\(deviceId)-noop" — otherwise these rows would fall through to the raw id verbatim.
+        XCTAssertEqual(TodayView.provenanceDisplayLabel(rawSource: "whoop5-C0FF-noop", deviceId: "my-whoop"),
+                       "On-device")
+        XCTAssertEqual(TodayView.provenanceDisplayLabel(rawSource: "my-whoop-noop", deviceId: "strap-42"),
+                       "On-device")
+    }
+
     func testProvenance_otherKnownSource_keepsItsDisplayName() {
         // Mi Band is a real merge winner — keep its own name, never a blanket on-device claim.
         XCTAssertEqual(TodayView.provenanceDisplayLabel(rawSource: "xiaomi-band", deviceId: "my-whoop"),

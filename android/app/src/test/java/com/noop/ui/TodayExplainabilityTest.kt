@@ -293,4 +293,13 @@ class TodayExplainabilityTest {
         assertEquals("Whoop", provenanceDisplayLabel("strap-42", deviceId = "strap-42"))
         assertEquals("Whoop", provenanceDisplayLabel("my-whoop", deviceId = "strap-42"))
     }
+
+    @Test
+    fun perMetric_crossStrapComputedSibling_stillReadsOnDevice() {
+        // A "-noop" sibling banked under a DIFFERENT strap id (the user re-paired straps) is still a
+        // score NOOP computed on-device. The resolver matches the "-noop" suffix, not the exact
+        // "$deviceId-noop" — otherwise these rows would fall through to the raw id verbatim.
+        assertEquals("On-device", provenanceDisplayLabel("whoop5-C0FF-noop", deviceId = "my-whoop"))
+        assertEquals("On-device", provenanceDisplayLabel("my-whoop-noop", deviceId = "strap-42"))
+    }
 }

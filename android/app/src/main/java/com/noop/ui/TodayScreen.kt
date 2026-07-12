@@ -4047,8 +4047,10 @@ internal fun provenanceBadgeLabel(owner: com.noop.analytics.FusionSource?): Stri
 /**
  * PURE mapper (unit-tested), a RAW resolver source id (as returned by [WhoopRepository.resolvedSeries]'s
  * winning point, e.g. "my-whoop", "my-whoop-noop", "apple-health") onto the spec's provenance labels,
- * given the strap's real [deviceId]. The NOOP-computed strap sibling ("$deviceId-noop") reads "On-device"
- * (scored on THIS device from the raw strap stream); the imported strap source ([deviceId], normally
+ * given the strap's real [deviceId]. ANY NOOP-computed strap sibling (a "-noop"-suffixed id, not just the
+ * active strap's) reads "On-device" — matching by suffix rather than "$deviceId-noop" so a computed row
+ * from a non-active strap can't fall through to [com.noop.analytics.FusionSource.NOOP_COMPUTED]'s raw
+ * "NOOP" displayName (the internal id must never surface); the imported strap source ([deviceId], normally
  * "my-whoop") reads "Whoop"; the Apple-Health source reads "Apple Health". Any other real source (Health
  * Connect, Mi Band, nutrition) keeps its [com.noop.analytics.FusionSource.displayName], still the genuine
  * merge winner, never a blanket claim. Mirrors the Swift `provenanceDisplayLabel` EXACTLY. This is the
@@ -4059,7 +4061,7 @@ internal fun provenanceDisplayLabel(
     rawSource: String,
     deviceId: String = WhoopRepository.WHOOP_SOURCE,
 ): String {
-    if (rawSource == "$deviceId-noop") return "On-device"
+    if (rawSource.endsWith("-noop")) return "On-device"
     if (rawSource == deviceId || rawSource == WhoopRepository.WHOOP_SOURCE) return "Whoop"
     if (rawSource == WhoopRepository.APPLE_HEALTH_SOURCE) return "Apple Health"
     // Fall back to the FusionSource display name for any other known source; else the raw id verbatim.

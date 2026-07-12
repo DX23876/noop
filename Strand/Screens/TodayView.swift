@@ -734,13 +734,14 @@ struct TodayView: View {
     }
 
     /// PURE mapper (unit-testable), a raw resolver source id onto the spec's provenance labels, given
-    /// the strap's real `deviceId`. The NOOP-computed strap sibling (`deviceId + "-noop"`) reads
-    /// "On-device" (scored on THIS device from the raw strap stream); the imported strap source
+    /// the strap's real `deviceId`. ANY NOOP-computed strap sibling (a "-noop"-suffixed id, not just the
+    /// active strap's) reads "On-device" — matching by suffix so a computed row from a non-active strap
+    /// can't fall through to `FusionSource.noopComputed`'s raw "NOOP" displayName; the imported strap source
     /// (`deviceId`, normally "my-whoop") reads "Whoop"; the Apple-Health source reads "Apple Health".
     /// Any other real source (Mi Band, Health Connect, nutrition) keeps its `FusionSource.displayName`
     ///, still the genuine merge winner, never a blanket claim. Mirror EXACTLY in Kotlin.
     static func provenanceDisplayLabel(rawSource: String, deviceId: String) -> String {
-        if rawSource == deviceId + "-noop" { return "On-device" }
+        if rawSource.hasSuffix("-noop") { return "On-device" }
         if rawSource == deviceId || rawSource == Repository.whoopSource { return "Whoop" }
         if rawSource == Repository.appleHealthSource { return "Apple Health" }
         // Fall back to the FusionSource display name for any other known source; else the raw id.
