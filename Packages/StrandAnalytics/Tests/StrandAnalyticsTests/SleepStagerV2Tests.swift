@@ -160,4 +160,55 @@ final class SleepStagerV2Tests: XCTestCase {
         XCTAssertTrue(v2Stages.contains("deep"), "V2 night should express deep")
         XCTAssertTrue(v2Stages.contains("rem"), "V2 night should express REM")
     }
+
+    // MARK: - #277 frozen golden: pin the tuned V2 recipe (deepGateThresh / deep emission / transition row)
+
+    /// Fixed integer "breathing" wave — no float rounding, so Swift + Kotlin build byte-identical samples
+    /// (Kotlin `roundToInt` is half-up, Swift `.rounded()` is half-away-from-zero; integers avoid the gap).
+    private func rsaWave(_ ph: Int, _ i: Int) -> Int {
+        let amp = [12, 60, 30, 20][ph]
+        return [0, amp, 0, -amp][i % 4]
+    }
+
+    /// Byte-parity twin of Kotlin `SleepStagerV2Test.frozenGoldenHypnogramPinsTheTunedRecipe`. A crafted
+    /// 4-phase night (deep-favorable → high-RSA → mild → restless) staged by V2 must reproduce this EXACT
+    /// hypnogram. #277 set the deep boundary (deepGateThresh, the deep emission weights, the deep transition
+    /// row) a-priori, validated only by an OFFLINE 44-subject benchmark — nothing in CI pinned the constants,
+    /// so a later edit or a Swift↔Kotlin drift could shift stages silently. This locks them on both platforms;
+    /// a one-sided constant change fails here or in the Kotlin twin. Integer-only / fixed-literal input so the
+    /// two languages build identical samples. Regenerate deliberately if the recipe is intentionally retuned.
+    func testFrozenGoldenHypnogram() {
+        let start = 1_749_517_200
+        let phase = 90 * 60
+        let dur = phase * 4
+        var grav: [GravitySample] = []
+        var hr: [HRSample] = []
+        var rr: [RRInterval] = []
+        for i in 0..<dur {
+            let ts = start + i
+            let ph = i / phase
+            let restless = ph == 3 && (i % 20) < 6
+            grav.append(restless ? GravitySample(ts: ts, x: 0.2, y: 0.15, z: 0.96)
+                                  : GravitySample(ts: ts, x: 0, y: 0, z: 1.0))
+            let bpm: Int
+            switch ph {
+            case 0: bpm = 50
+            case 1: bpm = 54 + [0, 1, 2, 3, 2, 1][(i / 20) % 6]
+            case 2: bpm = 56 + ((i / 60) % 4)
+            default: bpm = 66 + ((i / 30) % 6)
+            }
+            hr.append(HRSample(ts: ts, bpm: bpm))
+            rr.append(RRInterval(ts: ts, rrMs: (60_000 / bpm) + rsaWave(ph, i)))
+        }
+        let segs = SleepStagerV2.stageSession(start: start, end: start + dur, grav: grav, hr: hr, rr: rr, resp: [])
+        let golden: [(Int, Int, String)] = [
+            (0, 5070, "deep"), (5070, 5310, "light"), (5310, 5550, "rem"),
+            (5550, 10740, "light"), (10740, 16290, "rem"), (16290, 21600, "wake")]
+        XCTAssertEqual(segs.count, golden.count, "segment count")
+        for k in 0..<min(segs.count, golden.count) {
+            XCTAssertEqual(segs[k].start, start + golden[k].0, "seg \(k) start")
+            XCTAssertEqual(segs[k].end, start + golden[k].1, "seg \(k) end")
+            XCTAssertEqual(segs[k].stage, golden[k].2, "seg \(k) stage")
+        }
+    }
 }
