@@ -39,6 +39,17 @@ import kotlinx.coroutines.withContext
 object IntelligenceEngine {
 
     /**
+     * #319: whether V2 staging should run for a night owned by [family]. V2 is the default only on 5.0/MG
+     * (where #277 promoted it after a benchmark on NON-WHOOP wrist sensors); WHOOP 4.0 always uses V1 —
+     * its SPARSE motion (only ~1 in 5 records carries it) makes V2 both inflate the Rest restorative term
+     * AND manufacture deep/REM that DEFEATS the H9 low-confidence guard, so a poor 4.0 night reads as a
+     * confident 85-100 (issue #319). An explicit toggle still enables/disables V2 on 5.0/MG. Pure;
+     * byte-parity twin of Swift `IntelligenceEngine.sleepStagerV2(enabled:family:)`.
+     */
+    internal fun sleepStagerV2ForFamily(enabled: Boolean, family: DeviceFamily): Boolean =
+        enabled && family != DeviceFamily.WHOOP4
+
+    /**
      * Serialises [analyzeRecent] against itself. The pass is launched from four independent coroutines: the
      * 15-min backstop loop and rescoreAfterEdit (both AppViewModel), the post-offload analyze
      * (WhoopBleClient), plus the one-shot Effort rescore ([runEffortRescoreIfNeeded]). These can overlap:
@@ -546,10 +557,10 @@ object IntelligenceEngine {
                 habitualMidsleepSec = habitualMidsleepSec,
                 bandSleepState = bandSleepState,
                 // #690: thread the V2 toggle into the NORMAL staging path so it affects detected nights,
-                // not just the userEdited self-heal restage (which already reads this same flag at line ~496).
-                // The Context-aware caller (AppViewModel/WhoopBleClient) supplied it from
-                // PuffinExperiment.from(context).experimentalSleepV2.
-                useSleepStagerV2 = useExperimentalSleepV2,
+                // not just the userEdited self-heal restage. The Context-aware caller (AppViewModel/
+                // WhoopBleClient) supplied it from PuffinExperiment.from(context).experimentalSleepV2.
+                // #319: V2 is the default only on 5.0/MG (where #277 promoted it); WHOOP 4.0 always uses V1.
+                useSleepStagerV2 = sleepStagerV2ForFamily(useExperimentalSleepV2, skinFamily),
                 // Sleep & Rest test mode (Test Centre E5): thread the trace sink straight through. null (the
                 // default) keeps analyzeDay's byte-identical untraced path; when the caller passed a non-null
                 // sink (mode on), detectSleep's gate trace + the Rest sub-score line route to the .sleep-tagged

@@ -625,7 +625,9 @@ final class IntelligenceEngine: ObservableObject {
                 // #690: read the experimental-V2 toggle ONCE here (off the detached executor, matching the
                 // Repository self-heal call site) and capture the Bool, so the Settings toggle now drives the
                 // NORMAL detected-night staging path , not only the userEdited self-heal restage.
-                let useSleepStagerV2 = PuffinExperiment.experimentalSleepV2Enabled
+                // #319: V2 is the default only on 5.0/MG (where #277 promoted it); WHOOP 4.0 always uses V1.
+                let useSleepStagerV2 = Self.sleepStagerV2(enabled: PuffinExperiment.experimentalSleepV2Enabled,
+                                                          family: skinFamily)
 
                 // Already OFF the main actor , score directly (the prior nested `Task.detached` here only
                 // existed to hop off the main actor; the whole loop now runs off it, so the score is computed
@@ -1453,6 +1455,15 @@ final class IntelligenceEngine: ObservableObject {
     /// The strap family that wrote `owner`'s skin-temp rows (#938), so the nightly funnel converts the raw
     /// register on the right scale. The model-label → family mapping (and the `.whoop5` fallback for
     /// unknowns) lives in `DeviceFamily.forRegistryModel` (#171).
+    /// #319: whether V2 staging should run for a night owned by `family`. V2 is the default only on 5.0/MG
+    /// (where #277 promoted it after a benchmark on NON-WHOOP wrist sensors); WHOOP 4.0 always uses V1 — its
+    /// SPARSE motion makes V2 both inflate the Rest restorative term AND manufacture deep/REM that DEFEATS
+    /// the H9 low-confidence guard, so a poor 4.0 night reads as a confident 85-100. Byte-parity twin of
+    /// Android `IntelligenceEngine.sleepStagerV2ForFamily`.
+    nonisolated static func sleepStagerV2(enabled: Bool, family: DeviceFamily) -> Bool {
+        enabled && family != .whoop4
+    }
+
     nonisolated static func skinTempFamily(forOwner owner: String, devices: [PairedDevice]) -> DeviceFamily {
         DeviceFamily.forRegistryModel(devices.first(where: { $0.id == owner })?.model)
     }
