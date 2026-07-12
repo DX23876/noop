@@ -274,8 +274,6 @@ public final class OuraDriver {
         case .ibi:
             // The bare 0x44 IBI tag shares the bit-packed layout family; route through the same decoder.
             return (OuraDecoders.decodeIBIAmplitude(record) ?? []).map { OuraEvent.ibi($0) }
-        case .greenIbiAmp:
-            return (OuraDecoders.decodeIBIAmplitude(record) ?? []).map { OuraEvent.ibi($0) }
 
         // --- Tier A: HRV ---
         case .hrvRmssd:
@@ -354,6 +352,14 @@ public final class OuraDriver {
             return []
 
         // --- Tier B (only reached when allowTierB == true; otherwise dropped above) ---
+        case .greenIbiAmp:
+            // #287: 0x71 green_ibi_and_amp. Demoted from Tier A: the 0x60 decoder it used reads 6 ABSOLUTE
+            // IBIs, but §6.2 documents 0x71 as 5 IBI DELTAS + 6 amplitudes with a [2:0] shift, so that
+            // decode fabricated a phantom R-R and corrupted HRV. With no captured 0x71 fixture we cannot
+            // write a verified decoder yet, so emit the raw bytes for inspection (never folded into scoring)
+            // rather than a guessed IBI. Gated above unless allowTierB. Promote once a real 0x71 sample lands.
+            return [.tierB(OuraTierBSummary(tag: record.type, ringTimestamp: record.ringTimestamp,
+                                            rawPayload: record.payload, kind: "green_ibi_amp"))]
         case .sleepSummary1, .sleepSummaryC, .sleepSummaryD, .sleepSummaryE, .sleepSummaryF:
             return [.tierB(OuraTierBSummary(tag: record.type, ringTimestamp: record.ringTimestamp,
                                             rawPayload: record.payload, kind: "sleep_summary"))]

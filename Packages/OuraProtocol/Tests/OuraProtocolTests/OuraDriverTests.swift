@@ -313,6 +313,42 @@ final class OuraDriverTests: XCTestCase {
         }
     }
 
+    // MARK: - #287: 0x71 green_ibi_and_amp demoted to Tier B (was corrupting HRV via the 0x60 decoder)
+
+    func testGreenIBIAmp0x71TierIsB() {
+        // tierA == corpus-verified; there is no captured 0x71 fixture, and §6.2 documents a different
+        // layout than the 0x60 decoder it was wired to — so it must NOT be Tier A.
+        XCTAssertEqual(OuraEventTag.greenIbiAmp.tier, .tierB)
+    }
+
+    func testGreenIBIAmp0x71GatedOutOfLiveEmission() {
+        // The SAME body the 0x60 decoder turns into IBIs, but tagged 0x71. Under the old Tier-A routing a
+        // 0x71 record fed fabricated R-R into HRV; now it is Tier B, so by default it yields NOTHING.
+        let d = OuraDriver(ringGen: .gen3, authKey: key)   // allowTierB defaults to false
+        let rec = OuraFraming.parseRecord(bytes("7112020001007d10000000000000000000000007"))!
+        XCTAssertEqual(d.ingest(record: rec), [], "0x71 must not emit IBIs — it is not corpus-verified (#287)")
+        // Control: the same bytes ARE otherwise decodable by the 0x60 decoder, so the [] above is the tier
+        // gate, not a short/garbage body that would have dropped anyway.
+        XCTAssertNotNil(OuraDecoders.decodeIBIAmplitude(rec), "0x60 decoder still yields IBIs for these bytes")
+    }
+
+    func testGreenIBIAmp0x71EmitsRawSummaryNotIBIUnderAllowTierB() {
+        // With Tier B explicitly allowed it surfaces as RAW BYTES for inspection — never a guessed IBI, and
+        // OuraStreamMapping never folds a .tierB into scoring.
+        let d = OuraDriver(ringGen: .gen3, authKey: key, allowTierB: true)
+        let rec = OuraFraming.parseRecord(bytes("7112020001007d10000000000000000000000007"))!
+        let events = d.ingest(record: rec)
+        XCTAssertEqual(events.count, 1)
+        XCTAssertTrue(events[0].isTierB)
+        if case .tierB(let summary) = events[0] {
+            XCTAssertEqual(summary.tag, 0x71)
+            XCTAssertEqual(summary.kind, "green_ibi_amp")
+        } else {
+            XCTFail("expected a tierB raw-bytes summary, not a fabricated IBI")
+        }
+        for e in events { if case .ibi = e { XCTFail("0x71 must never emit .ibi (#287)") } }
+    }
+
     func testSleepPhase0x4BReclassifiedAsTierAHypnogram() {
         // 0x4B was previously a Tier-B "sleep summary" (dropped by default). It is actually a hypnogram
         // alias (open_oura `0x4b | 0x4e | 0x5a => decode_sleep_phases`), so it now decodes with the SAME

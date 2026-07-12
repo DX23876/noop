@@ -364,8 +364,6 @@ class OuraDriver(
             OuraEventTag.IBI ->
                 // The bare 0x44 IBI tag shares the bit-packed layout family; route through the same decoder.
                 (OuraDecoders.decodeIBIAmplitude(record) ?: emptyList()).map { OuraEvent.Ibi(it) }
-            OuraEventTag.GREEN_IBI_AMP ->
-                (OuraDecoders.decodeIBIAmplitude(record) ?: emptyList()).map { OuraEvent.Ibi(it) }
 
             // --- Tier A: HRV ---
             OuraEventTag.HRV_RMSSD ->
@@ -432,6 +430,20 @@ class OuraDriver(
                 emptyList()
 
             // --- Tier B (only reached when allowTierB == true; otherwise dropped above) ---
+            OuraEventTag.GREEN_IBI_AMP ->
+                // #287: 0x71 green_ibi_and_amp. Demoted from Tier A: the 0x60 decoder it used reads 6
+                // ABSOLUTE IBIs, but §6.2 documents 0x71 as 5 IBI DELTAS + 6 amplitudes with a [2:0] shift,
+                // so that decode fabricated a phantom R-R and corrupted HRV. With no captured 0x71 fixture we
+                // cannot write a verified decoder yet, so emit the raw bytes for inspection (never folded into
+                // scoring) rather than a guessed IBI. Gated above unless allowTierB. Promote on a real sample.
+                listOf(
+                    OuraEvent.TierB(
+                        OuraTierBSummary(
+                            tag = record.type, ringTimestamp = record.ringTimestamp,
+                            rawPayload = record.payload, kind = "green_ibi_amp",
+                        ),
+                    ),
+                )
             OuraEventTag.SLEEP_SUMMARY_1, OuraEventTag.SLEEP_SUMMARY_B, OuraEventTag.SLEEP_SUMMARY_C,
             OuraEventTag.SLEEP_SUMMARY_D, OuraEventTag.SLEEP_SUMMARY_E, OuraEventTag.SLEEP_SUMMARY_F ->
                 listOf(

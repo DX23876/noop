@@ -369,6 +369,44 @@ class OuraDriverTest {
         assertArrayEquals(bytes("01020304"), ev.value.rawPayload)
     }
 
+    // MARK: - #287: 0x71 green_ibi_and_amp demoted to Tier B (twin of the Swift OuraDriverTests)
+
+    @Test
+    fun testGreenIBIAmp0x71TierIsB() {
+        // TIER_A == corpus-verified; no captured 0x71 fixture + §6.2 documents a different layout than the
+        // 0x60 decoder it was wired to, so it must NOT be Tier A.
+        assertEquals(TrustTier.TIER_B, OuraEventTag.GREEN_IBI_AMP.tier)
+    }
+
+    @Test
+    fun testGreenIBIAmp0x71GatedOutOfLiveEmission() {
+        // The SAME body the 0x60 decoder turns into IBIs, but tagged 0x71. Under the old Tier-A routing it
+        // fed fabricated R-R into HRV; now Tier B → by default it yields NOTHING.
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key)   // allowTierB defaults to false
+        val rec = OuraFraming.parseRecord(bytes("7112020001007d10000000000000000000000007"))!!
+        assertEquals(
+            "0x71 must not emit IBIs - it is not corpus-verified (#287)",
+            emptyList<OuraEvent>(), d.ingest(rec),
+        )
+        // Control: the same bytes ARE otherwise decodable, so the [] above is the tier gate, not a short body.
+        assertNotNull("0x60 decoder still yields IBIs for these bytes", OuraDecoders.decodeIBIAmplitude(rec))
+    }
+
+    @Test
+    fun testGreenIBIAmp0x71EmitsRawSummaryNotIBIUnderAllowTierB() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key, allowTierB = true)
+        val rec = OuraFraming.parseRecord(bytes("7112020001007d10000000000000000000000007"))!!
+        val events = d.ingest(rec)
+        assertEquals(1, events.size)
+        assertTrue(events[0].isTierB)
+        val ev = events[0]
+        assertTrue("expected a tierB raw-bytes summary, not a fabricated IBI", ev is OuraEvent.TierB)
+        ev as OuraEvent.TierB
+        assertEquals(0x71, ev.value.tag)
+        assertEquals("green_ibi_amp", ev.value.kind)
+        for (e in events) assertFalse("0x71 must never emit Ibi (#287)", e is OuraEvent.Ibi)
+    }
+
     // MARK: - Activity info (0x50, Tier B, third-party formula) - real Gen 3 captures (PR #960)
     //
     // PARITY: the six payloads below are byte-for-byte the real Gen 3 captures pinned in the Swift
