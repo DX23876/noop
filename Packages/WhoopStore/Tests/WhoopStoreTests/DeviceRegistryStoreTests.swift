@@ -116,6 +116,31 @@ final class DeviceRegistryStoreTests: XCTestCase {
         XCTAssertEqual(try store.activeDeviceId(), "my-whoop")
     }
 
+    // Regression guard (audit finding): every table with a `deviceId` column MUST appear in
+    // `deviceScopedTables`, or `deleteAllData` silently leaves that device's rows behind — a privacy
+    // defect for a delete-means-gone app. Enumerate the live schema and fail if any deviceId-keyed table
+    // is uncovered, so a future migration that adds one can't reintroduce the gap.
+    func testDeviceScopedTablesCoversEveryDeviceIdKeyedTable() throws {
+        let dbq = try makeDB()
+        let uncovered = try dbq.read { db -> [String] in
+            let tables = try String.fetchAll(db, sql: """
+                SELECT name FROM sqlite_master
+                WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'grdb_%'
+            """)
+            var missing: [String] = []
+            for table in tables {
+                let cols = try Row.fetchAll(db, sql: "PRAGMA table_info(\(table))")
+                let hasDeviceId = cols.contains { ($0["name"] as String?) == "deviceId" }
+                if hasDeviceId && !DeviceRegistryStore.deviceScopedTables.contains(table) {
+                    missing.append(table)
+                }
+            }
+            return missing
+        }
+        XCTAssertTrue(uncovered.isEmpty,
+                      "deviceId-keyed tables missing from deviceScopedTables (deleteAllData would skip them): \(uncovered)")
+    }
+
     func testDayOwnershipUpsertAndRead() throws {
         let store = DeviceRegistryStore(dbQueue: try makeDB())
         try store.setDayOwner(day: "2026-06-15", deviceId: "my-whoop", locked: true)
