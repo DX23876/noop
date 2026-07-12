@@ -1,13 +1,14 @@
 import Foundation
+import WhoopStore
 
 /// CLEAN-ROOM best-effort recognition of the EXPERIMENTAL band families from an advertised device name.
 ///
-/// This is pure (no CoreBluetooth) so it's unit-tested, and deliberately conservative: a name we don't
-/// recognise returns `nil` rather than a wrong guess. NOTHING here fabricates data — it only labels a
-/// discovered peripheral so the experimental add-device flow can show the honest per-brand guidance.
-///
-/// Recognition is by advertised-name substring only (the cheapest, most reliable public signal). We do
-/// NOT claim a deeper protocol than we have: see each driver for what it can actually read.
+/// This is a thin TYPED VIEW over `DeviceBrandCatalog` (the pure, `swift test`-covered single source of
+/// truth in WhoopStore): the advertised-name tokens and capability facts live there once, and this enum
+/// only names the four experimental families so the drivers can switch on them (`== .garmin`, etc.).
+/// Deliberately conservative: a name we don't recognise returns `nil` rather than a wrong guess. NOTHING
+/// here fabricates data — it only labels a discovered peripheral so the experimental add-device flow can
+/// show the honest per-brand guidance.
 public enum ExperimentalBrand: String, CaseIterable, Sendable, Equatable {
     /// Amazfit / Zepp / Huami family (incl. the Helio ring/band). Live HR is best-effort: standard
     /// 0x180D where exposed, else the documented Huami custom HR characteristic.
@@ -22,30 +23,19 @@ public enum ExperimentalBrand: String, CaseIterable, Sendable, Equatable {
     /// the detection attempt and then points honestly at file import.
     case oura
 
-    /// Best-effort brand from an advertised name. Returns `nil` for an unrecognised name (no wrong guess).
+    /// Best-effort brand from an advertised name. Returns `nil` for an unrecognised name, OR for a name the
+    /// catalog recognises as a NON-experimental generic strap (Polar / Wahoo / …) — `ExperimentalBrand`
+    /// names only the experimental tier. All token matching lives in `DeviceBrandCatalog`.
     public static func recognise(name: String) -> ExperimentalBrand? {
-        // Fold diacritics before matching so Garmin's accented branding (e.g. "vívoactive", "fēnix")
-        // is recognised the same as its ASCII advertised form ("vivoactive", "fenix"). A device can
-        // advertise either, and an unfolded match would silently miss the accented name.
-        let n = name.folding(options: .diacriticInsensitive, locale: nil).lowercased()
-        // Order matters: check the most specific tokens first so e.g. "Amazfit Helio" → amazfit and a
-        // bare "Mi Band" → miBand. Mi Band is a Huami sub-brand, so we test its tokens before amazfit's.
-        if n.contains("mi band") || n.contains("miband") || n.contains("smart band") || n.contains("xiaomi") {
-            return .miBand
+        guard let spec = DeviceBrandCatalog.spec(forAdvertisedName: name), spec.isExperimentalTier else {
+            return nil
         }
-        if n.contains("amazfit") || n.contains("zepp") || n.contains("helio") || n.contains("huami") {
-            return .amazfit
-        }
-        if n.contains("garmin") || n.contains("forerunner") || n.contains("fenix") ||
-            n.contains("vivoactive") || n.contains("venu") || n.contains("instinct") ||
-            n.contains("epix") || n.contains("vivosmart") {
-            return .garmin
-        }
-        if n.contains("oura") { return .oura }
-        return nil
+        return ExperimentalBrand(displayBrand: spec.brand)
     }
 
-    /// The brand label stored on the registry row / shown in the UI. Human, US-neutral, no claims.
+    /// The brand label stored on the registry row / shown in the UI. Human, US-neutral, no claims. This is
+    /// the case ⇄ catalog-brand bridge, so it must match a `DeviceBrandCatalog` row's `brand` exactly (a
+    /// test pins that).
     public var displayBrand: String {
         switch self {
         case .amazfit: return "Amazfit"
@@ -55,12 +45,35 @@ public enum ExperimentalBrand: String, CaseIterable, Sendable, Equatable {
         }
     }
 
-    /// Whether this brand can stream LIVE heart rate at all in NOOP's experimental tier. `false` for Oura
-    /// (no open live stream) — the wizard routes those to file import instead of pretending to connect.
+    /// Whether this brand can stream LIVE heart rate at all in NOOP's experimental tier. Derived from the
+    /// catalog (`false` for Oura — no open live stream — so the wizard routes those to file import instead
+    /// of pretending to connect). Defaults to `false` if the catalog row is somehow missing (a test pins
+    /// that every case resolves).
     public var canStreamLiveHR: Bool {
-        switch self {
-        case .amazfit, .miBand, .garmin: return true
-        case .oura:                      return false
+        DeviceBrandCatalog.spec(forBrand: displayBrand)?.canStreamLiveHR ?? false
+    }
+
+    /// The routing kind stored on a device of this brand (from the catalog). Drives `SourceCoordinator`.
+    /// Falls back to `.liveBLE` (a standard-HR strap — never steals the WHOOP path) if the row is missing.
+    public var sourceKind: SourceKind {
+        DeviceBrandCatalog.spec(forBrand: displayBrand)?.sourceKind ?? .liveBLE
+    }
+
+    /// The registry id prefix for a device of this brand (from the catalog); "strap" fallback. The device
+    /// `id` (== sample deviceId) is `"<idPrefix>-<uuid>"`, so this MUST stay byte-identical to the value the
+    /// wizard previously hardcoded — a test pins each experimental brand's prefix.
+    public var idPrefix: String {
+        DeviceBrandCatalog.spec(forBrand: displayBrand)?.idPrefix ?? "strap"
+    }
+
+    /// Map a catalog brand string back to the typed case (nil for a non-experimental brand).
+    private init?(displayBrand brand: String) {
+        switch brand {
+        case "Amazfit": self = .amazfit
+        case "Mi Band": self = .miBand
+        case "Garmin":  self = .garmin
+        case "Oura":    self = .oura
+        default:        return nil
         }
     }
 }

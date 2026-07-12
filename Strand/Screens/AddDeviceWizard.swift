@@ -57,6 +57,19 @@ struct AddDeviceWizard: View {
             default:                                return false
             }
         }
+
+        /// The experimental-tier brand this type registers as, or nil for the non-experimental types
+        /// (WHOOP / generic strap / gym). Bridges the wizard's type picker to the `DeviceBrandCatalog`
+        /// facts (stored brand string, `sourceKind`, id prefix) so those are no longer hardcoded per branch.
+        var experimentalBrand: ExperimentalBrand? {
+            switch self {
+            case .amazfit: return .amazfit
+            case .miBand:  return .miBand
+            case .garmin:  return .garmin
+            case .oura:    return .oura
+            default:       return nil
+            }
+        }
     }
 
     enum Step { case type, prep, pick, confirm }
@@ -1146,9 +1159,9 @@ struct AddDeviceWizard: View {
     private var confirmBrand: String {
         if type?.isWhoop == true { return "WHOOP" }
         if type == .gymEquipment { return String(localized: "Gym equipment") }
-        if type == .amazfit { return "Amazfit" }
-        if type == .miBand { return "Mi Band" }
-        if type == .garmin { return "Garmin" }
+        // Experimental non-Oura types (Amazfit / Mi Band / Garmin) take their stored brand string straight
+        // from the catalog via the type→brand bridge. Oura falls through to its detected-generation label.
+        if let brand = type?.experimentalBrand, brand != .oura { return brand.displayBrand }
         // Oura confirms with the detected generation name + a Beta marker so the user sees what NOOP
         // identified before adopting (the gen is best-effort from the scan, fixed by this pick).
         if let pickedOura { return String(localized: "\(pickedOura.gen.displayName) · Beta") }
@@ -1251,12 +1264,14 @@ struct AddDeviceWizard: View {
                 status: .paired,
                 addedAt: now, lastSeenAt: now)
         } else if let pickedStrap {
-            // Generic HR strap OR a Garmin broadcasting standard HR. Garmin is registered as a `.liveBLE`
-            // device (its live HR IS the standard 0x180D path) but branded "Garmin"; both are HR + HRV.
-            let isGarmin = type == .garmin
+            // Generic HR strap OR a Garmin broadcasting standard HR. Garmin's brand + id prefix come from
+            // the catalog (via the type→brand bridge); it still stores `.liveBLE` (its live HR IS the
+            // standard 0x180D path). A non-Garmin strap keeps the advertised-name brand guess + "strap"
+            // prefix. Both are HR + HRV.
+            let garmin = (type == .garmin) ? ExperimentalBrand.garmin : nil
             device = PairedDevice(
-                id: "\(isGarmin ? "garmin" : "strap")-\(pickedStrap.id.uuidString)",
-                brand: isGarmin ? "Garmin" : brandGuess(from: pickedStrap.name),
+                id: "\(garmin?.idPrefix ?? "strap")-\(pickedStrap.id.uuidString)",
+                brand: garmin?.displayBrand ?? brandGuess(from: pickedStrap.name),
                 model: pickedStrap.name,
                 nickname: name == pickedStrap.name ? nil : name,
                 peripheralId: pickedStrap.id.uuidString,
@@ -1265,16 +1280,17 @@ struct AddDeviceWizard: View {
                 status: .paired,
                 addedAt: now, lastSeenAt: now)
         } else if let pickedHuami {
-            // EXPERIMENTAL Amazfit / Zepp / Mi Band. sourceKind `.huami` routes the SourceCoordinator to
-            // the HuamiHRSource. HR only (the Huami custom characteristic carries no R-R).
-            let brand = (type == .miBand) ? "Mi Band" : "Amazfit"
+            // EXPERIMENTAL Amazfit / Zepp / Mi Band. Brand string, id prefix, and the `.huami` routing all
+            // come from the catalog via the type→brand bridge (was: `(type == .miBand) ? "Mi Band" : …`).
+            // HR only (the Huami custom characteristic carries no R-R).
+            let brand = type?.experimentalBrand ?? .amazfit
             device = PairedDevice(
-                id: "huami-\(pickedHuami.id.uuidString)",
-                brand: brand,
+                id: "\(brand.idPrefix)-\(pickedHuami.id.uuidString)",
+                brand: brand.displayBrand,
                 model: pickedHuami.name,
                 nickname: name == pickedHuami.name ? nil : name,
                 peripheralId: pickedHuami.id.uuidString,
-                sourceKind: .huami,
+                sourceKind: brand.sourceKind,
                 capabilities: [.hr],
                 status: .paired,
                 addedAt: now, lastSeenAt: now)
@@ -1313,13 +1329,15 @@ struct AddDeviceWizard: View {
         let gen = pickedOura.gen
         let uuid = pickedOura.ring.id.uuidString
         let name = confirmName
+        // Brand string, id prefix, and the `.oura` routing come from the catalog via the type→brand bridge.
+        let oura = ExperimentalBrand.oura
         return PairedDevice(
-            id: "oura-\(uuid)",
-            brand: "Oura",
+            id: "\(oura.idPrefix)-\(uuid)",
+            brand: oura.displayBrand,
             model: gen.displayName,
             nickname: name == String(localized: "Oura ring") ? nil : name,
             peripheralId: uuid,
-            sourceKind: .oura,
+            sourceKind: oura.sourceKind,
             capabilities: ouraCapabilities(for: gen),
             status: .paired,
             addedAt: now, lastSeenAt: now)
@@ -1460,17 +1478,10 @@ struct AddDeviceWizard: View {
         .padding(.top, 10)
     }
 
-    /// Best-effort brand from the advertised name; neutral fallback for unknown straps.
+    /// Best-effort brand from the advertised name; neutral fallback for unknown straps. Delegates to the
+    /// pure `DeviceBrandCatalog` (single source of truth), so the token table lives once.
     private func brandGuess(from name: String) -> String {
-        let lower = name.lowercased()
-        if lower.contains("polar") { return "Polar" }
-        if lower.contains("wahoo") || lower.contains("tickr") { return "Wahoo" }
-        if lower.contains("coospo") { return "Coospo" }
-        if lower.contains("garmin") || lower.contains("hrm") { return "Garmin" }
-        if lower.contains("scosche") || lower.contains("rhythm") { return "Scosche" }
-        if lower.contains("magene") { return "Magene" }
-        if lower.contains("amazfit") || lower.contains("helio") || lower.contains("zepp") { return "Amazfit" }
-        return String(localized: "Heart-rate strap")
+        DeviceBrandCatalog.spec(forAdvertisedName: name)?.brand ?? String(localized: "Heart-rate strap")
     }
 }
 
@@ -1527,15 +1538,7 @@ private struct HRPickList: View {
     }
 
     private func brandGuess(from name: String) -> String {
-        let lower = name.lowercased()
-        if lower.contains("polar") { return "Polar" }
-        if lower.contains("wahoo") || lower.contains("tickr") { return "Wahoo" }
-        if lower.contains("coospo") { return "Coospo" }
-        if lower.contains("garmin") || lower.contains("hrm") { return "Garmin" }
-        if lower.contains("scosche") || lower.contains("rhythm") { return "Scosche" }
-        if lower.contains("magene") { return "Magene" }
-        if lower.contains("amazfit") || lower.contains("helio") || lower.contains("zepp") { return "Amazfit" }
-        return String(localized: "Heart-rate strap")
+        DeviceBrandCatalog.spec(forAdvertisedName: name)?.brand ?? String(localized: "Heart-rate strap")
     }
 }
 

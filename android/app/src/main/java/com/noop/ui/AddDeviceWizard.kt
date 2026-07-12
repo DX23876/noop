@@ -55,6 +55,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.noop.ble.ExperimentalBrand
 import com.noop.ble.OuraLiveSource
 import com.noop.ble.StandardHrSource
 import com.noop.ble.WhoopBleClient
@@ -100,6 +101,18 @@ private enum class DeviceType {
 
     /** True for the EXPERIMENTAL tier (shown under a clearly-labelled "Experimental" heading). */
     val isExperimental: Boolean get() = this == Amazfit || this == MiBand || this == Garmin || this == Oura
+
+    /** The experimental-tier brand this type registers as, or null for the non-experimental types
+     *  (WHOOP / generic strap / gym). Bridges the type picker to the [com.noop.data.DeviceBrandCatalog]
+     *  facts (stored brand string, sourceKind, id prefix) so those are no longer hardcoded per branch. */
+    val experimentalBrand: ExperimentalBrand?
+        get() = when (this) {
+            Amazfit -> ExperimentalBrand.AMAZFIT
+            MiBand -> ExperimentalBrand.MI_BAND
+            Garmin -> ExperimentalBrand.GARMIN
+            Oura -> ExperimentalBrand.OURA
+            else -> null
+        }
 
     val title: String
         get() = when (this) {
@@ -245,9 +258,10 @@ fun AddDeviceWizard(
     val confirmBrand = when {
         type?.isWhoop == true -> "WHOOP"
         type == DeviceType.GymEquipment -> "Gym equipment"
-        type == DeviceType.Amazfit -> "Amazfit"
-        type == DeviceType.MiBand -> "Mi Band"
-        type == DeviceType.Garmin -> "Garmin"
+        // Experimental non-Oura types (Amazfit / Mi Band / Garmin) take their stored brand string from the
+        // catalog via the type->brand bridge. Oura confirms with its detected generation label elsewhere.
+        type == DeviceType.Amazfit || type == DeviceType.MiBand || type == DeviceType.Garmin ->
+            type!!.experimentalBrand!!.displayBrand
         pickedStrap != null -> brandGuess(pickedStrap!!.name)
         else -> "Heart-rate strap"
     }
@@ -280,12 +294,14 @@ fun AddDeviceWizard(
                 )
             }
             ps != null -> {
-                // Generic HR strap OR a Garmin broadcasting standard HR. Garmin is registered as a
-                // `liveBLE` device (its live HR IS the standard 0x180D path) but branded "Garmin"; both
-                // are HR + HRV.
+                // Generic HR strap OR a Garmin broadcasting standard HR. Garmin's brand + id prefix come
+                // from the catalog (via the type->brand bridge); it still stores `liveBLE` (its live HR IS
+                // the standard 0x180D path). A non-Garmin strap keeps the advertised-name brand guess +
+                // "strap" prefix. Both are HR + HRV.
+                val garmin = if (isGarmin) ExperimentalBrand.GARMIN else null
                 PairedDeviceRow(
-                    id = "${if (isGarmin) "garmin" else "strap"}-${ps.address}",
-                    brand = if (isGarmin) "Garmin" else brandGuess(ps.name),
+                    id = "${garmin?.idPrefix ?: "strap"}-${ps.address}",
+                    brand = garmin?.displayBrand ?: brandGuess(ps.name),
                     model = ps.name,
                     nickname = if (confirmName == ps.name) null else confirmName,
                     peripheralId = ps.address,
@@ -297,16 +313,17 @@ fun AddDeviceWizard(
                 )
             }
             ph != null -> {
-                // EXPERIMENTAL Amazfit / Zepp / Mi Band. sourceKind "huami" routes the SourceCoordinator
-                // to the HuamiHrSource. HR only (the Huami custom characteristic carries no R-R).
-                val brand = if (type == DeviceType.MiBand) "Mi Band" else "Amazfit"
+                // EXPERIMENTAL Amazfit / Zepp / Mi Band. Brand string, id prefix, and the "huami" routing
+                // all come from the catalog via the type->brand bridge (was: `if (MiBand) "Mi Band" else …`).
+                // HR only (the Huami custom characteristic carries no R-R).
+                val brand = type?.experimentalBrand ?: ExperimentalBrand.AMAZFIT
                 PairedDeviceRow(
-                    id = "huami-${ph.address}",
-                    brand = brand,
+                    id = "${brand.idPrefix}-${ph.address}",
+                    brand = brand.displayBrand,
                     model = ph.name,
                     nickname = if (confirmName == ph.name) null else confirmName,
                     peripheralId = ph.address,
-                    sourceKind = SourceKind.huami.name,
+                    sourceKind = brand.sourceKind.name,
                     capabilities = "hr",
                     status = DeviceStatus.paired.name,
                     addedAt = now,
@@ -358,7 +375,9 @@ fun AddDeviceWizard(
         stopAllScans()
         val ring = pickedOura ?: run { onClose(); return }
         val now = System.currentTimeMillis() / 1000
-        val deviceId = "oura-${ring.address}"
+        // Brand string, id prefix, and the "oura" routing come from the catalog via the type->brand bridge.
+        val oura = ExperimentalBrand.OURA
+        val deviceId = "${oura.idPrefix}-${ring.address}"
         // Advanced (B-Alt): persist the pasted key BEFORE registering so the active source authenticates
         // with it WITHOUT a factory reset (the Oura app keeps working). This path NEVER arms adopt-intent,
         // so the live source never sends the dangerous install opcode.
@@ -374,11 +393,11 @@ fun AddDeviceWizard(
         }
         val device = PairedDeviceRow(
             id = deviceId,
-            brand = "Oura",
+            brand = oura.displayBrand,
             model = ouraGen.displayName,
             nickname = nameDraft.trim().takeIf { it.isNotEmpty() && it != "Oura ring" },
             peripheralId = ring.address,
-            sourceKind = SourceKind.oura.name,
+            sourceKind = oura.sourceKind.name,
             // Gen-filtered: the OuraMetric rawValues are byte-identical to the app-side Metric rawValues
             // (hr/hrv/spo2/skinTemp/sleep), so the joined string round-trips through the registry unchanged.
             capabilities = ouraGen.capabilities.joinToString(",") { it.raw },

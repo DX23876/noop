@@ -1104,17 +1104,8 @@ private fun lastSeenLine(device: PairedDeviceRow, isLiveConnected: Boolean, bond
     else -> "Last seen ${relativeAgo(device.lastSeenAt)}"
 }
 
-/** Best-effort brand from the advertised name. Falls back to a neutral label. Mirrors Swift brandGuess. */
-internal fun brandGuess(name: String): String {
-    val lower = name.lowercase()
-    return when {
-        lower.contains("polar") -> "Polar"
-        lower.contains("wahoo") || lower.contains("tickr") -> "Wahoo"
-        lower.contains("coospo") -> "Coospo"
-        lower.contains("garmin") || lower.contains("hrm") -> "Garmin"
-        lower.contains("scosche") || lower.contains("rhythm") -> "Scosche"
-        lower.contains("magene") -> "Magene"
-        lower.contains("amazfit") || lower.contains("helio") || lower.contains("zepp") -> "Amazfit"
-        else -> "Heart-rate strap"
-    }
-}
+/** Best-effort brand from the advertised name. Falls back to a neutral label. Mirrors Swift brandGuess.
+ *  Delegates to the pure [com.noop.data.DeviceBrandCatalog] (single source of truth) so the token table
+ *  lives once. */
+internal fun brandGuess(name: String): String =
+    com.noop.data.DeviceBrandCatalog.specForAdvertisedName(name)?.brand ?: "Heart-rate strap"
