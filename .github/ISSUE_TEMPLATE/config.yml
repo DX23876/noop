@@ -1,7 +1,7 @@
 blank_issues_enabled: false
 contact_links:
   - name: 💬 NOOP Discord — questions, setup help & chat
-    url: https://discord.com/invite/nHK9FHczu
+    url: https://discord.com/invite/wKgyqVdjrP
     about: "Got a question, stuck on setup, or not sure something's a bug? Discord is the fastest place for a quick answer. (Confirmed bugs still go to a GitHub issue, with a strap log.)"
   - name: ❓ FAQ — start here (most questions are answered)
     url: https://github.com/ryanbr/noop/wiki/FAQ
@@ -15,6 +15,6 @@ contact_links:
   - name: 💡 Feature ideas & questions — Discussions
     url: https://github.com/ryanbr/noop/discussions
     about: "Got an idea, or not sure if something's a bug? Open a Discussion. Issues are for confirmed bugs with a strap log."
-  - name: 👽 Community, tips & release news — r/NOOPApp
-    url: https://www.reddit.com/r/NOOPApp/
+  - name: 👽 Community, tips & release news — r/NoopBand
+    url: https://www.reddit.com/r/NoopBand/
     about: "Setup help, tips and release news on the subreddit. (Please still file confirmed bugs as a GitHub issue, with a strap log.)"
