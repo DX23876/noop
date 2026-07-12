@@ -3,6 +3,8 @@
     <!-- German (de). App name stays untranslated (brand). Nav terms mirror the iOS German pass where
          one exists, so the two platforms read the same. -->
     <string name="widget_description">Ruhe, Ladung und Anstrengung von heute, mit Live-Herzfrequenz und Band-Akku auf einen Blick.</string>
+    <string name="widget_compact_name">NOOP Kompakt</string>
+    <string name="widget_compact_description">Kompaktes Widget für Ruhe, Ladung und Anstrengung, mit Live-Herzfrequenz und Band-Akku.</string>
     <string name="widget_error">Das NOOP-Widget konnte nicht gezeichnet werden. Es erholt sich beim nächsten Update.</string>
 
     <string name="nav_today">Heute</string>
