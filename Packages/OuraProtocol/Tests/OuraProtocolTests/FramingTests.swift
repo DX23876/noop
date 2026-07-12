@@ -55,21 +55,35 @@ final class FramingTests: XCTestCase {
 
     // MARK: - GetEvents response (0x11, s5.2)
 
-    func testParseGetEventsResponseMoreDataFollows() {
-        // 11 08 <status=ff> <sub_status=00> <last_rt:4LE=78563412> <pad:2>
-        let outer = OuraFraming.parseOuterFrame(bytes("1108ff00785634120000"))
+    func testParseGetEventsResponseMoreDataWhileBytesLeft() {
+        // REAL on-device capture (2026-07-11 07:04, full-pull first summary):
+        // 11 08 <events=ff> <progress=00> <bytes_left:4LE = a6 a1 1a 00 = 1,745,318> <pad 03 00>.
+        let outer = OuraFraming.parseOuterFrame(bytes("1108ff00a6a11a000300"))
         XCTAssertEqual(outer?.op, OuraFraming.getEventsResponseOp)
         let summary = OuraFraming.parseGetEventsResponse(outer!.body)
-        XCTAssertEqual(summary?.cursor, 0x1234_5678)
+        XCTAssertEqual(summary?.eventsReceived, 0xFF)
+        XCTAssertEqual(summary?.bytesLeft, 1_745_318)
         XCTAssertEqual(summary?.moreData, true)
     }
 
-    func testParseGetEventsResponseNoMoreData() {
-        // status 0x00 -> caught up, no more data.
-        let outer = OuraFraming.parseOuterFrame(bytes("11080000785634120000"))
+    func testParseGetEventsResponseCompleteAtZeroBytesLeft() {
+        // REAL on-device capture (final summary of a completed drain): bytes_left == 0 -> caught up.
+        let outer = OuraFraming.parseOuterFrame(bytes("11080000000000000300"))
         let summary = OuraFraming.parseGetEventsResponse(outer!.body)
-        XCTAssertEqual(summary?.cursor, 0x1234_5678)
+        XCTAssertEqual(summary?.eventsReceived, 0)
+        XCTAssertEqual(summary?.bytesLeft, 0)
         XCTAssertEqual(summary?.moreData, false)
+    }
+
+    func testParseGetEventsResponseZeroEventsButBytesLeftIsMoreData() {
+        // THE #91 regression case, byte-for-byte from the 2026-07-11 18:53 log: events_received == 0 but
+        // bytes_left = e9 1d 06 00 = 400,873. The old parse read body[0] as a status and STOPPED here,
+        // abandoning the newest 400 KB of the log (the previous night's hypnogram). moreData must be true.
+        let outer = OuraFraming.parseOuterFrame(bytes("11080000e91d06000300"))
+        let summary = OuraFraming.parseGetEventsResponse(outer!.body)
+        XCTAssertEqual(summary?.eventsReceived, 0)
+        XCTAssertEqual(summary?.bytesLeft, 400_873)
+        XCTAssertEqual(summary?.moreData, true, "bytes_left > 0 means the drain MUST continue")
     }
 
     func testParseGetEventsResponseShortBodyReturnsNil() {

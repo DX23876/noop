@@ -47,15 +47,22 @@ public enum OuraFraming {
     /// caller fails to special-case it.
     public static let batteryResponseOp: UInt8 = 0x0D
 
-    /// Parse a 0x11 GetEvents response body: `status:1 sub_status:1 last_ring_timestamp:4LE pad:2`
-    /// (OURA_PROTOCOL.md s5.2). `status` 0x00 = empty/no more; any other value = data follows. The
-    /// `last_ring_timestamp` is the new cursor to resume the fetch from. Returns nil on a short body
-    /// (never guesses a cursor).
-    public static func parseGetEventsResponse(_ body: [UInt8]) -> (cursor: UInt32, moreData: Bool)? {
+    /// Parse a 0x11 GetEvents response body per open_oura's `EventBatchSummary`:
+    /// `events_received:1  sleep_analysis_progress:1  bytes_left:4LE  [pad:2]`. The drain loop runs
+    /// until `bytes_left == 0`; there is NO resume cursor in this packet — the resume position is a
+    /// CLIENT-managed event-envelope ring-time, never read back from here. Returns nil on a short body.
+    ///
+    /// #91 (was re-broken on main; observed on-device 2026-07-11): bytes[2..5] were decoded as a
+    /// `last_ring_timestamp` cursor and body[0] as a "more data" status. Both are wrong: body[0] is
+    /// `events_received` (a batch COUNT — treating 0 as "done" stopped a drain with 400,873 bytes still
+    /// left, losing the newest data), and bytes[2..5] is `bytes_left` (a remaining-BYTE count — persisting
+    /// it and comparing across sessions as clocks minted a phantom "ring-time regression" → reset-to-0 →
+    /// full history re-dump on every connect).
+    public static func parseGetEventsResponse(_ body: [UInt8]) -> (eventsReceived: UInt8, bytesLeft: UInt32, moreData: Bool)? {
         guard body.count >= 6 else { return nil }
-        let status = body[0]
-        let cursor = UInt32(body[2]) | (UInt32(body[3]) << 8) | (UInt32(body[4]) << 16) | (UInt32(body[5]) << 24)
-        return (cursor, status != 0x00)
+        let eventsReceived = body[0]
+        let bytesLeft = UInt32(body[2]) | (UInt32(body[3]) << 8) | (UInt32(body[4]) << 16) | (UInt32(body[5]) << 24)
+        return (eventsReceived, bytesLeft, bytesLeft > 0)
     }
 
     /// Parse one outer frame from the front of `bytes`. Returns nil on a short buffer (header or body
