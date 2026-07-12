@@ -47,7 +47,7 @@ object SmartAlarmScheduler {
      *
      * @return the scheduled hard-deadline epoch (ms), or null if exact alarms aren't permitted.
      */
-    fun arm(context: Context, store: SmartAlarmStore): Long? {
+    fun arm(context: Context, store: SmartAlarmStore, afterFire: Boolean = false): Long? {
         if (!canScheduleExact(context)) return null
 
         val deadlineMin = (store.targetMinutes + store.windowMinutes)
@@ -55,6 +55,16 @@ object SmartAlarmScheduler {
         // occurrence of that absolute minute-of-day, then derive the window-start from it so the two
         // edges stay on the same night even across the midnight boundary.
         val deadline = nextOccurrence(deadlineMin % SmartAlarmStore.MINUTES_PER_DAY)
+        // Re-arm after a fire (audit): when the smart alarm fires EARLY on a light-sleep phase (e.g. 06:35
+        // for a 07:00 deadline), the deadline's next occurrence is still TODAY 07:00 — so a plain re-arm
+        // scheduled a second guaranteed wake the SAME morning, waking the user again. We just woke them
+        // today, so the next wake must be tomorrow: push a same-day deadline forward one day.
+        if (afterFire) {
+            val now = Calendar.getInstance()
+            val sameDay = deadline.get(Calendar.YEAR) == now.get(Calendar.YEAR) &&
+                deadline.get(Calendar.DAY_OF_YEAR) == now.get(Calendar.DAY_OF_YEAR)
+            if (sameDay) deadline.add(Calendar.DAY_OF_YEAR, 1)
+        }
         val windowStartMs = deadline.timeInMillis - store.windowMinutes.toLong() * 60_000L
 
         scheduleExact(context, deadline.timeInMillis)

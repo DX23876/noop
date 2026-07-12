@@ -39,9 +39,11 @@ class SmartAlarmReceiver : BroadcastReceiver() {
         store.scheduledDeadlineMs = 0L
         store.scheduledWindowStartMs = 0L
         // ...then, if the alarm is still enabled, re-arm the GUARANTEED deadline for the NEXT day so
-        // the smart alarm recurs each morning. arm() computes the next occurrence (tomorrow, since
-        // today's just passed). A disabled-but-fired alarm does NOT resurrect itself.
-        runCatching { if (store.enabled) SmartAlarmScheduler.arm(context, store) }
+        // the smart alarm recurs each morning. `afterFire = true` forces tomorrow even on the EARLY
+        // (light-sleep) fire path, where today's hard deadline is still in the future and a plain
+        // re-arm would schedule a SECOND wake the same morning. A disabled-but-fired alarm does NOT
+        // resurrect itself.
+        runCatching { if (store.enabled) SmartAlarmScheduler.arm(context, store, afterFire = true) }
 
         ensureChannel(context)
         // Defensive: a notify() throw (OEM quirk / revoked POST_NOTIFICATIONS) must not crash the
