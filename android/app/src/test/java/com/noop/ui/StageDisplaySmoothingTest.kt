@@ -103,8 +103,13 @@ class StageDisplaySmoothingTest {
 
     @Test
     fun zeroFloorReturnsCoalescedInputUnsmoothed() {
-        val raw = listOf(iv("light", 0.0, 10.0), iv("deep", 10.0, 20.0), iv("rem", 20.0, 30.0))
-        assertEquals(raw, displaySmoothed(raw, 0.0))   // smoothingSeconds: 0 → raw timeline
+        // minDurationSec = 0 ("raw") must still COALESCE adjacent same-stage runs (Swift parity) — NOT
+        // return the un-merged epoch fragments. Fixture has an adjacent light/light seam so it actually
+        // exercises the coalesce (the previous [light, deep, rem] fixture had none, so it passed even
+        // when the impl short-circuited to raw).
+        val raw = listOf(iv("light", 0.0, 10.0), iv("light", 10.0, 20.0), iv("deep", 20.0, 30.0))
+        val coalesced = listOf(iv("light", 0.0, 20.0), iv("deep", 20.0, 30.0))
+        assertEquals(coalesced, displaySmoothed(raw, 0.0))
     }
 
     @Test

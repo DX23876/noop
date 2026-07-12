@@ -3482,7 +3482,12 @@ internal fun displaySmoothed(
     intervals: List<StageInterval>,
     minDurationSec: Double,
 ): List<StageInterval> {
-    if (intervals.size <= 2 || minDurationSec <= 0.0) return intervals   // Swift: guard count > 2
+    // Match Swift `Hypnogram.displaySmoothed`: guard ONLY on count. A minDurationSec <= 0 ("raw") must
+    // still fall through to coalesce() — Swift returns the coalesced timeline, not the un-merged epoch
+    // fragments. Short-circuiting on <= 0 here returned 60-100 raw fragments (the "comb"), diverging from
+    // the port. With minDurationSec = 0 the absorb loop's `duration < 0` filter is empty, so it breaks
+    // right after the first coalesce — same result as Swift.
+    if (intervals.size <= 2) return intervals   // Swift: guard count > 2
 
     // Coalesce adjacent same-stage runs (also bridges the zero-length seams between epochs).
     fun coalesce(ivs: List<StageInterval>): MutableList<StageInterval> {
