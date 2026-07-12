@@ -106,6 +106,20 @@ internal fun widgetAnchorRow(days: List<DailyMetric>, logicalKey: String, localK
 internal fun lastVitalsRow(days: List<DailyMetric>, todayKey: String): DailyMetric? =
     days.lastOrNull { (it.avgHrv != null || it.restingHr != null || it.respRateBpm != null) && it.day < todayKey }
 
+/**
+ * PER-FIELD twin of [lastVitalsRow] for SpO₂: the freshest strictly-prior row with a non-null [DailyMetric.spo2Pct].
+ * [lastVitalsRow]'s predicate only checks HRV/resting-HR/respiratory, so it can select a row whose spo2Pct is
+ * null (the on-device engine writes spo2Pct = null; only imported rows carry it) while an OLDER imported row
+ * has a real reading. Resolving SpO₂ per field keeps the Blood Oxygen card honest instead of "No Data".
+ * Same `it.day < todayKey` future-clock guard. Mirrors Swift `DailyMetric.lastSpo2Day` / `lastSkinTempDay`.
+ */
+internal fun lastSpo2Row(days: List<DailyMetric>, todayKey: String): DailyMetric? =
+    days.lastOrNull { it.spo2Pct != null && it.day < todayKey }
+
+/** PER-FIELD twin of [lastVitalsRow] for skin temperature deviation. See [lastSpo2Row]. */
+internal fun lastSkinTempRow(days: List<DailyMetric>, todayKey: String): DailyMetric? =
+    days.lastOrNull { it.skinTempDevC != null && it.day < todayKey }
+
 /** 04:00 local — the hour the logical day rolls. Between midnight and this hour, Today stays put. */
 internal const val LOGICAL_DAY_ROLLOVER_HOUR: Int = 4
 

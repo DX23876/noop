@@ -425,6 +425,20 @@ final class Repository: ObservableObject {
     nonisolated static func lastVitalsDay(days: [DailyMetric], todayKey: String) -> DailyMetric? {
         DailyMetric.lastVitalsDay(days: days, todayKey: todayKey)
     }
+
+    /// PER-FIELD SpO₂ carry — the twin of `lastVitalsDay(days:todayKey:)` for the field its predicate does
+    /// NOT check. The engine writes `spo2Pct = nil` on computed rows (only imported rows carry a percentage),
+    /// so a whole-row carry lands on a null `spo2Pct`; this resolves the freshest strictly-prior row that
+    /// actually has one. Forwards to the pure package selector — pass the future-clock-safe key (the later of
+    /// logical/local) so the `< todayKey` bound is honest. See `DailyMetric.lastSpo2Day`.
+    nonisolated static func lastSpo2Day(days: [DailyMetric], todayKey: String) -> DailyMetric? {
+        DailyMetric.lastSpo2Day(days: days, todayKey: todayKey)
+    }
+
+    /// PER-FIELD skin-temperature-deviation carry — twin of the above. See `DailyMetric.lastSkinTempDay`.
+    nonisolated static func lastSkinTempDay(days: [DailyMetric], todayKey: String) -> DailyMetric? {
+        DailyMetric.lastSkinTempDay(days: days, todayKey: todayKey)
+    }
     /// The trailing 7 CALENDAR days ending today (for the week strip), oldest→newest , not the last 7
     /// stored rows, which on a stale import were old data. ISO yyyy-MM-dd compares chronologically.
     var week: [DailyMetric] {

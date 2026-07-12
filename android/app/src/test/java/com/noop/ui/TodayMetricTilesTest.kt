@@ -468,4 +468,69 @@ class TodayMetricTilesTest {
         assertEquals(50.0, vitals?.avgHrv)
         assertEquals(55, vitals?.restingHr)
     }
+
+    // MARK: lastSpo2Row / lastSkinTempRow — the PER-FIELD carries for the two fields lastVitalsRow's
+    // predicate does NOT check. The on-device engine writes spo2Pct = null (only raw spo2Red/spo2Ir), so
+    // every computed "-noop" row lacks a percentage; only imported rows carry one. A whole-row carry lands
+    // on a row with null spo2Pct/skinTempDevC and the Blood Oxygen / Skin Temp cards read "No Data" even
+    // though an imported row holds a real reading. Mirrors iOS VitalSourceResolution's per-field pick.
+
+    private fun fieldDay(
+        day: String,
+        hrv: Double? = null,
+        spo2: Double? = null,
+        skinTemp: Double? = null,
+    ) = DailyMetric(deviceId = "my-whoop", day = day, avgHrv = hrv, spo2Pct = spo2, skinTempDevC = skinTemp)
+
+    @Test
+    fun lastSpo2Row_skipsANewerVitalsRowWithNullSpo2_documentsTheWholeRowBug() {
+        // Last night's computed row has vitals but NO spo2Pct (engine-written null); an older imported row
+        // has a real 96%. lastVitalsRow picks last night (correct for HRV) — the SpO₂ field must NOT ride
+        // that row, it must resolve independently to the imported reading.
+        val days = listOf(
+            fieldDay("2026-06-17", spo2 = 96.0),                 // imported, real reading
+            fieldDay("2026-06-18", hrv = 41.0, spo2 = null),     // computed row: vitals yes, SpO₂ null
+        )
+        assertEquals("2026-06-18", lastVitalsRow(days, todayKey = "2026-06-19")?.day)
+        val spo2 = lastSpo2Row(days, todayKey = "2026-06-19")
+        assertEquals("2026-06-17", spo2?.day)
+        assertEquals(96.0, spo2?.spo2Pct)
+    }
+
+    @Test
+    fun lastSpo2Row_null_whenNoPriorRowEverHadAReading_staysHonestNoData() {
+        val days = listOf(fieldDay("2026-06-18", hrv = 41.0))
+        assertNull(lastSpo2Row(days, todayKey = "2026-06-19"))
+    }
+
+    @Test
+    fun lastSpo2Row_neverCarriesAFutureDatedRow() {
+        val days = listOf(
+            fieldDay("2026-06-17", spo2 = 96.0),
+            fieldDay("2999-01-01", spo2 = 99.0),                 // future-dated pollution
+        )
+        assertEquals("2026-06-17", lastSpo2Row(days, todayKey = "2026-06-19")?.day)
+    }
+
+    @Test
+    fun lastSkinTempRow_resolvesIndependently_ofVitalsAndSpo2() {
+        // Skin temp lives on yet another row than SpO₂ — each field carries from its own freshest source.
+        val days = listOf(
+            fieldDay("2026-06-16", skinTemp = 0.4),
+            fieldDay("2026-06-17", spo2 = 96.0),
+            fieldDay("2026-06-18", hrv = 41.0),
+        )
+        val skin = lastSkinTempRow(days, todayKey = "2026-06-19")
+        assertEquals("2026-06-16", skin?.day)
+        assertEquals(0.4, skin?.skinTempDevC)
+    }
+
+    @Test
+    fun lastSkinTempRow_neverCarriesAFutureDatedRow() {
+        val days = listOf(
+            fieldDay("2026-06-16", skinTemp = 0.4),
+            fieldDay("2999-01-01", skinTemp = 2.1),
+        )
+        assertEquals("2026-06-16", lastSkinTempRow(days, todayKey = "2026-06-19")?.day)
+    }
 }

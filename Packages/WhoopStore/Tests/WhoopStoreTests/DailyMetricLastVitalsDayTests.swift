@@ -98,4 +98,57 @@ final class DailyMetricLastVitalsDayTests: XCTestCase {
                     day("2999-01-01", recovery: 80, hrv: 99, rhr: 40)]
         XCTAssertNil(DailyMetric.lastVitalsDay(days: days, todayKey: "2026-06-19"))
     }
+
+    // MARK: lastSpo2Day / lastSkinTempDay — the PER-FIELD carries for the two fields lastVitalsDay's
+    // predicate does NOT check. The on-device engine writes spo2Pct = nil (only raw spo2Red/spo2Ir), so
+    // every computed "-noop" row lacks a percentage; only imported rows carry one. A whole-row carry lands
+    // on a row with null spo2Pct/skinTempDevC and the Blood Oxygen / Skin Temp cards read "No Data" even
+    // though an imported row holds a real reading. Byte-twins of the Android lastSpo2Row / lastSkinTempRow.
+
+    /// A day row carrying only the fields these per-field selectors read — mirrors the Android `fieldDay`.
+    private func fieldDay(_ key: String, hrv: Double? = nil,
+                          spo2: Double? = nil, skinTemp: Double? = nil) -> DailyMetric {
+        DailyMetric(day: key, totalSleepMin: nil, efficiency: nil, deepMin: nil, remMin: nil,
+                    lightMin: nil, disturbances: nil, restingHr: nil, avgHrv: hrv, recovery: nil,
+                    strain: nil, exerciseCount: nil, spo2Pct: spo2, skinTempDevC: skinTemp, respRateBpm: nil)
+    }
+
+    func testLastSpo2Day_skipsANewerVitalsRowWithNullSpo2_documentsTheWholeRowBug() {
+        // Last night's computed row has vitals but NO spo2Pct (engine-written nil); an older imported row
+        // has a real 96%. lastVitalsDay picks last night (correct for HRV) — the SpO₂ field must NOT ride
+        // that row, it must resolve independently to the imported reading.
+        let days = [fieldDay("2026-06-17", spo2: 96),               // imported, real reading
+                    fieldDay("2026-06-18", hrv: 41, spo2: nil)]     // computed row: vitals yes, SpO₂ nil
+        XCTAssertEqual(DailyMetric.lastVitalsDay(days: days, todayKey: "2026-06-19")?.day, "2026-06-18")
+        let spo2 = DailyMetric.lastSpo2Day(days: days, todayKey: "2026-06-19")
+        XCTAssertEqual(spo2?.day, "2026-06-17")
+        XCTAssertEqual(spo2?.spo2Pct, 96)
+    }
+
+    func testLastSpo2Day_nil_whenNoPriorRowEverHadAReading_staysHonestNoData() {
+        let days = [fieldDay("2026-06-18", hrv: 41)]
+        XCTAssertNil(DailyMetric.lastSpo2Day(days: days, todayKey: "2026-06-19"))
+    }
+
+    func testLastSpo2Day_neverCarriesAFutureDatedRow() {
+        let days = [fieldDay("2026-06-17", spo2: 96),
+                    fieldDay("2999-01-01", spo2: 99)]              // future-dated pollution
+        XCTAssertEqual(DailyMetric.lastSpo2Day(days: days, todayKey: "2026-06-19")?.day, "2026-06-17")
+    }
+
+    func testLastSkinTempDay_resolvesIndependently_ofVitalsAndSpo2() {
+        // Skin temp lives on yet another row than SpO₂ — each field carries from its own freshest source.
+        let days = [fieldDay("2026-06-16", skinTemp: 0.4),
+                    fieldDay("2026-06-17", spo2: 96),
+                    fieldDay("2026-06-18", hrv: 41)]
+        let skin = DailyMetric.lastSkinTempDay(days: days, todayKey: "2026-06-19")
+        XCTAssertEqual(skin?.day, "2026-06-16")
+        XCTAssertEqual(skin?.skinTempDevC, 0.4)
+    }
+
+    func testLastSkinTempDay_neverCarriesAFutureDatedRow() {
+        let days = [fieldDay("2026-06-16", skinTemp: 0.4),
+                    fieldDay("2999-01-01", skinTemp: 2.1)]
+        XCTAssertEqual(DailyMetric.lastSkinTempDay(days: days, todayKey: "2026-06-19")?.day, "2026-06-16")
+    }
 }

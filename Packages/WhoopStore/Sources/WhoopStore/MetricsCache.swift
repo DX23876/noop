@@ -97,6 +97,22 @@ public struct DailyMetric: Equatable, Codable {
     public nonisolated static func lastVitalsDay(days: [DailyMetric], todayKey: String) -> DailyMetric? {
         days.last(where: { ($0.avgHrv != nil || $0.restingHr != nil || $0.respRateBpm != nil) && $0.day < todayKey })
     }
+
+    /// PER-FIELD twin of `lastVitalsDay` for SpO₂: the freshest STRICTLY-PRIOR day with a non-nil `spo2Pct`.
+    /// `lastVitalsDay`'s predicate only checks HRV / resting-HR / respiratory, so it can land on a row whose
+    /// `spo2Pct` is nil (the on-device engine writes `spo2Pct = nil` — it banks only raw `spo2Red`/`spo2Ir`;
+    /// only imported rows carry a percentage) while an OLDER imported row holds a real reading. Resolving
+    /// SpO₂ per field keeps the Blood Oxygen card honest instead of "No Data". Same `$0.day < todayKey`
+    /// future-clock guard as `lastVitalsDay`; `days` is oldest→newest. Byte-twin of the Android `lastSpo2Row`.
+    public nonisolated static func lastSpo2Day(days: [DailyMetric], todayKey: String) -> DailyMetric? {
+        days.last(where: { $0.spo2Pct != nil && $0.day < todayKey })
+    }
+
+    /// PER-FIELD twin of `lastVitalsDay` for skin-temperature deviation. See `lastSpo2Day`. Byte-twin of the
+    /// Android `lastSkinTempRow`.
+    public nonisolated static func lastSkinTempDay(days: [DailyMetric], todayKey: String) -> DailyMetric? {
+        days.last(where: { $0.skinTempDevC != nil && $0.day < todayKey })
+    }
 }
 
 extension WhoopStore {

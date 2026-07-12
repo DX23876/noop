@@ -841,6 +841,19 @@ fun TodayScreen(
     val lastVitalsDay: DailyMetric? = remember(days, carryOverTodayKey, selectedDayOffset, displayMetric) {
         if (selectedDayOffset == 0) lastVitalsRow(days, maxOf(displayMetric?.day ?: "", carryOverTodayKey)) else null
     }
+    // PER-FIELD SpO₂ / skin-temp carries, the twin of lastVitalsDay for the two fields its predicate does
+    // NOT check. The on-device engine writes spo2Pct = null (only raw spo2Red/spo2Ir), so every computed
+    // "-noop" row lacks a percentage; only imported rows carry one. A whole-row carry (lastScoredRecoveryDay
+    // or lastVitalsDay) therefore lands on a row with null spo2Pct/skinTempDevC and the Blood Oxygen /
+    // Skin Temp cards read "No Data" even though an imported row holds a real reading. Resolving the two
+    // fields independently (last strictly-prior row with the field non-null) mirrors iOS
+    // TodayView.lastSpo2Day / lastSkinTempDay. Same #547 future-clock bound; non-null only on today.
+    val lastSpo2Day: DailyMetric? = remember(days, carryOverTodayKey, selectedDayOffset, displayMetric) {
+        if (selectedDayOffset == 0) lastSpo2Row(days, maxOf(displayMetric?.day ?: "", carryOverTodayKey)) else null
+    }
+    val lastSkinTempDay: DailyMetric? = remember(days, carryOverTodayKey, selectedDayOffset, displayMetric) {
+        if (selectedDayOffset == 0) lastSkinTempRow(days, maxOf(displayMetric?.day ?: "", carryOverTodayKey)) else null
+    }
     // Carry-over Charge for TODAY, the prior scored row's recovery + its "Last night · <date>" caption.
     // Derived from lastScoredRecoveryDay so Charge and every other recovery tile carry the SAME prior day.
     val lastScoredCharge: LastCharge? = remember(lastScoredRecoveryDay) {
@@ -1228,6 +1241,12 @@ fun TodayScreen(
                 // Respiratory cards read PER-FIELD today-first with THIS fallback, so a night whose recovery
                 // was nulled post-update still surfaces its OWN preserved vitals (not an older scored day's).
                 vitalsDay = lastVitalsDay,
+                // PER-FIELD SpO₂ / skin-temp carries: lastVitalsDay's predicate only checks HRV/RHR/resp,
+                // so these two fields resolve independently to the last row that actually has them
+                // (imported rows; computed "-noop" rows never carry spo2Pct). Mirrors iOS per-field
+                // carry (TodayView.lastSpo2Day / lastSkinTempDay via carriedVital).
+                spo2Day = lastSpo2Day,
+                skinTempDay = lastSkinTempDay,
                 stress = stressToday,
                 fitnessAge = fitnessAgeToday,
                 vitality = vitalityToday,
@@ -1356,6 +1375,7 @@ fun TodayScreen(
                 recoveryCalibration = recoveryCalibration,
                 lastScoredCharge = lastScoredCharge,
                 carriedDay = lastScoredRecoveryDay,
+                spo2CarryDay = lastSpo2Day,
                 unitSystem = unitSystem,
                 effortScale = effortScale,
                 latestWeightKg = weightKg,
@@ -2756,6 +2776,8 @@ private fun YourCardsSection(
     day: DailyMetric?,
     carriedDay: DailyMetric?,
     vitalsDay: DailyMetric?,
+    spo2Day: DailyMetric?,
+    skinTempDay: DailyMetric?,
     stress: Double?,
     fitnessAge: Double?,
     vitality: Double?,
@@ -2802,6 +2824,8 @@ private fun YourCardsSection(
                         day = day,
                         carriedDay = carriedDay,
                         vitalsDay = vitalsDay,
+                        spo2Day = spo2Day,
+                        skinTempDay = skinTempDay,
                         stress = stress,
                         fitnessAge = fitnessAge,
                         vitality = vitality,
@@ -2989,6 +3013,8 @@ private fun dashboardCardValue(
     day: DailyMetric?,
     carriedDay: DailyMetric?,
     vitalsDay: DailyMetric?,
+    spo2Day: DailyMetric?,
+    skinTempDay: DailyMetric?,
     stress: Double?,
     fitnessAge: Double?,
     vitality: Double?,
@@ -3012,10 +3038,13 @@ private fun dashboardCardValue(
         DashboardCard.RESPIRATORY ->
             withUnit((day?.respRateBpm ?: vitalsDay?.respRateBpm)?.let { String.format(Locale.US, "%.1f", it) } ?: NO_DATA)
         DashboardCard.BLOOD_OXYGEN ->
-            vd?.spo2Pct?.let { String.format(Locale.US, "%.0f%%", it) } ?: NO_DATA
+            // PER-FIELD carry: the whole-row carries (vd) land on rows whose spo2Pct is null (the engine
+            // writes spo2Pct = null on computed rows), so fall through to the last row that HAS one.
+            (vd?.spo2Pct ?: spo2Day?.spo2Pct)?.let { String.format(Locale.US, "%.0f%%", it) } ?: NO_DATA
         DashboardCard.SKIN_TEMP ->
             // Stored as a deviation from baseline (°C); show it signed so +/- reads honestly.
-            vd?.skinTempDevC?.let { String.format(Locale.US, "%+.1f°", it) } ?: NO_DATA
+            // Same per-field carry as Blood Oxygen.
+            (vd?.skinTempDevC ?: skinTempDay?.skinTempDevC)?.let { String.format(Locale.US, "%+.1f°", it) } ?: NO_DATA
         DashboardCard.SLEEP -> sleepValue(vd)
         DashboardCard.STEPS -> {
             val real = day?.steps?.let { intStringGrouped(it.toDouble()) }
@@ -4096,6 +4125,10 @@ private fun MetricGrid(
     recoveryCalibration: Int? = null,
     lastScoredCharge: LastCharge? = null,
     carriedDay: DailyMetric? = null,
+    // PER-FIELD SpO₂ carry (see lastSpo2Row): carriedDay is recovery-gated and lands on rows whose
+    // spo2Pct is null (computed rows never carry one), so the Blood Oxygen tile falls through to the
+    // last row that actually has a reading. Mirrors iOS TodayView.lastSpo2Day (carriedVital's per-field fallback).
+    spo2CarryDay: DailyMetric? = null,
     unitSystem: UnitSystem = UnitSystem.METRIC,
     effortScale: EffortScale = EffortScale.HUNDRED,
     latestWeightKg: Double? = null,
@@ -4176,7 +4209,7 @@ private fun MetricGrid(
             )
         },
         KeyMetric.BLOOD_OXYGEN to run {
-            val v = d?.spo2Pct ?: carriedDay?.spo2Pct
+            val v = d?.spo2Pct ?: carriedDay?.spo2Pct ?: spo2CarryDay?.spo2Pct
             KeyTileData(
                 label = "Blood Oxygen",
                 value = v?.let { String.format(Locale.US, "%.0f", it) } ?: NO_DATA,
