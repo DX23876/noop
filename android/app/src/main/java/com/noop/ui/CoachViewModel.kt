@@ -230,8 +230,11 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
         AiKeyStore.save(ctx, key)
         _error.value = null
         _keyVersion.value += 1
-        // Pull the user's ACTUAL current models from the provider so the picker is never stale.
-        refreshModels(ctx)
+        // #288: do NOT auto-fetch the provider's model list on key-save. For a cloud provider that GET hits
+        // the provider the MOMENT a key is saved (leaking IP + request timing + key-validity) — before the
+        // user has sent anything, in an app that is zero-network by default. The picker shows the curated
+        // shipped models (seedModels); the LIVE list is pulled only when the user taps Refresh (an explicit
+        // action that is its own consent) or sends. Local Custom servers still refresh on Connect.
     }
 
     /** Clear the stored key and reset the transcript back to the setup screen. */
