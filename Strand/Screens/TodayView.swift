@@ -4391,6 +4391,9 @@ private struct RecordingStatusLight: View {
     let selectedDayOffset: Int
     let onTap: () -> Void
 
+    /// Drives the syncing pulse; toggled in `.task` while an offload runs (never during body eval).
+    @State private var pulsing = false
+
     /// Colour for the light: green recording, amber last-synced, red not recording, accent for
     /// experimental history. Mirrors the prior `TodayView.recordingHue` semantics verbatim.
     private func hue(_ state: RecordingState) -> Color {
@@ -4407,17 +4410,50 @@ private struct RecordingStatusLight: View {
         // A live recording state colours the dot (green / amber / red); a past day (no state) shows a muted
         // dot and the chip is non-actionable, recording status only means something for today.
         let state = TodayView.recordingState(live: live, selectedDayOffset: selectedDayOffset)
+        // #245: while the strap is actively offloading history, surface a visible SYNC indicator right in
+        // the header (users otherwise only saw progress under More → Live). This reads `live.backfilling`
+        // directly rather than adding a `RecordingState` case, so the pure mapper + its Kotlin twin stay
+        // untouched — a UI-only accent pulse, gated to today (a past day never syncs). The dot keeps its
+        // recording hue underneath; an expanding accent ring says "handing over history now".
+        let syncing = live.backfilling && selectedDayOffset == 0
         Button(action: onTap) {
             Circle().fill(StrandPalette.surfaceInset)
                 .frame(width: 36, height: 36)
-                .overlay(Circle()
-                    .fill(state.map(hue) ?? StrandPalette.textTertiary.opacity(0.4))
-                    .frame(width: 10, height: 10))
+                .overlay {
+                    if syncing {
+                        // Expanding, fading accent ring behind a steady accent dot — a "pulling data" beat.
+                        Circle()
+                            .stroke(StrandPalette.accent, lineWidth: 2)
+                            .frame(width: 10, height: 10)
+                            .scaleEffect(pulsing ? 2.6 : 1.0)
+                            .opacity(pulsing ? 0.0 : 0.9)
+                        Circle().fill(StrandPalette.accent).frame(width: 10, height: 10)
+                    } else {
+                        Circle()
+                            .fill(state.map(hue) ?? StrandPalette.textTertiary.opacity(0.4))
+                            .frame(width: 10, height: 10)
+                    }
+                }
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .disabled(state == nil)
-        .accessibilityLabel(state?.accessibilityText ?? String(localized: "Recording status, not shown for a past day"))
+        .disabled(state == nil && !syncing)
+        .accessibilityLabel(syncing ? syncingAccessibilityLabel
+            : (state?.accessibilityText ?? String(localized: "Recording status, not shown for a past day")))
+        // Run the repeating pulse only while syncing; the `.task(id:)` auto-cancels when the flag flips,
+        // so there is no timer left running once the offload ends (or Today goes away).
+        .task(id: syncing) {
+            guard syncing else { pulsing = false; return }
+            withAnimation(.easeOut(duration: 1.1).repeatForever(autoreverses: false)) { pulsing = true }
+        }
+    }
+
+    /// VoiceOver read-out while offloading: names the running chunk count so it matches the Live badge.
+    private var syncingAccessibilityLabel: String {
+        let n = live.syncChunksThisSession
+        return n > 0
+            ? String(localized: "Syncing strap history, chunk \(n)")
+            : String(localized: "Syncing strap history")
     }
 }
 
