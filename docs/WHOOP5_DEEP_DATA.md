@@ -90,6 +90,29 @@ that otherwise reproduced flags 1–15 byte-for-byte in this order.
   we map the type-`0x2F` layout (documented as HR @ byte 14, accel x/y/z float32 @ 37/41/45) and feed the
   motion into NOOP's existing v25-style sleep stager.
 
+## Mapping the layout — ground-truth correlation
+
+An HCI capture on its own is a pile of un-labelled bytes. The fast way to label them is *known
+plaintext*: a tester's own **WHOOP data export** (app.whoop.com → Data Export) lists the official
+per-night values — HRV, resting HR, skin temperature, SpO₂, respiratory rate — for exactly the nights
+in the capture. Searching each record type for the byte offset + encoding that reproduces those known
+values across every night pins the field without guesswork.
+
+Two stdlib tools in [`Tools/linux-capture/`](../Tools/linux-capture/) do this:
+
+- **`hci_extract.py`** converts a phone HCI log (iOS `.pklg` / Android `btsnoop_hci.log`) of the
+  official app into the project's `capture.json` frame format — so an official-app full-sync capture
+  feeds the same decoder as a Linux capture. It keeps only CRC-valid WHOOP frames.
+- **`correlate_ground_truth.py`** cross-references those frames against the CSV export and reports
+  candidate `(record type, offset, encoding, scale)` tuples, requiring both breadth and a
+  distribution match so constants and coincidences don't score.
+
+Crucially this is **privacy-preserving**: both tools run locally and the correlation output is only
+offsets/encodings, never health values — so a 5/MG owner can contribute a confirmed field mapping to
+[#103](https://github.com/ryanbr/noop/issues/103) without posting their capture or their data export.
+A mapped offset still follows the project rule — *real captures, never invented offsets* — before it
+lands in `parseFrameWhoop5` / `whoop_protocol.json`.
+
 ## How to help (5.0 / MG owners)
 
 1. Update to the latest NOOP, **Settings → Experimental → "Unlock WHOOP 5/MG deep data (R22)"**.

@@ -85,11 +85,15 @@ the Python capture side does not require Swift.
 | `whoop_setclock.py` | **Read/fix the strap clock.** Reads the RTC, and sets it to now if it has drifted past a threshold (`--if-drift`). See [Strap clock](#strap-clock-whoop_setclockpy). |
 | `whoop_probe.py` | **Read-only status probe.** Reports the strap RTC + whether a historical store is present (`GET_CLOCK` / `GET_DATA_RANGE`) without writing anything. |
 | `whoop_frame.py` | CRC8 / CRC16-Modbus / CRC32, frame builders (`build_command_frame`, `build_puffin_command`, `build_whoop5_buzz` / `build_whoop4_buzz`), the family-aware `Reassembler`, and the standard-HR parser. Stdlib only. |
+| `hci_extract.py` | **Turn a phone HCI capture into `capture.json`.** Parses a btsnoop (`btsnoop_hci.log`) or Apple PacketLogger (`.pklg`) log, reassembles L2CAP/ATT, and extracts the CRC-valid WHOOP frames — so a capture of the **official app** (issue [#103](https://github.com/ryanbr/noop/issues/103)) feeds the same decode pipeline. Only WHOOP streams reach the output. Stdlib only. See [From a phone HCI capture](#from-a-phone-hci-capture-hci_extractpy). |
+| `correlate_ground_truth.py` | **Locate un-decoded record fields using your WHOOP CSV export as known-plaintext.** Cross-references capture frames against the official per-night values (HRV, resting HR, skin temp, SpO₂, respiratory rate) to find each biometric's byte offset + encoding. Reuses the Swift importer's localized header aliases. Reports offsets only — your health values never leave the machine. Stdlib only. See [Ground-truth correlation](#ground-truth-correlation-correlate_ground_truthpy). |
 | `pair_probe.py` | One-shot WHOOP 5 bonding probe: scan → connect → `pair()` → test `fd4b` access. `python3 pair_probe.py <MAC>`. |
 | `analyze_v26_waveform.py` | Characterise the WHOOP 5 **v26** type-47 buffer as PPG @24 Hz using its own co-timestamped HR as ground truth. |
 | `analyze_v25_waveform.py` | **WHOOP 4.0 v25 PPG → HR span-pinning harness ([#194](https://github.com/ryanbr/noop/issues/194)).** Sweeps the unpinned PPG span (start + sample-count) across a corpus of captures at *known* HRs and reports the span where recovered HR **tracks** ground truth instead of the `1440/N` autocorrelation artifact — or, on resting-only data, exactly what capture is still needed. `--selftest` proves it on synthetic pulses; no args runs the bundled-frames demo. Stdlib only. |
 | `whoop_spot_hrv.py` | **Spot HRV (RMSSD) from the sparse PPG bursts.** Reads the v26 `feat_ppg` channel-0 24 Hz waveform (read-only), detects beats, computes RMSSD per PPG-covered window with a GOOD/COARSE/POOR quality label. See [Spot HRV](#spot-hrv-from-sparse-ppg-whoop_spot_hrvpy). Stdlib only. |
 | `test_whoop_frame.py` | Unit tests for framing / reassembly / HR parsing / buzz frames (no `bleak` needed). |
+| `test_hci_extract.py` | Unit tests for the btsnoop/pklg parsers, L2CAP/ATT reassembly, and WHOOP-frame extraction (synthetic fixtures; stdlib only). |
+| `test_correlate_ground_truth.py` | Unit tests for the CSV/alias loading and the known-plaintext field search (planted-value recovery + false-positive rejection; stdlib only). |
 | `test_whoop_spot_hrv.py` | Unit tests for the spot-HRV DSP (synthetic-signal HR/RMSSD recovery, ectopic rejection, grid reconstruction; stdlib only). |
 | `requirements.txt` | `bleak` (runtime dep for capture only). |
 
@@ -510,6 +514,67 @@ than crashing the import.
 - Use only on **hardware you own**. Capture files contain your strap's serial / a session token /
   its MAC — they are git-ignored and should not be shared.
 - "WHOOP" is used **nominatively** to name the hardware. These tools contain no WHOOP code or assets.
+
+## From a phone HCI capture (`hci_extract.py`)
+
+You don't need a Linux BLE adapter to contribute frames. A **Bluetooth HCI capture of the official
+WHOOP app** — the artifact issue [#103](https://github.com/ryanbr/noop/issues/103) asks for — records
+the real app unlocking and draining the deep streams, which is exactly the traffic NOOP can't yet
+elicit itself. `hci_extract.py` converts such a log into the same `capture.json` the rest of this
+pipeline consumes.
+
+Grab the capture on the phone that already pairs with your strap:
+
+- **iOS** — install Apple's *Bluetooth* logging profile (the PacketLogger / Additional Logging
+  profile), reproduce a **full history sync** in the WHOOP app, then export the `.pklg`.
+- **Android** — *Developer options → Enable Bluetooth HCI snoop log*, sync, then pull
+  `btsnoop_hci.log` (via a bug report or `adb`).
+
+```bash
+python3 hci_extract.py btsnoop_hci.log --family whoop5 --out capture.json
+# → wrote 1843 frames → capture.json
+#     fd4b0005-… [rx]: 1620 frames, …    ← strap → app data
+#     fd4b0002-… [tx]: 41 frames, …      ← the app's commands (the enable sequence)
+#     record types: 47 ×1601, 49 ×18, …
+```
+
+Only streams that reassemble into **CRC-valid WHOOP frames** are written — other devices' traffic and
+non-WHOOP GATT chatter in the log are dropped. Frames the app *sent* are kept too (`"dir": "tx"`), so
+the capture shows both the enable sequence and the strap's response. Privacy: the source HCI log still
+holds your strap's BLE MAC and every device around you — share the extracted `capture.json` (or its
+mapped offsets), not the raw log.
+
+## Ground-truth correlation (`correlate_ground_truth.py`)
+
+A capture gives raw records; your **WHOOP data export** gives the official readings for the same
+nights. Put them together and the un-decoded layout (the type-`0x2F` deep records, the 5/MG history
+types NOOP still skips — see [`WHOOP5_DEEP_DATA.md`](../../docs/WHOOP5_DEEP_DATA.md)) becomes a
+*known-plaintext* problem: search each record for the byte offset + encoding whose value reproduces a
+known biometric across every night.
+
+Get the export from **app.whoop.com → Account → Data Export** (any language — the tool reads the
+localized German/Spanish/… column headers via the same alias table the app's importer uses).
+
+```bash
+python3 correlate_ground_truth.py capture.json my_whoop_data.zip --tolerance 0.02
+```
+
+```
+  type  field            offset    enc  scale       records      nights  score
+  0x2f  resting_hr_bpm       10     u8      1    331/331      331/331    1.00
+  0x2f  skin_temp_c          14  f32le      1    331/331      330/330    1.00
+```
+
+Offsets are into the **inner record** (the type byte is offset 0), ready to wire into
+`parseFrameWhoop5` / `whoop_protocol.json`. The search demands both breadth (a decoded value for most
+records) and distribution match (recall over known nights **and** precision — decoded values landing
+in-range), so a near-constant byte or random noise won't score. `--type 0x2f` restricts to one record
+type; widen `--tolerance` if a field is stored pre-rounded.
+
+**Privacy:** everything runs locally. The tool prints only offsets/encodings — never your health
+values — so its output is safe to post on #103 while the CSV export and the capture stay on your
+machine. That's the intended way for other 5/MG owners to contribute field mappings without sharing
+personal data.
 
 ## Contributing captures back
 
