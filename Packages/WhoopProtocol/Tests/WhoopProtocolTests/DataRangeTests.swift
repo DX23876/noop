@@ -57,4 +57,24 @@ final class DataRangeTests: XCTestCase {
         XCTAssertEqual(DataRange.newestUnix(from: frameWithU32(12, 4, within),
                                             wallNowUnix: wallNow, futureSkewSeconds: skew48h), within)
     }
+
+    // MARK: - oldestUnix (aligned-from-7; asymmetric with newestUnix by design)
+
+    /// The whole reason `oldestUnix` scans the aligned grid instead of every offset: the real WHOOP 4.0
+    /// frame carries a spurious plausible straddle at byte offset 6 (1_754_857_506, ~11 months BEFORE the
+    /// true newest at offset 8). An any-offset MIN would return it → a bogus deep backlog. The aligned grid
+    /// skips it, so this frame (no distinct oldest word) → nil. Guards against a future "consistency" refactor.
+    func testOldestAlignedScanSkipsTheSpuriousOffset6Straddle() {
+        XCTAssertNil(DataRange.oldestUnix(from: hex("aa100057305d22009968526a083900001d2e2263")))
+    }
+
+    func testOldestReadsAGridAlignedWord() {
+        XCTAssertEqual(DataRange.oldestUnix(from: frameWithU32(12, 7, 1_750_000_000)), 1_750_000_000)
+    }
+
+    func testOldestKeepsTheMinimumAcrossGridWords() {
+        var frame = frameWithU32(16, 7, 1_800_000_000)              // grid offset 7
+        for k in 0..<4 { frame[11 + k] = UInt8((1_750_000_000 >> (8 * k)) & 0xFF) } // grid offset 11
+        XCTAssertEqual(DataRange.oldestUnix(from: frame), 1_750_000_000)
+    }
 }

@@ -810,20 +810,8 @@ class WhoopBleClient(
          *  history. Same scan as [dataRangeNewestUnix] but keeps the minimum, so one connect can report the
          *  full banked SPAN (oldest…newest) = the backlog DEPTH a deep oldest-first drain must cover before
          *  recent nights land (#364). Mirrors Swift `BLEManager.dataRangeOldestUnix`. */
-        fun dataRangeOldestUnix(frame: ByteArray): Long? {
-            if (frame.size <= 7) return null
-            var oldest: Long? = null
-            var i = 7
-            while (i + 4 <= frame.size) {
-                val w = (frame[i].toLong() and 0xFFL) or
-                    ((frame[i + 1].toLong() and 0xFFL) shl 8) or
-                    ((frame[i + 2].toLong() and 0xFFL) shl 16) or
-                    ((frame[i + 3].toLong() and 0xFFL) shl 24)
-                if (w in 1_700_000_000L..1_900_000_000L) oldest = minOf(oldest ?: Long.MAX_VALUE, w)
-                i += 4
-            }
-            return oldest
-        }
+        // #286 follow-up: delegate to the pure, twin-tested com.noop.protocol.DataRange (byte-identical Swift).
+        fun dataRangeOldestUnix(frame: ByteArray): Long? = com.noop.protocol.DataRange.oldestUnix(frame)
 
         /** #364 auto-continue cap: consecutive immediate re-kicks per connection before falling back to
          *  the 900s periodic timer. 6 × ~60s ≈ 6 min of back-to-back draining without letting a

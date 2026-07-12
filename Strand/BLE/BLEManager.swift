@@ -3513,15 +3513,9 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
     /// full banked SPAN (oldest…newest). For the recurring "last night didn't sync" reports (#364) that
     /// span is the backlog DEPTH at a glance: a strap that banked weeks of un-synced history has a wide
     /// span and simply needs time to drain oldest-first, vs. a narrow span that should clear quickly.
+    // #286 follow-up: delegate to the pure, twin-tested WhoopProtocol.DataRange (byte-identical Swift/Kotlin).
     static func dataRangeOldestUnix(from frame: [UInt8]) -> Int? {
-        guard frame.count > 7 else { return nil }
-        let body = Array(frame[7...]); var oldest: Int? = nil; var i = 0
-        while i + 4 <= body.count {
-            let w = Int(body[i]) | Int(body[i+1]) << 8 | Int(body[i+2]) << 16 | Int(body[i+3]) << 24
-            if w >= 1_700_000_000 && w <= 1_900_000_000 { oldest = min(oldest ?? .max, w) }
-            i += 4
-        }
-        return oldest
+        DataRange.oldestUnix(from: frame)
     }
 
     public func peripheral(_ peripheral: CBPeripheral,

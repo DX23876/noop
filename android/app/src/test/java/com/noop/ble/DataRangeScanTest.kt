@@ -67,4 +67,29 @@ class DataRangeScanTest {
         val within = WALL_NOW + 40L * 3600L   // 40h ahead, under the 48h AUTO_CONTINUE_FUTURE_SKEW
         assertEquals(within, WhoopBleClient.dataRangeNewestUnix(frameWithU32(12, 4, within), WALL_NOW))
     }
+
+    // oldestUnix — aligned-from-7 (asymmetric with dataRangeNewestUnix by design)
+
+    /**
+     * The whole reason [WhoopBleClient.dataRangeOldestUnix] scans the aligned grid, not every offset: the
+     * real WHOOP 4.0 frame carries a spurious plausible straddle at byte offset 6 (1_754_857_506, ~11 months
+     * BEFORE the true newest at offset 8). An any-offset MIN would return it → a bogus deep backlog. The
+     * aligned grid skips it, so this frame (no distinct oldest word) → null. Guards a future "consistency" refactor.
+     */
+    @Test
+    fun `oldest aligned scan skips the spurious offset-6 straddle`() {
+        assertEquals(null, WhoopBleClient.dataRangeOldestUnix(hex("aa100057305d22009968526a083900001d2e2263")))
+    }
+
+    @Test
+    fun `oldest reads a grid-aligned word`() {
+        assertEquals(1_750_000_000L, WhoopBleClient.dataRangeOldestUnix(frameWithU32(12, 7, 1_750_000_000L)))
+    }
+
+    @Test
+    fun `oldest keeps the minimum across grid words`() {
+        val frame = frameWithU32(16, 7, 1_800_000_000L)                 // grid offset 7
+        for (k in 0..3) frame[11 + k] = ((1_750_000_000L shr (8 * k)) and 0xFF).toByte() // grid offset 11
+        assertEquals(1_750_000_000L, WhoopBleClient.dataRangeOldestUnix(frame))
+    }
 }

@@ -32,4 +32,28 @@ public enum DataRange {
         }
         return newestNotFuture ?? newestAny
     }
+
+    /// The OLDEST plausible unix time banked by the strap (start of stored history), from a GET_DATA_RANGE
+    /// frame — the low end of the banked span (oldest…newest = the backlog DEPTH a deep oldest-first drain
+    /// must cover before recent nights land, #364).
+    ///
+    /// Unlike `newestUnix`, this scans ONLY the 4-byte grid aligned from offset 7, NOT every offset — and
+    /// that asymmetry is DELIBERATE. The minimum is fragile in a way the maximum is not: an any-offset scan
+    /// of a real WHOOP 4.0 frame surfaces a spurious straddle word (offset 6 → 1_754_857_506, ~11 months
+    /// *before* the true newest at offset 8) that would hijack the min and report a bogus deep backlog. The
+    /// max is immune — the real newest dominates it — which is exactly why `newestUnix` can scan every offset.
+    /// The aligned grid skips that straddle, so real frames with no distinct oldest word return nil here.
+    /// Do NOT "make this consistent with `newestUnix`" by scanning every offset without anchoring — see
+    /// `DataRangeTests.testOldestAlignedScanSkipsTheSpuriousOffset6Straddle`.
+    public static func oldestUnix(from frame: [UInt8]) -> Int? {
+        guard frame.count > 7 else { return nil }
+        var oldest: Int? = nil
+        var i = 7
+        while i + 4 <= frame.count {
+            let w = Int(frame[i]) | Int(frame[i + 1]) << 8 | Int(frame[i + 2]) << 16 | Int(frame[i + 3]) << 24
+            if w >= 1_700_000_000 && w <= 1_900_000_000 { oldest = min(oldest ?? .max, w) }
+            i += 4
+        }
+        return oldest
+    }
 }
