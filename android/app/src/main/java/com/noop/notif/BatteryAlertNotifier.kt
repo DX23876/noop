@@ -75,9 +75,12 @@ internal object BatteryAlertPolicy {
  */
 object BatteryAlertNotifier {
     private const val CHANNEL_ID = "noop_battery_alert"
-    private const val NOTIF_ID_LOW = 4203
-    private const val NOTIF_ID_FULL = 4204
+    // #297: each notifier posts under a DISTINCT id (notify() is tagless, so a shared id silently
+    // replaces an undismissed notification). Full map: 4201 connection, 4202 illness, 4203 inactivity,
+    // 4204 smart alarm, 4205/4206/4207 battery (runtime/low/full), 4208/4209 scheduled report.
     private const val NOTIF_ID_RUNTIME = 4205
+    private const val NOTIF_ID_LOW = 4206
+    private const val NOTIF_ID_FULL = 4207
 
     /**
      * Predictive twin of [onBatteryUpdate]: run the runtime estimate against

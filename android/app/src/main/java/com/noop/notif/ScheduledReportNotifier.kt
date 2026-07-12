@@ -95,8 +95,10 @@ object ScheduledReportPolicy {
 
 object ScheduledReportNotifier {
     private const val CHANNEL_ID = "noop_scheduled_reports"
-    private const val MORNING_NOTIF_ID = 4203 // 4201 ongoing, 4202 illness
-    private const val WORKOUT_NOTIF_ID = 4204
+    // #297: distinct ids so a report never silently replaces another notifier's (tagless notify()).
+    // Map: 4201 connection, 4202 illness, 4203 inactivity, 4204 smart alarm, 4205/4206/4207 battery.
+    private const val MORNING_NOTIF_ID = 4208
+    private const val WORKOUT_NOTIF_ID = 4209
 
     /**
      * Post the morning recap if enabled and not already posted today. [chargePct]/[restPct] are the
