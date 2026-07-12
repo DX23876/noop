@@ -179,6 +179,25 @@ final class ConnectionReadoutTests: XCTestCase {
         XCTAssertEqual(ConnectionReadout.clockLatchedLabel(deviceClockUnix: nil), "no (waiting for the strap clock)")
     }
 
+    // #261: a WHOOP 5/MG never populates deviceClockUnix (its GET_CLOCK reply rides the puffin channel,
+    // never the WHOOP4 correlation path) — the data-range fallback is what keeps the row from reading
+    // "waiting" forever on a strap that's actually fine.
+    func testClockLatchedLabelFallsBackToStrapNewestForFiveMG() {
+        XCTAssertEqual(
+            ConnectionReadout.clockLatchedLabel(deviceClockUnix: nil, strapNewestUnix: 1_782_475_600),
+            "yes")
+        XCTAssertEqual(
+            ConnectionReadout.clockLatchedLabel(deviceClockUnix: nil, strapNewestUnix: 40_000_000),
+            "no (RTC reads 1970/71)")
+        XCTAssertEqual(
+            ConnectionReadout.clockLatchedLabel(deviceClockUnix: nil, strapNewestUnix: nil),
+            "no (waiting for the strap clock)")
+        // deviceClockUnix wins when BOTH signals are present (the WHOOP4 correlation is the more direct one).
+        XCTAssertEqual(
+            ConnectionReadout.clockLatchedLabel(deviceClockUnix: 1_782_475_600, strapNewestUnix: 40_000_000),
+            "yes")
+    }
+
     func testRtcWarningFiresOnEpochEraClockOrNewest() {
         XCTAssertNotNil(ConnectionReadout.rtcWarning(deviceClockUnix: 40_000_000, strapNewestUnix: nil))
         XCTAssertNotNil(ConnectionReadout.rtcWarning(deviceClockUnix: nil, strapNewestUnix: 30_000_000))

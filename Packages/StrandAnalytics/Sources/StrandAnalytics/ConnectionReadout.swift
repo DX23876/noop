@@ -190,12 +190,27 @@ public enum ConnectionReadout {
         return nil
     }
 
-    /// #987: the "clock latched" readout value. "yes" once a correlation landed with a plausible (post-
-    /// 1972) device clock; "no (RTC reads 1970/71)" when the strap answered with an epoch-era clock
-    /// (never set, so it banks no history); "no (waiting for the strap clock)" before any reply.
-    public static func clockLatchedLabel(deviceClockUnix: Int?) -> String {
-        guard let d = deviceClockUnix else { return "no (waiting for the strap clock)" }
-        return d < ConnectionTrace.rtcEpochCeilingUnix ? "no (RTC reads 1970/71)" : "yes"
+    /// #987/#261: the "clock latched" readout value. "yes" once EITHER signal lands with a plausible
+    /// (post-1972) timestamp: a GET_CLOCK correlation (`deviceClockUnix`, the WHOOP4 path), or a
+    /// GET_DATA_RANGE reply's newest banked record (`strapNewestUnix`, the fallback). "no (RTC reads
+    /// 1970/71)" when whichever signal landed reads epoch-era; "no (waiting for the strap clock)" before
+    /// either replies.
+    ///
+    /// A WHOOP 5/MG's GET_CLOCK reply rides the puffin notify channel and never reaches the WHOOP4-only
+    /// correlation path that sets `deviceClockUnix` (see `BLEManager`'s connect-handshake comment) — its
+    /// records carry absolute timestamps, so it never NEEDS that correlation to decode history. Without
+    /// this fallback the row read "no (waiting for the strap clock)" forever on every 5/MG, even a fully
+    /// working one, because the one signal it checked structurally never populates for that family. The
+    /// data-range reply is an equal-weight proof the strap answered with a working clock, not a downgrade
+    /// — `rtcWarning` below already trusts it the same way.
+    public static func clockLatchedLabel(deviceClockUnix: Int?, strapNewestUnix: Int? = nil) -> String {
+        if let d = deviceClockUnix {
+            return d < ConnectionTrace.rtcEpochCeilingUnix ? "no (RTC reads 1970/71)" : "yes"
+        }
+        if let n = strapNewestUnix {
+            return n < ConnectionTrace.rtcEpochCeilingUnix ? "no (RTC reads 1970/71)" : "yes"
+        }
+        return "no (waiting for the strap clock)"
     }
 
     /// #987: a plain-words warning when the strap RTC reads epoch-era (~1970/71), from EITHER signal we

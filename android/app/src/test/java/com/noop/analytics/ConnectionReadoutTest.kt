@@ -188,6 +188,17 @@ class ConnectionReadoutTest {
         assertEquals("no (waiting for the strap clock)", ConnectionReadout.clockLatchedLabel(null))
     }
 
+    // #261: a WHOOP 5/MG never populates deviceClockUnix (its GET_CLOCK reply rides the puffin channel,
+    // never the WHOOP4 correlation path) — the data-range fallback is what keeps the row from reading
+    // "waiting" forever on a strap that's actually fine.
+    @Test fun clockLatchedLabelFallsBackToStrapNewestForFiveMG() {
+        assertEquals("yes", ConnectionReadout.clockLatchedLabel(null, 1_782_475_600L))
+        assertEquals("no (RTC reads 1970/71)", ConnectionReadout.clockLatchedLabel(null, 40_000_000L))
+        assertEquals("no (waiting for the strap clock)", ConnectionReadout.clockLatchedLabel(null, null))
+        // deviceClockUnix wins when BOTH signals are present (the WHOOP4 correlation is the more direct one).
+        assertEquals("yes", ConnectionReadout.clockLatchedLabel(1_782_475_600L, 40_000_000L))
+    }
+
     @Test fun rtcWarningFiresOnEpochEraClockOrNewest() {
         assertTrue(ConnectionReadout.rtcWarning(40_000_000L, null) != null)
         assertTrue(ConnectionReadout.rtcWarning(null, 30_000_000L) != null)

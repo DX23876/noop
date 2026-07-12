@@ -182,12 +182,17 @@ object ConnectionReadout {
         return null
     }
 
-    /** #987: the "clock latched" readout value: "yes" once a correlation landed with a plausible
-     *  (post-1972) device clock; "no (RTC reads 1970/71)" on an epoch-era clock; "no (waiting for the
-     *  strap clock)" before any reply. Twin of the Swift labeller. */
-    fun clockLatchedLabel(deviceClockUnix: Long?): String {
-        if (deviceClockUnix == null) return "no (waiting for the strap clock)"
-        return if (deviceClockUnix < ConnectionTrace.RTC_EPOCH_CEILING_UNIX) "no (RTC reads 1970/71)" else "yes"
+    /** #987/#261: the "clock latched" readout value: "yes" once EITHER signal lands with a plausible
+     *  (post-1972) timestamp — a GET_CLOCK correlation (deviceClockUnix, the WHOOP4 path) or a
+     *  GET_DATA_RANGE reply's newest banked record (strapNewestUnix, the fallback a WHOOP 5/MG needs
+     *  since its GET_CLOCK reply never populates deviceClockUnix — see the Swift twin's doc comment for
+     *  why). "no (RTC reads 1970/71)" on an epoch-era signal; "no (waiting for the strap clock)" before
+     *  either replies. Twin of the Swift labeller. */
+    fun clockLatchedLabel(deviceClockUnix: Long?, strapNewestUnix: Long? = null): String {
+        val ceiling = ConnectionTrace.RTC_EPOCH_CEILING_UNIX
+        if (deviceClockUnix != null) return if (deviceClockUnix < ceiling) "no (RTC reads 1970/71)" else "yes"
+        if (strapNewestUnix != null) return if (strapNewestUnix < ceiling) "no (RTC reads 1970/71)" else "yes"
+        return "no (waiting for the strap clock)"
     }
 
     /** #987: a plain-words warning when the strap RTC reads epoch-era (~1970/71), from EITHER signal we

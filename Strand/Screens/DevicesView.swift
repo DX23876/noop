@@ -74,7 +74,8 @@ private struct DevicesContent: View {
         guard live.connected else { return nil }
         let deviceClock = ConnectionReadout.clockCorrelatedDevice(logLines: live.log)
         guard deviceClock != nil || live.strapRange != nil || live.lastFrameAtUnix != nil else { return nil }
-        let latched = ConnectionReadout.clockLatchedLabel(deviceClockUnix: deviceClock)
+        let latched = ConnectionReadout.clockLatchedLabel(deviceClockUnix: deviceClock,
+                                                          strapNewestUnix: live.strapRange?.newestUnix)
         let frame = ConnectionReadout.lastFrameLabel(lastFrameUnix: live.lastFrameAtUnix,
                                                      nowUnix: Int(Date().timeIntervalSince1970))
         let warning = ConnectionReadout.rtcWarning(deviceClockUnix: deviceClock,
