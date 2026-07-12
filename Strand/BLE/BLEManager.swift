@@ -606,6 +606,16 @@ public final class BLEManager: NSObject, ObservableObject {
     /// this guard those re-entries re-blasted hello/SET_CLOCK at the strap mid-offload and stopped it
     /// from streaming type-47 — THE iOS "won't serve" root cause. Reset on disconnect.
     private var connectHandshakeDone = false
+    /// #34: true once the cmd-notify characteristic (61080003) has CONFIRMED it's subscribed
+    /// (`didUpdateNotificationStateFor` fired for it with `isNotifying == true`) — as opposed to merely
+    /// requested. Together with `connectHandshakeDone`, gates `state.connectSettled` (see LiveState.swift)
+    /// so the alarm re-arm doesn't fire GET_ALARM_TIME before the strap's reply channel is actually live.
+    /// Reset on disconnect alongside `connectHandshakeDone`.
+    private var cmdNotifyConfirmedActive = false
+    /// #34: latches once `state.connectSettled` has been bumped for the CURRENT connection, so a
+    /// didUpdateNotificationStateFor re-fire (or any other later call into the check) can't double-bump.
+    /// Reset on disconnect.
+    private var connectSettledSignaled = false
     /// Re-entrancy guard for captureRawAccel: true while a bounded on-demand window is running.
     /// A second tap is a no-op until the active capture's asyncAfter block fires and clears this.
     private var rawCaptureInFlight = false
@@ -3040,6 +3050,8 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         whoop5SessionStarted = false
         clockRequested = false
         connectHandshakeDone = false
+        cmdNotifyConfirmedActive = false   // #34: a fresh connection needs its own notify-confirm + settle
+        connectSettledSignaled = false
         realtimeArmedAt = nil   // cleared after the marginal-radio detector above read it (#80)
         // Reset backfill state so the next connect starts a fresh offload (incl. the syncing pill —
         // a dropped link mid-offload must not leave "Syncing strap history…" stuck on, #77).
@@ -3455,6 +3467,15 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                 // connectHandshakeDone, so a racing foreground/restore trigger can't fire it early.
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in self?.requestSync(.connect) }
                 startBackfillTimer()            // re-offload the type-47 store every backfillIntervalSeconds
+                // #34: signal settled directly (skip the cmd-notify gate `maybeSignalConnectSettled()`
+                // uses) — armStrapAlarm's 5/MG branch never sends GET_ALARM_TIME (log-only readback is
+                // WHOOP4-only, and the 5/MG alarm itself stays behind the Experimental toggle), so there's
+                // no reply-channel race to wait out here; this just keeps the re-arm-on-bond signal firing
+                // for 5/MG the way it did before `connectSettled` replaced raw `bonded`.
+                if !connectSettledSignaled {
+                    connectSettledSignaled = true
+                    state.connectSettled &+= 1
+                }
             }
             return
         }
@@ -3538,6 +3559,25 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                 realtimeArmedAt = Date()   // start the arm→drop stopwatch for the marginal-radio detector
             }
         }
+        // #34: the handshake body above (hello, SET_CLOCK, notify-resubscribe requests) has now been
+        // fully ISSUED — check whether the cmd-notify characteristic has also CONFIRMED (the other half
+        // may already have landed, e.g. from the discovery-phase subscribe, or may still be in flight and
+        // land via didUpdateNotificationStateFor below).
+        maybeSignalConnectSettled()
+    }
+
+    /// #34: bump `state.connectSettled` once, per connection, the first moment BOTH `connectHandshakeDone`
+    /// (hello + SET_CLOCK sent) AND `cmdNotifyConfirmedActive` (cmd-notify characteristic confirmed
+    /// subscribed) are true — whichever lands second. Called from the tail of the WHOOP4 handshake and
+    /// from `didUpdateNotificationStateFor` on a cmd-notify confirmation; a no-op until both are true, and
+    /// latched by `connectSettledSignaled` so it can't double-bump on a second call. This is the signal
+    /// the alarm re-arm (AppModel's `live.$connectSettled` sink) waits on instead of raw `bonded`, so
+    /// SET_ALARM_TIME/GET_ALARM_TIME go out on a link whose reply channel is confirmed live (#34).
+    private func maybeSignalConnectSettled() {
+        guard connectHandshakeDone, cmdNotifyConfirmedActive, !connectSettledSignaled else { return }
+        connectSettledSignaled = true
+        state.connectSettled &+= 1
+        log("Connect settled: handshake done + cmd-notify confirmed — alarm re-arm (if due) can fire now")
     }
 
     /// SET_CLOCK(10) payload — the 8-byte form `[seconds u32 LE][subseconds u32 LE]`, subseconds in
@@ -3777,6 +3817,14 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
             log("Notify enable failed for \(characteristic.uuid): \(error.localizedDescription)")
         } else {
             log("Notify \(characteristic.isNotifying ? "active" : "off") \(characteristic.uuid)")
+            // #34: the cmd-notify channel carries GET_ALARM_TIME's (and every other COMMAND_RESPONSE's)
+            // reply. Once IT confirms subscribed, check whether the handshake side of connectSettled is
+            // also done — this is the "notify confirmed" half arriving AFTER the handshake body, the
+            // ordering a v8.6.2 strap log showed actually happens.
+            if characteristic === cmdNotifyCharacteristic, characteristic.isNotifying {
+                cmdNotifyConfirmedActive = true
+                maybeSignalConnectSettled()
+            }
         }
     }
 }
