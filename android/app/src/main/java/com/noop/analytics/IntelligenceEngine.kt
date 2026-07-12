@@ -742,13 +742,11 @@ object IntelligenceEngine {
             windowEnd = nowSeconds,
             useExperimentalSleepV2 = useExperimentalSleepV2,
         )
-        val editsByStart: Map<Long, String?> = editedRows.associate { it.startTs to it.stagesJSON }
-        // #547 (audit finding C / #8): each edited block's EFFECTIVE onset (startTsAdjusted ?: startTs)
-        // keyed by its stable detected startTs, so the seam's main-night pick reads the user-CORRECTED
-        // bedtime , a bedtime edit crossing the overnight boundary would otherwise make the seam and the
-        // Sleep tab pick different blocks. Detected-but-unedited blocks have no adjustment (DetectedSleep
-        // carries only the detected start), so sleepEditedDaily falls back to their detected onset.
-        val editOnsetByStart: Map<Long, Long> = editedRows.associate { it.startTs to it.effectiveStartTs }
+        // #299: [editsByStart] / [editOnsetByStart] are now built PER DAY inside the scoring loop (scoped to
+        // the day each edit belongs to), NOT window-wide here. sleepEditedDaily folds any edited row that
+        // isn't a twin of THIS day's detected sessions in as a "manual" block, so a window-wide edit set let
+        // ONE user edit / hand-logged nap substitute its total onto EVERY night in the window (incl.
+        // matched=0 nights) — pinning totalSleepMin to a constant. See the loop below.
 
         // Provenance sets for the per-day diagnostic source token (Sleep overhaul §2.5). `hist` is the
         // imported daily rows under [importedDeviceId] (the WHOLE imported history, read above for the
@@ -763,6 +761,16 @@ object IntelligenceEngine {
             .map { it.day }.toHashSet()
 
         for (res in scoredNights) {
+            // #299: scope the edits to THIS day before folding. A userEdited row / hand-logged nap belongs
+            // to exactly ONE day — the day its night ENDS on, matching the daily's end-day bucket
+            // (AnalyticsEngine's `matched` filters sleep sessions by end-day). endTs is stable under a
+            // bedtime edit (only the onset/startTsAdjusted moves), so end-day is the right key. Filtering
+            // here keeps a single-night edit overriding only its OWN night instead of every night. The
+            // #547 effective-onset detail is preserved: editOnsetByStart still carries the user-CORRECTED
+            // bedtime (startTsAdjusted ?: startTs) for this day's edited/manual blocks.
+            val dayEditedRows = editedRowsForDay(editedRows, res.daily.day, tzOffsetSeconds)
+            val editsByStart: Map<Long, String?> = dayEditedRows.associate { it.startTs to it.stagesJSON }
+            val editOnsetByStart: Map<Long, Long> = dayEditedRows.associate { it.startTs to it.effectiveStartTs }
             // Substitute an edited block's (reshaped) stages for its detected twin before the daily
             // sleep aggregate feeds Rest + recovery. No edit touching this night → `daily` is unchanged.
             val daily = sleepEditedDaily(
@@ -1402,6 +1410,21 @@ object IntelligenceEngine {
      * window. No edit touching the night → the detected daily is returned unchanged. Faithful twin of
      * Swift `IntelligenceEngine.sleepEditedDaily`. (#318 / PR #395)
      */
+    /**
+     * #299: the edited / hand-logged sleep rows that belong to [day] — the ones whose edits may be folded
+     * into THAT day's sleep total. An edit belongs to the day its night ENDS on (`dayString(endTs)`),
+     * matching AnalyticsEngine's end-day session bucket; `endTs` is stable under a bedtime edit (only the
+     * onset moves). Scoping this per day is the fix: the edit set was built window-wide and
+     * [sleepEditedDaily] folds any row that isn't a twin of a day's detected sessions in as a "manual"
+     * block, so one edit / nap leaked its total onto EVERY night. Pure + internal so it's unit-testable.
+     * Byte-identical twin of Swift `IntelligenceEngine.editedRowsForDay`.
+     */
+    internal fun editedRowsForDay(
+        editedRows: List<SleepSession>,
+        day: String,
+        tzOffsetSeconds: Long,
+    ): List<SleepSession> = editedRows.filter { AnalyticsEngine.dayString(it.endTs, tzOffsetSeconds) == day }
+
     private fun sleepEditedDaily(
         daily: DailyMetric,
         detected: List<DetectedSleep>,

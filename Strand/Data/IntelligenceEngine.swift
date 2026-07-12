@@ -845,7 +845,11 @@ final class IntelligenceEngine: ObservableObject {
         // already staged from raw (idempotent) and for imported nights (raw never dense). This MUST run
         // before the scoring loop so the healed stages flow into Rest/recovery this same pass.
         let editedRows = await repo.selfHealEditedStages(from: windowStart, to: now)
-        let editsByStart = Dictionary(editedRows.map { ($0.startTs, $0) }, uniquingKeysWith: { a, _ in a })
+        // #299: `editsByStart` is now built PER DAY inside the scoring loop (scoped to the day each edit
+        // belongs to), NOT window-wide here. sleepEditedDaily folds any edited row that isn't a twin of THIS
+        // day's detected sessions in as a "manual" block, so a window-wide edit set let ONE user edit /
+        // hand-logged nap substitute its total onto EVERY night in the window (incl. no-sleep nights) —
+        // pinning totalSleepMin to a constant. See the loop below.
 
         // Provenance sets for the honest By-Day badge + the per-day diagnostic source token. `hist` is the
         // imported daily rows under `deviceId` (the WHOLE imported history, read above for the baseline) ,
@@ -878,6 +882,13 @@ final class IntelligenceEngine: ObservableObject {
         // "auto workout appeared then vanished" could not be explained from an export. Diagnostic only.
         let workoutsTraceActive = TestCentre.active(.workouts)
         for night in scoredNights {
+            // #299: scope the edits to THIS day before folding. A userEdited row / hand-logged nap belongs
+            // to exactly ONE day — the day its night ENDS on, matching the daily's end-day bucket. `endTs`
+            // is stable under a bedtime edit (only the onset/`startTsAdjusted` moves), so end-day is the
+            // right key. Filtering here keeps a single-night edit overriding only its OWN night instead of
+            // every night. `effectiveStartTs` (the #318 user-corrected onset) is preserved on the row.
+            let dayEditedRows = Self.editedRowsForDay(editedRows, day: night.daily.day, tzOffsetSeconds: tzOffset)
+            let editsByStart = Dictionary(dayEditedRows.map { ($0.startTs, $0) }, uniquingKeysWith: { a, _ in a })
             let daily = sleepEditedDaily(night.daily, detected: night.cachedSleep, editsByStart: editsByStart,
                                          habitualMidsleepSec: habitualMidsleepSec)
             let recovery = recomputeRecovery(daily, baselines2)
@@ -1587,6 +1598,18 @@ final class IntelligenceEngine: ObservableObject {
     /// detected twin and recomputes totalSleep / efficiency / stage minutes from the reshaped stages, so
     /// the Rest composite and recovery score the corrected sleep , not the auto-detected window. No edit
     /// touching the night → the detected daily is returned unchanged. (#318)
+    /// #299: the edited / hand-logged sleep rows that belong to `day` — the ones whose edits may be folded
+    /// into THAT day's sleep total. An edit belongs to the day its night ENDS on (`dayString(endTs)`),
+    /// matching AnalyticsEngine's end-day session bucket; `endTs` is stable under a bedtime edit (only the
+    /// onset moves). Scoping this per day is the fix: the edit set was built window-wide and
+    /// `sleepEditedDaily` folds any row that isn't a twin of a day's detected sessions in as a "manual"
+    /// block, so one edit / nap leaked its total onto EVERY night. Byte-identical twin of Android
+    /// `IntelligenceEngine.editedRowsForDay`.
+    static func editedRowsForDay(_ editedRows: [CachedSleepSession], day: String,
+                                 tzOffsetSeconds: Int) -> [CachedSleepSession] {
+        editedRows.filter { AnalyticsEngine.dayString($0.endTs, offsetSec: tzOffsetSeconds) == day }
+    }
+
     private func sleepEditedDaily(_ daily: DailyMetric, detected: [CachedSleepSession],
                                  editsByStart: [Int: CachedSleepSession],
                                  habitualMidsleepSec: Int?) -> DailyMetric {
