@@ -2,6 +2,13 @@ import SwiftUI
 import StrandDesign
 import WhoopStore
 
+/// Carries the measured natural height of the Sport picker's floating suggestion panel up to the
+/// view, so the overlay can size itself to its content (capped) rather than to the text field.
+private struct SuggestionsHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+}
+
 // MARK: - Manual workout sheet
 //
 // Add a workout you tracked elsewhere, or edit one you already logged. Five inputs — sport,
@@ -38,6 +45,10 @@ struct ManualWorkoutSheet: View {
     /// (a settled choice), so the form isn't permanently half-covered.
     @FocusState private var sportFocused: Bool
 
+    /// Measured natural height of the floating suggestion panel's content, so the overlay can size
+    /// itself (capped at 168) instead of being squeezed to the text field's height. See `suggestionList`.
+    @State private var suggestionsHeight: CGFloat = 0
+
     init(editing: WorkoutRow? = nil,
          onSave: @escaping (_ row: WorkoutRow, _ replacing: WorkoutRow?) -> Void) {
         self.editing = editing
@@ -60,6 +71,9 @@ struct ManualWorkoutSheet: View {
                 field(String(localized: "Sport")) {
                     sportPicker
                 }
+                // Raise the Sport field above the following rows so its floating suggestion dropdown
+                // (an overlay, see `sportPicker`) draws ON TOP of Start / Duration instead of behind them.
+                .zIndex(1)
                 field(String(localized: "Start")) {
                     DatePicker("", selection: $start, in: ...Date(),
                                displayedComponents: [.date, .hourAndMinute])
@@ -137,38 +151,60 @@ struct ManualWorkoutSheet: View {
     }
 
     private var sportPicker: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            TextField("e.g. Running", text: $sport)
-                .textFieldStyle(.plain)
-                .font(StrandFont.body)
-                .foregroundStyle(StrandPalette.textPrimary)
-                .focused($sportFocused)
-                .padding(.horizontal, 12).padding(.vertical, 9)
-                .background(StrandPalette.surfaceInset, in: inputShape)
-                .overlay(inputShape.strokeBorder(StrandPalette.hairline, lineWidth: 1))
-                .accessibilityLabel("Sport")
-            if showSportSuggestions {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 0) {
-                        if showRecentSports {
-                            Text("Recent").strandOverline()
-                                .padding(.horizontal, 12).padding(.top, 8)
-                            ForEach(recentSports, id: \.self) { name in
-                                suggestionRow(name, isDistance: WorkoutCatalog.sport(named: name)?.isDistanceSport == true)
-                            }
-                            Text("All activities").strandOverline()
-                                .padding(.horizontal, 12).padding(.top, 8)
-                        }
-                        ForEach(sportSuggestions) { sp in
-                            suggestionRow(sp.name, isDistance: sp.isDistanceSport)
-                        }
-                    }
+        TextField("e.g. Running", text: $sport)
+            .textFieldStyle(.plain)
+            .font(StrandFont.body)
+            .foregroundStyle(StrandPalette.textPrimary)
+            .focused($sportFocused)
+            .padding(.horizontal, 12).padding(.vertical, 9)
+            .background(StrandPalette.surfaceInset, in: inputShape)
+            .overlay(inputShape.strokeBorder(StrandPalette.hairline, lineWidth: 1))
+            .accessibilityLabel("Sport")
+            // The suggestion list FLOATS below the field as an overlay instead of sitting inline in the
+            // form. Inline it was the only height-flexible element, so on iPhone with the keyboard up
+            // the fixed-height fields below won the vertical space and squeezed it to nothing — the
+            // #297 Recent block (and even the catalogue matches) never showed. As an overlay it doesn't
+            // take part in the form's layout, so it renders at full height over the rows below; the
+            // parent raises this field's zIndex so it draws on top of them.
+            .overlay(alignment: .bottom) {
+                if showSportSuggestions {
+                    suggestionList
+                        // Pin the panel's TOP to the field's BOTTOM (its own top stands in as the
+                        // bottom-alignment anchor), then nudge it down for a small gap.
+                        .alignmentGuide(.bottom) { $0[.top] }
+                        .offset(y: 6)
                 }
-                .frame(maxHeight: 168)
-                .background(StrandPalette.surfaceInset, in: inputShape)
-                .overlay(inputShape.strokeBorder(StrandPalette.hairline, lineWidth: 1))
             }
+    }
+
+    /// The floating suggestion panel (Recent + full catalogue). An overlay proposes the field's small
+    /// height to its content, which would re-squeeze a plain `.frame(maxHeight:)` ScrollView — so we
+    /// MEASURE the content's natural height and set an explicit frame capped at 168, letting it scroll
+    /// only past that. This is the same list the inline version rendered, just floated + self-sized.
+    private var suggestionList: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                if showRecentSports {
+                    Text("Recent").strandOverline()
+                        .padding(.horizontal, 12).padding(.top, 8)
+                    ForEach(recentSports, id: \.self) { name in
+                        suggestionRow(name, isDistance: WorkoutCatalog.sport(named: name)?.isDistanceSport == true)
+                    }
+                    Text("All activities").strandOverline()
+                        .padding(.horizontal, 12).padding(.top, 8)
+                }
+                ForEach(sportSuggestions) { sp in
+                    suggestionRow(sp.name, isDistance: sp.isDistanceSport)
+                }
+            }
+            .background(GeometryReader { geo in
+                Color.clear.preference(key: SuggestionsHeightKey.self, value: geo.size.height)
+            })
         }
+        .frame(height: min(max(suggestionsHeight, 1), 168))
+        .onPreferenceChange(SuggestionsHeightKey.self) { suggestionsHeight = $0 }
+        .background(StrandPalette.surfaceInset, in: inputShape)
+        .overlay(inputShape.strokeBorder(StrandPalette.hairline, lineWidth: 1))
     }
 
     /// One tappable suggestion row — shared by the #297 Recent block and the full catalogue list.
