@@ -2901,11 +2901,14 @@ internal fun buildSleepModel(
     // Per-tile metrics — each a full pass over the FULL day history (asleep totals, no in-bed
     // substitution), latest = the most-recent day. Mirrors iOS SleepView, where every tile series
     // is `metric { … }` over repo.days. Where the WHOOP export carried the figure verbatim
-    // (metricSeries), it wins per day; the on-device recomputation is the APPROXIMATE fallback.
+    // (metricSeries), it wins per day; the on-device recomputation fills the rest.
     val performance = metric(days) { d ->
-        imported.performance[d.day]   // WHOOP's own 0–100 figure wins per day
-            ?: d.totalSleepMin?.takeIf { it > 0.0 && needMin > 0.0 }
-                ?.let { minOf(100.0, it / needMin * 100.0) }   // APPROXIMATE fallback
+        imported.performance[d.day]                       // WHOOP's own 0–100 figure wins per day
+            // else the REAL Rest composite (RestScorer.restFromDaily) — the SAME single source of
+            // truth the Today Rest score, the metric-detail overlay (below) and iOS SleepView
+            // (AnalyticsEngine.Rest.composite(daily:)) read. The old hours-vs-need proxy ceilinged
+            // live 5.0 nights at 100% here while every other surface showed the ~85% composite (#298).
+            ?: com.noop.analytics.RestScorer.restFromDaily(d)
     }
     val efficiency = metric(days) { d ->
         d.efficiency?.let { if (it <= 1.0) it * 100.0 else it }

@@ -1,16 +1,18 @@
 package com.noop.ui
 
+import com.noop.analytics.RestScorer
 import com.noop.data.DailyMetric
 import com.noop.data.SleepSession
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
  * Pins the Sleep screen's prefer-imported logic: where the WHOOP export carried a figure
  * verbatim (sleep_performance / sleep_consistency / sleep_need_min / sleep_debt_min in
  * metricSeries), the headline tiles must pass it through unscaled; days the export does
- * not cover keep the on-device APPROXIMATE fallback so sparklines stay continuous across
+ * not cover fall back to the on-device RECOMPUTATION so sparklines stay continuous across
  * the import horizon.
  */
 class SleepImportedFiguresTest {
@@ -45,15 +47,42 @@ class SleepImportedFiguresTest {
     }
 
     @Test
-    fun uncoveredDaysFallBackToApproximation() {
-        // Imported covers only day 1; day 2 (the latest) must use the on-device fallback
-        // (asleep / personal need, capped 100; need = max(450, mean asleep) = 450 here).
+    fun uncoveredDaysUseTheRestComposite() {
+        // Imported covers only day 1; day 2 (the latest) must use the REAL Rest composite
+        // (RestScorer.restFromDaily) — the SAME single source of truth the Today Rest score,
+        // the metric-detail overlay and iOS SleepView read — NOT the old hours-vs-need proxy
+        // that ceilinged live 5.0 nights at ~100% while every other surface showed ~85% (#298).
         val days = listOf(day("2026-06-01", 420.0), day("2026-06-02", 410.0))
         val imported = ImportedSleepSeries(performance = mapOf("2026-06-01" to 85.0))
         val m = buildSleepModel(days, session = null, imported = imported)!!
-        assertEquals(410.0 / 450.0 * 100.0, m.performance.latest!!, 1e-9)
+        assertEquals(RestScorer.restFromDaily(days[1])!!, m.performance.latest!!, 1e-9)
+        // …and it is NOT the retired asleep/need approximation.
+        assertNotEquals(410.0 / 450.0 * 100.0, m.performance.latest!!, 1e-6)
         // …and the imported day still carries the verbatim figure inside the series.
         assertEquals(85.0, m.performance.series.first(), 1e-9)
+    }
+
+    /** #298 regression: a live night long enough to CEILING the old asleep/need proxy at 100%
+     *  must instead show the Rest composite (< 100 once efficiency / restorative pull it down),
+     *  matching the tap-through metric-detail overlay and the Today Rest score. */
+    @Test
+    fun longLiveNightShowsCompositeNotCeilingedProxy() {
+        // 8 h asleep, 82% efficiency, modest deep+REM → asleep ≥ personal need, so the OLD proxy
+        // would read min(100, 480/450·100) = 100%. The composite scores the quality, landing < 100.
+        val night = DailyMetric(
+            deviceId = "my-whoop", day = "2026-06-02", totalSleepMin = 480.0,
+            deepMin = 70.0, remMin = 80.0, lightMin = 330.0, efficiency = 0.82,
+        )
+        val days = listOf(
+            DailyMetric(deviceId = "my-whoop", day = "2026-06-01", totalSleepMin = 420.0,
+                deepMin = 70.0, remMin = 80.0, lightMin = 270.0, efficiency = 0.85),
+            night,
+        )
+        val m = buildSleepModel(days, session = null)!!
+        val composite = RestScorer.restFromDaily(night)!!
+        assertEquals(composite, m.performance.latest!!, 1e-9)
+        assertTrue("composite should be below the 100% proxy ceiling", composite < 100.0)
+        assertNotEquals(100.0, m.performance.latest!!, 1e-6)
     }
 
     @Test
