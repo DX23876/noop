@@ -2682,6 +2682,20 @@ internal fun mainSleepGroup(blocks: List<SleepSession>, habitualMidsleepSec: Lon
     return idx.map { blocks[it] }.sortedBy { it.effectiveStartTs }
 }
 
+/**
+ * The day's main-night bridged SPAN (onset -> wake), the same window [mainSleepGroup] bridges into one
+ * continuous night. The ONE canonical bed/wake read every glance screen (Coupled, Today's HR band) should
+ * show -- never a screen-local "freshest" or "longest single block" heuristic, which can silently disagree
+ * with each other and with the Sleep tab hero on a night stored as more than one block (#294). null only
+ * when `blocks` has nothing bridgeable. Mirrors iOS SleepView.mainNightSpan.
+ */
+internal fun mainSleepSpan(blocks: List<SleepSession>, habitualMidsleepSec: Long? = null): Pair<Long, Long>? {
+    val group = mainSleepGroup(blocks, habitualMidsleepSec)
+    val first = group.firstOrNull() ?: return null
+    val last = group.lastOrNull() ?: return null
+    return first.effectiveStartTs to last.endTs
+}
+
 /** Longest a leading block can be and still be treated as a spurious pre-sleep awake stub (lying in bed
  *  before sleep). Generous (a few hours) because the reporter's stub ran 21:41 → 00:27 — ~2h45m of pre-sleep
  *  awake — so a tight cap missed it (#736). The real guard against swallowing a genuine first sleep fragment

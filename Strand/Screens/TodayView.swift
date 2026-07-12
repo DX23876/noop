@@ -3984,11 +3984,19 @@ struct TodayView: View {
         // Sleep session overlapping the window. Uses `allSleepSessions` (BOTH the imported and the
         // on-device COMPUTED source), a Bluetooth-only user's sleep lives under the computed source,
         // so the imported-only `sleepSessions` returns nothing. Keep blocks that actually overlap the
-        // displayed window, then pick the LONGEST, the main night, not an afternoon nap. Drives the
-        // HR sleep band + the recovery marker's wake anchor.
-        let sleepTodayLocal = await repo.allSleepSessions(days: selectedDayOffset + 2)
+        // displayed window, then resolve the day's bridged MAIN-night span via `SleepView.mainNightSpan`
+        // (offloaded to the Sleep tab hero and `AnalyticsEngine`'s daily total), not an ad hoc "longest
+        // single block" pick — that could disagree with the Sleep tab and the Coupled view's bed→wake
+        // read for a night stored as more than one block (#294). Drives the HR sleep band + the recovery
+        // marker's wake anchor.
+        let overlapping = await repo.allSleepSessions(days: selectedDayOffset + 2)
             .filter { $0.endTs > windowStart && $0.startTs < windowEnd }
-            .max(by: { ($0.endTs - $0.startTs) < ($1.endTs - $1.startTs) })
+        let habitualMidsleepSecLocal = await repo.habitualMidsleepSec()
+        let sleepTodayLocal = SleepView.mainNightSpan(overlapping, habitualMidsleepSec: habitualMidsleepSecLocal)
+            .map { span in
+                CachedSleepSession(startTs: span.start, endTs: span.end,
+                                   efficiency: nil, restingHr: nil, avgHrv: nil, stagesJSON: nil)
+            }
         sleepToday = sleepTodayLocal
 
         // #932: snapshot everything just computed onto the long-lived `repo`, keyed by the (seq, day) this

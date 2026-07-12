@@ -1845,6 +1845,18 @@ struct SleepView: View {
         return idx.map { sessions[$0] }.sorted { $0.effectiveStartTs < $1.effectiveStartTs }
     }
 
+    /// The day's main-night bridged SPAN (onset → wake), the same window `mainNightGroup` bridges into
+    /// one continuous night. The ONE canonical bed/wake read every glance screen (Coupled, Today's HR
+    /// band) should show — never a screen-local "freshest" or "longest single block" heuristic, which
+    /// can silently disagree with each other and with the Sleep tab hero on a night stored as more than
+    /// one block (#294). nil only when `sessions` has nothing bridgeable.
+    static func mainNightSpan(_ sessions: [CachedSleepSession],
+                              habitualMidsleepSec: Int? = nil) -> (start: Int, end: Int)? {
+        let group = mainNightGroup(sessions, habitualMidsleepSec: habitualMidsleepSec)
+        guard let first = group.first, let last = group.last else { return nil }
+        return (first.effectiveStartTs, last.endTs)
+    }
+
     /// Soft nap-duration hint retained for callers/tests; the nap CLASSIFICATION is now purely "not the
     /// chosen main block" (see `isNap`), never an independent duration/onset test. (#518/#547)
     static let napMaxHours: Double = 3.0

@@ -41,6 +41,11 @@ struct CoupledView: View {
     /// (the #819 pattern), reading drivers derived from the same displayed row the ring shows.
     @State private var showChargeBreakdown = false
 
+    /// The learned habitual midsleep (local time-of-day seconds), loaded once so the bed→wake span
+    /// resolves the SAME main-night pick the Sleep tab hero and the daily total use (#294). nil under
+    /// the cold-start threshold, which keeps the broad overnight-band bonus.
+    @State private var habitualMidsleepSec: Int? = nil
+
     /// The day the coupled read describes, today's resolved row (the same `resolveToday` #304/#144 boundary
     /// Today anchors on), never a second store read.
     private var day: DailyMetric? { repo.today }
@@ -133,6 +138,11 @@ struct CoupledView: View {
             footerCaption
         }
         .sheet(isPresented: $showChargeBreakdown) { chargeBreakdownSheet }
+        // Loads the SAME learned habitual the Sleep tab hero threads into its main-night pick, so the
+        // bed→wake span below resolves identically (#294). Re-runs on a sync/import refresh.
+        .task(id: repo.refreshSeq) {
+            habitualMidsleepSec = await repo.habitualMidsleepSec()
+        }
     }
 
     // MARK: Header subtitle, "Today, d MMM"
@@ -452,15 +462,19 @@ struct CoupledView: View {
         return Swift.max(450, mean ?? 450)   // 450 min = 7.5h
     }
 
-    /// Last night's bed → wake span, e.g. "23:41 – 07:23", from the freshest banked sleep session, only
-    /// when that session actually touches today's window (a days-old import is not "last night").
+    /// Last night's bed → wake span, e.g. "23:41 – 07:23", from the day's bridged MAIN-night span
+    /// (`SleepView.mainNightSpan`, the SAME resolver the Sleep tab hero and the daily total use), only
+    /// when that night actually touches today's window (a days-old import is not "last night"). Was
+    /// previously the screen's own "freshest-ending session" pick, which could name a different block —
+    /// and so a different span — than the Sleep tab and Today's HR graph for a night stored as more than
+    /// one block (#294).
     private var bedWakeSpanText: String? {
         let dayStart = Calendar.current.startOfDay(for: Repository.logicalDay(Date()))
         let windowStart = Int(dayStart.timeIntervalSince1970)
-        guard let s = repo.sleeps.filter({ $0.endTs > windowStart }).max(by: { $0.endTs < $1.endTs }) else {
-            return nil
-        }
-        return "\(clockString(s.effectiveStartTs)) - \(clockString(s.endTs))"
+        let candidates = repo.sleeps.filter { $0.endTs > windowStart }
+        guard let span = SleepView.mainNightSpan(candidates, habitualMidsleepSec: habitualMidsleepSec)
+        else { return nil }
+        return "\(clockString(span.start)) - \(clockString(span.end))"
     }
 
     // MARK: Footer

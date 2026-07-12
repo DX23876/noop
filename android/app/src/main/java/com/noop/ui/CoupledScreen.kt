@@ -101,6 +101,13 @@ fun CoupledScreen(
         }.getOrDefault(emptyList())
     }
 
+    // The learned habitual midsleep the Sleep tab hero threads into its main-night pick, so the bed-wake
+    // span below resolves the IDENTICAL block (#294) instead of a screen-local heuristic.
+    var habitualMidsleepSec by remember { mutableStateOf<Long?>(null) }
+    LaunchedEffect(days) {
+        habitualMidsleepSec = runCatching { vm.repo.habitualMidsleepSec("my-whoop") }.getOrNull()
+    }
+
     // Imported export-verbatim sleep figures (sleep_performance / need), preferred over the on-device
     // approximation, mirroring SleepScreen. Keyed on `days` (metricSeries has no Flow).
     var importedPerf by remember { mutableStateOf<Map<String, Double>>(emptyMap()) }
@@ -188,7 +195,7 @@ fun CoupledScreen(
             sleepPerformance = sleepPerformance,
             asleepMin = todayRow?.totalSleepMin,
             needMin = sleepNeedForDay(todayRow, days, importedNeed),
-            bedWakeSpan = bedWakeSpan(sleeps),
+            bedWakeSpan = bedWakeSpan(sleeps, habitualMidsleepSec),
             onOpenSleep = onOpenSleep,
         )
         Text(
@@ -569,12 +576,19 @@ private fun sleepNeedForDay(day: DailyMetric?, days: List<DailyMetric>, imported
     return maxOf(450.0, mean ?: 450.0) // 450 min = 7.5h
 }
 
-/** Last night's bed -> wake span, only when the freshest session touches last night, not a days-old import. */
-private fun bedWakeSpan(sleeps: List<SleepSession>): String? {
+/**
+ * Last night's bed -> wake span, from the day's bridged MAIN-night span ([mainSleepSpan], the SAME
+ * resolver the Sleep tab hero and the daily total use), only when that night actually touches the last
+ * 36h (a days-old import is not "last night"). Was previously this screen's own "freshest-ending
+ * session" pick, which could name a different block -- and so a different span -- than the Sleep tab and
+ * Today's HR graph for a night stored as more than one block (#294).
+ */
+private fun bedWakeSpan(sleeps: List<SleepSession>, habitualMidsleepSec: Long?): String? {
     val windowStart = System.currentTimeMillis() / 1000L - 36 * 3600L // within the last 36h counts as last night
-    val s = sleeps.filter { it.endTs > windowStart }.maxByOrNull { it.endTs } ?: return null
+    val candidates = sleeps.filter { it.endTs > windowStart }
+    val span = mainSleepSpan(candidates, habitualMidsleepSec) ?: return null
     val fmt = SimpleDateFormat("HH:mm", Locale.getDefault())
-    return "${fmt.format(Date(s.effectiveStartTs * 1000L))} - ${fmt.format(Date(s.endTs * 1000L))}"
+    return "${fmt.format(Date(span.first * 1000L))} - ${fmt.format(Date(span.second * 1000L))}"
 }
 
 // MARK: - OPTIMAL strain range (task #43) — pure display-only recovery->strain mapping

@@ -4485,10 +4485,17 @@ private fun HeartRateTrendCard(
         buckets = viewModel.repo.hrBucketsUnion(viewModel.activeStrapId, start, end, 300L)
         // The sleep that ended within the chart window (the night before / this morning), anchors
         // the band + the Charge-at-wake marker. A wide lower bound catches an onset before midnight.
+        // Resolves the day's bridged MAIN-night span via `mainSleepSpan` (the SAME resolver the Sleep
+        // tab hero and AnalyticsEngine's daily total use), not an ad hoc "freshest-ending block" pick --
+        // that could disagree with the Sleep tab and the Coupled view's bed-wake read for a night stored
+        // as more than one block (#294).
         sleepToday = runCatching {
-            viewModel.repo.sleepSessions("my-whoop", start - 18 * 3600L, end)
+            val overlapping = viewModel.repo.sleepSessions("my-whoop", start - 18 * 3600L, end)
                 .filter { it.startTs <= end && it.endTs >= start }   // overlaps the window
-                .maxByOrNull { it.endTs }
+            val habitualMidsleepSec = viewModel.repo.habitualMidsleepSec("my-whoop")
+            mainSleepSpan(overlapping, habitualMidsleepSec)?.let { (spanStart, spanEnd) ->
+                SleepSession(deviceId = "my-whoop", startTs = spanStart, endTs = spanEnd)
+            }
         }.getOrNull()
         // Workouts overlapping the window, each gets a sport glyph at its in-window HR peak.
         // Union every source (not just "my-whoop"): Health-Connect-imported sessions are stored
