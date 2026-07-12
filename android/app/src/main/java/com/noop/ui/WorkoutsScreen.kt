@@ -577,7 +577,15 @@ private fun MergeSportDialog(onDismiss: () -> Unit, onPick: (String) -> Unit) {
             }
         },
         confirmButton = {
-            TextButton(onClick = { if (sport.isNotBlank()) onPick(sport.trim()) }, enabled = sport.isNotBlank()) {
+            val context = LocalContext.current
+            TextButton(onClick = {
+                if (sport.isNotBlank()) {
+                    // #297: naming a merge is a real selection too — parity with the macOS/iOS sheet,
+                    // whose reused StartWorkoutSheet records on its action button.
+                    RecentSportsPrefs.record(context, sport.trim())
+                    onPick(sport.trim())
+                }
+            }, enabled = sport.isNotBlank()) {
                 Text("Merge", style = NoopType.body, color = if (sport.isNotBlank()) Palette.accent else Palette.textTertiary)
             }
         },
@@ -1633,7 +1641,14 @@ private fun ManualWorkoutDialog(
                 val c = WorkoutEditing.classify(it.source)
                 c == WorkoutSource.MANUAL || c == WorkoutSource.DETECTED
             }
-            TextButton(onClick = { built?.let { onSave(it, replacing) } }, enabled = built != null) {
+            val context = LocalContext.current
+            TextButton(onClick = {
+                built?.let {
+                    // #297: a confirmed save is a real selection — fold the (validated) sport into the recents.
+                    RecentSportsPrefs.record(context, it.sport)
+                    onSave(it, replacing)
+                }
+            }, enabled = built != null) {
                 Text(if (editing == null) "Add" else "Save",
                     style = NoopType.body, color = if (built != null) Palette.accent else Palette.textTertiary)
             }
@@ -1704,6 +1719,7 @@ private fun StartTimeField(millis: Long, onPick: (Long) -> Unit) {
 
 @Composable
 private fun SportPickerField(value: String, onChange: (String) -> Unit) {
+    val context = LocalContext.current
     val sportScroll = rememberScrollState()
     val q = value.trim()
     val matches = if (q.isEmpty()) WorkoutSport.all
@@ -1712,6 +1728,10 @@ private fun SportPickerField(value: String, onChange: (String) -> Unit) {
     // free-typed sport with no partial matches — so the dialog isn't permanently half-covered.
     val exact = WorkoutSport.all.any { it.name.equals(q, ignoreCase = true) }
     val showList = matches.isNotEmpty() && !exact
+    // #297: the user's last selections, one tap away above the full catalogue. Raw stored names —
+    // this picker allows free text, so an off-catalogue recent stays selectable here (it just
+    // carries no GPS hint). Only rendered while the field is empty (typing means searching).
+    val recents = if (q.isEmpty()) RecentSportsPrefs.recent(context) else emptyList()
 
     DialogField("Sport", value, onChange = onChange, placeholder = "e.g. Running")
     if (showList) {
@@ -1722,21 +1742,39 @@ private fun SportPickerField(value: String, onChange: (String) -> Unit) {
                 .verticalScroll(sportScroll),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            matches.forEach { sp ->
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onChange(sp.name) }
-                        .padding(vertical = 8.dp),
-                ) {
-                    Text(sp.name, style = NoopType.body, color = Palette.textPrimary)
-                    if (sp.isDistanceSport) {
-                        Spacer(Modifier.width(6.dp))
-                        Text("· GPS", style = NoopType.footnote, color = Palette.textTertiary)
-                    }
+            if (recents.isNotEmpty()) {
+                Overline("Recent", modifier = Modifier.padding(top = 6.dp))
+                recents.forEach { name ->
+                    SportSuggestionRow(
+                        name = name,
+                        isDistance = WorkoutSport.all
+                            .firstOrNull { it.name.equals(name, ignoreCase = true) }?.isDistanceSport == true,
+                        onPick = { onChange(name) },
+                    )
                 }
+                Overline("All activities", modifier = Modifier.padding(top = 6.dp))
             }
+            matches.forEach { sp ->
+                SportSuggestionRow(name = sp.name, isDistance = sp.isDistanceSport, onPick = { onChange(sp.name) })
+            }
+        }
+    }
+}
+
+/** One tappable suggestion row — shared by the #297 Recent block and the full catalogue list. */
+@Composable
+private fun SportSuggestionRow(name: String, isDistance: Boolean, onPick: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onPick)
+            .padding(vertical = 8.dp),
+    ) {
+        Text(name, style = NoopType.body, color = Palette.textPrimary)
+        if (isDistance) {
+            Spacer(Modifier.width(6.dp))
+            Text("· GPS", style = NoopType.footnote, color = Palette.textTertiary)
         }
     }
 }

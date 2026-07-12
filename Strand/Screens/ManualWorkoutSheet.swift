@@ -127,6 +127,15 @@ struct ManualWorkoutSheet: View {
         sportFocused && !sportSuggestions.isEmpty && WorkoutCatalog.sport(named: sport) == nil
     }
 
+    /// #297: the user's last selections, one tap away above the full catalogue. Raw stored names —
+    /// this picker allows free text, so an off-catalogue recent stays selectable here (it just
+    /// carries no GPS hint). Only rendered while the field is empty (typing means searching).
+    private var recentSports: [String] { RecentSportsPrefs.recent() }
+
+    private var showRecentSports: Bool {
+        sport.trimmingCharacters(in: .whitespaces).isEmpty && !recentSports.isEmpty
+    }
+
     private var sportPicker: some View {
         VStack(alignment: .leading, spacing: 6) {
             TextField("e.g. Running", text: $sport)
@@ -141,27 +150,17 @@ struct ManualWorkoutSheet: View {
             if showSportSuggestions {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
-                        ForEach(sportSuggestions) { sp in
-                            Button {
-                                sport = sp.name
-                                sportFocused = false
-                            } label: {
-                                HStack(spacing: 6) {
-                                    Text(sp.name)
-                                        .font(StrandFont.body)
-                                        .foregroundStyle(StrandPalette.textPrimary)
-                                    if sp.isDistanceSport {
-                                        Text("· GPS")
-                                            .font(StrandFont.footnote)
-                                            .foregroundStyle(StrandPalette.textTertiary)
-                                    }
-                                    Spacer(minLength: 0)
-                                }
-                                .contentShape(Rectangle())
-                                .padding(.horizontal, 12).padding(.vertical, 8)
+                        if showRecentSports {
+                            Text("Recent").strandOverline()
+                                .padding(.horizontal, 12).padding(.top, 8)
+                            ForEach(recentSports, id: \.self) { name in
+                                suggestionRow(name, isDistance: WorkoutCatalog.sport(named: name)?.isDistanceSport == true)
                             }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("Pick \(sp.name)")
+                            Text("All activities").strandOverline()
+                                .padding(.horizontal, 12).padding(.top, 8)
+                        }
+                        ForEach(sportSuggestions) { sp in
+                            suggestionRow(sp.name, isDistance: sp.isDistanceSport)
                         }
                     }
                 }
@@ -170,6 +169,30 @@ struct ManualWorkoutSheet: View {
                 .overlay(inputShape.strokeBorder(StrandPalette.hairline, lineWidth: 1))
             }
         }
+    }
+
+    /// One tappable suggestion row — shared by the #297 Recent block and the full catalogue list.
+    private func suggestionRow(_ name: String, isDistance: Bool) -> some View {
+        Button {
+            sport = name
+            sportFocused = false
+        } label: {
+            HStack(spacing: 6) {
+                Text(name)
+                    .font(StrandFont.body)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                if isDistance {
+                    Text("· GPS")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
+                Spacer(minLength: 0)
+            }
+            .contentShape(Rectangle())
+            .padding(.horizontal, 12).padding(.vertical, 8)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Pick \(name)")
     }
 
     // MARK: - Sections
@@ -299,6 +322,8 @@ struct ManualWorkoutSheet: View {
 
     private func save() {
         guard let row = builtRow else { return }
+        // #297: a confirmed save is a real selection — fold the (validated) sport into the recents.
+        RecentSportsPrefs.recordSelection(row.sport)
         onSave(row, editing)
         dismiss()
     }
@@ -342,6 +367,17 @@ struct StartWorkoutSheet: View {
     private var filtered: [WorkoutCatalog.Sport] { WorkoutCatalog.matching(query) }
     private var inputShape: RoundedRectangle { RoundedRectangle(cornerRadius: 10, style: .continuous) }
 
+    /// #297: the user's last selections, one tap away above the full catalogue. Only catalogue-resolvable
+    /// recents show here — a live start is catalogue-only by design (no free text), and the shared store
+    /// can hold free-typed names from the manual sheet. Hidden once the user starts searching.
+    private var recentSports: [WorkoutCatalog.Sport] {
+        RecentSportsPrefs.recent().compactMap { WorkoutCatalog.sport(named: $0) }
+    }
+
+    private var showRecentSports: Bool {
+        query.trimmingCharacters(in: .whitespaces).isEmpty && !recentSports.isEmpty
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.space4) {
             HStack(alignment: .top, spacing: NoopMetrics.space3) {
@@ -375,28 +411,17 @@ struct StartWorkoutSheet: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(filtered) { sp in
-                        Button {
-                            selected = sp.name
-                        } label: {
-                            HStack(spacing: 6) {
-                                Text(sp.name)
-                                    .font(StrandFont.body)
-                                    .foregroundStyle(sp.name == selected
-                                                     ? StrandPalette.accent : StrandPalette.textPrimary)
-                                if sp.isDistanceSport {
-                                    Text("· GPS")
-                                        .font(StrandFont.footnote)
-                                        .foregroundStyle(StrandPalette.textTertiary)
-                                }
-                                Spacer(minLength: 0)
-                            }
-                            .contentShape(Rectangle())
-                            .padding(.horizontal, 12).padding(.vertical, 9)
+                    if showRecentSports {
+                        Text("Recent").strandOverline()
+                            .padding(.horizontal, 12).padding(.top, 8)
+                        ForEach(recentSports) { sp in
+                            sportRow(sp)
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Pick \(sp.name)")
-                        .accessibilityAddTraits(sp.name == selected ? [.isSelected] : [])
+                        Text("All activities").strandOverline()
+                            .padding(.horizontal, 12).padding(.top, 8)
+                    }
+                    ForEach(filtered) { sp in
+                        sportRow(sp)
                     }
                 }
             }
@@ -408,6 +433,8 @@ struct StartWorkoutSheet: View {
                 NoopButton("Cancel", kind: .tertiary) { dismiss() }
                 Spacer()
                 NoopButton("\(actionVerb) \(selected)", systemImage: "figure.run", kind: .primary) {
+                    // #297: a confirmed start (or merge-name) is a real selection — fold it into the recents.
+                    RecentSportsPrefs.recordSelection(selected)
                     onStart(selected)
                     dismiss()
                 }
@@ -422,6 +449,31 @@ struct StartWorkoutSheet: View {
         .noopSheetPresentation(largeFirst: false)
         #endif
         .background(StrandPalette.surfaceOverlay)
+    }
+
+    /// One tappable sport row — shared by the #297 Recent block and the full catalogue list.
+    private func sportRow(_ sp: WorkoutCatalog.Sport) -> some View {
+        Button {
+            selected = sp.name
+        } label: {
+            HStack(spacing: 6) {
+                Text(sp.name)
+                    .font(StrandFont.body)
+                    .foregroundStyle(sp.name == selected
+                                     ? StrandPalette.accent : StrandPalette.textPrimary)
+                if sp.isDistanceSport {
+                    Text("· GPS")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
+                Spacer(minLength: 0)
+            }
+            .contentShape(Rectangle())
+            .padding(.horizontal, 12).padding(.vertical, 9)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Pick \(sp.name)")
+        .accessibilityAddTraits(sp.name == selected ? [.isSelected] : [])
     }
 }
 

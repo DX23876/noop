@@ -28,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.draw.drawWithContent
@@ -51,10 +52,20 @@ import kotlinx.coroutines.delay
  */
 @Composable
 fun StartWorkoutSheet(vm: AppViewModel, onDismiss: () -> Unit) {
+    val context = LocalContext.current
     var query by remember { mutableStateOf("") }
     var selected by remember { mutableStateOf<Sport>(WorkoutSport.default) }
     var gpsOn by remember(selected) { mutableStateOf(selected.isDistanceSport) }
     val filtered = WorkoutSport.all.filter { it.name.contains(query, ignoreCase = true) }
+    // #297: the user's last selections, one tap away above the full catalogue. Only catalogue-resolvable
+    // recents show here — a live start selects a typed [Sport], and the shared store can hold free-typed
+    // names from the manual add/edit picker. Hidden once the user starts searching.
+    val recents = if (query.isBlank()) {
+        RecentSportsPrefs.recent(context)
+            .mapNotNull { n -> WorkoutSport.all.firstOrNull { it.name.equals(n, ignoreCase = true) } }
+    } else {
+        emptyList()
+    }
     val sportScroll = rememberScrollState()
     // Live workout mode (#238): once a workout begins, the sheet transitions IN PLACE into the full
     // in-exercise screen — staying mounted so its state survives — and only tells the parent to close
@@ -91,21 +102,18 @@ fun StartWorkoutSheet(vm: AppViewModel, onDismiss: () -> Unit) {
                         .simpleVerticalScrollbar(sportScroll)
                         .verticalScroll(sportScroll),
                 ) {
-                    filtered.forEach { sp ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                                .clickable { selected = sp; gpsOn = sp.isDistanceSport }
-                                .padding(vertical = 10.dp),
-                        ) {
-                            Text(
-                                sp.name, style = NoopType.body,
-                                color = if (sp == selected) Palette.accent else Palette.textPrimary,
-                            )
-                            if (sp.isDistanceSport) {
-                                Spacer(Modifier.width(6.dp))
-                                Text("· GPS", style = NoopType.footnote, color = Palette.textTertiary)
+                    if (recents.isNotEmpty()) {
+                        Overline("Recent", modifier = Modifier.padding(top = 6.dp))
+                        recents.forEach { sp ->
+                            StartSportRow(sp, isSelected = sp == selected) {
+                                selected = sp; gpsOn = sp.isDistanceSport
                             }
+                        }
+                        Overline("All activities", modifier = Modifier.padding(top = 6.dp))
+                    }
+                    filtered.forEach { sp ->
+                        StartSportRow(sp, isSelected = sp == selected) {
+                            selected = sp; gpsOn = sp.isDistanceSport
                         }
                     }
                 }
@@ -121,6 +129,9 @@ fun StartWorkoutSheet(vm: AppViewModel, onDismiss: () -> Unit) {
         },
         confirmButton = {
             Button(onClick = {
+                // #297: a confirmed start is a real selection — fold it into the recents (recorded even
+                // if the GPS permission is then denied; the workout still starts route-less, #101).
+                RecentSportsPrefs.record(context, selected.name)
                 if (gpsOn) {
                     startWithGps() // requests location, then starts + opens live workout in the callback (#101)
                 } else {
@@ -135,6 +146,26 @@ fun StartWorkoutSheet(vm: AppViewModel, onDismiss: () -> Unit) {
             OutlinedButton(onClick = onDismiss) { Text("Cancel") }
         },
     )
+}
+
+/** One tappable sport row — shared by the #297 Recent block and the full catalogue list. */
+@Composable
+private fun StartSportRow(sp: Sport, isSelected: Boolean, onPick: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth()
+            .clickable(onClick = onPick)
+            .padding(vertical = 10.dp),
+    ) {
+        Text(
+            sp.name, style = NoopType.body,
+            color = if (isSelected) Palette.accent else Palette.textPrimary,
+        )
+        if (sp.isDistanceSport) {
+            Spacer(Modifier.width(6.dp))
+            Text("· GPS", style = NoopType.footnote, color = Palette.textTertiary)
+        }
+    }
 }
 
 /**
