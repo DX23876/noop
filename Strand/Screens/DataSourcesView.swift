@@ -33,6 +33,15 @@ struct DataSourcesView: View {
     @State private var wearableImporting = false
     @State private var wearableSummary: String?
     @State private var wearableFailed = false
+    #if OURA_CLOUD_IMPORT
+    // Oura history import (compiled in ONLY with OURA_CLOUD_IMPORT): a one-time, user-initiated,
+    // foreground OAuth + backfill of the user's own history over the Oura API, as an alternative to
+    // the manual "Oura / Fitbit / Garmin export" file above. `OuraConnectModel` takes
+    // `repo: Repository` as a call-time parameter (not at construction) — `repo` is an
+    // `@EnvironmentObject`, unavailable until after this view's `init()` runs, so storing it at
+    // `@StateObject` construction time would either fail to compile or crash at runtime.
+    @StateObject private var oura = OuraConnectModel()
+    #endif
     // "Remove Apple Health imported data" (ah-delete #616): a destructive escape hatch that purges every
     // row stored under the "apple-health" source via DeviceRegistryStore.deleteAllData. Two-step (a
     // confirmation alert) since it can't be undone. Local to this screen; no live strap data is touched.
@@ -71,8 +80,8 @@ struct DataSourcesView: View {
         ScreenScaffold(title: "Data Sources",
                        subtitle: "Everything stays on \(Platform.deviceNounPhrase). Bring your history in once, then it's yours.",
                        onRefresh: { await repo.refresh() },
-                       // PERF: a nine-card import/source column (WHOOP, Apple Health, Xiaomi, nutrition,
-                       // lifting, activity files, wearables, broadcast-out, live strap). The LazyVStack
+                       // PERF: a ten-card import/source column (WHOOP, Apple Health, Xiaomi, nutrition,
+                       // lifting, activity files, wearables, Oura cloud, broadcast-out, live strap). The LazyVStack
                        // path is byte-identical layout. The cards stay in their inner VStack(sectionSpacing)
                        // for pixel-identical spacing, so the lazy win is partial until they're promoted to
                        // direct children. NOTE: this screen still observes `LiveState` for the broadcaster
@@ -87,8 +96,11 @@ struct DataSourcesView: View {
                 liftingCard.staggeredAppear(index: 4)
                 activityFileCard.staggeredAppear(index: 5)
                 wearableCard.staggeredAppear(index: 6)
-                broadcastHrCard.staggeredAppear(index: 7)
-                liveCard.staggeredAppear(index: 8)
+                #if OURA_CLOUD_IMPORT
+                ouraCloudCard.staggeredAppear(index: 7)
+                #endif
+                broadcastHrCard.staggeredAppear(index: 8)
+                liveCard.staggeredAppear(index: 9)
             }
         }
         .onAppear {
@@ -281,6 +293,40 @@ struct DataSourcesView: View {
             }
         }
     }
+
+    #if OURA_CLOUD_IMPORT
+    /// Oura history import: a one-time, user-initiated, foreground OAuth + API backfill of the user's
+    /// own history — an *import* in the same family as the export-file importers above, not a sync
+    /// (nothing runs in the background, on a timer, or at launch). `oura.connectAndImport(repo:)`/
+    /// `disconnect(repo:)` take `repo` at call time (see the `@StateObject` declaration's note)
+    /// rather than storing it in `OuraConnectModel` at construction.
+    private var ouraCloudCard: some View {
+        card(title: String(localized: "Oura history import"), icon: "circle.circle", tint: StrandPalette.metricPurple,
+             subtitle: String(localized: "A one-time import of your own Oura history over the Oura API. Runs only when you tap it.")) {
+            VStack(alignment: .leading, spacing: 8) {
+                if oura.isConnected {
+                    HStack {
+                        Button { oura.connectAndImport(repo: repo) } label: { Label("Import again", systemImage: "arrow.clockwise") }
+                            .buttonStyle(NoopButtonStyle(.primary))
+                        Button(role: .destructive) { oura.disconnect(repo: repo) } label: { Label("Forget Oura access", systemImage: "xmark.circle") }
+                            .buttonStyle(NoopButtonStyle(.destructive))
+                    }.disabled(oura.busy)
+                } else {
+                    Button { oura.connectAndImport(repo: repo) } label: {
+                        Label(oura.busy ? "Working…" : "Import your Oura history", systemImage: "square.and.arrow.down")
+                    }
+                    .buttonStyle(NoopButtonStyle(.primary))
+                    .disabled(oura.busy || !oura.isConfigured)
+                    if !oura.isConfigured {
+                        Text("Add your Oura app credentials to OuraSecrets.xcconfig to enable this.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                if let s = oura.statusText { Text(s).font(.caption).foregroundStyle(.secondary) }
+            }
+        }
+    }
+    #endif // OURA_CLOUD_IMPORT
 
     private func presentImporter(_ target: ImportTarget) {
         importTarget = target

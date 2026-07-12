@@ -14,7 +14,7 @@ source stands and the protocol facts we've verified, so the next build can pick 
 | **Polar deep streams** (ECG / PPG / ACC / PPI) | 🔬 Pure PPI decoder built (`Packages/PolarProtocol` + `com.noop.polar`, tests green both platforms); live `PolarPMDSource` + ECG/PPG decode still to build | PMD service (below) — alpha, hardware-gated |
 | **Garmin** (sleep / HRV / Body Battery / SpO₂ / FIT) | 📋 Researched, not built | Local BLE re-derive (Gadgetbridge-informed, **never** GPLv3 copy) |
 | **Amazfit / Zepp** (incl. Helio deep) | 📋 Researched, not built | Encrypted Huami BLE — needs a one-time **user-pasted** vendor key (NOOP never logs into the vendor cloud) |
-| **Oura** | 📋 Researched, not built | Cloud API v2 — off-by-default OAuth **import** lane only |
+| **Oura** | 🔬 Built (cloud import) | Cloud API v2 — off-by-default OAuth, one-time backfill; local BLE ring also supported |
 | **Fitbit / Google** | 📋 Researched, not built | Build against **Google Health** API (Fitbit Web API sunsets Sept 2026) — off-by-default import |
 
 ## Polar Measurement Data (PMD) — verified protocol

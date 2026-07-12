@@ -480,6 +480,26 @@ extension WhoopStore {
             try db.execute(sql: "DROP TABLE rrInterval")
             try db.execute(sql: "ALTER TABLE rrInterval_new RENAME TO rrInterval")
         }
+
+        // v25: Oura live-API raw payload archive (lossless) behind the opt-in cloud import. One row per
+        // fetched page, keyed (deviceId, endpoint, documentId); payloadJSON holds the verbatim page body
+        // so any field can be re-derived later without re-fetching from the API. Additive only — a NEW
+        // table, no existing row touched, old readers unaffected. Numbered v25: upstream's v24-rr-seq
+        // landed in the same window and registers first to keep the sequence.
+        migrator.registerMigration("v25-oura-raw") { db in
+            try db.create(table: "ouraRaw") { t in
+                t.column("deviceId", .text).notNull()
+                t.column("endpoint", .text).notNull()       // "sleep" | "daily_readiness" | "heartrate" | …
+                t.column("documentId", .text).notNull()     // synthesized page key (endpoint + window + index)
+                t.column("day", .text)                       // YYYY-MM-DD when day-keyed (nullable)
+                t.column("payloadJSON", .text).notNull()     // verbatim page body
+                t.column("fetchedAt", .integer).notNull()    // unix seconds
+                t.primaryKey(["deviceId", "endpoint", "documentId"])
+            }
+            // Per-endpoint reads scan (deviceId, endpoint) then walk day in order.
+            try db.create(index: "idx_ouraRaw_device_endpoint_day",
+                          on: "ouraRaw", columns: ["deviceId", "endpoint", "day"])
+        }
         return migrator
     }
 }

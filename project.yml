@@ -76,6 +76,13 @@ targets:
           # The liquid Today is now cross-platform: its iOS-only chrome (topBarTrailing / navigationBarTitleDisplayMode
           # / presentationCompactAdaptation / two-param onChange / sensoryFeedback) is guarded, so the mac split-view
           # shell hosts LiquidTodayView too. All Liquid/* now compile into the mac target.
+    # Oura BYO-app OAuth credentials. OuraConfig.xcconfig is a tracked wrapper that optionally
+    # includes the untracked, gitignored Strand/Oura/OuraSecrets.xcconfig (template at
+    # OuraSecrets.example.xcconfig) — absent secrets leave the $(OURA_*) references in the
+    # info.properties below empty, which disables the Oura Cloud lane at runtime.
+    configFiles:
+      Debug: Strand/Oura/OuraConfig.xcconfig
+      Release: Strand/Oura/OuraConfig.xcconfig
     info:
       path: Strand/Resources/Info.plist
       properties:
@@ -93,6 +100,15 @@ targets:
         # HTTPS endpoints are unaffected. No arbitrary-loads blanket exemption.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
+        # Oura BYO-app OAuth credentials (values come from configFiles above); read at runtime via
+        # OuraCredentials.fromBundle. Absent/blank values cleanly disable the Connect-Oura lane.
+        OURA_CLIENT_ID: $(OURA_CLIENT_ID)
+        OURA_CLIENT_SECRET: $(OURA_CLIENT_SECRET)
+        OURA_REDIRECT_URI: $(OURA_REDIRECT_URI)
+        # Registers the noop:// URL scheme so ASWebAuthenticationSession's OAuth redirect
+        # (noop://oura/callback) reaches OuraOAuthProvider instead of bouncing off the OS.
+        CFBundleURLTypes:
+          - CFBundleURLSchemes: [noop]
     entitlements:
       path: Strand/Resources/Strand.entitlements
       properties:
@@ -132,6 +148,11 @@ targets:
     deploymentTarget: "13.0"
     sources:
       - StrandTests
+    # Same wrapper as the app target, so the OURA_CLOUD_IMPORT-gated Oura tests compile exactly
+    # when the app's Oura lane does (flag + creds both come from the untracked OuraSecrets.xcconfig).
+    configFiles:
+      Debug: Strand/Oura/OuraConfig.xcconfig
+      Release: Strand/Oura/OuraConfig.xcconfig
     dependencies:
       - target: Strand
       - package: WhoopProtocol
@@ -181,6 +202,10 @@ targets:
           - "Resources/Info.plist"
           - "Resources/NOOP.entitlements"
       - path: StrandiOSShared
+    # Same tracked wrapper as the macOS target (Strand/Oura/ is shared, not per-platform).
+    configFiles:
+      Debug: Strand/Oura/OuraConfig.xcconfig
+      Release: Strand/Oura/OuraConfig.xcconfig
     info:
       path: StrandiOS/Resources/Info.plist
       properties:
@@ -243,6 +268,15 @@ targets:
         # Both keys are required for the folder to actually appear in Files.
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
+        # Oura BYO-app OAuth credentials (values come from configFiles above); read at runtime via
+        # OuraCredentials.fromBundle. Absent/blank values cleanly disable the Connect-Oura lane.
+        OURA_CLIENT_ID: $(OURA_CLIENT_ID)
+        OURA_CLIENT_SECRET: $(OURA_CLIENT_SECRET)
+        OURA_REDIRECT_URI: $(OURA_REDIRECT_URI)
+        # Registers the noop:// URL scheme so ASWebAuthenticationSession's OAuth redirect
+        # (noop://oura/callback) reaches OuraOAuthProvider instead of bouncing off the OS.
+        CFBundleURLTypes:
+          - CFBundleURLSchemes: [noop]
     entitlements:
       path: StrandiOS/Resources/NOOP.entitlements
       properties:

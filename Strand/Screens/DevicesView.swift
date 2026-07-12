@@ -64,6 +64,10 @@ private struct DevicesContent: View {
 
     private var activeDevices: [PairedDevice] { registry.devices.filter { $0.status != .archived } }
     private var removedDevices: [PairedDevice] { registry.devices.filter { $0.status == .archived } }
+    /// I-1: `activeDevices` minus import sources (cloud/file) — the candidates actually eligible for
+    /// "make active". An import source is a data partition, not a live device; offering it here would let
+    /// activating it demote the live WHOOP driving BLE routing + day-owner priority 0.
+    private var activatableDevices: [PairedDevice] { activeDevices.filter { !$0.isImportSource } }
 
     /// #987: the active+connected strap's clock state, from the SAME pure ConnectionReadout parsers the
     /// Test Centre Connection panel binds (one source of truth). nil (no row at all) until the WHOOP path
@@ -234,7 +238,9 @@ private struct DevicesContent: View {
         .confirmationDialog("Pick a new active strap",
                             isPresented: $pickNewActive,
                             titleVisibility: .visible) {
-            ForEach(activeDevices) { device in
+            // I-1: import sources (Oura cloud import, file imports) are excluded — they're data
+            // partitions, not live devices, and must never be offered as an active-strap candidate.
+            ForEach(activatableDevices) { device in
                 Button(device.displayName) { registry.setActive(device.id) }
             }
             Button("Leave none active", role: .cancel) { }
@@ -311,8 +317,9 @@ private struct DevicesContent: View {
         registry.archive(device.id)
         removeTarget = nil
         if wasActive {
-            // Other paired devices left → ask which becomes active; otherwise no active device remains.
-            if !activeDevices.isEmpty {
+            // Other ACTIVATABLE devices left → ask which becomes active; otherwise (none left, or only
+            // import sources remain) no active device remains and there's nothing to offer (I-1).
+            if !activatableDevices.isEmpty {
                 pickNewActive = true
             }
         }
@@ -527,16 +534,20 @@ private struct DeviceCard: View {
 
     /// The card's primary tap action, or nil when there isn't one. A paired-but-not-active band → make it
     /// active; a removed band → re-add it as active. The active band and any card without those callbacks
-    /// have no whole-card tap (their controls live entirely in the ⋮ menu).
+    /// have no whole-card tap (their controls live entirely in the ⋮ menu). I-1: an import source (Oura
+    /// cloud import, file imports) never offers activation — it's a data partition, not a live device;
+    /// making it "active" would demote whatever live device drives BLE routing + day-owner priority 0.
     private var primaryAction: (() -> Void)? {
+        if device.isImportSource { return nil }
         if device.status == .archived { return onReAdd }
         if !isActive { return onMakeActive }
         return nil
     }
 
     /// Short accent hint mirroring the primary tap, shown in the footer row. nil when the card has no
-    /// whole-card action (active band / menu-only removed band).
+    /// whole-card action (active band / menu-only removed band / I-1 import source).
     private var primaryActionHint: String? {
+        if device.isImportSource { return nil }
         if device.status == .archived { return onReAdd == nil ? nil : String(localized: "Make active") }
         if !isActive { return String(localized: "Make active") }
         return nil
@@ -583,7 +594,9 @@ private struct DeviceCard: View {
     private var actionsMenu: some View {
         Menu {
             if device.status == .archived {
-                if let onReAdd {
+                // I-1: a removed import source (e.g. Oura cloud import, archived on Disconnect) never
+                // offers "Make active" reactivation — it's a data partition, not a live device.
+                if let onReAdd, !device.isImportSource {
                     Button { onReAdd() } label: { Label("Make active", systemImage: "bolt.fill") }
                 }
                 Button { onRename() } label: { Label("Rename", systemImage: "pencil") }
@@ -594,7 +607,7 @@ private struct DeviceCard: View {
                     }
                 }
             } else {
-                if !isActive {
+                if !isActive && !device.isImportSource {
                     Button { onMakeActive() } label: { Label("Make active", systemImage: "bolt.fill") }
                 }
                 Button { onRename() } label: { Label("Rename", systemImage: "pencil") }

@@ -34,6 +34,12 @@ public struct PairedDevice: Equatable, Sendable, Identifiable {
         if model.localizedCaseInsensitiveContains(brand) { return model }
         return "\(brand) \(model)"
     }
+
+    /// True for a data-partition source (a cloud API pull or a file/CSV import) rather than a live,
+    /// connectable device. UI that offers "make active" must exclude these: activating one would demote
+    /// whatever live device (WHOOP, a BLE strap, Apple Watch) currently drives BLE routing + day-owner
+    /// priority 0 — an import source has no live connection to hand that role to.
+    public var isImportSource: Bool { sourceKind == .cloudImport || sourceKind == .fileImport }
 }
 
 public enum DeviceStatus: String, Sendable, CaseIterable { case active, paired, archived }

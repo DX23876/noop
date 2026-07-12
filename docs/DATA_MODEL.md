@@ -60,14 +60,20 @@ single `DatabaseQueue` and applies these PRAGMAs before any query runs:
 | `busyMode` | `.timeout(5)` | 5-second busy timeout under write contention. |
 
 `WhoopStore` is an `actor`: all GRDB calls run on the actor's serial executor (off the main
-thread) through the `syncRead` / `syncWrite` helpers. The reported schema version is
-`WhoopStoreInfo.schemaVersion = 9`.
+thread) through the `syncRead` / `syncWrite` helpers. `WhoopStoreInfo.schemaVersion` is a
+separate, manually-maintained constant (currently `18`) that has lagged the real migration
+history for a while and should not be read as the schema's true version. The migrator itself
+(`makeMigrator()`, below) is the source of truth for what tables/columns exist, and has run
+through **v25** (`v25-oura-raw` — the Oura raw-payload archive, the newest addition; see
+below).
 
 ---
 
 ## Schema at a glance
 
-The schema falls into four groups:
+The schema falls into five groups (this section predates, and undercounts, everything added
+after v9 — see the schema-version note above; the Oura raw archive below is the one
+post-v9 addition currently documented here):
 
 | Group | Tables | Origin |
 | --- | --- | --- |
@@ -76,6 +82,7 @@ The schema falls into four groups:
 | **Raw outbox** (transient) | `rawBatch` | Compressed raw BLE frames, prunable |
 | **Bookkeeping** | `cursors` | Highwater / read cursors |
 | **Metric caches** | `sleepSession`, `dailyMetric`, `journal`, `workout`, `appleDaily`, `metricSeries` | Derived metrics + CSV / Apple-Health imports |
+| **Oura raw archive** (durable, v25) | `ouraRaw` | Verbatim Oura API payloads behind the opt-in cloud import — see below |
 
 All timestamp columns named `ts`, `startTs`, `endTs`, `capturedAt`, etc. are **unix seconds**
 (integers). Day-keyed cache tables use a `day` text column in `YYYY-MM-DD` form and compare it
@@ -441,12 +448,56 @@ those reads index-only. Accessors: `upsertMetricSeries(...)`, `metricSeries(...)
 
 ---
 
+## Oura raw-payload archive
+
+This section documents the one table added after this document's v9 baseline (see the
+schema-version note above): the lossless backstop behind the opt-in Oura history import
+(off by default; user-initiated OAuth backfill — `docs/PRIVACY_SECURITY.md` §1.1b). It is
+**not** a metric cache like the tables above — it stores verbatim API responses, not decoded
+values, so any field Oura returns can be re-derived later without re-fetching.
+
+### `ouraRaw` *(v25)*
+
+One row per fetched PAGE of an Oura API endpoint response — not one row per Oura document; a
+single page's `data` array can carry many documents (`OuraRawStore.swift`, `struct OuraRawRow`).
+Written by `OuraSyncCoordinator.fetchRaw(_:dateParam:)` in the app target (`Strand/Oura/`).
+Natural key `(deviceId, endpoint, documentId)`. Migration `v25-oura-raw`
+(`Packages/WhoopStore/Sources/WhoopStore/Database.swift`) — additive only, a new table, no
+existing row touched.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `deviceId` | TEXT NOT NULL | Part of PK. `"oura-api"` for the live cloud-import lane. |
+| `endpoint` | TEXT NOT NULL | Part of PK. Oura endpoint name, e.g. `"sleep"`, `"daily_readiness"`, `"heartrate"`. |
+| `documentId` | TEXT NOT NULL | Part of PK. A SYNTHESIZED page key, `"<endpoint>-<startDate>-<pageIndex>"` (`startDate` is the backfill window's start date, `pageIndex` the fetched page's 0-based position) — never Oura's own document `id`, for any endpoint. |
+| `day` | TEXT | `YYYY-MM-DD`, nullable. Currently always NULL — the coordinator never sets it. Reserved for a future per-document (rather than per-page) keying scheme. |
+| `payloadJSON` | TEXT NOT NULL | Verbatim JSON body of the fetched page (the raw HTTP response, including its `data` array of documents) — losslessness holds at the page level, not the individual-document level. |
+| `fetchedAt` | INTEGER NOT NULL | Unix seconds. |
+
+**Primary key:** `(deviceId, endpoint, documentId)`. `upsertOuraRaw(...)` is idempotent on this
+key via `ON CONFLICT(...) DO UPDATE` — re-pulling the SAME window (same `startDate`, so the same
+`pageIndex` synthesizes the same `documentId`) overwrites that page's `day`/`payloadJSON`/
+`fetchedAt` in place rather than duplicating.
+
+**Index** — `idx_ouraRaw_device_endpoint_day` on `(deviceId, endpoint, day)`, so per-endpoint
+reads (`ouraRaw(deviceId:endpoint:)`) scan `(deviceId, endpoint)` and walk `day` in order
+without a table scan.
+
+**Not covered by `deleteAllData(deviceId:)`.** Unlike the metric-cache tables above, `ouraRaw`
+is not in `DeviceRegistryStore.deviceScopedTables`, so the general per-device wipe skips it by
+construction. Disconnecting Oura calls the dedicated `deleteOuraRaw(deviceId:)` alongside
+`deleteAllData(deviceId:)` (`Strand/Oura/OuraConnectModel.swift`) so the raw archive is purged
+too, not left behind.
+
+---
+
 ## Index summary
 
 | Index | Table | Columns | Purpose |
 | --- | --- | --- | --- |
 | *(implicit PK)* | every table above | (its natural key) | Dedupe + primary lookup. |
 | `idx_metricSeries_device_key_day` | `metricSeries` | `deviceId, key, day` | Index-only per-metric range reads. |
+| `idx_ouraRaw_device_endpoint_day` | `ouraRaw` | `deviceId, endpoint, day` | Index-only per-endpoint range reads. |
 
 Every other table relies on its primary-key index; the decoded-stream and date-range reads are all
 served by the `(deviceId, ts)` / `(deviceId, day)` / `(deviceId, startTs)` primary keys.

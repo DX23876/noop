@@ -37,6 +37,15 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>noop</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSApplicationCategoryType</key>
@@ -58,6 +67,12 @@
 	<string>NOOP records your route during an outdoor workout to show distance, pace, and a map, and keeps recording while the screen is off. The route stays on your device. Nothing leaves it.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
+	<key>OURA_CLIENT_ID</key>
+	<string>$(OURA_CLIENT_ID)</string>
+	<key>OURA_CLIENT_SECRET</key>
+	<string>$(OURA_CLIENT_SECRET)</string>
+	<key>OURA_REDIRECT_URI</key>
+	<string>$(OURA_REDIRECT_URI)</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>bluetooth-central</string>

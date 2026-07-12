@@ -26,37 +26,49 @@ local SQLite — has no network layer at all: no phone-home, no analytics, no ac
 no login, no cloud sync, and no telemetry. Everything NOOP computes about you lives in a
 single SQLite file on your own device.
 
-There is exactly **one** opt-in exception: the **AI Coach** (§1.1a). It is off until you
-turn it on with your own API key; when you ask it a question it sends a short text
-summary of your recent metrics to the provider you choose. Nothing else in the app ever
-touches the network, and your raw data never does.
+There are exactly **two** opt-in exceptions: the **AI Coach** (§1.1a) and the **Oura history
+import** (§1.1b). The AI Coach is off until you turn it on with your own API key; when you
+ask it a question it sends a short text summary of your recent metrics to the provider you
+choose. The Oura history import is **not even compiled into a default build** — the code
+only exists in your binary if you build from source with your own Oura developer app's
+credentials (§1.1b); instead of sending data out, it pulls your own Oura data **in** over
+OAuth, once, and never sends any of your existing NOOP data out. Nothing else in the app
+ever touches the network, and your raw biometric streams never leave the device through
+either exception.
 
-Data enters NOOP two ways, and leaves it (other than the optional AI Coach) only when **you**
+Data enters NOOP three ways, and leaves it (other than the optional AI Coach) only when **you**
 deliberately export it to another store on the **same device**:
 
 | Path | Transport | Direction |
 |------|-----------|-----------|
 | Live collection | Bluetooth LE, strap → device | Read-only from the strap |
 | File import (Apple Health, WHOOP CSV, nutrition CSV) | User-selected files on disk | Read-only from disk |
+| Oura history import (opt-in build flag, §1.1b) | HTTPS OAuth + REST, `api.ouraring.com` → device | Read-only from your own Oura account |
 | Apple Health export, incl. iOS "Export for Shortcuts" | On-device, user-initiated | NOOP → your Apple Health, on your device only (§1.3) |
 
-The only **network** path is the opt-in AI Coach; the biometric pipeline produces no network
-traffic of any kind. The Apple Health export above is an **on-device** hand-off, not a network
-upload — see §1.3.
+The only **network** paths are the opt-in AI Coach and the compile-time-optional Oura
+history import; the
+biometric pipeline produces no network traffic of any kind. The Apple Health export above is
+an **on-device** hand-off, not a network upload — see §1.3.
 
-### 1.1 Network code: only the optional AI Coach
+### 1.1 Network code: only the two optional exceptions
 
 The biometric pipeline and all five Swift packages
 (`WhoopProtocol`, `WhoopStore`, `StrandAnalytics`, `StrandImport`, `StrandDesign`)
 contain **no** use of `URLSession`, `URLRequest`, `NWConnection`, `dataTask`, or any
-other networking API. These Swift packages are **shared by the macOS and iOS apps**
-(iOS is build-from-source only — no App Store / TestFlight — and was folded into the
-main tree in v1.94), so the Swift-side privacy behaviour described here applies equally
-to both. Android is a separate codebase using Room for storage and Kotlin for the BLE /
-import / Coach paths. The **only** networking anywhere in the app is the AI Coach
-(`Strand/AI/AICoach.swift` on the Swift side — macOS and iOS — `com.noop.ai.AiCoach` on
-Android), described in §1.1a. The package manifests reference dependency *download* URLs
-that Swift Package Manager resolves at build time, never at runtime:
+other networking API — still true after the Oura history import (§1.1b) landed: its OAuth
+and REST calls live entirely in the app target, `Strand/Oura/`, and `StrandImport`
+gained only pure, network-free parsers for Oura's payload shapes. These Swift packages
+are **shared by the macOS and iOS apps** (iOS is build-from-source only — no App Store /
+TestFlight — and was folded into the main tree in v1.94), so the Swift-side privacy
+behaviour described here applies equally to both. Android is a separate codebase using
+Room for storage and Kotlin for the BLE / import / Coach paths; its own Oura support is
+the local BLE ring-pairing lane, not a network API, so it has no equivalent to §1.1b. The
+**only** networking anywhere in the app is the AI Coach (`Strand/AI/AICoach.swift` on the
+Swift side — macOS and iOS — `com.noop.ai.AiCoach` on Android), described in §1.1a, and
+the Oura history import (`Strand/Oura/`, Swift-only — macOS and iOS), described in §1.1b.
+The package manifests reference dependency *download* URLs that Swift Package Manager
+resolves at build time, never at runtime:
 
 ```
 Packages/WhoopStore/Package.swift   → https://github.com/groue/GRDB.swift.git
@@ -68,8 +80,9 @@ importers. Neither opens a socket.
 
 ### 1.1a The AI Coach (optional, off by default, bring your own key)
 
-The AI Coach lets you ask questions about your data in plain language. It is the one
-feature that uses the network, and only on your terms:
+The AI Coach lets you ask questions about your data in plain language. It is one of the
+two features that use the network (the other is the Oura history import, §1.1b), and only
+on your terms:
 
 - **Off until you enable it.** You enter your own API key for the provider you choose
   (Anthropic, OpenAI, or a local / self-hosted OpenAI-compatible LLM such as Ollama or
@@ -86,20 +99,64 @@ feature that uses the network, and only on your terms:
   provider you picked, under your own account. NOOP runs no server in between and keeps
   no copy.
 
-If you never enable the AI Coach, NOOP makes zero network connections.
+If you never enable the AI Coach and never build the Oura import in (§1.1b), NOOP makes
+zero network connections — and in a default build, the Oura code isn't in the binary to
+begin with.
 
-### 1.2 The macOS sandbox (and what it means for the AI Coach)
+### 1.1b The Oura history import (compiled out by default, bring your own OAuth app)
 
-On macOS the App Sandbox is the backstop. The app ships with a deliberately minimal
-entitlement set (`Strand/Resources/Strand.entitlements`):
+The Oura history import pulls your own historical Oura data into NOOP over Oura's official
+API — a one-time, foreground backfill you trigger yourself, not an ongoing background sync
+(nothing runs on a timer, at launch, or in the background):
+
+- **Not in the binary unless you build it in.** Every file of the lane's network code
+  (`Strand/Oura/*.swift` and its Data Sources card) sits behind the `OURA_CLOUD_IMPORT`
+  compilation condition, which is **unset in every default build** — the release binaries
+  and any plain `xcodegen && xcodebuild` from a clean checkout contain **zero Oura network
+  code**, provably, at the byte level. The condition is set only by the untracked
+  `Strand/Oura/OuraSecrets.xcconfig` you create yourself from the example template, which
+  also carries your own Oura developer app's client ID/secret — so the code and the
+  credentials arrive in the same deliberate act. Then the import runs only when you tap
+  **"Import your Oura history"** in Data Sources. (Belt-and-braces, the runtime guard
+  remains too: absent/blank credentials disable the lane — `OuraCredentials.fromBundle`.)
+- **What is sent.** An OAuth authorization-code handshake — you sign into Oura's own
+  consent page (`cloud.ouraring.com`) through Apple's system `ASWebAuthenticationSession`,
+  not an in-app WebView NOOP controls — followed by bearer-token `GET` requests to
+  `api.ouraring.com/v2/usercollection/*` carrying only your access token and the
+  endpoint/date-range parameters needed to page through your history. No NOOP data rides
+  along with these requests beyond the token itself.
+- **What comes back.** Your own Oura data — sleep, readiness, activity, workouts, heart
+  rate, and the other endpoints your granted scopes cover — flowing **in**, once, to seed
+  your local database. Oura's own readiness/sleep scores are kept for reference only
+  (`ref_*`/`oura_*` metric keys); NOOP's own Charge/Effort/Rest are never derived from
+  them and are never sent anywhere.
+- **What is NOT sent.** None of your existing NOOP data — no WHOOP streams, no other
+  imports, no computed scores — ever leaves the device via this lane. It is inbound-only.
+- **Your app, your grant, revocable at Oura.** You register your own OAuth app at Oura's
+  developer portal; NOOP runs no server in between. Revoke access any time from your Oura
+  account settings, or tap **Forget Oura access** in NOOP, which signs out locally and
+  deletes the stored tokens plus every row this lane wrote — including the raw archive
+  (`ouraRaw` table, see `docs/DATA_MODEL.md`).
+- **Tokens in the Keychain, not a plist.** The access/refresh tokens are stored via
+  `OuraTokenStore` as a single Keychain item (`kSecAttrAccessibleAfterFirstUnlock`), the
+  same pattern as the AI Coach's API key (`AIKeyStore`) — never UserDefaults, never on
+  disk in the clear.
+
+If you never build the lane in, your binary cannot call `ouraring.com` — the code is not there.
+
+### 1.2 The macOS sandbox (and what it means for the AI Coach and the Oura import)
+
+On macOS the App Sandbox is the backstop. The app ships with a minimal entitlement set
+(`Strand/Resources/Strand.entitlements`):
 
 ```xml
 <key>com.apple.security.app-sandbox</key>                       <true/>
 <key>com.apple.security.device.bluetooth</key>                  <true/>
 <key>com.apple.security.files.user-selected.read-write</key>    <true/>
+<key>com.apple.security.network.client</key>                    <true/>
 ```
 
-That is the entire entitlement file. Three keys:
+That is the entire entitlement file. Four keys:
 
 - **`app-sandbox`** — the process runs inside the macOS App Sandbox container.
 - **`device.bluetooth`** — permits BLE access to talk to the strap. The matching
@@ -109,24 +166,25 @@ That is the entire entitlement file. Three keys:
   your device."*
 - **`files.user-selected.read-write`** — lets the app read import files the user
   explicitly picks (and write the database in its own container).
+- **`network.client`** — outbound socket access. Added for the AI Coach on a
+  signed/sandboxed build, where the sandbox otherwise refuses any socket the app tries
+  to open (#128); the Oura history import (§1.1b) now relies on the same entitlement. The
+  ad-hoc distributed build applies **no** entitlements at all (unsigned build + ad-hoc
+  re-sign), so this key only matters for a signed/sandboxed build. The entitlement only
+  permits the socket the sandbox would otherwise refuse — it doesn't make either feature
+  call out on its own; both stay off until you deliberately turn the Coach on or tap
+  Connect Oura.
 
 Notably **absent**:
 
-- `com.apple.security.network.client` — **no outbound network entitlement.** The macOS
-  sandbox will refuse any socket the app tries to open, **including the AI Coach's**. So
-  on the sandboxed macOS build the AI Coach cannot reach the network as currently
-  shipped — the whole macOS app, Coach included, is offline. (Android has no equivalent
-  sandbox restriction, so the AI Coach's call works there with your own key. The iOS app
-  shares the same Swift Coach code; whether its Coach can reach the network depends on
-  that build's own entitlements.) Turning the macOS Coach on would mean adding this
-  entitlement; until that's a deliberate choice, it stays out and macOS stays fully
-  offline.
 - `com.apple.security.network.server` — no inbound listener.
 - No `files.downloads`, `files.documents`, or any broad filesystem entitlement —
   the app cannot wander the disk; it sees only what the user hands it through the
   open panel, plus its own sandbox container.
 
-This is the structural guarantee behind "offline by design" on macOS: the privacy
+This is the structural guarantee behind "offline by design" on macOS: the sandbox
+permits exactly the two deliberate, opt-in exceptions above and nothing else — no
+undeclared entitlement could smuggle out a connection the user didn't ask for. The
 property is enforced by the OS, not merely by convention.
 
 > **Note on Hardened Runtime.** `project.yml` currently sets
@@ -439,14 +497,20 @@ dedicated source id `nutrition-csv`, alongside your other metrics and entirely o
 
 ## 4. What NOOP does *not* collect or transmit
 
-- **No accounts, no login.** Nothing to sign into; no credentials
-  stored.
+- **No NOOP account, no NOOP login.** Nothing to sign into with NOOP itself; NOOP
+  issues no credentials of its own. The one exception is opt-in: the Oura history import
+  (§1.1b) has *you* sign into *your own* Oura account, at Oura's own login page, over
+  OAuth — NOOP never sees your Oura password, only the resulting tokens, kept in the
+  Keychain.
 - **No telemetry / analytics / crash reporting.** No third-party SDKs of that kind.
-- **No cloud, no sync, no remote backup.** Your data never leaves the machine via
-  NOOP.
+- **No cloud, no sync, no remote backup of NOOP's own data.** Your NOOP data never
+  leaves the machine via NOOP. The Oura history import (§1.1b) is the one path that
+  reaches a cloud service, and it is **inbound only** — it pulls your own Oura data in;
+  it does not sync or back up any NOOP data out.
 - **No advertising identifiers, no tracking.**
 - **No WHOOP account or API credentials.** NOOP talks only to the strap over local
-  BLE; it does not authenticate against, or pull from, any WHOOP server.
+  BLE; it does not authenticate against, or pull from, any WHOOP server. (Oura is the
+  one account-based exception — see above and §1.1b.)
 
 ---
 
@@ -454,7 +518,8 @@ dedicated source id `nutrition-csv`, alongside your other metrics and entirely o
 
 | Surface | Risk | Mitigation | Where |
 |---------|------|------------|-------|
-| Process | Data exfiltration / network egress | Only the opt-in AI Coach networks (your key, to your chosen provider, a text summary — §1.1a) — nothing else makes a network call, and nothing is sent until you ask. The Coach's call works on Android (and on iOS if that build's entitlements allow it), but is **blocked by the macOS App Sandbox as shipped** (no `network.client` entitlement — §1.2), so macOS stays fully offline | `Strand/AI/AICoach.swift`, `android/.../ai/AiCoach.kt` |
+| Process | Data exfiltration / network egress | Only two opt-in features network: the AI Coach (your key, to your chosen provider, a text summary — §1.1a) and the Oura history import (your own OAuth app, to `api.ouraring.com`, inbound-only — §1.1b). Nothing else makes a network call, and nothing is sent until you ask. Both work on Android/iOS where shipped (Android's Oura support is local-BLE only, no cloud lane); on macOS both cross the sandbox on the same `network.client` entitlement, present since #128 (§1.2) | `Strand/AI/AICoach.swift`, `Strand/Oura/`, `android/.../ai/AiCoach.kt` |
+| Oura history import | OAuth token / scope leakage, cross-account data mixing | Compiled out by default (`OURA_CLOUD_IMPORT`, §1.1b); tokens Keychain-only (`kSecAttrAccessibleAfterFirstUnlock`, never UserDefaults/plist); fixed OAuth scopes set at build time; raw + normalized rows partitioned under `deviceId = "oura-api"`; Oura's own scores kept reference-only (`ref_*`/`oura_*` metricSeries keys, never NOOP's Charge/Effort/Rest); `.cloudImport` is structurally priority-2 so it never seizes a WHOOP day; Forget Oura access purges tokens + every `oura-api` row incl. the raw archive | `Strand/Oura/OuraTokenStore.swift`, `Strand/Oura/OuraConnectModel.swift`, `Packages/WhoopStore/Sources/WhoopStore/OuraRawStore.swift` |
 | Filesystem | Broad disk access | Only `files.user-selected.read-write`; data stays in the sandbox container | `Strand.entitlements`, `Strand/Collect/StorePaths.swift` |
 | BLE frames | Malformed / adversarial packets | CRC8 + CRC32 (+ CRC16 for v5) gating; reject on failure | `WhoopProtocol/Framing.swift`, `Strand/BLE/FrameRouter.swift` |
 | BLE frames | Out-of-bounds reads from short/lying length | `nil`-returning bounds-checked readers; slice clamping; min-length guards | `WhoopProtocol/Interpreter.swift` |

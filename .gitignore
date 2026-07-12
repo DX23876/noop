@@ -95,3 +95,6 @@ __pycache__/
 # Local release artifacts (zips/ipas built for upload; never tracked)
 dist/
 err.txt
+
+# Oura OAuth app credentials (BYO; never committed)
+Strand/Oura/OuraSecrets.xcconfig
