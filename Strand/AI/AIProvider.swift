@@ -103,6 +103,65 @@ enum AIProvider: String, CaseIterable, Identifiable {
         while base.hasSuffix("/") { base.removeLast() }
         return URL(string: base + path) ?? URL(string: "http://localhost" + path)!
     }
+
+    /// #321 gatekeeper for the Custom (local LLM) provider — the byte-parity twin of Android
+    /// `AiCoach.guardCustomUrl` (#187), which Swift was previously missing. `https://` is always fine;
+    /// plain `http://` is allowed ONLY to a private-network host (loopback / RFC-1918 / link-local /
+    /// `*.local`), so a public cleartext endpoint can never egress. Throws `AICoachError.badCustomURL`
+    /// with an actionable message on rejection. Called by `CustomClient.send` + `fetchModels`, i.e. on
+    /// BOTH Custom network paths (mirrors Kotlin `customChatUrl` / `customModelsUrl`).
+    static func guardCustomBaseURL() throws {
+        let base = customBaseURL   // already trimmed / trailing-slash-stripped by the accessor
+        guard let comps = URLComponents(string: base),
+              let host = comps.host, !host.isEmpty,
+              let scheme = comps.scheme?.lowercased(), !scheme.isEmpty else {
+            throw AICoachError.badCustomURL(
+                "That server URL isn't valid. Use http://<host>:<port> for a local server, or https://… for a remote one.")
+        }
+        if scheme == "https" { return }
+        guard scheme == "http" else {
+            throw AICoachError.badCustomURL(
+                "Unsupported URL scheme \"\(scheme)\". Use http:// for a local server or https:// for a remote one.")
+        }
+        guard isPrivateLANOrLoopback(host) else {
+            throw AICoachError.badCustomURL(
+                "Plain http:// is only allowed to a local-network server (localhost, 10.x, 172.16-31.x, "
+                + "192.168.x, 169.254.x, or a .local name). Use https:// to reach \"\(host)\".")
+        }
+    }
+
+    /// True when `host` is on the device's own machine or its private LAN, so plain `http://` to it never
+    /// crosses the public internet: loopback (localhost / 127.0.0.0/8 / ::1), RFC-1918 (10/8, 172.16/12,
+    /// 192.168/16), link-local (169.254/16 / fe80::/10), fc00::/7 ULA, and any `*.local` mDNS name.
+    /// Byte-identical decisions to Android `AiCoach.isPrivateLanOrLoopback`.
+    static func isPrivateLANOrLoopback(_ host: String) -> Bool {
+        let raw = host.trimmingCharacters(in: .whitespacesAndNewlines)   // match Kotlin String.trim()
+        let h = raw.trimmingCharacters(in: CharacterSet(charactersIn: "[]")).lowercased()
+        if h.isEmpty { return false }
+        // Only apply the fc/fd/fe80 classification to a real IPv6 LITERAL (bracketed, or contains a colon),
+        // so a public NAME like "fclient.evil.com" can't be mistaken for a ULA and allowed cleartext.
+        let isIPv6Literal = raw.hasPrefix("[") || h.contains(":")
+        if isIPv6Literal {
+            if h == "::1" { return true }
+            if h.hasPrefix("fc") || h.hasPrefix("fd") || h.hasPrefix("fe80:") { return true }
+            return false
+        }
+        if h == "localhost" || h.hasSuffix(".localhost") { return true }
+        if h.hasSuffix(".local") && h.count > ".local".count { return true }
+        let parts = h.split(separator: ".", omittingEmptySubsequences: false).map(String.init)
+        if parts.count != 4 { return false }
+        let octets = parts.map { Int($0) ?? -1 }
+        if octets.contains(where: { $0 < 0 || $0 > 255 }) { return false }
+        let a = octets[0], b = octets[1]
+        switch true {
+        case a == 127: return true                       // 127.0.0.0/8 loopback
+        case a == 10: return true                        // 10.0.0.0/8
+        case a == 172 && (16...31).contains(b): return true  // 172.16.0.0/12
+        case a == 192 && b == 168: return true           // 192.168.0.0/16
+        case a == 169 && b == 254: return true           // 169.254.0.0/16 link-local
+        default: return false
+        }
+    }
 }
 
 // MARK: - Provider protocol

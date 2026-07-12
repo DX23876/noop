@@ -13,6 +13,7 @@ struct CustomClient: AIProviderClient {
         messages: [(role: ChatMessage.Role, content: String)],
         session: URLSession
     ) async throws -> String {
+        try AIProvider.guardCustomBaseURL()   // #321: reject a public cleartext Custom URL before egress
         var wire: [[String: Any]] = [["role": "system", "content": systemPrompt]]
         for m in messages { wire.append(["role": m.role.rawValue, "content": m.content]) }
 
@@ -57,6 +58,7 @@ struct CustomClient: AIProviderClient {
     }
 
     func fetchModels(key: String, session: URLSession) async throws -> [String] {
+        try AIProvider.guardCustomBaseURL()   // #321: reject a public cleartext Custom URL before egress
         var req = URLRequest(url: AIProvider.custom.modelsEndpoint)
         req.httpMethod = "GET"
         if !key.isEmpty { req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization") }

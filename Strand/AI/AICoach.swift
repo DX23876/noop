@@ -116,9 +116,12 @@ enum AICoachError: LocalizedError {
     case network(String)
     case decode
     case keySaveFailed
+    case badCustomURL(String)
 
     var errorDescription: String? {
         switch self {
+        case .badCustomURL(let message):
+            return message
         case .noKey:
             return "Add your own API key first to use the coach."
         case .keySaveFailed:
