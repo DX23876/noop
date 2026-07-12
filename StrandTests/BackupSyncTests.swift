@@ -86,6 +86,30 @@ final class BackupSyncTests: XCTestCase {
         XCTAssertFalse(pruned.contains(dateOnly))   // hand-named backup never auto-deleted
     }
 
+    // MARK: - iCloud Drive not-yet-downloaded placeholder names resolve to the real name (#278)
+
+    func testICloudPlaceholderRealName() {
+        XCTAssertEqual(
+            BackupSync.iCloudPlaceholderRealName(".noop-backup-20260710-093000.noopbak.icloud"),
+            "noop-backup-20260710-093000.noopbak")
+        XCTAssertEqual(BackupSync.iCloudPlaceholderRealName(".whatever-i-named-it.noopbak.icloud"),
+                        "whatever-i-named-it.noopbak")
+        XCTAssertNil(BackupSync.iCloudPlaceholderRealName("noop-backup-20260710-093000.noopbak")) // not a placeholder
+        XCTAssertNil(BackupSync.iCloudPlaceholderRealName(".DS_Store"))                            // dotfile, no .icloud suffix
+        XCTAssertNil(BackupSync.iCloudPlaceholderRealName("photo.jpg.icloud"))                     // .icloud suffix, no leading dot
+        XCTAssertNil(BackupSync.iCloudPlaceholderRealName(".icloud"))                               // nothing but the marker itself
+    }
+
+    func testRestorablesResolveICloudPlaceholders() {
+        // The I/O layer (FolderBackup.listSnapshots) maps raw names through iCloudPlaceholderRealName
+        // before handing them to this pure function - simulate that here so a not-yet-downloaded
+        // backup still appears in the restore list under its real name.
+        let placeholder = ".noop-backup-20260710-093000.noopbak.icloud"
+        let resolved = BackupSync.iCloudPlaceholderRealName(placeholder) ?? placeholder
+        let out = BackupSync.restorablesNewestFirst([resolved], fileDateMs: { _ in 0 })
+        XCTAssertEqual(out.map(\.name), ["noop-backup-20260710-093000.noopbak"])
+    }
+
     func testRestorablesTieBreakOnNameWhenTimesEqual() {
         // Two hand-named files that resolve to the SAME time (identical file-modification date) must order
         // deterministically by name asc - the same tie-break Kotlin uses - so equal-time rows list

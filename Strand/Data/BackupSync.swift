@@ -60,6 +60,20 @@ enum BackupSync {
         name.lowercased().hasSuffix(suffix)
     }
 
+    /// A `.noopbak` sitting in an iCloud Drive folder that hasn't been downloaded to THIS Mac/iPhone
+    /// yet is listed by the filesystem under a placeholder name - a leading dot plus an `.icloud`
+    /// suffix, e.g. `noop-backup-....noopbak` becomes `.noop-backup-....noopbak.icloud` - instead of
+    /// its real name. Unresolved, that placeholder silently fails `isBackupFile` and the restore list
+    /// shows nothing even though Finder shows the file (#278: cross-device restore via iCloud Drive,
+    /// the workflow the folder-picker screen itself recommends). Returns the real name, or nil if
+    /// `name` isn't a placeholder.
+    static func iCloudPlaceholderRealName(_ name: String) -> String? {
+        let iCloudSuffix = ".icloud"
+        guard name.hasPrefix("."), name.hasSuffix(iCloudSuffix),
+              name.count > 1 + iCloudSuffix.count else { return nil }
+        return String(name.dropFirst().dropLast(iCloudSuffix.count))
+    }
+
     /// Newest snapshot by encoded time (non-snapshots ignored), or nil.
     static func latestSnapshot(_ names: [String]) -> String? {
         names.filter(isSnapshot).max { (snapshotTimeMs($0) ?? 0) < (snapshotTimeMs($1) ?? 0) }
@@ -283,9 +297,15 @@ enum FolderBackup {
         guard let folder = resolveFolder() else { return [] }
         let scoped = folder.startAccessingSecurityScopedResource()
         defer { if scoped { folder.stopAccessingSecurityScopedResource() } }
-        let names = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
+        let rawNames = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
+        // #278: a `.noopbak` iCloud hasn't downloaded to this Mac/iPhone yet is listed under a
+        // placeholder name; resolve it back to its real name so it still shows in the restore list
+        // (see `BackupSync.iCloudPlaceholderRealName`). `restore(snapshotNamed:)` resolves the same
+        // way and kicks off the download if the user picks one that's still a placeholder on disk.
+        let names = rawNames.map { BackupSync.iCloudPlaceholderRealName($0) ?? $0 }
         let fileDateMs: (String) -> Int = { name in
-            let url = folder.appendingPathComponent(name)
+            let onDisk = rawNames.contains(name) ? name : ("." + name + ".icloud")
+            let url = folder.appendingPathComponent(onDisk)
             let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
             guard let modified else { return 0 }
             return Int((modified.timeIntervalSince1970 * 1000.0).rounded())
@@ -306,8 +326,26 @@ enum FolderBackup {
         let scoped = folder.startAccessingSecurityScopedResource()
         defer { if scoped { folder.stopAccessingSecurityScopedResource() } }
         let source = folder.appendingPathComponent(name)
+        var wasPlaceholder = false
+        if !FileManager.default.fileExists(atPath: source.path) {
+            // #278: `name` came from the (already de-placeholdered) restore list, so if it's not on
+            // disk under its real name it may still be an undownloaded iCloud placeholder. Kick off
+            // the download and give it a short window to land - this runs off the main thread (the
+            // screen calls `restore` from a detached Task), so blocking here doesn't freeze the UI.
+            let placeholder = folder.appendingPathComponent("." + name + ".icloud")
+            if FileManager.default.fileExists(atPath: placeholder.path) {
+                wasPlaceholder = true
+                try? FileManager.default.startDownloadingUbiquitousItem(at: placeholder)
+                let deadline = Date().addingTimeInterval(15)
+                while !FileManager.default.fileExists(atPath: source.path), Date() < deadline {
+                    Thread.sleep(forTimeInterval: 0.5)
+                }
+            }
+        }
         guard FileManager.default.fileExists(atPath: source.path) else {
-            return .failure("That backup is no longer in your folder.")
+            return .failure(wasPlaceholder
+                ? "That backup is still downloading from iCloud - wait a moment and try again."
+                : "That backup is no longer in your folder.")
         }
         return DataBackup.restore(from: source)
     }
