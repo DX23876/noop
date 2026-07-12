@@ -260,27 +260,17 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     /// previously persisted that byte-count as a "cursor" and compared it across sessions as a clock,
     /// minting a phantom "ring-time regression" → reset-to-0 → full re-dump on every connect.
     private var historyCursor: UInt32 = 0
-    /// Absolute ceiling for a plausible resume ring-time: ~1.6 years of ticks. Observed real envelope
-    /// ring-times are ~1.7M (days of uptime); anything above this is a corrupt value that must never be
-    /// seeked to or persisted. Bounds the cursor at the source.
-    private static let maxPlausibleResumeTicks: UInt32 = 500_000_000
-    /// The cursor we resumed FROM at the start of the current fetch, kept to detect a genuine ring
-    /// reboot: a real stored sample OLDER than where we sought means the ring's clock reset (or it
-    /// ignored the seek), so the persisted cursor is stale → full pull next connect.
+    /// The pure, unit-tested drain + resume-cursor decision core (#291): the stall/deadline guards, the
+    /// stored-ring-time high-water mark, the reboot flag, the cursor-commit and loaded-cursor-sanitize
+    /// decisions, and the plausibility ceiling. OuraLiveSource keeps only the I/O — anchor resolution,
+    /// persistence, logging, and the `historyCursorAdvanced` emit — and delegates every decision here so
+    /// they can't silently regress in a refactor again (they did once: #91 → #291). See OuraHistoryDrainTests.
+    private var drain = OuraHistoryDrain()
+    /// The cursor we resumed FROM at the start of the current fetch — passed into `drain.noteStoredRingTime`
+    /// so a real stored sample OLDER than it flags a genuine ring reboot (clock reset / seek ignored).
     private var resumeCursorAtFetchStart: UInt32 = 0
-    private var sawPreResumeData = false
-    /// Newest STORED history sample's ring-time this drain — the value the resume cursor commits to at
-    /// completion. Advanced only by samples that resolved a REAL anchored time (never wall-clock guesses).
-    private var maxStoredRingTime: UInt32 = 0
-    // Drain safety guards (backstops only — a healthy drain ends at bytes_left == 0):
-    /// Wall-clock start of the current drain; a drain running past `maxDrainSeconds` is force-stopped.
+    /// Wall-clock start of the current drain; `drain`'s deadline guard force-stops one running too long.
     private var drainStartedAt: Date?
-    /// Smallest bytes_left seen this drain + how many consecutive summaries made no progress against it.
-    /// `bytes_left` not shrinking for `maxStallSummaries` straight summaries = the ring is looping, stop.
-    private var minBytesLeftSeen: UInt32 = .max
-    private var drainStallCount = 0
-    private let maxDrainSeconds: TimeInterval = 300
-    private let maxStallSummaries = 3
     /// Periodic re-fetch while connected, so an overnight-connected session (or one left open after a nap)
     /// picks up freshly-banked sleep data without needing a reconnect. Mirrors BLEManager's ~15 min
     /// periodic WHOOP history-offload floor.
@@ -295,12 +285,9 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         // Arm the per-drain state: where we sought from (reboot detection), the stored-sample high-water
         // mark the cursor will commit from, and the stall/deadline guards.
         resumeCursorAtFetchStart = historyCursor
-        sawPreResumeData = false
-        maxStoredRingTime = 0
         drainStartedAt = Date()
-        minBytesLeftSeen = .max
-        drainStallCount = 0
-        log("Oura: fetching history from cursor \(historyCursor) (\(describeCursor(historyCursor))) [cursor-fix v1]")
+        drain.reset()
+        log("Oura: fetching history from cursor \(historyCursor) (\(describeCursor(historyCursor))) [cursor-fix]")
         advance(.startHistoryFetch(cursor: historyCursor))
     }
 
@@ -328,26 +315,15 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     /// now-stale ring-time. Stall/deadline guards are backstops only; they force-stop the drain but keep
     /// whatever forward progress was banked (never reset to 0 — that re-arms the loop).
     private func handleHistorySummary(_ summary: (eventsReceived: UInt8, bytesLeft: UInt32, moreData: Bool)) {
-        var continueDrain = summary.moreData
-        if continueDrain {
-            // Stall guard: bytes_left must shrink across summaries. A ring that keeps answering with no
-            // progress is looping; stop after maxStallSummaries flat reads instead of draining forever.
-            if summary.bytesLeft < minBytesLeftSeen {
-                minBytesLeftSeen = summary.bytesLeft
-                drainStallCount = 0
-            } else {
-                drainStallCount += 1
-                if drainStallCount >= maxStallSummaries {
-                    log("Oura: history drain force-stopped - bytes_left stalled at \(summary.bytesLeft) for \(drainStallCount) summaries (guard)")
-                    continueDrain = false
-                }
-            }
-            // Deadline guard: a healthy full pull completes in ~1-2 min; past maxDrainSeconds something
-            // is wrong upstream - stop, keep progress, let the periodic re-fetch try again later.
-            if continueDrain, let started = drainStartedAt, Date().timeIntervalSince(started) > maxDrainSeconds {
-                log("Oura: history drain force-stopped - exceeded \(Int(maxDrainSeconds))s deadline with bytes_left \(summary.bytesLeft) (guard)")
-                continueDrain = false
-            }
+        // Stall + deadline backstops (a healthy drain ends at bytes_left 0, where moreData is false).
+        let elapsed = drainStartedAt.map { Date().timeIntervalSince($0) } ?? 0
+        let continueDrain = drain.onSummary(bytesLeft: summary.bytesLeft, moreData: summary.moreData,
+                                            elapsedSeconds: elapsed)
+        if summary.moreData, !continueDrain {
+            let reason = elapsed > OuraHistoryDrain.maxDrainSeconds
+                ? "exceeded \(Int(OuraHistoryDrain.maxDrainSeconds))s deadline"
+                : "bytes_left stalled"
+            log("Oura: history drain force-stopped - \(reason) at bytes_left \(summary.bytesLeft) (guard)")
         }
         if !continueDrain {
             commitResumeCursor(drainCompleted: !summary.moreData)
@@ -362,19 +338,19 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     /// a reboot (`sawPreResumeData`) resets to 0 so next connect does an honest full pull.
     private func commitResumeCursor(drainCompleted: Bool) {
         let how = drainCompleted ? "caught up (bytes_left 0)" : "stopped early"
-        if sawPreResumeData {
+        let resolves = drain.maxStoredRingTime > 0
+            && (driver?.unixSeconds(forRingTimestamp: drain.maxStoredRingTime) != nil)
+        let newCursor = drain.resumeCursorAtDrainEnd(currentCursor: historyCursor, resolvesUnderAnchor: resolves)
+        if drain.sawPreResumeData {
             log("Oura: history \(how) but the ring served data older than cursor \(resumeCursorAtFetchStart) - clock reset/seek ignored; next connect does a full pull")
             historyCursor = 0
             OuraHistoryCursorStore.save(0, deviceId: deviceId)
-            return
-        }
-        let resolves = maxStoredRingTime > 0 && (driver?.unixSeconds(forRingTimestamp: maxStoredRingTime) != nil)
-        if maxStoredRingTime > historyCursor, resolves {
-            historyCursor = maxStoredRingTime
-            OuraHistoryCursorStore.save(maxStoredRingTime, deviceId: deviceId)
+        } else if newCursor != historyCursor {
+            historyCursor = newCursor
+            OuraHistoryCursorStore.save(newCursor, deviceId: deviceId)
             log("Oura: history \(how) - resume cursor advanced to \(historyCursor) [\(describeCursor(historyCursor))]")
-        } else if maxStoredRingTime > historyCursor {
-            log("Oura: history \(how) but resume candidate \(maxStoredRingTime) does not resolve under the current anchor - keeping cursor \(historyCursor)")
+        } else if drain.maxStoredRingTime > historyCursor {
+            log("Oura: history \(how) but resume candidate \(drain.maxStoredRingTime) does not resolve under the current anchor - keeping cursor \(historyCursor)")
         } else {
             log("Oura: history \(how) (resume cursor unchanged \(historyCursor) [\(describeCursor(historyCursor))])")
         }
@@ -386,9 +362,7 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     private func noteStoredHistoryRingTime(_ rt: UInt32) {
         // A ring-time above the plausibility ceiling is corrupt; letting it set the resume cursor would
         // seek the next session into nonsense. Bounds the cursor at the source.
-        guard rt <= Self.maxPlausibleResumeTicks else { return }
-        if rt > maxStoredRingTime { maxStoredRingTime = rt }
-        if resumeCursorAtFetchStart > 0, rt < resumeCursorAtFetchStart { sawPreResumeData = true }
+        drain.noteStoredRingTime(rt, resumeCursorAtFetchStart: resumeCursorAtFetchStart)
     }
 
     /// Log the per-day MET-derived activity estimate + the empirical cadence cross-check at drain-end.
@@ -555,12 +529,9 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         activityCadenceObs.removeAll()
         lastActivityUtc = nil
         lastActivitySampleCount = 0
-        maxStoredRingTime = 0
+        drain.reset()
         resumeCursorAtFetchStart = 0
-        sawPreResumeData = false
         drainStartedAt = nil
-        minBytesLeftSeen = .max
-        drainStallCount = 0
         reachedStreaming = false
         pendingInstallKey = nil
         adoptPhase = .idle
@@ -1027,20 +998,17 @@ extension OuraLiveSource: @preconcurrency CBCentralManagerDelegate {
         adoptPhase = .idle
         reassembler.reset()
         // Per-drain cursor state starts clean each session (fetchHistoryIfIdle re-arms it per drain).
-        maxStoredRingTime = 0
+        drain.reset()
         resumeCursorAtFetchStart = 0
-        sawPreResumeData = false
         drainStartedAt = nil
-        minBytesLeftSeen = .max
-        drainStallCount = 0
         // Resume the GetEvents cursor from where the LAST connection to this ring left off (s5.1/5.3), so
         // a routine reconnect doesn't re-fetch the ring's entire banked history every time. A persisted
         // value above the plausibility ceiling is garbage banked by a pre-fix build (a bytes_left count or
         // a misframe-era ring-time) - seeking to it would starve the fetch; reset to a full pull instead.
-        historyCursor = OuraHistoryCursorStore.read(deviceId: deviceId)
-        if historyCursor > Self.maxPlausibleResumeTicks {
-            log("Oura: persisted resume cursor \(historyCursor) exceeds the plausibility ceiling (pre-fix garbage) - full pull")
-            historyCursor = 0
+        let loadedCursor = OuraHistoryCursorStore.read(deviceId: deviceId)
+        historyCursor = OuraHistoryDrain.sanitizeLoadedCursor(loadedCursor)
+        if historyCursor != loadedCursor {
+            log("Oura: persisted resume cursor \(loadedCursor) exceeds the plausibility ceiling (pre-fix garbage) - full pull")
             OuraHistoryCursorStore.save(0, deviceId: deviceId)
         }
         peripheral.discoverServices([Self.service])
