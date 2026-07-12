@@ -705,6 +705,18 @@ class WhoopBleClient(
         }
 
         /**
+         * #312: when the write queue DROPS a frame after [MAX_WRITE_RETRIES] busy-retries, should the
+         * realtime stream be re-armed? True ONLY for [CommandNumber.TOGGLE_REALTIME_HR] — that write enables
+         * live R-R (→ HRV / Autonomic), and reconcileRealtime latched `realtimeArmed` optimistically when it
+         * queued the write, so a silent drop leaves R-R off with no re-send (plain HR keeps flowing on the
+         * standard 0x2A37 profile — the exact #312 symptom on a 5/MG whose toggle lost a GATT-write race).
+         * Every other dropped frame (haptics, offload-ack, clock, …) has its own recovery and must NOT poke
+         * the realtime latch. Pure + instance-free so the unit harness can pin it without a live GATT stack.
+         */
+        fun shouldReArmRealtimeAfterDrop(droppedCmd: CommandNumber?): Boolean =
+            droppedCmd == CommandNumber.TOGGLE_REALTIME_HR
+
+        /**
          * The LiveState the teardown path publishes after the link drops (#314). Pure model of the
          * `connected = false` + biometrics-cleared transition so a test can assert the UI flips to
          * disconnected without a live instance. Mirrors what `handleDisconnect` applies via
@@ -1508,7 +1520,7 @@ class WhoopBleClient(
      * leaned on CoreBluetooth's internal queue; here we serialise writes ourselves. Each queued
      * item is the fully-framed byte array + its write type (with/without response).
      */
-    private data class PendingWrite(val frame: ByteArray, val withResponse: Boolean)
+    private data class PendingWrite(val frame: ByteArray, val withResponse: Boolean, val cmd: CommandNumber? = null)
     private val writeQueue = ConcurrentLinkedQueue<PendingWrite>()
     // @Volatile: read on the main looper in drainWriteQueue but CLEARED from the GATT binder thread in the
     // write-completion callbacks - the barrier guarantees the main-thread drain sees the flag flip promptly
@@ -2036,14 +2048,14 @@ class WhoopBleClient(
                 byteArrayOf(0x01, 47, 152.toByte(), 0, 0, 0, 0, 0, 0, 0, 0, 0) else payload
             val s = seq.incrementAndGet() and 0xFF
             val frame = Framing.puffinCommandFrame(cmd = puffinCmd, seq = s, payload = puffinPayload)
-            enqueueWrite(PendingWrite(frame, withResponse))
+            enqueueWrite(PendingWrite(frame, withResponse, cmd))
             val cmdNote = if (isHaptics) " cmd=0x13" else ""
             log("→ ${cmd.name} payload=${puffinPayload.toHex()} (puffin$cmdNote)")
             return
         }
         val s = seq.incrementAndGet() and 0xFF
         val frame = Framing.buildCommand(cmd, payload, s)
-        enqueueWrite(PendingWrite(frame, withResponse))
+        enqueueWrite(PendingWrite(frame, withResponse, cmd))
         log("→ ${cmd.name} payload=${payload.toHex()}")
     }
 
@@ -4313,6 +4325,19 @@ class WhoopBleClient(
             } else {
                 // Genuinely stuck after several tries — drop this one frame so it can't wedge the queue.
                 log("writeCharacteristic rejected by stack; dropping one frame (after $MAX_WRITE_RETRIES retries)")
+                // #312: a dropped TOGGLE_REALTIME_HR would leave live R-R (→ HRV / Autonomic) off FOREVER.
+                // Whoever queued it latched [realtimeArmed] = the value it SENT (reconcileRealtime, or the
+                // direct arm-on-connect / keep-alive paths), so it — and the 30s keep-alive tick that also
+                // reconciles — see no edge (want == armed) and never re-send, while plain HR keeps flowing
+                // over the standard 0x2A37 profile. But the write never reached the strap, so the strap's
+                // TRUE state is the OPPOSITE of the latched value — flip it back, and the next keep-alive
+                // reconcile detects the edge and re-sends the CURRENT want (recovers a dropped ARM *or* a
+                // dropped disarm) within ~30s. Bounded by construction: the re-send rides the keep-alive
+                // cadence, not this drop path, so a persistently-busy stack retries once per tick, never in a loop.
+                if (shouldReArmRealtimeAfterDrop(item.cmd)) {
+                    realtimeArmed = !realtimeArmed
+                    log("realtime toggle dropped — reconciling on the next keep-alive tick (#312)")
+                }
                 writeRetries = 0
                 drainWriteQueue()
             }
