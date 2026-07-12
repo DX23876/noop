@@ -7,7 +7,7 @@ enum AppChangelog {
 
     /// Bump this when you add a release below. The "What's New" sheet shows automatically when the
     /// stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
-    static let currentVersion = "8.6.2"
+    static let currentVersion = "8.7.0"
 
     struct Release: Identifiable {
         let version: String
@@ -19,6 +19,18 @@ enum AppChangelog {
 
     /// Newest first.
     static let releases: [Release] = [
+        Release(
+            version: "8.7.0",
+            title: "A sync chip on Today, clearer strap-clock warnings, and complete German",
+            date: "July 2026",
+            items: [
+                "**See your strap syncing at a glance (#245).** The Today screen now shows a small sync chip for everyone — a spinner with a live count while your strap's history downloads, and when it last synced the rest of the time — so you can tell it's working without opening the Live screen. iPhone, Mac and Android.",
+                "**A clear warning when your strap's clock is wrong (#324).** A strap whose clock is set far in the future had NOOP quietly importing nothing from it; NOOP now says plainly that the clock is off and how to fix it — fully charge the strap to 100%, then power-cycle it. iPhone, Mac and Android.",
+                "**Smart wake alarm arms more reliably (#34).** On WHOOP 4.0 the firmware wake alarm is now set only once the strap connection has fully settled, so the alarm time reliably reaches the strap instead of being sent before the link was ready. Thanks digitalerdude.",
+                "**Tidier menus (#336).** Removed settings that appeared in two places at once, renamed the two \"Broadcast heart rate\" toggles so you can tell them apart (strap broadcast for Garmin/ANT vs. broadcasting from your phone), and moved developer-only controls into the Test Centre. Nothing lost its home. Thanks tanarchytan.",
+                "**Complete German translation (#326).** German text that was missing across charts, shared screens and the Apple Watch app is filled in, so German users no longer see English fragments mid-screen. Thanks digitalerdude.",
+            ]
+        ),
         Release(
             version: "8.6.2",
             title: "Apple Health export, sleep nights recovered, and imported-ride Effort",
