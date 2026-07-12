@@ -146,6 +146,30 @@ enum ChargeBreakdownFormat {
         case .warmer:  return String(localized: "Warmer than your baseline")
         }
     }
+
+    // MARK: - Deep-sleep HRV window gap (#233)
+
+    /// True when a night's empty Charge is explained by the Deep-sleep HRV window finding no deep-stage
+    /// sleep, rather than a generic missing-data gap. Charge needs a nightly HRV value (`avgHrv`); under
+    /// the Deep window that value pools RMSSD over 5-min deep-stage windows only and is nil when the
+    /// night banks under ~5 minutes of deep sleep (WHOOP 4.0 deep staging is often sparse/absent).
+    /// `deepMin` is the night's OWN already-computed deep-sleep minutes, so this is a read-only
+    /// presentation check over existing fields, not a new analytics path. Pure.
+    static func chargeDeepWindowGap(hrvWindow: HrvWindow, avgHrv: Double?, deepMin: Double?) -> Bool {
+        hrvWindow == .deep && avgHrv == nil && (deepMin ?? 0) < 5
+    }
+
+    /// The short title for the #233 deep-window gap note.
+    static let chargeDeepWindowGapTitle = String(localized: "No deep sleep detected")
+
+    /// The explanatory detail + next step: names the cause (Deep window, no deep sleep that night) and
+    /// the two ways out, rather than leaving an unexplained blank ring.
+    static let chargeDeepWindowGapDetail = String(localized: "The Deep sleep HRV window needs a night with deep-stage sleep to score Charge. Switch to Whole night in Settings, or wait for a night with more deep sleep.")
+
+    /// VoiceOver plain string (title + detail).
+    static var chargeDeepWindowGapAccessibility: String {
+        "\(chargeDeepWindowGapTitle). \(chargeDeepWindowGapDetail)"
+    }
 }
 
 // MARK: - A3: confidence dot + tier tag pill

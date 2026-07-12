@@ -209,6 +209,10 @@ struct TodayView: View {
     // Effort display scale (#268), drives the Effort tile's value + caption. Display-only.
     @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
     private var effortScale: EffortScale { UnitPrefs.resolveEffortScale(effortScaleRaw) }
+    // #233: the HRV window setting, read here only to explain (never recompute) an empty Charge ring
+    // caused by the Deep window finding no deep-stage sleep. Same key/default SettingsView reads.
+    @AppStorage(UnitPrefs.hrvWindowKey) private var hrvWindowRaw = HrvWindow.whole.rawValue
+    private var hrvWindow: HrvWindow { HrvWindow(rawValue: hrvWindowRaw) ?? .whole }
 
     // Editable Key-Metrics layout (#251), an ordered list of the enabled tiles, persisted display-only.
     // Empty/unset shows the full default order. The "Edit" affordance on the section opens a local sheet.
@@ -1630,15 +1634,22 @@ struct TodayView: View {
             // banner sandwiched above the rings. The three clean rings lead the screen directly.
             scoreHeroRow(d: d, score: score)
 
-            // Component 2, when Charge has no real today value, an explained state with its detail +
-            // next step replaces a bare blank, sitting directly under the rings. The CALIBRATING case is
-            // already richly explained by the data-confidence pill + calibration Synthesis card + the ring
-            // overlay below, so the note shows for the two states the existing UI doesn't spell out a next
-            // step for, "Last night · <date>" (carry-over) and "Needs the strap", keeping the hero from
-            // saying "calibrating" twice in two phrasings. `.scored` renders nothing (the ring has the
-            // value). TODAY-only: the "No data for today" copy would be wrong on a navigated past day, and
-            // a past day with no score is missing data the user can't act on now, so it keeps a bare ring.
-            if selectedDayOffset == 0 && !chargeScoreState.isCalibrating {
+            // #233: when THIS specific day's empty Charge is explained by the Deep-sleep HRV window
+            // finding no deep-stage sleep, say so plainly instead of an unexplained blank ring. Checked
+            // BEFORE the generic Component-2 note (and on every day, not just today): unlike an ordinary
+            // "missing data" gap, here the exact cause and the fix are known, so a past day gets the same
+            // honest explanation rather than the usual silent bare ring.
+            if chargeDeepWindowGap {
+                chargeDeepWindowGapNote
+            } else if selectedDayOffset == 0 && !chargeScoreState.isCalibrating {
+                // Component 2, when Charge has no real today value, an explained state with its detail +
+                // next step replaces a bare blank, sitting directly under the rings. The CALIBRATING case is
+                // already richly explained by the data-confidence pill + calibration Synthesis card + the ring
+                // overlay below, so the note shows for the two states the existing UI doesn't spell out a next
+                // step for, "Last night · <date>" (carry-over) and "Needs the strap", keeping the hero from
+                // saying "calibrating" twice in two phrasings. `.scored` renders nothing (the ring has the
+                // value). TODAY-only: the "No data for today" copy would be wrong on a navigated past day, and
+                // a past day with no score is missing data the user can't act on now, so it keeps a bare ring.
                 explainedScoreNote(chargeScoreState)
             }
 
@@ -1663,6 +1674,40 @@ struct TodayView: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.97)))
             }
         }
+    }
+
+    /// #233: whether the SELECTED day's empty Charge is explained by the Deep-sleep HRV window finding no
+    /// deep-stage sleep that night (see `ChargeBreakdownFormat.chargeDeepWindowGap`). Reads only fields
+    /// `displayDay` already carries (`avgHrv`, `deepMin`) — no recompute, no new analytics.
+    private var chargeDeepWindowGap: Bool {
+        guard let d = displayDay, d.recovery == nil else { return false }
+        return ChargeBreakdownFormat.chargeDeepWindowGap(hrvWindow: hrvWindow, avgHrv: d.avgHrv, deepMin: d.deepMin)
+    }
+
+    /// #233: the Deep-sleep HRV-window gap note, shown instead of a bare "-" when this specific day's
+    /// Charge is empty because the Deep window found no deep-stage sleep. Distinct from the generic
+    /// calibrating/needs-strap states because here the exact cause and fix are known, so it says so, on
+    /// today AND a navigated past day alike.
+    private var chargeDeepWindowGapNote: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "moon.zzz")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(StrandPalette.chargeColor)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(ChargeBreakdownFormat.chargeDeepWindowGapTitle)
+                        .font(StrandFont.headline)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                    Text(ChargeBreakdownFormat.chargeDeepWindowGapDetail)
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(ChargeBreakdownFormat.chargeDeepWindowGapAccessibility)
     }
 
     /// A4 , the Charge calibrating countdown callout. `banked` is the existing `recoveryCalibration`
@@ -1717,9 +1762,13 @@ struct TodayView: View {
                 VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
                     let drivers = chargeDrivers
                     if drivers.isEmpty {
-                        // A calibrating / cold-start night has no contributions to attribute: tap through to
-                        // the honest countdown rather than an empty breakdown.
-                        if let banked = recoveryCalibration {
+                        // #233: a night with no deep sleep under the Deep HRV window has a known, specific
+                        // cause, so it tap-throughs to that explanation rather than the generic empty note.
+                        if chargeDeepWindowGap {
+                            chargeDeepWindowGapNote
+                        } else if let banked = recoveryCalibration {
+                            // A calibrating / cold-start night has no contributions to attribute: tap through
+                            // to the honest countdown rather than an empty breakdown.
                             chargeCalibrationCountdown(banked: banked)
                         } else {
                             chargeBreakdownEmptyNote
