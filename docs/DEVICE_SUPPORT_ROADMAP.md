@@ -11,7 +11,7 @@ source stands and the protocol facts we've verified, so the next build can pick 
 | **Fitness Age / Vitality / Body Age** | ✅ Shipped (v4.0.0) | On-device, from the data above |
 | **Xiaomi Smart Band 8 / 9 / 10** (Mi Band) | ✅ Shipped, **import lane** | Read the Mi Fitness iOS app's own SQLite, on-device (below) |
 | **Xiaomi Smart Band — live BLE sync** | 🔬 Protocol researched, decoder not built | Mi protobuf-v2 over BLE GATT + `encryptKey` handshake (below) — hardware-gated |
-| **Polar deep streams** (ECG / PPG / ACC / PPI) | 🔬 Protocol verified, decoder not built | PMD service (below) — alpha, hardware-gated |
+| **Polar deep streams** (ECG / PPG / ACC / PPI) | 🔬 Pure PPI decoder built (`Packages/PolarProtocol` + `com.noop.polar`, tests green both platforms); live `PolarPMDSource` + ECG/PPG decode still to build | PMD service (below) — alpha, hardware-gated |
 | **Garmin** (sleep / HRV / Body Battery / SpO₂ / FIT) | 📋 Researched, not built | Local BLE re-derive (Gadgetbridge-informed, **never** GPLv3 copy) |
 | **Amazfit / Zepp** (incl. Helio deep) | 📋 Researched, not built | Encrypted Huami BLE — needs a one-time **user-pasted** vendor key (NOOP never logs into the vendor cloud) |
 | **Oura** | 📋 Researched, not built | Cloud API v2 — off-by-default OAuth **import** lane only |
@@ -38,6 +38,15 @@ Polar H10 / Verity Sense / OH1 the user owns, account-free, on top of the standa
   - **PPG** type-0: three 24-bit channels + ambient.
 - **Per-model streams:** **H10** = ECG (130 Hz) + ACC + HR + RR (no PPG); **Verity Sense / OH1** =
   PPG + PPI + ACC + GYRO + HR (no ECG).
+
+**Decoder status.** The pure PPI decoder is built and tested on both platforms
+(`Packages/PolarProtocol` / `com.noop.polar.PmdDecoder`): frame header (type `& 0x3F`, ns timestamp,
+frame-type/compressed bit) + PPI samples (HR + peak-to-peak interval + error estimate + flags). PPI is
+the one NOOP needs — HR + inter-beat interval for HRV, no ECG peak detection required. **Still to build:**
+the live `PolarPMDSource: LiveHRSource` (CoreBluetooth / android.bluetooth — hardware-gated, validate on
+an H10/Verity), and ECG/PPG/ACC decode if ever needed. **Confirm on hardware:** the PPI flags' bit1/bit2
+skin-contact polarity — the decoder names them per the Polar SDK, but this doc phrases them oppositely, so
+no consumer should gate on them until a real device settles it.
 
 **Open item — #421** ("Polar H10 paired, no live data", Android): the generic-HR plumbing is correct
 (CCCD write + both notification callbacks); the leading theory is the WHOOP auto-reconnect reclaiming
