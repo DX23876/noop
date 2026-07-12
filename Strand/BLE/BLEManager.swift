@@ -3501,25 +3501,11 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
     /// frame[7], after [type,seq,cmd]), keep those in the unix range, return the max. nil if none.
     static func dataRangeNewestUnix(from frame: [UInt8],
                                     wallNowUnix: Int = Int(Date().timeIntervalSince1970)) -> Int? {
-        guard frame.count >= 4 else { return nil }
-        // Scan EVERY byte offset (was: 4-byte words from offset 7). The strap's newest-record u32 does not
-        // always land on that grid — on WHOOP 4 it sits at byte offset 8, so the aligned scan straddled it
-        // and returned nil, leaving a stale/garbage word latched in strapNewestTs. Harmless until #228 wired
-        // that value into BackfillPolicy: a FUTURE-reading value now skips the periodic offload, so one bad
-        // read stalls auto-sync (#451/#928/#1012).
-        let futureCutoff = wallNowUnix + BackfillContinuation.defaultFutureSkewSeconds
-        var newestNotFuture: Int? = nil; var newestAny: Int? = nil; var i = 0
-        while i + 4 <= frame.count {
-            let w = Int(frame[i]) | Int(frame[i+1]) << 8 | Int(frame[i+2]) << 16 | Int(frame[i+3]) << 24
-            if w >= 1_700_000_000 && w <= 1_900_000_000 {
-                newestAny = max(newestAny ?? 0, w)
-                if w <= futureCutoff { newestNotFuture = max(newestNotFuture ?? 0, w) }
-            }
-            i += 1
-        }
-        // Prefer the newest word at/behind the wall clock (a device can't record the future); return the
-        // future max only if EVERY plausible word is future — a genuinely future-set RTC (#928).
-        return newestNotFuture ?? newestAny
+        // #286 follow-up: delegate to the pure, twin-tested WhoopProtocol.DataRange (byte-identical to the
+        // Kotlin com.noop.protocol.DataRange) so this parity-critical read — it gates auto-sync via
+        // isFutureDatedNewest → BackfillPolicy — is CI-pinned on BOTH platforms, not the Kotlin side only.
+        DataRange.newestUnix(from: frame, wallNowUnix: wallNowUnix,
+                             futureSkewSeconds: BackfillContinuation.defaultFutureSkewSeconds)
     }
 
     /// The OLDEST plausible record timestamp in a GET_DATA_RANGE frame — the start of the strap's stored
