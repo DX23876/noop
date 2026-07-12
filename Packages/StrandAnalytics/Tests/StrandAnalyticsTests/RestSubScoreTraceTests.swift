@@ -1,4 +1,5 @@
 import XCTest
+import WhoopProtocol
 @testable import StrandAnalytics
 
 final class RestSubScoreTraceTests: XCTestCase {
@@ -49,5 +50,17 @@ final class RestSubScoreTraceTests: XCTestCase {
             restorativeSeconds: restorative, needHours: need, consistency: 0.7, deepSeconds: deep)
         let r2 = (composite * 100.0).rounded() / 100.0
         XCTAssertTrue(line.contains("composite=\(r2)"), line)
+    }
+
+    // #319: byte-parity with Android SleepMotionLineTest — identical expected strings.
+    func testSleepMotionLine() {
+        XCTAssertEqual(
+            AnalyticsEngine.sleepMotionLine(day: "2026-07-12", grav: 118, hr: 590, sparse: true,
+                                            useSleepStagerV2: false, family: .whoop4),
+            "sleep-motion day=2026-07-12 grav=118 hr=590 sparse=true stager=V1 family=whoop4")
+        XCTAssertEqual(
+            AnalyticsEngine.sleepMotionLine(day: "2026-07-12", grav: 800, hr: 590, sparse: false,
+                                            useSleepStagerV2: true, family: .whoop5),
+            "sleep-motion day=2026-07-12 grav=800 hr=590 sparse=false stager=V2 family=whoop5")
     }
 }

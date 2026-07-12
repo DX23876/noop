@@ -440,6 +440,11 @@ object AnalyticsEngine {
                 needHours = sleepNeedHours ?: RestScorer.defaultSleepNeedHours,
                 consistency = sleepConsistency, deepSeconds = deepS,
                 groupFragments = mainGroup.size, groupInBedSeconds = inBedS))
+            // #319: the motion-coverage + staging context behind the Rest number, so a high score on a poor
+            // night can be explained from an export — WHOOP 4.0 banks motion coarsely (sparse=true), so most
+            // epochs default to sleep → over-counted duration → high Rest; `stager` says whether V1/V2 ran.
+            traceSink(RestScorer.sleepMotionLine(day, gravity.size, hr.size,
+                SleepStager.isGravitySparse(gravity, hr), useSleepStagerV2, skinTempFamily))
         }
 
         // ── Recovery / Charge ─────────────────────────────────────────────────
@@ -891,6 +896,18 @@ object RestScorer {
      * disagree with the score. `groupFragments` / `groupInBedSeconds` describe the main-night GROUP
      * composition (#525/#561). Pure, side-effect-free, no em-dashes. Mirrors Swift exactly.
      */
+    /**
+     * #319 diagnostic (Sleep & Rest test mode): the motion-coverage + staging context behind the Rest
+     * number, so a high score on a poor night can be explained straight from an export. `grav`/`hr` are the
+     * night-window sample counts; `sparse` is the gravity-sparse gate (WHOOP 4.0 banks motion coarsely, so
+     * most epochs default to sleep → over-counted duration → high Rest); `stager` says which engine ran;
+     * `family` the day's owner. Pure, no em-dashes; byte-identical to Swift `AnalyticsEngine.sleepMotionLine`.
+     */
+    fun sleepMotionLine(
+        day: String, grav: Int, hr: Int, sparse: Boolean, useSleepStagerV2: Boolean, family: DeviceFamily,
+    ): String = "sleep-motion day=$day grav=$grav hr=$hr sparse=$sparse " +
+        "stager=${if (useSleepStagerV2) "V2" else "V1"} family=${family.name.lowercase()}"
+
     fun subScoreLine(
         tstSeconds: Double, inBedSeconds: Double, efficiency: Double, restorativeSeconds: Double,
         needHours: Double, consistency: Double?, deepSeconds: Double?,

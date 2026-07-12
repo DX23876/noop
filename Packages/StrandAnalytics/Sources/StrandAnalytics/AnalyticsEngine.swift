@@ -448,6 +448,13 @@ public enum AnalyticsEngine {
                 restorativeSeconds: deepS + remS, needHours: sleepNeedHours,
                 consistency: sleepConsistency, deepSeconds: deepS,
                 groupFragments: mainGroup.count, groupInBedSeconds: inBedS))
+            // #319: the motion-coverage + staging context behind the Rest number, so a high score on a poor
+            // night can be explained from an export (WHOOP 4.0 banks motion coarsely → sparse=true → most
+            // epochs default to sleep → over-counted duration → high Rest). `stager` says whether V1/V2 ran.
+            traceSink(AnalyticsEngine.sleepMotionLine(
+                day: day, grav: gravity.count, hr: hr.count,
+                sparse: SleepStager.isGravitySparse(gravity, hr: hr),
+                useSleepStagerV2: useSleepStagerV2, family: skinTempFamily))
             // CAPTURE-C (#799): append the sleep PROVENANCE so an imported row winning the merge is visible
             // (not silently swapped for the measured night). hoursAsleep = the scored night's tst in minutes;
             // sourceRowId = the main-night's start ts for the measured path (stable per night), else the

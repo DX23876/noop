@@ -1,4 +1,5 @@
 import Foundation
+import WhoopProtocol   // DeviceFamily (sleepMotionLine)
 
 // RestSubScoreTrace.swift - the Sleep & Rest test-mode diagnostic for the Rest composite.
 //
@@ -36,6 +37,17 @@ extension AnalyticsEngine {
                                            sourceRowId: String) -> String {
         "sleepProvenance provenance=\(provenance.wire) "
             + "hoursAsleep=\(Int(hoursAsleepMin.rounded())) sourceRowId=\(sourceRowId)"
+    }
+
+    /// #319 diagnostic (Sleep & Rest test mode): the motion-coverage + staging context behind the Rest
+    /// number, so a high score on a poor night can be explained straight from an export. `grav`/`hr` are the
+    /// night-window sample counts; `sparse` is the gravity-sparse gate (WHOOP 4.0 banks motion coarsely, so
+    /// most epochs default to sleep → over-counted duration → high Rest); `stager` says which engine ran;
+    /// `family` the day's owner. PURE; byte-identical to Android `AnalyticsEngine.sleepMotionLine`.
+    public static func sleepMotionLine(day: String, grav: Int, hr: Int, sparse: Bool,
+                                       useSleepStagerV2: Bool, family: DeviceFamily) -> String {
+        "sleep-motion day=\(day) grav=\(grav) hr=\(hr) sparse=\(sparse) "
+            + "stager=\(useSleepStagerV2 ? "V2" : "V1") family=\(family.rawValue)"
     }
 }
 
