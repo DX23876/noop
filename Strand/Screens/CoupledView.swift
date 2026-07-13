@@ -307,10 +307,13 @@ struct CoupledView: View {
                     // Right: the coupled stat stack, OPTIMAL range (with a liquid tube band), calories, workouts.
                     VStack(alignment: .leading, spacing: 14) {
                         optimalStat
-                        heroStat("Calories",
+                        // heroStat renders `Text(title.uppercased())`, so `title` is a plain String and
+                        // a bare literal would NOT localize — pass the resolved localized value (the
+                        // catalog already carries Calories/Workouts) so German shows KALORIEN, not CALORIES.
+                        heroStat(String(localized: "Calories"),
                                  caloriesText,
                                  tint: StrandPalette.metricAmber)
-                        heroStat("Workouts",
+                        heroStat(String(localized: "Workouts"),
                                  (day?.exerciseCount).map { "\($0)" } ?? "0",
                                  tint: StrandPalette.textPrimary)
                     }
