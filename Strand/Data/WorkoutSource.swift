@@ -162,7 +162,13 @@ enum WorkoutSource: Equatable {
     /// touching) keeps two genuinely back-to-back same-sport sessions distinct while still catching the
     /// small start/end drift between a live capture and its import.
     static func sameActivity(_ a: WorkoutRow, _ b: WorkoutRow) -> Bool {
-        guard sportKey(a.sport) == sportKey(b.sport) else { return false }
+        sportKey(a.sport) == sportKey(b.sport) && overlapsInTime(a, b)
+    }
+
+    /// The time-overlap half of `sameActivity`: the two windows overlap by more than half of the shorter
+    /// session. Sport equality is checked separately — `collapseCrossSource` buckets rows by sport, so within
+    /// a bucket only this (allocation-free) half remains, which is what makes the collapse walk near-linear.
+    private static func overlapsInTime(_ a: WorkoutRow, _ b: WorkoutRow) -> Bool {
         let overlap = min(a.endTs, b.endTs) - max(a.startTs, b.startTs)
         guard overlap > 0 else { return false }
         let shorter = max(1, min(a.endTs - a.startTs, b.endTs - b.startTs))
@@ -223,15 +229,42 @@ enum WorkoutSource: Equatable {
     /// #975: a DETECTED bout that shadows a real logged session is dropped FIRST so the transient
     /// live+detected duplicate never shows and can't pollute the Effort/HR read-out.
     static func dedupCrossSource(_ rows: [WorkoutRow]) -> [WorkoutRow] {
+        collapseCrossSource(dropDetectedShadows(rows))
+    }
+
+    /// The shared cross-source collapse walk behind `dedupCrossSource` and `dedupCrossSourceTrace`. Byte-
+    /// identical to the naive "compare every kept row" walk — same first match (kept insertion order), same
+    /// `preferred` winner, same resulting list — but near-linear instead of O(n²): `sportKey` is computed
+    /// ONCE per row (not twice per comparison), rows are bucketed by it, and a candidate only ever compares
+    /// against kept rows of the SAME sport (a cross-sport pair can never be `sameActivity`). That removes the
+    /// per-comparison string-normalisation that made a large imported history freeze the workout screens.
+    /// `onMerge` is invoked with (winner, loser) for each collapsed pair so the trace path can record it.
+    private static func collapseCrossSource(
+        _ input: [WorkoutRow],
+        onMerge: ((_ winner: WorkoutRow, _ loser: WorkoutRow) -> Void)? = nil
+    ) -> [WorkoutRow] {
         var kept: [WorkoutRow] = []
-        let input = dropDetectedShadows(rows)
         kept.reserveCapacity(input.count)
-        outer: for row in input {
-            for i in kept.indices where sameActivity(kept[i], row) {
-                kept[i] = preferred(kept[i], row)
-                continue outer
+        // sportKey -> indices into `kept` for that sport, in insertion order (preserves first-match semantics).
+        var bySport: [String: [Int]] = [:]
+        for row in input {
+            let key = sportKey(row.sport)
+            var merged = false
+            for idx in bySport[key, default: []] where overlapsInTime(kept[idx], row) {
+                let winner = preferred(kept[idx], row)
+                if let onMerge {
+                    // Identify the loser by the REAL keep decision (== against the winner). When the two rows
+                    // are byte-identical the label is interchangeable, so == is correct in every case.
+                    onMerge(winner, winner == kept[idx] ? row : kept[idx])
+                }
+                kept[idx] = winner
+                merged = true
+                break
             }
-            kept.append(row)
+            if !merged {
+                bySport[key, default: []].append(kept.count)
+                kept.append(row)
+            }
         }
         return kept
     }
@@ -257,7 +290,6 @@ enum WorkoutSource: Equatable {
     /// plain path runs) and emits one `detectedBout verdict=droppedShadow` line per drop, so the export shows
     /// exactly which detected twin was suppressed to keep the live/manual session single.
     static func dedupCrossSourceTrace(_ rows: [WorkoutRow]) -> (kept: [WorkoutRow], trace: [String]) {
-        var kept: [WorkoutRow] = []
         var lines: [String] = []
         // Detected-shadow drop first (byte-identical to dedupCrossSource's `dropDetectedShadows`), tracing each.
         let reals = rows.filter { classify($0.source) != .detected }
@@ -274,25 +306,14 @@ enum WorkoutSource: Equatable {
             }
             input.append(row)
         }
-        kept.reserveCapacity(input.count)
-        outer: for row in input {
-            for i in kept.indices where sameActivity(kept[i], row) {
-                // L8: identify kept-vs-dropped by the REAL keep decision, not by a (startTs, source) tuple
-                // that collides when row and kept[i] share both fields (e.g. a same-start same-source pair
-                // differing only in richness). preferred() returns one of the two rows; a full-row ==
-                // against kept[i] tells us which side won. When the two rows are byte-identical the label is
-                // interchangeable, so == is correct in every case.
-                let keptWins = preferred(kept[i], row) == kept[i]
-                let winner = keptWins ? kept[i] : row
-                let loser = keptWins ? row : kept[i]
-                lines.append(WorkoutsTrace.dedupLine(
-                    sportKey: traceSportKey(row.sport),   // PRIVACY: catalogue key or "custom", never free text
-                    keptSource: sourceLabel(winner), droppedSource: sourceLabel(loser),
-                    keptRichness: richness(winner), droppedRichness: richness(loser)))
-                kept[i] = winner
-                continue outer
-            }
-            kept.append(row)
+        // Same bucketed collapse as the plain path, so the kept list can never diverge from what the screen
+        // shows; the callback records one dedup line per collapsed pair. traceSportKey reads the winner's
+        // sport — same sportKey as the loser (they matched), so the emitted token is stable either way.
+        let kept = collapseCrossSource(input) { winner, loser in
+            lines.append(WorkoutsTrace.dedupLine(
+                sportKey: traceSportKey(winner.sport),   // PRIVACY: catalogue key or "custom", never free text
+                keptSource: sourceLabel(winner), droppedSource: sourceLabel(loser),
+                keptRichness: richness(winner), droppedRichness: richness(loser)))
         }
         return (kept, lines)
     }

@@ -501,4 +501,67 @@ class WorkoutEditingTest {
         assertEquals("my-whoop", WorkoutMerge.merge(listOf(a, b))?.deviceId)
         assertEquals("dev2", WorkoutMerge.merge(listOf(a, b), strapDeviceId = "dev2")?.deviceId)
     }
+
+    // MARK: - dedup perf refactor: bucketed collapse == naive walk (byte-identical)
+
+    /** The ORIGINAL O(n²) collapse, kept here verbatim as the oracle the bucketed version must match. */
+    private fun naiveDedupCrossSource(rows: List<WorkoutRow>): List<WorkoutRow> {
+        val input = WorkoutEditing.dropDetectedShadows(rows)
+        val kept = ArrayList<WorkoutRow>(input.size)
+        outer@ for (row in input) {
+            for (i in kept.indices) {
+                if (WorkoutEditing.sameActivity(kept[i], row)) {
+                    kept[i] = WorkoutEditing.preferred(kept[i], row)
+                    continue@outer
+                }
+            }
+            kept.add(row)
+        }
+        return kept
+    }
+
+    /**
+     * The bucketed [WorkoutEditing.dedupCrossSource] must be BYTE-IDENTICAL to the naive walk it replaced —
+     * same kept set, same order, same [WorkoutEditing.preferred] winner per collapse — over thousands of
+     * randomised inputs. Sport strings include case/space variants that fold to the same sportKey (so the
+     * bucket key is exercised) and detected/real mixes (so dropDetectedShadows runs). This is what lets the
+     * O(n²)->near-linear change ship without a device: correctness is proven against the old behaviour.
+     */
+    @Test
+    fun dedupCrossSource_bucketedMatchesNaiveOverRandomInputs() {
+        val sports = listOf(
+            "Running", "running", "Cycling", "yoga", "custom", "Walking",
+            "TraditionalStrengthTraining", "Traditional Strength Training", "detected",
+        )
+        val sources = listOf("apple-health", "whoop", "my-whoop", "manual", "my-whoop-noop", "lifting", "activity-file")
+        val rnd = java.util.Random(20260713L)
+        repeat(2000) {
+            val n = rnd.nextInt(14)
+            val rows = ArrayList<WorkoutRow>(n)
+            repeat(n) {
+                val start = 1_000L + rnd.nextInt(20) * 300L          // clustered starts -> real overlaps
+                val dur = 300L + rnd.nextInt(12) * 300L
+                rows.add(
+                    WorkoutRow(
+                        deviceId = "dev",
+                        startTs = start,
+                        endTs = start + dur,
+                        sport = sports[rnd.nextInt(sports.size)],
+                        source = sources[rnd.nextInt(sources.size)],
+                        durationS = dur.toDouble(),
+                        energyKcal = if (rnd.nextBoolean()) rnd.nextInt(800).toDouble() else null,
+                        avgHr = if (rnd.nextBoolean()) 90 + rnd.nextInt(80) else null,
+                        maxHr = if (rnd.nextBoolean()) 120 + rnd.nextInt(80) else null,
+                        strain = if (rnd.nextBoolean()) rnd.nextDouble() * 21.0 else null,
+                        distanceM = if (rnd.nextBoolean()) rnd.nextInt(15000).toDouble() else null,
+                    ),
+                )
+            }
+            val expected = naiveDedupCrossSource(rows)
+            val actual = WorkoutEditing.dedupCrossSource(rows)
+            assertEquals("bucketed dedup diverged from naive for input: $rows", expected, actual)
+            // The trace twin must return the exact same kept list the plain path does.
+            assertEquals(actual, WorkoutEditing.dedupCrossSourceTrace(rows).first)
+        }
+    }
 }
