@@ -17,6 +17,7 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlin.math.abs
 import kotlin.math.floor
+import kotlin.math.round
 
 /**
  * Serializes NOOP's own cached rows back into WHOOP's 4-CSV export shape so NOOP's OWN importer
@@ -188,7 +189,12 @@ object WhoopCsvExporter {
                     // the cell empty. (Writing the disturbance COUNT here exported a wrong unit
                     // that round-tripped on reimport — PR #97 review, tigercraft4. Swift parity.)
                     "",
-                    num(d.efficiency), num(s["sleep_consistency"]), num(s["sleep_need_min"]),
+                    // "Sleep efficiency %" is WHOOP's 0–100 column → lift the stored 0–1 fraction,
+                    // rounded to 4 decimals of a percent so num()'s shortest-round-trip Double
+                    // printing can't leak FP dust into the cell. Keep byte-identical to Swift
+                    // (WhoopExportImporter.whoopEfficiencyPctFromFraction).
+                    num(d.efficiency?.let { round(it * 100.0 * 10_000) / 10_000 }),
+                    num(s["sleep_consistency"]), num(s["sleep_need_min"]),
                     num(s["sleep_debt_min"]), csvField(sourceByDay[d.day]),
                 ).joinToString(","),
             ).append("\r\n")
@@ -228,7 +234,8 @@ object WhoopCsvExporter {
                     "false", "", "",
                     num(stages.asleep), num(inBedMin),
                     num(stages.light), num(stages.deep), num(stages.rem), num(stages.awake),
-                    num(s.efficiency), "", "", "", csvField(sourceBySession(s)),
+                    num(s.efficiency?.let { round(it * 100.0 * 10_000) / 10_000 }), "", "", "",
+                    csvField(sourceBySession(s)),
                 ).joinToString(","),
             ).append("\r\n")
         }

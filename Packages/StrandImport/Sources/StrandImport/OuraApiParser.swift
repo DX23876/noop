@@ -40,7 +40,13 @@ public enum OuraApiParser {
                 remMin: minutes("rem_sleep_duration"),
                 awakeMin: minutes("awake_time"),
                 totalSleepMin: minutes("total_sleep_duration"),
-                efficiencyPct: WearableJSON.posDbl(s, "efficiency"),
+                // Oura's `efficiency` is a 0-100 integer percent. NOOP's own sleep pipeline
+                // (StrandAnalytics) stores `efficiency` as a 0-1 FRACTION everywhere it's computed
+                // (asleep ÷ in-bed — see AnalyticsEngine.swift / SleepStageTotals.swift) and both
+                // sleepSession.efficiency and dailyMetric.efficiency are that same shared column, so
+                // normalize to the fraction convention here, at the parse boundary, rather than
+                // writing Oura's native percent straight through.
+                efficiencyPct: WearableJSON.posDbl(s, "efficiency").map { $0 / 100.0 },
                 avgHr: WearableJSON.posInt(s, "average_heart_rate"),
                 lowestHr: WearableJSON.posInt(s, "lowest_heart_rate"),
                 avgHrvMs: WearableJSON.posDbl(s, "average_hrv"),

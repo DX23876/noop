@@ -48,7 +48,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         LabMarkerRow::class,
         LiveSessionRow::class,
     ],
-    version = 18,
+    version = 19,
     exportSchema = false,
 )
 abstract class WhoopDatabase : RoomDatabase() {
@@ -480,6 +480,46 @@ abstract class WhoopDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v18 -> v19: Oura/WHOOP efficiency-unit HEAL, the Room twin of the Swift WhoopStore v26
+         * `v26-efficiency-heal` GRDB migration (#376). UPDATE-only, NO schema change: the Oura API
+         * importer and (pre-fix) the WHOOP CSV importer wrote a 0-100 integer efficiency straight into
+         * `sleepSession.efficiency` / `dailyMetric.efficiency`, but NOOP's own sleep pipeline stores that
+         * shared column as a 0-1 FRACTION everywhere it computes it (asleep ÷ in-bed) — same column, two
+         * scales for rows written before the importer fix. Divides `efficiency` by 100 for every row
+         * where it's > 1.5 — a threshold no genuine fraction can exceed (the column's convention caps at
+         * 1.0) and no genuine percent-scale leftover can fall under (no real night is ≤1.5% efficient),
+         * so the predicate can't touch an already-correct row and a second run finds nothing left:
+         * idempotent. Deliberately NOT deviceId-scoped, matching the Swift heal: both known percent
+         * writers (the Oura API importer's 'oura-api' rows and the WHOOP CSV importer's rows under
+         * whatever strap deviceId the user imported into) are healed by the same predicate.
+         *
+         * This is REQUIRED, not optional (flagged in review): the Android CSV exporter does
+         * `efficiency * 100` at write time, so an unhealed percent row (92) would export as 9200; and
+         * without this heal, an iOS user and an Android user who imported the SAME WHOOP CSV would have
+         * permanently different stored efficiency (iOS 0.92 after v26, Android 92 unhealed) — the
+         * cross-platform parity contract (stored data must be byte-identical) needs the heal on both
+         * platforms, not just the write-boundary fix.
+         *
+         * SEQUENCING CAVEAT: this claims Room version 18 -> 19 as the next free slot as of this PR. The
+         * Swift v26 GRDB slot has the identical collision risk against other pending PRs (flagged in the
+         * same review) — if another pending PR also lands a Room migration first, whichever merges
+         * SECOND must renumber. Coordinate before merging both.
+         *
+         * The SQL is exposed as [EFFICIENCY_HEAL_MIGRATION_SQL] so a plain-JVM unit test
+         * ([com.noop.data.EfficiencyHealMigrationTest]) can pin this shape without Robolectric.
+         */
+        internal val EFFICIENCY_HEAL_MIGRATION_SQL: List<String> = listOf(
+            "UPDATE `sleepSession` SET `efficiency` = `efficiency` / 100.0 WHERE `efficiency` > 1.5",
+            "UPDATE `dailyMetric` SET `efficiency` = `efficiency` / 100.0 WHERE `efficiency` > 1.5",
+        )
+
+        internal val MIGRATION_18_19 = object : Migration(18, 19) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                for (stmt in EFFICIENCY_HEAL_MIGRATION_SQL) db.execSQL(stmt)
+            }
+        }
+
         private fun build(appContext: Context): WhoopDatabase =
             Room.databaseBuilder(appContext, WhoopDatabase::class.java, DB_NAME)
                 // #1014: replace ONLY the corruption handling of the default open-helper. The
@@ -495,6 +535,7 @@ abstract class WhoopDatabase : RoomDatabase() {
                     MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
                     MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
                     MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18,
+                    MIGRATION_18_19,
                 )
                 // #1037: a FRESH install builds the schema straight at the current version and runs NO
                 // migrations, so the MIGRATION_7_8 "my-whoop" registry seed never fires and the WHOOP,
