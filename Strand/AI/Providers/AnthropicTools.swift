@@ -7,8 +7,8 @@ import Foundation
 extension AnthropicClient: ToolCallingClient {
 
     /// Hard cap on tool rounds so a model that keeps requesting data can never loop forever. Five rounds
-    /// is ample for the coach's handful of tools.
-    private static let maxToolRounds = 5
+    /// is ample for the coach's handful of tools. Shared with the streaming loop (`AnthropicStreaming`).
+    static let maxToolRounds = 5
 
     func sendWithTools(
         key: String,
