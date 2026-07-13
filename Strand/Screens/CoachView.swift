@@ -509,6 +509,11 @@ struct CoachView: View {
                     .onChangeCompat(of: coach.sending) { _ in
                         scrollToEnd(proxy)
                     }
+                    // Keep pinned to the bottom as a streamed reply grows token-by-token (count is stable
+                    // during streaming, so track the last bubble's text length too).
+                    .onChangeCompat(of: coach.messages.last?.text.count ?? 0) { _ in
+                        scrollToEnd(proxy)
+                    }
                 }
             }
         }

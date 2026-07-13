@@ -490,6 +490,38 @@ final class AICoachEngine: ObservableObject {
             : (dataConsent ? await buildFullContext() : noConsentNote)
         let wire = wireMessages(context: context)
 
+        // Streaming path when the provider supports it (Anthropic): the reply appears token-by-token in
+        // a live-growing assistant bubble. Any tool rounds run inline. Other providers keep the plain
+        // single-shot path below, unchanged.
+        if let streamer = provider.client as? StreamingToolClient {
+            let replyId = UUID()
+            messages.append(ChatMessage(id: replyId, role: .assistant, text: ""))
+            do {
+                _ = try await streamer.streamWithTools(
+                    key: key,
+                    model: model,
+                    systemPrompt: systemPrompt,
+                    messages: wire,
+                    tools: toolCallingActive ? coachTools : [],
+                    runTool: { [weak self] name, input in
+                        await self?.runCoachTool(name, input: input) ?? ""
+                    },
+                    onDelta: { [weak self] delta in self?.appendDelta(delta, to: replyId) },
+                    session: session
+                )
+                // A reply that streamed nothing (e.g. tool-only turn) shows a placeholder, not a blank.
+                if let idx = messages.firstIndex(where: { $0.id == replyId }), messages[idx].text.isEmpty {
+                    messages[idx] = ChatMessage(id: replyId, role: .assistant, text: "(no reply)")
+                }
+            } catch let e as AICoachError {
+                removeAssistantIfEmpty(replyId); errorText = e.errorDescription
+            } catch {
+                removeAssistantIfEmpty(replyId)
+                errorText = AICoachError.network(error.localizedDescription).errorDescription
+            }
+            return
+        }
+
         do {
             let reply = try await callProvider(key: key, messages: wire)
             let clean = reply.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -498,6 +530,21 @@ final class AICoachEngine: ObservableObject {
             errorText = e.errorDescription
         } catch {
             errorText = AICoachError.network(error.localizedDescription).errorDescription
+        }
+    }
+
+    /// Append a streamed text delta to the in-flight assistant message (matched by id). `ChatMessage.text`
+    /// is immutable, so we replace the element keeping the same id — SwiftUI updates the row in place.
+    private func appendDelta(_ delta: String, to id: UUID) {
+        guard let idx = messages.firstIndex(where: { $0.id == id }) else { return }
+        messages[idx] = ChatMessage(id: id, role: .assistant, text: messages[idx].text + delta)
+    }
+
+    /// Drop the streaming placeholder if it never received any text — so a failed request leaves no empty
+    /// assistant bubble behind, only the surfaced `errorText`.
+    private func removeAssistantIfEmpty(_ id: UUID) {
+        if let idx = messages.firstIndex(where: { $0.id == id }), messages[idx].text.isEmpty {
+            messages.remove(at: idx)
         }
     }
 
