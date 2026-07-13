@@ -631,6 +631,7 @@ public final class BLEManager: NSObject, ObservableObject {
     /// WHOOP 4.0 and when the toggle is off. Lazy so it shares `state` after init. (Cherry-picked from
     /// @j0b-dev's PR #20.)
     private lazy var puffinRecorder = PuffinFrameRecorder(state: state)
+    private lazy var puffinEventLog = PuffinEventLog()
 
     /// Force the puffin capture buffer to disk so the Settings export/reveal targets a current file.
     public func flushPuffinCaptures() { puffinRecorder.flush() }
@@ -3089,6 +3090,7 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         keepAliveTimer = nil
         resetCharacteristics()
         puffinRecorder.flush()   // persist any buffered puffin capture frames before reconnect
+        puffinEventLog.close()   // release the event-log handle so the file is safe to export
         Task { @MainActor in await collector?.flushStandardHR() }   // persist any buffered 0x2A37 HR
         if autoReconnectPausedForBondLoop {
             // #747: the bond keeps being refused, so auto-reconnect is paused: we stop hammering a strap that
@@ -3785,6 +3787,11 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                 for frame in reassembler.feed(bytes) {
                     let isOffload = backfilling && BLEManager.isOffloadFrame(frame, family: .whoop5)
                     noteWhoop5R22Telemetry(frame, duringOffload: isOffload)   // #174 deep-data telemetry
+                    // Durable EVENT-frame log for deep-data research (#103) — BEFORE the offload
+                    // branch, so it sees both live events and their history replays (either path
+                    // may be the only one that delivers a given record). Single byte compare when
+                    // the frame is not an EVENT; no-op unless the capture toggle is on.
+                    puffinEventLog.appendIfEvent(frame: frame, char: characteristic.uuid)
                     if isOffload {
                         // Same policy as WHOOP4: historical offload frames are bulk sync traffic.
                         // Keep them out of the live UI parser during backfill and let Backfiller

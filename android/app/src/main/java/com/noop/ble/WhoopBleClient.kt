@@ -597,6 +597,9 @@ class WhoopBleClient(
 
         /** 5/MG raw-capture file (app filesDir; shared via Settings → "Share 5/MG capture"). */
         const val WHOOP5_CAPTURE_FILE = "whoop5-backfill-capture.jsonl"
+        const val WHOOP5_EVENT_LOG_FILE = "whoop5-events.jsonl"
+        // EVENT frames are ~40–120 B of hex each, a few KB per day of wear — 5 MB is years.
+        private const val WHOOP5_EVENT_LOG_MAX_BYTES = 5L * 1024 * 1024
         /** Rotation threshold (~10 MB) and absolute per-file line cap (a full overnight offload is
          *  ~28k frames; 40k leaves headroom — his fork's 20k truncated real sessions, #78 fork). */
         private const val WHOOP5_CAPTURE_MAX_BYTES = 10L * 1024 * 1024
@@ -3530,6 +3533,13 @@ class WhoopBleClient(
                     }
 
                     // PERSISTENCE / OFFLOAD ROUTING — port of the didUpdateValueFor tail block.
+                    // Durable EVENT-frame log for deep-data research (#103) — BEFORE the offload
+                    // branch, so it sees both live events and their history replays (either path
+                    // may be the only one that delivers a given record). Single byte compare when
+                    // the frame is not an EVENT; no-op unless the capture toggle is on.
+                    if (connectedFamily == DeviceFamily.WHOOP5) {
+                        writeWhoop5EventLogIfEvent(uuid.toString(), frame)
+                    }
                     if (backfilling) {
                         // Opt-in raw capture: record EVERY frame of the session (offload AND live
                         // flood — the offload flag lets analysis filter), BEFORE routing so frames
@@ -5571,6 +5581,38 @@ class WhoopBleClient(
             captureDisabled = true
             closeWhoop5BackfillCapture(flushSummary = false)
             log("Capture: write failed (${it.message}) — capture disabled")
+        }
+    }
+
+    @Volatile private var eventLogDisabled = false
+
+    /**
+     * Durable append-only log of WHOOP 5.0/MG EVENT (type 48 / 0x30) frames, for deep-data protocol
+     * research (#103). EVENT frames are the strap's rare, still mostly uncatalogued records — e.g.
+     * the bi-hourly 56-byte record that tracks the nightly sleep-SpO2 measurement cycle. Decoding
+     * them needs (raw bytes, ground-truth value) pairs collected across weeks, which the
+     * session-scoped backfill capture cannot provide (its file churns under its own cap). This log
+     * keeps ONLY the ~150 tiny EVENT frames a day in its own file so they survive long enough to
+     * correlate. Gated on the same capture pref as the backfill capture; one JSONL line per frame
+     * (`{"ts_ms":…,"char":…,"hex":"…"}`, same keys as the Swift twin `PuffinEventLog`); rotates at
+     * the cap keeping one previous generation, the backfill capture's idiom.
+     */
+    private fun writeWhoop5EventLogIfEvent(characteristic: String, frame: ByteArray) {
+        if (eventLogDisabled || frame.size <= 8 || (frame[8].toInt() and 0xFF) != 0x30) return
+        if (!PuffinExperiment.from(context).isCaptureEnabled) return
+        runCatching {
+            val f = java.io.File(context.filesDir, WHOOP5_EVENT_LOG_FILE)
+            if (f.exists() && f.length() > WHOOP5_EVENT_LOG_MAX_BYTES) {
+                val old = java.io.File(context.filesDir, "$WHOOP5_EVENT_LOG_FILE.1")
+                old.delete()
+                f.renameTo(old)
+            }
+            val hex = frame.toHex()
+            f.appendText("{\"ts_ms\":${System.currentTimeMillis()},\"char\":\"$characteristic\",\"hex\":\"$hex\"}\n")
+        }.onFailure {
+            // A diagnostics log must never affect the connection path: disable for this process.
+            eventLogDisabled = true
+            log("Capture: event log write failed (${it.message}) — event log disabled")
         }
     }
 
