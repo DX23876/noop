@@ -652,37 +652,40 @@ struct TodayView: View {
     /// scored day (#543) so the sheet matches the carried ring instead of being empty at the rollover.
     private var chargeBreakdownRow: DailyMetric? { lastScoredRecoveryDay ?? displayDay }
 
-    /// The ordered "What shaped it" Charge drivers for the displayed Charge ring. PURE derivation from the
-    /// SAME `displayDay` (post-#814 union-read row) the ring already shows, plus the HRV/RHR/resp baselines
-    /// folded from `repo.days` (exactly the inputs `AnalyticsEngine` scored with), so a row can NEVER
-    /// describe a term the ring's number didn't use. This is NOT a second store read: it reads only data
-    /// already resolved into `repo.days`/`displayDay`. Empty for a calibrating / cold-start night (no usable
-    /// HRV baseline or no value), so the sheet gates through to the calibration countdown instead.
-    private var chargeDrivers: [ChargeDriver] {
+    /// The ordered "What shaped it" Charge drivers for the displayed Charge ring, PLUS the confidence tier
+    /// computed from the SAME folded HRV baseline. PURE derivation from the SAME `displayDay` (post-#814
+    /// union-read row) the ring already shows, plus the HRV/RHR/resp baselines folded from `repo.days`
+    /// (exactly the inputs `AnalyticsEngine` scored with), so a row can NEVER describe a term the ring's
+    /// number didn't use. This is NOT a second store read: it reads only data already resolved into
+    /// `repo.days`/`displayDay`. nil for a calibrating / cold-start night (no usable HRV baseline or no
+    /// value), so the sheet gates through to the calibration countdown instead.
+    ///
+    /// PERF: this replaces the two separate computed properties (`chargeDrivers` +
+    /// `chargeBreakdownConfidence`) that EACH re-folded the full `repo.days` history per body evaluation of
+    /// the open sheet — four O(n) passes per eval, with the confidence's doc claiming it reused the drivers'
+    /// fold while actually recomputing it. One call folds each series exactly once (three passes), and the
+    /// sheet reads drivers + confidence out of a single sheet-local `let`.
+    private func chargeBreakdown() -> (drivers: [ChargeDriver], confidence: ScoreConfidence)? {
         guard let row = chargeBreakdownRow,
-              let hrv = row.avgHrv, let rhr = row.restingHr else { return [] }
+              let hrv = row.avgHrv, let rhr = row.restingHr else { return nil }
         let hrvBase = Baselines.foldHistory(repo.days.map(\.avgHrv), cfg: Baselines.hrvCfg)
-        guard hrvBase.usable else { return [] }
+        guard hrvBase.usable else { return nil }
         let rhrBase = Baselines.foldHistory(repo.days.map { $0.restingHr.map(Double.init) },
                                             cfg: Baselines.restingHRCfg)
         let respBase = Baselines.foldHistory(repo.days.map(\.respRateBpm), cfg: Baselines.respCfg)
         // Rest-quality term = the Rest composite ÷100, matching AnalyticsEngine's `sleepPerf`. `restScore`
         // is the same merged sleep_performance value the Rest ring reads, so the term stays consistent.
         let sleepPerf = restScore.map { $0 / 100.0 }
-        return RecoveryScorer.chargeDrivers(
+        let drivers = RecoveryScorer.chargeDrivers(
             hrv: hrv, rhr: Double(rhr), resp: row.respRateBpm,
             hrvBaseline: hrvBase,
             rhrBaseline: rhrBase.usable ? rhrBase : nil,
             respBaseline: respBase.usable ? respBase : nil,
             sleepPerf: sleepPerf, skinTempDev: row.skinTempDevC)
-    }
-
-    /// The Charge confidence tier for the displayed row, SURFACED (never recomputed) from the existing
-    /// `ScoreConfidence.charge` against the same folded HRV baseline the drivers scored with, so the dot +
-    /// tier tag in the sheet header agree with the breakdown.
-    private var chargeBreakdownConfidence: ScoreConfidence {
-        let hrvBase = Baselines.foldHistory(repo.days.map(\.avgHrv), cfg: Baselines.hrvCfg)
-        return ScoreConfidence.charge(recovery: chargeBreakdownRow?.recovery, hrvBaseline: hrvBase)
+        // Confidence tier SURFACED (never recomputed) from the existing `ScoreConfidence.charge` against
+        // the SAME folded HRV baseline the drivers scored with, so the dot + tier tag in the sheet header
+        // agree with the breakdown by construction.
+        return (drivers, ScoreConfidence.charge(recovery: row.recovery, hrvBaseline: hrvBase))
     }
 
     /// The night's relative skin-temp marker for the displayed row (A5), or nil. Surfaced verbatim from
@@ -1781,8 +1784,16 @@ struct TodayView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
-                    let drivers = chargeDrivers
-                    if drivers.isEmpty {
+                    // One chargeBreakdown() call per sheet body eval: drivers + confidence share the same
+                    // baseline folds (see chargeBreakdown's PERF note).
+                    let breakdown = chargeBreakdown()
+                    if let breakdown, !breakdown.drivers.isEmpty {
+                        NoopCard(padding: 18, tint: StrandPalette.chargeColor) {
+                            ChargeBreakdownSection(drivers: breakdown.drivers,
+                                                   confidence: breakdown.confidence,
+                                                   skinTempRel: chargeSkinTempRel)
+                        }
+                    } else {
                         // #233: a night with no deep sleep under the Deep HRV window has a known, specific
                         // cause, so it tap-throughs to that explanation rather than the generic empty note.
                         if chargeDeepWindowGap {
@@ -1793,12 +1804,6 @@ struct TodayView: View {
                             chargeCalibrationCountdown(banked: banked)
                         } else {
                             chargeBreakdownEmptyNote
-                        }
-                    } else {
-                        NoopCard(padding: 18, tint: StrandPalette.chargeColor) {
-                            ChargeBreakdownSection(drivers: drivers,
-                                                   confidence: chargeBreakdownConfidence,
-                                                   skinTempRel: chargeSkinTempRel)
                         }
                     }
                     // S4: the SEPARATE Readiness block now lives here, behind the Charge-ring tap, instead of
@@ -4064,7 +4069,14 @@ struct TodayView: View {
     /// `latestString` reads `.last` of this windowed series, so a value older than the window shows
     /// ", " rather than a stale number under a Today tile (#49).
     private func sparkValues(_ key: String, source: String, window: Int) async -> [Double] {
-        let all = await repo.series(key: key, source: source)   // full history, asc
+        // PERF: clamp the read at the store level to the trailing window instead of materializing the
+        // FULL history (the old default `days: 4000`) for a 14-point sparkline — this runs as ~10
+        // concurrent reads on every Today load. `repo.series(days:)` anchors its from-key at
+        // now − days·86400 while `trailingWindow` clamps at local-today − (window−1) calendar days, so
+        // `window + 1` reads a strict superset of the displayed window across any TZ/DST edge and
+        // `trailingWindow` below still applies the exact same calendar clamp as before — the rendered
+        // points are byte-identical to the full-history read.
+        let all = await repo.series(key: key, source: source, days: window + 1)   // windowed, asc
         guard !all.isEmpty else { return [] }
         return trailingWindow(all, days: window).map { $0.value }
     }

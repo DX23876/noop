@@ -505,24 +505,28 @@ struct CoupledView: View {
         return carriedRecoveryDay
     }
 
-    /// The ordered Charge drivers for the displayed ring, the exact TodayView derivation (pure engine
-    /// scoring against the folded personal baselines). Empty for a calibrating / cold-start night, which
-    /// gates the sheet through to the countdown instead.
-    private var chargeDrivers: [ChargeDriver] {
-        guard let row = breakdownRow, let hrv = row.avgHrv, let rhr = row.restingHr else { return [] }
+    /// The ordered Charge drivers for the displayed ring PLUS the confidence tier from the SAME folded HRV
+    /// baseline — the exact TodayView derivation (pure engine scoring against the folded personal
+    /// baselines). nil for a calibrating / cold-start night, which gates the sheet through to the countdown
+    /// instead. PERF: mirrors TodayView.chargeBreakdown() — the old `chargeDrivers` property plus the
+    /// sheet's inline confidence fold re-folded the full `repo.days` history four times per body eval of
+    /// the open sheet; one call now folds each series exactly once, guards before any fold.
+    private func chargeBreakdown() -> (drivers: [ChargeDriver], confidence: ScoreConfidence)? {
+        guard let row = breakdownRow, let hrv = row.avgHrv, let rhr = row.restingHr else { return nil }
         let hrvBase = Baselines.foldHistory(repo.days.map(\.avgHrv), cfg: Baselines.hrvCfg)
-        guard hrvBase.usable else { return [] }
+        guard hrvBase.usable else { return nil }
         let rhrBase = Baselines.foldHistory(repo.days.map { $0.restingHr.map(Double.init) },
                                             cfg: Baselines.restingHRCfg)
         let respBase = Baselines.foldHistory(repo.days.map(\.respRateBpm), cfg: Baselines.respCfg)
         // Rest-quality term = the same sleep performance the sleep row shows, ÷100 (AnalyticsEngine's form).
         let sleepPerf = sleepPerformance.map { $0 / 100.0 }
-        return RecoveryScorer.chargeDrivers(
+        let drivers = RecoveryScorer.chargeDrivers(
             hrv: hrv, rhr: Double(rhr), resp: row.respRateBpm,
             hrvBaseline: hrvBase,
             rhrBaseline: rhrBase.usable ? rhrBase : nil,
             respBaseline: respBase.usable ? respBase : nil,
             sleepPerf: sleepPerf, skinTempDev: row.skinTempDevC)
+        return (drivers, ScoreConfidence.charge(recovery: row.recovery, hrvBaseline: hrvBase))
     }
 
     @ViewBuilder
@@ -530,8 +534,17 @@ struct CoupledView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
-                    let drivers = chargeDrivers
-                    if drivers.isEmpty {
+                    // One chargeBreakdown() call per sheet body eval: drivers + confidence share the same
+                    // baseline folds (see chargeBreakdown's PERF note).
+                    let breakdown = chargeBreakdown()
+                    if let breakdown, !breakdown.drivers.isEmpty {
+                        NoopCard(padding: 18, tint: StrandPalette.chargeColor) {
+                            ChargeBreakdownSection(
+                                drivers: breakdown.drivers,
+                                confidence: breakdown.confidence,
+                                skinTempRel: RecoveryScorer.skinTempRelative(deviationC: breakdownRow?.skinTempDevC))
+                        }
+                    } else {
                         if let banked = calibrationNights {
                             calibrationCard(banked: banked)
                         } else {
@@ -546,15 +559,6 @@ struct CoupledView: View {
                                         .fixedSize(horizontal: false, vertical: true)
                                 }
                             }
-                        }
-                    } else {
-                        let hrvBase = Baselines.foldHistory(repo.days.map(\.avgHrv), cfg: Baselines.hrvCfg)
-                        NoopCard(padding: 18, tint: StrandPalette.chargeColor) {
-                            ChargeBreakdownSection(
-                                drivers: drivers,
-                                confidence: ScoreConfidence.charge(recovery: breakdownRow?.recovery,
-                                                                   hrvBaseline: hrvBase),
-                                skinTempRel: RecoveryScorer.skinTempRelative(deviationC: breakdownRow?.skinTempDevC))
                         }
                     }
 
