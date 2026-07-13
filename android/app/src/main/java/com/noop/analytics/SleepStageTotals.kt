@@ -248,25 +248,20 @@ object SleepStageTotals {
         return out
     }
 
-    /** The indices (into the ORIGINAL [blocks]) of the MAIN-NIGHT GROUP: the main night plus any adjacent
-     *  fragments bridged into it. A biphasic / briefly-interrupted main sleep that reaches the selector still
-     *  split into two blocks (a wake gap shorter than [GAP_BRIDGE_MAX_MIN] between them) is scored as ONE
-     *  night rather than two competing fragments, then the winning bridged group's fragments are ALL returned
-     *  so the caller can SUM their stages for the day's headline figure. (#561)
-     *
-     *  Pipeline:
-     *   1. [bridgeAdjacent]-style merge of blocks whose gap is in `[0, GAP_BRIDGE_MAX_MIN*60)` into bridged
-     *      spans, in `start` order, recording which original indices fell into each bridged group;
-     *   2. [mainNightIndex] scores the BRIDGED spans (so a two-fragment night's combined span out-scores a
-     *      lone nap) and picks the winning bridged group;
-     *   3. the original indices of that winning group are returned, ascending.
-     *
-     *  Null only for an empty list. A day with no bridgeable gap collapses to the single-block group the bare
-     *  [mainNightIndex] would pick — byte-identical to the old behaviour for the common case. Pure +
-     *  deterministic; shares the bridge logic + [mainNightIndex] so the pick stays cross-platform stable.
-     *  Mirrors Swift `mainNightGroupIndices`. (#561) */
-    fun mainNightGroupIndices(blocks: List<NightBlock>, offsetSec: Long, habitualMidsleepSec: Long? = null): List<Int>? {
-        if (blocks.isEmpty()) return null
+    /** One bridged night group over the whole input: the fragments (as ORIGINAL indices, ascending) plus
+     *  the group's inter-fragment wake seams (start, end) pairs. Produced by [bridgedNightGroups] for the
+     *  consumers that must present a briefly-interrupted night as ONE night — the Health Connect export
+     *  and the Sleep screen — so they group exactly as the day totals do and can fold each seam in as an
+     *  explicit wake segment. Mirrors Swift `BridgedNightGroup`. (#364) */
+    data class BridgedNightGroup(val indices: List<Int>, val gaps: List<Pair<Long, Long>>)
+
+    /** EVERY bridged group over [blocks] — the same two-tier bridge [mainNightGroupIndices] applies (#561
+     *  short-wake, plus the #861 overnight night-tail widening), WITHOUT the winner pick. A negative gap
+     *  (a block starting inside the previous span) does not bridge — pinned legacy semantics, `gap >= 0` —
+     *  and never fabricates a seam. Groups ordered by start; pure and deterministic. Mirrors Swift
+     *  `bridgedNightGroups`. (#364) */
+    fun bridgedNightGroups(blocks: List<NightBlock>, offsetSec: Long): List<BridgedNightGroup> {
+        if (blocks.isEmpty()) return emptyList()
         // Sort indices by onset so bridging sees neighbours, exactly as `bridgeAdjacent` sorts the blocks.
         val order = blocks.indices.sortedBy { blocks[it].start }
         val bridgeS = GAP_BRIDGE_MAX_MIN * 60L
@@ -274,6 +269,7 @@ object SleepStageTotals {
         // Build the bridged spans AND the original indices that compose each one, in one pass over `order`.
         val bridged = ArrayList<NightBlock>()
         val groups = ArrayList<MutableList<Int>>()
+        val gaps = ArrayList<MutableList<Pair<Long, Long>>>()
         for (idx in order) {
             val b = blocks[idx]
             val last = bridged.lastOrNull()
@@ -289,6 +285,7 @@ object SleepStageTotals {
                     (gap < bridgeS ||
                         (gap < nightTailBridgeS && isOvernightOnset(b.start, offsetSec)))
                 if (bridges) {
+                    if (gap > 0) gaps[gaps.size - 1].add(last.end to b.start)
                     bridged[bridged.size - 1] = NightBlock(last.start, maxOf(last.end, b.end))
                     groups[groups.size - 1].add(idx)
                     continue
@@ -296,9 +293,38 @@ object SleepStageTotals {
             }
             bridged.add(b)
             groups.add(mutableListOf(idx))
+            gaps.add(mutableListOf())
         }
-        val winner = mainNightIndex(bridged, offsetSec, habitualMidsleepSec) ?: return null
-        return groups[winner].sorted()
+        return groups.zip(gaps).map { (g, gp) -> BridgedNightGroup(g.sorted(), gp) }
+    }
+
+    /** The indices (into the ORIGINAL [blocks]) of the MAIN-NIGHT GROUP: the main night plus any adjacent
+     *  fragments bridged into it. A biphasic / briefly-interrupted main sleep that reaches the selector still
+     *  split into two blocks (a wake gap shorter than [GAP_BRIDGE_MAX_MIN] between them) is scored as ONE
+     *  night rather than two competing fragments, then the winning bridged group's fragments are ALL returned
+     *  so the caller can SUM their stages for the day's headline figure. (#561)
+     *
+     *  Pipeline:
+     *   1. [bridgedNightGroups] merges blocks whose gap is in `[0, GAP_BRIDGE_MAX_MIN*60)` (or the #861
+     *      night-tail window) into bridged groups, in `start` order;
+     *   2. [mainNightIndex] scores the BRIDGED spans (so a two-fragment night's combined span out-scores a
+     *      lone nap) and picks the winning bridged group;
+     *   3. the original indices of that winning group are returned, ascending.
+     *
+     *  Null only for an empty list. A day with no bridgeable gap collapses to the single-block group the bare
+     *  [mainNightIndex] would pick — byte-identical to the old behaviour for the common case. Pure +
+     *  deterministic; shares the [bridgedNightGroups] pass + [mainNightIndex] so the pick stays
+     *  cross-platform stable. Mirrors Swift `mainNightGroupIndices`. (#561) */
+    fun mainNightGroupIndices(blocks: List<NightBlock>, offsetSec: Long, habitualMidsleepSec: Long? = null): List<Int>? {
+        if (blocks.isEmpty()) return null
+        val all = bridgedNightGroups(blocks, offsetSec)
+        // Rebuild each group's bridged span for scoring: sorted-ascending fragments make the span
+        // (first start, running-max end) — identical to the span the one-pass loop accumulated.
+        val bridgedSpans = all.map { g ->
+            NightBlock(g.indices.minOf { blocks[it].start }, g.indices.maxOf { blocks[it].end })
+        }
+        val winner = mainNightIndex(bridgedSpans, offsetSec, habitualMidsleepSec) ?: return null
+        return all[winner].indices
     }
 
     /** Index of the day's MAIN night among [blocks], by the LEARNED-TIMING SCORE (replaces the old hard

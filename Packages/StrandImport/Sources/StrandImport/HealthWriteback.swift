@@ -6,9 +6,11 @@ import Foundation
 public enum HealthWriteback {
 
     /// A HealthKit-agnostic sleep stage. The bridge maps these onto `HKCategoryValueSleepAnalysis`
-    /// (`awake → .awake`, `light → .asleepCore`, `deep → .asleepDeep`, `rem → .asleepREM`).
+    /// (`awake → .awake`, `light → .asleepCore`, `deep → .asleepDeep`, `rem → .asleepREM`,
+    /// `unspecified → .asleepUnspecified` — the honest block for a fragment whose `stagesJSON`
+    /// carries no timing).
     public enum StageKind: String, Equatable {
-        case awake, light, deep, rem
+        case awake, light, deep, rem, unspecified
     }
 
     public struct StageInterval: Equatable {
@@ -70,5 +72,86 @@ public enum HealthWriteback {
         case let d as Double: return Int(d)
         default: return nil
         }
+    }
+
+    // MARK: - Merged nights (#364)
+
+    /// One stored sleep fragment, as the write-back sees it: the immutable detected key (`startTs`),
+    /// the edited onset when present (`effectiveStartTs` — drives the span, never the key, #318),
+    /// the wake, and the persisted stage JSON.
+    public struct SleepFragment: Equatable {
+        public let startTs: Int
+        public let effectiveStartTs: Int
+        public let endTs: Int
+        public let stagesJSON: String?
+        public init(startTs: Int, effectiveStartTs: Int, endTs: Int, stagesJSON: String?) {
+            self.startTs = startTs; self.effectiveStartTs = effectiveStartTs
+            self.endTs = endTs; self.stagesJSON = stagesJSON
+        }
+    }
+
+    /// One bridged night, folded for the write-back: the `.inBed` span, the merged stage timeline,
+    /// the representative dedup key, and the COMPLETE per-fragment key set for deletion.
+    public struct MergedSleepEntry: Equatable {
+        /// The group's dedup key: the EARLIEST fragment's immutable detected `startTs` (a user edit
+        /// moves the span via `effectiveStartTs`, never this key, so the entry keeps its identity).
+        public let keyStartTs: Int
+        /// Earliest edited onset → latest wake across the group: the one `.inBed` span.
+        public let spanStart: Int
+        public let spanEnd: Int
+        /// The fragments' stage intervals in time order — a fragment with no decodable timing
+        /// contributes one honest `.unspecified` block over its own window — with every
+        /// inter-fragment seam as an explicit `.awake` interval.
+        public let intervals: [StageInterval]
+        /// EVERY fragment's immutable `startTs`, ascending. The delete predicate must carry all of
+        /// them: a night previously exported as two entries would otherwise orphan the absorbed
+        /// fragment's old entry when it becomes one.
+        public let allKeyStartTs: [Int]
+        public init(keyStartTs: Int, spanStart: Int, spanEnd: Int,
+                    intervals: [StageInterval], allKeyStartTs: [Int]) {
+            self.keyStartTs = keyStartTs; self.spanStart = spanStart; self.spanEnd = spanEnd
+            self.intervals = intervals; self.allKeyStartTs = allKeyStartTs
+        }
+    }
+
+    /// Fold bridged night groups (#364) into write-back entries — one `.inBed` span per night with
+    /// the mid-night wake seams as explicit `.awake` intervals, matching what the daily totals
+    /// already score (#561/#777) and what Oura / Apple Watch write into Health. `groups` comes from
+    /// `SleepStageTotals.bridgedNightGroups` (this package deliberately doesn't depend on the
+    /// analytics package, so the grouping happens in the caller). Fragments are re-sorted by
+    /// effective onset defensively; a zero/negative-length fragment contributes no interval but
+    /// keeps its key in the delete set; a group with no positive span is skipped entirely.
+    public static func mergedSleepPlan(groups: [[SleepFragment]]) -> [MergedSleepEntry] {
+        var out: [MergedSleepEntry] = []
+        for group in groups where !group.isEmpty {
+            let frags = group.sorted { $0.effectiveStartTs < $1.effectiveStartTs }
+            var intervals: [StageInterval] = []
+            var prevEnd: Int? = nil
+            var spanStart: Int? = nil
+            for f in frags {
+                guard f.endTs > f.effectiveStartTs else { continue }
+                if spanStart == nil { spanStart = f.effectiveStartTs }
+                if let p = prevEnd, f.effectiveStartTs > p {
+                    intervals.append(StageInterval(start: p, end: f.effectiveStartTs, kind: .awake))
+                }
+                let stages = stageIntervals(stagesJSON: f.stagesJSON,
+                                            sessionStart: f.effectiveStartTs, sessionEnd: f.endTs)
+                if stages.isEmpty {
+                    intervals.append(StageInterval(start: f.effectiveStartTs, end: f.endTs,
+                                                   kind: .unspecified))
+                } else {
+                    intervals.append(contentsOf: stages)
+                }
+                prevEnd = max(prevEnd ?? f.endTs, f.endTs)
+            }
+            guard let start = spanStart, let end = prevEnd, end > start else { continue }
+            out.append(MergedSleepEntry(
+                keyStartTs: frags.map(\.startTs).min() ?? 0,
+                spanStart: start,
+                spanEnd: end,
+                intervals: intervals,
+                allKeyStartTs: frags.map(\.startTs).sorted()))
+        }
+        return out
     }
 }

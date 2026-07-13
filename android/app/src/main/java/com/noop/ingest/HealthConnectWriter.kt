@@ -194,14 +194,19 @@ object HealthConnectWriter {
      * split yet — only the validated asleep-vs-awake distinction is shared so we don't over-claim the
      * stager's precision). Uses the MERGED view (imported wins, on-device-computed gap-fills) so a
      * strap-only user's locally-computed nights (stored under the "-noop" computed id) are included.
-     * The clientRecordId keys off the immutable detected startTs so a re-write upserts in place.
+     * #364 — fragments are grouped into BRIDGED NIGHTS (the same #561 bridge the daily totals score
+     * with), so a night split by a brief mid-night wake exports as ONE record whose gap is an AWAKE
+     * stage; the clientRecordId keys off the group's earliest fragment's immutable detected startTs,
+     * and the absorbed fragments' old per-fragment records are DELETED (HC upserts by id but never
+     * removes an id we stop writing).
      */
     private suspend fun writeSleep(client: HealthConnectClient, repo: WhoopRepository, deviceId: String): Int {
         val now = System.currentTimeMillis() / 1000
         val floor = now - WINDOW_DAYS * 86_400
         val sessions = repo.sleepSessionsMerged(deviceId, from = floor, to = now)
-            .map { HealthExportPlan.SleepInput(it.startTs, it.endTs, it.stagesJSON) }
-        val plans = HealthExportPlan.sleepSessions(sessions, now)
+            .map { HealthExportPlan.SleepInput(it.startTs, it.effectiveStartTs, it.endTs, it.stagesJSON) }
+        val offsetSec = (java.util.TimeZone.getDefault().getOffset(now * 1000) / 1000).toLong()
+        val plans = HealthExportPlan.sleepSessions(sessions, now, offsetSec)
         if (plans.isEmpty()) return 0
 
         val zone = ZoneId.systemDefault()
@@ -222,6 +227,15 @@ object HealthConnectWriter {
                 },
                 metadata = Metadata(clientRecordId = p.clientId, clientRecordVersion = p.endSec),
             )
+        }
+        // Clear absorbed fragments' old records BEFORE the merged upsert, so a night previously
+        // exported as two entries never lingers as one merged + one stale fragment. (#364)
+        val absorbed = plans.flatMap { it.absorbedClientIds }
+        if (absorbed.isNotEmpty()) {
+            runCatching {
+                client.deleteRecords(SleepSessionRecord::class,
+                    recordIdsList = emptyList(), clientRecordIdsList = absorbed)
+            }
         }
         return insertChunked(client, records)
     }

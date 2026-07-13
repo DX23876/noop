@@ -76,22 +76,56 @@ object HealthExportPlan {
 
     // ---- Sleep sessions: AWAKE vs SLEEPING only (fine stages deferred until stager validated) ----
 
-    data class SleepInput(val startTs: Long, val endTs: Long, val stagesJSON: String?)
+    /** One stored fragment as the export sees it: [keyStartTs] is the immutable detected onset (the
+     *  dedup identity — a user edit must never change it), [startTs] the EFFECTIVE onset that drives
+     *  the exported span (`startTsAdjusted ?: startTs`, iOS parity #318). */
+    data class SleepInput(val keyStartTs: Long, val startTs: Long, val endTs: Long, val stagesJSON: String?)
     data class StagePlan(val startSec: Long, val endSec: Long, val asleep: Boolean)
     data class SleepPlan(
         val clientId: String,
         val startSec: Long,
         val endSec: Long,
         val stages: List<StagePlan>,
+        /** The non-representative fragments' old per-fragment ids (`noop-sleep-<keyStartTs>`). Health
+         *  Connect upserts by clientRecordId but never removes an id we stop writing, so a night that
+         *  previously exported as two records would orphan the second when it becomes one — the
+         *  writer deletes these explicitly. Empty for a single-fragment night. (#364) */
+        val absorbedClientIds: List<String> = emptyList(),
     )
 
-    /** Finalized sessions (endTs <= [nowSec]) only; never the currently-open night. */
-    fun sleepSessions(sessions: List<SleepInput>, nowSec: Long): List<SleepPlan> {
+    /** Finalized sessions (endTs <= [nowSec]) only; never the currently-open night. Fragments are
+     *  grouped into BRIDGED NIGHTS (#364) via [SleepStageTotals.bridgedNightGroups] — the SAME
+     *  two-tier bridge the daily totals score with (#561/#861) — so a night the detector split on a
+     *  brief mid-night wake exports as ONE session whose gap is an explicit AWAKE stage; naps never
+     *  bridge and stay their own records. The clientRecordId keys off the group's EARLIEST fragment's
+     *  immutable detected onset. [offsetSec] is seconds EAST of UTC (the night-tail bridge reads the
+     *  local clock). */
+    fun sleepSessions(sessions: List<SleepInput>, nowSec: Long, offsetSec: Long): List<SleepPlan> {
+        val finalized = sessions.filter { it.endTs > it.startTs && it.endTs <= nowSec }
+        if (finalized.isEmpty()) return emptyList()
+        val blocks = finalized.map { com.noop.analytics.SleepStageTotals.NightBlock(it.startTs, it.endTs) }
         val out = ArrayList<SleepPlan>()
-        for (s in sessions) {
-            if (s.endTs <= s.startTs) continue
-            if (s.endTs > nowSec) continue
-            out.add(SleepPlan("noop-sleep-${s.startTs}", s.startTs, s.endTs, parseStages(s.stagesJSON)))
+        for (group in com.noop.analytics.SleepStageTotals.bridgedNightGroups(blocks, offsetSec)) {
+            val frags = group.indices.map { finalized[it] }.sortedBy { it.startTs }
+            val stages = ArrayList<StagePlan>()
+            var prevEnd: Long? = null
+            for (f in frags) {
+                val p = prevEnd
+                // The inter-fragment seam is time the user was demonstrably awake — export it as an
+                // explicit AWAKE stage so the merged night carries the wake instead of a silent hole.
+                if (p != null && f.startTs > p) stages.add(StagePlan(p, f.startTs, asleep = false))
+                stages.addAll(parseStages(f.stagesJSON))
+                prevEnd = maxOf(prevEnd ?: f.endTs, f.endTs)
+            }
+            val rep = frags.minOf { it.keyStartTs }
+            out.add(SleepPlan(
+                clientId = "noop-sleep-$rep",
+                startSec = frags.first().startTs,
+                endSec = frags.maxOf { it.endTs },
+                stages = stages,
+                absorbedClientIds = frags.map { it.keyStartTs }.filter { it != rep }
+                    .sorted().map { "noop-sleep-$it" },
+            ))
         }
         return out
     }

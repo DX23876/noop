@@ -2000,14 +2000,34 @@ struct SleepView: View {
             if let seg = decodeSegments(frag.stagesJSON, sessionStart: frag.effectiveStartTs), seg.stages.total > 0 {
                 stages.awake += seg.stages.awake; stages.light += seg.stages.light
                 stages.deep  += seg.stages.deep;  stages.rem   += seg.stages.rem
+                // decodeSegments yields intervals relative to THAT fragment's onset; rebase them to
+                // NIGHT-relative (seconds from the displayed onset) so a later fragment's bars land
+                // after the first fragment instead of overlapping it — the same coordinate space
+                // sleepHRChart maps HR into (rel = ts - nightStart). No-op for the first fragment
+                // of a night (shift 0), so single-block nights are byte-identical. (#364)
+                let shift = TimeInterval(frag.effectiveStartTs - onset)
                 for iv in seg.intervals {
-                    segs.append(SleepInterval(stage: iv.stage, start: iv.start, end: iv.end))
+                    segs.append(SleepInterval(stage: iv.stage, start: iv.start + shift, end: iv.end + shift))
                 }
             } else if let st = decodeStages(frag.stagesJSON), st.total > 0 {
                 stages.awake += st.awake; stages.light += st.light
                 stages.deep  += st.deep;  stages.rem   += st.rem
             }
             if let m = motionByStart[frag.startTs] { motion.append(contentsOf: m) }
+        }
+        // #364: the inter-fragment wake seams belong to the night — draw each as a wake SEGMENT so
+        // the hero hypnogram has no hole where the user was up, matching what the Health export now
+        // writes. The stage MINUTES deliberately stay fragment-only (the seam is not added to
+        // `stages.awake`): the hero's in-bed/efficiency accounting sums fragment windows, mirroring
+        // the Android groupInBedMin rule, so asleep ≤ in-bed stays coherent. Seams are
+        // night-relative like the rebased segments above.
+        let orderedFrags = Array(group)
+        for (prev, next) in zip(orderedFrags, orderedFrags.dropFirst()) {
+            let gapStart = prev.endTs, gapEnd = next.effectiveStartTs
+            guard gapEnd > gapStart else { continue }
+            segs.append(SleepInterval(stage: .awake,
+                                      start: TimeInterval(gapStart - onset),
+                                      end: TimeInterval(gapEnd - onset)))
         }
         guard stages.asleep > 0 else { return nil }
         let eff = stages.total > 0 ? stages.asleep / stages.total : nil

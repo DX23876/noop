@@ -2824,13 +2824,25 @@ internal fun selectNight(
     // #259: clamp each fragment's timeline to its effective onset too (matching the stage-minute clamp
     // and the iOS decodeSegments clamp), so the hypnogram starts where the edited bedtime does instead of
     // drawing pre-onset bars that contradict the clamped asleep total. No-op for non-edited nights.
-    val groupSegments = if (heroGroup.size > 1) {
+    val groupSegmentsRaw = if (heroGroup.size > 1) {
         heroGroup.flatMap { parsePersistedSegments(SleepStageTotals.clampStagesToOnset(it.stagesJSON, it.effectiveStartTs)).orEmpty() }
             .sortedBy { it.start }
             .takeIf { it.size >= 2 }
     } else null
+    // #364: draw each inter-fragment wake seam as an explicit wake segment in the full-night
+    // hypnogram, so the merged night has no silent hole where the user was up — matching what the
+    // Health Connect export now writes. TIMELINE only: the seam is deliberately NOT added to the
+    // stage MINUTES (sumGroupStages) or groupInBedMin below — those keep the fragment-only
+    // accounting (asleep ≤ in-bed, see the #561 comment), and iOS mergeDay applies the same split.
+    val groupSegments = groupSegmentsRaw?.let { segs ->
+        val seams = heroGroup.zipWithNext().mapNotNull { (prev, next) ->
+            if (next.effectiveStartTs > prev.endTs)
+                PersistedSegment(prev.endTs, next.effectiveStartTs, "wake") else null
+        }
+        (segs + seams).sortedBy { it.start }
+    }
     val groupStages = if (heroGroup.size > 1) sumGroupStages(heroGroup) else null
-    val segments = (groupSegments ?: parsePersistedSegments(SleepStageTotals.clampStagesToOnset(session.stagesJSON, session.effectiveStartTs)))
+    val segments = (groupSegmentsRaw ?: parsePersistedSegments(SleepStageTotals.clampStagesToOnset(session.stagesJSON, session.effectiveStartTs)))
         ?.map { seg -> seg.stage to ((seg.end - seg.start) / 60f) }
     // #407: lay the GROUP's per-epoch motion fragment-by-fragment in `heroGroup` order (the same order
     // `groupSegments` lays the stage timeline), reading the already-chosen group's stored series. The

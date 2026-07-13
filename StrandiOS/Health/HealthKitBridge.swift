@@ -2,6 +2,7 @@
 import Foundation
 import HealthKit
 import WhoopStore
+import StrandAnalytics
 import StrandImport
 
 /// Two-way Apple Health bridge for the iOS app.
@@ -562,52 +563,56 @@ final class HealthKitBridge: ObservableObject {
         try await self.store.save(candidates.map { $0.sample })
     }
 
-    /// Write each sleep session as one `.inBed` sample spanning `effectiveStartTs → endTs` plus one
-    /// category sample per stage segment (`deep → .asleepDeep`, `rem → .asleepREM`,
-    /// `light → .asleepCore`, `wake → .awake`) — the same shape Oura and Apple Watch write, so
-    /// Health renders the full hypnogram. Sessions whose `stagesJSON` carries no timing (the legacy
-    /// aggregate-minutes shapes) get one honest `.asleepUnspecified` block instead of fabricated
-    /// stage placement.
+    /// Write each BRIDGED NIGHT (#364) as one `.inBed` sample plus one category sample per stage
+    /// segment (`deep → .asleepDeep`, `rem → .asleepREM`, `light → .asleepCore`, `wake → .awake`) —
+    /// the same shape Oura and Apple Watch write, so Health renders the full hypnogram. A night the
+    /// detector split on a brief mid-night wake exports as ONE entry whose gap is an explicit
+    /// `.awake` segment (grouped by `SleepStageTotals.bridgedNightGroups`, the SAME bridge the daily
+    /// totals score with, #561); naps never bridge and stay their own entries. Fragments whose
+    /// `stagesJSON` carries no timing (the legacy aggregate-minutes shapes) get one honest
+    /// `.asleepUnspecified` block instead of fabricated stage placement.
     ///
-    /// Dedup: every sample of a session carries `HKMetadataKeyExternalUUID =
-    /// noop:<deviceId>:sleep:<startTs>` (the immutable detected onset, so a user-edited session
-    /// keeps its identity); delete-then-write scoped to our own `HKSource`, like the vitals.
+    /// Dedup: every sample of a night carries `HKMetadataKeyExternalUUID =
+    /// noop:<deviceId>:sleep:<startTs>` keyed by the group's EARLIEST fragment's immutable detected
+    /// onset (a user edit moves the span, never the key). The delete predicate carries EVERY
+    /// fragment's key, so a night previously written as two entries fully clears when it becomes
+    /// one; delete-then-write scoped to our own `HKSource`, like the vitals.
     private func writeSleep(sessions: [CachedSleepSession]) async throws {
         guard let type = HKObjectType.categoryType(forIdentifier: .sleepAnalysis),
               store.authorizationStatus(for: type) == .sharingAuthorized else { return }
+        let blocks = sessions.map { SleepStageTotals.NightBlock(start: $0.effectiveStartTs, end: $0.endTs) }
+        let groups = SleepStageTotals.bridgedNightGroups(blocks, offsetSec: TimeZone.current.secondsFromGMT())
+            .map { g in
+                g.indices.map { i -> HealthWriteback.SleepFragment in
+                    let s = sessions[i]
+                    return .init(startTs: s.startTs, effectiveStartTs: s.effectiveStartTs,
+                                 endTs: s.endTs, stagesJSON: s.stagesJSON)
+                }
+            }
         var samples: [HKCategorySample] = []
         var keys: [String] = []
-        for s in sessions {
-            let startTs = s.effectiveStartTs
-            guard s.endTs > startTs else { continue }
-            let start = Date(timeIntervalSince1970: TimeInterval(startTs))
-            let end = Date(timeIntervalSince1970: TimeInterval(s.endTs))
-            let key = "noop:\(noopDeviceId):sleep:\(s.startTs)"
-            keys.append(key)
+        for entry in HealthWriteback.mergedSleepPlan(groups: groups) {
+            let key = "noop:\(noopDeviceId):sleep:\(entry.keyStartTs)"
             let meta = [HKMetadataKeyExternalUUID: key]
+            keys.append(contentsOf: entry.allKeyStartTs.map { "noop:\(noopDeviceId):sleep:\($0)" })
             samples.append(HKCategorySample(type: type, value: HKCategoryValueSleepAnalysis.inBed.rawValue,
-                                            start: start, end: end, metadata: meta))
-            let stages = HealthWriteback.stageIntervals(stagesJSON: s.stagesJSON,
-                                                        sessionStart: startTs, sessionEnd: s.endTs)
-            if stages.isEmpty {
-                samples.append(HKCategorySample(type: type,
-                                                value: HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue,
-                                                start: start, end: end, metadata: meta))
-            } else {
-                for seg in stages {
-                    let value: HKCategoryValueSleepAnalysis
-                    switch seg.kind {
-                    case .awake: value = .awake
-                    case .light: value = .asleepCore
-                    case .deep:  value = .asleepDeep
-                    case .rem:   value = .asleepREM
-                    }
-                    samples.append(HKCategorySample(
-                        type: type, value: value.rawValue,
-                        start: Date(timeIntervalSince1970: TimeInterval(seg.start)),
-                        end: Date(timeIntervalSince1970: TimeInterval(seg.end)),
-                        metadata: meta))
+                                            start: Date(timeIntervalSince1970: TimeInterval(entry.spanStart)),
+                                            end: Date(timeIntervalSince1970: TimeInterval(entry.spanEnd)),
+                                            metadata: meta))
+            for seg in entry.intervals {
+                let value: HKCategoryValueSleepAnalysis
+                switch seg.kind {
+                case .awake:       value = .awake
+                case .light:       value = .asleepCore
+                case .deep:        value = .asleepDeep
+                case .rem:         value = .asleepREM
+                case .unspecified: value = .asleepUnspecified
                 }
+                samples.append(HKCategorySample(
+                    type: type, value: value.rawValue,
+                    start: Date(timeIntervalSince1970: TimeInterval(seg.start)),
+                    end: Date(timeIntervalSince1970: TimeInterval(seg.end)),
+                    metadata: meta))
             }
         }
         guard !samples.isEmpty else { return }
