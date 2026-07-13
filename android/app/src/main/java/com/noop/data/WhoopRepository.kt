@@ -849,6 +849,26 @@ class WhoopRepository(private val dao: WhoopDao) {
     suspend fun metricSeries(deviceId: String, key: String, from: String, to: String) =
         dao.metricSeries(deviceId, key, from, to)
 
+    /**
+     * Computed ("-noop") [key] series across the active-strap UNION (the active strap's own computed
+     * sibling + the canonical "my-whoop-noop"), deduped per day with the active strap winning. This is
+     * how the weekly computed scores (fitness_age / vo2max_est / vitality / body_age) MUST be read:
+     * IntelligenceEngine writes them under "<activeStrapId>-noop", so a live-BLE strap banks them under
+     * "whoop-<mac>-noop", NOT the canonical "my-whoop-noop" a hardcoded read assumes (#349). Import users
+     * (activeStrapId == "my-whoop") collapse to the single canonical id, unchanged. Mirrors the computed
+     * layer of Swift Repository.exploreSeries.
+     */
+    suspend fun metricSeriesComputedUnion(
+        activeStrapId: String,
+        key: String,
+        from: String,
+        to: String,
+    ): List<MetricSeriesRow> {
+        val ids = computedSourceIds(activeStrapId)
+        if (ids.size == 1) return metricSeries(ids[0], key, from, to)
+        return mergeComputedSeriesUnion(ids.map { metricSeries(it, key, from, to) })
+    }
+
     /** Distinct metric keys present for a [deviceId]/source, sorted ascending. */
     suspend fun metricKeys(deviceId: String): List<String> = dao.metricKeys(deviceId)
 
@@ -1341,6 +1361,20 @@ class WhoopRepository(private val dao: WhoopDao) {
          *  scores under "<importedDeviceId>-noop"). */
         fun computedSourceIdsFor(activeDeviceId: String): List<String> =
             importedSourceIdsFor(activeDeviceId).map { "$it-noop" }
+
+        /** Merge per-source computed ("-noop") metricSeries rows into one series, DEDUPED per day: the
+         *  ACTIVE strap's value wins over the canonical import's on a shared day. [perSource] is in
+         *  [computedSourceIdsFor] order (active-strap first), so keeping the FIRST row seen per day
+         *  preserves the active value — the same active-first idiom as [dedupSleepBlocks]. Result is
+         *  day-sorted ascending. Pure companion for [ResolverUnionTest]. Mirrors the computed-union layer
+         *  of Swift Repository.exploreSeries. (#349) */
+        internal fun mergeComputedSeriesUnion(perSource: List<List<MetricSeriesRow>>): List<MetricSeriesRow> {
+            val byDay = LinkedHashMap<String, MetricSeriesRow>()
+            for (rows in perSource) {
+                for (row in rows) byDay.putIfAbsent(row.day, row)   // active-first: first seen per day wins
+            }
+            return byDay.values.sortedBy { it.day }
+        }
 
         /** Drop sleep blocks sharing an identical (startTs, endTs) , the same physical night recorded
          *  under two #814 union ids , keeping the FIRST seen (the callers pass active-strap-first lists,

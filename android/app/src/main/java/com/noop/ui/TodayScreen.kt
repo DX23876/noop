@@ -391,10 +391,10 @@ fun TodayScreen(
         // Read each pinned card from the SAME source its own detail screen reads, the proven path that
         // already shows real numbers there (and the resolution iOS's exploreSeries uses). Stress is derived
         // from the imported strap data (StressScreen reads "my-whoop"); Fitness age + Vitality are
-        // NOOP-COMPUTED weekly scores the IntelligenceEngine writes under the "-noop" source (HealthScreen
-        // reads COMPUTED_SOURCE = "my-whoop-noop"). The earlier resolvedSeries("…","my-whoop") read resolved
-        // empty in the demo because those two scores never live under the imported "my-whoop" source. Take
-        // the latest value (series are day-ascending), null → the card shows a dash, never a fabricated number.
+        // NOOP-COMPUTED weekly scores the IntelligenceEngine writes under "<activeStrapId>-noop". Read them
+        // through the computed UNION (active strap's sibling + canonical "my-whoop-noop"), the same helper
+        // HealthScreen uses — a hardcoded "my-whoop-noop" misses a live-BLE strap's "whoop-<mac>-noop" (#349).
+        // Take the latest value (series are day-ascending), null → the card shows a dash, never a fabricated number.
         // #753: build the SAME StressModel the detail screen (StressScreen) shows and take `model.score`,
         // rather than the stress series' last banked row. StressModel.build prefers today's stored stress row
         // but otherwise DERIVES today's score from the live `days` RHR/HRV baseline; the old `.lastOrNull()`
@@ -409,10 +409,12 @@ fun TodayScreen(
             StressModel.build(days, stored)?.score
         }.getOrNull()
         fitnessAgeToday = runCatching {
-            viewModel.repo.metricSeries("my-whoop-noop", "fitness_age", "0000-01-01", "9999-12-31").lastOrNull()?.value
+            viewModel.repo.metricSeriesComputedUnion(viewModel.activeStrapId, "fitness_age", "0000-01-01", "9999-12-31")
+                .lastOrNull()?.value
         }.getOrNull()
         vitalityToday = runCatching {
-            viewModel.repo.metricSeries("my-whoop-noop", "vitality", "0000-01-01", "9999-12-31").lastOrNull()?.value
+            viewModel.repo.metricSeriesComputedUnion(viewModel.activeStrapId, "vitality", "0000-01-01", "9999-12-31")
+                .lastOrNull()?.value
         }.getOrNull()
         // Cache the computed triple + signature so a later re-mount with unchanged data restores them and
         // short-circuits the history-wide read above.
