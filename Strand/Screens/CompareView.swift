@@ -138,18 +138,23 @@ struct CompareView: View {
 
     // #358 parity (Android ComparePrefs): the time window + the ordered metric selection persist across
     // visits — a UI preference, not `.noopbak` data. Selection is stored as comma-joined descriptor ids
-    // ("source:key"), restored through the same resolve-and-fall-back rule as the Kotlin side.
+    // ("source:key"). Both are restored PRE-render (window straight off @AppStorage, selection via a
+    // static initial value), so Compare opens directly on the saved state — matching Android, with no
+    // default-then-restore flash.
     @AppStorage("compare.rangeRaw") private var savedRangeRaw = CompareRange.year.rawValue
     @AppStorage("compare.selectedIds") private var savedSelectedIds = ""
 
-    /// A range binding that also persists the choice (#358), so the window survives across visits.
+    /// The active window, backed directly by @AppStorage so it is the persisted value from the first
+    /// frame. Read-only; writes go through `rangeBinding`.
+    private var range: CompareRange { CompareRange(rawValue: savedRangeRaw) ?? .year }
     private var rangeBinding: Binding<CompareRange> {
-        Binding(get: { range }, set: { range = $0; savedRangeRaw = $0.rawValue })
+        Binding(get: { CompareRange(rawValue: savedRangeRaw) ?? .year },
+                set: { savedRangeRaw = $0.rawValue })
     }
 
-    @State private var range: CompareRange = .year
-    /// Ordered selection (max 4). Drives both the legend order and color mapping.
-    @State private var selected: [MetricDescriptor] = []
+    /// Ordered selection (max 4). Pre-populated from the persisted ids (else the defaults) at creation,
+    /// so it renders the saved selection immediately. Drives both the legend order and color mapping.
+    @State private var selected: [MetricDescriptor] = CompareView.initialSelection()
     /// Full-history series per selected metric id (ascending by day).
     @State private var fullSeries: [String: [(day: String, value: Double)]] = [:]
     @State private var loadedOnce = false
@@ -193,7 +198,6 @@ struct CompareView: View {
                 }
             }
         }
-        .task { await loadIfNeeded() }
         .task(id: loadTaskID) {
             await loadSelected()
             refreshPairCache(activeSeries)
@@ -281,24 +285,23 @@ struct CompareView: View {
 
     // MARK: - Loading
 
-    private func loadIfNeeded() async {
-        guard selected.isEmpty else { return }
-        // #358: restore the persisted window + selection first. Fall back to the defaults only when
-        // nothing usable was saved (fresh install, or a catalog change dropped the saved ids below the
-        // minimum). Mirrors the Android ComparePrefs restore.
-        if let r = CompareRange(rawValue: savedRangeRaw) { range = r }
-        if let restored = Self.restoreSelection(savedSelectedIds, minSelection: minSelection,
-                                                maxSelection: maxSelection) {
-            selected = restored
-            return
-        }
-        // Seed the default selection from whichever default keys exist.
+    /// The persisted selection (comma-joined descriptor ids) resolved against the catalog, else the
+    /// defaults. Evaluated at view creation (the `selected` initial value) so Compare renders the saved
+    /// selection on the first frame. Twin of the Android `ComparePrefs.readSelection`. The literals
+    /// mirror `minSelection` / `maxSelection` below (a static initial value can't read instance members).
+    static func initialSelection() -> [MetricDescriptor] {
+        let raw = UserDefaults.standard.string(forKey: "compare.selectedIds") ?? ""
+        return restoreSelection(raw, minSelection: 2, maxSelection: 4) ?? defaultSelection()
+    }
+
+    /// The default starter selection from `defaultKeys` (graceful when a key is missing).
+    static func defaultSelection() -> [MetricDescriptor] {
         var picks: [MetricDescriptor] = []
-        for key in Self.defaultKeys {
+        for key in defaultKeys {
             if let m = MetricCatalog.all.first(where: { $0.key == key }) { picks.append(m) }
         }
         if picks.isEmpty { picks = Array(MetricCatalog.all.prefix(2)) }
-        selected = Array(picks.prefix(maxSelection))
+        return Array(picks.prefix(4))   // maxSelection
     }
 
     /// Restore a persisted Compare selection (comma-joined descriptor ids), or nil to fall back to the
