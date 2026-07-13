@@ -202,7 +202,7 @@ final class SleepStagerV2Tests: XCTestCase {
         }
         let segs = SleepStagerV2.stageSession(start: start, end: start + dur, grav: grav, hr: hr, rr: rr, resp: [])
         let golden: [(Int, Int, String)] = [
-            (0, 5070, "deep"), (5070, 5310, "light"), (5310, 5550, "rem"),
+            (0, 5070, "deep"), (5070, 5280, "light"), (5280, 5550, "rem"),
             (5550, 10740, "light"), (10740, 16290, "rem"), (16290, 21600, "wake")]
         XCTAssertEqual(segs.count, golden.count, "segment count")
         for k in 0..<min(segs.count, golden.count) {
@@ -219,9 +219,9 @@ final class SleepStagerV2Tests: XCTestCase {
     /// row-sum invariant catches a renormalisation typo in the hand-edited matrix. (The inline deep EMISSION
     /// weights aren't named constants, so they stay guarded only at the gross level by the golden.)
     func testTunedDeepBoundaryConstantsArePinned() {
-        XCTAssertEqual(SleepStagerV2.deepGateThresh, 0.25)
+        XCTAssertEqual(SleepStagerV2.deepGateThresh, 0.40)
         XCTAssertEqual(SleepStagerV2.transition["deep"]!,
-                       ["deep": 0.86, "rem": 0.007, "light": 0.126, "awake": 0.007])
+                       ["deep": 0.76, "rem": 0.012, "light": 0.216, "awake": 0.012])
         for (from, row) in SleepStagerV2.transition {
             XCTAssertEqual(row.values.reduce(0, +), 1.0, accuracy: 1e-9, "transition row '\(from)' must sum to 1.0")
         }

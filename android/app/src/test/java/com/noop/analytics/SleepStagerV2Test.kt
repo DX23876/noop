@@ -201,8 +201,8 @@ class SleepStagerV2Test {
         val segs = SleepStagerV2.stageSession(start, start + dur, grav, hr, rr, emptyList())
         val golden = listOf(
             Triple(0L, 5070L, "deep"),
-            Triple(5070L, 5310L, "light"),
-            Triple(5310L, 5550L, "rem"),
+            Triple(5070L, 5280L, "light"),
+            Triple(5280L, 5550L, "rem"),
             Triple(5550L, 10740L, "light"),
             Triple(10740L, 16290L, "rem"),
             Triple(16290L, 21600L, "wake"))
@@ -224,9 +224,9 @@ class SleepStagerV2Test {
      */
     @Test
     fun tunedDeepBoundaryConstantsArePinned() {
-        assertEquals(0.25, SleepStagerV2.deepGateThresh, 0.0)
+        assertEquals(0.40, SleepStagerV2.deepGateThresh, 0.0)
         assertEquals(
-            mapOf("deep" to 0.86, "rem" to 0.007, "light" to 0.126, "awake" to 0.007),
+            mapOf("deep" to 0.76, "rem" to 0.012, "light" to 0.216, "awake" to 0.012),
             SleepStagerV2.transition["deep"])
         for ((from, row) in SleepStagerV2.transition) {
             assertEquals("transition row '$from' must sum to 1.0", 1.0, row.values.sum(), 1e-9)
