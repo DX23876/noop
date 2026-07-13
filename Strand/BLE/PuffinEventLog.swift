@@ -23,8 +23,19 @@ final class PuffinEventLog {
     /// day of wear, so 5 MB is years of history.
     private static let softCapBytes = 5 * 1024 * 1024
 
-    /// The WHOOP 5 inner-record type byte for EVENT frames (the inner record starts at offset 8).
+    /// The WHOOP 5/MG inner-record type byte for EVENT frames (type 48). The inner record starts at
+    /// offset 8 (`[type][seq][cmd][data…]`) — the SAME position `BLEManager.isOffloadFrame` /
+    /// `noteWhoop5R22Telemetry` index and the Interpreter reads the canonical type name from.
     private static let eventTypeByte: UInt8 = 0x30
+    private static let innerRecordOffset = 8
+
+    /// Pure predicate: is `frame` a WHOOP 5/MG EVENT (type 48 / 0x30) frame? A reassembled frame's
+    /// inner-record type byte sits at offset 8, so this needs `count > 8` before indexing. Extracted so
+    /// the offset-8 magic number is unit-testable without a strap (BLE paths otherwise have no test).
+    /// Byte-identical to the Kotlin twin `WhoopBleClient.isWhoop5EventFrame`.
+    nonisolated static func isEventFrame(_ frame: [UInt8]) -> Bool {
+        frame.count > innerRecordOffset && frame[innerRecordOffset] == eventTypeByte
+    }
 
     private var handle: FileHandle?
     private var disabled = false
@@ -49,12 +60,23 @@ final class PuffinEventLog {
     /// replays historical EVENTs during a sync, and either path may be the only one that sees a
     /// given record (the official app's trim can empty the strap's history before NOOP syncs).
     func appendIfEvent(frame: [UInt8], char: CBUUID) {
-        guard !disabled, frame.count > 8, frame[8] == Self.eventTypeByte, isEnabled else { return }
+        // Order matters: the EVENT check short-circuits the non-EVENT flood BEFORE the `isEnabled`
+        // UserDefaults read, so the cost for an ordinary frame stays a single length+byte compare.
+        guard !disabled, Self.isEventFrame(frame), isEnabled else { return }
         let tsMs = Int(Date().timeIntervalSince1970 * 1000)
         let hex = frame.map { String(format: "%02x", $0) }.joined()
         let line = "{\"ts_ms\":\(tsMs),\"char\":\"\(char.uuidString.lowercased())\",\"hex\":\"\(hex)\"}\n"
         do {
-            let h = try openHandle()
+            var h = try openHandle()
+            // Rotate a LIVE handle too, not just at open: a long single session (or a first-ever sync
+            // that replays weeks of history in one connection) would otherwise grow the file past the
+            // cap unchecked, since `openHandle` only tests size when it opens. The Android twin tests
+            // `File.length()` on every append — match that so neither platform overshoots. `close()`
+            // drops the handle; the re-open sees the oversize file and rotates it to `.1`, fresh.
+            if try h.offset() > UInt64(Self.softCapBytes) {
+                close()
+                h = try openHandle()
+            }
             try h.write(contentsOf: Data(line.utf8))
         } catch {
             // A diagnostics log must never affect the connection path: disable for this launch.

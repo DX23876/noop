@@ -600,6 +600,22 @@ class WhoopBleClient(
         const val WHOOP5_EVENT_LOG_FILE = "whoop5-events.jsonl"
         // EVENT frames are ~40–120 B of hex each, a few KB per day of wear — 5 MB is years.
         private const val WHOOP5_EVENT_LOG_MAX_BYTES = 5L * 1024 * 1024
+
+        /** WHOOP 5/MG inner-record type byte for EVENT frames (type 48). The inner record starts at
+         *  offset 8 ([type][seq][cmd][data…]) — the SAME position [isOffloadFrame]/R22-telemetry index
+         *  and the Interpreter reads the canonical type name from. */
+        const val WHOOP5_EVENT_TYPE = 0x30
+        private const val WHOOP5_INNER_RECORD_OFFSET = 8
+
+        /**
+         * Pure predicate: is [frame] a WHOOP 5/MG EVENT (type 48 / 0x30) frame? A reassembled frame's
+         * inner-record type byte sits at offset 8, so this needs `size > 8` before indexing. Extracted
+         * from [writeWhoop5EventLogIfEvent] so the offset-8 magic number is unit-testable without a strap
+         * (BLE paths otherwise have no test). Byte-identical to the Swift twin `PuffinEventLog.isEventFrame`.
+         */
+        fun isWhoop5EventFrame(frame: ByteArray): Boolean =
+            frame.size > WHOOP5_INNER_RECORD_OFFSET &&
+                (frame[WHOOP5_INNER_RECORD_OFFSET].toInt() and 0xFF) == WHOOP5_EVENT_TYPE
         /** Rotation threshold (~10 MB) and absolute per-file line cap (a full overnight offload is
          *  ~28k frames; 40k leaves headroom — his fork's 20k truncated real sessions, #78 fork). */
         private const val WHOOP5_CAPTURE_MAX_BYTES = 10L * 1024 * 1024
@@ -5598,7 +5614,7 @@ class WhoopBleClient(
      * the cap keeping one previous generation, the backfill capture's idiom.
      */
     private fun writeWhoop5EventLogIfEvent(characteristic: String, frame: ByteArray) {
-        if (eventLogDisabled || frame.size <= 8 || (frame[8].toInt() and 0xFF) != 0x30) return
+        if (eventLogDisabled || !isWhoop5EventFrame(frame)) return
         if (!PuffinExperiment.from(context).isCaptureEnabled) return
         runCatching {
             val f = java.io.File(context.filesDir, WHOOP5_EVENT_LOG_FILE)
