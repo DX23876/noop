@@ -362,9 +362,19 @@ object Framing {
      * diagnostics channel — it narrates history syncs ("BLE: PullStats: Data: N, Events: N…",
      * "RTC timestamp … is invalid; not saving data to flash"), which is how the clock-before-history
      * requirement was discovered. Capped at 2 KB (matches the Swift PostHooks console hardening).
+     *
+     * The record header carries record_index u16@9 (monotonic per-chunk counter — the console is
+     * one continuous stream chunked into fixed-size pieces, and lines split mid-sentence across
+     * frames, so consumers reassemble in record_index order), unix u32@12 and subsec u16@16 (batch
+     * write time). Offsets verified across 3 257 real frames from two nights (all one shape:
+     * 76-byte frame, chunk_len u16@18 = 52, channel u8@20 = 1); the Swift twin is
+     * `decodeWhoop5ConsoleLogs` in Interpreter.swift (its text key is "log").
      * (#78 fork, real-frame verified)
      */
     private fun decodeConsoleLogsWhoop5(frame: ByteArray, parsed: MutableMap<String, Any?>) {
+        frame.u16(9)?.let { parsed["record_index"] = it }
+        frame.u32(12)?.let { parsed["unix"] = it.toInt() }
+        frame.u16(16)?.let { parsed["subsec"] = it }
         val payEnd = frame.size - 4
         if (payEnd <= 21) return
         val text = frame.copyOfRange(21, payEnd)

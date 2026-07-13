@@ -504,5 +504,35 @@ class FramingTest {
         assertEquals("CONSOLE_LOGS", parsed.typeName)
         assertEquals(true, parsed.crcOk)
         assertEquals("Historical Data\n 55, 2581959: BLE: hist transfer s", parsed.parsed["console"])
+        // Record header (Swift parity: decodeWhoop5ConsoleLogs): per-chunk counter + batch time.
+        assertEquals(671, parsed.parsed["record_index"])
+        assertEquals(1773607251, parsed.parsed["unix"])
+        assertEquals(16041, parsed.parsed["subsec"])
+    }
+
+    @Test
+    fun whoop5_consoleLogs_consecutiveChunksCarryContiguousIndices() {
+        // Two consecutive real chunks of one console stream — a single log line split mid-word
+        // ("…response a" | "ck, start burst") across frames. record_index is the reassembly key.
+        val a = Framing.parseFrame(
+            fromHex(
+                "aa014400010030b132ad020052b4526a337334000131392c203134363535323131393a20424c453a2068" +
+                    "697374207472616e7366657220737461727420726573706f6e7365206100324a7906",
+            ),
+            DeviceFamily.WHOOP5,
+        )
+        val b = Framing.parseFrame(
+            fromHex(
+                "aa014400010030b132ae020052b4526a3373340001636b2c2073746172742062757273740a2031392c20" +
+                    "3134363535343633303a20424c453a20486973746f727920627572737400e67d611f",
+            ),
+            DeviceFamily.WHOOP5,
+        )
+        assertEquals(true, a.crcOk)
+        assertEquals(true, b.crcOk)
+        assertEquals(685, a.parsed["record_index"])
+        assertEquals(686, b.parsed["record_index"])
+        assertEquals("19, 146552119: BLE: hist transfer start response a", a.parsed["console"])
+        assertEquals("ck, start burst\n 19, 146554630: BLE: History burst", b.parsed["console"])
     }
 }

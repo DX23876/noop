@@ -305,6 +305,8 @@ private func parseFrameWhoop5(_ frame: [UInt8], collectFields: Bool) -> ParsedFr
             decodeWhoop5CommandResponse(frame, fb: fb, schema: schema, payloadEnd: payloadEnd)
         } else if spec!.post == "event" {
             decodeWhoop5Event(frame, fb: fb, schema: schema)
+        } else if spec!.post == "console_logs" {
+            decodeWhoop5ConsoleLogs(frame, fb: fb, payloadEnd: payloadEnd)
         } else if let payloadEnd = payloadEnd, innerStart + 3 < payloadEnd, payloadEnd <= frame.count {
             // Other types: static fields decoded above; the remaining variable body is kept raw —
             // its 4.0 post-hook awaits per-type 5.0 hardware verification before we apply it at +4.
@@ -749,6 +751,36 @@ private func decodeWhoop5Event(_ frame: [UInt8], fb: FieldBuilder, schema: Schem
     if let ch = readDType(frame, 30, "u8"), ch <= 1 {
         fb.add(30, 1, "battery_charging", "battery", value: .int(ch & 1))
     }
+}
+
+/// Decode a WHOOP 5.0 CONSOLE_LOGS (type 50) frame — the strap firmware's own plaintext diagnostics
+/// channel. The console is one continuous text stream chunked into fixed-size pieces, so a log line
+/// routinely splits mid-sentence across frames; consumers reassemble by `record_index` order before
+/// reading. Lines look like `19, 146552119: BLE: History burst success. Trim: …` (boot-count,
+/// firmware tick ms, tag, message) and narrate the history sync and the sensor pipeline
+/// ("SENSORS: AFE configuration changed", "SIGPROC: generated a valid SPO2 during sleep") — primary
+/// raw material for the deep-data work (#103).
+///
+/// Record header, verified across 3 257 real frames from two nights (all one shape: 76-byte frame,
+/// chunk_len 52, channel 1): `record_index` u16@9 (monotonic per-chunk counter — the frame's u8 seq
+/// slot is its low byte), `unix` u32@12 + `subsec` u16@16 (batch write time), chunk_len u16@18,
+/// channel u8@20, text bytes @21 up to the CRC32 trailer with NUL padding. The Kotlin twin is
+/// `Framing.decodeConsoleLogsWhoop5` (text key "console"), same offsets.
+private func decodeWhoop5ConsoleLogs(_ frame: [UInt8], fb: FieldBuilder, payloadEnd: Int?) {
+    if let idx = readDType(frame, 9, "u16") {
+        fb.add(9, 2, "record_index", "meta", value: .int(idx), note: "per-chunk counter")
+    }
+    if let unix = readDType(frame, 12, "u32") { fb.add(12, 4, "unix", "time", value: .int(unix)) }
+    if let ss = readDType(frame, 16, "u16") { fb.add(16, 2, "subsec", "time", value: .int(ss)) }
+    guard let payloadEnd = payloadEnd, 21 < payloadEnd, payloadEnd <= frame.count else { return }
+    var textBytes = Array(frame[21..<payloadEnd])
+    while textBytes.last == 0 { textBytes.removeLast() }
+    guard !textBytes.isEmpty else { return }
+    let txt = String(decoding: textBytes, as: UTF8.self)
+    fb.region(21, payloadEnd, "console log text", "text", note: String(txt.prefix(80)))
+    // Same 2 KB cap as the 4.0 console post-hook: a garbled/malicious peer must not pin arbitrary
+    // bytes as a String on the parse path. A real chunk is 51 bytes.
+    fb.parsed["log"] = .string(String(txt.prefix(2048)))
 }
 
 @inline(__always)
