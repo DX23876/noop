@@ -238,8 +238,21 @@ final class AICoachEngine: ObservableObject {
     var systemPrompt: String {
         let stored = UserDefaults.standard.string(forKey: Self.systemPromptKey)?
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        if let stored, !stored.isEmpty { return stored }
-        return Self.defaultSystemPrompt
+        let base = (stored?.isEmpty == false) ? stored! : Self.defaultSystemPrompt
+        // The selected persona sets the coach's VOICE on top of the methodology in `base`, so
+        // the tone changes while the coaching logic and guardrails stay intact. Read fresh so a
+        // persona switch applies to the very next message, like the prompt itself.
+        return persona.systemPreamble + "\n\n" + base
+    }
+
+    /// The active coaching personality. Backed by UserDefaults via `CoachPersona`; the setter
+    /// signals `objectWillChange` so the settings picker updates, mirroring `customSystemPrompt`.
+    var persona: CoachPersona {
+        get { CoachPersona.current }
+        set {
+            CoachPersona.set(newValue)
+            objectWillChange.send()
+        }
     }
 
     /// The user's stored prompt override, or the default when nothing custom is set. The UI binds its
