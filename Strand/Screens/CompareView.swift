@@ -136,6 +136,17 @@ struct CompareView: View {
     /// Default starter selection (falls back gracefully if a key is missing).
     private static let defaultKeys = ["recovery", "sleep_performance", "weight"]
 
+    // #358 parity (Android ComparePrefs): the time window + the ordered metric selection persist across
+    // visits — a UI preference, not `.noopbak` data. Selection is stored as comma-joined descriptor ids
+    // ("source:key"), restored through the same resolve-and-fall-back rule as the Kotlin side.
+    @AppStorage("compare.rangeRaw") private var savedRangeRaw = CompareRange.year.rawValue
+    @AppStorage("compare.selectedIds") private var savedSelectedIds = ""
+
+    /// A range binding that also persists the choice (#358), so the window survives across visits.
+    private var rangeBinding: Binding<CompareRange> {
+        Binding(get: { range }, set: { range = $0; savedRangeRaw = $0.rawValue })
+    }
+
     @State private var range: CompareRange = .year
     /// Ordered selection (max 4). Drives both the legend order and color mapping.
     @State private var selected: [MetricDescriptor] = []
@@ -272,6 +283,15 @@ struct CompareView: View {
 
     private func loadIfNeeded() async {
         guard selected.isEmpty else { return }
+        // #358: restore the persisted window + selection first. Fall back to the defaults only when
+        // nothing usable was saved (fresh install, or a catalog change dropped the saved ids below the
+        // minimum). Mirrors the Android ComparePrefs restore.
+        if let r = CompareRange(rawValue: savedRangeRaw) { range = r }
+        if let restored = Self.restoreSelection(savedSelectedIds, minSelection: minSelection,
+                                                maxSelection: maxSelection) {
+            selected = restored
+            return
+        }
         // Seed the default selection from whichever default keys exist.
         var picks: [MetricDescriptor] = []
         for key in Self.defaultKeys {
@@ -279,6 +299,32 @@ struct CompareView: View {
         }
         if picks.isEmpty { picks = Array(MetricCatalog.all.prefix(2)) }
         selected = Array(picks.prefix(maxSelection))
+    }
+
+    /// Restore a persisted Compare selection (comma-joined descriptor ids), or nil to fall back to the
+    /// defaults. Twin of the Android `parseCompareSelection` (#358): resolve each id against the catalog,
+    /// dedupe, cap at `maxSelection`; restore when EVERY saved id still resolves (so a deliberate
+    /// sub-minimum selection is honored) OR at least `minSelection` survive — nil only when a catalog
+    /// change dropped the saved ids below the minimum (the stale-selection case). Pure for testability.
+    static func restoreSelection(_ raw: String, minSelection: Int, maxSelection: Int) -> [MetricDescriptor]? {
+        let tokens = raw.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        guard !tokens.isEmpty else { return nil }
+        var seen = Set<String>()
+        var parsed: [MetricDescriptor] = []
+        for id in tokens {
+            guard seen.insert(id).inserted else { continue }   // first occurrence only (dedupe)
+            if let m = MetricCatalog.all.first(where: { $0.id == id }) {
+                parsed.append(m)
+                if parsed.count == maxSelection { break }
+            }
+        }
+        let uniqueSaved = Set(tokens).count
+        return (parsed.count == uniqueSaved || parsed.count >= minSelection) ? parsed : nil
+    }
+
+    /// Persist the current selection as comma-joined descriptor ids (#358).
+    private func persistSelection() {
+        savedSelectedIds = selected.map(\.id).joined(separator: ",")
     }
 
     /// Load the full history for the selected metrics. Selection is capped at four,
@@ -303,13 +349,13 @@ struct CompareView: View {
                     // stacked so the pills don't overflow/clip on a narrow window (ported from the iOS port).
                     ViewThatFits(in: .horizontal) {
                         HStack(alignment: .center) {
-                            SegmentedPillControl(CompareRange.allCases, selection: $range) { $0.label }
+                            SegmentedPillControl(CompareRange.allCases, selection: rangeBinding) { $0.label }
                                 .accessibilityLabel("Time range")
                             Spacer()
                             addMenu
                         }
                         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-                            SegmentedPillControl(CompareRange.allCases, selection: $range) { $0.label }
+                            SegmentedPillControl(CompareRange.allCases, selection: rangeBinding) { $0.label }
                                 .accessibilityLabel("Time range")
                             addMenu
                         }
@@ -382,11 +428,13 @@ struct CompareView: View {
             remove(metric)
         } else if selected.count < maxSelection {
             withAnimation(StrandMotion.gentle) { selected.append(metric) }
+            persistSelection()   // #358
         }
     }
 
     private func remove(_ metric: MetricDescriptor) {
         withAnimation(StrandMotion.gentle) { selected.removeAll { $0 == metric } }
+        persistSelection()   // #358
     }
 
     // MARK: - Overlay chart section (locked ChartCard)
