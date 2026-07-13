@@ -309,23 +309,54 @@ object AppleHealthImporter {
             }
         }
 
-        var distanceM: Double? = null
-        val distStr = attr(parser, "totalDistance")
-        if (distStr != null) {
-            val dist = distStr.toDoubleOrNull()
-            if (dist != null) {
-                distanceM = when ((attr(parser, "totalDistanceUnit") ?: "km").lowercase()) {
-                    "km" -> dist * 1000.0
-                    "mi" -> dist * 1609.344
-                    "m" -> dist
-                    else -> dist * 1000.0
+        // Per-workout totals: iOS <=15 put them on the <Workout> element as `totalDistance` /
+        // `totalEnergyBurned` attributes; iOS 16+ moved them into nested <WorkoutStatistics> children
+        // (energy/distance now `type`+`sum`, heart rate `average`/`maximum`). Read the legacy attributes
+        // first, then let the children FILL any still absent — a modern export carries no legacy
+        // attributes so nothing a legacy value set is clobbered. Mirrors HealthXMLDelegate.handleWorkout.
+        var distanceM: Double? = attr(parser, "totalDistance")?.toDoubleOrNull()
+            ?.let { distanceMeters(it, attr(parser, "totalDistanceUnit")) }
+        var energyKcal: Double? = attr(parser, "totalEnergyBurned")?.toDoubleOrNull()
+        var avgHr: Double? = null
+        var maxHr: Double? = null
+
+        // Walk this workout's own sub-tree. A self-closing <WorkoutStatistics/> yields START_TAG then
+        // END_TAG, so relative-depth tracking (1 inside the open <Workout>, back to 0 at </Workout>)
+        // consumes each child exactly once and skips MetadataEntry / WorkoutEvent / WorkoutRoute.
+        var depth = 1
+        while (depth > 0) {
+            val ev = parser.next()
+            if (ev == XmlPullParser.END_DOCUMENT) break
+            if (ev == XmlPullParser.START_TAG) {
+                if (parser.name == "WorkoutStatistics") {
+                    when (val statType = stripPrefix(attr(parser, "type") ?: "")) {
+                        "ActiveEnergyBurned" ->
+                            if (energyKcal == null) energyKcal = attr(parser, "sum")?.toDoubleOrNull()
+                        "HeartRate" -> {
+                            if (avgHr == null) avgHr = attr(parser, "average")?.toDoubleOrNull()
+                            if (maxHr == null) maxHr = attr(parser, "maximum")?.toDoubleOrNull()
+                        }
+                        else -> if (statType.startsWith("Distance") && distanceM == null) {
+                            distanceM = attr(parser, "sum")?.toDoubleOrNull()
+                                ?.let { distanceMeters(it, attr(parser, "unit")) }
+                        }
+                    }
                 }
+                depth += 1
+            } else if (ev == XmlPullParser.END_TAG) {
+                depth -= 1
             }
         }
 
-        val energyKcal = attr(parser, "totalEnergyBurned")?.toDoubleOrNull()
+        agg.addWorkout(activity, durationS, distanceM, energyKcal, avgHr, maxHr, start, end)
+    }
 
-        agg.addWorkout(activity, durationS, distanceM, energyKcal, start, end)
+    /** Convert a distance value in `km` / `mi` / `m` to metres (defaulting to km, Apple's usual unit). */
+    private fun distanceMeters(value: Double, unit: String?): Double = when ((unit ?: "km").lowercase()) {
+        "km" -> value * 1000.0
+        "mi" -> value * 1609.344
+        "m" -> value
+        else -> value * 1000.0
     }
 
     // ------------------------------------------------------------------------
@@ -478,6 +509,8 @@ object AppleHealthImporter {
         /** Finalized per-day aggregates, ascending by day. */
         val days: List<DailyAggView>,
         val workoutCount: Int,
+        /** Finalized workout rows (exposes energy/distance/HR for the WorkoutStatistics tests). */
+        val workouts: List<WorkoutRow>,
         /** Dropped XML spans (sanitizer-scrubbed runs + hard-error-truncated tail). */
         val skippedSpans: Int,
     )
@@ -495,9 +528,11 @@ object AppleHealthImporter {
         val agg = Aggregator()
         parseXml(input, agg)
         val days = agg.finishDays().map { DailyAggView(it.day, it.avgHr, it.maxHr, it.steps) }
+        val workouts = agg.finishWorkouts(DEFAULT_DEVICE_ID)
         return ParseProbe(
             days = days,
-            workoutCount = agg.finishWorkouts(DEFAULT_DEVICE_ID).size,
+            workoutCount = workouts.size,
+            workouts = workouts,
             skippedSpans = agg.skippedSpanCount(),
         )
     }
@@ -731,6 +766,8 @@ private class Aggregator {
         val durationS: Double?,
         val distanceM: Double?,
         val energyKcal: Double?,
+        val avgHr: Double?,
+        val maxHr: Double?,
     )
 
     /** Returns true if [key] was not seen before (i.e. this row should be processed). Dedupes on the
@@ -818,7 +855,7 @@ private class Aggregator {
         a.hasSleep = true
     }
 
-    fun addWorkout(sport: String, durationS: Double?, distanceM: Double?, energyKcal: Double?, start: HealthDate, end: HealthDate) {
+    fun addWorkout(sport: String, durationS: Double?, distanceM: Double?, energyKcal: Double?, avgHr: Double?, maxHr: Double?, start: HealthDate, end: HealthDate) {
         sawAnyRecord = true
         workouts += PendingWorkout(
             sport = sport,
@@ -827,6 +864,8 @@ private class Aggregator {
             durationS = durationS,
             distanceM = distanceM,
             energyKcal = energyKcal,
+            avgHr = avgHr,
+            maxHr = maxHr,
         )
     }
 
@@ -874,8 +913,8 @@ private class Aggregator {
             source = "apple-health",
             durationS = w.durationS ?: (w.endTs - w.startTs).toDouble(),
             energyKcal = w.energyKcal,
-            avgHr = null,
-            maxHr = null,
+            avgHr = w.avgHr?.let { Math.round(it).toInt() },
+            maxHr = w.maxHr?.let { Math.round(it).toInt() },
             strain = null,
             distanceM = w.distanceM,
             zonesJSON = null,

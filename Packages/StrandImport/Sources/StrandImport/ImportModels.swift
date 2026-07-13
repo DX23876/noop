@@ -95,6 +95,10 @@ public struct HealthWorkout: Sendable, Equatable {
     public var distanceM: Double?
     /// Total active energy burned in kilocalories, when present.
     public var energyKcal: Double?
+    /// Average heart rate over the workout, when present (iOS 16+ `<WorkoutStatistics>` only).
+    public var avgHr: Double?
+    /// Peak heart rate over the workout, when present (iOS 16+ `<WorkoutStatistics>` only).
+    public var maxHr: Double?
     public var start: Date
     public var end: Date
     public var tzOffsetMin: Int
@@ -105,6 +109,8 @@ public struct HealthWorkout: Sendable, Equatable {
         durationS: Double?,
         distanceM: Double?,
         energyKcal: Double?,
+        avgHr: Double? = nil,
+        maxHr: Double? = nil,
         start: Date,
         end: Date,
         tzOffsetMin: Int,
@@ -114,6 +120,8 @@ public struct HealthWorkout: Sendable, Equatable {
         self.durationS = durationS
         self.distanceM = distanceM
         self.energyKcal = energyKcal
+        self.avgHr = avgHr
+        self.maxHr = maxHr
         self.start = start
         self.end = end
         self.tzOffsetMin = tzOffsetMin

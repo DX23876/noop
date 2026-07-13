@@ -169,4 +169,61 @@ class AppleHealthImporterToleranceTest {
         // The sanitized bytes round-trip to the original (no corruption of the split character).
         assertEquals(String(xml, Charsets.UTF_8), String(out, Charsets.UTF_8))
     }
+
+    /**
+     * iOS 16+ shape: per-workout energy/distance/HR live in nested <WorkoutStatistics> children, NOT
+     * as <Workout> attributes. The importer must read them, or every modern-export workout imports as
+     * a bare shell (no energy/distance/HR) and de-dups noisily. MetadataEntry child confirms the
+     * sub-tree walk skips non-stats children. Mirrors the macOS AppleHealthImporterTests twin.
+     */
+    @Test
+    fun modernWorkoutStatisticsRecoversEnergyDistanceAndHr() {
+        val xml = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <HealthData>
+             <Workout workoutActivityType="HKWorkoutActivityTypeRunning" duration="45" durationUnit="min" sourceName="Watch" startDate="2024-01-02 16:00:00 +0000" endDate="2024-01-02 16:45:00 +0000">
+              <WorkoutStatistics type="HKQuantityTypeIdentifierActiveEnergyBurned" startDate="2024-01-02 16:00:00 +0000" endDate="2024-01-02 16:45:00 +0000" sum="540" unit="Cal"/>
+              <WorkoutStatistics type="HKQuantityTypeIdentifierDistanceWalkingRunning" startDate="2024-01-02 16:00:00 +0000" endDate="2024-01-02 16:45:00 +0000" sum="8.05" unit="km"/>
+              <WorkoutStatistics type="HKQuantityTypeIdentifierHeartRate" startDate="2024-01-02 16:00:00 +0000" endDate="2024-01-02 16:45:00 +0000" average="150" minimum="98" maximum="176" unit="count/min"/>
+              <MetadataEntry key="HKIndoorWorkout" value="0"/>
+             </Workout>
+            </HealthData>
+        """.trimIndent().toByteArray(Charsets.UTF_8)
+
+        val probe = AppleHealthImporter.parseStreamForTest(ByteArrayInputStream(xml))
+
+        assertEquals(1, probe.workouts.size)
+        val w = probe.workouts.single()
+        assertEquals("Running", w.sport)
+        assertEquals(2700.0, w.durationS!!, 1e-9)          // 45 min -> seconds
+        assertEquals(540.0, w.energyKcal!!, 1e-9)          // sum, Cal == kcal
+        assertEquals(8050.0, w.distanceM!!, 0.5)           // 8.05 km -> ~8050 m
+        assertEquals(150, w.avgHr)                          // WorkoutStatistics HeartRate average
+        assertEquals(176, w.maxHr)                          // WorkoutStatistics HeartRate maximum
+        assertEquals(0, probe.skippedSpans)
+    }
+
+    /**
+     * Regression guard: the legacy iOS <=15 shape (totals as <Workout> attributes) must keep parsing.
+     * HR was never an attribute in that shape, so avg/max stay null.
+     */
+    @Test
+    fun legacyWorkoutAttributesStillParse() {
+        val xml = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <HealthData>
+             <Workout workoutActivityType="HKWorkoutActivityTypeCycling" duration="30" durationUnit="min" totalDistance="10.0" totalDistanceUnit="km" totalEnergyBurned="250" totalEnergyBurnedUnit="kcal" startDate="2024-01-02 16:00:00 +0000" endDate="2024-01-02 16:30:00 +0000"/>
+            </HealthData>
+        """.trimIndent().toByteArray(Charsets.UTF_8)
+
+        val probe = AppleHealthImporter.parseStreamForTest(ByteArrayInputStream(xml))
+
+        assertEquals(1, probe.workouts.size)
+        val w = probe.workouts.single()
+        assertEquals("Cycling", w.sport)
+        assertEquals(250.0, w.energyKcal!!, 1e-9)
+        assertEquals(10000.0, w.distanceM!!, 0.5)
+        assertEquals(null, w.avgHr)
+        assertEquals(null, w.maxHr)
+    }
 }

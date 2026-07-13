@@ -122,6 +122,34 @@ final class AppleHealthImporterTests: XCTestCase {
         XCTAssertEqual(w.tzOffsetMin, 60)
     }
 
+    /// iOS 16+ shape: per-workout energy/distance/HR live in nested <WorkoutStatistics> children, not as
+    /// <Workout> attributes. The parser must fold them in, or every modern-export workout imports as a
+    /// bare shell (no energy/distance/HR) and de-dups noisily. The MetadataEntry child confirms the
+    /// deferred commit ignores non-statistics children. Kotlin twin:
+    /// `AppleHealthImporterToleranceTest.modernWorkoutStatisticsRecoversEnergyDistanceAndHr`.
+    func testWorkoutStatisticsModernExport() throws {
+        let xml = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <HealthData>
+         <Workout workoutActivityType="HKWorkoutActivityTypeRunning" duration="45" durationUnit="min" sourceName="Watch" startDate="2024-01-02 16:00:00 +0000" endDate="2024-01-02 16:45:00 +0000">
+          <WorkoutStatistics type="HKQuantityTypeIdentifierActiveEnergyBurned" startDate="2024-01-02 16:00:00 +0000" endDate="2024-01-02 16:45:00 +0000" sum="540" unit="Cal"/>
+          <WorkoutStatistics type="HKQuantityTypeIdentifierDistanceWalkingRunning" startDate="2024-01-02 16:00:00 +0000" endDate="2024-01-02 16:45:00 +0000" sum="8.05" unit="km"/>
+          <WorkoutStatistics type="HKQuantityTypeIdentifierHeartRate" startDate="2024-01-02 16:00:00 +0000" endDate="2024-01-02 16:45:00 +0000" average="150" minimum="98" maximum="176" unit="count/min"/>
+          <MetadataEntry key="HKIndoorWorkout" value="0"/>
+         </Workout>
+        </HealthData>
+        """
+        let r = try AppleHealthImporter().importXML(data: Data(xml.utf8))
+        XCTAssertEqual(r.workouts.count, 1)
+        let w = try XCTUnwrap(r.workouts.first)
+        XCTAssertEqual(w.activityType, "Running")
+        XCTAssertEqual(w.durationS, 45 * 60)
+        XCTAssertEqual(try XCTUnwrap(w.energyKcal), 540, accuracy: 1e-9)   // sum, Cal == kcal
+        XCTAssertEqual(try XCTUnwrap(w.distanceM), 8050, accuracy: 0.5)    // 8.05 km -> ~8050 m
+        XCTAssertEqual(try XCTUnwrap(w.avgHr), 150, accuracy: 1e-9)        // WorkoutStatistics average
+        XCTAssertEqual(try XCTUnwrap(w.maxHr), 176, accuracy: 1e-9)        // WorkoutStatistics maximum
+    }
+
     // MARK: - Prefix stripping
 
     func testStripPrefix() {
