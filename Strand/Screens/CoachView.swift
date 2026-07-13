@@ -29,6 +29,12 @@ struct CoachView: View {
     /// Working copy of the system prompt while editing, committed to the engine on change so an edit
     /// takes effect on the next send. Seeded from the engine when the editor opens.
     @State private var promptDraft: String = ""
+    /// Daily coach check-in: local mirror of `CoachCheckIn`'s persisted state so the toggle + time picker
+    /// stay in sync with what's actually scheduled. Seeded from `CoachCheckIn` when the view appears.
+    @State private var checkInOn: Bool = CoachCheckIn.isEnabled
+    @State private var checkInTime: Date = CoachCheckIn.timeAsDate
+    /// Set when enabling the check-in fails because notifications are denied — surfaces a jump-to-Settings hint.
+    @State private var checkInDenied: Bool = false
     @FocusState private var composerFocused: Bool
 
     /// Sentinel tag for the "Custom…" entry in the model Picker.
@@ -55,6 +61,7 @@ struct CoachView: View {
                 // new on-device signals (your strongest patterns + Lab Book) into the coach context.
                 if coach.dataConsent { onDeviceSignalsBar }
                 personaBar
+                checkInBar
                 systemPromptBar
                 transcript
                 if let error = coach.errorText, !error.isEmpty {
@@ -130,6 +137,61 @@ struct CoachView: View {
                 Toggle("", isOn: $coach.includeOnDeviceSignals)
                     .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
                     .accessibilityLabel("Also share my patterns and Lab Book with the coach")
+            }
+        }
+    }
+
+    /// Proactive daily check-in: an opt-in reminder that fires each day so the coach reaches out first.
+    /// Tapping it opens the app; the Coach tab then auto-generates "Today's brief". Toggle + time picker
+    /// in the same frosted card style; a denial surfaces an inline hint rather than a dead toggle.
+    private var checkInBar: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 10) {
+                    Image(systemName: checkInOn ? "bell.badge.fill" : "bell")
+                        .foregroundStyle(checkInOn ? StrandPalette.accent : StrandPalette.textTertiary)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Daily check-in")
+                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                        Text(checkInOn
+                             ? "On: a daily reminder to open your coaching brief."
+                             : "Off: the coach only responds when you ask.")
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 8)
+                    Toggle("", isOn: $checkInOn)
+                        .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                        .accessibilityLabel("Daily coach check-in")
+                        .onChangeCompat(of: checkInOn) { on in
+                            CoachCheckIn.setEnabled(on) { outcome in
+                                if outcome == .denied {
+                                    checkInOn = false
+                                    checkInDenied = true
+                                } else {
+                                    checkInDenied = false
+                                }
+                            }
+                        }
+                }
+                if checkInOn {
+                    HStack {
+                        Text("Time").font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        Spacer(minLength: 8)
+                        DatePicker("Check-in time", selection: $checkInTime, displayedComponents: .hourAndMinute)
+                            .labelsHidden()
+                            .onChangeCompat(of: checkInTime) { newValue in
+                                CoachCheckIn.setTime(from: newValue)
+                            }
+                            .accessibilityLabel("Check-in time")
+                    }
+                }
+                if checkInDenied {
+                    Text("Notifications are off. Enable them for NOOP in Settings to use check-ins.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.recovery000)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
     }
