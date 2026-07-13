@@ -54,6 +54,7 @@ struct CoachView: View {
                 // v5: a SECOND opt-in, only meaningful once data access is on, folds a summary of the
                 // new on-device signals (your strongest patterns + Lab Book) into the coach context.
                 if coach.dataConsent { onDeviceSignalsBar }
+                personaBar
                 systemPromptBar
                 transcript
                 if let error = coach.errorText, !error.isEmpty {
@@ -129,6 +130,40 @@ struct CoachView: View {
                 Toggle("", isOn: $coach.includeOnDeviceSignals)
                     .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
                     .accessibilityLabel("Also share my patterns and Lab Book with the coach")
+            }
+        }
+    }
+
+    /// Coaching personality picker: sets the coach's VOICE (Guardian / Friend / Commander) on top of
+    /// the methodology in the system prompt. A segmented control in the same frosted Charge-tinted card
+    /// style as the other settings; the choice persists via `CoachPersona` and applies on the next message.
+    private var personaBar: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 10) {
+                    Image(systemName: coach.persona.symbol)
+                        .foregroundStyle(StrandPalette.accent)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Coaching style")
+                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                        Text(coach.persona.subtitle)
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 8)
+                }
+                Picker("Coaching style", selection: Binding(
+                    get: { coach.persona },
+                    set: { coach.persona = $0 }
+                )) {
+                    ForEach(CoachPersona.allCases) { p in
+                        Text(p.title).tag(p)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+                .accessibilityLabel("Coaching style")
             }
         }
     }
