@@ -535,4 +535,46 @@ class FramingTest {
         assertEquals("19, 146552119: BLE: hist transfer start response a", a.parsed["console"])
         assertEquals("ck, start burst\n 19, 146554630: BLE: History burst", b.parsed["console"])
     }
+
+    // MARK: - CONSOLE_LOGS text-region hardening edges (synthetic frames, Swift parity)
+
+    /** A synthetic CONSOLE_LOGS frame carrying [text] at @21. The CRC32 trailer is left zero: field
+     *  decode is CRC-independent (the flag is only reported, never gated on), so these pin the trim/cap
+     *  edges without a real capture. Twin of the Swift `consoleFrame` helper. */
+    private fun consoleFrame(text: ByteArray): ByteArray {
+        val f = ByteArray(21 + text.size + 4)          // envelope + record header + text + CRC32
+        f[0] = 0xAA.toByte()
+        f[1] = 0x01.toByte()
+        f[8] = 0x32.toByte()                            // CONSOLE_LOGS (type 50)
+        text.copyInto(f, 21)
+        val declaredLength = f.size - 8                 // payload + 4-byte CRC32 (u16 LE @2)
+        f[2] = (declaredLength and 0xFF).toByte()
+        f[3] = ((declaredLength shr 8) and 0xFF).toByte()
+        return f
+    }
+
+    /** The 2 KB cap (a garbled/malicious peer must not pin arbitrary bytes as a String). A real chunk
+     *  is ~51 bytes and can never reach this from the strap, so it needs a synthetic oversize frame. */
+    @Test
+    fun whoop5_consoleLogs_oversizedTextCappedAt2048() {
+        val f = consoleFrame(ByteArray(2100) { 'A'.code.toByte() })
+        val p = Framing.parseFrame(f, DeviceFamily.WHOOP5)
+        assertEquals(2048, (p.parsed["console"] as String).length)
+    }
+
+    /** An all-NUL (padding-only) text region trims to empty -> no `console` key, not an empty string. */
+    @Test
+    fun whoop5_consoleLogs_allNulRegionYieldsNoConsole() {
+        val f = consoleFrame(ByteArray(6))
+        val p = Framing.parseFrame(f, DeviceFamily.WHOOP5)
+        assertNull(p.parsed["console"])
+    }
+
+    /** Only TRAILING NULs are trimmed; the text before them is kept verbatim. */
+    @Test
+    fun whoop5_consoleLogs_trailingNulsTrimmed() {
+        val f = consoleFrame("AB".toByteArray() + byteArrayOf(0, 0, 0))
+        val p = Framing.parseFrame(f, DeviceFamily.WHOOP5)
+        assertEquals("AB", p.parsed["console"])
+    }
 }

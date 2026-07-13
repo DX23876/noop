@@ -65,4 +65,44 @@ final class Whoop5ConsoleLogsTests: XCTestCase {
         let f = parseFrame(truncated, family: .whoop5)
         XCTAssertNil(f.parsed["log"])
     }
+
+    // MARK: - Text-region hardening edges (synthetic frames)
+
+    /// A synthetic CONSOLE_LOGS frame carrying `textBytes` at @21. The CRC32 trailer is left zero:
+    /// field decode is CRC-independent (the flag is only reported, never gated on), so these pin the
+    /// trim/cap edges without a real capture — the fixtures above already prove the happy path + CRC.
+    private func consoleFrame(textBytes: [UInt8]) -> [UInt8] {
+        var f = [UInt8](repeating: 0, count: 21)   // envelope + record header (all zero but @0/@1/@8)
+        f[0] = 0xAA
+        f[1] = 0x01
+        f[8] = 0x32                                 // CONSOLE_LOGS (type 50)
+        f.append(contentsOf: textBytes)
+        f.append(contentsOf: [0, 0, 0, 0])          // CRC32 trailer (unchecked)
+        let declaredLength = f.count - 8            // payload + 4-byte CRC32 (u16 LE @2)
+        f[2] = UInt8(declaredLength & 0xFF)
+        f[3] = UInt8((declaredLength >> 8) & 0xFF)
+        return f
+    }
+
+    /// The 2 KB cap (a garbled/malicious peer must not pin arbitrary bytes as a String). A real chunk
+    /// is ~51 bytes and can never reach this from the strap, so it needs a synthetic oversize frame.
+    func testOversizedTextIsCappedAt2048() {
+        let f = consoleFrame(textBytes: [UInt8](repeating: 0x41, count: 2100))  // 'A' × 2100
+        let p = parseFrame(f, family: .whoop5)
+        XCTAssertEqual(p.parsed["log"]?.stringValue?.count, 2048)
+    }
+
+    /// An all-NUL (padding-only) text region trims to empty → no `log` key at all, not an empty string.
+    func testAllNulTextRegionYieldsNoLog() {
+        let f = consoleFrame(textBytes: [0, 0, 0, 0, 0, 0])
+        let p = parseFrame(f, family: .whoop5)
+        XCTAssertNil(p.parsed["log"])
+    }
+
+    /// Only TRAILING NULs are trimmed; the text before them is kept verbatim.
+    func testTrailingNulsAreTrimmed() {
+        let f = consoleFrame(textBytes: Array("AB".utf8) + [0, 0, 0])
+        let p = parseFrame(f, family: .whoop5)
+        XCTAssertEqual(p.parsed["log"]?.stringValue, "AB")
+    }
 }
