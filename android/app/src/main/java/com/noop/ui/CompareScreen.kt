@@ -1,5 +1,6 @@
 package com.noop.ui
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -186,6 +187,8 @@ private object CompareCatalog {
 
     fun byKey(key: String): CompareMetric? = all.firstOrNull { it.key == key }
 
+    fun byId(id: String): CompareMetric? = all.firstOrNull { it.id == id }
+
     /** Map a my-whoop metric key to the matching DailyMetric column accessor, if any. */
     fun dailyPick(key: String): ((DailyMetric) -> Double?)? = when (key) {
         "recovery" -> { d -> d.recovery }
@@ -218,6 +221,54 @@ private enum class CompareRange(val label: String, val days: Int?, val phrase: S
     /** This range plus every LARGER range, ascending — the auto-expand search order. */
     val widening: List<CompareRange>
         get() = entries.subList(ordinal, entries.size)
+}
+
+private val defaultCompareMetricKeys = listOf("recovery", "sleep_performance", "weight")
+
+internal fun parseCompareSelection(raw: String?, minSelection: Int, maxSelection: Int): List<CompareMetric>? {
+    if (raw == null) return null
+
+    val tokens = raw.split(",")
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+    val parsed = tokens
+        .mapNotNull { CompareCatalog.byId(it) }
+        .distinctBy { it.id }
+        .take(maxSelection)
+
+    return if (parsed.size == tokens.distinct().size || parsed.size >= minSelection) {
+        parsed
+    } else {
+        null
+    }
+}
+
+private object ComparePrefs {
+    private const val KEY_RANGE = "compare.range"
+    private const val KEY_SELECTED = "compare.selectedMetrics"
+
+    fun readRange(context: Context): CompareRange {
+        val raw = NoopPrefs.of(context).getString(KEY_RANGE, null) ?: return CompareRange.Year
+        return CompareRange.entries.firstOrNull { it.name == raw } ?: CompareRange.Year
+    }
+
+    fun writeRange(context: Context, range: CompareRange) {
+        NoopPrefs.of(context).edit().putString(KEY_RANGE, range.name).apply()
+    }
+
+    fun readSelection(context: Context, minSelection: Int, maxSelection: Int): List<CompareMetric> {
+        val raw = NoopPrefs.of(context).getString(KEY_SELECTED, null)
+        parseCompareSelection(raw, minSelection, maxSelection)?.let { return it }
+
+        val picks = defaultCompareMetricKeys.mapNotNull { CompareCatalog.byKey(it) }
+        return (if (picks.isEmpty()) CompareCatalog.all.take(2) else picks).take(maxSelection)
+    }
+
+    fun writeSelection(context: Context, selected: List<CompareMetric>) {
+        NoopPrefs.of(context).edit()
+            .putString(KEY_SELECTED, selected.joinToString(",") { it.id })
+            .apply()
+    }
 }
 
 // MARK: - Per-series model
@@ -334,15 +385,12 @@ fun CompareScreen(vm: AppViewModel) {
     val maxSelection = 4
     val minSelection = 2
 
-    // Default starter selection (falls back gracefully if a key is missing).
-    val defaultKeys = listOf("recovery", "sleep_performance", "weight")
-
-    var range by remember { mutableStateOf(CompareRange.Year) }
+    var range by remember { mutableStateOf(ComparePrefs.readRange(context)) }
     // Ordered selection (max 4). Drives both the legend order and color mapping.
     val selected = remember {
-        val picks = defaultKeys.mapNotNull { CompareCatalog.byKey(it) }
-        val seed = if (picks.isEmpty()) CompareCatalog.all.take(2) else picks.take(maxSelection)
-        mutableStateListOf<CompareMetric>().apply { addAll(seed) }
+        mutableStateListOf<CompareMetric>().apply {
+            addAll(ComparePrefs.readSelection(context, minSelection, maxSelection))
+        }
     }
     // Full-history series per selected metric id (ascending by day).
     val fullSeries = remember { mutableStateMapOf<String, List<Pair<String, Double>>>() }
@@ -427,7 +475,10 @@ fun CompareScreen(vm: AppViewModel) {
                             items = CompareRange.entries.toList(),
                             selection = range,
                             label = { it.label },
-                            onSelect = { range = it },
+                            onSelect = {
+                                range = it
+                                ComparePrefs.writeRange(context, it)
+                            },
                         )
                         Spacer(Modifier.weight(1f))
                         AddMetricMenu(
@@ -441,6 +492,7 @@ fun CompareScreen(vm: AppViewModel) {
                                 } else if (selected.size < maxSelection) {
                                     selected.add(m)
                                 }
+                                ComparePrefs.writeSelection(context, selected)
                             },
                         )
                     }
@@ -466,7 +518,10 @@ fun CompareScreen(vm: AppViewModel) {
                                 val i = selected.indexOfFirst { it.id == m.id }
                                 if (i < 0) Palette.textSecondary else seriesPalette[i % seriesPalette.size]
                             },
-                            onRemove = { m -> selected.removeAll { it.id == m.id } },
+                            onRemove = { m ->
+                                selected.removeAll { it.id == m.id }
+                                ComparePrefs.writeSelection(context, selected)
+                            },
                         )
                     }
                 }
