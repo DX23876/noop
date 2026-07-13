@@ -1307,17 +1307,15 @@ struct TodayView: View {
                     )
                     .staggeredAppear(index: 0)
                 #endif
-                heartRateTrendSection.staggeredAppear(index: 1)
-                // Design Reset: rings -> Heart rate -> Your cards (the flat mockup order); the greeting +
-                // Synthesis read-out + vitals now sit below the pinned cards instead of crowding the hero.
-                yourCardsSection.staggeredAppear(index: 2)
-                synthesisSection.staggeredAppear(index: 3)
+                synthesisSection.staggeredAppear(index: 1)
                 // S4: the SEPARATE Readiness block is no longer a home-screen card, it folded into the
                 // Charge-ring tap (chargeBreakdownSheet). A one-word readiness read (Push / Maintain / Rest,
                 // #205) stays on the hero via the Synthesis section's pill row, so the home screen keeps a
                 // glanceable verdict without the full card. Readiness is NOT deleted, only moved behind a tap.
-                metricsSection.staggeredAppear(index: 4)
-                workoutsSection.staggeredAppear(index: 5)
+                metricsSection.staggeredAppear(index: 2)
+                workoutsSection.staggeredAppear(index: 3)
+                heartRateTrendSection.staggeredAppear(index: 4)
+                yourCardsSection.staggeredAppear(index: 5)
                 // Opt-in "looks like a workout?" suggestion (default OFF). Renders only when the
                 // Settings toggle is on AND the detector finds a recent unsaved, un-dismissed window.
                 AutoWorkoutCard()

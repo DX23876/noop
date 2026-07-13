@@ -1207,72 +1207,6 @@ fun TodayScreen(
             }
         }
 
-        // HEART RATE, the live HR thread / trend card, directly under the hero — the SAME order as the iOS
-        // liquid Today (scene → heartRateSection → yourCardsSection). It carries its own live-HR thread + the
-        // banked 5-minute fallback + the "connect your strap" empty state, all self-contained (its own data
-        // loads), so moving it up here is a pure re-order that preserves every binding. Mirrors iOS
-        // heartRateSection sitting first after the hero.
-        item {
-        // #991: HeartRateTrendCard emits its SectionHeader + card as two siblings; a Box overlaid them
-        // (the header showed THROUGH the card in the v8 layout). A spaced Column stacks them instead.
-        Column(
-            modifier = Modifier.fillMaxWidth().staggeredAppear(5),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            HeartRateTrendCard(viewModel, days, selectedDay, todayDate, displayMetric, effortScale)
-        }
-        }
-
-        // YOUR CARDS, the user-customisable dashboard (WHOOP "My Dashboard"). Surfaces a persisted,
-        // reorderable selection of metric cards as flat WHOOP metric rows (leading icon + UPPERCASE label +
-        // sublabel on the left, big value + unit + chevron on the right). Default = Stress / Fitness age /
-        // Vitality + HRV + Resting HR. TODAY only; a card with no value yet renders a dash rather than
-        // vanishing. The "CUSTOMISE" link opens a local toggle/reorder dialog. Mirrors iOS yourCardsSection.
-        // When Hydration tracking is OFF the card is hidden even if it sits in the saved selection (the
-        // editor still offers it, so the choice persists), keeping the opt-in feature fully invisible until
-        // enabled. Mirrors the iOS yourCardsSection hydration gate.
-        item {
-        val visibleDashboardCards = enabledDashboardCards.filter {
-            it != DashboardCard.HYDRATION || hydrationEnabled
-        }
-        if (selectedDayOffset == 0 && visibleDashboardCards.isNotEmpty()) {
-            YourCardsSection(
-                cards = visibleDashboardCards,
-                day = displayMetric,
-                // The SAME carried-over last-scored row the OLD hero vital rows + Key-Metrics tiles read
-                // (#543): right after the logical-day rollover today's row carries no vitals yet, so without
-                // this the HRV / Resting HR / Respiratory / SpO₂ / Sleep cards all blank to "No Data" while
-                // the rest of Today shows last night's carried values. Routing the cards through the same
-                // `carriedDay ?: day` source the HeroMetricRows + MetricGrid already use brings them to parity.
-                carriedDay = lastScoredRecoveryDay,
-                // The recovery-INDEPENDENT vitals carry (#543 follow-up): the overnight HRV / Resting HR /
-                // Respiratory cards read PER-FIELD today-first with THIS fallback, so a night whose recovery
-                // was nulled post-update still surfaces its OWN preserved vitals (not an older scored day's).
-                vitalsDay = lastVitalsDay,
-                // PER-FIELD SpO₂ / skin-temp carries: lastVitalsDay's predicate only checks HRV/RHR/resp,
-                // so these two fields resolve independently to the last row that actually has them
-                // (imported rows; computed "-noop" rows never carry spo2Pct). Mirrors iOS per-field
-                // carry (TodayView.lastSpo2Day / lastSkinTempDay via carriedVital).
-                spo2Day = lastSpo2Day,
-                skinTempDay = lastSkinTempDay,
-                stress = stressToday,
-                fitnessAge = fitnessAgeToday,
-                vitality = vitalityToday,
-                importedStepsForDay = importedStepsForDay,
-                estimatedStepsForDay = stepsEstForDay,
-                latestActiveKcal = latestActiveKcal,
-                hydrationTotalMl = hydrationTotalMl,
-                hydrationGoalMl = hydrationGoalMl,
-                onOpenHydration = onOpenHydration,
-                onOpenStress = onOpenStress,
-                onOpenMetric = onOpenMetric,
-                onOpenSleep = onOpenSleep,
-                onOpenCoupled = onOpenCoupled,
-                onCustomise = { showDashboardEditor = true },
-            )
-        }
-        }
-
         // The plain-English read-out, the Charge-tinted Synthesis card with a WHITE headline, carries the
         // greeting + the SOLID/CALIBRATING data-confidence pill in its top-right. Mirrors the iOS Synthesis
         // InsightCard. Carries the last scored day's read at the rollover (#543) so it doesn't blank to
@@ -1330,16 +1264,6 @@ fun TodayScreen(
         }
         }
 
-        // The three hero vitals, HRV / Resting HR / Respiratory, re-homed below the ring hero now that
-        // the big RecoveryRing card (which used to carry them) is gone. Mirrors the iOS metric rows.
-        // Carries the last scored day's vitals (with a "Last night · <date>" footnote) at the rollover so
-        // they don't blank to "No Data" while live HR ticks (#543). Staggered in as index 3.
-        item {
-        Box(modifier = Modifier.fillMaxWidth().staggeredAppear(3)) {
-            HeroMetricRows(day = displayMetric, carriedDay = lastScoredRecoveryDay, vitalsDay = lastVitalsDay)
-        }
-        }
-
         // A1/S4: the WHAT SHAPED IT breakdown, the Contributors bars and the READINESS card all folded into
         // the Charge-ring TAP (the showChargeBreakdown dialog below), collapsing the home screen. They are
         // NOT deleted, only moved behind a tap; a one-word readiness read (Push / Maintain / Rest, #205)
@@ -1373,10 +1297,9 @@ fun TodayScreen(
             }
         }
         }
-        // Key Metrics grid, HR trend and Workouts each stagger in as the lower main sections (indices 4–6),
-        // mirroring iOS's `.staggeredAppear` on metricsSection / heartRateTrendSection / workoutsSection.
+        // Key Metrics grid (3), Workouts (4), HR trend (5), vitals (6), Your Cards stagger in order.
         item {
-        Box(modifier = Modifier.fillMaxWidth().staggeredAppear(4)) {
+        Box(modifier = Modifier.fillMaxWidth().staggeredAppear(3)) {
             MetricGrid(
                 d = displayMetric,
                 w = window,
@@ -1406,10 +1329,83 @@ fun TodayScreen(
         // #991: same fix as the HR card — TodayWorkoutsSection emits header + card as two siblings, so a
         // Box overlaid them. Stack them in a spaced Column.
         Column(
-            modifier = Modifier.fillMaxWidth().staggeredAppear(6),
+            modifier = Modifier.fillMaxWidth().staggeredAppear(4),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             TodayWorkoutsSection(footer.recentWorkouts)
+        }
+        }
+
+        // HEART RATE, the live HR thread / trend card. Mirrors iOS heartRateSection below key metrics.
+        // Carries its own live-HR thread + the banked 5-minute fallback + the "connect your strap" empty
+        // state, all self-contained (its own data loads).
+        item {
+        // #991: HeartRateTrendCard emits its SectionHeader + card as two siblings; a Box overlaid them
+        // (the header showed THROUGH the card in the v8 layout). A spaced Column stacks them instead.
+        Column(
+            modifier = Modifier.fillMaxWidth().staggeredAppear(5),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            HeartRateTrendCard(viewModel, days, selectedDay, todayDate, displayMetric, effortScale)
+        }
+        }
+
+        // The three hero vitals, HRV / Resting HR / Respiratory. Mirrors the iOS recoveryVitalsSection
+        // below the HR card. Carries the last scored day's vitals (with a "Last night · <date>" footnote)
+        // at the rollover so they don't blank to "No Data" while live HR ticks (#543). Staggered in as index 6.
+        item {
+        Box(modifier = Modifier.fillMaxWidth().staggeredAppear(6)) {
+            HeroMetricRows(day = displayMetric, carriedDay = lastScoredRecoveryDay, vitalsDay = lastVitalsDay)
+        }
+        }
+
+        // YOUR CARDS, the user-customisable dashboard (WHOOP "My Dashboard"). Surfaces a persisted,
+        // reorderable selection of metric cards as flat WHOOP metric rows (leading icon + UPPERCASE label +
+        // sublabel on the left, big value + unit + chevron on the right). Default = Stress / Fitness age /
+        // Vitality + HRV + Resting HR. TODAY only; a card with no value yet renders a dash rather than
+        // vanishing. The "CUSTOMISE" link opens a local toggle/reorder dialog. Mirrors iOS yourCardsSection.
+        // When Hydration tracking is OFF the card is hidden even if it sits in the saved selection (the
+        // editor still offers it, so the choice persists), keeping the opt-in feature fully invisible until
+        // enabled. Mirrors the iOS yourCardsSection hydration gate.
+        item {
+        val visibleDashboardCards = enabledDashboardCards.filter {
+            it != DashboardCard.HYDRATION || hydrationEnabled
+        }
+        if (selectedDayOffset == 0 && visibleDashboardCards.isNotEmpty()) {
+            YourCardsSection(
+                cards = visibleDashboardCards,
+                day = displayMetric,
+                // The SAME carried-over last-scored row the OLD hero vital rows + Key-Metrics tiles read
+                // (#543): right after the logical-day rollover today's row carries no vitals yet, so without
+                // this the HRV / Resting HR / Respiratory / SpO₂ / Sleep cards all blank to "No Data" while
+                // the rest of Today shows last night's carried values. Routing the cards through the same
+                // `carriedDay ?: day` source the HeroMetricRows + MetricGrid already use brings them to parity.
+                carriedDay = lastScoredRecoveryDay,
+                // The recovery-INDEPENDENT vitals carry (#543 follow-up): the overnight HRV / Resting HR /
+                // Respiratory cards read PER-FIELD today-first with THIS fallback, so a night whose recovery
+                // was nulled post-update still surfaces its OWN preserved vitals (not an older scored day's).
+                vitalsDay = lastVitalsDay,
+                // PER-FIELD SpO₂ / skin-temp carries: lastVitalsDay's predicate only checks HRV/RHR/resp,
+                // so these two fields resolve independently to the last row that actually has them
+                // (imported rows; computed "-noop" rows never carry spo2Pct). Mirrors iOS per-field
+                // carry (TodayView.lastSpo2Day / lastSkinTempDay via carriedVital).
+                spo2Day = lastSpo2Day,
+                skinTempDay = lastSkinTempDay,
+                stress = stressToday,
+                fitnessAge = fitnessAgeToday,
+                vitality = vitalityToday,
+                importedStepsForDay = importedStepsForDay,
+                estimatedStepsForDay = stepsEstForDay,
+                latestActiveKcal = latestActiveKcal,
+                hydrationTotalMl = hydrationTotalMl,
+                hydrationGoalMl = hydrationGoalMl,
+                onOpenHydration = onOpenHydration,
+                onOpenStress = onOpenStress,
+                onOpenMetric = onOpenMetric,
+                onOpenSleep = onOpenSleep,
+                onOpenCoupled = onOpenCoupled,
+                onCustomise = { showDashboardEditor = true },
+            )
         }
         }
         // Auto-detect workouts (MVP, opt-in, default OFF), a NON-DESTRUCTIVE "looks like a workout?"

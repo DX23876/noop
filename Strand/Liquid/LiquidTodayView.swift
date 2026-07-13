@@ -212,12 +212,12 @@ struct LiquidTodayView: View {
                     // sitting right under the hero so an active manual workout is immediately visible and taps
                     // straight through to Live. Renders nothing when no workout is active.
                     ActiveWorkoutIndicatorSection()
-                    heartRateSection
-                    yourCardsSection
                     synthesisSection
-                    recoveryVitalsSection
                     keyMetricsSection
                     lastWorkoutsSection
+                    heartRateSection
+                    recoveryVitalsSection
+                    yourCardsSection
                     dataSourcesSection
                     Color.clear.frame(height: 90) // floating tab-bar clearance
                 }
