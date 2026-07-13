@@ -555,22 +555,28 @@ struct CoachView: View {
             .accessibilityElement(children: .combine)
             .accessibilityLabel("You said: \(message.text)")
         case .assistant:
-            // LLM replies arrive as Markdown (bold, lists, headings, tables),             // rendered with the chat-bubble-sized Strand theme. User bubbles stay
-            // verbatim `Text` so typed `*`/`#` never turn into surprise formatting.
-            // The reply sits on a frosted Charge-tinted surface, a card, not a flat box.
-            HStack {
-                Markdown(message.text)
-                    .markdownTheme(.strand)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 11)
-                    .frostedCardSurface(tint: StrandPalette.chargeColor, cornerRadius: 16)
-                    .frame(maxWidth: 560, alignment: .leading)
-                Spacer(minLength: 48)
+            // A message the coach backed with a chart (plot_metric) renders as a native chart card;
+            // every other assistant message renders its Markdown reply.
+            if let chart = coach.chartsByMessage[message.id] {
+                CoachChartBubble(artifact: chart)
+            } else {
+                // LLM replies arrive as Markdown (bold, lists, headings, tables), rendered with the
+                // chat-bubble-sized Strand theme. User bubbles stay verbatim `Text` so typed `*`/`#`
+                // never turn into surprise formatting. The reply sits on a frosted Charge-tinted card.
+                HStack {
+                    Markdown(message.text)
+                        .markdownTheme(.strand)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 11)
+                        .frostedCardSurface(tint: StrandPalette.chargeColor, cornerRadius: 16)
+                        .frame(maxWidth: 560, alignment: .leading)
+                    Spacer(minLength: 48)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Coach said: \(message.text)")
             }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Coach said: \(message.text)")
         }
     }
 

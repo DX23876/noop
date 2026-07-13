@@ -4,6 +4,7 @@ import Security
 import WhoopStore
 import StrandAnalytics
 import StrandImport
+import StrandDesign
 
 // MARK: - AI Coach (the one networked feature, strictly opt-in, bring-your-own-key)
 //
@@ -509,14 +510,20 @@ final class AICoachEngine: ObservableObject {
                     onDelta: { [weak self] delta in self?.appendDelta(delta, to: replyId) },
                     session: session
                 )
-                // A reply that streamed nothing (e.g. tool-only turn) shows a placeholder, not a blank.
+                // An empty reply shows "(no reply)" — unless the turn produced a chart, in which case we
+                // drop the blank bubble and let the chart (flushed below) stand on its own.
                 if let idx = messages.firstIndex(where: { $0.id == replyId }), messages[idx].text.isEmpty {
-                    messages[idx] = ChatMessage(id: replyId, role: .assistant, text: "(no reply)")
+                    if pendingCharts.isEmpty {
+                        messages[idx] = ChatMessage(id: replyId, role: .assistant, text: "(no reply)")
+                    } else {
+                        messages.remove(at: idx)
+                    }
                 }
+                flushPendingCharts()
             } catch let e as AICoachError {
-                removeAssistantIfEmpty(replyId); errorText = e.errorDescription
+                removeAssistantIfEmpty(replyId); discardPendingCharts(); errorText = e.errorDescription
             } catch {
-                removeAssistantIfEmpty(replyId)
+                removeAssistantIfEmpty(replyId); discardPendingCharts()
                 errorText = AICoachError.network(error.localizedDescription).errorDescription
             }
             return
@@ -526,9 +533,11 @@ final class AICoachEngine: ObservableObject {
             let reply = try await callProvider(key: key, messages: wire)
             let clean = reply.trimmingCharacters(in: .whitespacesAndNewlines)
             messages.append(ChatMessage(role: .assistant, text: clean.isEmpty ? "(no reply)" : clean))
+            flushPendingCharts()
         } catch let e as AICoachError {
-            errorText = e.errorDescription
+            discardPendingCharts(); errorText = e.errorDescription
         } catch {
+            discardPendingCharts()
             errorText = AICoachError.network(error.localizedDescription).errorDescription
         }
     }
@@ -547,6 +556,101 @@ final class AICoachEngine: ObservableObject {
             messages.remove(at: idx)
         }
     }
+
+    // MARK: - Chart artifacts (plot_metric tool)
+
+    /// Charts the coach asked to draw, keyed by the transcript message that hosts them. `CoachView`
+    /// renders a native chart for any assistant message whose id is present here. Published so the UI
+    /// updates when a chart lands.
+    @Published var chartsByMessage: [UUID: CoachChartArtifact] = [:]
+
+    /// Charts requested via the `plot_metric` tool during the current turn, flushed into the transcript
+    /// once the reply is done so they appear BELOW the coach's explanation rather than mid-stream.
+    private var pendingCharts: [CoachChartArtifact] = []
+
+    /// Handle a `plot_metric` tool call: build the chart and queue it, returning a text confirmation the
+    /// model can reference. Returns a "no data" note (never a fabricated chart) when the metric is empty.
+    func handlePlotMetric(metric: String, days: Int) -> String {
+        guard let art = chartArtifact(metric: metric, days: days) else {
+            return "No data available to plot \"\(metric)\"."
+        }
+        pendingCharts.append(art)
+        return "Displayed a chart of \(art.title) over the last \(art.points.count) days for the user."
+    }
+
+    /// Append one empty assistant message per queued chart (the id links it to `chartsByMessage`), then
+    /// clear the queue. Called after a reply completes so charts sit under the text.
+    func flushPendingCharts() {
+        for art in pendingCharts {
+            let id = UUID()
+            messages.append(ChatMessage(id: id, role: .assistant, text: ""))
+            chartsByMessage[id] = art
+        }
+        pendingCharts.removeAll()
+    }
+
+    /// Discard any queued charts (used when a turn errors out).
+    func discardPendingCharts() { pendingCharts.removeAll() }
+
+    /// Build a chart artifact from the user's own daily metrics. Reads the private store, so it lives on
+    /// the engine rather than in the tool extension. Returns nil for an unknown metric or too little data.
+    private func chartArtifact(metric rawMetric: String, days: Int) -> CoachChartArtifact? {
+        let n = max(7, min(days, 180))
+        let recent = Array(repo.days.suffix(n))
+        guard !recent.isEmpty else { return nil }
+
+        func series(_ extract: (DailyMetric) -> Double?) -> [TrendPoint] {
+            recent.compactMap { d in
+                guard let v = extract(d), let date = Self.parseDay(d.day) else { return nil }
+                return TrendPoint(date: date, value: v)
+            }
+        }
+
+        let title: String
+        let points: [TrendPoint]
+        let range: ClosedRange<Double>
+        let kind: CoachChartArtifact.Kind
+
+        switch rawMetric.lowercased() {
+        case "charge", "recovery", "readiness":
+            title = "Charge (recovery)"; points = series { $0.recovery }; range = 0...100; kind = .charge
+        case "effort", "strain":
+            title = "Effort (strain)"; points = series { $0.strain }; range = 0...21; kind = .effort
+        case "hrv":
+            title = "HRV"; points = series { $0.avgHrv }; kind = .hrv
+            range = Self.paddedRange(points.map(\.value), pad: 5)
+        case "rhr", "resting", "restinghr":
+            title = "Resting HR"; points = series { $0.restingHr.map(Double.init) }; kind = .rhr
+            range = Self.paddedRange(points.map(\.value), pad: 5)
+        case "sleep", "rest":
+            title = "Sleep"; points = series { $0.totalSleepMin.map { $0 / 60 } }; range = 0...12; kind = .sleep
+        default:
+            return nil
+        }
+
+        guard points.count >= 2 else { return nil }
+        return CoachChartArtifact(title: title, points: points, valueRange: range, kind: kind)
+    }
+
+    /// A y-range padded around the data's min/max, guaranteeing lower < upper so the chart never gets a
+    /// degenerate domain (used for HRV / RHR where a fixed 0–100 scale would be useless).
+    private static func paddedRange(_ vals: [Double], pad: Double) -> ClosedRange<Double> {
+        guard let lo = vals.min(), let hi = vals.max() else { return 0...100 }
+        let a = lo - pad
+        let b = hi + pad
+        return a < b ? a...b : a...(a + 1)
+    }
+
+    /// Parse a "yyyy-MM-dd" day key (UTC) into a Date for charting.
+    private static let dayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .gregorian)
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "UTC")
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+    private static func parseDay(_ s: String) -> Date? { dayFormatter.date(from: s) }
 
     /// Proactively generate "Today's brief" the first time the Coach opens, readiness + a training
     /// prescription + one recovery tip, without the user typing. Requires a key + data consent.

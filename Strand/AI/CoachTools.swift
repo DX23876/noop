@@ -16,6 +16,8 @@ enum CoachTool: String, CaseIterable {
     case stressIndex = "get_stress_index"
     /// The user's strongest n-of-1 patterns + Lab Book roll-up. Only offered when the second opt-in is on.
     case personalPatterns = "get_personal_patterns"
+    /// Draw a native chart of one metric over a day range directly in the chat (a visual artifact).
+    case plotMetric = "plot_metric"
 
     /// Natural-language description the model reads to decide when to call the tool.
     var description: String {
@@ -33,6 +35,9 @@ enum CoachTool: String, CaseIterable {
         case .personalPatterns:
             return "Get the user's strongest personal patterns (their own n-of-1 correlations) and a "
                 + "roll-up of their logged Lab Book health numbers. Use to explain what helps or hurts them."
+        case .plotMetric:
+            return "Draw a chart of one metric over time, shown directly in the chat. Use it when a "
+                + "trend is easier to see than to describe. metric is one of charge, effort, hrv, rhr, sleep."
         }
     }
 
@@ -48,6 +53,22 @@ enum CoachTool: String, CaseIterable {
                         "description": "How many recent workouts to return (1–30). Defaults to 6."
                     ]
                 ]
+            ]
+        case .plotMetric:
+            return [
+                "type": "object",
+                "properties": [
+                    "metric": [
+                        "type": "string",
+                        "enum": ["charge", "effort", "hrv", "rhr", "sleep"],
+                        "description": "Which metric to chart."
+                    ],
+                    "days": [
+                        "type": "integer",
+                        "description": "How many days back to plot (7–180). Defaults to 30."
+                    ]
+                ],
+                "required": ["metric"]
             ]
         default:
             return ["type": "object", "properties": [String: Any]()]
@@ -86,7 +107,7 @@ extension AICoachEngine {
     /// The tools offered to the model, honouring consent: the patterns/Lab Book tool only appears when
     /// the second opt-in is on, mirroring `buildFullContext`'s gating.
     var coachTools: [CoachTool] {
-        var tools: [CoachTool] = [.biometricSummary, .recentWorkouts, .stressIndex]
+        var tools: [CoachTool] = [.biometricSummary, .recentWorkouts, .stressIndex, .plotMetric]
         if includeOnDeviceSignals { tools.append(.personalPatterns) }
         return tools
     }
@@ -130,6 +151,10 @@ extension AICoachEngine {
             }
             let block = await onDeviceSignalsBlock()
             return block.isEmpty ? "No strong personal patterns have emerged yet." : block
+        case .plotMetric:
+            let metric = (input["metric"] as? String) ?? ""
+            let days = (input["days"] as? Int) ?? Int(input["days"] as? Double ?? 30)
+            return handlePlotMetric(metric: metric, days: days)
         case .none:
             return "Unknown tool \"\(name)\"."
         }
