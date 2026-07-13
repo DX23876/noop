@@ -439,8 +439,8 @@ fun SettingsScreen(
     var puffinCapture by remember { mutableStateOf(puffinExperiment.isCaptureEnabled) }
     var deepData by remember { mutableStateOf(puffinExperiment.isDeepDataEnabled) }
     var broadcastHr by remember { mutableStateOf(puffinExperiment.broadcastHr) }
-    // Opt-in "Experimental sleep staging (V2)" (off by default). Model-agnostic, so it lives outside the
-    // 5/MG-only card — it works on WHOOP 4 and 5. Re-stages detected nights with SleepStagerV2; V1 default.
+    // "Sleep staging (V2)" — V2 is the DEFAULT for every strap (WHOOP 4 and 5/MG); turn it OFF to fall back
+    // to V1. Model-agnostic, so it lives outside the 5/MG-only card. 4.0 is unvalidated either way (#319/#347).
     var experimentalSleepV2 by remember { mutableStateOf(puffinExperiment.experimentalSleepV2) }
 
     // Whether to surface the WHOOP 5/MG-only probes (puffin / R22 / broadcast-HR / frame-capture). Gated
