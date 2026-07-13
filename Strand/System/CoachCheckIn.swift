@@ -1,6 +1,12 @@
 import Foundation
 import UserNotifications
 
+extension Notification.Name {
+    /// Posted when the user taps the daily coach check-in notification, so the UI can jump to the Coach
+    /// tab and refresh the brief. Fired from `NotificationPresenter.didReceive`.
+    static let noopOpenCoachCheckIn = Notification.Name("noop.openCoachCheckIn")
+}
+
 /// Proactive coach check-in — a gentle, opt-in DAILY local notification that reminds the user their
 /// coaching brief is ready, so the coach reaches out first (Bevel-style) instead of only answering when
 /// asked. Tapping it opens the app; the Coach tab then auto-generates "Today's brief" via

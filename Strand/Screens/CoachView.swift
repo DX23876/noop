@@ -89,6 +89,10 @@ struct CoachView: View {
             }
         }
         .task(id: coach.dataConsent) { await coach.startBriefIfNeeded() }
+        // Tapping the daily check-in notification (routed here by RootTabView) forces a fresh brief.
+        .onReceive(NotificationCenter.default.publisher(for: .noopOpenCoachCheckIn)) { _ in
+            Task { await coach.refreshBrief() }
+        }
     }
 
     /// Explicit, revocable permission for the coach to read & send the user's data. Off by default.

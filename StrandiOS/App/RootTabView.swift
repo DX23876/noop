@@ -165,6 +165,12 @@ struct RootTabView: View {
                 break
             }
         }
+        // Daily coach check-in tapped (NOOP AI): jump to the More tab and open Coach on top of it.
+        // CoachView refreshes the brief itself — it observes the same event.
+        .onReceive(NotificationCenter.default.publisher(for: .noopOpenCoachCheckIn)) { _ in
+            withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 3 }
+            tabPaths[3] = NavigationPath([MoreDestination.coach])
+        }
         // A screen's top-bar "+" routes here: open the quick-action sheet, then clear the flag.
         .onChange(of: router.quickActionsRequested) { _, req in
             if req {
