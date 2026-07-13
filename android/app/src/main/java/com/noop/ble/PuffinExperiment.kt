@@ -59,6 +59,27 @@ class PuffinExperiment(private val prefs: SharedPreferences) {
         get() = prefs.getBoolean(KEY_EXPERIMENTAL_SLEEP_V2, true)
         set(v) = prefs.edit().putBoolean(KEY_EXPERIMENTAL_SLEEP_V2, v).apply()
 
+    /** True if the user opted in to "HR-from-PPG sub-lag interpolation" (default false): the v26 optical-PPG
+     *  gap-fill HR estimator ([com.noop.protocol.PpgHr]) refines its integer autocorrelation lag with a
+     *  parabolic (Variant A) interpolation of the ACF peak, removing the ~+-8 bpm lag-quantization near a
+     *  high HR. Pure OPT-IN research variant: default OFF is byte-identical to the integer-lag estimate, and
+     *  it only ever fills seconds the strap never reported an HR for (it NEVER overrides a WHOOP-stored HR).
+     *  The pure [com.noop.protocol.PpgHr] package cannot read prefs, so this flag is read at the app-layer
+     *  call site (the Backfiller / archive replay / capture import) and threaded into the estimator. Mirrors
+     *  the macOS `PuffinExperiment.ppgHrSubLagInterpKey`. */
+    var ppgHrSubLagInterp: Boolean
+        get() = prefs.getBoolean(KEY_PPG_HR_SUBLAG_INTERP, false)
+        set(v) = prefs.edit().putBoolean(KEY_PPG_HR_SUBLAG_INTERP, v).apply()
+
+    /** True if the user opted in to the experimental "HRV readiness (Plews/Altini)" tier readout (default
+     *  false): a read-only Test Centre readout of the SWC log-HRV tier ([com.noop.analytics.HRVReadiness]).
+     *  It changes NOTHING downstream — the Charge ring stays byte-identical whether on or off; it only
+     *  surfaces the tier + baseline band in the Experimental algorithms card. Rough / early (n=1, not yet
+     *  validated against varying real data). Mirrors the macOS `PuffinExperiment.hrvReadinessKey`. */
+    var hrvReadiness: Boolean
+        get() = prefs.getBoolean(KEY_HRV_READINESS, false)
+        set(v) = prefs.edit().putBoolean(KEY_HRV_READINESS, v).apply()
+
     companion object {
         /** Persisted preferences file. */
         private const val PREFS = "noop_experiments"
@@ -77,6 +98,12 @@ class PuffinExperiment(private val prefs: SharedPreferences) {
 
         /** "Experimental sleep staging (V2)" opt-in (mirrors macOS `PuffinExperiment.experimentalSleepV2Key`). */
         const val KEY_EXPERIMENTAL_SLEEP_V2 = "noopExperimentalSleepV2"
+
+        /** "HR-from-PPG sub-lag interpolation" opt-in (mirrors macOS `PuffinExperiment.ppgHrSubLagInterpKey`). */
+        const val KEY_PPG_HR_SUBLAG_INTERP = "noopPpgHrSubLagInterp"
+
+        /** "HRV readiness (Plews/Altini)" readout opt-in (mirrors macOS `PuffinExperiment.hrvReadinessKey`). */
+        const val KEY_HRV_READINESS = "noopHrvReadiness"
 
         fun from(context: Context): PuffinExperiment =
             PuffinExperiment(context.getSharedPreferences(PREFS, Context.MODE_PRIVATE))

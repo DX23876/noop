@@ -143,8 +143,13 @@ class RawHistoryArchive(
         for (family in archived.map { it.second }.toSet()) {
             val frames = archived.filter { it.second == family }.map { it.first }
             // type-47 records carry their own real-unix ts (clock offset ignored), so an identity clock
-            // ref is correct here — the same fallback the Backfiller uses when clockRef is nil.
-            val decoded = extractHistoricalStreams(frames, 0, 0, family)
+            // ref is correct here — the same fallback the Backfiller uses when clockRef is nil. Thread the
+            // opt-in HR-from-PPG sub-lag interpolation flag (Test Centre → Experimental algorithms) so the
+            // archive replay re-derives v26 HR with the same variant the live offload uses. Default OFF.
+            val decoded = extractHistoricalStreams(
+                frames, 0, 0, family,
+                ppgHrSubLagInterp = PuffinExperiment.from(context).ppgHrSubLagInterp,
+            )
             // Count rows ACTUALLY inserted, not decoded: under the per-app-version gate the archive
             // replays every release, and dedupe makes those re-runs insert 0 — counting decoded rows
             // would log a false "retro-decoded N" success on every update. (#152)

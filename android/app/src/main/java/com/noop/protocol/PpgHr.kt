@@ -58,7 +58,7 @@ object PpgHr {
      * split into consecutive-second runs, and a centred window is autocorrelated for each second.
      * Returns one [Estimate] per second that yielded a confident estimate, ascending by ts.
      */
-    fun estimate(samples: List<Sample>): List<Estimate> {
+    fun estimate(samples: List<Sample>, subLagInterp: Boolean = false): List<Estimate> {
         if (samples.isEmpty()) return emptyList()
         // One waveform per second, in first-seen sample order (last record wins on a duplicate ts).
         val secs = LinkedHashMap<Long, ArrayList<Int>>()
@@ -101,7 +101,7 @@ object PpgHr {
                 val sig = DoubleArray(total)
                 var idx = 0
                 for (w in win) for (v in secs[w]!!) sig[idx++] = v.toDouble()
-                estimateWindow(sig, t)?.let { out.add(it) }
+                estimateWindow(sig, t, subLagInterp)?.let { out.add(it) }
             }
         }
         out.sortBy { it.ts }
@@ -181,7 +181,7 @@ object PpgHr {
         return DoubleArray(n) { i -> x[i] - colMean[i % fs] }
     }
 
-    private fun estimateWindow(values: DoubleArray, ts: Long): Estimate? {
+    private fun estimateWindow(values: DoubleArray, ts: Long, subLagInterp: Boolean = false): Estimate? {
         if (values.size < SAMPLE_RATE_HZ * 3) return null // need >= 3 s to resolve a low HR
         // De-artifact (#194) THEN detrend, so the autocorrelation sees the pulse, not a record-rate comb.
         val x = detrend(removeRecordRateComponent(values, SAMPLE_RATE_HZ))
@@ -223,9 +223,25 @@ object PpgHr {
             bestLag = argmax
         }
 
-        // Round to whole bpm (the lag is integer, so sub-bpm precision isn't real signal) and round
-        // conf to 3 dp — both matching the Swift estimator and the measured-HR Int domain (#219).
-        val bpm = Math.round(fsD * 60 / bestLag).toInt()
+        // Sub-lag parabolic interpolation (Variant A, opt-in): refine the integer bestLag by fitting a
+        // parabola to the ACF peak and its two neighbours, so a true HR sitting BETWEEN two integer lags is
+        // not quantized (integer lags step ~16 bpm near 150 bpm, so the estimate can be off up to ~±8 bpm).
+        // Guarded to interior lags; a non-concave fit (denom >= 0) or a clamp-defended one falls back to the
+        // integer lag. Default OFF is byte-identical to the integer-lag estimate. Mirror of the Swift branch.
+        var refinedLag = bestLag.toDouble()
+        if (subLagInterp && bestLag - 1 >= loLag && bestLag + 1 <= hiLag) {
+            val y0 = vals[bestLag - 1]!!
+            val y1 = vals[bestLag]!!
+            val y2 = vals[bestLag + 1]!!
+            val denom = y0 - 2.0 * y1 + y2
+            if (denom < 0.0) {
+                val delta = (0.5 * (y0 - y2) / denom).coerceIn(-1.0, 1.0)
+                refinedLag = (bestLag.toDouble() + delta).coerceIn(loLag.toDouble(), hiLag.toDouble())
+            }
+        }
+        // Round to whole bpm (the ppgHrSample column is Int; #219) — conf stays the integer bestLag's peak
+        // (the refinement moves only the frequency, not the confidence). Matches the Swift estimator.
+        val bpm = Math.round(fsD * 60 / refinedLag).toInt()
         val conf = Math.round(vals[bestLag]!! * 1000) / 1000.0
         return Estimate(ts = ts, bpm = bpm, conf = conf)
     }

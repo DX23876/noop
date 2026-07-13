@@ -1276,6 +1276,9 @@ class WhoopBleClient(
         // is emitted (or built) when the mode is off. Twin of the macOS Backfiller wiring.
         connectionActive = { testCentre.active(com.noop.testcentre.TestDomain.CONNECTION) },
         connectionLog = { s -> log(s, com.noop.testcentre.TestDomain.CONNECTION) },
+        // Test Centre → Experimental algorithms: the opt-in v26 PPG-HR sub-lag interpolation variant, read
+        // live each chunk so a mid-session toggle takes effect. Default OFF (byte-identical to today).
+        ppgHrSubLagInterp = { puffinExperiment.ppgHrSubLagInterp },
     )
 
     /**

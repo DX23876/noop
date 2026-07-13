@@ -3,6 +3,7 @@ package com.noop.protocol
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.sin
 import kotlin.random.Random
 import org.junit.Test
@@ -117,5 +118,38 @@ class PpgHrTest {
         val est = PpgHr.estimate(sine(bpm = 60.0, seconds = 10))
         assertTrue("true 60 bpm must not be notched away", est.isNotEmpty())
         for (e in est) assertTrue("bpm ${e.bpm} not near 60", e.bpm in 57..63)
+    }
+
+    @Test
+    fun subLagInterpolationRecoversHrsThatIntegerLagQuantizes() {
+        // Derived-biosignal standard (CLAUDE.md): recover MULTIPLE injected values, not one. Each true HR
+        // here sits BETWEEN integer autocorrelation lags at 24 Hz (period = 1440/bpm samples), so the nearest
+        // integer lag is > 2 bpm off and the default integer-lag estimator quantizes AWAY from the truth,
+        // while the opt-in parabolic sub-lag interpolation (Variant A) refines the ACF peak and recovers it
+        // within ±2 bpm. Twin of the Swift PpgHrTests case. (Exact-integer-lag rates 120/160/180 are avoided.)
+        for (trueBpm in listOf(137.0, 150.0, 163.0, 170.0)) {
+            val samples = sine(bpm = trueBpm, seconds = 16)
+
+            // Default OFF = byte-identical to today: integer-lag quantization, never within ±2 of the truth.
+            val off = PpgHr.estimate(samples)
+            assertTrue("expected estimates from a clean $trueBpm bpm sine", off.isNotEmpty())
+            for (e in off) {
+                assertTrue(
+                    "default path should quantize away from $trueBpm (got ${e.bpm})",
+                    abs(e.bpm - trueBpm) > 2,
+                )
+            }
+
+            // Variant ON: parabolic sub-lag interpolation lands within ±2 bpm of the true rate.
+            val on = PpgHr.estimate(samples, subLagInterp = true)
+            assertTrue("expected estimates with the variant on for $trueBpm", on.isNotEmpty())
+            for (e in on) {
+                assertTrue(
+                    "sub-lag interp should recover $trueBpm±2 (got ${e.bpm})",
+                    abs(e.bpm - trueBpm) <= 2,
+                )
+                assertTrue("confidence ${e.conf} below gate", e.conf >= PpgHr.MIN_CONFIDENCE)
+            }
+        }
     }
 }

@@ -182,8 +182,12 @@ final class Backfiller {
          connectionActive: @escaping () -> Bool = { false },
          connectionLog: ((String) -> Void)? = nil,
          firmwareLayout: ((Int) -> Void)? = nil,
+         // The default (prod) Extractor reads the opt-in HR-from-PPG sub-lag interpolation flag (Test Centre →
+         // Experimental algorithms) at decode time and threads it into the pure decoder, so the pure package
+         // never reaches for UserDefaults. Default OFF = byte-identical to today. Tests inject their own seam.
          extract: @escaping Extractor = { extractHistoricalStreams($0, deviceClockRef: $1, wallClockRef: $2,
-                                                                    sessionOldestUnix: $3, sessionNewestUnix: $4) }) {
+                                                                    sessionOldestUnix: $3, sessionNewestUnix: $4,
+                                                                    subLagInterp: PuffinExperiment.ppgHrSubLagInterpEnabled) }) {
         self.store = store
         self.deviceId = deviceId
         self.ackTrim = ackTrim

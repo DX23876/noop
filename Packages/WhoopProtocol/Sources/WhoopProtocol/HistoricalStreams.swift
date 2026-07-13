@@ -96,7 +96,13 @@ public func extractHistoricalStreams(_ parsed: [ParsedFrame],
                                      // oldest/newest markers for THIS sync. nil on the replay/import/no-range
                                      // paths — the gate then falls back to the absolute-only floor (unchanged).
                                      sessionOldestUnix: Int? = nil,
-                                     sessionNewestUnix: Int? = nil) -> Streams {
+                                     sessionNewestUnix: Int? = nil,
+                                     // Opt-in "HR-from-PPG sub-lag interpolation" (Test Centre → Experimental
+                                     // algorithms, default false): threaded into the v26 PPG-HR estimator below.
+                                     // The pure package can't read prefs, so the app-layer caller (Backfiller /
+                                     // archive replay) reads PuffinExperiment.ppgHrSubLagInterpEnabled and passes
+                                     // it. Default false = byte-identical to today. Mirrors the Android arg.
+                                     subLagInterp: Bool = false) -> Streams {
     func wall(_ deviceTs: Int?) -> Int? {
         guard let d = deviceTs else { return nil }
         return wallClockRef + (d - deviceClockRef)
@@ -264,7 +270,7 @@ public func extractHistoricalStreams(_ parsed: [ParsedFrame],
     }
     // Derive per-second HR from the collected v26 PPG bursts (issue #156). Empty when there were no v26
     // records (the WHOOP 4 / v18-only common case), so this is a no-op cost there.
-    out.ppgHr = PpgHr.derivePpgHr(records: ppgRecords)
+    out.ppgHr = PpgHr.derivePpgHr(records: ppgRecords, subLagInterp: subLagInterp)
     out.droppedImplausible = droppedImplausible   // #547 diag count (not persisted, not encoded)
     out.droppedImplausibleOldestTs = droppedOldest   // #324 poisoned-range epoch span (diag only)
     out.droppedImplausibleNewestTs = droppedNewest

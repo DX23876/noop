@@ -102,7 +102,8 @@ public enum PpgHr {
                                 fs: Int = sampleRateHz,
                                 loBpm: Double = hrLoBpm,
                                 hiBpm: Double = hrHiBpm,
-                                minConf: Double = minConfidence) -> (bpm: Double, conf: Double)? {
+                                minConf: Double = minConfidence,
+                                subLagInterp: Bool = false) -> (bpm: Double, conf: Double)? {
         guard samples.count >= fs * 3 else { return nil }   // need >= 3 s to resolve a low HR
         // De-artifact (#194) THEN linear-detrend, so the autocorrelation sees the pulse, not the
         // record-rate comb that would peg a low HR at 60 bpm.
@@ -133,9 +134,23 @@ public enum PpgHr {
             }
         }
         let lag = bestLag ?? (vals.max { $0.value < $1.value }!.key)
-        // Round to whole bpm (matching Android's Math.round) — the lag is integer so sub-bpm precision
-        // isn't real signal, and whole bpm keeps the value + type in lockstep with Android (#219).
-        let bpm = (fsD * 60 / Double(lag)).rounded()
+        // Sub-lag parabolic interpolation (Variant A, opt-in): refine the integer `lag` by fitting a
+        // parabola to the ACF peak and its two neighbours, so a true HR sitting BETWEEN two integer lags is
+        // not quantized (integer lags step ~16 bpm near 150 bpm, so the estimate can be off up to ~±8 bpm).
+        // Guarded to interior lags; a non-concave fit (denom >= 0) or a clamp-defended one falls back to the
+        // integer lag. Default OFF is byte-identical to the integer-lag estimate. Mirror of the Kotlin branch.
+        var refinedLag = Double(lag)
+        if subLagInterp, lag - 1 >= loLag, lag + 1 <= hiLag {
+            let y0 = vals[lag - 1]!, y1 = vals[lag]!, y2 = vals[lag + 1]!
+            let denom = y0 - 2 * y1 + y2
+            if denom < 0 {
+                let delta = min(1.0, max(-1.0, 0.5 * (y0 - y2) / denom))
+                refinedLag = min(Double(hiLag), max(Double(loLag), Double(lag) + delta))
+            }
+        }
+        // Round to whole bpm (matching Android's Math.round) — whole bpm keeps the value + type in lockstep
+        // with Android (#219). conf stays the integer `lag`'s peak (refinement moves frequency, not confidence).
+        let bpm = (fsD * 60 / refinedLag).rounded()
         let conf = (vals[lag]! * 1000).rounded() / 1000
         return (bpm, conf)
     }
@@ -147,7 +162,8 @@ public enum PpgHr {
     /// yielded a confident estimate, ascending by ts. Records may be unsorted / contain gaps.
     public static func derivePpgHr(records: [(ts: Int, samples: [Int])],
                                    fs: Int = sampleRateHz,
-                                   windowSeconds: Int = windowSeconds) -> [PpgHrSample] {
+                                   windowSeconds: Int = windowSeconds,
+                                   subLagInterp: Bool = false) -> [PpgHrSample] {
         guard !records.isEmpty else { return [] }
         // One waveform per second (last write wins on a duplicate ts).
         var secs = [Int: [Int]]()
@@ -173,7 +189,7 @@ public enum PpgHr {
                 guard win.count >= 3 else { continue }
                 var sig = [Int]()
                 for u in win { sig.append(contentsOf: secs[u]!) }
-                if let est = estimate(sig, fs: fs) {
+                if let est = estimate(sig, fs: fs, subLagInterp: subLagInterp) {
                     out.append(PpgHrSample(ts: t, bpm: Int(est.bpm), conf: est.conf))
                 }
             }

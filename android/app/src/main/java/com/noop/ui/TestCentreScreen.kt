@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Switch
@@ -35,8 +36,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.noop.BuildConfig
 import com.noop.analytics.Baselines
+import com.noop.analytics.HRVReadiness
+import com.noop.analytics.ReadinessTier
 import com.noop.ble.PuffinExperiment
 import com.noop.ble.WhoopModel
+import com.noop.data.DailyMetric
 import com.noop.testcentre.CaptureAccumulator
 import com.noop.testcentre.CaptureKind
 import com.noop.testcentre.DisplayPerformanceMonitor
@@ -50,6 +54,7 @@ import com.noop.testcentre.TestModeRegistry
 import com.noop.testcentre.TestReportFlow
 import com.noop.testcentre.TestReportLink
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /**
  * Settings -> Test Centre (spec section 7), the Android twin of TestCentreView. Four sections: domain
@@ -162,6 +167,9 @@ fun TestCentreScreen(vm: AppViewModel) {
                 scope.launch { pendingReport = buildPending(context, MASTER_REPORT_MODE, vm.ble.exportLogText(), vm) }
             },
         )
+
+        // --- Section 4: Experimental algorithms ---
+        ExperimentalAlgorithmsCard(vm)
     }
 
     pendingReport?.let { p ->
@@ -445,6 +453,124 @@ private fun ExportCard(vm: AppViewModel, onReport: () -> Unit) {
                 }
             }
         }
+    }
+}
+
+/**
+ * Test Centre → Experimental algorithms. The single home for OPT-IN, off-by-default, non-clinical research
+ * variants that swap which model computes a metric (never detection, never a stored WHOOP value). Each toggle
+ * writes the SAME [PuffinExperiment] key its Swift twin reads, so the platforms stay in lockstep. Hosts the
+ * HR-from-PPG sub-lag interpolation variant and the read-only HRV-readiness (Plews/Altini) tier readout.
+ * Twin of the Swift TestCentreView experimentalAlgorithmsCard.
+ */
+@Composable
+private fun ExperimentalAlgorithmsCard(vm: AppViewModel) {
+    val context = LocalContext.current
+    val puffin = remember { PuffinExperiment.from(context) }
+    var ppgHrSubLag by remember { mutableStateOf(puffin.ppgHrSubLagInterp) }
+    var hrvReadiness by remember { mutableStateOf(puffin.hrvReadiness) }
+    // The SAME nightly HRV series the recovery UI reads (repo-merged DailyMetric.avgHrv, oldest-first), fed
+    // into the pure HRVReadiness engine ONLY to render the toggle's own reading inline below — the default
+    // Charge ring / analyzeDay path is never touched, and this feeds no downstream gate.
+    val recentDays by vm.recentDays.collectAsStateWithLifecycle()
+    SettingsSectionTC(
+        icon = Icons.Filled.Science,
+        title = "Experimental algorithms",
+        blurb = "Research-grade alternatives / precision tweaks. Opt-in, off by default, non-clinical.",
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            ToggleRowTC(
+                title = "HR-from-PPG sub-lag interpolation (v26 gap-fill)",
+                description = "When NOOP reconstructs heart rate from the WHOOP 5/MG v26 optical waveform (the " +
+                    "seconds the strap stored no HR), refine the autocorrelation peak with a parabolic sub-lag " +
+                    "fit so the estimate is not quantized to roughly 16 bpm steps near a high HR. It only fills " +
+                    "seconds the strap never reported; it never overrides a stored HR. 5/MG only, off by default.",
+                checked = ppgHrSubLag,
+                onCheckedChange = { ppgHrSubLag = it; puffin.ppgHrSubLagInterp = it },
+            )
+            ToggleRowTC(
+                title = "HRV readiness (Plews/Altini)",
+                description = "A read-only Plews/Altini smallest-worthwhile-change reading of your nightly HRV: " +
+                    "it shows whether your 7-night HRV baseline sits above, inside, or below your personal " +
+                    "normal band. It changes nothing else - the Charge ring is identical whether this is on or " +
+                    "off. This is rough / early testing, not yet validated against varying real data (n=1).",
+                checked = hrvReadiness,
+                onCheckedChange = { hrvReadiness = it; puffin.hrvReadiness = it },
+            )
+            // The toggle's OWN effect, shown in place: when on, the live Plews/Altini reading. Nothing renders
+            // when off, so the flag off is zero behaviour change and feeds no downstream gate.
+            if (hrvReadiness) HrvReadinessReadoutTC(recentDays)
+        }
+    }
+}
+
+/**
+ * Inline, opt-in HRV-readiness readout. Renders directly under the "HRV readiness (Plews/Altini)" toggle when
+ * the flag is on, so the toggle's own effect is visible in place. Reads the SAME repo-merged nightly
+ * [DailyMetric.avgHrv] series (oldest-first) the recovery UI has and runs it through the pure [HRVReadiness]
+ * engine — it never touches the default Charge ring or analyzeDay. Below [HRVReadiness.MIN_NIGHTS] valid
+ * nights it shows the honest calibrating count instead of a fabricated tier. Twin of the Swift
+ * `hrvReadinessReadout`.
+ */
+@Composable
+private fun HrvReadinessReadoutTC(days: List<DailyMetric>) {
+    // Memoize the pure evaluate + valid-night count against the day-list identity so it only recomputes when
+    // the series actually changes (not on every recomposition).
+    val (result, validCount) = remember(days) {
+        val cfg = Baselines.hrvCfg
+        val series = days.map { it.avgHrv }
+        val valid = series.count { v -> v != null && v >= cfg.minVal && v <= cfg.maxVal }
+        HRVReadiness.evaluate(series) to valid
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        if (result != null) {
+            val (word, color) = when (result.tier) {
+                ReadinessTier.PRIMED -> "primed" to Palette.statusPositive
+                ReadinessTier.NORMAL -> "normal" to Palette.textPrimary
+                ReadinessTier.SUPPRESSED -> "suppressed" to Palette.statusWarning
+            }
+            Text("HRV readiness (experimental): $word", style = NoopType.subhead, color = color)
+            val base = result.baseline7Ms.roundToInt()
+            val lo = result.normalLowMs.roundToInt()
+            val hi = result.normalHighMs.roundToInt()
+            val watch = if (result.overreachingWatch) ", overreaching watch" else ""
+            Text(
+                "7-night baseline $base ms, normal $lo to $hi ms$watch",
+                style = NoopType.footnote, color = Palette.textTertiary,
+            )
+        } else {
+            Text("HRV readiness (experimental)", style = NoopType.subhead, color = Palette.textTertiary)
+            Text(
+                "Calibrating ($validCount/${HRVReadiness.MIN_NIGHTS} nights)",
+                style = NoopType.footnote, color = Palette.textTertiary,
+            )
+        }
+    }
+}
+
+/** A titled toggle + caption row for the Experimental algorithms card (same NoopType/Palette tokens + switch
+ *  colours as the other Test Centre rows). Local to Test Centre so it never reaches into SettingsScreen. */
+@Composable
+private fun ToggleRowTC(
+    title: String,
+    description: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text(title, style = NoopType.subhead, color = Palette.textPrimary, modifier = Modifier.weight(1f))
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                colors = settingsSwitchColors(),
+            )
+        }
+        Text(description, style = NoopType.footnote, color = Palette.textTertiary)
     }
 }
 

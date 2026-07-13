@@ -243,8 +243,11 @@ struct RawHistoryArchive {
         for family in Set(archived.map(\.family)) {
             let parsed = archived.filter { $0.family == family }.map { parseFrame($0.frame, family: family) }
             // type-47 records carry their own real-unix ts (clock offset ignored), so an identity
-            // clock ref is correct here — the same fallback the Backfiller uses when clockRef is nil.
-            let streams = extractHistoricalStreams(parsed, deviceClockRef: 0, wallClockRef: 0)
+            // clock ref is correct here — the same fallback the Backfiller uses when clockRef is nil. Thread
+            // the opt-in HR-from-PPG sub-lag interpolation flag (Test Centre → Experimental algorithms) so the
+            // archive replay re-derives v26 HR with the same variant the live offload uses. Default OFF.
+            let streams = extractHistoricalStreams(parsed, deviceClockRef: 0, wallClockRef: 0,
+                                                   subLagInterp: PuffinExperiment.ppgHrSubLagInterpEnabled)
             // Count rows ACTUALLY inserted, not decoded: under the per-app-version gate the archive
             // replays every release, and dedupe makes those re-runs insert 0 — counting decoded rows
             // would log a false "retro-decoded N" success on every update. (#152)

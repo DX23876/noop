@@ -2,6 +2,7 @@ package com.noop.ingest
 
 import android.content.Context
 import android.net.Uri
+import com.noop.ble.PuffinExperiment
 import com.noop.ble.RawHistoryArchive
 import com.noop.ble.WhoopBleClient
 import com.noop.data.ImportSummary
@@ -151,8 +152,14 @@ object CaptureImporter {
      * Filter each family's frames to offload frames (drops realtime/control), then decode in a single
      * pass per family via extractHistoricalStreams with clockRef 0/0 — historical records carry an
      * embedded unix, exactly as RawHistoryArchive.replayIfNeeded decodes archived frames.
+     *
+     * [ppgHrSubLagInterp] threads the opt-in "HR-from-PPG sub-lag interpolation" flag (Test Centre →
+     * Experimental algorithms) into the v26 PPG-HR estimator, so an imported capture re-derives v26 HR
+     * with the same variant the live offload / archive replay use. Kept a pure param (not a prefs read
+     * inside this pure decode) so it stays JVM unit-testable; the importCapture caller supplies it.
+     * Default false = byte-identical to today.
      */
-    fun decode(parsed: Parsed): Decoded {
+    fun decode(parsed: Parsed, ppgHrSubLagInterp: Boolean = false): Decoded {
         val batches = LinkedHashMap<DeviceFamily, StreamBatch>()
         val rejects = LinkedHashMap<DeviceFamily, List<ByteArray>>()
         var offload = 0
@@ -160,7 +167,10 @@ object CaptureImporter {
             val offloadFrames = frames.filter { WhoopBleClient.isOffloadFrame(it, family) }
             if (offloadFrames.isEmpty()) continue
             offload += offloadFrames.size
-            val batch = extractHistoricalStreams(offloadFrames, 0, 0, family)
+            val batch = extractHistoricalStreams(
+                offloadFrames, 0, 0, family,
+                ppgHrSubLagInterp = ppgHrSubLagInterp,
+            )
             if (!batch.isEmpty) batches[family] = batch
             val rej = rejectedHistoricalRecords(offloadFrames, family)
             if (rej.isNotEmpty()) rejects[family] = rej
@@ -269,7 +279,9 @@ object CaptureImporter {
             return ImportSummary.failure(SOURCE_LABEL, "Could not read the file: ${e.message ?: "unknown error"}")
         }
 
-        val decoded = decode(parsed)
+        // Test Centre → Experimental algorithms: re-derive v26 PPG-HR with the opt-in sub-lag interpolation
+        // variant when the user has it on, matching the live offload / archive replay. Default OFF.
+        val decoded = decode(parsed, ppgHrSubLagInterp = PuffinExperiment.from(context).ppgHrSubLagInterp)
 
         // Reject-archive undecodable offload frames FIRST — before the empty-batch early return — so a
         // capture the current decoder can't map yet (e.g. a future record layout) is still preserved

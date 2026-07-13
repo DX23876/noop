@@ -109,6 +109,28 @@ final class PpgHrTests: XCTestCase {
         if let est { XCTAssertEqual(est.bpm, 60, accuracy: 2.0) }
     }
 
+    func testSubLagInterpolationRecoversHrsThatIntegerLagQuantizes() throws {
+        // Derived-biosignal standard (CLAUDE.md): recover MULTIPLE injected values, not one. Each true HR
+        // here sits BETWEEN integer autocorrelation lags at 24 Hz (period = 1440/bpm samples), so the nearest
+        // integer lag is > 2 bpm off and the default integer-lag estimator quantizes AWAY from the truth,
+        // while the opt-in parabolic sub-lag interpolation (Variant A) refines the ACF peak and recovers it
+        // within +-2 bpm. Twin of the Kotlin PpgHrTest case. (Exact-integer-lag rates 120/160/180 are avoided.)
+        for trueBpm in [137.0, 150.0, 163.0, 170.0] {
+            var sig = [Int]()
+            for s in 0..<16 { sig.append(contentsOf: sineSecond(bpm: trueBpm, startSample: s * fs)) }
+
+            // Default OFF = byte-identical to today: integer-lag quantization, not within +-2 of the truth.
+            let off = try XCTUnwrap(PpgHr.estimate(sig))
+            XCTAssertGreaterThan(abs(off.bpm - trueBpm), 2,
+                                 "default path should quantize away from \(trueBpm) (got \(off.bpm))")
+
+            // Variant ON: parabolic sub-lag interpolation lands within +-2 bpm of the true rate.
+            let on = try XCTUnwrap(PpgHr.estimate(sig, subLagInterp: true))
+            XCTAssertEqual(on.bpm, trueBpm, accuracy: 2.0,
+                           "sub-lag interp should recover \(trueBpm)+-2 (got \(on.bpm))")
+        }
+    }
+
     /// Streams decode tolerance: a JSON missing `ppg_hr` still decodes (defaults to empty), and a
     /// present `ppg_hr` round-trips. Mirrors the decodeIfPresent guard for the other biometric keys.
     func testStreamsDecodeToleratesMissingAndPresentPpgHr() throws {

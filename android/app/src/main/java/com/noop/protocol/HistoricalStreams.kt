@@ -508,6 +508,11 @@ fun extractHistoricalStreams(
     // (unchanged). Kept in lockstep with the Swift extractHistoricalStreams session args.
     sessionOldestUnix: Long? = null,
     sessionNewestUnix: Long? = null,
+    // Opt-in "HR-from-PPG sub-lag interpolation" (Test Centre → Experimental algorithms, default false):
+    // threaded straight into the v26 PPG-HR estimator below. The pure protocol package can't read prefs, so
+    // the app-layer caller (Backfiller / archive replay / capture import) reads PuffinExperiment.ppgHrSubLagInterp
+    // and passes it. Default false = byte-identical to today. Mirrors the Swift extractHistoricalStreams arg.
+    ppgHrSubLagInterp: Boolean = false,
 ): StreamBatch {
     // Count of records dropped by the #547 plausibility gate this batch, surfaced on the returned
     // StreamBatch so the Backfiller can log "bad strap clock" once per session via its existing seam.
@@ -719,7 +724,8 @@ fun extractHistoricalStreams(
 
     // Derive HR from the accumulated v26 PPG waveform (8 s / 24 Hz autocorrelation, conf>=0.3). Empty
     // unless the strap sent v26 records; falls back gracefully (no rows) on noise (#156).
-    val ppgHr = PpgHr.estimate(ppgSamples).map { PpgHrRow(ts = it.ts, bpm = it.bpm, conf = it.conf) }
+    val ppgHr = PpgHr.estimate(ppgSamples, subLagInterp = ppgHrSubLagInterp)
+        .map { PpgHrRow(ts = it.ts, bpm = it.bpm, conf = it.conf) }
 
     return StreamBatch(
         hr = hr, rr = rr, events = events, battery = battery,
