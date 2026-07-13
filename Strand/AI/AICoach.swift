@@ -551,7 +551,20 @@ final class AICoachEngine: ObservableObject {
     /// Proactively generate "Today's brief" the first time the Coach opens, readiness + a training
     /// prescription + one recovery tip, without the user typing. Requires a key + data consent.
     func startBriefIfNeeded() async {
-        guard isConfigured, dataConsent, messages.isEmpty, !sending else { return }
+        guard messages.isEmpty else { return }
+        await generateBrief()
+    }
+
+    /// Force a fresh "Today's brief" even mid-conversation — used when the user taps the daily check-in
+    /// notification, so tapping always surfaces an up-to-date brief rather than an old one.
+    func refreshBrief() async {
+        await generateBrief()
+    }
+
+    /// Shared brief generation: build today's context and ask the provider for the three-part brief.
+    /// Gated on a key + data consent; `!sending` prevents overlapping a brief with an in-flight message.
+    private func generateBrief() async {
+        guard isConfigured, dataConsent, !sending else { return }
         guard let key = resolvedKey else { return }
         errorText = nil
         sending = true

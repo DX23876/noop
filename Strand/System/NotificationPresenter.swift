@@ -24,4 +24,17 @@ final class NotificationPresenter: NSObject, UNUserNotificationCenterDelegate {
     ) {
         completionHandler([.banner, .sound, .list])
     }
+
+    /// Handle a tap. The NOOP AI daily coach check-in ("coach-checkin") broadcasts an in-app event so the
+    /// UI can open the Coach tab and refresh the brief; every other notification just opens the app.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        if response.notification.request.identifier == "coach-checkin" {
+            NotificationCenter.default.post(name: .noopOpenCoachCheckIn, object: nil)
+        }
+        completionHandler()
+    }
 }
