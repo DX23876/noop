@@ -1197,12 +1197,21 @@ internal class StressModel private constructor(
         /** Build from oldest→newest daily metrics plus any stored "stress" series.
          *  Returns null only when there is no usable signal at all. */
         fun build(days: List<DailyMetric>, stored: Map<String, Double>): StressModel? {
-            val today = days.lastOrNull() ?: return null
+            // Carry (#543): today's own row is often vitals-less until the overnight is analyzed —
+            // especially right after an app update relaunches and re-runs the pass — so score the NEWEST
+            // day that actually carries usable signal (RHR/HRV, or a stored/imported stress value) instead
+            // of calibrating, the same last-night carry every other Today vital uses. The predicate mirrors
+            // the storedToday||derived gate below, so an imported stress-only latest day is still honored
+            // (not skipped). Falls back to the last row when no day has any signal (cold start).
+            val idx = days.indexOfLast {
+                it.restingHr != null || it.avgHrv != null || stored.containsKey(it.day)
+            }.let { if (it >= 0) it else days.size - 1 }
+            if (idx < 0) return null   // no days at all
+            val today = days[idx]
 
-            // Baseline window: up to 30 days ending the day BEFORE today, so "today" is
-            // measured against its own recent past rather than itself.
-            val history = if (days.size > 1) days.dropLast(1) else emptyList()
-            val baseline = history.takeLast(30)
+            // Baseline window: up to 30 days ending the day BEFORE the scored day, so it's measured
+            // against its own recent past rather than itself.
+            val baseline = if (idx > 0) days.subList(0, idx).takeLast(30) else emptyList()
 
             val rhrBase = baseline.mapNotNull { it.restingHr?.toDouble() }
             val hrvBase = baseline.mapNotNull { it.avgHrv }
