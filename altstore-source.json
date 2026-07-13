@@ -1,5 +1,7 @@
 {
   "name": "NOOP",
+  "identifier": "com.noopapp.noop.altstore",
+  "sourceURL": "https://raw.githubusercontent.com/ryanbr/noop/main/altstore-source.json",
   "subtitle": "A standalone WHOOP app — your strap, your device, fully offline.",
   "description": "An AltStore / SideStore source for NOOP, the independent open-source WHOOP companion. Add this source to get one-tap updates for the sideloaded iOS build.\n\nNOOP is not affiliated with WHOOP. It reads a strap you own, directly over Bluetooth, on your own device — no WHOOP app, no subscription, no cloud.",
   "iconURL": "https://github.com/ryanbr/noop/raw/main/Strand/Resources/Assets.xcassets/AppIcon.appiconset/icon_512x512.png",
