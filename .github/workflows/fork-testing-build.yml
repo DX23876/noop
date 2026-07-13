@@ -45,7 +45,7 @@ jobs:
           - **Android (release)** — \`NOOP-android-v${VER}.apk\` — optimized, non-debuggable build; installs beside the official app. \`com.noop.whoop.staging\`.
           - **Android (debug)** — \`NOOP-android-debug-v${VER}.apk\` — debuggable build. \`com.noop.whoop.debug\`.
           - **macOS** — \`NOOP-macos-v${VER}.zip\` — unzip, then **right-click → Open** (unsigned; Gatekeeper warns once).
-          - **iOS** — \`NOOP-ios-unsigned-v${VER}.ipa\` — sideload via **AltStore / Sideloadly** (re-signs on-device); embedded watch app stripped.
+          - **iOS** — \`NOOP-ios-unsigned-v${VER}.ipa\` — sideload via **AltStore / Sideloadly** (re-signs on-device); embedded watch app + widget extension stripped for free-account install reliability.
 
           Base app version ${VER} · built ${DATE} · \`${SHA}\`."
 
@@ -138,7 +138,7 @@ jobs:
           -derivedDataPath build/dd
           CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
           build
-      - name: Package unsigned .ipa (strip the embedded watch app) + attach
+      - name: Package unsigned .ipa (strip the embedded watch app + widget extension) + attach
         env:
           GH_TOKEN: ${{ github.token }}
           VER: ${{ needs.meta.outputs.ver }}
@@ -146,6 +146,12 @@ jobs:
           APP=$(find build/dd/Build/Products/Release-iphoneos -maxdepth 1 -name '*.app' -type d | head -1)
           test -n "$APP" || { echo ".app (iphoneos) not found"; exit 1; }
           rm -rf "$APP/Watch"
+          # Also drop the widget extension (NOOPWidgets.appex). On a re-signed sideload it forces a free
+          # Apple ID to register a SECOND app id (com.noopapp.noop.widgets) plus the app group, and free
+          # accounts get only 10 app ids / 7 days — so repeated AltStore attempts exhaust the quota and
+          # return a generic "failed". The main app installs + runs fine without it (the home-screen widget
+          # is the only thing lost), same rationale as the watch-app strip above.
+          rm -rf "$APP/PlugIns"
           rm -rf Payload && mkdir Payload && cp -R "$APP" Payload/
           zip -qr "NOOP-ios-unsigned-v${VER}.ipa" Payload
           gh release upload "${{ needs.meta.outputs.tag }}" "NOOP-ios-unsigned-v${VER}.ipa" --repo "$GITHUB_REPOSITORY" --clobber
