@@ -12,8 +12,9 @@ final class WearableExportImporterTests: XCTestCase {
     // MARK: - Oura
 
     func testOuraSleepReadinessActivityFold() {
-        // Sleep period: 7h asleep (25200s) with stage durations + HRV/RHR; readiness gives RHR + temp
-        // deviation + a readiness SCORE (reference); activity gives steps + calories.
+        // Sleep period: 7h asleep (25200s) with stage durations + HRV/RHR; readiness gives temp
+        // deviation + a readiness SCORE (reference) — its contributors.resting_heart_rate is a 0-100
+        // SCORE, not bpm, and must never become the day's RHR; activity gives steps + calories.
         let json = """
         {
           "sleep": [
@@ -35,7 +36,7 @@ final class WearableExportImporterTests: XCTestCase {
           ],
           "daily_readiness": [
             { "day": "2026-06-01", "score": 81, "temperature_deviation": -0.2,
-              "contributors": { "resting_heart_rate": 49 } }
+              "contributors": { "resting_heart_rate": 96 } }
           ],
           "daily_activity": [
             { "day": "2026-06-01", "steps": 8421, "active_calories": 520, "total_calories": 2450 }
@@ -59,7 +60,7 @@ final class WearableExportImporterTests: XCTestCase {
         XCTAssertEqual(r.days.count, 1)
         let d = r.days[0]
         XCTAssertEqual(d.day, "2026-06-01")
-        XCTAssertEqual(d.restingHr, 49)                          // readiness contributor wins
+        XCTAssertEqual(d.restingHr, 48)                          // sleep lowest_heart_rate, never the 96 score
         XCTAssertEqual(d.skinTempDevC!, -0.2, accuracy: 1e-6)
         XCTAssertEqual(d.steps, 8421)
         XCTAssertEqual(d.activeKcal!, 520, accuracy: 1e-6)
@@ -155,9 +156,15 @@ final class WearableExportImporterTests: XCTestCase {
 
     func testOuraJSONStillWinsOverCSVForSameDay() {
         // A mixed export (JSON + CSV) for the same day: the richer JSON value must win, CSV fills gaps.
+        // The JSON's RHR comes from the sleep period's lowest_heart_rate; the readiness
+        // contributors.resting_heart_rate is a 0-100 SCORE and never competes at all.
         let json = """
-        { "daily_readiness": [ { "day": "2026-06-01", "score": 81,
-            "contributors": { "resting_heart_rate": 49 } } ] }
+        { "sleep": [
+            { "day": "2026-06-01", "bedtime_start": "2026-05-31T23:15:00+00:00",
+              "bedtime_end": "2026-06-01T06:30:00+00:00", "total_sleep_duration": 25200,
+              "lowest_heart_rate": 49 } ],
+          "daily_readiness": [ { "day": "2026-06-01", "score": 81,
+            "contributors": { "resting_heart_rate": 96 } } ] }
         """
         let csv = """
         date,Average Resting Heart Rate,Steps
@@ -166,7 +173,7 @@ final class WearableExportImporterTests: XCTestCase {
         let files: [String: Data] = ["oura.json": bytes(json), "oura_daily.csv": bytes(csv)]
         let r = WearableExportImporter.parse(brand: .oura, files: files)
         let d = r.days.first { $0.day == "2026-06-01" }!
-        XCTAssertEqual(d.restingHr, 49)   // JSON readiness RHR wins over the CSV's 77
+        XCTAssertEqual(d.restingHr, 49)   // JSON sleep lowest HR wins over the CSV's 77
         XCTAssertEqual(d.steps, 8421)     // CSV fills the step gap JSON lacked
     }
 

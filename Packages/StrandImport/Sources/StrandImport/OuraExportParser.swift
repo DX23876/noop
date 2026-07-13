@@ -14,7 +14,9 @@ import Foundation
 //                        a per-segment hypnogram, so the session carries the breakdown without a stage
 //                        timeline (we never fake one).
 //   daily_readiness    : day, score (Oura's OWN readiness, REFERENCE only, never NOOP Charge),
-//                        temperature_deviation (°C from baseline), contributors.resting_heart_rate.
+//                        temperature_deviation (°C from baseline). `contributors.resting_heart_rate`
+//                        is a 0-100 readiness contributor SCORE, not bpm — never read as resting HR;
+//                        the real RHR comes only from a sleep period's lowest_heart_rate.
 //   daily_activity     : day, steps, active_calories, total_calories, equivalent_walking_distance (m).
 //   daily_sleep        : day, score (sleep score, reference only).
 //   daily_spo2         : day, spo2_percentage.average (%); note the value is NESTED under that key, not
@@ -72,14 +74,14 @@ enum OuraExportParser {
                 byDay[key] = row
             }
 
-            // Daily readiness → RHR + temperature deviation + reference readiness score.
+            // Daily readiness → temperature deviation + reference readiness score.
+            // `contributors.resting_heart_rate` (and a flattened `resting_heart_rate` alongside it) is a
+            // 0-100 readiness contributor SCORE, not bpm — it must never land on row.restingHr (the API
+            // lane had the same bug; the old code here also clobbered the sleep-derived value above).
+            // The real resting HR comes only from the sleep loop's `lowest_heart_rate`.
             for r in categoryArray(root, "daily_readiness") ?? categoryArray(root, "readiness") ?? [] {
                 guard let key = WearableJSON.str(r, "day") else { continue }
                 var row = day(key)
-                if let contrib = r["contributors"] as? [String: Any] {
-                    row.restingHr = WearableJSON.posInt(contrib, "resting_heart_rate") ?? row.restingHr
-                }
-                row.restingHr = WearableJSON.posInt(r, "resting_heart_rate") ?? row.restingHr
                 row.skinTempDevC = WearableJSON.dbl(r, "temperature_deviation") ?? row.skinTempDevC
                 row.readinessScore = WearableJSON.posInt(r, "score") ?? row.readinessScore
                 byDay[key] = row

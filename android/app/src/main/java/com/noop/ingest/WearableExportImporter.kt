@@ -26,7 +26,9 @@ import java.util.zip.ZipInputStream
  *
  *   • Oura   : the Account -> Export Data per-category files (CSV, `;`-delimited; or an older JSON
  *              variant): sleep periods (durations/HRV/RHR/breath; a `deleted` type is skipped), daily
- *              readiness (RHR, temperature deviation, score), daily activity (steps/calories/distance),
+ *              readiness (temperature deviation, score — its `contributors.resting_heart_rate` is a
+ *              0-100 SCORE, not bpm, never read as resting HR; the real RHR comes only from a sleep
+ *              period's lowest_heart_rate), daily activity (steps/calories/distance),
  *              daily SpO2 (`spo2_percentage.average`), VO2max (`vo2_max`). Field names verified against a
  *              REAL Oura export schema (issue #862). The many health types NOOP doesn't model
  *              (bloodglucose, contraception, medication, ring config, raw sample streams, ...) are skipped
@@ -258,13 +260,16 @@ object WearableExportImporter {
                     if (d.restingHr == null) d.restingHr = session.lowestHr
                 }
             }
+            // Daily readiness → temperature deviation + reference readiness score.
+            // `contributors.resting_heart_rate` (and a flattened `resting_heart_rate` alongside it) is a
+            // 0-100 readiness contributor SCORE, not bpm — it must never land on d.restingHr (the old code
+            // clobbered the sleep-derived value above). The real resting HR comes only from the sleep
+            // loop's `lowest_heart_rate`. Twin of the Swift OuraExportParser fix.
             (categoryArray(root, "daily_readiness") ?: categoryArray(root, "readiness"))?.let { arr ->
                 for (i in 0 until arr.length()) {
                     val r = arr.optJSONObject(i) ?: continue
                     val key = r.strOpt("day") ?: continue
                     val d = day(key)
-                    r.optJSONObject("contributors")?.let { d.restingHr = it.posInt("resting_heart_rate") ?: d.restingHr }
-                    d.restingHr = r.posInt("resting_heart_rate") ?: d.restingHr
                     d.skinTempDevC = r.dblOpt("temperature_deviation") ?: d.skinTempDevC
                     d.readinessScore = r.posInt("score") ?: d.readinessScore
                 }

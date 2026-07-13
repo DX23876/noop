@@ -30,7 +30,7 @@ class WearableExportImporterTest {
                   "average_hrv": 65 } ],
               "daily_readiness": [
                 { "day": "2026-06-01", "score": 81, "temperature_deviation": -0.2,
-                  "contributors": { "resting_heart_rate": 49 } } ],
+                  "contributors": { "resting_heart_rate": 96 } } ],
               "daily_activity": [
                 { "day": "2026-06-01", "steps": 8421, "active_calories": 520 } ]
             }
@@ -50,13 +50,76 @@ class WearableExportImporterTest {
         assertEquals(1, p.days.size)
         val d = p.days[0]
         assertEquals("2026-06-01", d.day)
-        assertEquals(49, d.restingHr)                   // readiness contributor wins
+        assertEquals(48, d.restingHr)                   // sleep lowest_heart_rate, never the 96 score
         assertEquals(-0.2, d.skinTempDevC!!, 1e-6)
         assertEquals(8421, d.steps)
         assertEquals(520.0, d.activeKcal!!, 1e-6)
         assertEquals(420.0, d.totalSleepMin!!, 1e-6)
         // Oura's OWN readiness score is kept as REFERENCE only — never a NOOP score.
         assertEquals(81, d.readinessScore)
+    }
+
+    @Test
+    fun readinessContributorRhrScoreDoesNotBecomeRestingHr() {
+        // Regression (twin of the Swift OuraExportParserTests): Oura's daily_readiness
+        // `contributors.resting_heart_rate` is a 0-100 readiness contributor SCORE, not bpm. A prior
+        // bug stored it directly as the day's resting HR. With no sleep period in the export,
+        // restingHr must stay null — never the score — while the score itself stays reference-only.
+        val json = """
+            { "daily_readiness": [ { "day": "2026-01-02", "score": 80,
+                "contributors": { "resting_heart_rate": 99 } } ] }
+        """
+        val p = WearableExportImporter.parseOura(mapOf("export.json" to bytes(json)))
+        assertEquals(1, p.days.size)
+        assertNull(p.days[0].restingHr)
+        assertEquals(80, p.days[0].readinessScore)
+    }
+
+    @Test
+    fun flatReadinessRestingHeartRateKeyDoesNotBecomeRestingHr() {
+        // A flat `resting_heart_rate` on the readiness record is the same contributor score in a
+        // flattened shape — it must not land on restingHr either.
+        val json = """
+            { "daily_readiness": [ { "day": "2026-01-02", "score": 80, "resting_heart_rate": 97 } ] }
+        """
+        val p = WearableExportImporter.parseOura(mapOf("export.json" to bytes(json)))
+        assertNull(p.days[0].restingHr)
+        assertEquals(80, p.days[0].readinessScore)
+    }
+
+    @Test
+    fun sleepLowestHeartRateIsTheSoleRestingHrSource() {
+        // Sleep's `lowest_heart_rate` is the sole resting-HR source. The old code let the readiness
+        // loop overwrite the sleep-derived 48 bpm with the contributor score (96 here) whenever both
+        // categories were present.
+        val json = """
+            {
+              "sleep": [
+                { "day": "2026-01-02", "bedtime_start": "2026-01-01T23:00:00+00:00",
+                  "bedtime_end": "2026-01-02T06:30:00+00:00", "total_sleep_duration": 25200,
+                  "lowest_heart_rate": 48 } ],
+              "daily_readiness": [
+                { "day": "2026-01-02", "score": 80,
+                  "contributors": { "resting_heart_rate": 96 } } ]
+            }
+        """
+        val p = WearableExportImporter.parseOura(mapOf("export.json" to bytes(json)))
+        val d = p.days.first { it.day == "2026-01-02" }
+        assertEquals(48, d.restingHr)
+        assertEquals(80, d.readinessScore)
+    }
+
+    @Test
+    fun readinessAliasCategoryDoesNotWriteRestingHr() {
+        // The `readiness` category alias (older API-shaped exports) runs through the same loop and
+        // must obey the same rule.
+        val json = """
+            { "readiness": [ { "day": "2026-01-03", "score": 74,
+                "contributors": { "resting_heart_rate": 100 } } ] }
+        """
+        val p = WearableExportImporter.parseOura(mapOf("export.json" to bytes(json)))
+        assertNull(p.days[0].restingHr)
+        assertEquals(74, p.days[0].readinessScore)
     }
 
     @Test
