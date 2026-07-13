@@ -419,6 +419,12 @@ object IntelligenceEngine {
         // registry is stable for the run (same assumption [candidatePriorities] above already makes), so
         // every day sees the exact value the per-day call would have returned: byte-identical scoring.
         val skinFamilyByOwner = HashMap<String, DeviceFamily>()
+        // #938: the WHOOP 4.0 ADC offset is per-device, not per-night. Learn one anchor per owner from the
+        // whole scan window and reuse it for every night so cross-night deviations survive.
+        val skinAnchorScanFrom = nowLocalMidnight - (maxDays - 1).toLong() * SECONDS_PER_DAY - 30 * 3_600L
+        val skinAnchorScanTo = nowLocalMidnight + 18 * 3_600L
+        val skinAnchorByOwner = HashMap<String, Double>()
+        val skinAnchorResolvedOwners = HashSet<String>()
 
         for (offset in 0 until maxDays) {
             val dayStart = nowLocalMidnight - offset * SECONDS_PER_DAY
@@ -477,7 +483,12 @@ object IntelligenceEngine {
             // or when <100 in-band samples exist → the conversion falls back to the global anchor (byte-
             // identical to today). Computed here once per owner alongside the family resolution.
             val skinAnchorRaw = if (skinFamily == DeviceFamily.WHOOP4) {
-                Whoop4SkinTemp.deviceAnchorRaw(skin.map { it.raw })
+                if (!skinAnchorResolvedOwners.contains(owner)) {
+                    val windowSkin = repo.skinTempSamples(owner, skinAnchorScanFrom, skinAnchorScanTo, STREAM_LIMIT)
+                    Whoop4SkinTemp.deviceAnchorRaw(windowSkin.map { it.raw })?.let { skinAnchorByOwner[owner] = it }
+                    skinAnchorResolvedOwners.add(owner)
+                }
+                skinAnchorByOwner[owner]
             } else {
                 null
             }

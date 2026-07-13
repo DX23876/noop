@@ -500,6 +500,12 @@ final class IntelligenceEngine: ObservableObject {
         let stepsTraceActive = TestCentre.active(.steps)
         let scanned: [DayScan] = await Task.detached(priority: .utility) {
             var out: [DayScan] = []
+            // #938: the WHOOP 4.0 ADC offset is per-device, not per-night. Learn one anchor per owner
+            // from the whole scan window and reuse it for every night so cross-night deviations survive.
+            let skinAnchorScanFrom = nowLocalMidnight - (maxDays - 1) * 86_400 - 30 * 3_600
+            let skinAnchorScanTo = nowLocalMidnight + 18 * 3_600
+            var skinAnchorByOwner: [String: Double] = [:]
+            var skinAnchorResolvedOwners = Set<String>()
             for offset in 0..<maxDays {
                 let dayStart = nowLocalMidnight - offset * 86_400
                 let day = AnalyticsEngine.dayString(dayStart, offsetSec: tzOffset)
@@ -548,7 +554,22 @@ final class IntelligenceEngine: ObservableObject {
                 // nightly means every run, so this constant offset cancels in the deviation. nil for a non-4.0
                 // owner (`.whoop5` ignores the anchor) or when <100 in-band samples exist → the conversion
                 // falls back to the global anchor (byte-identical to today).
-                let skinAnchorRaw = skinFamily == .whoop4 ? Whoop4SkinTemp.deviceAnchorRaw(skin.map { $0.raw }) : nil
+                let skinAnchorRaw: Double?
+                if skinFamily == .whoop4 {
+                    if !skinAnchorResolvedOwners.contains(owner) {
+                        let windowSkin = (try? await store.skinTempSamples(deviceId: owner,
+                                                                           from: skinAnchorScanFrom,
+                                                                           to: skinAnchorScanTo,
+                                                                           limit: 200_000)) ?? []
+                        if let anchor = Whoop4SkinTemp.deviceAnchorRaw(windowSkin.map { $0.raw }) {
+                            skinAnchorByOwner[owner] = anchor
+                        }
+                        skinAnchorResolvedOwners.insert(owner)
+                    }
+                    skinAnchorRaw = skinAnchorByOwner[owner]
+                } else {
+                    skinAnchorRaw = nil
+                }
                 // Wrist-wear events in the night window, paired into off-wrist [start, end) intervals for the
                 // off-wrist sleep backstop (#500). The HR-gap proxy in the stager is the always-on guard;
                 // these explicit intervals sharpen it under the FRACTIONAL rule (#504) , a session is dropped
