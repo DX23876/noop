@@ -21,14 +21,16 @@ struct OuraSyncProgress: Equatable {
 }
 
 /// One-time backfill across every Oura v2 endpoint → an assembled OuraSyncResult → OuraSyncWriter. Merges
-/// the per-day WearableDailyRows across endpoints (daily endpoints BEFORE sleep, so readiness RHR wins).
+/// the per-day WearableDailyRows across endpoints (daily endpoints BEFORE sleep). Resting HR comes
+/// exclusively from sleep's `lowest_heart_rate` — no daily endpoint sets it (see `OuraApiParser.parseDaily`).
 final class OuraSyncCoordinator {
     private let fetcher: OuraPageFetching
     private let store: WhoopStore
     init(fetcher: OuraPageFetching, store: WhoopStore) { self.fetcher = fetcher; self.store = store }
 
-    /// Daily-summary endpoints handed to `parseDaily(_, endpoint:)`. Ordered so `daily_readiness` merges
-    /// before `sleep` (RHR precedence). `daily_sleep` etc. contribute extras only.
+    /// Daily-summary endpoints handed to `parseDaily(_, endpoint:)`. Merge order doesn't affect resting HR
+    /// (only `sleep`, merged separately below, ever sets it); `daily_readiness`, `daily_sleep` etc.
+    /// contribute their other fields / extras only.
     private static let dailyEndpoints = ["daily_readiness", "daily_activity", "daily_spo2", "daily_sleep",
                                          "daily_stress", "daily_resilience", "daily_cardiovascular_age", "vO2_max"]
     /// Endpoints with no Plan-1 parser — archived raw only.
@@ -84,7 +86,7 @@ final class OuraSyncCoordinator {
         // and the run continues; the UI surfaces the skips from the summary.
         var skipped: [String] = []
 
-        // Daily endpoints first (readiness RHR precedence), extras accumulate.
+        // Daily endpoints first, extras accumulate. None of them set resting HR (see parseDaily).
         for endpoint in Self.dailyEndpoints {
             do {
                 let pages = try await fetchRaw(endpoint, dateParam: "start_date")
@@ -92,7 +94,7 @@ final class OuraSyncCoordinator {
                 merge(days); result.extras.append(contentsOf: extras)
             } catch { skipped.append(endpoint) }
         }
-        // Sleep last (its lowestHr fallback only fills days readiness didn't cover).
+        // Sleep last: its lowestHr is the sole resting-HR source (no daily endpoint sets one).
         do {
             let sleepPages = try await fetchRaw("sleep", dateParam: "start_date")
             let (periods, sleepDays) = OuraApiParser.parseSleep(docs(sleepPages))

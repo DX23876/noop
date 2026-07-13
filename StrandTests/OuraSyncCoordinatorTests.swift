@@ -41,9 +41,10 @@ final class OuraSyncCoordinatorTests: XCTestCase {
         XCTAssertTrue(summary.rawPages >= 3)
         XCTAssertTrue(progress.contains("sleep"))
 
-        // Coalesce + RHR precedence: daily_readiness's true RHR (50) wins over sleep's lowestHr (48).
+        // Coalesce: daily_readiness's contributors.resting_heart_rate (50) is a 0-100 readiness SCORE, not
+        // bpm, so it must NOT become restingHr — sleep's lowest_heart_rate (48) is the real resting HR.
         let days = try await store.dailyMetrics(deviceId: "oura-api", from: "2026-01-01", to: "2026-01-03")
-        XCTAssertEqual(days.first?.restingHr, 50)
+        XCTAssertEqual(days.first?.restingHr, 48)
         XCTAssertEqual(days.first?.steps, 9000)
         XCTAssertEqual(days.first?.totalSleepMin, 400)
     }

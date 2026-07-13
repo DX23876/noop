@@ -3,8 +3,11 @@ import Foundation
 public extension OuraApiParser {
 
     /// Parse a day-keyed summary endpoint's documents. `endpoint` selects the field mapping. Writes to
-    /// `WearableDailyRow` columns only where the on-device schema already has a home (RHR, skin-temp dev,
+    /// `WearableDailyRow` columns only where the on-device schema already has a home (skin-temp dev,
     /// steps, calories, SpO2); everything else — and ALL of Oura's own scores — becomes `OuraDailyExtra`.
+    /// Resting HR is deliberately NOT written here: `contributors.resting_heart_rate` on `daily_readiness`
+    /// is a 0-100 readiness contributor SCORE, not bpm. The real resting HR comes from sleep's
+    /// `lowest_heart_rate` (`OuraApiParser.parseSleep`).
     static func parseDaily(_ docs: [[String: Any]], endpoint: String) -> (days: [WearableDailyRow], extras: [OuraDailyExtra]) {
         var byDay: [String: WearableDailyRow] = [:]
         var extras: [OuraDailyExtra] = []
@@ -19,7 +22,9 @@ public extension OuraApiParser {
             case "daily_readiness":
                 var r = byDay[day] ?? WearableDailyRow(day: day)
                 if let c = doc["contributors"] as? [String: Any] {
-                    r.restingHr = WearableJSON.posInt(c, "resting_heart_rate") ?? r.restingHr
+                    // `resting_heart_rate` here is a 0-100 readiness contributor SCORE, not bpm — do not
+                    // assign it to r.restingHr (that caused scores like 99/100/1 to be stored as "RHR").
+                    // It still surfaces honestly below as the `oura_readiness_resting_heart_rate` extra.
                     for (k, _) in c { extra(day, "oura_readiness_\(k)", WearableJSON.posDbl(c, k)) }
                 }
                 r.skinTempDevC = WearableJSON.dbl(doc, "temperature_deviation") ?? r.skinTempDevC
