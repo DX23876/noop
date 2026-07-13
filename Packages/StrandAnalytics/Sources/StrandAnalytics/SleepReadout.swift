@@ -50,23 +50,39 @@ public enum SleepReadout {
 /// breakdown or HRV computation. No state, no side effects, no em-dashes.
 public enum TestReadout {
 
-    /// The most recent Charge score + band line from the `.recovery`-tagged tail, or nil. The emitter
-    /// writes "[recovery] charge day=... score=<n> band=<b> ..." (or a "nilScore reason=..." line when the
-    /// night could not be scored). Returns the score/band fragment so the panel reads the same number the
-    /// dashboard shows; falls back to the nil-reason when there is no score yet.
+    /// The Charge outcome for the MOST RECENT day from the `.recovery`-tagged tail, or nil. The emitter
+    /// writes "[recovery] charge day=<yyyy-MM-dd> ... score=<n> band=<b> ..." (or a "nilScore reason=..."
+    /// line when that day could not be scored). Returns the score/band fragment so the panel reads the same
+    /// number the dashboard shows; falls back to the nil-reason only when the NEWEST day genuinely has none.
+    ///
+    /// #343: the engine emits days NEWEST-FIRST (and may replay several passes), so the LAST line in the
+    /// tail is the OLDEST window-edge day — which is routinely a cold-start `nilScore missingInput` (no
+    /// baseline history at the window's far edge). Scanning the tail in reverse therefore surfaced that
+    /// stale edge day and read "no score (input missing)" even when today's Charge was a healthy green.
+    /// Instead select by the newest `day=` (ISO dates compare lexicographically), order-independently, and
+    /// prefer the last pass for that day. Mirrors the Kotlin twin `TestReadout.lastChargeBreakdown`.
     public static func lastChargeBreakdown(taggedTail: [String]) -> String? {
-        for line in taggedTail.reversed() {
+        var bestDay = ""
+        var outcome: String?
+        for line in taggedTail {
+            guard let dr = line.range(of: "day=") else { continue }
+            let day = String(line[dr.upperBound...].prefix(10))
+            guard day.count == 10, day >= bestDay else { continue }
+            let parsed: String?
             if let r = line.range(of: "score=") {
-                let rest = line[r.lowerBound...]   // "score=.. band=.. (..)"
-                let upto = rest.prefix { $0 != "(" }.trimmingCharacters(in: .whitespaces)
-                if !upto.isEmpty { return String(upto) }
-            }
-            if let r = line.range(of: "nilScore reason=") {
+                let upto = line[r.lowerBound...].prefix { $0 != "(" }.trimmingCharacters(in: .whitespaces)
+                parsed = upto.isEmpty ? nil : String(upto)
+            } else if let r = line.range(of: "nilScore reason=") {
                 let token = line[r.upperBound...].prefix { $0 != " " }
-                if !token.isEmpty { return "no score (\(token))" }
+                parsed = token.isEmpty ? nil : "no score (\(token))"
+            } else {
+                parsed = nil   // a baseline/term line for this day carries no outcome — skip it
             }
+            guard let parsed else { continue }
+            if day > bestDay { bestDay = day }   // a strictly newer day with an outcome resets the winner
+            outcome = parsed                     // newest day (or a later pass of it) → its outcome wins
         }
-        return nil
+        return outcome
     }
 
     /// The most recent HRV result fragment from the `.hrv`-tagged tail, or nil. The emitter writes

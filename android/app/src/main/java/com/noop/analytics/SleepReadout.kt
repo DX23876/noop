@@ -49,26 +49,42 @@ object SleepReadout {
 object TestReadout {
 
     /**
-     * The most recent Charge score + band fragment from the RECOVERY-tagged tail, or null. The emitter
-     * writes "[recovery] charge day=... score=<n> band=<b> ..." (or a "nilScore reason=..." line when the
-     * night could not be scored). Returns the score/band fragment so the panel reads the same number the
-     * dashboard shows; falls back to the nil-reason when there is no score yet. Mirrors the Swift parser.
+     * The Charge outcome for the MOST RECENT day from the RECOVERY-tagged tail, or null. The emitter writes
+     * "[recovery] charge day=<yyyy-MM-dd> ... score=<n> band=<b> ..." (or a "nilScore reason=..." line when
+     * that day could not be scored). Returns the score/band fragment so the panel reads the same number the
+     * dashboard shows; falls back to the nil-reason only when the NEWEST day genuinely has none.
+     *
+     * #343: the engine emits days NEWEST-FIRST (and may replay several passes), so the LAST line in the tail
+     * is the OLDEST window-edge day — routinely a cold-start `nilScore missingInput` (no baseline history at
+     * the window's far edge). Scanning in reverse therefore surfaced that stale edge day and read "no score
+     * (input missing)" even when today's Charge was a healthy green. Instead select by the newest `day=`
+     * (ISO dates compare lexicographically), order-independently, preferring the last pass. Mirrors Swift.
      */
     fun lastChargeBreakdown(taggedTail: List<String>): String? {
-        for (line in taggedTail.asReversed()) {
-            val si = line.indexOf("score=")
-            if (si >= 0) {
-                val rest = line.substring(si)            // "score=.. band=.. (..)"
-                val upto = rest.takeWhile { it != '(' }.trim()
-                if (upto.isNotEmpty()) return upto
-            }
-            val ni = line.indexOf("nilScore reason=")
-            if (ni >= 0) {
-                val token = line.substring(ni + "nilScore reason=".length).takeWhile { it != ' ' }
-                if (token.isNotEmpty()) return "no score ($token)"
-            }
+        var bestDay = ""
+        var outcome: String? = null
+        for (line in taggedTail) {
+            val di = line.indexOf("day=")
+            if (di < 0) continue
+            val day = line.substring(di + 4).take(10)
+            if (day.length != 10 || day < bestDay) continue
+            val parsed: String? = run {
+                val si = line.indexOf("score=")
+                if (si >= 0) {
+                    val upto = line.substring(si).takeWhile { it != '(' }.trim()
+                    if (upto.isNotEmpty()) return@run upto
+                }
+                val ni = line.indexOf("nilScore reason=")
+                if (ni >= 0) {
+                    val token = line.substring(ni + "nilScore reason=".length).takeWhile { it != ' ' }
+                    if (token.isNotEmpty()) return@run "no score ($token)"
+                }
+                null   // a baseline/term line for this day carries no outcome — skip it
+            } ?: continue
+            if (day > bestDay) bestDay = day   // a strictly newer day with an outcome resets the winner
+            outcome = parsed                    // newest day (or a later pass of it) → its outcome wins
         }
-        return null
+        return outcome
     }
 
     /**
