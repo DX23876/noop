@@ -122,6 +122,16 @@ Swift, you MUST build the app yourself: `xcodebuild … build` locally, or run `
   components on Apple, `Palette` / `Metrics` on Android. No hardcoded colors, fonts, or spacing.
 - **Migrations:** add a versioned migration + a test; never mutate an existing migration. Watch for
   data-loss traps (window-wide deletes, backfill rewrites) — prefer additive/transactional changes.
+- **Deriving a physiological signal from raw sensor data — validate against the artifact, not one
+  match:** the WHOOP optical/motion buffers are fixed-N-samples-per-record, so autocorrelation/spectral
+  methods can manufacture a peak at the record period that *looks* physiological and coincidentally
+  matches the WHOOP app on a stable night — that's why the PPG→HR estimate (#194) was withdrawn. A
+  single "matched WHOOP" night is **not** validation. Prove the method **tracks a varying input**
+  (different subjects, or nights where the true value moves; for synthetic tests, recover *multiple*
+  injected values, not one). Until it does, land it as **instrumentation** (decode + store + log the
+  estimate beside the incumbent) or behind a **default-off Experimental toggle** — never make it the
+  default or feed it a downstream gate (recovery, illness) on thin evidence. (WHOOP 4.0 motion is
+  separately too sparse to reliably stage sleep or tell in-bed from out-of-bed — see #345.)
 
 ## iOS / Android specifics worth knowing
 
