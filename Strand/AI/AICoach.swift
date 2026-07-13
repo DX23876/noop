@@ -483,7 +483,11 @@ final class AICoachEngine: ObservableObject {
         // full running history so follow-ups stay coherent; the context only needs to ride the
         // earliest user message.
         // Include the user's data ONLY with explicit consent; otherwise send a note instead of numbers.
-        let context = dataConsent ? await buildFullContext() : noConsentNote
+        // In tool-calling mode we send a lean note and let the model FETCH the data it needs via tools,
+        // instead of pre-baking the whole summary into the prompt.
+        let context = toolCallingActive
+            ? Self.toolModeContextNote
+            : (dataConsent ? await buildFullContext() : noConsentNote)
         let wire = wireMessages(context: context)
 
         do {
@@ -506,7 +510,7 @@ final class AICoachEngine: ObservableObject {
         sending = true
         defer { sending = false }
 
-        let context = await buildFullContext()
+        let context = toolCallingActive ? Self.toolModeContextNote : await buildFullContext()
         let instruction = """
         Based on the data above, give me TODAY'S coaching brief in three short parts: \
         (1) my readiness in one line, citing charge, HRV and rest; \
@@ -613,10 +617,25 @@ final class AICoachEngine: ObservableObject {
         return lines.joined(separator: "\n")
     }
 
-    /// Dispatch to the user's chosen provider client.
+    /// Dispatch to the user's chosen provider client. When tool-calling is active (data consent on and a
+    /// tool-capable provider such as Anthropic), run the tool-use loop so the model pulls the user's real
+    /// numbers on demand; otherwise fall back to the plain single-shot text path.
     private func callProvider(key: String,
                               messages: [(role: ChatMessage.Role, content: String)]) async throws -> String {
-        try await provider.client.send(
+        if toolCallingActive, let toolClient = provider.client as? ToolCallingClient {
+            return try await toolClient.sendWithTools(
+                key: key,
+                model: model,
+                systemPrompt: systemPrompt,
+                messages: messages,
+                tools: coachTools,
+                runTool: { [weak self] name, input in
+                    await self?.runCoachTool(name, input: input) ?? ""
+                },
+                session: session
+            )
+        }
+        return try await provider.client.send(
             key: key,
             model: model,
             systemPrompt: systemPrompt,
