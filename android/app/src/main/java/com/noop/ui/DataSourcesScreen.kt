@@ -138,50 +138,36 @@ fun DataSourcesScreen(vm: AppViewModel) {
     // Imported Oura / Fitbit / Garmin exports write daily metrics under their own per-brand source.
     var wearableDays by remember { mutableStateOf<Int?>(null) }
 
-    LaunchedEffect(Unit) {
-        val now = System.currentTimeMillis() / 1000
-        whoopDays = vm.repo.days("my-whoop").size
-        whoopWorkouts = vm.repo.workouts("my-whoop", 0L, now).size
+    // Count-badge refresh, shared by the initial load below and every importer's post-run refresh.
+    // PERF: scalar SQL COUNTs (and one LIMIT-1 existence probe), NOT materialized row lists — the old
+    // shape loaded every row of every source's history just to call `.size` on it, ~14 full-range
+    // reads per screen visit. Workout counts are now exact (the row read was capped at DEFAULT_LIMIT).
+    suspend fun refreshCounts() {
+        val nowS = System.currentTimeMillis() / 1000
+        whoopDays = vm.repo.daysCount("my-whoop")
+        whoopWorkouts = vm.repo.workoutsCount("my-whoop", 0L, nowS)
         whoopHasHr = vm.repo.latestHrSampleTs("my-whoop") != null
-        appleDays = vm.repo.appleDaily("apple-health", "0000-01-01", "9999-12-31").size
-        appleWorkouts = vm.repo.workouts("apple-health", 0L, now).size
-        hcDays = vm.repo.appleDaily("health-connect", "0000-01-01", "9999-12-31").size
-        hcWorkouts = vm.repo.workouts("health-connect", 0L, now).size
-        nutritionDays = vm.repo.metricSeries(NutritionCsvImporter.SOURCE_ID, "calories_in", "0000-01-01", "9999-12-31").size
-        nutritionWeighIns = vm.repo.metricSeries(NutritionCsvImporter.SOURCE_ID, "weight", "0000-01-01", "9999-12-31").size
-        xiaomiDays = vm.repo.metricSeries(XiaomiBandImporter.DEFAULT_DEVICE_ID, "steps", "0000-01-01", "9999-12-31").size
-        liftingWorkouts = vm.repo.workouts(LiftingImporter.SOURCE_ID, 0L, now).size
-        activityFiles = vm.repo.workouts(ActivityFileImporter.SOURCE_ID, 0L, now).size
+        appleDays = vm.repo.appleDailyCount("apple-health", "0000-01-01", "9999-12-31")
+        appleWorkouts = vm.repo.workoutsCount("apple-health", 0L, nowS)
+        hcDays = vm.repo.appleDailyCount("health-connect", "0000-01-01", "9999-12-31")
+        hcWorkouts = vm.repo.workoutsCount("health-connect", 0L, nowS)
+        nutritionDays = vm.repo.metricSeriesKeyCount(NutritionCsvImporter.SOURCE_ID, "calories_in")
+        nutritionWeighIns = vm.repo.metricSeriesKeyCount(NutritionCsvImporter.SOURCE_ID, "weight")
+        liftingWorkouts = vm.repo.workoutsCount(LiftingImporter.SOURCE_ID, 0L, nowS)
+        activityFiles = vm.repo.workoutsCount(ActivityFileImporter.SOURCE_ID, 0L, nowS)
+        xiaomiDays = vm.repo.metricSeriesKeyCount(XiaomiBandImporter.DEFAULT_DEVICE_ID, "steps")
         wearableDays = WearableExportImporter.Brand.values().sumOf {
-            vm.repo.metricSeries(it.sourceId, "rhr", "0000-01-01", "9999-12-31").size +
-                vm.repo.metricSeries(it.sourceId, "sleep_total_min", "0000-01-01", "9999-12-31").size
+            vm.repo.metricSeriesKeyCount(it.sourceId, "rhr") +
+                vm.repo.metricSeriesKeyCount(it.sourceId, "sleep_total_min")
         }
     }
+
+    LaunchedEffect(Unit) { refreshCounts() }
 
     // Busy flag shared by every importer's Export/Import buttons.
     var busy by remember { mutableStateOf(false) }
     // ah-delete (#616): drives the "Remove Apple Health imported data" confirm dialog.
     var confirmDeleteApple by remember { mutableStateOf(false) }
-
-    suspend fun refreshCounts() {
-        val nowS = System.currentTimeMillis() / 1000
-        whoopDays = vm.repo.days("my-whoop").size
-        whoopWorkouts = vm.repo.workouts("my-whoop", 0L, nowS).size
-        whoopHasHr = vm.repo.latestHrSampleTs("my-whoop") != null
-        appleDays = vm.repo.appleDaily("apple-health", "0000-01-01", "9999-12-31").size
-        appleWorkouts = vm.repo.workouts("apple-health", 0L, nowS).size
-        hcDays = vm.repo.appleDaily("health-connect", "0000-01-01", "9999-12-31").size
-        hcWorkouts = vm.repo.workouts("health-connect", 0L, nowS).size
-        nutritionDays = vm.repo.metricSeries(NutritionCsvImporter.SOURCE_ID, "calories_in", "0000-01-01", "9999-12-31").size
-        nutritionWeighIns = vm.repo.metricSeries(NutritionCsvImporter.SOURCE_ID, "weight", "0000-01-01", "9999-12-31").size
-        liftingWorkouts = vm.repo.workouts(LiftingImporter.SOURCE_ID, 0L, nowS).size
-        activityFiles = vm.repo.workouts(ActivityFileImporter.SOURCE_ID, 0L, nowS).size
-        xiaomiDays = vm.repo.metricSeries(XiaomiBandImporter.DEFAULT_DEVICE_ID, "steps", "0000-01-01", "9999-12-31").size
-        wearableDays = WearableExportImporter.Brand.values().sumOf {
-            vm.repo.metricSeries(it.sourceId, "rhr", "0000-01-01", "9999-12-31").size +
-                vm.repo.metricSeries(it.sourceId, "sleep_total_min", "0000-01-01", "9999-12-31").size
-        }
-    }
 
     // Run an importer off the main thread, refresh the counts, then toast the result.
     fun runImport(block: suspend () -> ImportSummary) {

@@ -409,12 +409,10 @@ fun TodayScreen(
             StressModel.build(days, stored)?.score
         }.getOrNull()
         fitnessAgeToday = runCatching {
-            viewModel.repo.metricSeriesComputedUnion(viewModel.activeStrapId, "fitness_age", "0000-01-01", "9999-12-31")
-                .lastOrNull()?.value
+            viewModel.repo.latestMetricComputedUnion(viewModel.activeStrapId, "fitness_age")?.value
         }.getOrNull()
         vitalityToday = runCatching {
-            viewModel.repo.metricSeriesComputedUnion(viewModel.activeStrapId, "vitality", "0000-01-01", "9999-12-31")
-                .lastOrNull()?.value
+            viewModel.repo.latestMetricComputedUnion(viewModel.activeStrapId, "vitality")?.value
         }.getOrNull()
         // Cache the computed triple + signature so a later re-mount with unchanged data restores them and
         // short-circuits the history-wide read above.

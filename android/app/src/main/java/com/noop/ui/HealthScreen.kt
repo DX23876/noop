@@ -612,12 +612,13 @@ private fun FitnessAgeSection(vm: AppViewModel, days: List<DailyMetric>, profile
     var refreshTick by remember { mutableStateOf(0) }
     var refreshing by remember { mutableStateOf(false) }
     LaunchedEffect(days, refreshTick) {
+        // Latest-value reads (LIMIT-1 per source) — the full-series `.lastOrNull()` scan is gone (perf).
         val fa = runCatching {
-            vm.repo.metricSeriesComputedUnion(vm.activeStrapId, "fitness_age", "0000-01-01", "9999-12-31")
-        }.getOrDefault(emptyList()).lastOrNull()?.value
+            vm.repo.latestMetricComputedUnion(vm.activeStrapId, "fitness_age")?.value
+        }.getOrNull()
         val vo2 = runCatching {
-            vm.repo.metricSeriesComputedUnion(vm.activeStrapId, "vo2max_est", "0000-01-01", "9999-12-31")
-        }.getOrDefault(emptyList()).lastOrNull()?.value
+            vm.repo.latestMetricComputedUnion(vm.activeStrapId, "vo2max_est")?.value
+        }.getOrNull()
         fitnessAge = fa
         vo2max = vo2
     }
@@ -679,12 +680,13 @@ private fun VitalitySection(vm: AppViewModel, days: List<DailyMetric>, profile: 
     var vitality by remember { mutableStateOf<Double?>(null) }
     var bodyAge by remember { mutableStateOf<Double?>(null) }
     LaunchedEffect(days) {
+        // Latest-value reads (LIMIT-1 per source) — the full-series `.lastOrNull()` scan is gone (perf).
         vitality = runCatching {
-            vm.repo.metricSeriesComputedUnion(vm.activeStrapId, "vitality", "0000-01-01", "9999-12-31")
-        }.getOrDefault(emptyList()).lastOrNull()?.value
+            vm.repo.latestMetricComputedUnion(vm.activeStrapId, "vitality")?.value
+        }.getOrNull()
         bodyAge = runCatching {
-            vm.repo.metricSeriesComputedUnion(vm.activeStrapId, "body_age", "0000-01-01", "9999-12-31")
-        }.getOrDefault(emptyList()).lastOrNull()?.value
+            vm.repo.latestMetricComputedUnion(vm.activeStrapId, "body_age")?.value
+        }.getOrNull()
     }
     val contributions = remember(days, profile.age) {
         val last7 = days.takeLast(7)

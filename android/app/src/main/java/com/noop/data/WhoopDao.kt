@@ -315,6 +315,10 @@ interface WhoopDao : DeviceRegistryDao {
     @Query("SELECT * FROM dailyMetric WHERE deviceId = :deviceId ORDER BY day ASC")
     suspend fun days(deviceId: String): List<DailyMetric>
 
+    /** Scalar COUNT twin of [days], for count badges that were materializing every row for `.size`. */
+    @Query("SELECT COUNT(*) FROM dailyMetric WHERE deviceId = :deviceId")
+    suspend fun daysCount(deviceId: String): Int
+
     /** Reactive stream of all daily metrics for a device, oldest first. */
     @Query("SELECT * FROM dailyMetric WHERE deviceId = :deviceId ORDER BY day ASC")
     fun daysFlow(deviceId: String): Flow<List<DailyMetric>>
@@ -406,6 +410,18 @@ interface WhoopDao : DeviceRegistryDao {
     /** Distinct metric keys present for a device, sorted ascending (Swift metricKeys, v9). */
     @Query("SELECT DISTINCT key FROM metricSeries WHERE deviceId = :deviceId ORDER BY key ASC")
     suspend fun metricKeys(deviceId: String): List<String>
+
+    /** Row count for one (deviceId, key) series — the scalar COUNT twin of [metricSeries], for count
+     *  badges (Data Sources) that were materializing the full history just to call `.size`. */
+    @Query("SELECT COUNT(*) FROM metricSeries WHERE deviceId = :deviceId AND key = :key")
+    suspend fun metricSeriesKeyCount(deviceId: String, key: String): Int
+
+    /** The NEWEST row of a (deviceId, key) series, or null — the ORDER BY day DESC LIMIT 1 twin of
+     *  [metricSeries] for latest-value tiles (day is yyyy-MM-dd, so lexicographic MAX(day) = newest).
+     *  Rides the same idx_metricSeries_device_key_day index, so the read stops at one row instead of
+     *  materializing the whole series for a `.lastOrNull()`. */
+    @Query("SELECT * FROM metricSeries WHERE deviceId = :deviceId AND key = :key ORDER BY day DESC LIMIT 1")
+    suspend fun latestMetricSeriesRow(deviceId: String, key: String): MetricSeriesRow?
 
     /** Delete one projected day for a key (used when a Lab Book reading's last numeric value
      *  for a (markerKey, day) cell is removed). Swift LabMarkerStore.reprojectCells delete branch. */
@@ -566,6 +582,11 @@ interface WhoopDao : DeviceRegistryDao {
     )
     suspend fun workouts(deviceId: String, from: Long, to: Long, limit: Int): List<WorkoutRow>
 
+    /** Scalar COUNT twin of [workouts] (no row limit — a count badge wants the exact total), for
+     *  badges that were materializing the row list for `.size`. */
+    @Query("SELECT COUNT(*) FROM workout WHERE deviceId = :deviceId AND startTs >= :from AND startTs <= :to")
+    suspend fun workoutsCount(deviceId: String, from: Long, to: Long): Int
+
     /**
      * Apple-Health daily aggregates for days in [from, to] (lexicographic compare), oldest first.
      * Port of JournalWorkoutAppleCache.swift appleDaily(deviceId:from:to:).
@@ -575,6 +596,10 @@ interface WhoopDao : DeviceRegistryDao {
             "ORDER BY day ASC"
     )
     suspend fun appleDaily(deviceId: String, from: String, to: String): List<AppleDaily>
+
+    /** Scalar COUNT twin of [appleDaily], for badges that were materializing the rows for `.size`. */
+    @Query("SELECT COUNT(*) FROM appleDaily WHERE deviceId = :deviceId AND day >= :from AND day <= :to")
+    suspend fun appleDailyCount(deviceId: String, from: String, to: String): Int
 
     /** Delete a computed source's workouts of a given [sport] whose startTs is in [from, to]
      *  (makes detected-workout re-derivation idempotent). (#78) */

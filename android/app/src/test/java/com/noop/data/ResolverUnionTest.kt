@@ -175,4 +175,46 @@ class ResolverUnionTest {
         )
         assertEquals(listOf(21.0, 20.0), merged.map { it.value })
     }
+
+    // --- latestFromPerSourceLatest: the LIMIT-1 twin of the union's .lastOrNull() (perf) ---
+
+    /** The latest-value pick must be BYTE-IDENTICAL to mergeComputedSeriesUnion(...).lastOrNull():
+     *  strictly newest day wins across sources; a shared newest day keeps the ACTIVE strap's row
+     *  (first in list order). Uses the same fixtures as the merge test so the equivalence is literal. */
+    @Test
+    fun latestPickMatchesFullMergeLastOrNull() {
+        val perSourceFull = listOf(
+            listOf(row("$reAdded-noop", "2026-07-11", 20.0), row("$reAdded-noop", "2026-07-04", 21.0)),
+            listOf(row("my-whoop-noop", "2026-07-11", 40.0), row("my-whoop-noop", "2026-06-27", 42.0)),
+        )
+        val viaMerge = WhoopRepository.mergeComputedSeriesUnion(perSourceFull).lastOrNull()
+        // Per-source LATEST rows, as the LIMIT-1 DAO read returns them (max day per source).
+        val viaLatest = WhoopRepository.latestFromPerSourceLatest(
+            listOf(row("$reAdded-noop", "2026-07-11", 20.0), row("my-whoop-noop", "2026-07-11", 40.0)),
+        )
+        assertEquals(viaMerge, viaLatest)
+        assertEquals("$reAdded-noop", viaLatest?.deviceId)   // shared newest day → active wins
+    }
+
+    /** The canonical import's row wins when it is STRICTLY newer than the active strap's. */
+    @Test
+    fun latestPickNewerCanonicalBeatsOlderActive() {
+        val picked = WhoopRepository.latestFromPerSourceLatest(
+            listOf(row("$reAdded-noop", "2026-07-04", 21.0), row("my-whoop-noop", "2026-07-11", 40.0)),
+        )
+        assertEquals("my-whoop-noop", picked?.deviceId)
+        assertEquals(40.0, picked!!.value, 0.0)
+    }
+
+    /** Null sources (no rows banked for that id) are skipped; all-null → null (no fabricated value). */
+    @Test
+    fun latestPickSkipsNullsAndReturnsNullWhenEmpty() {
+        assertEquals(
+            "$reAdded-noop",
+            WhoopRepository.latestFromPerSourceLatest(
+                listOf(null, row("$reAdded-noop", "2026-07-04", 21.0)),
+            )?.deviceId,
+        )
+        assertNull(WhoopRepository.latestFromPerSourceLatest(listOf(null, null)))
+    }
 }
