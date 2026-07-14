@@ -44,6 +44,17 @@ final class IntelligenceEngine: ObservableObject {
     /// that won the per-day merge (imports win field-by-field over computed , see Repository.mergeDaily).
     /// We resolve the REAL provenance so the card's badge tells a strap-scored night apart from an
     /// imported one, instead of always claiming "NOOP-computed". (Sleep overhaul §2.6 honesty fix.)
+    /// The `stages=` token of the per-day sleep diagnostic line (#386): `<deep>+<rem>+<light>=<sum>` in
+    /// rounded minutes when the day carries a full banked stage split, `nil` when any component is
+    /// absent (an unstaged night, or an imported day that only brought a total). The sum is printed
+    /// rather than left to the reader so a rollup-vs-stages divergence — the exact identity a "homepage
+    /// disagrees with the Sleep tab" report hinges on — is a one-line visual check against the
+    /// `totalSleepMin=` field beside it. Pure; mirrors the Android `sleepStagesLogToken` byte-for-byte.
+    static func sleepStagesLogToken(deep: Double?, rem: Double?, light: Double?) -> String {
+        guard let deep, let rem, let light else { return "nil" }
+        return "\(Int(deep.rounded()))+\(Int(rem.rounded()))+\(Int(light.rounded()))=\(Int((deep + rem + light).rounded()))"
+    }
+
     enum DaySource: Equatable {
         /// NOOP scored this day itself from the raw strap streams; no import covers it.
         case computed
@@ -956,7 +967,15 @@ final class IntelligenceEngine: ObservableObject {
             // day (the project's log-failures-not-successes blind spot) and lets us settle the "Rest repeats
             // across days" question with data rather than a guess. Gated by the existing strap-log export.
             let tsmLog = daily.totalSleepMin.map { String(Int($0.rounded())) } ?? "nil"
+            // #386: the banked stage split + efficiency ride beside the rollup, so a "homepage disagrees
+            // with the Sleep tab" report is self-diagnosing from the export alone — totalSleepMin vs the
+            // deep+rem+light sum is the identity both screens must agree on, now verifiable per pass, per
+            // day, without screenshots. Rounded minutes only (same privacy class as the rest of the line);
+            // stages=nil when the day has no banked stage split (an unstaged or imported-total-only day).
+            let effLog = daily.efficiency.map { String(format: "%.2f", $0) } ?? "nil"
             diagnosticSink?("sleep day=\(daily.day) totalSleepMin=\(tsmLog) "
+                            + "stages=\(Self.sleepStagesLogToken(deep: daily.deepMin, rem: daily.remMin, light: daily.lightMin)) "
+                            + "eff=\(effLog) "
                             + "matched=\(night.cachedSleep.count) source=\(source.logToken)", nil)
             // #195: one always-on line per scored night with the computed HRV value + the window it used,
             // so an "HRV reads high / deep-sleep window not changing" report is self-diagnosing straight

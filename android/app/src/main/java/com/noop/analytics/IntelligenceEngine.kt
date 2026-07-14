@@ -835,8 +835,16 @@ object IntelligenceEngine {
             // day (the project's log-failures-not-successes blind spot) and lets us settle the "Rest repeats
             // across days" question with data. Gated by the existing strap-log export. Mirrors the Swift line.
             val tsmLog = daily.totalSleepMin?.let { Math.round(it).toString() } ?: "nil"
+            // #386: the banked stage split + efficiency ride beside the rollup, so a "homepage disagrees
+            // with the Sleep tab" report is self-diagnosing from the export alone — totalSleepMin vs the
+            // deep+rem+light sum is the identity both screens must agree on, now verifiable per pass, per
+            // day, without screenshots. Rounded minutes only (same privacy class as the rest of the line);
+            // stages=nil when the day has no banked stage split (an unstaged or imported-total-only day).
+            val effLog = daily.efficiency?.let { String.format(java.util.Locale.US, "%.2f", it) } ?: "nil"
             diag(
                 "sleep day=${daily.day} totalSleepMin=$tsmLog " +
+                    "stages=${sleepStagesLogToken(daily.deepMin, daily.remMin, daily.lightMin)} " +
+                    "eff=$effLog " +
                     "matched=${res.sleepSessions.size} " +
                     "source=${daySourceToken(daily.day, importedWhoopDays, appleHealthDays)}",
             )
@@ -1669,6 +1677,19 @@ object IntelligenceEngine {
         day in importedWhoopDays -> "imported:whoop"
         day in appleHealthDays -> "imported:apple"
         else -> "computed"
+    }
+
+    /**
+     * The `stages=` token of the per-day sleep diagnostic line (#386): `<deep>+<rem>+<light>=<sum>` in
+     * rounded minutes when the day carries a full banked stage split, `nil` when any component is
+     * absent (an unstaged night, or an imported day that only brought a total). The sum is printed
+     * rather than left to the reader so a rollup-vs-stages divergence — the exact identity a "homepage
+     * disagrees with the Sleep tab" report hinges on — is a one-line visual check against the
+     * `totalSleepMin=` field beside it. Pure + unit-tested; mirrors the Swift twin.
+     */
+    internal fun sleepStagesLogToken(deep: Double?, rem: Double?, light: Double?): String {
+        if (deep == null || rem == null || light == null) return "nil"
+        return "${Math.round(deep)}+${Math.round(rem)}+${Math.round(light)}=${Math.round(deep + rem + light)}"
     }
 
     /**
