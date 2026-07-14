@@ -2849,7 +2849,7 @@ internal fun selectNight(
     // the group (≈ the main block). A genuine biphasic first sleep is comparable to it and is kept; only a
     // small stray lead carrying a few minutes of sleep is dropped, so the onset no longer jumps hours early.
     val groupRefAsleepMin = group.maxOfOrNull { frag ->
-        parseSessionStages(frag.stagesJSON)?.let { it.light + it.deep + it.rem } ?: 0.0
+        decodedAsleepMinutes(frag.stagesJSON, frag.effectiveStartTs)
     } ?: 0.0
     val heroGroup = group.dropWhile {
         it.effectiveStartTs < onsetTsForHero && isPreOnsetAwakeStub(it, groupRefAsleepMin)
@@ -2979,22 +2979,48 @@ private const val PRE_ONSET_STUB_ASLEEP_MAX_MIN = 3.0
  *  minutes more than 3. Mirrors iOS SleepView.preOnsetStubMinorFrac. (#259) */
 private const val PRE_ONSET_STUB_MINOR_FRAC = 0.15
 
+/** Absolute floor (ASLEEP minutes) under the #259 relative "minor lead" test: a leading fragment that carries
+ *  at least this much real sleep is a genuine first sleep — a real sleep episode — and is NEVER a spurious
+ *  pre-onset lead, however large the main block is. Without it a long main sleep inflates the 15% relative bar
+ *  (a 6 h night → ~54 min) so a genuine ~34-min first sleep was swallowed and the shown bedtime jumped hours
+ *  late, hiding the real onset the bridged night (and the Health write-back) already spans. 20 min ≈ the
+ *  shortest standalone sleep episode; below it a handful of asleep minutes beside a long night is a stray lead.
+ *  Mirrors iOS SleepView.preOnsetStubMinorAsleepFloorMin. (#259 / bridged-night headline) */
+internal const val PRE_ONSET_STUB_MINOR_ASLEEP_FLOOR_MIN = 20.0
+
+/**
+ * Asleep minutes decoded from a stored [stagesJSON] in EITHER of the two formats that exist in the DB:
+ * on-device COMPUTED nights store a SEGMENT ARRAY `[{start,end,stage}]`; imported nights store a dict of
+ * MINUTES `{light,deep,rem,awake}`. [parseSessionStages] already reads both; this additionally threads the
+ * fragment's [effectiveStartTs] through [SleepStageTotals.clampStagesToOnset] so a segment array is trimmed to
+ * the effective onset (the #259 pre-onset trim) exactly as the hero's stage totals trim it — a no-op for a
+ * minute dict and for a segment array that already starts at its onset. The displayed-onset stub test reads
+ * asleep minutes through this seam so a computed night's segment array is never counted as 0 asleep minutes.
+ * Internal so the onset golden pins the DECODE PATH itself. Mirrors iOS SleepView.decodedAsleepMinutes.
+ */
+internal fun decodedAsleepMinutes(stagesJSON: String?, effectiveStartTs: Long): Double =
+    parseSessionStages(SleepStageTotals.clampStagesToOnset(stagesJSON, effectiveStartTs))
+        ?.let { it.light + it.deep + it.rem } ?: 0.0
+
 /** A fragment is a spurious pre-onset awake stub when it is within the lie-in cap (<= [PRE_ONSET_STUB_MAX_MIN])
  *  and EITHER carries essentially no sleep (asleep minutes <= [PRE_ONSET_STUB_ASLEEP_MAX_MIN]) OR is minor
  *  relative to the night's main block ([refAsleepMin], the group's largest asleep span): asleep minutes below
- *  [PRE_ONSET_STUB_MINOR_FRAC] of it. Used only to skip such a stub when it leads the main-night group, so the
- *  hero's hypnogram and minutes start at the displayed bedtime (the main block's onset) rather than before it.
- *  [refAsleepMin] defaults to 0 (relative test off) so existing callers/tests are byte-identical. Mirrors iOS
+ *  [PRE_ONSET_STUB_MINOR_FRAC] of it AND below the absolute [PRE_ONSET_STUB_MINOR_ASLEEP_FLOOR_MIN] real-sleep-
+ *  episode floor. Used only to skip such a stub when it leads the main-night group, so the hero's hypnogram and
+ *  minutes start at the displayed bedtime (the main block's onset) rather than before it. [refAsleepMin]
+ *  defaults to 0 (relative test off) so existing callers/tests are byte-identical. Mirrors iOS
  *  SleepView.isPreOnsetAwakeStub. (#736 / #259) */
 internal fun isPreOnsetAwakeStub(frag: SleepSession, refAsleepMin: Double = 0.0): Boolean {
     val spanMin = (frag.endTs - frag.effectiveStartTs) / 60.0
     if (spanMin > PRE_ONSET_STUB_MAX_MIN) return false
-    val stages = parseSessionStages(frag.stagesJSON)
-    val asleepMin = stages?.let { it.light + it.deep + it.rem } ?: 0.0
+    val asleepMin = decodedAsleepMinutes(frag.stagesJSON, frag.effectiveStartTs)
     if (asleepMin <= PRE_ONSET_STUB_ASLEEP_MAX_MIN) return true
-    // #259: also spurious when it carries some sleep but is minor relative to the main block (largest
-    // fragment). A genuine biphasic first sleep is comparable in size, so it stays and its onset stands.
-    return refAsleepMin > 0.0 && asleepMin < PRE_ONSET_STUB_MINOR_FRAC * refAsleepMin
+    // #259 relative "minor lead" test, floored: a real sleep episode (>= the floor) is never a stray lead, so
+    // a long main block can't inflate the 15% bar past a genuine short first sleep. A genuine biphasic first
+    // sleep is comparable in size, so it stays and its onset stands.
+    return refAsleepMin > 0.0 &&
+        asleepMin < PRE_ONSET_STUB_MINOR_FRAC * refAsleepMin &&
+        asleepMin < PRE_ONSET_STUB_MINOR_ASLEEP_FLOOR_MIN
 }
 
 /** SUM the per-stage minutes across a bridged main-night group, so the hero's stage breakdown reflects the
