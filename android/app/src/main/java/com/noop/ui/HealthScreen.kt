@@ -2341,7 +2341,10 @@ private fun asOfLabel(day: String?): String? {
 }
 
 internal enum class VitalDetailRange(val label: String, val days: Long?) {
+    ONE_DAY("1D", 1),
+    TWO_DAY("2D", 2),
     WEEK("W", 7),
+    TWO_WEEK("2W", 14),
     MONTH("M", 30),
     THREE_MONTH("3M", 90),
     SIX_MONTH("6M", 180),
@@ -2361,14 +2364,14 @@ internal fun vitalHistorySpanDays(points: List<Pair<String, Double>>): Long {
  *  LATEST reading, so with under a week of history every window returned the identical full point set
  *  and all six chips drew the same line (a week of data stretched full-width under a "1Y" label). A
  *  range only differs from its predecessor once the data span EXCEEDS the predecessor's window, so the
- *  unlocked set is a contiguous prefix: W always, M once span > 7 days, 3M once > 30, 6M once > 90,
- *  1Y once > 180, ALL once > 365. Locked chips render disabled rather than hidden so a calibrating
- *  user still learns the longer views exist; W staying unconditional means nobody is ever stranded
- *  with zero ranges. */
+ *  unlocked set is a contiguous prefix: 1D always, 2D once span > 1 day, W once > 2, 2W once > 7,
+ *  M once > 14, 3M once > 30, 6M once > 90, 1Y once > 180, ALL once > 365. Locked chips render disabled
+ *  rather than hidden so a calibrating user still learns the longer views exist; 1D (the shortest)
+ *  staying unconditional means nobody is ever stranded with zero ranges. */
 /**
  * The range the chips + caption actually describe, resolved NON-DESTRUCTIVELY (Swift parity with
  * MetricExplorerView.coercedSelection). A locked selection renders as the largest unlocked range with
- * a real finite window that is <= the selection, else WEEK. NOT ALL: coercing a locked default to ALL
+ * a real finite window that is <= the selection, else ONE_DAY. NOT ALL: coercing a locked default to ALL
  * would jump a calibrating user to the everything view. An unlocked selection is used verbatim, so the
  * chip un-coerces on its own once history grows.
  */
@@ -2377,7 +2380,7 @@ internal fun coercedVitalRange(range: VitalDetailRange, unlocked: List<VitalDeta
     return VitalDetailRange.entries
         .filter { it.days != null && it.ordinal <= range.ordinal && it in unlocked }
         .maxByOrNull { it.ordinal }
-        ?: VitalDetailRange.WEEK
+        ?: VitalDetailRange.ONE_DAY
 }
 
 internal fun unlockedVitalRanges(spanDays: Long): List<VitalDetailRange> {
