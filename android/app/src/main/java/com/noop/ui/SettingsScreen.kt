@@ -563,7 +563,9 @@ fun SettingsScreen(
         if (uri == null) { backupBusy = false; return@rememberLauncherForActivityResult }
         scope.launch {
             val result = withContext(Dispatchers.IO) {
-                runCatching { WhoopCsvExporter.exportZip(context, uri, vm.repo) }
+                // #458: thread the registry's ACTIVE strap id — the exporter's old "my-whoop" default
+                // exported an empty zip on live-BLE installs (the engine banks under "<strapId>-noop").
+                runCatching { WhoopCsvExporter.exportZip(context, uri, vm.repo, vm.activeStrapId) }
             }
             backupBusy = false
             result.fold(

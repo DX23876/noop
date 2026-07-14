@@ -148,12 +148,12 @@ final class Repository: ObservableObject {
     /// The distinct IMPORTED/MEASURED source ids to union for a dashboard read: the active strap (live raw,
     /// #814) and the canonical imported id. Active strap FIRST so per-day dedup lets the measured/live row
     /// win over the imported one. Deduped, so a single-device install (active id == canonical) reads one id.
-    private var importedReadIds: [String] {
+    var importedReadIds: [String] {
         deviceId == canonicalDeviceId ? [deviceId] : [deviceId, canonicalDeviceId]
     }
     /// The distinct COMPUTED ("-noop") source ids to union: the active strap's computed sibling and the
     /// canonical computed sibling. Same dedup rule as `importedReadIds`.
-    private var computedReadIds: [String] {
+    var computedReadIds: [String] {
         computedDeviceId == canonicalComputedId ? [computedDeviceId] : [computedDeviceId, canonicalComputedId]
     }
     private var store: WhoopStore?

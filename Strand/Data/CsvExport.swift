@@ -8,12 +8,18 @@ import UniformTypeIdentifiers
 import WhoopStore
 import StrandImport
 
-/// Settings → Backup & restore → "Export CSV…": serialize the merged "my-whoop" ∪ "my-whoop-noop"
-/// history (imported wins per day — exactly what the dashboards show; Apple Health rows are
-/// deliberately EXCLUDED so a re-import can't mis-attribute them as WHOOP data) into WHOOP's
-/// 4-CSV zip via StrandImport.WhoopCsvExporter. The zip re-imports into NOOP on Mac (Data Sources →
-/// WHOOP Export) and on Android. On-device computed rows are marked "noop (APPROXIMATE)" in the
-/// Source column both importers ignore; the .sqlite backup remains the lossless restore path.
+/// Settings → Backup & restore → "Export CSV…": serialize the merged WHOOP history (imported wins
+/// per day — exactly what the dashboards show; Apple Health rows are deliberately EXCLUDED so a
+/// re-import can't mis-attribute them as WHOOP data) into WHOOP's 4-CSV zip via
+/// StrandImport.WhoopCsvExporter. The zip re-imports into NOOP on Mac (Data Sources → WHOOP Export)
+/// and on Android. On-device computed rows are marked "noop (APPROXIMATE)" in the Source column both
+/// importers ignore; the .sqlite backup remains the lossless restore path.
+///
+/// #458 (the Android twin's bug, mirror-image here): every read goes through the repository's
+/// active∪canonical union ids (`importedReadIds`/`computedReadIds`, #814) — reading the ACTIVE id
+/// alone dropped the canonical "my-whoop" rows (a prior CSV import + the canonical engine history)
+/// after a strap remove+re-add moved the active id to "whoop-<uuid>". Per-row dedup keeps the
+/// active-first copy; a single-canonical install collapses to one id per side, byte-identical.
 ///
 /// Self-contained: it reads through the store handle and reconstructs Repository's merge precedence
 /// inline rather than depending on Repository's private merge helpers, so the export is decoupled
@@ -30,30 +36,72 @@ enum CsvExport {
         guard let store = await repo.storeHandle() else {
             return .failure("Couldn't open the local store.")
         }
-        let deviceId = repo.deviceId
-        // The on-device computed source id (recovery/strain/sleep derived from raw streams). This
-        // mirrors Repository.computedDeviceId, which is private — so we reconstruct the same string.
-        let computedId = deviceId + "-noop"
+        // #458: the active∪canonical union ids (active FIRST, so per-row dedup keeps the live copy);
+        // a single-canonical install collapses to one id per side and reads byte-identically.
+        let importedIds = repo.importedReadIds
+        let computedIds = repo.computedReadIds
         let fromDay = "0000-01-01", toDay = "9999-12-31"
         let hi = Int(Date().timeIntervalSince1970) + 86_400
 
         do {
             // Fetch every source off the WhoopStore actor (each `await store.*` already hops off main).
-            let imported = try await store.dailyMetrics(deviceId: deviceId, from: fromDay, to: toDay)
-            let computed = try await store.dailyMetrics(deviceId: computedId, from: fromDay, to: toDay)
+            // Dailies: per side, the FIRST union id that has a day wins (active first).
+            var importedByDay: [String: DailyMetric] = [:]
+            for id in importedIds {
+                for d in try await store.dailyMetrics(deviceId: id, from: fromDay, to: toDay)
+                where importedByDay[d.day] == nil { importedByDay[d.day] = d }
+            }
+            var computedByDay: [String: DailyMetric] = [:]
+            for id in computedIds {
+                for d in try await store.dailyMetrics(deviceId: id, from: fromDay, to: toDay)
+                where computedByDay[d.day] == nil { computedByDay[d.day] = d }
+            }
+            let imported = importedByDay.values.sorted { $0.day < $1.day }
+            let computed = computedByDay.values.sorted { $0.day < $1.day }
+            // Cycles series: per (key, day) the first union id with a value wins.
             var seriesRaw: [String: [MetricPoint]] = [:]
             for key in ["sleep_performance", "sleep_consistency", "sleep_need_min", "sleep_debt_min",
                         "in_bed_min", "awake_min", "energy_kcal", "avg_hr", "max_hr"] {
-                seriesRaw[key] = try await store.metricSeries(deviceId: deviceId, key: key,
-                                                             from: fromDay, to: toDay)
+                var byDay: [String: MetricPoint] = [:]
+                for id in importedIds {
+                    for p in try await store.metricSeries(deviceId: id, key: key, from: fromDay, to: toDay)
+                    where byDay[p.day] == nil { byDay[p.day] = p }
+                }
+                seriesRaw[key] = byDay.values.sorted { $0.day < $1.day }
             }
-            let impSleep = try await store.sleepSessions(deviceId: deviceId, from: 0, to: hi, limit: 100_000)
-            let compSleep = try await store.sleepSessions(deviceId: computedId, from: 0, to: hi, limit: 100_000)
-            let impWorkouts = try await store.workouts(deviceId: deviceId, from: 0, to: hi, limit: 100_000)
-            let compWorkouts = try await store.workouts(deviceId: computedId, from: 0, to: hi, limit: 100_000)
-            let journal = try await store.journalEntries(deviceId: deviceId, from: fromDay, to: toDay)
+            // Sleeps / workouts: per side, exact-duplicate rows dropped on the natural key,
+            // active-first (mirrors the Kotlin dedupSleepBlocks / dedupWorkoutsByKey unions).
+            var seenSleep = Set<String>(), seenComp = Set<String>()
+            var impSleep: [CachedSleepSession] = [], compSleep: [CachedSleepSession] = []
+            for id in importedIds {
+                for s in try await store.sleepSessions(deviceId: id, from: 0, to: hi, limit: 100_000)
+                where seenSleep.insert("\(s.startTs)|\(s.endTs)").inserted { impSleep.append(s) }
+            }
+            for id in computedIds {
+                for s in try await store.sleepSessions(deviceId: id, from: 0, to: hi, limit: 100_000)
+                where seenComp.insert("\(s.startTs)|\(s.endTs)").inserted { compSleep.append(s) }
+            }
+            var seenImpW = Set<String>(), seenCompW = Set<String>()
+            var impWorkouts: [WorkoutRow] = [], compWorkouts: [WorkoutRow] = []
+            for id in importedIds {
+                for w in try await store.workouts(deviceId: id, from: 0, to: hi, limit: 100_000)
+                where seenImpW.insert("\(w.startTs)|\(w.sport)").inserted { impWorkouts.append(w) }
+            }
+            for id in computedIds {
+                for w in try await store.workouts(deviceId: id, from: 0, to: hi, limit: 100_000)
+                where seenCompW.insert("\(w.startTs)|\(w.sport)").inserted { compWorkouts.append(w) }
+            }
+            // Journal: natural key (day, question), active-first.
+            var seenJournal = Set<String>()
+            var journal: [JournalEntry] = []
+            for id in importedIds {
+                for j in try await store.journalEntries(deviceId: id, from: fromDay, to: toDay)
+                where seenJournal.insert("\(j.day)|\(j.question)").inserted { journal.append(j) }
+            }
+            // Sidecar: every metricSeries row under EVERY NOOP source id, full fidelity (rows keep
+            // their own deviceId, so union entries stay distinguishable on re-import).
             var sidecar: [String: [MetricPoint]] = [:]
-            for id in [deviceId, computedId] {
+            for id in importedIds + computedIds {
                 var points: [MetricPoint] = []
                 for key in (try await store.metricKeys(deviceId: id)) {
                     points += try await store.metricSeries(deviceId: id, key: key, from: fromDay, to: toDay)
@@ -123,7 +171,7 @@ enum CsvExport {
                         cycleStart: { endDay($0) + " 00:00:00" },
                         sourceBySession: { sleepSource[$0.startTs] ?? "" }).utf8)),
                     ("workouts.csv",
-                     Data(WhoopCsvExporter.workoutsCSV(workouts, sourceLabel: { workoutSource($0, computedId: computedId) }).utf8)),
+                     Data(WhoopCsvExporter.workoutsCSV(workouts, sourceLabel: { workoutSource($0, computedIds: computedIds) }).utf8)),
                     ("journal_entries.csv", Data(WhoopCsvExporter.journalCSV(journal).utf8)),
                     ("noop_metric_series.json", WhoopCsvExporter.metricSeriesJSON(sidecar)),
                 ]
@@ -176,10 +224,11 @@ enum CsvExport {
     /// Classify a workout row for the parser-ignored Source column. The strings match how each row
     /// is written on this Mac: WhoopImporter uses source "whoop"; AppModel manual logging uses
     /// "manual"; IntelligenceEngine's on-device detected workouts use the computed source id with
-    /// sport "detected".
-    private static func workoutSource(_ w: WorkoutRow, computedId: String) -> String {
+    /// sport "detected". #458: a detected row's source may be EITHER computed union id (active-noop
+    /// or canonical-noop), so membership replaces the single-id compare.
+    private static func workoutSource(_ w: WorkoutRow, computedIds: [String]) -> String {
         if w.source == "manual" { return "manual" }
-        if w.source == computedId || w.sport == "detected" { return "noop (APPROXIMATE)" }
+        if computedIds.contains(w.source) || w.sport == "detected" { return "noop (APPROXIMATE)" }
         return "import"
     }
 
