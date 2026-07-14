@@ -100,4 +100,25 @@ final class BridgedNightGroupsTests: XCTestCase {
         let nap = B(start: t0 + 14 * 3_600, end: t0 + 15 * 3_600)
         XCTAssertEqual(SleepStageTotals.mainNightGroupIndices([a, b, nap], offsetSec: 0), [0, 1])
     }
+
+    /// REAL NIGHT (2026-07-14, PDT): a 12:16 first-sleep fragment (67 min) then a ~6-min walk then the
+    /// main 1:29 → 7:32 sleep, stored as two rows on `my-whoop-noop` with the main's onset user-edited
+    /// later via `startTsAdjusted` (so its EFFECTIVE start is 1:29). The 6-min effective gap is far under
+    /// `gapBridgeMaxMin`, so the two fragments MUST bridge into ONE group — proving the fragment is NOT
+    /// filtered out of grouping. The bug lives downstream (the display onset walk), not here: the group
+    /// spans the whole night, exactly as the Health write-back folds it (#364). offsetSec = -25200 (PDT).
+    func testRealNightFirstSleepFragmentBridgesIntoMainGroup() {
+        let off = -25_200
+        let fragment = B(start: 1_784_013_364, end: 1_784_017_375)      // 12:16 → 1:22 (67 min)
+        let mainEffective = B(start: 1_784_017_740, end: 1_784_039_558) // 1:29 (edited onset) → 7:32
+        let groups = SleepStageTotals.bridgedNightGroups([fragment, mainEffective], offsetSec: off)
+        XCTAssertEqual(groups.map(\.indices), [[0, 1]], "the 6-min walk must bridge, not split the night")
+        XCTAssertEqual(groups[0].gaps, [Gap(start: fragment.end, end: mainEffective.start)])
+        // The whole bridged group is the main night, and its span opens at the 12:16 fragment.
+        XCTAssertEqual(SleepStageTotals.mainNightGroupIndices([fragment, mainEffective], offsetSec: off),
+                       [0, 1])
+        let span = groups[0].indices
+        XCTAssertEqual([fragment, mainEffective][span[0]].start, 1_784_013_364,
+                       "earliest onset of the bridged night is the 12:16 first-sleep fragment")
+    }
 }

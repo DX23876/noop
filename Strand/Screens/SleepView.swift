@@ -1954,15 +1954,29 @@ struct SleepView: View {
     /// a lead carrying a few minutes more than 3. Mirrors Android PRE_ONSET_STUB_MINOR_FRAC. (#259)
     static let preOnsetStubMinorFrac: Double = 0.15
 
+    /// Absolute floor (ASLEEP minutes) under the #259 relative "minor lead" test: a leading fragment that
+    /// carries at least this much real sleep is a genuine first sleep — a real sleep episode — and is NEVER
+    /// a spurious pre-onset lead, however large the main block is. Without it a long main sleep inflates the
+    /// 15% relative bar (a 6h night → ~54 min) so a genuine ~34-min first sleep was swallowed and the shown
+    /// bedtime jumped hours late, hiding the real onset the bridged night (and the Health write-back, #364)
+    /// already spans. 20 min ≈ the shortest standalone sleep episode; below it a handful of asleep minutes
+    /// beside a long night is a stray lead. Mirrors Android PRE_ONSET_STUB_MINOR_ASLEEP_FLOOR_MIN.
+    /// (bridged-night headline: a real 2026-07-14 12:16 first sleep hidden behind the 1:29 main block)
+    static let preOnsetStubMinorAsleepFloorMin: Double = 20
+
     /// Pure stub test on a fragment's span + asleep minutes, so the rule is unit-testable without decoding
     /// JSON or building a view. Spurious when BRIEF and EITHER essentially sleepless OR minor relative to the
     /// main block (`refAsleepMin`, the group's largest asleep span): asleep below `preOnsetStubMinorFrac` of
-    /// it. `refAsleepMin` defaults to 0 (relative test off) so existing callers/tests are byte-identical.
-    /// (#736 / #259)
+    /// it AND below the absolute `preOnsetStubMinorAsleepFloorMin` real-sleep-episode floor. `refAsleepMin`
+    /// defaults to 0 (relative test off) so existing callers/tests are byte-identical. (#736 / #259)
     static func isPreOnsetAwakeStub(spanMin: Double, asleepMin: Double, refAsleepMin: Double = 0) -> Bool {
         guard spanMin <= preOnsetStubMaxMin else { return false }
         if asleepMin <= preOnsetStubAsleepMaxMin { return true }
-        return refAsleepMin > 0 && asleepMin < preOnsetStubMinorFrac * refAsleepMin
+        // #259 relative "minor lead" test, floored: a real sleep episode (>= the floor) is never a stray
+        // lead, so a long main block can't inflate the 15% bar past a genuine short first sleep.
+        return refAsleepMin > 0
+            && asleepMin < preOnsetStubMinorFrac * refAsleepMin
+            && asleepMin < preOnsetStubMinorAsleepFloorMin
     }
 
     /// The index into an ascending-by-onset group whose fragment supplies the DISPLAYED bedtime: the first
