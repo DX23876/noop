@@ -382,8 +382,10 @@ fun TodayScreen(
     // SharedPreferences isn't reactive, so it's mirrored into local state and re-read when the editor saves.
     var showMetricsEditor by remember { mutableStateOf(false) }
     var enabledKeyMetrics by remember { mutableStateOf(KeyMetricPrefs.enabled(context)) }
-    // Detailed Key-Metrics tiles (squarer + 14-day trend graph), set from the same editor.
+    // Detailed Key-Metrics tiles (squarer + trend graph), set from the same editor, plus the chosen
+    // trend window (2 days / 1 week / 2 weeks) the detailed graphs cover.
     var keyMetricsDetailed by remember { mutableStateOf(KeyMetricPrefs.detailed(context)) }
+    var keyMetricsWindowDays by remember { mutableStateOf(KeyMetricPrefs.detailWindowDays(context)) }
     // #today-layout: the user-ordered below-hero section list + its editor dialog flag. Read once (prefs
     // aren't reactive) and re-read on the editor's save, exactly like enabledKeyMetrics above.
     var showLayoutEditor by remember { mutableStateOf(false) }
@@ -784,13 +786,13 @@ fun TodayScreen(
     // day (oldest → newest, nulls dropped, mirrors remember14's windowing of the DailyMetric series), and
     // feed it to the Rest tile instead. Now the sparkline tracks the Rest score. Empty until loaded.
     var restCompositeSpark by remember { mutableStateOf<List<Double>>(emptyList()) }
-    LaunchedEffect(days, selectedDay) {
+    LaunchedEffect(days, selectedDay, keyMetricsWindowDays) {
         val byDay = runCatching {
             viewModel.repo.resolvedSeries("sleep_performance", "my-whoop", "0000-00-00", "9999-99-99",
                 strapDeviceId = viewModel.activeStrapId)
                 .values.associate { it.first to it.second }
         }.getOrDefault(emptyMap())
-        val cutoff = selectedDay.minusDays(13).toString()
+        val cutoff = selectedDay.minusDays((keyMetricsWindowDays - 1).toLong()).toString()
         val end = selectedDay.toString()
         restCompositeSpark = byDay.entries
             .filter { it.key in cutoff..end }
@@ -952,7 +954,7 @@ fun TodayScreen(
 
     // 14-day trailing calendar window ending on the phone's actual local day.
     // Old imports stay in history, but they do not fill the Today trend tiles.
-    val window = remember14(days, selectedDay)
+    val window = rememberTrendWindow(days, selectedDay, keyMetricsWindowDays)
 
     LaunchedEffect(days) {
         // #849: this footer pass is the heavy one. It derives HR per imported workout from raw strap samples
@@ -1361,7 +1363,7 @@ fun TodayScreen(
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(modifier = Modifier.weight(1f)) {
-                                    SectionHeader("Key Metrics", overline = dayLabel, trailing = "14-day trend")
+                                    SectionHeader("Key Metrics", overline = dayLabel, trailing = trendWindowLabel(keyMetricsWindowDays))
                                 }
                                 TextButton(
                                     onClick = { showMetricsEditor = true },
@@ -1534,12 +1536,15 @@ fun TodayScreen(
         KeyMetricsEditorDialog(
             initial = enabledKeyMetrics,
             initialDetailed = keyMetricsDetailed,
+            initialWindowDays = keyMetricsWindowDays,
             onDismiss = { showMetricsEditor = false },
-            onSave = { metrics, detailed ->
+            onSave = { metrics, detailed, windowDays ->
                 KeyMetricPrefs.setEnabled(context, metrics)
                 KeyMetricPrefs.setDetailed(context, detailed)
+                KeyMetricPrefs.setDetailWindowDays(context, windowDays)
                 enabledKeyMetrics = metrics
                 keyMetricsDetailed = detailed
+                keyMetricsWindowDays = windowDays
                 showMetricsEditor = false
             },
         )
@@ -4866,7 +4871,9 @@ private fun LiquidKeyTile(
                     color = data.tint,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 2.dp)
+                        // A touch more air between the fill bar and the graph (tester feedback: the two
+                        // read as one element when they nearly touch).
+                        .padding(top = 6.dp)
                         .height(Metrics.sparkHeight),
                 )
             }
@@ -6212,15 +6219,20 @@ private data class Window(
 )
 
 /**
- * Build the 14-day windows from `recentDays`. Each series drops null days from the
- * trailing calendar window only, so stale imports do not draw a current-day trend.
+ * Build the trailing trend windows from `recentDays` over the chosen span (2 / 7 / 14 calendar days —
+ * the editor's detailed-graph window). Each series drops null days from the trailing calendar window
+ * only, so stale imports do not draw a current-day trend.
  */
 @Composable
-private fun remember14(days: List<com.noop.data.DailyMetric>, anchorDay: LocalDate): Window =
-    androidx.compose.runtime.remember(days, anchorDay) {
-        // Trailing 14 CALENDAR days ending today, NOT the last 14 stored rows, which on an old import
-        // were months-old data shown as a "14-day trend" (issue #23). ISO yyyy-MM-dd sorts chronologically.
-        val cutoff = anchorDay.minusDays(13).toString()
+private fun rememberTrendWindow(
+    days: List<com.noop.data.DailyMetric>,
+    anchorDay: LocalDate,
+    windowDays: Int,
+): Window =
+    androidx.compose.runtime.remember(days, anchorDay, windowDays) {
+        // Trailing CALENDAR days ending today, NOT the last N stored rows, which on an old import
+        // were months-old data shown as a fresh trend (issue #23). ISO yyyy-MM-dd sorts chronologically.
+        val cutoff = anchorDay.minusDays((windowDays - 1).toLong()).toString()
         val end = anchorDay.toString()
         val recent = days.filter { it.day >= cutoff && it.day <= end }
         fun series(pick: (DailyMetric) -> Double?): List<Double> = recent.mapNotNull(pick)
@@ -6456,6 +6468,13 @@ private fun grouped(value: Int): String =
 // reorder it, explicit arrows rather than drag so it behaves the same on every device. Mirrors the macOS
 // KeyMetricsEditorSheet.
 
+/** The Key-Metrics header's trailing label for the chosen detailed-graph window. */
+private fun trendWindowLabel(days: Int): String = when (days) {
+    2 -> "2-day trend"
+    7 -> "7-day trend"
+    else -> "14-day trend"
+}
+
 /** One editor row: a tile with its current enabled flag. The working list is rebuilt on each edit. */
 private data class EditableMetric(val metric: KeyMetric, val enabled: Boolean)
 
@@ -6463,11 +6482,14 @@ private data class EditableMetric(val metric: KeyMetric, val enabled: Boolean)
 private fun KeyMetricsEditorDialog(
     initial: List<KeyMetric>,
     initialDetailed: Boolean = false,
+    initialWindowDays: Int = 14,
     onDismiss: () -> Unit,
-    onSave: (List<KeyMetric>, Boolean) -> Unit,
+    onSave: (List<KeyMetric>, Boolean, Int) -> Unit,
 ) {
-    // Detailed tiles: taller/squarer with a 14-day trend graph under the fill bar (display-only).
+    // Detailed tiles: taller/squarer with a trend graph under the fill bar (display-only), over the
+    // chosen trailing window (2 days / 1 week / 2 weeks).
     var detailed by remember { mutableStateOf(initialDetailed) }
+    var windowDays by remember { mutableStateOf(initialWindowDays) }
     // Working copy: enabled tiles first (saved order), then the disabled remainder in the default order,     // so toggling one on drops it at the end of the visible set, and every known tile is listed once.
     val items = remember {
         val enabledSet = initial.toHashSet()
@@ -6510,7 +6532,7 @@ private fun KeyMetricsEditorDialog(
                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text("Detailed tiles", style = NoopType.body, color = Palette.textPrimary)
                         Text(
-                            "Squarer tiles with a 14-day trend graph under the bar.",
+                            "Squarer tiles with a trend graph under the bar.",
                             style = NoopType.caption,
                             color = Palette.textSecondary,
                         )
@@ -6526,6 +6548,17 @@ private fun KeyMetricsEditorDialog(
                             uncheckedBorderColor = Palette.hairline,
                         ),
                         modifier = Modifier.semantics { contentDescription = "Detailed tiles" },
+                    )
+                }
+                // The detailed graphs' trailing window — 2 days / 1 week / 2 weeks (the NOOP signature
+                // segmented pill, same control the trend screens use). Only shown while Detailed is on.
+                if (detailed) {
+                    SegmentedPillControl(
+                        items = listOf(2, 7, 14),
+                        selection = windowDays,
+                        label = { when (it) { 2 -> "2 days"; 7 -> "1 week"; else -> "2 weeks" } },
+                        onSelect = { windowDays = it },
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
                 HorizontalDivider(color = Palette.hairline, thickness = 1.dp)
@@ -6601,7 +6634,7 @@ private fun KeyMetricsEditorDialog(
                     ) { Text("Reset", style = NoopType.body) }
                     Spacer(Modifier.weight(1f))
                     Button(
-                        onClick = { onSave(items.filter { it.enabled }.map { it.metric }, detailed) },
+                        onClick = { onSave(items.filter { it.enabled }.map { it.metric }, detailed, windowDays) },
                         // At least one tile must stay visible, an empty grid reads as a bug, not a choice.
                         enabled = items.any { it.enabled },
                         colors = ButtonDefaults.buttonColors(

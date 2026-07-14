@@ -463,6 +463,12 @@ private struct MetricRow: View {
 struct MetricDetailView: View {
     let metric: MetricDescriptor
     @EnvironmentObject var repo: Repository
+    /// #430 parity: the detail carries the SAME backdrop as the screen that pushed it — the day-cycle sky
+    /// when the setting is on, the plain canvas when off — so a Key-Metrics tile tap doesn't jar from the
+    /// liquid Today's sky to a flat page. Same keys TodayView/LiquidTodayView gate on; "Sky behind cards"
+    /// extends the sky to the full viewport (softer settle) so the transparent cards reveal it throughout.
+    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = true
+    @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = false
     // Profile basics for the Fitness Age not-ready countdown (age/sex gate its readiness lead). Injected
     // app-wide at the root; previews supply their own. Only read on the fitness_age empty-state path.
     @EnvironmentObject var profile: ProfileStore
@@ -681,7 +687,23 @@ struct MetricDetailView: View {
             .padding(NoopMetrics.screenPadding)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .background(StrandPalette.surfaceBase)
+        // Day-cycle-aware backdrop (#430 parity): the top sky band every liquid screen uses when the
+        // setting is on — or the FULL-viewport sky with the softer settle when "Sky behind cards" is also
+        // on (the LiquidTodayView treatment, so the transparent cards reveal it the whole way down); the
+        // plain canvas when off.
+        .background(alignment: .top) {
+            ZStack(alignment: .top) {
+                StrandPalette.surfaceBase
+                if showDayCycleBackground {
+                    LiquidSkyStatic(hour: nil, settleStrength: skyBehindCards ? 0.78 : 1)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: skyBehindCards ? nil : 240, alignment: .top)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
+            }
+            .ignoresSafeArea()
+        }
         .navigationTitle(metric.title)
         .task(id: loadTaskID) { await load() }
         // Range changes the window, hence the correlation inputs — recompute the
