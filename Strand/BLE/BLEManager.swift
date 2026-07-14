@@ -666,6 +666,11 @@ public final class BLEManager: NSObject, ObservableObject {
     /// unsupported) that `centralManagerDidUpdateState` set. Lets the poweredOn transition clear ONLY
     /// that message, never a genuine mid-sync error (e.g. "Sync interrupted").
     private var radioStateErrorShown = false
+    /// #391: pending one-shot escalation armed when the central reports `.unauthorized` while the TCC
+    /// grant reads as granted (the macOS cold-start settling window). Canceled by ANY later state
+    /// callback (the settle resolved); if it fires instead, the state never settled — the wedged-grant
+    /// shape (#429) — and the #295 re-grant banner is shown after all.
+    private var unauthorizedSettleWork: DispatchWorkItem?
     private var cmdCharacteristic: CBCharacteristic?
     private var cmdNotifyCharacteristic: CBCharacteristic?
     private var eventNotifyCharacteristic: CBCharacteristic?
@@ -2810,8 +2815,73 @@ public final class BLEManager: NSObject, ObservableObject {
 
 // MARK: - CBCentralManagerDelegate
 extension BLEManager: @preconcurrency CBCentralManagerDelegate {
+    /// What `centralManagerDidUpdateState` should do about an `.unauthorized` central state, decided
+    /// from the TCC grant (`CBManager.authorization`) rather than the transient central state alone.
+    /// Pure and stateless so the #391 discrimination is pinnable by a unit test without CoreBluetooth
+    /// plumbing. Design from digitalerdude's #407; test seam per tigercraft4's #407 review.
+    enum UnauthorizedAction: Equatable {
+        /// The grant itself reads denied/restricted — a genuine denial; latch the #280/#295 banner now.
+        case showRegrantBanner
+        /// The grant reads granted (or undecided): the macOS cold-start settling window (#391), or a
+        /// first-run prompt still on screen. Wait — but under a settle deadline (see
+        /// `armUnauthorizedSettleDeadline`), because a WEDGED grant (#429: an unsigned build's stale
+        /// TCC row) presents exactly the same way and never settles.
+        case waitForSettle
+    }
+
+    static func unauthorizedAction(_ authorization: CBManagerAuthorization) -> UnauthorizedAction {
+        switch authorization {
+        case .denied, .restricted: return .showRegrantBanner
+        default: return .waitForSettle
+        }
+    }
+
+    /// How long an apparently-transient `.unauthorized` may sit unresolved before it is treated as a
+    /// wedged grant (#429) and the re-grant banner shows anyway. The #391 reporter's cold-start settle
+    /// took ~40 s (unauthorized 14:51:44 → poweredOn 14:52:25), so 120 s clears the observed case with
+    /// a wide margin while still surfacing the wedged case in a bounded time instead of never.
+    static let unauthorizedSettleSeconds = 120
+
+    /// The #280/#295 "re-grant Bluetooth" banner, verbatim. One home so the immediate genuine-denial
+    /// path and the #391 settle-deadline escalation can never drift apart.
+    private func showBluetoothRegrantBanner() {
+        // #295: an unsigned/ad-hoc build's code identity changes on every release, so a Bluetooth
+        // toggle that already reads "on" from a PRIOR build's grant may not carry over — the
+        // message needs to tell the user to re-toggle it, not just check that it's on.
+        #if os(macOS)
+        state.lastSyncError = "NOOP isn't allowed to use Bluetooth. Open System Settings → Privacy & Security → Bluetooth — if NOOP is already listed there, toggle it off and back on (a new NOOP build needs a fresh grant), then quit and reopen NOOP."
+        #else
+        state.lastSyncError = "NOOP isn't allowed to use Bluetooth. Open iPhone Settings → NOOP → Bluetooth — if it's already on, toggle it off and back on, then quit and reopen NOOP."
+        #endif
+        log("Bluetooth permission not granted (unauthorized) — cannot scan or connect")
+        radioStateErrorShown = true
+    }
+
+    /// #391 escalation: the transient-looking `.unauthorized` gets `unauthorizedSettleSeconds` to
+    /// resolve (every real settle produces another state callback, which cancels this). If it fires,
+    /// the state is STILL unauthorized with a granted TCC read — the wedged-grant shape (#429), where
+    /// staying silent would strand the user with no explanation at all — so show the re-grant banner,
+    /// whose off/on-toggle instruction is exactly the wedged case's fix.
+    private func armUnauthorizedSettleDeadline() {
+        unauthorizedSettleWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.unauthorizedSettleWork = nil
+            guard self.central?.state == .unauthorized else { return }
+            self.log("Central still unauthorized \(BLEManager.unauthorizedSettleSeconds)s after a granted TCC read — not cold-start settling (#391); treating as a wedged grant (#429) and showing the re-grant banner")
+            self.showBluetoothRegrantBanner()
+        }
+        unauthorizedSettleWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(BLEManager.unauthorizedSettleSeconds), execute: work)
+    }
+
     public func centralManagerDidUpdateState(_ central: CBCentralManager) {
         log("Central state: \(central.state.rawValue) (5 = poweredOn)")
+        // #391: ANY state update means the cold-start settling window moved on — a pending
+        // unauthorized-settle escalation is obsolete whether the new state is good news (poweredOn)
+        // or its own banner-worthy case (poweredOff handles itself below).
+        unauthorizedSettleWork?.cancel()
+        unauthorizedSettleWork = nil
         guard central.state == .poweredOn else {
             // #280: a non-poweredOn radio state used to be a SILENT return — the strap log showed only
             // "Central state: 3" and the UI just read "not connected", so a user whose Mac had denied NOOP
@@ -2824,16 +2894,24 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
             // iOS+macOS up to that parity rather than adding a new behaviour.
             switch central.state {
             case .unauthorized:
-                // #295: an unsigned/ad-hoc build's code identity changes on every release, so a Bluetooth
-                // toggle that already reads "on" from a PRIOR build's grant may not carry over — the
-                // message needs to tell the user to re-toggle it, not just check that it's on.
-                #if os(macOS)
-                state.lastSyncError = "NOOP isn't allowed to use Bluetooth. Open System Settings → Privacy & Security → Bluetooth — if NOOP is already listed there, toggle it off and back on (a new NOOP build needs a fresh grant), then quit and reopen NOOP."
-                #else
-                state.lastSyncError = "NOOP isn't allowed to use Bluetooth. Open iPhone Settings → NOOP → Bluetooth — if it's already on, toggle it off and back on, then quit and reopen NOOP."
-                #endif
-                log("Bluetooth permission not granted (unauthorized) — cannot scan or connect")
-                radioStateErrorShown = true
+                // #391 (design from digitalerdude's #407): CoreBluetooth on macOS can transiently report
+                // `.unauthorized` during the cold-start settling window (before the central finishes
+                // connecting to bluetoothd) even when the TCC grant is fine — the state then advances to
+                // .poweredOff/.poweredOn on the next callback and the strap connects. The `authorization`
+                // property reads the TCC grant DIRECTLY, independent of that transient state, so it can tell
+                // a genuine denial (#280/#295) from the settling case — latching the re-grant banner on ANY
+                // `.unauthorized` pushed users to toggle Bluetooth off/on to clear a false message. The
+                // settle path is NOT unbounded silence: a wedged grant (#429) presents identically and never
+                // settles, so it runs under `armUnauthorizedSettleDeadline`'s one-shot escalation.
+                // The CLASS property (`CBCentralManager.authorization`), not the `central.authorization`
+                // instance property — that one is deprecated on iOS (13.0 → 13.1); both read the same grant.
+                switch Self.unauthorizedAction(CBCentralManager.authorization) {
+                case .showRegrantBanner:
+                    showBluetoothRegrantBanner()
+                case .waitForSettle:
+                    log("Central reported unauthorized but the Bluetooth grant reads OK — transient cold-start settling (#391); re-grant banner deferred \(Self.unauthorizedSettleSeconds)s")
+                    armUnauthorizedSettleDeadline()
+                }
             case .poweredOff:
                 state.lastSyncError = "Bluetooth is off. Turn it on to connect to your strap."
                 log("Bluetooth is off — cannot scan or connect")
