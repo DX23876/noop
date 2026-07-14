@@ -145,7 +145,16 @@ public enum Baselines {
     /// so the whole Charge build-up restarts cleanly. Same string on iOS UserDefaults + Android prefs.
     public static let recoveryBaselineEpochKey: String = "noop.recoveryBaselineEpoch"
 
-    /// Default per-metric configurations (HRV, resting HR, respiration, skin temp).
+    /// Default per-metric configurations (HRV, resting HR, respiration, skin temp, daily
+    /// Effort/strain).
+    ///
+    /// "strain" backs the RecoveryScorer Activity-Balance / previous-day-Effort term: bounds
+    /// match `StrainScorer.maxStrain`'s 0-100 output scale (the Charge/Effort/Rest redesign's
+    /// rescale of the historical 0-21 axis). floorSpread is wider than the physiological
+    /// metrics above (5.0 vs ~1-2% of range elsewhere) because day-to-day training load is
+    /// EXPECTED to swing hard (a rest day vs a hard day is a normal, large delta) — a tight
+    /// floor would make the z-score hypersensitive to routine training variation. Same
+    /// half-lives as the other metrics for consistency.
     public static let metricCfg: [String: MetricCfg] = [
         "hrv": MetricCfg(minVal: 5.0, maxVal: 250.0, floorSpread: 5.0,
                          halfLifeB: 14.0, halfLifeS: 21.0),
@@ -155,12 +164,16 @@ public enum Baselines {
                           halfLifeB: 14.0, halfLifeS: 21.0),
         "skin_temp": MetricCfg(minVal: 20.0, maxVal: 42.0, floorSpread: 0.3,
                                halfLifeB: 14.0, halfLifeS: 21.0),
+        "strain": MetricCfg(minVal: 0.0, maxVal: 100.0, floorSpread: 5.0,
+                            halfLifeB: 14.0, halfLifeS: 21.0),
     ]
 
     /// Convenience accessors for the standard configs.
     public static var hrvCfg: MetricCfg { metricCfg["hrv"]! }
     public static var restingHRCfg: MetricCfg { metricCfg["resting_hr"]! }
     public static var respCfg: MetricCfg { metricCfg["resp"]! }
+    /// Baseline config for the RecoveryScorer Activity-Balance / previous-day-Effort term.
+    public static var strainCfg: MetricCfg { metricCfg["strain"]! }
 
     /// Convert a half-life in nights to an EWMA smoothing factor.
     static func lambda(halfLife: Double) -> Double {
