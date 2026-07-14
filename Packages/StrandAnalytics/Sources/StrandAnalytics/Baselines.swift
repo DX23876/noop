@@ -350,6 +350,73 @@ public enum Baselines {
                              nightsSinceUpdate: 0, status: .calibrating)
     }
 
+    // MARK: - Device-era boundary (#459)
+
+    /// The recalibration epoch (seconds, UTC start-of-day) at the LATEST device-era boundary in a
+    /// source-tagged nightly history, for feeding `foldHistory`'s `baselineEpoch` so a baseline can't
+    /// mix two brands' incompatible HRV scales (#459: an Oura→WHOOP switch has Oura RMSSD ~120–155 ms
+    /// vs WHOOP ~72–112 ms with no overlap nights, so a straddling 30-night window reads the first
+    /// WHOOP nights as "suppressed" against an Oura-inflated mean — a device artifact, not physiology).
+    ///
+    /// CONTRACT: `sourceDays` is exactly ONE `(dayKey "yyyy-MM-dd", sourceId)` per night — the day's
+    /// WINNING source (the same per-day merge winner whose value the fold uses), NOT one row per source.
+    /// The "current era" is read off the NEWEST day's brand, so an overlap day carrying two brands would,
+    /// under the deterministic (day, sourceId) sort, let the lexically-later source (e.g. "oura-import" >
+    /// "my-whoop") masquerade as the current brand. Passing one-per-day-winner makes that impossible; the
+    /// same-day-tie handling below is only a determinism backstop, not a licence to pass raw multi-source
+    /// rows. Any order is fine (it is sorted here).
+    ///
+    /// The epoch is the start of the first day of the LATEST contiguous single-brand era: walk
+    /// newest→oldest while the brand matches the newest night's brand, and return that run's first day's
+    /// start (a lone off-brand day inside the current era truncates it — fail-safe: it drops MORE history,
+    /// never mixes scales). Returns 0.0 (no recalibration → `foldHistory` is byte-identical) when the
+    /// whole history is ONE brand — so a single-device user, and a WHOOP user whose imported + computed +
+    /// strap ids all bucket to "whoop", is completely unaffected.
+    ///
+    /// The brand bucket is intentionally coarse and NOT `DeviceFamily` (that only splits WHOOP 4 vs 5,
+    /// both the same HRV scale): every WHOOP-origin id (the canonical import, the active strap, the
+    /// "-noop" computed sibling, Health-Connect/Apple rows that ride the strap source) is ONE brand;
+    /// each wearable-export brand (oura/fitbit/garmin) is its own. Pure + unit-pinned; the caller
+    /// assembles `sourceDays` from the ORIGINAL per-source reads (brand is lost once a wearable day is
+    /// re-homed under the computed WHOOP id, so detection must precede the merge). Mirrors the Kotlin twin.
+    public static func deviceEraEpoch(_ sourceDays: [(day: String, sourceId: String)]) -> Double {
+        if sourceDays.isEmpty { return 0.0 }
+        // Total order by (day, sourceId) — a same-day mixed-brand row (an overlap night) must break the
+        // tie IDENTICALLY to the Kotlin twin, so a plain by-day sort (Swift's is not stable) can't
+        // diverge the computed epoch across platforms.
+        let sorted = sourceDays.sorted { $0.day != $1.day ? $0.day < $1.day : $0.sourceId < $1.sourceId }
+        let currentBrand = brandBucket(sorted.last!.sourceId)
+        // No brand change anywhere → no epoch (byte-identical fold for every single-brand user).
+        if !sorted.contains(where: { brandBucket($0.sourceId) != currentBrand }) { return 0.0 }
+        // Walk back over the contiguous current-brand suffix; its first day opens the current era.
+        var eraStartDay = sorted.last!.day
+        for entry in sorted.reversed() {
+            if brandBucket(entry.sourceId) != currentBrand { break }
+            eraStartDay = entry.day
+        }
+        let fmt = DateFormatter()
+        fmt.calendar = Calendar(identifier: .gregorian)
+        fmt.timeZone = TimeZone(secondsFromGMT: 0)
+        fmt.dateFormat = "yyyy-MM-dd"
+        return fmt.date(from: eraStartDay)?.timeIntervalSince1970 ?? 0.0
+    }
+
+    /// Coarse HRV-scale brand for a source id (#459). Every WHOOP-origin id shares ONE scale; each
+    /// wearable-export brand is its own. Unknown ids bucket to "whoop" (the strap source and its Apple/
+    /// Health-Connect riders), so only a positively-identified wearable export changes the era. Mirrors
+    /// the Kotlin twin.
+    static func brandBucket(_ sourceId: String) -> String {
+        // `hasPrefix` deliberately catches BOTH the export id ("oura-import") and the cloud id
+        // ("oura-api"), so an Oura-cloud era and an Oura-export era read as the same brand.
+        if sourceId.hasPrefix("oura") { return "oura" }
+        if sourceId.hasPrefix("fitbit") { return "fitbit" }
+        if sourceId.hasPrefix("garmin") { return "garmin" }
+        // "apple-health" / "health-connect" fall through to "whoop" ON PURPOSE: NOOP's Apple/HC daily
+        // rows ride the strap source's scale, and HC is a pass-through whose true origin is unknowable,
+        // so they must NOT open a false era boundary against WHOOP nights.
+        return "whoop"
+    }
+
     // MARK: - Deviation
 
     /// Compute z / delta / ratio / in-normal-range for a value vs a baseline.
