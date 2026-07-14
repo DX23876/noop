@@ -210,7 +210,8 @@ targets:
       path: StrandiOS/Resources/Info.plist
       properties:
         CFBundleName: NOOP
-        CFBundleDisplayName: NOOP
+        # NOOP AI fork: home-screen name (upstream: NOOP).
+        CFBundleDisplayName: NOOP AI
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         # Surfaces APP_GROUP_ID to runtime (WidgetSnapshot.suiteName) so the App Group id isn't
@@ -282,11 +283,15 @@ targets:
       properties:
         com.apple.developer.healthkit: true
         com.apple.developer.healthkit.access: []
-        com.apple.security.application-groups:
-          - $(APP_GROUP_ID)
+        # NOOP AI fork: the app-group entitlement is dropped — a FREE Apple ID cannot provision App
+        # Groups, and with the widget/watch embeds removed (below) nothing shares data across targets.
+        # WidgetSnapshot's UserDefaults(suiteName:) tolerates the missing group (unshared container).
+        # Restore the `com.apple.security.application-groups: [$(APP_GROUP_ID)]` property alongside the
+        # widget/watch dependencies when building with a paid team.
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.noopapp.noop
+        # NOOP AI fork: personal bundle id so a free Apple ID can sign it (upstream: com.noopapp.noop).
+        PRODUCT_BUNDLE_IDENTIFIER: com.noopapp.noopai
         PRODUCT_NAME: "NOOP Staging"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # Ship every *.appiconset (not just the primary AppIcon) so the alternate "AppIcon-Navy"
@@ -303,12 +308,14 @@ targets:
       - package: StrandDesign
       - package: MarkdownUI
       - package: ZIPFoundation
-      - target: NOOPiOSWidgets
-      # Embed the watchOS app so the iPhone app carries it (NOOP.app/Watch/NOOPWatch.app). A watch app
-      # installs by riding inside its iOS companion; without this it would never reach a paired watch.
-      # Build-from-source delivers it for certain; sideload install of the embedded watch app under a free
-      # Apple ID is unproven (an Apple limitation), so the docs steer watch users to a source build for now.
-      - target: NOOPWatch
+      # NOOP AI fork: the widget extension + embedded watch app are NOT built into the iPhone app.
+      # A free Apple ID gets no App Groups and only 10 app ids / 7 days, so each extra embedded target
+      # (each its own app id + the shared group) makes free-account signing fail — the same reason the
+      # upstream fork-release CI strips Watch/ and PlugIns/ from the sideload .ipa. The home-screen
+      # widget and watch app are the only loss; the main app is unaffected. Building with a paid team?
+      # Restore the two target dependencies below (and the app-group entitlement above):
+      #   - target: NOOPiOSWidgets
+      #   - target: NOOPWatch
 
   # WidgetKit + Live Activity extension — the iOS analogue of the macOS menu-bar
   # extra. Reads a tiny snapshot the app publishes into the shared App Group.

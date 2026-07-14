@@ -6,9 +6,5 @@
 	<true/>
 	<key>com.apple.developer.healthkit.access</key>
 	<array/>
-	<key>com.apple.security.application-groups</key>
-	<array>
-		<string>$(APP_GROUP_ID)</string>
-	</array>
 </dict>
 </plist>
