@@ -3,7 +3,7 @@
 //
 //  This is the FULL Today, re-created faithfully from the locked mockup
 //  (scratchpad/liquid-metal-home.html): sky title + record/add/battery controls,
-//  the three scores as liquid vessels with source pills, the live heart-rate
+//  the three scores as liquid vessels with a card-level source badge, the live heart-rate
 //  thread, the five "your cards" as liquid chips, a greeting + readiness pills,
 //  Synthesis, Recovery Vitals, a Key Metrics grid (incl. steps), Last Workouts
 //  and Data Sources. Every value binds to the SAME real data the classic
@@ -27,6 +27,9 @@ struct LiquidTodayView: View {
 
     // async-loaded via the confirmed Repository accessors
     @State private var restScore: Double?          // sleep_performance, day-keyed
+    /// Raw resolver source ids for the three scores, keyed by recovery / strain / sleep_performance.
+    /// Presentation uses Today's shared mapper so Liquid and Classic name a source consistently.
+    @State private var heroProvenanceByMetric: [String: String] = [:]
     @State private var stress: Double?             // StressModel(...).score, 0–3
     @State private var fitnessAge: Double?         // exploreSeries("fitness_age").last
     @State private var vitality: Double?           // exploreSeries("vitality").last
@@ -438,22 +441,34 @@ struct LiquidTodayView: View {
     private var heroCard: some View {
         HStack(alignment: .top, spacing: 4) {
             HeroScoreCell(label: String(localized: "Charge"), score: displayDay?.recovery, tint: StrandPalette.chargeColor,
-                          pill: "WHOOP", animated: dataLoaded, onGuide: { guideSection = .charge })
+                          animated: dataLoaded, onGuide: { guideSection = .charge })
             // #45: the hero Effort must honour the user's Effort scale like every other Effort read-out.
             // Show the value on the chosen scale (0–100 or WHOOP 0–21) with the matching vessel max, and
             // one decimal on the compressed 0–21 axis to match the app-wide `effortDisplay` convention
             // (12.6, not a rounded "13"); the 0–100 hero stays a whole number as before.
             HeroScoreCell(label: String(localized: "Effort"),
                           score: displayDay?.strain.map { UnitFormatter.effortValue($0, scale: effortScale) },
-                          tint: StrandPalette.effortColor, pill: nil, animated: dataLoaded,
+                          tint: StrandPalette.effortColor, animated: dataLoaded,
                           onGuide: { guideSection = .effort },
                           maxValue: effortScale == .whoop ? 21 : 100,
                           decimals: effortScale == .whoop ? 1 : 0)
             HeroScoreCell(label: String(localized: "Rest"), score: restScore, tint: StrandPalette.restColor,
-                          pill: "WHOOP", animated: dataLoaded, onGuide: { guideSection = .rest })
+                          animated: dataLoaded, onGuide: { guideSection = .rest })
+                .overlay(alignment: .top) {
+                    if let sourceLabel = heroSourceLabel {
+                        SourceBadge("\(sourceLabel)", tint: StrandPalette.onDarkSecondary)
+                            // Match the badge's trailing edge to the fixed-width Rest vessel on every
+                            // card width, then lift its centre onto the card's top border.
+                            .fixedSize()
+                            .frame(width: HeroScoreCell.vesselDiameter, alignment: .trailing)
+                            .offset(y: -(NoopMetrics.space4 + NoopMetrics.sourceBadgeHeight / 2))
+                            .allowsHitTesting(false)
+                            .accessibilityLabel(Text("Source: \(sourceLabel)"))
+                    }
+                }
         }
-        .padding(.vertical, 16)
-        .padding(.horizontal, 12)
+        .padding(.vertical, NoopMetrics.space4)
+        .padding(.horizontal, NoopMetrics.space3)
         .background(
             RoundedRectangle(cornerRadius: 26, style: .continuous)
                 .fill(heroFill)
@@ -861,6 +876,16 @@ struct LiquidTodayView: View {
         async let stepsA = repo.exploreSeries(key: "steps_est", source: "my-whoop")
         async let hrA = repo.hrBuckets(from: from, to: to, bucketSeconds: 300)
         async let wkA = repo.workoutRows()
+        // Ask the same cross-source resolver the Classic Today view uses which source actually won each
+        // displayed score. Limit the read to the selected-day window instead of scanning full history.
+        let sourceDayKey = selectedDayKey
+        let sourceLookback = max(2, selectedDayOffset + 2)
+        async let chargeSourceA = repo.resolvedSeries(key: "recovery", source: Repository.whoopSource,
+                                                      days: sourceLookback)
+        async let effortSourceA = repo.resolvedSeries(key: "strain", source: Repository.whoopSource,
+                                                      days: sourceLookback)
+        async let restSourceA = repo.resolvedSeries(key: "sleep_performance", source: Repository.whoopSource,
+                                                    days: sourceLookback)
 
         let restSeries = await restA
         let restByDay = Dictionary(restSeries.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
@@ -891,6 +916,20 @@ struct LiquidTodayView: View {
         hrValues = (await hrA).map { $0.bpm }
         workouts = await wkA
 
+        let (chargeSource, effortSource, restSource) = await (chargeSourceA, effortSourceA, restSourceA)
+        let sourceResolutions = [
+            ("recovery", chargeSource),
+            ("strain", effortSource),
+            ("sleep_performance", restSource),
+        ]
+        var provenance: [String: String] = [:]
+        for (metric, resolution) in sourceResolutions {
+            if let winner = resolution.points.last(where: { $0.day == sourceDayKey })?.source {
+                provenance[metric] = winner
+            }
+        }
+        heroProvenanceByMetric = provenance
+
         // First load done — bring the hero gauges + sky to life now the launch churn has settled.
         if !dataLoaded { withAnimation(.easeIn(duration: 0.4)) { dataLoaded = true } }
     }
@@ -902,6 +941,28 @@ struct LiquidTodayView: View {
     /// before the first load() populates the cache.
     private var readiness: ReadinessEngine.Readiness {
         cachedReadiness ?? ReadinessEngine.evaluate(days: repo.days, today: cachedDisplayDay?.day)
+    }
+
+    /// One card-level provenance label. Identical winners collapse to one name; mixed scores show at most
+    /// two distinct winners in Charge / Effort / Rest order so the compact badge stays readable.
+    private var heroSourceLabel: String? {
+        Self.heroSourceLabel(
+            rawSources: ["recovery", "strain", "sleep_performance"].compactMap { heroProvenanceByMetric[$0] },
+            deviceId: repo.deviceId)
+    }
+
+    /// Pure aggregation seam for the Liquid hero. The existing Today mapper turns computed siblings into
+    /// "On-device", the Apple Health source into "Apple Watch", and imported strap rows into "Whoop".
+    static func heroSourceLabel(rawSources: [String], deviceId: String) -> String? {
+        var seen = Set<String>()
+        var labels: [String] = []
+        for raw in rawSources {
+            let label = TodayView.todayProvenanceChipLabel(
+                rawSource: raw, deviceId: deviceId, appleHealthSource: Repository.appleHealthSource)
+            if seen.insert(label).inserted { labels.append(label) }
+            if labels.count == 2 { break }
+        }
+        return labels.isEmpty ? nil : labels.joined(separator: " + ")
     }
 
     private var readinessWord: String? {
@@ -1081,10 +1142,11 @@ private struct LiquidWordmark: View {
 /// COUNTS UP to the value when data lands; tapping the gauge itself splashes (the number is
 /// hit-transparent so the tap reaches the vessel). The label row taps through to the scoring guide.
 private struct HeroScoreCell: View {
+    static let vesselDiameter: CGFloat = 96
+
     let label: String
     let score: Double?            // on whatever scale the caller passes (nil = no data yet)
     let tint: Color
-    let pill: String?
     let animated: Bool
     let onGuide: () -> Void
     // The scale `score` is already expressed on — 100 for Charge/Rest, or the user's chosen Effort scale
@@ -1102,7 +1164,7 @@ private struct HeroScoreCell: View {
         VStack(spacing: 7) {
             ZStack {
                 LiquidVessel(value: frac, tint: tint, animated: animated)
-                    .frame(width: 96, height: 96)
+                    .frame(width: Self.vesselDiameter, height: Self.vesselDiameter)
                 Group {
                     if score != nil {
                         CountUpNumber(value: shown, font: StrandFont.rounded(26), decimals: decimals)
@@ -1131,18 +1193,6 @@ private struct HeroScoreCell: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(Text("\(label), \(score.map { decimals > 0 ? String(format: "%.\(decimals)f", $0) : String(Int($0.rounded())) } ?? String(localized: "no data yet")). See how it is scored."))
-            if let pill {
-                Text(pill)
-                    .font(StrandFont.overlineScaled(8.5)).tracking(1.2)
-                    .lineLimit(1).minimumScaleFactor(0.8)   // #74: source pill never wraps the hero card
-                    // WHOOP pill on the pinned-dark hero card → on-dark token, not the theme-flipping one (#1013).
-                    .foregroundStyle(StrandPalette.onDarkSecondary)
-                    .padding(.horizontal, 8).padding(.vertical, 2.5)
-                    .background(Capsule().fill(.white.opacity(0.05))
-                        .overlay(Capsule().strokeBorder(.white.opacity(0.18), lineWidth: 1)))
-            } else {
-                Color.clear.frame(height: 18) // keep the three labels vertically aligned
-            }
         }
         .frame(maxWidth: .infinity)
         .onAppear { rollTo(score) }

@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
@@ -399,10 +400,13 @@ fun SourceBadge(text: String, tint: Color = Palette.accent, modifier: Modifier =
         maxLines = 1,                          // #74: e.g. "ON-DEVICE" stays on one line, never wraps the hero
         overflow = TextOverflow.Ellipsis,
         modifier = modifier
+            // Preserve the canonical compact height at the default font scale, but grow instead of clipping
+            // when Android's font scaling makes the single-line label taller.
+            .heightIn(min = Metrics.sourceBadgeHeight)
             .clip(shape)
             .background(tint.copy(alpha = 0.14f))
             .border(1.dp, tint.copy(alpha = 0.30f), shape)
-            .padding(horizontal = 8.dp, vertical = 3.dp),
+            .padding(horizontal = Metrics.space8),
     )
 }
 

@@ -322,4 +322,24 @@ final class TodayExplainabilityTests: XCTestCase {
                                                appleHealthSource: "apple-health"),
             "Mi Band")
     }
+
+    func testLiquidHeroSourceLabel_deduplicatesOneWinner() {
+        XCTAssertEqual(
+            LiquidTodayView.heroSourceLabel(
+                rawSources: ["my-whoop-noop", "my-whoop-noop", "my-whoop-noop"],
+                deviceId: "my-whoop"),
+            "On-device")
+    }
+
+    func testLiquidHeroSourceLabel_capsMixedWinnersAtTwoInScoreOrder() {
+        XCTAssertEqual(
+            LiquidTodayView.heroSourceLabel(
+                rawSources: ["my-whoop", "my-whoop-noop", "apple-health"],
+                deviceId: "my-whoop"),
+            "Whoop + On-device")
+    }
+
+    func testLiquidHeroSourceLabel_hidesWhenNoScoreHasAResolvedSource() {
+        XCTAssertNil(LiquidTodayView.heroSourceLabel(rawSources: [], deviceId: "my-whoop"))
+    }
 }
