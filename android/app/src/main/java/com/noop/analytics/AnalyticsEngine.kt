@@ -448,6 +448,9 @@ object AnalyticsEngine {
             sleepNeedHours = sleepNeedHours,
             consistency = sleepConsistency,
         )
+        // #345: gravity-sparse computed ONCE — reused by the sleep-motion trace below AND the Rest
+        // confidence guard, so the two can never diverge and isGravitySparse runs only once per day.
+        val gravitySparse = SleepStager.isGravitySparse(gravity, hr)
         // Sleep & Rest test mode (E11): emit the Rest sub-score breakdown for this night, reusing the
         // IDENTICAL inputs `rest` consumed above so the trace can never disagree with the score. Emitted
         // only when a trace is requested and this day scored a night. Mirrors Swift.
@@ -462,7 +465,7 @@ object AnalyticsEngine {
             // night can be explained from an export — WHOOP 4.0 banks motion coarsely (sparse=true), so most
             // epochs default to sleep → over-counted duration → high Rest; `stager` says whether V1/V2 ran.
             traceSink(RestScorer.sleepMotionLine(day, gravity.size, hr.size,
-                SleepStager.isGravitySparse(gravity, hr), useSleepStagerV2, skinTempFamily))
+                gravitySparse, useSleepStagerV2, skinTempFamily))
             // #271: the ONSET decision — did HR dip when the window opened, or did it open on a still-but-
             // awake stretch (HR still ~baseline)? Both the day-median baseline AND the at-onset window read
             // from the SAME HR that DETECTION ran over (`dayHr ?: hr` — the full calendar day when the caller
@@ -617,15 +620,18 @@ object AnalyticsEngine {
         // ── Per-score confidence tiers (mirror Swift ScoreConfidence.derive decisions) ──
         val chargeConfidence = ScoreConfidence.forCharge(recovery, baselines.hrv)
         val effortConfidence = ScoreConfidence.forEffort(strain, hr.size)
-        // Rest confidence with H9: downgrade a high-efficiency night whose deep+REM share is implausibly low
-        // to low-confidence (likely staging miss) — honest, no faked stages. tstS/efficiency are the
-        // main-group totals computed above; restorative = deepS + remS. Mirrors Swift.
+        // Rest confidence with H9 + the #345 sparse-motion guard: downgrade to low-confidence a night whose
+        // deep+REM share is implausibly low on a high-efficiency night (H9 staging miss) OR that was staged
+        // on sparse gravity (WHOOP 4.0 coarse-banked motion can't reliably stage sleep — a confident 85–100
+        // Rest is unearned however the engine filled it). Confidence-only, no faked stages. tstS/efficiency
+        // are the main-group totals above; restorative = deepS + remS. Mirrors Swift.
         val restConfidence = ScoreConfidence.forRest(
             hasSession = matched.isNotEmpty(),
             hasStagedSleep = (deepS + remS) > 0,
             asleepSeconds = tstS,
             restorativeSeconds = deepS + remS,
             efficiency = efficiency,
+            gravitySparse = gravitySparse,
         )
 
         // ── Per-session per-epoch motion (H8) ─────────────────────────────────
