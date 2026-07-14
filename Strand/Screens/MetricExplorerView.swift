@@ -107,22 +107,20 @@ private func metricGaugeFraction(_ m: MetricDescriptor, value: Double) -> Double
 
 // MARK: - Range
 
-/// The 1D/2D/W/2W/M/3M/6M/1Y/ALL window, driving the single SegmentedPillControl.
+/// The W/2W/3W/M/3M/6M/1Y/ALL window, driving the single SegmentedPillControl.
 enum ExploreRange: Int, CaseIterable, Identifiable, Hashable {
-    case oneDay = 1, twoDays = 2, week = 7, twoWeeks = 14, month = 30, quarter = 90, half = 180, year = 365, all = 0
+    case week = 7, twoWeeks = 14, threeWeeks = 21, month = 30, quarter = 90, half = 180, year = 365, all = 0
     var id: Int { rawValue }
     var label: String {
         switch self {
-        case .oneDay: return String(localized: "1D"); case .twoDays: return String(localized: "2D")
-        case .twoWeeks: return String(localized: "2W")
+        case .twoWeeks: return String(localized: "2W"); case .threeWeeks: return String(localized: "3W")
         case .week: return String(localized: "W"); case .month: return String(localized: "M"); case .quarter: return String(localized: "3M")
         case .half: return String(localized: "6M"); case .year: return String(localized: "1Y"); case .all: return String(localized: "ALL")
         }
     }
     var name: String {
         switch self {
-        case .oneDay: return String(localized: "day"); case .twoDays: return String(localized: "2 days")
-        case .twoWeeks: return String(localized: "2 weeks")
+        case .twoWeeks: return String(localized: "2 weeks"); case .threeWeeks: return String(localized: "3 weeks")
         case .week: return String(localized: "week"); case .month: return String(localized: "month"); case .quarter: return String(localized: "quarter")
         case .half: return String(localized: "6 months"); case .year: return String(localized: "year"); case .all: return String(localized: "all time")
         }
@@ -147,8 +145,8 @@ enum ExploreRange: Int, CaseIterable, Identifiable, Hashable {
 enum ExploreRangeGating {
     static func coerced(selection: ExploreRange, isUnlocked: (ExploreRange) -> Bool) -> ExploreRange {
         if isUnlocked(selection) { return selection }
-        return [ExploreRange.year, .half, .quarter, .month, .twoWeeks, .week, .twoDays, .oneDay]
-            .first { $0.days != nil && $0.rawValue <= selection.rawValue && isUnlocked($0) } ?? .oneDay
+        return [ExploreRange.year, .half, .quarter, .month, .threeWeeks, .twoWeeks, .week]
+            .first { $0.days != nil && $0.rawValue <= selection.rawValue && isUnlocked($0) } ?? .week
     }
 }
 
@@ -574,20 +572,19 @@ struct MetricDetailView: View {
     /// would actually show more than the range below it. Before that, every window is taken
     /// relative to the latest point, so thin history sat inside all of them and the six chips
     /// drew byte-identical charts (a week of data stretched full-width under a 1Y label).
-    /// 1D (the shortest) and ALL (the honest everything view) are never gated, so a calibrating
+    /// W (the shortest) and ALL (the honest everything view) are never gated, so a calibrating
     /// user always has a selectable range; until the series loads (or with no history at all)
     /// nothing is gated, since the empty state deliberately keeps the full range bar for context.
     private func isUnlocked(_ r: ExploreRange) -> Bool {
         guard loaded, !series.isEmpty else { return true }
         switch r {
-        case .oneDay, .all: return true
-        case .twoDays:  return historySpanDays > ExploreRange.oneDay.rawValue
-        case .week:     return historySpanDays > ExploreRange.twoDays.rawValue
-        case .twoWeeks: return historySpanDays > ExploreRange.week.rawValue
-        case .month:    return historySpanDays > ExploreRange.twoWeeks.rawValue
-        case .quarter:  return historySpanDays > ExploreRange.month.rawValue
-        case .half:     return historySpanDays > ExploreRange.quarter.rawValue
-        case .year:     return historySpanDays > ExploreRange.half.rawValue
+        case .week, .all: return true
+        case .twoWeeks:   return historySpanDays > ExploreRange.week.rawValue
+        case .threeWeeks: return historySpanDays > ExploreRange.twoWeeks.rawValue
+        case .month:      return historySpanDays > ExploreRange.threeWeeks.rawValue
+        case .quarter:    return historySpanDays > ExploreRange.month.rawValue
+        case .half:       return historySpanDays > ExploreRange.quarter.rawValue
+        case .year:       return historySpanDays > ExploreRange.half.rawValue
         }
     }
 
