@@ -679,9 +679,9 @@ object IntelligenceEngine {
         // absent), which keeps that imported day as a missing night. HRV/RHR are the dominant
         // recovery drivers (~60%/~20%), so this substitution skewed Charge vs iOS. (The author already
         // fixed this for the low-weight resp term below; HRV/RHR were missed.)
-        for ((day, v) in nightlyHrvByDay) if (day !in histHrvByDay) histHrvByDay[day] = v
-        for ((day, v) in nightlyRhrByDay) if (day !in histRhrByDay) histRhrByDay[day] = v
-        for ((day, v) in nightlyRespByDay) if (day !in histRespByDay) histRespByDay[day] = v
+        mergeNightlyIntoHistory(histHrvByDay, nightlyHrvByDay)
+        mergeNightlyIntoHistory(histRhrByDay, nightlyRhrByDay)
+        mergeNightlyIntoHistory(histRespByDay, nightlyRespByDay)
         // Sort once so the HRV values + their "yyyy-MM-dd" day keys stay parallel (same order/length) for
         // the recalibration-aware foldHistory below.
         val hrvSorted = histHrvByDay.entries.sortedBy { it.key }
@@ -1624,6 +1624,23 @@ object IntelligenceEngine {
      * Floor a unix-seconds timestamp to 00:00:00 of its UTC calendar day. AnalyticsEngine.dayString
      * uses UTC, so UTC midnight = ts - floorMod(ts, 86400). floorMod is correct for any sign.
      */
+    /**
+     * Merge one metric's on-device pass-1 nightly values into the imported-history map.
+     * Imported (cloud) values WIN per day; the computed estimate only fills days the import
+     * does not cover at all (key absent). Mirrors the Swift `mergeNightlyIntoHistory`.
+     */
+    internal fun mergeNightlyIntoHistory(
+        hist: LinkedHashMap<String, Double?>,
+        nightly: Map<String, Double?>,
+    ) {
+        // `day !in hist` only checks KEY presence — an imported row with a null
+        // value would shadow the real computed night forever, starving the
+        // baseline (the "Needs the strap" bug). `hist[day] == null` is true for
+        // both absent keys and null values: imported non-null wins, a null (or
+        // absent) slot is backfilled by the computed value.
+        for ((day, v) in nightly) if (hist[day] == null) hist[day] = v
+    }
+
     internal fun midnightUtc(ts: Long): Long = ts - Math.floorMod(ts, SECONDS_PER_DAY)
 
     /**

@@ -810,9 +810,9 @@ final class IntelligenceEngine: ObservableObject {
             histRhrByDay[d.day] = d.restingHr.map(Double.init)
             histRespByDay[d.day] = d.respRateBpm
         }
-        for (day, v) in nightlyHrvByDay where histHrvByDay[day] == nil { histHrvByDay[day] = v }
-        for (day, v) in nightlyRhrByDay where histRhrByDay[day] == nil { histRhrByDay[day] = v }
-        for (day, v) in nightlyRespByDay where histRespByDay[day] == nil { histRespByDay[day] = v }
+        Self.mergeNightlyIntoHistory(&histHrvByDay, nightlyHrvByDay)
+        Self.mergeNightlyIntoHistory(&histRhrByDay, nightlyRhrByDay)
+        Self.mergeNightlyIntoHistory(&histRespByDay, nightlyRespByDay)
         // rhr/resp/skin honour the Charge-wide recalibration epoch (noop.recoveryBaselineEpoch); 0 = no-op,
         // so this is byte-identical to the plain fold until the user taps Recalibrate, at which point the
         // whole Charge build-up (HRV + resting HR + resp + skin) re-anchors together.
@@ -1803,5 +1803,24 @@ private extension DailyMetric {
                     strain: strain, exerciseCount: exerciseCount, spo2Pct: spo2Pct,
                     skinTempDevC: skinTempDevC, respRateBpm: respRateBpm, steps: steps,
                     activeKcalEst: activeKcalEst, spo2Red: spo2Red, spo2Ir: spo2Ir)
+    }
+}
+
+extension IntelligenceEngine {
+    /// Merge one metric's on-device pass-1 nightly values into the imported-history map.
+    /// Imported (cloud) values WIN per day; the computed estimate only fills days the import
+    /// does not cover at all (key absent). Twin of the Kotlin `mergeNightlyIntoHistory`.
+    nonisolated static func mergeNightlyIntoHistory(
+        _ hist: inout [String: Double?], _ nightly: [String: Double?]
+    ) {
+        // `hist` values are themselves Optional, so `hist[day] == nil` is only
+        // true when the KEY is absent — an imported row with a nil value is
+        // `.some(.none)` and would shadow the real computed night forever,
+        // starving the baseline (the "Needs the strap" bug). Imported non-nil
+        // wins; a nil (or absent) slot is backfilled by the computed value.
+        for (day, v) in nightly {
+            if let existing = hist[day], existing != nil { continue }  // imported non-nil wins
+            hist[day] = v
+        }
     }
 }

@@ -1,5 +1,30 @@
 import XCTest
+import SwiftUI
 @testable import Strand
+
+/// Renders a `LocalizedStringKey` to its user-visible string so tests can keep pinning verbatim copy.
+///
+/// The production `title` keys are deliberately built with interpolation ("Last night · \(date)") so the
+/// string-catalog extractor sees the "Last night · %@" format key (#779). `LocalizedStringKey` equality
+/// compares the key pattern + formatting flag, so an interpolated key never equals a literal one — tests
+/// must compare the rendered text instead. Mirror is the only supported-ish way to get at the key and its
+/// arguments; if SwiftUI's internals shift, this fails loudly (nil) rather than passing vacuously.
+private func rendered(_ key: LocalizedStringKey?) -> String? {
+    guard let key else { return nil }
+    let mirror = Mirror(reflecting: key)
+    guard let pattern = mirror.descendant("key") as? String else { return nil }
+    guard let args = mirror.descendant("arguments") as? [Any], !args.isEmpty else { return pattern }
+    var cvarArgs: [CVarArg] = []
+    for arg in args {
+        // FormatArgument(storage: .value(CVarArg, Formatter?)) — descend to the first leaf value.
+        let storage = Mirror(reflecting: arg).descendant("storage") ?? arg
+        guard let payload = Mirror(reflecting: storage).children.first?.value else { return nil }
+        let leaf = Mirror(reflecting: payload).children.first?.value ?? payload
+        guard let cvar = leaf as? CVarArg else { return nil }
+        cvarArgs.append(cvar)
+    }
+    return String(format: pattern, arguments: cvarArgs)
+}
 
 /// Sleep & Recovery guidance / explainability layer — the Today lane pure mappers (spec 2026-06-20).
 ///
@@ -42,7 +67,7 @@ final class TodayExplainabilityTests: XCTestCase {
                                    carriedDate: "14 Jun",
                                    carriedStale: false)
         XCTAssertEqual(s, .carriedLastNight(date: "14 Jun", stale: false))
-        XCTAssertEqual(s.title, "Last night · 14 Jun")
+        XCTAssertEqual(rendered(s.title), "Last night · 14 Jun")
     }
 
     func testScoreState_staleCarry_relabelsLatestSleep() {
@@ -53,7 +78,7 @@ final class TodayExplainabilityTests: XCTestCase {
                                    carriedDate: "14 May",
                                    carriedStale: true)
         XCTAssertEqual(s, .carriedLastNight(date: "14 May", stale: true))
-        XCTAssertEqual(s.title, "Latest sleep · 14 May")
+        XCTAssertEqual(rendered(s.title), "Latest sleep · 14 May")
         XCTAssertEqual(s.accessibilityText,
                        "Latest sleep, 14 May. This is your last scored session. Wear the strap overnight for a fresh score.")
     }
