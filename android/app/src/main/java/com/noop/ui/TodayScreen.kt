@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -381,6 +382,8 @@ fun TodayScreen(
     // SharedPreferences isn't reactive, so it's mirrored into local state and re-read when the editor saves.
     var showMetricsEditor by remember { mutableStateOf(false) }
     var enabledKeyMetrics by remember { mutableStateOf(KeyMetricPrefs.enabled(context)) }
+    // Detailed Key-Metrics tiles (squarer + 14-day trend graph), set from the same editor.
+    var keyMetricsDetailed by remember { mutableStateOf(KeyMetricPrefs.detailed(context)) }
     // #today-layout: the user-ordered below-hero section list + its editor dialog flag. Read once (prefs
     // aren't reactive) and re-read on the editor's save, exactly like enabledKeyMetrics above.
     var showLayoutEditor by remember { mutableStateOf(false) }
@@ -1396,6 +1399,8 @@ fun TodayScreen(
                                     onScoreInfo = openGuide,
                                     metricsExpanded = metricsExpanded,
                                     onToggleMetrics = { metricsExpanded = !metricsExpanded },
+                                    detailed = keyMetricsDetailed,
+                                    onOpenMetric = onOpenMetric,
                                 )
                             }
                         }
@@ -1528,10 +1533,13 @@ fun TodayScreen(
     if (showMetricsEditor) {
         KeyMetricsEditorDialog(
             initial = enabledKeyMetrics,
+            initialDetailed = keyMetricsDetailed,
             onDismiss = { showMetricsEditor = false },
-            onSave = { metrics ->
+            onSave = { metrics, detailed ->
                 KeyMetricPrefs.setEnabled(context, metrics)
+                KeyMetricPrefs.setDetailed(context, detailed)
                 enabledKeyMetrics = metrics
+                keyMetricsDetailed = detailed
                 showMetricsEditor = false
             },
         )
@@ -4579,6 +4587,11 @@ private fun MetricGrid(
     // grid fully expanded for any caller that doesn't opt into the cap.
     metricsExpanded: Boolean = true,
     onToggleMetrics: () -> Unit = {},
+    // Detailed tiles (the #251 editor's switch): squarer tiles with a 14-day trend graph under the bar.
+    detailed: Boolean = false,
+    // Tile drill-ins: every tile opens its focused trend timeline (vital_detail/<key>, the Sleep
+    // night-detail pattern) via [onOpenMetric].
+    onOpenMetric: (String) -> Unit = {},
 ) {
     // FIX 3 (iOS `keyMetricsSection` parity): a 3-COLUMN grid of COMPACT liquid tiles, each an iOS `ktile`
     // — a 9sp/+1.2 overline label, a value + small unit, and a thin 8dp LiquidTube fill bar — REPLACING the
@@ -4596,6 +4609,7 @@ private fun MetricGrid(
                 unit = if (d?.recovery != null || lastScoredCharge != null) "%" else "",
                 tint = v?.let { Palette.recoveryColor(it) } ?: Palette.chargeColor,
                 frac = v?.let { (it / 100.0).coerceIn(0.0, 1.0) },
+                spark = w.recovery,
             )
         },
         KeyMetric.EFFORT to KeyTileData(
@@ -4604,6 +4618,7 @@ private fun MetricGrid(
             unit = if (d?.strain != null) "%" else "",
             tint = d?.strain?.let { Palette.effortTint(it / StrainScorer.maxStrain) } ?: Palette.effortColor,
             frac = d?.strain?.let { (it / 100.0).coerceIn(0.0, 1.0) },
+            spark = w.strain,
         ),
         KeyMetric.REST to KeyTileData(
             label = "Rest",
@@ -4611,6 +4626,7 @@ private fun MetricGrid(
             unit = if (restScore != null) "%" else "",
             tint = restScore?.let { Palette.recoveryColor(it) } ?: Palette.restColor,
             frac = restScore?.let { (it / 100.0).coerceIn(0.0, 1.0) },
+            spark = restSpark,
         ),
         KeyMetric.HRV to run {
             val v = d?.avgHrv ?: carriedDay?.avgHrv
@@ -4620,6 +4636,7 @@ private fun MetricGrid(
                 unit = if (v != null) "ms" else "",
                 tint = Palette.metricCyan,
                 frac = v?.let { (it / 120.0).coerceIn(0.0, 1.0) },
+                spark = w.hrv,
             )
         },
         KeyMetric.RESTING_HR to run {
@@ -4630,6 +4647,7 @@ private fun MetricGrid(
                 unit = if (v != null) "bpm" else "",
                 tint = Palette.metricRose,
                 frac = v?.let { (it / 100.0).coerceIn(0.0, 1.0) },
+                spark = w.rhr,
             )
         },
         KeyMetric.BLOOD_OXYGEN to run {
@@ -4640,6 +4658,7 @@ private fun MetricGrid(
                 unit = if (v != null) "%" else "",
                 tint = Palette.metricCyan,
                 frac = v?.let { (it / 100.0).coerceIn(0.0, 1.0) },
+                spark = w.spo2,
             )
         },
         KeyMetric.RESPIRATORY to run {
@@ -4650,6 +4669,7 @@ private fun MetricGrid(
                 unit = if (v != null) "rpm" else "",
                 tint = Palette.accent,
                 frac = v?.let { (it / 24.0).coerceIn(0.0, 1.0) },
+                spark = w.resp,
             )
         },
         KeyMetric.STEPS to run {
@@ -4683,8 +4703,26 @@ private fun MetricGrid(
         ),
     )
 
-    // Resolve the enabled tiles to their descriptors, dropping any unknown key defensively.
-    val allTiles = enabledMetrics.mapNotNull { descriptors[it] }
+    // Resolve the enabled tiles to their descriptors (keeping the metric for the tap mapping), dropping
+    // any unknown key defensively.
+    val allTiles = enabledMetrics.mapNotNull { m -> descriptors[m]?.let { m to it } }
+    // Tile tap -> its focused trend TIMELINE (the Sleep night-detail pattern), uniformly for every tile
+    // with a windowed series: Recovery/Effort/Rest open their new trend details; the vitals +
+    // Steps/Calories open the same vital_detail trends the Health cards use. Today's Charge DRIVERS stay
+    // on the hero ring's breakdown sheet (its existing home) — the tile is the history view.
+    // Weight has no windowed detail yet -> not tappable (null keeps the tile inert rather than lying).
+    fun tapFor(metric: KeyMetric): (() -> Unit)? = when (metric) {
+        KeyMetric.CHARGE -> ({ onOpenMetric("recovery") })
+        KeyMetric.EFFORT -> ({ onOpenMetric("strain") })
+        KeyMetric.REST -> ({ onOpenMetric("rest") })
+        KeyMetric.HRV -> ({ onOpenMetric("hrv") })
+        KeyMetric.RESTING_HR -> ({ onOpenMetric("rhr") })
+        KeyMetric.BLOOD_OXYGEN -> ({ onOpenMetric("spo2") })
+        KeyMetric.RESPIRATORY -> ({ onOpenMetric("resp") })
+        KeyMetric.STEPS -> ({ onOpenMetric("steps_est") })
+        KeyMetric.CALORIES -> ({ onOpenMetric("active_kcal") })
+        KeyMetric.WEIGHT -> null
+    }
     // S5: slice from the FRONT of the saved order so a pinned/selected tile is never dropped or reordered
     // (#251); only the tail folds behind the expander. Mirrors the iOS visibleKeyMetrics prefix(cap).
     val hasOverflow = allTiles.size > METRICS_COLLAPSED_CAP
@@ -4694,8 +4732,21 @@ private fun MetricGrid(
     // and a partial last row pads with empty weight so the columns stay aligned.
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         tiles.chunked(3).forEach { rowTiles ->
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                rowTiles.forEach { tile -> LiquidKeyTile(tile, modifier = Modifier.weight(1f)) }
+            // Detailed rows equalise heights (IntrinsicSize.Max + fillMaxHeight, the #399 idiom): a
+            // graph-less tile (Steps/Weight/Calories) sharing a row with graphed neighbours must not
+            // shrink its card. Compact rows keep the plain layout, byte-identical to before.
+            Row(
+                modifier = if (detailed) Modifier.height(IntrinsicSize.Max) else Modifier,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                rowTiles.forEach { (metric, tile) ->
+                    LiquidKeyTile(
+                        tile,
+                        detailed = detailed,
+                        onClick = tapFor(metric),
+                        modifier = Modifier.weight(1f).then(if (detailed) Modifier.fillMaxHeight() else Modifier),
+                    )
+                }
                 repeat(3 - rowTiles.size) { Spacer(Modifier.weight(1f)) }
             }
         }
@@ -4723,13 +4774,16 @@ private fun MetricGrid(
     }
 }
 
-/** One compact Key-Metrics tile's data: iOS `ktile`(label, value, unit, tint, frac). */
+/** One compact Key-Metrics tile's data: iOS `ktile`(label, value, unit, tint, frac). [spark] is the
+ *  14-day trend series (oldest→newest) the DETAILED tile style graphs; empty hides the graph (a metric
+ *  with no windowed series — Steps/Weight/Calories — stays tube-only even in detailed mode). */
 private data class KeyTileData(
     val label: String,
     val value: String,
     val unit: String,
     val tint: Color,
     val frac: Double?,
+    val spark: List<Double> = emptyList(),
 )
 
 /**
@@ -4737,12 +4791,32 @@ private data class KeyTileData(
  * unit (caption), and a thin 8dp [LiquidTube] fill bar tinted [KeyTileData.tint] to [KeyTileData.frac].
  * Flat surfaceRaised fill + a 16dp-corner hairline (iOS ktile background), padding 12h / 11v. Replaces the
  * old tall 2-column SparkStatTile. A No-Data value dims and the tube reads empty.
+ *
+ * [detailed] (the #251 editor's "Detailed tiles" switch): the tile grows a 14-day trend [Sparkline] in the
+ * metric's tint under the fill bar — taller/squarer, per the tester mock. A metric with no windowed series
+ * (Steps/Weight/Calories) or fewer than two points stays tube-only, so no tile ever draws a fake flat line.
  */
 @Composable
-private fun LiquidKeyTile(data: KeyTileData, modifier: Modifier = Modifier) {
+private fun LiquidKeyTile(
+    data: KeyTileData,
+    detailed: Boolean = false,
+    onClick: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+) {
     val hasValue = data.value != NO_DATA
+    // Tap -> the tile's focused trend detail (the Sleep night-detail tile idiom): liquidPress on the
+    // tappable tile, indication = null so only the liquid settle shows. A null onClick keeps the tile
+    // inert with zero modifier overhead (byte-identical to before).
+    val interaction = remember { MutableInteractionSource() }
+    val base = if (onClick != null) {
+        modifier
+            .liquidPress(interaction)
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+    } else {
+        modifier
+    }
     Column(
-        modifier = modifier
+        modifier = base
             .clip(RoundedCornerShape(16.dp))
             .frostedCardSurface(cornerRadius = 16.dp)
             .padding(horizontal = 12.dp, vertical = 11.dp)
@@ -4772,6 +4846,9 @@ private fun LiquidKeyTile(data: KeyTileData, modifier: Modifier = Modifier) {
                 )
             }
         }
+        // Detailed rows are height-equalised (fillMaxHeight): pin the bar + graph to the bottom edge so a
+        // graph-less tile's bar lines up with its neighbours' bars rather than floating mid-card.
+        if (detailed) Spacer(Modifier.weight(1f))
         LiquidTube(
             frac = data.frac ?: 0.0,
             tint = data.tint,
@@ -4779,6 +4856,21 @@ private fun LiquidKeyTile(data: KeyTileData, modifier: Modifier = Modifier) {
             animated = false,
             modifier = Modifier.fillMaxWidth(),
         )
+        // Detailed tiles: the 14-day trend graph under the bar (same Sparkline leaf the Sleep tiles use,
+        // at the shared tile spark height), tinted to the metric so the graph reads as the same signal.
+        if (detailed) {
+            val tail = data.spark.takeLast(14)
+            if (tail.size >= 2) {
+                Sparkline(
+                    values = tail,
+                    color = data.tint,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 2.dp)
+                        .height(Metrics.sparkHeight),
+                )
+            }
+        }
     }
 }
 
@@ -6370,9 +6462,12 @@ private data class EditableMetric(val metric: KeyMetric, val enabled: Boolean)
 @Composable
 private fun KeyMetricsEditorDialog(
     initial: List<KeyMetric>,
+    initialDetailed: Boolean = false,
     onDismiss: () -> Unit,
-    onSave: (List<KeyMetric>) -> Unit,
+    onSave: (List<KeyMetric>, Boolean) -> Unit,
 ) {
+    // Detailed tiles: taller/squarer with a 14-day trend graph under the fill bar (display-only).
+    var detailed by remember { mutableStateOf(initialDetailed) }
     // Working copy: enabled tiles first (saved order), then the disabled remainder in the default order,     // so toggling one on drops it at the end of the visible set, and every known tile is listed once.
     val items = remember {
         val enabledSet = initial.toHashSet()
@@ -6406,6 +6501,34 @@ private fun KeyMetricsEditorDialog(
                         color = Palette.textSecondary,
                     )
                 }
+
+                // Detailed tiles: the tile-style option (compact ktile vs squarer tile + 14-day graph).
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("Detailed tiles", style = NoopType.body, color = Palette.textPrimary)
+                        Text(
+                            "Squarer tiles with a 14-day trend graph under the bar.",
+                            style = NoopType.caption,
+                            color = Palette.textSecondary,
+                        )
+                    }
+                    Switch(
+                        checked = detailed,
+                        onCheckedChange = { detailed = it },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Palette.surfaceBase,
+                            checkedTrackColor = Palette.accent,
+                            uncheckedThumbColor = Palette.textSecondary,
+                            uncheckedTrackColor = Palette.surfaceInset,
+                            uncheckedBorderColor = Palette.hairline,
+                        ),
+                        modifier = Modifier.semantics { contentDescription = "Detailed tiles" },
+                    )
+                }
+                HorizontalDivider(color = Palette.hairline, thickness = 1.dp)
 
                 Column(
                     modifier = Modifier
@@ -6478,7 +6601,7 @@ private fun KeyMetricsEditorDialog(
                     ) { Text("Reset", style = NoopType.body) }
                     Spacer(Modifier.weight(1f))
                     Button(
-                        onClick = { onSave(items.filter { it.enabled }.map { it.metric }) },
+                        onClick = { onSave(items.filter { it.enabled }.map { it.metric }, detailed) },
                         // At least one tile must stay visible, an empty grid reads as a bug, not a choice.
                         enabled = items.any { it.enabled },
                         colors = ButtonDefaults.buttonColors(

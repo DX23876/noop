@@ -1949,13 +1949,15 @@ private data class VitalDetailModel(
  *  (Fitness Age + Vitality under the computed strap, Steps estimate, Apple active energy). Each Today
  *  dashboard card taps through to ITS OWN focused trend here (2026-07-03), so these load their
  *  series from the repo on demand rather than off the cached `days` columns. Mirrors iOS metricDetail. */
-private val SERIES_BACKED_VITAL_KEYS = setOf("fitness_age", "vitality", "steps_est", "active_kcal")
+private val SERIES_BACKED_VITAL_KEYS = setOf("fitness_age", "vitality", "steps_est", "active_kcal", "rest")
 
 @Composable
 fun VitalDetailScreen(vm: AppViewModel, key: String) {
     val days by vm.recentDays.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val tempUnit = UnitPrefs.temperature(context)
+    // The Effort detail renders per the user's Effort display scale (0-100 vs 0-21), like the Today tile.
+    val effortScale = UnitPrefs.effortScale(context)
     // Profile drives the Fitness Age readiness/countdown shown when that vital has no value yet.
     val profile = remember { ProfileStore.from(context.applicationContext) }
     val isSeriesBacked = key in SERIES_BACKED_VITAL_KEYS
@@ -1976,7 +1978,7 @@ fun VitalDetailScreen(vm: AppViewModel, key: String) {
         }
     }
     val detail = if (isSeriesBacked) seriesDetail
-    else remember(days, key, tempUnit) { buildVitalDetail(days, key, tempUnit) }
+    else remember(days, key, tempUnit, effortScale) { buildVitalDetail(days, key, tempUnit, effortScale) }
     var range by remember { mutableStateOf(VitalDetailRange.MONTH) }
 
     // The subtitle tracks how much history the metric has, so we never promise a "historical trend" the
@@ -2421,8 +2423,29 @@ private fun buildVitalDetail(
     days: List<DailyMetric>,
     key: String,
     tempUnit: TemperatureUnit,
+    effortScale: EffortScale = EffortScale.HUNDRED,
 ): VitalDetailModel? {
     return when (key) {
+    // The Today Key-Metrics Recovery tile's drill-in: the Recovery (Charge) trend timeline, matching the
+    // Sleep night-detail pattern. Today's DRIVERS stay on the hero ring's breakdown sheet; this is history.
+    "recovery" -> VitalDetailModel(
+        key = key,
+        title = "Recovery",
+        unit = "%",
+        color = Palette.chargeColor,
+        readings = days.mapNotNull { row -> row.recovery?.let { VitalReading(row.day, it, row.deviceId) } },
+        format = { it.roundToInt().toString() },
+    )
+    // The Today Key-Metrics Effort tile's drill-in: the day-strain trend, rendered per the user's Effort
+    // display scale like the tile itself. Readings store the RAW 0-100 composite; only format() scales.
+    "strain" -> VitalDetailModel(
+        key = key,
+        title = "Effort",
+        unit = if (effortScale == EffortScale.HUNDRED) "%" else "",
+        color = Palette.effortColor,
+        readings = days.mapNotNull { row -> row.strain?.let { VitalReading(row.day, it, row.deviceId) } },
+        format = { UnitFormatter.effortDisplay(it, effortScale) },
+    )
     "resp" -> VitalDetailModel(
         key = key,
         title = "Respiratory Rate",
@@ -2489,6 +2512,19 @@ private fun buildVitalDetail(
  *  off the resolved step series (imported ∪ estimated), Active Energy off the Apple-Health import. Colours
  *  match each card's dashboard tint. Returns null for an unknown key. */
 private suspend fun buildSeriesVitalDetail(vm: AppViewModel, key: String): VitalDetailModel? = when (key) {
+    // The Today Key-Metrics Rest tile's drill-in: the Rest composite (sleep_performance) trend, read via
+    // the SAME imported-wins resolvedSeries merge the tile's score/sparkline use, so the detail can never
+    // disagree with the tile (#248 lineage). Each reading names its winning source for the caption.
+    "rest" -> VitalDetailModel(
+        key = key,
+        title = "Rest",
+        unit = "%",
+        color = Palette.restColor,
+        readings = vm.repo.resolvedSeries("sleep_performance", "my-whoop", "0000-00-00", "9999-99-99",
+            strapDeviceId = vm.activeStrapId)
+            .points.map { VitalReading(it.day, it.value, it.source) },
+        format = { it.roundToInt().toString() },
+    )
     "fitness_age" -> VitalDetailModel(
         key = key,
         title = "Fitness Age",
