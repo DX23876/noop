@@ -527,6 +527,8 @@ fun SleepScreen(
                 habitualMidsleepSec = habitualMidsleep,
                 motionEpochs = night?.groupMotion ?: emptyList(),
                 groupInBedMin = night?.groupInBedMin,
+                windowOnsetTs = night?.heroOnsetTs,
+                windowWakeTs = night?.heroWakeTs,
             )
             }
             // Tiles / ledger / trends read the FULL-history model (#940): they stay up when only the
@@ -804,6 +806,12 @@ private fun Hero(
     // excluded, computed by `selectNight`. Null for single-block days → the session-window /
     // stage-total fallbacks below apply unchanged.
     groupInBedMin: Double? = null,
+    // The whole bridged night's clock window (#345, HeroNight.heroOnsetTs/heroWakeTs): on a split
+    // night `session` is one fragment, so its endTs is NOT the night's wake — the Asleep/Woke row
+    // and the hypnogram axis read these instead. Null (single-block days, older callers) falls back
+    // to the session window below, byte-identical to before.
+    windowOnsetTs: Long? = null,
+    windowWakeTs: Long? = null,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
         NightNavHeader(nightOffset, lastIndex, clock, onNavigate, session, onUpdateTimes, onDeleteSession, onAddNap, onPickNightDate)
@@ -812,7 +820,9 @@ private fun Hero(
         // between the two chevrons on a phone, so in practice the two times people look for first
         // were effectively hidden. Shown for every night that has a session (including the stage-less
         // stub, where it's the only thing the hero can say). Mirrors iOS SleepView.sleepWindowRow.
-        session?.let { SleepWindowRow(it) }
+        // #345: the row shows the WHOLE night's window — on a split night the session (edit anchor)
+        // ends mid-night and its endTs contradicted the header pill two lines above.
+        session?.let { SleepWindowRow(windowOnsetTs ?: it.effectiveStartTs, windowWakeTs ?: it.endTs) }
         if (display == null) {
             // Honest fallback: this night recorded no usable stage data — never silently
             // substitute another night's hypnogram. (#160)
@@ -850,8 +860,11 @@ private fun Hero(
                     StageTimeline(
                         realSegments = real,
                         s = s,
-                        onsetTs = session?.effectiveStartTs,
-                        wakeTs = session?.endTs,
+                        // #345: the axis spans the WHOLE night. The group hypnogram (#364 seams) runs to
+                        // the group's last wake; labelling the axis off the session fragment's endTs cut
+                        // the clock labels short on a split night.
+                        onsetTs = windowOnsetTs ?: session?.effectiveStartTs,
+                        wakeTs = windowWakeTs ?: session?.endTs,
                         motionEpochs = motionEpochs,
                     )
                 }
@@ -1643,9 +1656,9 @@ private fun stageColorFor(name: String): Color = when (name.trim().lowercase()) 
  * combined into one TalkBack element. Mirrors iOS SleepView.sleepWindowRow (PR #289).
  */
 @Composable
-private fun SleepWindowRow(session: SleepSession) {
-    val asleep = clockTimeLabel(session.effectiveStartTs)
-    val woke = clockTimeLabel(session.endTs)
+private fun SleepWindowRow(onsetTs: Long, wakeTs: Long) {
+    val asleep = clockTimeLabel(onsetTs)
+    val woke = clockTimeLabel(wakeTs)
     // A frosted Rest-tinted card (was a flat surfaceRaised block) so the window row sits in the
     // same colour world as the rest of the screen. Bevel treatment — content unchanged.
     NoopCard(
@@ -2761,6 +2774,15 @@ internal data class HeroNight(
     // the efficiency shown beside it stays coherent. Null for a single-block day → the hero keeps
     // its session-window / stage-total fallbacks.
     val groupInBedMin: Double? = null,
+    // The whole bridged night's clock WINDOW (#345): the displayed bedtime (first non-stub fragment's
+    // onset, #736) to the group's latest wake — the same pair `clockLabel` above is built from, carried
+    // as timestamps so the Asleep/Woke row + the hypnogram axis can use them. On a split night `session`
+    // (the single WINNING fragment, kept as the edit anchor) can end mid-night, so reading ITS endTs
+    // made the WOKE time + the axis contradict the header pill and the group hypnogram. iOS needs no
+    // analogue: its merged Night synthesizes a group-spanning session (mergeDay's `synth`), so its
+    // window row and axis were already whole-night. Null only via the default → session fallback.
+    val heroOnsetTs: Long? = null,
+    val heroWakeTs: Long? = null,
 )
 
 /** What the hero card draws for the selected night — null means no usable stage data
@@ -2880,7 +2902,7 @@ internal fun selectNight(
         heroGroup.sumOf { (it.endTs - it.effectiveStartTs).coerceAtLeast(0L) } / 60.0
     } else null
     return HeroNight(session, dayKey, segments, clockLabelFor(heroOnsetTs, heroWakeTs), napBlocks, groupStages,
-        groupSegments, groupMotion, groupInBedMin)
+        groupSegments, groupMotion, groupInBedMin, heroOnsetTs, heroWakeTs)
 }
 
 /**

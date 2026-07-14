@@ -116,6 +116,13 @@ class SleepOnsetStubTest {
         assertTrue("biphasic night must keep both real fragments", hero.groupSegments!!.size >= 4)
         // The stub is not a nap — it stays inside the main-night group.
         assertTrue(hero.napBlocks.none { it.startTs == stubStart })
+        // #345: the hero's clock WINDOW spans the whole night — displayed bedtime (fragment A's onset,
+        // the stub dropped) to the GROUP's latest wake (fragment B's end). The winning session is
+        // fragment B (the longest), so reading ITS window would show B's onset/wake and the Asleep/Woke
+        // row + hypnogram axis would contradict the header pill on exactly this biphasic shape.
+        assertTrue("session (edit anchor) is fragment B", hero.session.startTs == bStart)
+        assertTrue("window opens at the displayed bedtime (fragment A)", hero.heroOnsetTs == aStart)
+        assertTrue("window closes at the group's latest wake (fragment B end)", hero.heroWakeTs == bEnd)
     }
 
     /** A genuine single-block night is unchanged: the session is that block. */
