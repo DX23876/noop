@@ -156,6 +156,20 @@ public enum SleepStagerV2 {
     static let jerkFloorGateMult = 55.0  // wake-boost when an epoch's peak jerk exceeds floor × this
     static let motionGateBoost = 2.0
 
+    /// Motion-corroborated wake (elevated-but-flat-HR nights). An epoch is MOTION-QUIESCENT when it shows no
+    /// observed movement (`moveFrac == 0`) AND its peak per-second jerk sits at/below the night's own quiescent
+    /// floor × `jerkFloorGateMult` — i.e. the wrist did not move this epoch, on the same night-relative scale
+    /// the wake jerk-gate uses. On such epochs the AWAKE emission keeps any wake-SUPPRESSING cardiac evidence
+    /// (a low, flat HR) but discards the wake-PROMOTING half: a raised HR / HR-variability with the wrist
+    /// motionless is a supplement / fever / hot-room / alcohol artefact, not wakefulness, and must not vote the
+    /// epoch awake on its own. This never invents wake and never removes negative (pro-sleep) cardiac evidence,
+    /// so a genuinely still low-HR sleep epoch is byte-identical; only a still epoch whose ELEVATED HR was about
+    /// to push it awake is held. Motion (`zmvv`) and the jerk gate — which by construction cannot fire on a
+    /// quiescent epoch (`jerkMax ≤ floor × gateMult`) — still drive wake on any epoch that actually moved.
+    static func motionQuiescent(_ f: Epoch) -> Bool {
+        f.moveFrac <= 0.0 && f.jerkMax <= f.jerkScale * jerkFloorGateMult
+    }
+
     /// Weight of the RSA respiration-regularity term (regular → deep, irregular → REM).
     static let respWeight = 0.6
 
@@ -437,11 +451,18 @@ public enum SleepStagerV2 {
         for f in feats {
             let zhrv = zhr(f.hr), zhvv = zhv(f.hrVar), zmvv = zmv(f.moveFrac)
             let gate = deepGateSlope * max(0.0, fpct(f.hrFlat11) - deepGateThresh)
+            // Cardiac contribution to the AWAKE emission. On a motion-quiescent epoch the wrist did not move,
+            // so a raised HR / HR-variability alone must NOT promote wake — clamp the cardiac term to ≤ 0,
+            // keeping only its wake-SUPPRESSING (pro-sleep) half. Non-quiescent epochs are unchanged and use
+            // upstream's restored (post-#437) cardiac coefficients verbatim, so a night with any motion stages
+            // byte-identical to upstream; the correction only ever holds a still, elevated-HR epoch.
+            let awakeCardiac0 = 0.8 * zhvv + 0.4 * zhrv
+            let awakeCardiac = motionQuiescent(f) ? min(0.0, awakeCardiac0) : awakeCardiac0
             var em: [String: Double] = [
                 "deep": -1.1 * zhvv - 0.5 * zmvv - gate + baseLogPrior["deep"]!,
                 "rem": 0.6 * zhvv - 0.6 * zmvv + 0.4 * zhrv + baseLogPrior["rem"]!,
                 "light": baseLogPrior["light"]!,
-                "awake": 1.0 * zmvv + 0.8 * zhvv + 0.4 * zhrv + baseLogPrior["awake"]!,
+                "awake": 1.0 * zmvv + awakeCardiac + baseLogPrior["awake"]!,
             ]
             let pr = cyclePrior(f.clock)
             for s in stageNames { em[s]! += pr[s]! }

@@ -175,6 +175,22 @@ object SleepStagerV2 {
     private const val jerkFloorGateMult = 55.0  // wake-boost when an epoch's peak jerk exceeds floor × this
     private const val motionGateBoost = 2.0
 
+    /**
+     * Motion-corroborated wake (elevated-but-flat-HR nights, #462). An epoch is MOTION-QUIESCENT when it shows
+     * no observed movement (`moveFrac == 0`) AND its peak per-second jerk sits at/below the night's own
+     * quiescent floor × [jerkFloorGateMult] — i.e. the wrist did not move this epoch, on the same
+     * night-relative scale the wake jerk-gate uses. On such epochs the AWAKE emission keeps any wake-SUPPRESSING
+     * cardiac evidence (a low, flat HR) but discards the wake-PROMOTING half: a raised HR / HR-variability with
+     * the wrist motionless is a supplement / fever / hot-room / alcohol artefact, not wakefulness, and must not
+     * vote the epoch awake on its own. Never invents wake and never removes pro-sleep cardiac evidence, so a
+     * genuinely still low-HR sleep epoch is byte-identical; only a still epoch whose ELEVATED HR was about to
+     * push it awake is held. Motion (`zmvv`) and the jerk gate — which by construction cannot fire on a
+     * quiescent epoch (`jerkMax ≤ floor × gateMult`) — still drive wake on any epoch that actually moved.
+     * Internal so the predicate test can call it, matching the Swift `motionQuiescent` visibility.
+     */
+    internal fun motionQuiescent(f: Epoch): Boolean =
+        f.moveFrac <= 0.0 && f.jerkMax <= f.jerkScale * jerkFloorGateMult
+
     /** Weight of the RSA respiration-regularity term (regular → deep, irregular → REM). */
     private const val respWeight = 0.6
 
@@ -187,8 +203,9 @@ object SleepStagerV2 {
         "awake" to mapOf("deep" to 0.01, "rem" to 0.02, "light" to 0.27, "awake" to 0.70))
 
     /** One 30 s epoch's recipe features. Nullable means "no measurement"; the z-score / percentile treat a
-     *  missing value as the neutral centre so a sparse channel never blocks a stage. */
-    private data class Epoch(
+     *  missing value as the neutral centre so a sparse channel never blocks a stage. Internal (not private) so
+     *  the motion-corroborated-wake predicate test can construct one, matching the Swift `Epoch` visibility. */
+    internal data class Epoch(
         val start: Long,        // epoch start (unix seconds, multiple of 30)
         val hr: Double?,        // epoch-mean HR (bpm)
         val hrVar: Double?,     // std of per-second HR over a centred 5-min window
@@ -470,11 +487,18 @@ object SleepStagerV2 {
         for (f in feats) {
             val zhrv = zhr(f.hr); val zhvv = zhv(f.hrVar); val zmvv = zmv(f.moveFrac)
             val gate = deepGateSlope * maxOf(0.0, fpct(f.hrFlat11) - deepGateThresh)
+            // Cardiac contribution to the AWAKE emission. On a motion-quiescent epoch the wrist did not move,
+            // so a raised HR / HR-variability alone must NOT promote wake — clamp the cardiac term to ≤ 0,
+            // keeping only its wake-SUPPRESSING (pro-sleep) half. Non-quiescent epochs are unchanged and use
+            // the same cardiac coefficients verbatim, so a night with any motion stages byte-identical; the
+            // correction only ever holds a still, elevated-HR epoch. Mirrors Swift `awakeCardiac`.
+            val awakeCardiac0 = 0.8 * zhvv + 0.4 * zhrv
+            val awakeCardiac = if (motionQuiescent(f)) minOf(0.0, awakeCardiac0) else awakeCardiac0
             val em = HashMap<String, Double>()
             em["deep"] = -1.1 * zhvv - 0.5 * zmvv - gate + baseLogPrior["deep"]!!
             em["rem"] = 0.6 * zhvv - 0.6 * zmvv + 0.4 * zhrv + baseLogPrior["rem"]!!
             em["light"] = baseLogPrior["light"]!!
-            em["awake"] = 1.0 * zmvv + 0.8 * zhvv + 0.4 * zhrv + baseLogPrior["awake"]!!
+            em["awake"] = 1.0 * zmvv + awakeCardiac + baseLogPrior["awake"]!!
             val pr = cyclePrior(f.clock)
             for (s in stageNames) em[s] = em[s]!! + pr[s]!!
             if (f.jerkMax > f.jerkScale * jerkFloorGateMult) em["awake"] = em["awake"]!! + motionGateBoost
