@@ -196,15 +196,23 @@ fun WorkoutsScreen(vm: AppViewModel) {
     // range/window/group computation that the eager column re-derived inline. The dialog overlay below the
     // scaffold is untouched. The All-Sessions list still lives inside its single enclosing card (appearance
     // is byte-identical) — see the report note on why it isn't flattened to top-level items here.
+    // Day-cycle sky + sky-behind-cards: the SAME two Appearance gates every other screen honours.
+    // (This screen previously drew the sky unconditionally - it now matches Today/Trends/Sleep,
+    // including turning OFF with the day-cycle setting.) Read once; SharedPreferences isn't reactive.
+    val skyCtx = androidx.compose.ui.platform.LocalContext.current
+    val showDayCycleBackground = remember { NoopPrefs.showDayCycleBackground(skyCtx) }
+    val skyBehindCards = remember { NoopPrefs.skyBehindCards(skyCtx) }
     LazyScreenScaffold(
         title = "Workouts",
         subtitle = "Every session, threaded together.",
         // LIQUID SKY BACKDROP (the pilot pattern — LiquidScreenSky.kt): the time-of-day liquid sky settles
         // into the theme canvas behind the header + top rows (bled full-width up behind the status bar via
         // the scaffold's topBackground plumbing), and the cards float OVER it on the flat surface below. The
-        // Android equivalent of the iOS `ScreenScaffold(topBackground: liquidScaffoldSky())`. This screen has
-        // no day-cycle preference gate (unlike Today), so the sky is always on.
-        topBackground = { LiquidScreenSky() },
+        // Android equivalent of the iOS `ScreenScaffold(topBackground: liquidScaffoldSky())`.
+        topBackground = if (showDayCycleBackground) { { LiquidScreenSky(fillHeight = skyBehindCards) } } else null,
+        // Sky-behind-cards fills the viewport so the transparent cards reveal the sky the whole way
+        // down (Today / Trends / Sleep / metric-detail parity - same two prefs, same two behaviours).
+        fullBleedBackground = showDayCycleBackground && skyBehindCards,
     ) {
         // Start (or stop) a workout right here, not only on Live — mirrors the Live control (#115).
         item {

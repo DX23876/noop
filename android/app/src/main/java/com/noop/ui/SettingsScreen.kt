@@ -628,7 +628,10 @@ fun SettingsScreen(
         // scroll-heavy list with NO hero gauge, so the liquid finish here is just the sky + liquidPress on
         // the tappable rows. Gated on the same day-cycle background pref Today reads, so turning that off
         // returns Settings to the plain dark canvas too.
-        topBackground = if (showDayCycleBackground) { { LiquidScreenSky() } } else null,
+        topBackground = if (showDayCycleBackground) { { LiquidScreenSky(fillHeight = skyBehindCards) } } else null,
+        // Sky-behind-cards fills the viewport so the transparent cards reveal the sky the whole way
+        // down (Today / Trends / Sleep / metric-detail parity - same two prefs, same two behaviours).
+        fullBleedBackground = showDayCycleBackground && skyBehindCards,
     ) {
         // Read the revision counter so every profile write recomposes this subtree
         // (SharedPreferences is not observable; `mutate` bumps `rev` after each write).

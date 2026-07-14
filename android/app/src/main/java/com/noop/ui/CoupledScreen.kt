@@ -164,6 +164,12 @@ fun CoupledScreen(
     var showChargeBreakdown by remember { mutableStateOf(false) }
     var showGuide by remember { mutableStateOf(false) }
 
+    // Day-cycle sky + sky-behind-cards: the SAME two Appearance gates every other screen honours.
+    // (This screen previously drew the sky unconditionally - it now matches Today/Trends/Sleep,
+    // including turning OFF with the day-cycle setting.) Read once; SharedPreferences isn't reactive.
+    val skyCtx = androidx.compose.ui.platform.LocalContext.current
+    val showDayCycleBackground = remember { NoopPrefs.showDayCycleBackground(skyCtx) }
+    val skyBehindCards = remember { NoopPrefs.skyBehindCards(skyCtx) }
     ScreenScaffold(
         title = "Day",
         subtitle = subtitleToday(),
@@ -173,8 +179,10 @@ fun CoupledScreen(
         // The Android equivalent of the iOS `ScreenScaffold(topBackground: liquidScaffoldSky())`; it replaces
         // the classic flat-canvas backdrop with the liquid day-of-sky (LiquidSkyStatic — no per-frame cost on
         // this scrolling column). The other liquid screens drop in the SAME LiquidScreenSky() slot verbatim.
-        // Coupled has no per-screen day-cycle toggle of its own, so the sky is unconditional here.
-        topBackground = { LiquidScreenSky() },
+        topBackground = if (showDayCycleBackground) { { LiquidScreenSky(fillHeight = skyBehindCards) } } else null,
+        // Sky-behind-cards fills the viewport so the transparent cards reveal the sky the whole way
+        // down (Today / Trends / Sleep / metric-detail parity - same two prefs, same two behaviours).
+        fullBleedBackground = showDayCycleBackground && skyBehindCards,
     ) {
         HeroCard(
             recovery = recovery,

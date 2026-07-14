@@ -115,6 +115,7 @@ fun HydrationScreen(viewModel: AppViewModel) {
     // The liquid sky backdrop honours the SAME opt-out pref as the liquid Today (a user who turned the
     // day-cycle sky off gets the flat canvas here too). Mirrors iOS `showDayCycleBackground ? ... : nil`.
     val showDayCycleBackground = remember { NoopPrefs.showDayCycleBackground(context) }
+    val skyBehindCards = remember { NoopPrefs.skyBehindCards(context) }
 
     // Today's running total + the per-day history, loaded off the gesture path and refreshed after a log.
     var totalMl by remember { mutableStateOf(0.0) }
@@ -178,7 +179,10 @@ fun HydrationScreen(viewModel: AppViewModel) {
     LazyScreenScaffold(
         title = "Hydration",
         subtitle = "Your fluid intake today, on this phone only.",
-        topBackground = if (showDayCycleBackground) { { LiquidScreenSky() } } else null,
+        topBackground = if (showDayCycleBackground) { { LiquidScreenSky(fillHeight = skyBehindCards) } } else null,
+        // Sky-behind-cards fills the viewport so the transparent cards reveal the sky the whole way
+        // down (Today / Trends / Sleep / metric-detail parity - same two prefs, same two behaviours).
+        fullBleedBackground = showDayCycleBackground && skyBehindCards,
     ) {
         // HERO — the day's intake as a LiquidVessel (water in a vessel: the literal fit), with the litre
         // figure counting up over it, floating on the frosted translucent-black liquid hero card so it reads

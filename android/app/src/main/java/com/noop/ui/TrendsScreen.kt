@@ -103,6 +103,9 @@ fun TrendsScreen(vm: AppViewModel) {
     // into local state (mirrors Today's showDayCycleBackground gate).
     val trendsCtx = LocalContext.current
     val showDayCycleBackground = remember { NoopPrefs.showDayCycleBackground(trendsCtx) }
+    // Sky-behind-cards (#434 family): when on, the sky fills the whole viewport so the transparent
+    // cards reveal it the whole way down, exactly like Today and the metric-detail screens.
+    val skyBehindCards = remember { NoopPrefs.skyBehindCards(trendsCtx) }
 
     var range by remember { mutableStateOf(TrendsRange.Quarter) }
 
@@ -150,7 +153,10 @@ fun TrendsScreen(vm: AppViewModel) {
         // into the theme canvas behind the header + top rows, full-bleed via the scaffold's topBackground
         // plumbing. Static (LiquidSkyStatic, inside the helper) — never an animated sky behind a scrolling
         // list. Gated on the same day-cycle pref as Today; when off, the scaffold paints the flat canvas.
-        topBackground = if (showDayCycleBackground) { { LiquidScreenSky() } } else null,
+        topBackground = if (showDayCycleBackground) { { LiquidScreenSky(fillHeight = skyBehindCards) } } else null,
+        // Sky-behind-cards fills the viewport so the transparent cards reveal the sky the whole way down
+        // (Today / metric-detail parity — the same two prefs drive the same two behaviours everywhere).
+        fullBleedBackground = showDayCycleBackground && skyBehindCards,
     ) {
         if (days.isEmpty()) {
             item { EmptyTrends() }
