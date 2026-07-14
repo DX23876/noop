@@ -181,6 +181,9 @@ fun DevicesScreen(
                 // Firmware version from the connect handshake: only for the active, connected strap.
                 liveFirmware = if (device.status == DeviceStatus.active.name && live.connected)
                     live.strapFirmware else null,
+                // Historical record layout from the current backfill, distinct from strap firmware.
+                liveHistoryLayout = if (device.status == DeviceStatus.active.name && live.connected)
+                    live.historyLayoutVersion else null,
                 onMakeActive = { switchTarget = device },
                 onRename = { renameTarget = device },
                 onRemove = { removeTarget = device },
@@ -372,6 +375,8 @@ private fun DeviceCard(
     /** The active+connected strap's firmware version (from the connect handshake). null when not
      *  active/connected, or for a source that reports no firmware (e.g. a non-WHOOP strap). */
     liveFirmware: String? = null,
+    /** The active+connected strap's observed banked-history record layout (`hist_version`). */
+    liveHistoryLayout: Int? = null,
     onMakeActive: () -> Unit,
     onRename: () -> Unit,
     onRemove: (() -> Unit)?,
@@ -470,7 +475,8 @@ private fun DeviceCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     lastSeenLine(device, isLiveConnected, bondRefused) +
-                        (liveFirmware?.let { " · FW $it" } ?: ""),
+                        (liveFirmware?.let { " · FW $it" } ?: "") +
+                        (historyLayoutLine(liveHistoryLayout)?.let { " · $it" } ?: ""),
                     style = NoopType.footnote,
                     color = Palette.textTertiary,
                     modifier = Modifier.weight(1f),
@@ -1103,6 +1109,9 @@ private fun lastSeenLine(device: PairedDeviceRow, isLiveConnected: Boolean, bond
     isLiveConnected -> "Connected now"
     else -> "Last seen ${relativeAgo(device.lastSeenAt)}"
 }
+
+internal fun historyLayoutLine(version: Int?): String? =
+    version?.let { "v$it history" }
 
 /** Best-effort brand from the advertised name. Falls back to a neutral label. Mirrors Swift brandGuess.
  *  Delegates to the pure [com.noop.data.DeviceBrandCatalog] (single source of truth) so the token table

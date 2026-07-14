@@ -124,6 +124,10 @@ data class LiveState(
      *  Devices card. Null until the handshake response decodes. The Swift WhoopProtocol decodes the
      *  same fields; this is the Android send → state → UI wiring. */
     val strapFirmware: String? = null,
+    /** Historical record layout version (`hist_version`, e.g. v24/v25 on WHOOP 4.0) observed from the
+     *  active connection's backfill. This is distinct from [strapFirmware]: FW 41.17.6.0 is the strap
+     *  firmware build, while v24/v25 is the binary layout used by banked history records. */
+    val historyLayoutVersion: Int? = null,
     /** True while a user-initiated reboot (#166) is in flight — from sending REBOOT_STRAP until the strap
      *  reconnects (or the settle timeout gives up). With `!connected` it drives the Devices card's
      *  transient "Reconnecting…" pill. Twin of macOS LiveState.rebootInProgress. */
@@ -745,8 +749,8 @@ class WhoopBleClient(
             previous.clearedBiometrics().copy(
                 connected = false, bonded = false, encryptedBond = false,
                 backfilling = false, syncChunksThisSession = 0, charging = null,
-                // A stale firmware version must not outlive the dropped link.
-                strapFirmware = null,
+                // Stale firmware/layout readouts must not outlive the dropped link.
+                strapFirmware = null, historyLayoutVersion = null,
                 // #580: the 5/MG "history experimental" note is per-link — a fresh connect re-derives it
                 // from the next offload, so it must not outlive the dropped link.
                 historySyncExperimental = false,
@@ -791,7 +795,8 @@ class WhoopBleClient(
         fun releasedLiveState(previous: LiveState): LiveState =
             previous.clearedBiometrics().copy(
                 connected = false, bonded = false, encryptedBond = false,
-                charging = null, strapFirmware = null, pairingHint = null, scanning = false,
+                charging = null, strapFirmware = null, historyLayoutVersion = null,
+                pairingHint = null, scanning = false,
                 statusNote = null,
             )
 
@@ -1279,6 +1284,7 @@ class WhoopBleClient(
         // Test Centre → Experimental algorithms: the opt-in v26 PPG-HR sub-lag interpolation variant, read
         // live each chunk so a mid-session toggle takes effect. Default OFF (byte-identical to today).
         ppgHrSubLagInterp = { puffinExperiment.ppgHrSubLagInterp },
+        firmwareLayout = { v -> _state.update { it.copy(historyLayoutVersion = v) } },
     )
 
     /**
@@ -5333,7 +5339,8 @@ class WhoopBleClient(
             connected = false, bonded = false, encryptedBond = false,
             backfilling = false, syncChunksThisSession = 0,
             charging = null,        // a stale charging flag must not outlive the link
-            strapFirmware = null,   // nor a stale firmware version
+            strapFirmware = null,   // nor stale firmware/layout versions
+            historyLayoutVersion = null,
         ) }
         // Multi-WHOOP: the link is down — clear the published connected address so SourceCoordinator's
         // adoption sink can't re-fire on a stale strap id (twin of macOS clearing connectedPeripheralUUID).
