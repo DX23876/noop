@@ -1146,6 +1146,12 @@ fun ScreenScaffold(
     // Mirrors the iOS ScreenScaffold `topBackground` slot — the scene is a SCREEN-level backdrop the
     // cards float OVER, not a card-clipped hero atmosphere.
     topBackground: (@Composable () -> Unit)? = null,
+    // When true, the [topBackground] fills the WHOLE viewport instead of the top band — the
+    // "sky behind cards" mode, identical to [LazyScreenScaffold]'s flag. The band container's
+    // status-bar offset would otherwise shift a full-height backdrop up and leave the bottom of
+    // the screen on plain canvas (the "sky doesn't reach the lower cards" report on the vital
+    // details). Defaulted, so every existing caller is byte-for-byte untouched.
+    fullBleedBackground: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     // The scrolling content column. Its OUTER modifier differs by path: with no topBackground it is the
@@ -1212,10 +1218,19 @@ fun ScreenScaffold(
         val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
         Box(modifier = modifier.fillMaxSize().background(Palette.surfaceBase)) {
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.TopCenter)
-                    .offset(y = -statusBarTop)
+                modifier = (
+                    if (fullBleedBackground) {
+                        // Sky-behind-cards: the backdrop fills the whole viewport (no band offset), so
+                        // the transparent content scrolls OVER a full-height sky. Identical to the lazy
+                        // twin's fullBleedBackground container.
+                        Modifier.fillMaxSize()
+                    } else {
+                        Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.TopCenter)
+                            .offset(y = -statusBarTop)
+                    }
+                    )
                     // PERF (#scroll-jank): promote the static scene backdrop to its OWN compositing layer so
                     // its gradient + bitmap rasterise ONCE into a render node and are reused as a texture on
                     // every scroll frame, instead of the parent re-issuing the scene's `drawBehind` draw each

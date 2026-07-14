@@ -1999,6 +1999,9 @@ fun VitalDetailScreen(vm: AppViewModel, key: String) {
             else -> "Historical trend from cached daily metrics."
         },
         topBackground = if (showDayCycleBackground) { { LiquidScreenSky(fillHeight = skyBehindCards) } } else null,
+        // Sky-behind-cards needs the full-viewport container too — the band container's status-bar
+        // offset left the lower cards on plain canvas (tester report).
+        fullBleedBackground = showDayCycleBackground && skyBehindCards,
     ) {
         if (isSeriesBacked && !seriesLoaded) {
             DataPendingNote(
