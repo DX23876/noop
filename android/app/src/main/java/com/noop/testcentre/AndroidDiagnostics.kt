@@ -78,16 +78,26 @@ object AndroidDiagnostics {
             val repo = com.noop.data.WhoopRepository.from(context)
             val id = "my-whoop"
             val nowSec = System.currentTimeMillis() / 1000L
-            val session = repo.sleepSessions(id, nowSec - 14L * 86400L, nowSec, 1).lastOrNull()
-            if (session == null) {
+            // Pick the MOST RECENT night that actually carries skin-temp — not the OLDEST. The old
+            // `sleepSessions(…, 1).lastOrNull()` returned the oldest session in the window (ASC order), so a
+            // fresh gap night read "skin=0" and the funnel never saw a real night. Walk newest→oldest.
+            val recent = repo.sleepSessions(id, nowSec - 14L * 86400L, nowSec, 200)
+            if (recent.isEmpty()) {
                 add("(no sleep session in the last 14 days to analyze)")
                 return@runCatching
+            }
+            var session = recent.last()   // non-null (list checked non-empty), newest by ASC start order
+            var skin = repo.skinTempSamples(id, session.startTs, session.endTs, Int.MAX_VALUE)
+            if (skin.isEmpty()) {
+                for (s in recent.asReversed()) {
+                    val sk = repo.skinTempSamples(id, s.startTs, s.endTs, Int.MAX_VALUE)
+                    if (sk.isNotEmpty()) { session = s; skin = sk; break }
+                }
             }
             val grav = repo.gravitySamples(id, session.startTs, session.endTs, Int.MAX_VALUE)
             val hr = repo.hrSamples(id, session.startTs, session.endTs, Int.MAX_VALUE)
             val rr = repo.rrIntervals(id, session.startTs, session.endTs, Int.MAX_VALUE)
             val resp = repo.respSamples(id, session.startTs, session.endTs, Int.MAX_VALUE)
-            val skin = repo.skinTempSamples(id, session.startTs, session.endTs, Int.MAX_VALUE)
             add("Night ${dayStamp(session.startTs)}: grav=${grav.size} hr=${hr.size} rr=${rr.size} resp=${resp.size} skin=${skin.size}")
             if (grav.isEmpty() && hr.isEmpty()) {
                 add("(no raw biometric samples under '$id' for this night — expected on a freshly re-added strap; reconnect + let a history sync run, then re-export)")
@@ -102,7 +112,13 @@ object AndroidDiagnostics {
             )
             val family = if (com.noop.ui.NoopPrefs.lastDevice(context)?.second == com.noop.ble.WhoopModel.WHOOP5_MG)
                 com.noop.protocol.DeviceFamily.WHOOP5 else com.noop.protocol.DeviceFamily.WHOOP4
-            add(com.noop.analytics.AnalyticsEngine.skinTempFunnel(listOf(det), hr, skin, family).summary)
+            // Mirror the real per-device anchor (#404): learn it from the WHOLE recent window's raws — not
+            // just this night — so a single sparse night (<100 in-band) can't misreport under the global
+            // fallback when the window as a whole has enough in-band samples for analyzeDay to learn one.
+            val windowSkin = repo.skinTempSamples(id, nowSec - 14L * 86400L, nowSec, Int.MAX_VALUE)
+            val devAnchor = if (family == com.noop.protocol.DeviceFamily.WHOOP4)
+                com.noop.protocol.Whoop4SkinTemp.deviceAnchorRaw(windowSkin.map { it.raw }) else null
+            add(com.noop.analytics.AnalyticsEngine.skinTempFunnel(listOf(det), hr, skin, family, devAnchor).summary)
         }.onFailure { add("(funnels unavailable: ${it.message})") }
     }
 

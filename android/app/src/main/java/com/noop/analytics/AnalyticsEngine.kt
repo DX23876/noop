@@ -751,16 +751,42 @@ object AnalyticsEngine {
         val kept: Int,
         val minSamples: Int,
         val mean: Double?,
+        // #skin-diag: raw-ADC visibility so an absent WHOOP 4.0 skin temp explains WHY (anchor mis-map
+        // vs genuinely no worn data). Pure observations of the input — they do NOT affect mean/gates.
+        /** Min / median / max of the night's RAW skin-temp ADC values (null when no samples). */
+        val rawMin: Int? = null,
+        val rawMedian: Int? = null,
+        val rawMax: Int? = null,
+        /** Raw samples inside the worn ADC band (WORN_MIN..WORN_MAX_RAW); ≥100 lets the per-device anchor learn. */
+        val inBandCount: Int = 0,
+        /** The anchor raw actually used for the °C map (caller's per-device anchor, else the global 826). null on 5/MG. */
+        val resolvedAnchorRaw: Double? = null,
+        /** What °C the median raw maps to under [resolvedAnchorRaw]; outside 28–42 °C ⇒ every worn sample gated out. */
+        val medianMappedC: Double? = null,
     ) {
         /** True when the night produced no usable mean - the case this diagnostic exists to triage. */
         val isAbsent: Boolean get() = mean == null
 
-        /** One human-readable line for the caller to LOG. No I/O here - the engine stays pure. */
+        /** Human-readable line(s) for the caller to LOG. No I/O here - the engine stays pure. When raw
+         *  samples exist, a second `skin-temp-raw:` line surfaces the ADC band + resolved anchor mapping. */
         val summary: String
-            get() = "skin-temp-funnel: $totalSamples samples → kept $kept/$minSamples " +
-                "(mean=${mean?.let { String.format(java.util.Locale.US, "%.2f°C", it) } ?: "absent"}); " +
-                "dropped[notWorn=$droppedNotWorn, outOfWindow=$droppedOutOfWindow, " +
-                "outOfRange=$droppedOutOfRange]"
+            get() {
+                var s = "skin-temp-funnel: $totalSamples samples → kept $kept/$minSamples " +
+                    "(mean=${mean?.let { String.format(java.util.Locale.US, "%.2f°C", it) } ?: "absent"}); " +
+                    "dropped[notWorn=$droppedNotWorn, outOfWindow=$droppedOutOfWindow, " +
+                    "outOfRange=$droppedOutOfRange]"
+                if (rawMin != null && rawMedian != null && rawMax != null) {
+                    s += "\nskin-temp-raw: raw[min=$rawMin p50=$rawMedian max=$rawMax] inBand=$inBandCount/$totalSamples"
+                    if (resolvedAnchorRaw != null && medianMappedC != null) {
+                        s += String.format(
+                            java.util.Locale.US,
+                            "; anchor=%.0f → p50 maps %.1f°C (worn gate 28–42°C, ADC band 550–2040)",
+                            resolvedAnchorRaw, medianMappedC,
+                        )
+                    }
+                }
+                return s
+            }
     }
 
     /**
@@ -780,6 +806,23 @@ object AnalyticsEngine {
         minSamples: Int = MIN_SKIN_TEMP_SAMPLES_INLINE,
     ): SkinTempFunnelDiagnostic {
         val total = skinTemp.size
+        // #skin-diag: raw-ADC band + resolved anchor — PURE observation of the input, computed once and
+        // reported on both return paths. Never touches the mean/gate logic below (byte-parity preserved).
+        val sortedRaws = skinTemp.map { it.raw }.sorted()
+        val rawMin = sortedRaws.firstOrNull()
+        val rawMax = sortedRaws.lastOrNull()
+        val rawMedian = if (sortedRaws.isEmpty()) null else sortedRaws[sortedRaws.size / 2]
+        val inBandCount = if (family == DeviceFamily.WHOOP4) {
+            sortedRaws.count { it in Whoop4SkinTemp.WORN_MIN_RAW..Whoop4SkinTemp.WORN_MAX_RAW }
+        } else {
+            total
+        }
+        val usedAnchor: Double? = if (family == DeviceFamily.WHOOP4) (anchorRaw ?: Whoop4SkinTemp.ANCHOR_RAW) else null
+        val medianMappedC: Double? = if (usedAnchor != null && rawMedian != null) {
+            skinTempCelsius(rawMedian, family, usedAnchor)
+        } else {
+            null
+        }
         // No sessions ⇒ every sample is out of window; no samples ⇒ an empty funnel. Either way the mean is
         // null, exactly as [wornNightlySkinTempC]'s early return produced before.
         if (sessions.isEmpty() || skinTemp.isEmpty()) {
@@ -787,6 +830,8 @@ object AnalyticsEngine {
                 totalSamples = total, droppedNotWorn = 0,
                 droppedOutOfWindow = if (sessions.isEmpty()) total else 0,
                 droppedOutOfRange = 0, kept = 0, minSamples = minSamples, mean = null,
+                rawMin = rawMin, rawMedian = rawMedian, rawMax = rawMax,
+                inBandCount = inBandCount, resolvedAnchorRaw = usedAnchor, medianMappedC = medianMappedC,
             )
         }
         val wornSeconds = HashSet<Long>(hr.size)
@@ -819,6 +864,8 @@ object AnalyticsEngine {
         return SkinTempFunnelDiagnostic(
             totalSamples = total, droppedNotWorn = notWorn, droppedOutOfWindow = outOfWindow,
             droppedOutOfRange = outOfRange, kept = kept, minSamples = minSamples, mean = mean,
+            rawMin = rawMin, rawMedian = rawMedian, rawMax = rawMax,
+            inBandCount = inBandCount, resolvedAnchorRaw = usedAnchor, medianMappedC = medianMappedC,
         )
     }
 }
