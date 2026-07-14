@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.Icons
@@ -92,7 +93,9 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.zIndex
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.withFrameNanos
+import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputScope
@@ -401,7 +404,16 @@ fun TodayScreen(
             else ((frameNanos - lastFrameNanos) / 1_000_000_000f).coerceAtMost(0.05f)
             lastFrameNanos = frameNanos
             swapTargetForDraggedSection(todayListState, sectionDrag, sectionOrder)?.let { (dragged, target) ->
+                // Freeze the scroll anchor across the reorder. LazyColumn re-anchors the viewport to the
+                // FIRST VISIBLE item's key — when a swap involves that item (usual while dragging near the
+                // top of the screen), the whole content leaps by the two cards' height difference in a
+                // single frame (the on-device "not smooth with other cards" report). Re-pinning the same
+                // positional index+offset around the move keeps the viewport still; a swap far below the
+                // anchor re-pins to the identical spot (visual no-op).
+                val anchorIndex = todayListState.firstVisibleItemIndex
+                val anchorOffset = todayListState.firstVisibleItemScrollOffset
                 sectionOrder = sectionOrder.movedTodaySection(dragged, target)
+                todayListState.scrollToItem(anchorIndex, anchorOffset)
             }
             if (sectionDrag.autoScrollPxPerSecond != 0f && dtSec > 0f) {
                 todayListState.scrollBy(sectionDrag.autoScrollPxPerSecond * dtSec)
@@ -1212,8 +1224,12 @@ fun TodayScreen(
         // neighbours as it crosses their centres (the screen-level frame loop also auto-scrolls at the
         // viewport edges and keeps swapping while it does), and the order persists on drop. The stagger
         // index follows the section's live position.
-        sectionOrder.forEachIndexed { pos, section ->
-            val stagger = pos + 1
+        sectionOrder.forEach { section ->
+            // Entrance stagger keyed on the section's FIXED default position, not its live position: the
+            // stagger only matters on first appearance (staggeredAppear latches), and a live-position
+            // stagger changes every moved section's content lambda on every mid-drag swap — recomposing
+            // the heavy sections (Key Metrics grid, HR chart) while the finger is down (drag jank).
+            val stagger = TodaySection.defaultOrder.indexOf(section) + 1
             // A gated-off section (Start session outside today / beta-off; Your Cards outside today or
             // empty) emits NO item at all: an always-present zero-height item would double the 12dp row
             // gap around its slot — visible on the DEFAULT layout, where Start session sits right under
@@ -1229,7 +1245,7 @@ fun TodayScreen(
                     selectedDayOffset == 0 && visibleDashboardCards.isNotEmpty()
                 else -> true
             }
-            if (!sectionVisible) return@forEachIndexed
+            if (!sectionVisible) return@forEach
             item(key = TODAY_SECTION_KEY_PREFIX + section.raw) {
                 TodayReorderableSection(
                     section = section,
@@ -3492,17 +3508,44 @@ private fun LazyItemScope.TodayReorderableSection(
     val key = TODAY_SECTION_KEY_PREFIX + section.raw
     val isDragging = drag.key == key
     val haptics = LocalHapticFeedback.current
+    // Drop SETTLE: on release the lifted card is usually mid-air between slots; killing the translation
+    // outright snapped it into place (part of the on-device "not smooth" report). Instead the residual
+    // offset animates to 0 so the card glides into its slot. `settling` keeps the lifted chrome (zIndex)
+    // during the glide; a new pickup cancels it.
+    val settleScope = rememberCoroutineScope()
+    val settle = remember { Animatable(0f) }
+    var settling by remember { mutableStateOf(false) }
+    fun releaseWithSettle() {
+        val current = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == key }
+        val residual = if (current != null) drag.pickedUpAt + drag.distance - current.offset else 0f
+        onDrop()
+        drag.key = null
+        drag.distance = 0f
+        drag.autoScrollPxPerSecond = 0f
+        if (residual != 0f) {
+            settling = true
+            settleScope.launch {
+                settle.snapTo(residual)
+                settle.animateTo(0f, tween(durationMillis = 220, easing = FastOutSlowInEasing))
+                settling = false
+            }
+        }
+    }
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .zIndex(if (isDragging) 1f else 0f)
+            .zIndex(if (isDragging || settling) 1f else 0f)
             .then(
-                if (isDragging) {
+                if (isDragging || settling) {
                     Modifier.graphicsLayer {
-                        // Finger-anchored viewport position minus wherever layout currently placed the item.
-                        val current = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == key }
-                        translationY = if (current != null) drag.pickedUpAt + drag.distance - current.offset else 0f
-                        shadowElevation = 12f
+                        translationY = if (isDragging) {
+                            // Finger-anchored viewport position minus wherever layout currently placed it.
+                            val current = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == key }
+                            if (current != null) drag.pickedUpAt + drag.distance - current.offset else 0f
+                        } else {
+                            settle.value
+                        }
+                        shadowElevation = if (isDragging) 12f else 6f
                         scaleX = 1.01f
                         scaleY = 1.01f
                     }
@@ -3516,6 +3559,7 @@ private fun LazyItemScope.TodayReorderableSection(
             .pointerInput(key) {
                 detectDragGesturesAfterLongPress(
                     onDragStart = {
+                        settling = false
                         drag.key = key
                         drag.distance = 0f
                         drag.pickedUpAt = listState.layoutInfo.visibleItemsInfo
@@ -3523,19 +3567,11 @@ private fun LazyItemScope.TodayReorderableSection(
                         drag.autoScrollPxPerSecond = 0f
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     },
-                    onDragEnd = {
-                        onDrop()
-                        drag.key = null
-                        drag.distance = 0f
-                        drag.autoScrollPxPerSecond = 0f
-                    },
+                    onDragEnd = { releaseWithSettle() },
                     onDragCancel = {
                         // The list already reordered live; persist what the user sees rather than
                         // silently reverting on a system-cancelled gesture.
-                        onDrop()
-                        drag.key = null
-                        drag.distance = 0f
-                        drag.autoScrollPxPerSecond = 0f
+                        releaseWithSettle()
                     },
                     onDrag = onDrag@{ change, amount ->
                         change.consume()
