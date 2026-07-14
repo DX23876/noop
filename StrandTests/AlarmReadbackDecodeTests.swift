@@ -59,6 +59,38 @@ final class AlarmReadbackDecodeTests: XCTestCase {
         XCTAssertNil(FrameRouter.armedAlarmEpoch(in: frame))
     }
 
+    // MARK: - "No alarm stored" (epoch 0) detection (#34, issue comment 2026-07-12)
+
+    /// The exact payload from the field report `01 00 00 00 00 00 00 00 04 00 20`: the SET-mirror epoch
+    /// field is 0, so this is the strap's "nothing armed" sentinel — armedAlarmEpoch fails (epoch 0 is not
+    /// plausible) AND readbackReportsNoAlarm is true, so the router logs "NO alarm stored", not "unrecognised".
+    func testFieldReportPayload_reportsNoAlarm() {
+        let frame = responseFrame(payload: [0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x20])
+        XCTAssertNil(FrameRouter.armedAlarmEpoch(in: frame))
+        XCTAssertTrue(FrameRouter.readbackReportsNoAlarm(in: frame))
+    }
+
+    /// A bare leading u32 = 0 (no form byte) is also the "no alarm" sentinel.
+    func testBareZeroU32_reportsNoAlarm() {
+        let frame = responseFrame(payload: [0x00, 0x00, 0x00, 0x00])
+        XCTAssertTrue(FrameRouter.readbackReportsNoAlarm(in: frame))
+    }
+
+    /// A plausible armed epoch is NOT "no alarm" — the two branches are mutually exclusive, so a genuinely
+    /// armed strap never mislogs as "no alarm stored".
+    func testArmedEpoch_isNotReportedAsNoAlarm() {
+        let frame = responseFrame(payload: [0x01, 0x30, 0xD5, 0x35, 0x6A, 0x00, 0x00, 0x00, 0x00])
+        XCTAssertNotNil(FrameRouter.armedAlarmEpoch(in: frame))
+        XCTAssertFalse(FrameRouter.readbackReportsNoAlarm(in: frame))
+    }
+
+    /// A short result-style payload (0x03) is neither an armed epoch NOR the epoch-0 sentinel — it's
+    /// genuinely unparseable, so it still falls through to the raw-hex "unrecognised" branch.
+    func testShortGarbage_isNotReportedAsNoAlarm() {
+        let frame = responseFrame(payload: [0x03])
+        XCTAssertFalse(FrameRouter.readbackReportsNoAlarm(in: frame))
+    }
+
     /// An empty payload (header-only response) decodes nil and yields no hex either.
     func testEmptyPayload_decodesNilAndNoHex() {
         let frame = responseFrame(payload: [])
@@ -125,5 +157,33 @@ final class AlarmReadbackDecodeTests: XCTestCase {
         router.handle(frame: alarmResponseFrame(payload: [0x03, 0xAB]))
         XCTAssertTrue(live.log.contains { $0.contains("unrecognised payload") && $0.contains("03 ab") },
                       "unrecognised readback must log raw hex via handle(): \(live.log)")
+    }
+
+    /// The field-report readback (epoch 0) now fires the "NO alarm stored" branch, NOT the "unrecognised"
+    /// one — proving the reframe is reachable via handle() and that the misleading label is gone.
+    @MainActor
+    func testHandle_noAlarmStoredReadback_logsNoAlarm() {
+        let live = LiveState()
+        let router = FrameRouter(state: live)
+        router.family = .whoop4
+        router.handle(frame: alarmResponseFrame(payload: [0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x20]))
+        XCTAssertTrue(live.log.contains { $0.contains("NO alarm currently stored") && $0.contains("did not persist") },
+                      "epoch-0 readback must log the 'no alarm stored' line: \(live.log)")
+        XCTAssertFalse(live.log.contains { $0.contains("unrecognised payload") },
+                       "epoch-0 readback must NOT log the misleading 'unrecognised' line: \(live.log)")
+    }
+
+    /// A SET_ALARM_TIME (cmd 66) COMMAND_RESPONSE now logs the strap's raw result byte — the accept/reject
+    /// datum previously thrown away. No verdict is claimed (4.0 result-code meaning is unverified), so the
+    /// test pins only that the raw byte is surfaced.
+    @MainActor
+    func testHandle_setAlarmResponse_logsResultByte() {
+        let live = LiveState()
+        let router = FrameRouter(state: live)
+        router.family = .whoop4
+        // frameFromPayload lays out [origin_seq, result, payload…] as `data`; result byte = 0x03 here.
+        router.handle(frame: frameFromPayload([0x42, 0x03], type: 36, seq: 0x29, cmd: 66))
+        XCTAssertTrue(live.log.contains { $0.contains("SET_ALARM_TIME") && $0.contains("result=0x03") },
+                      "SET_ALARM_TIME response must log the raw result byte: \(live.log)")
     }
 }
