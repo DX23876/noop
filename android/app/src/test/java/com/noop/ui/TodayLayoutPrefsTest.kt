@@ -92,6 +92,14 @@ class TodayLayoutPrefsTest {
         assertEquals(TodaySection.defaultOrder, TodayLayoutPrefs.decodeOrder("nope,,zzz"))
     }
 
+    /** defaultOrder must cover EVERY entry: the never-hide merge sorts by default index, so an entry
+     *  missing from the default order could otherwise be dropped or mis-sorted. Twin of the Swift test. */
+    @Test
+    fun defaultOrderCoversEveryEntry() {
+        assertEquals(TodaySection.entries.toSet(), TodaySection.defaultOrder.toSet())
+        assertEquals(TodaySection.entries.size, TodaySection.defaultOrder.size)
+    }
+
     @Test
     fun sectionRawKeysAreStableAndUnique() {
         val raws = TodaySection.entries.map { it.raw }

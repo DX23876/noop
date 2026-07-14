@@ -80,10 +80,14 @@ object TodayLayoutPrefs {
             TodaySection.fromRaw(token.trim())?.let { if (it !in saved) saved.add(it) }
         }
         if (saved.isEmpty()) return TodaySection.defaultOrder
-        for (missing in TodaySection.defaultOrder) {
+        // Iterate entries (not defaultOrder) so a future enum case accidentally left out of defaultOrder
+        // can never be silently hidden; a section without a default index sorts after everything. Twin of
+        // the Swift decodeOrder's degraded path; defaultOrder covering every entry is pinned by the tests.
+        fun defIdx(s: TodaySection): Int =
+            TodaySection.defaultOrder.indexOf(s).let { if (it == -1) TodaySection.defaultOrder.size else it }
+        for (missing in TodaySection.entries) {
             if (missing in saved) continue
-            val defIdx = TodaySection.defaultOrder.indexOf(missing)
-            val insertAt = saved.indexOfFirst { TodaySection.defaultOrder.indexOf(it) > defIdx }
+            val insertAt = saved.indexOfFirst { defIdx(it) > defIdx(missing) }
             if (insertAt == -1) saved.add(missing) else saved.add(insertAt, missing)
         }
         return saved
