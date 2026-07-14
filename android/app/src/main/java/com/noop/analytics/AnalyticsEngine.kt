@@ -545,23 +545,16 @@ object AnalyticsEngine {
         // only — not cloud/clinical parity.
         val stepsTotal: Int? = run {
             // Prefer the full-calendar-day stream for the additive total; fall back to the
-            // night-window stream when the caller didn't supply one (pure-function callers/tests).
-            val sorted = (daySteps ?: steps).filter { dayString(it.ts, tzOffsetSeconds) == day }.sortedBy { it.ts }
-            if (sorted.size < 2) return@run null
-            // A delta this large is a big time-gap / disconnect boundary between sync sessions (or a
-            // firmware reboot, byte-indistinguishable from a wrap), NOT real steps — drop it so gaps
-            // don't inflate the total. Real 1 Hz motion never ticks this fast between adjacent records.
-            val maxStepDelta = 512
-            var total = 0L
-            for (i in 1 until sorted.size) {
-                val delta = (sorted[i].counter - sorted[i - 1].counter) and 0xFFFF // wrap-aware u16 increment
-                if (delta in 1 until maxStepDelta) total += delta // ignore a delta >= 512 (gap/reset)
-            }
-            if (total <= 0L) return@run null
+            // night-window stream when the caller didn't supply one (pure-function callers/tests). The
+            // day's read window may include adjacent-day samples, so filter to the LOCAL-day key first
+            // (#277); the wrap-aware tick math itself lives in the shared StepsCounter kernel so the daily
+            // and per-workout (#398) totals can never disagree.
+            val inDay = (daySteps ?: steps).filter { dayString(it.ts, tzOffsetSeconds) == day }
+            val ticks = StepsCounter.stepsInWindow(inDay) ?: return@run null
             // @57 counts motion ticks, not validated steps — the 5/MG counter overcounts. Divide
             // by the user-calibrated ticks-per-step (default 1.0 = raw pass-through; floor 0.5 so
             // a bad pref can at most double, never explode, the total). (#139)
-            val scaled = (total.toDouble() / max(profile.stepTicksPerStep, 0.5)).roundToLong()
+            val scaled = (ticks.toDouble() / max(profile.stepTicksPerStep, 0.5)).roundToLong()
                 .coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
             if (scaled > 0) scaled else null
         }

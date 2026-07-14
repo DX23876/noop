@@ -911,6 +911,21 @@ final class Repository: ObservableObject {
         return Self.latestActivityClass(perId)
     }
 
+    /// Raw strap step TICKS over `[from, to]` for a manual-workout summary (#398): the wrap-aware
+    /// `step_motion_counter@57` delta-sum (shared `StepsCounter` kernel) from the FIRST id that has a
+    /// countable window — the active strap wins, mirroring `stepActivityClassLatest`. Never MERGED across
+    /// ids: two devices' cumulative counters must not be interleaved (that would fabricate huge deltas).
+    /// `nil` when no strap counter covers the window — a WHOOP 4.0 (no @57 counter) or an MG/5.0 that hasn't
+    /// offloaded the window yet. The caller applies `stepTicksPerStep` and reconciles with the phone pedometer.
+    func strapStepTicks(from: Int, to: Int) async -> Int? {
+        guard let store = await ensureStore() else { return nil }
+        for id in importedReadIds {   // active strap FIRST
+            let samples = (try? await store.stepSamples(deviceId: id, from: from, to: to, limit: 200_000)) ?? []
+            if let ticks = StepsCounter.stepsInWindow(samples) { return ticks }
+        }
+        return nil
+    }
+
     /// Pure pick of the latest classed activity across the union's per-id step lists: the non-nil
     /// `activityClass` on the sample with the greatest ts, resolving a ts tie in favour of the FIRST list (the
     /// active strap, mirroring the union's active-wins rule). Static + pure so it's unit-testable without a

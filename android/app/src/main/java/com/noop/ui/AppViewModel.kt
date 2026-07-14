@@ -1417,6 +1417,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return if (minutes.any { it > 0.0 }) minutes else null
     }
 
+    /** Steps over a manual-workout window `[from, to]` from the strap's own `step_motion_counter@57`
+     *  (#398): the shared wrap-aware `StepsCounter` delta-sum, then the per-user `stepTicksPerStep`
+     *  calibration the daily total applies (#139, floor 0.5). null when no strap counter covers the window
+     *  — a WHOOP 4.0 (no @57 counter) or an MG/5.0 that hasn't offloaded the window yet. Mirrors Swift
+     *  `Repository.strapStepTicks` + the WorkoutDetailView scaling; the phone-pedometer fallback iOS adds is
+     *  not available on Android (no cheap windowed step source), so a 4.0 window simply shows no steps. */
+    suspend fun workoutSteps(from: Long, to: Long): Int? {
+        if (to <= from) return null
+        val samples = runCatching { repository.stepSamples(deviceId, from, to) }.getOrDefault(emptyList())
+        val ticks = com.noop.analytics.StepsCounter.stepsInWindow(samples) ?: return null
+        val scaled = (ticks.toDouble() / maxOf(profileStore.stepTicksPerStep, 0.5)).roundToInt()
+        return if (scaled > 0) scaled else null
+    }
+
     /** Save a retroactive / edited manual workout, then reload. [replacing] is the original on edit. */
     fun saveManualWorkout(row: WorkoutRow, replacing: WorkoutRow? = null) {
         viewModelScope.launch {

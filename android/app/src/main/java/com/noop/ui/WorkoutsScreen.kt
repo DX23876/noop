@@ -1244,8 +1244,12 @@ private fun WorkoutDetailSheet(vm: AppViewModel, row: WorkoutRow, onDismiss: () 
     var hrCurve by remember(row.startTs) { mutableStateOf<List<Double>>(emptyList()) }
     var zoneMinutes by remember(row.startTs) { mutableStateOf<List<Double>?>(null) }
     var zonesFromImport by remember(row.startTs) { mutableStateOf(false) }
+    // Steps for an on-foot sport (#398): the strap's own counter over the window, computed at display time
+    // so it "fills in after sync". null for non-foot sports or when no strap counter covers the window.
+    var steps by remember(row.startTs) { mutableStateOf<Int?>(null) }
     LaunchedEffect(row.startTs, row.endTs) {
         hrCurve = vm.workoutHrBuckets(row.startTs, row.endTs).map { it.avgBpm }
+        steps = if (WorkoutSport.isOnFoot(row.sport)) vm.workoutSteps(row.startTs, row.endTs) else null
         val imported = parseZonePercents(row.zonesJSON)
         if (imported != null) {
             val durMin = (row.durationS ?: (row.endTs - row.startTs).toDouble()) / 60.0
@@ -1298,6 +1302,7 @@ private fun WorkoutDetailSheet(vm: AppViewModel, row: WorkoutRow, onDismiss: () 
                 val unitSystem = UnitPrefs.system(LocalContext.current)
                 DetailRow("Distance", UnitFormatter.distanceFromKilometers(row.distanceM / 1000.0, unitSystem))
             }
+            steps?.let { DetailRow("Steps", "${grouped(it.toDouble())} steps") }  // #398, on-foot sports
             if (!row.notes.isNullOrBlank()) DetailRow("Notes", row.notes)
 
             // #796 - per-session Effort contribution. The session's captured strain re-homed from a plain
