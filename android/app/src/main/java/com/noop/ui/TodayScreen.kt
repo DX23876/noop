@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
@@ -390,13 +391,20 @@ fun TodayScreen(
     val sectionDrag = remember { TodaySectionDragState() }
     val sectionDragActive = sectionDrag.key != null
     LaunchedEffect(sectionDragActive) {
+        // Auto-scroll is TIME-based (px/second × real frame delta), not per-frame: a per-frame step runs
+        // twice as fast on a 120 Hz panel and reads as jarring — the first on-device feedback. dt is
+        // clamped so a dropped/backgrounded frame can't produce one giant jump.
+        var lastFrameNanos = 0L
         while (sectionDrag.key != null) {
-            withFrameNanos { }
+            val frameNanos = withFrameNanos { it }
+            val dtSec = if (lastFrameNanos == 0L) 0f
+            else ((frameNanos - lastFrameNanos) / 1_000_000_000f).coerceAtMost(0.05f)
+            lastFrameNanos = frameNanos
             swapTargetForDraggedSection(todayListState, sectionDrag, sectionOrder)?.let { (dragged, target) ->
                 sectionOrder = sectionOrder.movedTodaySection(dragged, target)
             }
-            if (sectionDrag.autoScrollPxPerFrame != 0f) {
-                todayListState.scrollBy(sectionDrag.autoScrollPxPerFrame)
+            if (sectionDrag.autoScrollPxPerSecond != 0f && dtSec > 0f) {
+                todayListState.scrollBy(sectionDrag.autoScrollPxPerSecond * dtSec)
             }
         }
     }
@@ -3414,8 +3422,9 @@ private class TodaySectionDragState {
     /** The dragged item's viewport offset at pickup (px) — with [distance], the finger-anchored position. */
     var pickedUpAt = 0f
 
-    /** Edge auto-scroll velocity (px/frame), set by onDrag from edge proximity; 0 outside the edge zones. */
-    var autoScrollPxPerFrame = 0f
+    /** Edge auto-scroll velocity (px/SECOND — the frame loop scales by real frame time, so the speed is
+     *  identical on 60/90/120 Hz displays), set by onDrag from edge proximity; 0 outside the edge zones. */
+    var autoScrollPxPerSecond = 0f
 }
 
 /** This order with [section] moved to [target]'s position (the classic list move). */
@@ -3496,8 +3505,10 @@ private fun LazyItemScope.TodayReorderableSection(
                         scaleY = 1.01f
                     }
                 } else {
-                    // Non-dragged sections animate to their new slot as the lifted card crosses them.
-                    Modifier.animateItemPlacement()
+                    // Non-dragged sections animate to their new slot as the lifted card crosses them — a
+                    // calm, deterministic ease (the default placement spring read abrupt when a tall card
+                    // displaced a short one; first on-device feedback).
+                    Modifier.animateItemPlacement(tween(durationMillis = 260, easing = FastOutSlowInEasing))
                 },
             )
             .pointerInput(key) {
@@ -3507,14 +3518,14 @@ private fun LazyItemScope.TodayReorderableSection(
                         drag.distance = 0f
                         drag.pickedUpAt = listState.layoutInfo.visibleItemsInfo
                             .firstOrNull { it.key == key }?.offset?.toFloat() ?: 0f
-                        drag.autoScrollPxPerFrame = 0f
+                        drag.autoScrollPxPerSecond = 0f
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     },
                     onDragEnd = {
                         onDrop()
                         drag.key = null
                         drag.distance = 0f
-                        drag.autoScrollPxPerFrame = 0f
+                        drag.autoScrollPxPerSecond = 0f
                     },
                     onDragCancel = {
                         // The list already reordered live; persist what the user sees rather than
@@ -3522,24 +3533,30 @@ private fun LazyItemScope.TodayReorderableSection(
                         onDrop()
                         drag.key = null
                         drag.distance = 0f
-                        drag.autoScrollPxPerFrame = 0f
+                        drag.autoScrollPxPerSecond = 0f
                     },
                     onDrag = onDrag@{ change, amount ->
                         change.consume()
                         drag.distance += amount.y
                         val info = listState.layoutInfo
                         val current = info.visibleItemsInfo.firstOrNull { it.key == key } ?: return@onDrag
-                        // Edge auto-scroll velocity from the lifted card's proximity to the viewport edges;
-                        // ramps linearly across the zone. The frame loop applies it (and keeps swapping).
-                        val zone = 96.dp.toPx()
-                        val maxV = 18.dp.toPx()
+                        // Edge auto-scroll velocity (px/SECOND — the frame loop scales by real frame time)
+                        // from the lifted card's proximity to the viewport edges; ramps linearly across the
+                        // zone with an eased-in feel via the squared fraction, so entering the zone starts
+                        // gently instead of at speed.
+                        val zone = 112.dp.toPx()
+                        val maxV = 620.dp.toPx()
                         val top = drag.pickedUpAt + drag.distance
                         val bottom = top + current.size
-                        drag.autoScrollPxPerFrame = when {
-                            bottom > info.viewportEndOffset - zone ->
-                                maxV * ((bottom - (info.viewportEndOffset - zone)) / zone).coerceAtMost(1f)
-                            top < info.viewportStartOffset + zone ->
-                                -maxV * (((info.viewportStartOffset + zone) - top) / zone).coerceAtMost(1f)
+                        drag.autoScrollPxPerSecond = when {
+                            bottom > info.viewportEndOffset - zone -> {
+                                val f = ((bottom - (info.viewportEndOffset - zone)) / zone).coerceAtMost(1f)
+                                maxV * f * f
+                            }
+                            top < info.viewportStartOffset + zone -> {
+                                val f = (((info.viewportStartOffset + zone) - top) / zone).coerceAtMost(1f)
+                                -maxV * f * f
+                            }
                             else -> 0f
                         }
                     },
