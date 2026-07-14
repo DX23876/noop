@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -738,19 +739,19 @@ fun TodayScreen(
             .map { it.value }
     }
 
-    // Provenance (COMPONENT 4): the REAL per-metric merge winner for the selected day's derived scores,
-    // keyed by metric key ("recovery" / "sleep_performance"); each value is the RAW source id the resolver
+    // Provenance (COMPONENT 4): the REAL per-metric merge winner for the selected day's three hero scores,
+    // keyed by metric key ("recovery" / "strain" / "sleep_performance"); each value is the RAW source id the resolver
     // returned (e.g. "my-whoop", "my-whoop-noop", "apple-health"). resolvedSeries applies the SAME
     // imported-WHOOP > NOOP-computed > Apple-Health precedence the dashboard merge uses field-by-field
-    // (WhoopRepository.mergeDaily), so the badge under each ring names the source that ACTUALLY supplied
-    // that day's number rather than a blanket day-level deviceId. Mirrors the Swift Today lane's
+    // (WhoopRepository.mergeDaily), so the card-level badge names the sources that ACTUALLY supplied
+    // that day's scores rather than making a blanket day-level claim. Mirrors the Swift Today lane's
     // `provenanceByMetric` resolution exactly (the winner is the last resolved point on selectedDayKey).
     var provenanceByMetric by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
-    LaunchedEffect(days, selectedDayKey) {
+    LaunchedEffect(days, selectedDayKey, viewModel.activeStrapId) {
         val resolved = mutableMapOf<String, String>()
-        for (key in listOf("recovery", "sleep_performance")) {
+        for (key in listOf("recovery", "strain", "sleep_performance")) {
             val win = runCatching {
-                viewModel.repo.resolvedSeries(key, "my-whoop", "0000-00-00", "9999-99-99",
+                viewModel.repo.resolvedSeries(key, "my-whoop", selectedDayKey, selectedDayKey,
                     strapDeviceId = viewModel.activeStrapId)
                     .points.lastOrNull { it.day == selectedDayKey }?.source
             }.getOrNull()
@@ -880,17 +881,14 @@ fun TodayScreen(
         }
     }
 
-    // Explainability (COMPONENT 4): the displayed day's REAL PER-METRIC merge winners, mapped to their
-    // provenance labels ("On-device" / "Whoop" / "Apple Health" / …). Each ring badges the source that
-    // actually supplied THAT metric's number (recovery → Charge, sleep_performance → Rest), not a blanket
-    // day-level deviceId, so an imported metric on an otherwise-computed day reads honestly. Gated on the
-    // ring having a value (a calibrating / empty ring shows no badge). Null → no badge. Mirrors the Swift
-    // Today lane (per-ring SourceBadge from provenanceByMetric, gated by ringHasValue).
-    val chargeProvenance = remember(provenanceByMetric, displayMetric, viewModel.activeStrapId) {
-        if (displayMetric?.recovery != null) provenanceByMetric["recovery"]?.let { provenanceDisplayLabel(it, viewModel.activeStrapId) } else null
-    }
-    val restProvenance = remember(provenanceByMetric, restScoreForDay, viewModel.activeStrapId) {
-        if (restScoreForDay != null) provenanceByMetric["sleep_performance"]?.let { provenanceDisplayLabel(it, viewModel.activeStrapId) } else null
+    // One honest card-level badge, matching LiquidTodayView: identical winners collapse to one label;
+    // mixed winners show at most two sources in Charge / Effort / Rest order so the pill stays compact.
+    val heroSourceLabel = remember(provenanceByMetric, viewModel.activeStrapId) {
+        heroSourceLabel(
+            rawSources = listOf("recovery", "strain", "sleep_performance")
+                .mapNotNull { provenanceByMetric[it] },
+            deviceId = viewModel.activeStrapId,
+        )
     }
 
     // 14-day trailing calendar window ending on the phone's actual local day.
@@ -1142,20 +1140,14 @@ fun TodayScreen(
 
         if (alert != null) item { IllnessBanner(alert!!) }
 
-        // HERO, the three Charge / Effort / Rest score rings, Charge centred + enlarged, floating on a
-        // scenic Charge-tinted backdrop (the WHOOP-style hero, #23). The old big gold RecoveryRing hero and
-        // the "At a glance" header are gone: recovery now reads as the enlarged Charge ring, the Support
-        // heart moved to the scaffold's compact top bar, and the Synthesis card + HRV/RHR/Respiratory rows
-        // re-home below. iOS/macOS parity (TodayView.heroSection). The Effort gauge prefers the live
-        // in-progress strain for today, falling back to the stored value (#402).
-        // Staggered in as the rings hero (index 1, after the header). The ring numbers themselves tick up
-        // via GlowRing's built-in count-up (the Android equivalent of iOS GlowRing's animated `value`).
+        // HERO, three equal Charge / Effort / Rest liquid vessels in the compact pinned-dark card used by
+        // LiquidTodayView. Effort prefers today's live in-progress strain and falls back to the stored value
+        // (#402); the single floating badge names the real score sources without consuming card spacing.
+        // Staggered in as the score hero (index 1, after the header); each number counts up over its vessel.
         // The day-cycle SCENE now sits at SCREEN level (the scaffold's `topBackground`, behind the header +
         // these rings + bled full-width up behind the status bar), so the rings float DIRECTLY on the scene
         // rather than in a card-clipped scene of their own, mirroring iOS, where TodayView moved the scene
-        // to a screen-level `SceneScreenBackground` and the hero dropped `.sceneHeroBackground()`. No
-        // in-card scene here, and no rounded clip (a flat hero on the screen-level backdrop). The Charge
-        // ring value reads WHITE (GlowRing's centre label) with a charge-green arc, matching the iOS source.
+        // to a screen-level `SceneScreenBackground` and the hero dropped `.sceneHeroBackground()`.
         item {
         // The liquid hero CARD: a translucent near-black that floats over the day-of-sky so the vessels +
         // white count-up numbers stay crisp — the card does the contrast work, not a muted sky. A rounded
@@ -1164,8 +1156,11 @@ fun TodayScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(LIQUID_HERO_RADIUS))
-                .background(LIQUID_HERO_FILL.copy(alpha = LIQUID_HERO_FILL.alpha * CardAppearance.opacity))
+                // The shaped background stays clipped, while the source badge may straddle its top edge.
+                .background(
+                    LIQUID_HERO_FILL.copy(alpha = LIQUID_HERO_FILL.alpha * CardAppearance.opacity),
+                    RoundedCornerShape(LIQUID_HERO_RADIUS),
+                )
                 .border(1.dp, Color.White.copy(alpha = 0.11f * CardAppearance.opacity), RoundedCornerShape(LIQUID_HERO_RADIUS))
                 .staggeredAppear(1),
         ) {
@@ -1176,8 +1171,7 @@ fun TodayScreen(
                 lastScoredCharge = lastScoredCharge,
                 effortScale = effortScale,
                 liveTodayStrain = if (selectedDayOffset == 0) liveTodayStrain else null,
-                chargeProvenance = chargeProvenance,
-                restProvenance = restProvenance,
+                heroSourceLabel = heroSourceLabel,
                 onScoreInfo = openGuide,
                 onChargeTap = { showChargeBreakdown = true },
             )
@@ -2195,15 +2189,10 @@ private fun LiquidWordmark() {
     }
 }
 
-// MARK: - Score hero row, three Charge / Effort / Rest score rings, Charge centred + enlarged
+// MARK: - Score hero row, three Charge / Effort / Rest score vessels
 //
-// The WHOOP-style Today hero (#23): the three daily scores as animated [GlowRing]s floating on a
-// Charge-tinted [ScenicHeroBackground], the Charge (recovery) ring centred and ENLARGED as the hero
-// and smaller Rest / Effort rings flanking it, bottom-aligned so all three share a baseline. A tappable
-// UPPERCASE label + chevron sits beneath each ring and opens that score's scoring-guide section. Honest
-// empty / calibrating overlays when a score is null. Mirrors iOS TodayView.scoreHeroRow (order Rest ·
-// Charge · Effort; centre = min(150, max(110, (w-12)/2.3)); side = centre × 0.66; lineWidth = diameter
-// × 0.085). Data wiring is unchanged, presentation only.
+// The liquid Today hero: three equal daily-score vessels in Charge / Effort / Rest order, with a tappable
+// label beneath each one and one card-level provenance badge aligned to the Rest vessel's trailing edge.
 
 @Composable
 private fun ScoreHeroRow(
@@ -2213,11 +2202,8 @@ private fun ScoreHeroRow(
     lastScoredCharge: LastCharge? = null,
     effortScale: EffortScale,
     liveTodayStrain: Double? = null,
-    // Per-metric provenance labels (COMPONENT 4), the REAL merge winner under each ring, or null to hide
-    // the badge (no value / no resolved winner). Charge ← "recovery", Rest ← "sleep_performance". Effort
-    // has no cross-source merge, so it carries no provenance badge (matches iOS).
-    chargeProvenance: String? = null,
-    restProvenance: String? = null,
+    // One card-level provenance label derived from the three REAL per-metric merge winners upstream.
+    heroSourceLabel: String? = null,
     onScoreInfo: (ScoreSection) -> Unit,
     // A1 (#514/#706): tapping the Charge ring opens the breakdown sheet. A small chevron cue overlays the
     // ring's bottom edge INSIDE the ring frame, so it adds no stacked height (the #762 self-sizing parity).
@@ -2243,11 +2229,15 @@ private fun ScoreHeroRow(
     // count-up both honour Reduce Motion internally, so this is purely a "don't animate an empty hero" cost
     // gate. A carried Charge counts as data (its dimmed vessel should slosh like the Rest one).
     val animated = recovery != null || strain != null || restScore != null || lastScoredCharge != null
+    var sourceBadgeHeightPx by remember(heroSourceLabel) { mutableIntStateOf(0) }
+    val sourceBadgeHalfHeight = with(LocalDensity.current) {
+        if (sourceBadgeHeightPx > 0) (sourceBadgeHeightPx / 2f).toDp()
+        else Metrics.sourceBadgeHeight / 2
+    }
 
     Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(Metrics.cardRadius)),
+            .fillMaxWidth(),
     ) {
         // iOS parity: the hero rings float DIRECTLY on the SCREEN-level day-cycle scene (the scaffold's
         // topBackground), not on any per-hero atmosphere or the old scenic indigo gradient, matching
@@ -2256,7 +2246,7 @@ private fun ScoreHeroRow(
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = Metrics.gap, vertical = Metrics.space18),
+                .padding(horizontal = Metrics.gap, vertical = Metrics.space16),
         ) {
             // iOS parity (TodayView.scoreHeroRow): three EQUAL rings in CHARGE · EFFORT · REST order, no
             // enlarged centre, filling the width as one balanced row. Ring stroke 0.10 (WHOOP weight).
@@ -2272,11 +2262,6 @@ private fun ScoreHeroRow(
                 HeroRingColumn(
                     domain = DomainTheme.Charge,
                     onInfo = { onScoreInfo(ScoreSection.CHARGE) },
-                    provenance = chargeProvenance,
-                    // iOS shows a static "WHOOP" pill under Charge; here it's the fallback when no dynamic
-                    // per-metric provenance resolved, and only when the ring actually shows a value (own or
-                    // carried), so an empty/calibrating Charge shows no pill.
-                    sourcePill = if (recovery != null || lastScoredCharge != null) "WHOOP" else null,
                     onRingTap = onChargeTap,
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -2327,34 +2312,49 @@ private fun ScoreHeroRow(
                         if (strain == null) RingNoData()
                     }
                 }
-                // REST, sleep composite 0–100, reusing the recovery colour scale, as a liquid vessel. Badges
-                // its real sleep_performance merge winner under the vessel (gated upstream on restScore != null).
-                HeroRingColumn(
-                    domain = DomainTheme.Rest,
-                    onInfo = { onScoreInfo(ScoreSection.REST) },
-                    provenance = restProvenance,
-                    // iOS shows a static "WHOOP" pill under Rest too; fallback when no dynamic provenance
-                    // resolved and the ring shows a real Rest score.
-                    sourcePill = if (restScore != null) "WHOOP" else null,
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        HeroScoreVessel(
-                            fraction = (restScore ?: 0.0) / 100.0,
-                            value = restScore ?: 0.0,
-                            tint = Palette.recoveryColor(restScore ?: 0.0),
-                            diameter = ring,
-                            animated = animated,
-                            showsValue = restScore != null,
-                        )
-                        // #898: an aggregate-import user (a daily HRV/RHR import, no in-bed session) gets a
-                        // Charge from WatchRecovery but NO sleep_performance, so Rest used to read a bare
-                        // "No Data" next to a lit Charge , reading as broken. When a Charge IS present for the
-                        // day but Rest is absent, say WHY honestly ("Needs a tracked night") instead. We do
-                        // NOT fabricate a Rest number , an aggregate genuinely has no scored night. A day with
-                        // no Charge either (truly empty) keeps the plain "No Data". Mirrors iOS restRing.
-                        if (restScore == null) {
-                            if (recovery != null) RingNeedsTrackedNight() else RingNoData()
+                // REST, sleep composite 0–100. Its fixed-width box also anchors the card-level source badge:
+                // the badge may grow leftward, but its trailing edge always matches the Rest vessel.
+                Box(modifier = Modifier.width(ring)) {
+                    HeroRingColumn(
+                        domain = DomainTheme.Rest,
+                        onInfo = { onScoreInfo(ScoreSection.REST) },
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            HeroScoreVessel(
+                                fraction = (restScore ?: 0.0) / 100.0,
+                                value = restScore ?: 0.0,
+                                tint = Palette.recoveryColor(restScore ?: 0.0),
+                                diameter = ring,
+                                animated = animated,
+                                showsValue = restScore != null,
+                            )
+                            // #898: an aggregate-import user (a daily HRV/RHR import, no in-bed session) gets a
+                            // Charge from WatchRecovery but NO sleep_performance, so Rest used to read a bare
+                            // "No Data" next to a lit Charge , reading as broken. When a Charge IS present for the
+                            // day but Rest is absent, say WHY honestly ("Needs a tracked night") instead. We do
+                            // NOT fabricate a Rest number , an aggregate genuinely has no scored night. A day with
+                            // no Charge either (truly empty) keeps the plain "No Data". Mirrors iOS restRing.
+                            if (restScore == null) {
+                                if (recovery != null) RingNeedsTrackedNight() else RingNoData()
+                            }
                         }
+                    }
+                    if (heroSourceLabel != null) {
+                        SourceBadge(
+                            text = heroSourceLabel,
+                            tint = Palette.onDarkSecondary,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                // Measure the full label even when it is wider than the Rest vessel, then
+                                // let it overflow left while preserving the vessel-aligned trailing edge.
+                                .wrapContentWidth(unbounded = true, align = Alignment.End)
+                                .onSizeChanged { sourceBadgeHeightPx = it.height }
+                                // The row starts one space16 inside the card; lifting by that plus half the
+                                // measured badge height puts its centre exactly on the top border, including
+                                // when Android font scaling grows it above the canonical compact height.
+                                .offset(y = -(Metrics.space16 + sourceBadgeHalfHeight))
+                                .semantics { contentDescription = "Source: $heroSourceLabel" },
+                        )
                     }
                 }
             }
@@ -2364,22 +2364,13 @@ private fun ScoreHeroRow(
 
 /**
  * One hero ring column: the ring, with a tappable UPPERCASE domain label + chevron beneath it (the
- * WHOOP affordance) that opens the matching scoring-guide section, and an OPTIONAL per-metric provenance
- * badge (COMPONENT 4) under that, the real merge winner for this ring's score ("On-device" / "Whoop" /
- * "Apple Health"). The badge is shown only when [provenance] is non-null (the caller gates it on the
- * ring having a value AND a resolved winner). Mirrors the iOS heroRingColumn, the ring floats on the
- * scenic field with no per-ring card, the SourceBadge sits beneath the label.
+ * WHOOP affordance) that opens the matching scoring-guide section. Provenance belongs to the whole hero
+ * card and is rendered once by [ScoreHeroRow], so this column only owns score content and navigation.
  */
 @Composable
 private fun HeroRingColumn(
     domain: DomainTheme,
     onInfo: () -> Unit,
-    provenance: String? = null,
-    // iOS parity: a static source pill under the ring (iOS `HeroScoreCell(pill: "WHOOP")` on Charge + Rest,
-    // nil on Effort). Shown ONLY when [provenance] didn't resolve a real per-metric winner, so a real
-    // multi-source badge ("Apple Health" / "On-device") still wins when present; otherwise the same "WHOOP"
-    // pill iOS always shows appears (the maintainer's "android doesn't show the pill" gap). null = no pill.
-    sourcePill: String? = null,
     // A1: when non-null (Charge), the ring is tappable and opens the breakdown sheet. The chevron cue is
     // overlaid by the caller INSIDE the ring box so it adds no stacked height (#762 self-sizing parity).
     onRingTap: (() -> Unit)? = null,
@@ -2441,44 +2432,7 @@ private fun HeroRingColumn(
                 modifier = Modifier.size(14.dp),
             )
         }
-        // COMPONENT 4, the real per-metric merge winner under this ring (only when resolved + the ring
-        // has a value). Tinted to the source's badge hue, matching the Data Sources footer + iOS. When it
-        // DIDN'T resolve, fall back to the iOS static "WHOOP" pill so Charge + Rest always carry a source
-        // pill in the same spot as iOS (the maintainer's "android doesn't show the small pill" gap).
-        if (provenance != null) {
-            SourceBadge(
-                provenance,
-                tint = provenanceLabelTint(provenance),
-                modifier = Modifier.semantics { contentDescription = "Source: $provenance" },
-            )
-        } else if (sourcePill != null) {
-            HeroSourcePill(sourcePill)
-        }
     }
-}
-
-/**
- * The static under-ring source pill (iOS `HeroScoreCell`'s "WHOOP" pill). A subtle translucent-white
- * capsule — white@0.05 fill, white@0.18 hairline, secondary text, overline ~8.5sp / +1.2 tracking — so it
- * reads on the dark hero card without pulling focus. Matches the iOS pill exactly; shown under Charge + Rest
- * (never Effort) whenever no dynamic per-metric provenance badge resolved.
- */
-@Composable
-private fun HeroSourcePill(text: String) {
-    val shape = RoundedCornerShape(50)
-    Text(
-        text = text.uppercase(),
-        style = NoopType.overline.copy(fontSize = 8.5.sp, letterSpacing = 1.2.sp),
-        color = Palette.textSecondary,
-        maxLines = 1,                          // #74: source pill stays on one line
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier
-            .clip(shape)
-            .background(Color.White.copy(alpha = 0.05f))
-            .border(1.dp, Color.White.copy(alpha = 0.18f), shape)
-            .padding(horizontal = 8.dp, vertical = 2.5.dp)
-            .semantics { contentDescription = "Source: $text" },
-    )
 }
 
 /**
@@ -4166,6 +4120,33 @@ internal fun provenanceDisplayLabel(
     return com.noop.analytics.FusionSource.entries.firstOrNull { it.id == rawSource }?.displayName ?: rawSource
 }
 
+/** Today uses the audience-facing sensor name for Apple Health scores, matching the Swift Today lane. */
+internal fun todayProvenanceChipLabel(
+    rawSource: String,
+    deviceId: String = WhoopRepository.WHOOP_SOURCE,
+): String = if (rawSource == WhoopRepository.APPLE_HEALTH_SOURCE) {
+    "Apple Watch"
+} else {
+    provenanceDisplayLabel(rawSource, deviceId)
+}
+
+/**
+ * One compact source label for the liquid score hero. Raw winners arrive in Charge / Effort / Rest order;
+ * identical display names collapse and mixed winners are capped at two so the badge stays readable.
+ * Mirrors LiquidTodayView.heroSourceLabel value-for-value.
+ */
+internal fun heroSourceLabel(
+    rawSources: List<String>,
+    deviceId: String = WhoopRepository.WHOOP_SOURCE,
+): String? {
+    val labels = LinkedHashSet<String>()
+    for (rawSource in rawSources) {
+        labels.add(todayProvenanceChipLabel(rawSource, deviceId))
+        if (labels.size == 2) break
+    }
+    return labels.takeIf { it.isNotEmpty() }?.joinToString(" + ")
+}
+
 /** The tint for a per-metric provenance badge, keyed on the resolved LABEL, gold for Whoop, cyan for
  *  Apple Health, the positive status hue for on-device (and anything else). Matches the Data Sources
  *  footer + the Swift `provenanceTint` so the same source reads the same colour on Today. */
@@ -4176,9 +4157,9 @@ internal fun provenanceLabelTint(label: String): Color = when (label) {
     else -> Palette.statusPositive
 }
 
-// NOTE: the blanket day-level `TodayProvenanceBadge` was removed, Today provenance is now PER-METRIC,
-// rendered as a SourceBadge under each hero ring (see HeroRingColumn + ScoreHeroRow), resolving the real
-// field-by-field merge winner per WhoopRepository.mergeDaily. The pure `dayOwnerSource` /
+// NOTE: the blanket day-level `TodayProvenanceBadge` was removed. Today provenance now resolves the real
+// per-metric field-by-field winners, deduplicates them, and renders one card-level SourceBadge aligned to
+// the Rest vessel (see heroSourceLabel + ScoreHeroRow). The pure `dayOwnerSource` /
 // `provenanceBadgeLabel` By-Day mappers are kept (Intelligence/Trends + tests still use that vocabulary).
 
 /**

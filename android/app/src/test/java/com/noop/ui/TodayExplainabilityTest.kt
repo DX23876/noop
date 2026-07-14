@@ -302,4 +302,30 @@ class TodayExplainabilityTest {
         assertEquals("On-device", provenanceDisplayLabel("whoop5-C0FF-noop", deviceId = "my-whoop"))
         assertEquals("On-device", provenanceDisplayLabel("my-whoop-noop", deviceId = "strap-42"))
     }
+
+    @Test
+    fun liquidHeroSourceLabel_deduplicatesOneWinner() {
+        assertEquals(
+            "On-device",
+            heroSourceLabel(listOf("my-whoop-noop", "my-whoop-noop", "my-whoop-noop")),
+        )
+    }
+
+    @Test
+    fun liquidHeroSourceLabel_capsMixedWinnersAtTwoInScoreOrder() {
+        assertEquals(
+            "Whoop + On-device",
+            heroSourceLabel(listOf("my-whoop", "my-whoop-noop", "health-connect")),
+        )
+    }
+
+    @Test
+    fun liquidHeroSourceLabel_usesAudienceFacingAppleWatchName() {
+        assertEquals("Apple Watch", heroSourceLabel(listOf("apple-health")))
+    }
+
+    @Test
+    fun liquidHeroSourceLabel_hidesWhenNoScoreHasAResolvedSource() {
+        assertNull(heroSourceLabel(emptyList()))
+    }
 }
