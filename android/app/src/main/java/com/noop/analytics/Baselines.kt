@@ -92,7 +92,18 @@ object Baselines {
      *  Charge build-up restarts cleanly. EXACT same key string as the iOS UserDefaults key. */
     const val recoveryBaselineEpochKey: String = "noop.recoveryBaselineEpoch"
 
-    /** Default per-metric configurations (HRV, resting HR, respiration, skin temp). */
+    /**
+     * Default per-metric configurations (HRV, resting HR, respiration, skin temp, daily
+     * Effort/strain).
+     *
+     * "strain" backs the RecoveryScorer Activity-Balance / previous-day-Effort term: bounds
+     * match `StrainScorer.maxStrain`'s 0-100 output scale (the Charge/Effort/Rest redesign's
+     * rescale of the historical 0-21 axis). floorSpread is wider than the physiological
+     * metrics above (5.0 vs ~1-2% of range elsewhere) because day-to-day training load is
+     * EXPECTED to swing hard (a rest day vs a hard day is a normal, large delta) — a tight
+     * floor would make the z-score hypersensitive to routine training variation. Same
+     * half-lives as the other metrics for consistency.
+     */
     val metricCfg: Map<String, MetricCfg> = mapOf(
         "hrv" to MetricCfg(
             minVal = 5.0, maxVal = 250.0, floorSpread = 5.0,
@@ -110,6 +121,10 @@ object Baselines {
             minVal = 20.0, maxVal = 42.0, floorSpread = 0.3,
             halfLifeB = 14.0, halfLifeS = 21.0,
         ),
+        "strain" to MetricCfg(
+            minVal = 0.0, maxVal = 100.0, floorSpread = 5.0,
+            halfLifeB = 14.0, halfLifeS = 21.0,
+        ),
     )
 
     /** Convenience accessor for the standard HRV config. */
@@ -120,6 +135,9 @@ object Baselines {
 
     /** Convenience accessor for the standard respiration config. */
     val respCfg: MetricCfg get() = metricCfg.getValue("resp")
+
+    /** Baseline config for the RecoveryScorer Activity-Balance / previous-day-Effort term. */
+    val strainCfg: MetricCfg get() = metricCfg.getValue("strain")
 
     /** Convert a half-life in nights to an EWMA smoothing factor. */
     internal fun lambda(halfLife: Double): Double = 1.0 - 0.5.pow(1.0 / halfLife)
