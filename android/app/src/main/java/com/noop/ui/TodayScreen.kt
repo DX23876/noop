@@ -1186,100 +1186,8 @@ fun TodayScreen(
 
         if (alert != null) item { IllnessBanner(alert!!) }
 
-        // HERO, three equal Charge / Effort / Rest liquid vessels in the compact pinned-dark card used by
-        // LiquidTodayView. Effort prefers today's live in-progress strain and falls back to the stored value
-        // (#402); the single floating badge names the real score sources without consuming card spacing.
-        // Staggered in as the score hero (index 1, after the header); each number counts up over its vessel.
-        // The day-cycle SCENE now sits at SCREEN level (the scaffold's `topBackground`, behind the header +
-        // these rings + bled full-width up behind the status bar), so the rings float DIRECTLY on the scene
-        // rather than in a card-clipped scene of their own, mirroring iOS, where TodayView moved the scene
-        // to a screen-level `SceneScreenBackground` and the hero dropped `.sceneHeroBackground()`.
-        item {
-        // The liquid hero CARD: a translucent near-black that floats over the day-of-sky so the vessels +
-        // white count-up numbers stay crisp — the card does the contrast work, not a muted sky. A rounded
-        // 26 corner + a faint white hairline give it the frosted-glass edge of the iOS liquid heroCard
-        // (heroFill = rgba(13,14,20,.80), stroke white@0.11). Mirrors the iOS LiquidTodayView heroCard.
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                // The shaped background stays clipped, while the source badge may straddle its top edge.
-                .background(
-                    LIQUID_HERO_FILL.copy(alpha = LIQUID_HERO_FILL.alpha * CardAppearance.opacity),
-                    RoundedCornerShape(LIQUID_HERO_RADIUS),
-                )
-                .border(1.dp, Color.White.copy(alpha = 0.11f * CardAppearance.opacity), RoundedCornerShape(LIQUID_HERO_RADIUS))
-                .staggeredAppear(1),
-        ) {
-            ScoreHeroRow(
-                day = displayMetric,
-                restScore = restScoreForDay,
-                recoveryCalibration = recoveryCalibration,
-                lastScoredCharge = lastScoredCharge,
-                effortScale = effortScale,
-                liveTodayStrain = if (selectedDayOffset == 0) liveTodayStrain else null,
-                heroSourceLabel = heroSourceLabel,
-                onScoreInfo = openGuide,
-                onChargeTap = { showChargeBreakdown = true },
-            )
-        }
-        }
-
-        // LIVE SESSIONS (beta): the compact "Start session · BETA" entry, directly under the hero. Today
-        // only (offset 0 — a session is a now-thing), gated on the Settings beta flag; a RUNNING session
-        // keeps the card visible regardless (it is the designed way back into the dismissed session dialog,
-        // see LiveSessionRunner's lifetime note). The card swaps itself to "Session running" / "Session
-        // ended" (it scopes the runner's per-second snapshot internally, like WorkoutInProgressCard's clock).
-        if (selectedDayOffset == 0 && (liveSessionsEnabled || activeLiveSession != null)) {
-            item {
-                LiveSessionEntryCard(
-                    onOpen = {
-                        // Only BEGIN when nothing is in flight: an active runner (running, or ended and
-                        // holding its unseen summary) is simply re-presented, never displaced — so a tap
-                        // can't silently discard a running session or a summary awaiting its "Done".
-                        if (LiveSessionRunner.active.value == null) {
-                            startOrResumeLiveSession(viewModel, context)
-                        }
-                        showLiveSession = true
-                    },
-                )
-            }
-        }
-
-        // Honest "why is Effort 0?" caption (#482/#480) — PINNED under the hero (NOT part of the
-        // reorderable block below): only when today's Effort is a real near-zero (HR present but never
-        // crossed the cardio zone), so a calm day reads as explained rather than broken. Mirrors the iOS
-        // effortZeroNote. Effort accrues over a day and must never visibly drop: floor the in-progress
-        // value at the day's already-earned strain (#489/#506). displayMetric for today is today's row or
-        // null, so this can't resurrect a stale day, only stop the gauge dropping below what's earned.
-        item {
-        val todayEffort = if (selectedDayOffset == 0) {
-            val liveStrain = liveTodayStrain; val stored = displayMetric?.strain
-            if (liveStrain != null && stored != null) maxOf(liveStrain, stored) else (liveStrain ?: stored)
-        } else null
-        if (todayEffort != null && todayEffort < 1.0) {
-            Row(
-                modifier = Modifier.padding(horizontal = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.Top,
-            ) {
-                Icon(
-                    Icons.Filled.Info,
-                    contentDescription = null,
-                    tint = Palette.effortColor,
-                    modifier = Modifier.size(Metrics.iconSmall),
-                )
-                Text(
-                    "No cardio load yet. Effort builds once your heart rate climbs into your effort " +
-                        "zone (around 50% of your heart-rate reserve). A calm day honestly reads near zero.",
-                    style = NoopType.footnote,
-                    color = Palette.textTertiary,
-                )
-            }
-        }
-        }
-
-        // #today-layout: a small right-aligned affordance to REORDER the sections below. Opens a Today-local
-        // dialog (up/down arrows, like the Key-Metrics / Your-Cards editors) — no new nav destination.
+        // #today-layout: a small right-aligned affordance to REORDER the sections below (an alternative to
+        // holding + dragging the cards directly). Opens a Today-local dialog — no new nav destination.
         item {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 TextButton(
@@ -1297,14 +1205,31 @@ fun TodayScreen(
             }
         }
 
-        // #today-layout: the below-hero sections render in the user's saved order (TodayLayoutPrefs); the
-        // Charge/Effort/Rest hero + intro/conditional cards above stay pinned. Each section is ONE keyed
-        // item wrapped in [TodayReorderableSection]: LONG-PRESS anywhere on a section and drag — it lifts
-        // (haptic), follows the finger, swaps neighbours as it crosses their centres (the screen-level
-        // frame loop also auto-scrolls at the viewport edges and keeps swapping while it does), and the
-        // order persists on drop. The stagger index follows the section's live position.
+        // #today-layout: EVERY Today section — including the Charge/Effort/Rest hero and the Start-session
+        // entry — renders in the user's saved order (TodayLayoutPrefs); only the top bar + this Arrange
+        // affordance stay pinned. Each section is ONE keyed item wrapped in [TodayReorderableSection]:
+        // LONG-PRESS anywhere on a section and drag — it lifts (haptic), follows the finger, swaps
+        // neighbours as it crosses their centres (the screen-level frame loop also auto-scrolls at the
+        // viewport edges and keeps swapping while it does), and the order persists on drop. The stagger
+        // index follows the section's live position.
         sectionOrder.forEachIndexed { pos, section ->
-            val stagger = pos + 2
+            val stagger = pos + 1
+            // A gated-off section (Start session outside today / beta-off; Your Cards outside today or
+            // empty) emits NO item at all: an always-present zero-height item would double the 12dp row
+            // gap around its slot — visible on the DEFAULT layout, where Start session sits right under
+            // the hero and the beta flag is off for most users. The section keeps its place in the saved
+            // order; its item simply reappears when eligible.
+            val visibleDashboardCards = enabledDashboardCards.filter {
+                it != DashboardCard.HYDRATION || hydrationEnabled
+            }
+            val sectionVisible = when (section) {
+                TodaySection.LIVE_SESSION ->
+                    selectedDayOffset == 0 && (liveSessionsEnabled || activeLiveSession != null)
+                TodaySection.YOUR_CARDS ->
+                    selectedDayOffset == 0 && visibleDashboardCards.isNotEmpty()
+                else -> true
+            }
+            if (!sectionVisible) return@forEachIndexed
             item(key = TODAY_SECTION_KEY_PREFIX + section.raw) {
                 TodayReorderableSection(
                     section = section,
@@ -1313,6 +1238,88 @@ fun TodayScreen(
                     onDrop = { TodayLayoutPrefs.setOrder(context, sectionOrder) },
                 ) {
                     when (section) {
+                        // HERO, three equal Charge / Effort / Rest liquid vessels in the compact pinned-dark
+                        // card used by LiquidTodayView. Effort prefers today's live in-progress strain and
+                        // falls back to the stored value (#402); the floating badge names the real score
+                        // sources. The honest "why is Effort 0?" caption (#482/#480) travels WITH the hero
+                        // (folded into this section) so wherever the vessels sit, their explanation follows.
+                        TodaySection.HERO -> Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            // The liquid hero CARD: a translucent near-black that floats over the day-of-sky
+                            // so the vessels + white count-up numbers stay crisp. A rounded 26 corner + a
+                            // faint white hairline give it the frosted-glass edge of the iOS liquid heroCard
+                            // (heroFill = rgba(13,14,20,.80), stroke white@0.11).
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        LIQUID_HERO_FILL.copy(alpha = LIQUID_HERO_FILL.alpha * CardAppearance.opacity),
+                                        RoundedCornerShape(LIQUID_HERO_RADIUS),
+                                    )
+                                    .border(1.dp, Color.White.copy(alpha = 0.11f * CardAppearance.opacity), RoundedCornerShape(LIQUID_HERO_RADIUS))
+                                    .staggeredAppear(stagger),
+                            ) {
+                                ScoreHeroRow(
+                                    day = displayMetric,
+                                    restScore = restScoreForDay,
+                                    recoveryCalibration = recoveryCalibration,
+                                    lastScoredCharge = lastScoredCharge,
+                                    effortScale = effortScale,
+                                    liveTodayStrain = if (selectedDayOffset == 0) liveTodayStrain else null,
+                                    heroSourceLabel = heroSourceLabel,
+                                    onScoreInfo = openGuide,
+                                    onChargeTap = { showChargeBreakdown = true },
+                                )
+                            }
+                            // Honest "why is Effort 0?" caption — only when today's Effort is a real
+                            // near-zero (HR present but never crossed the cardio zone). Effort accrues over
+                            // a day and must never visibly drop: floor the in-progress value at the day's
+                            // already-earned strain (#489/#506).
+                            val todayEffort = if (selectedDayOffset == 0) {
+                                val liveStrain = liveTodayStrain
+                                val stored = displayMetric?.strain
+                                if (liveStrain != null && stored != null) maxOf(liveStrain, stored) else (liveStrain ?: stored)
+                            } else null
+                            if (todayEffort != null && todayEffort < 1.0) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 2.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalAlignment = Alignment.Top,
+                                ) {
+                                    Icon(
+                                        Icons.Filled.Info,
+                                        contentDescription = null,
+                                        tint = Palette.effortColor,
+                                        modifier = Modifier.size(Metrics.iconSmall),
+                                    )
+                                    Text(
+                                        "No cardio load yet. Effort builds once your heart rate climbs into your effort " +
+                                            "zone (around 50% of your heart-rate reserve). A calm day honestly reads near zero.",
+                                        style = NoopType.footnote,
+                                        color = Palette.textTertiary,
+                                    )
+                                }
+                            }
+                        }
+                        // LIVE SESSIONS (beta): the compact "Start session · BETA" entry. Today only
+                        // (offset 0 — a session is a now-thing), gated on the Settings beta flag; a RUNNING
+                        // session keeps the card visible regardless (it is the designed way back into the
+                        // dismissed session dialog, see LiveSessionRunner's lifetime note). The gate lives
+                        // at the loop level (sectionVisible) so a gated-off section emits no item.
+                        TodaySection.LIVE_SESSION -> LiveSessionEntryCard(
+                            onOpen = {
+                                // Only BEGIN when nothing is in flight: an active runner (running, or ended
+                                // and holding its unseen summary) is simply re-presented, never displaced —
+                                // so a tap can't silently discard a running session or a summary awaiting
+                                // its "Done".
+                                if (LiveSessionRunner.active.value == null) {
+                                    startOrResumeLiveSession(viewModel, context)
+                                }
+                                showLiveSession = true
+                            },
+                        )
                         // The plain-English read-out, the Charge-tinted Synthesis card. Mirrors the iOS
                         // Synthesis InsightCard; carries the last scored day's read at the rollover (#543).
                         TodaySection.SYNTHESIS -> Box(modifier = Modifier.fillMaxWidth().staggeredAppear(stagger)) {
@@ -1397,35 +1404,30 @@ fun TodayScreen(
                         // YOUR CARDS, the user-customisable dashboard (WHOOP "My Dashboard"). Hydration is
                         // hidden when its tracking is OFF (the editor still offers it, so the choice
                         // persists). Per-field carried-day fallbacks (#543) stop rollover "No Data" blanks.
-                        TodaySection.YOUR_CARDS -> {
-                            val visibleDashboardCards = enabledDashboardCards.filter {
-                                it != DashboardCard.HYDRATION || hydrationEnabled
-                            }
-                            if (selectedDayOffset == 0 && visibleDashboardCards.isNotEmpty()) {
-                                YourCardsSection(
-                                    cards = visibleDashboardCards,
-                                    day = displayMetric,
-                                    carriedDay = lastScoredRecoveryDay,
-                                    vitalsDay = lastVitalsDay,
-                                    spo2Day = lastSpo2Day,
-                                    skinTempDay = lastSkinTempDay,
-                                    stress = stressToday,
-                                    fitnessAge = fitnessAgeToday,
-                                    vitality = vitalityToday,
-                                    importedStepsForDay = importedStepsForDay,
-                                    estimatedStepsForDay = stepsEstForDay,
-                                    latestActiveKcal = latestActiveKcal,
-                                    hydrationTotalMl = hydrationTotalMl,
-                                    hydrationGoalMl = hydrationGoalMl,
-                                    onOpenHydration = onOpenHydration,
-                                    onOpenStress = onOpenStress,
-                                    onOpenMetric = onOpenMetric,
-                                    onOpenSleep = onOpenSleep,
-                                    onOpenCoupled = onOpenCoupled,
-                                    onCustomise = { showDashboardEditor = true },
-                                )
-                            }
-                        }
+                        // The today/non-empty gate lives at the loop level (sectionVisible) so a gated-off
+                        // section emits no item; visibleDashboardCards is the loop-level filtered list.
+                        TodaySection.YOUR_CARDS -> YourCardsSection(
+                            cards = visibleDashboardCards,
+                            day = displayMetric,
+                            carriedDay = lastScoredRecoveryDay,
+                            vitalsDay = lastVitalsDay,
+                            spo2Day = lastSpo2Day,
+                            skinTempDay = lastSkinTempDay,
+                            stress = stressToday,
+                            fitnessAge = fitnessAgeToday,
+                            vitality = vitalityToday,
+                            importedStepsForDay = importedStepsForDay,
+                            estimatedStepsForDay = stepsEstForDay,
+                            latestActiveKcal = latestActiveKcal,
+                            hydrationTotalMl = hydrationTotalMl,
+                            hydrationGoalMl = hydrationGoalMl,
+                            onOpenHydration = onOpenHydration,
+                            onOpenStress = onOpenStress,
+                            onOpenMetric = onOpenMetric,
+                            onOpenSleep = onOpenSleep,
+                            onOpenCoupled = onOpenCoupled,
+                            onCustomise = { showDashboardEditor = true },
+                        )
                     }
                 }
             }
@@ -3598,8 +3600,7 @@ private fun TodayLayoutEditorDialog(
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text("Arrange Today", style = NoopType.title2, color = Palette.textPrimary)
                     Text(
-                        "Hold a section and drag it to reorder. Your Charge / Effort / Rest scores stay " +
-                            "pinned at the top.",
+                        "Hold a section and drag it to reorder — here, or directly on the Today cards.",
                         style = NoopType.subhead,
                         color = Palette.textSecondary,
                     )
