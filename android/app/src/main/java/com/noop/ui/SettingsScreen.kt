@@ -442,6 +442,9 @@ fun SettingsScreen(
     // "Sleep staging (V2)" — V2 is the DEFAULT for every strap (WHOOP 4 and 5/MG); turn it OFF to fall back
     // to V1. Model-agnostic, so it lives outside the 5/MG-only card. 4.0 is unvalidated either way (#319/#347).
     var experimentalSleepV2 by remember { mutableStateOf(puffinExperiment.experimentalSleepV2) }
+    // "Motion-aware wake refinement" (#364 follow-up) — OFF by default. Self-gates on observed gravity +
+    // step density, so it is a no-op on a sparse (e.g. WHOOP 4.0) night regardless of this switch.
+    var motionAwareWake by remember { mutableStateOf(puffinExperiment.motionAwareWake) }
 
     // Whether to surface the WHOOP 5/MG-only probes (puffin / R22 / broadcast-HR / frame-capture). Gated
     // so a confident 4.0 owner never sees 5/MG controls that can't touch their strap (#22). The model
@@ -1693,6 +1696,47 @@ fun SettingsScreen(
                         "V1 staging, and is now the default. It only changes how already-detected nights are " +
                         "split into stages (detection and scores are unchanged); turn it off to fall back to " +
                         "V1. Takes effect on the next nights staged.",
+                    style = NoopType.caption,
+                    color = Palette.textTertiary,
+                )
+
+                // --- Motion-aware wake refinement (#364 follow-up) — OFF by default. ---
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Text(
+                        "Motion-aware wake refinement",
+                        style = NoopType.subhead,
+                        color = Palette.textPrimary,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Switch(
+                        checked = motionAwareWake,
+                        onCheckedChange = {
+                            motionAwareWake = it
+                            puffinExperiment.motionAwareWake = it
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Palette.surfaceBase,
+                            checkedTrackColor = Palette.accent,
+                            uncheckedThumbColor = Palette.textSecondary,
+                            uncheckedTrackColor = Palette.surfaceInset,
+                            uncheckedBorderColor = Palette.hairline,
+                        ),
+                        modifier = Modifier.semantics {
+                            contentDescription = "Motion-aware wake refinement"
+                        },
+                    )
+                }
+                Text(
+                    "Reviews each scored wake block for real evidence of getting up (walking cadence, a " +
+                        "change in body position) instead of just a heart-rate rise. A wake block with no " +
+                        "locomotion and a stable posture -- a hot night, a brief turn-over -- is folded back " +
+                        "into light sleep; a real get-up is left alone. Self-checks how much motion detail " +
+                        "your strap actually recorded and stays off on a night that's too sparse to trust " +
+                        "(older WHOOP 4.0 firmware, mainly). Off by default; takes effect on the next nights staged.",
                     style = NoopType.caption,
                     color = Palette.textTertiary,
                 )

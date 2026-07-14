@@ -1246,15 +1246,24 @@ final class Repository: ObservableObject {
         let hr = (try? await store.hrSamples(deviceId: deviceId, from: lo, to: hi, limit: 200_000)) ?? []
         let rr = (try? await store.rrIntervals(deviceId: deviceId, from: lo, to: hi, limit: 200_000)) ?? []
         let resp = (try? await store.respSamples(deviceId: deviceId, from: lo, to: hi, limit: 200_000)) ?? []
+        // Read only when the refinement below might actually use it (see `useMotionAwareWake`) — a plain
+        // read cost, but no point paying it on the (default) off path.
+        let useMotionAwareWake = PuffinExperiment.motionAwareWakeEnabled
+        let steps = useMotionAwareWake
+            ? ((try? await store.stepSamples(deviceId: deviceId, from: lo, to: hi, limit: 200_000)) ?? [])
+            : []
         // Opt-in experimental staging (Settings → Experimental · Sleep staging): when the user has flipped
         // the V2 flag on, re-stage with the cardiorespiratory recipe `SleepStagerV2`; otherwise the default
         // V1 `SleepStager`. Read once here off the actor; the switch is purely which engine runs over the
         // already-detected window , V1 stays the default and is untouched. (V7 Pillar 3b)
         let useV2 = PuffinExperiment.experimentalSleepV2Enabled
         let segs = await Task.detached(priority: .utility) {
-            useV2
+            let staged = useV2
                 ? SleepStagerV2.stageSession(start: start, end: end, grav: grav, hr: hr, rr: rr, resp: resp)
                 : SleepStager.stageSession(start: start, end: end, grav: grav, hr: hr, rr: rr, resp: resp)
+            // #364 follow-up: motion-aware wake refinement post-pass, same toggle-shaped no-op when off
+            // as every other Experimental switch here.
+            return WakeMotionRefinement.apply(staged, grav: grav, steps: steps, enabled: useMotionAwareWake)
         }.value
         return AnalyticsEngine.encodeStages(segs)
     }

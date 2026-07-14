@@ -652,6 +652,11 @@ final class IntelligenceEngine: ObservableObject {
                 // toggle is the honest escape until real 4.0 ground truth settles it (#271/#319). Matches the
                 // self-heal restage below, which reads the same toggle.
                 let useSleepStagerV2 = PuffinExperiment.experimentalSleepV2Enabled
+                // #364 follow-up: read the motion-aware wake refinement toggle the same way (once, off the
+                // detached executor). Default OFF — see `PuffinExperiment.motionAwareWakeEnabled`. It only
+                // ever runs AFTER whichever stager above just ran, and self-gates on the night's observed
+                // gravity + step density, so flipping it on is a no-op for any night too sparse to trust.
+                let useMotionAwareWake = PuffinExperiment.motionAwareWakeEnabled
 
                 // Already OFF the main actor , score directly (the prior nested `Task.detached` here only
                 // existed to hop off the main actor; the whole loop now runs off it, so the score is computed
@@ -677,6 +682,9 @@ final class IntelligenceEngine: ObservableObject {
                                                      // #690: thread the V2 toggle into the NORMAL staging path so
                                                      // it affects detected nights, not just the self-heal restage.
                                                      useSleepStagerV2: useSleepStagerV2,
+                                                     // #364 follow-up: same threading for the motion-aware wake
+                                                     // refinement post-pass.
+                                                     useMotionAwareWake: useMotionAwareWake,
                                                      traceSink: traceSink,
                                                      hrvTraceSink: hrvTraceSink,
                                                      // Per-window HRV detail ONLY for the most-recent night

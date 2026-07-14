@@ -221,6 +221,14 @@ object AnalyticsEngine {
         // instead of V1. Default false keeps V1 the byte-identical default for pure-function callers/tests;
         // IntelligenceEngine threads PuffinExperiment.from(context).experimentalSleepV2. Mirrors Swift. (V7 / #690)
         useSleepStagerV2: Boolean = false,
+        // Opt-in motion-aware wake refinement (#364 "Proposal 2" follow-up; density gate precedent #345).
+        // When true, [WakeMotionRefinement] re-derives each detected session's stages, reclassifying a
+        // hot-but-still WAKE segment to `light` when it shows no locomotion and a stable posture outside
+        // isolated burst minutes; it only ever runs AFTER V1/V2 staging and self-gates on the observed
+        // gravity + step density, so it is a no-op on a sparse (e.g. WHOOP 4.0) night regardless of this
+        // flag. Default false keeps every pure-function caller/test byte-identical; IntelligenceEngine
+        // threads PuffinExperiment.from(context).motionAwareWake. Mirrors Swift.
+        useMotionAwareWake: Boolean = false,
         // Sleep & Rest test-mode trace sink (E11). null = byte-identical default. When non-null the gate
         // trace from detectSleep and the Rest sub-score line are forwarded line-by-line. Mirrors Swift.
         traceSink: ((String) -> Unit)? = null,
@@ -240,12 +248,22 @@ object AnalyticsEngine {
     ): DayResult {
 
         // ── Sleep detection + staging ─────────────────────────────────────────
-        val allSessions = SleepStager.detectSleep(
+        val detectedSessions = SleepStager.detectSleep(
             hr = hr, rr = rr, resp = resp, gravity = gravity, tzOffsetSeconds = tzOffsetSeconds,
             wristOff = wristOff, bandSleepState = bandSleepState,
             useSleepStagerV2 = useSleepStagerV2,
             traceSink = traceSink,
         )
+        // Motion-aware wake refinement (#364 follow-up) runs AFTER V1/V2 staging, over every detected
+        // session (naps included — the same eligibility gates apply). `steps` is the SAME calendar-day/
+        // night-window stream the caller passed for the rest of this analysis; the pass self-gates on its
+        // observed density, so an empty/sparse `steps` (e.g. a WHOOP 4.0, which never emits a step sample
+        // at all) is a no-op regardless of `useMotionAwareWake`.
+        val allSessions = if (useMotionAwareWake) {
+            detectedSessions.map { WakeMotionRefinement.refine(it, gravity, steps) }
+        } else {
+            detectedSessions
+        }
         // Sessions attributed to `day` = those whose end falls on `day` (LOCAL day, #277). `day` is
         // the caller's local-day key; attribute by the same offset so the bucket and the key agree.
         val matched = allSessions.filter { dayString(it.end, tzOffsetSeconds) == day }

@@ -1346,6 +1346,8 @@ class WhoopBleClient(
                         // engine the user chose in Settings, read off SharedPreferences here (the analytics
                         // layer is Context-free). Default off → V1. (V7 Pillar 3b)
                         useExperimentalSleepV2 = PuffinExperiment.from(context).experimentalSleepV2,
+                        // Opt-in motion-aware wake refinement (#364 follow-up) — same Context-free threading.
+                        useMotionAwareWake = PuffinExperiment.from(context).motionAwareWake,
                         // Sleep & Rest test mode (Test Centre E5): when the SLEEP domain is on, route this
                         // post-backfill pass's per-day sleep gate trace into the .sleep-tagged strap log, so a
                         // shared report carries the staging proof from THIS scoring pass too, not only the UI

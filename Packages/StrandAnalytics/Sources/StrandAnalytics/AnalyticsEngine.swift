@@ -324,6 +324,16 @@ public enum AnalyticsEngine {
                                   // byte-identical default for pure-function callers/tests; IntelligenceEngine
                                   // threads `PuffinExperiment.experimentalSleepV2Enabled`. (V7 / #690)
                                   useSleepStagerV2: Bool = false,
+                                  // Opt-in motion-aware wake refinement (#364 "Proposal 2" follow-up; density
+                                  // gate precedent #345). When true, `WakeMotionRefinement` re-derives each
+                                  // detected session's stages, reclassifying a hot-but-still WAKE segment to
+                                  // `light` when it shows no locomotion and a stable posture outside isolated
+                                  // burst minutes; it only ever runs AFTER V1/V2 staging and self-gates on the
+                                  // observed gravity + step density, so it is a no-op on a sparse (e.g. WHOOP
+                                  // 4.0) night regardless of this flag. Default false keeps every pure-function
+                                  // caller/test byte-identical; IntelligenceEngine threads
+                                  // `PuffinExperiment.motionAwareWakeEnabled`.
+                                  useMotionAwareWake: Bool = false,
                                   // Sleep PROVENANCE for the per-day sleep trace (CAPTURE-C / #799). The
                                   // measured BLE path is `.measured` (the default); the caller passes
                                   // `.imported(...)` when a previously-imported sleep row WON the daily merge,
@@ -361,11 +371,19 @@ public enum AnalyticsEngine {
         func tsInDay(_ ts: Int) -> Bool { (ts + tzOffsetSeconds) >= dayStartUtc && (ts + tzOffsetSeconds) < dayEndUtc }
 
         // ── Sleep detection + staging ─────────────────────────────────────────
-        let allSessions = SleepStager.detectSleep(hr: hr, rr: rr, resp: resp, gravity: gravity,
+        let detectedSessions = SleepStager.detectSleep(hr: hr, rr: rr, resp: resp, gravity: gravity,
                                                   tzOffsetSeconds: tzOffsetSeconds, wristOff: wristOff,
                                                   bandSleepState: bandSleepState,
                                                   useSleepStagerV2: useSleepStagerV2,
                                                   traceSink: traceSink)
+        // Motion-aware wake refinement (#364 follow-up) runs AFTER V1/V2 staging, over every detected
+        // session (naps included — the same eligibility gates apply). `steps` is the SAME calendar-day/
+        // night-window stream the caller passed for the rest of this analysis; the pass self-gates on its
+        // observed density, so an empty/sparse `steps` (e.g. a WHOOP 4.0, which never emits StepSample at
+        // all) is a no-op regardless of `useMotionAwareWake`.
+        let allSessions = useMotionAwareWake
+            ? detectedSessions.map { WakeMotionRefinement.refine($0, grav: gravity, steps: steps) }
+            : detectedSessions
         // Sessions attributed to `day` = those whose end falls on `day` (LOCAL day, #277). `day` is
         // the caller's local-day key; attribute by the same offset so the bucket and the key agree.
         let matched = allSessions.filter { tsInDay($0.end) }
