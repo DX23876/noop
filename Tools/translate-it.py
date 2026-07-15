@@ -332,6 +332,10 @@ IT: dict[str, str] = {
     'Recompute': 'Ricalcola',
     'Record puffin frames to a file': 'Registra i frame puffin in un file',
     'Recovery': 'Recupero',
+    # Coupled view dashboard card (task #43) — absent from the catalog, shipped in English on non-English
+    # devices (#484). Re-uses the catalog's own Recupero / sforzo / sonno terms.
+    'Coupled view': 'Vista combinata',
+    'Recovery, strain and sleep in one glance': 'Recupero, sforzo e sonno in un colpo d\'occhio',
     "Recovery weighs your HRV against your personal baseline (~60%), resting heart rate (~20%), sleep performance (~15%) and respiration (~5%). Day strain is a 0–21 cardiovascular load from time in heart-rate zones. Sleep is staged from movement and heart rate. Everything is computed here from the strap's raw data , it works for any day NOOP collected raw streams.": 'Il recupero pesa il tuo HRV rispetto alla tua linea di base personale (~60%), la frequenza cardiaca a riposo (~20%), la prestazione del sonno (~15%) e la respirazione (~5%). Il carico giornaliero è un carico cardiovascolare da 0 a 21 basato sul tempo trascorso nelle zone di frequenza cardiaca. Il sonno viene suddiviso in fasi a partire da movimento e frequenza cardiaca. Tutto viene calcolato qui dai dati grezzi della fascia, funziona per qualsiasi giorno in cui NOOP ha raccolto i flussi grezzi.',
     'Refresh models': 'Aggiorna modelli',
     'Refresh models from provider': 'Aggiorna i modelli dal provider',
