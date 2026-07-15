@@ -1,51 +1,32 @@
 import SwiftUI
 import MarkdownUI
 import StrandDesign
+#if canImport(UIKit)
+import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 /// Coach, the one feature in NOOP that talks to the network.
 ///
-/// It is strictly opt-in and bring-your-own-key: the user pastes their own OpenAI
-/// or Anthropic API key (stored in the macOS Keychain by `AICoachEngine`), and only
-/// a compact text summary of their metrics plus their question ever leaves the Mac.
-/// Nothing is sent until a key is saved and a question asked.
+/// Strictly opt-in, bring-your-own-key: the user pastes their own provider API key (stored in the
+/// Keychain by `AICoachEngine`), and only a compact text summary of their metrics plus their question
+/// ever leaves the device. Nothing is sent until a key is saved and a question asked.
 ///
-/// This screen compiles against `AICoachEngine`'s public API (the macos-core agent's
-/// contract): `hasKey`, `provider` / `provider.modelOptions`, `model`, `messages`,
-/// `sending`, `errorText`, `setKey(_:)`, `clearKey()`, and `send(_:)`.
+/// This is the redesigned full-screen messenger chat: a slim header, a transcript that fills the
+/// screen, and a docked composer. All the provider/consent/persona/memory settings live in
+/// `CoachSettingsView` (behind the gear); past conversations live in `CoachHistoryView` (the history
+/// button). See `docs/CONTRIBUTING.md` for the design-system rules this screen follows.
 struct CoachView: View {
     @EnvironmentObject var coach: AICoachEngine
 
     /// Draft text in the composer (the question being typed).
     @State private var draft: String = ""
-    /// Pending key text in the setup card (never persisted here, handed to `setKey`).
-    @State private var keyDraft: String = ""
-    /// Whether the model selector is in free-text "Custom…" mode.
-    @State private var customModel: Bool = false
-    /// The id typed in the "Custom…" field.
-    @State private var customModelDraft: String = ""
-    /// Whether the editable-system-prompt section is expanded. Collapsed by default so the settings
-    /// stay compact; most users never touch the prompt.
-    @State private var promptExpanded: Bool = false
-    /// Working copy of the system prompt while editing, committed to the engine on change so an edit
-    /// takes effect on the next send. Seeded from the engine when the editor opens.
-    @State private var promptDraft: String = ""
-    /// Daily coach check-in: local mirror of `CoachCheckIn`'s persisted state so the toggle + time picker
-    /// stay in sync with what's actually scheduled. Seeded from `CoachCheckIn` when the view appears.
-    @State private var checkInOn: Bool = CoachCheckIn.isEnabled
-    @State private var checkInTime: Date = CoachCheckIn.timeAsDate
-    /// Set when enabling the check-in fails because notifications are denied — surfaces a jump-to-Settings hint.
-    @State private var checkInDenied: Bool = false
-    /// The coach's persistent memory (facts saved via remember_fact + the user's training goal).
-    /// Shared instance so tool writes from the engine appear here live.
-    @ObservedObject private var memory = CoachMemory.shared
-    /// Whether the memory card is expanded (collapsed by default, like the instructions card).
-    @State private var memoryExpanded: Bool = false
-    /// Working copy of the training goal while editing; committed to the store on change.
-    @State private var goalDraft: String = ""
     @FocusState private var composerFocused: Bool
-
-    /// Sentinel tag for the "Custom…" entry in the model Picker.
-    private let customModelTag = "__custom__"
+    /// Presented sheet: all configuration, or the conversation history. One enum-driven sheet rather
+    /// than two stacked `.sheet` modifiers (which don't compose reliably).
+    private enum ActiveSheet: Int, Identifiable { case settings, history; var id: Int { rawValue } }
+    @State private var activeSheet: ActiveSheet?
 
     private let suggestions = [
         String(localized: "How's my charge trending?"),
@@ -55,55 +36,24 @@ struct CoachView: View {
     ]
 
     var body: some View {
-        ScreenScaffold(title: "Coach",
-                       subtitle: "Ask about your charge, effort, rest and workouts, grounded in your own numbers.",
-                       // Liquid finish: the same full-bleed day-of-sky backdrop Today + the other liquid
-                       // tabs carry, so Coach sits in one atmosphere. Static + non-interactive; the frosted
-                       // message/setup cards below sit on the opaque canvas and stay legible.
-                       topBackground: liquidScaffoldSky()) {
+        VStack(spacing: 0) {
+            header
+            Divider().overlay(StrandPalette.hairline)
             if coach.isConfigured {
-                connectedHeader
-                consentBar
-                // v5: a SECOND opt-in, only meaningful once data access is on, folds a summary of the
-                // new on-device signals (your strongest patterns + Lab Book) into the coach context.
-                if coach.dataConsent { onDeviceSignalsBar }
-                personaBar
-                checkInBar
-                memoryBar
-                systemPromptBar
-                transcript
-                if let error = coach.errorText, !error.isEmpty {
-                    errorBanner(error)
-                }
-                suggestionChips
-                composer
-                privacyFootnote
+                chatBody
             } else {
-                setupCard
+                notConnected
             }
         }
-        .toolbar {
-            if coach.isConfigured {
-                ToolbarItem {
-                    Button {
-                        coach.clearChat()
-                    } label: {
-                        Label("New chat", systemImage: "square.and.pencil")
-                    }
-                    .help("Clear the conversation and start fresh")
-                    .accessibilityLabel("New chat")
-                    .disabled(coach.sending || coach.messages.isEmpty)
-                }
-                ToolbarItem {
-                    Button(role: .destructive) {
-                        coach.disconnect()
-                        keyDraft = ""
-                    } label: {
-                        Label("Disconnect", systemImage: "gearshape")
-                    }
-                    .help("Forget the saved key and disconnect")
-                    .accessibilityLabel("Disconnect provider")
-                }
+        .background(chatBackground)
+        // Docked composer: pinned to the bottom, rising above the keyboard on iOS. Only once connected.
+        .safeAreaInset(edge: .bottom) {
+            if coach.isConfigured { composer }
+        }
+        .sheet(item: $activeSheet) { which in
+            switch which {
+            case .settings: CoachSettingsView().environmentObject(coach)
+            case .history:  CoachHistoryView(onPick: { activeSheet = nil }).environmentObject(coach)
             }
         }
         .task(id: coach.dataConsent) { await coach.startBriefIfNeeded() }
@@ -113,528 +63,101 @@ struct CoachView: View {
         }
     }
 
-    /// Explicit, revocable permission for the coach to read & send the user's data. Off by default.
-    /// A frosted Charge-tinted card so it reads as part of the green Coach world, not a flat panel.
-    private var consentBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
-            HStack(spacing: 10) {
-                Image(systemName: coach.dataConsent ? "lock.open.fill" : "lock.fill")
-                    .foregroundStyle(coach.dataConsent ? StrandPalette.accent : StrandPalette.textTertiary)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Let the coach use my data")
-                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                    Text(coach.dataConsent
-                         ? "On: your charge, rest, HRV and workouts are shared with the provider for tailored coaching."
-                         : "Off: the coach answers generally and sends none of your metrics.")
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 8)
-                Toggle("", isOn: $coach.dataConsent)
-                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
-                    .accessibilityLabel("Let the coach use my data")
-            }
-        }
+    /// The full-bleed day-of-sky backdrop the liquid tabs carry, so Coach sits in one atmosphere.
+    private var chatBackground: some View {
+        liquidScaffoldSky(height: 240)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .ignoresSafeArea()
     }
 
-    /// The v5 second opt-in: include a SUMMARY of the new on-device signals (strongest n-of-1 patterns +
-    /// Lab Book markers). Summary-only, never raw readings, so the no-raw-egress posture holds.
-    private var onDeviceSignalsBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
-            HStack(spacing: 10) {
-                Image(systemName: coach.includeOnDeviceSignals ? "checklist.checked" : "checklist")
-                    .foregroundStyle(coach.includeOnDeviceSignals ? StrandPalette.accent : StrandPalette.textTertiary)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Also share my patterns & Lab Book")
-                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                    Text(coach.includeOnDeviceSignals
-                         ? "On: a short summary of your strongest patterns and logged health numbers is added. Summaries only, never raw readings."
-                         : "Off: only your core metrics are shared, not your patterns or Lab Book.")
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 8)
-                Toggle("", isOn: $coach.includeOnDeviceSignals)
-                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
-                    .accessibilityLabel("Also share my patterns and Lab Book with the coach")
-            }
-        }
-    }
+    // MARK: - Header
 
-    /// Proactive daily check-in: an opt-in reminder that fires each day so the coach reaches out first.
-    /// Tapping it opens the app; the Coach tab then auto-generates "Today's brief". Toggle + time picker
-    /// in the same frosted card style; a denial surfaces an inline hint rather than a dead toggle.
-    private var checkInBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 10) {
-                    Image(systemName: checkInOn ? "bell.badge.fill" : "bell")
-                        .foregroundStyle(checkInOn ? StrandPalette.accent : StrandPalette.textTertiary)
-                        .accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("Daily check-in")
-                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                        Text(checkInOn
-                             ? "On: a daily reminder to open your coaching brief."
-                             : "Off: the coach only responds when you ask.")
-                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    Spacer(minLength: 8)
-                    Toggle("", isOn: $checkInOn)
-                        .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
-                        .accessibilityLabel("Daily coach check-in")
-                        .onChangeCompat(of: checkInOn) { on in
-                            CoachCheckIn.setEnabled(on) { outcome in
-                                if outcome == .denied {
-                                    checkInOn = false
-                                    checkInDenied = true
-                                } else {
-                                    checkInDenied = false
-                                }
-                            }
-                        }
-                }
-                if checkInOn {
-                    HStack {
-                        Text("Time").font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
-                        Spacer(minLength: 8)
-                        DatePicker("Check-in time", selection: $checkInTime, displayedComponents: .hourAndMinute)
-                            .labelsHidden()
-                            .onChangeCompat(of: checkInTime) { newValue in
-                                CoachCheckIn.setTime(from: newValue)
-                            }
-                            .accessibilityLabel("Check-in time")
-                    }
-                }
-                if checkInDenied {
-                    Text("Notifications are off. Enable them for NOOP in Settings to use check-ins.")
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.recovery000)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-        }
-    }
-
-    /// Coaching personality picker: sets the coach's VOICE (Guardian / Friend / Commander) on top of
-    /// the methodology in the system prompt. A segmented control in the same frosted Charge-tinted card
-    /// style as the other settings; the choice persists via `CoachPersona` and applies on the next message.
-    private var personaBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 10) {
-                    Image(systemName: coach.persona.symbol)
-                        .foregroundStyle(StrandPalette.accent)
-                        .accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("Coaching style")
-                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                        Text(coach.persona.subtitle)
-                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    Spacer(minLength: 8)
-                }
-                Picker("Coaching style", selection: Binding(
-                    get: { coach.persona },
-                    set: { coach.persona = $0 }
-                )) {
-                    ForEach(CoachPersona.allCases) { p in
-                        Text(p.title).tag(p)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.segmented)
-                .accessibilityLabel("Coaching style")
-            }
-        }
-    }
-
-    /// The coach's persistent memory: the user's training goal (editable) + the facts the model saved
-    /// via `remember_fact`, each deletable. Collapsed by default, same idiom as the instructions card.
-    private var memoryBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
-            VStack(alignment: .leading, spacing: memoryExpanded ? 10 : 0) {
-                Button {
-                    withAnimation(StrandMotion.fade) {
-                        memoryExpanded.toggle()
-                        if memoryExpanded { goalDraft = memory.trainingGoal }
-                    }
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "brain")
-                            .foregroundStyle(memory.facts.isEmpty && memory.trainingGoal.isEmpty
-                                             ? StrandPalette.textTertiary : StrandPalette.accent)
-                            .accessibilityHidden(true)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text("Coach memory")
-                                .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                            Text(memory.facts.isEmpty
-                                 ? "Your goal and what the coach remembers about you, across conversations."
-                                 : "\(memory.facts.count) remembered fact\(memory.facts.count == 1 ? "" : "s"). The coach uses these in every reply.")
-                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        Spacer(minLength: 8)
-                        Image(systemName: memoryExpanded ? "chevron.up" : "chevron.down")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(StrandPalette.textTertiary)
-                            .accessibilityHidden(true)
-                    }
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(memoryExpanded ? "Collapse coach memory" : "Show coach memory")
-
-                if memoryExpanded {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("My goal").strandOverline()
-                        TextField("e.g. Half marathon in October", text: $goalDraft)
-                            .textFieldStyle(.plain)
-                            .font(StrandFont.body)
-                            .foregroundStyle(StrandPalette.textPrimary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 9)
-                            .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .strokeBorder(StrandPalette.hairline, lineWidth: 1))
-                            .onChangeCompat(of: goalDraft) { newValue in
-                                memory.trainingGoal = newValue
-                            }
-                            .accessibilityLabel("My training goal")
-                    }
-
-                    if !memory.facts.isEmpty {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Remembered").strandOverline()
-                            ForEach(memory.facts) { fact in
-                                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                    Text(fact.text)
-                                        .font(StrandFont.footnote)
-                                        .foregroundStyle(StrandPalette.textSecondary)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                    Spacer(minLength: 8)
-                                    Button {
-                                        memory.remove(fact.id)
-                                    } label: {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .foregroundStyle(StrandPalette.textTertiary)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .accessibilityLabel("Forget: \(fact.text)")
-                                }
-                            }
-                            HStack {
-                                Spacer()
-                                Button {
-                                    memory.clearAll()
-                                } label: {
-                                    Label("Forget everything", systemImage: "trash")
-                                        .font(StrandFont.footnote)
-                                        .labelStyle(.titleAndIcon)
-                                }
-                                .buttonStyle(.plain)
-                                .foregroundStyle(StrandPalette.accent)
-                                .accessibilityLabel("Forget all remembered facts")
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    /// Editable system prompt, the instructions that frame the coach. Collapsed by default; expanding
-    /// reveals a TextEditor bound to the engine (edits persist to UserDefaults and take effect on the
-    /// next message) plus a Reset-to-default control. Lives inline in the existing settings, NOT a modal.
-    private var systemPromptBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
-            VStack(alignment: .leading, spacing: promptExpanded ? 10 : 0) {
-                Button {
-                    withAnimation(StrandMotion.fade) {
-                        promptExpanded.toggle()
-                        if promptExpanded { promptDraft = coach.customSystemPrompt }
-                    }
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "text.alignleft")
-                            .foregroundStyle(coach.hasCustomSystemPrompt ? StrandPalette.accent : StrandPalette.textTertiary)
-                            .accessibilityHidden(true)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text("Coach instructions")
-                                .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                            Text(coach.hasCustomSystemPrompt
-                                 ? "Customised. Your edited instructions frame every reply."
-                                 : "Edit how the coach thinks and talks. Takes effect on your next message.")
-                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        Spacer(minLength: 8)
-                        Image(systemName: promptExpanded ? "chevron.up" : "chevron.down")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(StrandPalette.textTertiary)
-                            .accessibilityHidden(true)
-                    }
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(promptExpanded ? "Collapse coach instructions" : "Edit coach instructions")
-
-                if promptExpanded {
-                    TextEditor(text: $promptDraft)
-                        .font(StrandFont.body)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                        .scrollContentBackground(.hidden)
-                        .frame(minHeight: 140, maxHeight: 240)
-                        .padding(8)
-                        .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .strokeBorder(StrandPalette.hairline, lineWidth: 1))
-                        .onChangeCompat(of: promptDraft) { newValue in
-                            coach.customSystemPrompt = newValue
-                        }
-                        .accessibilityLabel("Coach instructions editor")
-
-                    HStack {
-                        Spacer()
-                        Button {
-                            coach.resetSystemPrompt()
-                            promptDraft = coach.customSystemPrompt
-                        } label: {
-                            Label("Reset to default", systemImage: "arrow.uturn.backward")
-                                .font(StrandFont.footnote)
-                                .labelStyle(.titleAndIcon)
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(StrandPalette.accent)
-                        .disabled(!coach.hasCustomSystemPrompt)
-                        .accessibilityLabel("Reset coach instructions to default")
-                    }
-                }
-            }
-        }
-    }
-
-    // MARK: - Setup (no key yet)
-
-    private var setupCard: some View {
-        StrandCard(padding: 20) {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(spacing: 10) {
-                    Image(systemName: "sparkles")
-                        .foregroundStyle(StrandPalette.accent)
-                        .accessibilityHidden(true)
-                    Text("Connect a provider")
-                        .font(StrandFont.headline)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                }
-
-                Text("Coach uses your own API key. Pick a provider, paste a key, and choose a model. Your key is stored securely in the Keychain and never leaves \(Platform.deviceNounPhrase) except as the request you make.")
-                    .font(StrandFont.subhead)
+    private var header: some View {
+        HStack(spacing: 12) {
+            Button { activeSheet = .history } label: {
+                Image(systemName: "clock.arrow.circlepath")
+                    .font(StrandFont.headline)
                     .foregroundStyle(StrandPalette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                // Provider
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Provider").strandOverline()
-                    Picker("Provider", selection: $coach.provider) {
-                        ForEach(AIProvider.allCases) { p in
-                            Text(p.displayName).tag(p)
-                        }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.segmented)
-                    .accessibilityLabel("Provider")
-                }
-
-                // Server URL (Custom / local LLM only)
-                if coach.provider == .custom {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Server URL").strandOverline()
-                        TextField("http://localhost:11434/v1", text: $coach.customBaseURL)
-                            .textFieldStyle(.plain)
-                            .font(StrandFont.body)
-                            .foregroundStyle(StrandPalette.textPrimary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 9)
-                            .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .strokeBorder(StrandPalette.hairline, lineWidth: 1))
-                            .disableAutocorrection(true)
-                            .accessibilityLabel("Server URL")
-                        Text("Any OpenAI-compatible server: Ollama, LM Studio, llama.cpp, or your own gateway. Stays on your network; nothing leaves \(Platform.deviceNounPhrase).")
-                            .font(StrandFont.footnote)
-                            .foregroundStyle(StrandPalette.textSecondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-
-                // Model
-                modelSelector
-
-                // Key
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(coach.provider == .custom ? "API key (optional)" : "API key").strandOverline()
-                    SecureField(coach.provider == .custom
-                                ? "Only if your server requires one"
-                                : "Paste your \(coach.provider.displayName) API key", text: $keyDraft)
-                        .textFieldStyle(.plain)
-                        .font(StrandFont.body)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 9)
-                        .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .strokeBorder(StrandPalette.hairline, lineWidth: 1))
-                        .onSubmit { coach.provider == .custom ? connectCustom() : saveKey() }
-                        .accessibilityLabel("API key")
-                }
-
-                HStack {
-                    if coach.provider == .custom {
-                        NoopButton("Connect", systemImage: "link", kind: .primary, action: connectCustom)
-                            .disabled(coach.customBaseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    } else {
-                        NoopButton("Save key", systemImage: "key.fill", kind: .primary, action: saveKey)
-                            .disabled(keyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    }
-                    Spacer()
-                }
-
-                Divider().overlay(StrandPalette.hairline)
-                privacyFootnote
             }
-        }
-    }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Conversation history")
 
-    /// Model selector: a Picker over `coach.availableModels` with a free-text "Custom…" path and a
-    /// "Refresh models" button that fetches the provider's live list.
-    private var modelSelector: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text("Model").strandOverline()
-                Spacer()
-                Button {
-                    Task { await coach.refreshModels() }
-                } label: {
-                    Label("Refresh models", systemImage: "arrow.clockwise")
+            VStack(spacing: 1) {
+                Text(coach.activeConversation?.title.isEmpty == false
+                     ? coach.activeConversation!.title
+                     : String(localized: "Coach"))
+                    .font(StrandFont.headline)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                    .lineLimit(1)
+                if coach.sending {
+                    Text("Thinking…")
                         .font(StrandFont.footnote)
-                        .labelStyle(.titleAndIcon)
+                        .foregroundStyle(StrandPalette.accent)
+                }
+            }
+            .frame(maxWidth: .infinity)
+
+            HStack(spacing: 14) {
+                Button { coach.newConversation() } label: {
+                    Image(systemName: "square.and.pencil")
+                        .font(StrandFont.headline)
+                        .foregroundStyle(StrandPalette.textSecondary)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(StrandPalette.accent)
-                .disabled(!coach.hasKey)
-                .help("Fetch the available models from \(coach.provider.displayName) using your saved key")
-                .accessibilityLabel("Refresh models from provider")
-            }
+                .disabled(coach.sending || coach.messages.isEmpty)
+                .accessibilityLabel("New chat")
 
-            Picker("Model", selection: modelPickerSelection) {
-                ForEach(coach.availableModels, id: \.self) { m in
-                    Text(m).tag(m)
+                Button { activeSheet = .settings } label: {
+                    Image(systemName: "gearshape")
+                        .font(StrandFont.headline)
+                        .foregroundStyle(StrandPalette.textSecondary)
                 }
-                Divider()
-                Text("Custom…").tag(customModelTag)
-            }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .fixedSize()
-            .accessibilityLabel("Model")
-
-            if customModel {
-                HStack(spacing: 8) {
-                    TextField("Enter a model id", text: $customModelDraft)
-                        .textFieldStyle(.plain)
-                        .font(StrandFont.body)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 9)
-                        .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .strokeBorder(StrandPalette.hairline, lineWidth: 1))
-                        .onSubmit(applyCustomModel)
-                        .accessibilityLabel("Custom model id")
-
-                    Button("Use", action: applyCustomModel)
-                        .buttonStyle(NoopButtonStyle(.secondary))
-                        .disabled(customModelDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                        .accessibilityLabel("Use custom model")
-                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Coach settings")
             }
         }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
     }
 
-    /// Bridges the model Picker to `coach.model`, with a "Custom…" sentinel that opens the free-text
-    /// field instead of selecting a real id.
-    private var modelPickerSelection: Binding<String> {
-        Binding(
-            get: { customModel ? customModelTag : coach.model },
-            set: { newValue in
-                if newValue == customModelTag {
-                    customModel = true
-                    if customModelDraft.isEmpty { customModelDraft = coach.model }
-                } else {
-                    customModel = false
-                    coach.model = newValue
-                }
-            }
-        )
-    }
+    // MARK: - Chat body (connected)
 
-    private func applyCustomModel() {
-        let trimmed = customModelDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        coach.setCustomModel(trimmed)
-        customModel = false
-    }
-
-    // MARK: - Connected state
-
-    private var connectedHeader: some View {
-        HStack(spacing: 10) {
-            StatePill("\(coach.provider.displayName) · \(coach.model)", tone: .accent, showsDot: true)
-            Spacer()
-            if coach.sending {
-                StatePill("Thinking", tone: .accent, pulsing: true)
-            }
-        }
-    }
-
-    private var transcript: some View {
-        StrandCard(padding: 16) {
-            if coach.messages.isEmpty {
-                emptyTranscript
-            } else {
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 12) {
-                            ForEach(coach.messages) { message in
-                                bubble(message).id(message.id)
-                            }
-                            if coach.sending {
-                                typingIndicator.id("typing")
-                            }
+    private var chatBody: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 10) {
+                    if coach.messages.isEmpty {
+                        emptyState
+                    }
+                    ForEach(Array(coach.messages.enumerated()), id: \.element.id) { index, message in
+                        if shouldShowTimestamp(at: index) {
+                            timeSeparator(message.date)
                         }
-                        .padding(.vertical, 2)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        bubble(message).id(message.id)
                     }
-                    .frame(minHeight: 220, maxHeight: 460)
-                    .onChangeCompat(of: coach.messages.count) { _ in
-                        scrollToEnd(proxy)
+                    if coach.sending {
+                        typingIndicator.id("typing")
                     }
-                    .onChangeCompat(of: coach.sending) { _ in
-                        scrollToEnd(proxy)
+                    if let error = coach.errorText, !error.isEmpty {
+                        errorBanner(error)
                     }
-                    // Keep pinned to the bottom as a streamed reply grows token-by-token (count is stable
-                    // during streaming, so track the last bubble's text length too).
-                    .onChangeCompat(of: coach.messages.last?.text.count ?? 0) { _ in
-                        scrollToEnd(proxy)
+                    // Suggestion chips live at the bottom of an empty transcript, just above the composer.
+                    if coach.messages.isEmpty {
+                        suggestionChips.padding(.top, 4)
                     }
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .onChangeCompat(of: coach.messages.count) { _ in scrollToEnd(proxy) }
+            .onChangeCompat(of: coach.sending) { _ in scrollToEnd(proxy) }
+            // Keep pinned to the bottom as a streamed reply grows token-by-token.
+            .onChangeCompat(of: coach.messages.last?.text.count ?? 0) { _ in scrollToEnd(proxy) }
         }
     }
 
-    private var emptyTranscript: some View {
+    private var emptyState: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Ask your first question")
                 .font(StrandFont.headline)
@@ -644,8 +167,35 @@ struct CoachView: View {
                 .foregroundStyle(StrandPalette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .frame(maxWidth: .infinity, minHeight: 180, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .padding(.bottom, 4)
     }
+
+    // MARK: - Not connected (no key yet)
+
+    private var notConnected: some View {
+        VStack(spacing: 16) {
+            Spacer()
+            Image(systemName: "sparkles")
+                .font(.system(size: 40))
+                .foregroundStyle(StrandPalette.accent)
+            Text("Connect a provider to start")
+                .font(StrandFont.headline)
+                .foregroundStyle(StrandPalette.textPrimary)
+            Text("Coach uses your own API key. Nothing leaves \(Platform.deviceNounPhrase) until you connect and ask a question.")
+                .font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textSecondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 24)
+            NoopButton("Connect a provider", systemImage: "link", kind: .primary) { activeSheet = .settings }
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(24)
+    }
+
+    // MARK: - Bubbles
 
     @ViewBuilder
     private func bubble(_ message: ChatMessage) -> some View {
@@ -660,20 +210,19 @@ struct CoachView: View {
                     .multilineTextAlignment(.leading)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
-                    .background(StrandPalette.accent, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .background(StrandPalette.accent, in: RoundedRectangle(cornerRadius: CoachRadius.bubble, style: .continuous))
                     .frame(maxWidth: 520, alignment: .trailing)
+                    .contextMenu { copyButton(message.text) }
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel("You said: \(message.text)")
         case .assistant:
-            // A message the coach backed with a chart (plot_metric) renders as a native chart card;
-            // every other assistant message renders its Markdown reply.
+            // A message the coach backed with a chart (plot_metric) renders as a native chart card; every
+            // other assistant message renders its Markdown reply. An empty assistant message with no chart
+            // is a stale chart host from before persistence — skip it rather than show a blank bubble.
             if let chart = coach.chartsByMessage[message.id] {
                 CoachChartBubble(artifact: chart)
-            } else {
-                // LLM replies arrive as Markdown (bold, lists, headings, tables), rendered with the
-                // chat-bubble-sized Strand theme. User bubbles stay verbatim `Text` so typed `*`/`#`
-                // never turn into surprise formatting. The reply sits on a frosted Charge-tinted card.
+            } else if !message.text.isEmpty {
                 HStack {
                     Markdown(message.text)
                         .markdownTheme(.strand)
@@ -681,14 +230,27 @@ struct CoachView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 11)
-                        .frostedCardSurface(tint: StrandPalette.chargeColor, cornerRadius: 16)
+                        .frostedCardSurface(tint: StrandPalette.chargeColor, cornerRadius: CoachRadius.card)
                         .frame(maxWidth: 560, alignment: .leading)
+                        .contextMenu {
+                            copyButton(message.text)
+                            if isLastAssistant(message) {
+                                Button { coach.regenerate() } label: {
+                                    Label("Regenerate", systemImage: "arrow.clockwise")
+                                }
+                                .disabled(coach.sending)
+                            }
+                        }
                     Spacer(minLength: 48)
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel("Coach said: \(message.text)")
             }
         }
+    }
+
+    private func copyButton(_ text: String) -> some View {
+        Button { CoachClipboard.copy(text) } label: { Label("Copy", systemImage: "doc.on.doc") }
     }
 
     private var typingIndicator: some View {
@@ -701,24 +263,24 @@ struct CoachView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 11)
-        .frostedCardSurface(tint: StrandPalette.chargeColor, cornerRadius: 16)
+        .frostedCardSurface(tint: StrandPalette.chargeColor, cornerRadius: CoachRadius.card)
         .frame(maxWidth: 320, alignment: .leading)
         .accessibilityLabel("Coach is thinking")
     }
 
     private func errorBanner(_ message: String) -> some View {
-        StrandCard(padding: 14) {
-            HStack(alignment: .top, spacing: 10) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(StrandPalette.statusCritical)
-                    .accessibilityHidden(true)
-                Text(message)
-                    .font(StrandFont.subhead)
-                    .foregroundStyle(StrandPalette.statusCritical)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 0)
-            }
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(StrandPalette.statusCritical)
+                .accessibilityHidden(true)
+            Text(message)
+                .font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.statusCritical)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
         }
+        .padding(14)
+        .background(StrandPalette.surfaceOverlay, in: RoundedRectangle(cornerRadius: CoachRadius.card, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Error: \(message)")
     }
@@ -727,9 +289,7 @@ struct CoachView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(suggestions, id: \.self) { prompt in
-                    Button {
-                        send(prompt)
-                    } label: {
+                    Button { send(prompt) } label: {
                         Text(prompt)
                             .font(StrandFont.captionNumber)
                             .foregroundStyle(StrandPalette.textSecondary)
@@ -738,8 +298,6 @@ struct CoachView: View {
                             .background(StrandPalette.surfaceInset, in: Capsule(style: .continuous))
                             .overlay(Capsule(style: .continuous).strokeBorder(StrandPalette.hairline, lineWidth: 1))
                     }
-                    // Liquid tap response: the physical settle-inward every tappable liquid
-                    // affordance gets, replacing the flat `.plain` press.
                     .buttonStyle(LiquidPressStyle())
                     .disabled(coach.sending)
                     .accessibilityLabel("Suggested prompt: \(prompt)")
@@ -749,8 +307,8 @@ struct CoachView: View {
         }
     }
 
-    /// The input bar, a frosted overlay surface holding the field + Send, so the composer reads as a
-    /// distinct docked surface above the canvas rather than two floating controls.
+    // MARK: - Composer (docked)
+
     private var composer: some View {
         HStack(alignment: .bottom, spacing: 10) {
             TextField("Ask Coach about your data…", text: $draft, axis: .vertical)
@@ -761,73 +319,60 @@ struct CoachView: View {
                 .focused($composerFocused)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 9)
-                .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous)
                     .strokeBorder(composerFocused ? StrandPalette.focusRing : StrandPalette.hairline, lineWidth: 1))
                 .onSubmit { send(draft) }
                 .accessibilityLabel("Question")
 
-            // Docked icon-only send affordance: a crisp accent-filled square sized to the
-            // composer row (not the full 48pt control height), so it routes through the same
-            // token fill/label colours as the button system without overpowering the field.
-            Button {
-                send(draft)
-            } label: {
-                Group {
-                    if coach.sending {
-                        ProgressView().controlSize(.small).tint(StrandPalette.goldDeepText)
-                    } else {
-                        Image(systemName: "arrow.up")
-                            .font(.system(size: 15, weight: .semibold))
-                    }
-                }
+            sendOrStopButton
+        }
+        .padding(10)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: CoachRadius.card, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: CoachRadius.card, style: .continuous)
+            .strokeBorder(StrandPalette.hairline, lineWidth: 1))
+        .padding(.horizontal, 12)
+        .padding(.bottom, 8)
+    }
+
+    /// While a reply streams, the send affordance becomes a Stop button; otherwise it sends the draft.
+    private var sendOrStopButton: some View {
+        Button {
+            if coach.sending { coach.stop() } else { send(draft) }
+        } label: {
+            Image(systemName: coach.sending ? "stop.fill" : "arrow.up")
+                .font(StrandFont.headline)
                 .frame(width: 44, height: 38)
                 .foregroundStyle(StrandPalette.goldDeepText)
-                .background(StrandPalette.accent,
-                            in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            }
-            .buttonStyle(.plain)
-            .disabled(coach.sending || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            .accessibilityLabel("Send")
+                .background(StrandPalette.accent, in: RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
         }
-        .padding(8)
-        .background(StrandPalette.surfaceOverlay, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
-            .strokeBorder(StrandPalette.hairline, lineWidth: 1))
+        .buttonStyle(.plain)
+        .disabled(!coach.sending && draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        .accessibilityLabel(coach.sending ? "Stop" : "Send")
     }
 
-    private var privacyFootnote: some View {
-        Label {
-            Text(coach.provider == .custom
-                 ? "Coach talks only to the server URL you set. Point it at a local model (Ollama, LM Studio, llama.cpp) to keep everything on your own machine. Nothing is sent until you ask."
-                 : "This is the only feature that leaves \(Platform.deviceNounPhrase). It sends a summary of your metrics to \(coach.provider.displayName) using your own key. Nothing is sent until you ask.")
-                .font(StrandFont.footnote)
-                .foregroundStyle(StrandPalette.textTertiary)
-                .fixedSize(horizontal: false, vertical: true)
-        } icon: {
-            Image(systemName: "lock.shield")
-                .foregroundStyle(StrandPalette.textTertiary)
-        }
-        .accessibilityElement(children: .combine)
+    // MARK: - Helpers
+
+    /// Show a time separator before the first message and whenever more than ~30 minutes passed since
+    /// the previous turn, so long chats gain temporal structure without a stamp on every bubble.
+    private func shouldShowTimestamp(at index: Int) -> Bool {
+        guard index < coach.messages.count else { return false }
+        guard index > 0 else { return true }
+        let prev = coach.messages[index - 1].date
+        let cur = coach.messages[index].date
+        return cur.timeIntervalSince(prev) > 30 * 60
     }
 
-    // MARK: - Actions
-
-    private func saveKey() {
-        let trimmed = keyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        coach.setKey(trimmed)
-        keyDraft = ""
+    private func timeSeparator(_ date: Date) -> some View {
+        Text(date.formatted(.relative(presentation: .named)))
+            .font(StrandFont.footnote)
+            .foregroundStyle(StrandPalette.textTertiary)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.vertical, 2)
     }
 
-    /// Commit the Custom (local) provider: save an optional key, then connect on the entered URL.
-    private func connectCustom() {
-        let trimmed = keyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmed.isEmpty {
-            coach.setKey(trimmed)
-            keyDraft = ""
-        }
-        coach.connectCustom()
+    private func isLastAssistant(_ message: ChatMessage) -> Bool {
+        coach.messages.last(where: { $0.role == .assistant })?.id == message.id
     }
 
     private func send(_ text: String) {
@@ -835,7 +380,7 @@ struct CoachView: View {
         guard !trimmed.isEmpty, !coach.sending else { return }
         draft = ""
         composerFocused = false
-        Task { await coach.send(trimmed) }
+        coach.startSend(trimmed)
     }
 
     private func scrollToEnd(_ proxy: ScrollViewProxy) {
@@ -846,5 +391,25 @@ struct CoachView: View {
                 proxy.scrollTo(last.id, anchor: .bottom)
             }
         }
+    }
+}
+
+/// One source of truth for the Coach UI's corner radii, so the chat's bubbles / composer / cards don't
+/// scatter magic numbers. Kept local to Coach rather than added to the shared design system.
+enum CoachRadius {
+    static let bubble: CGFloat = 14
+    static let card: CGFloat = 16
+    static let field: CGFloat = 12
+}
+
+/// Cross-platform clipboard write for the Copy affordance (this screen compiles for iOS and macOS).
+enum CoachClipboard {
+    static func copy(_ text: String) {
+        #if canImport(UIKit)
+        UIPasteboard.general.string = text
+        #elseif canImport(AppKit)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        #endif
     }
 }
