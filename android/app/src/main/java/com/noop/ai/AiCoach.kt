@@ -122,6 +122,8 @@ class AiCoach(private val repo: WhoopRepository) {
                 callOpenAiCompatible(provider, provider.endpoint, model, key, grounded, systemPrompt)
             AiProvider.ANTHROPIC ->
                 callAnthropic(provider, model, key!!, grounded, systemPrompt)
+            AiProvider.GEMINI ->
+                callGemini(provider, model, key!!, grounded, systemPrompt)
             AiProvider.CUSTOM ->
                 callOpenAiCompatible(provider, customChatUrl(customBaseUrl), model, key, grounded, systemPrompt)
         }
@@ -181,6 +183,7 @@ class AiCoach(private val repo: WhoopRepository) {
                 builder.addHeader("x-api-key", key!!)
                 builder.addHeader("anthropic-version", "2023-06-01")
             }
+            AiProvider.GEMINI -> builder.addHeader("x-goog-api-key", key!!)
             AiProvider.CUSTOM -> if (!key.isNullOrBlank()) builder.addHeader("Authorization", "Bearer $key")
         }
 
@@ -188,7 +191,10 @@ class AiCoach(private val repo: WhoopRepository) {
             val (code, text) = execute(builder.build())
             if (code !in 200..299) return@runCatching emptyList<String>()
 
-            // OpenAI-shaped providers (incl. Custom) return {"data": [ { "id": "..." }, ... ]}.
+            // Gemini is shaped differently ({"models":[{"name":"models/…"}]}), so it has its own pure
+            // parse; every other provider is OpenAI-shaped ({"data":[{"id":"…"}]}).
+            if (provider == AiProvider.GEMINI) return@runCatching parseGeminiModels(text)
+
             val data = JSONObject(text).optJSONArray("data") ?: return@runCatching emptyList<String>()
             val ids = ArrayList<String>(data.length())
             for (i in 0 until data.length()) {
@@ -198,6 +204,8 @@ class AiCoach(private val repo: WhoopRepository) {
                     AiProvider.OPENAI -> id.startsWith("gpt") || id.startsWith("o")
                     // Anthropic + a local server name models freely → keep all.
                     AiProvider.ANTHROPIC, AiProvider.CUSTOM -> true
+                    // GEMINI returned early above.
+                    AiProvider.GEMINI -> true
                 }
                 if (keep) ids.add(id)
             }
@@ -500,6 +508,65 @@ class AiCoach(private val repo: WhoopRepository) {
     }
 
     // ---------------------------------------------------------------------------------------
+    // Google Gemini, POST /v1beta/models/<model>:generateContent
+    // ---------------------------------------------------------------------------------------
+
+    /**
+     * Native Google Gemini call — byte-for-byte twin of Swift `GeminiClient.send`. Gemini has no
+     * "system" role inside the turn list: the system prompt is a top-level `system_instruction`, and
+     * each turn carries `role` ("user"/"model") + one text `part`. Auth is the `x-goog-api-key` header.
+     */
+    private fun callGemini(
+        provider: AiProvider,
+        model: String,
+        key: String,
+        history: List<ChatMsg>,
+        systemPrompt: String,
+    ): String {
+        val contents = JSONArray()
+        for (m in history) {
+            contents.put(
+                JSONObject()
+                    // Gemini names the assistant turn "model"; everything else is "user".
+                    .put("role", if (m.role == "assistant") "model" else "user")
+                    .put("parts", JSONArray().put(JSONObject().put("text", m.text))),
+            )
+        }
+
+        val body = JSONObject()
+            .put("system_instruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", systemPrompt))))
+            .put("contents", contents)
+            // Gemini 2.5 counts THINKING tokens against maxOutputTokens; the 900 cap the other providers
+            // use starves a thinking model into an empty reply (finishReason MAX_TOKENS, no text parts).
+            // 4096 leaves room for both — the system prompt keeps the visible reply short. (Same as Swift.)
+            .put("generationConfig", JSONObject().put("temperature", 0.6).put("maxOutputTokens", 4096))
+            .toString()
+
+        // Built from a literal string (NOT a path-appending API) so the ":" in ":generateContent" stays
+        // literal — a percent-encoded %3A is rejected by the API. Mirrors the Swift URL(string:) note.
+        val request = Request.Builder()
+            .url("${provider.endpoint}/$model:generateContent")
+            .addHeader("x-goog-api-key", key)
+            .addHeader("content-type", "application/json")
+            .post(body.toRequestBody(JSON))
+            .build()
+
+        val (code, text) = execute(request)
+        if (code !in 200..299) throw httpError(provider, code, text)
+
+        // A reply can span several parts (thinking models emit more than one); join them.
+        val parts = parse(text)
+            .optJSONArray("candidates")?.optJSONObject(0)
+            ?.optJSONObject("content")?.optJSONArray("parts")
+        val reply = buildString {
+            if (parts != null) for (i in 0 until parts.length()) append(parts.optJSONObject(i)?.optString("text").orEmpty())
+        }.trim()
+
+        if (reply.isEmpty()) throw Exception("The provider returned an empty reply. Please try again.")
+        return reply
+    }
+
+    // ---------------------------------------------------------------------------------------
     // HTTP / error plumbing
     // ---------------------------------------------------------------------------------------
 
@@ -583,6 +650,24 @@ class AiCoach(private val repo: WhoopRepository) {
 
     companion object {
         private val JSON = "application/json; charset=utf-8".toMediaType()
+
+        /**
+         * Pure: unwrap Gemini's `{"models":[{"name":"models/…"}]}` into chat-capable ids. Strips the
+         * `models/` prefix, keeps `gemini*` only (drops embedding / AQA models). Byte-for-byte twin of
+         * the Swift `GeminiClient.parseModels`, so both platforms surface the same fetched catalogue.
+         * Pure + `internal` so it is unit-testable without a network or a Context. No network.
+         */
+        internal fun parseGeminiModels(text: String): List<String> {
+            val list = runCatching { JSONObject(text).optJSONArray("models") }.getOrNull() ?: return emptyList()
+            val ids = ArrayList<String>(list.length())
+            for (i in 0 until list.length()) {
+                val name = list.optJSONObject(i)?.optString("name")?.trim().orEmpty()
+                if (name.isEmpty()) continue
+                val id = if (name.startsWith("models/")) name.removePrefix("models/") else name
+                if (id.startsWith("gemini") && !id.contains("embedding") && !id.contains("aqa")) ids.add(id)
+            }
+            return ids.distinct()
+        }
 
         /**
          * True when [host] is on the device's own machine or its private LAN, so plain http:// to it
