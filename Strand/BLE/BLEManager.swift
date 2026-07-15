@@ -633,6 +633,10 @@ public final class BLEManager: NSObject, ObservableObject {
     private lazy var puffinRecorder = PuffinFrameRecorder(state: state)
     private lazy var puffinEventLog = PuffinEventLog()
 
+    /// Durable log of the WHOOP 5/MG high-rate R22 deep buffers (type-0x2F ≥ 1 KB) for #423 reverse-
+    /// engineering. Gated on the same capture toggle; no-op otherwise.
+    private lazy var puffinDeepBufferLog = PuffinDeepBufferLog()
+
     /// Force the puffin capture buffer to disk so the Settings export/reveal targets a current file.
     public func flushPuffinCaptures() { puffinRecorder.flush() }
 
@@ -3169,6 +3173,7 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         resetCharacteristics()
         puffinRecorder.flush()   // persist any buffered puffin capture frames before reconnect
         puffinEventLog.close()   // release the event-log handle so the file is safe to export
+        puffinDeepBufferLog.close()   // same for the high-rate deep-buffer log (#423)
         Task { @MainActor in await collector?.flushStandardHR() }   // persist any buffered 0x2A37 HR
         if autoReconnectPausedForBondLoop {
             // #747: the bond keeps being refused, so auto-reconnect is paused: we stop hammering a strap that
@@ -3870,6 +3875,10 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                     // may be the only one that delivers a given record). Single byte compare when
                     // the frame is not an EVENT; no-op unless the capture toggle is on.
                     puffinEventLog.appendIfEvent(frame: frame, char: characteristic.uuid)
+                    // Durable log of the big high-rate R22 deep buffers (type-0x2F ≥ 1 KB) for #423
+                    // reverse-engineering — its own file the bulk-capture eviction never churns.
+                    // BEFORE the offload branch so it catches the burst; no-op unless capture is on.
+                    puffinDeepBufferLog.appendIfDeepBuffer(frame: frame, char: characteristic.uuid, isOffload: isOffload)
                     if isOffload {
                         // Same policy as WHOOP4: historical offload frames are bulk sync traffic.
                         // Keep them out of the live UI parser during backfill and let Backfiller
