@@ -962,7 +962,7 @@ struct SettingsView: View {
         SettingsSection(
             icon: "battery.25",
             title: "Power saving",
-            blurb: "Ease battery use when your phone is low or in Low Power Mode. The strap keeps banking data on its own, so nothing is lost — NOOP just syncs it less often."
+            blurb: "Ease the load on your strap when its battery is running low. The strap keeps banking data on its own, so nothing is lost — NOOP just talks to it less often to help it last until you can charge it."
         ) {
             VStack(alignment: .leading, spacing: 16) {
                 Toggle(isOn: $powerSavingEnabled) {
@@ -973,7 +973,7 @@ struct SettingsView: View {
                 .toggleStyle(.switch)
                 .tint(StrandPalette.accent)
                 .onChangeCompat(of: powerSavingEnabled) { _ in model.applyPowerSaving() }
-                Text("Slows background strap-sync (every 45 min instead of 15) while your battery is low or Low Power Mode is on. No data loss — sync just batches into larger, less frequent pulls.")
+                Text("Slows background strap-sync (every 45 min instead of 15) while your strap's battery is low. No data loss — the strap banks everything, so sync just batches into larger, less frequent pulls.")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -981,7 +981,7 @@ struct SettingsView: View {
                 if powerSavingEnabled {
                     Divider().overlay(StrandPalette.hairline)
                     HStack {
-                        Text("Kick in at")
+                        Text("Kick in at (strap battery)")
                             .font(StrandFont.subhead)
                             .foregroundStyle(StrandPalette.textPrimary)
                         Spacer()
@@ -1006,7 +1006,7 @@ struct SettingsView: View {
                     .toggleStyle(.switch)
                     .tint(StrandPalette.accent)
                     .onChangeCompat(of: pauseHrvDisabled) { _ in model.applyPowerSaving() }
-                    Text("While saving power (battery low or Low Power Mode), stop the always-on background HRV stream — the biggest live drain. A Live screen still shows heart rate, and it re-arms automatically once you're off power saving.")
+                    Text("While your strap's battery is low, stop the always-on background HRV stream — the biggest continuous drain on the strap. A Live screen still shows heart rate, and it re-arms automatically once the strap is charged.")
                         .font(StrandFont.caption)
                         .foregroundStyle(StrandPalette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)

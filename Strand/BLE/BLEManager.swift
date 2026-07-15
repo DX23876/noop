@@ -516,17 +516,17 @@ public final class BLEManager: NSObject, ObservableObject {
     /// `LOW_BATTERY_BACKFILL_INTERVAL_MS`.
     static let lowBatteryBackfillIntervalSeconds = 2700
 
-    /// Pure battery-adaptive gate (#477), the twin of Android `WhoopBleClient.idleThrottleActive`.
-    /// Armed by `thresholdPct` > 0; once armed and while discharging it engages at/below `thresholdPct`
-    /// OR when the OS is saving power (`powerSave`). `thresholdPct` <= 0 / charging never engages.
-    static func lowPowerThrottleActive(batteryPct: Int, charging: Bool, thresholdPct: Int, powerSave: Bool) -> Bool {
-        thresholdPct > 0 && !charging && (batteryPct <= thresholdPct || powerSave)
+    /// Pure battery-adaptive gate (#477), the twin of Android `WhoopBleClient.idleThrottleActive`. Keyed
+    /// on the STRAP's battery: armed by `thresholdPct` > 0, engages while the strap is discharging at/below
+    /// `thresholdPct`. The phone's own Low Power Mode deliberately does NOT trigger it. Charging never engages.
+    static func lowPowerThrottleActive(batteryPct: Int, charging: Bool, thresholdPct: Int) -> Bool {
+        thresholdPct > 0 && !charging && batteryPct <= thresholdPct
     }
 
     /// Pure offload-interval decision (#477), the twin of Android `offloadIntervalMsFor`.
     static func offloadInterval(baseSeconds: Int, lowSeconds: Int,
-                                batteryPct: Int, charging: Bool, thresholdPct: Int, powerSave: Bool) -> Int {
-        lowPowerThrottleActive(batteryPct: batteryPct, charging: charging, thresholdPct: thresholdPct, powerSave: powerSave)
+                                batteryPct: Int, charging: Bool, thresholdPct: Int) -> Int {
+        lowPowerThrottleActive(batteryPct: batteryPct, charging: charging, thresholdPct: thresholdPct)
             ? max(baseSeconds, lowSeconds) : baseSeconds
     }
 
@@ -553,13 +553,12 @@ public final class BLEManager: NSObject, ObservableObject {
     /// preference intent; the effective want is window-gated through `continuousCaptureWantsNow()` when
     /// "overnight only" is on, re-derived at every arm site.
     private var keepRealtimeForData = false
-    /// #477 battery (parity with Android): battery-% at/below which the periodic offload cadence stretches
-    /// to `lowBatteryBackfillIntervalSeconds` while low on power (0 = off), and whether to pause the
-    /// background continuous-HRV stream under Low Power Mode. Both are benign (no link risk). Set from
-    /// Settings via `setLowBatteryOffloadThrottle`/`setPauseCaptureOnPowerSave`.
+    /// #477 battery (parity with Android): STRAP battery-% at/below which the periodic offload cadence
+    /// stretches to `lowBatteryBackfillIntervalSeconds` (0 = off), and at/below which the background
+    /// continuous-HRV stream is released. Both key off the STRAP's charge (not the phone's), and both are
+    /// benign (no link risk). Set from Settings via `setLowBatteryOffloadThrottle`/`setPauseCaptureOnPowerSave`.
     private var lowBatteryOffloadPct = 0
-    /// Battery-% at/below which the continuous-HRV pause engages while low on power (0 = off) — like the
-    /// offload lever, it also engages under Low Power Mode.
+    /// STRAP battery-% at/below which the continuous-HRV pause engages (0 = off) — like the offload lever.
     private var pauseCaptureBatteryPct = 0
     /// Derived want: the (heavy) realtime stream should be armed while EITHER a screen wants it OR the
     /// continuous-capture preference wants it. Keep-alive re-arms it; the post-bond branch arms it on
@@ -2067,30 +2066,22 @@ public final class BLEManager: NSObject, ObservableObject {
         lowBatteryOffloadPct = thresholdPct
     }
 
-    /// #477 (Settings): pause the background continuous-HRV stream while power-saving. Battery-%-aware
-    /// like the offload lever — pass the same threshold; engages at/below it OR under Low Power Mode
-    /// (0 = off). Reconciles now.
+    /// #477 (Settings): pause the background continuous-HRV stream when the strap is low. Keyed on the
+    /// STRAP's battery like the offload lever — pass the same threshold; engages at/below it (0 = off).
+    /// Reconciles now.
     public func setPauseCaptureOnPowerSave(_ enabled: Bool, thresholdPct: Int) {
         pauseCaptureBatteryPct = enabled ? thresholdPct : 0
         reconcileRealtime()
     }
 
-    /// #477: is the OS saving power (Low Power Mode)? The iOS analog of Android's Battery Saver; also on
-    /// macOS 12+. An additional trigger for an already-armed lever.
-    private func powerSaveActive() -> Bool { ProcessInfo.processInfo.isLowPowerModeEnabled }
 
-    /// #477: current (battery-%, isCharging). iOS reads `UIDevice`; macOS has no per-app battery API here,
-    /// so it returns (100, false) — the %-threshold then never engages and only Low Power Mode does.
+    /// #477: the connected STRAP's (battery-%, isCharging) — WHOOP, and the same for Oura/Fitbit. Power
+    /// saving keys off the strap, not the phone, because the levers reduce how much the STRAP transmits
+    /// (fewer offloads, no continuous stream) and so extend the strap's life when it wasn't charged in
+    /// time. Unknown (disconnected / not yet read) → (100, false), so it fails SAFE (never throttles
+    /// without a real low reading; a disconnected strap has nothing to throttle anyway).
     private func batteryPctAndCharging() -> (pct: Int, charging: Bool) {
-        #if os(iOS)
-        let dev = UIDevice.current
-        dev.isBatteryMonitoringEnabled = true
-        let lvl = dev.batteryLevel   // 0...1, or -1 when unknown
-        let charging = dev.batteryState == .charging || dev.batteryState == .full
-        return (lvl >= 0 ? Int((lvl * 100).rounded()) : 100, charging)
-        #else
-        return (100, false)
-        #endif
+        (state.batteryPct.map { Int($0.rounded()) } ?? 100, state.charging == true)
     }
 
     /// The next periodic-offload interval — normally `backfillIntervalSeconds`, stretched when low on
@@ -2101,7 +2092,7 @@ public final class BLEManager: NSObject, ObservableObject {
         return BLEManager.offloadInterval(
             baseSeconds: BLEManager.backfillIntervalSeconds,
             lowSeconds: BLEManager.lowBatteryBackfillIntervalSeconds,
-            batteryPct: pct, charging: charging, thresholdPct: lowBatteryOffloadPct, powerSave: powerSaveActive())
+            batteryPct: pct, charging: charging, thresholdPct: lowBatteryOffloadPct)
     }
 
     /// #927: the continuous-capture side of the realtime want, window-gated. True while the "Continuous
@@ -2112,15 +2103,14 @@ public final class BLEManager: NSObject, ObservableObject {
     /// Mirrors the Android `continuousCaptureWantsNow`.
     private func continuousCaptureWantsNow(now: Date = Date()) -> Bool {
         guard keepRealtimeForData else { return false }
-        // #477: while power saving is ACTIVE (battery ≤ threshold or Low Power Mode), release the
-        // held-open background stream — battery-%-aware like the offload lever, via the shared
-        // lowPowerThrottleActive gate. A Live screen still arms it via screenWantsRealtime (checked
-        // separately in reconcileRealtime). The keep-alive re-derives this, so it re-arms automatically
-        // once off power save.
+        // #477: while the STRAP's battery is low (≤ threshold, discharging), release the held-open
+        // background stream — via the shared lowPowerThrottleActive gate. A Live screen still arms it via
+        // screenWantsRealtime (checked separately in reconcileRealtime). The keep-alive re-derives this,
+        // so it re-arms automatically once the strap is charged.
         if pauseCaptureBatteryPct > 0 {
             let (pct, charging) = batteryPctAndCharging()
             if BLEManager.lowPowerThrottleActive(batteryPct: pct, charging: charging,
-                                                 thresholdPct: pauseCaptureBatteryPct, powerSave: powerSaveActive()) {
+                                                 thresholdPct: pauseCaptureBatteryPct) {
                 return false
             }
         }
