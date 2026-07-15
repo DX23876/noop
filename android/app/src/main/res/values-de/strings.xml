@@ -76,4 +76,73 @@
     <string name="terms_attest_liability">Soweit gesetzlich zulässig, mache ich das NOOP-Projekt oder seine Mitwirkenden nicht für Verluste oder Schäden haftbar, die aus meiner Nutzung entstehen.</string>
     <string name="terms_checkbox">Ich habe diese Bedingungen gelesen und akzeptiere sie, und ich nutze NOOP mit meinem eigenen Gerät und meinen eigenen Daten, auf eigenes Risiko.</string>
     <string name="terms_accept">Akzeptieren &amp; fortfahren</string>
+
+    <!-- Trends / Explore / Deep Timeline , see the English values/strings.xml comment for scope.
+         Wording matches the existing iOS/macOS German catalog entries where one exists. -->
+    <string name="trends_subtitle">Der rote Faden deiner Zeit.</string>
+    <string name="trends_charge">Ladung</string>
+    <string name="trends_effort">Anstrengung</string>
+    <string name="trends_rest">Ruhe</string>
+    <string name="trends_hrv_full">Herzfrequenzvariabilität</string>
+    <string name="trends_resting_hr_full">Ruheherzfrequenz</string>
+    <string name="trends_no_readings_this_week">Keine Messwerte diese Woche</string>
+    <string name="trends_no_readings_body">Wechsle mit den Pfeilen oben zu einer anderen Woche, um ihren Rückblick zu sehen.</string>
+    <string name="trends_this_week">Diese Woche</string>
+    <string name="trends_last_week">Letzte Woche</string>
+    <string name="trends_weeks_ago">vor %1$d Wochen</string>
+    <string name="trends_previous_week">Vorherige Woche</string>
+    <string name="trends_next_week">Nächste Woche</string>
+    <string name="trends_daily_signals">Tägliche Signale</string>
+    <string name="trends_week_in_review">Woche im Rückblick</string>
+    <string name="trends_charge_effort_rest">Ladung · Anstrengung · Ruhe</string>
+    <string name="trends_calendar">Kalender</string>
+    <string name="trends_avg">Ø</string>
+    <string name="trends_peak">Spitze</string>
+    <string name="trends_low">Niedrig</string>
+    <string name="trends_days">Tage</string>
+    <string name="trends_mean">Mittelwert</string>
+    <string name="trends_min">Min</string>
+    <string name="trends_max">Max</string>
+    <string name="trends_calendar_footnote">Jeder Balken ist der Ladungswert eines Tages, von niedrig bis hoch. Das 53-Wochen-Kalendergitter ist Teil der Desktop-App.</string>
+    <string name="trends_not_enough_data">Nicht genug Daten für diesen Zeitraum.</string>
+    <string name="trends_empty_title">Trends brauchen Verlauf zum Zeichnen</string>
+    <string name="trends_empty_body">Trends brauchen Verlauf zum Zeichnen. Importiere deinen WHOOP-Export in den Datenquellen, um Wochen, Monate und Jahre sofort zu sehen.</string>
+
+    <string name="explore_subtitle">Jedes Signal, nur einen Tipp entfernt.</string>
+    <string name="explore_import_title">Importiere zuerst deine Historie</string>
+    <string name="explore_import_body">Importiere zuerst deine Historie. Ein WHOOP-Export unter Datenquellen füllt in etwa einer Minute jede Metrik, die du hier erkunden kannst.</string>
+    <string name="deep_timeline_title">Deep Timeline</string>
+    <string name="explore_deep_timeline_hint">Jede Sekunde deines Tages, zoombar.</string>
+    <string name="explore_pick_metric">Metrik wählen</string>
+    <string name="explore_average">Durchschnitt</string>
+    <string name="explore_min">Min</string>
+    <string name="explore_max">Max</string>
+    <string name="explore_latest">Aktuellste</string>
+    <string name="explore_delta_vs_prev">Δ vs. vorher</string>
+    <string name="explore_summary">Zusammenfassung</string>
+    <string name="explore_over_visible_window">Über das sichtbare Fenster</string>
+    <string name="explore_n_days">%1$d Tage</string>
+    <string name="explore_n_pts">%1$d Pkt.</string>
+    <string name="explore_vs_prev_window">vs. vorher %1$s</string>
+    <string name="explore_all_history">gesamte Historie</string>
+    <string name="explore_no_prior_window">kein vorheriger %1$s</string>
+    <string name="explore_empty_metric">Noch kein(e) %1$s aufgezeichnet. Synchronisiere deinen Strap, um diesen Trend zu füllen.</string>
+    <string name="explore_single_reading">Nur ein Messwert im Zeitraum — vergrößere das Fenster, um einen Trend zu sehen.</string>
+    <string name="explore_chart_window">Fenster</string>
+    <string name="explore_chart_points">Punkte</string>
+
+    <string name="timeline_subtitle">Jede Sekunde deines Tages. Bis zu 3 Tage zurückziehen.</string>
+    <string name="timeline_my_whoop">Mein WHOOP</string>
+    <string name="timeline_owned">Im Besitz</string>
+    <string name="timeline_all">Alle</string>
+    <string name="timeline_loading_day">Tag wird geladen…</string>
+    <string name="timeline_pinch_to_zoom">Zum Zoomen aufziehen · zum Verschieben ziehen</string>
+    <string name="timeline_zoomed_in">Herangezoomt · zum Verschieben ziehen</string>
+    <string name="timeline_reset">Zurücksetzen</string>
+    <string name="timeline_min">MIN</string>
+    <string name="timeline_avg">AVG</string>
+    <string name="timeline_max">MAX</string>
+    <string name="timeline_empty_metric">Kein(e) %1$s hier</string>
+    <string name="timeline_nothing_offloaded">Für dieses Fenster wurde noch nichts übertragen.</string>
+    <string name="timeline_other_sources_no_offload">Andere Quellen übertragen keine rohen Sekundendaten auf das Gerät.</string>
 </resources>

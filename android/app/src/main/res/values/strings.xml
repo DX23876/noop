@@ -84,4 +84,83 @@
     <string name="terms_attest_liability">To the fullest extent the law allows, I will not hold the NOOP project or its contributors liable for any loss or damage arising from my use of it.</string>
     <string name="terms_checkbox">I have read and accept these terms, and I\'m using NOOP with my own device and my own data, at my own risk.</string>
     <string name="terms_accept">Accept &amp; Continue</string>
+
+    <!-- Trends / Explore / Deep Timeline (#448 follow-up): these three screens were built with
+         hardcoded English literals throughout, never wired to stringResource() at all. This is a
+         first pass covering every literal directly passed to a Compose call in TrendsScreen.kt,
+         TrendsExploreScreen.kt and FullDayChartScreen.kt. NOT covered here: the per-metric names
+         stored in TrendsExploreScreen's MetricSpec data class (HRV, Sleep Efficiency, Blood Oxygen,
+         Respiratory Rate, the knownSeriesMetrics titles/categories) and TimelineMetric's own titles ,
+         those are stored as plain String fields on a data class, not literals at a call site, so
+         localizing them needs a small type change (String -> @StringRes Int) that's out of scope for
+         this pass. Tracked as follow-up work; Tools/i18n_audit.py still flags them.
+         German wording matches the existing iOS/macOS Localizable.xcstrings entries where one exists,
+         so both platforms read the same (see Tools/translate-de.py for precedent: Avg/Peak/Low/Reset/
+         Δ vs prev/etc.). -->
+    <string name="trends_subtitle">The thread of you over time.</string>
+    <string name="trends_charge">Charge</string>
+    <string name="trends_effort">Effort</string>
+    <string name="trends_rest">Rest</string>
+    <string name="trends_hrv_full">Heart rate variability</string>
+    <string name="trends_resting_hr_full">Resting heart rate</string>
+    <string name="trends_no_readings_this_week">No readings this week</string>
+    <string name="trends_no_readings_body">Step to another week with the arrows above to see its review.</string>
+    <string name="trends_this_week">This week</string>
+    <string name="trends_last_week">Last week</string>
+    <string name="trends_weeks_ago">%1$d weeks ago</string>
+    <string name="trends_previous_week">Previous week</string>
+    <string name="trends_next_week">Next week</string>
+    <string name="trends_daily_signals">Daily signals</string>
+    <string name="trends_week_in_review">Week in review</string>
+    <string name="trends_charge_effort_rest">Charge · Effort · Rest</string>
+    <string name="trends_calendar">Calendar</string>
+    <string name="trends_avg">Avg</string>
+    <string name="trends_peak">Peak</string>
+    <string name="trends_low">Low</string>
+    <string name="trends_days">Days</string>
+    <string name="trends_mean">Mean</string>
+    <string name="trends_min">Min</string>
+    <string name="trends_max">Max</string>
+    <string name="trends_calendar_footnote">Each bar is one day\'s Charge score, low to high. The 53-week calendar heat-grid is part of the desktop app.</string>
+    <string name="trends_not_enough_data">Not enough data for this window.</string>
+    <string name="trends_empty_title">Trends need history to draw</string>
+    <string name="trends_empty_body">Trends need history to draw. Import your WHOOP export in Data Sources to see weeks, months and years instantly.</string>
+
+    <string name="explore_subtitle">Every signal, one tap deep.</string>
+    <string name="explore_import_title">Import your history first</string>
+    <string name="explore_import_body">Import your history first. A WHOOP export in Data Sources fills every metric you can explore here in about a minute.</string>
+    <string name="deep_timeline_title">Deep Timeline</string>
+    <string name="explore_deep_timeline_hint">Every second of your day, zoomable.</string>
+    <string name="explore_pick_metric">Pick metric</string>
+    <string name="explore_average">Average</string>
+    <string name="explore_min">Min</string>
+    <string name="explore_max">Max</string>
+    <string name="explore_latest">Latest</string>
+    <string name="explore_delta_vs_prev">Δ vs prev</string>
+    <string name="explore_summary">Summary</string>
+    <string name="explore_over_visible_window">Over the visible window</string>
+    <string name="explore_n_days">%1$d days</string>
+    <string name="explore_n_pts">%1$d pts</string>
+    <string name="explore_vs_prev_window">vs prev %1$s</string>
+    <string name="explore_all_history">all history</string>
+    <string name="explore_no_prior_window">no prior %1$s</string>
+    <string name="explore_empty_metric">No %1$s recorded yet. Sync your strap to populate this trend.</string>
+    <string name="explore_single_reading">Only one reading in range — widen the window to see a trend.</string>
+    <string name="explore_chart_window">Window</string>
+    <string name="explore_chart_points">Points</string>
+
+    <string name="timeline_subtitle">Every second of your day. Drag back up to 3 days.</string>
+    <string name="timeline_my_whoop">My WHOOP</string>
+    <string name="timeline_owned">Owned</string>
+    <string name="timeline_all">All</string>
+    <string name="timeline_loading_day">Loading the day…</string>
+    <string name="timeline_pinch_to_zoom">Pinch to zoom · drag to pan</string>
+    <string name="timeline_zoomed_in">Zoomed in · drag to pan</string>
+    <string name="timeline_reset">Reset</string>
+    <string name="timeline_min">MIN</string>
+    <string name="timeline_avg">AVG</string>
+    <string name="timeline_max">MAX</string>
+    <string name="timeline_empty_metric">No %1$s here</string>
+    <string name="timeline_nothing_offloaded">Nothing offloaded for this window yet.</string>
+    <string name="timeline_other_sources_no_offload">Other sources don\'t offload raw per-second data on-device.</string>
 </resources>
