@@ -26,31 +26,77 @@ struct CoachChartArtifact {
 
 /// A frosted chart card shown as an assistant "bubble" in the coach transcript, matching the reply
 /// bubbles' look. Reuses the design system's `TrendChart` (Swift Charts) so it renders identically to
-/// the rest of the app.
+/// the rest of the app. Taps open a larger, more legible detail view.
 struct CoachChartBubble: View {
     let artifact: CoachChartArtifact
+    @State private var showDetail = false
 
     var body: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(artifact.title)
-                    .font(StrandFont.subhead)
-                    .foregroundStyle(StrandPalette.textSecondary)
-                TrendChart(
-                    points: artifact.points,
-                    valueRange: artifact.valueRange,
-                    height: 170,
-                    valueFormat: artifact.valueFormat
-                )
+            Button { showDetail = true } label: {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 6) {
+                        Text(artifact.title)
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                        Spacer(minLength: 4)
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                    }
+                    TrendChart(
+                        points: artifact.points,
+                        valueRange: artifact.valueRange,
+                        height: 220,
+                        valueFormat: artifact.valueFormat
+                    )
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+                .frostedCardSurface(tint: StrandPalette.chargeColor, cornerRadius: 16)
+                .frame(maxWidth: 560, alignment: .leading)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .frostedCardSurface(tint: StrandPalette.chargeColor, cornerRadius: 16)
-            .frame(maxWidth: 560, alignment: .leading)
+            .buttonStyle(.plain)
             Spacer(minLength: 48)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Coach chart: \(artifact.title)")
+        .accessibilityLabel("Coach chart: \(artifact.title). Tap to enlarge.")
+        .sheet(isPresented: $showDetail) { CoachChartDetail(artifact: artifact) }
+    }
+}
+
+/// A full-screen, tall version of a coach chart, so trends drawn inline can be read closely.
+struct CoachChartDetail: View {
+    let artifact: CoachChartArtifact
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 16) {
+                TrendChart(
+                    points: artifact.points,
+                    valueRange: artifact.valueRange,
+                    height: 320,
+                    valueFormat: artifact.valueFormat
+                )
+                Text("\(artifact.points.count) days")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                Spacer()
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(StrandPalette.surfaceBase.ignoresSafeArea())
+            .navigationTitle(artifact.title)
+            #if !os(macOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
     }
 }
 

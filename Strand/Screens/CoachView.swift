@@ -394,6 +394,28 @@ struct CoachView: View {
     }
 }
 
+extension View {
+    /// Present the Coach chat over a screen: fullScreenCover on iOS, a sheet on macOS (no
+    /// fullScreenCover there). The engine is passed in (a `View` extension can't read the caller's
+    /// @EnvironmentObject) and re-injected so the presented chat inherits it. Used by the Today entries.
+    @ViewBuilder func coachCover(isPresented: Binding<Bool>, coach: AICoachEngine) -> some View {
+        let content = NavigationStack {
+            CoachView()
+                .environmentObject(coach)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Close") { isPresented.wrappedValue = false }
+                    }
+                }
+        }
+        #if os(iOS)
+        self.fullScreenCover(isPresented: isPresented) { content }
+        #else
+        self.sheet(isPresented: isPresented) { content }
+        #endif
+    }
+}
+
 /// One source of truth for the Coach UI's corner radii, so the chat's bubbles / composer / cards don't
 /// scatter magic numbers. Kept local to Coach rather than added to the shared design system.
 enum CoachRadius {
