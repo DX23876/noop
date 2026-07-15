@@ -929,6 +929,20 @@ fun TodayScreen(
             prior.recovery?.let { LastCharge(it, carriedCaption(prior.day, carryOverTodayKey)) }
         }
     }
+    var carriedRecoverySource by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(lastScoredRecoveryDay?.day, viewModel.activeStrapId) {
+        val carriedDay = lastScoredRecoveryDay?.day
+        carriedRecoverySource = if (carriedDay == null) {
+            null
+        } else {
+            runCatching {
+                viewModel.repo.resolvedSeries("recovery", "my-whoop", carriedDay, carriedDay,
+                    strapDeviceId = viewModel.activeStrapId)
+                    .points.lastOrNull { it.day == carriedDay }
+                    ?.source
+            }.getOrNull()
+        }
+    }
 
     // Explainability (COMPONENT 2): the honest state of the score side for TODAY, scored / calibrating /
     // carried-last-night / needs-strap. One state, never a bare blank, and never a fabricated number. Only
@@ -948,10 +962,11 @@ fun TodayScreen(
 
     // One honest card-level badge, matching LiquidTodayView: identical winners collapse to one label;
     // mixed winners show at most two sources in Charge / Effort / Rest order so the pill stays compact.
-    val heroSourceLabel = remember(provenanceByMetric, viewModel.activeStrapId) {
-        heroSourceLabel(
-            rawSources = listOf("recovery", "strain", "sleep_performance")
-                .mapNotNull { provenanceByMetric[it] },
+    val heroSourceLabel = remember(provenanceByMetric, carriedRecoverySource, displayMetric?.recovery, lastScoredCharge, viewModel.activeStrapId) {
+        scoreHeroSourceLabel(
+            provenanceByMetric = provenanceByMetric,
+            carriedRecoverySource = carriedRecoverySource,
+            usesCarriedRecovery = displayMetric?.recovery == null && lastScoredCharge != null,
             deviceId = viewModel.activeStrapId,
         )
     }
@@ -4545,6 +4560,30 @@ internal fun heroSourceLabel(
         if (labels.size == 2) break
     }
     return labels.takeIf { it.isNotEmpty() }?.joinToString(" + ")
+}
+
+/**
+ * Source label for the three visible hero scores. Today can show a carried Charge from the previous
+ * scored night while today's recovery is still absent (#543); in that state the selected-day
+ * "recovery" provenance is also absent, so use the carried night's resolved recovery source instead of
+ * letting the card badge omit or misrepresent the visible Charge (#390).
+ */
+internal fun scoreHeroSourceLabel(
+    provenanceByMetric: Map<String, String>,
+    carriedRecoverySource: String?,
+    usesCarriedRecovery: Boolean,
+    deviceId: String = WhoopRepository.WHOOP_SOURCE,
+): String? {
+    val recoverySource = provenanceByMetric["recovery"]
+        ?: if (usesCarriedRecovery) carriedRecoverySource else null
+    return heroSourceLabel(
+        rawSources = listOfNotNull(
+            recoverySource,
+            provenanceByMetric["strain"],
+            provenanceByMetric["sleep_performance"],
+        ),
+        deviceId = deviceId,
+    )
 }
 
 /** The tint for a per-metric provenance badge, keyed on the resolved LABEL, gold for Whoop, cyan for

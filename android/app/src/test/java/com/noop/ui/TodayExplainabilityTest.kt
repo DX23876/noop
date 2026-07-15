@@ -328,4 +328,39 @@ class TodayExplainabilityTest {
     fun liquidHeroSourceLabel_hidesWhenNoScoreHasAResolvedSource() {
         assertNull(heroSourceLabel(emptyList()))
     }
+
+    @Test
+    fun liquidHeroSourceLabel_usesCarriedChargeSourceWhenTodayRecoveryIsAbsent() {
+        assertEquals(
+            "On-device",
+            scoreHeroSourceLabel(
+                provenanceByMetric = emptyMap(),
+                carriedRecoverySource = "my-whoop-noop",
+                usesCarriedRecovery = true,
+            ),
+        )
+    }
+
+    @Test
+    fun liquidHeroSourceLabel_keepsCurrentDayRecoveryAheadOfCarriedFallback() {
+        assertEquals(
+            "Whoop",
+            scoreHeroSourceLabel(
+                provenanceByMetric = mapOf("recovery" to "my-whoop"),
+                carriedRecoverySource = "my-whoop-noop",
+                usesCarriedRecovery = true,
+            ),
+        )
+    }
+
+    @Test
+    fun liquidHeroSourceLabel_ignoresCarriedSourceWhenChargeIsNotCarried() {
+        assertNull(
+            scoreHeroSourceLabel(
+                provenanceByMetric = emptyMap(),
+                carriedRecoverySource = "my-whoop-noop",
+                usesCarriedRecovery = false,
+            ),
+        )
+    }
 }
