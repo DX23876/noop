@@ -25,6 +25,9 @@ struct CoachSettingsView: View {
     @State private var goalDraft: String = ""
     /// How the user reaches Coach from Today: the card, the draggable floating button, or both.
     @AppStorage(CoachEntryMode.storageKey) private var coachEntryModeRaw = CoachEntryMode.both.rawValue
+    /// Which corner the floating button is pinned to (`.custom` once dragged), and whether it's locked.
+    @AppStorage(CoachButtonCorner.storageKey) private var fabCornerRaw = CoachButtonCorner.bottomTrailing.rawValue
+    @AppStorage(CoachButtonCorner.lockedKey) private var fabLocked = false
     /// In-place fact editing: the fact being edited + its working text.
     @State private var editingFactID: UUID?
     @State private var editingFactText: String = ""
@@ -105,12 +108,71 @@ struct CoachSettingsView: View {
                 }
                 .pickerStyle(.segmented)
                 .accessibilityLabel("Coach entry style")
+
+                // Button placement only matters when the floating button is actually shown.
+                if (CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both).showsButton {
+                    Divider().overlay(StrandPalette.hairline)
+                    buttonPlacementControls
+                }
             }
         }
         #else
         EmptyView()
         #endif
     }
+
+    #if os(iOS)
+    /// Pin the floating button to one of four chrome-clear corners, or lock it where it is. Four tappable
+    /// icons rather than a Picker: a segmented Picker can't show "no corner selected" for a dragged button.
+    @ViewBuilder private var buttonPlacementControls: some View {
+        let corner = CoachButtonCorner(rawValue: fabCornerRaw) ?? .bottomTrailing
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Button position").strandOverline()
+            HStack(spacing: 8) {
+                ForEach(CoachButtonCorner.pickable) { c in
+                    let active = c == corner
+                    Button {
+                        withAnimation(StrandMotion.interactive) { fabCornerRaw = c.rawValue }
+                    } label: {
+                        Image(systemName: c.symbol)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(active ? .white : StrandPalette.textSecondary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 9)
+                            .background(
+                                RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous)
+                                    .fill(active ? StrandPalette.accent : StrandPalette.surfaceInset)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous)
+                                    .strokeBorder(StrandPalette.hairline, lineWidth: active ? 0 : 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(c.label)
+                    .accessibilityAddTraits(active ? [.isButton, .isSelected] : .isButton)
+                }
+            }
+            Text(corner == .custom
+                 ? "Dragged freely — tap a corner to pin it. Corners stay clear of the tab bar and header."
+                 : "Pinned: \(corner.label). Drag the button anytime to place it freely.")
+                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Toggle(isOn: $fabLocked) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Lock position")
+                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                    Text("Stops the button moving if you brush it. Tapping still opens Coach.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .toggleStyle(.switch)
+            .tint(StrandPalette.accent)
+        }
+    }
+    #endif
 
     // MARK: - Memory maintenance (cheap-model summaries)
 
