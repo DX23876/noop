@@ -148,12 +148,12 @@ final class Repository: ObservableObject {
     /// The distinct IMPORTED/MEASURED source ids to union for a dashboard read: the active strap (live raw,
     /// #814) and the canonical imported id. Active strap FIRST so per-day dedup lets the measured/live row
     /// win over the imported one. Deduped, so a single-device install (active id == canonical) reads one id.
-    private var importedReadIds: [String] {
+    var importedReadIds: [String] {
         deviceId == canonicalDeviceId ? [deviceId] : [deviceId, canonicalDeviceId]
     }
     /// The distinct COMPUTED ("-noop") source ids to union: the active strap's computed sibling and the
     /// canonical computed sibling. Same dedup rule as `importedReadIds`.
-    private var computedReadIds: [String] {
+    var computedReadIds: [String] {
         computedDeviceId == canonicalComputedId ? [computedDeviceId] : [computedDeviceId, canonicalComputedId]
     }
     private var store: WhoopStore?
@@ -911,6 +911,21 @@ final class Repository: ObservableObject {
         return Self.latestActivityClass(perId)
     }
 
+    /// Raw strap step TICKS over `[from, to]` for a manual-workout summary (#398): the wrap-aware
+    /// `step_motion_counter@57` delta-sum (shared `StepsCounter` kernel) from the FIRST id that has a
+    /// countable window — the active strap wins, mirroring `stepActivityClassLatest`. Never MERGED across
+    /// ids: two devices' cumulative counters must not be interleaved (that would fabricate huge deltas).
+    /// `nil` when no strap counter covers the window — a WHOOP 4.0 (no @57 counter) or an MG/5.0 that hasn't
+    /// offloaded the window yet. The caller applies `stepTicksPerStep` and reconciles with the phone pedometer.
+    func strapStepTicks(from: Int, to: Int) async -> Int? {
+        guard let store = await ensureStore() else { return nil }
+        for id in importedReadIds {   // active strap FIRST
+            let samples = (try? await store.stepSamples(deviceId: id, from: from, to: to, limit: 200_000)) ?? []
+            if let ticks = StepsCounter.stepsInWindow(samples) { return ticks }
+        }
+        return nil
+    }
+
     /// Pure pick of the latest classed activity across the union's per-id step lists: the non-nil
     /// `activityClass` on the sample with the greatest ts, resolving a ts tie in favour of the FIRST list (the
     /// active strap, mirroring the union's active-wins rule). Static + pure so it's unit-testable without a
@@ -1246,15 +1261,24 @@ final class Repository: ObservableObject {
         let hr = (try? await store.hrSamples(deviceId: deviceId, from: lo, to: hi, limit: 200_000)) ?? []
         let rr = (try? await store.rrIntervals(deviceId: deviceId, from: lo, to: hi, limit: 200_000)) ?? []
         let resp = (try? await store.respSamples(deviceId: deviceId, from: lo, to: hi, limit: 200_000)) ?? []
+        // Read only when the refinement below might actually use it (see `useMotionAwareWake`) — a plain
+        // read cost, but no point paying it on the (default) off path.
+        let useMotionAwareWake = PuffinExperiment.motionAwareWakeEnabled
+        let steps = useMotionAwareWake
+            ? ((try? await store.stepSamples(deviceId: deviceId, from: lo, to: hi, limit: 200_000)) ?? [])
+            : []
         // Opt-in experimental staging (Settings → Experimental · Sleep staging): when the user has flipped
         // the V2 flag on, re-stage with the cardiorespiratory recipe `SleepStagerV2`; otherwise the default
         // V1 `SleepStager`. Read once here off the actor; the switch is purely which engine runs over the
         // already-detected window , V1 stays the default and is untouched. (V7 Pillar 3b)
         let useV2 = PuffinExperiment.experimentalSleepV2Enabled
         let segs = await Task.detached(priority: .utility) {
-            useV2
+            let staged = useV2
                 ? SleepStagerV2.stageSession(start: start, end: end, grav: grav, hr: hr, rr: rr, resp: resp)
                 : SleepStager.stageSession(start: start, end: end, grav: grav, hr: hr, rr: rr, resp: resp)
+            // #364 follow-up: motion-aware wake refinement post-pass, same toggle-shaped no-op when off
+            // as every other Experimental switch here.
+            return WakeMotionRefinement.apply(staged, grav: grav, steps: steps, enabled: useMotionAwareWake)
         }.value
         return AnalyticsEngine.encodeStages(segs)
     }

@@ -310,4 +310,47 @@ final class SkinTempAnalyticsTests: XCTestCase {
         let dev = Baselines.deviation(34.3, state: base).delta
         XCTAssertGreaterThan(dev, 0.5, "a +0.8 °C night must read as a clear positive deviation")
     }
+
+    /// #skin-diag: WHOOP 4.0 raw-band + resolved-anchor visibility. A worn night whose raws sit at 1290
+    /// (in the 550–2040 worn band) maps to ~56 °C under the GLOBAL 826 anchor → every worn sample fails the
+    /// 28–42 °C gate (absent), but to 33 °C under the per-device anchor → kept. The new fields surface the
+    /// raw band + which anchor resolved. Twin of Kotlin funnelSurfacesRawBandAndResolvedAnchorWhoop4.
+    func testFunnelSurfacesRawBandAndResolvedAnchorWhoop4() {
+        let start = 10_000_000
+        let sess = [session(start: start, durSec: 600)]
+        let hrs = (0..<600).map { hr(start + $0) }
+        let temps = (0..<600).map { skin(start + $0, rawX100: 1290) }
+
+        // Global 826 fallback (no anchor passed): p50 1290 → ~56 °C → all out of range, mean absent.
+        let g = AnalyticsEngine.skinTempFunnel(sess, hr: hrs, skinTemp: temps, family: .whoop4)
+        XCTAssertEqual(g.rawMin, 1290)
+        XCTAssertEqual(g.rawMedian, 1290)
+        XCTAssertEqual(g.rawMax, 1290)
+        XCTAssertEqual(g.inBandCount, 600)
+        XCTAssertEqual(g.resolvedAnchorRaw, Whoop4SkinTemp.anchorRaw)
+        XCTAssertGreaterThan(g.medianMappedC ?? 0, 42.0)
+        XCTAssertEqual(g.droppedOutOfRange, 600)
+        XCTAssertTrue(g.isAbsent)
+        XCTAssertTrue(g.summary.contains("skin-temp-raw: raw[min=1290 p50=1290 max=1290]"), g.summary)
+
+        // Per-device anchor 1290: p50 → 33 °C → in range → kept, mean present.
+        let d = AnalyticsEngine.skinTempFunnel(sess, hr: hrs, skinTemp: temps, family: .whoop4, anchorRaw: 1290)
+        XCTAssertEqual(d.resolvedAnchorRaw, 1290)
+        XCTAssertEqual(d.medianMappedC ?? 0, 33.0, accuracy: 0.01)
+        XCTAssertEqual(d.kept, 600)
+        XCTAssertFalse(d.isAbsent)
+    }
+
+    /// #skin-diag: the new observation fields never perturb the gate/mean — a kept-path night's mean stays
+    /// byte-identical to `wornNightlySkinTempC`, and 5/MG carries no anchor.
+    func testFunnelRawBandFieldsDoNotChangeMean() {
+        let start = 11_000_000
+        let sess = [session(start: start, durSec: 600)]
+        let hrs = (0..<600).map { hr(start + $0) }
+        let temps = (0..<600).map { skin(start + $0, rawX100: 3400) }
+        let f = AnalyticsEngine.skinTempFunnel(sess, hr: hrs, skinTemp: temps)  // whoop5 default
+        XCTAssertEqual(AnalyticsEngine.wornNightlySkinTempC(sess, hr: hrs, skinTemp: temps), f.mean)
+        XCTAssertNil(f.resolvedAnchorRaw, "5/MG centidegree path has no anchor")
+        XCTAssertEqual(f.rawMedian, 3400)
+    }
 }

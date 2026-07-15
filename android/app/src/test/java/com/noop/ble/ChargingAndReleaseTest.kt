@@ -34,6 +34,7 @@ class ChargingAndReleaseTest {
             connected = true, bonded = true, encryptedBond = true,
             heartRate = 72, rr = listOf(800, 810), rrRecent = listOf(800, 810),
             charging = true, pairingHint = "still bonded to the official app",
+            strapFirmware = "41.17.6.0", historyLayoutVersion = 25,
             scanning = true, statusNote = "Searching…",
         )
         val released = WhoopBleClient.releasedLiveState(live)
@@ -44,6 +45,8 @@ class ChargingAndReleaseTest {
         assertTrue(released.rr.isEmpty())
         assertTrue(released.rrRecent.isEmpty())
         assertNull(released.charging)
+        assertNull(released.strapFirmware)
+        assertNull(released.historyLayoutVersion)
         assertNull(released.pairingHint)
         assertFalse(released.scanning)
         assertNull(released.statusNote)

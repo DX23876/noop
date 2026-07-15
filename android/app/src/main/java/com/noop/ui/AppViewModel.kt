@@ -1,6 +1,11 @@
 package com.noop.ui
 
 import android.app.Application
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.BatteryManager
+import android.os.PowerManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.noop.NoopApplication
@@ -38,6 +43,7 @@ import com.noop.data.WhoopRepository
 import com.noop.data.WorkoutRow
 import com.noop.ingest.ActivityFileImporter
 import com.noop.ingest.HealthConnectImporter
+import com.noop.ble.WhoopBleClient
 import com.noop.ingest.HealthConnectWriter
 import com.noop.ingest.LiftingImporter
 import com.noop.notif.IllnessAlertNotifier
@@ -48,7 +54,9 @@ import com.noop.protocol.CommandNumber
 import com.noop.widget.WidgetSnapshot
 import com.noop.widget.WidgetSnapshotStore
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -502,16 +510,34 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /**
+     * #386 self-heal: a "kick" the app-resume hook sends to wake the 15-min analyze loop early, so an
+     * OEM-killed overnight re-score tick catches up the moment the user opens NOOP instead of showing a
+     * stale Today card until the next sync/tick. The loop re-runs its EXISTING fingerprint-gated
+     * analyzeRecent — a cheap no-op when the HR stream is unchanged, a real catch-up when a kill left
+     * unscored data (the watermark only advances on a completed run). `recentDays` is a reactive Room
+     * flow, so the caught-up rows refresh the card on their own.
+     *
+     * A CONFLATED Channel, deliberately (NOT a replay=0 SharedFlow): a kick sent while the loop is busy
+     * scoring — outside its `receive()` window — is RETAINED and delivered on the next receive, so a
+     * resume that races the score is never dropped. Conflation coalesces rapid resumes to one wake, and
+     * `trySend` never suspends the main-thread resume callback.
+     */
+    private val analyzeKick = Channel<Unit>(Channel.CONFLATED)
+
+    /**
      * #78 hole-4: the app-foreground hook for the bond-loop salvage probe. Every activity resume runs
      * [WhoopBleClient.salvageProbeIfBondLoopPaused], which no-ops unless the #747 give-up pause is
      * latched AND its 10-minute floor has passed - so this is one cheap StateFlow read per resume in the
      * healthy case, and the self-heal path for a paused strap the user has since freed. Registered on the
      * Application (no lifecycle-process dependency needed); unregistered in [onCleared]. The iOS twin
-     * observes didBecomeActive inside BLEManager itself.
+     * observes didBecomeActive inside BLEManager itself. Also emits [analyzeKick] (#386 self-heal).
      */
     private val salvageProbeLifecycleCallbacks = object : Application.ActivityLifecycleCallbacks {
         override fun onActivityResumed(activity: android.app.Activity) {
             ble.salvageProbeIfBondLoopPaused()
+            // #386 self-heal: nudge the analyze loop so a night the killed overnight tick never scored is
+            // caught up now. Gated + coalesced downstream, so a healthy resume costs one fingerprint read.
+            analyzeKick.trySend(Unit)
         }
         override fun onActivityCreated(activity: android.app.Activity, savedInstanceState: android.os.Bundle?) {}
         override fun onActivityStarted(activity: android.app.Activity) {}
@@ -774,6 +800,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         // Opt-in experimental sleep staging (V2) — read off SharedPreferences here (the
                         // analytics layer is Context-free) and thread it into the sleep self-heal. (V7 3b)
                         useExperimentalSleepV2 = PuffinExperiment.from(appContext).experimentalSleepV2,
+                        // Opt-in motion-aware wake refinement (#364 follow-up) — same Context-free threading.
+                        useMotionAwareWake = PuffinExperiment.from(appContext).motionAwareWake,
                         // Sleep & Rest test mode (Test Centre E5): when the SLEEP domain is on, route the
                         // per-day sleep gate trace into the SAME shareable strap log, tagged .sleep so it
                         // lands under the profile in the export. Zero-cost when off: the gate is one
@@ -844,10 +872,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 // apps see them. Idempotent (clientRecordId per metric+day), so re-running every
                 // cycle just upserts. Never let an HC hiccup (perm revoked mid-flight, provider
                 // update) break the analysis loop.
-                if (_hcWriteback.value) {
+                // #477: defer the writeback while power-saving is active (Android-only sub-option — iOS
+                // Health is Shortcut-driven, so it has no NOOP-scheduled sync to defer). Resumes next
+                // cycle once off power save; a manual Data-Sources sync always writes regardless.
+                if (_hcWriteback.value &&
+                    !(NoopPrefs.deferHealthSync(appContext) && isPowerSavingActiveNow())
+                ) {
                     runCatching { HealthConnectWriter.write(appContext, repository, deviceId) }
                 }
-                delay(ANALYZE_INTERVAL_MS) // 15 min, matches the offload cadence
+                // 15-min backstop cadence, but wake EARLY on an app-resume kick (#386 self-heal) so a
+                // night the overnight tick was killed before scoring catches up the moment the user opens
+                // NOOP. The next iteration's fingerprint gate makes an unnecessary wake a cheap no-op.
+                withTimeoutOrNull(ANALYZE_INTERVAL_MS) { analyzeKick.receive() }
             }
         }
 
@@ -857,9 +893,60 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // want would be meaningless. Pushed BEFORE autoReconnectOnLaunch so a launch reconnect arms it.
         ble.setKeepStreamForData(continuousHrvEffective())
 
+        // #477: push the persisted Power-saving prefs so the battery-adaptive levers apply from launch.
+        applyPowerSaving()
+
         // Reconnect to the strap we last bonded to, so the user doesn't have to tap Connect after an
         // app update / restart (#67). Self-gates on the keep-connected pref + a saved strap + permission.
         autoReconnectOnLaunch()
+    }
+
+    /** Push the persisted #477 Power-saving prefs to the BLE client. The offload-cadence stretch uses the
+     *  battery-% threshold (0 = off when the master is off); the HRV pause is its own Battery-Saver toggle.
+     *  The riskier connection-priority idle throttle is deliberately NOT exposed here — it stays dormant
+     *  pending on-strap validation (#478). */
+    private fun applyPowerSaving() {
+        val on = NoopPrefs.powerSaving(appContext)
+        ble.setLowBatteryOffloadThrottle(if (on) NoopPrefs.powerSavingBatteryPct(appContext) else 0)
+        // HRV pause is a sub-option: only effective while the master is on (defaults on when it is), and
+        // now battery-%-aware like the offload lever — pass the same threshold.
+        ble.setPauseCaptureOnPowerSave(
+            on && NoopPrefs.pauseHrvOnPowerSave(appContext),
+            NoopPrefs.powerSavingBatteryPct(appContext),
+        )
+    }
+
+    /** #477: is power saving CURRENTLY throttling — master on AND (battery ≤ threshold while discharging
+     *  OR Battery Saver)? Reuses the SAME pure gate as the BLE levers so all three agree. Read live per
+     *  analyze cycle; unknown battery fails SAFE (100 %, never throttles). */
+    private fun isPowerSavingActiveNow(): Boolean {
+        if (!NoopPrefs.powerSaving(appContext)) return false
+        val i = appContext.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val level = i?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val scale = i?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+        val status = i?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+        val pct = if (level >= 0 && scale > 0) level * 100 / scale else 100
+        val charging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
+        val powerSave = (appContext.getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isPowerSaveMode ?: false
+        return WhoopBleClient.idleThrottleActive(pct, charging, NoopPrefs.powerSavingBatteryPct(appContext), powerSave)
+    }
+
+    /** Flip "Power saving" (Settings). Persists + applies immediately. */
+    fun setPowerSaving(enabled: Boolean) {
+        NoopPrefs.setPowerSaving(appContext, enabled)
+        applyPowerSaving()
+    }
+
+    /** Set the power-saving battery-% threshold (Settings). Persists + applies immediately. */
+    fun setPowerSavingBatteryPct(pct: Int) {
+        NoopPrefs.setPowerSavingBatteryPct(appContext, pct)
+        applyPowerSaving()
+    }
+
+    /** Flip "Pause HRV capture in Battery Saver" (Settings). Persists + applies immediately. */
+    fun setPauseHrvOnPowerSave(enabled: Boolean) {
+        NoopPrefs.setPauseHrvOnPowerSave(appContext, enabled)
+        applyPowerSaving()
     }
 
     /** The effective continuous-HRV want: the user's "Continuous HRV capture" preference AND
@@ -1288,6 +1375,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 // Opt-in experimental sleep staging (V2) — same flag the 15-min loop reads, so a manual
                 // re-score after an edit stages with the same engine the user chose. (V7 Pillar 3b)
                 useExperimentalSleepV2 = PuffinExperiment.from(appContext).experimentalSleepV2,
+                // Opt-in motion-aware wake refinement (#364 follow-up) — same flag the 15-min loop reads.
+                useMotionAwareWake = PuffinExperiment.from(appContext).motionAwareWake,
             )
         }.onFailure { if (it is kotlin.coroutines.cancellation.CancellationException) throw it }
     }
@@ -1411,6 +1500,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val tiz = com.noop.analytics.HrZones.timeInZone(samples, zoneSet)
         val minutes = tiz.seconds.map { it / 60.0 }
         return if (minutes.any { it > 0.0 }) minutes else null
+    }
+
+    /** Steps over a manual-workout window `[from, to]` from the strap's own `step_motion_counter@57`
+     *  (#398): the shared wrap-aware `StepsCounter` delta-sum, then the per-user `stepTicksPerStep`
+     *  calibration the daily total applies (#139, floor 0.5). null when no strap counter covers the window
+     *  — a WHOOP 4.0 (no @57 counter) or an MG/5.0 that hasn't offloaded the window yet. Mirrors Swift
+     *  `Repository.strapStepTicks` + the WorkoutDetailView scaling; the phone-pedometer fallback iOS adds is
+     *  not available on Android (no cheap windowed step source), so a 4.0 window simply shows no steps. */
+    suspend fun workoutSteps(from: Long, to: Long): Int? {
+        if (to <= from) return null
+        val samples = runCatching { repository.stepSamples(deviceId, from, to) }.getOrDefault(emptyList())
+        val ticks = com.noop.analytics.StepsCounter.stepsInWindow(samples) ?: return null
+        val scaled = (ticks.toDouble() / maxOf(profileStore.stepTicksPerStep, 0.5)).roundToInt()
+        return if (scaled > 0) scaled else null
     }
 
     /** Save a retroactive / edited manual workout, then reload. [replacing] is the original on edit. */

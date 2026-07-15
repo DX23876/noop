@@ -33,6 +33,12 @@
             "value": "%@ resp/min"
           }
         },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ вдохов/мин"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -77,6 +83,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Ritmo %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ темп"
           }
         },
         "zh-Hans": {
@@ -125,6 +137,12 @@
             "value": "%@ · %@s inspira / %@s expira"
           }
         },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %@с вдох / %@с выдох"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -169,6 +187,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "%@ · %lld kcal"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %lld ккал"
           }
         },
         "zh-Hans": {
@@ -217,6 +241,12 @@
             "value": "%lld respirações · %@"
           }
         },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld вдохов · %@"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -261,6 +291,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "%1$lld segundos restantes em %2$@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Осталось %1$lld секунд, %2$@"
           }
         },
         "zh-Hans": {
@@ -309,6 +345,12 @@
             "value": "Permitir acesso"
           }
         },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Разрешить доступ"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -353,6 +395,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Caixa"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Квадрат"
           }
         },
         "zh-Hans": {
@@ -459,6 +507,12 @@
             "value": "Inspira"
           }
         },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вдох"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -503,6 +557,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Inspira durante %lld segundos"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вдох на %lld секунд"
           }
         },
         "zh-Hans": {
@@ -551,6 +611,12 @@
             "value": "Expira"
           }
         },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выдох"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -595,6 +661,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Expira durante %lld segundos"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выдох на %lld секунд"
           }
         },
         "zh-Hans": {
@@ -701,6 +773,12 @@
             "value": "Coerência"
           }
         },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Когерентность"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -747,6 +825,12 @@
             "value": "CONCLUÍDO"
           }
         },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ГОТОВО"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -791,6 +875,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Concluído"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Готово"
           }
         },
         "zh-Hans": {
@@ -897,6 +987,12 @@
             "value": "Terminar"
           }
         },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Завершить"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -941,6 +1037,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Terminar treino"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Завершить тренировку"
           }
         },
         "zh-Hans": {
@@ -989,6 +1091,12 @@
             "value": "Força funcional"
           }
         },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Функциональная сила"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -1033,6 +1141,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Conceder acesso à Saúde"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Разрешить доступ к Health"
           }
         },
         "zh-Hans": {
@@ -1139,6 +1253,12 @@
             "value": "FC indisponível"
           }
         },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ЧСС недоступна"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -1183,6 +1303,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Frequência cardíaca e energia em tempo real, registadas no pulso. Ficam no dispositivo."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пульс и энергия в реальном времени, записанные на запястье. Остаются на устройстве."
           }
         },
         "zh-Hans": {
@@ -1231,6 +1357,12 @@
             "value": "Abre o NOOP no iPhone para sincronizar"
           }
         },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Откройте NOOP на iPhone для синхронизации"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -1275,6 +1407,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "EM PAUSA"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ПАУЗА"
           }
         },
         "zh-Hans": {
@@ -1381,6 +1519,12 @@
             "value": "A GRAVAR"
           }
         },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ЗАПИСЬ"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -1425,6 +1569,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "DESCANSO"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ОТДЫХ"
           }
         },
         "zh-Hans": {
@@ -1473,6 +1623,12 @@
             "value": "Pronto para respirar"
           }
         },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Готовы к дыханию"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -1517,6 +1673,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Relaxa"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Расслабьтесь"
           }
         },
         "zh-Hans": {
@@ -1739,6 +1901,12 @@
             "value": "Retomar"
           }
         },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Продолжить"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -1783,6 +1951,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Ronda %lld de %lld"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Раунд %lld из %lld"
           }
         },
         "zh-Hans": {
@@ -1831,6 +2005,12 @@
             "value": "SEG"
           }
         },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "СЕК"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -1875,6 +2055,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Sessão concluída"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сессия завершена"
           }
         },
         "zh-Hans": {
@@ -2039,6 +2225,12 @@
             "value": "Parar"
           }
         },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Стоп"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -2143,6 +2335,12 @@
             "value": "TRABALHO"
           }
         },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "РАБОТА"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -2187,6 +2385,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Treino"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Тренировка"
           }
         },
         "zh-Hans": {
@@ -2235,6 +2439,12 @@
             "value": "Treino guardado"
           }
         },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Тренировка сохранена"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -2279,6 +2489,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "em %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "на %@"
           }
         },
         "zh-Hans": {
@@ -2372,6 +2588,12 @@
             "state": "needs_review",
             "value": "cal"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "кал"
+          }
         }
       }
     },
@@ -2405,6 +2627,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "desatualizado · %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "устарело · %@"
           }
         },
         "zh-Hans": {

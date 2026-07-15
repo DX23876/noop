@@ -52,6 +52,12 @@ struct WorkoutDetailView: View {
     /// row's natural key. nil = no route was recorded (honest — the map only shows when points exist).
     @State private var route: [RouteMath.LatLng] = []
 
+    /// Steps over the session window for an on-foot sport (#398): the count plus whether it came from the
+    /// strap's own counter (MG/5.0) or the phone pedometer (fallback for WHOOP 4.0 / not-yet-synced / CSV
+    /// import). nil = not an on-foot sport, or no step source had data for the window.
+    private struct StepReadout { let count: Int; let fromStrap: Bool }
+    @State private var steps: StepReadout?
+
     var body: some View {
         ScreenScaffold(title: "\(WorkoutSource.displaySport(row.sport))",
                        subtitle: "\(dateLabel(row.startTs))",
@@ -116,11 +122,30 @@ struct WorkoutDetailView: View {
             minutes = await repo.workoutZoneMinutes(from: row.startTs, to: row.endTs, age: profile.age)
         }
 
+        // Steps for an on-foot session (#398), computed at display time over the exact window so it
+        // "fills in after sync": prefer the strap's own counter (MG/5.0) once it has offloaded the window,
+        // else the phone pedometer (any strap, incl. WHOOP 4.0 / CSV-import). Never shown for non-foot
+        // sports (cycling/rowing/… have no footfalls). Both sources return nil for "no data", so an empty
+        // window stays "–" rather than a fabricated 0.
+        var stepReadout: StepReadout? = nil
+        if WorkoutCatalog.isOnFoot(row.sport) {
+            if let ticks = await repo.strapStepTicks(from: row.startTs, to: row.endTs) {
+                // Same per-user ticks-per-step calibration the daily total applies (#139), floor 0.5.
+                let scaled = Int((Double(ticks) / max(profile.stepTicksPerStep, 0.5)).rounded())
+                if scaled > 0 { stepReadout = StepReadout(count: scaled, fromStrap: true) }
+            }
+            if stepReadout == nil,
+               let ped = await WorkoutPedometer.steps(fromSec: row.startTs, toSec: row.endTs), ped > 0 {
+                stepReadout = StepReadout(count: ped, fromStrap: false)
+            }
+        }
+
         await MainActor.run {
             self.route = routePoints
             self.hrPoints = points
             self.zoneMinutes = minutes
             self.zonesFromImport = fromImport
+            self.steps = stepReadout
             self.loaded = true
         }
     }
@@ -178,6 +203,15 @@ struct WorkoutDetailView: View {
                          value: distanceLabel(row.distanceM),
                          caption: String(localized: "covered"),
                          accent: StrandPalette.metricCyan)
+            }
+            // Steps for an on-foot sport (#398). Shown for the on-foot set even before the value lands, so
+            // the tile doesn't pop in; "–" until a source has data. Caption is honest about the source.
+            if WorkoutCatalog.isOnFoot(row.sport) {
+                StatTile(label: "Steps",
+                         value: steps.map { grouped(Double($0.count)) } ?? "–",
+                         caption: steps.map { $0.fromStrap ? String(localized: "strap")
+                                                          : String(localized: "phone") },
+                         accent: steps != nil ? StrandPalette.metricCyan : StrandPalette.textTertiary)
             }
         }
     }

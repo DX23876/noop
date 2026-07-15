@@ -303,4 +303,29 @@ final class BaselinesTests: XCTestCase {
         XCTAssertEqual(after.nValid, 0)
         XCTAssertEqual(after.status, .calibrating)
     }
+
+    // MARK: - "strain" MetricCfg (RecoveryScorer Activity-Balance / previous-day-Effort term)
+
+    func testStrainCfgRegisteredWithEffortScaleBounds() {
+        // Bounds match StrainScorer.maxStrain's 0-100 output scale, keyed "strain" to match the
+        // existing internal metric-key convention (StrainScorer: "Internal metric key stays strain").
+        XCTAssertEqual(Baselines.metricCfg["strain"]!, Baselines.strainCfg)
+        XCTAssertEqual(Baselines.strainCfg.minVal, 0.0, accuracy: 1e-9)
+        XCTAssertEqual(Baselines.strainCfg.maxVal, 100.0, accuracy: 1e-9)
+    }
+
+    func testStrainCfgIsBaselineRelativeOverDailyEffort() {
+        // A week of moderate days then a rest day: the baseline tracks the moderate norm, and
+        // the rest day reads as a clear BELOW-baseline (positive, "lighter than usual") deviation.
+        let moderateWeek: [Double?] = [38, 42, 40, 36, 44, 39, 41]
+        let s = Baselines.foldHistory(moderateWeek, cfg: Baselines.strainCfg)
+        XCTAssertTrue(s.usable)
+        XCTAssertEqual(s.baseline, 40.0, accuracy: 5.0)
+
+        let restDay = Baselines.deviation(10.0, state: s)
+        XCTAssertLessThan(restDay.z, 0, "a much-lighter-than-normal day must read BELOW the effort baseline")
+
+        let hardDay = Baselines.deviation(85.0, state: s)
+        XCTAssertGreaterThan(hardDay.z, 0, "a much-harder-than-normal day must read ABOVE the effort baseline")
+    }
 }

@@ -500,8 +500,22 @@ public enum SleepStager {
         return HRVAnalyzer.median(vals)
     }
 
-    static func confirmSleepWithHR(_ p: Period, hr: [HRSample], baseline: Double?) -> Bool {
-        guard let baseline = baseline else { return true }
+    /// HR-confirmation with MOTION CORROBORATION (motion-corroborated wake). A run is confirmed as sleep when
+    /// its MEDIAN HR sits within the sleep band relative to `baseline`. The band is normally `hrSleepBaselineMult`
+    /// (×1.05); on a run that is DEEPLY MOTION-QUIESCENT (`runIsDeeplyQuiescent` — the wrist barely moved and its
+    /// posture did not change across the whole span) the band widens to `quiescentHRSleepMult`, because a raised
+    /// but FLAT overnight HR with a motionless wrist is a supplement / fever / hot-room / alcohol artefact, not
+    /// wakefulness — elevated-HR-alone must not reject a still run. The wider band STILL keeps a floor: a
+    /// genuinely awake, high-HR run (median above `quiescentHRSleepMult × baseline`) is rejected even when still,
+    /// so all-night in-bed wakefulness is not scored asleep. `sleepHRBaseline` (directive b) overrides `baseline`
+    /// with the wearer's personalised overnight band (`adaptiveOvernightHRBaseline`) when the caller supplies
+    /// one, so a supplement / fitness era self-calibrates instead of drifting against a fixed day-median.
+    /// `grav` defaults to empty (motion unprovable → strict band, byte-identical to the pre-corroboration gate);
+    /// the detection call site passes the night's gravity. Mirrors Kotlin `confirmSleepWithHR`.
+    static func confirmSleepWithHR(_ p: Period, hr: [HRSample], baseline: Double?,
+                                   grav: [GravitySample] = [], sleepHRBaseline: Double? = nil) -> Bool {
+        let effBaseline = sleepHRBaseline ?? baseline
+        guard let effBaseline = effBaseline else { return true }
         let seg = rowsBetween(hr, start: p.start, end: p.end) { $0.ts }
         if seg.count < hrRefineMinSamples { return true }
         // Confirm on the run's MEDIAN, not its mean. A real sleep night carries brief arousal / wake HR
@@ -511,9 +525,88 @@ public enum SleepStager {
         // use the same robust statistic; a genuinely elevated (awake) run still has a high median and fails.
         // Median ≤ mean for the right-skewed HR of a real night, so this only ever RELAXES the gate — every
         // run the mean already accepted still passes, and runs the mean wrongly dropped are recovered.
-        // Mirrors Kotlin `confirmSleepWithHR`.
         let medHR = HRVAnalyzer.median(seg.map { Double($0.bpm) })
-        return medHR <= baseline * hrSleepBaselineMult
+        let mult = runIsDeeplyQuiescent(p, grav: grav) ? quiescentHRSleepMult : hrSleepBaselineMult
+        return medHR <= effBaseline * mult
+    }
+
+    // MARK: - Motion-corroborated wake (elevated-but-flat-HR nights)
+
+    // Both stagers call "wake" primarily off HR / HR-variability, and the HR-led session confirmation
+    // (`confirmSleepWithHR`) rejects a still run whose median HR sits above the sleep band. On a night with
+    // pharmacologically- or metabolically-elevated resting HR that keeps HR up WITHOUT the wearer getting up
+    // (a supplement protocol, a fever, a hot room, alcohol), that HR-led logic misreads hot-but-motionless
+    // sleep as wake. The corroboration rule is: elevated-HR ALONE is insufficient — a run/epoch at the night's
+    // quiescent MOTION floor with UNCHANGED posture cannot be called wake on cardiac evidence alone. The
+    // per-epoch half lives in the stagers (`SleepStagerV2.motionQuiescent`); this is the session-detection half.
+
+    /// The relaxed sleep-band multiplier applied to `confirmSleepWithHR` when the run is DEEPLY motion-quiescent.
+    /// Wider than `hrSleepBaselineMult` (1.05) so a supplement-elevated but motionless overnight run is not
+    /// rejected, yet bounded (the floor) so a genuinely awake still run above this band is still dropped.
+    public static let quiescentHRSleepMult: Double = 1.30
+
+    /// Per-minute gravity posture variance (g²) at/below which a minute counts as posture-STABLE — the wrist
+    /// orientation barely moved within the minute. Mirrors the stage-level posture threshold; a minute with too
+    /// few gravity samples to compute a variance is conservatively NOT counted as stable (silence ≠ stillness).
+    public static let quiescentPostureVarG2: Double = 0.05
+
+    /// Fraction of a run's minutes that must be posture-STABLE for the run to be DEEPLY motion-quiescent. Set
+    /// well above the Stage-0 stillness bar (`stillFraction` 0.70) so only a genuinely motionless run — not an
+    /// ordinary restless-but-in-bed night — earns the widened HR band; a night with real turn-overs/fidgets
+    /// across >10% of its minutes falls back to the strict band.
+    public static let quiescentStableFrac: Double = 0.90
+
+    /// Minimum posture-stable minutes with COMPUTABLE variance a run needs before the deeply-quiescent verdict
+    /// is trusted at all — a run with almost no dense-gravity minutes can't prove stillness, so it defers to
+    /// the strict HR band rather than being waved through.
+    public static let quiescentMinStableMinutes: Int = 20
+
+    /// True when `[p.start, p.end)` is DEEPLY motion-quiescent: at least `quiescentStableFrac` of the minutes
+    /// that carry enough gravity to judge are posture-stable (per-minute variance < `quiescentPostureVarG2`),
+    /// over at least `quiescentMinStableMinutes` such minutes. Empty/sparse gravity → false (motion unprovable,
+    /// defer to the strict HR band). Pure + deterministic.
+    static func runIsDeeplyQuiescent(_ p: Period, grav: [GravitySample]) -> Bool {
+        if grav.isEmpty || p.end <= p.start { return false }
+        var byMinute: [Int: [GravitySample]] = [:]
+        for g in grav where g.ts >= p.start && g.ts < p.end { byMinute[g.ts / 60, default: []].append(g) }
+        var judged = 0, stable = 0
+        for (_, samples) in byMinute {
+            guard let v = posturVarianceG2(samples) else { continue }   // too few samples this minute
+            judged += 1
+            if v < quiescentPostureVarG2 { stable += 1 }
+        }
+        guard judged >= quiescentMinStableMinutes else { return false }
+        return Double(stable) / Double(judged) >= quiescentStableFrac
+    }
+
+    /// Trace of the covariance of a minute's gravity vectors (Σ over x/y/z of the mean squared deviation from
+    /// the minute's own mean vector). ~0 when the wrist orientation is fixed within the minute; spikes on a
+    /// turn-over. nil below 2 samples (a single sample has zero variance by construction and would read as a
+    /// false "stable"). Shared shape with the stage-level posture check and the Kotlin twin.
+    static func posturVarianceG2(_ samples: [GravitySample]) -> Double? {
+        guard samples.count >= 2 else { return nil }
+        let n = Double(samples.count)
+        var sx = 0.0, sy = 0.0, sz = 0.0
+        for s in samples { sx += s.x; sy += s.y; sz += s.z }
+        let mx = sx / n, my = sy / n, mz = sz / n
+        var sumSq = 0.0
+        for s in samples {
+            let dx = s.x - mx, dy = s.y - my, dz = s.z - mz
+            sumSq += dx * dx + dy * dy + dz * dz
+        }
+        return sumSq / n
+    }
+
+    /// Personalised overnight HR baseline (directive b): the median of recent nights' overnight median HRs, so
+    /// the sleep band self-calibrates to the wearer's current era (a supplement protocol, a fitness change)
+    /// instead of a fixed day-median that a sustained shift silently drifts against. Returns nil with no history
+    /// (the caller keeps the day-median). A FLOOR keeps the band from collapsing so a genuinely wakeful era is
+    /// not scored asleep: the returned value is never below `adaptiveBaselineFloor` bpm. Pure + deterministic.
+    public static let adaptiveBaselineFloor: Double = 40.0
+    public static func adaptiveOvernightHRBaseline(recentOvernightMedians: [Double]) -> Double? {
+        let vals = recentOvernightMedians.filter { $0.isFinite && $0 > 0 }
+        guard !vals.isEmpty else { return nil }
+        return max(adaptiveBaselineFloor, HRVAnalyzer.median(vals))
     }
 
     /// True when the run's CENTER, shifted to LOCAL time by tzOffsetSeconds, lands in the
@@ -689,6 +782,10 @@ public enum SleepStager {
     /// byte-identical default (the frozen-golden tests stay green). The live call site threads
     /// `PuffinExperiment.experimentalSleepV2Enabled` so the Settings toggle now affects normal detected
     /// nights, not just the self-heal restage path.
+    /// `sleepHRBaseline` (motion-corroborated wake, directive b): the wearer's PERSONALISED overnight HR band
+    /// (`adaptiveOvernightHRBaseline`), used by `confirmSleepWithHR` in place of the day-median so a supplement /
+    /// fitness era self-calibrates the sleep band. Default nil keeps the day-median (byte-identical to before);
+    /// the live call site can thread a value derived from the trailing sleep history.
     public static func detectSleep(hr: [HRSample] = [],
                                    rr: [RRInterval] = [],
                                    resp: [RespSample] = [],
@@ -697,6 +794,7 @@ public enum SleepStager {
                                    wristOff: [(start: Int, end: Int)] = [],
                                    bandSleepState: [(ts: Int, state: Int)] = [],
                                    useSleepStagerV2: Bool = false,
+                                   sleepHRBaseline: Double? = nil,
                                    traceSink: ((String) -> Void)? = nil) -> [SleepSession] {
         // Sleep & Rest test mode only: when a trace is requested we MUST run the live ladder, not a
         // memoized result, so each gate verdict is emitted for THIS night. The trace is side-effect-
@@ -707,7 +805,7 @@ public enum SleepStager {
             return detectSleepUncached(hr: hr, rr: rr, resp: resp, gravity: gravity,
                                        tzOffsetSeconds: tzOffsetSeconds, wristOff: wristOff,
                                        bandSleepState: bandSleepState, useSleepStagerV2: useSleepStagerV2,
-                                       traceSink: traceSink)
+                                       sleepHRBaseline: sleepHRBaseline, traceSink: traceSink)
         }
         // v7.0.2 perf (#707): the single heaviest analytics call — it sorts the dense full-day gravity
         // stream (~tens of thousands of samples for a worn day), builds the gravity-delta/still spine, and
@@ -725,12 +823,13 @@ public enum SleepStager {
             tz: tzOffsetSeconds,
             wristOff: StreamFingerprint.of(wristOff, ts: { $0.start }, quant: { $0.end }),
             band: StreamFingerprint.of(bandSleepState, ts: { $0.ts }, quant: { $0.state }),
-            v2: useSleepStagerV2)
+            v2: useSleepStagerV2,
+            sleepHRBaseline: sleepHRBaseline)
         return detectSleepCache.value(key) {
             detectSleepUncached(hr: hr, rr: rr, resp: resp, gravity: gravity,
                                 tzOffsetSeconds: tzOffsetSeconds, wristOff: wristOff,
                                 bandSleepState: bandSleepState, useSleepStagerV2: useSleepStagerV2,
-                                traceSink: nil)
+                                sleepHRBaseline: sleepHRBaseline, traceSink: nil)
         }
     }
 
@@ -740,6 +839,7 @@ public enum SleepStager {
         let tz: Int
         let wristOff: StreamFingerprint; let band: StreamFingerprint
         let v2: Bool
+        let sleepHRBaseline: Double?
     }
     /// ≈ the number of distinct days in a scoring window; FIFO-evicted, holds only small session arrays.
     private static let detectSleepCache = AnalyticsMemoCache<DetectKey, [SleepSession]>(capacity: 40)
@@ -753,6 +853,7 @@ public enum SleepStager {
                                             wristOff: [(start: Int, end: Int)],
                                             bandSleepState: [(ts: Int, state: Int)],
                                             useSleepStagerV2: Bool,
+                                            sleepHRBaseline: Double? = nil,
                                             traceSink: ((String) -> Void)? = nil) -> [SleepSession] {
         let grav = gravity.sorted { $0.ts < $1.ts }
         if grav.count < 2 { return [] }
@@ -824,7 +925,7 @@ public enum SleepStager {
                     detail: "spanMin=\(spanMin) maxMainSleepSpanMin=\(maxMainSleepSpanS / 60)"))
                 continue
             }
-            if !confirmSleepWithHR(p, hr: hrS, baseline: baseline) {
+            if !confirmSleepWithHR(p, hr: hrS, baseline: baseline, grav: grav, sleepHRBaseline: sleepHRBaseline) {
                 traceSink?(GateTrace.runLine(index: runIndex, startTs: p.start, endTs: p.end,
                     verdict: .dropped, gate: "hrConfirm",
                     detail: "hrSleepBaselineMult=\(hrSleepBaselineMult) baseline=\(baseline.map { Int($0) } ?? -1)"))

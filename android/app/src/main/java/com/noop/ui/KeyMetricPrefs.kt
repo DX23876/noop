@@ -49,6 +49,28 @@ enum class KeyMetric(val raw: String, val title: String) {
  */
 object KeyMetricPrefs {
     private const val KEY_LAYOUT = "today.keyMetrics"
+    private const val KEY_DETAILED = "today.keyMetricsDetailed"
+
+    /** Whether the Key-Metrics tiles render DETAILED — taller/squarer with a 14-day trend graph under the
+     *  fill bar. Display-only, default off (the compact ktile look). Set from the #251 editor's switch;
+     *  key name is parity-ready for the macOS/iOS twin (@AppStorage "today.keyMetricsDetailed"). */
+    fun detailed(context: Context): Boolean =
+        NoopPrefs.of(context).getBoolean(KEY_DETAILED, false)
+
+    fun setDetailed(context: Context, value: Boolean) {
+        NoopPrefs.of(context).edit().putBoolean(KEY_DETAILED, value).apply()
+    }
+
+    private const val KEY_WINDOW = "today.keyMetricsWindowDays"
+
+    /** Trailing trend window (calendar days) the DETAILED tiles graph: 2, 7 or 14 (default). Shared key
+     *  with the iOS twin; an unknown stored value coerces to 14 so a bad pref can't skew the window math. */
+    fun detailWindowDays(context: Context): Int =
+        NoopPrefs.of(context).getInt(KEY_WINDOW, 14).let { if (it == 2 || it == 7 || it == 14) it else 14 }
+
+    fun setDetailWindowDays(context: Context, value: Int) {
+        NoopPrefs.of(context).edit().putInt(KEY_WINDOW, value).apply()
+    }
 
     /** The enabled tiles in display order. An empty/unset string yields the full default order. */
     fun enabled(context: Context): List<KeyMetric> =

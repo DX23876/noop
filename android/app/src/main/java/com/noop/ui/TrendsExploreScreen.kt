@@ -39,9 +39,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.noop.R
 import com.noop.data.DailyMetric
 import com.noop.data.MoodStore
 import com.noop.data.WhoopRepository
@@ -374,7 +376,7 @@ fun TrendsExploreScreen(vm: AppViewModel) {
     // are accessibility-walked on scroll. Each top-level child is one `item { }` in the same order; the
     // conditional empty-state note uses `if (cond) { item {} }` so it adds no row when hidden. No standalone
     // Spacers here , the LazyColumn's `spacedBy(20.dp)` reproduces the eager column's row spacing exactly.
-    LazyScreenScaffold(title = "Explore", subtitle = "Every signal, one tap deep.") {
+    LazyScreenScaffold(title = stringResource(R.string.nav_explore), subtitle = stringResource(R.string.explore_subtitle)) {
 
         // The headline tap-through (#575): a full-day, full-resolution, zoomable timeline. Sits above the
         // per-metric catalog because it's a different kind of view , every second of one day, not one
@@ -386,9 +388,8 @@ fun TrendsExploreScreen(vm: AppViewModel) {
         if (series.isEmpty()) {
             item {
             DataPendingNote(
-                title = "Import your history first",
-                body = "Import your history first. A WHOOP export in Data Sources fills " +
-                    "every metric you can explore here in about a minute.",
+                title = stringResource(R.string.explore_import_title),
+                body = stringResource(R.string.explore_import_body),
             )
             }
         }
@@ -480,9 +481,9 @@ private fun DeepTimelineEntry(onClick: () -> Unit) {
                 Text("∿", style = NoopType.title2, color = Palette.metricRose)
             }
             Column(modifier = Modifier.weight(1f)) {
-                Text("Deep Timeline", style = NoopType.headline, color = Palette.textPrimary)
+                Text(stringResource(R.string.deep_timeline_title), style = NoopType.headline, color = Palette.textPrimary)
                 Text(
-                    "Every second of your day, zoomable.",
+                    stringResource(R.string.explore_deep_timeline_hint),
                     style = NoopType.footnote,
                     color = Palette.textTertiary,
                 )
@@ -531,7 +532,7 @@ private fun MetricDropdown(
             }
             Icon(
                 if (expanded) Icons.Filled.ArrowDropUp else Icons.Filled.ArrowDropDown,
-                contentDescription = "Pick metric",
+                contentDescription = stringResource(R.string.explore_pick_metric),
                 tint = if (expanded) Palette.accent else Palette.textSecondary,
             )
         }
@@ -694,9 +695,9 @@ private fun HeroChartCard(
                 ) {
                     Text(
                         if (windowed.isEmpty()) {
-                            "No ${metric.title.lowercase()} recorded yet. Sync your strap to populate this trend."
+                            stringResource(R.string.explore_empty_metric, metric.title.lowercase())
                         } else {
-                            "Only one reading in range , widen the window to see a trend."
+                            stringResource(R.string.explore_single_reading)
                         },
                         style = NoopType.subhead,
                         color = Palette.textTertiary,
@@ -706,9 +707,9 @@ private fun HeroChartCard(
 
             // Footer chips, mirroring the macOS ChartFooter (Window / Points / Latest).
             Row(horizontalArrangement = Arrangement.spacedBy(Metrics.sectionGap)) {
-                ChartFootItem("Window", effectiveRange.label)
-                ChartFootItem("Points", "${windowed.size}")
-                ChartFootItem("Latest", heroValue)
+                ChartFootItem(stringResource(R.string.explore_chart_window), effectiveRange.label)
+                ChartFootItem(stringResource(R.string.explore_chart_points), "${windowed.size}")
+                ChartFootItem(stringResource(R.string.explore_latest), heroValue)
             }
         }
     }
@@ -783,31 +784,31 @@ private fun StatRow(
         else if ((delta > 0) == better) Palette.statusPositive else Palette.statusCritical
     }
     val deltaCaption = when {
-        hasDelta -> "vs prev ${effectiveRange.windowName}"
-        effectiveRange == ExploreRange.All -> "all history"
-        else -> "no prior ${effectiveRange.windowName}"
+        hasDelta -> stringResource(R.string.explore_vs_prev_window, effectiveRange.windowName)
+        effectiveRange == ExploreRange.All -> stringResource(R.string.explore_all_history)
+        else -> stringResource(R.string.explore_no_prior_window, effectiveRange.windowName)
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-        SectionHeader("Summary", overline = "Over the visible window", trailing = "${s.n} pts")
+        SectionHeader(stringResource(R.string.explore_summary), overline = stringResource(R.string.explore_over_visible_window), trailing = stringResource(R.string.explore_n_pts, s.n))
 
         Row(horizontalArrangement = Arrangement.spacedBy(Metrics.gap)) {
             StatTile(
                 modifier = Modifier.weight(1f),
-                label = "Average",
+                label = stringResource(R.string.explore_average),
                 value = if (s.n > 0) metric.format(s.mean) else ",",
-                caption = "${s.n} days",
+                caption = stringResource(R.string.explore_n_days, s.n),
                 accent = metric.accent,
             )
             StatTile(
                 modifier = Modifier.weight(1f),
-                label = "Min",
+                label = stringResource(R.string.explore_min),
                 value = if (s.n > 0) metric.format(s.min) else ",",
                 accent = Palette.textPrimary,
             )
             StatTile(
                 modifier = Modifier.weight(1f),
-                label = "Max",
+                label = stringResource(R.string.explore_max),
                 value = if (s.n > 0) metric.format(s.max) else ",",
                 accent = Palette.textPrimary,
             )
@@ -819,14 +820,14 @@ private fun StatRow(
         Row(horizontalArrangement = Arrangement.spacedBy(Metrics.gap)) {
             StatTile(
                 modifier = Modifier.weight(1f),
-                label = "Latest",
+                label = stringResource(R.string.explore_latest),
                 value = latest?.let { metric.format(it.value) } ?: ",",
                 caption = latest?.day,
                 accent = metric.accent,
             )
             StatTile(
                 modifier = Modifier.weight(1f),
-                label = "Δ vs prev",
+                label = stringResource(R.string.explore_delta_vs_prev),
                 value = deltaText,
                 caption = deltaCaption,
                 accent = Palette.textPrimary,

@@ -101,12 +101,19 @@ enum class ScoreConfidence(val raw: String) {
         const val highEfficiencyThreshold: Double = 0.85
 
         /**
-         * Rest confidence WITH the H9 stage-quality check. Starts from [forRest], then DOWNGRADES a [SOLID]
-         * tier to [BUILDING] (low-confidence) when the night is high-efficiency yet its restorative
-         * (deep+REM) share is below [restorativeLowConfidenceShare] — a likely staging miss, surfaced
-         * honestly without inventing stages or distorting the Rest score. [CALIBRATING]/[BUILDING] from the
-         * base call are returned unchanged. Engine output only; the UI surfaces the tier later. Mirrors Swift
-         * `rest(hasSession:hasStagedSleep:asleepSeconds:restorativeSeconds:efficiency:)`. (#H9)
+         * Rest confidence WITH the H9 stage-quality check AND the sparse-motion guard. Starts from
+         * [forRest], then DOWNGRADES a [SOLID] tier to [BUILDING] (low-confidence) when EITHER:
+         *  - the night was staged on SPARSE gravity ([gravitySparse]) — a WHOOP 4.0 synced/offload night
+         *    banks motion coarsely, too sparse to reliably stage sleep (#345), so a confident 85–100 Rest
+         *    is unearned however the engine filled the stages. This catches the case H9 MISSES: a sparse
+         *    night whose staging manufactures HIGH efficiency AND HIGH restorative reads SOLID under H9
+         *    alone (the #319 signature), yet the underlying data can't support it; OR
+         *  - the night is high-efficiency yet its restorative (deep+REM) share is below
+         *    [restorativeLowConfidenceShare] — a likely staging miss (#H9).
+         * [CALIBRATING]/[BUILDING] from the base call are returned unchanged. Engine output only; the UI
+         * surfaces the tier later. Confidence-only — it never changes the Rest score or invents stages.
+         * Mirrors Swift `rest(hasSession:hasStagedSleep:asleepSeconds:restorativeSeconds:efficiency:gravitySparse:)`.
+         * (#H9, #345)
          */
         fun forRest(
             hasSession: Boolean,
@@ -114,12 +121,15 @@ enum class ScoreConfidence(val raw: String) {
             asleepSeconds: Double,
             restorativeSeconds: Double,
             efficiency: Double,
+            gravitySparse: Boolean = false,
         ): ScoreConfidence {
             val base = forRest(hasSession, hasStagedSleep)
-            if (base != SOLID || asleepSeconds <= 0.0) return base
+            if (base != SOLID) return base
+            if (gravitySparse) return BUILDING   // #345: sparse-motion staging can't earn a SOLID Rest
+            if (asleepSeconds <= 0.0) return base
             val restorativeShare = restorativeSeconds / asleepSeconds
             return if (efficiency >= highEfficiencyThreshold && restorativeShare < restorativeLowConfidenceShare) {
-                BUILDING   // high-efficiency night with near-zero deep+REM → low-confidence staging
+                BUILDING   // high-efficiency night with near-zero deep+REM → low-confidence staging (#H9)
             } else {
                 base
             }

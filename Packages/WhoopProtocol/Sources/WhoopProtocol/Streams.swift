@@ -202,6 +202,20 @@ public struct SleepStateSample: Equatable, Codable {
     public init(ts: Int, state: Int) { self.ts = ts; self.state = state }
 }
 
+/// The WHOOP 5.0 v26 optical PPG buffer's RAW waveform, one record per second (issue #156 follow-up).
+/// `PpgHr.derivePpgHr` already turns these into a per-second HR estimate (`ppgHr`), but until now the
+/// 24 Hz samples themselves were discarded the moment that estimate was taken — HistoricalStreams
+/// collected them into a transient `ppgRecords` buffer purely to feed the estimator, and nothing else
+/// ever saw them. Persisted here (and, in WhoopStore, its own table) so a future re-analysis — a better
+/// HR estimator, HRV-from-PPG, a waveform viewer — can run over the ORIGINAL samples, not just the
+/// derived bpm. `samples` are raw AC-coupled ADC counts, no invented scale (see
+/// `decodeWhoop5HistoricalV26`); a truncated frame can yield fewer than 24.
+public struct PpgWaveformSample: Equatable, Codable, Sendable {
+    public let ts: Int          // wall-clock unix seconds (one record per second)
+    public let samples: [Int]   // raw i16 ADC counts @24 Hz, verbatim from `ppg_waveform` (usually 24)
+    public init(ts: Int, samples: [Int]) { self.ts = ts; self.samples = samples }
+}
+
 public struct Streams: Equatable, Codable {
     public var hr: [HRSample]
     public var rr: [RRInterval]
@@ -217,6 +231,10 @@ public struct Streams: Equatable, Codable {
     /// PPG-derived per-second HR from the WHOOP 5.0 v26 optical buffer (issue #156). Kept separate from
     /// `hr` (the measured stream) so consumers can COALESCE without conflating the two sources.
     public var ppgHr: [PpgHrSample]
+    /// The RAW v26 optical PPG waveform itself (issue #156 follow-up), one record per second — the
+    /// samples `ppgHr` is derived FROM. Kept separate so a consumer that only wants the HR estimate
+    /// never pays for the 24x-larger raw stream, and so the two can be persisted/pruned independently.
+    public var ppgWaveform: [PpgWaveformSample]
     public var events: [WhoopEvent]
     public var battery: [BatterySample]
     /// #547 diagnostic: how many historical records `extractHistoricalStreams` DROPPED this chunk for an
@@ -239,11 +257,12 @@ public struct Streams: Equatable, Codable {
                 spo2: [SpO2Sample] = [], skinTemp: [SkinTempSample] = [],
                 resp: [RespSample] = [], gravity: [GravitySample] = [],
                 steps: [StepSample] = [], sleepState: [SleepStateSample] = [],
-                ppgHr: [PpgHrSample] = [],
+                ppgHr: [PpgHrSample] = [], ppgWaveform: [PpgWaveformSample] = [],
                 events: [WhoopEvent] = [], battery: [BatterySample] = []) {
         self.hr = hr; self.rr = rr
         self.spo2 = spo2; self.skinTemp = skinTemp; self.resp = resp; self.gravity = gravity
         self.steps = steps; self.sleepState = sleepState; self.ppgHr = ppgHr
+        self.ppgWaveform = ppgWaveform
         self.events = events; self.battery = battery
     }
 
@@ -253,13 +272,14 @@ public struct Streams: Equatable, Codable {
     public var isEmpty: Bool {
         hr.isEmpty && rr.isEmpty && spo2.isEmpty && skinTemp.isEmpty && resp.isEmpty
             && gravity.isEmpty && steps.isEmpty && sleepState.isEmpty && ppgHr.isEmpty
-            && events.isEmpty && battery.isEmpty
+            && ppgWaveform.isEmpty && events.isEmpty && battery.isEmpty
     }
 
     private enum CodingKeys: String, CodingKey {
         case hr, rr, spo2, skinTemp = "skin_temp", resp, gravity, steps
         case sleepState = "sleep_state"
         case ppgHr = "ppg_hr"
+        case ppgWaveform = "ppg_waveform"
         case events, battery
     }
 
@@ -276,6 +296,7 @@ public struct Streams: Equatable, Codable {
         steps = try c.decodeIfPresent([StepSample].self, forKey: .steps) ?? []
         sleepState = try c.decodeIfPresent([SleepStateSample].self, forKey: .sleepState) ?? []
         ppgHr = try c.decodeIfPresent([PpgHrSample].self, forKey: .ppgHr) ?? []
+        ppgWaveform = try c.decodeIfPresent([PpgWaveformSample].self, forKey: .ppgWaveform) ?? []
         events = try c.decodeIfPresent([WhoopEvent].self, forKey: .events) ?? []
         battery = try c.decodeIfPresent([BatterySample].self, forKey: .battery) ?? []
     }

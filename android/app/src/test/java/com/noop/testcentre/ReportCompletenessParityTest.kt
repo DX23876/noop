@@ -77,6 +77,21 @@ class ReportCompletenessParityTest {
         val section = ReportCompleteness.captureCheckSection(report, active = setOf(TestDomain.SLEEP))
         assertTrue("a computed-sleep capture must read complete, not INCOMPLETE",
             section.endsWith("complete: all active traces present"))
+        // #386 mislabel: the parenthetical must name the token that MATCHED (the evidence line), never
+        // the absent killer trace — `present (gate run=)` over an evidence-only match sent a maintainer
+        // hunting for gate lines the report never contained.
+        assertTrue("an evidence-only match must be labelled `via <evidence>`",
+            section.contains("sleep: present (via sleep day=)"))
+    }
+
+    @Test fun matchedTokenPrefersTheKillerTraceOverTheEvidenceLine() {
+        // When BOTH are present the deeper killer trace is the one named — `via` is reserved for the
+        // rescue path, so its appearance always means "the killer trace is genuinely absent".
+        val both = "[sleep] gate run=1 KEPT\nsleep day=2026-07-09 totalSleepMin=426 matched=1 source=computed"
+        assertEquals("gate run=", ReportCompleteness.matchedToken(both, TestDomain.SLEEP))
+        val evidenceOnly = "sleep day=2026-07-09 totalSleepMin=426 matched=1 source=computed"
+        assertEquals("sleep day=", ReportCompleteness.matchedToken(evidenceOnly, TestDomain.SLEEP))
+        assertEquals(null, ReportCompleteness.matchedToken("nothing sleepy here", TestDomain.SLEEP))
     }
 
     @Test fun sleepStillMissingWhenNoSleepDiagnosticAtAll() {
@@ -108,8 +123,8 @@ class ReportCompletenessParityTest {
         assertEquals(
             "=== Capture check ===\n" +
                 "universal: present (dayOwner day=)\n" +
-                "sleep: MISSING (gate run=)\n" +
-                "connection: MISSING (clockDrift )\n" +
+                "sleep: MISSING (expected gate run=)\n" +
+                "connection: MISSING (expected clockDrift )\n" +
                 "INCOMPLETE: missing sleep, connection",
             section,
         )
@@ -121,7 +136,7 @@ class ReportCompletenessParityTest {
         val section = ReportCompleteness.captureCheckSection("nothing here", active = emptySet())
         assertEquals(
             "=== Capture check ===\n" +
-                "universal: MISSING (dayOwner day=)\n" +
+                "universal: MISSING (expected dayOwner day=)\n" +
                 "complete: all active traces present",
             section,
         )

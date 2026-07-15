@@ -160,7 +160,9 @@ public enum WhoopCsvExporter {
                 // disturbance COUNT exported a wrong unit that round-tripped on reimport — PR #97
                 // review, tigercraft4.)
                 num(s["awake_min"]),
-                num(d.efficiency), num(s["sleep_consistency"]), num(s["sleep_need_min"]),
+                // "Sleep efficiency %" is WHOOP's 0–100 column → convert the stored 0–1 fraction up,
+                // mirroring the Day Strain conversion above (importer scales it back down).
+                num(WhoopExportImporter.whoopEfficiencyPctFromFraction(d.efficiency)), num(s["sleep_consistency"]), num(s["sleep_need_min"]),
                 num(s["sleep_debt_min"]),
                 field(sourceByDay[d.day]),
             ]
@@ -195,7 +197,7 @@ public enum WhoopCsvExporter {
                 "false", "", "",
                 num(stages.asleep), num(inBedMin),
                 num(stages.light), num(stages.deep), num(stages.rem), num(stages.awake),
-                num(s.efficiency), "", "", "",
+                num(WhoopExportImporter.whoopEfficiencyPctFromFraction(s.efficiency)), "", "", "",
                 field(sourceBySession(s)),
             ]
             out += cols.joined(separator: ",") + "\r\n"

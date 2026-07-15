@@ -5,6 +5,7 @@ import com.noop.data.HrSample
 import com.noop.data.RespSample
 import com.noop.data.RrInterval
 import com.noop.data.SleepSession
+import com.noop.data.StepSample
 import com.noop.data.WhoopRepository
 import kotlin.math.max
 
@@ -57,6 +58,12 @@ object SleepStageHealer {
         // Context-free, so the flag is threaded in from the Context-aware caller (default false → V1, so
         // existing callers / tests are unaffected). When true, stage with SleepStagerV2; else V1. (V7 3b)
         useExperimentalSleepV2: Boolean = false,
+        // Opt-in motion-aware wake refinement (#364 "Proposal 2" follow-up; density gate precedent #345).
+        // Same Context-free threading as [useExperimentalSleepV2]; default false so existing callers/tests
+        // are unaffected. Runs AFTER whichever stager above just ran and self-gates on the night's OWN
+        // observed gravity + step density, so turning it on is a no-op for any night too sparse to trust
+        // (e.g. a WHOOP 4.0, which never emits a step sample at all).
+        useMotionAwareWake: Boolean = false,
     ): String? {
         val lo = start - 3_600L
         val hi = end + 3_600L
@@ -66,7 +73,9 @@ object SleepStageHealer {
         val hr = repo.hrSamples(deviceId, lo, hi, IntelligenceEngine.STREAM_LIMIT)
         val rr = repo.rrIntervals(deviceId, lo, hi, IntelligenceEngine.STREAM_LIMIT)
         val resp = repo.respSamples(deviceId, lo, hi, IntelligenceEngine.STREAM_LIMIT)
-        return restageFromSamples(start, end, grav, hr, rr, resp, useExperimentalSleepV2)
+        // Only read when the refinement might actually use it — no point paying for it on the (default) off path.
+        val steps = if (useMotionAwareWake) repo.stepSamples(deviceId, lo, hi, IntelligenceEngine.STREAM_LIMIT) else emptyList()
+        return restageFromSamples(start, end, grav, hr, rr, resp, useExperimentalSleepV2, steps, useMotionAwareWake)
     }
 
     /**
@@ -100,6 +109,13 @@ object SleepStageHealer {
         // Opt-in experimental staging: V2 cardiorespiratory recipe when true, else default V1 (default false
         // so existing callers / tests stay on V1 — the V1 path is byte-identical). (V7 Pillar 3b)
         useExperimentalSleepV2: Boolean = false,
+        // Step stream for the motion-aware wake refinement below. Default empty keeps every existing
+        // positional caller/test byte-identical (the refinement is a no-op with no steps either way).
+        steps: List<StepSample> = emptyList(),
+        // Opt-in motion-aware wake refinement (#364 follow-up): a post-pass over whichever stager above
+        // just ran, reclassifying a hot-but-still wake segment to light. Default false, self-gated on
+        // observed density either way — see [WakeMotionRefinement].
+        useMotionAwareWake: Boolean = false,
     ): String? {
         if (!isDense(grav, start, end)) return null
         val segs = if (useExperimentalSleepV2) {
@@ -107,7 +123,8 @@ object SleepStageHealer {
         } else {
             SleepStager.stageSession(start = start, end = end, grav = grav, hr = hr, rr = rr, resp = resp)
         }
-        return AnalyticsEngine.encodeStages(segs)
+        val refined = WakeMotionRefinement.apply(segs, grav, steps, useMotionAwareWake)
+        return AnalyticsEngine.encodeStages(refined)
     }
 
     /**
@@ -132,6 +149,8 @@ object SleepStageHealer {
         // Opt-in experimental staging, threaded from IntelligenceEngine (read off SharedPreferences by the
         // Context-aware caller). Default false → V1, so callers/tests that don't pass it are unaffected. (3b)
         useExperimentalSleepV2: Boolean = false,
+        // Opt-in motion-aware wake refinement (#364 follow-up), threaded the same way. Default false.
+        useMotionAwareWake: Boolean = false,
     ): List<SleepSession> {
         suspend fun editedRows(): List<SleepSession> =
             repo.sleepSessions(computedDeviceId, windowStart, windowEnd).filter { it.userEdited }
@@ -144,7 +163,7 @@ object SleepStageHealer {
             // STRAP id (where the sensor streams live), not the computed namespace. Skip when the raw
             // isn't dense yet, or when the result already matches what's stored (steady state — no write).
             val newJSON = restageFromRaw(repo, strapDeviceId, row.effectiveStartTs, row.endTs,
-                useExperimentalSleepV2) ?: continue
+                useExperimentalSleepV2, useMotionAwareWake) ?: continue
             if (newJSON == row.stagesJSON) continue
             // Keyed by the IMMUTABLE detected startTs (never effectiveStartTs) so it lands on the right
             // primary-key row; the DAO scopes the write to userEdited = 1.

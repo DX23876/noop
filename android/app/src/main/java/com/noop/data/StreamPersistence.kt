@@ -39,6 +39,38 @@ object StreamPersistence {
     )
 
     /**
+     * Pack a decoded v26 PPG waveform's samples as little-endian i16 (2 bytes/sample) — a single compact
+     * BLOB per (deviceId, ts) row instead of 24 scalar rows (issue #156 follow-up, MIGRATION_19_20). Port
+     * of Swift `WhoopStore.packPpgSamples`, BYTE-IDENTICAL so a `.noopbak` round-trips across platforms.
+     * Any sample count is handled (a truncated frame can decode fewer than 24); each value is truncated to
+     * Int16's range (`toShort()`), matching the i16 wire format the decoder read it from.
+     */
+    fun packPpgSamples(samples: List<Int>): ByteArray {
+        val buf = ByteArray(samples.size * 2)
+        for ((i, s) in samples.withIndex()) {
+            val v = s.toShort().toInt()              // truncate to 16 bits, then read low/high bytes
+            buf[i * 2] = (v and 0xFF).toByte()       // little-endian: low byte first
+            buf[i * 2 + 1] = ((v shr 8) and 0xFF).toByte()
+        }
+        return buf
+    }
+
+    /**
+     * Inverse of [packPpgSamples]. A trailing odd byte (a corrupt/truncated blob) is dropped rather than
+     * thrown — a read path never crashes on a malformed row. Port of Swift `WhoopStore.unpackPpgSamples`.
+     */
+    fun unpackPpgSamples(data: ByteArray): List<Int> {
+        val out = ArrayList<Int>(data.size / 2)
+        var i = 0
+        while (i + 1 < data.size) {
+            val u = (data[i].toInt() and 0xFF) or ((data[i + 1].toInt() and 0xFF) shl 8)
+            out.add(u.toShort().toInt())             // sign-extend the 16-bit value back to Int
+            i += 2
+        }
+        return out
+    }
+
+    /**
      * Deterministic sorted-keys JSON for an event payload. Port of `WhoopStore.encodePayload`.
      *
      * `org.json.JSONObject` does NOT guarantee key order, so we build the JSON manually with keys
