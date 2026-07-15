@@ -20,6 +20,10 @@ enum CoachTool: String, CaseIterable {
     case plotMetric = "plot_metric"
     /// Save a durable fact about the user to the coach's persistent memory (CoachMemory).
     case rememberFact = "remember_fact"
+    /// Correct a fact already in memory (replace its text) — so the coach's memory self-heals.
+    case updateFact = "update_fact"
+    /// Forget a fact in memory that's no longer true.
+    case forgetFact = "forget_fact"
     /// Log a caffeine intake into the app's caffeine log (conversational logging).
     case logCaffeine = "log_caffeine"
     /// Log a daily journal behaviour (yes/no or numeric) into the app's journal.
@@ -53,7 +57,16 @@ enum CoachTool: String, CaseIterable {
         case .rememberFact:
             return "Save one durable fact about the user to your persistent memory (goals, injuries, "
                 + "schedule, preferences, constraints). Call it PROACTIVELY whenever the user shares "
-                + "something worth remembering across conversations. One concise sentence per fact."
+                + "something worth remembering across conversations. One concise sentence per fact. "
+                + "Set importance=pinned only for facts that must frame EVERY reply (e.g. a serious "
+                + "injury or hard constraint); most facts are normal. Pick the best category."
+        case .updateFact:
+            return "Correct a fact already in your memory when the user tells you it changed. Give the "
+                + "old fact's gist (old) and the corrected sentence (new). Use this instead of remembering "
+                + "a contradicting fact, so stale information doesn't pile up."
+        case .forgetFact:
+            return "Remove a fact from your memory that is no longer true (give its gist in fact). Use "
+                + "when the user says something you remembered no longer applies."
         case .logCaffeine:
             return "Log a caffeine intake for the user (e.g. they say they just had a coffee). "
                 + "mg is optional — a single espresso is ~63 mg, a double ~125 mg, filter coffee ~95 mg, "
@@ -112,7 +125,35 @@ enum CoachTool: String, CaseIterable {
                     "fact": [
                         "type": "string",
                         "description": "One concise sentence stating the fact to remember."
+                    ],
+                    "category": [
+                        "type": "string",
+                        "enum": ["goal", "injury", "preference", "physiology", "schedule", "other"],
+                        "description": "What the fact is about. Defaults to other."
+                    ],
+                    "importance": [
+                        "type": "string",
+                        "enum": ["pinned", "normal"],
+                        "description": "pinned = must frame every reply (injuries, hard constraints); "
+                            + "normal = surfaced when relevant. Defaults to normal."
                     ]
+                ],
+                "required": ["fact"]
+            ]
+        case .updateFact:
+            return [
+                "type": "object",
+                "properties": [
+                    "old": ["type": "string", "description": "The gist of the existing fact to correct."],
+                    "new": ["type": "string", "description": "The corrected fact, one concise sentence."]
+                ],
+                "required": ["old", "new"]
+            ]
+        case .forgetFact:
+            return [
+                "type": "object",
+                "properties": [
+                    "fact": ["type": "string", "description": "The gist of the fact to forget."]
                 ],
                 "required": ["fact"]
             ]
@@ -230,7 +271,7 @@ extension AICoachEngine {
         var tools: [CoachTool] = [
             .biometricSummary, .recentWorkouts, .stressIndex, .plotMetric,
             .sleepDetail, .rangeReport,
-            .rememberFact, .logCaffeine, .logJournal, .logLabMarker
+            .rememberFact, .updateFact, .forgetFact, .logCaffeine, .logJournal, .logLabMarker
         ]
         if includeOnDeviceSignals { tools.append(.personalPatterns) }
         return tools
@@ -281,9 +322,29 @@ extension AICoachEngine {
             return handlePlotMetric(metric: metric, days: days)
         case .rememberFact:
             let fact = (input["fact"] as? String) ?? ""
-            return CoachMemory.shared.add(fact)
+            let category = (input["category"] as? String)
+                .flatMap(CoachMemory.Category.init(rawValue:)) ?? .other
+            let importance = (input["importance"] as? String)
+                .flatMap(CoachMemory.Importance.init(rawValue:)) ?? .normal
+            return CoachMemory.shared.add(fact, category: category, importance: importance)
                 ? "Remembered: \(fact)"
-                : "Nothing saved (empty or already remembered)."
+                : "Nothing saved (the fact was empty)."
+        case .updateFact:
+            let old = (input["old"] as? String) ?? ""
+            let new = (input["new"] as? String) ?? ""
+            guard let match = CoachMemory.shared.firstMatch(old) else {
+                return "No matching fact found to update; use remember_fact to add it instead."
+            }
+            return CoachMemory.shared.update(match.id, text: new)
+                ? "Updated to: \(new)"
+                : "Nothing updated (the new text was empty)."
+        case .forgetFact:
+            let fact = (input["fact"] as? String) ?? ""
+            guard let match = CoachMemory.shared.firstMatch(fact) else {
+                return "No matching fact found to forget."
+            }
+            CoachMemory.shared.remove(match.id)
+            return "Forgotten: \(match.text)"
         case .logCaffeine:
             let mg = (input["mg"] as? Double) ?? (input["mg"] as? Int).map(Double.init)
             let minsAgo = (input["minutes_ago"] as? Int) ?? Int(input["minutes_ago"] as? Double ?? 0)
