@@ -18,19 +18,30 @@ struct CoachConversation: Identifiable, Codable, Equatable {
     /// Chart snapshots keyed by the id (as a string, for clean JSON) of the empty assistant message
     /// that hosts them in the transcript. Rebuilt into `chartsByMessage` when the conversation loads.
     var charts: [String: CoachChartSnapshot]
+    /// A short distilled summary of the conversation, produced by the cheap memory model. Feeds
+    /// cross-conversation recall (the digest + the search tool). `nil` until summarised. Optional, so
+    /// conversations saved before this field existed decode fine.
+    var summary: String?
+    /// How many messages had been summarised at the last run, so the maintainer only re-summarises when
+    /// enough new turns have accrued (cost control).
+    var summarizedCount: Int?
 
     init(id: UUID = UUID(),
          title: String = "",
          createdAt: Date = Date(),
          updatedAt: Date = Date(),
          messages: [ChatMessage] = [],
-         charts: [String: CoachChartSnapshot] = [:]) {
+         charts: [String: CoachChartSnapshot] = [:],
+         summary: String? = nil,
+         summarizedCount: Int? = nil) {
         self.id = id
         self.title = title
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.messages = messages
         self.charts = charts
+        self.summary = summary
+        self.summarizedCount = summarizedCount
     }
 
     /// A short title derived from the first user message, for a conversation the user hasn't renamed.

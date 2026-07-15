@@ -238,6 +238,17 @@ final class AICoachEngine: ObservableObject {
     @Published var includeOnDeviceSignals: Bool {
         didSet { UserDefaults.standard.set(includeOnDeviceSignals, forKey: Self.onDeviceSignalsKey) }
     }
+    /// The cheap/fast model used for background memory maintenance (summarising chats + distilling
+    /// facts), kept separate from the coaching `model` so that work never burns the pricier model.
+    /// Defaults to `provider.cheapModel`; editable in settings. Empty falls back to the coaching model.
+    @Published var memoryModel: String {
+        didSet { UserDefaults.standard.set(memoryModel, forKey: Self.memoryModelKey) }
+    }
+    /// Whether the coach auto-summarises a conversation (via the cheap model) when the user moves on from
+    /// it, feeding cross-conversation memory. ON by default; gated behind `dataConsent` at run time.
+    @Published var autoSummarize: Bool {
+        didSet { UserDefaults.standard.set(autoSummarize, forKey: Self.autoSummarizeKey) }
+    }
 
     private let repo: Repository
     private let session: URLSession
@@ -247,6 +258,8 @@ final class AICoachEngine: ObservableObject {
     private static let consentKey = "ai.dataConsent"
     private static let customConnectedKey = "ai.customConnected"
     private static let onDeviceSignalsKey = "ai.includeOnDeviceSignals"
+    private static let memoryModelKey = "ai.memoryModel"
+    private static let autoSummarizeKey = "ai.autoSummarize"
     /// UserDefaults key holding the user's EDITED system prompt. Absent (or blank) means "use the
     /// built-in default". Small text key, never a secret, so plain UserDefaults is fine. Read FRESH
     /// per request (see `systemPrompt`) so an edit takes effect on the very next message.
@@ -367,6 +380,10 @@ final class AICoachEngine: ObservableObject {
         self.customBaseURL = UserDefaults.standard.string(forKey: AIProvider.customBaseURLKey) ?? ""
         self.customConnected = UserDefaults.standard.bool(forKey: Self.customConnectedKey)
         self.includeOnDeviceSignals = UserDefaults.standard.bool(forKey: Self.onDeviceSignalsKey)
+        // Memory maintenance: cheap model (default per provider) + auto-summarise (default ON).
+        let storedMemoryModel = UserDefaults.standard.string(forKey: Self.memoryModelKey)
+        self.memoryModel = (storedMemoryModel?.isEmpty == false) ? storedMemoryModel! : storedProvider.cheapModel
+        self.autoSummarize = (UserDefaults.standard.object(forKey: Self.autoSummarizeKey) as? Bool) ?? true
 
         // Restore saved conversations (migrating a legacy single transcript on first run) so history
         // survives a relaunch. Start on the most-recent one, or a fresh empty conversation.
@@ -400,6 +417,7 @@ final class AICoachEngine: ObservableObject {
             errorText = nil
             return
         }
+        if let leaving = activeConversationID { maybeSummarize(leaving) }
         let fresh = CoachConversation()
         conversations.insert(fresh, at: 0)
         activeConversationID = fresh.id
@@ -410,9 +428,11 @@ final class AICoachEngine: ObservableObject {
     /// Back-compat alias for the old "New chat" button.
     func clearChat() { newConversation() }
 
-    /// Switch the visible chat to another saved conversation, restoring its charts.
+    /// Switch the visible chat to another saved conversation, restoring its charts. Summarise the one
+    /// being left first (cheap model, best-effort) so its content becomes cross-conversation memory.
     func switchTo(_ id: UUID) {
         guard conversations.contains(where: { $0.id == id }) else { return }
+        if let leaving = activeConversationID, leaving != id { maybeSummarize(leaving) }
         activeConversationID = id
         errorText = nil
         rebuildChartsForActive()
@@ -1057,7 +1077,84 @@ final class AICoachEngine: ObservableObject {
             let block = await onDeviceSignalsBlock()
             if !block.isEmpty { ctx += "\n\n" + block }
         }
+        // Cross-conversation memory: a short digest of the user's recent past conversations, so the coach
+        // has continuity across chats even on providers without tool-calling. Empty until chats are
+        // summarised by the memory maintainer. Rides the same consent channel (buildFullContext only runs
+        // with dataConsent on).
+        let digest = recentSummariesDigest()
+        if !digest.isEmpty { ctx += "\n\n" + digest }
         return ctx
+    }
+
+    // MARK: - Cross-conversation recall
+
+    /// A one-line-per-chat digest of the user's most recent summarised conversations (excluding the
+    /// active one), for continuity across chats. Empty when nothing is summarised yet.
+    func recentSummariesDigest(limit: Int = 5) -> String {
+        let recent = conversations
+            .filter { $0.id != activeConversationID && !($0.summary ?? "").isEmpty }
+            .prefix(limit)
+        guard !recent.isEmpty else { return "" }
+        var lines = ["SUMMARIES OF THE USER'S RECENT PAST CONVERSATIONS (for continuity):"]
+        for c in recent {
+            let date = c.updatedAt.formatted(date: .abbreviated, time: .omitted)
+            lines.append("• [\(date)] \(c.summary ?? "")")
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    /// Keyword-search the user's PAST conversations (title + summary + messages), returning the top few
+    /// matches as titled, dated snippets. Deterministic and on-device — the `search_past_conversations`
+    /// tool so the model can pull relevant history on demand without every prompt carrying it.
+    func searchPastConversations(query: String, limit: Int = 3) -> String {
+        let qTokens = CoachMemory.tokens(query)
+        guard !qTokens.isEmpty else { return "Provide a more specific search query." }
+        let scored = conversations
+            .filter { $0.id != activeConversationID }
+            .map { convo -> (CoachConversation, Int) in
+                let hay = ([convo.title, convo.summary ?? ""] + convo.messages.map(\.text))
+                    .joined(separator: " ")
+                return (convo, CoachMemory.tokens(hay).intersection(qTokens).count)
+            }
+            .filter { $0.1 > 0 }
+            .sorted { $0.1 > $1.1 }
+            .prefix(limit)
+        guard !scored.isEmpty else { return "No past conversations match \"\(query)\"." }
+        var lines = ["Relevant past conversations:"]
+        for (convo, _) in scored {
+            let date = convo.updatedAt.formatted(date: .abbreviated, time: .omitted)
+            let snippet = convo.summary
+                ?? convo.messages.last(where: { !$0.text.isEmpty })?.text
+                ?? ""
+            let snip = snippet.count > 240 ? String(snippet.prefix(240)) + "…" : snippet
+            let title = convo.title.isEmpty ? "Untitled" : convo.title
+            lines.append("• [\(title), \(date)] \(snip)")
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    // MARK: - Memory maintenance support (cheap-model one-off calls)
+
+    /// A one-off completion via the CHEAP memory model (falls back to the coaching model / provider
+    /// default when unset). Internal so `MemoryMaintainer` can drive summaries without touching the
+    /// private key. Returns nil on ANY failure — memory upkeep is best-effort and never surfaces an error.
+    func cheapComplete(system: String, user: String) async -> String? {
+        guard let key = resolvedKey else { return nil }
+        let m = !memoryModel.isEmpty ? memoryModel : (!model.isEmpty ? model : provider.defaultModel)
+        do {
+            return try await provider.client.send(
+                key: key, model: m, systemPrompt: system,
+                messages: [(role: .user, content: user)], session: session
+            )
+        } catch { return nil }
+    }
+
+    /// Write a generated summary back onto a conversation (called by `MemoryMaintainer`). `conversations`
+    /// has a private setter, so the maintainer routes writes through here.
+    func applySummary(conversationID id: UUID, summary: String, summarizedCount: Int) {
+        guard let idx = conversations.firstIndex(where: { $0.id == id }) else { return }
+        conversations[idx].summary = summary
+        conversations[idx].summarizedCount = summarizedCount
     }
 
     /// One derived stress line for the coach context: the Baevsky Stress Index over TODAY's R-R, read

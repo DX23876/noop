@@ -24,6 +24,8 @@ enum CoachTool: String, CaseIterable {
     case updateFact = "update_fact"
     /// Forget a fact in memory that's no longer true.
     case forgetFact = "forget_fact"
+    /// Search the user's PAST conversations for relevant history (cross-conversation recall).
+    case searchPastConversations = "search_past_conversations"
     /// Log a caffeine intake into the app's caffeine log (conversational logging).
     case logCaffeine = "log_caffeine"
     /// Log a daily journal behaviour (yes/no or numeric) into the app's journal.
@@ -67,6 +69,10 @@ enum CoachTool: String, CaseIterable {
         case .forgetFact:
             return "Remove a fact from your memory that is no longer true (give its gist in fact). Use "
                 + "when the user says something you remembered no longer applies."
+        case .searchPastConversations:
+            return "Search the user's PAST conversations with you for relevant history when the current "
+                + "chat references something discussed before ('like we talked about', 'my usual plan', a "
+                + "past event). Returns titled, dated snippets from earlier chats."
         case .logCaffeine:
             return "Log a caffeine intake for the user (e.g. they say they just had a coffee). "
                 + "mg is optional — a single espresso is ~63 mg, a double ~125 mg, filter coffee ~95 mg, "
@@ -156,6 +162,17 @@ enum CoachTool: String, CaseIterable {
                     "fact": ["type": "string", "description": "The gist of the fact to forget."]
                 ],
                 "required": ["fact"]
+            ]
+        case .searchPastConversations:
+            return [
+                "type": "object",
+                "properties": [
+                    "query": [
+                        "type": "string",
+                        "description": "Keywords describing what to find in past conversations."
+                    ]
+                ],
+                "required": ["query"]
             ]
         case .logCaffeine:
             return [
@@ -271,7 +288,8 @@ extension AICoachEngine {
         var tools: [CoachTool] = [
             .biometricSummary, .recentWorkouts, .stressIndex, .plotMetric,
             .sleepDetail, .rangeReport,
-            .rememberFact, .updateFact, .forgetFact, .logCaffeine, .logJournal, .logLabMarker
+            .rememberFact, .updateFact, .forgetFact, .searchPastConversations,
+            .logCaffeine, .logJournal, .logLabMarker
         ]
         if includeOnDeviceSignals { tools.append(.personalPatterns) }
         return tools
@@ -345,6 +363,8 @@ extension AICoachEngine {
             }
             CoachMemory.shared.remove(match.id)
             return "Forgotten: \(match.text)"
+        case .searchPastConversations:
+            return searchPastConversations(query: (input["query"] as? String) ?? "")
         case .logCaffeine:
             let mg = (input["mg"] as? Double) ?? (input["mg"] as? Int).map(Double.init)
             let minsAgo = (input["minutes_ago"] as? Int) ?? Int(input["minutes_ago"] as? Double ?? 0)

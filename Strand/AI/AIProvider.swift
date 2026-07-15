@@ -28,6 +28,17 @@ enum AIProvider: String, CaseIterable, Identifiable {
         }
     }
 
+    /// A cheap, fast model for background memory maintenance (summarising chats, distilling facts) — work
+    /// that shouldn't burn the pricier coaching model. Empty for Custom (falls back to the user's model).
+    var cheapModel: String {
+        switch self {
+        case .openAI:    return "gpt-4o-mini"
+        case .anthropic: return "claude-haiku-4-5-20251001"
+        case .gemini:    return "gemini-flash-lite-latest"
+        case .custom:    return ""
+        }
+    }
+
     /// Models offered in the picker. A "Custom…" path in the UI lets the user pick any id beyond
     /// these, and `refreshModels()` can merge the provider's live list.
     var modelOptions: [String] {
