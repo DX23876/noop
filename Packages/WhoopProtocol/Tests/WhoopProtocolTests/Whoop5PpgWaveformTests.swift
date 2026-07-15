@@ -86,4 +86,50 @@ final class Whoop5PpgWaveformTests: XCTestCase {
         let meanStep = zip(w, w.dropFirst()).map { abs($1 - $0) }.reduce(0, +) / (w.count - 1)
         XCTAssertLessThan(meanStep * 4, range)
     }
+
+    // MARK: - Durable waveform persistence (issue #156 follow-up)
+    //
+    // Until now `extractHistoricalStreams` collected a v26 record's waveform into a transient local
+    // buffer ONLY to derive a per-second HR estimate (`ppgHr`); the samples themselves were discarded
+    // once that estimate was taken. These tests prove the raw waveform now survives as its OWN stream
+    // (`Streams.ppgWaveform`), independently of whether the HR estimator had enough context to run.
+
+    /// A single v26 record is one second of samples — nowhere near the >=3-consecutive-second run
+    /// `PpgHr.derivePpgHr` requires, so `ppgHr` stays empty. Before this change that meant the ENTIRE
+    /// record vanished (nothing else read `ppg_waveform`); now the raw waveform is still captured.
+    func testExtractHistoricalStreamsPersistsRawPpgWaveform() {
+        let f = parseFrame(bytes(v26Hex), family: .whoop5)
+        let streams = extractHistoricalStreams([f], deviceClockRef: 1_780_917_232, wallClockRef: 1_780_917_232)
+        XCTAssertEqual(streams.ppgWaveform, [PpgWaveformSample(ts: 1_780_917_232, samples: expectedWaveform)])
+        XCTAssertTrue(streams.ppgHr.isEmpty, "a lone 1 s record is too short for a confident HR estimate")
+        // Not "no rows at all" — the Backfiller's silent-data-loss diagnostic must see this as decoded.
+        XCTAssertFalse(streams.isEmpty)
+    }
+
+    /// `Streams.isEmpty` must count a waveform-only decode as non-empty even when `ppgHr` (derived FROM
+    /// it) is empty — otherwise the Backfiller's #77 "this chunk carried no sensor records" diagnostic
+    /// would misfire on a chunk that in fact persisted a raw waveform.
+    func testStreamsIsEmptyConsidersPpgWaveform() {
+        var s = Streams()
+        XCTAssertTrue(s.isEmpty)
+        s.ppgWaveform = [PpgWaveformSample(ts: 1, samples: [1, 2, 3])]
+        XCTAssertFalse(s.isEmpty)
+    }
+
+    /// Streams decode tolerance: a JSON missing `ppg_waveform` still decodes (defaults to empty), and a
+    /// present `ppg_waveform` round-trips, including negative (AC-coupled) sample values. Mirrors the
+    /// decodeIfPresent guard for the other biometric keys (see PpgHrTests' ppg_hr analogue).
+    func testStreamsDecodeToleratesMissingAndPresentPpgWaveform() throws {
+        let dec = JSONDecoder()
+        // Missing key → empty.
+        let s1 = try dec.decode(Streams.self, from: Data(#"{"hr":[]}"#.utf8))
+        XCTAssertTrue(s1.ppgWaveform.isEmpty)
+        // Present key → decoded under the snake_case CodingKey.
+        let json = #"{"ppg_waveform":[{"ts":1780917232,"samples":[-1432,-1332,12]}]}"#
+        let s2 = try dec.decode(Streams.self, from: Data(json.utf8))
+        XCTAssertEqual(s2.ppgWaveform, [PpgWaveformSample(ts: 1_780_917_232, samples: [-1432, -1332, 12])])
+        // Round-trip encode → decode is identity.
+        let round = try dec.decode(Streams.self, from: JSONEncoder().encode(s2))
+        XCTAssertEqual(round.ppgWaveform, s2.ppgWaveform)
+    }
 }

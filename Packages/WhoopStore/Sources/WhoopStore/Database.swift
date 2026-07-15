@@ -525,6 +525,33 @@ extension WhoopStore {
                 WHERE efficiency > 1.5
                 """)
         }
+
+        // v27 (issue #156 follow-up): durable storage for the WHOOP 5.0 v26 optical PPG waveform. The
+        // strap's 24 Hz buffer was fully DECODED (`ppg_waveform`, 24 i16 ADC samples/record) but only
+        // ever used to derive a per-second HR estimate (`ppgHrSample`, v12) — the waveform itself was
+        // discarded right after, and `rejectedHistoricalRecords` explicitly excludes v26 from the
+        // undecodable-record reject archive ("known-and-unstored by design"), so it had no home at all.
+        //
+        // One row per (deviceId, ts) — the SAME shape as every other per-second decoded stream (hrSample,
+        // spo2Sample, ppgHrSample, …) — but the 24 samples are packed into a compact BLOB (2 bytes/sample,
+        // little-endian i16, `WhoopStore.packPpgSamples`/`unpackPpgSamples`) instead of 24 scalar rows.
+        // That keeps a v26-heavy night to roughly the same order of magnitude as ONE extra per-second
+        // stream (≈50 bytes/row), not 24x that. Additive only, a NEW table, no existing row touched.
+        //
+        // Retention: no pruning, matching every other durable per-second table (hrSample, spo2Sample, …
+        // are never pruned either) — this is decoded biometric history, not the transient raw outbox.
+        // `PrunePolicy`'s ~50 MB cap governs ONLY `rawBatch` (raw, pre-decode frames kept for re-decode /
+        // re-sync); it is untouched by and unrelated to this table. Growth here is bounded by how much
+        // v26 data a strap actually emits (firmware chooses v26 vs v18 per second, not every night is
+        // v26-heavy), not by an artificial cap.
+        migrator.registerMigration("v27-ppg-waveform") { db in
+            try db.create(table: "ppgWaveformSample") { t in
+                t.column("deviceId", .text).notNull()
+                t.column("ts", .integer).notNull()
+                t.column("samples", .blob).notNull()
+                t.primaryKey(["deviceId", "ts"])
+            }
+        }
         return migrator
     }
 }

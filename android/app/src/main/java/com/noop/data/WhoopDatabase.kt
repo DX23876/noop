@@ -47,8 +47,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         DayOwnershipRow::class,
         LabMarkerRow::class,
         LiveSessionRow::class,
+        PpgWaveformSampleEntity::class,
     ],
-    version = 19,
+    version = 20,
     exportSchema = false,
 )
 abstract class WhoopDatabase : RoomDatabase() {
@@ -520,6 +521,38 @@ abstract class WhoopDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v19 -> v20: ADDITIVE, adds the `ppgWaveformSample` table (issue #156 follow-up), the Android twin
+         * of the Swift WhoopStore `v27-ppg-waveform` GRDB migration. Durable storage for the WHOOP 5.0 v26
+         * optical PPG waveform: the strap's 24 Hz buffer was fully DECODED but only ever used to derive
+         * `ppgHrSample` (v6) — the waveform itself was discarded right after. One row per (deviceId, ts),
+         * the SAME shape as every other per-second decoded stream, but the samples are packed into a compact
+         * BLOB (2 bytes/sample, little-endian i16, [StreamPersistence.packPpgSamples]) rather than 24 scalar
+         * rows.
+         *
+         * CREATE TABLE only (no existing data touched), so already-offloaded raw streams survive. The SQL MUST
+         * match Room's generated schema for [PpgWaveformSampleEntity] exactly: deviceId TEXT NOT NULL, ts
+         * INTEGER NOT NULL, samples BLOB NOT NULL (all Kotlin non-null, no SQL DEFAULT), composite PRIMARY KEY
+         * (deviceId, ts) in declaration order — matching the GRDB `t.column(...).notNull()` order deviceId, ts,
+         * samples. No destructive fallback (see the class doc). Exposed as [PPG_WAVEFORM_MIGRATION_SQL] so a
+         * plain-JVM unit test can pin the shape without Robolectric.
+         *
+         * SEQUENCING: this claims Room 19 -> 20 because MIGRATION_18_19 (efficiency-heal, Swift v26) already
+         * took slot 19 on this branch; the GRDB twin is `v27-ppg-waveform` (Swift's next slot after v26), so
+         * the two platforms' migration COUNTS stay aligned even though the table shape, not the number, is the
+         * contract.
+         */
+        internal val PPG_WAVEFORM_MIGRATION_SQL: List<String> = listOf(
+            "CREATE TABLE IF NOT EXISTS `ppgWaveformSample` (`deviceId` TEXT NOT NULL, " +
+                "`ts` INTEGER NOT NULL, `samples` BLOB NOT NULL, PRIMARY KEY(`deviceId`, `ts`))",
+        )
+
+        internal val MIGRATION_19_20 = object : Migration(19, 20) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                for (stmt in PPG_WAVEFORM_MIGRATION_SQL) db.execSQL(stmt)
+            }
+        }
+
         private fun build(appContext: Context): WhoopDatabase =
             Room.databaseBuilder(appContext, WhoopDatabase::class.java, DB_NAME)
                 // #1014: replace ONLY the corruption handling of the default open-helper. The
@@ -535,7 +568,7 @@ abstract class WhoopDatabase : RoomDatabase() {
                     MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
                     MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
                     MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18,
-                    MIGRATION_18_19,
+                    MIGRATION_18_19, MIGRATION_19_20,
                 )
                 // #1037: a FRESH install builds the schema straight at the current version and runs NO
                 // migrations, so the MIGRATION_7_8 "my-whoop" registry seed never fires and the WHOOP,

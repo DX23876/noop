@@ -479,6 +479,42 @@ data class AppleDaily(
 )
 
 /**
+ * The RAW WHOOP 5.0 v26 optical PPG waveform, one record per second (v27 / MIGRATION_18_19, issue #156
+ * follow-up). Swift `ppgWaveformSample` (WhoopStore Database.swift `v27-ppg-waveform` migration). The
+ * strap's 24 Hz buffer was fully decoded but only ever used to derive [PpgHrSample]; the samples
+ * themselves were discarded right after. Persisted here so a future re-analysis (a better HR estimator,
+ * HRV-from-PPG, a waveform viewer) can run over the ORIGINAL samples, not just the derived bpm.
+ *
+ * The 24 raw i16 ADC samples are packed into a compact BLOB (2 bytes/sample, little-endian i16, see
+ * [StreamPersistence.packPpgSamples]/[StreamPersistence.unpackPpgSamples]) instead of 24 scalar rows,
+ * keeping a v26-heavy night to roughly the same order of magnitude as ONE extra per-second stream. The
+ * BLOB format is byte-identical to the Swift GRDB `WhoopStore.packPpgSamples` so a `.noopbak` round-trips.
+ * PK (deviceId, ts) mirrors every other per-second stream; a truncated frame can decode fewer than 24
+ * samples. Fields are declared in the SAME order as the GRDB schema (deviceId, ts, samples) so the
+ * migration's CREATE TABLE column order matches Room's generated shape.
+ */
+@Entity(tableName = "ppgWaveformSample", primaryKeys = ["deviceId", "ts"])
+data class PpgWaveformSampleEntity(
+    val deviceId: String,
+    val ts: Long,
+    val samples: ByteArray,
+) {
+    // ByteArray needs structural equals/hashCode (the generated identity ones break round-trip asserts).
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is PpgWaveformSampleEntity) return false
+        return deviceId == other.deviceId && ts == other.ts && samples.contentEquals(other.samples)
+    }
+
+    override fun hashCode(): Int {
+        var result = deviceId.hashCode()
+        result = 31 * result + ts.hashCode()
+        result = 31 * result + samples.contentHashCode()
+        return result
+    }
+}
+
+/**
  * One Live Session (silent guardian) record (v22 / MIGRATION_15_16). Natural key (deviceId, startTs).
  * `endTs` is null while the session is still in progress. Fields are declared in the SAME order as the
  * Swift WhoopStore `liveSession` schema so the migration SQL matches Room's generated shape. Twin of the
