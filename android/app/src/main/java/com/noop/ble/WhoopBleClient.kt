@@ -16,12 +16,8 @@ import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.os.BatteryManager
 import android.os.Build
-import android.os.PowerManager
 import androidx.core.content.ContextCompat
 import android.os.Handler
 import android.os.Looper
@@ -477,30 +473,27 @@ class WhoopBleClient(
             else -> BluetoothGatt.CONNECTION_PRIORITY_BALANCED
         }
 
-        /** Pure battery-adaptive gate for the RISKY idle LOW_POWER throttle (#477), unit-testable without
-         *  a BLE stack. The lever is ARMED by [thresholdPct] > 0 (the Settings picker offers 10/15/20/25/
-         *  30; 0 disables it — safe half only, and NOT even Battery Saver can force it, respecting the
-         *  drop-risk asymmetry). Once armed and while DISCHARGING it engages at/below [thresholdPct] OR
-         *  when the OS Battery Saver is on ([powerSave]) — whichever comes first. Charging never throttles.
-         *  The threshold IS its own hysteresis: battery % moves slowly, so a boundary crossing flips at
-         *  most once per point; Battery Saver has its own hysteresis. */
-        fun idleThrottleActive(batteryPct: Int, charging: Boolean, thresholdPct: Int, powerSave: Boolean): Boolean =
-            thresholdPct > 0 && !charging && (batteryPct <= thresholdPct || powerSave)
+        /** Pure battery-adaptive gate (#477), unit-testable without a BLE stack. Keyed on the STRAP's
+         *  battery (WHOOP/Oura/Fitbit): the lever is ARMED by [thresholdPct] > 0 (the Settings slider is
+         *  10–30; 0 disables it) and engages while the strap is DISCHARGING at/below [thresholdPct]. The
+         *  phone's own Battery Saver deliberately does NOT trigger it — power saving is about the strap's
+         *  charge, not the phone's. A charging strap never throttles. The threshold is its own hysteresis
+         *  (battery % moves slowly, so a boundary crossing flips at most once per point). */
+        fun idleThrottleActive(batteryPct: Int, charging: Boolean, thresholdPct: Int): Boolean =
+            thresholdPct > 0 && !charging && batteryPct <= thresholdPct
 
-        /** Stretched periodic-offload interval when the phone is low on battery (#477). The offload tick
+        /** Stretched periodic-offload interval while the STRAP is low on battery (#477). The offload tick
          *  is a PURE sync timer (the live-stream keep-alive is separate), so stretching it can't affect
-         *  link health — worst case is fresher data arriving in slightly larger batches; the strap banks
+         *  link health — worst case is data arriving in slightly larger batches; the strap banks
          *  everything to flash meanwhile, so no data is lost. Left at [LOW_BATTERY_BACKFILL_INTERVAL_MS]
-         *  while DISCHARGING at/below [thresholdPct], else the normal [baseMs]. [thresholdPct] <= 0 / charging
-         *  never stretches. Pure, unit-testable. */
+         *  while DISCHARGING at/below [thresholdPct], else the normal [baseMs]. Pure, unit-testable. */
         fun offloadIntervalMsFor(
             baseMs: Long,
             lowBatteryMs: Long,
             batteryPct: Int,
             charging: Boolean,
             thresholdPct: Int,
-            powerSave: Boolean,
-        ): Long = if (idleThrottleActive(batteryPct, charging, thresholdPct, powerSave)) maxOf(baseMs, lowBatteryMs) else baseMs
+        ): Long = if (idleThrottleActive(batteryPct, charging, thresholdPct)) maxOf(baseMs, lowBatteryMs) else baseMs
 
         /** Pure keep/teardown decision for [prepareForPresentScan] (#74), unit-testable without a BLE
          *  stack (the [scanModeForReconnectAttempts] idiom). Keep the live link ONLY when one exists AND
@@ -664,6 +657,13 @@ class WhoopBleClient(
         const val WHOOP5_EVENT_LOG_FILE = "whoop5-events.jsonl"
         // EVENT frames are ~40–120 B of hex each, a few KB per day of wear — 5 MB is years.
         private const val WHOOP5_EVENT_LOG_MAX_BYTES = 5L * 1024 * 1024
+
+        /** High-rate R22 deep-buffer research log (#423) — the big type-0x2F buffers (1244/2140 B) that
+         *  carry tens-of-Hz motion/optical, kept raw in their own file so they survive long enough to
+         *  reverse. The 2140-B buffers are ~4.3 KB of hex and arrive in bursts, so a bigger cap than the
+         *  EVENT log: 60 MB live (~a few hours of accumulated bursts), rotation bounds disk at ~120 MB. */
+        const val WHOOP5_DEEPBUFFER_FILE = "whoop5-deepbuffers.jsonl"
+        private const val WHOOP5_DEEPBUFFER_MAX_BYTES = 60L * 1024 * 1024
 
         /** WHOOP 5/MG inner-record type byte for EVENT frames (type 48). The inner record starts at
          *  offset 8 ([type][seq][cmd][data…]) — the SAME position [isOffloadFrame]/R22-telemetry index
@@ -1200,14 +1200,14 @@ class WhoopBleClient(
         lowBatteryOffloadPct = thresholdPct
     }
 
-    /** #477: pause BACKGROUND continuous-HRV capture while the OS Battery Saver is on (own toggle,
+    /** #477: pause BACKGROUND continuous-HRV capture while the STRAP's battery is low (own toggle,
      *  DEFAULT OFF). A visible Live screen is unaffected — only the held-open background stream is
      *  released. Gated through [continuousCaptureWantsNow]. */
     @Volatile private var pauseCaptureBatteryPct: Int = 0
 
-    /** Opt into pausing continuous capture while power-saving (#477). Now battery-%-aware like the other
-     *  levers: pass the same threshold, so it engages at/below it OR under Battery Saver (0 = off).
-     *  Reconciles immediately so the change takes effect without waiting for the next keep-alive tick. */
+    /** Opt into pausing continuous capture when the strap is low (#477). Battery-%-aware like the other
+     *  levers: pass the same threshold, so it engages at/below the STRAP's % (0 = off). Reconciles
+     *  immediately so the change takes effect without waiting for the next keep-alive tick. */
     fun setPauseCaptureOnPowerSave(enabled: Boolean, thresholdPct: Int) {
         pauseCaptureBatteryPct = if (enabled) thresholdPct else 0
         handler.post { reconcileRealtime() }
@@ -1224,25 +1224,17 @@ class WhoopBleClient(
             batteryPct = batteryPct,
             charging = charging,
             thresholdPct = lowBatteryOffloadPct,
-            powerSave = powerSaveActive(),
         )
     }
 
-    /** True when the OS Battery Saver is on — the user's explicit "save power" signal (#477). An extra
-     *  trigger for an already-armed lever; has its own hysteresis + charging-awareness. */
-    private fun powerSaveActive(): Boolean =
-        (context.getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isPowerSaveMode == true
-
-    /** Current (battery-%, isCharging) from the sticky ACTION_BATTERY_CHANGED intent — a cheap synchronous
-     *  read, no persistent receiver. Unknown → (100, false) so the throttle fails SAFE (never engages). */
+    /** The connected STRAP's (battery-%, isCharging) — WHOOP, and the same for Oura/Fitbit. Power saving
+     *  keys off the strap, not the phone: the levers reduce how much the STRAP transmits (fewer offloads,
+     *  no continuous stream), so they extend the strap's life when it wasn't charged in time. Unknown
+     *  (disconnected / not yet read) → (100, false), fails SAFE (a disconnected strap has nothing to
+     *  throttle anyway). */
     private fun batteryPctAndCharging(): Pair<Int, Boolean> {
-        val i = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        val level = i?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-        val scale = i?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
-        val status = i?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
-        val pct = if (level >= 0 && scale > 0) level * 100 / scale else 100
-        val charging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
-        return pct to charging
+        val s = _state.value
+        return (s.batteryPct?.toInt() ?: 100) to (s.charging == true)
     }
 
     /** (Re)apply the GATT connection priority for the current link state (#477). Idempotent + cheap: OFF
@@ -1254,7 +1246,7 @@ class WhoopBleClient(
         // HIGH-escalation half doesn't need it, so safe-half-only mode issues no battery read.
         val idleThrottle = idleThrottleBatteryPct > 0 && run {
             val (batteryPct, charging) = batteryPctAndCharging()
-            idleThrottleActive(batteryPct, charging, idleThrottleBatteryPct, powerSaveActive())
+            idleThrottleActive(batteryPct, charging, idleThrottleBatteryPct)
         }
         // Read the authoritative INTERNAL flags (both set synchronously on this looper), not the
         // published LiveState mirror, which `exitBackfilling` may update a beat later.
@@ -3731,6 +3723,10 @@ class WhoopBleClient(
                     // the frame is not an EVENT; no-op unless the capture toggle is on.
                     if (connectedFamily == DeviceFamily.WHOOP5) {
                         writeWhoop5EventLogIfEvent(uuid.toString(), frame)
+                        // Durable log of the big high-rate R22 deep buffers (type-0x2F ≥ 1 KB) for #423
+                        // reverse-engineering — its own file the bulk-capture eviction never churns.
+                        // BEFORE the offload branch so it catches the burst; no-op unless capture is on.
+                        writeWhoop5DeepBufferIfBig(uuid.toString(), frame, isOffloadFrame(frame, connectedFamily))
                     }
                     if (backfilling) {
                         // Opt-in raw capture: record EVERY frame of the session (offload AND live
@@ -4354,7 +4350,7 @@ class WhoopBleClient(
         // BACKGROUND capture the user opted into. Re-arms automatically once off power save.
         if (pauseCaptureBatteryPct > 0) {
             val (batteryPct, charging) = batteryPctAndCharging()
-            if (idleThrottleActive(batteryPct, charging, pauseCaptureBatteryPct, powerSaveActive())) return false
+            if (idleThrottleActive(batteryPct, charging, pauseCaptureBatteryPct)) return false
         }
         val cal = java.util.Calendar.getInstance()
         val minuteOfDay = cal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + cal.get(java.util.Calendar.MINUTE)
@@ -5844,6 +5840,50 @@ class WhoopBleClient(
             // A diagnostics log must never affect the connection path: disable for this process.
             eventLogDisabled = true
             log("Capture: event log write failed (${it.message}) — event log disabled")
+        }
+    }
+
+    @Volatile private var deepBufferDisabled = false
+
+    /**
+     * Durable append-only log of WHOOP 5.0/MG **high-rate R22 deep buffers** (#423) — the big type-0x2F
+     * buffers (>= 1 KB: the 1244-B 6-axis IMU and 2140-B optical) that carry tens-of-Hz sensor data,
+     * kept RAW in their own file so a byte-perfect decoder can be reversed offline from many
+     * (raw buffer, wall-clock) pairs. NOOP's historical decoder pulls only the 1 Hz gravity vector out
+     * of these and discards the high-rate remainder. Gated on the same capture pref as the backfill
+     * capture; one JSONL line per buffer (`{"ts_ms":…,"strap_ts":…,"size":…,"offload":…,"char":…,
+     * "hex":"…"[,"imu":{…}]}`, same keys as the Swift twin `PuffinDeepBufferLog`). `strap_ts` is the unix
+     * second the strap stamped at frame offset 15 — the load-bearing key for aligning a buffer with what
+     * the wearer was doing. The optional `imu` object is the decoded activity summary present only on the
+     * 1244-B 6-axis buffer ([PuffinDeepBufferLog.decodedImuField], #455). Rotates at a soft cap keeping
+     * one previous generation. Cheap for every other frame: a length + single-byte compare BEFORE the
+     * pref read; no-op unless the capture toggle is on.
+     */
+    private fun writeWhoop5DeepBufferIfBig(characteristic: String, frame: ByteArray, isOffload: Boolean) {
+        if (deepBufferDisabled || !PuffinDeepBufferLog.isDeepBuffer(frame)) return
+        if (!PuffinExperiment.from(context).isCaptureEnabled) return
+        runCatching {
+            val f = java.io.File(context.filesDir, WHOOP5_DEEPBUFFER_FILE)
+            if (f.exists() && f.length() > WHOOP5_DEEPBUFFER_MAX_BYTES) {
+                val old = java.io.File(context.filesDir, "$WHOOP5_DEEPBUFFER_FILE.1")
+                old.delete()
+                f.renameTo(old)
+            }
+            val strapTs = PuffinDeepBufferLog.strapTs(frame)?.toString() ?: "null"
+            val hex = frame.toHex()
+            // #423/#455: decode the 1244-B IMU buffer inline so each captured line carries its activity
+            // summary (cadence/energy/jerk/gyro) beside the raw hex — self-checking (raw ↔ decode) with
+            // no stored table, migration, or downstream gate. Instrumentation only; the 2140-B optical
+            // buffer stays raw (its layout isn't decoded yet).
+            val imu = PuffinDeepBufferLog.decodedImuField(frame)
+            f.appendText(
+                "{\"ts_ms\":${System.currentTimeMillis()},\"strap_ts\":$strapTs,\"size\":${frame.size}," +
+                    "\"offload\":$isOffload,\"char\":\"$characteristic\",\"hex\":\"$hex\"$imu}\n",
+            )
+        }.onFailure {
+            // A diagnostics log must never affect the connection path: disable for this process.
+            deepBufferDisabled = true
+            log("Capture: deep-buffer log write failed (${it.message}) — deep-buffer log disabled")
         }
     }
 

@@ -350,6 +350,10 @@ DE: dict[str, str] = {
     "Recompute": "Neu berechnen",
     "Record puffin frames to a file": "Puffin-Frames in eine Datei aufzeichnen",
     "Recovery": "Erholung",
+    # Coupled view dashboard card (task #43) — was absent from the catalog, so it shipped in English
+    # on non-English devices (#484). Re-uses the catalog's own Erholung / Anstrengung / Schlaf terms.
+    "Coupled view": "Zusammengefasste Ansicht",
+    "Recovery, strain and sleep in one glance": "Erholung, Anstrengung und Schlaf auf einen Blick",
     "Recovery weighs your HRV against your personal baseline (~60%), resting heart rate (~20%), sleep performance (~15%) and respiration (~5%). Day strain is a 0–21 cardiovascular load from time in heart-rate zones. Sleep is staged from movement and heart rate. Everything is computed here from the strap's raw data — it works for any day NOOP collected raw streams.": "Die Erholung gewichtet deine HRV gegenüber deiner persönlichen Basislinie (~60 %), die Ruheherzfrequenz (~20 %), die Schlafleistung (~15 %) und die Atmung (~5 %). Die Tagesbelastung ist eine kardiovaskuläre Last von 0–21 aus der Zeit in Herzfrequenzzonen. Der Schlaf wird aus Bewegung und Herzfrequenz in Phasen eingeteilt. Alles wird hier aus den Rohdaten des Straps berechnet — es funktioniert für jeden Tag, an dem NOOP Rohdaten erfasst hat.",
     "Refresh models": "Modelle aktualisieren",
     "Refresh models from provider": "Modelle vom Anbieter aktualisieren",
