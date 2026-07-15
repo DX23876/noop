@@ -286,9 +286,10 @@ final class AICoachEngine: ObservableObject {
         // the tone changes while the coaching logic and guardrails stay intact. Read fresh so a
         // persona switch applies to the very next message, like the prompt itself.
         var prompt = persona.systemPreamble + "\n\n" + base
-        // Persistent memory: the user's goal + facts the model saved via `remember_fact`. Read fresh
-        // so a fact remembered THIS turn frames the very next one.
-        let memory = CoachMemory.shared.promptBlock
+        // Persistent memory: the user's goal + PINNED facts (injuries, hard constraints) ride every
+        // prompt. Query-relevant normal facts are injected per-question in `wireMessages` instead, so a
+        // large memory doesn't bloat every request. Read fresh so a fact pinned THIS turn frames the next.
+        let memory = CoachMemory.shared.pinnedBlock
         if !memory.isEmpty { prompt += "\n\n" + memory }
         return prompt
     }
@@ -1170,13 +1171,18 @@ final class AICoachEngine: ObservableObject {
     }
 
     /// The chat as `(role, content)` pairs, with the metrics context prepended to the first user turn.
+    /// The facts most relevant to the CURRENT question are folded into that context (pinned facts already
+    /// ride the system prompt), so memory scales without every prompt carrying all 40 facts.
     private func wireMessages(context: String) -> [(role: ChatMessage.Role, content: String)] {
+        let question = messages.last(where: { $0.role == .user })?.text ?? ""
+        let relevant = CoachMemory.shared.relevantBlock(for: question, limit: 8)
+        let fullContext = relevant.isEmpty ? context : context + "\n\n" + relevant
         var out: [(role: ChatMessage.Role, content: String)] = []
         var contextInjected = false
         for m in windowedMessages() {
             if m.role == .user && !contextInjected {
                 contextInjected = true
-                out.append((.user, context + "\n\n---\n\nQuestion: " + m.text))
+                out.append((.user, fullContext + "\n\n---\n\nQuestion: " + m.text))
             } else {
                 out.append((m.role, m.text))
             }
