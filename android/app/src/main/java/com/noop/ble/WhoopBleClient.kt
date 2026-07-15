@@ -658,6 +658,13 @@ class WhoopBleClient(
         // EVENT frames are ~40–120 B of hex each, a few KB per day of wear — 5 MB is years.
         private const val WHOOP5_EVENT_LOG_MAX_BYTES = 5L * 1024 * 1024
 
+        /** High-rate R22 deep-buffer research log (#423) — the big type-0x2F buffers (1244/2140 B) that
+         *  carry tens-of-Hz motion/optical, kept raw in their own file so they survive long enough to
+         *  reverse. The 2140-B buffers are ~4.3 KB of hex and arrive in bursts, so a bigger cap than the
+         *  EVENT log: 60 MB live (~a few hours of accumulated bursts), rotation bounds disk at ~120 MB. */
+        const val WHOOP5_DEEPBUFFER_FILE = "whoop5-deepbuffers.jsonl"
+        private const val WHOOP5_DEEPBUFFER_MAX_BYTES = 60L * 1024 * 1024
+
         /** WHOOP 5/MG inner-record type byte for EVENT frames (type 48). The inner record starts at
          *  offset 8 ([type][seq][cmd][data…]) — the SAME position [isOffloadFrame]/R22-telemetry index
          *  and the Interpreter reads the canonical type name from. */
@@ -3716,6 +3723,10 @@ class WhoopBleClient(
                     // the frame is not an EVENT; no-op unless the capture toggle is on.
                     if (connectedFamily == DeviceFamily.WHOOP5) {
                         writeWhoop5EventLogIfEvent(uuid.toString(), frame)
+                        // Durable log of the big high-rate R22 deep buffers (type-0x2F ≥ 1 KB) for #423
+                        // reverse-engineering — its own file the bulk-capture eviction never churns.
+                        // BEFORE the offload branch so it catches the burst; no-op unless capture is on.
+                        writeWhoop5DeepBufferIfBig(uuid.toString(), frame, isOffloadFrame(frame, connectedFamily))
                     }
                     if (backfilling) {
                         // Opt-in raw capture: record EVERY frame of the session (offload AND live
@@ -5829,6 +5840,50 @@ class WhoopBleClient(
             // A diagnostics log must never affect the connection path: disable for this process.
             eventLogDisabled = true
             log("Capture: event log write failed (${it.message}) — event log disabled")
+        }
+    }
+
+    @Volatile private var deepBufferDisabled = false
+
+    /**
+     * Durable append-only log of WHOOP 5.0/MG **high-rate R22 deep buffers** (#423) — the big type-0x2F
+     * buffers (>= 1 KB: the 1244-B 6-axis IMU and 2140-B optical) that carry tens-of-Hz sensor data,
+     * kept RAW in their own file so a byte-perfect decoder can be reversed offline from many
+     * (raw buffer, wall-clock) pairs. NOOP's historical decoder pulls only the 1 Hz gravity vector out
+     * of these and discards the high-rate remainder. Gated on the same capture pref as the backfill
+     * capture; one JSONL line per buffer (`{"ts_ms":…,"strap_ts":…,"size":…,"offload":…,"char":…,
+     * "hex":"…"[,"imu":{…}]}`, same keys as the Swift twin `PuffinDeepBufferLog`). `strap_ts` is the unix
+     * second the strap stamped at frame offset 15 — the load-bearing key for aligning a buffer with what
+     * the wearer was doing. The optional `imu` object is the decoded activity summary present only on the
+     * 1244-B 6-axis buffer ([PuffinDeepBufferLog.decodedImuField], #455). Rotates at a soft cap keeping
+     * one previous generation. Cheap for every other frame: a length + single-byte compare BEFORE the
+     * pref read; no-op unless the capture toggle is on.
+     */
+    private fun writeWhoop5DeepBufferIfBig(characteristic: String, frame: ByteArray, isOffload: Boolean) {
+        if (deepBufferDisabled || !PuffinDeepBufferLog.isDeepBuffer(frame)) return
+        if (!PuffinExperiment.from(context).isCaptureEnabled) return
+        runCatching {
+            val f = java.io.File(context.filesDir, WHOOP5_DEEPBUFFER_FILE)
+            if (f.exists() && f.length() > WHOOP5_DEEPBUFFER_MAX_BYTES) {
+                val old = java.io.File(context.filesDir, "$WHOOP5_DEEPBUFFER_FILE.1")
+                old.delete()
+                f.renameTo(old)
+            }
+            val strapTs = PuffinDeepBufferLog.strapTs(frame)?.toString() ?: "null"
+            val hex = frame.toHex()
+            // #423/#455: decode the 1244-B IMU buffer inline so each captured line carries its activity
+            // summary (cadence/energy/jerk/gyro) beside the raw hex — self-checking (raw ↔ decode) with
+            // no stored table, migration, or downstream gate. Instrumentation only; the 2140-B optical
+            // buffer stays raw (its layout isn't decoded yet).
+            val imu = PuffinDeepBufferLog.decodedImuField(frame)
+            f.appendText(
+                "{\"ts_ms\":${System.currentTimeMillis()},\"strap_ts\":$strapTs,\"size\":${frame.size}," +
+                    "\"offload\":$isOffload,\"char\":\"$characteristic\",\"hex\":\"$hex\"$imu}\n",
+            )
+        }.onFailure {
+            // A diagnostics log must never affect the connection path: disable for this process.
+            deepBufferDisabled = true
+            log("Capture: deep-buffer log write failed (${it.message}) — deep-buffer log disabled")
         }
     }
 
