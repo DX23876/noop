@@ -36,6 +36,11 @@ enum CoachTool: String, CaseIterable {
     case sleepDetail = "get_sleep_detail"
     /// A multi-week range report: per-metric stats + headline changes over 7–365 days.
     case rangeReport = "get_range_report"
+    /// The on-device Readiness verdict — the SAME algorithm Today's synthesis card reads (level, ACWR,
+    /// training monotony, contributing signals), plus a health/safety note when relevant.
+    case readiness = "get_readiness"
+    /// The ordered "why is my Charge what it is" breakdown — signed points per contributing term.
+    case chargeDrivers = "get_charge_drivers"
 
     /// Natural-language description the model reads to decide when to call the tool.
     var description: String {
@@ -92,6 +97,19 @@ enum CoachTool: String, CaseIterable {
             return "Get a range report over the last N days (7–365): per-metric averages, trends and "
                 + "headline changes across recovery, sleep, HRV, resting HR, strain, workouts, stress. "
                 + "Use for weekly/monthly reviews and 'how am I doing' questions."
+        case .readiness:
+            return "Get the user's on-device Readiness verdict — the SAME call the Today screen uses "
+                + "(level: primed/balanced/strained/rundown/insufficient), acute:chronic workload ratio, "
+                + "training monotony, and the contributing signals with plain-English detail. ALWAYS call "
+                + "this before advising whether to push, maintain or rest — never derive that call "
+                + "yourself from the raw charge number, so you never contradict what Today shows. May "
+                + "include a HEALTH SIGNAL / SAFETY note; when present, do not suggest increasing "
+                + "training load regardless of the readiness level."
+        case .chargeDrivers:
+            return "Get the ordered breakdown of WHY today's Charge is what it is — each contributing "
+                + "term (HRV, resting HR, respiration, skin temperature) with its signed point "
+                + "contribution, measured value, personal baseline, and a plain-English verdict. Use this "
+                + "instead of guessing a reason when the user asks why their Charge/recovery is high or low."
         }
     }
 
@@ -287,7 +305,7 @@ extension AICoachEngine {
     var coachTools: [CoachTool] {
         var tools: [CoachTool] = [
             .biometricSummary, .recentWorkouts, .stressIndex, .plotMetric,
-            .sleepDetail, .rangeReport,
+            .sleepDetail, .rangeReport, .readiness, .chargeDrivers,
             .rememberFact, .updateFact, .forgetFact, .searchPastConversations,
             .logCaffeine, .logJournal, .logLabMarker
         ]
@@ -305,9 +323,11 @@ extension AICoachEngine {
     /// the model it must FETCH the user's real numbers via tools before advising, and never invent them.
     static let toolModeContextNote = """
     You have TOOLS to fetch the user's own wearable data on demand (biometric summary, recent workouts, \
-    today's stress index, and — if shared — their personal patterns). Call the tools you need to ground \
-    your answer in their REAL numbers before advising, and cite those numbers. If a tool reports no data, \
-    say so plainly rather than inventing figures.
+    today's stress index, readiness verdict, Charge breakdown, and — if shared — their personal \
+    patterns). Call get_readiness before any push/maintain/rest advice — never derive that call yourself \
+    from the raw charge number. Call the tools you need to ground your answer in their REAL numbers \
+    before advising, and cite those numbers. If a tool reports no data, say so plainly rather than \
+    inventing figures.
     """
 
     /// Execute one tool call and return a compact text result. Routes to the same consent-gated summaries
@@ -390,6 +410,10 @@ extension AICoachEngine {
         case .rangeReport:
             let days = (input["days"] as? Int) ?? Int(input["days"] as? Double ?? 7)
             return await rangeReportTool(days: days)
+        case .readiness:
+            return readinessBlock()
+        case .chargeDrivers:
+            return chargeDriversBlock()
         case .none:
             return "Unknown tool \"\(name)\"."
         }

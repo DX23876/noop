@@ -352,6 +352,12 @@ final class AppModel: ObservableObject {
         // actor; no-op on macOS for the Inbox part.
         Task.detached { AppModel.purgeImportInbox(); AppModel.purgeImportTemp() }
 
+        // Let the coach read the live illness signal without holding a reference to AppModel — mirrors
+        // the diagnosticSink closure-wiring pattern above for IntelligenceEngine. Wired here (rather than
+        // right after `self.coach = ...`) because every stored property must be set before `self` can be
+        // captured, even weakly.
+        self.coach.illnessSignalProvider = { [weak self] in self?.illnessSignal }
+
         // FIX 2(b): the launch sequence runs at `.utility` so its heavy one-shot 4000-day heal/rescore
         // yields to UI rendering instead of contending at the inherited user-initiated QoS. The reads are
         // already off the main actor (analyzeRecent , FIX 1), and at `.utility` the scheduler keeps the
