@@ -29,11 +29,25 @@ struct ChatMessage: Identifiable, Equatable, Codable {
     let id: UUID
     let role: Role
     let text: String
+    /// When the turn was created — drives time separators in the transcript. Defaulted on decode so
+    /// transcripts saved before this field existed still load (they just show "now" for old turns).
+    let date: Date
 
-    init(id: UUID = UUID(), role: Role, text: String) {
+    init(id: UUID = UUID(), role: Role, text: String, date: Date = Date()) {
         self.id = id
         self.role = role
         self.text = text
+        self.date = date
+    }
+
+    private enum CodingKeys: String, CodingKey { case id, role, text, date }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        role = try c.decode(Role.self, forKey: .role)
+        text = try c.decode(String.self, forKey: .text)
+        date = try c.decodeIfPresent(Date.self, forKey: .date) ?? Date()
     }
 }
 
@@ -153,9 +167,37 @@ enum AICoachError: LocalizedError {
 final class AICoachEngine: ObservableObject {
 
     // Published state the UI binds to.
-    @Published var messages: [ChatMessage] = []
+    /// All saved conversations, most-recently-updated first. The visible chat is the ACTIVE one; older
+    /// ones stay findable in the history sheet instead of being overwritten.
+    @Published private(set) var conversations: [CoachConversation] = []
+    /// The conversation currently shown in the chat. `messages` reads/writes into this one.
+    @Published var activeConversationID: UUID?
     @Published var sending = false
     @Published var errorText: String?
+
+    /// The active conversation, if any.
+    var activeConversation: CoachConversation? {
+        guard let id = activeConversationID else { return nil }
+        return conversations.first(where: { $0.id == id })
+    }
+
+    /// The visible transcript: a computed view over the active conversation, so every existing call site
+    /// that appends/removes/subscripts `messages` keeps working unchanged. Writing it also bumps the
+    /// conversation's `updatedAt`, re-sorts most-recent-first, and auto-titles from the first user turn.
+    var messages: [ChatMessage] {
+        get { activeConversation?.messages ?? [] }
+        set {
+            guard let id = activeConversationID,
+                  let idx = conversations.firstIndex(where: { $0.id == id }) else { return }
+            conversations[idx].messages = newValue
+            conversations[idx].updatedAt = Date()
+            if conversations[idx].title.isEmpty || conversations[idx].title == "New chat" {
+                conversations[idx].title = CoachConversation.autoTitle(from: newValue)
+            }
+            // Keep most-recently-updated first without disturbing the active id.
+            conversations.sort { $0.updatedAt > $1.updatedAt }
+        }
+    }
     @Published var provider: AIProvider {
         didSet {
             guard provider != oldValue else { return }
@@ -196,6 +238,17 @@ final class AICoachEngine: ObservableObject {
     @Published var includeOnDeviceSignals: Bool {
         didSet { UserDefaults.standard.set(includeOnDeviceSignals, forKey: Self.onDeviceSignalsKey) }
     }
+    /// The cheap/fast model used for background memory maintenance (summarising chats + distilling
+    /// facts), kept separate from the coaching `model` so that work never burns the pricier model.
+    /// Defaults to `provider.cheapModel`; editable in settings. Empty falls back to the coaching model.
+    @Published var memoryModel: String {
+        didSet { UserDefaults.standard.set(memoryModel, forKey: Self.memoryModelKey) }
+    }
+    /// Whether the coach auto-summarises a conversation (via the cheap model) when the user moves on from
+    /// it, feeding cross-conversation memory. ON by default; gated behind `dataConsent` at run time.
+    @Published var autoSummarize: Bool {
+        didSet { UserDefaults.standard.set(autoSummarize, forKey: Self.autoSummarizeKey) }
+    }
 
     private let repo: Repository
     private let session: URLSession
@@ -205,6 +258,8 @@ final class AICoachEngine: ObservableObject {
     private static let consentKey = "ai.dataConsent"
     private static let customConnectedKey = "ai.customConnected"
     private static let onDeviceSignalsKey = "ai.includeOnDeviceSignals"
+    private static let memoryModelKey = "ai.memoryModel"
+    private static let autoSummarizeKey = "ai.autoSummarize"
     /// UserDefaults key holding the user's EDITED system prompt. Absent (or blank) means "use the
     /// built-in default". Small text key, never a secret, so plain UserDefaults is fine. Read FRESH
     /// per request (see `systemPrompt`) so an edit takes effect on the very next message.
@@ -244,9 +299,10 @@ final class AICoachEngine: ObservableObject {
         // the tone changes while the coaching logic and guardrails stay intact. Read fresh so a
         // persona switch applies to the very next message, like the prompt itself.
         var prompt = persona.systemPreamble + "\n\n" + base
-        // Persistent memory: the user's goal + facts the model saved via `remember_fact`. Read fresh
-        // so a fact remembered THIS turn frames the very next one.
-        let memory = CoachMemory.shared.promptBlock
+        // Persistent memory: the user's goal + PINNED facts (injuries, hard constraints) ride every
+        // prompt. Query-relevant normal facts are injected per-question in `wireMessages` instead, so a
+        // large memory doesn't bloat every request. Read fresh so a fact pinned THIS turn frames the next.
+        let memory = CoachMemory.shared.pinnedBlock
         if !memory.isEmpty { prompt += "\n\n" + memory }
         return prompt
     }
@@ -324,26 +380,142 @@ final class AICoachEngine: ObservableObject {
         self.customBaseURL = UserDefaults.standard.string(forKey: AIProvider.customBaseURLKey) ?? ""
         self.customConnected = UserDefaults.standard.bool(forKey: Self.customConnectedKey)
         self.includeOnDeviceSignals = UserDefaults.standard.bool(forKey: Self.onDeviceSignalsKey)
+        // Memory maintenance: cheap model (default per provider) + auto-summarise (default ON).
+        let storedMemoryModel = UserDefaults.standard.string(forKey: Self.memoryModelKey)
+        self.memoryModel = (storedMemoryModel?.isEmpty == false) ? storedMemoryModel! : storedProvider.cheapModel
+        self.autoSummarize = (UserDefaults.standard.object(forKey: Self.autoSummarizeKey) as? Bool) ?? true
 
-        // Restore the saved transcript so the conversation survives a relaunch, then keep it saved:
-        // a debounced sink (not a didSet) so token-by-token streaming doesn't hammer the disk.
-        self.messages = CoachTranscriptStore.load()
-        transcriptAutosave = $messages
+        // Restore saved conversations (migrating a legacy single transcript on first run) so history
+        // survives a relaunch. Start on the most-recent one, or a fresh empty conversation.
+        var restored = CoachConversationStore.load()
+        restored.sort { $0.updatedAt > $1.updatedAt }
+        if restored.isEmpty { restored = [CoachConversation()] }
+        self.conversations = restored
+        self.activeConversationID = restored.first?.id
+
+        // Keep the list saved: a debounced sink (not a didSet) so token-by-token streaming doesn't
+        // hammer the disk.
+        transcriptAutosave = $conversations
             .dropFirst()
             .debounce(for: .seconds(1.0), scheduler: DispatchQueue.main)
-            .sink { CoachTranscriptStore.save($0) }
+            .sink { CoachConversationStore.save($0) }
+
+        // Rebuild the in-memory chart artifacts for the active conversation from their snapshots.
+        rebuildChartsForActive()
     }
 
     /// Debounced transcript persistence (see init).
     private var transcriptAutosave: AnyCancellable?
 
-    /// Start over: clear the visible chat, its chart artifacts, and the stored transcript. The next
-    /// Coach open generates a fresh brief (messages is empty again).
-    func clearChat() {
-        messages = []
+    // MARK: Conversation management (history)
+
+    /// Start a new conversation and switch to it. If the active one is already empty, reuse it rather
+    /// than piling up blank threads. Preserved name `clearChat` as an alias so old call sites still work.
+    func newConversation() {
+        if let cur = activeConversation, cur.messages.isEmpty {
+            chartsByMessage = [:]
+            errorText = nil
+            return
+        }
+        if let leaving = activeConversationID { maybeSummarize(leaving) }
+        let fresh = CoachConversation()
+        conversations.insert(fresh, at: 0)
+        activeConversationID = fresh.id
         chartsByMessage = [:]
         errorText = nil
-        CoachTranscriptStore.clear()
+    }
+
+    /// Back-compat alias for the old "New chat" button.
+    func clearChat() { newConversation() }
+
+    /// Switch the visible chat to another saved conversation, restoring its charts. Summarise the one
+    /// being left first (cheap model, best-effort) so its content becomes cross-conversation memory.
+    func switchTo(_ id: UUID) {
+        guard conversations.contains(where: { $0.id == id }) else { return }
+        if let leaving = activeConversationID, leaving != id { maybeSummarize(leaving) }
+        activeConversationID = id
+        errorText = nil
+        rebuildChartsForActive()
+    }
+
+    /// Rename a conversation (user-set titles are kept; auto-titling won't overwrite them).
+    func renameConversation(_ id: UUID, to title: String) {
+        guard let idx = conversations.firstIndex(where: { $0.id == id }) else { return }
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        conversations[idx].title = trimmed.isEmpty ? "New chat" : trimmed
+    }
+
+    /// Delete a conversation. If it was the active one, fall back to the newest remaining, or a fresh one.
+    func deleteConversation(_ id: UUID) {
+        conversations.removeAll { $0.id == id }
+        if activeConversationID == id || activeConversationID == nil {
+            if let first = conversations.first {
+                activeConversationID = first.id
+            } else {
+                let fresh = CoachConversation()
+                conversations = [fresh]
+                activeConversationID = fresh.id
+            }
+            rebuildChartsForActive()
+        }
+    }
+
+    /// Rebuild `chartsByMessage` for the active conversation from its persisted snapshots.
+    private func rebuildChartsForActive() {
+        guard let convo = activeConversation else { chartsByMessage = [:]; return }
+        var map: [UUID: CoachChartArtifact] = [:]
+        for (idStr, snap) in convo.charts {
+            if let id = UUID(uuidString: idStr) { map[id] = snap.artifact }
+        }
+        chartsByMessage = map
+    }
+
+    // MARK: Send control (start / stop / regenerate)
+
+    /// The in-flight send, held so the UI can Stop it mid-stream.
+    private var sendTask: Task<Void, Never>?
+
+    /// Kick off a send as a cancellable task. The composer calls this instead of awaiting `send`
+    /// directly, so `stop()` can cancel it.
+    func startSend(_ text: String) {
+        sendTask?.cancel()
+        sendTask = Task { [weak self] in await self?.send(text) }
+    }
+
+    /// Stop an in-flight reply. Whatever streamed so far stays in the transcript; no error is shown.
+    func stop() {
+        sendTask?.cancel()
+        sendTask = nil
+        sending = false
+    }
+
+    /// Regenerate the last reply: drop everything back to (and including) the last user turn, purge any
+    /// charts those dropped messages hosted, then resend that same question.
+    func regenerate() {
+        guard !sending, let lastUserIdx = messages.lastIndex(where: { $0.role == .user }) else { return }
+        let question = messages[lastUserIdx].text
+        var msgs = messages
+        for m in msgs[lastUserIdx...] where m.role == .assistant {
+            chartsByMessage[m.id] = nil
+            removeChartSnapshot(m.id)
+        }
+        msgs.removeSubrange(lastUserIdx...)   // drop the user turn too; send() re-appends it
+        messages = msgs
+        startSend(question)
+    }
+
+    /// Drop a chart snapshot from the active conversation (used when regenerating over it).
+    private func removeChartSnapshot(_ id: UUID) {
+        guard let cid = activeConversationID,
+              let idx = conversations.firstIndex(where: { $0.id == cid }) else { return }
+        conversations[idx].charts[id.uuidString] = nil
+    }
+
+    /// True when an error is really a task/URL cancellation (a user Stop), not a genuine failure.
+    private static func isCancellation(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        if let urlError = error as? URLError, urlError.code == .cancelled { return true }
+        return Task.isCancelled
     }
 
     // MARK: Key management
@@ -548,8 +720,13 @@ final class AICoachEngine: ObservableObject {
             } catch let e as AICoachError {
                 removeAssistantIfEmpty(replyId); discardPendingCharts(); errorText = e.errorDescription
             } catch {
-                removeAssistantIfEmpty(replyId); discardPendingCharts()
-                errorText = AICoachError.network(error.localizedDescription).errorDescription
+                // A user-initiated Stop cancels the task; keep whatever streamed so far, show no error.
+                if Self.isCancellation(error) {
+                    flushPendingCharts()
+                } else {
+                    removeAssistantIfEmpty(replyId); discardPendingCharts()
+                    errorText = AICoachError.network(error.localizedDescription).errorDescription
+                }
             }
             return
         }
@@ -563,7 +740,9 @@ final class AICoachEngine: ObservableObject {
             discardPendingCharts(); errorText = e.errorDescription
         } catch {
             discardPendingCharts()
-            errorText = AICoachError.network(error.localizedDescription).errorDescription
+            if !Self.isCancellation(error) {
+                errorText = AICoachError.network(error.localizedDescription).errorDescription
+            }
         }
     }
 
@@ -604,12 +783,19 @@ final class AICoachEngine: ObservableObject {
     }
 
     /// Append one empty assistant message per queued chart (the id links it to `chartsByMessage`), then
-    /// clear the queue. Called after a reply completes so charts sit under the text.
+    /// clear the queue. Called after a reply completes so charts sit under the text. The chart is also
+    /// snapshotted into the active conversation so it survives a relaunch.
     func flushPendingCharts() {
         for art in pendingCharts {
             let id = UUID()
             messages.append(ChatMessage(id: id, role: .assistant, text: ""))
             chartsByMessage[id] = art
+            // Re-find the active conversation AFTER the append: writing `messages` re-sorts the list, so
+            // any index captured earlier would be stale.
+            if let cid = activeConversationID,
+               let idx = conversations.firstIndex(where: { $0.id == cid }) {
+                conversations[idx].charts[id.uuidString] = CoachChartSnapshot(art)
+            }
         }
         pendingCharts.removeAll()
     }
@@ -891,7 +1077,84 @@ final class AICoachEngine: ObservableObject {
             let block = await onDeviceSignalsBlock()
             if !block.isEmpty { ctx += "\n\n" + block }
         }
+        // Cross-conversation memory: a short digest of the user's recent past conversations, so the coach
+        // has continuity across chats even on providers without tool-calling. Empty until chats are
+        // summarised by the memory maintainer. Rides the same consent channel (buildFullContext only runs
+        // with dataConsent on).
+        let digest = recentSummariesDigest()
+        if !digest.isEmpty { ctx += "\n\n" + digest }
         return ctx
+    }
+
+    // MARK: - Cross-conversation recall
+
+    /// A one-line-per-chat digest of the user's most recent summarised conversations (excluding the
+    /// active one), for continuity across chats. Empty when nothing is summarised yet.
+    func recentSummariesDigest(limit: Int = 5) -> String {
+        let recent = conversations
+            .filter { $0.id != activeConversationID && !($0.summary ?? "").isEmpty }
+            .prefix(limit)
+        guard !recent.isEmpty else { return "" }
+        var lines = ["SUMMARIES OF THE USER'S RECENT PAST CONVERSATIONS (for continuity):"]
+        for c in recent {
+            let date = c.updatedAt.formatted(date: .abbreviated, time: .omitted)
+            lines.append("• [\(date)] \(c.summary ?? "")")
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    /// Keyword-search the user's PAST conversations (title + summary + messages), returning the top few
+    /// matches as titled, dated snippets. Deterministic and on-device — the `search_past_conversations`
+    /// tool so the model can pull relevant history on demand without every prompt carrying it.
+    func searchPastConversations(query: String, limit: Int = 3) -> String {
+        let qTokens = CoachMemory.tokens(query)
+        guard !qTokens.isEmpty else { return "Provide a more specific search query." }
+        let scored = conversations
+            .filter { $0.id != activeConversationID }
+            .map { convo -> (CoachConversation, Int) in
+                let hay = ([convo.title, convo.summary ?? ""] + convo.messages.map(\.text))
+                    .joined(separator: " ")
+                return (convo, CoachMemory.tokens(hay).intersection(qTokens).count)
+            }
+            .filter { $0.1 > 0 }
+            .sorted { $0.1 > $1.1 }
+            .prefix(limit)
+        guard !scored.isEmpty else { return "No past conversations match \"\(query)\"." }
+        var lines = ["Relevant past conversations:"]
+        for (convo, _) in scored {
+            let date = convo.updatedAt.formatted(date: .abbreviated, time: .omitted)
+            let snippet = convo.summary
+                ?? convo.messages.last(where: { !$0.text.isEmpty })?.text
+                ?? ""
+            let snip = snippet.count > 240 ? String(snippet.prefix(240)) + "…" : snippet
+            let title = convo.title.isEmpty ? "Untitled" : convo.title
+            lines.append("• [\(title), \(date)] \(snip)")
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    // MARK: - Memory maintenance support (cheap-model one-off calls)
+
+    /// A one-off completion via the CHEAP memory model (falls back to the coaching model / provider
+    /// default when unset). Internal so `MemoryMaintainer` can drive summaries without touching the
+    /// private key. Returns nil on ANY failure — memory upkeep is best-effort and never surfaces an error.
+    func cheapComplete(system: String, user: String) async -> String? {
+        guard let key = resolvedKey else { return nil }
+        let m = !memoryModel.isEmpty ? memoryModel : (!model.isEmpty ? model : provider.defaultModel)
+        do {
+            return try await provider.client.send(
+                key: key, model: m, systemPrompt: system,
+                messages: [(role: .user, content: user)], session: session
+            )
+        } catch { return nil }
+    }
+
+    /// Write a generated summary back onto a conversation (called by `MemoryMaintainer`). `conversations`
+    /// has a private setter, so the maintainer routes writes through here.
+    func applySummary(conversationID id: UUID, summary: String, summarizedCount: Int) {
+        guard let idx = conversations.firstIndex(where: { $0.id == id }) else { return }
+        conversations[idx].summary = summary
+        conversations[idx].summarizedCount = summarizedCount
     }
 
     /// One derived stress line for the coach context: the Baevsky Stress Index over TODAY's R-R, read
@@ -1005,13 +1268,18 @@ final class AICoachEngine: ObservableObject {
     }
 
     /// The chat as `(role, content)` pairs, with the metrics context prepended to the first user turn.
+    /// The facts most relevant to the CURRENT question are folded into that context (pinned facts already
+    /// ride the system prompt), so memory scales without every prompt carrying all 40 facts.
     private func wireMessages(context: String) -> [(role: ChatMessage.Role, content: String)] {
+        let question = messages.last(where: { $0.role == .user })?.text ?? ""
+        let relevant = CoachMemory.shared.relevantBlock(for: question, limit: 8)
+        let fullContext = relevant.isEmpty ? context : context + "\n\n" + relevant
         var out: [(role: ChatMessage.Role, content: String)] = []
         var contextInjected = false
         for m in windowedMessages() {
             if m.role == .user && !contextInjected {
                 contextInjected = true
-                out.append((.user, context + "\n\n---\n\nQuestion: " + m.text))
+                out.append((.user, fullContext + "\n\n---\n\nQuestion: " + m.text))
             } else {
                 out.append((m.role, m.text))
             }

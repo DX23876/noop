@@ -4,163 +4,252 @@
 
 <h1 align="center">NOOP AI</h1>
 
-<p align="center"><b>An iPhone-only fork of NOOP, built around one idea: a coach that actually knows you.</b></p>
+<p align="center"><b>Your WHOOP data, on your iPhone, with a coach that actually remembers you.</b></p>
 
 <p align="center">
   <img alt="Fork of ryanbr/noop" src="https://img.shields.io/badge/fork%20of-ryanbr%2Fnoop-6B737B?style=flat-square&logo=github&logoColor=white">
+  <img alt="Version" src="https://img.shields.io/badge/version-9.0.0-234F9E?style=flat-square">
   <img alt="Platform" src="https://img.shields.io/badge/platform-iOS%20only-234F9E?style=flat-square">
-  <img alt="AI coach" src="https://img.shields.io/badge/AI%20coach-11%20tools-C8902F?style=flat-square">
+  <img alt="AI coach" src="https://img.shields.io/badge/AI%20coach-14%20tools-C8902F?style=flat-square">
   <img alt="Apple Health" src="https://img.shields.io/badge/Apple%20Health-auto%20sync-60A0E0?style=flat-square">
-  <img alt="Local first" src="https://img.shields.io/badge/local-first-E8B84B?style=flat-square">
+  <img alt="No cloud" src="https://img.shields.io/badge/no%20server-no%20account-E8B84B?style=flat-square">
   <a href="LICENSE"><img alt="License: PolyForm Noncommercial 1.0.0" src="https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-6B737B?style=flat-square"></a>
 </p>
 
 ---
 
+## What is this?
+
+You own a WHOOP strap. It measures you all day. But the numbers live behind someone else's app and
+someone else's subscription.
+
+**NOOP** solves the first half of that: it talks to your strap over Bluetooth, stores everything in
+a database on your phone, and computes recovery, strain, sleep and HRV **entirely on-device** — no
+server, no account, no telemetry. It's a genuinely lovely piece of clean-room engineering, and it's
+somebody else's project: **[ryanbr/noop](https://github.com/ryanbr/noop)**.
+
+**NOOP AI** — this fork — solves a second half that only matters to one person: *the numbers still
+don't talk back.* So it grows an AI coach into a thing you'd actually open every morning. One that
+knows your training goal, remembers the knee you tweaked in March, can pull your real numbers when
+it needs them, and can say "your HRV is 12 % under baseline, take today easy" — because it went and
+looked.
+
+> **Just want a great WHOOP app?** Use **[ryanbr/noop](https://github.com/ryanbr/noop)**. It's the
+> real project — macOS, Android, iOS, actively maintained, and the right answer for almost everyone.
+> This fork is for the narrow case: you only carry an iPhone, and you want the coach pushed further
+> than a cross-platform project could reasonably justify.
+
 ## This is a fork, not a rename
 
-**NOOP AI is a personal fork of [ryanbr/noop](https://github.com/ryanbr/noop).** It is not a
-competing project, a rebrand that hides its origin, or an attempt to replace the original. Every
-protocol decoder, every analytics formula, every design-system component comes from upstream NOOP
-and its own credited sources (see [Attribution](#attribution)). This fork exists to carry two
-deliberate, narrow changes on top of that foundation: **iOS only**, and **a coach worth talking to
-every day**.
+NOOP AI is a **personal fork** of [ryanbr/noop](https://github.com/ryanbr/noop). Not a competitor,
+not a rebrand that hides where it came from. Every protocol decoder, every analytics formula, every
+pixel of the design system comes from upstream NOOP and its own credited sources
+(see [Attribution](#attribution)). This fork carries exactly two deliberate changes on top:
+**iOS only**, and **a much bigger coach**.
 
-If you want the full cross-platform project (macOS reference app, full Android app, WHOOP + Oura
-support, the whole feature surface), **go use [ryanbr/noop](https://github.com/ryanbr/noop)** — it's
-the canonical, actively maintained project and the right choice for almost everyone. This fork is
-for the narrower case: you only carry an iPhone, and you want the AI coach pushed further than a
-project that has to stay in lockstep across three platforms can reasonably justify.
+### Why fork instead of contributing upstream?
 
-## Philosophy — why fork instead of contribute upstream
+Upstream NOOP runs on a hard rule: **analytics and stored data must be byte-identical between the
+Swift and Kotlin implementations.** That's exactly the right rule for a dependable cross-platform
+WHOOP client — but it means every feature has to earn its place on macOS, iOS *and* Android at
+once, kept in lockstep, forever.
 
-Upstream NOOP runs on a hard rule (see its own `CLAUDE.md`): **analytics and stored data must be
-byte-identical across the Swift and Kotlin implementations.** That's the right rule for a project
-serious about being a dependable, cross-platform WHOOP client — but it means every shipped feature
-has to earn its place on macOS, iOS *and* Android at once, kept in parity, forever. A fast-moving,
-opinionated, iPhone-only AI coach is exactly the kind of thing that rule should keep out of the
-core project. It doesn't need an Android twin. It doesn't need macOS to make sense. It needs to
-iterate quickly on one platform for one person.
+A fast-moving, opinionated, iPhone-only AI coach is precisely the kind of thing that rule *should*
+keep out of the core project. It doesn't need an Android twin. It doesn't need macOS to make sense.
+It needs to iterate quickly, on one platform, for one person. So rather than push upstream toward a
+"no" it would be right to give, it lives here.
 
-So instead of proposing something upstream would reasonably have to say no to, it lives here:
+**What that means in practice:**
 
-- **iOS only.** This fork builds and ships the `NOOPiOS` target. The macOS (`Strand`) and Android
-  source trees are **kept, untouched, unmaintained by this fork** — purely so `git merge upstream`
-  keeps working cleanly. They are not built, not tested, and not supported here.
-- **The coach is the whole point.** Everything this fork adds is in `Strand/AI/`: new files,
-  additive changes, never a rewrite of upstream logic. The methodology, the safety guardrails
-  ("not a doctor," never diagnoses) and the on-device-only data posture are all inherited from
-  upstream and left intact — only the coach's *capabilities* are extended.
+- **iOS only.** This fork builds the `NOOPiOS` target. The macOS (`Strand`) and Android trees are
+  **kept but untouched** — purely so `git merge upstream` keeps working. They're not built, not
+  tested, not supported here.
+- **Additive only.** Everything this fork adds lives in its own new files under `Strand/AI/`. No
+  upstream logic is rewritten in place. Nothing touches BLE, protocol decoding, or the analytics
+  math — the parts that genuinely benefit from cross-platform parity are left completely alone.
+- **It works.** Upstream `v9.0.0` merged into this fork with **zero conflicts**. That's the whole
+  design paying off.
 
-## What's different from upstream, at a glance
+## The coach
 
-Everything on the left already exists in [ryanbr/noop](https://github.com/ryanbr/noop) and this
-fork builds directly on it. Everything marked
-<img alt="fork only" src="https://img.shields.io/badge/-fork%20only-C8902F?style=flat-square"> is
-new here and, as far as this fork's author knows, **not (yet) in the upstream project**.
+The base app already had a chat-with-your-own-API-key coach that got one pre-baked block of text
+per message. This fork turns that into something closer to an agent with hands and a memory.
 
-| Area | Upstream NOOP | NOOP AI (this fork) |
+### It fetches its own data (14 tools)
+
+Instead of being handed a fixed summary, the coach decides what it needs and goes and gets it —
+mid-sentence, while it's answering you.
+
+| | Tool | What it pulls |
 |---|---|---|
-| Platforms shipped | macOS (reference), Android (full), iOS (build-from-source) | **iOS only** <img alt="fork only" src="https://img.shields.io/badge/-fork%20only-C8902F?style=flat-square"> |
-| Apple Health sync | ✅ Automatic (HealthKit background delivery) | ✅ Same, unchanged |
-| AI coach | ✅ Chat with your own API key, one pre-baked context block per message | ✅ Same base, **substantially extended below** |
-| Coach personas (voice) | — | <img alt="fork only" src="https://img.shields.io/badge/-fork%20only-C8902F?style=flat-square"> Guardian / Friend / Commander |
-| Coach tool-calling | — | <img alt="fork only" src="https://img.shields.io/badge/-fork%20only-C8902F?style=flat-square"> 11 tools, fetches real data on demand |
-| Streaming replies | — | <img alt="fork only" src="https://img.shields.io/badge/-fork%20only-C8902F?style=flat-square"> Token-by-token (Anthropic) |
-| Persistent memory | — | <img alt="fork only" src="https://img.shields.io/badge/-fork%20only-C8902F?style=flat-square"> Remembers facts + your training goal, across sessions |
-| Conversational logging | — | <img alt="fork only" src="https://img.shields.io/badge/-fork%20only-C8902F?style=flat-square"> "Had a coffee" → real caffeine/journal/Lab-Book entries |
-| Chat survives restart | — | <img alt="fork only" src="https://img.shields.io/badge/-fork%20only-C8902F?style=flat-square"> On-device transcript persistence |
-| Proactive daily check-in | — | <img alt="fork only" src="https://img.shields.io/badge/-fork%20only-C8902F?style=flat-square"> Reminder → deep-links to a fresh brief |
-| In-chat charts | — | <img alt="fork only" src="https://img.shields.io/badge/-fork%20only-C8902F?style=flat-square"> Native trend charts drawn inline |
-| Sleep detail / range reports | — | <img alt="fork only" src="https://img.shields.io/badge/-fork%20only-C8902F?style=flat-square"> Stages, sleep debt, 7–365 day reports on demand |
-| Profile-aware coaching | — | <img alt="fork only" src="https://img.shields.io/badge/-fork%20only-C8902F?style=flat-square"> Age/HRmax/goal folded into every reply |
+| 📊 | `get_biometric_summary` | 14 days of charge/effort/rest/HRV/RHR + 30-day averages |
+| 🏃 | `get_recent_workouts` | Your recent sessions, with effort and heart rate |
+| 😰 | `get_stress_index` | Today's autonomic load (Baevsky index over your R-R intervals) |
+| 😴 | `get_sleep_detail` | Per-night stages, efficiency, and your rolling sleep-debt ledger |
+| 📅 | `get_range_report` | Any 7–365 day window: averages, trends, headline changes |
+| 🔍 | `get_personal_patterns` | Your own n-of-1 correlations ("late meals cost you 8 % recovery") |
+| 📈 | `plot_metric` | Draws a real chart, inline in the chat |
+| 🧠 | `remember_fact` · `update_fact` · `forget_fact` | Its own long-term memory (below) |
+| 🕰️ | `search_past_conversations` | Finds what you discussed weeks ago |
+| ☕ | `log_caffeine` · `log_journal` · `log_lab_marker` | **Writes** to your real app data |
 
-Nothing in that right-hand column touches BLE, protocol decoding, or the analytics math — the
-part of NOOP that genuinely benefits from staying byte-identical across platforms is completely
-untouched by this fork.
+That last row is the fun one: **"just had a double espresso"** becomes a genuine entry in the
+Caffeine card. **"drank last night"** becomes a journal entry. **"my Vitamin D came back at 38"**
+becomes a Lab Book marker. Same data the app always had — just logged by talking instead of tapping
+through a form.
 
-## The coach, in full
+### It has a real memory
+
+This is the part most AI chat features get wrong: they either forget everything, or they dump
+everything into every prompt until it's expensive and unfocused. NOOP AI's memory works more like a
+person's.
+
+- **Facts have shape.** Each remembered fact carries a *category* (goal, injury, preference,
+  physiology, schedule) and an *importance*. **Pinned** facts — a serious injury, a hard constraint
+  — ride along on every single reply. Everything else is only pulled in when it's actually relevant
+  to what you just asked.
+- **It corrects itself.** The coach can `update_fact` and `forget_fact`, not just append. Tell it
+  your knee is fine now and the stale fact gets rewritten, not stacked next to a contradiction.
+  Near-duplicates are detected and merged, so rephrasings don't eat the memory budget.
+- **It remembers past conversations.** Old chats aren't dead scrollback — the coach can search them,
+  and a short digest of recent conversations rides along for continuity.
+- **It tidies up cheaply.** When you move on from a chat, a **small, cheap model** (Haiku /
+  gpt-4o-mini / Flash-Lite — you pick) quietly distils it into a one-line summary plus any durable
+  facts. Your expensive coaching model never pays for housekeeping.
+
+Every fact is visible and editable in Settings. Nothing is remembered that you can't see, correct,
+or delete.
+
+### The rest of it
 
 | Feature | What it does |
 |---|---|
-| **Coaching personas** | Pick a voice — **Guardian** (calm, protective), **Friend** (warm, encouraging) or **Commander** (direct, action-oriented). Tone only; methodology and safety guardrails are unchanged. |
-| **Tool-calling (11 tools)** | Instead of one pre-baked text block, the coach fetches what it needs: biometric summary, recent workouts, stress index, sleep detail (stages + sleep debt), a 7–365 day range report, your strongest personal patterns, and a chart tool — plus three *write* tools (see logging below). |
-| **Streaming replies** | Anthropic replies appear token-by-token, tool calls run inline mid-stream, instead of a silent wait. |
-| **Persistent memory** | A `remember_fact` tool lets the coach save durable facts about you (goals, injuries, preferences) that persist across every future conversation. Your training goal gets its own field. Fully visible and editable in-app; nothing is remembered without you being able to see and delete it. |
-| **Conversational logging** | "Just had a double espresso" → a real entry in the Caffeine card. "Drank last night" → a journal entry. "My Vitamin D was 38" → a Lab Book marker. Existing app data, written by the coach instead of a form. |
-| **Chat persistence** | The conversation survives a relaunch (on-device JSON, capped, never synced). |
-| **Proactive daily check-in** | An opt-in daily reminder — tap it and the coach opens with a freshly generated brief, not a stale one. |
-| **In-chat charts** | The coach can draw a native trend chart (charge, effort, HRV, RHR, sleep) directly in the conversation when a trend is easier to see than to describe. |
-| **Editable instructions** | The upstream free-text system-prompt editor still works underneath any persona. |
+| **Personas** | **Guardian** (calm, protective), **Friend** (warm), **Commander** (direct). Tone only — the methodology and the "I'm not a doctor" guardrails never change. |
+| **Streaming** | Replies land token-by-token, with tool calls running inline, instead of a silent wait. |
+| **Real chat UI** | Full-screen messenger: docked composer, time separators, copy + regenerate, stop mid-reply. |
+| **Conversation history** | Named, searchable threads. "New chat" no longer throws the old one away. |
+| **In-chat charts** | Native trend charts drawn in the conversation, tappable to enlarge, and they survive a relaunch. |
+| **Two ways in** | A card on Today, and/or a **draggable floating button** you can pin to any corner (clear of the tab bar) or lock in place. Your choice, in Settings. |
+| **Daily check-in** | An opt-in reminder that deep-links to a *freshly generated* brief, not a stale one. |
+| **Editable instructions** | Upstream's free-text system-prompt editor still works underneath any persona. |
 
-All of it rides on NOOP's existing **automatic Apple Health sync** (HealthKit background delivery
-via observer + anchored queries, plus write-back of NOOP-computed vitals, sleep and workouts) —
-inherited unchanged from upstream, so the coach is always reasoning over fresh data.
+All of it rides on NOOP's **automatic Apple Health sync** (HealthKit background delivery), inherited
+unchanged from upstream — so the coach is always reasoning over fresh data.
 
-Every tool call is gated behind your existing data-access consent, reads only the same
-summarised, non-raw data the rest of the app already computes, and — like upstream — nothing
-leaves your phone except the request you deliberately send to your own AI provider key.
+📖 **Want the deep version?** → **[`docs/COACH.md`](docs/COACH.md)** — architecture, every tool's
+schema, the memory ranking algorithm, provider support, and the file map.
 
-> Engineering note: every addition lives in its own file (`CoachPersona.swift`, `CoachTools.swift`,
-> `CoachMemory.swift`, `CoachTranscriptStore.swift`, `CoachChart.swift`,
-> `Providers/AnthropicTools.swift`, `Providers/AnthropicStreaming.swift`, `CoachCheckIn.swift`) and
-> never rewrites upstream logic in place — the whole point is that `git merge upstream/main` stays
-> low-conflict indefinitely.
+## What actually leaves your phone
+
+Worth being precise about, because "AI" and "private" usually don't share a sentence:
+
+- **The app itself is still fully offline.** Your strap data, your database, your computed scores,
+  your memory, your chat history — all on-device. There is no NOOP server. There is no account.
+- **Only the coach talks to the internet**, only when you send a message, only to **your own API
+  provider using your own key**, and only if you've turned on data access. Turn that off and the
+  coach still works — it just doesn't see your numbers.
+- **It sends summaries, never raw signal.** Derived daily numbers and short text — never your raw
+  R-R stream or raw sensor buffers.
+- **You can go fully local.** Point the Custom provider at Ollama or LM Studio on your own machine
+  and *nothing* leaves your network at all.
+
+More: [`docs/PRIVACY_SECURITY.md`](docs/PRIVACY_SECURITY.md).
 
 ## Quickstart (iOS)
 
-Requires a Mac with **Xcode 26+**, [`xcodegen`](https://github.com/yonaskolb/XcodeGen)
-(`brew install xcodegen`), and a **physical iPhone** (BLE and HealthKit don't work in the Simulator).
+You'll need a Mac with **Xcode 26+**, [`xcodegen`](https://github.com/yonaskolb/XcodeGen)
+(`brew install xcodegen`), and a **physical iPhone** — Bluetooth and HealthKit don't exist in the
+Simulator.
 
 ```bash
-# 1. Clone your fork
+# 1. Clone
 git clone https://github.com/DX23876/noop.git NOOP-AI
 cd NOOP-AI
 
-# 2. Generate the Xcode project from project.yml
+# 2. Generate the Xcode project (project.yml is the source of truth —
+#    Strand.xcodeproj is generated and never committed)
 xcodegen generate
 
-# 3. Open, then run the NOOPiOS scheme on your iPhone
+# 3. Open it
 open Strand.xcodeproj
-#    Select the "NOOPiOS" scheme → pick your device → set your signing team → Run (⌘R)
 ```
 
-**A free Apple ID works**, with two trade-offs this fork's default config already accounts for:
+In Xcode: pick the **NOOPiOS** scheme → select your iPhone → **Signing & Capabilities** → set your
+Team → **⌘R**. On the phone, trust the certificate under *Settings → General → VPN & Device
+Management*.
 
-- The Watch app and home-screen widget are **excluded from the iOS build** (`project.yml`) — a
-  free account gets no App Groups and only 10 app IDs per 7 days, and each embedded extension
-  needs its own. The main app and every coach feature above are unaffected; only the watch
-  companion and widget are unavailable this way. Building with a paid Apple Developer account?
-  Both are one line each to re-enable, documented inline in `project.yml`.
-- Apps signed with a free ID **expire after 7 days** — just re-run from Xcode with your iPhone
-  connected to renew.
+**A free Apple ID works.** Two trade-offs, both already handled in `project.yml`:
 
-In the app: pair your strap, grant Apple Health access, then open **Coach**, connect a provider
-(paste your own API key), choose a coaching style, and turn on the daily check-in.
+- **The Watch app and widget are excluded from the iOS build.** A free account gets no App Groups
+  and only 10 app IDs per 7 days, and every embedded extension burns one. The main app and every
+  coach feature are unaffected. Got a paid account? Both are one line each to re-enable, documented
+  inline in `project.yml`.
+- **Free-signed apps expire after 7 days.** Reconnect and ⌘R to renew. (Note that `xcodegen
+  generate` clears the Team field — reselect it, or pin `DEVELOPMENT_TEAM` in `project.yml`.)
 
-## Staying in sync with upstream NOOP
+Then in the app: pair your strap → grant Apple Health access → open **Coach** → paste your API key
+→ pick a persona → turn on the daily check-in.
 
-This fork tracks [ryanbr/noop](https://github.com/ryanbr/noop) so new upstream features (protocol
-support, analytics improvements, bug fixes) keep flowing in:
+## Under the hood
+
+If you like knowing how the sausage is made — the layering is genuinely nice, and it's upstream's
+design, not this fork's:
+
+| Layer | Where | What lives there |
+|---|---|---|
+| **Protocol** | `Packages/WhoopProtocol` | Raw BLE frames → structs. CRC-checked, pure Swift, no CoreBluetooth. Builds and tests on Linux. |
+| **Storage** | `Packages/WhoopStore` | SQLite via GRDB. Migrations, caches. |
+| **Analytics** | `Packages/StrandAnalytics` | The actual science: HRV, recovery, strain, sleep. Database-free, pure functions. |
+| **Design system** | `Packages/StrandDesign` | Palette, components, charts. UI uses tokens only — no hardcoded colours. |
+| **App** | `Strand/`, `StrandiOS/` | CoreBluetooth, the Repository, the screens, `RootTabView`. |
+| **The coach** 🆕 | `Strand/AI/` | Everything this fork adds. All new files. |
+
+The rule that keeps this fork sane: **the more wire-level or math-level a change is, the deeper into
+`Packages/` it belongs — and the more it must be covered by tests that run with no app, no strap,
+and no Bluetooth.** The coach sits at the very top of that stack and pulls from it through the same
+consent-gated summaries the UI uses.
+
+Deeper: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/ANALYTICS.md`](docs/ANALYTICS.md) ·
+[`docs/PROTOCOL.md`](docs/PROTOCOL.md)
+
+## Staying in sync with upstream
+
+This fork tracks [ryanbr/noop](https://github.com/ryanbr/noop) so upstream's protocol work,
+analytics fixes and features keep flowing in:
 
 ```bash
-git remote add upstream https://github.com/ryanbr/noop.git   # one time
-git fetch upstream
-git merge upstream/main        # resolve README/branding conflicts in favour of this fork
+git remote add upstream https://github.com/ryanbr/noop.git   # once
+git fetch upstream --tags
+git merge upstream/main    # keep this fork's README/branding + project.yml signing
 ```
 
-Because every fork-specific change lives in its own files rather than editing upstream code in
-place, this has stayed a clean fast-forward-style merge with essentially no conflicts so far.
+Because every fork-specific change lives in its own file rather than editing upstream code in place,
+this stays remarkably clean — **upstream `v9.0.0` merged with zero conflicts.**
+
+## Docs
+
+**This fork**
+- [`docs/COACH.md`](docs/COACH.md) — the coach in full: tools, memory, providers, architecture.
+- [`docs/IOS.md`](docs/IOS.md) — iOS build + HealthKit details.
+
+**Upstream (all still accurate)**
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — how the whole thing fits together.
+- [`docs/ANALYTICS.md`](docs/ANALYTICS.md) — the recovery/strain/sleep maths, with citations.
+- [`docs/PROTOCOL.md`](docs/PROTOCOL.md) — the WHOOP BLE protocol.
+- [`docs/PRIVACY_SECURITY.md`](docs/PRIVACY_SECURITY.md) — the data posture in detail.
+- [`docs/BUILD.md`](docs/BUILD.md) — full build + signing.
+- [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) — the BLE safety contract and design-system rules.
+- [`CHANGELOG.md`](CHANGELOG.md) — upstream release history.
 
 ---
 
 ## Attribution
 
 NOOP AI is a fork of **[NOOP](https://github.com/ryanbr/noop)** by ryanbr — please treat that
-repository as the canonical upstream project, not this fork. NOOP itself stands on community
+repository as the canonical project, not this fork. NOOP itself stands on community
 protocol-documentation work:
 
-- **`johnmiddleton12/my-whoop`** — the WHOOP 4.0 BLE protocol behind the `WhoopProtocol` / `WhoopStore` packages.
+- **`johnmiddleton12/my-whoop`** — the WHOOP 4.0 BLE protocol behind `WhoopProtocol` / `WhoopStore`.
 - **`b-nnett/goose`** — the WHOOP 5.0 / MG BLE protocol documentation.
 - **`groue/GRDB.swift`** — SQLite persistence. · **`weichsel/ZIPFoundation`** — export unzipping.
 
@@ -184,10 +273,3 @@ Source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE): **fr
 other non-commercial use** — read it, run it, fork it. Commercial use is not granted. This fork keeps
 the upstream `LICENSE` and `Copyright 2026 NoopApp` notice intact, per NOOP's mirroring terms; bundled
 dependencies keep their own licenses (see [`NOTICE`](NOTICE)).
-
-## Docs
-
-- [`docs/IOS.md`](docs/IOS.md) — iOS build and HealthKit details.
-- [`docs/BUILD.md`](docs/BUILD.md) — full build instructions.
-- [`CHANGELOG.md`](CHANGELOG.md) — upstream release history.
-- [`project.yml`](project.yml) — XcodeGen project definition (source of `Strand.xcodeproj`).
