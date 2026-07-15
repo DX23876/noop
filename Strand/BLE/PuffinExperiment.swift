@@ -50,6 +50,24 @@ enum PuffinExperiment {
 
     static var continuousHrvOvernightOnlyEnabled: Bool { UserDefaults.standard.bool(forKey: continuousHrvOvernightOnlyKey) }
 
+    // MARK: - Power saving (#477), parity with Android NoopPrefs
+
+    /// "Power saving" master: battery-adaptive strap-sync cadence. Default off. */
+    static let powerSavingKey = "noopPowerSaving"
+    static var powerSavingEnabled: Bool { UserDefaults.standard.bool(forKey: powerSavingKey) }
+
+    /// Battery-% threshold for power saving (10–30). Default 20 (0 in the store means "unset" → 20).
+    static let powerSavingBatteryPctKey = "noopPowerSavingBatteryPct"
+    static var powerSavingBatteryPct: Int {
+        let v = UserDefaults.standard.integer(forKey: powerSavingBatteryPctKey)
+        return v == 0 ? 20 : v
+    }
+
+    /// "Pause HRV capture under Low Power Mode" — a sub-option of power saving, default ON when the master
+    /// is on. Stored inverted (`…Disabled`) so the default-true reads correctly from a zero-value store.
+    static let pauseHrvDisabledKey = "noopPowerSavingPauseHrvDisabled"
+    static var pauseHrvOnPowerSaveEnabled: Bool { !UserDefaults.standard.bool(forKey: pauseHrvDisabledKey) }
+
     /// "Experimental sleep staging (V2)": re-stage each detected night with `SleepStagerV2` — a transparent
     /// cardiorespiratory recipe (reimplemented from contributor PR #600) — instead of the older V1 stager.
     /// Pure analysis switch: it changes ONLY which staging engine runs over an already-detected sleep window;

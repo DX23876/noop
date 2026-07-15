@@ -511,6 +511,25 @@ public final class BLEManager: NSObject, ObservableObject {
     // The timer fires this often, but BackfillPolicy.periodicFloorSeconds is the real floor (a recent
     // event-triggered sync defers the next periodic tick). 900s = 15 min, matching WHOOP.
     static let backfillIntervalSeconds = 900
+    /// #477: stretched offload cadence while low on power (45 min). The strap banks to flash meanwhile,
+    /// so this only delays sync (larger batches), never loses data. Mirrors Android
+    /// `LOW_BATTERY_BACKFILL_INTERVAL_MS`.
+    static let lowBatteryBackfillIntervalSeconds = 2700
+
+    /// Pure battery-adaptive gate (#477), the twin of Android `WhoopBleClient.idleThrottleActive`.
+    /// Armed by `thresholdPct` > 0; once armed and while discharging it engages at/below `thresholdPct`
+    /// OR when the OS is saving power (`powerSave`). `thresholdPct` <= 0 / charging never engages.
+    static func lowPowerThrottleActive(batteryPct: Int, charging: Bool, thresholdPct: Int, powerSave: Bool) -> Bool {
+        thresholdPct > 0 && !charging && (batteryPct <= thresholdPct || powerSave)
+    }
+
+    /// Pure offload-interval decision (#477), the twin of Android `offloadIntervalMsFor`.
+    static func offloadInterval(baseSeconds: Int, lowSeconds: Int,
+                                batteryPct: Int, charging: Bool, thresholdPct: Int, powerSave: Bool) -> Int {
+        lowPowerThrottleActive(batteryPct: batteryPct, charging: charging, thresholdPct: thresholdPct, powerSave: powerSave)
+            ? max(baseSeconds, lowSeconds) : baseSeconds
+    }
+
     /// Keep-alive: re-arm realtime, poll battery, and bounce a stalled link so streaming
     /// never silently dies. Started on bond, cancelled on disconnect.
     private var keepAliveTimer: DispatchSourceTimer?
@@ -534,6 +553,14 @@ public final class BLEManager: NSObject, ObservableObject {
     /// preference intent; the effective want is window-gated through `continuousCaptureWantsNow()` when
     /// "overnight only" is on, re-derived at every arm site.
     private var keepRealtimeForData = false
+    /// #477 battery (parity with Android): battery-% at/below which the periodic offload cadence stretches
+    /// to `lowBatteryBackfillIntervalSeconds` while low on power (0 = off), and whether to pause the
+    /// background continuous-HRV stream under Low Power Mode. Both are benign (no link risk). Set from
+    /// Settings via `setLowBatteryOffloadThrottle`/`setPauseCaptureOnPowerSave`.
+    private var lowBatteryOffloadPct = 0
+    /// Battery-% at/below which the continuous-HRV pause engages while low on power (0 = off) — like the
+    /// offload lever, it also engages under Low Power Mode.
+    private var pauseCaptureBatteryPct = 0
     /// Derived want: the (heavy) realtime stream should be armed while EITHER a screen wants it OR the
     /// continuous-capture preference wants it. Keep-alive re-arms it; the post-bond branch arms it on
     /// connect. Recomputed only inside `reconcileRealtime()`.
@@ -2034,6 +2061,49 @@ public final class BLEManager: NSObject, ObservableObject {
         reconcileRealtime()
     }
 
+    /// #477 (Settings): battery-% at/below which the offload cadence stretches while discharging (0 = off).
+    /// Applies on the next re-arm; a live sync in flight is never interrupted.
+    public func setLowBatteryOffloadThrottle(_ thresholdPct: Int) {
+        lowBatteryOffloadPct = thresholdPct
+    }
+
+    /// #477 (Settings): pause the background continuous-HRV stream while power-saving. Battery-%-aware
+    /// like the offload lever — pass the same threshold; engages at/below it OR under Low Power Mode
+    /// (0 = off). Reconciles now.
+    public func setPauseCaptureOnPowerSave(_ enabled: Bool, thresholdPct: Int) {
+        pauseCaptureBatteryPct = enabled ? thresholdPct : 0
+        reconcileRealtime()
+    }
+
+    /// #477: is the OS saving power (Low Power Mode)? The iOS analog of Android's Battery Saver; also on
+    /// macOS 12+. An additional trigger for an already-armed lever.
+    private func powerSaveActive() -> Bool { ProcessInfo.processInfo.isLowPowerModeEnabled }
+
+    /// #477: current (battery-%, isCharging). iOS reads `UIDevice`; macOS has no per-app battery API here,
+    /// so it returns (100, false) — the %-threshold then never engages and only Low Power Mode does.
+    private func batteryPctAndCharging() -> (pct: Int, charging: Bool) {
+        #if os(iOS)
+        let dev = UIDevice.current
+        dev.isBatteryMonitoringEnabled = true
+        let lvl = dev.batteryLevel   // 0...1, or -1 when unknown
+        let charging = dev.batteryState == .charging || dev.batteryState == .full
+        return (lvl >= 0 ? Int((lvl * 100).rounded()) : 100, charging)
+        #else
+        return (100, false)
+        #endif
+    }
+
+    /// The next periodic-offload interval — normally `backfillIntervalSeconds`, stretched when low on
+    /// power (#477). Reads the battery snapshot only when the lever is armed (threshold > 0).
+    private func nextBackfillInterval() -> Int {
+        guard lowBatteryOffloadPct > 0 else { return BLEManager.backfillIntervalSeconds }
+        let (pct, charging) = batteryPctAndCharging()
+        return BLEManager.offloadInterval(
+            baseSeconds: BLEManager.backfillIntervalSeconds,
+            lowSeconds: BLEManager.lowBatteryBackfillIntervalSeconds,
+            batteryPct: pct, charging: charging, thresholdPct: lowBatteryOffloadPct, powerSave: powerSaveActive())
+    }
+
     /// #927: the continuous-capture side of the realtime want, window-gated. True while the "Continuous
     /// HRV capture" preference wants the stream held open AND, when "overnight only" is on, the local
     /// wall clock sits inside the nightly window (the reused quiet-hours window, 22:00 → 07:00 by
@@ -2042,6 +2112,18 @@ public final class BLEManager: NSObject, ObservableObject {
     /// Mirrors the Android `continuousCaptureWantsNow`.
     private func continuousCaptureWantsNow(now: Date = Date()) -> Bool {
         guard keepRealtimeForData else { return false }
+        // #477: while power saving is ACTIVE (battery ≤ threshold or Low Power Mode), release the
+        // held-open background stream — battery-%-aware like the offload lever, via the shared
+        // lowPowerThrottleActive gate. A Live screen still arms it via screenWantsRealtime (checked
+        // separately in reconcileRealtime). The keep-alive re-derives this, so it re-arms automatically
+        // once off power save.
+        if pauseCaptureBatteryPct > 0 {
+            let (pct, charging) = batteryPctAndCharging()
+            if BLEManager.lowPowerThrottleActive(batteryPct: pct, charging: charging,
+                                                 thresholdPct: pauseCaptureBatteryPct, powerSave: powerSaveActive()) {
+                return false
+            }
+        }
         let comps = Calendar.current.dateComponents([.hour, .minute], from: now)
         let minuteOfDay = (comps.hour ?? 0) * 60 + (comps.minute ?? 0)
         let d = UserDefaults.standard
@@ -2414,9 +2496,11 @@ public final class BLEManager: NSObject, ObservableObject {
 
     private func startBackfillTimer() {
         backfillTimer?.cancel()
-        let interval = BLEManager.backfillIntervalSeconds
+        // #477: one-shot, re-armed by triggerPeriodicBackfill() with a fresh (battery-adaptive) interval
+        // each tick — so the cadence can stretch/relax as power state changes (was a fixed repeating timer).
+        let interval = nextBackfillInterval()
         let t = DispatchSource.makeTimerSource(queue: .main)
-        t.schedule(deadline: .now() + .seconds(interval), repeating: .seconds(interval))
+        t.schedule(deadline: .now() + .seconds(interval))
         t.setEventHandler { [weak self] in self?.triggerPeriodicBackfill() }
         t.resume()
         backfillTimer = t
@@ -2449,6 +2533,7 @@ public final class BLEManager: NSObject, ObservableObject {
     /// Periodic-timer callback: routes through the rate-limited requestSync entry point.
     private func triggerPeriodicBackfill() {
         requestSync(.periodic)
+        startBackfillTimer()   // #477: re-arm with a fresh battery-adaptive interval (one-shot timer)
     }
 
     /// User-tappable "Sync now" (#364): kick a historical offload IMMEDIATELY, bypassing the 15-min
