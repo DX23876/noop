@@ -449,6 +449,54 @@ final class AICoachEngine: ObservableObject {
         chartsByMessage = map
     }
 
+    // MARK: Send control (start / stop / regenerate)
+
+    /// The in-flight send, held so the UI can Stop it mid-stream.
+    private var sendTask: Task<Void, Never>?
+
+    /// Kick off a send as a cancellable task. The composer calls this instead of awaiting `send`
+    /// directly, so `stop()` can cancel it.
+    func startSend(_ text: String) {
+        sendTask?.cancel()
+        sendTask = Task { [weak self] in await self?.send(text) }
+    }
+
+    /// Stop an in-flight reply. Whatever streamed so far stays in the transcript; no error is shown.
+    func stop() {
+        sendTask?.cancel()
+        sendTask = nil
+        sending = false
+    }
+
+    /// Regenerate the last reply: drop everything back to (and including) the last user turn, purge any
+    /// charts those dropped messages hosted, then resend that same question.
+    func regenerate() {
+        guard !sending, let lastUserIdx = messages.lastIndex(where: { $0.role == .user }) else { return }
+        let question = messages[lastUserIdx].text
+        var msgs = messages
+        for m in msgs[lastUserIdx...] where m.role == .assistant {
+            chartsByMessage[m.id] = nil
+            removeChartSnapshot(m.id)
+        }
+        msgs.removeSubrange(lastUserIdx...)   // drop the user turn too; send() re-appends it
+        messages = msgs
+        startSend(question)
+    }
+
+    /// Drop a chart snapshot from the active conversation (used when regenerating over it).
+    private func removeChartSnapshot(_ id: UUID) {
+        guard let cid = activeConversationID,
+              let idx = conversations.firstIndex(where: { $0.id == cid }) else { return }
+        conversations[idx].charts[id.uuidString] = nil
+    }
+
+    /// True when an error is really a task/URL cancellation (a user Stop), not a genuine failure.
+    private static func isCancellation(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        if let urlError = error as? URLError, urlError.code == .cancelled { return true }
+        return Task.isCancelled
+    }
+
     // MARK: Key management
 
     /// True when a key is present in the Keychain.
@@ -651,8 +699,13 @@ final class AICoachEngine: ObservableObject {
             } catch let e as AICoachError {
                 removeAssistantIfEmpty(replyId); discardPendingCharts(); errorText = e.errorDescription
             } catch {
-                removeAssistantIfEmpty(replyId); discardPendingCharts()
-                errorText = AICoachError.network(error.localizedDescription).errorDescription
+                // A user-initiated Stop cancels the task; keep whatever streamed so far, show no error.
+                if Self.isCancellation(error) {
+                    flushPendingCharts()
+                } else {
+                    removeAssistantIfEmpty(replyId); discardPendingCharts()
+                    errorText = AICoachError.network(error.localizedDescription).errorDescription
+                }
             }
             return
         }
@@ -666,7 +719,9 @@ final class AICoachEngine: ObservableObject {
             discardPendingCharts(); errorText = e.errorDescription
         } catch {
             discardPendingCharts()
-            errorText = AICoachError.network(error.localizedDescription).errorDescription
+            if !Self.isCancellation(error) {
+                errorText = AICoachError.network(error.localizedDescription).errorDescription
+            }
         }
     }
 
