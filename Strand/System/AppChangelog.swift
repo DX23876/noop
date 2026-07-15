@@ -7,7 +7,7 @@ enum AppChangelog {
 
     /// Bump this when you add a release below. The "What's New" sheet shows automatically when the
     /// stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
-    static let currentVersion = "8.7.0"
+    static let currentVersion = "9.0.0"
 
     struct Release: Identifiable {
         let version: String
@@ -19,6 +19,19 @@ enum AppChangelog {
 
     /// Newest first.
     static let releases: [Release] = [
+        Release(
+            version: "9.0.0",
+            title: "Power saving that protects your strap, a Gemini-powered coach on Android, and richer metric detail",
+            date: "July 2026",
+            items: [
+                "**Power saving that looks after your strap (#477).** A new Settings → Power saving section eases how hard NOOP works your WHOOP when the strap's own battery is running low: it syncs less often and pauses the always-on background HRV stream, so the band lasts longer until you can charge it. You pick the strap-battery level it kicks in at; it's off by default and never runs while the strap is charging. iPhone, Mac and Android.",
+                "**The AI Coach now runs Google Gemini on Android too (#400).** Android gains the native Gemini coach that iPhone and Mac already had, so your model choice and coaching work the same on every platform. On-device and opt-in as before — nothing is sent anywhere unless you turn it on and add your own key.",
+                "**Richer metric detail (#430, #432, #433, #435).** Key Metrics gains a Detailed-tiles option with tap-to-open trend detail, and every metric's detail timeline gets selectable windows — 1 day, 2 days, up to 3 months, a year, or All — matched across iPhone, Mac and Android.",
+                "**Keep NOOP running overnight on Android (#386).** An opt-in toggle that guides you through exempting NOOP from your phone maker's aggressive background-kill, so an overnight re-score isn't silently stopped. NOOP also now catches up a killed overnight score the moment you open it.",
+                "**More accurate sleep.** Elevated heart rate on a motionless wrist no longer scores as awake (#462), split nights report the whole night's Asleep total and hypnogram (#345), and a sleep-staging tune that was over-calling \"awake\" for healthy sleepers in the field is reverted (#431).",
+                "**WHOOP 5.0 / MG motion, decoded (#423).** For research, NOOP now decodes the strap's 100 Hz 6-axis motion buffer and can capture the high-rate sensor buffers behind the scenes — the groundwork for real activity detection on the 5.0/MG. Thanks vishk23 and tanarchytan.",
+            ]
+        ),
         Release(
             version: "8.7.0",
             title: "A sync chip on Today, clearer strap-clock warnings, and complete German",
