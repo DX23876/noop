@@ -5,11 +5,13 @@ import org.junit.Test
 
 /**
  * Range-chip gating for the Vital Signs detail (#943, ryanbr). filterVitalPoints windows off the
- * LATEST reading, so with short history every window returns the same full point set and all six
+ * LATEST reading, so with short history every window returns the same full point set and all the
  * chips drew byte-identical charts. A range only shows something NEW once the data span EXCEEDS the
  * previous range's window, so the unlocked chips form a contiguous prefix with W always available
  * (a calibrating user is never stranded with zero ranges). These pin the unlock boundaries: n daily
- * points span n-1 days, so a range unlocks at span > 7 / 30 / 90 / 180; W and ALL are never gated (Swift parity).
+ * points span n-1 days, so a range unlocks at span > 7 / 14 / 21 / 30 / 90 / 180; W and ALL are
+ * never gated (Swift parity). The 1D/2D experiment was dropped — daily metrics hold at most one
+ * point per day, so those windows could never draw a line.
  */
 class VitalRangeGatingTest {
 
@@ -43,30 +45,49 @@ class VitalRangeGatingTest {
         assertEquals(listOf(VitalDetailRange.WEEK, VitalDetailRange.ALL), unlockedVitalRanges(0L))
     }
 
-    @Test fun monthUnlocksWhenSpanExceedsAWeek() {
+    @Test fun twoWeekUnlocksWhenSpanExceedsAWeek() {
         assertEquals(listOf(VitalDetailRange.WEEK, VitalDetailRange.ALL), unlockedVitalRanges(7L))
         assertEquals(
-            listOf(VitalDetailRange.WEEK, VitalDetailRange.MONTH, VitalDetailRange.ALL),
+            listOf(VitalDetailRange.WEEK, VitalDetailRange.TWO_WEEK, VitalDetailRange.ALL),
             unlockedVitalRanges(8L),
         )
     }
 
-    @Test fun threeMonthUnlocksWhenSpanExceedsAMonth() {
-        assertEquals(3, unlockedVitalRanges(30L).size)
+    @Test fun threeWeekUnlocksWhenSpanExceedsTwoWeeks() {
+        assertEquals(3, unlockedVitalRanges(14L).size)
         assertEquals(
-            listOf(VitalDetailRange.WEEK, VitalDetailRange.MONTH, VitalDetailRange.THREE_MONTH, VitalDetailRange.ALL),
-            unlockedVitalRanges(31L),
+            listOf(
+                VitalDetailRange.WEEK, VitalDetailRange.TWO_WEEK, VitalDetailRange.THREE_WEEK,
+                VitalDetailRange.ALL,
+            ),
+            unlockedVitalRanges(15L),
         )
     }
 
+    @Test fun monthUnlocksWhenSpanExceedsThreeWeeks() {
+        assertEquals(4, unlockedVitalRanges(21L).size)
+        assertEquals(
+            listOf(
+                VitalDetailRange.WEEK, VitalDetailRange.TWO_WEEK, VitalDetailRange.THREE_WEEK,
+                VitalDetailRange.MONTH, VitalDetailRange.ALL,
+            ),
+            unlockedVitalRanges(22L),
+        )
+    }
+
+    @Test fun threeMonthUnlocksWhenSpanExceedsAMonth() {
+        assertEquals(5, unlockedVitalRanges(30L).size)
+        assertEquals(6, unlockedVitalRanges(31L).size)
+    }
+
     @Test fun sixMonthUnlocksWhenSpanExceedsThreeMonths() {
-        assertEquals(4, unlockedVitalRanges(90L).size)
-        assertEquals(5, unlockedVitalRanges(91L).size)
+        assertEquals(6, unlockedVitalRanges(90L).size)
+        assertEquals(7, unlockedVitalRanges(91L).size)
     }
 
     @Test fun yearUnlocksWhenSpanExceedsSixMonths() {
-        assertEquals(5, unlockedVitalRanges(180L).size)
-        assertEquals(6, unlockedVitalRanges(181L).size)
+        assertEquals(7, unlockedVitalRanges(180L).size)
+        assertEquals(8, unlockedVitalRanges(181L).size)
     }
 
     @Test fun allUnlocksWhenSpanExceedsAYear() {
@@ -77,29 +98,32 @@ class VitalRangeGatingTest {
     @Test fun largestUnlockedRangeIsTheCoercionTarget() {
         // A locked selection coerces DOWN to the largest unlocked range with a real finite window
         // that is <= the selection (never ALL), matching Swift's coercedSelection.
-        val wk1 = unlockedVitalRanges(3L)   // only WEEK + ALL unlocked
-        assertEquals(VitalDetailRange.WEEK, coercedVitalRange(VitalDetailRange.MONTH, wk1))
-        assertEquals(VitalDetailRange.WEEK, coercedVitalRange(VitalDetailRange.YEAR, wk1))
-        val span10 = unlockedVitalRanges(10L)  // WEEK + MONTH + ALL
-        assertEquals(VitalDetailRange.MONTH, coercedVitalRange(VitalDetailRange.YEAR, span10))
+        val span3 = unlockedVitalRanges(3L)   // W + ALL only
+        assertEquals(VitalDetailRange.WEEK, coercedVitalRange(VitalDetailRange.MONTH, span3))
+        assertEquals(VitalDetailRange.WEEK, coercedVitalRange(VitalDetailRange.YEAR, span3))
+        val span16 = unlockedVitalRanges(16L)  // W + 2W + 3W + ALL
+        assertEquals(VitalDetailRange.THREE_WEEK, coercedVitalRange(VitalDetailRange.YEAR, span16))
         // An unlocked selection is kept verbatim; ALL is always selectable.
-        assertEquals(VitalDetailRange.WEEK, coercedVitalRange(VitalDetailRange.WEEK, wk1))
-        assertEquals(VitalDetailRange.ALL, coercedVitalRange(VitalDetailRange.ALL, wk1))
+        assertEquals(VitalDetailRange.WEEK, coercedVitalRange(VitalDetailRange.WEEK, span3))
+        assertEquals(VitalDetailRange.ALL, coercedVitalRange(VitalDetailRange.ALL, span3))
     }
 
     // ── the gating rule really is the identical-window dedup rule ───────────────
 
     @Test fun lockedRangeWouldHaveDrawnTheSamePointsAsItsPredecessor() {
-        // 10 daily points, span 9: W (7 points) differs from M (all 10), so M is unlocked;
-        // 3M returns the identical set as M, so 3M is locked.
+        // 10 daily points, span 9: W (7 points) differs from 2W (all 10), so 2W is unlocked;
+        // 3W returns the identical set as 2W, so 3W is locked.
         val points = dailyPoints(10)
         val unlocked = unlockedVitalRanges(vitalHistorySpanDays(points))
-        assertEquals(listOf(VitalDetailRange.WEEK, VitalDetailRange.MONTH, VitalDetailRange.ALL), unlocked)
-        assertEquals(7, filterVitalPoints(points, VitalDetailRange.WEEK).size)
-        assertEquals(10, filterVitalPoints(points, VitalDetailRange.MONTH).size)
         assertEquals(
-            filterVitalPoints(points, VitalDetailRange.MONTH),
-            filterVitalPoints(points, VitalDetailRange.THREE_MONTH),
+            listOf(VitalDetailRange.WEEK, VitalDetailRange.TWO_WEEK, VitalDetailRange.ALL),
+            unlocked,
+        )
+        assertEquals(7, filterVitalPoints(points, VitalDetailRange.WEEK).size)
+        assertEquals(10, filterVitalPoints(points, VitalDetailRange.TWO_WEEK).size)
+        assertEquals(
+            filterVitalPoints(points, VitalDetailRange.TWO_WEEK),
+            filterVitalPoints(points, VitalDetailRange.THREE_WEEK),
         )
     }
 
@@ -109,5 +133,7 @@ class VitalRangeGatingTest {
         val week = filterVitalPoints(points, VitalDetailRange.WEEK)
         assertEquals(7, week.size)
         assertEquals(points.takeLast(7), week)
+        // The new 3W window: the last 21 daily points.
+        assertEquals(21, filterVitalPoints(points, VitalDetailRange.THREE_WEEK).size)
     }
 }

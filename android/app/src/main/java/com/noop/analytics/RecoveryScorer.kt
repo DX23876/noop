@@ -31,6 +31,18 @@ import kotlin.math.roundToInt
  * the term drops and the remaining weights renormalize, so the score is IDENTICAL to
  * the pre-skin-temp model (the no-skin-temp path is byte-for-byte unchanged).
  *
+ * Two OPTIONAL Oura-Readiness-style terms (dormant until a caller supplies them):
+ *   overnight resting-HR DECLINE slope ("Recovery Index")      → W_RECOVERY_INDEX    = 0.05
+ *   previous-day Effort vs personal baseline ("Activity Balance" /
+ *   "Previous Day Activity", collapsed into one term)          → W_ACTIVITY_BALANCE  = 0.05
+ * Both are ADDITIVE and NON-BREAKING: each is null unless the caller supplies it, in which
+ * case it folds in with its small weight above; when null the term drops and the weights
+ * renormalize exactly like the skin-temp term, so the default score for every existing caller
+ * is BYTE-IDENTICAL to before either term existed. Recovery Index needs no personal baseline
+ * (a fixed, documented bpm/hour scale, same style as sleepPerf/skin-temp); Activity Balance
+ * needs BOTH the previous-day Effort value AND its EWMA baseline ([Baselines.strainCfg]) —
+ * supplying only one drops the term.
+ *
  * Each metric is standardized to a robust z-score against the personal baseline
  * (mean + EWMA-abs-dev spread). Missing terms are dropped and the weights
  * renormalized. The composite z is squashed through a logistic anchored so that
@@ -69,6 +81,32 @@ object RecoveryScorer {
      * Charge diverged from macOS/iOS by the skin-temp term. (Cross-platform parity.)
      */
     const val skinTempDevScale: Double = 1.0
+
+    /**
+     * Recovery-Index weight (overnight resting-HR DECLINE slope — Oura's "Recovery Index"
+     * contributor). Small and additive like [wSkinTemp]: folds in only when a slope is
+     * supplied. Mirrors Swift `RecoveryScorer.wRecoveryIndex`.
+     */
+    const val wRecoveryIndex: Double = 0.05
+
+    /**
+     * Recovery-Index slope scale (bpm/hour): a slope this many bpm/hour steeper than flat (0)
+     * costs/earns ≈ 1 z-unit before weighting. Resting HR falling through the night is the
+     * physiologically expected, good pattern; flat or rising (illness, alcohol, a late
+     * stimulant, restlessness) is not. The SIGN carries the meaning (negative = declining =
+     * good), unlike skin-temp's symmetric |deviation| penalty. Mirrors Swift
+     * `RecoveryScorer.recoveryIndexScaleBpmPerHr`.
+     */
+    const val recoveryIndexScaleBpmPerHr: Double = 2.0
+
+    /**
+     * Activity-Balance / previous-day-Effort weight (collapses Oura's "Previous Day Activity"
+     * and "Activity Balance" readiness contributors into one term). Small and additive like
+     * [wSkinTemp]: folds in only when BOTH a previous-day Effort value and its personal EWMA
+     * baseline ([Baselines.strainCfg]) are supplied. Mirrors Swift
+     * `RecoveryScorer.wActivityBalance`.
+     */
+    const val wActivityBalance: Double = 0.05
 
     /** Logistic spread: ±2 z-units ≈ full Red–Green band (15%–95%). */
     const val logisticK: Double = 1.6
@@ -163,6 +201,70 @@ object RecoveryScorer {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // Recovery Index (overnight HR-decline slope)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Minimum 5-minute bins ([restingHR]'s SAME binning) required before a slope is trusted —
+     * below this, too little of the night has elapsed to fit a trend, and a 1-2-point
+     * regression is noise, not a night-long pattern. 6 bins = 30 minutes of binned coverage,
+     * a deliberately low floor so a short/partial night still gets a number rather than a
+     * routine null. Mirrors Swift `RecoveryScorer.recoveryIndexMinBins`.
+     */
+    const val recoveryIndexMinBins: Int = 6
+
+    /**
+     * Overnight resting-HR DECLINE slope (bpm/hour) across the in-bed window — the "Recovery
+     * Index" component of Oura's Readiness that Charge lacked (it previously only read the
+     * overnight FLOOR via [restingHR] above, never the trend that reaches it).
+     *
+     * Computed as the least-squares slope of the SAME non-overlapping 5-minute HR bin means
+     * [restingHR] uses ([restingHRWindowS]) against each bin's midpoint time (hours from
+     * `start`). NEGATIVE = declining (HR falling through the night — the physiologically
+     * expected, good pattern); POSITIVE = rising (restlessness, illness, alcohol, a late
+     * stimulant). Returns null when fewer than [recoveryIndexMinBins] bins have data (too
+     * little of the window to fit a trend) or there are no samples at all — it never
+     * fabricates a slope from a sliver of the night. Mirrors Swift `recoveryIndexSlope`.
+     *
+     * @param start / @param end window bounds, unix SECONDS (Long).
+     */
+    fun recoveryIndexSlope(hr: List<HrSample>, start: Long, end: Long): Double? {
+        val seg = hr.filter { it.ts in start..end }
+        if (seg.isEmpty()) return null
+
+        // Same non-overlapping 5-minute binning as restingHR: both read the identical
+        // underlying series, one as a floor, one as a trend across it.
+        val points = ArrayList<Pair<Double, Double>>() // (tHours, meanBpm)
+        var t = start
+        while (t < end) {
+            val binEnd = t + restingHRWindowS
+            val win = seg.filter { it.ts >= t && it.ts < binEnd }
+            if (win.isNotEmpty()) {
+                val mean = win.sumOf { it.bpm }.toDouble() / win.size.toDouble()
+                val midpointS = (t - start).toDouble() + restingHRWindowS / 2.0
+                points.add((midpointS / 3600.0) to mean)
+            }
+            t += restingHRWindowS
+        }
+        if (points.size < recoveryIndexMinBins) return null
+
+        // Least-squares slope: Σ((t−t̄)(y−ȳ)) / Σ((t−t̄)²), bpm per hour.
+        val n = points.size.toDouble()
+        val tBar = points.sumOf { it.first } / n
+        val yBar = points.sumOf { it.second } / n
+        var num = 0.0
+        var den = 0.0
+        for ((tHours, meanBpm) in points) {
+            val dt = tHours - tBar
+            num += dt * (meanBpm - yBar)
+            den += dt * dt
+        }
+        // Degenerate (all bins at the same instant): no time spread to fit against.
+        if (den <= 1e-9) return 0.0
+        return num / den
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Recovery band
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -212,6 +314,19 @@ object RecoveryScorer {
      *   identical to the pre-skin-temp model).
      * @param hrvBaselineUsable whether the HRV baseline has enough nights
      *   (BaselineState.usable). When false, returns null (cold-start).
+     * @param recoveryIndexSlope overnight resting-HR DECLINE slope (bpm/hour, from
+     *   [recoveryIndexSlope]). Negative (declining) supports recovery; positive (rising)
+     *   limits it, weight [wRecoveryIndex]. null (the default) drops the term and the
+     *   weights renormalize, so the no-slope score is IDENTICAL to before this parameter
+     *   existed.
+     * @param effortBaseline personal EWMA baseline of daily Effort/strain
+     *   ([Baselines.strainCfg]). Needs [priorDayEffort] too — supplying only one drops
+     *   the term.
+     * @param priorDayEffort yesterday's Effort/strain (0–100, StrainScorer.strain). Lower vs
+     *   [effortBaseline] supports recovery, same "lower is better" direction as RHR/resp,
+     *   weight [wActivityBalance]. null (the default, like effortBaseline) drops the term
+     *   and the weights renormalize, so the no-effort score is IDENTICAL to before either
+     *   parameter existed.
      */
     fun recovery(
         hrv: Double,
@@ -223,6 +338,9 @@ object RecoveryScorer {
         sleepPerf: Double?,
         skinTempDev: Double? = null,
         hrvBaselineUsable: Boolean = true,
+        recoveryIndexSlope: Double? = null,
+        effortBaseline: DriverBaseline? = null,
+        priorDayEffort: Double? = null,
     ): Double? {
         // Cold-start gate: HRV is the dominant driver; if its baseline isn't
         // usable, refuse to score (more honest than a fabricated value).
@@ -251,6 +369,20 @@ object RecoveryScorer {
         if (skinTempDev != null) {
             terms.add((-abs(skinTempDev) / skinTempDevScale) to wSkinTemp)
         }
+        // Recovery-Index term: overnight HR-DECLINE slope (bpm/hour). No baseline needed (a
+        // fixed, documented scale, same style as sleepPerf/skin-temp). Negative (declining)
+        // supports recovery; positive (rising) limits it. Added only when supplied.
+        if (recoveryIndexSlope != null) {
+            terms.add((-recoveryIndexSlope / recoveryIndexScaleBpmPerHr) to wRecoveryIndex)
+        }
+        // Activity-Balance / previous-day-Effort term: lower vs personal baseline is better,
+        // same "lower is better" direction as RHR/resp → (μ − x) / σ. Needs BOTH the value
+        // and a baseline, matching resp's pattern; added only when both are supplied.
+        if (priorDayEffort != null && effortBaseline != null) {
+            terms.add(
+                zScore(effortBaseline.mean, priorDayEffort, effortBaseline.spread) to wActivityBalance,
+            )
+        }
 
         if (terms.isEmpty()) return null
         val totalWeight = terms.sumOf { it.second }
@@ -274,6 +406,9 @@ object RecoveryScorer {
         respBaseline: BaselineState?,
         sleepPerf: Double?,
         skinTempDev: Double? = null,
+        recoveryIndexSlope: Double? = null,
+        effortBaseline: BaselineState? = null,
+        priorDayEffort: Double? = null,
     ): Double? = recovery(
         hrv = hrv,
         rhr = rhr,
@@ -284,5 +419,8 @@ object RecoveryScorer {
         sleepPerf = sleepPerf,
         skinTempDev = skinTempDev,
         hrvBaselineUsable = hrvBaseline.usable,
+        recoveryIndexSlope = recoveryIndexSlope,
+        effortBaseline = effortBaseline?.let { DriverBaseline(it) },
+        priorDayEffort = priorDayEffort,
     )
 }

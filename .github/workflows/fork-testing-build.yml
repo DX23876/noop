@@ -155,3 +155,18 @@ jobs:
           rm -rf Payload && mkdir Payload && cp -R "$APP" Payload/
           zip -qr "NOOP-ios-unsigned-v${VER}.ipa" Payload
           gh release upload "${{ needs.meta.outputs.tag }}" "NOOP-ios-unsigned-v${VER}.ipa" --repo "$GITHUB_REPOSITORY" --clobber
+
+  # Fork-only housekeeping: the disposable `noop-staging` branch exists ONLY to feed this build. Once every
+  # platform job has finished (pass OR fail — always()), delete it so GitHub's "Compare & pull request"
+  # banner doesn't linger after each run. The rolling release tag (testing-latest) pins the built sha, so
+  # deleting the branch orphans nothing. Guarded to the disposable branch name — a run dispatched from main
+  # (or any other ref) is left alone.
+  cleanup:
+    needs: [meta, android, macos, ios]
+    if: ${{ always() && github.ref_type == 'branch' && github.ref_name == 'noop-staging' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete the disposable staging branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/noop-staging" || true

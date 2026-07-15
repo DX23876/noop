@@ -75,6 +75,7 @@ fun CoachScreen(vm: CoachViewModel = viewModel()) {
     // Same day-cycle gate as the liquid Today: the time-of-day sky settles behind the top content when the
     // user hasn't opted out; otherwise the scaffold paints the plain dark canvas.
     val showDayCycleBackground = remember { NoopPrefs.showDayCycleBackground(context) }
+    val skyBehindCards = remember { NoopPrefs.skyBehindCards(context) }
 
     ScreenScaffold(
         title = "Coach",
@@ -82,7 +83,10 @@ fun CoachScreen(vm: CoachViewModel = viewModel()) {
         // LIQUID SKY BACKDROP (the pilot pattern — LiquidScreenSky.kt): the liquid sky sits behind the
         // header and the cards float over the flat canvas below. Reuses the shared LiquidScreenSky() slot
         // verbatim; when the day-cycle background is off, the scaffold paints the plain surface instead.
-        topBackground = if (showDayCycleBackground) { { LiquidScreenSky() } } else null,
+        topBackground = if (showDayCycleBackground) { { LiquidScreenSky(fillHeight = skyBehindCards) } } else null,
+        // Sky-behind-cards fills the viewport so the transparent cards reveal the sky the whole way
+        // down (Today / Trends / Sleep / metric-detail parity - same two prefs, same two behaviours).
+        fullBleedBackground = showDayCycleBackground && skyBehindCards,
     ) {
         if (!configured) {
             CoachSetup(vm = vm)

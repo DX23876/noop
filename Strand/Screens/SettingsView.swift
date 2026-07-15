@@ -52,11 +52,24 @@ struct SettingsView: View {
     /// See [PuffinExperiment.continuousHrvOvernightOnlyKey].
     @AppStorage(PuffinExperiment.continuousHrvOvernightOnlyKey) private var continuousHrvOvernightOnly = false
 
+    // #477 Power saving (parity with Android). Battery-adaptive sync cadence + an HRV-pause sub-option.
+    @AppStorage(PuffinExperiment.powerSavingKey) private var powerSavingEnabled = false
+    @AppStorage(PuffinExperiment.powerSavingBatteryPctKey) private var powerSavingPct = 20
+    /// Stored INVERTED so the default (absent = false) reads as "HRV pause on". The toggle shows `!this`.
+    @AppStorage(PuffinExperiment.pauseHrvDisabledKey) private var pauseHrvDisabled = false
+
     /// "Experimental sleep staging (V2)" (ON by default, promoted after the 44-subject cross-subject
     /// benchmark). When on, detected nights are re-staged with `SleepStagerV2` (the transparent
     /// cardiorespiratory recipe) instead of the older V1 stager. Read at the staging call site in
     /// `Repository`. See [PuffinExperiment.experimentalSleepV2Key].
     @AppStorage(PuffinExperiment.experimentalSleepV2Key) private var experimentalSleepV2Enabled = true
+
+    /// "Motion-aware wake refinement" (#364 follow-up, OFF by default). A post-pass over the already-staged
+    /// hypnogram: reclassifies a scored WAKE segment to `light` when its per-minute step-tick cadence shows
+    /// no locomotion and its per-minute gravity posture is stable outside a minority of isolated burst
+    /// minutes. Self-gates on OBSERVED gravity + step density (#345) — a no-op on a sparse night (e.g.
+    /// WHOOP 4.0) regardless of this switch. See [PuffinExperiment.motionAwareWakeKey].
+    @AppStorage(PuffinExperiment.motionAwareWakeKey) private var motionAwareWakeEnabled = false
 
     // Imperial/Metric display preference (D#103). Stored data is always SI; this only changes how
     // distances/weights/heights/temperatures are SHOWN — and lets the profile fields below take
@@ -129,11 +142,6 @@ struct SettingsView: View {
     @State private var rawCsvBusy = false
     @State private var lastRawCsvURL: URL?
 
-    /// Scheduled daily debug auto-export (#510, parity with Android). Seeded from the persisted store;
-    /// the toggle + time picker write back through `ScheduledDebugExport`. Opt-in, default OFF.
-    @State private var debugExportOn = ScheduledDebugExport.isEnabled
-    @State private var debugExportMinutes = ScheduledDebugExport.timeMinutes
-
     /// Confirm gate for the "Recalibrate Charge baseline" action (it re-learns the HRV anchor from tonight).
     @State private var showRecalibrateConfirm = false
 
@@ -187,7 +195,8 @@ struct SettingsView: View {
                 unitsCard.staggeredAppear(index: 2)
                 appearanceCard.staggeredAppear(index: 3)
                 strapCard.staggeredAppear(index: 4)
-                featuresCard.staggeredAppear(index: 5)
+                powerSavingCard.staggeredAppear(index: 5)
+                featuresCard.staggeredAppear(index: 6)
 
                 // Lower-frequency sections collapse behind a single default-closed disclosure so the
                 // screen opens at ~6 sections instead of 11. Nothing is removed; every section here
@@ -948,6 +957,64 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - Power saving (#477)
+    private var powerSavingCard: some View {
+        SettingsSection(
+            icon: "battery.25",
+            title: "Power saving",
+            blurb: "Ease battery use when your phone is low or in Low Power Mode. The strap keeps banking data on its own, so nothing is lost — NOOP just syncs it less often."
+        ) {
+            VStack(alignment: .leading, spacing: 16) {
+                Toggle(isOn: $powerSavingEnabled) {
+                    Text("Power saving mode")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                }
+                .toggleStyle(.switch)
+                .tint(StrandPalette.accent)
+                .onChangeCompat(of: powerSavingEnabled) { _ in model.applyPowerSaving() }
+                Text("Slows background strap-sync (every 45 min instead of 15) while your battery is low or Low Power Mode is on. No data loss — sync just batches into larger, less frequent pulls.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if powerSavingEnabled {
+                    Divider().overlay(StrandPalette.hairline)
+                    HStack {
+                        Text("Kick in at")
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                        Spacer()
+                        Text(verbatim: "\(powerSavingPct)%")
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.accent)
+                    }
+                    Slider(
+                        value: Binding(get: { Double(powerSavingPct) }, set: { powerSavingPct = Int($0) }),
+                        in: 10...30, step: 5,
+                        onEditingChanged: { editing in if !editing { model.applyPowerSaving() } }
+                    )
+                    .tint(StrandPalette.accent)
+
+                    Divider().overlay(StrandPalette.hairline)
+                    // HRV pause: a sub-option, ON by default when the master is on (stored inverted).
+                    Toggle(isOn: Binding(get: { !pauseHrvDisabled }, set: { pauseHrvDisabled = !$0 })) {
+                        Text("Pause HRV capture")
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                    }
+                    .toggleStyle(.switch)
+                    .tint(StrandPalette.accent)
+                    .onChangeCompat(of: pauseHrvDisabled) { _ in model.applyPowerSaving() }
+                    Text("While saving power (battery low or Low Power Mode), stop the always-on background HRV stream — the biggest live drain. A Live screen still shows heart rate, and it re-arms automatically once you're off power saving.")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
     /// Rename the WHOOP 4.0's BLE advertising name. Shows the current name (read back from firmware in
     /// the connect handshake → `LiveState.advertisingName`) and writes a new one via `renameStrap`. The
     /// strap reboots to apply, so the new name lands on the next connect. WHOOP 4.0 only (Harvard).
@@ -1230,6 +1297,21 @@ struct SettingsView: View {
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
+
+                Divider().overlay(StrandPalette.hairline)
+
+                // MARK: Motion-aware wake refinement (#364 follow-up) — default OFF.
+                Toggle(isOn: $motionAwareWakeEnabled) {
+                    Text("Motion-aware wake refinement")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                }
+                .toggleStyle(.switch)
+                .tint(StrandPalette.accent)
+                Text("Reviews each scored wake block for real evidence of getting up (walking cadence, a change in body position) instead of just a heart-rate rise. A wake block with no locomotion and a stable posture — a hot night, a brief turn-over — is folded back into light sleep; a real get-up is left alone. Self-checks how much motion detail your strap actually recorded and stays off on a night that's too sparse to trust (older WHOOP 4.0 firmware, mainly). Off by default; takes effect on the next nights staged.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -1444,97 +1526,8 @@ struct SettingsView: View {
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
-
-                Divider().overlay(StrandPalette.hairline)
-
-                scheduledExportControls
             }
         }
-        // Re-arm / catch-up the daily export whenever Settings appears (self-heals after a relaunch).
-        .onAppear { ScheduledDebugExport.activateIfEnabled() }
-    }
-
-    /// Daily auto-export of the strap log (#510 — parity with Android's DebugExportScheduler). Opt-in,
-    /// default OFF: a toggle + a time-of-day picker + a "Run now". Honest about iOS background timing —
-    /// the macOS drop is reliable (the app is usually running), the iOS one fires when iOS next wakes
-    /// NOOP near the chosen time, never guaranteed to the minute.
-    @ViewBuilder private var scheduledExportControls: some View {
-        Toggle(isOn: $debugExportOn) {
-            Text("Daily auto-export of the strap log")
-                .font(StrandFont.subhead)
-                .foregroundStyle(StrandPalette.textPrimary)
-        }
-        .toggleStyle(.switch)
-        .tint(StrandPalette.accent)
-        .onChangeCompat(of: debugExportOn) { on in ScheduledDebugExport.setEnabled(on) }
-
-        if debugExportOn {
-            HStack {
-                Text("Time of day")
-                    .font(StrandFont.subhead)
-                    .foregroundStyle(StrandPalette.textPrimary)
-                Spacer()
-                DatePicker("", selection: debugExportTimeBinding, displayedComponents: .hourAndMinute)
-                    .labelsHidden()
-                    .accessibilityLabel("Daily auto-export time")
-            }
-
-            NoopButton("Run now", systemImage: "square.and.arrow.down.on.square", kind: .secondary) {
-                runScheduledExportNow()
-            }
-        }
-
-        Text(debugExportCaption)
-            .font(StrandFont.caption)
-            .foregroundStyle(StrandPalette.textTertiary)
-            .fixedSize(horizontal: false, vertical: true)
-    }
-
-    /// Honest caption — the drop location plus the platform-specific timing reality.
-    private var debugExportCaption: String {
-        #if os(iOS)
-        return String(localized: "Writes a timestamped copy of your strap log to NOOP's folder in the Files app, once a day. Handy for a bug report without remembering to grab it. On iPhone it fires when iOS next wakes NOOP near your chosen time, not guaranteed to the minute (keep NOOP open overnight for the best chance). Everything stays on \(Platform.deviceNounPhrase); nothing is uploaded.")
-        #else
-        return String(localized: "Writes a timestamped copy of your strap log to your Documents folder, once a day. Handy for a bug report without remembering to grab it. On Mac it runs while NOOP is open (and catches up on launch if the time passed while it was closed). Everything stays on \(Platform.deviceNounPhrase); nothing is uploaded.")
-        #endif
-    }
-
-    /// Bridges the minutes-since-midnight store to the DatePicker, persisting + rescheduling on change
-    /// (mirrors SmartAlarmView's wakeBinding).
-    private var debugExportTimeBinding: Binding<Date> {
-        Binding(
-            get: {
-                var c = DateComponents()
-                c.hour = debugExportMinutes / 60
-                c.minute = debugExportMinutes % 60
-                return Calendar.current.date(from: c) ?? Date()
-            },
-            set: { date in
-                let c = Calendar.current.dateComponents([.hour, .minute], from: date)
-                let m = (c.hour ?? 7) * 60 + (c.minute ?? 0)
-                debugExportMinutes = m
-                ScheduledDebugExport.setTimeMinutes(m)
-            }
-        )
-    }
-
-    /// "Run now": write an immediate timestamped strap-log drop (with the raw capture beside it, if a
-    /// session has recorded one) and tell the user where it landed.
-    private func runScheduledExportNow() {
-        model.ble.flushPuffinCaptures()
-        let url = ScheduledDebugExport.runNow(captureURL: live.puffinCaptureURL)
-        if let url {
-            backupAlertTitle = String(localized: "Strap log exported")
-            #if os(iOS)
-            backupAlertMessage = String(localized: "Saved \(url.lastPathComponent) to NOOP's folder in the Files app.")
-            #else
-            backupAlertMessage = String(localized: "Saved \(url.lastPathComponent) to your Documents folder.")
-            #endif
-        } else {
-            backupAlertTitle = String(localized: "Export failed")
-            backupAlertMessage = String(localized: "Couldn't write the strap log right now.")
-        }
-        showBackupAlert = true
     }
 
     /// Export the last 24h of decoded sensor streams for the connected strap to a CSV, then save (macOS

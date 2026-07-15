@@ -33,6 +33,12 @@ data class StreamBatch(
     /** HR derived from the WHOOP 5/MG v26 optical PPG waveform (autocorrelation). (#156) */
     val ppgHr: List<PpgHrRow> = emptyList(),
     /**
+     * The RAW WHOOP 5/MG v26 optical PPG waveform itself, one record per second (#156 follow-up) — the
+     * 24 Hz samples [ppgHr] is derived FROM. Kept separate so a consumer that only wants the HR estimate
+     * never pays for the 24x-larger raw stream. Persisted into `ppgWaveformSample` as a packed i16 BLOB.
+     */
+    val ppgWaveform: List<PpgWaveformRow> = emptyList(),
+    /**
      * #547: how many historical records this batch DROPPED because their timestamp was implausible
      * (older than 2023-11 or more than a day ahead of now) , a bad strap clock/flash artefact. A
      * diagnostic counter only, NOT decoded data, so it is deliberately excluded from [isEmpty]. The
@@ -58,7 +64,7 @@ data class StreamBatch(
     val isEmpty: Boolean
         get() = hr.isEmpty() && rr.isEmpty() && events.isEmpty() && battery.isEmpty() &&
             spo2.isEmpty() && skinTemp.isEmpty() && resp.isEmpty() && gravity.isEmpty() &&
-            steps.isEmpty() && sleepState.isEmpty() && ppgHr.isEmpty()
+            steps.isEmpty() && sleepState.isEmpty() && ppgHr.isEmpty() && ppgWaveform.isEmpty()
 }
 
 // Device-agnostic decoded rows (deviceId attached when inserted). Mirror Streams.swift shapes.
@@ -111,6 +117,12 @@ data class RespRow(val ts: Long, val raw: Int)
 data class GravityRow(val ts: Long, val x: Double, val y: Double, val z: Double)
 /** HR derived from the v26 PPG waveform: [ts] window-centre sec, [bpm], [conf] in 0…1. (#156) */
 data class PpgHrRow(val ts: Long, val bpm: Int, val conf: Double)
+/**
+ * The RAW v26 optical PPG waveform for one strap-second (#156 follow-up): [ts] the record's wall-clock
+ * unix second, [samples] the raw i16 ADC counts (usually 24, fewer on a truncated frame). deviceId is
+ * attached on insert; the samples are packed to a little-endian i16 BLOB by [StreamPersistence.packPpgSamples].
+ */
+data class PpgWaveformRow(val ts: Long, val samples: List<Int>)
 
 /** Count of rows ACTUALLY inserted per stream (mirrors WhoopStore.insert return tuple). */
 data class InsertCounts(
@@ -241,6 +253,17 @@ class WhoopRepository(private val dao: WhoopDao) {
         // backfill "persisted N" summary reflects HR recovered from the optical waveform too.
         val ppgHrIds = if (streams.ppgHr.isEmpty()) emptyList() else
             dao.insertPpgHr(streams.ppgHr.map { PpgHrSample(deviceId, it.ts, it.bpm, it.conf) })
+        // RAW v26 optical PPG waveform (#156 follow-up) — the samples ppgHr above is derived FROM.
+        // Persist-only, same as steps/sleepState: not added to the InsertCounts return. Idempotent by
+        // (deviceId, ts), IGNORE-on-conflict keeps the FIRST-seen waveform for a second (mirrors every
+        // other per-second stream). Packed into one compact i16 BLOB per row (see packPpgSamples).
+        if (streams.ppgWaveform.isNotEmpty()) {
+            dao.insertPpgWaveform(
+                streams.ppgWaveform.map {
+                    PpgWaveformSampleEntity(deviceId, it.ts, StreamPersistence.packPpgSamples(it.samples))
+                },
+            )
+        }
 
         // OnConflictStrategy.IGNORE returns -1 for skipped (already-present) rows; count the inserts.
         return InsertCounts(
@@ -554,6 +577,18 @@ class WhoopRepository(private val dao: WhoopDao) {
     /** v26 PPG-derived HR samples (own stream) for the raw-sensor diagnostic export. (#156) */
     suspend fun ppgHrSamples(deviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT) =
         dao.ppgHrSamples(deviceId, from, to, limit)
+
+    /**
+     * The RAW v26 optical PPG waveform (#156 follow-up), one record per second, in [from, to] for one
+     * device, ascending by ts. [PpgWaveformRow.samples] are the raw i16 ADC counts the strap sent,
+     * unpacked from the compact on-disk BLOB ([StreamPersistence.packPpgSamples]/[unpackPpgSamples]).
+     * Empty when the strap never emitted v26 (the WHOOP 4.0 / v18-only case) or the window has no
+     * v26-heavy stretch. Kotlin twin of the Swift `WhoopStore.ppgWaveformSamples(deviceId:from:to:)`.
+     */
+    suspend fun ppgWaveformSamples(deviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT):
+        List<PpgWaveformRow> =
+        dao.ppgWaveformSamples(deviceId, from, to, limit)
+            .map { PpgWaveformRow(it.ts, StreamPersistence.unpackPpgSamples(it.samples)) }
 
     /** Downsampled HR (mean bpm per [bucketSeconds]) for the strap, for the Today 24h trend chart. */
     suspend fun hrBuckets(deviceId: String, from: Long, to: Long, bucketSeconds: Long = 300L) =

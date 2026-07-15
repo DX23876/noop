@@ -23,7 +23,8 @@ enum WhoopImporter {
             metrics.append(DailyMetric(
                 day: day,
                 totalSleepMin: c.asleepDurationMin,
-                efficiency: c.sleepEfficiencyPct,
+                // CSV "Sleep efficiency %" (0–100) → the store's native 0–1 fraction at the boundary.
+                efficiency: WhoopExportImporter.fractionFromImportedEfficiencyPct(c.sleepEfficiencyPct),
                 deepMin: c.deepSleepDurationMin,
                 remMin: c.remDurationMin,
                 lightMin: c.lightSleepDurationMin,
@@ -54,7 +55,7 @@ enum WhoopImporter {
             sessions.append(CachedSleepSession(
                 startTs: Int(onset.timeIntervalSince1970),
                 endTs: Int(wake.timeIntervalSince1970),
-                efficiency: s.sleepEfficiencyPct,
+                efficiency: WhoopExportImporter.fractionFromImportedEfficiencyPct(s.sleepEfficiencyPct),
                 restingHr: nil, avgHrv: nil, stagesJSON: json))
         }
 

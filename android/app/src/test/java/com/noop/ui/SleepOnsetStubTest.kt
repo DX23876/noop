@@ -116,6 +116,78 @@ class SleepOnsetStubTest {
         assertTrue("biphasic night must keep both real fragments", hero.groupSegments!!.size >= 4)
         // The stub is not a nap — it stays inside the main-night group.
         assertTrue(hero.napBlocks.none { it.startTs == stubStart })
+        // #345: the hero's clock WINDOW spans the whole night — displayed bedtime (fragment A's onset,
+        // the stub dropped) to the GROUP's latest wake (fragment B's end). The winning session is
+        // fragment B (the longest), so reading ITS window would show B's onset/wake and the Asleep/Woke
+        // row + hypnogram axis would contradict the header pill on exactly this biphasic shape.
+        assertTrue("session (edit anchor) is fragment B", hero.session.startTs == bStart)
+        assertTrue("window opens at the displayed bedtime (fragment A)", hero.heroOnsetTs == aStart)
+        assertTrue("window closes at the group's latest wake (fragment B end)", hero.heroWakeTs == bEnd)
+    }
+
+    // ── Real-night regression (#259 / bridged-night headline): a genuine short first sleep is NOT a lead ──
+
+    /**
+     * THE BUG (real 2026-07-14 night): a 67-min first-sleep fragment (~34 asleep min) leading a 1:29 → 7:32
+     * main sleep (~340 asleep). The #259 relative "minor lead" test compared 34 asleep min against 15% of the
+     * ~340-min main (≈51 min) and wrongly classified the real first sleep as a spurious lead, hiding the true
+     * 12:16 bedtime. The absolute asleep floor keeps a real sleep episode: 34 ≥ 20, so it is NOT a stub.
+     */
+    @Test
+    fun realFirstSleepFragmentIsNotStub() {
+        // 66.8 min span, 34 asleep min, main block asleep 340. Old test: 34 < 0.15*340 (≈51) → wrongly a stub.
+        val b = block(0, 4008, """{"awake":33,"light":34,"deep":0,"rem":0}""")
+        assertFalse("a real 34-min first sleep beside a 340-min main is NOT a spurious lead",
+            isPreOnsetAwakeStub(b, refAsleepMin = 340.0))
+    }
+
+    /** Floor boundary: a fragment carrying at least [PRE_ONSET_STUB_MINOR_ASLEEP_FLOOR_MIN] asleep minutes is a
+     *  real sleep episode and never a spurious lead, whatever the main block's size. */
+    @Test
+    fun atMinorAsleepFloorIsNotStub() {
+        val b = block(0, 40 * 60, """{"awake":5,"light":20,"deep":0,"rem":0}""")   // exactly 20 asleep min
+        assertFalse(isPreOnsetAwakeStub(b, refAsleepMin = 1000.0))
+    }
+
+    /** The floor does NOT reopen #736/#259: a tiny stray sleep lead (10 asleep, under the floor AND under 15%
+     *  of a big main) is still a spurious lead, so the existing minor-lead goldens stay green. */
+    @Test
+    fun tinyStrayLeadStillStubUnderFloor() {
+        val b = block(0, 30 * 60, """{"awake":20,"light":10,"deep":0,"rem":0}""")
+        assertTrue(isPreOnsetAwakeStub(b, refAsleepMin = 400.0))
+    }
+
+    // ── Decode-format regression: a computed night's SEGMENT ARRAY first sleep is not read as 0 asleep ──
+
+    /**
+     * The real 12:16 → 1:22 first-sleep fragment (deviceId my-whoop-noop, startTs 1784013364), byte-for-byte
+     * as stored on the device: an on-device COMPUTED night's SEGMENT ARRAY. Non-wake sum: light 926 s + deep
+     * 1320 s + rem 990 s = 3236 s ≈ 53.9 asleep minutes. The displayed-onset stub test must read this
+     * format-agnostically ([decodedAsleepMinutes]) — a dict-only decode would return 0 asleep min, trip the
+     * "essentially sleepless stub" branch, and the shown bedtime would jump to the 1:29 main block.
+     */
+    private val fragmentSegmentJson =
+        """[{"end":1784013450,"stage":"light","start":1784013364},{"end":1784013540,"stage":"wake","start":1784013450},{"end":1784013600,"stage":"light","start":1784013540},{"end":1784013720,"stage":"wake","start":1784013600},{"end":1784013930,"stage":"light","start":1784013720},{"end":1784015250,"stage":"deep","start":1784013930},{"end":1784015580,"stage":"light","start":1784015250},{"end":1784015640,"stage":"wake","start":1784015580},{"end":1784015880,"stage":"light","start":1784015640},{"end":1784016180,"stage":"wake","start":1784015880},{"end":1784017170,"stage":"rem","start":1784016180},{"end":1784017375,"stage":"wake","start":1784017170}]"""
+
+    /** THE DECODE BUG, guarded: the segment-array format (an on-device computed night) decodes to its real
+     *  asleep minutes — not 0. Before a format-agnostic decode a dict-only reader returned 0 here. */
+    @Test
+    fun segmentArrayFormatDecodesRealAsleepMinutes() {
+        val asleep = decodedAsleepMinutes(fragmentSegmentJson, effectiveStartTs = 1_784_013_364L)
+        assertEquals(3236.0 / 60.0, asleep, 0.01)
+        // Above the #259 floor — the whole point: a real sleep episode must clear it.
+        assertTrue(asleep >= PRE_ONSET_STUB_MINOR_ASLEEP_FLOOR_MIN)
+    }
+
+    /** END-TO-END: a real first-sleep fragment stored as a SEGMENT ARRAY, beside a large main block, is NOT
+     *  skipped as a pre-onset stub — the both-format decode populates its asleep minutes and the floor keeps
+     *  it. Before the fix (dict-only decode → 0 asleep) it tripped the sleepless-stub branch and the displayed
+     *  bedtime jumped to the main block. */
+    @Test
+    fun segmentArrayFirstSleepFragmentIsNotSkipped() {
+        val frag = block(1_784_013_364L, 1_784_017_375L, fragmentSegmentJson)
+        assertFalse("a real segment-array first sleep must not be skipped as a stub",
+            isPreOnsetAwakeStub(frag, refAsleepMin = 340.0))
     }
 
     /** A genuine single-block night is unchanged: the session is that block. */

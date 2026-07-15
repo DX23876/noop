@@ -161,46 +161,51 @@ object SleepStagerV2 {
     /** Population sleep-architecture base rates as log-priors (adult TST ≈ light 50 / deep 18 / rem 22 /
      *  waso 10 %). Calibrates the boundary so light wins weak-evidence epochs. */
     private val baseLogPrior: Map<String, Double> = mapOf(
-        "light" to ln(0.50), "deep" to ln(0.15), "rem" to ln(0.22), "awake" to ln(0.34))
+        "light" to ln(0.50), "deep" to ln(0.18), "rem" to ln(0.22), "awake" to ln(0.10))
 
-    /** Deep-eligibility HR-flatness percentile gate. Raised 0.25 -> 0.40 by the DREAMT (n=100 wrist-optical
-     *  + PSG) joint re-tune: a clinical cohort with sparse N3, so deep is admitted only in the flattest
-     *  epochs and the over-call is cut. Held-out validated; AAUWSS + Walch also improved. */
-    internal const val deepGateThresh = 0.40
+    /** Deep is eligible only in the night's lowest ~25 % HR-flatness epochs (≈ deep base rate + margin).
+     *  Widened 0.20 -> 0.25 by the multi-subject (AAUWSS + sleep-accel LOSO) deep-boundary tune, which
+     *  recovers the deep recall the other deep-tightening edits shed while keeping precision up. */
+    internal const val deepGateThresh = 0.25
     private const val deepGateSlope = 5.0
 
     /** Motion thresholds are RELATIVE to each night's own quiescent jerk floor (median per-second jerk over
-     *  the session), NOT an absolute g — self-calibrates to the strap's gravity-decode scale + the fit.
-     *  DREAMT re-tune: move floor 38 -> 75 (stricter "moving"), gate 55 -> 35 (wake fires easier), boost 2 -> 4. */
-    private const val jerkFloorMoveMult = 75.0  // a per-second jerk counts as "moving" above floor × this
-    private const val jerkFloorGateMult = 35.0  // wake-boost when an epoch's peak jerk exceeds floor × this
-    private const val motionGateBoost = 4.0
+     *  the session), NOT an absolute g — self-calibrates to the strap's gravity-decode scale + the fit. */
+    private const val jerkFloorMoveMult = 38.0  // a per-second jerk counts as "moving" above floor × this
+    private const val jerkFloorGateMult = 55.0  // wake-boost when an epoch's peak jerk exceeds floor × this
+    private const val motionGateBoost = 2.0
+
+    /**
+     * Motion-corroborated wake (elevated-but-flat-HR nights, #462). An epoch is MOTION-QUIESCENT when it shows
+     * no observed movement (`moveFrac == 0`) AND its peak per-second jerk sits at/below the night's own
+     * quiescent floor × [jerkFloorGateMult] — i.e. the wrist did not move this epoch, on the same
+     * night-relative scale the wake jerk-gate uses. On such epochs the AWAKE emission keeps any wake-SUPPRESSING
+     * cardiac evidence (a low, flat HR) but discards the wake-PROMOTING half: a raised HR / HR-variability with
+     * the wrist motionless is a supplement / fever / hot-room / alcohol artefact, not wakefulness, and must not
+     * vote the epoch awake on its own. Never invents wake and never removes pro-sleep cardiac evidence, so a
+     * genuinely still low-HR sleep epoch is byte-identical; only a still epoch whose ELEVATED HR was about to
+     * push it awake is held. Motion (`zmvv`) and the jerk gate — which by construction cannot fire on a
+     * quiescent epoch (`jerkMax ≤ floor × gateMult`) — still drive wake on any epoch that actually moved.
+     * Internal so the predicate test can call it, matching the Swift `motionQuiescent` visibility.
+     */
+    internal fun motionQuiescent(f: Epoch): Boolean =
+        f.moveFrac <= 0.0 && f.jerkMax <= f.jerkScale * jerkFloorGateMult
 
     /** Weight of the RSA respiration-regularity term (regular → deep, irregular → REM). */
     private const val respWeight = 0.6
 
-    /** Dead-zone (± this z) applied to the cardiac terms of the AWAKE emission: within the band the term is
-     *  zeroed, outside it is shrunk toward 0. Stops small HR / HR-variability wobble from voting wake.
-     *  DREAMT re-tune turned it on at 0.3 (protects Walch REM/wake balance). */
-    private const val awakeDeadzone = 0.30
-    private fun dz(z: Double): Double = when {
-        awakeDeadzone <= 0.0 -> z
-        z > awakeDeadzone -> z - awakeDeadzone
-        z < -awakeDeadzone -> z + awakeDeadzone
-        else -> 0.0
-    }
-
     /** Transition matrix (rows = from, cols = to). Self-transitions dominate; deep↔rem rare; wake mostly
      *  to/from light. A priori, not fit. */
     internal val transition: Map<String, Map<String, Double>> = mapOf(
-        "deep" to mapOf("deep" to 0.76, "rem" to 0.012, "light" to 0.216, "awake" to 0.012),
-        "rem" to mapOf("deep" to 0.00333, "rem" to 0.92, "light" to 0.06667, "awake" to 0.01),
-        "light" to mapOf("deep" to 0.08, "rem" to 0.08, "light" to 0.80, "awake" to 0.04),
-        "awake" to mapOf("deep" to 0.0, "rem" to 0.0, "light" to 0.10, "awake" to 0.90))
+        "deep" to mapOf("deep" to 0.86, "rem" to 0.007, "light" to 0.126, "awake" to 0.007),
+        "rem" to mapOf("deep" to 0.005, "rem" to 0.88, "light" to 0.10, "awake" to 0.015),
+        "light" to mapOf("deep" to 0.06, "rem" to 0.06, "light" to 0.85, "awake" to 0.03),
+        "awake" to mapOf("deep" to 0.01, "rem" to 0.02, "light" to 0.27, "awake" to 0.70))
 
     /** One 30 s epoch's recipe features. Nullable means "no measurement"; the z-score / percentile treat a
-     *  missing value as the neutral centre so a sparse channel never blocks a stage. */
-    private data class Epoch(
+     *  missing value as the neutral centre so a sparse channel never blocks a stage. Internal (not private) so
+     *  the motion-corroborated-wake predicate test can construct one, matching the Swift `Epoch` visibility. */
+    internal data class Epoch(
         val start: Long,        // epoch start (unix seconds, multiple of 30)
         val hr: Double?,        // epoch-mean HR (bpm)
         val hrVar: Double?,     // std of per-second HR over a centred 5-min window
@@ -423,6 +428,8 @@ object SleepStagerV2 {
      *  uniform start. Ties resolve to the earlier stage in [stageNames]. */
     private fun viterbi(emSeq: List<Map<String, Double>>): List<String> {
         if (emSeq.isEmpty()) return emptyList()
+        // Floor before ln so a zeroed transition entry (a legal hand-edit) can never hit ln(0) = -Inf
+        // and poison the lattice. Inert for the current matrix (no zero entries). Kept from #348.
         val logT = transition.mapValues { (_, row) -> row.mapValues { (_, v) -> ln(maxOf(v, 1e-9)) } }
         var v = emSeq[0]   // uniform start
         val back = ArrayList<Map<String, String>>()
@@ -480,11 +487,18 @@ object SleepStagerV2 {
         for (f in feats) {
             val zhrv = zhr(f.hr); val zhvv = zhv(f.hrVar); val zmvv = zmv(f.moveFrac)
             val gate = deepGateSlope * maxOf(0.0, fpct(f.hrFlat11) - deepGateThresh)
+            // Cardiac contribution to the AWAKE emission. On a motion-quiescent epoch the wrist did not move,
+            // so a raised HR / HR-variability alone must NOT promote wake — clamp the cardiac term to ≤ 0,
+            // keeping only its wake-SUPPRESSING (pro-sleep) half. Non-quiescent epochs are unchanged and use
+            // the same cardiac coefficients verbatim, so a night with any motion stages byte-identical; the
+            // correction only ever holds a still, elevated-HR epoch. Mirrors Swift `awakeCardiac`.
+            val awakeCardiac0 = 0.8 * zhvv + 0.4 * zhrv
+            val awakeCardiac = if (motionQuiescent(f)) minOf(0.0, awakeCardiac0) else awakeCardiac0
             val em = HashMap<String, Double>()
-            em["deep"] = -0.8 * zhvv + 0.5 * zhrv - 0.1 * zmvv - gate + baseLogPrior["deep"]!!
-            em["rem"] = 0.8 * zhvv - 0.4 * zmvv + 0.4 * zhrv + baseLogPrior["rem"]!!
+            em["deep"] = -1.1 * zhvv - 0.5 * zmvv - gate + baseLogPrior["deep"]!!
+            em["rem"] = 0.6 * zhvv - 0.6 * zmvv + 0.4 * zhrv + baseLogPrior["rem"]!!
             em["light"] = baseLogPrior["light"]!!
-            em["awake"] = 1.0 * zmvv + 0.5 * dz(zhvv) + 0.6 * dz(zhrv) + baseLogPrior["awake"]!!
+            em["awake"] = 1.0 * zmvv + awakeCardiac + baseLogPrior["awake"]!!
             val pr = cyclePrior(f.clock)
             for (s in stageNames) em[s] = em[s]!! + pr[s]!!
             if (f.jerkMax > f.jerkScale * jerkFloorGateMult) em["awake"] = em["awake"]!! + motionGateBoost

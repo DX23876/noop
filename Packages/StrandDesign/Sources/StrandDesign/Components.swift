@@ -18,6 +18,8 @@ public enum NoopMetrics {
     // so we pin a single height that clears the tallest layout (value + inline sparkline + caption).
     public static let keyMetricTileHeight: CGFloat = 122
     public static let chartHeight: CGFloat = 220
+    /// Canonical compact provenance-chip height; shared with overlays that align the chip to a border.
+    public static let sourceBadgeHeight: CGFloat = 18
     public static let hypnogramBandMinThickness: CGFloat = 14  // floor so short stages read as bars, not ticks
     public static let tabBarClearance: CGFloat = 76  // iOS: extra bottom scroll room so the last card clears the floating tab bar
 
@@ -430,7 +432,7 @@ public struct SourceBadge: View {
     public init(_ text: LocalizedStringKey, tint: Color = StrandPalette.accent) { self.text = text; self.tint = tint }
     public var body: some View {
         Text(text).textCase(.uppercase).font(.system(size: 10, weight: .semibold, design: .rounded)).tracking(0.5)
-            .padding(.horizontal, 9).padding(.vertical, 3)
+            .padding(.horizontal, 9).frame(height: NoopMetrics.sourceBadgeHeight)
             .background(tint.opacity(0.16), in: Capsule(style: .continuous))
             .foregroundStyle(tint)
             .overlay(Capsule(style: .continuous).strokeBorder(tint.opacity(0.34), lineWidth: 1))

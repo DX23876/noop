@@ -3,7 +3,7 @@
 //
 //  This is the FULL Today, re-created faithfully from the locked mockup
 //  (scratchpad/liquid-metal-home.html): sky title + record/add/battery controls,
-//  the three scores as liquid vessels with source pills, the live heart-rate
+//  the three scores as liquid vessels with a card-level source badge, the live heart-rate
 //  thread, the five "your cards" as liquid chips, a greeting + readiness pills,
 //  Synthesis, Recovery Vitals, a Key Metrics grid (incl. steps), Last Workouts
 //  and Data Sources. Every value binds to the SAME real data the classic
@@ -27,6 +27,9 @@ struct LiquidTodayView: View {
 
     // async-loaded via the confirmed Repository accessors
     @State private var restScore: Double?          // sleep_performance, day-keyed
+    /// Raw resolver source ids for the three scores, keyed by recovery / strain / sleep_performance.
+    /// Presentation uses Today's shared mapper so Liquid and Classic name a source consistently.
+    @State private var heroProvenanceByMetric: [String: String] = [:]
     @State private var stress: Double?             // StressModel(...).score, 0–3
     @State private var fitnessAge: Double?         // exploreSeries("fitness_age").last
     @State private var vitality: Double?           // exploreSeries("vitality").last
@@ -44,6 +47,23 @@ struct LiquidTodayView: View {
     /// Live Sessions (silent guardian) beta gate — the SAME key the Settings toggle writes. Default ON
     /// (the entry is BETA-labelled in-UI); off removes the Start-session control entirely.
     @AppStorage(LiveSessionPrefs.betaKey) private var liveSessionsBeta = true
+    // #today-layout (parity with Android): the user-chosen section order, persisted under the byte-identical
+    // "today.sectionOrder" key the Android TodayLayoutPrefs uses. Reordered via the Arrange sheet (native
+    // drag-to-reorder rows); every section always renders (decode inserts a missing one at its default spot).
+    @AppStorage(TodayLayoutPrefs.orderKey) private var sectionOrderRaw = ""
+    @State private var showArrangeSheet = false
+    private var sectionOrder: [TodaySection] { TodayLayoutPrefs.decodeOrder(sectionOrderRaw) }
+    // #430 parity: the Key-Metrics grid honours the SAME editor selection/order + Detailed-tiles switch as
+    // Android (byte-identical @AppStorage keys). `kSparks` holds the trailing-14-day series the detailed
+    // tiles graph (keyed by metric-catalog key), filled by the loader alongside everything else.
+    @AppStorage(KeyMetricPrefs.layoutKey) private var keyMetricsRaw = ""
+    @AppStorage("today.keyMetricsDetailed") private var keyMetricsDetailed = false
+    /// The detailed graphs' trailing window — 2 days / 1 week / 2 weeks (shared key with Android). The
+    /// loader banks a day-keyed 14-day superset; render filters down, so a window change applies instantly.
+    @AppStorage("today.keyMetricsWindowDays") private var keyMetricsWindowDays = 14
+    @State private var showKeyMetricsEditor = false
+    @State private var kSparks: [String: [(String, Double)]] = [:]
+    private var enabledKeyMetrics: [KeyMetric] { KeyMetricPrefs.decodeEnabled(keyMetricsRaw) }
 
     // day navigation (0 = today, 1 = yesterday, …)
     @State private var selectedDayOffset = 0
@@ -209,15 +229,26 @@ struct LiquidTodayView: View {
                     scene
                     // #105: the live "workout in progress" card, dropped in the liquid Home rewrite. Restored
                     // here as the SAME leaf the classic TodayView renders (and Android's WorkoutInProgressCard),
-                    // sitting right under the hero so an active manual workout is immediately visible and taps
-                    // straight through to Live. Renders nothing when no workout is active.
+                    // pinned above the reorderable block so an active manual workout is immediately visible
+                    // and taps straight through to Live. Renders nothing when no workout is active.
                     ActiveWorkoutIndicatorSection()
-                    synthesisSection
-                    keyMetricsSection
-                    lastWorkoutsSection
-                    heartRateSection
-                    recoveryVitalsSection
-                    yourCardsSection
+                    // #today-layout (parity with Android): every Today section — the Charge/Effort/Rest hero
+                    // and Start-session included — renders in the user's saved order. Reorder via the Arrange
+                    // sheet (the header's up/down button; native drag rows); the order persists under the
+                    // byte-identical "today.sectionOrder" key Android uses. A gated-off Start-session renders
+                    // nothing and keeps its slot in the saved order.
+                    ForEach(sectionOrder) { section in
+                        switch section {
+                        case .hero: heroCard
+                        case .liveSession: if liveSessionsBeta { liveSessionStartRow }
+                        case .synthesis: synthesisSection
+                        case .keyMetrics: keyMetricsSection
+                        case .workouts: lastWorkoutsSection
+                        case .heartRate: heartRateSection
+                        case .recoveryVitals: recoveryVitalsSection
+                        case .yourCards: yourCardsSection
+                        }
+                    }
                     dataSourcesSection
                     Color.clear.frame(height: 90) // floating tab-bar clearance
                 }
@@ -284,6 +315,15 @@ struct LiquidTodayView: View {
         // screen on iOS (nothing should compete with the ring mid-workout), a sheet on macOS where
         // fullScreenCover doesn't exist.
         .liveSessionCover(isPresented: $showLiveSession)
+        // #today-layout: the Arrange sheet — native drag-to-reorder rows over the same persisted order.
+        .sheet(isPresented: $showArrangeSheet) {
+            TodayArrangeSheet(orderRaw: $sectionOrderRaw)
+        }
+        // #430 parity: the Key-Metrics editor (selection + order + the Detailed-tiles switch), the same
+        // sheet the classic macOS grid uses, bound to the same persisted layout string.
+        .sheet(isPresented: $showKeyMetricsEditor) {
+            KeyMetricsEditorSheet(layoutRaw: $keyMetricsRaw)
+        }
         #if os(macOS)
         // Hide the mac window toolbar's vibrant material so the full-bleed day-of-sky reads dark + edge-to-edge
         // at the top instead of the white scroll-under-titlebar wash.
@@ -383,16 +423,26 @@ struct LiquidTodayView: View {
                     .accessibilityLabel("Profile and settings")
                     LiquidAddButton()
                     LiquidBatteryButton()
+                    // #today-layout: opens the Arrange sheet (drag rows to reorder the Today sections).
+                    Button { showArrangeSheet = true } label: {
+                        Image(systemName: "arrow.up.arrow.down")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 34, height: 34)
+                            .background(Circle().fill(.white.opacity(0.16)))
+                    }
+                    .buttonStyle(LiquidPressStyle())
+                    .accessibilityLabel("Arrange Today sections")
                 }
             }
             // Subtle NOOP wordmark in the sky between header and hero. Perfectly centred (a letter row has
             // no trailing tracking gap the way `Text(...).tracking()` does), with a tap easter egg.
+            // #today-layout: the hero + Start-session row moved OUT of the scene into the reorderable
+            // section block below. The wordmark's bottom pad (10) + the section VStack's 12 spacing keeps
+            // the default hero-under-wordmark gap at the original 22.
             LiquidWordmark()
                 .padding(.top, 30)
-            heroCard.padding(.top, 22)
-            if liveSessionsBeta {
-                liveSessionStartRow.padding(.top, 10)
-            }
+                .padding(.bottom, 10)
         }
     }
 
@@ -438,22 +488,34 @@ struct LiquidTodayView: View {
     private var heroCard: some View {
         HStack(alignment: .top, spacing: 4) {
             HeroScoreCell(label: String(localized: "Charge"), score: displayDay?.recovery, tint: StrandPalette.chargeColor,
-                          pill: "WHOOP", animated: dataLoaded, onGuide: { guideSection = .charge })
+                          animated: dataLoaded, onGuide: { guideSection = .charge })
             // #45: the hero Effort must honour the user's Effort scale like every other Effort read-out.
             // Show the value on the chosen scale (0–100 or WHOOP 0–21) with the matching vessel max, and
             // one decimal on the compressed 0–21 axis to match the app-wide `effortDisplay` convention
             // (12.6, not a rounded "13"); the 0–100 hero stays a whole number as before.
             HeroScoreCell(label: String(localized: "Effort"),
                           score: displayDay?.strain.map { UnitFormatter.effortValue($0, scale: effortScale) },
-                          tint: StrandPalette.effortColor, pill: nil, animated: dataLoaded,
+                          tint: StrandPalette.effortColor, animated: dataLoaded,
                           onGuide: { guideSection = .effort },
                           maxValue: effortScale == .whoop ? 21 : 100,
                           decimals: effortScale == .whoop ? 1 : 0)
             HeroScoreCell(label: String(localized: "Rest"), score: restScore, tint: StrandPalette.restColor,
-                          pill: "WHOOP", animated: dataLoaded, onGuide: { guideSection = .rest })
+                          animated: dataLoaded, onGuide: { guideSection = .rest })
+                .overlay(alignment: .top) {
+                    if let sourceLabel = heroSourceLabel {
+                        SourceBadge("\(sourceLabel)", tint: StrandPalette.onDarkSecondary)
+                            // Match the badge's trailing edge to the fixed-width Rest vessel on every
+                            // card width, then lift its centre onto the card's top border.
+                            .fixedSize()
+                            .frame(width: HeroScoreCell.vesselDiameter, alignment: .trailing)
+                            .offset(y: -(NoopMetrics.space4 + NoopMetrics.sourceBadgeHeight / 2))
+                            .allowsHitTesting(false)
+                            .accessibilityLabel(Text("Source: \(sourceLabel)"))
+                    }
+                }
         }
-        .padding(.vertical, 16)
-        .padding(.horizontal, 12)
+        .padding(.vertical, NoopMetrics.space4)
+        .padding(.horizontal, NoopMetrics.space3)
         .background(
             RoundedRectangle(cornerRadius: 26, style: .continuous)
                 .fill(heroFill)
@@ -699,20 +761,56 @@ struct LiquidTodayView: View {
 
     // MARK: - Key metrics grid
 
+    /// The chosen detailed-graph window's oldest day key (2 days / 1 week / 2 weeks ending on the
+    /// selected day). The loader banks a 14-day superset; render filters down so a window change in the
+    /// editor applies instantly, no reload.
+    private var sparkWindowCutoffKey: String {
+        let days = (keyMetricsWindowDays == 2 || keyMetricsWindowDays == 7) ? keyMetricsWindowDays : 14
+        let cal = Calendar.current
+        let anchor = cal.startOfDay(for: selectedLogicalDay)
+        return Repository.localDayKey(cal.date(byAdding: .day, value: -(days - 1), to: anchor) ?? anchor)
+    }
+
+    /// A metric's spark values inside the chosen window, oldest → newest.
+    private func windowedSpark(_ key: String) -> [Double] {
+        let cutoff = sparkWindowCutoffKey
+        return (kSparks[key] ?? []).filter { $0.0 >= cutoff }.map { $0.1 }
+    }
+
+    /// The Key-Metrics header's trailing label for the chosen detailed-graph window (Android twin).
+    private var trendWindowLabel: String {
+        switch keyMetricsWindowDays {
+        case 2: return String(localized: "2-day trend")
+        case 7: return String(localized: "7-day trend")
+        default: return String(localized: "14-day trend")
+        }
+    }
+
     private var keyMetricsSection: some View {
-        // HRV / Rest HR tiles share the recovery vitals' per-field today-first carry so they don't blank at
-        // the rollover while Recovery/Strain/Sleep stay strictly today's own (they are scored surfaces).
+        // HRV / Rest HR (+ Blood Oxygen / Respiratory) tiles share the recovery vitals' per-field
+        // today-first carry so they don't blank at the rollover while Recovery/Strain/Rest stay strictly
+        // today's own (they are scored surfaces).
         let hrv = displayDay?.avgHrv ?? vitalsDay?.avgHrv
         let rhr = (displayDay?.restingHr ?? vitalsDay?.restingHr).map(Double.init)
         return VStack(spacing: 8) {
-            sectionHead("KEY METRICS", trailing: "14-day trend")
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                sectionHead("KEY METRICS", trailing: trendWindowLabel)
+                // #430 parity: the SAME editor the classic grid uses — selection + order + Detailed tiles.
+                Button { showKeyMetricsEditor = true } label: {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(StrandPalette.accent)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Edit Key Metrics")
+            }
+            // #430 parity: the grid honours the Key-Metrics editor (selection + order, all ten metrics)
+            // instead of a hard-coded six — the bespoke Sleep-hours ktile gives way to the shared REST
+            // score tile, aligning the liquid grid with the classic macOS grid and Android.
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
-                ktile(String(localized: "Recovery"), intText(displayDay?.recovery), "%", StrandPalette.chargeColor, frac(displayDay?.recovery))
-                ktile(String(localized: "Strain"), intText(displayDay?.strain), "%", StrandPalette.effortColor, frac(displayDay?.strain))
-                ktile(String(localized: "Sleep"), sleepText, "", StrandPalette.restColor, fracOver(displayDay?.totalSleepMin, 480))
-                ktile(String(localized: "HRV"), intText(hrv), "ms", StrandPalette.metricCyan, fracOver(hrv, 120))
-                ktile(String(localized: "Rest HR"), intText(rhr), "bpm", StrandPalette.metricRose, fracOver(rhr, 100))
-                ktile(String(localized: "Steps"), stepsText, "", StrandPalette.chargeColor, fracOver(stepCount, 10000))
+                ForEach(enabledKeyMetrics) { metric in
+                    ktileFor(metric, hrv: hrv, rhr: rhr)
+                }
             }
             NavigationLink(value: TabRoute.metricExplorer) {
                 Text("Show all metrics").font(StrandFont.subhead).foregroundStyle(StrandPalette.accent)
@@ -722,8 +820,41 @@ struct LiquidTodayView: View {
         }
     }
 
-    private func ktile(_ label: String, _ value: String, _ unit: String, _ tint: Color, _ frac: Double?) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+    /// One editor-selected Key-Metric tile: the metric's value/tint/fill exactly as the old hard-coded
+    /// tiles read them (Android's descriptor map is the twin), plus the metric-catalog `key` that names
+    /// both its 14-day spark series and its tap-through detail. Weight has no liquid value source yet —
+    /// its tile reads "—" but still taps through to the weight trend detail (which has its own series).
+    @ViewBuilder
+    private func ktileFor(_ metric: KeyMetric, hrv: Double?, rhr: Double?) -> some View {
+        switch metric {
+        case .charge:
+            ktile(String(localized: "Recovery"), intText(displayDay?.recovery), "%", StrandPalette.chargeColor, frac(displayDay?.recovery), key: "recovery")
+        case .effort:
+            ktile(String(localized: "Strain"), intText(displayDay?.strain), "%", StrandPalette.effortColor, frac(displayDay?.strain), key: "strain")
+        case .rest:
+            ktile(String(localized: "Rest"), intText(restScore), "%", StrandPalette.restColor, frac(restScore), key: "sleep_performance")
+        case .hrv:
+            ktile("HRV", intText(hrv), "ms", StrandPalette.metricCyan, fracOver(hrv, 120), key: "hrv")
+        case .restingHr:
+            ktile(String(localized: "Rest HR"), intText(rhr), "bpm", StrandPalette.metricRose, fracOver(rhr, 100), key: "rhr")
+        case .bloodOxygen:
+            let spo2 = displayDay?.spo2Pct ?? vitalsDay?.spo2Pct
+            ktile(String(localized: "Blood Oxygen"), intText(spo2), "%", StrandPalette.metricCyan, fracOver(spo2, 100), key: "spo2")
+        case .respiratory:
+            let resp = displayDay?.respRateBpm ?? vitalsDay?.respRateBpm
+            ktile(String(localized: "Respiratory"), resp.map { String(format: "%.1f", $0) } ?? "—", "rpm", StrandPalette.accent, fracOver(resp, 24), key: "resp_rate")
+        case .steps:
+            ktile(String(localized: "Steps"), stepsText, "", StrandPalette.chargeColor, fracOver(stepCount, 10000), key: "steps")
+        case .weight:
+            ktile(String(localized: "Weight"), "—", "", StrandPalette.metricAmber, nil, key: "weight")
+        case .calories:
+            ktile(String(localized: "Calories"), intText(displayDay?.activeKcalEst), "kcal", StrandPalette.metricAmber, fracOver(displayDay?.activeKcalEst, 800), key: "energy_kcal")
+        }
+    }
+
+    private func ktile(_ label: String, _ value: String, _ unit: String, _ tint: Color, _ frac: Double?,
+                       key: String? = nil) -> some View {
+        let tile = VStack(alignment: .leading, spacing: 6) {
             Text(label.uppercased()).font(StrandFont.overlineScaled(9)).tracking(1.2)
                 .foregroundStyle(StrandPalette.textTertiary)
             (Text(value).font(StrandFont.number(17))
@@ -732,6 +863,22 @@ struct LiquidTodayView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             LiquidTube(frac: frac ?? 0, tint: tint, height: 8, animated: false)
+            // #430 parity: DETAILED tiles grow the trend graph under the bar, tinted to the metric and
+            // windowed to the editor's 2-day / 1-week / 2-week choice (the Android twin). A metric with no
+            // windowed series keeps a clear placeholder of the same height so every tile in a detailed row
+            // stays equal-height with its bars aligned.
+            if keyMetricsDetailed {
+                let spark = key.map { windowedSpark($0) } ?? []
+                if spark.count >= 2 {
+                    Sparkline(values: spark,
+                              gradient: Gradient(colors: [tint.opacity(0.5), tint]))
+                        .frame(height: 22)
+                        .padding(.top, 6)
+                        .accessibilityHidden(true)
+                } else {
+                    Color.clear.frame(height: 22).padding(.top, 6)
+                }
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 11)
@@ -743,6 +890,16 @@ struct LiquidTodayView: View {
                     .strokeBorder(StrandPalette.hairline, lineWidth: 1))
                 .opacity(cardOpacity)
         )
+        // #430 parity: tap -> the metric's trend detail (the same Explore dossier its MetricRow pushes,
+        // closure-based NavigationLink per #38). A metric with no catalog entry stays inert.
+        return Group {
+            if let key, let metric = MetricCatalog.all.first(where: { $0.key == key }) {
+                NavigationLink { MetricDetailView(metric: metric) } label: { tile }
+                    .buttonStyle(.plain)
+            } else {
+                tile
+            }
+        }
     }
 
     // MARK: - Last workouts
@@ -861,6 +1018,16 @@ struct LiquidTodayView: View {
         async let stepsA = repo.exploreSeries(key: "steps_est", source: "my-whoop")
         async let hrA = repo.hrBuckets(from: from, to: to, bucketSeconds: 300)
         async let wkA = repo.workoutRows()
+        // Ask the same cross-source resolver the Classic Today view uses which source actually won each
+        // displayed score. Limit the read to the selected-day window instead of scanning full history.
+        let sourceDayKey = selectedDayKey
+        let sourceLookback = max(2, selectedDayOffset + 2)
+        async let chargeSourceA = repo.resolvedSeries(key: "recovery", source: Repository.whoopSource,
+                                                      days: sourceLookback)
+        async let effortSourceA = repo.resolvedSeries(key: "strain", source: Repository.whoopSource,
+                                                      days: sourceLookback)
+        async let restSourceA = repo.resolvedSeries(key: "sleep_performance", source: Repository.whoopSource,
+                                                    days: sourceLookback)
 
         let restSeries = await restA
         let restByDay = Dictionary(restSeries.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
@@ -877,6 +1044,25 @@ struct LiquidTodayView: View {
         // history doesn't stutter the UI. Snapshot the inputs (value types) into the detached task.
         let storedStress = await stressA
         let daysSnapshot = repo.days
+
+        // #430 parity: the day-keyed series the DETAILED Key-Metrics tiles graph — a trailing CALENDAR
+        // window ending on the selected day (not the last-N stored rows, which on an old import showed
+        // months-old data as a fresh trend, issue #23). The loader banks the 14-day SUPERSET; the chosen
+        // 2-day/1-week/2-week window filters at render (windowedSpark), so a picker change applies without
+        // a reload. Keys mirror the metric catalog so a tile's graph, its tap-through detail and Android's
+        // Window all read the same signal. Rest reuses the already-loaded sleep_performance series.
+        let sparkCutoff = Repository.localDayKey(cal.date(byAdding: .day, value: -13, to: dayStart) ?? dayStart)
+        let sparkRows = daysSnapshot.filter { $0.day >= sparkCutoff && $0.day <= selectedDayKey }
+        kSparks = [
+            "recovery": sparkRows.compactMap { r in r.recovery.map { (r.day, $0) } },
+            "strain": sparkRows.compactMap { r in r.strain.map { (r.day, $0) } },
+            "hrv": sparkRows.compactMap { r in r.avgHrv.map { (r.day, $0) } },
+            "rhr": sparkRows.compactMap { r in r.restingHr.map { (r.day, Double($0)) } },
+            "spo2": sparkRows.compactMap { r in r.spo2Pct.map { (r.day, $0) } },
+            "resp_rate": sparkRows.compactMap { r in r.respRateBpm.map { (r.day, $0) } },
+            "sleep_performance": restSeries.filter { $0.day >= sparkCutoff && $0.day <= selectedDayKey }
+                .map { ($0.day, $0.value) },
+        ]
         stress = await Task.detached(priority: .utility) {
             StressModel(days: daysSnapshot, stored: storedStress)?.score
         }.value
@@ -891,6 +1077,20 @@ struct LiquidTodayView: View {
         hrValues = (await hrA).map { $0.bpm }
         workouts = await wkA
 
+        let (chargeSource, effortSource, restSource) = await (chargeSourceA, effortSourceA, restSourceA)
+        let sourceResolutions = [
+            ("recovery", chargeSource),
+            ("strain", effortSource),
+            ("sleep_performance", restSource),
+        ]
+        var provenance: [String: String] = [:]
+        for (metric, resolution) in sourceResolutions {
+            if let winner = resolution.points.last(where: { $0.day == sourceDayKey })?.source {
+                provenance[metric] = winner
+            }
+        }
+        heroProvenanceByMetric = provenance
+
         // First load done — bring the hero gauges + sky to life now the launch churn has settled.
         if !dataLoaded { withAnimation(.easeIn(duration: 0.4)) { dataLoaded = true } }
     }
@@ -902,6 +1102,28 @@ struct LiquidTodayView: View {
     /// before the first load() populates the cache.
     private var readiness: ReadinessEngine.Readiness {
         cachedReadiness ?? ReadinessEngine.evaluate(days: repo.days, today: cachedDisplayDay?.day)
+    }
+
+    /// One card-level provenance label. Identical winners collapse to one name; mixed scores show at most
+    /// two distinct winners in Charge / Effort / Rest order so the compact badge stays readable.
+    private var heroSourceLabel: String? {
+        Self.heroSourceLabel(
+            rawSources: ["recovery", "strain", "sleep_performance"].compactMap { heroProvenanceByMetric[$0] },
+            deviceId: repo.deviceId)
+    }
+
+    /// Pure aggregation seam for the Liquid hero. The existing Today mapper turns computed siblings into
+    /// "On-device", the Apple Health source into "Apple Watch", and imported strap rows into "Whoop".
+    static func heroSourceLabel(rawSources: [String], deviceId: String) -> String? {
+        var seen = Set<String>()
+        var labels: [String] = []
+        for raw in rawSources {
+            let label = TodayView.todayProvenanceChipLabel(
+                rawSource: raw, deviceId: deviceId, appleHealthSource: Repository.appleHealthSource)
+            if seen.insert(label).inserted { labels.append(label) }
+            if labels.count == 2 { break }
+        }
+        return labels.isEmpty ? nil : labels.joined(separator: " + ")
     }
 
     private var readinessWord: String? {
@@ -1081,10 +1303,11 @@ private struct LiquidWordmark: View {
 /// COUNTS UP to the value when data lands; tapping the gauge itself splashes (the number is
 /// hit-transparent so the tap reaches the vessel). The label row taps through to the scoring guide.
 private struct HeroScoreCell: View {
+    static let vesselDiameter: CGFloat = 96
+
     let label: String
     let score: Double?            // on whatever scale the caller passes (nil = no data yet)
     let tint: Color
-    let pill: String?
     let animated: Bool
     let onGuide: () -> Void
     // The scale `score` is already expressed on — 100 for Charge/Rest, or the user's chosen Effort scale
@@ -1102,7 +1325,7 @@ private struct HeroScoreCell: View {
         VStack(spacing: 7) {
             ZStack {
                 LiquidVessel(value: frac, tint: tint, animated: animated)
-                    .frame(width: 96, height: 96)
+                    .frame(width: Self.vesselDiameter, height: Self.vesselDiameter)
                 Group {
                     if score != nil {
                         CountUpNumber(value: shown, font: StrandFont.rounded(26), decimals: decimals)
@@ -1131,18 +1354,6 @@ private struct HeroScoreCell: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(Text("\(label), \(score.map { decimals > 0 ? String(format: "%.\(decimals)f", $0) : String(Int($0.rounded())) } ?? String(localized: "no data yet")). See how it is scored."))
-            if let pill {
-                Text(pill)
-                    .font(StrandFont.overlineScaled(8.5)).tracking(1.2)
-                    .lineLimit(1).minimumScaleFactor(0.8)   // #74: source pill never wraps the hero card
-                    // WHOOP pill on the pinned-dark hero card → on-dark token, not the theme-flipping one (#1013).
-                    .foregroundStyle(StrandPalette.onDarkSecondary)
-                    .padding(.horizontal, 8).padding(.vertical, 2.5)
-                    .background(Capsule().fill(.white.opacity(0.05))
-                        .overlay(Capsule().strokeBorder(.white.opacity(0.18), lineWidth: 1)))
-            } else {
-                Color.clear.frame(height: 18) // keep the three labels vertically aligned
-            }
         }
         .frame(maxWidth: .infinity)
         .onAppear { rollTo(score) }
@@ -1159,6 +1370,51 @@ private struct HeroScoreCell: View {
 // MARK: - Scene controls (LiveState-isolated leaves)
 
 /// Quick-actions "+" button. Tap → the shell's quick-action menu.
+/// #today-layout: the Arrange sheet — reorder the Today sections by dragging rows (SwiftUI's native
+/// `onMove`; the always-active edit mode on iOS shows the reorder handles without an Edit button). Writes
+/// straight through to the persisted order, so Today re-lays-out live behind the sheet. Reset restores the
+/// default order. Twin of the Android TodayLayoutEditorDialog over the byte-identical "today.sectionOrder".
+private struct TodayArrangeSheet: View {
+    @Binding var orderRaw: String
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        let order = TodayLayoutPrefs.decodeOrder(orderRaw)
+        NavigationStack {
+            List {
+                ForEach(order) { section in
+                    Text(section.title)
+                        .font(StrandFont.body)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                }
+                .onMove { from, to in
+                    var next = order
+                    next.move(fromOffsets: from, toOffset: to)
+                    orderRaw = TodayLayoutPrefs.encode(next)
+                }
+            }
+            .navigationTitle("Arrange Today")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            // Always-active edit mode: the rows carry their reorder handles immediately — hold and drag —
+            // with no Edit-button dance. (macOS Lists drag-reorder natively with onMove.)
+            .environment(\.editMode, .constant(.active))
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Reset") { orderRaw = "" }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+        #if os(macOS)
+        .frame(minWidth: 340, minHeight: 420)
+        #endif
+    }
+}
+
 private struct LiquidAddButton: View {
     @EnvironmentObject var router: NavRouter
     var body: some View {

@@ -78,6 +78,8 @@ class GattCrashSafetyTest {
             rrRecent = listOf(820, 815, 810),
             batteryPct = 64.0,
             charging = true,
+            strapFirmware = "41.17.6.0",
+            historyLayoutVersion = 25,
             backfilling = true,
             syncChunksThisSession = 12,
         )
@@ -97,6 +99,8 @@ class GattCrashSafetyTest {
         assertEquals(0, after.syncChunksThisSession)
         // A stale charging flag must not outlive the link.
         assertNull(after.charging)
+        assertNull(after.strapFirmware)
+        assertNull(after.historyLayoutVersion)
     }
 
     @Test

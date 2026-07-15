@@ -511,6 +511,25 @@ public final class BLEManager: NSObject, ObservableObject {
     // The timer fires this often, but BackfillPolicy.periodicFloorSeconds is the real floor (a recent
     // event-triggered sync defers the next periodic tick). 900s = 15 min, matching WHOOP.
     static let backfillIntervalSeconds = 900
+    /// #477: stretched offload cadence while low on power (45 min). The strap banks to flash meanwhile,
+    /// so this only delays sync (larger batches), never loses data. Mirrors Android
+    /// `LOW_BATTERY_BACKFILL_INTERVAL_MS`.
+    static let lowBatteryBackfillIntervalSeconds = 2700
+
+    /// Pure battery-adaptive gate (#477), the twin of Android `WhoopBleClient.idleThrottleActive`.
+    /// Armed by `thresholdPct` > 0; once armed and while discharging it engages at/below `thresholdPct`
+    /// OR when the OS is saving power (`powerSave`). `thresholdPct` <= 0 / charging never engages.
+    static func lowPowerThrottleActive(batteryPct: Int, charging: Bool, thresholdPct: Int, powerSave: Bool) -> Bool {
+        thresholdPct > 0 && !charging && (batteryPct <= thresholdPct || powerSave)
+    }
+
+    /// Pure offload-interval decision (#477), the twin of Android `offloadIntervalMsFor`.
+    static func offloadInterval(baseSeconds: Int, lowSeconds: Int,
+                                batteryPct: Int, charging: Bool, thresholdPct: Int, powerSave: Bool) -> Int {
+        lowPowerThrottleActive(batteryPct: batteryPct, charging: charging, thresholdPct: thresholdPct, powerSave: powerSave)
+            ? max(baseSeconds, lowSeconds) : baseSeconds
+    }
+
     /// Keep-alive: re-arm realtime, poll battery, and bounce a stalled link so streaming
     /// never silently dies. Started on bond, cancelled on disconnect.
     private var keepAliveTimer: DispatchSourceTimer?
@@ -534,6 +553,14 @@ public final class BLEManager: NSObject, ObservableObject {
     /// preference intent; the effective want is window-gated through `continuousCaptureWantsNow()` when
     /// "overnight only" is on, re-derived at every arm site.
     private var keepRealtimeForData = false
+    /// #477 battery (parity with Android): battery-% at/below which the periodic offload cadence stretches
+    /// to `lowBatteryBackfillIntervalSeconds` while low on power (0 = off), and whether to pause the
+    /// background continuous-HRV stream under Low Power Mode. Both are benign (no link risk). Set from
+    /// Settings via `setLowBatteryOffloadThrottle`/`setPauseCaptureOnPowerSave`.
+    private var lowBatteryOffloadPct = 0
+    /// Battery-% at/below which the continuous-HRV pause engages while low on power (0 = off) — like the
+    /// offload lever, it also engages under Low Power Mode.
+    private var pauseCaptureBatteryPct = 0
     /// Derived want: the (heavy) realtime stream should be armed while EITHER a screen wants it OR the
     /// continuous-capture preference wants it. Keep-alive re-arms it; the post-bond branch arms it on
     /// connect. Recomputed only inside `reconcileRealtime()`.
@@ -633,6 +660,10 @@ public final class BLEManager: NSObject, ObservableObject {
     private lazy var puffinRecorder = PuffinFrameRecorder(state: state)
     private lazy var puffinEventLog = PuffinEventLog()
 
+    /// Durable log of the WHOOP 5/MG high-rate R22 deep buffers (type-0x2F ≥ 1 KB) for #423 reverse-
+    /// engineering. Gated on the same capture toggle; no-op otherwise.
+    private lazy var puffinDeepBufferLog = PuffinDeepBufferLog()
+
     /// Force the puffin capture buffer to disk so the Settings export/reveal targets a current file.
     public func flushPuffinCaptures() { puffinRecorder.flush() }
 
@@ -666,6 +697,11 @@ public final class BLEManager: NSObject, ObservableObject {
     /// unsupported) that `centralManagerDidUpdateState` set. Lets the poweredOn transition clear ONLY
     /// that message, never a genuine mid-sync error (e.g. "Sync interrupted").
     private var radioStateErrorShown = false
+    /// #391: pending one-shot escalation armed when the central reports `.unauthorized` while the TCC
+    /// grant reads as granted (the macOS cold-start settling window). Canceled by ANY later state
+    /// callback (the settle resolved); if it fires instead, the state never settled — the wedged-grant
+    /// shape (#429) — and the #295 re-grant banner is shown after all.
+    private var unauthorizedSettleWork: DispatchWorkItem?
     private var cmdCharacteristic: CBCharacteristic?
     private var cmdNotifyCharacteristic: CBCharacteristic?
     private var eventNotifyCharacteristic: CBCharacteristic?
@@ -2025,6 +2061,49 @@ public final class BLEManager: NSObject, ObservableObject {
         reconcileRealtime()
     }
 
+    /// #477 (Settings): battery-% at/below which the offload cadence stretches while discharging (0 = off).
+    /// Applies on the next re-arm; a live sync in flight is never interrupted.
+    public func setLowBatteryOffloadThrottle(_ thresholdPct: Int) {
+        lowBatteryOffloadPct = thresholdPct
+    }
+
+    /// #477 (Settings): pause the background continuous-HRV stream while power-saving. Battery-%-aware
+    /// like the offload lever — pass the same threshold; engages at/below it OR under Low Power Mode
+    /// (0 = off). Reconciles now.
+    public func setPauseCaptureOnPowerSave(_ enabled: Bool, thresholdPct: Int) {
+        pauseCaptureBatteryPct = enabled ? thresholdPct : 0
+        reconcileRealtime()
+    }
+
+    /// #477: is the OS saving power (Low Power Mode)? The iOS analog of Android's Battery Saver; also on
+    /// macOS 12+. An additional trigger for an already-armed lever.
+    private func powerSaveActive() -> Bool { ProcessInfo.processInfo.isLowPowerModeEnabled }
+
+    /// #477: current (battery-%, isCharging). iOS reads `UIDevice`; macOS has no per-app battery API here,
+    /// so it returns (100, false) — the %-threshold then never engages and only Low Power Mode does.
+    private func batteryPctAndCharging() -> (pct: Int, charging: Bool) {
+        #if os(iOS)
+        let dev = UIDevice.current
+        dev.isBatteryMonitoringEnabled = true
+        let lvl = dev.batteryLevel   // 0...1, or -1 when unknown
+        let charging = dev.batteryState == .charging || dev.batteryState == .full
+        return (lvl >= 0 ? Int((lvl * 100).rounded()) : 100, charging)
+        #else
+        return (100, false)
+        #endif
+    }
+
+    /// The next periodic-offload interval — normally `backfillIntervalSeconds`, stretched when low on
+    /// power (#477). Reads the battery snapshot only when the lever is armed (threshold > 0).
+    private func nextBackfillInterval() -> Int {
+        guard lowBatteryOffloadPct > 0 else { return BLEManager.backfillIntervalSeconds }
+        let (pct, charging) = batteryPctAndCharging()
+        return BLEManager.offloadInterval(
+            baseSeconds: BLEManager.backfillIntervalSeconds,
+            lowSeconds: BLEManager.lowBatteryBackfillIntervalSeconds,
+            batteryPct: pct, charging: charging, thresholdPct: lowBatteryOffloadPct, powerSave: powerSaveActive())
+    }
+
     /// #927: the continuous-capture side of the realtime want, window-gated. True while the "Continuous
     /// HRV capture" preference wants the stream held open AND, when "overnight only" is on, the local
     /// wall clock sits inside the nightly window (the reused quiet-hours window, 22:00 → 07:00 by
@@ -2033,6 +2112,18 @@ public final class BLEManager: NSObject, ObservableObject {
     /// Mirrors the Android `continuousCaptureWantsNow`.
     private func continuousCaptureWantsNow(now: Date = Date()) -> Bool {
         guard keepRealtimeForData else { return false }
+        // #477: while power saving is ACTIVE (battery ≤ threshold or Low Power Mode), release the
+        // held-open background stream — battery-%-aware like the offload lever, via the shared
+        // lowPowerThrottleActive gate. A Live screen still arms it via screenWantsRealtime (checked
+        // separately in reconcileRealtime). The keep-alive re-derives this, so it re-arms automatically
+        // once off power save.
+        if pauseCaptureBatteryPct > 0 {
+            let (pct, charging) = batteryPctAndCharging()
+            if BLEManager.lowPowerThrottleActive(batteryPct: pct, charging: charging,
+                                                 thresholdPct: pauseCaptureBatteryPct, powerSave: powerSaveActive()) {
+                return false
+            }
+        }
         let comps = Calendar.current.dateComponents([.hour, .minute], from: now)
         let minuteOfDay = (comps.hour ?? 0) * 60 + (comps.minute ?? 0)
         let d = UserDefaults.standard
@@ -2405,9 +2496,11 @@ public final class BLEManager: NSObject, ObservableObject {
 
     private func startBackfillTimer() {
         backfillTimer?.cancel()
-        let interval = BLEManager.backfillIntervalSeconds
+        // #477: one-shot, re-armed by triggerPeriodicBackfill() with a fresh (battery-adaptive) interval
+        // each tick — so the cadence can stretch/relax as power state changes (was a fixed repeating timer).
+        let interval = nextBackfillInterval()
         let t = DispatchSource.makeTimerSource(queue: .main)
-        t.schedule(deadline: .now() + .seconds(interval), repeating: .seconds(interval))
+        t.schedule(deadline: .now() + .seconds(interval))
         t.setEventHandler { [weak self] in self?.triggerPeriodicBackfill() }
         t.resume()
         backfillTimer = t
@@ -2440,6 +2533,7 @@ public final class BLEManager: NSObject, ObservableObject {
     /// Periodic-timer callback: routes through the rate-limited requestSync entry point.
     private func triggerPeriodicBackfill() {
         requestSync(.periodic)
+        startBackfillTimer()   // #477: re-arm with a fresh battery-adaptive interval (one-shot timer)
     }
 
     /// User-tappable "Sync now" (#364): kick a historical offload IMMEDIATELY, bypassing the 15-min
@@ -2810,8 +2904,73 @@ public final class BLEManager: NSObject, ObservableObject {
 
 // MARK: - CBCentralManagerDelegate
 extension BLEManager: @preconcurrency CBCentralManagerDelegate {
+    /// What `centralManagerDidUpdateState` should do about an `.unauthorized` central state, decided
+    /// from the TCC grant (`CBManager.authorization`) rather than the transient central state alone.
+    /// Pure and stateless so the #391 discrimination is pinnable by a unit test without CoreBluetooth
+    /// plumbing. Design from digitalerdude's #407; test seam per tigercraft4's #407 review.
+    enum UnauthorizedAction: Equatable {
+        /// The grant itself reads denied/restricted — a genuine denial; latch the #280/#295 banner now.
+        case showRegrantBanner
+        /// The grant reads granted (or undecided): the macOS cold-start settling window (#391), or a
+        /// first-run prompt still on screen. Wait — but under a settle deadline (see
+        /// `armUnauthorizedSettleDeadline`), because a WEDGED grant (#429: an unsigned build's stale
+        /// TCC row) presents exactly the same way and never settles.
+        case waitForSettle
+    }
+
+    static func unauthorizedAction(_ authorization: CBManagerAuthorization) -> UnauthorizedAction {
+        switch authorization {
+        case .denied, .restricted: return .showRegrantBanner
+        default: return .waitForSettle
+        }
+    }
+
+    /// How long an apparently-transient `.unauthorized` may sit unresolved before it is treated as a
+    /// wedged grant (#429) and the re-grant banner shows anyway. The #391 reporter's cold-start settle
+    /// took ~40 s (unauthorized 14:51:44 → poweredOn 14:52:25), so 120 s clears the observed case with
+    /// a wide margin while still surfacing the wedged case in a bounded time instead of never.
+    static let unauthorizedSettleSeconds = 120
+
+    /// The #280/#295 "re-grant Bluetooth" banner, verbatim. One home so the immediate genuine-denial
+    /// path and the #391 settle-deadline escalation can never drift apart.
+    private func showBluetoothRegrantBanner() {
+        // #295: an unsigned/ad-hoc build's code identity changes on every release, so a Bluetooth
+        // toggle that already reads "on" from a PRIOR build's grant may not carry over — the
+        // message needs to tell the user to re-toggle it, not just check that it's on.
+        #if os(macOS)
+        state.lastSyncError = "NOOP isn't allowed to use Bluetooth. Open System Settings → Privacy & Security → Bluetooth — if NOOP is already listed there, toggle it off and back on (a new NOOP build needs a fresh grant), then quit and reopen NOOP."
+        #else
+        state.lastSyncError = "NOOP isn't allowed to use Bluetooth. Open iPhone Settings → NOOP → Bluetooth — if it's already on, toggle it off and back on, then quit and reopen NOOP."
+        #endif
+        log("Bluetooth permission not granted (unauthorized) — cannot scan or connect")
+        radioStateErrorShown = true
+    }
+
+    /// #391 escalation: the transient-looking `.unauthorized` gets `unauthorizedSettleSeconds` to
+    /// resolve (every real settle produces another state callback, which cancels this). If it fires,
+    /// the state is STILL unauthorized with a granted TCC read — the wedged-grant shape (#429), where
+    /// staying silent would strand the user with no explanation at all — so show the re-grant banner,
+    /// whose off/on-toggle instruction is exactly the wedged case's fix.
+    private func armUnauthorizedSettleDeadline() {
+        unauthorizedSettleWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.unauthorizedSettleWork = nil
+            guard self.central?.state == .unauthorized else { return }
+            self.log("Central still unauthorized \(BLEManager.unauthorizedSettleSeconds)s after a granted TCC read — not cold-start settling (#391); treating as a wedged grant (#429) and showing the re-grant banner")
+            self.showBluetoothRegrantBanner()
+        }
+        unauthorizedSettleWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(BLEManager.unauthorizedSettleSeconds), execute: work)
+    }
+
     public func centralManagerDidUpdateState(_ central: CBCentralManager) {
         log("Central state: \(central.state.rawValue) (5 = poweredOn)")
+        // #391: ANY state update means the cold-start settling window moved on — a pending
+        // unauthorized-settle escalation is obsolete whether the new state is good news (poweredOn)
+        // or its own banner-worthy case (poweredOff handles itself below).
+        unauthorizedSettleWork?.cancel()
+        unauthorizedSettleWork = nil
         guard central.state == .poweredOn else {
             // #280: a non-poweredOn radio state used to be a SILENT return — the strap log showed only
             // "Central state: 3" and the UI just read "not connected", so a user whose Mac had denied NOOP
@@ -2824,16 +2983,24 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
             // iOS+macOS up to that parity rather than adding a new behaviour.
             switch central.state {
             case .unauthorized:
-                // #295: an unsigned/ad-hoc build's code identity changes on every release, so a Bluetooth
-                // toggle that already reads "on" from a PRIOR build's grant may not carry over — the
-                // message needs to tell the user to re-toggle it, not just check that it's on.
-                #if os(macOS)
-                state.lastSyncError = "NOOP isn't allowed to use Bluetooth. Open System Settings → Privacy & Security → Bluetooth — if NOOP is already listed there, toggle it off and back on (a new NOOP build needs a fresh grant), then quit and reopen NOOP."
-                #else
-                state.lastSyncError = "NOOP isn't allowed to use Bluetooth. Open iPhone Settings → NOOP → Bluetooth — if it's already on, toggle it off and back on, then quit and reopen NOOP."
-                #endif
-                log("Bluetooth permission not granted (unauthorized) — cannot scan or connect")
-                radioStateErrorShown = true
+                // #391 (design from digitalerdude's #407): CoreBluetooth on macOS can transiently report
+                // `.unauthorized` during the cold-start settling window (before the central finishes
+                // connecting to bluetoothd) even when the TCC grant is fine — the state then advances to
+                // .poweredOff/.poweredOn on the next callback and the strap connects. The `authorization`
+                // property reads the TCC grant DIRECTLY, independent of that transient state, so it can tell
+                // a genuine denial (#280/#295) from the settling case — latching the re-grant banner on ANY
+                // `.unauthorized` pushed users to toggle Bluetooth off/on to clear a false message. The
+                // settle path is NOT unbounded silence: a wedged grant (#429) presents identically and never
+                // settles, so it runs under `armUnauthorizedSettleDeadline`'s one-shot escalation.
+                // The CLASS property (`CBCentralManager.authorization`), not the `central.authorization`
+                // instance property — that one is deprecated on iOS (13.0 → 13.1); both read the same grant.
+                switch Self.unauthorizedAction(CBCentralManager.authorization) {
+                case .showRegrantBanner:
+                    showBluetoothRegrantBanner()
+                case .waitForSettle:
+                    log("Central reported unauthorized but the Bluetooth grant reads OK — transient cold-start settling (#391); re-grant banner deferred \(Self.unauthorizedSettleSeconds)s")
+                    armUnauthorizedSettleDeadline()
+                }
             case .poweredOff:
                 state.lastSyncError = "Bluetooth is off. Turn it on to connect to your strap."
                 log("Bluetooth is off — cannot scan or connect")
@@ -3091,6 +3258,7 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         resetCharacteristics()
         puffinRecorder.flush()   // persist any buffered puffin capture frames before reconnect
         puffinEventLog.close()   // release the event-log handle so the file is safe to export
+        puffinDeepBufferLog.close()   // same for the high-rate deep-buffer log (#423)
         Task { @MainActor in await collector?.flushStandardHR() }   // persist any buffered 0x2A37 HR
         if autoReconnectPausedForBondLoop {
             // #747: the bond keeps being refused, so auto-reconnect is paused: we stop hammering a strap that
@@ -3792,6 +3960,10 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                     // may be the only one that delivers a given record). Single byte compare when
                     // the frame is not an EVENT; no-op unless the capture toggle is on.
                     puffinEventLog.appendIfEvent(frame: frame, char: characteristic.uuid)
+                    // Durable log of the big high-rate R22 deep buffers (type-0x2F ≥ 1 KB) for #423
+                    // reverse-engineering — its own file the bulk-capture eviction never churns.
+                    // BEFORE the offload branch so it catches the burst; no-op unless capture is on.
+                    puffinDeepBufferLog.appendIfDeepBuffer(frame: frame, char: characteristic.uuid, isOffload: isOffload)
                     if isOffload {
                         // Same policy as WHOOP4: historical offload frames are bulk sync traffic.
                         // Keep them out of the live UI parser during backfill and let Backfiller

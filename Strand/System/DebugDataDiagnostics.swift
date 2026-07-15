@@ -89,20 +89,29 @@ enum DebugDataDiagnostics {
         lines.append(String(repeating: "─", count: 40))
         lines.append("Analytics funnels (latest night, best-effort)")
         let nowSec = Int(Date().timeIntervalSince1970)
-        guard let cs = await repo.sleepSessions(from: nowSec - 14 * 86400, to: nowSec, limit: 1).last else {
-            lines.append("(no sleep session in the last 14 days to analyze)")
-            return lines
-        }
         guard let store = await repo.storeHandle() else {
             lines.append("(on-device store not open yet)")
             return lines
         }
         let did = repo.deviceId
+        // Pick the MOST RECENT night that actually carries skin-temp — not the OLDEST in the window. The old
+        // `sleepSessions(…, limit: 1).last` returned the oldest session (ASC order), so a fresh gap night read
+        // "skin=0" and the funnel never saw a real night. Walk newest→oldest and stop at the first with skin.
+        let recent = await repo.sleepSessions(from: nowSec - 14 * 86400, to: nowSec, limit: 200)
+        guard let newest = recent.last else {
+            lines.append("(no sleep session in the last 14 days to analyze)")
+            return lines
+        }
+        var cs = newest
+        var skin: [SkinTempSample] = []
+        for s in recent.reversed() {
+            let sk = (try? await store.skinTempSamples(deviceId: did, from: s.startTs, to: s.endTs, limit: 200_000)) ?? []
+            if !sk.isEmpty { cs = s; skin = sk; break }
+        }
         let grav = (try? await store.gravitySamples(deviceId: did, from: cs.startTs, to: cs.endTs, limit: 200_000)) ?? []
         let hr = await repo.hrSamples(from: cs.startTs, to: cs.endTs, limit: 200_000)
         let rr = (try? await store.rrIntervals(deviceId: did, from: cs.startTs, to: cs.endTs, limit: 200_000)) ?? []
         let resp = (try? await store.respSamples(deviceId: did, from: cs.startTs, to: cs.endTs, limit: 200_000)) ?? []
-        let skin = (try? await store.skinTempSamples(deviceId: did, from: cs.startTs, to: cs.endTs, limit: 200_000)) ?? []
         lines.append("Night \(dayStamp(cs.startTs)): grav=\(grav.count) hr=\(hr.count) rr=\(rr.count) resp=\(resp.count) skin=\(skin.count)")
         if grav.isEmpty && hr.isEmpty {
             lines.append("(no raw biometric samples under '\(did)' for this night — expected on a freshly re-added strap; reconnect + let a history sync run, then re-export)")
@@ -116,7 +125,13 @@ enum DebugDataDiagnostics {
         let det = SleepSession(start: cs.startTs, end: cs.endTs, efficiency: cs.efficiency ?? 0,
                                stages: [], restingHR: cs.restingHr, avgHRV: cs.avgHrv)
         let family: DeviceFamily = (UserDefaults.standard.string(forKey: "selectedWhoopModel") == "whoop5") ? .whoop5 : .whoop4
-        lines.append(AnalyticsEngine.skinTempFunnel([det], hr: hr, skinTemp: skin, family: family).summary)
+        // Mirror the real per-device anchor (#404): learn it from the WHOLE recent window's raws — not just
+        // this night — so a single sparse night (<100 in-band) can't misreport under the global fallback when
+        // the window as a whole has enough in-band samples for analyzeDay to learn a device anchor.
+        let windowSkin = (try? await store.skinTempSamples(deviceId: did, from: nowSec - 14 * 86400, to: nowSec, limit: 200_000)) ?? []
+        let devAnchor = family == .whoop4 ? Whoop4SkinTemp.deviceAnchorRaw(windowSkin.map { $0.raw }) : nil
+        lines.append(AnalyticsEngine.skinTempFunnel([det], hr: hr, skinTemp: skin,
+                                                    family: family, anchorRaw: devAnchor).summary)
         return lines
     }
 

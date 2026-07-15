@@ -69,21 +69,29 @@ public enum ScoreConfidence: String, Equatable, Sendable, Codable {
     /// suspicious case — high efficiency (lots of measured sleep) but implausibly little restorative.
     public static let highEfficiencyThreshold: Double = 0.85
 
-    /// Rest confidence WITH the H9 stage-quality check. Starts from `rest(hasSession:hasStagedSleep:)`, then
-    /// DOWNGRADES a `.solid` tier to `.building` (low-confidence) when the night is high-efficiency yet its
-    /// restorative (deep+REM) share is below `restorativeLowConfidenceShare` — a likely staging miss, surfaced
-    /// honestly without inventing stages or distorting the Rest score. `asleepSeconds`/`restorativeSeconds`
-    /// are the night's totals; efficiency is asleep/in-bed in [0,1]. `.calibrating`/`.building` from the base
-    /// call are returned unchanged (you can't downgrade below building, and no-stage nights are already
-    /// flagged). Engine output only; the UI surfaces the tier later. (#H9)
+    /// Rest confidence WITH the H9 stage-quality check AND the sparse-motion guard. Starts from
+    /// `rest(hasSession:hasStagedSleep:)`, then DOWNGRADES a `.solid` tier to `.building` (low-confidence)
+    /// when EITHER:
+    ///  - the night was staged on SPARSE gravity (`gravitySparse`) — a WHOOP 4.0 synced/offload night banks
+    ///    motion coarsely, too sparse to reliably stage sleep (#345), so a confident 85–100 Rest is unearned
+    ///    however the engine filled the stages. This catches the case H9 MISSES: a sparse night whose staging
+    ///    manufactures HIGH efficiency AND HIGH restorative reads SOLID under H9 alone (the #319 signature),
+    ///    yet the underlying data can't support it; OR
+    ///  - the night is high-efficiency yet its restorative (deep+REM) share is below
+    ///    `restorativeLowConfidenceShare` — a likely staging miss (#H9).
+    /// `asleepSeconds`/`restorativeSeconds` are the night's totals; efficiency is asleep/in-bed in [0,1].
+    /// `.calibrating`/`.building` from the base call are returned unchanged. Confidence-only — never changes
+    /// the Rest score or invents stages. Engine output only; the UI surfaces the tier later. (#H9, #345)
     public static func rest(hasSession: Bool, hasStagedSleep: Bool,
                             asleepSeconds: Double, restorativeSeconds: Double,
-                            efficiency: Double) -> ScoreConfidence {
+                            efficiency: Double, gravitySparse: Bool = false) -> ScoreConfidence {
         let base = rest(hasSession: hasSession, hasStagedSleep: hasStagedSleep)
-        guard base == .solid, asleepSeconds > 0 else { return base }
+        if base != .solid { return base }
+        if gravitySparse { return .building }   // #345: sparse-motion staging can't earn a SOLID Rest
+        if asleepSeconds <= 0 { return base }
         let restorativeShare = restorativeSeconds / asleepSeconds
         if efficiency >= highEfficiencyThreshold && restorativeShare < restorativeLowConfidenceShare {
-            return .building   // high-efficiency night with near-zero deep+REM → low-confidence staging
+            return .building   // high-efficiency night with near-zero deep+REM → low-confidence staging (#H9)
         }
         return base
     }

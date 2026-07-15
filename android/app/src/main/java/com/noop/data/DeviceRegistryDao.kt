@@ -70,6 +70,7 @@ interface DeviceRegistryDao {
     @Query("DELETE FROM gravitySample WHERE deviceId = :deviceId") suspend fun deleteGravityFor(deviceId: String)
     @Query("DELETE FROM stepSample WHERE deviceId = :deviceId") suspend fun deleteStepsFor(deviceId: String)
     @Query("DELETE FROM ppgHrSample WHERE deviceId = :deviceId") suspend fun deletePpgHrFor(deviceId: String)
+    @Query("DELETE FROM ppgWaveformSample WHERE deviceId = :deviceId") suspend fun deletePpgWaveformFor(deviceId: String)
     @Query("DELETE FROM event WHERE deviceId = :deviceId") suspend fun deleteEventsFor(deviceId: String)
     @Query("DELETE FROM battery WHERE deviceId = :deviceId") suspend fun deleteBatteryFor(deviceId: String)
     @Query("DELETE FROM dailyMetric WHERE deviceId = :deviceId") suspend fun deleteDailyMetricsFor(deviceId: String)
