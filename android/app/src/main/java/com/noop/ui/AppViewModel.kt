@@ -48,7 +48,9 @@ import com.noop.protocol.CommandNumber
 import com.noop.widget.WidgetSnapshot
 import com.noop.widget.WidgetSnapshotStore
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -502,16 +504,34 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /**
+     * #386 self-heal: a "kick" the app-resume hook sends to wake the 15-min analyze loop early, so an
+     * OEM-killed overnight re-score tick catches up the moment the user opens NOOP instead of showing a
+     * stale Today card until the next sync/tick. The loop re-runs its EXISTING fingerprint-gated
+     * analyzeRecent — a cheap no-op when the HR stream is unchanged, a real catch-up when a kill left
+     * unscored data (the watermark only advances on a completed run). `recentDays` is a reactive Room
+     * flow, so the caught-up rows refresh the card on their own.
+     *
+     * A CONFLATED Channel, deliberately (NOT a replay=0 SharedFlow): a kick sent while the loop is busy
+     * scoring — outside its `receive()` window — is RETAINED and delivered on the next receive, so a
+     * resume that races the score is never dropped. Conflation coalesces rapid resumes to one wake, and
+     * `trySend` never suspends the main-thread resume callback.
+     */
+    private val analyzeKick = Channel<Unit>(Channel.CONFLATED)
+
+    /**
      * #78 hole-4: the app-foreground hook for the bond-loop salvage probe. Every activity resume runs
      * [WhoopBleClient.salvageProbeIfBondLoopPaused], which no-ops unless the #747 give-up pause is
      * latched AND its 10-minute floor has passed - so this is one cheap StateFlow read per resume in the
      * healthy case, and the self-heal path for a paused strap the user has since freed. Registered on the
      * Application (no lifecycle-process dependency needed); unregistered in [onCleared]. The iOS twin
-     * observes didBecomeActive inside BLEManager itself.
+     * observes didBecomeActive inside BLEManager itself. Also emits [analyzeKick] (#386 self-heal).
      */
     private val salvageProbeLifecycleCallbacks = object : Application.ActivityLifecycleCallbacks {
         override fun onActivityResumed(activity: android.app.Activity) {
             ble.salvageProbeIfBondLoopPaused()
+            // #386 self-heal: nudge the analyze loop so a night the killed overnight tick never scored is
+            // caught up now. Gated + coalesced downstream, so a healthy resume costs one fingerprint read.
+            analyzeKick.trySend(Unit)
         }
         override fun onActivityCreated(activity: android.app.Activity, savedInstanceState: android.os.Bundle?) {}
         override fun onActivityStarted(activity: android.app.Activity) {}
@@ -849,7 +869,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 if (_hcWriteback.value) {
                     runCatching { HealthConnectWriter.write(appContext, repository, deviceId) }
                 }
-                delay(ANALYZE_INTERVAL_MS) // 15 min, matches the offload cadence
+                // 15-min backstop cadence, but wake EARLY on an app-resume kick (#386 self-heal) so a
+                // night the overnight tick was killed before scoring catches up the moment the user opens
+                // NOOP. The next iteration's fingerprint gate makes an unnecessary wake a cheap no-op.
+                withTimeoutOrNull(ANALYZE_INTERVAL_MS) { analyzeKick.receive() }
             }
         }
 
