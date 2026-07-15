@@ -253,6 +253,13 @@ final class AICoachEngine: ObservableObject {
     private let repo: Repository
     private let session: URLSession
 
+    /// Closure `AppModel` wires right after constructing the engine, so the coach can read the LIVE
+    /// illness signal (`IllnessSignalEngine.Result`, already evaluated by `AppModel` off journal +
+    /// day-history confounder context) without the engine holding a reference to `AppModel` — mirrors
+    /// the `diagnosticSink` closure-wiring pattern `IntelligenceEngine` already uses. Returns nil until
+    /// the first evaluation runs, or when nothing anomalous has been detected.
+    var illnessSignalProvider: (() -> IllnessSignalEngine.Result?)?
+
     private static let providerKey = "ai.provider"
     private static let modelKey = "ai.model"
     private static let consentKey = "ai.dataConsent"
@@ -260,6 +267,10 @@ final class AICoachEngine: ObservableObject {
     private static let onDeviceSignalsKey = "ai.includeOnDeviceSignals"
     private static let memoryModelKey = "ai.memoryModel"
     private static let autoSummarizeKey = "ai.autoSummarize"
+    /// The logical day (rolls 04:00, same as the rest of the app) the last daily brief was generated on
+    /// for ANY conversation — so at most one auto-brief lands per day, and a conversation reopened after
+    /// a day boundary gets a fresh one instead of showing Monday's brief on Friday.
+    private static let lastBriefDayKey = "ai.lastBriefDay"
     /// UserDefaults key holding the user's EDITED system prompt. Absent (or blank) means "use the
     /// built-in default". Small text key, never a secret, so plain UserDefaults is fine. Read FRESH
     /// per request (see `systemPrompt`) so an edit takes effect on the very next message.
@@ -274,9 +285,14 @@ final class AICoachEngine: ObservableObject {
     HRV, resting heart rate) and recent workouts. Charge is the daily recovery/readiness score, effort \
     is the daily cardiovascular load score, and rest is the nightly sleep-quality score. \
     Coach using autoregulation:
-    • Readiness → prescription: charge 67-100 = green light to build/push, higher effort is fine; \
-    34-66 = maintain, quality over volume, keep it controlled; 0-33 = active recovery only \
-    (Zone 2, mobility, extra sleep) and protect against accumulating effort debt.
+    • Readiness → prescription: you are given (or can fetch via get_readiness) a Readiness verdict \
+    computed the SAME way the app's own Today screen shows it - level (primed/balanced/strained/rundown), \
+    acute:chronic workload ratio, training monotony, and the contributing signals. FOLLOW that verdict \
+    rather than re-deriving your own call from the raw charge number, so your advice never contradicts \
+    what the user sees on Today. primed = green light to build/push, higher effort is fine; balanced = \
+    maintain, quality over volume, keep it controlled; strained/rundown = active recovery only (Zone 2, \
+    mobility, extra sleep) and protect against accumulating effort debt. If a HEALTH SIGNAL / SAFETY note \
+    is present, do not suggest increasing training load regardless of the readiness level.
     • Workout optimisation: progressive overload, polarised ~80/20 intensity, space hard sessions, \
     program deloads/periodisation, and treat sleep as the single biggest recovery lever.
     • Always cite the user's ACTUAL numbers, give a concrete plan (today and the week ahead), and \
@@ -1022,8 +1038,16 @@ final class AICoachEngine: ObservableObject {
 
     /// Proactively generate "Today's brief" the first time the Coach opens, readiness + a training
     /// prescription + one recovery tip, without the user typing. Requires a key + data consent.
+    /// Start a fresh "Today's brief" if the active conversation doesn't have one for TODAY yet, and no
+    /// brief has been generated anywhere today (`ai.lastBriefDay`, the logical day, rolls 04:00 — same
+    /// semantics as the rest of the app). Fixes the old per-conversation-only gate: reopening a
+    /// conversation whose last message predates today now gets caught up with a fresh brief instead of
+    /// silently showing Monday's brief on Friday, while two conversations opened the same day don't each
+    /// get their own.
     func startBriefIfNeeded() async {
-        guard messages.isEmpty else { return }
+        let today = Repository.logicalDayKey(Date())
+        guard UserDefaults.standard.string(forKey: Self.lastBriefDayKey) != today else { return }
+        if let last = messages.last, Repository.logicalDayKey(last.date) == today { return }
         await generateBrief()
     }
 
@@ -1055,6 +1079,9 @@ final class AICoachEngine: ObservableObject {
             let clean = reply.trimmingCharacters(in: .whitespacesAndNewlines)
             if !clean.isEmpty {
                 messages.append(ChatMessage(role: .assistant, text: "Today's brief\n\n" + clean))
+                // Stamp only on genuine success, so a network failure doesn't burn the day's slot — a
+                // retry (reopening, or the check-in notification's forced refreshBrief) can still land one.
+                UserDefaults.standard.set(Repository.logicalDayKey(Date()), forKey: Self.lastBriefDayKey)
             }
         } catch let e as AICoachError {
             errorText = e.errorDescription
@@ -1068,6 +1095,13 @@ final class AICoachEngine: ObservableObject {
     func buildFullContext() async -> String {
         var ctx = buildContext()
         ctx += "\n\n" + (await recentWorkoutsBlock())
+        // Readiness (the SAME verdict Today's synthesis card shows) rides every full-context request —
+        // not just the tool path — so a non-tool-calling provider (OpenAI/Gemini/Custom) can't drift from
+        // what the user sees on Today either. Includes the health-signal safety note when relevant.
+        ctx += "\n\n" + readinessBlock()
+        // Charge confidence: whether today's number is a real, baseline-trusted score or still a
+        // cold-start placeholder, so the coach never states progress/trends off a "calibrating" number.
+        if let confidence = chargeConfidenceLine() { ctx += "\n\n" + confidence }
         // Derived stress: a single Baevsky Stress Index summary line over today's R-R, computed the same
         // way StressView does. Gated here under `dataConsent` (the caller only reaches buildFullContext()
         // with consent on), so it rides the SAME consent + text-only channel as the HRV/RHR summary, a
@@ -1084,6 +1118,117 @@ final class AICoachEngine: ObservableObject {
         let digest = recentSummariesDigest()
         if !digest.isEmpty { ctx += "\n\n" + digest }
         return ctx
+    }
+
+    // MARK: - Readiness / Charge drivers / clock
+
+    /// The on-device Readiness verdict (`ReadinessEngine`) — the SAME algorithm Today's synthesis card
+    /// reads, so the coach's push/maintain/rest call can never contradict what the user sees on Today.
+    /// Includes ACWR (Gabbett) and Foster training monotony when there's enough strain history, plus a
+    /// plain-English read of the contributing signals. When an active illness signal is present, appends
+    /// a SAFETY note instructing the model not to suggest escalating training load — read fresh on every
+    /// request rather than relying on the model to remember a static system-prompt rule.
+    func readinessBlock() -> String {
+        let readiness = ReadinessEngine.evaluate(days: repo.days, today: Repository.logicalDayKey(Date()))
+        var lines = ["READINESS (\(readiness.level.rawValue)): \(readiness.headline)", readiness.summary]
+        if let acwr = readiness.acwr {
+            lines.append(String(format: "Acute:chronic workload ratio: %.2f", acwr))
+        }
+        if let monotony = readiness.monotony {
+            lines.append(String(format: "Training monotony: %.2f", monotony))
+        }
+        if !readiness.signals.isEmpty {
+            lines.append("Signals:")
+            for s in readiness.signals { lines.append("  \(s.label): \(s.detail)") }
+        }
+        if let illness = illnessSignalProvider?(), illness.level != .quiet {
+            lines.append("")
+            lines.append("HEALTH SIGNAL: \(illness.copy)")
+            lines.append("SAFETY: do not suggest increasing training load or intensity while this signal "
+                         + "is present; favor rest, recovery, and seeing a professional if warranted.")
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    /// The ordered "why is my Charge what it is" breakdown (`ChargeDrivers`), computed from the SAME
+    /// per-term inputs `RecoveryScorer.recovery` uses, so the coach explains the REAL contributing terms
+    /// instead of inventing a plausible-sounding story. A term whose input is missing produces no row,
+    /// never a fabricated one. NOTE: the rest-quality (sleep performance) term isn't threaded through here
+    /// — it needs the app's merged/carried sleep-performance resolution (see `TodayView.chargeBreakdown`),
+    /// out of scope for this pass — so that one term may be absent even on nights the Today screen's
+    /// breakdown shows it.
+    func chargeDriversBlock() -> String {
+        let days = repo.days
+        let todayKey = Repository.logicalDayKey(Date())
+        guard let today = days.last(where: { $0.day == todayKey }) ?? days.last,
+              let hrv = today.avgHrv, let rhr = today.restingHr else {
+            return "Not enough data yet to break down today's Charge."
+        }
+        let hrvBase = Baselines.foldHistory(days.map(\.avgHrv), cfg: Baselines.hrvCfg)
+        guard hrvBase.usable else { return "Still calibrating the HRV baseline — no Charge breakdown yet." }
+        let rhrBase = Baselines.foldHistory(days.map { $0.restingHr.map(Double.init) },
+                                            cfg: Baselines.restingHRCfg)
+        let respBase = Baselines.foldHistory(days.map(\.respRateBpm), cfg: Baselines.respCfg)
+        let drivers = RecoveryScorer.chargeDrivers(
+            hrv: hrv, rhr: Double(rhr), resp: today.respRateBpm,
+            hrvBaseline: hrvBase,
+            rhrBaseline: rhrBase.usable ? rhrBase : nil,
+            respBaseline: respBase.usable ? respBase : nil,
+            sleepPerf: nil, skinTempDev: today.skinTempDevC)
+        guard !drivers.isEmpty else { return "No Charge breakdown available yet." }
+        var lines = ["WHY TODAY'S CHARGE IS WHAT IT IS (signed points, biggest mover first):"]
+        for d in drivers {
+            let sign = d.deltaPoints >= 0 ? "+" : ""
+            let vsBaseline = d.baselineText.isEmpty ? "" : " vs \(d.baselineText)"
+            lines.append("  \(d.label): \(sign)\(d.deltaPoints) pts — \(d.valueText)\(vsBaseline) — \(d.verdict)")
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    /// Today's Charge confidence tier (`ScoreConfidence.charge`), computed identically to the Today
+    /// screen — against the SAME folded HRV baseline — so the coach can tell a real 62 from a cold-start
+    /// placeholder instead of treating every number as equally trustworthy. nil when there's no row to
+    /// judge. Effort/Rest confidence need additional store reads (HR sample density, sleep-session
+    /// matching) not cheaply available from `repo.days` alone; a later pass can add them.
+    private func chargeConfidenceLine() -> String? {
+        let days = repo.days
+        let todayKey = Repository.logicalDayKey(Date())
+        guard let today = days.last(where: { $0.day == todayKey }) ?? days.last else { return nil }
+        let hrvBase = Baselines.foldHistory(days.map(\.avgHrv), cfg: Baselines.hrvCfg)
+        let confidence = ScoreConfidence.charge(recovery: today.recovery, hrvBaseline: hrvBase)
+        var line = "Charge confidence today: \(confidence.rawValue)"
+        if confidence == .calibrating {
+            line += " (not a real score yet — the HRV baseline is still building; do not state progress, "
+                  + "trends or comparisons off this number)"
+        }
+        return line
+    }
+
+    /// Today's date, weekday and rough time of day, so the coach is never guessing what "today" means —
+    /// the historical gap that let it not know a workout was 5 days ago or that it's a rest day of the week.
+    private func clockLine() -> String {
+        let now = Date()
+        let df = DateFormatter()
+        df.dateFormat = "EEEE, yyyy-MM-dd"
+        let hour = Calendar.current.component(.hour, from: now)
+        let partOfDay: String
+        switch hour {
+        case 0..<5: partOfDay = "late night"
+        case 5..<12: partOfDay = "morning"
+        case 12..<17: partOfDay = "afternoon"
+        case 17..<21: partOfDay = "evening"
+        default: partOfDay = "night"
+        }
+        return "Right now: \(df.string(from: now)), \(partOfDay)."
+    }
+
+    /// Whole days between `ts` (unix seconds) and now, using calendar day boundaries (not a raw 24h
+    /// division), so "yesterday evening" reads as 1 day ago rather than 0.
+    private func daysAgo(_ ts: Int) -> Int {
+        let cal = Calendar.current
+        let then = cal.startOfDay(for: Date(timeIntervalSince1970: TimeInterval(ts)))
+        let today = cal.startOfDay(for: Date())
+        return cal.dateComponents([.day], from: then, to: today).day ?? 0
     }
 
     // MARK: - Cross-conversation recall
@@ -1294,7 +1439,7 @@ final class AICoachEngine: ObservableObject {
     /// recent workouts. Kept well under ~1500 tokens. If there's no data, it says so.
     func buildContext() -> String {
         let days = repo.days // oldest → newest
-        var lines: [String] = ["USER BIOMETRIC SUMMARY (the user's own wearable data):"]
+        var lines: [String] = [clockLine(), "", "USER BIOMETRIC SUMMARY (the user's own wearable data):"]
 
         // Profile + goal (NOOP AI): the same values the app's HR zones and calorie math use, so the
         // coach can prescribe zones/loads for THIS user. Consent-gated like the rest — buildContext()
@@ -1350,7 +1495,13 @@ final class AICoachEngine: ObservableObject {
     func recentWorkoutsBlock(limit: Int = 6) async -> String {
         let rows = await repo.workoutRows(days: 30) // newest first
         guard !rows.isEmpty else { return "Recent workouts: none recorded in the last 30 days." }
-        var lines = ["Recent workouts (newest first):"]
+        var lines: [String] = []
+        if let mostRecent = rows.first {
+            let n = daysAgo(mostRecent.startTs)
+            let ago = n <= 0 ? "today" : (n == 1 ? "1 day ago" : "\(n) days ago")
+            lines.append("Last trained: \(ago) (\(mostRecent.sport)).")
+        }
+        lines.append("Recent workouts (newest first):")
         for w in rows.prefix(limit) {
             var parts = ["  \(dateString(w.startTs)) \(w.sport)"]
             if let dur = w.durationS { parts.append("\(Int((dur / 60).rounded())) min") }
