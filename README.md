@@ -4,7 +4,7 @@
 
 <h1 align="center">NOOP AI</h1>
 
-<p align="center"><b>An iPhone-only fork of NOOP, built around one idea: a WHOOP coach that actually knows you.</b></p>
+<p align="center"><b>An iPhone-only fork of NOOP, built around one idea: a coach that actually knows you.</b></p>
 
 <p align="center">
   <img alt="Fork of ryanbr/noop" src="https://img.shields.io/badge/fork%20of-ryanbr%2Fnoop-6B737B?style=flat-square&logo=github&logoColor=white">
