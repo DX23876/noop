@@ -4,8 +4,10 @@ name: Sync upstream (ryanbr/noop)
 # main for review, instead of silently auto-merging: a bad upstream merge should never land on this
 # fork's public main branch unreviewed. Existing CI (app-build / swift-packages / android, all
 # path-filtered on pull_request) runs automatically on the PR this opens, giving free build/test
-# coverage. On a merge conflict (most likely README.md, which has fully diverged from upstream's),
-# the merge is aborted and an issue is opened instead of a broken PR.
+# coverage. On a merge conflict (most likely README.md, which has fully diverged from upstream's)
+# or a push failure, the run reports clearly via the Actions run summary + a failure annotation
+# instead of a GitHub Issue: Issues are disabled on this fork by default, and a summary/annotation
+# needs no extra permission or repo setting either way.
 on:
   schedule:
     - cron: '0 6 * * 1'   # every Monday 06:00 UTC
@@ -14,7 +16,6 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  issues: write
   # NOTE: there is no `workflows:` key here. GitHub's default GITHUB_TOKEN can NEVER push a change
   # to a .github/workflows/*.yml file, no matter what permissions are declared, by design (a token
   # a workflow run controls must not be able to rewrite its own CI checks). Upstream routinely
@@ -73,26 +74,58 @@ jobs:
           fi
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
 
+      - name: Report merge conflict
+        if: steps.check.outputs.has_updates == 'true' && steps.merge.outputs.conflict == 'true'
+        run: |
+          echo "::error::Upstream sync hit a merge conflict, no PR was opened. See the run summary for how to resolve it locally."
+          {
+            echo "## Upstream sync: merge conflict"
+            echo
+            echo "New commits on [ryanbr/noop](https://github.com/ryanbr/noop) could not be merged automatically, so no PR was opened this run."
+            echo
+            echo "Resolve it locally:"
+            echo '```bash'
+            echo "git fetch upstream"
+            echo "git checkout main"
+            echo "git merge upstream/main"
+            echo "# resolve conflicts (README.md is the most likely one, keep the version from this fork,"
+            echo "# per the note in the README about staying in sync)"
+            echo "git push origin main"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Push sync branch
         if: steps.check.outputs.has_updates == 'true' && steps.merge.outputs.conflict == 'false'
         id: push
         run: git push origin "${{ steps.merge.outputs.branch }}"
 
-      - name: Open push-failure issue
-        # Runs only when the push above actually failed (not on a skip). The default token cannot
-        # push a change to .github/workflows/*.yml, which is the near-certain cause when this fires
-        # and secrets.SYNC_PAT isn't set. See the note at the bottom of this file for the fix.
+      - name: Report push failure
         # `failure()` is required here: a step is skipped by default once an earlier one in the job
         # fails, unless its `if:` explicitly calls failure()/always() to opt back in.
         if: failure() && steps.push.outcome == 'failure'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          body=$'The scheduled upstream sync merged cleanly but could not push the sync branch.\n\nThe most likely cause: this sync included a change to a file under `.github/workflows/`, and the default token this workflow runs with is never allowed to push workflow-file changes (a GitHub security restriction, not a settings toggle).\n\nFix: add a Personal Access Token as a repository secret named `SYNC_PAT` (Settings > Secrets and variables > Actions > New repository secret), scoped to Contents, Pull requests and Workflows read/write on this repo. Once set, this workflow uses it automatically. See the note at the bottom of sync-upstream.yml for details.\n\nUntil then, sync manually:\n```bash\ngit fetch upstream\ngit checkout main\ngit merge upstream/main\ngit push origin main\n```'
-          gh issue create \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "Upstream sync could not push, likely needs a SYNC_PAT ($(date +%Y-%m-%d))" \
-            --body "$body"
+          echo "::error::Upstream sync merged cleanly but could not push the branch. Likely needs a SYNC_PAT — see the run summary."
+          {
+            echo "## Upstream sync: push failed"
+            echo
+            echo "The merge succeeded, but pushing the sync branch was rejected."
+            echo
+            echo "**Most likely cause:** this sync included a change to a file under \`.github/workflows/\`,"
+            echo "and the default token this workflow runs with is never allowed to push workflow-file"
+            echo "changes (a GitHub security restriction, not a settings toggle)."
+            echo
+            echo "**Fix:** add a Personal Access Token as a repository secret named \`SYNC_PAT\` — see the"
+            echo "setup note at the bottom of \`.github/workflows/sync-upstream.yml\`. Once set, this"
+            echo "workflow uses it automatically."
+            echo
+            echo "Until then, sync manually:"
+            echo '```bash'
+            echo "git fetch upstream"
+            echo "git checkout main"
+            echo "git merge upstream/main"
+            echo "git push origin main"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Open pull request
         if: steps.check.outputs.has_updates == 'true' && steps.merge.outputs.conflict == 'false'
@@ -106,24 +139,13 @@ jobs:
             --title "Sync upstream: $(date +%Y-%m-%d)" \
             --body "Automated sync from [ryanbr/noop](https://github.com/ryanbr/noop). This merged cleanly with no conflicts. Existing CI (app-build / swift-packages / android) runs automatically on this PR wherever the changed paths match. Review the diff and merge if it looks good."
 
-      - name: Open conflict issue
-        if: steps.check.outputs.has_updates == 'true' && steps.merge.outputs.conflict == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.SYNC_PAT || secrets.GITHUB_TOKEN }}
-        run: |
-          body=$'The scheduled upstream sync found new commits on [ryanbr/noop](https://github.com/ryanbr/noop) but hit a merge conflict, so no PR was opened automatically.\n\nResolve it locally:\n```bash\ngit fetch upstream\ngit checkout main\ngit merge upstream/main\n# resolve conflicts (README.md is the most likely one, keep the version from this fork, per the note in the README about staying in sync)\ngit push origin main\n```'
-          gh issue create \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "Upstream sync conflict, manual merge needed ($(date +%Y-%m-%d))" \
-            --body "$body"
-
 # ── Optional: full coverage including upstream's own workflow-file changes ────────────────────────
 #
 # Without any extra setup, this workflow syncs everything from upstream EXCEPT weeks where upstream
 # itself edited a file under .github/workflows/ (app-build.yml, swift-packages.yml, android.yml,
 # ...) — GitHub's default token can never push that kind of change, by design. Those weeks fail the
-# "Push sync branch" step and open an explanatory issue instead (see "Open push-failure issue"
-# above) rather than silently doing nothing.
+# "Push sync branch" step and report clearly via the run summary + a failure annotation (see
+# "Report push failure" above) instead of silently doing nothing.
 #
 # To cover those weeks too, add a Personal Access Token as a repository secret named `SYNC_PAT`:
 #   1. https://github.com/settings/personal-access-tokens/new (fine-grained PAT)
