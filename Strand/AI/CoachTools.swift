@@ -18,6 +18,18 @@ enum CoachTool: String, CaseIterable {
     case personalPatterns = "get_personal_patterns"
     /// Draw a native chart of one metric over a day range directly in the chat (a visual artifact).
     case plotMetric = "plot_metric"
+    /// Save a durable fact about the user to the coach's persistent memory (CoachMemory).
+    case rememberFact = "remember_fact"
+    /// Log a caffeine intake into the app's caffeine log (conversational logging).
+    case logCaffeine = "log_caffeine"
+    /// Log a daily journal behaviour (yes/no or numeric) into the app's journal.
+    case logJournal = "log_journal"
+    /// Log a Lab Book health marker (e.g. a blood value or supplement dose).
+    case logLabMarker = "log_lab_marker"
+    /// Per-night sleep detail: stages, efficiency, and the rolling sleep-debt ledger.
+    case sleepDetail = "get_sleep_detail"
+    /// A multi-week range report: per-metric stats + headline changes over 7–365 days.
+    case rangeReport = "get_range_report"
 
     /// Natural-language description the model reads to decide when to call the tool.
     var description: String {
@@ -38,6 +50,29 @@ enum CoachTool: String, CaseIterable {
         case .plotMetric:
             return "Draw a chart of one metric over time, shown directly in the chat. Use it when a "
                 + "trend is easier to see than to describe. metric is one of charge, effort, hrv, rhr, sleep."
+        case .rememberFact:
+            return "Save one durable fact about the user to your persistent memory (goals, injuries, "
+                + "schedule, preferences, constraints). Call it PROACTIVELY whenever the user shares "
+                + "something worth remembering across conversations. One concise sentence per fact."
+        case .logCaffeine:
+            return "Log a caffeine intake for the user (e.g. they say they just had a coffee). "
+                + "mg is optional — a single espresso is ~63 mg, a double ~125 mg, filter coffee ~95 mg, "
+                + "black tea ~47 mg, cola ~33 mg, energy drink ~80 mg. Confirm what you logged."
+        case .logJournal:
+            return "Log a daily journal behaviour for the user, e.g. alcohol, late meal, sauna, "
+                + "meditation (yes/no via answered_yes) or a numeric one like drinks count (via value). "
+                + "Use when the user reports something they did. Confirm what you logged."
+        case .logLabMarker:
+            return "Log a Lab Book health marker the user reports — a lab/blood value, body metric or "
+                + "supplement dose (marker name + numeric value + unit). Confirm what you logged."
+        case .sleepDetail:
+            return "Get per-night sleep detail for recent nights: bed/wake times, efficiency, deep/REM/"
+                + "light minutes, disturbances, plus the rolling 14-night sleep-debt balance. Use for "
+                + "any question about sleep quality, stages or sleep debt."
+        case .rangeReport:
+            return "Get a range report over the last N days (7–365): per-metric averages, trends and "
+                + "headline changes across recovery, sleep, HRV, resting HR, strain, workouts, stress. "
+                + "Use for weekly/monthly reviews and 'how am I doing' questions."
         }
     }
 
@@ -69,6 +104,91 @@ enum CoachTool: String, CaseIterable {
                     ]
                 ],
                 "required": ["metric"]
+            ]
+        case .rememberFact:
+            return [
+                "type": "object",
+                "properties": [
+                    "fact": [
+                        "type": "string",
+                        "description": "One concise sentence stating the fact to remember."
+                    ]
+                ],
+                "required": ["fact"]
+            ]
+        case .logCaffeine:
+            return [
+                "type": "object",
+                "properties": [
+                    "mg": [
+                        "type": "number",
+                        "description": "Estimated caffeine in milligrams. Omit if genuinely unknown."
+                    ],
+                    "minutes_ago": [
+                        "type": "integer",
+                        "description": "How many minutes ago it was consumed. Defaults to 0 (just now)."
+                    ]
+                ]
+            ]
+        case .logJournal:
+            return [
+                "type": "object",
+                "properties": [
+                    "behavior": [
+                        "type": "string",
+                        "description": "Short behaviour name, e.g. \"Alcohol\", \"Sauna\", \"Meditation\", \"Late meal\"."
+                    ],
+                    "answered_yes": [
+                        "type": "boolean",
+                        "description": "For yes/no behaviours: true = the user did it today."
+                    ],
+                    "value": [
+                        "type": "number",
+                        "description": "For numeric behaviours (e.g. drinks count) instead of answered_yes."
+                    ],
+                    "day": [
+                        "type": "string",
+                        "description": "The day it applies to, yyyy-MM-dd. Defaults to today; use yesterday when the user says so."
+                    ]
+                ],
+                "required": ["behavior"]
+            ]
+        case .logLabMarker:
+            return [
+                "type": "object",
+                "properties": [
+                    "marker": [
+                        "type": "string",
+                        "description": "Marker name, e.g. \"Vitamin D\", \"Ferritin\", \"Weight\", \"Magnesium dose\"."
+                    ],
+                    "value": ["type": "number", "description": "The numeric value."],
+                    "unit": ["type": "string", "description": "Unit, e.g. \"ng/mL\", \"kg\", \"mg\". Empty if none."],
+                    "day": [
+                        "type": "string",
+                        "description": "The day it applies to, yyyy-MM-dd. Defaults to today."
+                    ]
+                ],
+                "required": ["marker", "value"]
+            ]
+        case .sleepDetail:
+            return [
+                "type": "object",
+                "properties": [
+                    "nights": [
+                        "type": "integer",
+                        "description": "How many recent nights to include (1–14). Defaults to 7."
+                    ]
+                ]
+            ]
+        case .rangeReport:
+            return [
+                "type": "object",
+                "properties": [
+                    "days": [
+                        "type": "integer",
+                        "description": "Window length in days (7–365). Defaults to 7 (weekly review)."
+                    ]
+                ]
             ]
         default:
             return ["type": "object", "properties": [String: Any]()]
@@ -107,7 +227,11 @@ extension AICoachEngine {
     /// The tools offered to the model, honouring consent: the patterns/Lab Book tool only appears when
     /// the second opt-in is on, mirroring `buildFullContext`'s gating.
     var coachTools: [CoachTool] {
-        var tools: [CoachTool] = [.biometricSummary, .recentWorkouts, .stressIndex, .plotMetric]
+        var tools: [CoachTool] = [
+            .biometricSummary, .recentWorkouts, .stressIndex, .plotMetric,
+            .sleepDetail, .rangeReport,
+            .rememberFact, .logCaffeine, .logJournal, .logLabMarker
+        ]
         if includeOnDeviceSignals { tools.append(.personalPatterns) }
         return tools
     }
@@ -155,6 +279,36 @@ extension AICoachEngine {
             let metric = (input["metric"] as? String) ?? ""
             let days = (input["days"] as? Int) ?? Int(input["days"] as? Double ?? 30)
             return handlePlotMetric(metric: metric, days: days)
+        case .rememberFact:
+            let fact = (input["fact"] as? String) ?? ""
+            return CoachMemory.shared.add(fact)
+                ? "Remembered: \(fact)"
+                : "Nothing saved (empty or already remembered)."
+        case .logCaffeine:
+            let mg = (input["mg"] as? Double) ?? (input["mg"] as? Int).map(Double.init)
+            let minsAgo = (input["minutes_ago"] as? Int) ?? Int(input["minutes_ago"] as? Double ?? 0)
+            return logCaffeineTool(mg: mg, minutesAgo: minsAgo)
+        case .logJournal:
+            return await logJournalTool(
+                behavior: (input["behavior"] as? String) ?? "",
+                answeredYes: input["answered_yes"] as? Bool,
+                value: (input["value"] as? Double) ?? (input["value"] as? Int).map(Double.init),
+                day: input["day"] as? String
+            )
+        case .logLabMarker:
+            let value = (input["value"] as? Double) ?? (input["value"] as? Int).map(Double.init)
+            return await logLabMarkerTool(
+                marker: (input["marker"] as? String) ?? "",
+                value: value,
+                unit: (input["unit"] as? String) ?? "",
+                day: input["day"] as? String
+            )
+        case .sleepDetail:
+            let nights = (input["nights"] as? Int) ?? Int(input["nights"] as? Double ?? 7)
+            return await sleepDetailTool(nights: nights)
+        case .rangeReport:
+            let days = (input["days"] as? Int) ?? Int(input["days"] as? Double ?? 7)
+            return await rangeReportTool(days: days)
         case .none:
             return "Unknown tool \"\(name)\"."
         }

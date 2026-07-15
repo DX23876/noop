@@ -24,8 +24,8 @@ public let aiCoachPrivacyNote =
 // MARK: - Chat model
 
 /// One turn in the coaching conversation.
-struct ChatMessage: Identifiable, Equatable {
-    enum Role: String { case user, assistant }
+struct ChatMessage: Identifiable, Equatable, Codable {
+    enum Role: String, Codable { case user, assistant }
     let id: UUID
     let role: Role
     let text: String
@@ -243,7 +243,12 @@ final class AICoachEngine: ObservableObject {
         // The selected persona sets the coach's VOICE on top of the methodology in `base`, so
         // the tone changes while the coaching logic and guardrails stay intact. Read fresh so a
         // persona switch applies to the very next message, like the prompt itself.
-        return persona.systemPreamble + "\n\n" + base
+        var prompt = persona.systemPreamble + "\n\n" + base
+        // Persistent memory: the user's goal + facts the model saved via `remember_fact`. Read fresh
+        // so a fact remembered THIS turn frames the very next one.
+        let memory = CoachMemory.shared.promptBlock
+        if !memory.isEmpty { prompt += "\n\n" + memory }
+        return prompt
     }
 
     /// The active coaching personality. Backed by UserDefaults via `CoachPersona`; the setter
@@ -319,6 +324,26 @@ final class AICoachEngine: ObservableObject {
         self.customBaseURL = UserDefaults.standard.string(forKey: AIProvider.customBaseURLKey) ?? ""
         self.customConnected = UserDefaults.standard.bool(forKey: Self.customConnectedKey)
         self.includeOnDeviceSignals = UserDefaults.standard.bool(forKey: Self.onDeviceSignalsKey)
+
+        // Restore the saved transcript so the conversation survives a relaunch, then keep it saved:
+        // a debounced sink (not a didSet) so token-by-token streaming doesn't hammer the disk.
+        self.messages = CoachTranscriptStore.load()
+        transcriptAutosave = $messages
+            .dropFirst()
+            .debounce(for: .seconds(1.0), scheduler: DispatchQueue.main)
+            .sink { CoachTranscriptStore.save($0) }
+    }
+
+    /// Debounced transcript persistence (see init).
+    private var transcriptAutosave: AnyCancellable?
+
+    /// Start over: clear the visible chat, its chart artifacts, and the stored transcript. The next
+    /// Coach open generates a fresh brief (messages is empty again).
+    func clearChat() {
+        messages = []
+        chartsByMessage = [:]
+        errorText = nil
+        CoachTranscriptStore.clear()
     }
 
     // MARK: Key management
@@ -652,6 +677,163 @@ final class AICoachEngine: ObservableObject {
     }()
     private static func parseDay(_ s: String) -> Date? { dayFormatter.date(from: s) }
 
+    // MARK: - Conversational logging + deep-data tools (NOOP AI)
+
+    /// LOCAL "yyyy-MM-dd" formatter — journal/lab entries key on the user's local day (unlike the UTC
+    /// chart parser above).
+    private static let localDayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .gregorian)
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
+    /// A model-supplied day string, validated; anything malformed/absent falls back to today (local).
+    private static func normalizedDay(_ raw: String?) -> String {
+        if let raw, raw.range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) != nil,
+           localDayFormatter.date(from: raw) != nil {
+            return raw
+        }
+        return localDayFormatter.string(from: Date())
+    }
+
+    /// `log_caffeine`: write into the SAME shared store the Caffeine card observes, so the entry shows
+    /// up in the UI immediately. mg stays optional (the store clamps garbage itself).
+    func logCaffeineTool(mg: Double?, minutesAgo: Int) -> String {
+        let mins = max(0, min(minutesAgo, 24 * 60))
+        let at = Date().addingTimeInterval(-Double(mins) * 60)
+        CaffeineLogStore.shared.log(at: at, mg: mg)
+        let time = DateFormatter.localizedString(from: at, dateStyle: .none, timeStyle: .short)
+        let amount = mg.map { "\(Int($0.rounded())) mg" } ?? "an unspecified amount of"
+        return "Logged \(amount) caffeine at \(time). It appears in the app's Caffeine card, where the user can correct or remove it."
+    }
+
+    /// `log_journal`: persist a yes/no or numeric behaviour for a day via the repository's journal
+    /// store (SQLite), and register the behaviour in the catalog so it appears in the Journal UI
+    /// (`addCustom` de-duplicates, so an existing question is untouched).
+    func logJournalTool(behavior: String, answeredYes: Bool?, value: Double?, day rawDay: String?) async -> String {
+        let name = behavior.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return "No behaviour name given — nothing was logged." }
+        let day = Self.normalizedDay(rawDay)
+        if let value, value.isFinite {
+            JournalCatalogStore().addCustom(name, kind: .numeric(unitLabel: nil))
+            await repo.saveJournalNumeric(day: day, question: name, value: value)
+            return "Logged \(name) = \(value) for \(day) in the user's journal."
+        }
+        let yes = answeredYes ?? true
+        JournalCatalogStore().addCustom(name, kind: .bool)
+        await repo.saveJournalAnswer(day: day, question: name, answeredYes: yes)
+        return "Logged \(name): \(yes ? "yes" : "no") for \(day) in the user's journal."
+    }
+
+    /// `log_lab_marker`: upsert one Lab Book row through the shared store (the same path the Lab Book
+    /// UI and CSV import use), then refresh so it projects into Compare/Explore/Coach.
+    func logLabMarkerTool(marker: String, value: Double?, unit: String, day rawDay: String?) async -> String {
+        let name = marker.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, let value, value.isFinite else {
+            return "Need a marker name and a numeric value — nothing was logged."
+        }
+        guard let store = await repo.storeHandle() else { return "Couldn't open the local store." }
+        let day = Self.normalizedDay(rawDay)
+        let epoch = LabBookFormat.noonEpoch(day)
+        // Stable-ish key: a lowercase slug of the name, so repeat logs of the same marker line up
+        // into one series in the Lab Book / Explore.
+        let key = name.lowercased()
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+            .joined(separator: "-")
+        let row = LabMarkerRow(
+            id: "\(key)-\(epoch)-\(UUID().uuidString.prefix(8))",
+            deviceId: repo.deviceId,
+            markerKey: key,
+            category: LabMarkerCategory.other.rawValue,
+            day: day,
+            takenAt: epoch,
+            value: value,
+            valueText: nil,
+            unit: unit.trimmingCharacters(in: .whitespacesAndNewlines),
+            source: "coach-chat",
+            note: nil,
+            referenceText: nil
+        )
+        do {
+            _ = try await store.upsertLabMarkers([row])
+            await repo.refresh()
+            let unitPart = row.unit.isEmpty ? "" : " \(row.unit)"
+            return "Logged \(name): \(value)\(unitPart) for \(day) in the user's Lab Book."
+        } catch {
+            return "Couldn't save the marker: \(error.localizedDescription)"
+        }
+    }
+
+    /// `get_sleep_detail`: per-night stages/efficiency from the daily roll-up plus the rolling
+    /// 14-night sleep-debt ledger (`SleepDebt.ledger`). Summary text only, never raw samples.
+    func sleepDetailTool(nights: Int) async -> String {
+        let n = max(1, min(nights, 14))
+        let all = repo.days
+        let recent = Array(all.suffix(n))
+        guard !recent.isEmpty else { return "No sleep data recorded yet." }
+
+        var lines = ["SLEEP DETAIL (newest first) — asleep(h), efficiency(%), deep/REM/light(min), disturbances, RHR, HRV:"]
+        for d in recent.reversed() {
+            var parts = ["  \(d.day):"]
+            parts.append("slept " + (d.totalSleepMin.map { String(format: "%.1fh", $0 / 60) } ?? "—"))
+            parts.append("eff " + (d.efficiency.map { "\(Int($0.rounded()))%" } ?? "—"))
+            parts.append("deep " + (d.deepMin.map { "\(Int($0.rounded()))m" } ?? "—"))
+            parts.append("REM " + (d.remMin.map { "\(Int($0.rounded()))m" } ?? "—"))
+            parts.append("light " + (d.lightMin.map { "\(Int($0.rounded()))m" } ?? "—"))
+            parts.append("disturbances " + (d.disturbances.map { "\($0)" } ?? "—"))
+            parts.append("RHR " + (d.restingHr.map { "\($0)" } ?? "—"))
+            parts.append("HRV " + (d.avgHrv.map { "\(Int($0.rounded()))ms" } ?? "—"))
+            lines.append(parts.joined(separator: ", "))
+        }
+
+        // Rolling sleep-debt ledger over the last 30 nights (14-night window inside the engine).
+        let ledger = SleepDebt.ledger(series: all.suffix(30).map { ($0.day, $0.totalSleepMin) })
+        if !ledger.nights.isEmpty {
+            let bal = ledger.balanceMin / 60
+            let need = ledger.needMin / 60
+            lines.append("")
+            lines.append(String(format: "Sleep debt (rolling %d nights vs a %.1fh need): %+.1fh %@",
+                                ledger.nights.count, need, bal,
+                                bal < 0 ? "(deficit — behind on sleep)" : "(surplus)"))
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    /// `get_range_report`: the same per-metric stats + headlines the Trends report screen shows,
+    /// over an arbitrary 7–365-day window (reuses `TrendsReportData.metricMaps` + `RangeReportEngine`).
+    func rangeReportTool(days: Int) async -> String {
+        let n = max(7, min(days, 365))
+        let window = Array(repo.days.suffix(n))
+        guard window.count >= 3, let first = window.first, let last = window.last else {
+            return "Not enough recorded days for a range report yet."
+        }
+        let stress = await repo.series(key: "stress", source: "my-whoop", days: n)
+        let stressByDay = Dictionary(stress.map { ($0.day, $0.value) }, uniquingKeysWith: { a, _ in a })
+        let report = RangeReportEngine.build(
+            metrics: TrendsReportData.metricMaps(from: window, stressByDay: stressByDay),
+            start: first.day, end: last.day)
+        guard !report.isEmpty else { return "No data in that range." }
+
+        var lines = ["RANGE REPORT \(report.start) → \(report.end) (\(report.totalDays) days):"]
+        if !report.headlines.isEmpty {
+            lines.append("Headlines:")
+            for h in report.headlines { lines.append("  • \(h)") }
+        }
+        lines.append("Per metric — mean, first→second half, trend, latest:")
+        for s in report.metrics {
+            let fmt: (Double) -> String = s.metric.usesOneDecimal
+                ? { String(format: "%.1f", $0) } : { "\(Int($0.rounded()))" }
+            let unit = s.metric.unit.isEmpty ? "" : " \(s.metric.unit)"
+            lines.append("  \(s.metric.label): mean \(fmt(s.mean))\(unit), "
+                         + "\(fmt(s.firstHalfMean))→\(fmt(s.secondHalfMean)) (\(s.trend.rawValue)), "
+                         + "latest \(fmt(s.latest.value)) on \(s.latest.day) (n=\(s.n))")
+        }
+        return lines.joined(separator: "\n")
+    }
+
     /// Proactively generate "Today's brief" the first time the Coach opens, readiness + a training
     /// prescription + one recovery tip, without the user typing. Requires a key + data consent.
     func startBriefIfNeeded() async {
@@ -846,12 +1028,25 @@ final class AICoachEngine: ObservableObject {
         let days = repo.days // oldest → newest
         var lines: [String] = ["USER BIOMETRIC SUMMARY (the user's own wearable data):"]
 
+        // Profile + goal (NOOP AI): the same values the app's HR zones and calorie math use, so the
+        // coach can prescribe zones/loads for THIS user. Consent-gated like the rest — buildContext()
+        // is only reached with data access on.
+        let profile = ProfileStore()
+        var profileParts = ["age \(profile.age)", profile.sex,
+                            "\(Int(profile.weightKg.rounded())) kg",
+                            "\(Int(profile.heightCm.rounded())) cm",
+                            "HRmax \(profile.hrMax) bpm"]
+        let goal = CoachMemory.shared.trainingGoal.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !goal.isEmpty { profileParts.append("training goal: \(goal)") }
+        lines.append("Profile: " + profileParts.joined(separator: ", "))
+
         guard !days.isEmpty else {
-            return """
-            USER BIOMETRIC SUMMARY:
-            No wearable data is available yet. Acknowledge this and give general, encouraging guidance \
-            while inviting the user to sync their device so future advice can reference real numbers.
-            """
+            // Keep the profile/goal line (already appended) so the coach can still personalise zones
+            // and advice while there's no wearable history yet.
+            lines.append("No wearable data is available yet. Acknowledge this and give general, "
+                         + "encouraging guidance while inviting the user to sync their device so future "
+                         + "advice can reference real numbers.")
+            return lines.joined(separator: "\n")
         }
 
         // Last ~14 days, newest first for readability.
