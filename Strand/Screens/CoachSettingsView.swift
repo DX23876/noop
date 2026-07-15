@@ -23,6 +23,9 @@ struct CoachSettingsView: View {
     @ObservedObject private var memory = CoachMemory.shared
     @State private var memoryExpanded: Bool = false
     @State private var goalDraft: String = ""
+    /// In-place fact editing: the fact being edited + its working text.
+    @State private var editingFactID: UUID?
+    @State private var editingFactText: String = ""
 
     private let customModelTag = "__custom__"
 
@@ -37,6 +40,7 @@ struct CoachSettingsView: View {
                         personaBar
                         checkInBar
                         memoryBar
+                        if coach.dataConsent { memoryMaintenanceBar }
                         systemPromptBar
                         disconnectRow
                     } else {
@@ -54,6 +58,77 @@ struct CoachSettingsView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
+                }
+            }
+            .alert("Edit fact", isPresented: editingBinding) {
+                TextField("Fact", text: $editingFactText)
+                Button("Cancel", role: .cancel) { editingFactID = nil }
+                Button("Save") {
+                    if let id = editingFactID { memory.update(id, text: editingFactText) }
+                    editingFactID = nil
+                }
+            }
+        }
+    }
+
+    /// Drives the edit-fact alert from `editingFactID` without a separate bool.
+    private var editingBinding: Binding<Bool> {
+        Binding(get: { editingFactID != nil }, set: { if !$0 { editingFactID = nil } })
+    }
+
+    // MARK: - Memory maintenance (cheap-model summaries)
+
+    private var memoryMaintenanceBar: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .foregroundStyle(coach.autoSummarize ? StrandPalette.accent : StrandPalette.textTertiary)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Summarise past chats")
+                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                        Text(coach.autoSummarize
+                             ? "On: when you move on from a chat, a cheap model distils it so the coach remembers it later. Sends that chat to your provider."
+                             : "Off: past chats aren't summarised; the coach only recalls saved facts.")
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 8)
+                    Toggle("", isOn: $coach.autoSummarize)
+                        .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                        .accessibilityLabel("Summarise past chats automatically")
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Memory model").strandOverline()
+                    TextField(coach.provider.cheapModel.isEmpty ? "Same as coaching model" : coach.provider.cheapModel,
+                              text: $coach.memoryModel)
+                        .textFieldStyle(.plain)
+                        .font(StrandFont.body)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                        .disableAutocorrection(true)
+                        .padding(.horizontal, 12).padding(.vertical, 9)
+                        .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous)
+                            .strokeBorder(StrandPalette.hairline, lineWidth: 1))
+                        .accessibilityLabel("Memory model id")
+                    Text("The cheap, fast model used only for memory upkeep — keep it small to stay cheap.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                HStack {
+                    Spacer()
+                    Button {
+                        if let id = coach.activeConversationID { coach.summarizeNow(id) }
+                    } label: {
+                        Label("Summarise this chat now", systemImage: "sparkles")
+                            .font(StrandFont.footnote).labelStyle(.titleAndIcon)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(StrandPalette.accent)
+                    .accessibilityLabel("Summarise the current chat now")
                 }
             }
         }
@@ -277,11 +352,30 @@ struct CoachSettingsView: View {
                             Text("Remembered").strandOverline()
                             ForEach(memory.facts) { fact in
                                 HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                    Image(systemName: fact.category.symbol)
+                                        .font(StrandFont.footnote)
+                                        .foregroundStyle(StrandPalette.textTertiary)
+                                        .accessibilityHidden(true)
+                                    if fact.importance == .pinned {
+                                        Image(systemName: "pin.fill")
+                                            .font(.system(size: 9))
+                                            .foregroundStyle(StrandPalette.accent)
+                                            .accessibilityLabel("Pinned")
+                                    }
                                     Text(fact.text)
                                         .font(StrandFont.footnote)
                                         .foregroundStyle(StrandPalette.textSecondary)
                                         .fixedSize(horizontal: false, vertical: true)
                                     Spacer(minLength: 8)
+                                    Button {
+                                        editingFactText = fact.text
+                                        editingFactID = fact.id
+                                    } label: {
+                                        Image(systemName: "pencil")
+                                            .foregroundStyle(StrandPalette.textTertiary)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel("Edit: \(fact.text)")
                                     Button {
                                         memory.remove(fact.id)
                                     } label: {

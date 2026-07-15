@@ -176,7 +176,7 @@ final class CoachMemory: ObservableObject {
             .map { $0.0 }
         // Always take pinned; fill the remaining budget with the highest-ranked normal facts.
         let normalBudget = max(0, limit - pinned.count)
-        return pinned + ranked.prefix(normalBudget)
+        return pinned + Array(ranked.prefix(normalBudget))
     }
 
     /// The relevant-facts block for a specific question (used by the context builder). Empty when there's
