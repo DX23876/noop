@@ -1,5 +1,7 @@
 import Foundation
 import CoreBluetooth
+import WhoopProtocol
+import StrandAnalytics
 
 /// Durable append-only log of WHOOP 5.0/MG **high-rate deep buffers** — the large type-0x2F (R22)
 /// packets that carry tens-of-Hz sensor data (motion + optical) rather than the 1 Hz historical
@@ -17,9 +19,10 @@ import CoreBluetooth
 ///
 /// Gated on the same Settings toggle as the frame recorder (`PuffinFrameRecorder.enabledKey`) —
 /// capture is passive/read-only with respect to the strap and adds no new setting. One JSONL line per
-/// buffer (`{"ts_ms":…,"strap_ts":…,"size":…,"offload":…,"char":…,"hex":"…"}`); `strap_ts` is the
-/// unix second the strap stamped at payload offset 15 (frame byte 15), the load-bearing key for
-/// aligning a buffer with what the wearer was doing. Rotates at a soft cap keeping one previous
+/// buffer (`{"ts_ms":…,"strap_ts":…,"size":…,"offload":…,"char":…,"hex":"…"[,"imu":{…}]}`); `strap_ts`
+/// is the unix second the strap stamped at payload offset 15 (frame byte 15), the load-bearing key for
+/// aligning a buffer with what the wearer was doing. The optional `imu` object is the decoded activity
+/// summary present only on the 1244-B 6-axis buffer (see `decodedImuField`). Rotates at a soft cap keeping one previous
 /// generation, the same idiom as `PuffinEventLog`. Swift-only for now (experimental #423 instrument);
 /// a Kotlin twin follows if this graduates past reverse-engineering.
 @MainActor
@@ -72,6 +75,19 @@ final class PuffinDeepBufferLog {
         return UInt32(frame[15]) | (UInt32(frame[16]) << 8) | (UInt32(frame[17]) << 16) | (UInt32(frame[18]) << 24)
     }
 
+    /// Decoded-IMU field for the JSONL line: `,"imu":{…features…}` when `frame` is the 1244-B 6-axis
+    /// IMU buffer, else `""` (the 2140-B optical buffer and everything else). Pure and non-throwing —
+    /// a decode miss just omits the field, so a diagnostics-only summary can never disturb the capture
+    /// path. `ImuActivityFeatures` is `Codable`, so this is its canonical JSON.
+    nonisolated static func decodedImuField(_ frame: [UInt8]) -> String {
+        guard frame.count == Whoop5RawImu.bufferLength,
+              let decoded = Whoop5RawImu.decode(frame) else { return "" }
+        let features = ImuFeatureExtractor.extract(decoded.samples, sampleRateHz: decoded.sampleRateHz)
+        guard let data = try? JSONEncoder().encode(features),
+              let json = String(data: data, encoding: .utf8) else { return "" }
+        return ",\"imu\":\(json)"
+    }
+
     /// Append `frame` if it is a WHOOP 5 high-rate deep buffer and capture is enabled. Cheap for every
     /// other frame: a length + single-byte compare, no parse, BEFORE the `isEnabled` read. Call for both
     /// live and offload frames (`isOffload` recorded so the reverse pass can separate a real-time buffer
@@ -81,8 +97,15 @@ final class PuffinDeepBufferLog {
         let tsMs = Int(Date().timeIntervalSince1970 * 1000)
         let strapTs = Self.strapTs(frame).map { String($0) } ?? "null"
         let hex = frame.map { String(format: "%02x", $0) }.joined()
+        // #423/#455: run the raw-IMU decoder on the 1244-B buffer so every captured IMU frame carries
+        // its decoded activity summary (cadence/energy/jerk/gyro) inline beside the raw hex. This is the
+        // first CALLER of `Whoop5RawImu.decode` outside its own tests — it exercises the decoder on real
+        // device captures and makes each JSONL line self-checking (raw ↔ decode) with NO stored table,
+        // migration, or downstream gate. Instrumentation only, per the derived-signal rule; the 2140-B
+        // optical buffer stays raw-only (its layout isn't decoded yet).
+        let imu = Self.decodedImuField(frame)
         let line = "{\"ts_ms\":\(tsMs),\"strap_ts\":\(strapTs),\"size\":\(frame.count),"
-            + "\"offload\":\(isOffload),\"char\":\"\(char.uuidString.lowercased())\",\"hex\":\"\(hex)\"}\n"
+            + "\"offload\":\(isOffload),\"char\":\"\(char.uuidString.lowercased())\",\"hex\":\"\(hex)\"\(imu)}\n"
         do {
             var h = try openHandle()
             if try h.offset() > UInt64(Self.softCapBytes) {

@@ -41,4 +41,42 @@ final class PuffinDeepBufferLogTests: XCTestCase {
             XCTAssertFalse(PuffinDeepBufferLog.isDeepBuffer([UInt8](repeating: 0x2F, count: n)))
         }
     }
+
+    // MARK: - Inline decoded-IMU summary (#423/#455): the log's first caller of Whoop5RawImu.decode
+
+    /// A well-formed 1244-B 6-axis IMU buffer (`Whoop5RawImu` layout): countA/countB = 100, gravity on
+    /// Z, and an X channel that alternates 800/0 so the decoded accel MAGNITUDE actually varies —
+    /// giving non-zero AC energy so the feature extractor exercises its cadence path and stays finite.
+    /// (A ±X swing would not: squaring cancels the sign, leaving magnitude constant.)
+    private func imuBuffer() -> [UInt8] {
+        var f = [UInt8](repeating: 0, count: 1244)
+        f[8] = 0x2F
+        f[24] = 100          // countA (u16 LE) — Whoop5RawImu.decode requires == 100
+        f[630] = 100         // countB (u16 LE)
+        func put(_ off: Int, _ i: Int, _ v: Int16) {
+            f[off + 2 * i] = UInt8(truncatingIfNeeded: v)
+            f[off + 2 * i + 1] = UInt8(truncatingIfNeeded: v >> 8)
+        }
+        for i in 0..<100 {
+            put(28,  i, i % 2 == 0 ? 800 : 0)   // ax @28  — magnitude actually varies
+            put(428, i, 4096)                    // az @428 — ~1 g
+        }
+        return f
+    }
+
+    func testEmitsInlineDecodedImuFieldForImuBuffer() {
+        let field = PuffinDeepBufferLog.decodedImuField(imuBuffer())
+        XCTAssertTrue(field.hasPrefix(",\"imu\":{"), "a 1244-B IMU buffer must emit an inline summary")
+        XCTAssertTrue(field.contains("\"sampleCount\":100"), "summary carries the 100 decoded samples")
+        XCTAssertTrue(field.contains("accelEnergyG"), "summary carries the activity features")
+    }
+
+    func testNoImuFieldForOpticalOrUndecodableBuffers() {
+        // The 2140-B optical buffer is a different, still-undecoded layout — no IMU summary.
+        var optical = [UInt8](repeating: 0, count: 2140); optical[8] = 0x2F
+        XCTAssertEqual(PuffinDeepBufferLog.decodedImuField(optical), "")
+        // A 1244-length frame whose count fields aren't 100 fails decode → field omitted, never a throw.
+        var bogus = [UInt8](repeating: 0, count: 1244); bogus[8] = 0x2F
+        XCTAssertEqual(PuffinDeepBufferLog.decodedImuField(bogus), "")
+    }
 }
