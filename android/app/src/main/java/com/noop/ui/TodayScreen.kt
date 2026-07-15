@@ -1095,7 +1095,16 @@ fun TodayScreen(
             val keyDate = runCatching { LocalDate.parse(selectedDayKey) }.getOrNull() ?: selectedDay
             keyDate.format(DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.US))
         }
-        Box(modifier = Modifier.fillMaxWidth().staggeredAppear(0)) {
+        // #486: header + wordmark + Arrange fold into ONE compact top cluster. Previously the decorative
+        // "N O O P" wordmark and the pinned "Arrange" affordance were each their own full-width list item,
+        // so the scaffold's 12dp rowSpacing left two near-empty sky bands stacked under the header ("empty
+        // space below NOOP"). Grouping them here removes those section gaps: the wordmark hangs 2dp under
+        // the title, and Arrange rides the SAME row as the wordmark (wordmark dead-centre, Arrange trailing)
+        // instead of claiming its own band.
+        Column(
+            modifier = Modifier.fillMaxWidth().staggeredAppear(0),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
             LiquidTodayHeader(
                 dayTitle = dayTitle,
                 humanDate = humanDate,
@@ -1110,16 +1119,28 @@ fun TodayScreen(
                 onOpenSettings = onOpenSettings,
                 onOpenDevices = onOpenDevices,
             )
-        }
-        }
-
-        // WORDMARK, a subtle centred "N O O P" on the sky between the header and the hero (iOS LiquidWordmark
-        // parity). White @ ~50% opacity, letter-spaced, perfectly centred; a tap plays a small random wiggle
-        // easter egg. The old Android Today had NO wordmark; this adds it. Staggered in just after the header.
-        item {
-            Box(modifier = Modifier.fillMaxWidth().staggeredAppear(0)) {
+            // WORDMARK (iOS LiquidWordmark parity): a subtle centred "N O O P" @ ~50% opacity, with a
+            // tap easter egg. Shares its row with the Arrange affordance — wordmark centred, Arrange
+            // aligned to the trailing edge — so neither needs its own empty band.
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 LiquidWordmark()
+                // #today-layout: a small affordance to REORDER the sections below (an alternative to
+                // holding + dragging the cards directly). Opens a Today-local dialog — no nav destination.
+                TextButton(
+                    onClick = { showLayoutEditor = true },
+                    colors = ButtonDefaults.textButtonColors(contentColor = Palette.textTertiary),
+                    modifier = Modifier.align(Alignment.CenterEnd),
+                ) {
+                    Icon(
+                        Icons.Filled.SwapVert,
+                        contentDescription = "Arrange Today sections",
+                        modifier = Modifier.size(Metrics.iconSmall),
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text("Arrange", style = NoopType.footnote)
+                }
             }
+        }
         }
 
         // A "workout in progress" indicator whenever a manual workout is active (iOS parity: the Today
@@ -1222,24 +1243,8 @@ fun TodayScreen(
 
         if (alert != null) item { IllnessBanner(alert!!) }
 
-        // #today-layout: a small right-aligned affordance to REORDER the sections below (an alternative to
-        // holding + dragging the cards directly). Opens a Today-local dialog — no new nav destination.
-        item {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(
-                    onClick = { showLayoutEditor = true },
-                    colors = ButtonDefaults.textButtonColors(contentColor = Palette.textTertiary),
-                ) {
-                    Icon(
-                        Icons.Filled.SwapVert,
-                        contentDescription = "Arrange Today sections",
-                        modifier = Modifier.size(Metrics.iconSmall),
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text("Arrange", style = NoopType.footnote)
-                }
-            }
-        }
+        // #486: the "Arrange" affordance moved UP into the header/wordmark cluster (see above) so it no
+        // longer sits alone in its own full-width band here. It stays pinned; only its position changed.
 
         // #today-layout: EVERY Today section — including the Charge/Effort/Rest hero and the Start-session
         // entry — renders in the user's saved order (TodayLayoutPrefs); only the top bar + this Arrange
