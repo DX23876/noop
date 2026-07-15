@@ -29,11 +29,25 @@ struct ChatMessage: Identifiable, Equatable, Codable {
     let id: UUID
     let role: Role
     let text: String
+    /// When the turn was created — drives time separators in the transcript. Defaulted on decode so
+    /// transcripts saved before this field existed still load (they just show "now" for old turns).
+    let date: Date
 
-    init(id: UUID = UUID(), role: Role, text: String) {
+    init(id: UUID = UUID(), role: Role, text: String, date: Date = Date()) {
         self.id = id
         self.role = role
         self.text = text
+        self.date = date
+    }
+
+    private enum CodingKeys: String, CodingKey { case id, role, text, date }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        role = try c.decode(Role.self, forKey: .role)
+        text = try c.decode(String.self, forKey: .text)
+        date = try c.decodeIfPresent(Date.self, forKey: .date) ?? Date()
     }
 }
 
@@ -153,9 +167,37 @@ enum AICoachError: LocalizedError {
 final class AICoachEngine: ObservableObject {
 
     // Published state the UI binds to.
-    @Published var messages: [ChatMessage] = []
+    /// All saved conversations, most-recently-updated first. The visible chat is the ACTIVE one; older
+    /// ones stay findable in the history sheet instead of being overwritten.
+    @Published private(set) var conversations: [CoachConversation] = []
+    /// The conversation currently shown in the chat. `messages` reads/writes into this one.
+    @Published var activeConversationID: UUID?
     @Published var sending = false
     @Published var errorText: String?
+
+    /// The active conversation, if any.
+    var activeConversation: CoachConversation? {
+        guard let id = activeConversationID else { return nil }
+        return conversations.first(where: { $0.id == id })
+    }
+
+    /// The visible transcript: a computed view over the active conversation, so every existing call site
+    /// that appends/removes/subscripts `messages` keeps working unchanged. Writing it also bumps the
+    /// conversation's `updatedAt`, re-sorts most-recent-first, and auto-titles from the first user turn.
+    var messages: [ChatMessage] {
+        get { activeConversation?.messages ?? [] }
+        set {
+            guard let id = activeConversationID,
+                  let idx = conversations.firstIndex(where: { $0.id == id }) else { return }
+            conversations[idx].messages = newValue
+            conversations[idx].updatedAt = Date()
+            if conversations[idx].title.isEmpty || conversations[idx].title == "New chat" {
+                conversations[idx].title = CoachConversation.autoTitle(from: newValue)
+            }
+            // Keep most-recently-updated first without disturbing the active id.
+            conversations.sort { $0.updatedAt > $1.updatedAt }
+        }
+    }
     @Published var provider: AIProvider {
         didSet {
             guard provider != oldValue else { return }
@@ -325,25 +367,86 @@ final class AICoachEngine: ObservableObject {
         self.customConnected = UserDefaults.standard.bool(forKey: Self.customConnectedKey)
         self.includeOnDeviceSignals = UserDefaults.standard.bool(forKey: Self.onDeviceSignalsKey)
 
-        // Restore the saved transcript so the conversation survives a relaunch, then keep it saved:
-        // a debounced sink (not a didSet) so token-by-token streaming doesn't hammer the disk.
-        self.messages = CoachTranscriptStore.load()
-        transcriptAutosave = $messages
+        // Restore saved conversations (migrating a legacy single transcript on first run) so history
+        // survives a relaunch. Start on the most-recent one, or a fresh empty conversation.
+        var restored = CoachConversationStore.load()
+        restored.sort { $0.updatedAt > $1.updatedAt }
+        if restored.isEmpty { restored = [CoachConversation()] }
+        self.conversations = restored
+        self.activeConversationID = restored.first?.id
+
+        // Keep the list saved: a debounced sink (not a didSet) so token-by-token streaming doesn't
+        // hammer the disk.
+        transcriptAutosave = $conversations
             .dropFirst()
             .debounce(for: .seconds(1.0), scheduler: DispatchQueue.main)
-            .sink { CoachTranscriptStore.save($0) }
+            .sink { CoachConversationStore.save($0) }
+
+        // Rebuild the in-memory chart artifacts for the active conversation from their snapshots.
+        rebuildChartsForActive()
     }
 
     /// Debounced transcript persistence (see init).
     private var transcriptAutosave: AnyCancellable?
 
-    /// Start over: clear the visible chat, its chart artifacts, and the stored transcript. The next
-    /// Coach open generates a fresh brief (messages is empty again).
-    func clearChat() {
-        messages = []
+    // MARK: Conversation management (history)
+
+    /// Start a new conversation and switch to it. If the active one is already empty, reuse it rather
+    /// than piling up blank threads. Preserved name `clearChat` as an alias so old call sites still work.
+    func newConversation() {
+        if let cur = activeConversation, cur.messages.isEmpty {
+            chartsByMessage = [:]
+            errorText = nil
+            return
+        }
+        let fresh = CoachConversation()
+        conversations.insert(fresh, at: 0)
+        activeConversationID = fresh.id
         chartsByMessage = [:]
         errorText = nil
-        CoachTranscriptStore.clear()
+    }
+
+    /// Back-compat alias for the old "New chat" button.
+    func clearChat() { newConversation() }
+
+    /// Switch the visible chat to another saved conversation, restoring its charts.
+    func switchTo(_ id: UUID) {
+        guard conversations.contains(where: { $0.id == id }) else { return }
+        activeConversationID = id
+        errorText = nil
+        rebuildChartsForActive()
+    }
+
+    /// Rename a conversation (user-set titles are kept; auto-titling won't overwrite them).
+    func renameConversation(_ id: UUID, to title: String) {
+        guard let idx = conversations.firstIndex(where: { $0.id == id }) else { return }
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        conversations[idx].title = trimmed.isEmpty ? "New chat" : trimmed
+    }
+
+    /// Delete a conversation. If it was the active one, fall back to the newest remaining, or a fresh one.
+    func deleteConversation(_ id: UUID) {
+        conversations.removeAll { $0.id == id }
+        if activeConversationID == id || activeConversationID == nil {
+            if let first = conversations.first {
+                activeConversationID = first.id
+            } else {
+                let fresh = CoachConversation()
+                conversations = [fresh]
+                activeConversationID = fresh.id
+            }
+            rebuildChartsForActive()
+        }
+    }
+
+    /// Rebuild `chartsByMessage` for the active conversation from its persisted snapshots.
+    private func rebuildChartsForActive() {
+        guard let convo = activeConversation else { chartsByMessage = [:]; return }
+        var map: [UUID: CoachChartArtifact] = [:]
+        for (idStr, snap) in convo.charts {
+            if let id = UUID(uuidString: idStr) { map[id] = snap.artifact }
+        }
+        chartsByMessage = map
     }
 
     // MARK: Key management
@@ -604,12 +707,19 @@ final class AICoachEngine: ObservableObject {
     }
 
     /// Append one empty assistant message per queued chart (the id links it to `chartsByMessage`), then
-    /// clear the queue. Called after a reply completes so charts sit under the text.
+    /// clear the queue. Called after a reply completes so charts sit under the text. The chart is also
+    /// snapshotted into the active conversation so it survives a relaunch.
     func flushPendingCharts() {
         for art in pendingCharts {
             let id = UUID()
             messages.append(ChatMessage(id: id, role: .assistant, text: ""))
             chartsByMessage[id] = art
+            // Re-find the active conversation AFTER the append: writing `messages` re-sorts the list, so
+            // any index captured earlier would be stale.
+            if let cid = activeConversationID,
+               let idx = conversations.firstIndex(where: { $0.id == cid }) {
+                conversations[idx].charts[id.uuidString] = CoachChartSnapshot(art)
+            }
         }
         pendingCharts.removeAll()
     }
