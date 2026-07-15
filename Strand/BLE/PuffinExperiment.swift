@@ -50,6 +50,24 @@ enum PuffinExperiment {
 
     static var continuousHrvOvernightOnlyEnabled: Bool { UserDefaults.standard.bool(forKey: continuousHrvOvernightOnlyKey) }
 
+    // MARK: - Power saving (#477), parity with Android NoopPrefs
+
+    /// "Power saving" master: battery-adaptive strap-sync cadence. Default off. */
+    static let powerSavingKey = "noopPowerSaving"
+    static var powerSavingEnabled: Bool { UserDefaults.standard.bool(forKey: powerSavingKey) }
+
+    /// Battery-% threshold for power saving (10–30). Default 20 (0 in the store means "unset" → 20).
+    static let powerSavingBatteryPctKey = "noopPowerSavingBatteryPct"
+    static var powerSavingBatteryPct: Int {
+        let v = UserDefaults.standard.integer(forKey: powerSavingBatteryPctKey)
+        return v == 0 ? 20 : v
+    }
+
+    /// "Pause HRV capture under Low Power Mode" — a sub-option of power saving, default ON when the master
+    /// is on. Stored inverted (`…Disabled`) so the default-true reads correctly from a zero-value store.
+    static let pauseHrvDisabledKey = "noopPowerSavingPauseHrvDisabled"
+    static var pauseHrvOnPowerSaveEnabled: Bool { !UserDefaults.standard.bool(forKey: pauseHrvDisabledKey) }
+
     /// "Experimental sleep staging (V2)": re-stage each detected night with `SleepStagerV2` — a transparent
     /// cardiorespiratory recipe (reimplemented from contributor PR #600) — instead of the older V1 stager.
     /// Pure analysis switch: it changes ONLY which staging engine runs over an already-detected sleep window;
@@ -94,4 +112,21 @@ enum PuffinExperiment {
     static let autoDetectWorkoutsKey = "noopAutoDetectWorkouts"
 
     static var autoDetectWorkoutsEnabled: Bool { UserDefaults.standard.bool(forKey: autoDetectWorkoutsKey) }
+
+    /// Opt-in "Motion-aware wake refinement" (default OFF, #364 "Proposal 2" follow-up): a post-pass
+    /// (`WakeMotionRefinement`) over the already-staged hypnogram that reclassifies a scored WAKE segment
+    /// to `light` when its per-minute step-tick cadence shows no locomotion AND its per-minute gravity
+    /// posture stays stable outside a minority of isolated "turn-over" burst minutes (which are kept as
+    /// wake). Targets the HR-led wake call misreading a hot-but-still/atonic stretch as an awakening — a
+    /// real anonymized night scored 194 min wake from single-minute turn-over bursts with zero walking
+    /// cadence between them. Self-gates on the OBSERVED gravity + step-sample density (never on strap
+    /// family/model, per #345): a WHOOP 4.0 night (sparse gravity, no step stream at all) fails the gate
+    /// and is left untouched every time; a WHOOP 5.0/MG night, which streams both densely, is the expected
+    /// beneficiary. Pure analysis switch — it only ever SHRINKS an already-scored wake segment, never
+    /// invents wake time; detection and the V1/V2 staging engines are untouched either way. Read at the
+    /// staging call sites (`Repository.restageFromRaw`, `IntelligenceEngine`, threaded through
+    /// `AnalyticsEngine.analyzeDay`). Mirrors the Android `PuffinExperiment.KEY_MOTION_AWARE_WAKE`.
+    static let motionAwareWakeKey = "noopMotionAwareWake"
+
+    static var motionAwareWakeEnabled: Bool { UserDefaults.standard.bool(forKey: motionAwareWakeKey) }
 }

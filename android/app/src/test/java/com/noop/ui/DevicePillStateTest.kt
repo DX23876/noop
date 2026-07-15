@@ -1,6 +1,7 @@
 package com.noop.ui
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
@@ -62,5 +63,11 @@ class DevicePillStateTest {
                 bondRefused = false, isLiveConnected = false,
             ).label,
         )
+    }
+
+    @Test
+    fun historyLayoutLine_formatsObservedHistoricalRecordVersion() {
+        assertEquals("v25 history", historyLayoutLine(25))
+        assertNull(historyLayoutLine(null))
     }
 }

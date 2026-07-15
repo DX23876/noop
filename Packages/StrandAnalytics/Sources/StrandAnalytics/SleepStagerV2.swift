@@ -141,43 +141,45 @@ public enum SleepStagerV2 {
     /// Population sleep-architecture base rates as log-priors (adult TST ≈ light 50 / deep 18 / rem 22 /
     /// waso 10 %). Calibrates the boundary so light wins weak-evidence epochs.
     static let baseLogPrior: [String: Double] = [
-        "light": log(0.50), "deep": log(0.15), "rem": log(0.22), "awake": log(0.34)]
+        "light": log(0.50), "deep": log(0.18), "rem": log(0.22), "awake": log(0.10)]
 
-    /// Deep-eligibility HR-flatness percentile gate. Raised 0.25 -> 0.40 by the DREAMT (n=100 wrist-optical
-    /// + PSG) joint re-tune: a clinical cohort with sparse N3, so deep is admitted only in the flattest
-    /// epochs and the over-call is cut. Held-out validated; AAUWSS + Walch also improved.
-    static let deepGateThresh = 0.40
+    /// Deep is eligible only in the night's lowest ~25 % HR-flatness epochs (≈ deep base rate + margin).
+    /// Widened 0.20 -> 0.25 by the multi-subject (AAUWSS + sleep-accel LOSO) deep-boundary tune, which
+    /// recovers the deep recall the other deep-tightening edits shed while keeping precision up.
+    static let deepGateThresh = 0.25
     static let deepGateSlope = 5.0
 
     /// Motion thresholds are RELATIVE to each night's own quiescent jerk floor (the median per-second
     /// gravity-jerk over the in-bed session), NOT an absolute g. Self-calibrates to the strap's
     /// gravity-decode scale and the wearer's fit.
-    /// DREAMT re-tune: move floor 38 -> 75 (stricter "moving"), gate 55 -> 35 (wake fires easier), boost 2 -> 4.
-    static let jerkFloorMoveMult = 75.0  // a per-second jerk counts as "moving" above floor × this
-    static let jerkFloorGateMult = 35.0  // wake-boost when an epoch's peak jerk exceeds floor × this
-    static let motionGateBoost = 4.0
+    static let jerkFloorMoveMult = 38.0  // a per-second jerk counts as "moving" above floor × this
+    static let jerkFloorGateMult = 55.0  // wake-boost when an epoch's peak jerk exceeds floor × this
+    static let motionGateBoost = 2.0
+
+    /// Motion-corroborated wake (elevated-but-flat-HR nights). An epoch is MOTION-QUIESCENT when it shows no
+    /// observed movement (`moveFrac == 0`) AND its peak per-second jerk sits at/below the night's own quiescent
+    /// floor × `jerkFloorGateMult` — i.e. the wrist did not move this epoch, on the same night-relative scale
+    /// the wake jerk-gate uses. On such epochs the AWAKE emission keeps any wake-SUPPRESSING cardiac evidence
+    /// (a low, flat HR) but discards the wake-PROMOTING half: a raised HR / HR-variability with the wrist
+    /// motionless is a supplement / fever / hot-room / alcohol artefact, not wakefulness, and must not vote the
+    /// epoch awake on its own. This never invents wake and never removes negative (pro-sleep) cardiac evidence,
+    /// so a genuinely still low-HR sleep epoch is byte-identical; only a still epoch whose ELEVATED HR was about
+    /// to push it awake is held. Motion (`zmvv`) and the jerk gate — which by construction cannot fire on a
+    /// quiescent epoch (`jerkMax ≤ floor × gateMult`) — still drive wake on any epoch that actually moved.
+    static func motionQuiescent(_ f: Epoch) -> Bool {
+        f.moveFrac <= 0.0 && f.jerkMax <= f.jerkScale * jerkFloorGateMult
+    }
 
     /// Weight of the RSA respiration-regularity term (regular → deep, irregular → REM).
     static let respWeight = 0.6
 
-    /// Dead-zone (± this z) applied to the cardiac terms of the AWAKE emission: within the band the term is
-    /// zeroed, outside it is shrunk toward 0. Stops small HR / HR-variability wobble from voting wake.
-    /// DREAMT re-tune turned it on at 0.3 (protects Walch REM/wake balance).
-    static let awakeDeadzone = 0.30
-    static func dz(_ z: Double) -> Double {
-        if awakeDeadzone <= 0.0 { return z }
-        if z > awakeDeadzone { return z - awakeDeadzone }
-        if z < -awakeDeadzone { return z + awakeDeadzone }
-        return 0.0
-    }
-
     /// Transition matrix (rows = from, cols = to). Self-transitions dominate; deep↔rem rare; wake mostly
-    /// to/from light. A priori, not fit. DREAMT re-tuned self-loops + renormalised off-diagonals.
+    /// to/from light. A priori, not fit.
     static let transition: [String: [String: Double]] = [
-        "deep":  ["deep": 0.76, "rem": 0.012, "light": 0.216, "awake": 0.012],
-        "rem":   ["deep": 0.00333, "rem": 0.92, "light": 0.06667, "awake": 0.01],
-        "light": ["deep": 0.08, "rem": 0.08, "light": 0.80, "awake": 0.04],
-        "awake": ["deep": 0.0, "rem": 0.0, "light": 0.10, "awake": 0.90]]
+        "deep":  ["deep": 0.86, "rem": 0.007, "light": 0.126, "awake": 0.007],
+        "rem":   ["deep": 0.005, "rem": 0.88, "light": 0.10, "awake": 0.015],
+        "light": ["deep": 0.06, "rem": 0.06, "light": 0.85, "awake": 0.03],
+        "awake": ["deep": 0.01, "rem": 0.02, "light": 0.27, "awake": 0.70]]
 
     /// One 30 s epoch's recipe features. Optionals are "no measurement"; the z-score / percentile treat a
     /// missing value as the neutral centre so a sparse channel never blocks a stage.
@@ -390,6 +392,8 @@ public enum SleepStagerV2 {
     /// uniform start. Ties resolve to the earlier stage in `stageNames`.
     static func viterbi(_ emSeq: [[String: Double]]) -> [String] {
         if emSeq.isEmpty { return [] }
+        // Floor before ln so a zeroed transition entry (a legal hand-edit) can never hit ln(0) = -Inf
+        // and poison the lattice. Inert for the current matrix (no zero entries). Kept from #348.
         let logT = transition.mapValues { row in row.mapValues { log(max($0, 1e-9)) } }
         var V = emSeq[0]   // uniform start
         var back: [[String: String]] = []
@@ -447,11 +451,18 @@ public enum SleepStagerV2 {
         for f in feats {
             let zhrv = zhr(f.hr), zhvv = zhv(f.hrVar), zmvv = zmv(f.moveFrac)
             let gate = deepGateSlope * max(0.0, fpct(f.hrFlat11) - deepGateThresh)
+            // Cardiac contribution to the AWAKE emission. On a motion-quiescent epoch the wrist did not move,
+            // so a raised HR / HR-variability alone must NOT promote wake — clamp the cardiac term to ≤ 0,
+            // keeping only its wake-SUPPRESSING (pro-sleep) half. Non-quiescent epochs are unchanged and use
+            // upstream's restored (post-#437) cardiac coefficients verbatim, so a night with any motion stages
+            // byte-identical to upstream; the correction only ever holds a still, elevated-HR epoch.
+            let awakeCardiac0 = 0.8 * zhvv + 0.4 * zhrv
+            let awakeCardiac = motionQuiescent(f) ? min(0.0, awakeCardiac0) : awakeCardiac0
             var em: [String: Double] = [
-                "deep": -0.8 * zhvv + 0.5 * zhrv - 0.1 * zmvv - gate + baseLogPrior["deep"]!,
-                "rem": 0.8 * zhvv - 0.4 * zmvv + 0.4 * zhrv + baseLogPrior["rem"]!,
+                "deep": -1.1 * zhvv - 0.5 * zmvv - gate + baseLogPrior["deep"]!,
+                "rem": 0.6 * zhvv - 0.6 * zmvv + 0.4 * zhrv + baseLogPrior["rem"]!,
                 "light": baseLogPrior["light"]!,
-                "awake": 1.0 * zmvv + 0.5 * dz(zhvv) + 0.6 * dz(zhrv) + baseLogPrior["awake"]!,
+                "awake": 1.0 * zmvv + awakeCardiac + baseLogPrior["awake"]!,
             ]
             let pr = cyclePrior(f.clock)
             for s in stageNames { em[s]! += pr[s]! }

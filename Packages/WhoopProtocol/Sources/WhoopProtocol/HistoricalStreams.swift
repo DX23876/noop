@@ -55,8 +55,11 @@ public func isPlausibleHistoricalUnix(_ ts: Int, wallNow: Int,
 ///
 /// Console (type-50, `frame[typeIndex] == 0x32`) frames are strap-side debug-log text that decode to
 /// zero rows BY DESIGN and are never returned. 5/MG v26 (raw PPG block, hist_version 26) is also
-/// skipped: it is known-and-unstored by design, not lost biometric data. Only genuine type-47
-/// record frames whose payload would otherwise be silently dropped are returned.
+/// skipped unconditionally (even on a CRC failure): a v26 record's payload is the optical waveform,
+/// which `extractHistoricalStreams` now persists durably in its OWN stream (`Streams.ppgWaveform` /
+/// WhoopStore's `ppgWaveformSample` table, issue #156 follow-up) whenever it decodes — this reject
+/// archive exists for genuinely-undecodable records, and a decoded v26 record was never one of those.
+/// Only genuine type-47 record frames whose payload would otherwise be silently dropped are returned.
 ///
 /// Used by the Backfiller/BLEManager to archive undecodable history BEFORE acking the trim. Mirrors
 /// the Android rejectedHistoricalRecords so one mapping toolchain re-ingests both archives.
@@ -70,7 +73,7 @@ public func rejectedHistoricalRecords(_ rawFrames: [[UInt8]], family: DeviceFami
         // Only genuine HISTORICAL_DATA records (47). Console (50) and METADATA frames have a
         // different type byte, so they never pass this gate — they are excluded by construction.
         guard f.count > typeIndex, Int(f[typeIndex]) == 47 else { return false }
-        if family == .whoop5, f.count > versionIndex, Int(f[versionIndex]) == 26 { return false }  // v26 PPG: skipped by design
+        if family == .whoop5, f.count > versionIndex, Int(f[versionIndex]) == 26 { return false }  // v26 PPG: has its own durable stream (ppgWaveform), not this reject archive
         let p = parseFrame(f, family: family)
         // Envelope/CRC reject: parse failed outright or the CRC32 trailer mismatched.
         if !p.ok || p.crcOK == false { return true }
@@ -176,6 +179,8 @@ public func extractHistoricalStreams(_ parsed: [ParsedFrame],
     // v26 optical-PPG records (issue #156): no measured HR/motion, just the 24 Hz waveform. Collect
     // (corrected-wall ts, samples) here and derive a per-second HR after the loop (PpgHr.derivePpgHr),
     // so the timeline stays continuous through the v26-heavy stretches that have no v18 HR summary.
+    // The SAME (ts, samples) are also appended to `out.ppgWaveform` below (issue #156 follow-up) so the
+    // raw waveform is durable too, not just the derived estimate this local buffer exists to produce.
     var ppgRecords: [(ts: Int, samples: [Int])] = []
     for r in parsed {
         if !r.ok || r.crcOK == false { continue }
@@ -187,10 +192,13 @@ public func extractHistoricalStreams(_ parsed: [ParsedFrame],
             // `correctedWall` returns nil for an implausible ts (covers the v26 PPG baseTs too, since the
             // v26 waveform rides this same `unix`) — skip the whole record so no garbage-ts row is banked.
             guard let rawTs = p["unix"]?.intValue, let ts = correctedWall(rawTs) else { continue }
-            // v26 PPG buffer: stash the waveform for the post-loop HR estimator. A v26 record carries
-            // no heart_rate/spo2/gravity, so it adds nothing to the branches below — handled here only.
+            // v26 PPG buffer: stash the waveform for the post-loop HR estimator AND persist the raw
+            // samples themselves (issue #156 follow-up — previously ONLY the derived estimate survived,
+            // the waveform that produced it was discarded here). A v26 record carries no
+            // heart_rate/spo2/gravity, so it adds nothing to the branches below — handled here only.
             if let samples = p["ppg_waveform"]?.intArrayValue, !samples.isEmpty {
                 ppgRecords.append((ts: ts, samples: samples))
+                out.ppgWaveform.append(PpgWaveformSample(ts: ts, samples: samples))
             }
             if let bpm = p["heart_rate"]?.intValue, bpm != 0 {  // skip startup hr=0
                 out.hr.append(HRSample(ts: ts, bpm: bpm))

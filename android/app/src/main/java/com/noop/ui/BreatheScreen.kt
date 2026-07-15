@@ -289,6 +289,12 @@ fun BreatheScreen(viewModel: AppViewModel) {
         }
     }
 
+    // Day-cycle sky + sky-behind-cards: the SAME two Appearance gates every other screen honours.
+    // (This screen previously drew the sky unconditionally - it now matches Today/Trends/Sleep,
+    // including turning OFF with the day-cycle setting.) Read once; SharedPreferences isn't reactive.
+    val skyCtx = androidx.compose.ui.platform.LocalContext.current
+    val showDayCycleBackground = remember { NoopPrefs.showDayCycleBackground(skyCtx) }
+    val skyBehindCards = remember { NoopPrefs.skyBehindCards(skyCtx) }
     ScreenScaffold(
         title = "Breathe",
         subtitle = "Haptic-paced breathing · find your pace · calm down",
@@ -296,7 +302,10 @@ fun BreatheScreen(viewModel: AppViewModel) {
         // into the theme canvas behind the header + top card and bleeds full-width up behind the status bar
         // via the scaffold's topBackground plumbing. The Android equivalent of the iOS
         // `ScreenScaffold(topBackground: liquidScaffoldSky())`; the cards float OVER it on the flat canvas.
-        topBackground = { LiquidScreenSky() },
+        topBackground = if (showDayCycleBackground) { { LiquidScreenSky(fillHeight = skyBehindCards) } } else null,
+        // Sky-behind-cards fills the viewport so the transparent cards reveal the sky the whole way
+        // down (Today / Trends / Sleep / metric-detail parity - same two prefs, same two behaviours).
+        fullBleedBackground = showDayCycleBackground && skyBehindCards,
     ) {
         // Mode switch — Breathe / Resonance / Calm me.
         SegmentedPillControl(

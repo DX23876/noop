@@ -73,33 +73,53 @@ object ReportCompleteness {
         TestDomain.HRV to "hrv nightSummary",
     )
 
+    /**
+     * The token that actually satisfied [d]'s presence check in [reportText], or null when neither did.
+     * The killer trace is preferred (it is the deeper diagnostic); the evidence token (#127) only answers
+     * when the killer is absent. Exposed so the rendered section names the token that MATCHED rather than
+     * the one we hoped for — #386's export read `sleep: present (gate run=)` off an evidence-only match,
+     * and that label sent the review hunting for gate lines the report never contained.
+     */
+    fun matchedToken(reportText: String, d: TestDomain): String? {
+        val killer = killerTokens[d] ?: return null
+        if (reportText.contains(killer)) return killer
+        return evidenceTokens[d]?.takeIf { reportText.contains(it) }
+    }
+
     /** Per-domain presence map for [reportText], over [checkedDomains]. PRESENT iff the killer token OR the
      *  domain's evidence token (if any, #127) occurs anywhere in the report. Deterministic order. */
     fun statuses(reportText: String, active: Set<TestDomain>): LinkedHashMap<TestDomain, Status> {
         val out = LinkedHashMap<TestDomain, Status>()
         for (d in checkedDomains(active)) {
-            val token = killerTokens[d] ?: continue
-            val present = reportText.contains(token) ||
-                evidenceTokens[d]?.let { reportText.contains(it) } == true
-            out[d] = if (present) Status.PRESENT else Status.MISSING
+            if (killerTokens[d] == null) continue
+            out[d] = if (matchedToken(reportText, d) != null) Status.PRESENT else Status.MISSING
         }
         return out
     }
 
     /**
-     * The "Capture check" section appended to report.txt (byte-identical to the Swift twin): a header,
-     * then one `<domainId>: <present|MISSING> (<token>)` line per checked domain in deterministic order,
-     * then a footer flag when any active domain's trace is MISSING (the at-a-glance "this report carries
-     * no diagnostic for X" signal). Returns the section WITHOUT a leading newline; the assembler joins it.
+     * The "Capture check" section appended to report.txt: a header, then one line per checked domain in
+     * deterministic order, then a footer flag when any active domain's trace is MISSING (the at-a-glance
+     * "this report carries no diagnostic for X" signal). The parenthetical names the token that ACTUALLY
+     * matched, never the one we hoped for (#386's mislabel): a killer-trace match keeps the bare
+     * `(<killer>)`, an evidence-only match (#127) reads `(via <evidence>)`, and MISSING reads
+     * `(expected <killer>)` — the Swift renderer's "expected …" wording for the missing case. Returns
+     * the section WITHOUT a leading newline; the assembler joins it.
      */
     fun captureCheckSection(reportText: String, active: Set<TestDomain>): String {
         val statuses = statuses(reportText, active)
         val sb = StringBuilder()
         sb.append("=== Capture check ===")
         for ((d, status) in statuses) {
+            val matched = matchedToken(reportText, d)
+            val label = when {
+                status == Status.MISSING -> "expected ${killerTokens[d]}"
+                matched == killerTokens[d] -> matched
+                else -> "via $matched"
+            }
             sb.append('\n')
                 .append(d.id).append(": ").append(status.token)
-                .append(" (").append(killerTokens[d]).append(')')
+                .append(" (").append(label).append(')')
         }
         // Only an ACTIVE domain going MISSING is a problem; the universal line is informational. If any
         // active, mapped domain is MISSING, flag it so the maintainer reads it without scanning the list.

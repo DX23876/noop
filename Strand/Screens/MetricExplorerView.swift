@@ -107,18 +107,20 @@ private func metricGaugeFraction(_ m: MetricDescriptor, value: Double) -> Double
 
 // MARK: - Range
 
-/// The W/M/3M/6M/1Y/ALL window, driving the single SegmentedPillControl.
+/// The W/2W/3W/M/3M/6M/1Y/ALL window, driving the single SegmentedPillControl.
 enum ExploreRange: Int, CaseIterable, Identifiable, Hashable {
-    case week = 7, month = 30, quarter = 90, half = 180, year = 365, all = 0
+    case week = 7, twoWeeks = 14, threeWeeks = 21, month = 30, quarter = 90, half = 180, year = 365, all = 0
     var id: Int { rawValue }
     var label: String {
         switch self {
+        case .twoWeeks: return String(localized: "2W"); case .threeWeeks: return String(localized: "3W")
         case .week: return String(localized: "W"); case .month: return String(localized: "M"); case .quarter: return String(localized: "3M")
         case .half: return String(localized: "6M"); case .year: return String(localized: "1Y"); case .all: return String(localized: "ALL")
         }
     }
     var name: String {
         switch self {
+        case .twoWeeks: return String(localized: "2 weeks"); case .threeWeeks: return String(localized: "3 weeks")
         case .week: return String(localized: "week"); case .month: return String(localized: "month"); case .quarter: return String(localized: "quarter")
         case .half: return String(localized: "6 months"); case .year: return String(localized: "year"); case .all: return String(localized: "all time")
         }
@@ -143,7 +145,7 @@ enum ExploreRange: Int, CaseIterable, Identifiable, Hashable {
 enum ExploreRangeGating {
     static func coerced(selection: ExploreRange, isUnlocked: (ExploreRange) -> Bool) -> ExploreRange {
         if isUnlocked(selection) { return selection }
-        return [ExploreRange.year, .half, .quarter, .month, .week]
+        return [ExploreRange.year, .half, .quarter, .month, .threeWeeks, .twoWeeks, .week]
             .first { $0.days != nil && $0.rawValue <= selection.rawValue && isUnlocked($0) } ?? .week
     }
 }
@@ -463,6 +465,12 @@ private struct MetricRow: View {
 struct MetricDetailView: View {
     let metric: MetricDescriptor
     @EnvironmentObject var repo: Repository
+    /// #430 parity: the detail carries the SAME backdrop as the screen that pushed it — the day-cycle sky
+    /// when the setting is on, the plain canvas when off — so a Key-Metrics tile tap doesn't jar from the
+    /// liquid Today's sky to a flat page. Same keys TodayView/LiquidTodayView gate on; "Sky behind cards"
+    /// extends the sky to the full viewport (softer settle) so the transparent cards reveal it throughout.
+    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = true
+    @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = false
     // Profile basics for the Fitness Age not-ready countdown (age/sex gate its readiness lead). Injected
     // app-wide at the root; previews supply their own. Only read on the fitness_age empty-state path.
     @EnvironmentObject var profile: ProfileStore
@@ -571,10 +579,12 @@ struct MetricDetailView: View {
         guard loaded, !series.isEmpty else { return true }
         switch r {
         case .week, .all: return true
-        case .month:   return historySpanDays > ExploreRange.week.rawValue
-        case .quarter: return historySpanDays > ExploreRange.month.rawValue
-        case .half:    return historySpanDays > ExploreRange.quarter.rawValue
-        case .year:    return historySpanDays > ExploreRange.half.rawValue
+        case .twoWeeks:   return historySpanDays > ExploreRange.week.rawValue
+        case .threeWeeks: return historySpanDays > ExploreRange.twoWeeks.rawValue
+        case .month:      return historySpanDays > ExploreRange.threeWeeks.rawValue
+        case .quarter:    return historySpanDays > ExploreRange.month.rawValue
+        case .half:       return historySpanDays > ExploreRange.quarter.rawValue
+        case .year:       return historySpanDays > ExploreRange.half.rawValue
         }
     }
 
@@ -681,7 +691,23 @@ struct MetricDetailView: View {
             .padding(NoopMetrics.screenPadding)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .background(StrandPalette.surfaceBase)
+        // Day-cycle-aware backdrop (#430 parity): the top sky band every liquid screen uses when the
+        // setting is on — or the FULL-viewport sky with the softer settle when "Sky behind cards" is also
+        // on (the LiquidTodayView treatment, so the transparent cards reveal it the whole way down); the
+        // plain canvas when off.
+        .background(alignment: .top) {
+            ZStack(alignment: .top) {
+                StrandPalette.surfaceBase
+                if showDayCycleBackground {
+                    LiquidSkyStatic(hour: nil, settleStrength: skyBehindCards ? 0.78 : 1)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: skyBehindCards ? nil : 240, alignment: .top)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
+            }
+            .ignoresSafeArea()
+        }
         .navigationTitle(metric.title)
         .task(id: loadTaskID) { await load() }
         // Range changes the window, hence the correlation inputs — recompute the

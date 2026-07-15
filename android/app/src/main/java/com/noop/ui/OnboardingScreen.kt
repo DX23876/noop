@@ -671,6 +671,16 @@ private fun ProfileStep() {
     }
     @Suppress("UNUSED_VARIABLE") val tick = rev
 
+    // Wheel-picker option lists — replace the +/- stepper tap-spamming with a tap-to-scroll selector. The
+    // stored profile stays SI; Weight/Height option labels re-format per the live unit system, and the
+    // picker maps the chosen index back to SI on select. Age is 13..100 (matches setAge's clamp).
+    val ageSteps = remember { (13..100).toList() }
+    val weightSteps = remember { generateSequence(30.0) { it + 0.5 }.takeWhile { it <= 250.0001 }.toList() }
+    val heightSteps = remember { (120..230).toList() }
+    val ageOptions = remember { ageSteps.map { "$it" } }
+    val weightOptions = remember(unitSystem) { weightSteps.map { UnitFormatter.massFromKilograms(it, unitSystem) } }
+    val heightOptions = remember(unitSystem) { heightSteps.map { UnitFormatter.heightFromCentimeters(it.toDouble(), unitSystem) } }
+
     StepShell(
         title = "About you",
         subtitle = "So your zones, calories and on-device scoring start from the right numbers.",
@@ -678,13 +688,15 @@ private fun ProfileStep() {
         NoopCard(padding = 18.dp) {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 ProfileFieldRow(label = "Age") {
-                    StepperField(
+                    WheelPickerField(
                         value = "${profile.age}",
                         unit = "yrs",
                         accessibility = "Age, ${profile.age} years",
+                        options = ageOptions,
+                        selectedIndex = ageSteps.indexOf(profile.age).coerceAtLeast(0),
+                        dialogTitle = "Age",
                         // #146: age derives from a stored date of birth; setAge re-anchors it (clamped 13..100).
-                        onMinus = { mutate { profile.setAge(profile.age - 1) } },
-                        onPlus = { mutate { profile.setAge(profile.age + 1) } },
+                        onSelected = { mutate { profile.setAge(ageSteps[it]) } },
                     )
                 }
                 ThinDivider()
@@ -719,21 +731,25 @@ private fun ProfileStep() {
                 }
                 ThinDivider()
                 ProfileFieldRow(label = "Weight") {
-                    StepperField(
+                    WheelPickerField(
                         // Full re-labelled string (e.g. "74.5 kg" / "164.2 lb"); unit folded into value.
                         value = UnitFormatter.massFromKilograms(profile.weightKg, unitSystem),
                         accessibility = "Weight",
-                        onMinus = { mutate { profile.weightKg = (profile.weightKg - 0.5).coerceIn(30.0, 250.0) } },
-                        onPlus = { mutate { profile.weightKg = (profile.weightKg + 0.5).coerceIn(30.0, 250.0) } },
+                        options = weightOptions,
+                        selectedIndex = weightSteps.indices.minByOrNull { kotlin.math.abs(weightSteps[it] - profile.weightKg) } ?: 0,
+                        dialogTitle = "Weight",
+                        onSelected = { mutate { profile.weightKg = weightSteps[it] } },
                     )
                 }
                 ThinDivider()
                 ProfileFieldRow(label = "Height") {
-                    StepperField(
+                    WheelPickerField(
                         value = UnitFormatter.heightFromCentimeters(profile.heightCm, unitSystem),
                         accessibility = "Height",
-                        onMinus = { mutate { profile.heightCm = (profile.heightCm - 1).coerceIn(120.0, 230.0) } },
-                        onPlus = { mutate { profile.heightCm = (profile.heightCm + 1).coerceIn(120.0, 230.0) } },
+                        options = heightOptions,
+                        selectedIndex = heightSteps.indices.minByOrNull { kotlin.math.abs(heightSteps[it] - profile.heightCm) } ?: 0,
+                        dialogTitle = "Height",
+                        onSelected = { mutate { profile.heightCm = heightSteps[it].toDouble() } },
                     )
                 }
             }

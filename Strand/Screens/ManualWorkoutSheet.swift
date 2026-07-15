@@ -114,9 +114,12 @@ struct ManualWorkoutSheet: View {
         .frame(width: 420)
         #else
         .frame(maxWidth: .infinity)
-        // A short 5-field form → open at .medium with .large a drag away; the grabber also gives the
-        // top dismiss affordance the sheet otherwise lacks (only a bottom Cancel).
-        .noopSheetPresentation(largeFirst: false)
+        // Full height, not .medium: the Sportart field's floating Recent/catalogue overlay (see
+        // sportPicker below) needs headroom below the field once the keyboard is up. At .medium the
+        // fixed-height VStack has no ScrollView to absorb the squeeze, so the keyboard pushed the
+        // header, the Sportart field and the overlay anchored to it off the top of the sheet —
+        // "recents vanish" was really the panel being clipped along with its off-screen anchor.
+        .noopSheetPresentation(largeFirst: true)
         #endif
         .background(StrandPalette.surfaceOverlay)
         // Lets the user dismiss the decimal pad (which has no return key) and reach Cancel/Add. No-op on macOS.

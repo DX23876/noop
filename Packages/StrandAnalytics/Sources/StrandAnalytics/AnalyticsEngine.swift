@@ -324,6 +324,16 @@ public enum AnalyticsEngine {
                                   // byte-identical default for pure-function callers/tests; IntelligenceEngine
                                   // threads `PuffinExperiment.experimentalSleepV2Enabled`. (V7 / #690)
                                   useSleepStagerV2: Bool = false,
+                                  // Opt-in motion-aware wake refinement (#364 "Proposal 2" follow-up; density
+                                  // gate precedent #345). When true, `WakeMotionRefinement` re-derives each
+                                  // detected session's stages, reclassifying a hot-but-still WAKE segment to
+                                  // `light` when it shows no locomotion and a stable posture outside isolated
+                                  // burst minutes; it only ever runs AFTER V1/V2 staging and self-gates on the
+                                  // observed gravity + step density, so it is a no-op on a sparse (e.g. WHOOP
+                                  // 4.0) night regardless of this flag. Default false keeps every pure-function
+                                  // caller/test byte-identical; IntelligenceEngine threads
+                                  // `PuffinExperiment.motionAwareWakeEnabled`.
+                                  useMotionAwareWake: Bool = false,
                                   // Sleep PROVENANCE for the per-day sleep trace (CAPTURE-C / #799). The
                                   // measured BLE path is `.measured` (the default); the caller passes
                                   // `.imported(...)` when a previously-imported sleep row WON the daily merge,
@@ -361,11 +371,19 @@ public enum AnalyticsEngine {
         func tsInDay(_ ts: Int) -> Bool { (ts + tzOffsetSeconds) >= dayStartUtc && (ts + tzOffsetSeconds) < dayEndUtc }
 
         // ── Sleep detection + staging ─────────────────────────────────────────
-        let allSessions = SleepStager.detectSleep(hr: hr, rr: rr, resp: resp, gravity: gravity,
+        let detectedSessions = SleepStager.detectSleep(hr: hr, rr: rr, resp: resp, gravity: gravity,
                                                   tzOffsetSeconds: tzOffsetSeconds, wristOff: wristOff,
                                                   bandSleepState: bandSleepState,
                                                   useSleepStagerV2: useSleepStagerV2,
                                                   traceSink: traceSink)
+        // Motion-aware wake refinement (#364 follow-up) runs AFTER V1/V2 staging, over every detected
+        // session (naps included — the same eligibility gates apply). `steps` is the SAME calendar-day/
+        // night-window stream the caller passed for the rest of this analysis; the pass self-gates on its
+        // observed density, so an empty/sparse `steps` (e.g. a WHOOP 4.0, which never emits StepSample at
+        // all) is a no-op regardless of `useMotionAwareWake`.
+        let allSessions = useMotionAwareWake
+            ? detectedSessions.map { WakeMotionRefinement.refine($0, grav: gravity, steps: steps) }
+            : detectedSessions
         // Sessions attributed to `day` = those whose end falls on `day` (LOCAL day, #277). `day` is
         // the caller's local-day key; attribute by the same offset so the bucket and the key agree.
         let matched = allSessions.filter { tsInDay($0.end) }
@@ -438,6 +456,9 @@ public enum AnalyticsEngine {
             needHours: sleepNeedHours,
             consistency: sleepConsistency,
             deepSeconds: deepS)
+        // #345: gravity-sparse computed ONCE — reused by the sleep-motion trace below AND the Rest
+        // confidence guard, so the two can never diverge and isGravitySparse runs only once per day.
+        let gravitySparse = SleepStager.isGravitySparse(gravity, hr: hr)
         // Sleep & Rest test mode (E5): emit the Rest sub-score breakdown for this night, reusing the
         // IDENTICAL inputs `restScore` consumed above so the trace can never disagree with the score.
         // `subScoreLine` itself reuses `Rest.composite` for the final value. Side-effect-only; emitted
@@ -453,7 +474,7 @@ public enum AnalyticsEngine {
             // epochs default to sleep → over-counted duration → high Rest). `stager` says whether V1/V2 ran.
             traceSink(AnalyticsEngine.sleepMotionLine(
                 day: day, grav: gravity.count, hr: hr.count,
-                sparse: SleepStager.isGravitySparse(gravity, hr: hr),
+                sparse: gravitySparse,
                 useSleepStagerV2: useSleepStagerV2, family: skinTempFamily))
             // CAPTURE-C (#799): append the sleep PROVENANCE so an imported row winning the merge is visible
             // (not silently swapped for the measured night). hoursAsleep = the scored night's tst in minutes;
@@ -654,23 +675,16 @@ public enum AnalyticsEngine {
         // only — not cloud/clinical parity.
         let stepsTotal: Int? = {
             // Prefer the full-calendar-day stream for the additive total; fall back to the
-            // night-window stream when the caller didn't supply one (pure-function callers/tests).
-            let sorted = (daySteps ?? steps).filter { tsInDay($0.ts) }.sorted { $0.ts < $1.ts }
-            if sorted.count < 2 { return nil }
-            // A delta this large is a big time-gap / disconnect boundary between sync sessions (or a
-            // firmware reboot, byte-indistinguishable from a wrap), NOT real steps — drop it so gaps
-            // don't inflate the total. Real 1 Hz motion never ticks this fast between adjacent records.
-            let maxStepDelta = 512
-            var total = 0
-            for i in 1..<sorted.count {
-                let delta = (sorted[i].counter - sorted[i - 1].counter) & 0xFFFF  // wrap-aware u16 increment
-                if delta >= 1 && delta < maxStepDelta { total += delta }  // ignore a delta >= 512 (gap/reset)
-            }
-            if total <= 0 { return nil }
+            // night-window stream when the caller didn't supply one (pure-function callers/tests). The
+            // day's read window may include adjacent-day samples, so filter to the LOCAL-day key first
+            // (#277); the wrap-aware tick math itself lives in the shared StepsCounter kernel so the daily
+            // and per-workout (#398) totals can never disagree.
+            let inDay = (daySteps ?? steps).filter { tsInDay($0.ts) }
+            guard let ticks = StepsCounter.stepsInWindow(inDay) else { return nil }
             // @57 counts motion ticks, not validated steps — the 5/MG counter overcounts. Divide
             // by the user-calibrated ticks-per-step (default 1.0 = raw pass-through; floor 0.5 so
             // a bad pref can at most double, never explode, the total). (#139)
-            let scaled = Int((Double(total) / max(profile.stepTicksPerStep, 0.5)).rounded())
+            let scaled = Int((Double(ticks) / max(profile.stepTicksPerStep, 0.5)).rounded())
             return scaled > 0 ? scaled : nil
         }()
 
@@ -759,7 +773,7 @@ public enum AnalyticsEngine {
         let restConfidence = ScoreConfidence.rest(hasSession: !matched.isEmpty,
                                                   hasStagedSleep: hasStagedSleep,
                                                   asleepSeconds: tstS, restorativeSeconds: deepS + remS,
-                                                  efficiency: efficiency)
+                                                  efficiency: efficiency, gravitySparse: gravitySparse)
 
         return DayResult(daily: daily, sleepSessions: matched, cachedSleep: cachedSleep,
                          workouts: workouts, recovery: recovery, strain: strain,
@@ -955,23 +969,53 @@ public enum AnalyticsEngine {
         public let minSamples: Int
         /// The nightly mean (°C) the gates produced, or nil when `kept < minSamples` (or no input).
         public let mean: Double?
+        // #skin-diag: raw-ADC visibility so an absent WHOOP 4.0 skin temp explains WHY (anchor mis-map
+        // vs genuinely no worn data). Pure observations of the input — they do NOT affect `mean`/gates.
+        /// Min / median / max of the night's RAW skin-temp ADC values (nil when no samples). The WHOOP
+        /// 4.0 worn band is ~550–2040; this tells whether the strap streamed a plausible worn band at all.
+        public let rawMin: Int?
+        public let rawMedian: Int?
+        public let rawMax: Int?
+        /// Raw samples inside the worn ADC band (`Whoop4SkinTemp.wornMin…wornMaxRaw`). ≥100 lets the
+        /// per-device anchor (#938/#404) learn; below that it falls back to the global 826 anchor.
+        public let inBandCount: Int
+        /// The anchor raw actually used for the °C map — the caller's per-device anchor if supplied, else
+        /// the global 826. nil on 5/MG (centidegree path, no anchor).
+        public let resolvedAnchorRaw: Double?
+        /// What °C the median raw maps to under `resolvedAnchorRaw`. If this sits outside 28–42 °C, EVERY
+        /// worn sample is gated out — the #404 anchor-mismap signature. nil on 5/MG or when no samples.
+        public let medianMappedC: Double?
 
         public init(totalSamples: Int, droppedNotWorn: Int, droppedOutOfWindow: Int,
-                    droppedOutOfRange: Int, kept: Int, minSamples: Int, mean: Double?) {
+                    droppedOutOfRange: Int, kept: Int, minSamples: Int, mean: Double?,
+                    rawMin: Int? = nil, rawMedian: Int? = nil, rawMax: Int? = nil,
+                    inBandCount: Int = 0, resolvedAnchorRaw: Double? = nil, medianMappedC: Double? = nil) {
             self.totalSamples = totalSamples; self.droppedNotWorn = droppedNotWorn
             self.droppedOutOfWindow = droppedOutOfWindow; self.droppedOutOfRange = droppedOutOfRange
             self.kept = kept; self.minSamples = minSamples; self.mean = mean
+            self.rawMin = rawMin; self.rawMedian = rawMedian; self.rawMax = rawMax
+            self.inBandCount = inBandCount; self.resolvedAnchorRaw = resolvedAnchorRaw
+            self.medianMappedC = medianMappedC
         }
 
         /// True when the night produced no usable mean - the case this diagnostic exists to triage.
         public var isAbsent: Bool { mean == nil }
 
-        /// One human-readable line for the caller to LOG. No I/O here - the engine stays pure.
+        /// Human-readable line(s) for the caller to LOG. No I/O here - the engine stays pure. When raw
+        /// samples exist, a second `skin-temp-raw:` line surfaces the ADC band + resolved anchor mapping.
         public var summary: String {
-            "skin-temp-funnel: \(totalSamples) samples → kept \(kept)/\(minSamples) "
-            + "(mean=\(mean.map { String(format: "%.2f°C", $0) } ?? "absent")); "
-            + "dropped[notWorn=\(droppedNotWorn), outOfWindow=\(droppedOutOfWindow), "
-            + "outOfRange=\(droppedOutOfRange)]"
+            var s = "skin-temp-funnel: \(totalSamples) samples → kept \(kept)/\(minSamples) "
+                + "(mean=\(mean.map { String(format: "%.2f°C", $0) } ?? "absent")); "
+                + "dropped[notWorn=\(droppedNotWorn), outOfWindow=\(droppedOutOfWindow), "
+                + "outOfRange=\(droppedOutOfRange)]"
+            if let lo = rawMin, let mid = rawMedian, let hi = rawMax {
+                s += "\nskin-temp-raw: raw[min=\(lo) p50=\(mid) max=\(hi)] inBand=\(inBandCount)/\(totalSamples)"
+                if let a = resolvedAnchorRaw, let mapped = medianMappedC {
+                    s += String(format: "; anchor=%.0f → p50 maps %.1f°C (worn gate 28–42°C, ADC band 550–2040)",
+                                a, mapped)
+                }
+            }
+            return s
         }
     }
 
@@ -989,12 +1033,27 @@ public enum AnalyticsEngine {
                                       anchorRaw: Double? = nil,
                                       minSamples: Int = minSkinTempSamples) -> SkinTempFunnelDiagnostic {
         let total = skinTemp.count
+        // #skin-diag: raw-ADC band + resolved anchor — PURE observation of the input, computed once and
+        // reported on both return paths. Never touches the mean/gate logic below (byte-parity preserved).
+        let sortedRaws = skinTemp.map { $0.raw }.sorted()
+        let rawMin = sortedRaws.first
+        let rawMax = sortedRaws.last
+        let rawMedian = sortedRaws.isEmpty ? nil : sortedRaws[sortedRaws.count / 2]
+        let inBandCount = family == .whoop4
+            ? sortedRaws.filter { $0 >= Whoop4SkinTemp.wornMinRaw && $0 <= Whoop4SkinTemp.wornMaxRaw }.count
+            : total
+        let usedAnchor: Double? = family == .whoop4 ? (anchorRaw ?? Whoop4SkinTemp.anchorRaw) : nil
+        let medianMappedC: Double? = (usedAnchor != nil && rawMedian != nil)
+            ? skinTempCelsius(raw: rawMedian!, family: family, anchorRaw: usedAnchor!) : nil
         // No sessions ⇒ every sample is out of window; no samples ⇒ an empty funnel. Either way the mean is
         // nil, exactly as `wornNightlySkinTempC`'s early return produced before.
         if sessions.isEmpty || skinTemp.isEmpty {
             return SkinTempFunnelDiagnostic(totalSamples: total, droppedNotWorn: 0,
                                             droppedOutOfWindow: sessions.isEmpty ? total : 0,
-                                            droppedOutOfRange: 0, kept: 0, minSamples: minSamples, mean: nil)
+                                            droppedOutOfRange: 0, kept: 0, minSamples: minSamples, mean: nil,
+                                            rawMin: rawMin, rawMedian: rawMedian, rawMax: rawMax,
+                                            inBandCount: inBandCount, resolvedAnchorRaw: usedAnchor,
+                                            medianMappedC: medianMappedC)
         }
         var wornSeconds = Set<Int>(minimumCapacity: hr.count)
         for h in hr where (30...220).contains(h.bpm) { wornSeconds.insert(h.ts) }
@@ -1024,6 +1083,9 @@ public enum AnalyticsEngine {
         let mean = kept >= minSamples ? sum / Double(kept) : nil
         return SkinTempFunnelDiagnostic(totalSamples: total, droppedNotWorn: notWorn,
                                         droppedOutOfWindow: outOfWindow, droppedOutOfRange: outOfRange,
-                                        kept: kept, minSamples: minSamples, mean: mean)
+                                        kept: kept, minSamples: minSamples, mean: mean,
+                                        rawMin: rawMin, rawMedian: rawMedian, rawMax: rawMax,
+                                        inBandCount: inBandCount, resolvedAnchorRaw: usedAnchor,
+                                        medianMappedC: medianMappedC)
     }
 }

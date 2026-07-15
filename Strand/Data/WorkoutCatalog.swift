@@ -91,4 +91,19 @@ enum WorkoutCatalog {
         guard !q.isEmpty else { return all }
         return all.filter { $0.name.range(of: q, options: .caseInsensitive) != nil }
     }
+
+    /// Sports where a step count is meaningful , feet on the ground , so the workout summary can show
+    /// steps (#398). Deliberately narrow: outdoor + treadmill run/walk and hiking, NOT cycling/rowing/
+    /// swimming (no footfalls) or gym/court sports (a step tally would be noise). Kept in lockstep with
+    /// the Android `WorkoutCatalog.ON_FOOT_SPORTS`.
+    static let onFootSportNames: Set<String> = [
+        "Running", "Walking", "Hiking", "Treadmill run", "Treadmill walk",
+    ]
+
+    /// Whether `sportName` (a catalogue name, possibly free-typed) is an on-foot sport that should show a
+    /// step count. Case-insensitive, whitespace-trimmed.
+    static func isOnFoot(_ sportName: String) -> Bool {
+        let q = sportName.trimmingCharacters(in: .whitespaces)
+        return onFootSportNames.contains { $0.caseInsensitiveCompare(q) == .orderedSame }
+    }
 }

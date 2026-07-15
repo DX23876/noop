@@ -67,6 +67,10 @@ object Palette {
     val textSecondary get() = active.textSecondary
     val textTertiary get() = active.textTertiary
 
+    // Text that always sits on a pinned-dark surface, independent of the app's active light/dark scheme.
+    // Mirrors StrandPalette.onDarkSecondary for the liquid hero's source badge.
+    val onDarkSecondary = Color(0xFFC8CFD8)
+
     // Glow.
     val glowAmbient get() = active.glowAmbient
 
@@ -370,6 +374,7 @@ object Metrics {
     val space16 = 16.dp
     val space18 = 18.dp
     val space24 = 24.dp
+    val sourceBadgeHeight = 18.dp
     val cardRadius = 18.dp   // Bevel continuous radius (18–22dp)
     val cornerXs = 2.dp
     val cornerSm = 12.dp

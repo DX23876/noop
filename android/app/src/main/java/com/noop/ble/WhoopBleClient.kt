@@ -16,8 +16,12 @@ import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.os.BatteryManager
 import android.os.Build
+import android.os.PowerManager
 import androidx.core.content.ContextCompat
 import android.os.Handler
 import android.os.Looper
@@ -124,6 +128,10 @@ data class LiveState(
      *  Devices card. Null until the handshake response decodes. The Swift WhoopProtocol decodes the
      *  same fields; this is the Android send → state → UI wiring. */
     val strapFirmware: String? = null,
+    /** Historical record layout version (`hist_version`, e.g. v24/v25 on WHOOP 4.0) observed from the
+     *  active connection's backfill. This is distinct from [strapFirmware]: FW 41.17.6.0 is the strap
+     *  firmware build, while v24/v25 is the binary layout used by banked history records. */
+    val historyLayoutVersion: Int? = null,
     /** True while a user-initiated reboot (#166) is in flight — from sending REBOOT_STRAP until the strap
      *  reconnects (or the settle timeout gives up). With `!connected` it drives the Devices card's
      *  transient "Reconnecting…" pill. Twin of macOS LiveState.rebootInProgress. */
@@ -274,6 +282,9 @@ interface GattOps {
     fun requestMtuCompat(mtu: Int): Boolean
     fun readRemoteRssiCompat(): Boolean
     fun discoverServicesCompat(): Boolean
+    /** Request a GATT connection priority (battery, #477). Mirrors `BluetoothGatt`'s boolean contract;
+     *  the stack no-ops a request equal to the current interval. */
+    fun requestConnectionPriorityCompat(priority: Int): Boolean
 }
 
 /**
@@ -324,6 +335,7 @@ class RealGattOps(private val gatt: BluetoothGatt) : GattOps {
     override fun requestMtuCompat(mtu: Int): Boolean = gatt.requestMtu(mtu)
     override fun readRemoteRssiCompat(): Boolean = gatt.readRemoteRssi()
     override fun discoverServicesCompat(): Boolean = gatt.discoverServices()
+    override fun requestConnectionPriorityCompat(priority: Int): Boolean = gatt.requestConnectionPriority(priority)
 }
 
 class WhoopBleClient(
@@ -442,6 +454,54 @@ class WhoopBleClient(
             if (attempts >= SCAN_POWER_BACKOFF_THRESHOLD) ScanSettings.SCAN_MODE_BALANCED
             else ScanSettings.SCAN_MODE_LOW_LATENCY
 
+        /** Pure GATT connection-priority decision (battery, #477), unit-testable without a BLE stack
+         *  (the [scanModeForReconnectAttempts] idiom). TWO independent halves, split by risk:
+         *   - SAFE (always, once management is on): escalate to HIGH during an offload burst or a
+         *     live-HR session. HIGH is a SHORTER interval than BALANCED, so it CANNOT cause a
+         *     supervision-timeout drop (it makes the link more robust, not less) and it shortens the
+         *     radio-on window - faster sync, net battery win.
+         *   - RISKY ([idleThrottleEnabled], default OFF): when idle, drop to LOW_POWER (a LONGER
+         *     interval - the real all-day saving, but a too-long interval can drop the link, so it is
+         *     opt-in and must be validated on a real strap, #477). When off, idle stays BALANCED -
+         *     byte-for-byte today's default.
+         *  Android-only by necessity: CoreBluetooth exposes no app-side connection-priority equivalent
+         *  (the peripheral proposes the GAP connection parameters, iOS negotiates), so there is no Swift
+         *  twin — a deliberate platform divergence, not a parity gap (#477). */
+        fun connectionPriorityFor(
+            offloadActive: Boolean,
+            liveHrActive: Boolean,
+            idleThrottleEnabled: Boolean,
+        ): Int = when {
+            offloadActive || liveHrActive -> BluetoothGatt.CONNECTION_PRIORITY_HIGH
+            idleThrottleEnabled -> BluetoothGatt.CONNECTION_PRIORITY_LOW_POWER
+            else -> BluetoothGatt.CONNECTION_PRIORITY_BALANCED
+        }
+
+        /** Pure battery-adaptive gate for the RISKY idle LOW_POWER throttle (#477), unit-testable without
+         *  a BLE stack. The lever is ARMED by [thresholdPct] > 0 (the Settings picker offers 10/15/20/25/
+         *  30; 0 disables it — safe half only, and NOT even Battery Saver can force it, respecting the
+         *  drop-risk asymmetry). Once armed and while DISCHARGING it engages at/below [thresholdPct] OR
+         *  when the OS Battery Saver is on ([powerSave]) — whichever comes first. Charging never throttles.
+         *  The threshold IS its own hysteresis: battery % moves slowly, so a boundary crossing flips at
+         *  most once per point; Battery Saver has its own hysteresis. */
+        fun idleThrottleActive(batteryPct: Int, charging: Boolean, thresholdPct: Int, powerSave: Boolean): Boolean =
+            thresholdPct > 0 && !charging && (batteryPct <= thresholdPct || powerSave)
+
+        /** Stretched periodic-offload interval when the phone is low on battery (#477). The offload tick
+         *  is a PURE sync timer (the live-stream keep-alive is separate), so stretching it can't affect
+         *  link health — worst case is fresher data arriving in slightly larger batches; the strap banks
+         *  everything to flash meanwhile, so no data is lost. Left at [LOW_BATTERY_BACKFILL_INTERVAL_MS]
+         *  while DISCHARGING at/below [thresholdPct], else the normal [baseMs]. [thresholdPct] <= 0 / charging
+         *  never stretches. Pure, unit-testable. */
+        fun offloadIntervalMsFor(
+            baseMs: Long,
+            lowBatteryMs: Long,
+            batteryPct: Int,
+            charging: Boolean,
+            thresholdPct: Int,
+            powerSave: Boolean,
+        ): Long = if (idleThrottleActive(batteryPct, charging, thresholdPct, powerSave)) maxOf(baseMs, lowBatteryMs) else baseMs
+
         /** Pure keep/teardown decision for [prepareForPresentScan] (#74), unit-testable without a BLE
          *  stack (the [scanModeForReconnectAttempts] idiom). Keep the live link ONLY when one exists AND
          *  the wizard is scanning the SAME model; Android [WhoopModel] has exactly two members (one per
@@ -485,6 +545,10 @@ class WhoopBleClient(
         // MARK: Historical-offload timers (ported from BLEManager.swift, same constants).
         /** Periodic re-offload of the type-47 store while connected+bonded. 900s = 15 min (matches WHOOP). */
         private const val BACKFILL_INTERVAL_MS = 900_000L
+        /** #477 battery: stretched offload cadence while low on battery (45 min). The strap banks to flash
+         *  meanwhile, so this only delays sync (larger batches), never loses data. Gated on the discharging
+         *  battery-% threshold; 0 = disabled → always [BACKFILL_INTERVAL_MS]. */
+        private const val LOW_BATTERY_BACKFILL_INTERVAL_MS = 2_700_000L
         /** How far back the inactivity check reads gravity on each offload completion (4 h comfortably
          *  spans the threshold + re-nudge cadence and a separating Active break for bout continuity). */
         private const val INACTIVITY_LOOKBACK_S = 4 * 3600L
@@ -745,8 +809,8 @@ class WhoopBleClient(
             previous.clearedBiometrics().copy(
                 connected = false, bonded = false, encryptedBond = false,
                 backfilling = false, syncChunksThisSession = 0, charging = null,
-                // A stale firmware version must not outlive the dropped link.
-                strapFirmware = null,
+                // Stale firmware/layout readouts must not outlive the dropped link.
+                strapFirmware = null, historyLayoutVersion = null,
                 // #580: the 5/MG "history experimental" note is per-link — a fresh connect re-derives it
                 // from the next offload, so it must not outlive the dropped link.
                 historySyncExperimental = false,
@@ -791,7 +855,8 @@ class WhoopBleClient(
         fun releasedLiveState(previous: LiveState): LiveState =
             previous.clearedBiometrics().copy(
                 connected = false, bonded = false, encryptedBond = false,
-                charging = null, strapFirmware = null, pairingHint = null, scanning = false,
+                charging = null, strapFirmware = null, historyLayoutVersion = null,
+                pairingHint = null, scanning = false,
                 statusNote = null,
             )
 
@@ -1102,6 +1167,111 @@ class WhoopBleClient(
     /** Injectable indirection over [gatt]'s raw GATT calls (see [GattOps]). Rebuilt whenever [gatt] is
      *  (re)assigned in [connectToDevice], cleared in the teardown path alongside `gatt = null`. */
     private var gattOps: GattOps? = null
+
+    /** #477 battery: gates GATT connection-priority management. DEFAULT OFF, so this whole feature ships
+     *  DORMANT - [refreshConnectionPriority] early-returns and issues ZERO new BLE ops, leaving the link
+     *  at the stack default (BALANCED) exactly as before. Flip on ONLY after on-strap validation (see
+     *  #477); a follow-up wires it to a persisted Settings toggle. [connectionPriorityEnabled] enables the
+     *  SAFE half (HIGH during offload/live-HR). The RISKY half (LOW_POWER when idle) is BATTERY-ADAPTIVE:
+     *  it engages only when the phone is discharging AND at/below [idleThrottleBatteryPct] (0 = never), so
+     *  the drop-risk is confined to when the user actually wants power saving. Set on the main looper via
+     *  [setConnectionPriorityManagement]. */
+    @Volatile private var connectionPriorityEnabled: Boolean = false
+    /** Battery-% at/below which the LOW_POWER idle throttle engages while discharging; 0 = never (safe
+     *  half only). The Settings picker offers 10/15/20/25/30. */
+    @Volatile private var idleThrottleBatteryPct: Int = 0
+
+    /** Opt into connection-priority management (#477). No-op by default; see the fields above.
+     *  [idleThrottleBatteryPct] 0 disables the risky idle throttle (safe half only). */
+    fun setConnectionPriorityManagement(enabled: Boolean, idleThrottleBatteryPct: Int) {
+        connectionPriorityEnabled = enabled
+        this.idleThrottleBatteryPct = if (enabled) idleThrottleBatteryPct else 0
+        handler.post { refreshConnectionPriority() }
+    }
+
+    /** Battery-% at/below which the periodic offload cadence stretches to
+     *  [LOW_BATTERY_BACKFILL_INTERVAL_MS] while discharging; 0 = never (normal 15-min cadence). DEFAULT
+     *  OFF, so this ships dormant. The Settings picker offers 10/15/20/25/30. */
+    @Volatile private var lowBatteryOffloadPct: Int = 0
+
+    /** Opt into the low-battery offload-cadence stretch (#477). Applies on the NEXT re-arm; a live sync
+     *  in flight is never interrupted. */
+    fun setLowBatteryOffloadThrottle(thresholdPct: Int) {
+        lowBatteryOffloadPct = thresholdPct
+    }
+
+    /** #477: pause BACKGROUND continuous-HRV capture while the OS Battery Saver is on (own toggle,
+     *  DEFAULT OFF). A visible Live screen is unaffected — only the held-open background stream is
+     *  released. Gated through [continuousCaptureWantsNow]. */
+    @Volatile private var pauseCaptureBatteryPct: Int = 0
+
+    /** Opt into pausing continuous capture while power-saving (#477). Now battery-%-aware like the other
+     *  levers: pass the same threshold, so it engages at/below it OR under Battery Saver (0 = off).
+     *  Reconciles immediately so the change takes effect without waiting for the next keep-alive tick. */
+    fun setPauseCaptureOnPowerSave(enabled: Boolean, thresholdPct: Int) {
+        pauseCaptureBatteryPct = if (enabled) thresholdPct else 0
+        handler.post { reconcileRealtime() }
+    }
+
+    /** The delay before the next periodic offload — normally [BACKFILL_INTERVAL_MS], stretched when low on
+     *  battery (#477). Reads the battery snapshot at re-arm time. */
+    private fun nextBackfillDelayMs(): Long {
+        if (lowBatteryOffloadPct <= 0) return BACKFILL_INTERVAL_MS   // dormant: no battery read, unchanged cadence
+        val (batteryPct, charging) = batteryPctAndCharging()
+        return offloadIntervalMsFor(
+            baseMs = BACKFILL_INTERVAL_MS,
+            lowBatteryMs = LOW_BATTERY_BACKFILL_INTERVAL_MS,
+            batteryPct = batteryPct,
+            charging = charging,
+            thresholdPct = lowBatteryOffloadPct,
+            powerSave = powerSaveActive(),
+        )
+    }
+
+    /** True when the OS Battery Saver is on — the user's explicit "save power" signal (#477). An extra
+     *  trigger for an already-armed lever; has its own hysteresis + charging-awareness. */
+    private fun powerSaveActive(): Boolean =
+        (context.getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isPowerSaveMode == true
+
+    /** Current (battery-%, isCharging) from the sticky ACTION_BATTERY_CHANGED intent — a cheap synchronous
+     *  read, no persistent receiver. Unknown → (100, false) so the throttle fails SAFE (never engages). */
+    private fun batteryPctAndCharging(): Pair<Int, Boolean> {
+        val i = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val level = i?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val scale = i?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+        val status = i?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+        val pct = if (level >= 0 && scale > 0) level * 100 / scale else 100
+        val charging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
+        return pct to charging
+    }
+
+    /** (Re)apply the GATT connection priority for the current link state (#477). Idempotent + cheap: OFF
+     *  or disconnected -> no BLE op. Called on connect-established and whenever offload / live-HR toggles. */
+    private fun refreshConnectionPriority() {
+        if (!connectionPriorityEnabled) return
+        val ops = gattOps ?: return
+        // Only read the battery when the RISKY idle throttle is actually armed (threshold > 0); the SAFE
+        // HIGH-escalation half doesn't need it, so safe-half-only mode issues no battery read.
+        val idleThrottle = idleThrottleBatteryPct > 0 && run {
+            val (batteryPct, charging) = batteryPctAndCharging()
+            idleThrottleActive(batteryPct, charging, idleThrottleBatteryPct, powerSaveActive())
+        }
+        // Read the authoritative INTERNAL flags (both set synchronously on this looper), not the
+        // published LiveState mirror, which `exitBackfilling` may update a beat later.
+        val priority = connectionPriorityFor(
+            offloadActive = backfilling,
+            liveHrActive = realtimeArmed,
+            idleThrottleEnabled = idleThrottle,
+        )
+        // Deliberately NOT via safeGatt: a battery HINT must never tear the link down. safeGatt's policy
+        // is "any throw ⇒ teardown", right for load-bearing writes/subscriptions but wrong here — a dead
+        // binder is handled by the next real op, and skipping a priority request costs nothing. Swallow.
+        try {
+            ops.requestConnectionPriorityCompat(priority)
+        } catch (t: Throwable) {
+            log("connection-priority request failed (${t.javaClass.simpleName}); skipped")
+        }
+    }
     /** @Volatile: set on the GATT binder thread at service discovery, but read in send() on the main
      *  thread (user actions) - the barrier makes a main-thread send see the current characteristic. */
     @Volatile private var cmdCharacteristic: BluetoothGattCharacteristic? = null
@@ -1279,6 +1449,7 @@ class WhoopBleClient(
         // Test Centre → Experimental algorithms: the opt-in v26 PPG-HR sub-lag interpolation variant, read
         // live each chunk so a mid-session toggle takes effect. Default OFF (byte-identical to today).
         ppgHrSubLagInterp = { puffinExperiment.ppgHrSubLagInterp },
+        firmwareLayout = { v -> _state.update { it.copy(historyLayoutVersion = v) } },
     )
 
     /**
@@ -1340,6 +1511,8 @@ class WhoopBleClient(
                         // engine the user chose in Settings, read off SharedPreferences here (the analytics
                         // layer is Context-free). Default off → V1. (V7 Pillar 3b)
                         useExperimentalSleepV2 = PuffinExperiment.from(context).experimentalSleepV2,
+                        // Opt-in motion-aware wake refinement (#364 follow-up) — same Context-free threading.
+                        useMotionAwareWake = PuffinExperiment.from(context).motionAwareWake,
                         // Sleep & Rest test mode (Test Centre E5): when the SLEEP domain is on, route this
                         // post-backfill pass's per-day sleep gate trace into the .sleep-tagged strap log, so a
                         // shared report carries the staging proof from THIS scoring pass too, not only the UI
@@ -3760,10 +3933,34 @@ class WhoopBleClient(
                                 .putLong("alarm.lastReportedAt", System.currentTimeMillis())
                                 .apply()
                         }
+                    } else if (whoop4ReadbackReportsNoAlarm(frame)) {
+                        // #34 (issue comment 2026-07-12): the strap's "nothing armed" sentinel — the epoch
+                        // field decodes to 0. This is NOT an undocumented layout; it's the strap telling us
+                        // it has no alarm stored, so an arm we just sent did NOT persist. Calling this
+                        // "unrecognised payload" hid the single most diagnostic signal in a "didn't buzz"
+                        // report: SET went out, strap kept nothing. Name it plainly. Log-only. Twin of Swift.
+                        val raw = whoop4AlarmReadbackPayloadHex(frame) ?: "empty"
+                        log("Alarm: strap reports NO alarm currently stored (epoch 0) — the arm did not persist on the strap (raw $raw)")
                     } else {
                         val raw = whoop4AlarmReadbackPayloadHex(frame) ?: "empty"
                         log("Alarm: strap answered the alarm readback with an unrecognised payload (raw $raw) - layout undocumented, log-only")
                     }
+                }
+                // #34 (issue comment 2026-07-12): the strap's OWN answer to the arm we just sent — the
+                // accept/reject datum previously thrown away. armStrapAlarm logs "armed" the instant the SET
+                // goes out, which only proves NOOP transmitted the frame; if the firmware drops it the
+                // GET_ALARM_TIME readback then reads back epoch 0 (a silently-unpersisted alarm — the exact
+                // signature in this report). Logging the raw result byte lets a future report distinguish a
+                // strap that accepted the arm from one that rejected it. LOG-ONLY, never gates behaviour. The
+                // WHOOP 4.0 result-code meaning is UNVERIFIED (the 5/MG puffin table is 0=FAILURE 1=SUCCESS
+                // 2=PENDING 3=UNSUPPORTED, but the 4.0 reboot probe assumed 0=accepted), so no verdict is
+                // claimed — it surfaces the byte, nothing more. Twin of Swift FrameRouter. WHOOP4-only: the
+                // 4.0 result byte sits at frame[8]; the 5/MG result lives at a different offset (decoded as
+                // the `result` string above) and its alarm path is the Experimental one.
+                if (connectedFamily == DeviceFamily.WHOOP4 && respCmd?.startsWith("SET_ALARM_TIME") == true) {
+                    val r = frame.getOrNull(8)?.toInt()?.and(0xFF)
+                    val rhex = if (r != null) "0x%02x".format(r) else "none"
+                    log("Alarm: strap answered the arm (SET_ALARM_TIME) with result=$rhex — log-only, 4.0 result-code meaning unverified")
                 }
             }
 
@@ -4149,6 +4346,16 @@ class WhoopBleClient(
      *  Mirrors the Swift `continuousCaptureWantsNow`. */
     private fun continuousCaptureWantsNow(): Boolean {
         if (!keepStreamForData) return false
+        // #477: optional power-saving pause — while power saving is ACTIVE (battery ≤ threshold or Battery
+        // Saver, discharging), release the held-open continuous-capture stream (its own toggle, default
+        // off). Battery-%-aware like the offload/defer levers, via the shared idleThrottleActive gate. The
+        // realtime stream is one of the larger drains; a Live screen still arms it on demand
+        // (screenWantsRealtime is checked separately in reconcileRealtime), so this only drops the
+        // BACKGROUND capture the user opted into. Re-arms automatically once off power save.
+        if (pauseCaptureBatteryPct > 0) {
+            val (batteryPct, charging) = batteryPctAndCharging()
+            if (idleThrottleActive(batteryPct, charging, pauseCaptureBatteryPct, powerSaveActive())) return false
+        }
         val cal = java.util.Calendar.getInstance()
         val minuteOfDay = cal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + cal.get(java.util.Calendar.MINUTE)
         return continuousHrvStreamWanted(
@@ -4192,6 +4399,7 @@ class WhoopBleClient(
         // Both families arm/disarm via TOGGLE_REALTIME_HR; send() frames it correctly per family (puffin
         // for 5/MG). A screen re-entry blanks its own smoothing window in the view-model, not here.
         send(CommandNumber.TOGGLE_REALTIME_HR, byteArrayOf(if (want) 1.toByte() else 0.toByte()))
+        refreshConnectionPriority()   // #477: live-HR on → HIGH, off → back to idle. No-op unless enabled.
     }
 
     /**
@@ -4674,6 +4882,7 @@ class WhoopBleClient(
         offloadFramesThisSession = 0
         historicalKickSent = false
         _state.update { it.copy(backfilling = true, syncChunksThisSession = 0) }
+        refreshConnectionPriority()   // #477: escalate to HIGH for the offload burst (faster sync). No-op unless enabled.
         // Opt-in raw capture (research aid): pref read fresh per session, like the probes gate.
         if (connectedFamily == DeviceFamily.WHOOP5 && PuffinExperiment.from(context).isCaptureEnabled) {
             startWhoop5BackfillCapture()
@@ -4769,13 +4978,14 @@ class WhoopBleClient(
     /** Periodic-timer callback: re-runs the type-47 offload (the primary metric sync). */
     private fun triggerPeriodicBackfill() {
         requestSync(BackfillTrigger.PERIODIC)
-        // Re-arm regardless so the cadence continues for the life of the connection.
-        handler.postDelayed(periodicBackfillRunnable, BACKFILL_INTERVAL_MS)
+        // Re-arm regardless so the cadence continues for the life of the connection. #477: the delay is
+        // battery-adaptive (stretched when low), read fresh at each re-arm.
+        handler.postDelayed(periodicBackfillRunnable, nextBackfillDelayMs())
     }
 
     private fun startBackfillTimer() {
         handler.removeCallbacks(periodicBackfillRunnable)
-        handler.postDelayed(periodicBackfillRunnable, BACKFILL_INTERVAL_MS)
+        handler.postDelayed(periodicBackfillRunnable, nextBackfillDelayMs())
     }
 
     private fun stopBackfillTimer() {
@@ -4850,6 +5060,7 @@ class WhoopBleClient(
     private fun exitBackfilling(reason: String) {
         if (!backfilling) return
         backfilling = false
+        refreshConnectionPriority()   // #477: offload done — drop back to idle priority. No-op unless enabled.
         // #174: a backfill just ended. Start (or extend) the deep-packet cooldown from this instant so
         // any type-0x2F records the strap flushes in the seconds after the session aren't miscounted as
         // the live R22 stream — they're the offload's tail.
@@ -5333,7 +5544,8 @@ class WhoopBleClient(
             connected = false, bonded = false, encryptedBond = false,
             backfilling = false, syncChunksThisSession = 0,
             charging = null,        // a stale charging flag must not outlive the link
-            strapFirmware = null,   // nor a stale firmware version
+            strapFirmware = null,   // nor stale firmware/layout versions
+            historyLayoutVersion = null,
         ) }
         // Multi-WHOOP: the link is down — clear the published connected address so SourceCoordinator's
         // adoption sink can't re-fire on a stale strap id (twin of macOS clearing connectedPeripheralUUID).
@@ -5791,6 +6003,29 @@ internal fun whoop4ArmedAlarmEpoch(frame: ByteArray): Long? {
         u32le(1)?.takeIf { isPlausibleAlarmEpoch(it) }?.let { return it }
     }
     return u32le(0)?.takeIf { isPlausibleAlarmEpoch(it) }
+}
+
+/**
+ * True when a GET_ALARM_TIME readback explicitly reports NO alarm stored — the epoch field decodes to
+ * 0 in the same shapes [whoop4ArmedAlarmEpoch] reads (SET-mirror `[0x01][u32=0]` first, then a bare
+ * leading `u32=0`). This is the strap's "nothing armed" sentinel, distinct from a genuinely unparseable
+ * payload: an arm the strap silently dropped reads back as epoch 0, so labelling it "unrecognised" hid
+ * the real signal (#34). Only consulted AFTER [whoop4ArmedAlarmEpoch] returns null. Twin of the Swift
+ * `FrameRouter.readbackReportsNoAlarm`; pinned by `AlarmReadbackDecodeTest`.
+ */
+internal fun whoop4ReadbackReportsNoAlarm(frame: ByteArray): Boolean {
+    val payload = whoop4CommandResponsePayload(frame) ?: return false
+    fun u32le(at: Int): Long? {
+        if (payload.size < at + 4) return null
+        return (payload[at].toLong() and 0xFFL) or
+            ((payload[at + 1].toLong() and 0xFFL) shl 8) or
+            ((payload[at + 2].toLong() and 0xFFL) shl 16) or
+            ((payload[at + 3].toLong() and 0xFFL) shl 24)
+    }
+    if (payload.isNotEmpty() && payload[0] == 0x01.toByte()) {
+        return u32le(1)?.let { it == 0L } ?: false
+    }
+    return u32le(0)?.let { it == 0L } ?: false
 }
 
 /** Local wall-clock render for the readback log line ("EEE HH:mm zzz", the armStrapAlarm idiom on the

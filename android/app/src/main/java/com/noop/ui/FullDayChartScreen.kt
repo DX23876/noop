@@ -24,8 +24,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.noop.R
 import com.noop.analytics.HrvAnalyzer
 import com.noop.protocol.DeviceFamily
 import com.noop.protocol.skinTempCelsius
@@ -167,8 +169,8 @@ fun FullDayChartScreen(vm: AppViewModel, onBack: () -> Unit) {
     }
 
     ScreenScaffold(
-        title = "Deep Timeline",
-        subtitle = "Every second of your day. Drag back up to 3 days.",
+        title = stringResource(R.string.deep_timeline_title),
+        subtitle = stringResource(R.string.timeline_subtitle),
     ) {
         // METRIC PILLS — horizontally scrollable so all six fit on a phone.
         Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
@@ -182,12 +184,14 @@ fun FullDayChartScreen(vm: AppViewModel, onBack: () -> Unit) {
 
         // SOURCE PILL — the owned strap, with the #574 owned/all scope toggle.
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("My WHOOP", style = NoopType.footnote, color = Palette.textSecondary)
+            Text(stringResource(R.string.timeline_my_whoop), style = NoopType.footnote, color = Palette.textSecondary)
             Spacer(Modifier.weight(1f))
+            val ownedLabel = stringResource(R.string.timeline_owned)
+            val allLabel = stringResource(R.string.timeline_all)
             SegmentedPillControl(
                 items = listOf(true, false),
                 selection = ownedOnly,
-                label = { if (it) "Owned" else "All" },
+                label = { if (it) ownedLabel else allLabel },
                 onSelect = { ownedOnly = it },
             )
         }
@@ -232,7 +236,7 @@ fun FullDayChartScreen(vm: AppViewModel, onBack: () -> Unit) {
                 Box(modifier = Modifier.fillMaxWidth().height(280.dp), contentAlignment = Alignment.Center) {
                     when {
                         loading && points.isEmpty() ->
-                            Text("Loading the day…", style = NoopType.footnote, color = Palette.textTertiary)
+                            Text(stringResource(R.string.timeline_loading_day), style = NoopType.footnote, color = Palette.textTertiary)
                         points.isEmpty() -> EmptyTimelineState(metric, ownedOnly)
                         else -> TimelineChart(
                             points = displayPoints,
@@ -249,9 +253,9 @@ fun FullDayChartScreen(vm: AppViewModel, onBack: () -> Unit) {
                 if (displayPoints.isNotEmpty()) {
                     val vals = displayPoints.map { it.value }
                     Row(modifier = Modifier.fillMaxWidth()) {
-                        TimelineStat("MIN", formatValue(metric, vals.minOrNull() ?: 0.0), Modifier.weight(1f))
-                        TimelineStat("AVG", formatValue(metric, vals.average()), Modifier.weight(1f))
-                        TimelineStat("MAX", formatValue(metric, vals.maxOrNull() ?: 0.0), Modifier.weight(1f))
+                        TimelineStat(stringResource(R.string.timeline_min), formatValue(metric, vals.minOrNull() ?: 0.0), Modifier.weight(1f))
+                        TimelineStat(stringResource(R.string.timeline_avg), formatValue(metric, vals.average()), Modifier.weight(1f))
+                        TimelineStat(stringResource(R.string.timeline_max), formatValue(metric, vals.maxOrNull() ?: 0.0), Modifier.weight(1f))
                     }
                 }
             }
@@ -260,13 +264,13 @@ fun FullDayChartScreen(vm: AppViewModel, onBack: () -> Unit) {
         // ZOOM HINT + reset.
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                if (window == null) "Pinch to zoom · drag to pan" else "Zoomed in - drag to pan",
+                if (window == null) stringResource(R.string.timeline_pinch_to_zoom) else stringResource(R.string.timeline_zoomed_in),
                 style = NoopType.footnote, color = Palette.textTertiary,
             )
             Spacer(Modifier.weight(1f))
             if (window != null) {
                 Text(
-                    "Reset",
+                    stringResource(R.string.timeline_reset),
                     style = NoopType.footnote,
                     color = Palette.accent,
                     modifier = Modifier.clickable { window = null },
@@ -283,11 +287,11 @@ private fun EmptyTimelineState(metric: TimelineMetric, ownedOnly: Boolean) {
         verticalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier.padding(horizontal = 24.dp),
     ) {
-        Text("No ${metric.title.lowercase(Locale.US)} here",
+        Text(stringResource(R.string.timeline_empty_metric, metric.title.lowercase(Locale.US)),
             style = NoopType.body, color = Palette.textSecondary)
         Text(
-            if (ownedOnly) "Nothing offloaded for this window yet."
-            else "Other sources don’t offload raw per-second data on-device.",
+            if (ownedOnly) stringResource(R.string.timeline_nothing_offloaded)
+            else stringResource(R.string.timeline_other_sources_no_offload),
             style = NoopType.footnote, color = Palette.textTertiary, textAlign = TextAlign.Center,
         )
     }

@@ -376,4 +376,34 @@ class ChargeEffortRestScoringTest {
             ),
         )
     }
+
+    // #345: a night staged on SPARSE gravity (WHOOP 4.0 offload banks motion coarsely) is downgraded to
+    // low-confidence WHATEVER the engine filled in — this catches the #319 case H9 misses: high efficiency
+    // AND healthy restorative (V2 manufactured stages on too little motion) would read SOLID under H9, but
+    // the coarse motion can't support a confident 85–100.
+    @Test
+    fun confidence_restSparseGravityDowngradesEvenHealthyLookingNight() {
+        val asleep = 8.0 * 3600.0
+        assertEquals(
+            ScoreConfidence.BUILDING,
+            ScoreConfidence.forRest(
+                hasSession = true, hasStagedSleep = true,
+                asleepSeconds = asleep, restorativeSeconds = asleep * 0.45, efficiency = 0.95,
+                gravitySparse = true,
+            ),
+        )
+    }
+
+    @Test
+    fun confidence_restSparseGravityDefaultsFalseSoDenseNightsUnchanged() {
+        // Default gravitySparse=false → a dense healthy night stays SOLID (byte-identical to old callers).
+        val asleep = 8.0 * 3600.0
+        assertEquals(
+            ScoreConfidence.SOLID,
+            ScoreConfidence.forRest(
+                hasSession = true, hasStagedSleep = true,
+                asleepSeconds = asleep, restorativeSeconds = asleep * 0.45, efficiency = 0.95,
+            ),
+        )
+    }
 }

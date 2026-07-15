@@ -166,4 +166,47 @@ class SleepStagerSparseGravityTest {
         assertTrue("the bridged session must span both blocks across the dropout",
             (sessions[0].end - sessions[0].start).toDouble() > (2 * block).toDouble())
     }
+
+    // #345 END-TO-END: a locked synthetic WHOOP-4.0 OFFLOAD night — dense sleep-band HR but clumped/sparse
+    // motion (the ~20% coverage the reporter's log showed) — must flow REAL isGravitySparse → REAL forRest
+    // → BUILDING, EVEN when the night ALSO looks healthy (high efficiency + ~45% restorative). That healthy-
+    // looking case is exactly what H9 misses (H9 only fires on LOW restorative), so without the sparse guard
+    // it would read a confident SOLID 85–100 — the #319 signature. This is the guard validated against a
+    // realistic synthetic offload night, in the shipping code, since no real offload capture exists yet.
+    @Test
+    fun sparseOffloadNightForcesRestBuildingEndToEnd() {
+        val start = startAtHour(1)
+        val dur = 6 * 60 * 60
+        val grav = sparseStillGravity(start, dur, 25 * 60) // clumped, each gap > maxGapMin
+        val hr = hrStream(start, dur, 50)
+        val sparse = SleepStager.isGravitySparse(grav, hr)
+        assertTrue("the locked synthetic 4.0-offload night must read sparse", sparse)
+        val asleep = 8.0 * 3600.0
+        assertEquals(
+            "a sparse-motion night — even high-efficiency AND healthy restorative (the #319 case H9 misses)" +
+                " — must NOT earn a confident SOLID Rest",
+            ScoreConfidence.BUILDING,
+            ScoreConfidence.forRest(hasSession = true, hasStagedSleep = true,
+                asleepSeconds = asleep, restorativeSeconds = asleep * 0.45, efficiency = 0.95,
+                gravitySparse = sparse))
+    }
+
+    @Test
+    fun denseNightKeepsRestSolidEndToEnd() {
+        // The dense counterpart: same healthy night on DENSE 1 Hz motion → not sparse → SOLID stands. Proves
+        // the guard is a strict no-op on dense (5.0-live / 4.0-live) nights — no regression there.
+        val start = startAtHour(2)
+        val dur = 6 * 60 * 60
+        val grav = stillGravity(start, dur)
+        val hr = hrStream(start, dur, 50)
+        val sparse = SleepStager.isGravitySparse(grav, hr)
+        assertFalse("the dense night must NOT read sparse", sparse)
+        val asleep = 8.0 * 3600.0
+        assertEquals(
+            "a dense healthy night keeps SOLID — the sparse guard never touches it",
+            ScoreConfidence.SOLID,
+            ScoreConfidence.forRest(hasSession = true, hasStagedSleep = true,
+                asleepSeconds = asleep, restorativeSeconds = asleep * 0.45, efficiency = 0.95,
+                gravitySparse = sparse))
+    }
 }

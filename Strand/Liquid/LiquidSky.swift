@@ -6,6 +6,7 @@
 //  no blur — clean and crisp, the atmosphere of the app's header.
 
 import SwiftUI
+import StrandDesign
 
 struct LiquidSkyStop {
     let h: Double
@@ -135,14 +136,36 @@ struct LiquidSky: View {
 /// atmosphere carries across EVERY tab. Same live sky as Today at a modest header height, so the
 /// charts/cards below sit on the dark canvas — the redesign's "the options change, not the page"
 /// feel. Non-interactive + accessibility-hidden (pure decoration).
+///
+/// Honours the SAME two Appearance gates as Today and the metric-detail screens, so every scaffold
+/// that passes this reads them for free (Trends / Sleep / More / the hub screens previously ignored
+/// both — the sky stayed a fixed band there while Today filled the viewport):
+/// - "Day-cycle background" OFF renders nothing, leaving the scaffold's plain `surfaceBase` canvas
+///   (the same visual as passing no topBackground at all).
+/// - "Sky behind cards" ON fills the scaffold's whole backdrop (the ZStack already spans the scroll
+///   view; only this frame capped it) with the held-atmosphere settle, so the Card-transparency
+///   setting reveals the sky under every card — the LiquidTodayView treatment.
+/// A real View (not a one-shot read) so @AppStorage keeps it reactive: toggling either setting
+/// updates every mounted tab in place. Mirrors the Android `LiquidScreenSky(fillHeight:)` +
+/// `fullBleedBackground` pairing.
+struct LiquidScaffoldSky: View {
+    var height: CGFloat = 240
+    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = true
+    @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = false
+
+    var body: some View {
+        if showDayCycleBackground {
+            LiquidSkyStatic(hour: nil, settleStrength: skyBehindCards ? 0.78 : 1)
+                .frame(maxWidth: .infinity, maxHeight: skyBehindCards ? .infinity : nil)
+                .frame(height: skyBehindCards ? nil : height, alignment: .top)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
+    }
+}
+
 func liquidScaffoldSky(height: CGFloat = 240) -> AnyView {
-    AnyView(
-        LiquidSkyStatic(hour: nil)
-            .frame(maxWidth: .infinity)
-            .frame(height: height, alignment: .top)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
-    )
+    AnyView(LiquidScaffoldSky(height: height))
 }
 
 /// A STATIC time-of-day sky, rendered ONCE (no TimelineView → CoreAnimation caches it as a stable layer,

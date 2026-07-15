@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -249,6 +250,9 @@ fun SleepScreen(
     // scaffold paints the plain dark surface canvas instead — the SAME gate the liquid Today honours.
     // SharedPreferences isn't reactive, so it's read once into local state (mirrors iOS @AppStorage).
     val showDayCycleBackground = remember { NoopPrefs.showDayCycleBackground(context) }
+    // Sky-behind-cards (#434 family): when on, the sky fills the whole viewport so the transparent
+    // cards reveal it the whole way down, exactly like Today and the metric-detail screens.
+    val skyBehindCards = remember { NoopPrefs.skyBehindCards(context) }
 
     // Morning-journal nudge: once per calendar day, when the freshest night ended within the last
     // 12 hours, invite the user to log how they felt. The shown-day is persisted so the sheet never
@@ -371,7 +375,10 @@ fun SleepScreen(
         // settles into the theme canvas behind the header + hero, bled full-width up behind the status bar
         // via the scaffold's topBackground plumbing. Gated on the day-cycle preference exactly like Today
         // (showDayCycleBackground ? sky : plain canvas). Replaces the classic per-hero scene backdrop.
-        topBackground = if (showDayCycleBackground) { { LiquidScreenSky() } } else null,
+        topBackground = if (showDayCycleBackground) { { LiquidScreenSky(fillHeight = skyBehindCards) } } else null,
+        // Sky-behind-cards fills the viewport so the transparent cards reveal the sky the whole way down
+        // (Today / metric-detail parity — the same two prefs drive the same two behaviours everywhere).
+        fullBleedBackground = showDayCycleBackground && skyBehindCards,
     ) {
         // #65: the transient UNDO banner after a suppressing delete. Restores the deleted row into its
         // ORIGINAL namespace + lifts the tombstone. Mirrors the macOS SleepView sleepUndoBanner.
@@ -520,6 +527,8 @@ fun SleepScreen(
                 habitualMidsleepSec = habitualMidsleep,
                 motionEpochs = night?.groupMotion ?: emptyList(),
                 groupInBedMin = night?.groupInBedMin,
+                windowOnsetTs = night?.heroOnsetTs,
+                windowWakeTs = night?.heroWakeTs,
             )
             }
             // Tiles / ledger / trends read the FULL-history model (#940): they stay up when only the
@@ -797,6 +806,12 @@ private fun Hero(
     // excluded, computed by `selectNight`. Null for single-block days → the session-window /
     // stage-total fallbacks below apply unchanged.
     groupInBedMin: Double? = null,
+    // The whole bridged night's clock window (#345, HeroNight.heroOnsetTs/heroWakeTs): on a split
+    // night `session` is one fragment, so its endTs is NOT the night's wake — the Asleep/Woke row
+    // and the hypnogram axis read these instead. Null (single-block days, older callers) falls back
+    // to the session window below, byte-identical to before.
+    windowOnsetTs: Long? = null,
+    windowWakeTs: Long? = null,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
         NightNavHeader(nightOffset, lastIndex, clock, onNavigate, session, onUpdateTimes, onDeleteSession, onAddNap, onPickNightDate)
@@ -805,7 +820,9 @@ private fun Hero(
         // between the two chevrons on a phone, so in practice the two times people look for first
         // were effectively hidden. Shown for every night that has a session (including the stage-less
         // stub, where it's the only thing the hero can say). Mirrors iOS SleepView.sleepWindowRow.
-        session?.let { SleepWindowRow(it) }
+        // #345: the row shows the WHOLE night's window — on a split night the session (edit anchor)
+        // ends mid-night and its endTs contradicted the header pill two lines above.
+        session?.let { SleepWindowRow(windowOnsetTs ?: it.effectiveStartTs, windowWakeTs ?: it.endTs) }
         if (display == null) {
             // Honest fallback: this night recorded no usable stage data — never silently
             // substitute another night's hypnogram. (#160)
@@ -843,8 +860,11 @@ private fun Hero(
                     StageTimeline(
                         realSegments = real,
                         s = s,
-                        onsetTs = session?.effectiveStartTs,
-                        wakeTs = session?.endTs,
+                        // #345: the axis spans the WHOLE night. The group hypnogram (#364 seams) runs to
+                        // the group's last wake; labelling the axis off the session fragment's endTs cut
+                        // the clock labels short on a split night.
+                        onsetTs = windowOnsetTs ?: session?.effectiveStartTs,
+                        wakeTs = windowWakeTs ?: session?.endTs,
                         motionEpochs = motionEpochs,
                     )
                 }
@@ -1636,9 +1656,9 @@ private fun stageColorFor(name: String): Color = when (name.trim().lowercase()) 
  * combined into one TalkBack element. Mirrors iOS SleepView.sleepWindowRow (PR #289).
  */
 @Composable
-private fun SleepWindowRow(session: SleepSession) {
-    val asleep = clockTimeLabel(session.effectiveStartTs)
-    val woke = clockTimeLabel(session.endTs)
+private fun SleepWindowRow(onsetTs: Long, wakeTs: Long) {
+    val asleep = clockTimeLabel(onsetTs)
+    val woke = clockTimeLabel(wakeTs)
     // A frosted Rest-tinted card (was a flat surfaceRaised block) so the window row sits in the
     // same colour world as the rest of the screen. Bevel treatment — content unchanged.
     NoopCard(
@@ -2112,7 +2132,7 @@ private fun NightNavHeader(
     }
 }
 
-// MARK: - 2. Metric grid (uniform fixed-height tiles, each with a sparkline)
+// MARK: - 2. Metric grid (row-equalized min-height tiles, each with a bottom sparkline)
 
 @Composable
 private fun MetricGrid(m: SleepModel, onMetricClick: (String) -> Unit = {}) {
@@ -2191,10 +2211,14 @@ private fun MetricGrid(m: SleepModel, onMetricClick: (String) -> Unit = {}) {
 
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
         SectionHeader("Night detail", overline = "Metrics", trailing = "vs typical")
-        // Two-up rows keep every tile the same fixed height with no empty cells.
+        // Two-up rows; IntrinsicSize.Max + fillMaxHeight keep row neighbors equal height even when
+        // large font scales grow one tile past the tileHeight floor. No empty cells.
         tiles.chunked(2).forEach { rowTiles ->
-            Row(horizontalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-                rowTiles.forEach { it(Modifier.weight(1f)) }
+            Row(
+                modifier = Modifier.height(IntrinsicSize.Max),
+                horizontalArrangement = Arrangement.spacedBy(Metrics.gap),
+            ) {
+                rowTiles.forEach { it(Modifier.weight(1f).fillMaxHeight()) }
                 if (rowTiles.size == 1) Spacer(Modifier.weight(1f))
             }
         }
@@ -2585,7 +2609,7 @@ private fun ChartFooter(items: List<Pair<String, String>>) {
     }
 }
 
-// MARK: - SparkTile (fixed-height metric tile with a trailing 30-day sparkline)
+// MARK: - SparkTile (min-height metric tile, stacked: value + caption over a full-width 30-day sparkline)
 
 @Composable
 private fun SparkTile(
@@ -2601,44 +2625,53 @@ private fun SparkTile(
     // liquidPress on the tappable tile: it settles inward on press (the pilot's card feel). The SAME
     // interactionSource drives the clickable + the press; indication = null so only the liquid settle shows.
     val interaction = remember { MutableInteractionSource() }
+    // heightIn (not height): tileHeight is a floor, matching the Swift StatTile. At normal font scale the
+    // tile keeps its 108dp footprint; at large font scales it grows instead of clipping the caption. (#squish)
     val clickMod = if (onClick != null) {
         modifier
-            .height(Metrics.tileHeight)
+            .heightIn(min = Metrics.tileHeight)
             .liquidPress(interaction)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
     } else {
-        modifier.height(Metrics.tileHeight)
+        modifier.heightIn(min = Metrics.tileHeight)
     }
     NoopCard(modifier = clickMod, padding = Metrics.space14) {
-        Column(modifier = Modifier.fillMaxWidth()) {
+        // fillMaxHeight so the weight-spacer can pin the sparkline to the card bottom once the
+        // MetricGrid row bounds the height (Row height(IntrinsicSize.Max) + tile fillMaxHeight()).
+        Column(modifier = Modifier.fillMaxWidth().fillMaxHeight()) {
             Overline(label)
+            Text(
+                value,
+                style = NoopType.tileValue,
+                color = accent,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (caption != null) {
+                Text(
+                    caption,
+                    style = NoopType.footnote,
+                    color = Palette.textTertiary,
+                    // Full card width now, so the "-3% vs typical" caption fits; ellipsis stays as a
+                    // safety net for extreme localized strings.
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = Metrics.space2),
+                )
+            }
             Spacer(Modifier.weight(1f))
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        value,
-                        style = NoopType.tileValue,
-                        color = accent,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    if (caption != null) {
-                        Text(
-                            caption,
-                            style = NoopType.footnote,
-                            color = Palette.textTertiary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(top = Metrics.space2),
-                        )
-                    }
-                }
-                val tail = spark.takeLast(30)
-                if (tail.size >= 2) {
-                    SparkTailBox {
-                        Sparkline(values = tail, color = sparkColor)
-                    }
-                }
+            val tail = spark.takeLast(30)
+            if (tail.size >= 2) {
+                // Full-width bottom spark. Outer height(sparkHeight) deliberately overrides Sparkline's
+                // internal 28dp default down to the 22dp tile spark (same override SparkTailBox does).
+                Sparkline(
+                    values = tail,
+                    color = sparkColor,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = Metrics.space8)
+                        .height(Metrics.sparkHeight),
+                )
             }
         }
     }
@@ -2741,6 +2774,15 @@ internal data class HeroNight(
     // the efficiency shown beside it stays coherent. Null for a single-block day → the hero keeps
     // its session-window / stage-total fallbacks.
     val groupInBedMin: Double? = null,
+    // The whole bridged night's clock WINDOW (#345): the displayed bedtime (first non-stub fragment's
+    // onset, #736) to the group's latest wake — the same pair `clockLabel` above is built from, carried
+    // as timestamps so the Asleep/Woke row + the hypnogram axis can use them. On a split night `session`
+    // (the single WINNING fragment, kept as the edit anchor) can end mid-night, so reading ITS endTs
+    // made the WOKE time + the axis contradict the header pill and the group hypnogram. iOS needs no
+    // analogue: its merged Night synthesizes a group-spanning session (mergeDay's `synth`), so its
+    // window row and axis were already whole-night. Null only via the default → session fallback.
+    val heroOnsetTs: Long? = null,
+    val heroWakeTs: Long? = null,
 )
 
 /** What the hero card draws for the selected night — null means no usable stage data
@@ -2807,7 +2849,7 @@ internal fun selectNight(
     // the group (≈ the main block). A genuine biphasic first sleep is comparable to it and is kept; only a
     // small stray lead carrying a few minutes of sleep is dropped, so the onset no longer jumps hours early.
     val groupRefAsleepMin = group.maxOfOrNull { frag ->
-        parseSessionStages(frag.stagesJSON)?.let { it.light + it.deep + it.rem } ?: 0.0
+        decodedAsleepMinutes(frag.stagesJSON, frag.effectiveStartTs)
     } ?: 0.0
     val heroGroup = group.dropWhile {
         it.effectiveStartTs < onsetTsForHero && isPreOnsetAwakeStub(it, groupRefAsleepMin)
@@ -2860,7 +2902,7 @@ internal fun selectNight(
         heroGroup.sumOf { (it.endTs - it.effectiveStartTs).coerceAtLeast(0L) } / 60.0
     } else null
     return HeroNight(session, dayKey, segments, clockLabelFor(heroOnsetTs, heroWakeTs), napBlocks, groupStages,
-        groupSegments, groupMotion, groupInBedMin)
+        groupSegments, groupMotion, groupInBedMin, heroOnsetTs, heroWakeTs)
 }
 
 /**
@@ -2937,22 +2979,48 @@ private const val PRE_ONSET_STUB_ASLEEP_MAX_MIN = 3.0
  *  minutes more than 3. Mirrors iOS SleepView.preOnsetStubMinorFrac. (#259) */
 private const val PRE_ONSET_STUB_MINOR_FRAC = 0.15
 
+/** Absolute floor (ASLEEP minutes) under the #259 relative "minor lead" test: a leading fragment that carries
+ *  at least this much real sleep is a genuine first sleep — a real sleep episode — and is NEVER a spurious
+ *  pre-onset lead, however large the main block is. Without it a long main sleep inflates the 15% relative bar
+ *  (a 6 h night → ~54 min) so a genuine ~34-min first sleep was swallowed and the shown bedtime jumped hours
+ *  late, hiding the real onset the bridged night (and the Health write-back) already spans. 20 min ≈ the
+ *  shortest standalone sleep episode; below it a handful of asleep minutes beside a long night is a stray lead.
+ *  Mirrors iOS SleepView.preOnsetStubMinorAsleepFloorMin. (#259 / bridged-night headline) */
+internal const val PRE_ONSET_STUB_MINOR_ASLEEP_FLOOR_MIN = 20.0
+
+/**
+ * Asleep minutes decoded from a stored [stagesJSON] in EITHER of the two formats that exist in the DB:
+ * on-device COMPUTED nights store a SEGMENT ARRAY `[{start,end,stage}]`; imported nights store a dict of
+ * MINUTES `{light,deep,rem,awake}`. [parseSessionStages] already reads both; this additionally threads the
+ * fragment's [effectiveStartTs] through [SleepStageTotals.clampStagesToOnset] so a segment array is trimmed to
+ * the effective onset (the #259 pre-onset trim) exactly as the hero's stage totals trim it — a no-op for a
+ * minute dict and for a segment array that already starts at its onset. The displayed-onset stub test reads
+ * asleep minutes through this seam so a computed night's segment array is never counted as 0 asleep minutes.
+ * Internal so the onset golden pins the DECODE PATH itself. Mirrors iOS SleepView.decodedAsleepMinutes.
+ */
+internal fun decodedAsleepMinutes(stagesJSON: String?, effectiveStartTs: Long): Double =
+    parseSessionStages(SleepStageTotals.clampStagesToOnset(stagesJSON, effectiveStartTs))
+        ?.let { it.light + it.deep + it.rem } ?: 0.0
+
 /** A fragment is a spurious pre-onset awake stub when it is within the lie-in cap (<= [PRE_ONSET_STUB_MAX_MIN])
  *  and EITHER carries essentially no sleep (asleep minutes <= [PRE_ONSET_STUB_ASLEEP_MAX_MIN]) OR is minor
  *  relative to the night's main block ([refAsleepMin], the group's largest asleep span): asleep minutes below
- *  [PRE_ONSET_STUB_MINOR_FRAC] of it. Used only to skip such a stub when it leads the main-night group, so the
- *  hero's hypnogram and minutes start at the displayed bedtime (the main block's onset) rather than before it.
- *  [refAsleepMin] defaults to 0 (relative test off) so existing callers/tests are byte-identical. Mirrors iOS
+ *  [PRE_ONSET_STUB_MINOR_FRAC] of it AND below the absolute [PRE_ONSET_STUB_MINOR_ASLEEP_FLOOR_MIN] real-sleep-
+ *  episode floor. Used only to skip such a stub when it leads the main-night group, so the hero's hypnogram and
+ *  minutes start at the displayed bedtime (the main block's onset) rather than before it. [refAsleepMin]
+ *  defaults to 0 (relative test off) so existing callers/tests are byte-identical. Mirrors iOS
  *  SleepView.isPreOnsetAwakeStub. (#736 / #259) */
 internal fun isPreOnsetAwakeStub(frag: SleepSession, refAsleepMin: Double = 0.0): Boolean {
     val spanMin = (frag.endTs - frag.effectiveStartTs) / 60.0
     if (spanMin > PRE_ONSET_STUB_MAX_MIN) return false
-    val stages = parseSessionStages(frag.stagesJSON)
-    val asleepMin = stages?.let { it.light + it.deep + it.rem } ?: 0.0
+    val asleepMin = decodedAsleepMinutes(frag.stagesJSON, frag.effectiveStartTs)
     if (asleepMin <= PRE_ONSET_STUB_ASLEEP_MAX_MIN) return true
-    // #259: also spurious when it carries some sleep but is minor relative to the main block (largest
-    // fragment). A genuine biphasic first sleep is comparable in size, so it stays and its onset stands.
-    return refAsleepMin > 0.0 && asleepMin < PRE_ONSET_STUB_MINOR_FRAC * refAsleepMin
+    // #259 relative "minor lead" test, floored: a real sleep episode (>= the floor) is never a stray lead, so
+    // a long main block can't inflate the 15% bar past a genuine short first sleep. A genuine biphasic first
+    // sleep is comparable in size, so it stays and its onset stands.
+    return refAsleepMin > 0.0 &&
+        asleepMin < PRE_ONSET_STUB_MINOR_FRAC * refAsleepMin &&
+        asleepMin < PRE_ONSET_STUB_MINOR_ASLEEP_FLOOR_MIN
 }
 
 /** SUM the per-stage minutes across a bridged main-night group, so the hero's stage breakdown reflects the

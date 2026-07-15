@@ -35,6 +35,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.BatteryStd
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Brightness6
 import androidx.compose.material.icons.filled.Campaign
@@ -73,6 +74,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -85,6 +87,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -92,10 +95,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.noop.BuildConfig
 import com.noop.analytics.Baselines
 import com.noop.analytics.Zones
+import com.noop.R
 import com.noop.ble.PuffinExperiment
 import com.noop.ble.WhoopModel
 import com.noop.data.DataBackup
@@ -442,6 +449,9 @@ fun SettingsScreen(
     // "Sleep staging (V2)" — V2 is the DEFAULT for every strap (WHOOP 4 and 5/MG); turn it OFF to fall back
     // to V1. Model-agnostic, so it lives outside the 5/MG-only card. 4.0 is unvalidated either way (#319/#347).
     var experimentalSleepV2 by remember { mutableStateOf(puffinExperiment.experimentalSleepV2) }
+    // "Motion-aware wake refinement" (#364 follow-up) — OFF by default. Self-gates on observed gravity +
+    // step density, so it is a no-op on a sparse (e.g. WHOOP 4.0) night regardless of this switch.
+    var motionAwareWake by remember { mutableStateOf(puffinExperiment.motionAwareWake) }
 
     // Whether to surface the WHOOP 5/MG-only probes (puffin / R22 / broadcast-HR / frame-capture). Gated
     // so a confident 4.0 owner never sees 5/MG controls that can't touch their strap (#22). The model
@@ -468,6 +478,12 @@ fun SettingsScreen(
     // "Overnight only" (#927): arm the continuous stream only inside the nightly quiet-hours window
     // instead of 24/7. Default OFF so existing users keep the always-on behaviour. Local mirror.
     var continuousHrvOvernight by remember { mutableStateOf(NoopPrefs.continuousHrvOvernight(context)) }
+
+    // #477 Power saving: battery-adaptive strap-sync cadence + optional HRV-capture pause. Local mirrors.
+    var powerSaving by remember { mutableStateOf(NoopPrefs.powerSaving(context)) }
+    var powerSavingBatteryPct by remember { mutableStateOf(NoopPrefs.powerSavingBatteryPct(context)) }
+    var pauseHrvOnPowerSave by remember { mutableStateOf(NoopPrefs.pauseHrvOnPowerSave(context)) }
+    var deferHealthSync by remember { mutableStateOf(NoopPrefs.deferHealthSync(context)) }
 
     // --- v5 Health & wellness toggle group. All SharedPreferences-backed (not reactive), so each Switch
     // drives a local mirror that writes straight through to the same keys the v5 engine readers use.
@@ -560,7 +576,9 @@ fun SettingsScreen(
         if (uri == null) { backupBusy = false; return@rememberLauncherForActivityResult }
         scope.launch {
             val result = withContext(Dispatchers.IO) {
-                runCatching { WhoopCsvExporter.exportZip(context, uri, vm.repo) }
+                // #458: thread the registry's ACTIVE strap id — the exporter's old "my-whoop" default
+                // exported an empty zip on live-BLE installs (the engine banks under "<strapId>-noop").
+                runCatching { WhoopCsvExporter.exportZip(context, uri, vm.repo, vm.activeStrapId) }
             }
             backupBusy = false
             result.fold(
@@ -625,7 +643,10 @@ fun SettingsScreen(
         // scroll-heavy list with NO hero gauge, so the liquid finish here is just the sky + liquidPress on
         // the tappable rows. Gated on the same day-cycle background pref Today reads, so turning that off
         // returns Settings to the plain dark canvas too.
-        topBackground = if (showDayCycleBackground) { { LiquidScreenSky() } } else null,
+        topBackground = if (showDayCycleBackground) { { LiquidScreenSky(fillHeight = skyBehindCards) } } else null,
+        // Sky-behind-cards fills the viewport so the transparent cards reveal the sky the whole way
+        // down (Today / Trends / Sleep / metric-detail parity - same two prefs, same two behaviours).
+        fullBleedBackground = showDayCycleBackground && skyBehindCards,
     ) {
         // Read the revision counter so every profile write recomposes this subtree
         // (SharedPreferences is not observable; `mutate` bumps `rev` after each write).
@@ -1260,6 +1281,104 @@ fun SettingsScreen(
                     )
                 }
 
+                // "Keep NOOP alive overnight" (#386): the battery-optimisation whitelist. Shown ONLY while
+                // background connection is on (meaningless otherwise), so it never adds noise on a
+                // foreground-only setup. `checked` reflects the LIVE system exempt state, so an already-exempt
+                // phone shows it on and is never prompted again. POPUP DISCIPLINE: turning it ON fires exactly
+                // ONE system dialog; the OEM auto-start screen (aggressive vendors only) is a SEPARATE
+                // text-link, never chained onto that dialog, so one tap can't spawn two popups. The whitelist
+                // adds no battery cost of its own — it stops a premature kill; the real cost is the two
+                // toggles below.
+                if (backgroundConnection) {
+                    // Re-read the LIVE exempt state on every ON_RESUME so the toggle flips to on the moment
+                    // the user returns from the system whitelist dialog. Reading it plainly in composition
+                    // wouldn't recompose on resume — it'd show a stale "off", look like it failed, and invite
+                    // a SECOND (duplicate) popup, defeating the popup discipline.
+                    val lifecycleOwner = LocalLifecycleOwner.current
+                    var batteryExempt by remember {
+                        mutableStateOf(com.noop.ble.BackgroundHealth.isBatteryExempt(context))
+                    }
+                    DisposableEffect(lifecycleOwner) {
+                        val obs = LifecycleEventObserver { _, event ->
+                            if (event == Lifecycle.Event.ON_RESUME) {
+                                batteryExempt = com.noop.ble.BackgroundHealth.isBatteryExempt(context)
+                            }
+                        }
+                        lifecycleOwner.lifecycle.addObserver(obs)
+                        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+                    }
+                    val oemAutostart = remember { com.noop.ble.BackgroundHealth.oemAutostartIntent(context) }
+                    // Only NAME the manufacturer as a killer when it actually is one — a Pixel/Samsung
+                    // shouldn't read "especially Google". The whitelist still helps everyone (it also
+                    // exempts from Doze deferral), so the row still shows; only the copy is vendor-aware.
+                    val aggressiveVendor = remember { com.noop.ble.BackgroundHealth.isAggressiveVendor() }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Keep NOOP alive overnight",
+                                style = NoopType.subhead,
+                                color = Palette.textPrimary,
+                            )
+                            Text(
+                                if (batteryExempt) {
+                                    "Allowed — your phone won't stop NOOP's overnight sync to save battery. This " +
+                                        "doesn't use extra battery on its own; it just lets the settings above run reliably."
+                                } else {
+                                    val who = if (aggressiveVendor) "Your phone (${android.os.Build.MANUFACTURER})" else "Some phones"
+                                    "$who can stop background apps to save battery, which can make NOOP miss overnight " +
+                                        "sleep and recovery data. Turn this on to whitelist NOOP. It doesn't use extra " +
+                                        "battery on its own — it only lets the overnight sync you've enabled above actually finish."
+                                },
+                                style = NoopType.footnote,
+                                color = Palette.textTertiary,
+                            )
+                            // Aggressive-OEM only, and only while not yet exempt: a SEPARATE, explicit link to
+                            // the vendor's auto-start screen (which the generic whitelist can't reach). One
+                            // extra tap by choice — never auto-opened alongside the whitelist dialog.
+                            if (!batteryExempt && oemAutostart != null) {
+                                Text(
+                                    "Some phones also need auto-start enabled — open that screen",
+                                    style = NoopType.footnote,
+                                    color = Palette.accent,
+                                    modifier = Modifier
+                                        .padding(top = 6.dp)
+                                        .clickable { runCatching { context.startActivity(oemAutostart) } },
+                                )
+                            }
+                        }
+                        Switch(
+                            checked = batteryExempt,
+                            // A system grant can't be toggled OFF from here (that's a system action): a tap
+                            // only ever REQUESTS it, and when already exempt the switch is inert (no re-prompt).
+                            onCheckedChange = { wantOn ->
+                                if (wantOn && !batteryExempt) {
+                                    // The whole feature exists for ROMs that strip things — so the fallback
+                                    // is guarded too: if BOTH the exemption dialog and the app-settings page
+                                    // are missing, no-op rather than crash (the OEM link below is another path).
+                                    runCatching {
+                                        context.startActivity(com.noop.ble.BackgroundHealth.batteryExemptionIntent(context))
+                                    }.onFailure {
+                                        runCatching {
+                                            context.startActivity(com.noop.ble.BackgroundHealth.appBatterySettingsIntent(context))
+                                        }
+                                    }
+                                }
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Palette.surfaceBase,
+                                checkedTrackColor = Palette.accent,
+                                uncheckedThumbColor = Palette.textSecondary,
+                                uncheckedTrackColor = Palette.surfaceInset,
+                                uncheckedBorderColor = Palette.hairline,
+                            ),
+                        )
+                    }
+                }
+
                 // Continuous HRV capture: keep the dense beat-to-beat (R-R) stream armed even with no Live
                 // screen open, so the strap banks far more data overnight for better HRV/recovery/sleep.
                 // Honest battery framing — continuous HR streaming uses more battery. Needs background
@@ -1424,6 +1543,131 @@ fun SettingsScreen(
                         }
                         Text("›", style = NoopType.title2, color = Palette.accent)
                     }
+                }
+            }
+        }
+
+        // #477 Power saving. Two BENIGN battery levers only: the offload-cadence stretch (%-gated) and
+        // the HRV-capture pause (Battery-Saver-gated). The riskier connection-priority idle throttle is
+        // deliberately not surfaced here — it stays dormant pending on-strap validation (#478).
+        SettingsSection(
+            icon = Icons.Filled.BatteryStd,
+            title = stringResource(R.string.power_saving),
+            blurb = stringResource(R.string.power_saving_blurb),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.power_saving_mode), style = NoopType.subhead, color = Palette.textPrimary)
+                    Text(
+                        stringResource(R.string.power_saving_mode_desc),
+                        style = NoopType.footnote,
+                        color = Palette.textTertiary,
+                    )
+                }
+                Switch(
+                    checked = powerSaving,
+                    onCheckedChange = {
+                        powerSaving = it
+                        vm.setPowerSaving(it)
+                    },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Palette.surfaceBase,
+                        checkedTrackColor = Palette.accent,
+                        uncheckedThumbColor = Palette.textSecondary,
+                        uncheckedTrackColor = Palette.surfaceInset,
+                        uncheckedBorderColor = Palette.hairline,
+                    ),
+                )
+            }
+            if (powerSaving) {
+                RowDivider()
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(stringResource(R.string.power_saving_kick_in), style = NoopType.subhead, color = Palette.textPrimary)
+                        Text(stringResource(R.string.power_saving_pct, powerSavingBatteryPct), style = NoopType.subhead, color = Palette.accent)
+                    }
+                    Slider(
+                        value = powerSavingBatteryPct.toFloat(),
+                        // 10–30% snapping to 5% steps (10/15/20/25/30). steps = the 3 stops BETWEEN ends.
+                        onValueChange = { powerSavingBatteryPct = it.roundToInt() },
+                        onValueChangeFinished = { vm.setPowerSavingBatteryPct(powerSavingBatteryPct) },
+                        valueRange = 10f..30f,
+                        steps = 3,
+                        colors = SliderDefaults.colors(
+                            thumbColor = Palette.accent,
+                            activeTrackColor = Palette.accent,
+                            inactiveTrackColor = Palette.surfaceInset,
+                        ),
+                    )
+                }
+                RowDivider()
+                // HRV pause: a sub-option of power saving, ON by default when the master is on.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.power_saving_hrv_pause), style = NoopType.subhead, color = Palette.textPrimary)
+                        Text(
+                            stringResource(R.string.power_saving_hrv_pause_desc),
+                            style = NoopType.footnote,
+                            color = Palette.textTertiary,
+                        )
+                    }
+                    Switch(
+                        checked = pauseHrvOnPowerSave,
+                        onCheckedChange = {
+                            pauseHrvOnPowerSave = it
+                            vm.setPauseHrvOnPowerSave(it)
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Palette.surfaceBase,
+                            checkedTrackColor = Palette.accent,
+                            uncheckedThumbColor = Palette.textSecondary,
+                            uncheckedTrackColor = Palette.surfaceInset,
+                            uncheckedBorderColor = Palette.hairline,
+                        ),
+                    )
+                }
+                RowDivider()
+                // Defer Health Connect writeback: a sub-option of power saving, ON by default. Read live
+                // by the analyze loop (no BLE push), so a plain pref write is enough.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.power_saving_defer_health), style = NoopType.subhead, color = Palette.textPrimary)
+                        Text(
+                            stringResource(R.string.power_saving_defer_health_desc),
+                            style = NoopType.footnote,
+                            color = Palette.textTertiary,
+                        )
+                    }
+                    Switch(
+                        checked = deferHealthSync,
+                        onCheckedChange = {
+                            deferHealthSync = it
+                            NoopPrefs.setDeferHealthSync(context, it)
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Palette.surfaceBase,
+                            checkedTrackColor = Palette.accent,
+                            uncheckedThumbColor = Palette.textSecondary,
+                            uncheckedTrackColor = Palette.surfaceInset,
+                            uncheckedBorderColor = Palette.hairline,
+                        ),
+                    )
                 }
             }
         }
@@ -1693,6 +1937,47 @@ fun SettingsScreen(
                         "V1 staging, and is now the default. It only changes how already-detected nights are " +
                         "split into stages (detection and scores are unchanged); turn it off to fall back to " +
                         "V1. Takes effect on the next nights staged.",
+                    style = NoopType.caption,
+                    color = Palette.textTertiary,
+                )
+
+                // --- Motion-aware wake refinement (#364 follow-up) — OFF by default. ---
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Text(
+                        "Motion-aware wake refinement",
+                        style = NoopType.subhead,
+                        color = Palette.textPrimary,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Switch(
+                        checked = motionAwareWake,
+                        onCheckedChange = {
+                            motionAwareWake = it
+                            puffinExperiment.motionAwareWake = it
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Palette.surfaceBase,
+                            checkedTrackColor = Palette.accent,
+                            uncheckedThumbColor = Palette.textSecondary,
+                            uncheckedTrackColor = Palette.surfaceInset,
+                            uncheckedBorderColor = Palette.hairline,
+                        ),
+                        modifier = Modifier.semantics {
+                            contentDescription = "Motion-aware wake refinement"
+                        },
+                    )
+                }
+                Text(
+                    "Reviews each scored wake block for real evidence of getting up (walking cadence, a " +
+                        "change in body position) instead of just a heart-rate rise. A wake block with no " +
+                        "locomotion and a stable posture -- a hot night, a brief turn-over -- is folded back " +
+                        "into light sleep; a real get-up is left alone. Self-checks how much motion detail " +
+                        "your strap actually recorded and stays off on a night that's too sparse to trust " +
+                        "(older WHOOP 4.0 firmware, mainly). Off by default; takes effect on the next nights staged.",
                     style = NoopType.caption,
                     color = Palette.textTertiary,
                 )

@@ -23,7 +23,7 @@ enum AIProvider: String, CaseIterable, Identifiable {
         switch self {
         case .openAI:    return "gpt-4o-mini"
         case .anthropic: return "claude-sonnet-4-6"
-        case .gemini:    return "gemini-2.5-flash"
+        case .gemini:    return "gemini-flash-latest"   // stable alias → current Flash, no version churn (#400)
         case .custom:    return ""   // the user picks the model their server serves
         }
     }
@@ -45,11 +45,13 @@ enum AIProvider: String, CaseIterable, Identifiable {
                 "claude-3-opus-latest"
             ]
         case .gemini:
+            // Stable `-latest` ALIASES, not pinned versions (#400): they always resolve to the current
+            // stable model in each tier, so Gemini's rapid releases never need a code bump. `refreshModels()`
+            // still merges the live `/models` catalogue, so a user with a key can pin a concrete version.
             return [
-                "gemini-2.5-pro",
-                "gemini-2.5-flash",
-                "gemini-2.5-flash-lite",
-                "gemini-2.0-flash"
+                "gemini-pro-latest",
+                "gemini-flash-latest",
+                "gemini-flash-lite-latest"
             ]
         case .custom:
             return []   // populated from the server's /models (refreshModels) or typed in
