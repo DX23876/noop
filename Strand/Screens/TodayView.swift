@@ -198,6 +198,11 @@ struct TodayView: View {
     @EnvironmentObject var router: NavRouter
     /// The "update ringer", the bell in the top bar opens this inbox; dismissed Today cards post into it.
     @EnvironmentObject var updateStore: UpdateStore
+    /// Coach: the AI engine (injected at the app root) + the full-screen chat presentation, so the classic
+    /// Today matches the liquid one's prominent Coach entry instead of burying it under More.
+    @EnvironmentObject var coach: AICoachEngine
+    @State private var showCoach = false
+    @AppStorage(CoachEntryMode.storageKey) private var coachEntryModeRaw = CoachEntryMode.both.rawValue
 
     // Imperial/Metric display preference (D#103). Only the Weight tile carries a convertible unit here.
     @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
@@ -1253,6 +1258,7 @@ struct TodayView: View {
                 // and opens the in-exercise screen. Its own leaf owns the AppModel observation + per-second
                 // clock, so the live tick never re-renders TodayView.body.
                 ActiveWorkoutIndicatorSection()
+                if (CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both).showsCard { coachCard }
                 // The "still building" and "new here?" prompts are about getting today's scores going,
                 // so they stay anchored to today rather than reappearing on every navigated past day.
                 if selectedDayOffset == 0 && repo.today?.recovery == nil {
@@ -1401,6 +1407,9 @@ struct TodayView: View {
         .sheet(isPresented: $showUpdatesInbox) {
             UpdatesInboxView(onClose: { showUpdatesInbox = false })
         }
+        // The Coach chat, opened by the prominent Coach card above. Uses the shared View.coachCover
+        // helper (defined alongside LiquidTodayView's covers).
+        .coachCover(isPresented: $showCoach, coach: coach)
         // H6, the steps-calibration sheet, opened from an estimated Steps tile (the same sheet Settings
         // hosts). Presented from Today so a WHOOP 4.0 user can calibrate from where the "est." caption shows.
         .sheet(isPresented: $showStepsCalibration) {
@@ -1417,6 +1426,33 @@ struct TodayView: View {
             withAnimation(StrandMotion.interactive) { restoreTodayCard(payload) }
             updateStore.restoreRequest = nil
         }
+    }
+
+    /// Prominent Coach entry on the classic Today, matching the liquid one: opens the full-screen chat
+    /// directly rather than leaving Coach buried under More.
+    private var coachCard: some View {
+        Button { showCoach = true } label: {
+            NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+                HStack(spacing: 10) {
+                    Image(systemName: "sparkles")
+                        .foregroundStyle(StrandPalette.accent)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Ask your Coach")
+                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                        Text("Your data, in plain language")
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .accessibilityHidden(true)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Ask your Coach. Opens the AI coach chat, grounded in your own numbers.")
     }
 
     /// Flip a Today info-card's dismissed flag back to false so it reappears (driven by the inbox's

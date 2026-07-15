@@ -43,6 +43,12 @@ struct LiquidTodayView: View {
     @State private var showSettings = false
     @State private var synthesisExpanded = false
     @State private var showLiveSession = false
+    /// Coach: the AI coach engine (injected at the app root) and the full-screen chat presentation. The
+    /// prominent Today entry opens the redesigned Coach chat directly, so it isn't buried under More.
+    /// The card only shows when the user's Coach-entry preference includes it (card / both).
+    @EnvironmentObject private var coach: AICoachEngine
+    @State private var showCoach = false
+    @AppStorage(CoachEntryMode.storageKey) private var coachEntryModeRaw = CoachEntryMode.both.rawValue
 
     /// Live Sessions (silent guardian) beta gate — the SAME key the Settings toggle writes. Default ON
     /// (the entry is BETA-labelled in-UI); off removes the Start-session control entirely.
@@ -232,6 +238,7 @@ struct LiquidTodayView: View {
                     // pinned above the reorderable block so an active manual workout is immediately visible
                     // and taps straight through to Live. Renders nothing when no workout is active.
                     ActiveWorkoutIndicatorSection()
+                    if (CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both).showsCard { coachCard }
                     // #today-layout (parity with Android): every Today section — the Charge/Effort/Rest hero
                     // and Start-session included — renders in the user's saved order. Reorder via the Arrange
                     // sheet (the header's up/down button; native drag rows); the order persists under the
@@ -315,6 +322,7 @@ struct LiquidTodayView: View {
         // screen on iOS (nothing should compete with the ring mid-workout), a sheet on macOS where
         // fullScreenCover doesn't exist.
         .liveSessionCover(isPresented: $showLiveSession)
+        .coachCover(isPresented: $showCoach, coach: coach)
         // #today-layout: the Arrange sheet — native drag-to-reorder rows over the same persisted order.
         .sheet(isPresented: $showArrangeSheet) {
             TodayArrangeSheet(orderRaw: $sectionOrderRaw)
@@ -444,6 +452,40 @@ struct LiquidTodayView: View {
                 .padding(.top, 30)
                 .padding(.bottom, 10)
         }
+    }
+
+    /// Prominent Coach entry: opens the redesigned full-screen chat directly (no longer buried two levels
+    /// deep under More). Shares the hero card's translucent chrome so it reads as part of the sky scene.
+    private var coachCard: some View {
+        Button { showCoach = true } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(StrandPalette.accent)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Ask your Coach")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.onDarkPrimary)
+                    Text("Your data, in plain language")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.onDarkSecondary)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(StrandPalette.onDarkTertiary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(heroFill)
+                    .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .strokeBorder(.white.opacity(0.11), lineWidth: 1))
+                    .opacity(cardOpacity)
+            )
+        }
+        .buttonStyle(LiquidPressStyle())
+        .accessibilityLabel("Ask your Coach. Opens the AI coach chat, grounded in your own numbers.")
     }
 
     /// One-tap Live Session start (silent guardian, beta) — sits directly under the hero scores, the
