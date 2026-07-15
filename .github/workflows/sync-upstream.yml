@@ -1,0 +1,91 @@
+name: Sync upstream (ryanbr/noop)
+
+# NOOP AI fork: pulls new commits from the canonical upstream project weekly and opens a PR against
+# main for review, instead of silently auto-merging: a bad upstream merge should never land on this
+# fork's public main branch unreviewed. Existing CI (app-build / swift-packages / android, all
+# path-filtered on pull_request) runs automatically on the PR this opens, giving free build/test
+# coverage. On a merge conflict (most likely README.md, which has fully diverged from upstream's),
+# the merge is aborted and an issue is opened instead of a broken PR.
+on:
+  schedule:
+    - cron: '0 6 * * 1'   # every Monday 06:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote and fetch
+        run: |
+          git remote add upstream https://github.com/ryanbr/noop.git
+          git fetch upstream main
+
+      - name: Check for new upstream commits
+        id: check
+        run: |
+          if [ -z "$(git log main..upstream/main --oneline)" ]; then
+            echo "No new upstream commits, nothing to sync this run."
+            echo "has_updates=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_updates=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Attempt merge on a sync branch
+        if: steps.check.outputs.has_updates == 'true'
+        id: merge
+        run: |
+          branch="sync-upstream-$(date +%Y%m%d)"
+          git checkout -b "$branch"
+          if git merge upstream/main --no-edit; then
+            echo "conflict=false" >> "$GITHUB_OUTPUT"
+          else
+            git merge --abort
+            echo "conflict=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Push sync branch
+        if: steps.check.outputs.has_updates == 'true' && steps.merge.outputs.conflict == 'false'
+        run: git push origin "${{ steps.merge.outputs.branch }}"
+
+      - name: Open pull request
+        if: steps.check.outputs.has_updates == 'true' && steps.merge.outputs.conflict == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr create \
+            --repo "$GITHUB_REPOSITORY" \
+            --base main \
+            --head "${{ steps.merge.outputs.branch }}" \
+            --title "Sync upstream: $(date +%Y-%m-%d)" \
+            --body "Automated sync from [ryanbr/noop](https://github.com/ryanbr/noop). This merged cleanly with no conflicts. Existing CI (app-build / swift-packages / android) runs automatically on this PR wherever the changed paths match. Review the diff and merge if it looks good."
+
+      - name: Open conflict issue
+        if: steps.check.outputs.has_updates == 'true' && steps.merge.outputs.conflict == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          body=$'The scheduled upstream sync found new commits on [ryanbr/noop](https://github.com/ryanbr/noop) but hit a merge conflict, so no PR was opened automatically.\n\nResolve it locally:\n```bash\ngit fetch upstream\ngit checkout main\ngit merge upstream/main\n# resolve conflicts (README.md is the most likely one, keep the version from this fork, per the note in the README about staying in sync)\ngit push origin main\n```'
+          gh issue create \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Upstream sync conflict, manual merge needed ($(date +%Y-%m-%d))" \
+            --body "$body"
