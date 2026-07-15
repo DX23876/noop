@@ -153,6 +153,8 @@
     <string name="power_saving_mode_desc">Verlangsamt die Hintergrund-Synchronisierung des Sensors (alle 45 statt 15 Minuten), wenn der Akku niedrig ist oder der Energiesparmodus aktiv ist. Kein Datenverlust – die Synchronisierung erfolgt in größeren, selteneren Schüben.</string>
     <string name="power_saving_kick_in">Aktiv ab</string>
     <string name="power_saving_pct">%1$d %%</string>
-    <string name="power_saving_hrv_pause">HFV-Erfassung im Energiesparmodus pausieren</string>
-    <string name="power_saving_hrv_pause_desc">Solange der Android-Energiesparmodus aktiv ist, wird der dauerhafte HFV-Hintergrundstream gestoppt (der größte Live-Verbraucher). Beim Öffnen eines Live-Bildschirms wird weiterhin die Herzfrequenz angezeigt, und er wird automatisch reaktiviert, wenn der Energiesparmodus endet.</string>
+    <string name="power_saving_hrv_pause">HFV-Erfassung pausieren</string>
+    <string name="power_saving_hrv_pause_desc">Während des Energiesparens (niedriger Akku oder Energiesparmodus) wird der dauerhafte HFV-Hintergrundstream gestoppt – der größte Live-Verbraucher. Ein Live-Bildschirm zeigt weiterhin die Herzfrequenz an, und er wird automatisch reaktiviert, sobald das Energiesparen endet.</string>
+    <string name="power_saving_defer_health">Health-Connect-Rückschreibung aufschieben</string>
+    <string name="power_saving_defer_health_desc">Während des Energiesparens das Zurückschreiben der Werte an Health Connect aussetzen (sonst alle 15 Minuten). Es wird automatisch fortgesetzt, sobald das Energiesparen endet, und eine manuelle Synchronisierung führt es immer aus.</string>
 </resources>

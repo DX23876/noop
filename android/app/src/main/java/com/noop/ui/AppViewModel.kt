@@ -1,6 +1,11 @@
 package com.noop.ui
 
 import android.app.Application
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.BatteryManager
+import android.os.PowerManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.noop.NoopApplication
@@ -38,6 +43,7 @@ import com.noop.data.WhoopRepository
 import com.noop.data.WorkoutRow
 import com.noop.ingest.ActivityFileImporter
 import com.noop.ingest.HealthConnectImporter
+import com.noop.ble.WhoopBleClient
 import com.noop.ingest.HealthConnectWriter
 import com.noop.ingest.LiftingImporter
 import com.noop.notif.IllnessAlertNotifier
@@ -866,7 +872,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 // apps see them. Idempotent (clientRecordId per metric+day), so re-running every
                 // cycle just upserts. Never let an HC hiccup (perm revoked mid-flight, provider
                 // update) break the analysis loop.
-                if (_hcWriteback.value) {
+                // #477: defer the writeback while power-saving is active (Android-only sub-option — iOS
+                // Health is Shortcut-driven, so it has no NOOP-scheduled sync to defer). Resumes next
+                // cycle once off power save; a manual Data-Sources sync always writes regardless.
+                if (_hcWriteback.value &&
+                    !(NoopPrefs.deferHealthSync(appContext) && isPowerSavingActiveNow())
+                ) {
                     runCatching { HealthConnectWriter.write(appContext, repository, deviceId) }
                 }
                 // 15-min backstop cadence, but wake EARLY on an app-resume kick (#386 self-heal) so a
@@ -897,8 +908,27 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private fun applyPowerSaving() {
         val on = NoopPrefs.powerSaving(appContext)
         ble.setLowBatteryOffloadThrottle(if (on) NoopPrefs.powerSavingBatteryPct(appContext) else 0)
-        // HRV pause is a sub-option: only effective while the master is on (defaults on when it is).
-        ble.setPauseCaptureOnPowerSave(on && NoopPrefs.pauseHrvOnPowerSave(appContext))
+        // HRV pause is a sub-option: only effective while the master is on (defaults on when it is), and
+        // now battery-%-aware like the offload lever — pass the same threshold.
+        ble.setPauseCaptureOnPowerSave(
+            on && NoopPrefs.pauseHrvOnPowerSave(appContext),
+            NoopPrefs.powerSavingBatteryPct(appContext),
+        )
+    }
+
+    /** #477: is power saving CURRENTLY throttling — master on AND (battery ≤ threshold while discharging
+     *  OR Battery Saver)? Reuses the SAME pure gate as the BLE levers so all three agree. Read live per
+     *  analyze cycle; unknown battery fails SAFE (100 %, never throttles). */
+    private fun isPowerSavingActiveNow(): Boolean {
+        if (!NoopPrefs.powerSaving(appContext)) return false
+        val i = appContext.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val level = i?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val scale = i?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+        val status = i?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+        val pct = if (level >= 0 && scale > 0) level * 100 / scale else 100
+        val charging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
+        val powerSave = (appContext.getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isPowerSaveMode ?: false
+        return WhoopBleClient.idleThrottleActive(pct, charging, NoopPrefs.powerSavingBatteryPct(appContext), powerSave)
     }
 
     /** Flip "Power saving" (Settings). Persists + applies immediately. */

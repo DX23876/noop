@@ -483,6 +483,7 @@ fun SettingsScreen(
     var powerSaving by remember { mutableStateOf(NoopPrefs.powerSaving(context)) }
     var powerSavingBatteryPct by remember { mutableStateOf(NoopPrefs.powerSavingBatteryPct(context)) }
     var pauseHrvOnPowerSave by remember { mutableStateOf(NoopPrefs.pauseHrvOnPowerSave(context)) }
+    var deferHealthSync by remember { mutableStateOf(NoopPrefs.deferHealthSync(context)) }
 
     // --- v5 Health & wellness toggle group. All SharedPreferences-backed (not reactive), so each Switch
     // drives a local mirror that writes straight through to the same keys the v5 engine readers use.
@@ -1627,6 +1628,37 @@ fun SettingsScreen(
                         onCheckedChange = {
                             pauseHrvOnPowerSave = it
                             vm.setPauseHrvOnPowerSave(it)
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Palette.surfaceBase,
+                            checkedTrackColor = Palette.accent,
+                            uncheckedThumbColor = Palette.textSecondary,
+                            uncheckedTrackColor = Palette.surfaceInset,
+                            uncheckedBorderColor = Palette.hairline,
+                        ),
+                    )
+                }
+                RowDivider()
+                // Defer Health Connect writeback: a sub-option of power saving, ON by default. Read live
+                // by the analyze loop (no BLE push), so a plain pref write is enough.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.power_saving_defer_health), style = NoopType.subhead, color = Palette.textPrimary)
+                        Text(
+                            stringResource(R.string.power_saving_defer_health_desc),
+                            style = NoopType.footnote,
+                            color = Palette.textTertiary,
+                        )
+                    }
+                    Switch(
+                        checked = deferHealthSync,
+                        onCheckedChange = {
+                            deferHealthSync = it
+                            NoopPrefs.setDeferHealthSync(context, it)
                         },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Palette.surfaceBase,

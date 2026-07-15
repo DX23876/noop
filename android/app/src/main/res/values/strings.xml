@@ -171,6 +171,8 @@
     <string name="power_saving_mode_desc">Slows background strap-sync (every 45 min instead of 15) while your battery is low or Battery Saver is on. No data loss — sync just batches into larger, less frequent pulls.</string>
     <string name="power_saving_kick_in">Kick in at</string>
     <string name="power_saving_pct">%1$d%%</string>
-    <string name="power_saving_hrv_pause">Pause HRV capture in Battery Saver</string>
-    <string name="power_saving_hrv_pause_desc">While Android Battery Saver is on, stop the always-on background HRV stream (the biggest live drain). Opening a Live screen still shows heart rate, and it re-arms automatically when Battery Saver turns off.</string>
+    <string name="power_saving_hrv_pause">Pause HRV capture</string>
+    <string name="power_saving_hrv_pause_desc">While saving power (battery low or Battery Saver), stop the always-on background HRV stream — the biggest live drain. A Live screen still shows heart rate, and it re-arms automatically once you\'re off power saving.</string>
+    <string name="power_saving_defer_health">Defer Health Connect writeback</string>
+    <string name="power_saving_defer_health_desc">While saving power, hold off writing scores to Health Connect (they otherwise upsert every 15 minutes). Writeback resumes automatically once you\'re off power saving, and a manual sync always runs it.</string>
 </resources>

@@ -1203,12 +1203,13 @@ class WhoopBleClient(
     /** #477: pause BACKGROUND continuous-HRV capture while the OS Battery Saver is on (own toggle,
      *  DEFAULT OFF). A visible Live screen is unaffected — only the held-open background stream is
      *  released. Gated through [continuousCaptureWantsNow]. */
-    @Volatile private var pauseCaptureOnPowerSave: Boolean = false
+    @Volatile private var pauseCaptureBatteryPct: Int = 0
 
-    /** Opt into pausing continuous capture under Battery Saver (#477). Reconciles immediately so the
-     *  change takes effect without waiting for the next keep-alive tick. */
-    fun setPauseCaptureOnPowerSave(enabled: Boolean) {
-        pauseCaptureOnPowerSave = enabled
+    /** Opt into pausing continuous capture while power-saving (#477). Now battery-%-aware like the other
+     *  levers: pass the same threshold, so it engages at/below it OR under Battery Saver (0 = off).
+     *  Reconciles immediately so the change takes effect without waiting for the next keep-alive tick. */
+    fun setPauseCaptureOnPowerSave(enabled: Boolean, thresholdPct: Int) {
+        pauseCaptureBatteryPct = if (enabled) thresholdPct else 0
         handler.post { reconcileRealtime() }
     }
 
@@ -4345,12 +4346,16 @@ class WhoopBleClient(
      *  Mirrors the Swift `continuousCaptureWantsNow`. */
     private fun continuousCaptureWantsNow(): Boolean {
         if (!keepStreamForData) return false
-        // #477: optional power-saving pause — while the OS Battery Saver is on, release the held-open
-        // continuous-capture stream (its own toggle, default off). The realtime stream is one of the
-        // larger drains; a Live screen still arms it on demand (screenWantsRealtime is checked separately
-        // in reconcileRealtime), so this only drops the BACKGROUND capture the user opted into. Re-arms
-        // automatically when Battery Saver turns off.
-        if (pauseCaptureOnPowerSave && powerSaveActive()) return false
+        // #477: optional power-saving pause — while power saving is ACTIVE (battery ≤ threshold or Battery
+        // Saver, discharging), release the held-open continuous-capture stream (its own toggle, default
+        // off). Battery-%-aware like the offload/defer levers, via the shared idleThrottleActive gate. The
+        // realtime stream is one of the larger drains; a Live screen still arms it on demand
+        // (screenWantsRealtime is checked separately in reconcileRealtime), so this only drops the
+        // BACKGROUND capture the user opted into. Re-arms automatically once off power save.
+        if (pauseCaptureBatteryPct > 0) {
+            val (batteryPct, charging) = batteryPctAndCharging()
+            if (idleThrottleActive(batteryPct, charging, pauseCaptureBatteryPct, powerSaveActive())) return false
+        }
         val cal = java.util.Calendar.getInstance()
         val minuteOfDay = cal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + cal.get(java.util.Calendar.MINUTE)
         return continuousHrvStreamWanted(

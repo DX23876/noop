@@ -217,6 +217,14 @@ object NoopPrefs {
      *  [com.noop.ble.WhoopBleClient.setPauseCaptureOnPowerSave] via [AppViewModel]. */
     const val KEY_PAUSE_HRV_ON_POWER_SAVE = "noop.pauseHrvOnPowerSave"
 
+    /** "Defer Health Connect writeback while power-saving" (#477), a sub-option of Power saving, default
+     *  ON. When power saving is active (battery ≤ threshold or Battery Saver, discharging), skip the
+     *  every-15-min idempotent Health Connect score writeback; it resumes automatically once off power
+     *  save (and a manual sync always runs it). ANDROID-ONLY BY DESIGN — iOS has no NOOP-scheduled Health
+     *  sync to defer (its Apple Health integration is Shortcut-driven because a sideload signing identity
+     *  can't hold the HealthKit entitlement), so there is nothing to gate on the iOS side. */
+    const val KEY_DEFER_HEALTH_SYNC = "noop.deferHealthSyncOnPowerSave"
+
     fun of(context: Context): SharedPreferences =
         context.getSharedPreferences(NAME, Context.MODE_PRIVATE)
 
@@ -242,6 +250,15 @@ object NoopPrefs {
 
     fun setPauseHrvOnPowerSave(context: Context, enabled: Boolean) {
         of(context).edit().putBoolean(KEY_PAUSE_HRV_ON_POWER_SAVE, enabled).apply()
+    }
+
+    /** Defer Health Connect writeback while power-saving is active (sub-option of Power saving). Default
+     *  ON. Android-only (see [KEY_DEFER_HEALTH_SYNC]). */
+    fun deferHealthSync(context: Context): Boolean =
+        of(context).getBoolean(KEY_DEFER_HEALTH_SYNC, true)
+
+    fun setDeferHealthSync(context: Context, enabled: Boolean) {
+        of(context).edit().putBoolean(KEY_DEFER_HEALTH_SYNC, enabled).apply()
     }
 
     /** #836, the raw-HR fingerprint ("count:maxTs") the last COMPLETED idle rescore scored against. The
