@@ -73,6 +73,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -92,6 +93,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.noop.BuildConfig
 import com.noop.analytics.Baselines
@@ -1266,6 +1270,104 @@ fun SettingsScreen(
                             uncheckedBorderColor = Palette.hairline,
                         ),
                     )
+                }
+
+                // "Keep NOOP alive overnight" (#386): the battery-optimisation whitelist. Shown ONLY while
+                // background connection is on (meaningless otherwise), so it never adds noise on a
+                // foreground-only setup. `checked` reflects the LIVE system exempt state, so an already-exempt
+                // phone shows it on and is never prompted again. POPUP DISCIPLINE: turning it ON fires exactly
+                // ONE system dialog; the OEM auto-start screen (aggressive vendors only) is a SEPARATE
+                // text-link, never chained onto that dialog, so one tap can't spawn two popups. The whitelist
+                // adds no battery cost of its own — it stops a premature kill; the real cost is the two
+                // toggles below.
+                if (backgroundConnection) {
+                    // Re-read the LIVE exempt state on every ON_RESUME so the toggle flips to on the moment
+                    // the user returns from the system whitelist dialog. Reading it plainly in composition
+                    // wouldn't recompose on resume — it'd show a stale "off", look like it failed, and invite
+                    // a SECOND (duplicate) popup, defeating the popup discipline.
+                    val lifecycleOwner = LocalLifecycleOwner.current
+                    var batteryExempt by remember {
+                        mutableStateOf(com.noop.ble.BackgroundHealth.isBatteryExempt(context))
+                    }
+                    DisposableEffect(lifecycleOwner) {
+                        val obs = LifecycleEventObserver { _, event ->
+                            if (event == Lifecycle.Event.ON_RESUME) {
+                                batteryExempt = com.noop.ble.BackgroundHealth.isBatteryExempt(context)
+                            }
+                        }
+                        lifecycleOwner.lifecycle.addObserver(obs)
+                        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+                    }
+                    val oemAutostart = remember { com.noop.ble.BackgroundHealth.oemAutostartIntent(context) }
+                    // Only NAME the manufacturer as a killer when it actually is one — a Pixel/Samsung
+                    // shouldn't read "especially Google". The whitelist still helps everyone (it also
+                    // exempts from Doze deferral), so the row still shows; only the copy is vendor-aware.
+                    val aggressiveVendor = remember { com.noop.ble.BackgroundHealth.isAggressiveVendor() }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Keep NOOP alive overnight",
+                                style = NoopType.subhead,
+                                color = Palette.textPrimary,
+                            )
+                            Text(
+                                if (batteryExempt) {
+                                    "Allowed — your phone won't stop NOOP's overnight sync to save battery. This " +
+                                        "doesn't use extra battery on its own; it just lets the settings above run reliably."
+                                } else {
+                                    val who = if (aggressiveVendor) "Your phone (${android.os.Build.MANUFACTURER})" else "Some phones"
+                                    "$who can stop background apps to save battery, which can make NOOP miss overnight " +
+                                        "sleep and recovery data. Turn this on to whitelist NOOP. It doesn't use extra " +
+                                        "battery on its own — it only lets the overnight sync you've enabled above actually finish."
+                                },
+                                style = NoopType.footnote,
+                                color = Palette.textTertiary,
+                            )
+                            // Aggressive-OEM only, and only while not yet exempt: a SEPARATE, explicit link to
+                            // the vendor's auto-start screen (which the generic whitelist can't reach). One
+                            // extra tap by choice — never auto-opened alongside the whitelist dialog.
+                            if (!batteryExempt && oemAutostart != null) {
+                                Text(
+                                    "Some phones also need auto-start enabled — open that screen",
+                                    style = NoopType.footnote,
+                                    color = Palette.accent,
+                                    modifier = Modifier
+                                        .padding(top = 6.dp)
+                                        .clickable { runCatching { context.startActivity(oemAutostart) } },
+                                )
+                            }
+                        }
+                        Switch(
+                            checked = batteryExempt,
+                            // A system grant can't be toggled OFF from here (that's a system action): a tap
+                            // only ever REQUESTS it, and when already exempt the switch is inert (no re-prompt).
+                            onCheckedChange = { wantOn ->
+                                if (wantOn && !batteryExempt) {
+                                    // The whole feature exists for ROMs that strip things — so the fallback
+                                    // is guarded too: if BOTH the exemption dialog and the app-settings page
+                                    // are missing, no-op rather than crash (the OEM link below is another path).
+                                    runCatching {
+                                        context.startActivity(com.noop.ble.BackgroundHealth.batteryExemptionIntent(context))
+                                    }.onFailure {
+                                        runCatching {
+                                            context.startActivity(com.noop.ble.BackgroundHealth.appBatterySettingsIntent(context))
+                                        }
+                                    }
+                                }
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Palette.surfaceBase,
+                                checkedTrackColor = Palette.accent,
+                                uncheckedThumbColor = Palette.textSecondary,
+                                uncheckedTrackColor = Palette.surfaceInset,
+                                uncheckedBorderColor = Palette.hairline,
+                            ),
+                        )
+                    }
                 }
 
                 // Continuous HRV capture: keep the dense beat-to-beat (R-R) stream armed even with no Live
