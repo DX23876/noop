@@ -23,6 +23,8 @@ struct CoachSettingsView: View {
     @ObservedObject private var memory = CoachMemory.shared
     @State private var memoryExpanded: Bool = false
     @State private var goalDraft: String = ""
+    /// How the user reaches Coach from Today: the card, the draggable floating button, or both.
+    @AppStorage(CoachEntryMode.storageKey) private var coachEntryModeRaw = CoachEntryMode.both.rawValue
     /// In-place fact editing: the fact being edited + its working text.
     @State private var editingFactID: UUID?
     @State private var editingFactText: String = ""
@@ -38,6 +40,7 @@ struct CoachSettingsView: View {
                         consentBar
                         if coach.dataConsent { onDeviceSignalsBar }
                         personaBar
+                        coachEntryBar
                         checkInBar
                         memoryBar
                         if coach.dataConsent { memoryMaintenanceBar }
@@ -74,6 +77,39 @@ struct CoachSettingsView: View {
     /// Drives the edit-fact alert from `editingFactID` without a separate bool.
     private var editingBinding: Binding<Bool> {
         Binding(get: { editingFactID != nil }, set: { if !$0 { editingFactID = nil } })
+    }
+
+    // MARK: - Coach entry preference (iOS: card vs. draggable floating button vs. both)
+
+    @ViewBuilder private var coachEntryBar: some View {
+        #if os(iOS)
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
+                    Image(systemName: "hand.tap")
+                        .foregroundStyle(StrandPalette.accent)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Coach entry")
+                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                        Text("How you open Coach from Today — a card, a draggable floating button, or both.")
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 8)
+                }
+                Picker("Coach entry", selection: $coachEntryModeRaw) {
+                    ForEach(CoachEntryMode.allCases) { mode in
+                        Text(mode.label).tag(mode.rawValue)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .accessibilityLabel("Coach entry style")
+            }
+        }
+        #else
+        EmptyView()
+        #endif
     }
 
     // MARK: - Memory maintenance (cheap-model summaries)

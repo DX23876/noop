@@ -45,8 +45,10 @@ struct LiquidTodayView: View {
     @State private var showLiveSession = false
     /// Coach: the AI coach engine (injected at the app root) and the full-screen chat presentation. The
     /// prominent Today entry opens the redesigned Coach chat directly, so it isn't buried under More.
+    /// The card only shows when the user's Coach-entry preference includes it (card / both).
     @EnvironmentObject private var coach: AICoachEngine
     @State private var showCoach = false
+    @AppStorage(CoachEntryMode.storageKey) private var coachEntryModeRaw = CoachEntryMode.both.rawValue
 
     /// Live Sessions (silent guardian) beta gate — the SAME key the Settings toggle writes. Default ON
     /// (the entry is BETA-labelled in-UI); off removes the Start-session control entirely.
@@ -236,7 +238,7 @@ struct LiquidTodayView: View {
                     // pinned above the reorderable block so an active manual workout is immediately visible
                     // and taps straight through to Live. Renders nothing when no workout is active.
                     ActiveWorkoutIndicatorSection()
-                    coachCard
+                    if (CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both).showsCard { coachCard }
                     // #today-layout (parity with Android): every Today section — the Charge/Effort/Rest hero
                     // and Start-session included — renders in the user's saved order. Reorder via the Arrange
                     // sheet (the header's up/down button; native drag rows); the order persists under the

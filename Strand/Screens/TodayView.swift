@@ -202,6 +202,7 @@ struct TodayView: View {
     /// Today matches the liquid one's prominent Coach entry instead of burying it under More.
     @EnvironmentObject var coach: AICoachEngine
     @State private var showCoach = false
+    @AppStorage(CoachEntryMode.storageKey) private var coachEntryModeRaw = CoachEntryMode.both.rawValue
 
     // Imperial/Metric display preference (D#103). Only the Weight tile carries a convertible unit here.
     @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
@@ -1257,7 +1258,7 @@ struct TodayView: View {
                 // and opens the in-exercise screen. Its own leaf owns the AppModel observation + per-second
                 // clock, so the live tick never re-renders TodayView.body.
                 ActiveWorkoutIndicatorSection()
-                coachCard
+                if (CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both).showsCard { coachCard }
                 // The "still building" and "new here?" prompts are about getting today's scores going,
                 // so they stay anchored to today rather than reappearing on every navigated past day.
                 if selectedDayOffset == 0 && repo.today?.recovery == nil {

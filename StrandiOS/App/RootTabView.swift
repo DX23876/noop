@@ -10,6 +10,14 @@ struct RootTabView: View {
     /// Cross-screen navigation requests (e.g. Live → "Manage devices"). Devices isn't a tab — it lives
     /// behind the More list — so a request presents it as a sheet, matching the quick-action screens.
     @EnvironmentObject private var router: NavRouter
+    /// The AI coach engine (injected at the app root), so the draggable floating Coach button can present
+    /// the chat from the shell.
+    @EnvironmentObject private var coach: AICoachEngine
+
+    /// Coach entry preference (Today card / floating button / both) and the floating-button presentation.
+    @AppStorage(CoachEntryMode.storageKey) private var coachEntryModeRaw = CoachEntryMode.both.rawValue
+    @State private var showCoach = false
+    private var coachEntryMode: CoachEntryMode { CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both }
 
     /// Which quick-action screen the centre FAB is presenting (nil = sheet closed).
     @State private var quickAction: QuickAction?
@@ -110,7 +118,14 @@ struct RootTabView: View {
                     scrollTop[tag] += 1                // already at root: scroll to the top (#198 follow-up)
                 }
             })
+
+            // Draggable floating Coach button — an alternative entry to the Today card, honouring the
+            // user's Coach-entry preference. Floats over every tab; a tap opens the chat.
+            if coachEntryMode.showsButton {
+                CoachFloatingButton(isPresented: $showCoach)
+            }
         }
+        .coachCover(isPresented: $showCoach, coach: coach)
         .task {
             await repo.refresh()
             // Backup & Sync: on-launch catch-up (see RootView). Detached + utility priority so a
