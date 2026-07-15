@@ -15,6 +15,11 @@ permissions:
   contents: write
   pull-requests: write
   issues: write
+  # Upstream commits routinely touch its own .github/workflows/*.yml files (app-build.yml,
+  # swift-packages.yml, ...). Pushing a branch that includes such a change needs this EXTRA scope
+  # beyond contents: write, or GitHub rejects the push with "refusing to allow a GitHub App to
+  # create or update workflow ... without `workflows` permission".
+  workflows: write
 
 concurrency:
   group: sync-upstream
