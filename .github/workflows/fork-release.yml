@@ -87,8 +87,8 @@ jobs:
             else
               echo "::warning::No docs/releases/${TAG}.md — GitHub notes + in-app 'What's New' will use placeholders."
             fi
-            git config user.name 'ryanbr'
-            git config user.email 'mp3geek@gmail.com'
+            git config user.name 'github-actions[bot]'
+            git config user.email 'github-actions[bot]@users.noreply.github.com'
             git commit -am "Release ${NEW}: bump version (${BUMP}) + build numbers + What's New"
             git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
@@ -313,8 +313,8 @@ jobs:
           if git diff --quiet altstore-source.json; then
             echo "altstore-source.json already current for ${VER}."; exit 0
           fi
-          git config user.name 'ryanbr'
-          git config user.email 'mp3geek@gmail.com'
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
           git add altstore-source.json
           git commit -m "Release ${VER}: add to AltStore source"
           git push origin HEAD:main || {
