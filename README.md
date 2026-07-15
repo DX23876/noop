@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/logo-v3.png" alt="NOOP AI" width="72">
+  <img src="docs/assets/logo.svg" alt="NOOP AI" width="72">
 </p>
 
 <h1 align="center">NOOP AI</h1>
