@@ -163,4 +163,14 @@
     <string name="timeline_empty_metric">No %1$s here</string>
     <string name="timeline_nothing_offloaded">Nothing offloaded for this window yet.</string>
     <string name="timeline_other_sources_no_offload">Other sources don\'t offload raw per-second data on-device.</string>
+
+    <!-- Power saving (#477) -->
+    <string name="power_saving">Power saving</string>
+    <string name="power_saving_blurb">Ease battery use when your phone is low or in Battery Saver. The strap keeps banking data on its own, so nothing is lost — NOOP just syncs it less often.</string>
+    <string name="power_saving_mode">Power saving mode</string>
+    <string name="power_saving_mode_desc">Slows background strap-sync (every 45 min instead of 15) while your battery is low or Battery Saver is on. No data loss — sync just batches into larger, less frequent pulls.</string>
+    <string name="power_saving_kick_in">Kick in at</string>
+    <string name="power_saving_pct">%1$d%%</string>
+    <string name="power_saving_hrv_pause">Pause HRV capture in Battery Saver</string>
+    <string name="power_saving_hrv_pause_desc">While Android Battery Saver is on, stop the always-on background HRV stream (the biggest live drain). Opening a Live screen still shows heart rate, and it re-arms automatically when Battery Saver turns off.</string>
 </resources>

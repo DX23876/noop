@@ -145,4 +145,14 @@
     <string name="timeline_empty_metric">Kein(e) %1$s hier</string>
     <string name="timeline_nothing_offloaded">Für dieses Fenster wurde noch nichts übertragen.</string>
     <string name="timeline_other_sources_no_offload">Andere Quellen übertragen keine rohen Sekundendaten auf das Gerät.</string>
+
+    <!-- Power saving (#477) -->
+    <string name="power_saving">Energie sparen</string>
+    <string name="power_saving_blurb">Reduziert den Akkuverbrauch, wenn dein Telefon wenig Akku hat oder im Energiesparmodus ist. Der Sensor speichert die Daten selbst, es geht also nichts verloren – NOOP synchronisiert nur seltener.</string>
+    <string name="power_saving_mode">Energiesparmodus</string>
+    <string name="power_saving_mode_desc">Verlangsamt die Hintergrund-Synchronisierung des Sensors (alle 45 statt 15 Minuten), wenn der Akku niedrig ist oder der Energiesparmodus aktiv ist. Kein Datenverlust – die Synchronisierung erfolgt in größeren, selteneren Schüben.</string>
+    <string name="power_saving_kick_in">Aktiv ab</string>
+    <string name="power_saving_pct">%1$d %%</string>
+    <string name="power_saving_hrv_pause">HFV-Erfassung im Energiesparmodus pausieren</string>
+    <string name="power_saving_hrv_pause_desc">Solange der Android-Energiesparmodus aktiv ist, wird der dauerhafte HFV-Hintergrundstream gestoppt (der größte Live-Verbraucher). Beim Öffnen eines Live-Bildschirms wird weiterhin die Herzfrequenz angezeigt, und er wird automatisch reaktiviert, wenn der Energiesparmodus endet.</string>
 </resources>

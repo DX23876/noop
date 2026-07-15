@@ -203,8 +203,46 @@ object NoopPrefs {
 
     const val KEY_ANALYZE_WATERMARK = "noop.analyzeWatermark"
 
+    /** "Power saving" (#477): when on, NOOP stretches its periodic strap-sync cadence (15 → 45 min) while
+     *  the phone is discharging at/below [KEY_POWER_SAVING_BATTERY_PCT] OR the OS Battery Saver is on.
+     *  Benign — the strap banks to flash meanwhile, so sync just batches; no data loss, no link risk.
+     *  Default OFF. Drives [com.noop.ble.WhoopBleClient.setLowBatteryOffloadThrottle] via [AppViewModel]. */
+    const val KEY_POWER_SAVING = "noop.powerSaving"
+    /** Battery-% threshold for [KEY_POWER_SAVING] (10/15/20/25/30). Default 20. */
+    const val KEY_POWER_SAVING_BATTERY_PCT = "noop.powerSavingBatteryPct"
+    /** "Pause HRV capture in Battery Saver" (#477): when on, NOOP releases the held-open background
+     *  continuous-HRV stream while the OS Battery Saver is on (a Live screen still arms it on demand).
+     *  A sub-option of [KEY_POWER_SAVING] — only effective while the master is on. Default ON (so enabling
+     *  Power saving pauses capture by default; the user can turn it off). Drives
+     *  [com.noop.ble.WhoopBleClient.setPauseCaptureOnPowerSave] via [AppViewModel]. */
+    const val KEY_PAUSE_HRV_ON_POWER_SAVE = "noop.pauseHrvOnPowerSave"
+
     fun of(context: Context): SharedPreferences =
         context.getSharedPreferences(NAME, Context.MODE_PRIVATE)
+
+    /** "Power saving" master (battery-adaptive sync cadence). Default off. */
+    fun powerSaving(context: Context): Boolean =
+        of(context).getBoolean(KEY_POWER_SAVING, false)
+
+    fun setPowerSaving(context: Context, enabled: Boolean) {
+        of(context).edit().putBoolean(KEY_POWER_SAVING, enabled).apply()
+    }
+
+    /** Battery-% threshold for power saving (default 20). */
+    fun powerSavingBatteryPct(context: Context): Int =
+        of(context).getInt(KEY_POWER_SAVING_BATTERY_PCT, 20)
+
+    fun setPowerSavingBatteryPct(context: Context, pct: Int) {
+        of(context).edit().putInt(KEY_POWER_SAVING_BATTERY_PCT, pct).apply()
+    }
+
+    /** Pause continuous-HRV capture while Battery Saver is on (sub-option of Power saving). Default ON. */
+    fun pauseHrvOnPowerSave(context: Context): Boolean =
+        of(context).getBoolean(KEY_PAUSE_HRV_ON_POWER_SAVE, true)
+
+    fun setPauseHrvOnPowerSave(context: Context, enabled: Boolean) {
+        of(context).edit().putBoolean(KEY_PAUSE_HRV_ON_POWER_SAVE, enabled).apply()
+    }
 
     /** #836, the raw-HR fingerprint ("count:maxTs") the last COMPLETED idle rescore scored against. The
      *  15-min backstop tick skips when the current fingerprint equals this; cleared implicitly by any HR
