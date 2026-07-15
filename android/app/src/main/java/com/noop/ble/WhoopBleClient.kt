@@ -16,12 +16,8 @@ import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.os.BatteryManager
 import android.os.Build
-import android.os.PowerManager
 import androidx.core.content.ContextCompat
 import android.os.Handler
 import android.os.Looper
@@ -477,30 +473,27 @@ class WhoopBleClient(
             else -> BluetoothGatt.CONNECTION_PRIORITY_BALANCED
         }
 
-        /** Pure battery-adaptive gate for the RISKY idle LOW_POWER throttle (#477), unit-testable without
-         *  a BLE stack. The lever is ARMED by [thresholdPct] > 0 (the Settings picker offers 10/15/20/25/
-         *  30; 0 disables it — safe half only, and NOT even Battery Saver can force it, respecting the
-         *  drop-risk asymmetry). Once armed and while DISCHARGING it engages at/below [thresholdPct] OR
-         *  when the OS Battery Saver is on ([powerSave]) — whichever comes first. Charging never throttles.
-         *  The threshold IS its own hysteresis: battery % moves slowly, so a boundary crossing flips at
-         *  most once per point; Battery Saver has its own hysteresis. */
-        fun idleThrottleActive(batteryPct: Int, charging: Boolean, thresholdPct: Int, powerSave: Boolean): Boolean =
-            thresholdPct > 0 && !charging && (batteryPct <= thresholdPct || powerSave)
+        /** Pure battery-adaptive gate (#477), unit-testable without a BLE stack. Keyed on the STRAP's
+         *  battery (WHOOP/Oura/Fitbit): the lever is ARMED by [thresholdPct] > 0 (the Settings slider is
+         *  10–30; 0 disables it) and engages while the strap is DISCHARGING at/below [thresholdPct]. The
+         *  phone's own Battery Saver deliberately does NOT trigger it — power saving is about the strap's
+         *  charge, not the phone's. A charging strap never throttles. The threshold is its own hysteresis
+         *  (battery % moves slowly, so a boundary crossing flips at most once per point). */
+        fun idleThrottleActive(batteryPct: Int, charging: Boolean, thresholdPct: Int): Boolean =
+            thresholdPct > 0 && !charging && batteryPct <= thresholdPct
 
-        /** Stretched periodic-offload interval when the phone is low on battery (#477). The offload tick
+        /** Stretched periodic-offload interval while the STRAP is low on battery (#477). The offload tick
          *  is a PURE sync timer (the live-stream keep-alive is separate), so stretching it can't affect
-         *  link health — worst case is fresher data arriving in slightly larger batches; the strap banks
+         *  link health — worst case is data arriving in slightly larger batches; the strap banks
          *  everything to flash meanwhile, so no data is lost. Left at [LOW_BATTERY_BACKFILL_INTERVAL_MS]
-         *  while DISCHARGING at/below [thresholdPct], else the normal [baseMs]. [thresholdPct] <= 0 / charging
-         *  never stretches. Pure, unit-testable. */
+         *  while DISCHARGING at/below [thresholdPct], else the normal [baseMs]. Pure, unit-testable. */
         fun offloadIntervalMsFor(
             baseMs: Long,
             lowBatteryMs: Long,
             batteryPct: Int,
             charging: Boolean,
             thresholdPct: Int,
-            powerSave: Boolean,
-        ): Long = if (idleThrottleActive(batteryPct, charging, thresholdPct, powerSave)) maxOf(baseMs, lowBatteryMs) else baseMs
+        ): Long = if (idleThrottleActive(batteryPct, charging, thresholdPct)) maxOf(baseMs, lowBatteryMs) else baseMs
 
         /** Pure keep/teardown decision for [prepareForPresentScan] (#74), unit-testable without a BLE
          *  stack (the [scanModeForReconnectAttempts] idiom). Keep the live link ONLY when one exists AND
@@ -1200,14 +1193,14 @@ class WhoopBleClient(
         lowBatteryOffloadPct = thresholdPct
     }
 
-    /** #477: pause BACKGROUND continuous-HRV capture while the OS Battery Saver is on (own toggle,
+    /** #477: pause BACKGROUND continuous-HRV capture while the STRAP's battery is low (own toggle,
      *  DEFAULT OFF). A visible Live screen is unaffected — only the held-open background stream is
      *  released. Gated through [continuousCaptureWantsNow]. */
     @Volatile private var pauseCaptureBatteryPct: Int = 0
 
-    /** Opt into pausing continuous capture while power-saving (#477). Now battery-%-aware like the other
-     *  levers: pass the same threshold, so it engages at/below it OR under Battery Saver (0 = off).
-     *  Reconciles immediately so the change takes effect without waiting for the next keep-alive tick. */
+    /** Opt into pausing continuous capture when the strap is low (#477). Battery-%-aware like the other
+     *  levers: pass the same threshold, so it engages at/below the STRAP's % (0 = off). Reconciles
+     *  immediately so the change takes effect without waiting for the next keep-alive tick. */
     fun setPauseCaptureOnPowerSave(enabled: Boolean, thresholdPct: Int) {
         pauseCaptureBatteryPct = if (enabled) thresholdPct else 0
         handler.post { reconcileRealtime() }
@@ -1224,25 +1217,17 @@ class WhoopBleClient(
             batteryPct = batteryPct,
             charging = charging,
             thresholdPct = lowBatteryOffloadPct,
-            powerSave = powerSaveActive(),
         )
     }
 
-    /** True when the OS Battery Saver is on — the user's explicit "save power" signal (#477). An extra
-     *  trigger for an already-armed lever; has its own hysteresis + charging-awareness. */
-    private fun powerSaveActive(): Boolean =
-        (context.getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isPowerSaveMode == true
-
-    /** Current (battery-%, isCharging) from the sticky ACTION_BATTERY_CHANGED intent — a cheap synchronous
-     *  read, no persistent receiver. Unknown → (100, false) so the throttle fails SAFE (never engages). */
+    /** The connected STRAP's (battery-%, isCharging) — WHOOP, and the same for Oura/Fitbit. Power saving
+     *  keys off the strap, not the phone: the levers reduce how much the STRAP transmits (fewer offloads,
+     *  no continuous stream), so they extend the strap's life when it wasn't charged in time. Unknown
+     *  (disconnected / not yet read) → (100, false), fails SAFE (a disconnected strap has nothing to
+     *  throttle anyway). */
     private fun batteryPctAndCharging(): Pair<Int, Boolean> {
-        val i = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        val level = i?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-        val scale = i?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
-        val status = i?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
-        val pct = if (level >= 0 && scale > 0) level * 100 / scale else 100
-        val charging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
-        return pct to charging
+        val s = _state.value
+        return (s.batteryPct?.toInt() ?: 100) to (s.charging == true)
     }
 
     /** (Re)apply the GATT connection priority for the current link state (#477). Idempotent + cheap: OFF
@@ -1254,7 +1239,7 @@ class WhoopBleClient(
         // HIGH-escalation half doesn't need it, so safe-half-only mode issues no battery read.
         val idleThrottle = idleThrottleBatteryPct > 0 && run {
             val (batteryPct, charging) = batteryPctAndCharging()
-            idleThrottleActive(batteryPct, charging, idleThrottleBatteryPct, powerSaveActive())
+            idleThrottleActive(batteryPct, charging, idleThrottleBatteryPct)
         }
         // Read the authoritative INTERNAL flags (both set synchronously on this looper), not the
         // published LiveState mirror, which `exitBackfilling` may update a beat later.
@@ -4354,7 +4339,7 @@ class WhoopBleClient(
         // BACKGROUND capture the user opted into. Re-arms automatically once off power save.
         if (pauseCaptureBatteryPct > 0) {
             val (batteryPct, charging) = batteryPctAndCharging()
-            if (idleThrottleActive(batteryPct, charging, pauseCaptureBatteryPct, powerSaveActive())) return false
+            if (idleThrottleActive(batteryPct, charging, pauseCaptureBatteryPct)) return false
         }
         val cal = java.util.Calendar.getInstance()
         val minuteOfDay = cal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + cal.get(java.util.Calendar.MINUTE)
