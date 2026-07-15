@@ -20,6 +20,12 @@
             "state": "needs_review",
             "value": "há %lld dias"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld дн. назад"
+          }
         }
       }
     },
@@ -55,6 +61,12 @@
             "value": "%lld horas"
           }
         },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld часов"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -88,6 +100,12 @@
             "state": "needs_review",
             "value": "%lld minutos"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld минут"
+          }
         }
       }
     },
@@ -109,6 +127,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "%lld pontos, média %@, intervalo de %@ a %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld точек, среднее %@, диапазон от %@ до %@"
           }
         }
       }
@@ -132,6 +156,12 @@
             "state": "needs_review",
             "value": "%lld leituras"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld измерений"
+          }
         }
       }
     },
@@ -154,6 +184,12 @@
             "state": "needs_review",
             "value": "%lld treinos"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld тренировок"
+          }
         }
       }
     },
@@ -175,6 +211,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "há %lldd"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lldд назад"
           }
         }
       }
@@ -211,6 +253,12 @@
             "value": "há %lldh"
           }
         },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lldч назад"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -243,6 +291,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "há %lldm"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lldм назад"
           }
         }
       }
@@ -279,6 +333,12 @@
             "value": "1 hora"
           }
         },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 час"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -312,6 +372,12 @@
             "state": "needs_review",
             "value": "1 minuto"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 минута"
+          }
         }
       }
     },
@@ -334,6 +400,12 @@
             "state": "needs_review",
             "value": "1 treino"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 тренировка"
+          }
         }
       }
     },
@@ -355,6 +427,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "MÁXIMO"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "НА ПРЕДЕЛЕ"
           }
         }
       }
@@ -436,6 +514,12 @@
             "state": "needs_review",
             "value": "Clássico"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Классический"
+          }
         }
       }
     },
@@ -458,6 +542,12 @@
             "state": "needs_review",
             "value": "ESGOTADO"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "РАЗРЯЖЕН"
+          }
         }
       }
     },
@@ -479,6 +569,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Escuro"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Тёмная"
           }
         }
       }
@@ -573,6 +669,12 @@
             "value": "Predefinição"
           }
         },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "По умолчанию"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -619,6 +721,12 @@
             "value": "ALTO"
           }
         },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ВЫСОКИЙ"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -651,6 +759,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "LEVE"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ЛЁГКИЙ"
           }
         }
       }
@@ -685,6 +799,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "BAIXO"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "НИЗКИЙ"
           }
         },
         "zh-Hans": {
@@ -778,6 +898,12 @@
             "state": "needs_review",
             "value": "MODERADO"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "УМЕРЕННЫЙ"
+          }
         }
       }
     },
@@ -858,6 +984,12 @@
             "state": "needs_review",
             "value": "Sem dados de frequência cardíaca"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет данных о пульсе"
+          }
         }
       }
     },
@@ -893,6 +1025,12 @@
             "value": "PICO"
           }
         },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ПИК"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -926,6 +1064,12 @@
             "state": "needs_review",
             "value": "PREPARADO"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ЗАРЯЖЕН"
+          }
         }
       }
     },
@@ -947,6 +1091,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Calendário de recuperação, %lld dias, média %lld, mín %lld, máx %lld"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Календарь восстановления, %lld дней, среднее %lld, минимум %lld, максимум %lld"
           }
         }
       }
@@ -970,6 +1120,12 @@
             "state": "needs_review",
             "value": "Calendário de recuperação, sem dados"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Календарь восстановления, нет данных"
+          }
         }
       }
     },
@@ -991,6 +1147,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "EXTENUANTE"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ИНТЕНСИВНЫЙ"
           }
         }
       }
@@ -1014,6 +1176,12 @@
             "state": "needs_review",
             "value": "Fases do sono, %@"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Стадии сна, %@"
+          }
         }
       }
     },
@@ -1036,6 +1204,12 @@
             "state": "needs_review",
             "value": "Fases do sono, sem dados"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Стадии сна, нет данных"
+          }
         }
       }
     },
@@ -1057,6 +1231,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Sistema"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Системная"
           }
         }
       }
@@ -1138,6 +1318,12 @@
             "state": "needs_review",
             "value": "Tendência, %lld pontos, mais recente %@, mín %@, máx %@"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Тренд, %lld точек, последнее %@, минимум %@, максимум %@"
+          }
         }
       }
     },
@@ -1173,6 +1359,12 @@
             "value": "Ontem"
           }
         },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вчера"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -1206,6 +1398,12 @@
             "state": "needs_review",
             "value": "a dormir %@"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "во сне %@"
+          }
         }
       }
     },
@@ -1227,6 +1425,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "média %@ bpm"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "среднее %@ уд/мин"
           }
         }
       }
@@ -1263,6 +1467,12 @@
             "value": "agora mesmo"
           }
         },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "только что"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -1295,6 +1505,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "intervalo de %@ a %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "диапазон от %@ до %@"
           }
         }
       }

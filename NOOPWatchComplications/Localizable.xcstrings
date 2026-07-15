@@ -20,6 +20,12 @@
             "state": "needs_review",
             "value": "%@ %lld"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ %lld"
+          }
         }
       }
     },
@@ -42,6 +48,12 @@
             "state": "needs_review",
             "value": "%@ a calibrar"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ калибруется"
+          }
         }
       }
     },
@@ -63,6 +75,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "%@ indisponível"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ недоступно"
           }
         }
       }
@@ -144,6 +162,12 @@
             "state": "needs_review",
             "value": "Carga %lld de 100"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Заряд %lld из 100"
+          }
         }
       }
     },
@@ -165,6 +189,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Carga %lld · %lld bpm%@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Заряд %lld · %lld уд/мин%@"
           }
         }
       }
@@ -188,6 +218,12 @@
             "state": "needs_review",
             "value": "Carga %lld%@"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Заряд %lld%@"
+          }
         }
       }
     },
@@ -209,6 +245,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Carga a calibrar"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Заряд калибруется"
           }
         }
       }
@@ -232,6 +274,12 @@
             "state": "needs_review",
             "value": "Carga a calibrar, precisa de mais dados"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Заряд калибруется, нужно больше данных"
+          }
         }
       }
     },
@@ -253,6 +301,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Carga desatualizada, última sincronização %@. Abre o NOOP no iPhone."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Заряд устарел, последняя синхронизация %@. Откройте NOOP на iPhone."
           }
         }
       }
@@ -276,6 +330,12 @@
             "state": "needs_review",
             "value": "Carga desatualizada · %@"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Заряд устарел · %@"
+          }
         }
       }
     },
@@ -297,6 +357,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Carga indisponível"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Заряд недоступен"
           }
         }
       }
@@ -320,6 +386,12 @@
             "state": "needs_review",
             "value": "Carga · %@"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Заряд · %@"
+          }
         }
       }
     },
@@ -342,6 +414,12 @@
             "state": "needs_review",
             "value": "Carga · cal"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Заряд · кал"
+          }
         }
       }
     },
@@ -363,6 +441,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Carga –"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Заряд –"
           }
         }
       }
@@ -457,6 +541,12 @@
             "value": "Carga NOOP"
           }
         },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP Заряд"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -490,6 +580,12 @@
             "state": "needs_review",
             "value": "NOOP · abre no iPhone"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP · откройте на iPhone"
+          }
         }
       }
     },
@@ -510,6 +606,12 @@
         "pt-PT": {
           "stringUnit": {
             "state": "needs_review",
+            "value": "NOOP. %@, %@, %@."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
             "value": "NOOP. %@, %@, %@."
           }
         }
@@ -534,6 +636,12 @@
             "state": "needs_review",
             "value": "NOOP. Sem dados ainda, abre o NOOP no iPhone para sincronizar."
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP. Данных пока нет, откройте NOOP на iPhone для синхронизации."
+          }
         }
       }
     },
@@ -555,6 +663,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "NOOP. Pontuações desatualizadas, última sincronização %@. Abre o NOOP no iPhone para atualizar."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP. Показатели устарели, последняя синхронизация %@. Откройте NOOP на iPhone, чтобы обновить."
           }
         }
       }
@@ -578,6 +692,12 @@
             "state": "needs_review",
             "value": "Sem dados, abre o NOOP no iPhone"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет данных, откройте NOOP на iPhone"
+          }
         }
       }
     },
@@ -599,6 +719,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Abrir NOOP"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть NOOP"
           }
         }
       }
@@ -693,6 +819,12 @@
             "value": "A tua Carga (recuperação) no mostrador, com Esforço e Descanso no cartão retangular."
           }
         },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ваш заряд (восстановление) на циферблате, с показателями «Усилие» и «Отдых» в прямоугольной карточке."
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -726,6 +858,12 @@
             "state": "needs_review",
             "value": "há algum tempo"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "некоторое время назад"
+          }
         }
       }
     },
@@ -747,6 +885,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "cal"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "кал"
           }
         }
       }
@@ -770,6 +914,12 @@
             "state": "needs_review",
             "value": "desatualizado"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "устарело"
+          }
         }
       }
     },
@@ -792,6 +942,12 @@
             "state": "needs_review",
             "value": "abrir iPhone"
           }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "открыть iPhone"
+          }
         }
       }
     },
@@ -813,6 +969,12 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "desatualizado"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "устарело"
           }
         }
       }

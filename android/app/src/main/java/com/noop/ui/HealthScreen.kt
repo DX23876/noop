@@ -144,11 +144,15 @@ fun HealthScreen(
     // background" pref (default ON) exactly like Today; OFF passes null so the scaffold paints the flat
     // surface canvas instead.
     val showDayCycleBackground = remember { NoopPrefs.showDayCycleBackground(context) }
+    val skyBehindCards = remember { NoopPrefs.skyBehindCards(context) }
 
     LazyScreenScaffold(
         title = "Health Monitor",
         subtitle = "Live vitals, streamed from the strap.",
-        topBackground = if (showDayCycleBackground) { { LiquidScreenSky() } } else null,
+        topBackground = if (showDayCycleBackground) { { LiquidScreenSky(fillHeight = skyBehindCards) } } else null,
+        // Sky-behind-cards fills the viewport so the transparent cards reveal the sky the whole way
+        // down (Today / Trends / Sleep / metric-detail parity - same two prefs, same two behaviours).
+        fullBleedBackground = showDayCycleBackground && skyBehindCards,
     ) {
         if (today == null && !hasLiveHr) {
             // Even with no history yet, a freshly-connected strap can be told to sync now (#364) — the
@@ -1949,13 +1953,15 @@ private data class VitalDetailModel(
  *  (Fitness Age + Vitality under the computed strap, Steps estimate, Apple active energy). Each Today
  *  dashboard card taps through to ITS OWN focused trend here (2026-07-03), so these load their
  *  series from the repo on demand rather than off the cached `days` columns. Mirrors iOS metricDetail. */
-private val SERIES_BACKED_VITAL_KEYS = setOf("fitness_age", "vitality", "steps_est", "active_kcal")
+private val SERIES_BACKED_VITAL_KEYS = setOf("fitness_age", "vitality", "steps_est", "active_kcal", "rest")
 
 @Composable
 fun VitalDetailScreen(vm: AppViewModel, key: String) {
     val days by vm.recentDays.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val tempUnit = UnitPrefs.temperature(context)
+    // The Effort detail renders per the user's Effort display scale (0-100 vs 0-21), like the Today tile.
+    val effortScale = UnitPrefs.effortScale(context)
     // Profile drives the Fitness Age readiness/countdown shown when that vital has no value yet.
     val profile = remember { ProfileStore.from(context.applicationContext) }
     val isSeriesBacked = key in SERIES_BACKED_VITAL_KEYS
@@ -1976,13 +1982,19 @@ fun VitalDetailScreen(vm: AppViewModel, key: String) {
         }
     }
     val detail = if (isSeriesBacked) seriesDetail
-    else remember(days, key, tempUnit) { buildVitalDetail(days, key, tempUnit) }
+    else remember(days, key, tempUnit, effortScale) { buildVitalDetail(days, key, tempUnit, effortScale) }
     var range by remember { mutableStateOf(VitalDetailRange.MONTH) }
 
     // The subtitle tracks how much history the metric has, so we never promise a "historical trend" the
     // view isn't showing: Fitness Age with no reading yet -> what it still needs; ANY metric with a single
     // reading -> that reading (trend to follow); two+ -> the trend. Pre-load falls through to trend.
     val loadedPoints = if (seriesLoaded) (detail?.points?.size ?: 0) else -1
+    // #430 parity: the detail carries the SAME backdrop as the screen that pushed it — the day-cycle sky
+    // when the setting is on (full-viewport when "Sky behind cards" is also on, so the transparent cards
+    // reveal it the whole way down; the top band otherwise), the plain canvas when off. Same gates the
+    // Today screen uses.
+    val showDayCycleBackground = remember { NoopPrefs.showDayCycleBackground(context) }
+    val skyBehindCards = remember { NoopPrefs.skyBehindCards(context) }
     ScreenScaffold(
         title = detail?.title ?: "Vital Signs",
         subtitle = when {
@@ -1990,6 +2002,10 @@ fun VitalDetailScreen(vm: AppViewModel, key: String) {
             loadedPoints == 1 -> "Your latest reading — trend to follow."
             else -> "Historical trend from cached daily metrics."
         },
+        topBackground = if (showDayCycleBackground) { { LiquidScreenSky(fillHeight = skyBehindCards) } } else null,
+        // Sky-behind-cards needs the full-viewport container too — the band container's status-bar
+        // offset left the lower cards on plain canvas (tester report).
+        fullBleedBackground = showDayCycleBackground && skyBehindCards,
     ) {
         if (isSeriesBacked && !seriesLoaded) {
             DataPendingNote(
@@ -2333,6 +2349,8 @@ private fun asOfLabel(day: String?): String? {
 
 internal enum class VitalDetailRange(val label: String, val days: Long?) {
     WEEK("W", 7),
+    TWO_WEEK("2W", 14),
+    THREE_WEEK("3W", 21),
     MONTH("M", 30),
     THREE_MONTH("3M", 90),
     SIX_MONTH("6M", 180),
@@ -2352,10 +2370,11 @@ internal fun vitalHistorySpanDays(points: List<Pair<String, Double>>): Long {
  *  LATEST reading, so with under a week of history every window returned the identical full point set
  *  and all six chips drew the same line (a week of data stretched full-width under a "1Y" label). A
  *  range only differs from its predecessor once the data span EXCEEDS the predecessor's window, so the
- *  unlocked set is a contiguous prefix: W always, M once span > 7 days, 3M once > 30, 6M once > 90,
- *  1Y once > 180, ALL once > 365. Locked chips render disabled rather than hidden so a calibrating
- *  user still learns the longer views exist; W staying unconditional means nobody is ever stranded
- *  with zero ranges. */
+ *  unlocked set is a contiguous prefix: W always, 2W once span > 7 days, 3W once > 14, M once > 21,
+ *  3M once > 30, 6M once > 90, 1Y once > 180, ALL once > 365. (The 1D/2D experiment was dropped: daily
+ *  metrics hold at most one point per day, so those windows could never draw a line.) Locked chips render
+ *  disabled rather than hidden so a calibrating user still learns the longer views exist; W (the shortest)
+ *  staying unconditional means nobody is ever stranded with zero ranges. */
 /**
  * The range the chips + caption actually describe, resolved NON-DESTRUCTIVELY (Swift parity with
  * MetricExplorerView.coercedSelection). A locked selection renders as the largest unlocked range with
@@ -2421,8 +2440,29 @@ private fun buildVitalDetail(
     days: List<DailyMetric>,
     key: String,
     tempUnit: TemperatureUnit,
+    effortScale: EffortScale = EffortScale.HUNDRED,
 ): VitalDetailModel? {
     return when (key) {
+    // The Today Key-Metrics Recovery tile's drill-in: the Recovery (Charge) trend timeline, matching the
+    // Sleep night-detail pattern. Today's DRIVERS stay on the hero ring's breakdown sheet; this is history.
+    "recovery" -> VitalDetailModel(
+        key = key,
+        title = "Recovery",
+        unit = "%",
+        color = Palette.chargeColor,
+        readings = days.mapNotNull { row -> row.recovery?.let { VitalReading(row.day, it, row.deviceId) } },
+        format = { it.roundToInt().toString() },
+    )
+    // The Today Key-Metrics Effort tile's drill-in: the day-strain trend, rendered per the user's Effort
+    // display scale like the tile itself. Readings store the RAW 0-100 composite; only format() scales.
+    "strain" -> VitalDetailModel(
+        key = key,
+        title = "Effort",
+        unit = if (effortScale == EffortScale.HUNDRED) "%" else "",
+        color = Palette.effortColor,
+        readings = days.mapNotNull { row -> row.strain?.let { VitalReading(row.day, it, row.deviceId) } },
+        format = { UnitFormatter.effortDisplay(it, effortScale) },
+    )
     "resp" -> VitalDetailModel(
         key = key,
         title = "Respiratory Rate",
@@ -2489,6 +2529,19 @@ private fun buildVitalDetail(
  *  off the resolved step series (imported ∪ estimated), Active Energy off the Apple-Health import. Colours
  *  match each card's dashboard tint. Returns null for an unknown key. */
 private suspend fun buildSeriesVitalDetail(vm: AppViewModel, key: String): VitalDetailModel? = when (key) {
+    // The Today Key-Metrics Rest tile's drill-in: the Rest composite (sleep_performance) trend, read via
+    // the SAME imported-wins resolvedSeries merge the tile's score/sparkline use, so the detail can never
+    // disagree with the tile (#248 lineage). Each reading names its winning source for the caption.
+    "rest" -> VitalDetailModel(
+        key = key,
+        title = "Rest",
+        unit = "%",
+        color = Palette.restColor,
+        readings = vm.repo.resolvedSeries("sleep_performance", "my-whoop", "0000-00-00", "9999-99-99",
+            strapDeviceId = vm.activeStrapId)
+            .points.map { VitalReading(it.day, it.value, it.source) },
+        format = { it.roundToInt().toString() },
+    )
     "fitness_age" -> VitalDetailModel(
         key = key,
         title = "Fitness Age",

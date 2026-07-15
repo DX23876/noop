@@ -17,6 +17,7 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlin.math.abs
 import kotlin.math.floor
+import kotlin.math.round
 
 /**
  * Serializes NOOP's own cached rows back into WHOOP's 4-CSV export shape so NOOP's OWN importer
@@ -188,7 +189,12 @@ object WhoopCsvExporter {
                     // the cell empty. (Writing the disturbance COUNT here exported a wrong unit
                     // that round-tripped on reimport — PR #97 review, tigercraft4. Swift parity.)
                     "",
-                    num(d.efficiency), num(s["sleep_consistency"]), num(s["sleep_need_min"]),
+                    // "Sleep efficiency %" is WHOOP's 0–100 column → lift the stored 0–1 fraction,
+                    // rounded to 4 decimals of a percent so num()'s shortest-round-trip Double
+                    // printing can't leak FP dust into the cell. Keep byte-identical to Swift
+                    // (WhoopExportImporter.whoopEfficiencyPctFromFraction).
+                    num(d.efficiency?.let { round(it * 100.0 * 10_000) / 10_000 }),
+                    num(s["sleep_consistency"]), num(s["sleep_need_min"]),
                     num(s["sleep_debt_min"]), csvField(sourceByDay[d.day]),
                 ).joinToString(","),
             ).append("\r\n")
@@ -228,7 +234,8 @@ object WhoopCsvExporter {
                     "false", "", "",
                     num(stages.asleep), num(inBedMin),
                     num(stages.light), num(stages.deep), num(stages.rem), num(stages.awake),
-                    num(s.efficiency), "", "", "", csvField(sourceBySession(s)),
+                    num(s.efficiency?.let { round(it * 100.0 * 10_000) / 10_000 }), "", "", "",
+                    csvField(sourceBySession(s)),
                 ).joinToString(","),
             ).append("\r\n")
         }
@@ -307,18 +314,27 @@ object WhoopCsvExporter {
     }
 
     /**
-     * UI entry point: serialize the merged "my-whoop" ∪ "my-whoop-noop" history (imported wins per
-     * day — exactly what the dashboards show; Apple Health / Health Connect rows are deliberately
-     * EXCLUDED so a re-import can't mis-attribute them as WHOOP data) and write a zip to [uri].
-     * Returns a human summary for the toast.
+     * UI entry point: serialize the merged WHOOP history (imported wins per day — exactly what the
+     * dashboards show; Apple Health / Health Connect rows are deliberately EXCLUDED so a re-import
+     * can't mis-attribute them as WHOOP data) and write a zip to [uri]. Returns a human summary for
+     * the toast.
+     *
+     * [deviceId] is the registry's ACTIVE strap id (SPINE / #814) and has NO default on purpose
+     * (#458): the old `= "my-whoop"` default meant a live-BLE install — whose engine banks computed
+     * scores under `"<strapId>-noop"` — exported `0 days, 0 sleeps, 0 journal entries` while the app
+     * displayed months of history. It survived the #359 sweep because that grep targeted the
+     * hardcoded `"my-whoop-noop"` string, not default parameters. Every read below goes through the
+     * active∪canonical union resolvers ([WhoopRepository.importedSourceIds] /
+     * [WhoopRepository.computedSourceIds]), so BOTH install shapes export in full: live-BLE rows
+     * under the strap id AND canonical `"my-whoop"` rows from a prior CSV import (a single-canonical
+     * install collapses to one id, byte-identical to before).
      */
     suspend fun exportZip(
         context: Context,
         uri: Uri,
         repo: WhoopRepository,
-        deviceId: String = "my-whoop",
+        deviceId: String,
     ): String {
-        val computedId = repo.computedDeviceId(deviceId)
         val hi = System.currentTimeMillis() / 1000 + 86_400
         // physiological_cycles keys each row by the LOCAL calendar day (analyze, #277); the sleeps
         // "Cycle start time" must use the SAME local end-day so the two CSVs reconcile by cycle — else a
@@ -326,37 +342,53 @@ object WhoopCsvExporter {
         // matching how analyze bucketed the stored days.
         val tzOffsetSec = java.time.ZoneId.systemDefault().rules.getOffset(java.time.Instant.now()).totalSeconds.toLong()
 
-        // Daily: the same imported-wins merge the dashboards show; a day present under the imported
-        // source is "import", otherwise it came from the on-device computed source.
+        // The active∪canonical union ids (#458): active strap FIRST, so a per-row dedup keeps the
+        // live/measured copy; a single-canonical install collapses to one id each.
+        val importedIds = repo.importedSourceIds(deviceId)
+        val computedIds = repo.computedSourceIds(deviceId)
+
+        // Daily: the same imported-wins merge the dashboards show (daysMerged resolves the union
+        // internally); a day present under ANY imported source is "import", otherwise it came from
+        // the on-device computed source.
         val daily = repo.daysMerged(deviceId)
-        val importedDays = repo.days(deviceId).map { it.day }.toHashSet()
+        val importedDays = importedIds.flatMap { repo.days(it) }.map { it.day }.toHashSet()
         val sourceByDay = daily.associate { d ->
             d.day to if (d.day in importedDays) "import" else "noop (APPROXIMATE)"
         }
 
         val sleeps = repo.sleepSessionsMerged(deviceId, 0L, hi)
-        // Workouts: imported WHOOP ∪ on-device detected (which carries the "-noop" device id). Apple
-        // Health / Health Connect workouts are intentionally omitted, matching the cycles/sleep cut.
-        // Dedup by (startTs, sport), imported (deviceId) first so it wins — the same session can
-        // exist under both ids (e.g. a reimported export + BLE re-detection), which double-counted
-        // it in the CSV and inflated totals on reimport. (PR #97 review, tigercraft4. Swift parity.)
+        // Workouts: imported WHOOP ∪ on-device detected (which carries the "-noop" device id), each
+        // side read across its union ids (#458). Apple Health / Health Connect workouts are
+        // intentionally omitted, matching the cycles/sleep cut. Dedup by (startTs, sport), imported
+        // first so it wins — the same session can exist under both sides (e.g. a reimported export +
+        // BLE re-detection), which double-counted it in the CSV and inflated totals on reimport.
+        // (PR #97 review, tigercraft4. Swift parity.)
         val seenWorkouts = HashSet<String>()
-        val workouts = (repo.workouts(deviceId, 0L, hi) + repo.workouts(computedId, 0L, hi))
+        val workouts = (repo.workoutsUnion(deviceId, 0L, hi) + repo.detectedWorkoutsUnion(deviceId, 0L, hi))
             .filter { seenWorkouts.add("${it.startTs}|${it.sport}") }
-        // Journal lives under the imported deviceId. Native in-app journal logging (a separate
-        // feature on its own device id) isn't read here, keeping the exporter self-contained; the
-        // imported journal is the WHOOP-sourced history the round-trip targets.
-        val journal = repo.journal(deviceId, "0000-01-01", "9999-12-31")
+        // Journal lives under the imported ids. Native in-app journal logging (a separate feature on
+        // its own device id) isn't read here, keeping the exporter self-contained; the imported
+        // journal is the WHOOP-sourced history the round-trip targets. Dedup by the row's natural key
+        // (day, question), active-first.
+        val seenJournal = HashSet<String>()
+        val journal = importedIds.flatMap { repo.journal(it, "0000-01-01", "9999-12-31") }
+            .filter { seenJournal.add("${it.day}|${it.question}") }
 
+        // Cycles columns recovered from the imported metricSeries: per (day, key) the FIRST union id
+        // that has a value wins (active strap first), mirroring the read-side precedence.
         val seriesByDay = HashMap<String, MutableMap<String, Double>>()
         for (key in listOf("sleep_performance", "sleep_consistency", "sleep_need_min", "sleep_debt_min")) {
-            for (p in repo.metricSeries(deviceId, key, "0000-01-01", "9999-12-31")) {
-                seriesByDay.getOrPut(p.day) { HashMap() }[key] = p.value
+            for (id in importedIds) {
+                for (p in repo.metricSeries(id, key, "0000-01-01", "9999-12-31")) {
+                    val row = seriesByDay.getOrPut(p.day) { HashMap() }
+                    if (key !in row) row[key] = p.value
+                }
             }
         }
-        // Sidecar: every metricSeries row under both NOOP sources, full fidelity.
+        // Sidecar: every metricSeries row under every NOOP source id, full fidelity (rows carry their
+        // own deviceId, so union duplicates stay distinguishable on re-import).
         val sidecarRows = buildList {
-            for (id in listOf(deviceId, computedId)) {
+            for (id in importedIds + computedIds) {
                 for (key in repo.metricKeys(id)) {
                     addAll(repo.metricSeries(id, key, "0000-01-01", "9999-12-31"))
                 }

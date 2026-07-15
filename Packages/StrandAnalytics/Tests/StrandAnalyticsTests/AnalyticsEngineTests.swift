@@ -505,6 +505,28 @@ final class AnalyticsEngineTests: XCTestCase {
             .building)
     }
 
+    // #345: a night staged on SPARSE gravity is downgraded to low-confidence WHATEVER the engine filled in —
+    // this catches the #319 case H9 misses: high efficiency AND healthy restorative (V2 manufactured stages
+    // on too little motion) would read .solid under H9, but the coarse motion can't support a confident score.
+    func testRestConfidenceSparseGravityDowngradesEvenHealthyLookingNight() {
+        let asleep = 8.0 * 3600.0
+        XCTAssertEqual(
+            ScoreConfidence.rest(hasSession: true, hasStagedSleep: true,
+                                 asleepSeconds: asleep, restorativeSeconds: asleep * 0.45,
+                                 efficiency: 0.95, gravitySparse: true),
+            .building)
+    }
+
+    func testRestConfidenceSparseGravityDefaultsFalseSoDenseNightsUnchanged() {
+        // Default gravitySparse=false → a dense healthy night stays .solid (byte-identical to old callers).
+        let asleep = 8.0 * 3600.0
+        XCTAssertEqual(
+            ScoreConfidence.rest(hasSession: true, hasStagedSleep: true,
+                                 asleepSeconds: asleep, restorativeSeconds: asleep * 0.45,
+                                 efficiency: 0.95),
+            .solid)
+    }
+
     // MARK: - #525 day with an overnight + a nap reports CONSISTENT totals
     // #525's main-night-not-sum reconciliation is covered deterministically by the SleepStageTotals
     // suite (testOvernightPlusNapReportsConsistentTotalsNotTheSum with explicit stage JSON, plus the

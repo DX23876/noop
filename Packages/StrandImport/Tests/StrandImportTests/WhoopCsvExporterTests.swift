@@ -9,7 +9,8 @@ import WhoopStore
 final class WhoopCsvExporterTests: XCTestCase {
 
     func testCyclesRoundTripThroughRealImporter() throws {
-        let day = DailyMetric(day: "2026-06-01", totalSleepMin: 420, efficiency: 92.3, deepMin: 95,
+        // efficiency is stored as the native 0-1 fraction; the exporter lifts it onto the CSV's % scale.
+        let day = DailyMetric(day: "2026-06-01", totalSleepMin: 420, efficiency: 0.923, deepMin: 95,
                               remMin: 115, lightMin: 210, disturbances: nil, restingHr: 52,
                               avgHrv: 68.4, recovery: 72, strain: 12.5, exerciseCount: nil,
                               spo2Pct: 96.0, skinTempDevC: 33.1, respRateBpm: 14.2)
@@ -74,10 +75,10 @@ final class WhoopCsvExporterTests: XCTestCase {
     func testSleepsRoundTripAllStageShapes() {
         // macOS-import minutes dict, Android [{stage,min}], and the stager's segment array.
         let dictNight = CachedSleepSession(startTs: 1_750_000_000, endTs: 1_750_027_300,
-                                           efficiency: 92.3, restingHr: nil, avgHrv: nil,
+                                           efficiency: 0.923, restingHr: nil, avgHrv: nil,
                                            stagesJSON: #"{"light":210,"deep":95,"rem":115,"awake":35}"#)
         let arrayNight = CachedSleepSession(startTs: 1_760_000_000, endTs: 1_760_025_500,
-                                            efficiency: 90, restingHr: nil, avgHrv: nil,
+                                            efficiency: 0.9, restingHr: nil, avgHrv: nil,
                                             stagesJSON: #"[{"stage":"light","min":200.0},{"stage":"deep","min":80.0}]"#)
         let segNight = CachedSleepSession(startTs: 2_000_000_000, endTs: 2_000_007_200,
                                           efficiency: nil, restingHr: nil, avgHrv: nil,
@@ -118,6 +119,17 @@ final class WhoopCsvExporterTests: XCTestCase {
         XCTAssertEqual(back[1].notes, "one, big \"mug\"")
     }
 
+    func testEfficiencyPctFractionPairIsLosslessAndNilSafe() {
+        // Store fraction → CSV % → store fraction round-trips exactly; nil passes through both ways.
+        XCTAssertEqual(WhoopExportImporter.whoopEfficiencyPctFromFraction(0.923) ?? -1, 92.3, accuracy: 1e-9)
+        XCTAssertEqual(WhoopExportImporter.fractionFromImportedEfficiencyPct(92.3) ?? -1, 0.923, accuracy: 1e-9)
+        let roundTripped = WhoopExportImporter.fractionFromImportedEfficiencyPct(
+            WhoopExportImporter.whoopEfficiencyPctFromFraction(0.6569))
+        XCTAssertEqual(roundTripped ?? -1, 0.6569, accuracy: 1e-9)
+        XCTAssertNil(WhoopExportImporter.whoopEfficiencyPctFromFraction(nil))
+        XCTAssertNil(WhoopExportImporter.fractionFromImportedEfficiencyPct(nil))
+    }
+
     func testNumbersAreLocaleProof() {
         XCTAssertEqual(WhoopCsvExporter.num(72.0), "72")
         XCTAssertEqual(WhoopCsvExporter.num(68.4), "68.4")
@@ -132,7 +144,7 @@ final class WhoopCsvExporterTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: dir) }
         let zipURL = dir.appendingPathComponent("noop-export.zip")
 
-        let day = DailyMetric(day: "2026-06-01", totalSleepMin: 420, efficiency: 92.3, deepMin: 95,
+        let day = DailyMetric(day: "2026-06-01", totalSleepMin: 420, efficiency: 0.923, deepMin: 95,
                               remMin: 115, lightMin: 210, disturbances: 35, restingHr: 52,
                               avgHrv: 68.4, recovery: 72, strain: 12.5, exerciseCount: nil,
                               spo2Pct: 96.0, skinTempDevC: 33.1, respRateBpm: 14.2)

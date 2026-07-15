@@ -173,6 +173,13 @@ object IntelligenceEngine {
         // self-heal, which re-stages with SleepStagerV2 when true. Default false → V1 (the default, untouched
         // path), so existing callers / tests are unaffected. (V7 Pillar 3b)
         useExperimentalSleepV2: Boolean = false,
+        // Opt-in "Motion-aware wake refinement" flag (#364 "Proposal 2" follow-up; density gate precedent
+        // #345). Same Context-free threading as [useExperimentalSleepV2]: the Context-aware caller reads
+        // PuffinExperiment.from(context).motionAwareWake and passes it down to AnalyticsEngine.analyzeDay
+        // and the sleep self-heal. Default false, and even when true the pass self-gates on the night's
+        // OWN observed gravity + step density (see [WakeMotionRefinement]), so existing callers / tests
+        // and any night too sparse to trust (e.g. a WHOOP 4.0) are unaffected either way.
+        useMotionAwareWake: Boolean = false,
         // Sleep & Rest test-mode trace sink (Test Centre E5). The analytics layer is Context-free, so the
         // Context-aware caller (AppViewModel / WhoopBleClient) reads TestCentre.active(SLEEP) and passes a
         // non-null sink ONLY when the mode is on, routing each line to the .sleep-tagged strap log. null (the
@@ -220,8 +227,8 @@ object IntelligenceEngine {
         analyzeGate.withLock {
             val (out, healed) = analyzeRecentOnCpu(repo, profile, maxDays, importedDeviceId, maxHROverride,
                 nowSeconds, ownerSource, manualStepCoefficient, persistStepsCalibration, baselineEpoch,
-                recoveryEpoch, diag, useExperimentalSleepV2, sleepTraceSink, recoveryTraceSink, stepsTraceSink,
-                universalSink, workoutsTraceSink, hrvTraceSink, deepHrvWindow)
+                recoveryEpoch, diag, useExperimentalSleepV2, useMotionAwareWake, sleepTraceSink, recoveryTraceSink,
+                stepsTraceSink, universalSink, workoutsTraceSink, hrvTraceSink, deepHrvWindow)
             if (healed == 0) out
             // #899 heal re-pass: the pass above deleted overlapping duplicate sleep sessions AFTER its days
             // were scored, and the read-side dedup those days consumed had no bank-recency witness (the fresh
@@ -230,8 +237,8 @@ object IntelligenceEngine {
             // are gone), so this can never loop. Mirrors the Swift pendingForcedRescore re-arm.
             else analyzeRecentOnCpu(repo, profile, maxDays, importedDeviceId, maxHROverride,
                 nowSeconds, ownerSource, manualStepCoefficient, persistStepsCalibration, baselineEpoch,
-                recoveryEpoch, diag, useExperimentalSleepV2, sleepTraceSink, recoveryTraceSink, stepsTraceSink,
-                universalSink, workoutsTraceSink, hrvTraceSink, deepHrvWindow).first
+                recoveryEpoch, diag, useExperimentalSleepV2, useMotionAwareWake, sleepTraceSink, recoveryTraceSink,
+                stepsTraceSink, universalSink, workoutsTraceSink, hrvTraceSink, deepHrvWindow).first
         }
     }
 
@@ -292,6 +299,8 @@ object IntelligenceEngine {
         diag: (String) -> Unit = {},
         // Opt-in experimental staging (V2), threaded down to the sleep self-heal. Default false → V1. (3b)
         useExperimentalSleepV2: Boolean = false,
+        // Opt-in motion-aware wake refinement (#364 follow-up), threaded the same way. Default false.
+        useMotionAwareWake: Boolean = false,
         // Sleep & Rest test-mode trace sink (Test Centre E5). null = byte-identical default; when non-null
         // each scored day threads it into AnalyticsEngine.analyzeDay so detectSleep's gate trace + the Rest
         // sub-score line forward line-by-line to the .sleep-tagged strap log. Mirrors Swift.
@@ -419,6 +428,12 @@ object IntelligenceEngine {
         // registry is stable for the run (same assumption [candidatePriorities] above already makes), so
         // every day sees the exact value the per-day call would have returned: byte-identical scoring.
         val skinFamilyByOwner = HashMap<String, DeviceFamily>()
+        // #938: the WHOOP 4.0 ADC offset is per-device, not per-night. Learn one anchor per owner from the
+        // whole scan window and reuse it for every night so cross-night deviations survive.
+        val skinAnchorScanFrom = nowLocalMidnight - (maxDays - 1).toLong() * SECONDS_PER_DAY - 30 * 3_600L
+        val skinAnchorScanTo = nowLocalMidnight + 18 * 3_600L
+        val skinAnchorByOwner = HashMap<String, Double>()
+        val skinAnchorResolvedOwners = HashSet<String>()
 
         for (offset in 0 until maxDays) {
             val dayStart = nowLocalMidnight - offset * SECONDS_PER_DAY
@@ -477,7 +492,12 @@ object IntelligenceEngine {
             // or when <100 in-band samples exist → the conversion falls back to the global anchor (byte-
             // identical to today). Computed here once per owner alongside the family resolution.
             val skinAnchorRaw = if (skinFamily == DeviceFamily.WHOOP4) {
-                Whoop4SkinTemp.deviceAnchorRaw(skin.map { it.raw })
+                if (!skinAnchorResolvedOwners.contains(owner)) {
+                    val windowSkin = repo.skinTempSamples(owner, skinAnchorScanFrom, skinAnchorScanTo, STREAM_LIMIT)
+                    Whoop4SkinTemp.deviceAnchorRaw(windowSkin.map { it.raw })?.let { skinAnchorByOwner[owner] = it }
+                    skinAnchorResolvedOwners.add(owner)
+                }
+                skinAnchorByOwner[owner]
             } else {
                 null
             }
@@ -553,6 +573,8 @@ object IntelligenceEngine {
                 // badly UNDER-stage deep/REM (kavemang, #347) — so the toggle is the escape until real 4.0
                 // ground truth settles it (#271/#319). Matches the self-heal restage, which reads the toggle.
                 useSleepStagerV2 = useExperimentalSleepV2,
+                // #364 follow-up: same threading for the motion-aware wake refinement post-pass.
+                useMotionAwareWake = useMotionAwareWake,
                 // Sleep & Rest test mode (Test Centre E5): thread the trace sink straight through. null (the
                 // default) keeps analyzeDay's byte-identical untraced path; when the caller passed a non-null
                 // sink (mode on), detectSleep's gate trace + the Rest sub-score line route to the .sleep-tagged
@@ -657,9 +679,9 @@ object IntelligenceEngine {
         // absent), which keeps that imported day as a missing night. HRV/RHR are the dominant
         // recovery drivers (~60%/~20%), so this substitution skewed Charge vs iOS. (The author already
         // fixed this for the low-weight resp term below; HRV/RHR were missed.)
-        for ((day, v) in nightlyHrvByDay) if (day !in histHrvByDay) histHrvByDay[day] = v
-        for ((day, v) in nightlyRhrByDay) if (day !in histRhrByDay) histRhrByDay[day] = v
-        for ((day, v) in nightlyRespByDay) if (day !in histRespByDay) histRespByDay[day] = v
+        mergeNightlyIntoHistory(histHrvByDay, nightlyHrvByDay)
+        mergeNightlyIntoHistory(histRhrByDay, nightlyRhrByDay)
+        mergeNightlyIntoHistory(histRespByDay, nightlyRespByDay)
         // Sort once so the HRV values + their "yyyy-MM-dd" day keys stay parallel (same order/length) for
         // the recalibration-aware foldHistory below.
         val hrvSorted = histHrvByDay.entries.sortedBy { it.key }
@@ -744,6 +766,7 @@ object IntelligenceEngine {
             windowStart = windowStart,
             windowEnd = nowSeconds,
             useExperimentalSleepV2 = useExperimentalSleepV2,
+            useMotionAwareWake = useMotionAwareWake,
         )
         // #299: [editsByStart] / [editOnsetByStart] are now built PER DAY inside the scoring loop (scoped to
         // the day each edit belongs to), NOT window-wide here. sleepEditedDaily folds any edited row that
@@ -812,8 +835,16 @@ object IntelligenceEngine {
             // day (the project's log-failures-not-successes blind spot) and lets us settle the "Rest repeats
             // across days" question with data. Gated by the existing strap-log export. Mirrors the Swift line.
             val tsmLog = daily.totalSleepMin?.let { Math.round(it).toString() } ?: "nil"
+            // #386: the banked stage split + efficiency ride beside the rollup, so a "homepage disagrees
+            // with the Sleep tab" report is self-diagnosing from the export alone — totalSleepMin vs the
+            // deep+rem+light sum is the identity both screens must agree on, now verifiable per pass, per
+            // day, without screenshots. Rounded minutes only (same privacy class as the rest of the line);
+            // stages=nil when the day has no banked stage split (an unstaged or imported-total-only day).
+            val effLog = daily.efficiency?.let { String.format(java.util.Locale.US, "%.2f", it) } ?: "nil"
             diag(
                 "sleep day=${daily.day} totalSleepMin=$tsmLog " +
+                    "stages=${sleepStagesLogToken(daily.deepMin, daily.remMin, daily.lightMin)} " +
+                    "eff=$effLog " +
                     "matched=${res.sleepSessions.size} " +
                     "source=${daySourceToken(daily.day, importedWhoopDays, appleHealthDays)}",
             )
@@ -1601,6 +1632,23 @@ object IntelligenceEngine {
      * Floor a unix-seconds timestamp to 00:00:00 of its UTC calendar day. AnalyticsEngine.dayString
      * uses UTC, so UTC midnight = ts - floorMod(ts, 86400). floorMod is correct for any sign.
      */
+    /**
+     * Merge one metric's on-device pass-1 nightly values into the imported-history map.
+     * Imported (cloud) values WIN per day; the computed estimate only fills days the import
+     * does not cover at all (key absent). Mirrors the Swift `mergeNightlyIntoHistory`.
+     */
+    internal fun mergeNightlyIntoHistory(
+        hist: LinkedHashMap<String, Double?>,
+        nightly: Map<String, Double?>,
+    ) {
+        // `day !in hist` only checks KEY presence — an imported row with a null
+        // value would shadow the real computed night forever, starving the
+        // baseline (the "Needs the strap" bug). `hist[day] == null` is true for
+        // both absent keys and null values: imported non-null wins, a null (or
+        // absent) slot is backfilled by the computed value.
+        for ((day, v) in nightly) if (hist[day] == null) hist[day] = v
+    }
+
     internal fun midnightUtc(ts: Long): Long = ts - Math.floorMod(ts, SECONDS_PER_DAY)
 
     /**
@@ -1629,6 +1677,19 @@ object IntelligenceEngine {
         day in importedWhoopDays -> "imported:whoop"
         day in appleHealthDays -> "imported:apple"
         else -> "computed"
+    }
+
+    /**
+     * The `stages=` token of the per-day sleep diagnostic line (#386): `<deep>+<rem>+<light>=<sum>` in
+     * rounded minutes when the day carries a full banked stage split, `nil` when any component is
+     * absent (an unstaged night, or an imported day that only brought a total). The sum is printed
+     * rather than left to the reader so a rollup-vs-stages divergence — the exact identity a "homepage
+     * disagrees with the Sleep tab" report hinges on — is a one-line visual check against the
+     * `totalSleepMin=` field beside it. Pure + unit-tested; mirrors the Swift twin.
+     */
+    internal fun sleepStagesLogToken(deep: Double?, rem: Double?, light: Double?): String {
+        if (deep == null || rem == null || light == null) return "nil"
+        return "${Math.round(deep)}+${Math.round(rem)}+${Math.round(light)}=${Math.round(deep + rem + light)}"
     }
 
     /**

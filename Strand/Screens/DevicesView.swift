@@ -117,6 +117,9 @@ private struct DevicesContent: View {
                     // Firmware version belongs to the active + connected strap only; nil otherwise (and
                     // for a non-WHOOP source that never reports one).
                     liveFirmware: (device.status == .active && live.connected) ? live.strapFirmware : nil,
+                    // Historical record layout (v24/v25 on WHOOP 4.0) observed from this connection's
+                    // backfill. Distinct from the strap firmware build shown as FW.
+                    liveHistoryLayout: (device.status == .active && live.connected) ? live.strapRange?.firmwareLayout : nil,
                     // #987: clock latch + frame freshness + the 1970/71 RTC warning, active card only.
                     liveClockLine: device.status == .active ? strapClockState?.line : nil,
                     liveClockWarning: device.status == .active ? strapClockState?.warning : nil,
@@ -376,6 +379,8 @@ private struct DeviceCard: View {
     /// The active+connected strap's firmware version (from the connect handshake). nil when not the
     /// active/connected device, or for a source that reports no firmware (e.g. a non-WHOOP strap).
     var liveFirmware: String? = nil
+    /// The active+connected strap's observed banked-history record layout (`hist_version`).
+    var liveHistoryLayout: Int? = nil
     /// #987: the active+connected strap's clock-state line ("Clock latched: yes · last frame 12s ago"),
     /// nil for every other card. Built by the parent off the same pure ConnectionReadout parsers the
     /// Test Centre Connection panel binds, so the two readouts can never disagree.
@@ -492,6 +497,13 @@ private struct DeviceCard: View {
                             .font(StrandFont.footnote)
                             .foregroundStyle(StrandPalette.textSecondary)
                             .accessibilityLabel("Firmware version \(fw)")
+                    }
+                    if let layout = liveHistoryLayout {
+                        Text("·").font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        Text("v\(layout) history")
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                            .accessibilityLabel("Historical record layout v\(layout)")
                     }
                     // The whole-card tap hint sits on the left; the ⋮ menu is a bottom-trailing overlay above
                     // the press button (so its own taps win). No hint on the active card (no make-active),

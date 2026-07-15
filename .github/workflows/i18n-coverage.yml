@@ -1,0 +1,33 @@
+# Catches translation drift BEFORE merge instead of after a user reports it (#326, #342, #448
+# were all the same recurring pattern: new UI text lands without its German translation, or a
+# Kotlin literal never gets wired to stringResource() at all since Compose has no Xcode-style
+# auto-extraction). Runs Tools/i18n_audit.py --ci, which:
+#   - hard-fails if German coverage regresses on either platform (it's the one language that's
+#     already fully covered everywhere, so this is a zero-false-positive gate);
+#   - hard-fails on any NEW hardcoded/un-localized literal this PR introduces, without blocking
+#     on the large pre-existing backlog (tracked separately, see the linked issue);
+#   - prints Spanish/French coverage as information only — those still have a real backlog to
+#     work through and aren't gated yet.
+# Pure Python + git, no Xcode/Gradle: runs in seconds on ubuntu-latest, independent of the
+# disabled-by-default app-build.yml / android.yml compile jobs.
+name: i18n Coverage
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: i18n-coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: i18n audit (regression gate)
+        run: python3 Tools/i18n_audit.py --ci origin/${{ github.base_ref }}

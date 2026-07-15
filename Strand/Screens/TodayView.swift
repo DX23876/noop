@@ -924,6 +924,7 @@ struct TodayView: View {
     private func computeCalibration() -> Int? {
         guard selectedDayOffset == 0 else { return nil }
         return RecoveryScorer.calibrationNights(nightlyHrv: repo.days.map(\.avgHrv),
+                                                dayKeys: repo.days.map(\.day),
                                                 hasRecovery: repo.today?.recovery != nil)
     }
 

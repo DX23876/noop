@@ -500,6 +500,58 @@ extension WhoopStore {
             try db.create(index: "idx_ouraRaw_device_endpoint_day",
                           on: "ouraRaw", columns: ["deviceId", "endpoint", "day"])
         }
+
+        // v26 (Oura efficiency unit heal): the Oura API importer (OuraApiParser.swift) wrote Oura's
+        // native 0-100 integer `efficiency` straight into sleepSession.efficiency / dailyMetric.efficiency,
+        // but NOOP's own sleep pipeline (StrandAnalytics) stores that shared column as a 0-1 FRACTION
+        // everywhere it computes it (asleep ÷ in-bed) — same column, two scales for oura-api rows written
+        // before the importer fix. UPDATE-only, NO schema change: divides `efficiency` by 100 for every
+        // row where it's > 1.5 — a threshold no genuine fraction can exceed (the column's convention
+        // caps at 1.0: `AnalyticsEngine` writes actual-sleep ÷ in-bed) and no genuine percent-scale
+        // leftover can fall under (no real night is ≤1.5% efficient), so the predicate can't touch an
+        // already-correct row and a second run finds nothing left: idempotent. Deliberately NOT
+        // deviceId-scoped: both known percent writers are healed by the same predicate — the Oura API
+        // importer ('oura-api' rows) and the WHOOP CSV importer (rows under whatever strap deviceId the
+        // user imported into). No Android Room migration twin in this PR: the Kotlin CSV importer gets
+        // the same write-boundary fix, but healing Android's historical rows needs a Room migration a
+        // maintainer should own (schema-version bump + column-order pinning).
+        migrator.registerMigration("v26-efficiency-heal") { db in
+            try db.execute(sql: """
+                UPDATE sleepSession SET efficiency = efficiency / 100.0
+                WHERE efficiency > 1.5
+                """)
+            try db.execute(sql: """
+                UPDATE dailyMetric SET efficiency = efficiency / 100.0
+                WHERE efficiency > 1.5
+                """)
+        }
+
+        // v27 (issue #156 follow-up): durable storage for the WHOOP 5.0 v26 optical PPG waveform. The
+        // strap's 24 Hz buffer was fully DECODED (`ppg_waveform`, 24 i16 ADC samples/record) but only
+        // ever used to derive a per-second HR estimate (`ppgHrSample`, v12) — the waveform itself was
+        // discarded right after, and `rejectedHistoricalRecords` explicitly excludes v26 from the
+        // undecodable-record reject archive ("known-and-unstored by design"), so it had no home at all.
+        //
+        // One row per (deviceId, ts) — the SAME shape as every other per-second decoded stream (hrSample,
+        // spo2Sample, ppgHrSample, …) — but the 24 samples are packed into a compact BLOB (2 bytes/sample,
+        // little-endian i16, `WhoopStore.packPpgSamples`/`unpackPpgSamples`) instead of 24 scalar rows.
+        // That keeps a v26-heavy night to roughly the same order of magnitude as ONE extra per-second
+        // stream (≈50 bytes/row), not 24x that. Additive only, a NEW table, no existing row touched.
+        //
+        // Retention: no pruning, matching every other durable per-second table (hrSample, spo2Sample, …
+        // are never pruned either) — this is decoded biometric history, not the transient raw outbox.
+        // `PrunePolicy`'s ~50 MB cap governs ONLY `rawBatch` (raw, pre-decode frames kept for re-decode /
+        // re-sync); it is untouched by and unrelated to this table. Growth here is bounded by how much
+        // v26 data a strap actually emits (firmware chooses v26 vs v18 per second, not every night is
+        // v26-heavy), not by an artificial cap.
+        migrator.registerMigration("v27-ppg-waveform") { db in
+            try db.create(table: "ppgWaveformSample") { t in
+                t.column("deviceId", .text).notNull()
+                t.column("ts", .integer).notNull()
+                t.column("samples", .blob).notNull()
+                t.primaryKey(["deviceId", "ts"])
+            }
+        }
         return migrator
     }
 }

@@ -301,6 +301,7 @@ final class AppModel: ObservableObject {
         live.$bonded.removeDuplicates().sink { [weak self] _ in
             guard let self else { return }
             self.ble.setKeepRealtimeForData(PuffinExperiment.keepRealtimeForDataEnabled)
+            self.applyPowerSaving()
         }.store(in: &hrCancellables)
         // A completed backfill has just written strap history. Refresh the dashboard cache,
         // but leave heavyweight analysis to its own guarded/background-friendly path.
@@ -340,6 +341,7 @@ final class AppModel: ObservableObject {
         // reflects it from launch , the reconciler then arms the dense stream as soon as the strap bonds
         // (and the bond sink above re-applies it on every reconnect).
         ble.setKeepRealtimeForData(PuffinExperiment.keepRealtimeForDataEnabled)
+        applyPowerSaving()
 
         // Turn the strap's offloaded raw data into dashboard scores on launch and every 15
         // minutes, so recovery / strain / sleep populate from the strap itself with no import.
@@ -416,6 +418,18 @@ final class AppModel: ObservableObject {
     }
 
     /// Build the device registry + source coordinator once the store is open, then start observing.
+    /// #477: push the persisted Power-saving prefs to the BLE manager (parity with Android
+    /// `AppViewModel.applyPowerSaving`). Offload-cadence stretch uses the battery-% threshold (0 = off
+    /// when the master is off); the HRV pause is a sub-option, only effective while the master is on.
+    /// The riskier connection-priority idle throttle is intentionally not wired (Android-only, and dormant).
+    func applyPowerSaving() {
+        let on = PuffinExperiment.powerSavingEnabled
+        ble.setLowBatteryOffloadThrottle(on ? PuffinExperiment.powerSavingBatteryPct : 0)
+        // HRV pause is battery-%-aware like the offload lever — pass the same threshold.
+        ble.setPauseCaptureOnPowerSave(on && PuffinExperiment.pauseHrvOnPowerSaveEnabled,
+                                       thresholdPct: PuffinExperiment.powerSavingBatteryPct)
+    }
+
     /// Tiny and guarded: with no generic strap paired the active id is "my-whoop", so the coordinator
     /// observes WHOOP-active and stays a NO-OP , the existing `scan()`/`disconnect()` WHOOP flow is
     /// untouched. The coordinator only acts if/when a non-WHOOP strap becomes the active device.

@@ -726,6 +726,45 @@ final class SleepStagerTests: XCTestCase {
         XCTAssertEqual(s.restingHR, 50)
     }
 
+    // #345 END-TO-END: a locked synthetic WHOOP-4.0 OFFLOAD night — dense sleep-band HR but clumped/sparse
+    // motion (~the reporter's ~20% coverage) — must flow REAL isGravitySparse → REAL ScoreConfidence.rest →
+    // .building, EVEN when the night ALSO looks healthy (high efficiency + ~45% restorative). That healthy-
+    // looking case is exactly what H9 misses, so without the sparse guard it would read a confident .solid
+    // 85–100 — the #319 signature. The guard validated against a realistic synthetic offload night, since no
+    // real offload capture exists yet.
+    func testSparseOffloadNightForcesRestBuildingEndToEnd() {
+        let start = nightStart(01)
+        let dur = 6 * 60 * 60
+        let grav = sparseStillGravity(start: start, durationS: dur, everyS: 25 * 60)
+        let hr = hrStream(start: start, durationS: dur, bpm: 50)
+        let sparse = SleepStager.isGravitySparse(grav, hr: hr)
+        XCTAssertTrue(sparse, "the locked synthetic 4.0-offload night must read sparse")
+        let asleep = 8.0 * 3600.0
+        XCTAssertEqual(
+            ScoreConfidence.rest(hasSession: true, hasStagedSleep: true,
+                                 asleepSeconds: asleep, restorativeSeconds: asleep * 0.45,
+                                 efficiency: 0.95, gravitySparse: sparse),
+            .building,
+            "a sparse night — even high-efficiency AND healthy restorative (the #319 case H9 misses) — must not earn SOLID")
+    }
+
+    func testDenseNightKeepsRestSolidEndToEnd() {
+        // The dense counterpart: same healthy night on DENSE 1 Hz motion → not sparse → .solid stands.
+        let start = nightStart(02)
+        let dur = 6 * 60 * 60
+        let grav = stillGravity(start: start, durationS: dur)
+        let hr = hrStream(start: start, durationS: dur, bpm: 50)
+        let sparse = SleepStager.isGravitySparse(grav, hr: hr)
+        XCTAssertFalse(sparse, "the dense night must NOT read sparse")
+        let asleep = 8.0 * 3600.0
+        XCTAssertEqual(
+            ScoreConfidence.rest(hasSession: true, hasStagedSleep: true,
+                                 asleepSeconds: asleep, restorativeSeconds: asleep * 0.45,
+                                 efficiency: 0.95, gravitySparse: sparse),
+            .solid,
+            "a dense healthy night keeps SOLID — the sparse guard never touches it")
+    }
+
     func testBuildRunsDenseGravityByteIdenticalToLegacy() {
         // Direct byte-identity proof: buildRuns with the sparse override OFF (the default) returns
         // exactly the same runs as passing sparse:false, on a gravity stream with a real >maxGapMin

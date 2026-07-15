@@ -102,4 +102,37 @@ final class SleepOnsetStubTests: XCTestCase {
     func testAllStubGroupFallsBackToZero() {
         XCTAssertEqual(SleepView.nightOnsetIndex(spansMin: [5, 10], asleepsMin: [0, 0]), 0)
     }
+
+    // MARK: - Real-night regression: a genuine short first sleep is NOT a spurious lead
+
+    /// THE BUG (real 2026-07-14 night): a 67-min first-sleep fragment (12:16 → 1:22, ~34 asleep min) then a
+    /// ~6-min walk then the main 1:29 → 7:32 sleep (~340 asleep). The two bridge into ONE night, and the
+    /// Health write-back spans 12:16 → 7:32. But the #259 relative "minor lead" test compared 34 asleep min
+    /// against 15% of the ~340-min main (≈51 min) and wrongly classified the real first sleep as a spurious
+    /// lead, so the displayed onset jumped to the 1:29 main and HID the true 12:16 bedtime. The absolute
+    /// asleep floor keeps a real sleep episode as the onset: index 0, the 12:16 fragment.
+    func testRealFirstSleepFragmentIsTheDisplayedOnset() {
+        // fragment: 66.8 span / 34 asleep. main: 363.6 span / 340 asleep.
+        XCTAssertEqual(SleepView.nightOnsetIndex(spansMin: [66.8, 363.6], asleepsMin: [34, 340]), 0)
+    }
+
+    /// The per-fragment rule: a real 34-min sleep episode beside a 340-min main is NOT a stub, even though
+    /// it is under 15% of the main (the old relative test's flaw for long nights). The floor is what keeps it.
+    func testRealFirstSleepFragmentIsNotStub() {
+        XCTAssertFalse(SleepView.isPreOnsetAwakeStub(spanMin: 66.8, asleepMin: 34, refAsleepMin: 340))
+    }
+
+    /// Floor boundary: a fragment carrying at least `preOnsetStubMinorAsleepFloorMin` asleep minutes is a
+    /// real sleep episode and never a spurious lead, whatever the main block's size.
+    func testAtMinorAsleepFloorIsNotStub() {
+        XCTAssertFalse(SleepView.isPreOnsetAwakeStub(spanMin: 40,
+                                                     asleepMin: SleepView.preOnsetStubMinorAsleepFloorMin,
+                                                     refAsleepMin: 1000))
+    }
+
+    /// The floor does NOT reopen #736/#259: a tiny stray sleep lead (10 asleep, under the floor AND under
+    /// 15% of a big main) is still a spurious lead, so those goldens above stay green.
+    func testTinyStrayLeadStillStubUnderFloor() {
+        XCTAssertTrue(SleepView.isPreOnsetAwakeStub(spanMin: 30, asleepMin: 10, refAsleepMin: 400))
+    }
 }

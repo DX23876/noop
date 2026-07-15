@@ -12,6 +12,35 @@ extension WhoopStore {
         return String(decoding: data, as: UTF8.self)
     }
 
+    /// Pack a decoded v26 PPG waveform's samples as little-endian i16 (2 bytes/sample) — a single
+    /// compact BLOB per (deviceId, ts) row instead of 24 scalar rows (issue #156 follow-up, v27). Any
+    /// sample count is handled (a truncated frame can decode fewer than 24); each value is truncated to
+    /// Int16's range, matching the wire format it came from (`readI16` in the decoder never produces
+    /// anything wider).
+    static func packPpgSamples(_ samples: [Int]) -> Data {
+        var buf = Data(capacity: samples.count * 2)
+        for s in samples {
+            let v = Int16(truncatingIfNeeded: s)
+            buf.append(UInt8(truncatingIfNeeded: v))
+            buf.append(UInt8(truncatingIfNeeded: v >> 8))
+        }
+        return buf
+    }
+
+    /// Inverse of `packPpgSamples`. A trailing odd byte (a corrupt/truncated blob) is dropped rather
+    /// than thrown — a read path never crashes on a malformed row.
+    static func unpackPpgSamples(_ data: Data) -> [Int] {
+        let bytes = [UInt8](data)
+        var out = [Int](); out.reserveCapacity(bytes.count / 2)
+        var i = 0
+        while i + 1 < bytes.count {
+            let u = UInt16(bytes[i]) | (UInt16(bytes[i + 1]) << 8)
+            out.append(Int(Int16(bitPattern: u)))
+            i += 2
+        }
+        return out
+    }
+
     /// Insert or update a device row (natural key = id).
     public func upsertDevice(id: String, mac: String?, name: String?) async throws {
         let now = Int(Date().timeIntervalSince1970)
@@ -171,6 +200,20 @@ extension WhoopStore {
                     """)
                 for s in streams.ppgHr {
                     try stmt.execute(arguments: [deviceId, s.ts, s.bpm, s.conf])
+                }
+            }
+            // RAW v26 optical PPG waveform (#156 follow-up) — the samples `ppgHr` above is derived FROM.
+            // Persist-only, same as steps/sleepState/ppgHr: not added to the 8-field return tuple. ON
+            // CONFLICT DO NOTHING keeps the FIRST-seen waveform for a second, matching every other
+            // per-second stream's dedupe rule. Packed into one compact BLOB per row (see
+            // `packPpgSamples`) rather than 24 scalar rows, so this insert is O(records), not O(samples).
+            if !streams.ppgWaveform.isEmpty {
+                let stmt = try db.cachedStatement(sql: """
+                    INSERT INTO ppgWaveformSample (deviceId, ts, samples) VALUES (?, ?, ?)
+                    ON CONFLICT(deviceId, ts) DO NOTHING
+                    """)
+                for s in streams.ppgWaveform {
+                    try stmt.execute(arguments: [deviceId, s.ts, WhoopStore.packPpgSamples(s.samples)])
                 }
             }
             return (hr, rr, ev, bat, spo2, skin, resp, grav)
@@ -393,6 +436,26 @@ extension WhoopStore {
 
     public func ppgHrCountForTest() async throws -> Int {
         try syncRead { db in try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM ppgHrSample") ?? 0 }
+    }
+
+    /// The RAW v26 optical PPG waveform (#156 follow-up), one record per second, in `[from, to]` for one
+    /// device, ascending by ts. `samples` are the raw i16 ADC counts the strap sent, unpacked from the
+    /// compact on-disk BLOB (`packPpgSamples`/`unpackPpgSamples`). Empty when the strap never emitted
+    /// v26 (the WHOOP 4.0 / v18-only common case) or the window has no v26-heavy stretch.
+    public func ppgWaveformSamples(deviceId: String, from: Int, to: Int, limit: Int = 200_000) async throws
+        -> [PpgWaveformSample] {
+        try syncRead { db in
+            try Row.fetchAll(db, sql: """
+                SELECT ts, samples FROM ppgWaveformSample
+                WHERE deviceId = ? AND ts >= ? AND ts <= ?
+                ORDER BY ts LIMIT ?
+                """, arguments: [deviceId, from, to, limit])
+                .map { PpgWaveformSample(ts: $0["ts"], samples: WhoopStore.unpackPpgSamples($0["samples"])) }
+        }
+    }
+
+    public func ppgWaveformCountForTest() async throws -> Int {
+        try syncRead { db in try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM ppgWaveformSample") ?? 0 }
     }
 
     public func deviceRowForTest(id: String) async throws -> (mac: String?, name: String?)? {

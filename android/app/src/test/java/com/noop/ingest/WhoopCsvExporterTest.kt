@@ -26,7 +26,7 @@ class WhoopCsvExporterTest {
     fun cyclesRoundTripThroughRealParser() {
         val daily = listOf(
             DailyMetric(
-                deviceId = "my-whoop", day = "2026-06-01", totalSleepMin = 420.0, efficiency = 92.3,
+                deviceId = "my-whoop", day = "2026-06-01", totalSleepMin = 420.0, efficiency = 0.923,
                 deepMin = 95.0, remMin = 115.0, lightMin = 210.0, disturbances = 35, restingHr = 52,
                 avgHrv = 68.4, recovery = 72.0, strain = 12.5, exerciseCount = null,
                 spo2Pct = 96.0, skinTempDevC = 33.1, respRateBpm = 14.2,
@@ -101,7 +101,7 @@ class WhoopCsvExporterTest {
         // Android-import shape [{stage,min}] — minutes survive exactly.
         val imported = SleepSession(
             deviceId = "my-whoop", startTs = 1_750_000_000L, endTs = 1_750_030_000L,
-            efficiency = 91.0, restingHr = null, avgHrv = null,
+            efficiency = 0.91, restingHr = null, avgHrv = null,
             stagesJSON = """[{"stage":"light","min":210.0},{"stage":"deep","min":95.0},""" +
                 """{"stage":"rem","min":115.0},{"stage":"awake","min":35.0}]""",
         )

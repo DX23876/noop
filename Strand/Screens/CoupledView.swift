@@ -57,6 +57,7 @@ struct CoupledView: View {
     /// exists. The SAME pure helper Today's ring reads, so the two screens can't disagree.
     private var calibrationNights: Int? {
         RecoveryScorer.calibrationNights(nightlyHrv: repo.days.map(\.avgHrv),
+                                         dayKeys: repo.days.map(\.day),
                                          hasRecovery: day?.recovery != nil)
     }
 

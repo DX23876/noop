@@ -336,4 +336,50 @@ class SkinTempAnalyticsTest {
         val dev = Baselines.deviation(34.3, base).delta
         assertTrue("a +0.8 °C night must read as a clear positive deviation, was $dev", dev > 0.5)
     }
+
+    /** #skin-diag: WHOOP 4.0 raw-band + resolved-anchor visibility. A worn night whose raws sit at 1290
+     *  (in the 550–2040 worn band) maps to ~56 °C under the GLOBAL 826 anchor → every worn sample fails the
+     *  28–42 °C gate (absent), but to 33 °C under the per-device anchor → kept. The new fields surface the
+     *  raw band + which anchor resolved, so an absent 4.0 skin temp explains WHY. Mirrors the Swift twin. */
+    @Test
+    fun funnelSurfacesRawBandAndResolvedAnchorWhoop4() {
+        val start = 10_000_000L
+        val sess = listOf(session(start, 600))
+        val hrs = (0 until 600).map { hr(start + it) }
+        val temps = (0 until 600).map { skin(start + it, 1290) }
+
+        // Global 826 fallback (no anchor passed): p50 1290 → ~56 °C → all out of range, mean absent.
+        val g = AnalyticsEngine.skinTempFunnel(sess, hrs, temps, DeviceFamily.WHOOP4)
+        assertEquals(1290, g.rawMin)
+        assertEquals(1290, g.rawMedian)
+        assertEquals(1290, g.rawMax)
+        assertEquals(600, g.inBandCount)
+        assertEquals(Whoop4SkinTemp.ANCHOR_RAW, g.resolvedAnchorRaw!!, 1e-9)
+        assertTrue("p50 must map above the 42 °C gate: ${g.medianMappedC}", g.medianMappedC!! > 42.0)
+        assertEquals(600, g.droppedOutOfRange)
+        assertTrue(g.isAbsent)
+        assertTrue("summary carries the raw line: ${g.summary}",
+            g.summary.contains("skin-temp-raw: raw[min=1290 p50=1290 max=1290]"))
+
+        // Per-device anchor 1290: p50 → 33 °C → in range → kept, mean present.
+        val d = AnalyticsEngine.skinTempFunnel(sess, hrs, temps, DeviceFamily.WHOOP4, 1290.0)
+        assertEquals(1290.0, d.resolvedAnchorRaw!!, 1e-9)
+        assertEquals(33.0, d.medianMappedC!!, 0.01)
+        assertEquals(600, d.kept)
+        assertFalse(d.isAbsent)
+    }
+
+    /** #skin-diag: the new observation fields never perturb the gate/mean — a kept-path night's mean stays
+     *  byte-identical to [AnalyticsEngine.wornNightlySkinTempC], and 5/MG carries no anchor. */
+    @Test
+    fun funnelRawBandFieldsDoNotChangeMean() {
+        val start = 11_000_000L
+        val sess = listOf(session(start, 600))
+        val hrs = (0 until 600).map { hr(start + it) }
+        val temps = (0 until 600).map { skin(start + it, 3400) }
+        val f = AnalyticsEngine.skinTempFunnel(sess, hrs, temps) // WHOOP5 default
+        assertEquals(AnalyticsEngine.wornNightlySkinTempC(sess, hrs, temps), f.mean)
+        assertNull("5/MG centidegree path has no anchor", f.resolvedAnchorRaw)
+        assertEquals(3400, f.rawMedian)
+    }
 }

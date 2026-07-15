@@ -102,4 +102,38 @@ class AlarmReadbackDecodeTest {
         assertTrue(isPlausibleAlarmEpoch(4_102_444_800L))
         assertFalse(isPlausibleAlarmEpoch(4_102_444_801L))
     }
+
+    // "No alarm stored" (epoch 0) detection (#34, issue comment 2026-07-12)
+
+    /**
+     * The exact payload from the field report `01 00 00 00 00 00 00 00 04 00 20`: the SET-mirror epoch
+     * field is 0, so this is the strap's "nothing armed" sentinel — [whoop4ArmedAlarmEpoch] fails (epoch 0
+     * is not plausible) AND [whoop4ReadbackReportsNoAlarm] is true, so handleFrame logs "NO alarm stored".
+     */
+    @Test
+    fun fieldReportPayload_reportsNoAlarm() {
+        val frame = responseFrame(payload = bytes(0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x20))
+        assertNull(whoop4ArmedAlarmEpoch(frame))
+        assertTrue(whoop4ReadbackReportsNoAlarm(frame))
+    }
+
+    /** A bare leading u32 = 0 (no form byte) is also the "no alarm" sentinel. */
+    @Test
+    fun bareZeroU32_reportsNoAlarm() {
+        assertTrue(whoop4ReadbackReportsNoAlarm(responseFrame(payload = bytes(0x00, 0x00, 0x00, 0x00))))
+    }
+
+    /** A plausible armed epoch is NOT "no alarm" — the two branches are mutually exclusive. */
+    @Test
+    fun armedEpoch_isNotReportedAsNoAlarm() {
+        val frame = responseFrame(payload = bytes(0x01, 0x30, 0xD5, 0x35, 0x6A, 0x00, 0x00, 0x00, 0x00))
+        assertEquals(1_781_912_880L, whoop4ArmedAlarmEpoch(frame))
+        assertFalse(whoop4ReadbackReportsNoAlarm(frame))
+    }
+
+    /** A short result-style payload (0x03) is neither an armed epoch NOR the epoch-0 sentinel. */
+    @Test
+    fun shortGarbage_isNotReportedAsNoAlarm() {
+        assertFalse(whoop4ReadbackReportsNoAlarm(responseFrame(payload = bytes(0x03))))
+    }
 }

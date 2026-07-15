@@ -53,12 +53,44 @@ class IntelligenceDaySourceTokenTest {
     @Test
     fun diagnosticLineFormat_isStableAndParsable() {
         // The exact line shape the engine builds, assembled from the same parts, so the format stays
-        // pinned: counts + a rounded minute only (no HR/HRV/timestamps), no em-dash.
+        // pinned: counts + a rounded minute only (no HR/HRV/timestamps), no em-dash. `stages=`/`eff=`
+        // (#386) sit between the rollup and the counts so the rollup-vs-stages identity reads in place.
         val totalSleepMin = 423.6
         val tsm = Math.round(totalSleepMin).toString()
-        val line = "sleep day=$day totalSleepMin=$tsm matched=2 " +
+        val stages = IntelligenceEngine.sleepStagesLogToken(120.4, 77.2, 226.0)
+        val line = "sleep day=$day totalSleepMin=$tsm stages=$stages eff=0.91 matched=2 " +
             "source=${IntelligenceEngine.daySourceToken(day, setOf(day), emptySet())}"
-        assertEquals("sleep day=2026-06-12 totalSleepMin=424 matched=2 source=imported:whoop", line)
+        assertEquals(
+            "sleep day=2026-06-12 totalSleepMin=424 stages=120+77+226=424 eff=0.91 matched=2 source=imported:whoop",
+            line,
+        )
         assertEquals(false, line.contains("—"))
+    }
+
+    // ── stages= token (#386) ────────────────────────────────────────────────────
+
+    @Test
+    fun stagesToken_fullSplitPrintsComponentsAndSum() {
+        // The sum is PRINTED (not left to the reader) so a rollup-vs-stages divergence is a one-line
+        // visual check against totalSleepMin — the identity #386's screens must agree on.
+        assertEquals("160+77+279=516", IntelligenceEngine.sleepStagesLogToken(159.6, 77.4, 279.2))
+    }
+
+    @Test
+    fun stagesToken_componentsRoundIndividually_sumRoundsTheRawTotal() {
+        // The printed sum rounds the RAW deep+rem+light (31.2 -> 31), not the rounded components
+        // (10+10+10 = 30), so it matches how totalSleepMin itself is rounded and the two fields stay
+        // comparable digit-for-digit.
+        assertEquals("10+10+10=31", IntelligenceEngine.sleepStagesLogToken(10.4, 10.4, 10.4))
+    }
+
+    @Test
+    fun stagesToken_nilWhenAnyComponentMissing() {
+        // An unstaged night (or an imported day that only brought a total) must read nil, never a
+        // fabricated 0-minute stage.
+        assertEquals("nil", IntelligenceEngine.sleepStagesLogToken(null, 77.0, 279.0))
+        assertEquals("nil", IntelligenceEngine.sleepStagesLogToken(160.0, null, 279.0))
+        assertEquals("nil", IntelligenceEngine.sleepStagesLogToken(160.0, 77.0, null))
+        assertEquals("nil", IntelligenceEngine.sleepStagesLogToken(null, null, null))
     }
 }

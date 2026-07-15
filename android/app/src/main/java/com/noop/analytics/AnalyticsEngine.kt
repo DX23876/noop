@@ -221,6 +221,14 @@ object AnalyticsEngine {
         // instead of V1. Default false keeps V1 the byte-identical default for pure-function callers/tests;
         // IntelligenceEngine threads PuffinExperiment.from(context).experimentalSleepV2. Mirrors Swift. (V7 / #690)
         useSleepStagerV2: Boolean = false,
+        // Opt-in motion-aware wake refinement (#364 "Proposal 2" follow-up; density gate precedent #345).
+        // When true, [WakeMotionRefinement] re-derives each detected session's stages, reclassifying a
+        // hot-but-still WAKE segment to `light` when it shows no locomotion and a stable posture outside
+        // isolated burst minutes; it only ever runs AFTER V1/V2 staging and self-gates on the observed
+        // gravity + step density, so it is a no-op on a sparse (e.g. WHOOP 4.0) night regardless of this
+        // flag. Default false keeps every pure-function caller/test byte-identical; IntelligenceEngine
+        // threads PuffinExperiment.from(context).motionAwareWake. Mirrors Swift.
+        useMotionAwareWake: Boolean = false,
         // Sleep & Rest test-mode trace sink (E11). null = byte-identical default. When non-null the gate
         // trace from detectSleep and the Rest sub-score line are forwarded line-by-line. Mirrors Swift.
         traceSink: ((String) -> Unit)? = null,
@@ -240,12 +248,22 @@ object AnalyticsEngine {
     ): DayResult {
 
         // ── Sleep detection + staging ─────────────────────────────────────────
-        val allSessions = SleepStager.detectSleep(
+        val detectedSessions = SleepStager.detectSleep(
             hr = hr, rr = rr, resp = resp, gravity = gravity, tzOffsetSeconds = tzOffsetSeconds,
             wristOff = wristOff, bandSleepState = bandSleepState,
             useSleepStagerV2 = useSleepStagerV2,
             traceSink = traceSink,
         )
+        // Motion-aware wake refinement (#364 follow-up) runs AFTER V1/V2 staging, over every detected
+        // session (naps included — the same eligibility gates apply). `steps` is the SAME calendar-day/
+        // night-window stream the caller passed for the rest of this analysis; the pass self-gates on its
+        // observed density, so an empty/sparse `steps` (e.g. a WHOOP 4.0, which never emits a step sample
+        // at all) is a no-op regardless of `useMotionAwareWake`.
+        val allSessions = if (useMotionAwareWake) {
+            detectedSessions.map { WakeMotionRefinement.refine(it, gravity, steps) }
+        } else {
+            detectedSessions
+        }
         // Sessions attributed to `day` = those whose end falls on `day` (LOCAL day, #277). `day` is
         // the caller's local-day key; attribute by the same offset so the bucket and the key agree.
         val matched = allSessions.filter { dayString(it.end, tzOffsetSeconds) == day }
@@ -430,6 +448,9 @@ object AnalyticsEngine {
             sleepNeedHours = sleepNeedHours,
             consistency = sleepConsistency,
         )
+        // #345: gravity-sparse computed ONCE — reused by the sleep-motion trace below AND the Rest
+        // confidence guard, so the two can never diverge and isGravitySparse runs only once per day.
+        val gravitySparse = SleepStager.isGravitySparse(gravity, hr)
         // Sleep & Rest test mode (E11): emit the Rest sub-score breakdown for this night, reusing the
         // IDENTICAL inputs `rest` consumed above so the trace can never disagree with the score. Emitted
         // only when a trace is requested and this day scored a night. Mirrors Swift.
@@ -444,7 +465,7 @@ object AnalyticsEngine {
             // night can be explained from an export — WHOOP 4.0 banks motion coarsely (sparse=true), so most
             // epochs default to sleep → over-counted duration → high Rest; `stager` says whether V1/V2 ran.
             traceSink(RestScorer.sleepMotionLine(day, gravity.size, hr.size,
-                SleepStager.isGravitySparse(gravity, hr), useSleepStagerV2, skinTempFamily))
+                gravitySparse, useSleepStagerV2, skinTempFamily))
             // #271: the ONSET decision — did HR dip when the window opened, or did it open on a still-but-
             // awake stretch (HR still ~baseline)? Both the day-median baseline AND the at-onset window read
             // from the SAME HR that DETECTION ran over (`dayHr ?: hr` — the full calendar day when the caller
@@ -524,23 +545,16 @@ object AnalyticsEngine {
         // only — not cloud/clinical parity.
         val stepsTotal: Int? = run {
             // Prefer the full-calendar-day stream for the additive total; fall back to the
-            // night-window stream when the caller didn't supply one (pure-function callers/tests).
-            val sorted = (daySteps ?: steps).filter { dayString(it.ts, tzOffsetSeconds) == day }.sortedBy { it.ts }
-            if (sorted.size < 2) return@run null
-            // A delta this large is a big time-gap / disconnect boundary between sync sessions (or a
-            // firmware reboot, byte-indistinguishable from a wrap), NOT real steps — drop it so gaps
-            // don't inflate the total. Real 1 Hz motion never ticks this fast between adjacent records.
-            val maxStepDelta = 512
-            var total = 0L
-            for (i in 1 until sorted.size) {
-                val delta = (sorted[i].counter - sorted[i - 1].counter) and 0xFFFF // wrap-aware u16 increment
-                if (delta in 1 until maxStepDelta) total += delta // ignore a delta >= 512 (gap/reset)
-            }
-            if (total <= 0L) return@run null
+            // night-window stream when the caller didn't supply one (pure-function callers/tests). The
+            // day's read window may include adjacent-day samples, so filter to the LOCAL-day key first
+            // (#277); the wrap-aware tick math itself lives in the shared StepsCounter kernel so the daily
+            // and per-workout (#398) totals can never disagree.
+            val inDay = (daySteps ?: steps).filter { dayString(it.ts, tzOffsetSeconds) == day }
+            val ticks = StepsCounter.stepsInWindow(inDay) ?: return@run null
             // @57 counts motion ticks, not validated steps — the 5/MG counter overcounts. Divide
             // by the user-calibrated ticks-per-step (default 1.0 = raw pass-through; floor 0.5 so
             // a bad pref can at most double, never explode, the total). (#139)
-            val scaled = (total.toDouble() / max(profile.stepTicksPerStep, 0.5)).roundToLong()
+            val scaled = (ticks.toDouble() / max(profile.stepTicksPerStep, 0.5)).roundToLong()
                 .coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
             if (scaled > 0) scaled else null
         }
@@ -599,15 +613,18 @@ object AnalyticsEngine {
         // ── Per-score confidence tiers (mirror Swift ScoreConfidence.derive decisions) ──
         val chargeConfidence = ScoreConfidence.forCharge(recovery, baselines.hrv)
         val effortConfidence = ScoreConfidence.forEffort(strain, hr.size)
-        // Rest confidence with H9: downgrade a high-efficiency night whose deep+REM share is implausibly low
-        // to low-confidence (likely staging miss) — honest, no faked stages. tstS/efficiency are the
-        // main-group totals computed above; restorative = deepS + remS. Mirrors Swift.
+        // Rest confidence with H9 + the #345 sparse-motion guard: downgrade to low-confidence a night whose
+        // deep+REM share is implausibly low on a high-efficiency night (H9 staging miss) OR that was staged
+        // on sparse gravity (WHOOP 4.0 coarse-banked motion can't reliably stage sleep — a confident 85–100
+        // Rest is unearned however the engine filled it). Confidence-only, no faked stages. tstS/efficiency
+        // are the main-group totals above; restorative = deepS + remS. Mirrors Swift.
         val restConfidence = ScoreConfidence.forRest(
             hasSession = matched.isNotEmpty(),
             hasStagedSleep = (deepS + remS) > 0,
             asleepSeconds = tstS,
             restorativeSeconds = deepS + remS,
             efficiency = efficiency,
+            gravitySparse = gravitySparse,
         )
 
         // ── Per-session per-epoch motion (H8) ─────────────────────────────────
@@ -734,16 +751,42 @@ object AnalyticsEngine {
         val kept: Int,
         val minSamples: Int,
         val mean: Double?,
+        // #skin-diag: raw-ADC visibility so an absent WHOOP 4.0 skin temp explains WHY (anchor mis-map
+        // vs genuinely no worn data). Pure observations of the input — they do NOT affect mean/gates.
+        /** Min / median / max of the night's RAW skin-temp ADC values (null when no samples). */
+        val rawMin: Int? = null,
+        val rawMedian: Int? = null,
+        val rawMax: Int? = null,
+        /** Raw samples inside the worn ADC band (WORN_MIN..WORN_MAX_RAW); ≥100 lets the per-device anchor learn. */
+        val inBandCount: Int = 0,
+        /** The anchor raw actually used for the °C map (caller's per-device anchor, else the global 826). null on 5/MG. */
+        val resolvedAnchorRaw: Double? = null,
+        /** What °C the median raw maps to under [resolvedAnchorRaw]; outside 28–42 °C ⇒ every worn sample gated out. */
+        val medianMappedC: Double? = null,
     ) {
         /** True when the night produced no usable mean - the case this diagnostic exists to triage. */
         val isAbsent: Boolean get() = mean == null
 
-        /** One human-readable line for the caller to LOG. No I/O here - the engine stays pure. */
+        /** Human-readable line(s) for the caller to LOG. No I/O here - the engine stays pure. When raw
+         *  samples exist, a second `skin-temp-raw:` line surfaces the ADC band + resolved anchor mapping. */
         val summary: String
-            get() = "skin-temp-funnel: $totalSamples samples → kept $kept/$minSamples " +
-                "(mean=${mean?.let { String.format(java.util.Locale.US, "%.2f°C", it) } ?: "absent"}); " +
-                "dropped[notWorn=$droppedNotWorn, outOfWindow=$droppedOutOfWindow, " +
-                "outOfRange=$droppedOutOfRange]"
+            get() {
+                var s = "skin-temp-funnel: $totalSamples samples → kept $kept/$minSamples " +
+                    "(mean=${mean?.let { String.format(java.util.Locale.US, "%.2f°C", it) } ?: "absent"}); " +
+                    "dropped[notWorn=$droppedNotWorn, outOfWindow=$droppedOutOfWindow, " +
+                    "outOfRange=$droppedOutOfRange]"
+                if (rawMin != null && rawMedian != null && rawMax != null) {
+                    s += "\nskin-temp-raw: raw[min=$rawMin p50=$rawMedian max=$rawMax] inBand=$inBandCount/$totalSamples"
+                    if (resolvedAnchorRaw != null && medianMappedC != null) {
+                        s += String.format(
+                            java.util.Locale.US,
+                            "; anchor=%.0f → p50 maps %.1f°C (worn gate 28–42°C, ADC band 550–2040)",
+                            resolvedAnchorRaw, medianMappedC,
+                        )
+                    }
+                }
+                return s
+            }
     }
 
     /**
@@ -763,6 +806,23 @@ object AnalyticsEngine {
         minSamples: Int = MIN_SKIN_TEMP_SAMPLES_INLINE,
     ): SkinTempFunnelDiagnostic {
         val total = skinTemp.size
+        // #skin-diag: raw-ADC band + resolved anchor — PURE observation of the input, computed once and
+        // reported on both return paths. Never touches the mean/gate logic below (byte-parity preserved).
+        val sortedRaws = skinTemp.map { it.raw }.sorted()
+        val rawMin = sortedRaws.firstOrNull()
+        val rawMax = sortedRaws.lastOrNull()
+        val rawMedian = if (sortedRaws.isEmpty()) null else sortedRaws[sortedRaws.size / 2]
+        val inBandCount = if (family == DeviceFamily.WHOOP4) {
+            sortedRaws.count { it in Whoop4SkinTemp.WORN_MIN_RAW..Whoop4SkinTemp.WORN_MAX_RAW }
+        } else {
+            total
+        }
+        val usedAnchor: Double? = if (family == DeviceFamily.WHOOP4) (anchorRaw ?: Whoop4SkinTemp.ANCHOR_RAW) else null
+        val medianMappedC: Double? = if (usedAnchor != null && rawMedian != null) {
+            skinTempCelsius(rawMedian, family, usedAnchor)
+        } else {
+            null
+        }
         // No sessions ⇒ every sample is out of window; no samples ⇒ an empty funnel. Either way the mean is
         // null, exactly as [wornNightlySkinTempC]'s early return produced before.
         if (sessions.isEmpty() || skinTemp.isEmpty()) {
@@ -770,6 +830,8 @@ object AnalyticsEngine {
                 totalSamples = total, droppedNotWorn = 0,
                 droppedOutOfWindow = if (sessions.isEmpty()) total else 0,
                 droppedOutOfRange = 0, kept = 0, minSamples = minSamples, mean = null,
+                rawMin = rawMin, rawMedian = rawMedian, rawMax = rawMax,
+                inBandCount = inBandCount, resolvedAnchorRaw = usedAnchor, medianMappedC = medianMappedC,
             )
         }
         val wornSeconds = HashSet<Long>(hr.size)
@@ -802,6 +864,8 @@ object AnalyticsEngine {
         return SkinTempFunnelDiagnostic(
             totalSamples = total, droppedNotWorn = notWorn, droppedOutOfWindow = outOfWindow,
             droppedOutOfRange = outOfRange, kept = kept, minSamples = minSamples, mean = mean,
+            rawMin = rawMin, rawMedian = rawMedian, rawMax = rawMax,
+            inBandCount = inBandCount, resolvedAnchorRaw = usedAnchor, medianMappedC = medianMappedC,
         )
     }
 }

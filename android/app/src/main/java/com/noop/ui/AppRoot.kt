@@ -570,9 +570,17 @@ private fun MoreScreen(onNavigate: (String) -> Unit) {
             drawerGroups.forEach { put(it.header, stored.contains(it.header)) }
         }
     }
+    // Day-cycle sky backdrop + sky-behind-cards, the SAME two gates every other tab honours (Today /
+    // Trends / Sleep / metric detail) — More was the one tab still on the flat canvas, so switching to
+    // it visibly "lost" the theme. SharedPreferences isn't reactive; read once like the other tabs.
+    val showDayCycleBackground = remember { NoopPrefs.showDayCycleBackground(context) }
+    val skyBehindCards = remember { NoopPrefs.skyBehindCards(context) }
     ScreenScaffold(
         title = "More",
         subtitle = "Everything else, one tap away",
+        topBackground = if (showDayCycleBackground) { { LiquidScreenSky(fillHeight = skyBehindCards) } } else null,
+        // Sky-behind-cards fills the viewport so the transparent cards reveal the sky the whole way down.
+        fullBleedBackground = showDayCycleBackground && skyBehindCards,
     ) {
         // Mirror the iOS More page: each group is a tappable UPPERCASE overline header (with a disclosure
         // chevron) over a single grouped white NoopCard whose rows are tight (accent icon + title +

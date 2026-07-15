@@ -52,6 +52,32 @@ enum class AiProvider(
     ),
 
     /**
+     * Google Gemini (BYO key). NATIVE Google format — the byte-for-byte twin of the Swift
+     * `GeminiClient` (`Strand/AI/Providers/Gemini.swift`): `x-goog-api-key` auth, a `system_instruction`
+     * + `contents`/`parts` body, and `candidates[].content.parts[].text` replies. [endpoint] is the base
+     * models URL; the per-call `/<model>:generateContent` suffix is appended in [AiCoach.callGemini]
+     * (kept literal so the `:` is never percent-encoded).
+     *
+     * VERSION-CHURN-FREE (#400): the default + curated list use Google's stable `-latest` ALIASES, which
+     * always resolve to the current stable model in each tier — so Gemini's rapid releases (2.5 → 3.x → …)
+     * never need a code bump here. The dropdown itself is already version-agnostic: [AiCoach.fetchModels]
+     * queries the live `/models` catalogue and [AiCoach.parseGeminiModels] keeps EVERY `gemini*` id, so a
+     * user with a key sees whatever concrete versions Google currently serves and can pin one. Same list +
+     * default as the Swift enum.
+     */
+    GEMINI(
+        displayName = "Google Gemini",
+        defaultModel = "gemini-flash-latest",
+        models = listOf(
+            "gemini-pro-latest",
+            "gemini-flash-latest",
+            "gemini-flash-lite-latest",
+        ),
+        endpoint = "https://generativelanguage.googleapis.com/v1beta/models",
+        modelsEndpoint = "https://generativelanguage.googleapis.com/v1beta/models",
+    ),
+
+    /**
      * A generic OpenAI-compatible server the user points at — typically a LOCAL LLM such as
      * Ollama, LM Studio or llama.cpp (`http://localhost:11434/v1`), or any self-hosted gateway.
      * The endpoints here are placeholders: the real chat/models URLs are built at call time from
