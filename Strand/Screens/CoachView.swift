@@ -35,6 +35,13 @@ struct CoachView: View {
     @State private var checkInTime: Date = CoachCheckIn.timeAsDate
     /// Set when enabling the check-in fails because notifications are denied — surfaces a jump-to-Settings hint.
     @State private var checkInDenied: Bool = false
+    /// The coach's persistent memory (facts saved via remember_fact + the user's training goal).
+    /// Shared instance so tool writes from the engine appear here live.
+    @ObservedObject private var memory = CoachMemory.shared
+    /// Whether the memory card is expanded (collapsed by default, like the instructions card).
+    @State private var memoryExpanded: Bool = false
+    /// Working copy of the training goal while editing; committed to the store on change.
+    @State private var goalDraft: String = ""
     @FocusState private var composerFocused: Bool
 
     /// Sentinel tag for the "Custom…" entry in the model Picker.
@@ -62,6 +69,7 @@ struct CoachView: View {
                 if coach.dataConsent { onDeviceSignalsBar }
                 personaBar
                 checkInBar
+                memoryBar
                 systemPromptBar
                 transcript
                 if let error = coach.errorText, !error.isEmpty {
@@ -76,6 +84,16 @@ struct CoachView: View {
         }
         .toolbar {
             if coach.isConfigured {
+                ToolbarItem {
+                    Button {
+                        coach.clearChat()
+                    } label: {
+                        Label("New chat", systemImage: "square.and.pencil")
+                    }
+                    .help("Clear the conversation and start fresh")
+                    .accessibilityLabel("New chat")
+                    .disabled(coach.sending || coach.messages.isEmpty)
+                }
                 ToolbarItem {
                     Button(role: .destructive) {
                         coach.disconnect()
@@ -230,6 +248,99 @@ struct CoachView: View {
                 .labelsHidden()
                 .pickerStyle(.segmented)
                 .accessibilityLabel("Coaching style")
+            }
+        }
+    }
+
+    /// The coach's persistent memory: the user's training goal (editable) + the facts the model saved
+    /// via `remember_fact`, each deletable. Collapsed by default, same idiom as the instructions card.
+    private var memoryBar: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            VStack(alignment: .leading, spacing: memoryExpanded ? 10 : 0) {
+                Button {
+                    withAnimation(StrandMotion.fade) {
+                        memoryExpanded.toggle()
+                        if memoryExpanded { goalDraft = memory.trainingGoal }
+                    }
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "brain")
+                            .foregroundStyle(memory.facts.isEmpty && memory.trainingGoal.isEmpty
+                                             ? StrandPalette.textTertiary : StrandPalette.accent)
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("Coach memory")
+                                .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                            Text(memory.facts.isEmpty
+                                 ? "Your goal and what the coach remembers about you, across conversations."
+                                 : "\(memory.facts.count) remembered fact\(memory.facts.count == 1 ? "" : "s"). The coach uses these in every reply.")
+                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 8)
+                        Image(systemName: memoryExpanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .accessibilityHidden(true)
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(memoryExpanded ? "Collapse coach memory" : "Show coach memory")
+
+                if memoryExpanded {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("My goal").strandOverline()
+                        TextField("e.g. Half marathon in October", text: $goalDraft)
+                            .textFieldStyle(.plain)
+                            .font(StrandFont.body)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 9)
+                            .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .strokeBorder(StrandPalette.hairline, lineWidth: 1))
+                            .onChangeCompat(of: goalDraft) { newValue in
+                                memory.trainingGoal = newValue
+                            }
+                            .accessibilityLabel("My training goal")
+                    }
+
+                    if !memory.facts.isEmpty {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Remembered").strandOverline()
+                            ForEach(memory.facts) { fact in
+                                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                    Text(fact.text)
+                                        .font(StrandFont.footnote)
+                                        .foregroundStyle(StrandPalette.textSecondary)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                    Spacer(minLength: 8)
+                                    Button {
+                                        memory.remove(fact.id)
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .foregroundStyle(StrandPalette.textTertiary)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel("Forget: \(fact.text)")
+                                }
+                            }
+                            HStack {
+                                Spacer()
+                                Button {
+                                    memory.clearAll()
+                                } label: {
+                                    Label("Forget everything", systemImage: "trash")
+                                        .font(StrandFont.footnote)
+                                        .labelStyle(.titleAndIcon)
+                                }
+                                .buttonStyle(.plain)
+                                .foregroundStyle(StrandPalette.accent)
+                                .accessibilityLabel("Forget all remembered facts")
+                            }
+                        }
+                    }
+                }
             }
         }
     }
