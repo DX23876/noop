@@ -228,21 +228,31 @@ public enum RecoveryScorer {
 
     // MARK: - Cold-start calibration progress
 
-    /// Nights carrying a usable nightly HRV — the signal that seeds the recovery baseline. While
-    /// recovery is still nil and this count is in [1, seed), it is the honest
-    /// "Calibrating — N of <seed> nights" progress the dashboard shows in place of a bare empty
-    /// state; nil once recovery exists or no night has data yet. Matches the baseline's validity
-    /// predicate, not just non-nil: `Baselines.update` only advances the recovery seed (nValid)
-    /// for nights whose value is within the metric config bounds, so an implausible out-of-range
-    /// night must NOT be counted here either — else the displayed N could over-state nValid.
-    /// Never claims "calibrating" at/above the seed gate (a nil recovery there is some other gap).
-    /// Mirrors Android TodayScreen.recoveryCalibrationNights (RecoveryCalibrationTest is the oracle).
+    /// The recovery baseline's real seed count while it still cold-starts — the honest
+    /// "Calibrating — N of <seed> nights" progress the dashboard shows in place of a bare empty state;
+    /// nil once recovery exists or the baseline has crossed the seed gate. N is the HRV baseline's
+    /// `nValid` from folding the SAME day-keyed, epoch-aware history the recovery engine folds
+    /// (`Baselines.foldHistory(_:dayKeys:cfg:baselineEpoch:)`), NOT a looser per-night bounds count.
+    ///
+    /// The old count advanced on every in-range night, including nights the engine's fold DROPS after a
+    /// manual "Recalibrate HRV baseline" (each night dated before the epoch is discarded, not
+    /// skip-and-held). A genuinely-calibrating user who had ≥ seed old in-range nights therefore read
+    /// `count ≥ seed → nil` here, and the Today score side fell through to "Needs the strap" while the
+    /// post-recalibration baseline was still seeding (Bug B, #393 follow-up). `nValid` is the exact count
+    /// `Baselines.computeStatus` gates CALIBRATING on, so N now tracks the baseline the Charge ring rides
+    /// and can never over-state it. Never claims "calibrating" at/above the seed gate (a nil recovery
+    /// there is some other gap). `baselineEpoch` nil reads the persisted HRV epoch from UserDefaults,
+    /// exactly like the engine's fold. Mirrors Android TodayScreen.recoveryCalibrationNights
+    /// (RecoveryCalibrationTest is the oracle).
     public static func calibrationNights(nightlyHrv: [Double?],
+                                         dayKeys: [String],
                                          hasRecovery: Bool,
                                          seed: Int = Baselines.minNightsSeed,
-                                         cfg: MetricCfg = Baselines.hrvCfg) -> Int? {
+                                         cfg: MetricCfg = Baselines.hrvCfg,
+                                         baselineEpoch: Double? = nil) -> Int? {
         guard !hasRecovery else { return nil }
-        let n = nightlyHrv.compactMap { $0 }.filter { $0 >= cfg.minVal && $0 <= cfg.maxVal }.count
+        let n = Baselines.foldHistory(nightlyHrv, dayKeys: dayKeys, cfg: cfg,
+                                      baselineEpoch: baselineEpoch).nValid
         // Include 0: a brand-new user (no banked nights yet) should read "Calibrating — 0 of N" on the
         // Charge ring, not a bare "No data" that looks broken (#335). Past days are gated to nil by the
         // caller; >= seed (recovery should exist) still returns nil.

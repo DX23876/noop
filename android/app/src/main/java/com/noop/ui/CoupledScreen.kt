@@ -32,6 +32,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -153,9 +154,12 @@ fun CoupledScreen(
     }
 
     // Recovery cold-start nights (the SAME pure helper Today's ring reads), for the honest calibrating
-    // caption + accessibility copy while the HRV baseline still seeds.
-    val calibrationNights = remember(days, todayRow) {
-        recoveryCalibrationNights(days, hasRecovery = todayRow?.recovery != null)
+    // caption + accessibility copy while the HRV baseline still seeds. Threads the persisted
+    // "Recalibrate HRV baseline" epoch so N folds the SAME epoch-aware history the engine folds (Bug B).
+    val context = LocalContext.current
+    val hrvEpoch = remember { NoopPrefs.of(context).getLong(Baselines.hrvBaselineEpochKey, 0L).toDouble() }
+    val calibrationNights = remember(days, todayRow, hrvEpoch) {
+        recoveryCalibrationNights(days, hasRecovery = todayRow?.recovery != null, hrvBaselineEpoch = hrvEpoch)
     }
 
     // The Charge breakdown (the hero's tap target, the EXISTING Today sheet) + the scoring guide it
