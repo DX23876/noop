@@ -21,6 +21,9 @@ struct CoachSettingsView: View {
     @State private var checkInTime: Date = CoachCheckIn.timeAsDate
     @State private var checkInDenied: Bool = false
     @ObservedObject private var memory = CoachMemory.shared
+    /// The structured goal (P3). The memory card's field still edits its title inline; the full editor
+    /// with target/date/pace lives in the dedicated goal card.
+    @ObservedObject private var goalStore = CoachGoalStore.shared
     @State private var memoryExpanded: Bool = false
     @State private var goalDraft: String = ""
     /// How the user reaches Coach from Today: the card, the draggable floating button, or both.
@@ -400,12 +403,12 @@ struct CoachSettingsView: View {
                 Button {
                     withAnimation(StrandMotion.fade) {
                         memoryExpanded.toggle()
-                        if memoryExpanded { goalDraft = memory.trainingGoal }
+                        if memoryExpanded { goalDraft = goalStore.goal?.title ?? "" }
                     }
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: "brain")
-                            .foregroundStyle(memory.facts.isEmpty && memory.trainingGoal.isEmpty
+                            .foregroundStyle(memory.facts.isEmpty && goalStore.goal == nil
                                              ? StrandPalette.textTertiary : StrandPalette.accent)
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 1) {
@@ -440,7 +443,15 @@ struct CoachSettingsView: View {
                             .overlay(RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous)
                                 .strokeBorder(StrandPalette.hairline, lineWidth: 1))
                             .onChangeCompat(of: goalDraft) { newValue in
-                                memory.trainingGoal = newValue
+                                let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                                if trimmed.isEmpty {
+                                    goalStore.clear()
+                                } else if var existing = goalStore.goal {
+                                    existing.title = newValue
+                                    goalStore.goal = existing
+                                } else {
+                                    goalStore.goal = CoachGoal(kind: .custom, title: newValue)
+                                }
                             }
                             .accessibilityLabel("My training goal")
                     }

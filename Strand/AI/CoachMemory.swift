@@ -80,13 +80,8 @@ final class CoachMemory: ObservableObject {
     /// Saved facts, newest first. Capped so the store can't grow without bound.
     @Published private(set) var facts: [MemoryFact] { didSet { saveFacts() } }
 
-    /// The user's free-text training goal ("Half marathon in October"). Persisted separately from the
-    /// facts so clearing the memory never wipes the goal the user typed themselves.
-    @Published var trainingGoal: String { didSet { d.set(trainingGoal, forKey: Self.goalKey) } }
-
     private let d: UserDefaults
     private static let factsKey = "ai.memory.facts"
-    private static let goalKey = "ai.trainingGoal"
     /// Hard cap on stored facts — old ones fall off the end when the model over-remembers.
     static let maxFacts = 40
 
@@ -94,7 +89,6 @@ final class CoachMemory: ObservableObject {
         self.d = defaults
         self.facts = (try? JSONDecoder().decode([MemoryFact].self,
                                                 from: defaults.data(forKey: Self.factsKey) ?? Data())) ?? []
-        self.trainingGoal = defaults.string(forKey: Self.goalKey) ?? ""
     }
 
     // MARK: - Mutations
@@ -147,11 +141,11 @@ final class CoachMemory: ObservableObject {
 
     // MARK: - Retrieval
 
-    /// Pinned facts + the goal — the block that rides EVERY prompt because it's always relevant.
+    /// Pinned facts — the block that rides EVERY prompt because it's always relevant. The training goal
+    /// used to live here as a bare sentence; it now has its own structured model (`CoachGoal`) and is
+    /// injected by `AICoachEngine.goalBlock` with its dates, remaining change and pace verdict.
     var pinnedBlock: String {
         var lines: [String] = []
-        let goal = trainingGoal.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !goal.isEmpty { lines.append("The user's stated training goal: \(goal)") }
         let pinned = facts.filter { $0.importance == .pinned }
         if !pinned.isEmpty {
             lines.append("ALWAYS-RELEVANT FACTS ABOUT THE USER (rely on these every time):")
