@@ -1204,6 +1204,101 @@ final class AICoachEngine: ObservableObject {
         return line
     }
 
+    /// The user's goal, with the arithmetic done: how long is left, how much change remains, roughly
+    /// where in the runway we are, and — crucially — the deterministic safety verdict on the rate it
+    /// demands, so the model narrates a judgement made in code rather than forming its own.
+    ///
+    /// `motivation` is included ONLY when the user explicitly opted in (`shareMotivation`). It is the
+    /// most personal line in the app and it stays on the device by default.
+    private func goalBlock(profile: ProfileStore) -> String? {
+        guard let goal = CoachGoalStore.shared.goal, goal.status == .active else { return nil }
+        let title = goal.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty else { return nil }
+
+        var parts = ["Goal: \(title)"]
+        if goal.kind.isQuantified, let target = goal.target {
+            var quantified = String(format: "target %g %@", target, goal.kind.unit)
+            if let baseline = goal.baseline {
+                quantified += String(format: " (from %g %@)", baseline, goal.kind.unit)
+            }
+            parts.append(quantified)
+        }
+        if let weeks = goal.weeksRemaining() {
+            if weeks < 0 {
+                parts.append("target date has PASSED")
+            } else {
+                parts.append(String(format: "%.0f weeks remaining", weeks.rounded()))
+            }
+        }
+        if let phase = goal.phase() { parts.append("phase: \(phase)") }
+        var lines = [parts.joined(separator: " — ")]
+
+        // The rate verdict, decided in code before the model ever sees it.
+        let gate = GoalSafetyGate.assess(goal: goal, bodyWeightKg: profile.weightKg)
+        if let warning = gate.warning {
+            lines.append("GOAL PACE (\(gate.verdict.rawValue)): \(warning)")
+        }
+        if let ack = goal.acknowledgedRisk {
+            let when = ack.date.formatted(date: .abbreviated, time: .omitted)
+            lines.append("The user acknowledged this pace on \(when): \"\(ack.reason)\". Respect that "
+                         + "decision — coach them through it rather than relitigating it, and keep "
+                         + "flagging recovery signals honestly.")
+        }
+        if goal.kind == .weight {
+            lines.append("NOTE: NOOP holds no nutrition data. Plan TRAINING around this goal and say "
+                         + "plainly that diet is outside what you can see.")
+        }
+        if goal.shareMotivation {
+            let motivation = goal.motivation.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !motivation.isEmpty { lines.append("Why it matters to them: \(motivation)") }
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    /// Gather what the app can actually measure about the user's starting point, for the feasibility
+    /// check. Every field degrades to nil rather than guessing. VO₂max mirrors
+    /// `IntelligenceEngine.fitnessAgeRows`'s assembly (median resting HR + strain-derived PA index over
+    /// the recent gate window) and is nil without a waist measurement, exactly as `FitnessAgeEngine`
+    /// specifies — it is reported as context, never used to predict.
+    func goalEvidence() async -> GoalFeasibility.Evidence {
+        let days = repo.days
+        let profile = ProfileStore()
+        var evidence = GoalFeasibility.Evidence()
+
+        // VO₂max (context only): the same inputs the Fitness Age screen uses.
+        let gate7 = Array(days.suffix(7))
+        let rhrs = gate7.compactMap { $0.restingHr }.map(Double.init)
+        if !rhrs.isEmpty, profile.age > 0, profile.waistCm > 0 {
+            let strains = gate7.compactMap { $0.strain }.filter { $0 >= 30 }
+            let meanStrain = strains.isEmpty ? 0 : strains.reduce(0, +) / Double(strains.count)
+            let sorted = rhrs.sorted()
+            let medianRHR = sorted.count % 2 == 1
+                ? sorted[sorted.count / 2]
+                : (sorted[sorted.count / 2 - 1] + sorted[sorted.count / 2]) / 2
+            evidence.vo2max = FitnessAgeEngine.compute(
+                age: Double(profile.age), sex: profile.sex, restingHR: medianRHR,
+                paIndex: FitnessAgeEngine.physicalActivityIndexFromStrain(
+                    activeDaysPerWeek: strains.count, meanActiveStrain: meanStrain),
+                waistCm: profile.waistCm)?.vo2max
+        }
+
+        // Running base + weekly session count, from the last 30 days of workouts.
+        let rows = await repo.workoutRows(days: 30)
+        let runDistances = rows
+            .filter { $0.sport.lowercased().contains("run") }
+            .compactMap { $0.distanceM }
+            .map { $0 / 1000 }
+        if let longest = runDistances.max(), longest > 0 { evidence.longestRecentRunKm = longest }
+        if !rows.isEmpty { evidence.sessionsPerWeek = Double(rows.count) / (30.0 / 7.0) }
+
+        // Recent mean sleep.
+        let sleeps = days.suffix(14).compactMap { $0.totalSleepMin }
+        if !sleeps.isEmpty {
+            evidence.meanSleepHours = (sleeps.reduce(0, +) / Double(sleeps.count)) / 60
+        }
+        return evidence
+    }
+
     /// Today's date, weekday and rough time of day, so the coach is never guessing what "today" means —
     /// the historical gap that let it not know a workout was 5 days ago or that it's a rest day of the week.
     private func clockLine() -> String {
@@ -1449,9 +1544,10 @@ final class AICoachEngine: ObservableObject {
                             "\(Int(profile.weightKg.rounded())) kg",
                             "\(Int(profile.heightCm.rounded())) cm",
                             "HRmax \(profile.hrMax) bpm"]
-        let goal = CoachMemory.shared.trainingGoal.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !goal.isEmpty { profileParts.append("training goal: \(goal)") }
         lines.append("Profile: " + profileParts.joined(separator: ", "))
+        // The goal as a REAL goal: weeks remaining, required change, phase, and the safety verdict —
+        // not the bare sentence the old free-text field could only offer.
+        if let goalBlock = goalBlock(profile: profile) { lines.append(goalBlock) }
 
         guard !days.isEmpty else {
             // Keep the profile/goal line (already appended) so the coach can still personalise zones
