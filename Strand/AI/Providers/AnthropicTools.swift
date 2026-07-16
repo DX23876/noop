@@ -22,12 +22,15 @@ extension AnthropicClient: ToolCallingClient {
         // Running transcript in Anthropic wire form. Seed it from the chat turns (plain-string content).
         var wire: [[String: Any]] = messages.map { ["role": $0.role.rawValue, "content": $0.content] }
         let toolSpecs = tools.map { $0.anthropicSpec }
+        await Self.beginUsageTurn()
 
         for _ in 0..<Self.maxToolRounds {
+            // `system` rides as a cacheable block array: tools + prompt are re-sent on every round below,
+            // so caching that pair is what keeps a multi-round answer from paying for them each time.
             let body: [String: Any] = [
                 "model": model,
                 "max_tokens": 1200,
-                "system": systemPrompt,
+                "system": Self.cacheableSystem(systemPrompt),
                 "messages": wire,
                 "tools": toolSpecs
             ]
@@ -40,6 +43,9 @@ extension AnthropicClient: ToolCallingClient {
             req.httpBody = try JSONSerialization.data(withJSONObject: body)
 
             let json = try await performRequest(req, session: session)
+            if let usage = json["usage"] as? [String: Any] {
+                await Self.recordUsage(Self.parseUsage(usage))
+            }
             guard let content = json["content"] as? [[String: Any]] else { throw AICoachError.decode }
 
             // Not a tool request → this is the final answer: concatenate its text blocks.

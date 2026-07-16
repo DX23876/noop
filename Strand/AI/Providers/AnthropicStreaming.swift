@@ -20,12 +20,15 @@ extension AnthropicClient: StreamingToolClient {
         var wire: [[String: Any]] = messages.map { ["role": $0.role.rawValue, "content": $0.content] }
         let toolSpecs = tools.map { $0.anthropicSpec }
         var fullText = ""
+        await Self.beginUsageTurn()
 
         for _ in 0..<Self.maxToolRounds {
+            // `system` rides as a cacheable block array: tools + prompt are re-sent on every round below,
+            // so caching that pair is what keeps a multi-round answer from paying for them each time.
             var body: [String: Any] = [
                 "model": model,
                 "max_tokens": 1200,
-                "system": systemPrompt,
+                "system": Self.cacheableSystem(systemPrompt),
                 "messages": wire,
                 "stream": true
             ]
@@ -42,6 +45,7 @@ extension AnthropicClient: StreamingToolClient {
                 fullText += delta
                 await onDelta(delta)
             }
+            await Self.recordUsage(round.usage)
 
             // A tool request → echo the assistant turn, answer every tool_use block, loop.
             if round.stopReason == "tool_use" {
@@ -65,8 +69,13 @@ extension AnthropicClient: StreamingToolClient {
     }
 
     /// The outcome of one streamed round: the reassembled content blocks (text + tool_use with parsed
-    /// input) and the stop reason. `onDelta` is invoked for each text fragment as it streams in.
-    private struct StreamedRound { var stopReason: String?; var content: [[String: Any]] }
+    /// input), the stop reason, and the round's token counts. `onDelta` is invoked for each text fragment
+    /// as it streams in.
+    private struct StreamedRound {
+        var stopReason: String?
+        var content: [[String: Any]]
+        var usage: CoachUsageLog.Round = .init()
+    }
 
     private func streamRound(
         req: URLRequest,
@@ -87,6 +96,9 @@ extension AnthropicClient: StreamingToolClient {
         // JSON input arrives as fragments in "__json" and is parsed into "input" at content_block_stop.
         var blocks: [Int: [String: Any]] = [:]
         var stopReason: String?
+        // Token counts arrive split across two events: the input/cache side on `message_start`, the
+        // output side on `message_delta`.
+        var usage = CoachUsageLog.Round()
 
         for try await line in bytes.lines {
             guard line.hasPrefix("data:") else { continue }   // ignore "event:" lines, blanks, pings
@@ -135,13 +147,27 @@ extension AnthropicClient: StreamingToolClient {
                     blocks[index]?["__json"] = nil
                 }
 
+            case "message_start":
+                // Carries this round's input, cache-read and cache-write counts — the only place the
+                // cache's effect is observable.
+                if let message = obj["message"] as? [String: Any],
+                   let u = message["usage"] as? [String: Any] {
+                    let parsed = Self.parseUsage(u)
+                    usage.inputTokens = parsed.inputTokens
+                    usage.cacheReadTokens = parsed.cacheReadTokens
+                    usage.cacheWriteTokens = parsed.cacheWriteTokens
+                }
+
             case "message_delta":
                 if let delta = obj["delta"] as? [String: Any], let sr = delta["stop_reason"] as? String {
                     stopReason = sr
                 }
+                if let u = obj["usage"] as? [String: Any] {
+                    usage.outputTokens = Self.parseUsage(u).outputTokens
+                }
 
             default:
-                break   // message_start, ping, content_block_stop for text, message_stop, etc.
+                break   // ping, content_block_stop for text, message_stop, etc.
             }
         }
 
@@ -151,6 +177,6 @@ extension AnthropicClient: StreamingToolClient {
             b.removeValue(forKey: "__json")
             return b
         }
-        return StreamedRound(stopReason: stopReason, content: ordered)
+        return StreamedRound(stopReason: stopReason, content: ordered, usage: usage)
     }
 }
