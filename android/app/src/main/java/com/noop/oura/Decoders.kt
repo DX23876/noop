@@ -59,29 +59,41 @@ object OuraDecoders {
         return OuraHR(ringTimestamp = ringTimestamp, bpm = bpm, ibiMs = ibi)
     }
 
-    // MARK: - IBI + amplitude, bit-packed (0x60; s6.1)
+    // MARK: - IBI + amplitude, byte-scatter packed (0x60; s6.1)
 
     /**
-     * Decode the 0x60 ibi_and_amplitude_event: 6 IBI+amplitude pairs bit-packed across the body.
-     * IBI = 11-bit value (ms); amplitude = 7-bit mantissa (byte bits [7:1]) shifted left by the
-     * exponent; exponent = low nibble of the last body byte (shift = (n==7) ? 0 : n+1). Per
-     * OURA_PROTOCOL.md s6.1. Returns null on a short body. A bit-reader walks the body MSB-first.
+     * Decode the 0x60 ibi_and_amplitude_event: a fixed 14-byte packet holding 6 IBIs (ms) + PPG
+     * amplitudes. Each 11-bit IBI is gathered from SCATTERED bytes, NOT a linear bitstream — per the
+     * ring's native `parse_api_ibi_and_amplitude_event`: `ibi[k] = (b[6+k]&1) | (b[k]<<3) | <2 hi bits
+     * from the b[12]/b[13] nibbles>`. Amplitude = `(b[6+k] shr 1) shl shift`, exponent = low nibble of
+     * b[13] (shift = (n==7) ? 0 : n+1). Returns null on a short body.
+     *
+     * NOTE (decode fix): the previous layout read the body as a linear MSB-first bitstream, which only
+     * ever recovered the FIRST IBI correctly and scrambled the other five — a real overnight capture
+     * decoded to an 82% beat-to-beat >200ms "jump" rate (not a heartbeat train). This byte-scatter
+     * layout yields a coherent ~60 bpm train (10% jump rate). Validated against open_oura. Byte-identical
+     * twin of Swift's decodeIBIAmplitude.
      */
     fun decodeIBIAmplitude(rec: OuraRecord): List<OuraIBI>? {
         val b = rec.payload
-        // Need at least the 14 packed bytes the spec describes (body bytes 6..19 inclusive = 14 bytes).
-        if (b.size < 14) return null
-        val n = b[b.size - 1] and 0x0F
+        if (b.size < 14) return null   // fixed 14-byte packet (body bytes 6..19)
+        val b12 = b[12] and 0xFF
+        val b13 = b[13] and 0xFF
+        val n = b13 and 0x0F
         val shift = if (n == 7) 0 else (n + 1)
-        val reader = BitReader(b)
+        val ibi = intArrayOf(
+            (b[6] and 1) or ((b[0] and 0xFF) shl 3) or ((b12 shr 5) and 6),
+            (b[7] and 1) or ((b[1] and 0xFF) shl 3) or ((b12 shr 3) and 6),
+            (b[8] and 1) or ((b[2] and 0xFF) shl 3) or ((b12 shr 1) and 6),
+            (b[9] and 1) or ((b[3] and 0xFF) shl 3) or ((b12 and 3) shl 1),
+            (b[10] and 1) or ((b[4] and 0xFF) shl 3) or ((b13 shr 5) and 6),
+            (b[11] and 1) or ((b[5] and 0xFF) shl 3) or ((b13 shr 3) and 6),
+        )
         val out = ArrayList<OuraIBI>()
         for (k in 0 until 6) {
-            val raw11 = reader.read(11) ?: break
-            val mant7 = reader.read(7) ?: break
-            val ibi = raw11                               // 11-bit value -> ms
-            val amp = mant7 shl shift                      // 7-bit mantissa << exponent
-            if (ibi <= 0) continue                         // drop a zero IBI, never invent one
-            out.add(OuraIBI(ringTimestamp = rec.ringTimestamp, ibiMs = ibi, amplitude = amp))
+            if (ibi[k] <= 0) continue                      // drop a zero IBI, never invent one
+            val amp = ((b[6 + k] and 0xFF) shr 1) shl shift   // 7-bit mantissa << exponent
+            out.add(OuraIBI(ringTimestamp = rec.ringTimestamp, ibiMs = ibi[k], amplitude = amp))
         }
         return if (out.isEmpty()) null else out
     }
@@ -89,26 +101,28 @@ object OuraDecoders {
     // MARK: - Green IBI quality, 2 bytes/sample (0x80; s6.4)
 
     /**
-     * Decode the 0x80 green_ibi_quality_event: per 16-bit LE sample, bits 0-10 = IBI ms,
-     * bits 11-13 = qual_a, bits 14-15 = qual_b. Accept a sample only if qual_a <= 1 && qual_b == 0.
-     * 7 samples per 14-byte record. Per OURA_PROTOCOL.md s6.4. Returns null on a short/odd body.
+     * Decode the 0x80 green_ibi_quality_event: per 2-byte sample `ibi_ms = (b1 & 7) | (b0 << 3)` (an
+     * 11-bit value, high byte first — NOT a little-endian u16), `quality = (b1 >> 3) & 3`. Accept a
+     * sample only when `quality == 1` (the ring's "good beat" flag) and the IBI is physiological
+     * (300..2000 ms). Up to 7 samples per 14-byte record. Per the native `parse_api_green_ibi_quality
+     * _event`. Returns null on a short body.
      *
-     * ROBUSTNESS (s6.4): the record holds at most 7 samples (14 bytes at 2 B/sample). We cap the read
-     * at 7 samples; any sample bytes beyond the 7th are a misframe and are ignored rather than decoded.
+     * NOTE (decode fix): the previous layout read a little-endian u16 and masked bits 0-10, placing the
+     * high byte in the LOW bits — a bit-order error that scrambled the interval (real-capture within-
+     * record jitter 583ms). This high-byte-first layout with the `quality == 1` gate yields a clean beat
+     * train (45ms jitter). Validated against open_oura. Byte-identical twin of Swift's decodeGreenIBIQuality.
      */
     fun decodeGreenIBIQuality(rec: OuraRecord): List<OuraIBI>? {
         val b = rec.payload
-        if (b.size < 2 || b.size % 2 != 0) return null
+        if (b.size < 2) return null
         val maxSamples = 7                              // s6.4: 7 samples per 14-byte record
         val out = ArrayList<OuraIBI>()
         var i = 0
         var sampleCount = 0
         while (i + 1 < b.size && sampleCount < maxSamples) {
-            val sample = u16le(b, i)
-            val ibi = sample and 0x07FF                 // bits 0-10
-            val qualA = (sample shr 11) and 0x07        // bits 11-13
-            val qualB = (sample shr 14) and 0x03        // bits 14-15
-            if (qualA <= 1 && qualB == 0 && ibi > 0) {
+            val ibi = (b[i + 1] and 0x07) or ((b[i] and 0xFF) shl 3)   // high byte first
+            val quality = (b[i + 1] shr 3) and 0x03
+            if (quality == 1 && ibi in 300..2000) {
                 out.add(OuraIBI(ringTimestamp = rec.ringTimestamp, ibiMs = ibi))
             }
             i += 2
@@ -446,30 +460,5 @@ object OuraDecoders {
             met.add(Math.round(raw * 100.0) / 100.0)
         }
         return OuraActivityInfo(ringTimestamp = rec.ringTimestamp, state = b[0], met = met)
-    }
-}
-
-// MARK: - Bit reader (MSB-first), used by the bit-packed decoders (0x60)
-
-/**
- * A minimal MSB-first bit reader over an unsigned-byte IntArray. Used for the bit-packed IBI+amplitude
- * layout (OURA_PROTOCOL.md s6.1) where 11-bit IBI and 7-bit amplitude fields straddle byte boundaries.
- * Returns null when fewer than the requested bits remain (so the decoder stops cleanly, never guesses).
- * Kotlin twin of the Swift BitReader.
- */
-internal class BitReader(private val bytes: IntArray) {
-    private var bitPos = 0
-
-    fun read(count: Int): Int? {
-        if (bitPos + count > bytes.size * 8) return null
-        var value = 0
-        repeat(count) {
-            val byteIndex = bitPos shr 3
-            val bitIndex = 7 - (bitPos and 7)             // MSB-first
-            val bit = (bytes[byteIndex] shr bitIndex) and 1
-            value = (value shl 1) or bit
-            bitPos += 1
-        }
-        return value
     }
 }
