@@ -31,20 +31,43 @@ struct CustomClient: AIProviderClient {
         }
     }
 
-    /// Appended to a reply when the server stopped early because it ran out of context window.
-    /// Local OpenAI-compatible servers (notably Ollama, which defaults to a 2048-token window and
-    /// IGNORES `num_ctx` on the `/v1` endpoint) truncate silently — no error, the text just stops
-    /// mid-sentence. We can't raise the window over the OpenAI wire format, so we make the cutoff
-    /// visible and tell the user exactly how to fix it.
-    static let truncationNote = "\n\n---\n*Reply cut off: the model hit its context-window limit. "
-        + "On a local server like Ollama (default 2048 tokens), raise it - create a Modelfile with "
-        + "`PARAMETER num_ctx 8192` and select that model, or set `OLLAMA_CONTEXT_LENGTH=8192` and "
-        + "relaunch Ollama - then ask again.*"
+    /// Appended to a reply the server stopped early, so a cutoff is never silent.
+    ///
+    /// `finish_reason: "length"` says only that *a* length limit was reached — never which one — so this
+    /// must not claim to know. In practice there are two very different causes, and the useful advice
+    /// depends entirely on where the server is:
+    ///
+    /// - **Local** (Ollama and friends): the context window, which defaults to a mere 2048 tokens and is
+    ///   IGNORED when set via `num_ctx` on the `/v1` endpoint, so the text just stops mid-sentence. We
+    ///   can't raise it over the OpenAI wire format; the user has to.
+    /// - **Hosted gateway** (OpenRouter et al): almost always the *output* cap — our own `max_tokens`, or
+    ///   the model's own `max_completion_tokens` — since hosted context windows are typically huge.
+    ///
+    /// Hence the split: Ollama instructions are noise to someone pointed at a gateway, and worse, they
+    /// name a cause that isn't theirs.
+    static func truncationNote(isLocalServer: Bool) -> String {
+        let head = "\n\n---\n*Reply cut off: the model stopped at a length limit. "
+        if isLocalServer {
+            return head + "On a local server like Ollama (default context 2048 tokens), raise it - "
+                + "create a Modelfile with `PARAMETER num_ctx 8192` and select that model, or set "
+                + "`OLLAMA_CONTEXT_LENGTH=8192` and relaunch Ollama - then ask again.*"
+        }
+        return head + "That's usually the reply length rather than the context window: ask a narrower "
+            + "question, or pick a model with a higher output limit.*"
+    }
 
-    /// Pure: unwrap an OpenAI-compatible chat-completions body into the assistant text. Appends
-    /// `truncationNote` when the server stopped early (`finish_reason == "length"`) so a context-
-    /// window cutoff is never silent. No network — unit-tested.
-    func parseChatContent(_ json: [String: Any]) throws -> String {
+    /// Whether the Custom base URL points at this machine or its own LAN — the only case where the
+    /// Ollama advice above applies. Reuses the same classifier as the #321 cleartext guard, so "local"
+    /// means exactly one thing across this file.
+    static var isLocalCustomServer: Bool {
+        guard let host = URLComponents(string: AIProvider.customBaseURL)?.host else { return false }
+        return AIProvider.isPrivateLANOrLoopback(host)
+    }
+
+    /// Pure: unwrap an OpenAI-compatible chat-completions body into the assistant text, appending the
+    /// truncation note when the server stopped early (`finish_reason == "length"`). `isLocalServer` is
+    /// passed in rather than read from UserDefaults so this stays pure. No network — unit-tested.
+    func parseChatContent(_ json: [String: Any], isLocalServer: Bool) throws -> String {
         guard let choices = json["choices"] as? [[String: Any]],
               let first = choices.first,
               let message = first["message"] as? [String: Any],
@@ -52,7 +75,7 @@ struct CustomClient: AIProviderClient {
             throw AICoachError.decode
         }
         if (first["finish_reason"] as? String)?.lowercased() == "length" {
-            return content + Self.truncationNote
+            return content + Self.truncationNote(isLocalServer: isLocalServer)
         }
         return content
     }
@@ -102,6 +125,6 @@ struct CustomClient: AIProviderClient {
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let json = try await performRequest(req, session: session)
-        return try parseChatContent(json)
+        return try parseChatContent(json, isLocalServer: Self.isLocalCustomServer)
     }
 }
