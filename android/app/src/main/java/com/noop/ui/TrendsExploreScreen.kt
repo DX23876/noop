@@ -665,6 +665,7 @@ private fun HeroChartCard(
                                 color = metric.accent,
                                 fill = true,
                                 selectionEnabled = true,
+                                selectionLabels = windowed.map { prettyExploreDate(it.day) },
                             )
                             ExploreGlowEndCap(values = values, tipColor = metric.accent)
                         }
@@ -673,10 +674,7 @@ private fun HeroChartCard(
                     Row(modifier = Modifier.fillMaxWidth()) {
                         listOf(days.first(), days.getOrNull(days.lastIndex / 2), days.last()).forEach { d ->
                             Text(
-                                d?.let {
-                                    runCatching { LocalDate.parse(it).format(DateTimeFormatter.ofPattern("d MMM", Locale.US)) }
-                                        .getOrDefault(it)
-                                }.orEmpty(),
+                                prettyExploreDate(d),
                                 style = NoopType.footnote,
                                 color = Palette.textTertiary,
                                 modifier = Modifier.weight(1f),
@@ -714,6 +712,13 @@ private fun HeroChartCard(
         }
     }
 }
+
+/** ISO "yyyy-MM-dd" to the same compact date used by both the axis and selection label. */
+private fun prettyExploreDate(day: String?): String =
+    day?.let {
+        runCatching { LocalDate.parse(it).format(DateTimeFormatter.ofPattern("d MMM", Locale.US)) }
+            .getOrDefault(it)
+    }.orEmpty()
 
 @Composable
 private fun ChartFootItem(label: String, value: String) {

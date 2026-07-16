@@ -826,6 +826,7 @@ private fun ChartWithAxes(
                             // #463: the pinpoint label goes through the SAME formatter as the axis column,
                             // so a tapped Effort day can't print the stored 0-100 value beside a 0-21 axis.
                             formatValue = formatY,
+                            selectionLabels = dates.map(::prettyAxisDate),
                         )
                         GlowEndCap(values = values, tipColor = tipColor)
                     }
