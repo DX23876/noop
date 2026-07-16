@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -175,7 +177,7 @@ fun CoupledScreen(
     val showDayCycleBackground = remember { NoopPrefs.showDayCycleBackground(skyCtx) }
     val skyBehindCards = remember { NoopPrefs.skyBehindCards(skyCtx) }
     ScreenScaffold(
-        title = "Day",
+        title = uiString(R.string.l10n_coupled_screen_day_987b9ced),
         subtitle = subtitleToday(),
         // LIQUID SKY BACKDROP (the pilot pattern — LiquidScreenSky.kt): the reusable time-of-day liquid sky
         // sits behind the top region, full-bleed up behind the status bar via the scaffold's topBackground
@@ -334,7 +336,7 @@ private fun HeroCard(
                     )
                 } else if (recovery == null && calibrationNights != null) {
                     Text(
-                        "Calibrating, $calibrationNights of ${Baselines.minNightsSeed} nights",
+                        uiString(R.string.l10n_coupled_screen_calibrating_calibrationnights_of_baselines_minnightsseed_nights_1a7e8f8e, calibrationNights, Baselines.minNightsSeed),
                         style = NoopType.footnote,
                         color = Palette.textTertiary,
                     )
@@ -368,7 +370,7 @@ private fun HeroCentre(recovery: Double?, readinessLevel: ReadinessEngine.Level)
             // overflow the ring interior), matching the Today hero rings' RingNoData idiom.
             Text(COUPLED_NO_DATA, style = NoopType.headline, color = Palette.textSecondary)
         }
-        Text("RECOVERY", style = NoopType.overline, color = sampled)
+        Text(uiString(R.string.l10n_coupled_screen_recovery_b668d988), style = NoopType.overline, color = sampled)
         val word = readinessWord(readinessLevel)
         if (word != null) ReadinessPill(word = word, level = readinessLevel)
     }
@@ -445,7 +447,7 @@ private fun StrainCard(dayStrain21: Double?, recovery: Double?, calories: Double
                         animated = false,
                         modifier = Modifier.size(148.dp),
                     )
-                    Text("No effort yet", style = NoopType.footnote, color = Palette.textTertiary, modifier = Modifier.padding(top = 6.dp))
+                    Text(uiString(R.string.l10n_coupled_screen_no_effort_yet_f622f99d), style = NoopType.footnote, color = Palette.textTertiary, modifier = Modifier.padding(top = 6.dp))
                 }
             }
 
@@ -530,12 +532,12 @@ private fun SleepCard(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text("SLEEP PERFORMANCE", style = NoopType.overline, color = Palette.textSecondary)
+                Text(uiString(R.string.l10n_coupled_screen_sleep_performance_4611539f), style = NoopType.overline, color = Palette.textSecondary)
                 if (asleepMin != null && asleepMin > 0) {
-                    Text("${hoursMinutes(asleepMin)} slept", style = NoopType.headline, color = Palette.textPrimary)
-                    Text("${hoursMinutes(needMin)} needed", style = NoopType.subhead, color = Palette.textSecondary)
+                    Text(uiString(R.string.l10n_coupled_screen_hoursminutes_asleepmin_slept_732a5b21, hoursMinutes(asleepMin)), style = NoopType.headline, color = Palette.textPrimary)
+                    Text(uiString(R.string.l10n_coupled_screen_hoursminutes_needmin_needed_7fc1eb15, hoursMinutes(needMin)), style = NoopType.subhead, color = Palette.textSecondary)
                 } else {
-                    Text("No sleep tracked last night", style = NoopType.subhead, color = Palette.textSecondary)
+                    Text(uiString(R.string.l10n_coupled_screen_no_sleep_tracked_last_night_cd0dd79e), style = NoopType.subhead, color = Palette.textSecondary)
                 }
                 if (bedWakeSpan != null) {
                     Text(bedWakeSpan, style = NoopType.footnote, color = Palette.textTertiary)

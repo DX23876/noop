@@ -1,5 +1,6 @@
 package com.noop.ui
 
+import com.noop.R
 import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
@@ -65,9 +66,9 @@ fun ConnectionHelp(viewModel: AppViewModel, modifier: Modifier = Modifier) {
     if (live.whoop5Detected) {
         NoopCard(modifier = modifier) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("WHOOP 5 / MG (experimental)", style = NoopType.headline, color = Palette.textPrimary)
+                Text(uiString(R.string.l10n_connection_help_whoop_5_mg_experimental_109076ae), style = NoopType.headline, color = Palette.textPrimary)
                 Text(
-                    "Your strap is connected and we're trying an experimental handshake to bring up live " +
+                    uiString(R.string.l10n_connection_help_your_strap_is_connected_and_we_8ab98ac6) +
                         "heart rate from the standard profile. This isn't verified on 5/MG hardware yet, so " +
                         "HR may or may not appear, and deeper metrics (recovery, strain, sleep) aren't " +
                         "decoded for 5/MG yet. Nothing's wrong with your strap - WHOOP 4.0 is fully supported.",
@@ -81,11 +82,11 @@ fun ConnectionHelp(viewModel: AppViewModel, modifier: Modifier = Modifier) {
 
     NoopCard(modifier = modifier) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text("Won't connect? Run through these", style = NoopType.headline, color = Palette.textPrimary)
+            Text(uiString(R.string.l10n_connection_help_won_t_connect_run_through_these_cfef82f3), style = NoopType.headline, color = Palette.textPrimary)
 
             HelpStep(
                 done = !whoopInstalled,
-                title = "Close the official WHOOP app",
+                title = uiString(R.string.l10n_connection_help_close_the_official_whoop_app_768d7d17),
                 body = "Your strap only pairs with ONE app at a time. If the WHOOP app is connected, " +
                     "NOOP can't reach the strap. Force stop it (swiping it out of recents isn't enough).",
                 actionLabel = if (whoopInstalled) "Open WHOOP app, then Force stop" else "WHOOP app isn't installed",
@@ -94,7 +95,7 @@ fun ConnectionHelp(viewModel: AppViewModel, modifier: Modifier = Modifier) {
             )
             HelpStep(
                 done = btOn,
-                title = "Turn Bluetooth on",
+                title = uiString(R.string.l10n_connection_help_turn_bluetooth_on_75868e97),
                 body = if (btOn) "Bluetooth is on." else "Bluetooth is currently off.",
                 actionLabel = if (!btOn) "Turn on Bluetooth" else null,
                 enabled = !btOn,
@@ -104,7 +105,7 @@ fun ConnectionHelp(viewModel: AppViewModel, modifier: Modifier = Modifier) {
             )
             HelpStep(
                 done = permGranted,
-                title = "Allow Nearby devices",
+                title = uiString(R.string.l10n_connection_help_allow_nearby_devices_f7c74880),
                 body = if (permGranted) "Permission granted."
                 else "On Android 12+, \"Nearby devices\" is the Bluetooth permission. NOOP needs it to find your strap.",
                 actionLabel = if (!permGranted) "Grant permission" else null,
@@ -113,7 +114,7 @@ fun ConnectionHelp(viewModel: AppViewModel, modifier: Modifier = Modifier) {
             )
             HelpStep(
                 done = false,
-                title = "Charge it and put it on",
+                title = uiString(R.string.l10n_connection_help_charge_it_and_put_it_on_31b04814),
                 body = "A flat or off-wrist strap won't advertise, so nothing shows up. A real phone is " +
                     "required too: an emulator has no Bluetooth.",
                 actionLabel = null,
@@ -124,7 +125,7 @@ fun ConnectionHelp(viewModel: AppViewModel, modifier: Modifier = Modifier) {
             OutlinedButton(
                 onClick = { if (permGranted) viewModel.connect() else permLauncher.launch(perms) },
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("Try connecting now", style = NoopType.body) }
+            ) { Text(uiString(R.string.l10n_connection_help_try_connecting_now_41769900), style = NoopType.body) }
         }
     }
 }

@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -95,13 +97,13 @@ private fun Header(onClose: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Overline("What's new", color = Palette.textTertiary)
-            Text("NOOP ${AppChangelog.CURRENT_VERSION}", style = NoopType.display(26f), color = Palette.textPrimary)
-            Text("Release notes", style = NoopType.caption, color = Palette.textSecondary)
+            Text(uiString(R.string.l10n_whats_new_sheet_noop_appchangelog_current_version_05dae27c, AppChangelog.CURRENT_VERSION), style = NoopType.display(26f), color = Palette.textPrimary)
+            Text(uiString(R.string.l10n_whats_new_sheet_release_notes_cd5af734), style = NoopType.caption, color = Palette.textSecondary)
         }
         IconButton(onClick = onClose, modifier = Modifier.size(36.dp)) {
             Icon(
                 Icons.Filled.Close,
-                contentDescription = "Close",
+                contentDescription = uiString(R.string.l10n_whats_new_sheet_close_bbfa773e),
                 tint = Palette.textTertiary,
                 modifier = Modifier.size(22.dp),
             )
@@ -205,7 +207,7 @@ private fun Footer(onClose: () -> Unit) {
                 contentColor = Palette.surfaceBase,
             ),
         ) {
-            Text("Got it", style = NoopType.captionNumber)
+            Text(uiString(R.string.l10n_whats_new_sheet_got_it_5b8027fa), style = NoopType.captionNumber)
         }
     }
 }

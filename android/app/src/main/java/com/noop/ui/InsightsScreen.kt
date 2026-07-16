@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import android.content.Context
 import androidx.compose.foundation.border
 import androidx.compose.foundation.background
@@ -100,7 +102,7 @@ private enum class Outcome(
     val format: (Double) -> String,
 ) {
     Recovery(
-        label = "Charge", outcomeName = "Charge", higherIsBetter = true, domain = DomainTheme.Charge,
+        label = uiString(R.string.l10n_insights_screen_charge_d4e1aee4), outcomeName = "Charge", higherIsBetter = true, domain = DomainTheme.Charge,
         pick = { it.recovery }, format = { "${it.roundToInt()}%" },
     ),
     Hrv(
@@ -108,11 +110,11 @@ private enum class Outcome(
         pick = { it.avgHrv }, format = { "${it.roundToInt()} ms" },
     ),
     Sleep(
-        label = "Rest", outcomeName = "Rest", higherIsBetter = true, domain = DomainTheme.Rest,
+        label = uiString(R.string.l10n_insights_screen_rest_b79e5f48), outcomeName = "Rest", higherIsBetter = true, domain = DomainTheme.Rest,
         pick = { it.efficiency }, format = { "${it.roundToInt()}%" },
     ),
     Rhr(
-        label = "RHR", outcomeName = "Resting HR", higherIsBetter = false, domain = DomainTheme.Stress,
+        label = uiString(R.string.l10n_insights_screen_rhr_04edf9b3), outcomeName = "Resting HR", higherIsBetter = false, domain = DomainTheme.Stress,
         pick = { it.restingHr?.toDouble() }, format = { "${it.roundToInt()} bpm" },
     ),
 }
@@ -318,7 +320,7 @@ fun InsightsScreen(vm: AppViewModel, onOpenInsightsHub: () -> Unit = {}) {
     val showDayCycleBackground = remember { NoopPrefs.showDayCycleBackground(skyCtx) }
     val skyBehindCards = remember { NoopPrefs.skyBehindCards(skyCtx) }
     LazyScreenScaffold(
-        title = "Insights",
+        title = uiString(R.string.l10n_insights_screen_insights_b4510362),
         subtitle = "Interrogate what affects what.",
         topBackground = if (showDayCycleBackground) { { LiquidScreenSky(fillHeight = skyBehindCards) } } else null,
         // Sky-behind-cards fills the viewport so the transparent cards reveal the sky the whole way
@@ -337,7 +339,7 @@ fun InsightsScreen(vm: AppViewModel, onOpenInsightsHub: () -> Unit = {}) {
         if (preFilledFromYesterday) {
             item {
             Text(
-                "Pre-filled from last night. Tap to confirm or change.",
+                uiString(R.string.l10n_insights_screen_pre_filled_from_last_night_tap_ce81097c),
                 style = NoopType.footnote,
                 color = Palette.textTertiary,
                 modifier = Modifier.fillMaxWidth(),
@@ -487,7 +489,7 @@ fun InsightsScreen(vm: AppViewModel, onOpenInsightsHub: () -> Unit = {}) {
         if (!journalLoaded) {
             NoopCard {
                 Text(
-                    "Reading your journal and outcomes…",
+                    uiString(R.string.l10n_insights_screen_reading_your_journal_and_outcomes_4a59af69),
                     style = NoopType.subhead,
                     color = Palette.textTertiary,
                 )
@@ -495,7 +497,7 @@ fun InsightsScreen(vm: AppViewModel, onOpenInsightsHub: () -> Unit = {}) {
         } else if (behaviours.isEmpty()) {
             // No journal yet, explain, without dead-ending on a paid export.
             DataPendingNote(
-                title = "Insights read your journal and outcomes",
+                title = uiString(R.string.l10n_insights_screen_insights_read_your_journal_and_outcomes_6ec8aaf9),
                 body = "Log behaviours above. After a few days of answers, NOOP ranks how each " +
                     "one moves your recovery, HRV and sleep. Importing a WHOOP export (which " +
                     "includes its journal) backfills history instantly.",
@@ -542,7 +544,7 @@ private fun WhatMovesYouLink(onOpen: () -> Unit) {
             .liquidPress(interaction)
             .semantics {
                 contentDescription =
-                    "What moves you. Ranked patterns in your own data, and your dose-response."
+                    uiString(R.string.l10n_insights_screen_what_moves_you_ranked_patterns_in_7d89e628)
             },
     ) {
         Row(
@@ -568,7 +570,7 @@ private fun WhatMovesYouLink(onOpen: () -> Unit) {
                 // glyph (mirrors the iOS "WHAT MOVES YOU ›" overline). The descriptive line sits beneath.
                 Overline("What moves you ›", color = Palette.textPrimary)
                 Text(
-                    "Ranked, lag-aware: which of your habits actually move your Charge, plus your " +
+                    uiString(R.string.l10n_insights_screen_ranked_lag_aware_which_of_your_e0e91b39) +
                         "personal alcohol/caffeine dose-response.",
                     style = NoopType.footnote,
                     color = Palette.textTertiary,
@@ -632,7 +634,7 @@ private fun ActivityCostSection(costs: List<com.noop.analytics.ActivityCost>) {
         if (costs.isEmpty()) {
             NoopCard {
                 Text(
-                    "Tag a few sessions of the same activity and NOOP will learn its personal recovery cost.",
+                    uiString(R.string.l10n_insights_screen_tag_a_few_sessions_of_the_97927401),
                     style = NoopType.subhead,
                     color = Palette.textSecondary,
                 )
@@ -690,14 +692,14 @@ private fun ActivityCostCard(cost: com.noop.analytics.ActivityCost) {
             Row(horizontalArrangement = Arrangement.spacedBy(Metrics.gap)) {
                 StatTile(
                     modifier = Modifier.weight(1f),
-                    label = "Next morning",
+                    label = uiString(R.string.l10n_insights_screen_next_morning_61d1ea83),
                     value = "${cost.meanNextMorning.roundToInt()}",
                     caption = "Charge · $pointsLabel pts",
                     accent = accent,
                 )
                 StatTile(
                     modifier = Modifier.weight(1f),
-                    label = "Rest baseline",
+                    label = uiString(R.string.l10n_insights_screen_rest_baseline_b3ac52a5),
                     value = "${cost.baselineMean.roundToInt()}",
                     caption = "untouched days",
                     accent = Palette.textPrimary,
@@ -706,14 +708,14 @@ private fun ActivityCostCard(cost: com.noop.analytics.ActivityCost) {
             Row(horizontalArrangement = Arrangement.spacedBy(Metrics.gap)) {
                 StatTile(
                     modifier = Modifier.weight(1f),
-                    label = "Bounce back",
+                    label = uiString(R.string.l10n_insights_screen_bounce_back_be2d66a4),
                     value = cost.daysToBaseline?.let { "${it}d" } ?: "—",
                     caption = if (cost.daysToBaseline != null) "to baseline" else "not within 7d",
                     accent = Palette.chargeColor,
                 )
                 StatTile(
                     modifier = Modifier.weight(1f),
-                    label = "Sessions",
+                    label = uiString(R.string.l10n_insights_screen_sessions_e11e37a9),
                     value = "${cost.n}",
                     caption = if (solid) "solid" else "building",
                     accent = Palette.textPrimary,
@@ -753,7 +755,7 @@ private fun BehaviourSection(
         if (ranked.isEmpty()) {
             NoopCard {
                 Text(
-                    "Not enough overlap between your journal answers and " +
+                    uiString(R.string.l10n_insights_screen_not_enough_overlap_between_your_journal_0ebdd7a2) +
                         "${outcome.outcomeName.lowercase(Locale.US)} to measure an effect yet. " +
                         "Keep logging. Effects need days both with and without each behaviour.",
                     style = NoopType.subhead,
@@ -830,7 +832,7 @@ private fun EffectCard(e: BehaviorEffect, outcome: Outcome) {
             Row(horizontalArrangement = Arrangement.spacedBy(Metrics.gap)) {
                 StatTile(
                     modifier = Modifier.weight(1f),
-                    label = "With",
+                    label = uiString(R.string.l10n_insights_screen_with_564f8c6e),
                     value = outcome.format(e.meanWith),
                     caption = "n = ${e.nWith}",
                     accent = tintColor,
@@ -839,7 +841,7 @@ private fun EffectCard(e: BehaviorEffect, outcome: Outcome) {
                 )
                 StatTile(
                     modifier = Modifier.weight(1f),
-                    label = "Without",
+                    label = uiString(R.string.l10n_insights_screen_without_cb735356),
                     value = outcome.format(e.meanWithout),
                     caption = "n = ${e.nWithout}",
                     accent = Palette.textPrimary,
@@ -980,10 +982,10 @@ private fun ExperimentSetupCard(
             verticalAlignment = Alignment.Top,
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Run a clean personal test", style = NoopType.headline, color = Palette.textPrimary)
+                Text(uiString(R.string.l10n_insights_screen_run_a_clean_personal_test_4da69781), style = NoopType.headline, color = Palette.textPrimary)
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Pick one behaviour you log, one outcome, and a short window. NOOP " +
+                    uiString(R.string.l10n_insights_screen_pick_one_behaviour_you_log_one_bd34090e) +
                         "compares the days you log the behaviour against your behaviour-free " +
                         "days before the start.",
                     style = NoopType.subhead,
@@ -996,7 +998,7 @@ private fun ExperimentSetupCard(
 
         if (candidates.isEmpty()) {
             Text(
-                "Log at least one behaviour above before starting an experiment.",
+                uiString(R.string.l10n_insights_screen_log_at_least_one_behaviour_above_cf7c65a6),
                 style = NoopType.subhead,
                 color = Palette.textTertiary,
             )
@@ -1027,13 +1029,13 @@ private fun ExperimentSetupCard(
 
             // Unified button system (mirrors iOS NoopButton("Start experiment", flask, .primary, fullWidth)).
             NoopButton(
-                text = "Start experiment",
+                text = uiString(R.string.l10n_insights_screen_start_experiment_45a4b379),
                 leadingIcon = Icons.Filled.Science,
                 kind = NoopButtonKind.Primary,
                 fullWidth = true,
                 enabled = resolvedBehaviour != null,
                 onClick = onStart,
-                modifier = Modifier.semantics { contentDescription = "Start experiment" },
+                modifier = Modifier.semantics { contentDescription = uiString(R.string.l10n_insights_screen_start_experiment_45a4b379) },
             )
         }
     }
@@ -1060,7 +1062,7 @@ private fun ActiveExperimentCard(
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "Started ${snapshot.startDay} · testing ${snapshot.outcome.outcomeName.lowercase(Locale.US)}",
+                    uiString(R.string.l10n_insights_screen_started_snapshot_startday_testing_snapshot_outcome_1839ef40, snapshot.startDay, snapshot.outcome.outcomeName.lowercase(Locale.US)),
                     style = NoopType.footnote,
                     color = Palette.textTertiary,
                 )
@@ -1083,14 +1085,14 @@ private fun ActiveExperimentCard(
         Row(horizontalArrangement = Arrangement.spacedBy(Metrics.gap)) {
             ExperimentMeasure(
                 modifier = Modifier.weight(1f),
-                label = "Baseline",
+                label = uiString(R.string.l10n_insights_screen_baseline_e6ab7982),
                 value = snapshot.baselineMean?.let { snapshot.outcome.format(it) } ?: "—",
                 caption = "${snapshot.baselineCount} days without it",
                 tint = Palette.textSecondary,
             )
             ExperimentMeasure(
                 modifier = Modifier.weight(1f),
-                label = "Intervention",
+                label = uiString(R.string.l10n_insights_screen_intervention_e9b90c40),
                 value = snapshot.interventionMean?.let { snapshot.outcome.format(it) } ?: "—",
                 caption = "${snapshot.interventionCount} logged days",
                 tint = Palette.accent,
@@ -1099,14 +1101,14 @@ private fun ActiveExperimentCard(
         Row(horizontalArrangement = Arrangement.spacedBy(Metrics.gap)) {
             ExperimentMeasure(
                 modifier = Modifier.weight(1f),
-                label = "Change",
+                label = uiString(R.string.l10n_insights_screen_change_64fbd995),
                 value = formatExperimentDelta(snapshot.delta, snapshot.outcome),
                 caption = snapshot.deltaCaption,
                 tint = experimentDeltaColor(snapshot),
             )
             ExperimentMeasure(
                 modifier = Modifier.weight(1f),
-                label = "Compliance",
+                label = uiString(R.string.l10n_insights_screen_compliance_68f0ae49),
                 value = "${snapshot.compliance.roundToInt()}%",
                 caption = if (snapshot.loggedToday) "logged today" else "not logged today",
                 tint = if (snapshot.loggedToday) Palette.statusPositive else Palette.statusWarning,
@@ -1128,7 +1130,7 @@ private fun ActiveExperimentCard(
                     .fillMaxWidth()
                     .semantics {
                         contentDescription =
-                            "Experiment progress ${snapshot.daysElapsed} of ${snapshot.durationDays} days"
+                            uiString(R.string.l10n_insights_screen_experiment_progress_snapshot_dayselapsed_of_snapshot_ff62b228, snapshot.daysElapsed, snapshot.durationDays)
                     },
             )
             Row(
@@ -1136,7 +1138,7 @@ private fun ActiveExperimentCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "${snapshot.daysElapsed} of ${snapshot.durationDays} days",
+                    uiString(R.string.l10n_insights_screen_snapshot_dayselapsed_of_snapshot_durationdays_days_9a611f12, snapshot.daysElapsed, snapshot.durationDays),
                     style = NoopType.footnote,
                     color = Palette.textTertiary,
                     modifier = Modifier.weight(1f),
@@ -1153,30 +1155,30 @@ private fun ActiveExperimentCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             NoopButton(
-                text = "Mark done",
+                text = uiString(R.string.l10n_insights_screen_mark_done_0911cce7),
                 leadingIcon = Icons.Filled.CheckCircle,
                 kind = NoopButtonKind.Primary,
                 enabled = !snapshot.loggedToday,
                 onClick = { onMark(true) },
                 modifier = Modifier
                     .weight(1f)
-                    .semantics { contentDescription = "Mark done today" },
+                    .semantics { contentDescription = uiString(R.string.l10n_insights_screen_mark_done_today_471eb94a) },
             )
             NoopButton(
-                text = "Skip",
+                text = uiString(R.string.l10n_insights_screen_skip_3da47453),
                 leadingIcon = Icons.Filled.Close,
                 kind = NoopButtonKind.Secondary,
                 onClick = { onMark(false) },
                 modifier = Modifier
                     .weight(1f)
-                    .semantics { contentDescription = "Skip today" },
+                    .semantics { contentDescription = uiString(R.string.l10n_insights_screen_skip_today_ed6a16a5) },
             )
             NoopButton(
-                text = "End",
+                text = uiString(R.string.l10n_insights_screen_end_a2bb9d34),
                 leadingIcon = Icons.Filled.Stop,
                 kind = NoopButtonKind.Destructive,
                 onClick = onEnd,
-                modifier = Modifier.semantics { contentDescription = "End experiment" },
+                modifier = Modifier.semantics { contentDescription = uiString(R.string.l10n_insights_screen_end_experiment_0ed6d57f) },
             )
         }
     }
@@ -1250,7 +1252,7 @@ private fun ExperimentBehaviourPicker(
                 .clickable(interactionSource = interaction, indication = null) { expanded = true }
                 .liquidPress(interaction)
                 .padding(horizontal = 12.dp, vertical = 8.dp)
-                .semantics { contentDescription = "Experiment behaviour: $selection" },
+                .semantics { contentDescription = uiString(R.string.l10n_insights_screen_experiment_behaviour_selection_bcb29b58, selection) },
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
@@ -1455,7 +1457,7 @@ private fun RelationshipsSection(rels: List<Relationship>) {
         if (rels.isEmpty()) {
             NoopCard {
                 Text(
-                    "Not enough overlapping history to correlate your metrics yet.",
+                    uiString(R.string.l10n_insights_screen_not_enough_overlapping_history_to_correlate_a552dbd4),
                     style = NoopType.subhead,
                     color = Palette.textTertiary,
                 )

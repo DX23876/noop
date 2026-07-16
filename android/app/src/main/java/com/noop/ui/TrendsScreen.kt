@@ -750,7 +750,7 @@ private fun ChangeChip(change: Double?, higherIsBetter: Boolean?, fmt: (Double) 
         null -> Palette.textTertiary
         else -> if ((change > 0) == higherIsBetter) Palette.statusPositive else Palette.metricRose
     }
-    TrendChip(text = "$sign${fmt(kotlin.math.abs(change))}", color = color)
+    TrendChip(text = uiString(R.string.l10n_trends_screen_sign_fmt_kotlin_math_abs_change_9ad2f71e, sign, fmt(kotlin.math.abs(change))), color = color)
 }
 
 /**

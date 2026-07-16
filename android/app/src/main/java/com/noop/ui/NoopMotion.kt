@@ -1,5 +1,6 @@
 package com.noop.ui
 
+import com.noop.R
 import android.provider.Settings
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.animateFloatAsState
@@ -150,7 +151,7 @@ fun CountUpText(
     val animated by animateFloatAsState(
         targetValue = target,
         animationSpec = if (reduced) tween(durationMillis = 0) else spec,
-        label = "CountUpText",
+        label = uiString(R.string.l10n_noop_motion_countuptext_749c73fb),
     )
     val shown = if (reduced) value.toFloat() else animated
 
@@ -185,7 +186,7 @@ fun Modifier.staggeredAppear(index: Int, isVisible: Boolean = true): Modifier = 
     val progress by animateFloatAsState(
         targetValue = if (!isVisible || hasAppeared || reduced) 1f else 0f,
         animationSpec = if (reduced) tween(0) else NoopMotion.card(),
-        label = "staggeredAppear",
+        label = uiString(R.string.l10n_noop_motion_staggeredappear_7e1a3335),
     )
 
     LaunchedEffect(isVisible, reduced) {

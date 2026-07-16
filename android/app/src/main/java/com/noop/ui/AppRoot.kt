@@ -466,7 +466,7 @@ fun AppRoot(viewModel: AppViewModel = viewModel()) {
                             showUpdatesInbox = true
                         },
                         icon = { Icon(Icons.Filled.Notifications, contentDescription = null) },
-                        label = { Text("Updates", style = NoopType.body) },
+                        label = { Text(uiString(R.string.l10n_app_root_updates_c76d1807), style = NoopType.body) },
                         badge = {
                             val unread = updateStore.unreadCount
                             if (unread > 0) {
@@ -576,7 +576,7 @@ private fun MoreScreen(onNavigate: (String) -> Unit) {
     val showDayCycleBackground = remember { NoopPrefs.showDayCycleBackground(context) }
     val skyBehindCards = remember { NoopPrefs.skyBehindCards(context) }
     ScreenScaffold(
-        title = "More",
+        title = uiString(R.string.l10n_app_root_more_4bab2d8f),
         subtitle = "Everything else, one tap away",
         topBackground = if (showDayCycleBackground) { { LiquidScreenSky(fillHeight = skyBehindCards) } } else null,
         // Sky-behind-cards fills the viewport so the transparent cards reveal the sky the whole way down.
@@ -627,7 +627,7 @@ private fun MoreGroupHeader(title: String, expanded: Boolean, onToggle: () -> Un
     val rotation by animateFloatAsState(
         targetValue = if (expanded) 0f else -90f,
         animationSpec = tween(durationMillis = 240, easing = NavEasing),
-        label = "moreGroupChevron",
+        label = uiString(R.string.l10n_app_root_moregroupchevron_b2b36ec6),
     )
     Row(
         modifier = Modifier
@@ -923,7 +923,7 @@ fun ComingSoon(text: String, modifier: Modifier = Modifier) {
                 Text(text, style = NoopType.title2, color = Palette.textPrimary, textAlign = TextAlign.Center)
                 Overline("Coming soon", color = Palette.textSecondary)
                 Text(
-                    "This section is on the way.",
+                    uiString(R.string.l10n_app_root_this_section_is_on_the_way_ca7c4a32),
                     style = NoopType.footnote,
                     color = Palette.textTertiary,
                     textAlign = TextAlign.Center,

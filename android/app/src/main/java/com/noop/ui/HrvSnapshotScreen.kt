@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -160,7 +162,7 @@ fun HrvSnapshotScreen(
     // items. Conditional sections use `if (cond) { item {} }` so a hidden result/hint adds no row. Order +
     // spacing identical (LazyColumn reproduces the eager `spacedBy(20.dp)`).
     LazyScreenScaffold(
-        title = "HRV Reading",
+        title = uiString(R.string.l10n_hrv_snapshot_screen_hrv_reading_a2cf71f3),
         subtitle = "A still, seated snapshot of your heart-rate variability",
     ) {
         // Status row.
@@ -181,7 +183,7 @@ fun HrvSnapshotScreen(
             IconButton(onClick = onClose) {
                 Icon(
                     Icons.Filled.Close,
-                    contentDescription = "Close HRV reading",
+                    contentDescription = uiString(R.string.l10n_hrv_snapshot_screen_close_hrv_reading_a29a99a1),
                     tint = Palette.textTertiary,
                 )
             }
@@ -305,7 +307,7 @@ fun HrvSnapshotScreen(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Overline("How this is measured")
                 Text(
-                    "A 60-second snapshot of your beat-to-beat (R-R) intervals from the strap, cleaned " +
+                    uiString(R.string.l10n_hrv_snapshot_screen_a_60_second_snapshot_of_your_35f03f7c) +
                         "(range and ectopic-beat filtering) before computing RMSSD the same way your " +
                         "overnight HRV is computed.",
                     style = NoopType.footnote, color = Palette.textTertiary,
@@ -334,7 +336,7 @@ private fun CaptureDial(fraction: Float, value: String, unit: String, sub: Strin
     val animatedFraction by animateFloatAsState(
         targetValue = fraction.coerceIn(0f, 1f),
         animationSpec = tween(400, easing = Motion.easeInOut),
-        label = "hrvDial",
+        label = uiString(R.string.l10n_hrv_snapshot_screen_hrvdial_4c244c45),
     )
     val a11y = when {
         sub != null -> "Capturing. $value milliseconds RMSSD so far. $sub."
@@ -405,7 +407,7 @@ private fun ResultCard(result: HrvAnalyzer.HrvResult) {
                 ) {
                     Icon(Icons.Filled.WarningAmber, contentDescription = null, tint = Palette.statusWarning)
                     Text(
-                        "Not enough clean beats - sit still and try again. ${result.nClean} of " +
+                        uiString(R.string.l10n_hrv_snapshot_screen_not_enough_clean_beats_sit_still_0893e6c2, result.nClean) +
                             "${result.nInput} beats survived filtering (need ${HrvAnalyzer.MIN_BEATS}).",
                         style = NoopType.footnote, color = Palette.textSecondary,
                     )
@@ -414,28 +416,28 @@ private fun ResultCard(result: HrvAnalyzer.HrvResult) {
                 Row(horizontalArrangement = Arrangement.spacedBy(Metrics.gap)) {
                     StatTile(
                         modifier = Modifier.weight(1f),
-                        label = "RMSSD",
+                        label = uiString(R.string.l10n_hrv_snapshot_screen_rmssd_e240fd3c),
                         value = formatHrv(result.rmssd, "%.0f"),
                         caption = "ms",
                         accent = Palette.metricPurple,
                     )
                     StatTile(
                         modifier = Modifier.weight(1f),
-                        label = "SDNN",
+                        label = uiString(R.string.l10n_hrv_snapshot_screen_sdnn_9ab9ee2a),
                         value = formatHrv(result.sdnn, "%.0f"),
                         caption = "ms",
                         accent = Palette.restBright,
                     )
                     StatTile(
                         modifier = Modifier.weight(1f),
-                        label = "Mean HR",
+                        label = uiString(R.string.l10n_hrv_snapshot_screen_mean_hr_6c9272dd),
                         value = formatHrv(meanHr(result.meanNN), "%.0f"),
                         caption = "bpm",
                         accent = Palette.metricRose,
                     )
                     StatTile(
                         modifier = Modifier.weight(1f),
-                        label = "Beats",
+                        label = uiString(R.string.l10n_hrv_snapshot_screen_beats_12aafda0),
                         value = "${result.nClean}",
                         caption = "used",
                         accent = Palette.metricCyan,
@@ -461,7 +463,7 @@ private fun NotBondedHint() {
     ) {
         Icon(Icons.Filled.MonitorHeart, contentDescription = null, tint = Palette.statusWarning)
         Text(
-            "An HRV reading needs the live R-R stream. Open the Live screen and connect your strap, " +
+            uiString(R.string.l10n_hrv_snapshot_screen_an_hrv_reading_needs_the_live_11b70bff) +
                 "then come back.",
             style = NoopType.footnote, color = Palette.textSecondary,
         )

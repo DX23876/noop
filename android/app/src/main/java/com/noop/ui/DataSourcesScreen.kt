@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import android.text.format.DateUtils
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -342,13 +344,13 @@ fun DataSourcesScreen(vm: AppViewModel) {
     // cards now compose + get accessibility-walked on scroll — this list of 11 source cards is long. The
     // confirm dialogs below the scaffold are untouched.
     LazyScreenScaffold(
-        title = "Data Sources",
+        title = uiString(R.string.l10n_data_sources_screen_data_sources_5e43d6bb),
         subtitle = "Everything stays on this phone. Bring your history in once, then it's yours.",
     ) {
         // --- WHOOP data (cached history) ---
         item {
         SourceCard(
-            title = "WHOOP History",
+            title = uiString(R.string.l10n_data_sources_screen_whoop_history_db101974),
             icon = Icons.Filled.MonitorHeart,
             subtitle = "Recovery, strain, sleep and workouts, stored locally. Import a full " +
                 "WHOOP data export (.zip) from app.whoop.com → Data Management and it " +
@@ -364,7 +366,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
                 secondary = whoopWorkouts?.let { "$it workouts stored" } ?: "Counting…",
             )
             BackupButton(
-                label = "Import WHOOP export (.zip)",
+                label = uiString(R.string.l10n_data_sources_screen_import_whoop_export_zip_16f4176b),
                 icon = Icons.Filled.FileUpload,
                 enabled = !busy,
                 modifier = Modifier.fillMaxWidth(),
@@ -375,7 +377,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
         // --- Apple Health ---
         item {
         SourceCard(
-            title = "Apple Health",
+            title = uiString(R.string.l10n_data_sources_screen_apple_health_b19b87da),
             icon = Icons.Filled.FavoriteBorder,
             tint = Palette.metricCyan,
             subtitle = "Import HR, HRV, sleep, SpO₂ and steps from an Apple Health export. On " +
@@ -393,7 +395,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
                 secondary = appleWorkouts?.let { "$it workouts" } ?: "Counting…",
             )
             BackupButton(
-                label = "Import Apple Health export…",
+                label = uiString(R.string.l10n_data_sources_screen_import_apple_health_export_533fca27),
                 icon = Icons.Filled.FileUpload,
                 enabled = !busy,
                 tint = Palette.metricCyan,
@@ -404,7 +406,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
             // the Swift card. Shown only once there's something to remove; a confirm dialog gates it.
             if (hasApple) {
                 BackupButton(
-                    label = "Remove imported data",
+                    label = uiString(R.string.l10n_data_sources_screen_remove_imported_data_813e4695),
                     icon = Icons.Filled.DeleteOutline,
                     enabled = !busy,
                     tint = Palette.statusCritical,
@@ -417,7 +419,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
         // --- Health Connect (native Android health data) ---
         item {
         SourceCard(
-            title = "Health Connect",
+            title = uiString(R.string.l10n_data_sources_screen_health_connect_be6bca3e),
             icon = Icons.Filled.MonitorHeart,
             subtitle = "Pull steps, heart rate, HRV, sleep, SpO₂, weight and workouts straight from " +
                 "Android's Health Connect. No file needed. On-device; it never overwrites richer " +
@@ -425,7 +427,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
         ) {
             val hasHc = (hcDays ?: 0) > 0 || (hcWorkouts ?: 0) > 0
             if (hasHc) {
-                StatePill(title = "Imported", tone = StrandTone.Accent, showsDot = true)
+                StatePill(title = uiString(R.string.l10n_data_sources_screen_imported_434eb26f), tone = StrandTone.Accent, showsDot = true)
                 CountLine(
                     primary = hcDays?.let { "$it days" } ?: "—",
                     secondary = hcWorkouts?.let { "$it workouts" } ?: "Counting…",
@@ -433,7 +435,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
             }
             if (healthConnectAvailable) {
                 BackupButton(
-                    label = "Import from Health Connect",
+                    label = uiString(R.string.l10n_data_sources_screen_import_from_health_connect_35d55e21),
                     icon = Icons.Filled.FileUpload,
                     enabled = !busy,
                     modifier = Modifier.fillMaxWidth(),
@@ -448,9 +450,9 @@ fun DataSourcesScreen(vm: AppViewModel) {
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Auto-sync periodically", style = NoopType.subhead, color = Palette.textPrimary)
+                        Text(uiString(R.string.l10n_data_sources_screen_auto_sync_periodically_5f3041e8), style = NoopType.subhead, color = Palette.textPrimary)
                         Text(
-                            "Re-pull new Health Connect data (e.g. Samsung Health → Health Connect) each " +
+                            uiString(R.string.l10n_data_sources_screen_re_pull_new_health_connect_data_3e9c3914) +
                                 "time you open NOOP, if it's been longer than the interval below. " +
                                 "Read-only; never overwrites strap data.",
                             style = NoopType.footnote,
@@ -472,7 +474,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
                             uncheckedBorderColor = Palette.hairline,
                         ),
                         modifier = Modifier.semantics {
-                            contentDescription = "Auto-sync Health Connect periodically"
+                            contentDescription = uiString(R.string.l10n_data_sources_screen_auto_sync_health_connect_periodically_6f3f4d92)
                         },
                     )
                 }
@@ -482,7 +484,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Text("Every", style = NoopType.footnote, color = Palette.textSecondary)
+                        Text(uiString(R.string.l10n_data_sources_screen_every_3560d90b), style = NoopType.footnote, color = Palette.textSecondary)
                         SegmentedPillControl(
                             items = listOf(6, 12, 24),
                             selection = hcSyncHours,
@@ -491,7 +493,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
                         )
                     }
                     Text(
-                        "Last sync: " + if (hcLastSync == 0L) "not yet"
+                        uiString(R.string.l10n_data_sources_screen_last_sync_b793ffab) + if (hcLastSync == 0L) "not yet"
                         else DateUtils.getRelativeTimeSpanString(hcLastSync).toString(),
                         style = NoopType.footnote,
                         color = Palette.textTertiary,
@@ -505,9 +507,9 @@ fun DataSourcesScreen(vm: AppViewModel) {
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Share back to Health Connect", style = NoopType.subhead, color = Palette.textPrimary)
+                        Text(uiString(R.string.l10n_data_sources_screen_share_back_to_health_connect_1d578f4a), style = NoopType.subhead, color = Palette.textPrimary)
                         Text(
-                            "Write the metrics NOOP computes from your strap (resting HR, HRV, SpO₂, " +
+                            uiString(R.string.l10n_data_sources_screen_write_the_metrics_noop_computes_from_439940c2) +
                                 "respiratory rate, heart rate, steps, active energy and sleep) into " +
                                 "Health Connect so other apps can use them. Only NOOP's own values are " +
                                 "shared. Imported data is never echoed back.",
@@ -530,7 +532,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
                             uncheckedBorderColor = Palette.hairline,
                         ),
                         modifier = Modifier.semantics {
-                            contentDescription = "Share computed metrics back to Health Connect"
+                            contentDescription = uiString(R.string.l10n_data_sources_screen_share_computed_metrics_back_to_health_c11f5d70)
                         },
                     )
                 }
@@ -543,7 +545,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
         // --- Nutrition CSV (calories / macros / body weight) ---
         item {
         SourceCard(
-            title = "Nutrition (CSV)",
+            title = uiString(R.string.l10n_data_sources_screen_nutrition_csv_1c1315d9),
             icon = Icons.Filled.Restaurant,
             tint = Palette.metricAmber,
             subtitle = "Import daily calories, protein, carbs, fat and body weight from a " +
@@ -561,7 +563,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
                 secondary = nutritionWeighIns?.let { "$it weigh-ins" } ?: "Counting…",
             )
             BackupButton(
-                label = "Import nutrition CSV…",
+                label = uiString(R.string.l10n_data_sources_screen_import_nutrition_csv_2c748273),
                 icon = Icons.Filled.FileUpload,
                 enabled = !busy,
                 modifier = Modifier.fillMaxWidth(),
@@ -572,7 +574,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
         // --- Xiaomi Mi Band (Mi Fitness on-device DB) — #35 ---
         item {
         SourceCard(
-            title = "Xiaomi Mi Band",
+            title = uiString(R.string.l10n_data_sources_screen_xiaomi_mi_band_edeab3bc),
             icon = Icons.Filled.Watch,
             tint = Palette.metricPurple,
             subtitle = "Import a Mi Band / Smart Band 8, 9 or 10's full history (steps, heart rate, " +
@@ -591,7 +593,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
                 secondary = if (xiaomiDays == null) "Counting…" else "Mi Band / Smart Band 8 · 9 · 10",
             )
             BackupButton(
-                label = "Import Mi Band export…",
+                label = uiString(R.string.l10n_data_sources_screen_import_mi_band_export_e587801c),
                 icon = Icons.Filled.FileUpload,
                 enabled = !busy,
                 modifier = Modifier.fillMaxWidth(),
@@ -602,7 +604,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
         // --- Lifting log (Hevy CSV / Liftosaur JSON) ---
         item {
         SourceCard(
-            title = "Lifting log (Hevy / Liftosaur)",
+            title = uiString(R.string.l10n_data_sources_screen_lifting_log_hevy_liftosaur_11df48df),
             icon = Icons.Filled.FitnessCenter,
             tint = DomainTheme.Effort.color,
             subtitle = "Import your strength-training history from a Hevy CSV export or a Liftosaur " +
@@ -621,7 +623,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
                 secondary = "volume load shown per session",
             )
             BackupButton(
-                label = "Import lifting log…",
+                label = uiString(R.string.l10n_data_sources_screen_import_lifting_log_8fac7b68),
                 icon = Icons.Filled.FileUpload,
                 enabled = !busy,
                 modifier = Modifier.fillMaxWidth(),
@@ -632,7 +634,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
         // --- Workout file (GPX / TCX / FIT) — any brand, on-device ---
         item {
         SourceCard(
-            title = "Workout file (GPX / TCX / FIT)",
+            title = uiString(R.string.l10n_data_sources_screen_workout_file_gpx_tcx_fit_5469c068),
             icon = Icons.Filled.Map,
             tint = Palette.metricAmber,
             subtitle = "Import a single exported workout file from any brand (Garmin, Coros, Suunto, " +
@@ -650,7 +652,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
                 secondary = "GPX · TCX · FIT (one workout per file)",
             )
             BackupButton(
-                label = "Import workout file…",
+                label = uiString(R.string.l10n_data_sources_screen_import_workout_file_a3a28e06),
                 icon = Icons.Filled.FileUpload,
                 enabled = !busy,
                 modifier = Modifier.fillMaxWidth(),
@@ -661,7 +663,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
         // --- Oura / Fitbit / Garmin own-data export — on-device ---
         item {
         SourceCard(
-            title = "Oura / Fitbit / Garmin export",
+            title = uiString(R.string.l10n_data_sources_screen_oura_fitbit_garmin_export_7b21682f),
             icon = Icons.Filled.Watch,
             tint = Palette.metricPurple,
             subtitle = "Import your own data export from Oura, Fitbit or Garmin: sleep, resting heart " +
@@ -681,7 +683,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
                 secondary = "Oura JSON · Fitbit Takeout · Garmin GDPR (daily metrics + sleep)",
             )
             BackupButton(
-                label = "Import wearable export…",
+                label = uiString(R.string.l10n_data_sources_screen_import_wearable_export_0545c430),
                 icon = Icons.Filled.FileUpload,
                 enabled = !busy,
                 modifier = Modifier.fillMaxWidth(),
@@ -692,7 +694,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
         // --- Broadcast heart rate (NOOP as a standard BLE HR peripheral) ---
         item {
         SourceCard(
-            title = "Broadcast HR from this phone",
+            title = uiString(R.string.l10n_data_sources_screen_broadcast_hr_from_this_phone_10e5605c),
             icon = Icons.Filled.MonitorHeart,
             tint = DomainTheme.Effort.color,
             subtitle = "Re-share your live strap heart rate over Bluetooth as a standard heart-rate " +
@@ -717,7 +719,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
             } else {
                 // Parity with the Swift card, which shows an explicit "Off" pill when the toggle is off
                 // (DataSourcesView.broadcastHrCard: StatePill("Off", tone: .neutral, showsDot: false)).
-                StatePill(title = "Off", tone = StrandTone.Neutral, showsDot = false)
+                StatePill(title = uiString(R.string.l10n_data_sources_screen_off_e3de5ab0), tone = StrandTone.Neutral, showsDot = false)
             }
             hrBroadcastStatus?.let { note ->
                 Text(note, style = NoopType.footnote, color = Palette.statusWarning)
@@ -728,9 +730,9 @@ fun DataSourcesScreen(vm: AppViewModel) {
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Broadcast HR from this phone", style = NoopType.subhead, color = Palette.textPrimary)
+                    Text(uiString(R.string.l10n_data_sources_screen_broadcast_hr_from_this_phone_10e5605c), style = NoopType.subhead, color = Palette.textPrimary)
                     Text(
-                        "Acts as a standard Bluetooth heart-rate strap. Pair NOOP from your treadmill, " +
+                        uiString(R.string.l10n_data_sources_screen_acts_as_a_standard_bluetooth_heart_f8d13439) +
                             "bike or app to see your strap's heart rate there.",
                         style = NoopType.footnote,
                         color = Palette.textTertiary,
@@ -751,7 +753,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
                         uncheckedBorderColor = Palette.hairline,
                     ),
                     modifier = Modifier.semantics {
-                        contentDescription = "Broadcast heart rate as a Bluetooth sensor"
+                        contentDescription = uiString(R.string.l10n_data_sources_screen_broadcast_heart_rate_as_a_bluetooth_6a44fdb4)
                     },
                 )
             }
@@ -773,7 +775,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
                         modifier = Modifier.size(16.dp),
                     )
                     Text(
-                        "Broadcast HR is ON. Your strap is advertising its heart rate continuously, " +
+                        uiString(R.string.l10n_data_sources_screen_broadcast_hr_is_on_your_strap_0ad5368a) +
                             "which keeps its radio hot and drains the battery faster. Turn it off when " +
                             "you're not using it with another device.",
                         style = NoopType.caption,
@@ -787,7 +789,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
         // --- Live WHOOP strap over BLE ---
         item {
         SourceCard(
-            title = "WHOOP Strap (Live BLE)",
+            title = uiString(R.string.l10n_data_sources_screen_whoop_strap_live_ble_217f7df6),
             icon = Icons.Filled.Bluetooth,
             subtitle = "Pairs directly with your strap over Bluetooth: no WHOOP app, no cloud.",
         ) {
@@ -810,11 +812,11 @@ fun DataSourcesScreen(vm: AppViewModel) {
             onDismissRequest = { confirmDeleteApple = false },
             containerColor = Palette.surfaceOverlay,
             title = {
-                Text("Remove Apple Health imported data?", style = NoopType.title2, color = Palette.textPrimary)
+                Text(uiString(R.string.l10n_data_sources_screen_remove_apple_health_imported_data_5f878502), style = NoopType.title2, color = Palette.textPrimary)
             },
             text = {
                 Text(
-                    "This permanently deletes everything imported from Apple Health: heart rate, HRV, " +
+                    uiString(R.string.l10n_data_sources_screen_this_permanently_deletes_everything_imported_from_f42e760e) +
                         "sleep, steps, workouts and more. Your live strap data is untouched. This can't be undone.",
                     style = NoopType.subhead,
                     color = Palette.textSecondary,
@@ -835,12 +837,12 @@ fun DataSourcesScreen(vm: AppViewModel) {
                         Toast.makeText(context, "Removed Apple Health imported data.", Toast.LENGTH_LONG).show()
                     }
                 }) {
-                    Text("Remove", style = NoopType.body, color = Palette.statusCritical)
+                    Text(uiString(R.string.l10n_data_sources_screen_remove_e963907d), style = NoopType.body, color = Palette.statusCritical)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { confirmDeleteApple = false }) {
-                    Text("Cancel", style = NoopType.body, color = Palette.textSecondary)
+                    Text(uiString(R.string.l10n_data_sources_screen_cancel_77dfd213), style = NoopType.body, color = Palette.textSecondary)
                 }
             },
         )

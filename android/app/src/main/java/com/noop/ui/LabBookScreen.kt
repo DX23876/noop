@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -160,7 +162,7 @@ fun LabBookScreen(vm: AppViewModel) {
     // `when {}` item (it's a user-entered, bounded set, not unbounded history), so its appearance is
     // byte-identical; the sheets below the scaffold are untouched.
     LazyScreenScaffold(
-        title = "Lab Book",
+        title = uiString(R.string.l10n_lab_book_screen_lab_book_f966c140),
         subtitle = "Your bloods, BP and body numbers. Kept private, on this phone.",
     ) {
         // Header card: count + scope + add action.
@@ -180,7 +182,7 @@ fun LabBookScreen(vm: AppViewModel) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(countLine(markers), style = NoopType.headline, color = Palette.textPrimary)
                         Text(
-                            "All stays on this phone. Nothing is sent anywhere.",
+                            uiString(R.string.l10n_lab_book_screen_all_stays_on_this_phone_nothing_9a966c1c),
                             style = NoopType.footnote,
                             color = Palette.textTertiary,
                         )
@@ -190,14 +192,14 @@ fun LabBookScreen(vm: AppViewModel) {
                             .size(28.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .clickable { showDisclaimer = true }
-                            .semantics { contentDescription = "What Lab Book is (and isn't)" },
+                            .semantics { contentDescription = uiString(R.string.l10n_lab_book_screen_what_lab_book_is_and_isn_f28686df) },
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(Icons.Filled.Info, contentDescription = null, tint = Palette.textTertiary, modifier = Modifier.size(18.dp))
                     }
                 }
                 Text(
-                    "It's a notebook, not a lab. NOOP lines up the numbers you enter. It doesn't test, " +
+                    uiString(R.string.l10n_lab_book_screen_it_s_a_notebook_not_a_45835e98) +
                         "read, or judge them. Not medical advice.",
                     style = NoopType.subhead,
                     color = Palette.textSecondary,
@@ -223,10 +225,10 @@ fun LabBookScreen(vm: AppViewModel) {
                     ) {
                         Icon(Icons.Filled.FileUpload, contentDescription = null, tint = Palette.metricAmber, modifier = Modifier.size(16.dp))
                     }
-                    Text("Import readings", style = NoopType.headline, color = Palette.textPrimary, modifier = Modifier.weight(1f))
+                    Text(uiString(R.string.l10n_lab_book_screen_import_readings_7ad0d28f), style = NoopType.headline, color = Palette.textPrimary, modifier = Modifier.weight(1f))
                 }
                 Text(
-                    "Bring in a markers CSV (date, marker, value, unit). Names that match the catalog " +
+                    uiString(R.string.l10n_lab_book_screen_bring_in_a_markers_csv_date_1090bec2) +
                         "fold onto your existing markers; anything else comes in as a custom marker. " +
                         "Rows that can't be read are skipped and counted, never guessed. Everything " +
                         "you import stays on this phone.",
@@ -252,14 +254,14 @@ fun LabBookScreen(vm: AppViewModel) {
         item {
         when {
             !loaded -> {
-                Text("Reading your logbook…", style = NoopType.subhead, color = Palette.textTertiary)
+                Text(uiString(R.string.l10n_lab_book_screen_reading_your_logbook_e31992b0), style = NoopType.subhead, color = Palette.textTertiary)
             }
             markers.isEmpty() -> {
                 NoopCard {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("Keep your own numbers here", style = NoopType.headline, color = Palette.textPrimary)
+                        Text(uiString(R.string.l10n_lab_book_screen_keep_your_own_numbers_here_1ca6c8ed), style = NoopType.headline, color = Palette.textPrimary)
                         Text(
-                            "Type in a blood-pressure reading or a cholesterol value from your last appointment. " +
+                            uiString(R.string.l10n_lab_book_screen_type_in_a_blood_pressure_reading_c276d418) +
                                 "It stays on this phone, and over time you'll see how it lines up with your sleep, " +
                                 "heart rate and recovery.",
                             style = NoopType.subhead,
@@ -287,7 +289,7 @@ fun LabBookScreen(vm: AppViewModel) {
         item {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
-                "Lab Book is a private notebook, not a medical service. NOOP stores and lines up the numbers " +
+                uiString(R.string.l10n_lab_book_screen_lab_book_is_a_private_notebook_d07380ca) +
                     "you enter. It doesn't test, read, diagnose, or advise. Your records never leave this phone; " +
                     "there's no account or cloud, so it isn't \"HIPAA-covered.\" Always rely on your doctor or " +
                     "pharmacist to interpret results.",
@@ -295,12 +297,12 @@ fun LabBookScreen(vm: AppViewModel) {
                 color = Palette.textTertiary,
             )
             Text(
-                "Read the full note",
+                uiString(R.string.l10n_lab_book_screen_read_the_full_note_3fd0e4d1),
                 style = NoopType.footnote,
                 color = Palette.accent,
                 modifier = Modifier
                     .clickable { showDisclaimer = true }
-                    .semantics { contentDescription = "Read the full Lab Book note" },
+                    .semantics { contentDescription = uiString(R.string.l10n_lab_book_screen_read_the_full_lab_book_note_3a250750) },
             )
         }
         }
@@ -406,7 +408,11 @@ private fun MarkerDetailSheet(
         Column(verticalArrangement = Arrangement.spacedBy(Metrics.sectionGap)) {
             Text(name, style = NoopType.title2, color = Palette.textPrimary)
             Text(
-                "${readings.size} reading${if (readings.size == 1) "" else "s"} · your own entries",
+                uiString(
+                    if (readings.size == 1) R.string.lab_book_reading_count
+                    else R.string.lab_book_readings_count,
+                    readings.size,
+                ),
                 style = NoopType.subhead,
                 color = Palette.textSecondary,
             )
@@ -471,7 +477,7 @@ private fun MarkerDetailSheet(
             }
 
             Text(
-                "These are your own numbers shown back to you. NOOP doesn't decide whether any value is " +
+                uiString(R.string.l10n_lab_book_screen_these_are_your_own_numbers_shown_7667508d) +
                     "normal, high or low.",
                 style = NoopType.footnote,
                 color = Palette.textTertiary,
@@ -492,12 +498,12 @@ private fun CorrelationResult(
     val n = pairs.size
     when {
         signal == null -> Text(
-            "Pick a wearable signal (resting HR, HRV, sleep, Charge, weight…) to line it up against this " +
+            uiString(R.string.l10n_lab_book_screen_pick_a_wearable_signal_resting_hr_8d8b01a2) +
                 "marker. NOOP averages the signal over the ${window.phrase} before each reading.",
             style = NoopType.subhead,
             color = Palette.textTertiary,
         )
-        computing -> Text("Lining them up…", style = NoopType.subhead, color = Palette.textTertiary)
+        computing -> Text(uiString(R.string.l10n_lab_book_screen_lining_them_up_c59ee297), style = NoopType.subhead, color = Palette.textTertiary)
         n < LAB_FLOOR -> Text(
             if (n == 0) {
                 "No overlap yet between this marker and ${signal.title.lowercase()}. Log a few more readings " +
@@ -514,14 +520,14 @@ private fun CorrelationResult(
             val tint = correlationColor(r)
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("$markerName ↔ ${signal.title}", style = NoopType.headline, color = Palette.textPrimary, modifier = Modifier.weight(1f), maxLines = 2)
+                    Text(uiString(R.string.l10n_lab_book_screen_markername_signal_title_e9c07909, markerName, signal.title), style = NoopType.headline, color = Palette.textPrimary, modifier = Modifier.weight(1f), maxLines = 2)
                     TrendChip(text = signedR(r), color = tint)
                     Spacer(Modifier.width(8.dp))
-                    Text("r = ${signedR(r)}", style = NoopType.number(18f), color = tint)
+                    Text(uiString(R.string.l10n_lab_book_screen_r_signedr_r_fb21be90, signedR(r)), style = NoopType.number(18f), color = tint)
                 }
                 Text(insightSentence(markerName, signal.title, r), style = NoopType.subhead, color = Palette.textSecondary)
                 Text(
-                    "$n readings used · ${strengthWord(r)} ${directionWord(r)} association. This is your own data " +
+                    uiString(R.string.l10n_lab_book_screen_n_readings_used_strengthword_r_directionword_298baf9e, n, strengthWord(r), directionWord(r)) +
                         "sitting side by side. It's not a medical finding, and it shows association, not cause.",
                     style = NoopType.footnote,
                     color = Palette.textTertiary,
@@ -529,7 +535,7 @@ private fun CorrelationResult(
             }
         }
         else -> Text(
-            "$n readings line up, but there isn't enough variation to compute a relationship.",
+            uiString(R.string.l10n_lab_book_screen_n_readings_line_up_but_there_27bfb506, n),
             style = NoopType.subhead,
             color = Palette.textTertiary,
         )
@@ -543,7 +549,7 @@ private fun SignalPicker(selected: LabSignal?, onSelect: (LabSignal?) -> Unit) {
         Row(
             modifier = Modifier
                 .clickable { expanded = true }
-                .semantics { contentDescription = "Choose a wearable signal to compare" },
+                .semantics { contentDescription = uiString(R.string.l10n_lab_book_screen_choose_a_wearable_signal_to_compare_05a4b2bc) },
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
@@ -562,7 +568,7 @@ private fun SignalPicker(selected: LabSignal?, onSelect: (LabSignal?) -> Unit) {
             }
             if (selected != null) {
                 androidx.compose.material3.DropdownMenuItem(
-                    text = { Text("Clear", style = NoopType.body, color = Palette.textSecondary) },
+                    text = { Text(uiString(R.string.l10n_lab_book_screen_clear_719ea396), style = NoopType.body, color = Palette.textSecondary) },
                     onClick = { onSelect(null); expanded = false },
                 )
             }
@@ -589,7 +595,7 @@ private fun HistoryRow(markerKey: String, row: LabMarkerRow, onDelete: (String) 
                 .size(28.dp)
                 .clip(RoundedCornerShape(8.dp))
                 .clickable { onDelete(row.id) }
-                .semantics { contentDescription = "Delete this reading" },
+                .semantics { contentDescription = uiString(R.string.l10n_lab_book_screen_delete_this_reading_b5c92bda) },
             contentAlignment = Alignment.Center,
         ) {
             Icon(Icons.Filled.Delete, contentDescription = null, tint = Palette.statusCritical, modifier = Modifier.size(15.dp))
@@ -603,8 +609,8 @@ private fun HistoryRow(markerKey: String, row: LabMarkerRow, onDelete: (String) 
 private fun LabBookDisclaimerSheet(onDismiss: () -> Unit) {
     NoopBottomSheet(onDismiss = onDismiss) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("About Lab Book", style = NoopType.title2, color = Palette.textPrimary)
-            Text("A private notebook, not a medical service.", style = NoopType.subhead, color = Palette.textSecondary)
+            Text(uiString(R.string.l10n_lab_book_screen_about_lab_book_37bf2691), style = NoopType.title2, color = Palette.textPrimary)
+            Text(uiString(R.string.l10n_lab_book_screen_a_private_notebook_not_a_medical_f63242cb), style = NoopType.subhead, color = Palette.textSecondary)
             DisclaimerBullet("NOOP stores and lines up the numbers you enter yourself. It does not test you, read your results, give medical advice, or diagnose anything.")
             DisclaimerBullet("Anything you see here (including any side-by-side trend) is your own information shown back to you. It's an association, never a cause, and never a medical finding.")
             DisclaimerBullet("NOOP never decides whether a value is \"normal,\" \"high,\" or \"low.\" Any reference range shown is exactly what you typed from your own report.")

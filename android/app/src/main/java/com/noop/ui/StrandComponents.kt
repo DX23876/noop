@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import android.app.DatePickerDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -153,7 +155,7 @@ internal fun DayNavBar(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = { onSelect(selectedOffset + 1) }) {
-            Icon(Icons.Filled.ChevronLeft, contentDescription = "Previous day", tint = Palette.accent)
+            Icon(Icons.Filled.ChevronLeft, contentDescription = uiString(R.string.l10n_strand_components_previous_day_e2b6b0a1), tint = Palette.accent)
         }
         Column(
             modifier = Modifier
@@ -179,7 +181,7 @@ internal fun DayNavBar(
             )
         }
         IconButton(onClick = { if (canGoNewer) onSelect(selectedOffset - 1) }, enabled = canGoNewer) {
-            Icon(Icons.Filled.ChevronRight, contentDescription = "Next day", tint = if (canGoNewer) Palette.accent else Palette.textTertiary)
+            Icon(Icons.Filled.ChevronRight, contentDescription = uiString(R.string.l10n_strand_components_next_day_38f859dd), tint = if (canGoNewer) Palette.accent else Palette.textTertiary)
         }
     }
 }

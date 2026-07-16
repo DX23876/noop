@@ -1,5 +1,7 @@
 package com.noop.widget
+import com.noop.ui.uiString
 
+import androidx.compose.ui.res.stringResource
 import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -104,21 +106,21 @@ private fun CompactWidgetContent(snap: WidgetSnapshot, dark: Boolean) {
             verticalAlignment = Alignment.Bottom,
         ) {
             CompactScoreCell(
-                label = "REST",
+                label = uiString(R.string.l10n_noop_compact_glance_widget_rest_cbaaa181),
                 iconRes = R.drawable.ic_widget_rest,
                 pct = snap.restPct,
                 color = snap.restPct?.let { compactBandColor(it, dark) } ?: textSecondary,
                 modifier = GlanceModifier.defaultWeight(),
             )
             CompactScoreCell(
-                label = "CHARGE",
+                label = uiString(R.string.l10n_noop_compact_glance_widget_charge_49a8cb83),
                 iconRes = R.drawable.ic_widget_charge,
                 pct = snap.recoveryPct,
                 color = snap.recoveryPct?.let { compactBandColor(it, dark) } ?: textSecondary,
                 modifier = GlanceModifier.defaultWeight(),
             )
             CompactScoreCell(
-                label = "EFFORT",
+                label = uiString(R.string.l10n_noop_compact_glance_widget_effort_660752e7),
                 iconRes = R.drawable.ic_widget_effort,
                 pct = snap.effortPct,
                 color = snap.effortPct?.let { compactEffortColor(dark) } ?: textSecondary,
@@ -134,7 +136,7 @@ private fun CompactWidgetContent(snap: WidgetSnapshot, dark: Boolean) {
             Spacer(modifier = GlanceModifier.width(10.dp))
             Image(
                 provider = ImageProvider(R.drawable.ic_widget_strap_battery),
-                contentDescription = "Strap battery",
+                contentDescription = uiString(R.string.l10n_noop_compact_glance_widget_strap_battery_a6c7f09c),
                 modifier = GlanceModifier.width(14.dp).height(14.dp),
                 colorFilter = ColorFilter.tint(textPrimary),
             )

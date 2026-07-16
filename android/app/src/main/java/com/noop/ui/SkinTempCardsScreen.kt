@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -129,7 +131,7 @@ fun CycleAwarenessCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Overline("Cycle awareness")
                     Text(
-                        "From your nightly temperature",
+                        uiString(R.string.l10n_skin_temp_cards_screen_from_your_nightly_temperature_ff8cca1a),
                         style = NoopType.footnote,
                         color = Palette.textTertiary,
                     )
@@ -158,7 +160,7 @@ fun CycleAwarenessCard(
                 Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = hue, modifier = Modifier.size(16.dp))
                     Text(
-                        "A period is likely between ${prettyDay(w.earliestDay)} and " +
+                        uiString(R.string.l10n_skin_temp_cards_screen_a_period_is_likely_between_prettyday_bc501b32, prettyDay(w.earliestDay)) +
                             "${prettyDay(w.latestDay)} (a window, not a fixed date).",
                         style = NoopType.subhead,
                         color = Palette.textSecondary,
@@ -170,17 +172,17 @@ fun CycleAwarenessCard(
             if (onLogPeriod != null || onOpenDetail != null || onTurnOff != null) {
                 Row(horizontalArrangement = Arrangement.spacedBy(Metrics.gap)) {
                     if (onLogPeriod != null) {
-                        OutlinedButton(onClick = onLogPeriod) { Text("Log period start") }
+                        OutlinedButton(onClick = onLogPeriod) { Text(uiString(R.string.l10n_skin_temp_cards_screen_log_period_start_c97241d0)) }
                     }
                     if (onOpenDetail != null) {
                         OutlinedButton(
                             onClick = onOpenDetail,
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = Palette.accent),
-                        ) { Text("View detail") }
+                        ) { Text(uiString(R.string.l10n_skin_temp_cards_screen_view_detail_27af4b67)) }
                     }
                     // #801: symmetric off-control (turn cycle awareness off where it was turned on).
                     if (onTurnOff != null) {
-                        OutlinedButton(onClick = onTurnOff) { Text("Turn off") }
+                        OutlinedButton(onClick = onTurnOff) { Text(uiString(R.string.l10n_skin_temp_cards_screen_turn_off_8807c2b3)) }
                     }
                 }
             }
@@ -204,17 +206,17 @@ fun CycleAwarenessOptInCard(onEnable: () -> Unit) {
         Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.Filled.Thermostat, contentDescription = null, tint = Palette.restColor, modifier = Modifier.size(18.dp))
-                Text("Cycle awareness", style = NoopType.headline, color = Palette.textPrimary)
+                Text(uiString(R.string.l10n_skin_temp_cards_screen_cycle_awareness_ffb94783), style = NoopType.headline, color = Palette.textPrimary)
             }
             Text(
-                "NOOP can read a coarse menstrual-cycle phase from your nightly skin temperature, " +
+                uiString(R.string.l10n_skin_temp_cards_screen_noop_can_read_a_coarse_menstrual_c79e4b85) +
                     "entirely on your device. It is awareness only: not contraception, not a fertility " +
                     "predictor, not a medical service.",
                 style = NoopType.subhead,
                 color = Palette.textSecondary,
             )
             PrivacyNote()
-            OutlinedButton(onClick = onEnable) { Text("Turn on cycle awareness") }
+            OutlinedButton(onClick = onEnable) { Text(uiString(R.string.l10n_skin_temp_cards_screen_turn_on_cycle_awareness_7c2d328f)) }
         }
     }
 }
@@ -237,7 +239,7 @@ fun BodyClockCard(
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                 Column(modifier = Modifier.weight(1f)) {
                     Overline("Body clock")
-                    Text("Light + sleep timing only", style = NoopType.footnote, color = Palette.textTertiary)
+                    Text(uiString(R.string.l10n_skin_temp_cards_screen_light_sleep_timing_only_df2a1552), style = NoopType.footnote, color = Palette.textTertiary)
                 }
                 StatePill(bodyClockConfidenceLabel(estimate.confidence), tone = bodyClockConfidenceTone(estimate.confidence))
             }
@@ -249,7 +251,7 @@ fun BodyClockCard(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Icon(Icons.Filled.NightsStay, contentDescription = null, tint = hue, modifier = Modifier.size(14.dp))
                 Text(
-                    "Estimated body-clock low around ${clockString(estimate.tempMinHour)}",
+                    uiString(R.string.l10n_skin_temp_cards_screen_estimated_body_clock_low_around_clockstring_fb0f0790, clockString(estimate.tempMinHour)),
                     style = NoopType.footnote,
                     color = Palette.textTertiary,
                 )
@@ -261,7 +263,7 @@ fun BodyClockCard(
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Overline("Plan · ${plan.estimatedDays}-day shift")
                     Text(
-                        "Day 1: bright light ${clockString(firstDay.brightLightStartHour)} - " +
+                        uiString(R.string.l10n_skin_temp_cards_screen_day_1_bright_light_clockstring_firstday_43b5fe87, clockString(firstDay.brightLightStartHour)) +
                             "${clockString(firstDay.brightLightEndHour)}, lights-out around " +
                             "${clockString(firstDay.targetSleepHour)}.",
                         style = NoopType.subhead,
@@ -369,7 +371,9 @@ private fun WhyRow(label: String, values: List<String>, tint: Color) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.semantics { contentDescription = "$label: ${values.joinToString(", ")}" },
+        modifier = Modifier.semantics {
+            contentDescription = uiString(R.string.skin_temp_reason_summary, label, values.joinToString(", "))
+        },
     ) {
         Overline(label)
         // Chips wrap to the next line rather than overflowing the card on a long confounder list.

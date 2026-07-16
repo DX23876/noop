@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -77,7 +79,7 @@ fun SmartAlarmScreen(vm: AppViewModel) {
     LazyScreenScaffold(
         // #766: "Alarms" because this screen now holds the phone Wake Window, the strap's firmware
         // wake-alarm (moved here from Automations), and the wind-down reminder, so the broader title fits.
-        title = "Alarms",
+        title = uiString(R.string.l10n_smart_alarm_screen_alarms_131dd3d6),
         subtitle = "Your wake window, the strap wake-alarm, and the evening wind-down reminder, in one place.",
     ) {
         // The guaranteed-wake card always shows so the safety promise is the first thing read.
@@ -86,7 +88,7 @@ fun SmartAlarmScreen(vm: AppViewModel) {
         item {
         AlarmSettingsCard {
             ToggleRowLocal(
-                label = "Wake me with a smart alarm",
+                label = uiString(R.string.l10n_smart_alarm_screen_wake_me_with_a_smart_alarm_bbbd082d),
                 help = "A guaranteed OS alarm is set for the end of your window; the strap stream can move it earlier if you're sleeping lightly.",
                 checked = enabled,
                 onChange = { want ->
@@ -106,7 +108,7 @@ fun SmartAlarmScreen(vm: AppViewModel) {
             if (enabled && !canSchedule) {
                 RowDividerLocal()
                 Text(
-                    "NOOP doesn't have permission to set exact alarms, so your wake isn't guaranteed. " +
+                    uiString(R.string.l10n_smart_alarm_screen_noop_doesn_t_have_permission_to_5b67cef0) +
                         "Tap to allow it in system settings.",
                     style = NoopType.footnote,
                     color = Palette.statusWarning,
@@ -123,8 +125,8 @@ fun SmartAlarmScreen(vm: AppViewModel) {
                 RowDividerLocal()
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text("Wake me no earlier than", style = NoopType.body, color = Palette.textPrimary)
-                        Text("The earliest NOOP will wake you.", style = NoopType.footnote, color = Palette.textTertiary)
+                        Text(uiString(R.string.l10n_smart_alarm_screen_wake_me_no_earlier_than_67411622), style = NoopType.body, color = Palette.textPrimary)
+                        Text(uiString(R.string.l10n_smart_alarm_screen_the_earliest_noop_will_wake_you_b641a2d4), style = NoopType.footnote, color = Palette.textTertiary)
                     }
                     Spacer(Modifier.width(16.dp))
                     TimeChip(
@@ -137,9 +139,9 @@ fun SmartAlarmScreen(vm: AppViewModel) {
                 RowDividerLocal()
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text("Window length", style = NoopType.body, color = Palette.textPrimary)
+                        Text(uiString(R.string.l10n_smart_alarm_screen_window_length_46179fcb), style = NoopType.body, color = Palette.textPrimary)
                         Text(
-                            "The guaranteed alarm fires this long after your earliest time.",
+                            uiString(R.string.l10n_smart_alarm_screen_the_guaranteed_alarm_fires_this_long_b0c51052),
                             style = NoopType.footnote, color = Palette.textTertiary,
                         )
                     }
@@ -156,7 +158,7 @@ fun SmartAlarmScreen(vm: AppViewModel) {
             // #821: label + copy name the CONNECTED strap generation (strapName), not a hardcoded "WHOOP 4".
             RowDividerLocal()
             ToggleRowLocal(
-                label = "Buzz $strapName",
+                label = uiString(R.string.l10n_smart_alarm_screen_buzz_strapname_813772f4, strapName),
                 help = if (bonded)
                     "Also arms your $strapName to buzz at your earliest wake time, so the strap wakes you first and the phone alarm is the guaranteed backup."
                 else
@@ -208,14 +210,14 @@ private fun StrapAlarmCard(vm: AppViewModel) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Filled.Alarm, contentDescription = null, tint = Palette.accent)
                     Spacer(Modifier.width(10.dp))
-                    Text("Strap wake-alarm", style = NoopType.title2, color = Palette.textPrimary)
+                    Text(uiString(R.string.l10n_smart_alarm_screen_strap_wake_alarm_1828fff3), style = NoopType.title2, color = Palette.textPrimary)
                 }
             }
             // Truth-sync (#535): the WHOOP 4.0 alarm payload was captured from the official app and
             // confirmed buzzing on a real 4.0 by the capture author, so the copy no longer calls the
             // 4.0 path experimental. The 5/MG Experimental-gate branch below is deliberately untouched.
             ToggleRowLocal(
-                label = "Wake me with a strap buzz",
+                label = uiString(R.string.l10n_smart_alarm_screen_wake_me_with_a_strap_buzz_1681ba1d),
                 help = "Arms the strap to buzz at your wake time, even if NOOP is closed. Sends the exact alarm command the official app sends, confirmed buzzing on a real WHOOP 4.0 (community wire capture + on-device test, #535). Keep a backup alarm for anything you truly can't miss.",
                 checked = smartAlarm,
                 onChange = { vm.setSmartAlarmEnabled(it) },
@@ -223,7 +225,7 @@ private fun StrapAlarmCard(vm: AppViewModel) {
             if (smartAlarm) {
                 RowDividerLocal()
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Wake at", style = NoopType.body, color = Palette.textPrimary)
+                    Text(uiString(R.string.l10n_smart_alarm_screen_wake_at_49089991), style = NoopType.body, color = Palette.textPrimary)
                     Spacer(Modifier.weight(1f))
                     TimeChip(
                         minutes = alarmMinutes,
@@ -247,7 +249,7 @@ private fun StrapAlarmCard(vm: AppViewModel) {
                 RowDividerLocal()
                 if (live.whoop5Detected && !experimentalOn) {
                     Text(
-                        "Your WHOOP 5/MG won't arm this until Experimental mode is on (Settings → " +
+                        uiString(R.string.l10n_smart_alarm_screen_your_whoop_5_mg_won_t_75029bae) +
                             "Experimental). Right now your wake time is saved but the strap is NOT armed.",
                         style = NoopType.footnote, color = Palette.statusWarning,
                     )
@@ -306,13 +308,13 @@ private fun WindowCard(enabled: Boolean, targetMinutes: Int, windowMinutes: Int)
                         Text(hhmm(deadline), style = NoopType.number(28f), color = DomainTheme.Rest.bright)
                     }
                     Text(
-                        "A backup alarm is set for ${hhmm(deadline)}. It fires even if Bluetooth drops, the strap isn't worn, or NOOP is closed.",
+                        uiString(R.string.l10n_smart_alarm_screen_a_backup_alarm_is_set_for_cf8b94fb, hhmm(deadline)),
                         style = NoopType.footnote, color = Palette.textSecondary,
                     )
                 } else {
-                    Text("Off", style = NoopType.title2, color = Palette.textSecondary)
+                    Text(uiString(R.string.l10n_smart_alarm_screen_off_e3de5ab0), style = NoopType.title2, color = Palette.textSecondary)
                     Text(
-                        "Turn on the smart alarm to wake inside a window you choose.",
+                        uiString(R.string.l10n_smart_alarm_screen_turn_on_the_smart_alarm_to_65700430),
                         style = NoopType.footnote, color = Palette.textTertiary,
                     )
                 }
@@ -328,7 +330,7 @@ private fun AlarmSettingsCard(content: @Composable () -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Filled.Alarm, contentDescription = null, tint = Palette.accent)
                 Spacer(Modifier.width(10.dp))
-                Text("Wake alarm", style = NoopType.headline, color = Palette.textPrimary)
+                Text(uiString(R.string.l10n_smart_alarm_screen_wake_alarm_37af3ecf), style = NoopType.headline, color = Palette.textPrimary)
             }
             content()
         }
@@ -346,11 +348,11 @@ private fun WindDownCard(vm: AppViewModel) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Filled.Bedtime, contentDescription = null, tint = DomainTheme.Rest.color)
                     Spacer(Modifier.width(10.dp))
-                    Text("Wind-down nudge", style = NoopType.title2, color = Palette.textPrimary)
+                    Text(uiString(R.string.l10n_smart_alarm_screen_wind_down_nudge_5ca87a0f), style = NoopType.title2, color = Palette.textPrimary)
                 }
             }
             ToggleRowLocal(
-                label = "Remind me to wind down",
+                label = uiString(R.string.l10n_smart_alarm_screen_remind_me_to_wind_down_4839f0d0),
                 help = "A gentle evening notification, timed from your wake time and usual sleep need, so you can settle in time. It's a suggestion, not an alarm.",
                 checked = enabled,
                 onChange = { vm.setWindDownEnabled(it) },
@@ -366,17 +368,17 @@ private fun ExplanationCard() {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Filled.Bedtime, contentDescription = null, tint = Palette.accent)
                 Spacer(Modifier.width(10.dp))
-                Text("How the smart wake works", style = NoopType.headline, color = Palette.textPrimary)
+                Text(uiString(R.string.l10n_smart_alarm_screen_how_the_smart_wake_works_8cf34930), style = NoopType.headline, color = Palette.textPrimary)
             }
             Text(
-                "While you're inside the window, NOOP watches your live heart rate from the strap. Deep " +
+                uiString(R.string.l10n_smart_alarm_screen_while_you_re_inside_the_window_8700ca3b) +
                     "sleep sits near your nightly low and stays steady; when your heart rate lifts above " +
                     "that (a sign you're sleeping more lightly or starting to stir), NOOP wakes you a " +
                     "little early so you come up from a lighter phase.",
                 style = NoopType.footnote, color = Palette.textSecondary,
             )
             Text(
-                "This is a coarse cue from heart rate, not a clinical sleep-stage reading. If the strap " +
+                uiString(R.string.l10n_smart_alarm_screen_this_is_a_coarse_cue_from_d6bbabe7) +
                     "isn't streaming (Bluetooth off, not worn, app killed), no early wake happens and the " +
                     "guaranteed alarm at the window's end still wakes you.",
                 style = NoopType.footnote, color = Palette.textTertiary,
@@ -393,9 +395,9 @@ private fun WindowStepper(windowMinutes: Int, onChange: (Int) -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        StepperButton(symbol = "−", onClick = { onChange((windowMinutes - 5).coerceAtLeast(5)) }, label = "Shorten window")
-        Text("$windowMinutes min", style = NoopType.bodyNumber, color = Palette.textPrimary)
-        StepperButton(symbol = "+", onClick = { onChange((windowMinutes + 5).coerceAtMost(60)) }, label = "Lengthen window")
+        StepperButton(symbol = "−", onClick = { onChange((windowMinutes - 5).coerceAtLeast(5)) }, label = uiString(R.string.l10n_smart_alarm_screen_shorten_window_5bf5b37d))
+        Text(uiString(R.string.l10n_smart_alarm_screen_windowminutes_min_bd89fd82, windowMinutes), style = NoopType.bodyNumber, color = Palette.textPrimary)
+        StepperButton(symbol = "+", onClick = { onChange((windowMinutes + 5).coerceAtMost(60)) }, label = uiString(R.string.l10n_smart_alarm_screen_lengthen_window_c947ea1d))
     }
 }
 

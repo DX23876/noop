@@ -1,6 +1,8 @@
 package com.noop
 
 import android.app.Application
+import android.content.Context
+import androidx.annotation.StringRes
 import android.util.Log
 import com.noop.ble.SourceCoordinator
 import com.noop.ble.WhoopBleClient
@@ -25,6 +27,15 @@ import kotlinx.coroutines.runBlocking
  * by the menu-bar extra.
  */
 class NoopApplication : Application() {
+
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(base)
+        // UI resource lookup is intentionally available before onCreate: data-driven presentation
+        // helpers (release notes, metric catalogs) can resolve a resource without becoming
+        // @Composable or retaining an Activity. The Application is process-scoped, so this does not
+        // leak a screen/context; configuration changes replace its Resources in place.
+        instance = this
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -113,4 +124,14 @@ class NoopApplication : Application() {
         NoopPrefs.of(this).getString("noop.selectedWhoopModel", null)
             ?.let { runCatching { WhoopModel.valueOf(it) }.getOrNull() }
             ?: WhoopModel.WHOOP4
+
+    companion object {
+        @Volatile private var instance: NoopApplication? = null
+
+        /** Resolve app-owned UI copy from composable and non-composable presentation helpers alike. */
+        fun localizedString(@StringRes id: Int, vararg formatArgs: Any): String {
+            val app = checkNotNull(instance) { "NoopApplication is not attached" }
+            return if (formatArgs.isEmpty()) app.getString(id) else app.getString(id, *formatArgs)
+        }
+    }
 }

@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -125,9 +127,9 @@ fun WhoopModelComparisonScreen(onClose: () -> Unit) {
 private fun IntroCard() {
     NoopCard(padding = 20.dp, tint = Palette.accent) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Both straps are supported", style = NoopType.headline, color = Palette.textPrimary)
+            Text(uiString(R.string.l10n_whoop_model_comparison_screen_both_straps_are_supported_8545557a), style = NoopType.headline, color = Palette.textPrimary)
             Text(
-                "NOOP pairs with the WHOOP 4.0 and the WHOOP 5.0/MG. They share most of what matters (live " +
+                uiString(R.string.l10n_whoop_model_comparison_screen_noop_pairs_with_the_whoop_4_599b088c) +
                     "heart rate, your scores, buzzing the strap), but a few firmware features differ. Here's " +
                     "what each can do, and why.",
                 style = NoopType.subhead,
@@ -144,9 +146,9 @@ private fun CapabilityTableCard() {
             Overline("Feature by strap")
             // Column header.
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Feature", style = NoopType.caption, color = Palette.textTertiary, modifier = Modifier.weight(1f))
+                Text(uiString(R.string.l10n_whoop_model_comparison_screen_feature_ad565d9d), style = NoopType.caption, color = Palette.textTertiary, modifier = Modifier.weight(1f))
                 Text("4.0", style = NoopType.caption, color = Palette.textTertiary, textAlign = TextAlign.Center, modifier = Modifier.width(48.dp))
-                Text("5/MG", style = NoopType.caption, color = Palette.textTertiary, textAlign = TextAlign.Center, modifier = Modifier.width(48.dp))
+                Text(uiString(R.string.l10n_whoop_model_comparison_screen_5_mg_62eaa522), style = NoopType.caption, color = Palette.textTertiary, textAlign = TextAlign.Center, modifier = Modifier.width(48.dp))
             }
             CAPABILITIES.forEachIndexed { idx, cap ->
                 if (idx > 0) Hairline()
@@ -154,7 +156,7 @@ private fun CapabilityTableCard() {
                     Row(
                         modifier = Modifier.fillMaxWidth().semantics {
                             contentDescription =
-                                "${cap.feature}. WHOOP 4.0: ${cap.whoop4.spoken}. WHOOP 5 or MG: ${cap.whoop5.spoken}."
+                                uiString(R.string.l10n_whoop_model_comparison_screen_cap_feature_whoop_4_0_cap_bc142cb8, cap.feature, cap.whoop4.spoken, cap.whoop5.spoken)
                         },
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -191,9 +193,9 @@ private fun SupportGlyph(icon: ImageVector, tint: Color, label: String) {
 private fun ReassuranceCard() {
     NoopCard(padding = 20.dp, tint = Palette.metricCyan) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("On a WHOOP 4.0?", style = NoopType.headline, color = Palette.textPrimary)
+            Text(uiString(R.string.l10n_whoop_model_comparison_screen_on_a_whoop_4_0_32a5968d), style = NoopType.headline, color = Palette.textPrimary)
             Text(
-                "You're not missing the broadcast feature. To share your heart rate with a gym machine, " +
+                uiString(R.string.l10n_whoop_model_comparison_screen_you_re_not_missing_the_broadcast_1d2fa907) +
                     "Zwift, Peloton or a Garmin, open Data Sources and turn on \"Broadcast heart rate\": " +
                     "your phone becomes a standard Bluetooth HR sensor using your strap's live reading. The " +
                     "firmware-only flag a 5/MG has just does the same job from the strap instead of the phone.",
@@ -215,11 +217,11 @@ private fun Header(onClose: () -> Unit) {
     ) {
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Overline("Your strap", color = Palette.textTertiary)
-            Text("4.0 vs 5.0/MG", style = NoopType.display(26f), color = Palette.textPrimary)
-            Text("What each can read, and why", style = NoopType.caption, color = Palette.textSecondary)
+            Text(uiString(R.string.l10n_whoop_model_comparison_screen_4_0_vs_5_0_mg_56099a02), style = NoopType.display(26f), color = Palette.textPrimary)
+            Text(uiString(R.string.l10n_whoop_model_comparison_screen_what_each_can_read_and_why_4348bd67), style = NoopType.caption, color = Palette.textSecondary)
         }
         IconButton(onClick = onClose, modifier = Modifier.size(36.dp)) {
-            Icon(Icons.Filled.Close, contentDescription = "Close", tint = Palette.textTertiary, modifier = Modifier.size(22.dp))
+            Icon(Icons.Filled.Close, contentDescription = uiString(R.string.l10n_whoop_model_comparison_screen_close_bbfa773e), tint = Palette.textTertiary, modifier = Modifier.size(22.dp))
         }
     }
 }
@@ -231,7 +233,7 @@ private fun Footer(onClose: () -> Unit) {
             onClick = onClose,
             colors = ButtonDefaults.buttonColors(containerColor = Palette.accent, contentColor = Palette.surfaceBase),
         ) {
-            Text("Done", modifier = Modifier.padding(horizontal = 24.dp))
+            Text(uiString(R.string.l10n_whoop_model_comparison_screen_done_e9b450d1), modifier = Modifier.padding(horizontal = 24.dp))
         }
     }
 }
