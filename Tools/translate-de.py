@@ -502,6 +502,17 @@ DE: dict[str, str] = {
     "Progress": "Fortschritt",
     "Set one from Coach settings to see your journey here.": "Lege in den Coach-Einstellungen eines fest, um hier deine Reise zu sehen.",
     "Your journey": "Deine Reise",
+    # --- Settings hub (fork: M3) ---------------------------------------------
+    "Connection & model": "Verbindung & Modell",
+    "Provider, API key and which model answers.": "Anbieter, API-Schlüssel und welches Modell antwortet.",
+    "Goal & Journey": "Ziel & Reise",
+    "Set a target and see your progress.": "Setz ein Ziel und verfolge deinen Fortschritt.",
+    "Coaching": "Coaching",
+    "Style, how you open Coach, and daily check-ins.": "Stil, wie du den Coach öffnest, und tägliche Check-ins.",
+    "Memory": "Gedächtnis",
+    "What the coach remembers, and chat summaries.": "Was der Coach sich merkt, und Chat-Zusammenfassungen.",
+    "Privacy & data": "Datenschutz & Daten",
+    "What's shared, and the coach's instructions.": "Was geteilt wird, und die Anweisungen des Coaches.",
     # The interpolated strings, in the %@ form both SwiftUI and the audit resolve to. Upstream 9.0.1's
     # rebuilt i18n_audit.py understands `\(...)` itself (swift_catalog_pattern), so the raw-source
     # twins this file used to carry alongside these are gone — the audit no longer looks them up.
