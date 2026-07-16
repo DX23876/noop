@@ -66,6 +66,15 @@ struct CoachSettingsView: View {
                 .padding(16)
             }
             .background(StrandPalette.surfaceBase.ignoresSafeArea())
+            // Drop an explicit "Custom…" pick made on the OLD provider — otherwise `customModel` stays
+            // true after switching away and forces the free-text field open even though the new
+            // provider's model list is perfectly valid. `isCustomModelSelected` still catches the new
+            // provider's own empty-list moment on its own.
+            //
+            // Single-param closure, not the two-param `{ _, _ in }` form: this view is shared with the
+            // macOS `Strand` target (deploymentTarget 13.0 in project.yml), and that form needs macOS 14
+            // (see ScreenScaffold.swift's `#if os(iOS)` guard around its own two-param onChange).
+            .onChange(of: coach.provider) { _ in customModel = false }
             .navigationTitle("Coach settings")
             #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -794,7 +803,7 @@ struct CoachSettingsView: View {
             .fixedSize()
             .accessibilityLabel("Model")
 
-            if customModel {
+            if isCustomModelSelected {
                 HStack(spacing: 8) {
                     TextField("Enter a model id", text: $customModelDraft)
                         .textFieldStyle(.plain)
@@ -817,9 +826,20 @@ struct CoachSettingsView: View {
         }
     }
 
+    /// Whether the model field should read as "Custom…" — either the user explicitly picked that tag,
+    /// or `coach.model` isn't (yet) one of `availableModels`. The latter covers the moment right after
+    /// switching to a provider whose model list starts empty (Custom, and briefly any provider before
+    /// `refreshModels()` returns): the engine resets `model` to `""` and `availableModels` to `[]`
+    /// together, so this always agrees with what the Picker can actually show — no tag ever goes
+    /// unmatched, and the free-text field appears without the user first having to find "Custom…" in a
+    /// menu that had nothing else to show.
+    private var isCustomModelSelected: Bool {
+        customModel || !coach.availableModels.contains(coach.model)
+    }
+
     private var modelPickerSelection: Binding<String> {
         Binding(
-            get: { customModel ? customModelTag : coach.model },
+            get: { isCustomModelSelected ? customModelTag : coach.model },
             set: { newValue in
                 if newValue == customModelTag {
                     customModel = true
