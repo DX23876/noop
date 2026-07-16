@@ -40,6 +40,10 @@ struct RootTabView: View {
     /// a no-op). Threaded into each tab's root via `\.scrollToTopSignal`; ScreenScaffold / LiquidTodayView
     /// scroll to their top anchor when their tab's token changes.
     @State private var scrollTop: [Int] = Array(repeating: 0, count: 4)
+    /// The floating bar's measured on-screen height, threaded to pushed content via
+    /// `\.floatingTabBarInset` (see the key below) so a bottom-docked composer can add exactly this
+    /// much extra clearance instead of guessing a number that drifts if the bar's own padding changes.
+    @State private var floatingTabBarHeight: CGFloat = 0
     /// Which More-tab groups are expanded (S2). Insights + Body stay open at rest; Data + App collapse to
     /// just their header until tapped. Persisted (#860 item 2): the user's open/closed choice must SURVIVE
     /// leaving and re-entering the More tab (and relaunch), not reset to the seed every visit. Backed by an
@@ -87,6 +91,15 @@ struct RootTabView: View {
             }
             .tint(StrandPalette.accent)
             .toolbar(.hidden, for: .tabBar)
+            // Reaches every tab root AND everything pushed within it (e.g. Coach, opened from the More
+            // list) — but NOT the FloatingTabBar itself (a ZStack sibling, not a TabView descendant) and
+            // NOT `.coachCover`'s fullScreenCover (attached to the ZStack below, also a sibling context).
+            // `.coachCover` additionally re-zeroes this explicitly for its own presented CoachView, since
+            // the Today-card entry point calls `.coachCover` on Today's OWN view — which, being a TabView
+            // descendant, would otherwise inherit this non-zero value despite being a true full-screen
+            // cover with no floating bar drawn over it.
+            .environment(\.floatingTabBarInset, floatingTabBarHeight)
+            .onPreferenceChange(FloatingTabBarHeightKey.self) { floatingTabBarHeight = $0 }
             // Tab crossfade — README §Motion: ~240ms opacity swap between tab roots, global calm
             // easing cubic-bezier(0.22,1,0.36,1).
             .animation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24), value: selectedTab)
@@ -118,6 +131,16 @@ struct RootTabView: View {
                     scrollTop[tag] += 1                // already at root: scroll to the top (#198 follow-up)
                 }
             })
+            // Measure the bar's own rendered footprint (capsule + its bottom padding) rather than
+            // hardcoding a guessed pixel value that would silently drift the day its padding/shadow
+            // change. Read via `.floatingTabBarInset` below by anything docked at the bottom of a
+            // pushed screen — today just Coach's composer (2026-07 "composer hidden behind the tab
+            // bar" fix) — that would otherwise sit UNDER this always-on-top overlay.
+            .background(
+                GeometryReader { proxy in
+                    Color.clear.preference(key: FloatingTabBarHeightKey.self, value: proxy.size.height)
+                }
+            )
 
             // Draggable floating Coach button — an alternative entry to the Today card, honouring the
             // user's Coach-entry preference. Floats over every tab; a tap opens the chat.
@@ -632,6 +655,29 @@ private struct QuickActionSheet: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+}
+
+/// Carries `FloatingTabBar`'s measured on-screen height up to `RootTabView`, which republishes it via
+/// `\.floatingTabBarInset`. `reduce` just takes the latest report — there is only ever one bar.
+private struct FloatingTabBarHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
+/// How much extra bottom clearance a pushed screen needs to clear the floating tab bar drawn on top of
+/// it — 0 everywhere outside the tab shell (macOS's sidebar `RootView`, or a true full-screen
+/// presentation like `.coachCover`, never sets this), so anything reading it is inert by default and
+/// only opts in where the bar is actually floating above. Mirrors `scrollToTopSignal`'s pattern
+/// (`ScreenScaffold.swift`) for threading a tab-shell-only layout fact down through pushed content.
+private struct FloatingTabBarInsetKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 0
+}
+
+extension EnvironmentValues {
+    var floatingTabBarInset: CGFloat {
+        get { self[FloatingTabBarInsetKey.self] }
+        set { self[FloatingTabBarInsetKey.self] = newValue }
     }
 }
 
