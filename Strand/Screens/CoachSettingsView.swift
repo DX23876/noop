@@ -24,6 +24,7 @@ struct CoachSettingsView: View {
     /// The structured goal (P3). The memory card's field still edits its title inline; the full editor
     /// with target/date/pace lives in the dedicated goal card.
     @ObservedObject private var goalStore = CoachGoalStore.shared
+    @ObservedObject private var usage = CoachUsageLog.shared
     @State private var memoryExpanded: Bool = false
     /// How the user reaches Coach from Today: the card, the draggable floating button, or both.
     @AppStorage(CoachEntryMode.storageKey) private var coachEntryModeRaw = CoachEntryMode.both.rawValue
@@ -54,6 +55,7 @@ struct CoachSettingsView: View {
                         checkInBar
                         memoryBar
                         if coach.dataConsent { memoryMaintenanceBar }
+                        tokenUsageBar
                         systemPromptBar
                         disconnectRow
                     } else {
@@ -235,6 +237,49 @@ struct CoachSettingsView: View {
                     .foregroundStyle(StrandPalette.accent)
                     .accessibilityLabel("Summarise the current chat now")
                 }
+            }
+        }
+    }
+
+    // MARK: - Token usage (last question)
+
+    /// What the last question actually cost, and whether prompt caching engaged. Shown only once a
+    /// question has been asked and only for providers that report token counts — an empty card would
+    /// just be noise.
+    ///
+    /// This is deliberately visible rather than a hidden debug flag: Anthropic's cache needs the cached
+    /// part of the request to clear a minimum length that varies by model, and under it the cache does
+    /// nothing at all without reporting anything. This card is the only place that shows which of the two
+    /// is happening.
+    @ViewBuilder
+    private var tokenUsageBar: some View {
+        if let turn = usage.lastTurn, !turn.rounds.isEmpty {
+            let cached = turn.cacheReadTokens > 0
+            NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 10) {
+                        // Icon AND word — never colour alone.
+                        Image(systemName: cached ? "bolt.fill" : "bolt.slash")
+                            .foregroundStyle(cached ? StrandPalette.accent : StrandPalette.textTertiary)
+                            .accessibilityHidden(true)
+                        Text("Last question")
+                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                        Spacer(minLength: 8)
+                        StatePill(cached ? "Cached" : "Uncached", tone: cached ? .accent : .neutral)
+                    }
+
+                    Text(CoachUsageLog.summaryLine(for: turn))
+                        .font(StrandFont.footnote.monospacedDigit())
+                        .foregroundStyle(StrandPalette.textSecondary)
+
+                    Text(CoachUsageLog.cacheVerdict(for: turn))
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Last question token usage. "
+                                    + CoachUsageLog.summaryLine(for: turn) + ". "
+                                    + CoachUsageLog.cacheVerdict(for: turn))
             }
         }
     }
