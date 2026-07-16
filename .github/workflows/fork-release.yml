@@ -213,6 +213,14 @@ jobs:
         run: |
           APP=$(find build/dd/Build/Products -maxdepth 3 -name '*.app' -type d | head -1)
           test -n "$APP" || { echo ".app not found"; exit 1; }
+          # #429: ad-hoc sign the BUNDLE so it has a stable per-build code identity. macOS 26 (Tahoe) won't
+          # bind a Bluetooth TCC grant to an UNSIGNED bundle, so users wedge at CBManagerState .unauthorized
+          # even after a fresh `tccutil reset` + approve. `--sign -` gives a real cdhash-based designated
+          # requirement TCC can grant to. No --entitlements / --options runtime: stays non-sandboxed so BT
+          # goes through plain TCC + the Info.plist usage string. (cdhash still changes per build, so a
+          # future UPDATE still needs the re-toggle the in-app #429/#295 banner already describes.)
+          codesign --force --deep --sign - "$APP"
+          codesign -dvv "$APP" 2>&1 | grep -Ei 'identifier|signature|flags' || true
           ditto -c -k --keepParent "$APP" "NOOP-macos-v${VER}.zip"
           gh release upload "${{ needs.bump.outputs.tag }}" "NOOP-macos-v${VER}.zip" --repo "$GITHUB_REPOSITORY" --clobber
 
