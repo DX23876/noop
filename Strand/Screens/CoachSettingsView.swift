@@ -25,7 +25,6 @@ struct CoachSettingsView: View {
     /// with target/date/pace lives in the dedicated goal card.
     @ObservedObject private var goalStore = CoachGoalStore.shared
     @State private var memoryExpanded: Bool = false
-    @State private var goalDraft: String = ""
     /// How the user reaches Coach from Today: the card, the draggable floating button, or both.
     @AppStorage(CoachEntryMode.storageKey) private var coachEntryModeRaw = CoachEntryMode.both.rawValue
     /// Which corner the floating button is pinned to (`.custom` once dragged), and whether it's locked.
@@ -34,6 +33,8 @@ struct CoachSettingsView: View {
     /// In-place fact editing: the fact being edited + its working text.
     @State private var editingFactID: UUID?
     @State private var editingFactText: String = ""
+    /// Presents the structured goal editor.
+    @State private var showGoalEditor = false
 
     private let customModelTag = "__custom__"
 
@@ -46,6 +47,7 @@ struct CoachSettingsView: View {
                         consentBar
                         if coach.dataConsent { onDeviceSignalsBar }
                         personaBar
+                        goalBar
                         coachEntryBar
                         checkInBar
                         memoryBar
@@ -395,27 +397,74 @@ struct CoachSettingsView: View {
         }
     }
 
+    // MARK: - Goal
+
+    /// The structured goal, summarised with the arithmetic already done (weeks left, pace verdict) —
+    /// tapping opens the full editor. Shows an invitation rather than an empty field when unset, since
+    /// a goal is entirely optional and NOOP works fine without one.
+    private var goalBar: some View {
+        Button { showGoalEditor = true } label: {
+            NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+                HStack(spacing: 10) {
+                    Image(systemName: "target")
+                        .foregroundStyle(goalStore.goal == nil ? StrandPalette.textTertiary : StrandPalette.accent)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(goalStore.goal?.title.isEmpty == false ? goalStore.goal!.title : "Set a goal")
+                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                            .lineLimit(1)
+                        Text(goalSubtitle)
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .accessibilityHidden(true)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .sheet(isPresented: $showGoalEditor) { CoachGoalEditorView(isOnboarding: false) }
+        .accessibilityLabel(goalStore.goal == nil ? "Set a goal" : "Edit your goal")
+    }
+
+    /// One honest line: how long is left, and whether the pace was flagged.
+    private var goalSubtitle: String {
+        guard let goal = goalStore.goal else {
+            return "A target and a date let the coach tell you where you stand. Optional."
+        }
+        var parts: [String] = []
+        if let weeks = goal.weeksRemaining() {
+            parts.append(weeks < 0 ? "target date passed"
+                                   : String(format: "%.0f weeks to go", weeks.rounded()))
+        }
+        let gate = GoalSafetyGate.assess(goal: goal, bodyWeightKg: ProfileStore().weightKg)
+        if gate.verdict == .aggressive || gate.verdict == .veryAggressive {
+            parts.append(goal.acknowledgedRisk != nil ? "brisk pace, acknowledged" : "brisk pace")
+        }
+        return parts.isEmpty ? "No target date set" : parts.joined(separator: " · ")
+    }
+
     // MARK: - Memory
 
     private var memoryBar: some View {
         NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
             VStack(alignment: .leading, spacing: memoryExpanded ? 10 : 0) {
                 Button {
-                    withAnimation(StrandMotion.fade) {
-                        memoryExpanded.toggle()
-                        if memoryExpanded { goalDraft = goalStore.goal?.title ?? "" }
-                    }
+                    withAnimation(StrandMotion.fade) { memoryExpanded.toggle() }
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: "brain")
-                            .foregroundStyle(memory.facts.isEmpty && goalStore.goal == nil
+                            .foregroundStyle(memory.facts.isEmpty
                                              ? StrandPalette.textTertiary : StrandPalette.accent)
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 1) {
                             Text("Coach memory")
                                 .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                             Text(memory.facts.isEmpty
-                                 ? "Your goal and what the coach remembers about you, across conversations."
+                                 ? "What the coach remembers about you, across conversations."
                                  : "\(memory.facts.count) remembered fact\(memory.facts.count == 1 ? "" : "s"). The coach uses these in every reply.")
                                 .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -431,31 +480,6 @@ struct CoachSettingsView: View {
                 .accessibilityLabel(memoryExpanded ? "Collapse coach memory" : "Show coach memory")
 
                 if memoryExpanded {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("My goal").strandOverline()
-                        TextField("e.g. Half marathon in October", text: $goalDraft)
-                            .textFieldStyle(.plain)
-                            .font(StrandFont.body)
-                            .foregroundStyle(StrandPalette.textPrimary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 9)
-                            .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
-                            .overlay(RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous)
-                                .strokeBorder(StrandPalette.hairline, lineWidth: 1))
-                            .onChangeCompat(of: goalDraft) { newValue in
-                                let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
-                                if trimmed.isEmpty {
-                                    goalStore.clear()
-                                } else if var existing = goalStore.goal {
-                                    existing.title = newValue
-                                    goalStore.goal = existing
-                                } else {
-                                    goalStore.goal = CoachGoal(kind: .custom, title: newValue)
-                                }
-                            }
-                            .accessibilityLabel("My training goal")
-                    }
-
                     if !memory.facts.isEmpty {
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Remembered").strandOverline()
