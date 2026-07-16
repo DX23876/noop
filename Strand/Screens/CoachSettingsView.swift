@@ -35,6 +35,8 @@ struct CoachSettingsView: View {
     @State private var editingFactText: String = ""
     /// Presents the structured goal editor.
     @State private var showGoalEditor = false
+    /// Presents the Journey page (progress, milestones, plan history) — only reachable once a goal exists.
+    @State private var showJourney = false
 
     private let customModelTag = "__custom__"
 
@@ -403,31 +405,54 @@ struct CoachSettingsView: View {
     /// tapping opens the full editor. Shows an invitation rather than an empty field when unset, since
     /// a goal is entirely optional and NOOP works fine without one.
     private var goalBar: some View {
-        Button { showGoalEditor = true } label: {
-            NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
-                HStack(spacing: 10) {
-                    Image(systemName: "target")
-                        .foregroundStyle(goalStore.goal == nil ? StrandPalette.textTertiary : StrandPalette.accent)
-                        .accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(goalStore.goal?.title.isEmpty == false ? goalStore.goal!.title : "Set a goal")
-                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                            .lineLimit(1)
-                        Text(goalSubtitle)
-                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
-                            .fixedSize(horizontal: false, vertical: true)
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            VStack(alignment: .leading, spacing: 10) {
+                Button { showGoalEditor = true } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "target")
+                            .foregroundStyle(goalStore.goal == nil ? StrandPalette.textTertiary : StrandPalette.accent)
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(goalStore.goal?.title.isEmpty == false ? goalStore.goal!.title : "Set a goal")
+                                .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                                .lineLimit(1)
+                            Text(goalSubtitle)
+                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 8)
+                        Image(systemName: "chevron.right")
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .accessibilityHidden(true)
                     }
-                    Spacer(minLength: 8)
-                    Image(systemName: "chevron.right")
-                        .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.textTertiary)
-                        .accessibilityHidden(true)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(goalStore.goal == nil ? "Set a goal" : "Edit your goal")
+
+                if goalStore.goal != nil {
+                    Divider().overlay(StrandPalette.hairline)
+                    Button { showJourney = true } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "chart.line.uptrend.xyaxis")
+                                .foregroundStyle(StrandPalette.accent)
+                                .accessibilityHidden(true)
+                            Text("View your journey")
+                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
+                            Spacer(minLength: 8)
+                            Image(systemName: "chevron.right")
+                                .font(StrandFont.footnote)
+                                .foregroundStyle(StrandPalette.textTertiary)
+                                .accessibilityHidden(true)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("View your goal journey — progress, milestones and plan history")
                 }
             }
         }
-        .buttonStyle(.plain)
         .sheet(isPresented: $showGoalEditor) { CoachGoalEditorView(isOnboarding: false) }
-        .accessibilityLabel(goalStore.goal == nil ? "Set a goal" : "Edit your goal")
+        .sheet(isPresented: $showJourney) { JourneyView().environmentObject(coach) }
     }
 
     /// One honest line: how long is left, and whether the pace was flagged.
