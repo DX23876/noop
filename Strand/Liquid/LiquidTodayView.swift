@@ -504,11 +504,14 @@ struct LiquidTodayView: View {
                 .overlay(alignment: .top) {
                     if let sourceLabel = heroSourceLabel {
                         SourceBadge("\(sourceLabel)", tint: StrandPalette.onDarkSecondary)
-                            // Match the badge's trailing edge to the fixed-width Rest vessel on every
-                            // card width, then lift its centre onto the card's top border.
+                            // Match the badge's trailing edge to the fixed-width Rest vessel on every card
+                            // width, then lift by the space4 gap above the cells so the badge's TOP sits on
+                            // the card's top edge — tucked into the top-right corner. (#486: the old
+                            // "+ half the badge height" centred it ON the border, reading as a pill floating
+                            // detached above the card; two users flagged it. Twin of Android TodayScreen.)
                             .fixedSize()
                             .frame(width: HeroScoreCell.vesselDiameter, alignment: .trailing)
-                            .offset(y: -(NoopMetrics.space4 + NoopMetrics.sourceBadgeHeight / 2))
+                            .offset(y: -NoopMetrics.space4)
                             .allowsHitTesting(false)
                             .accessibilityLabel(Text("Source: \(sourceLabel)"))
                     }

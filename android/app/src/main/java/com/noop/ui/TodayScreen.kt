@@ -2330,11 +2330,6 @@ private fun ScoreHeroRow(
     // count-up both honour Reduce Motion internally, so this is purely a "don't animate an empty hero" cost
     // gate. A carried Charge counts as data (its dimmed vessel should slosh like the Rest one).
     val animated = recovery != null || strain != null || restScore != null || lastScoredCharge != null
-    var sourceBadgeHeightPx by remember(heroSourceLabel) { mutableIntStateOf(0) }
-    val sourceBadgeHalfHeight = with(LocalDensity.current) {
-        if (sourceBadgeHeightPx > 0) (sourceBadgeHeightPx / 2f).toDp()
-        else Metrics.sourceBadgeHeight / 2
-    }
 
     Box(
         modifier = Modifier
@@ -2449,11 +2444,12 @@ private fun ScoreHeroRow(
                                 // Measure the full label even when it is wider than the Rest vessel, then
                                 // let it overflow left while preserving the vessel-aligned trailing edge.
                                 .wrapContentWidth(unbounded = true, align = Alignment.End)
-                                .onSizeChanged { sourceBadgeHeightPx = it.height }
-                                // The row starts one space16 inside the card; lifting by that plus half the
-                                // measured badge height puts its centre exactly on the top border, including
-                                // when Android font scaling grows it above the canonical compact height.
-                                .offset(y = -(Metrics.space16 + sourceBadgeHalfHeight))
+                                // #486: the vessel row starts one space16 inside the card, so lifting by
+                                // exactly space16 puts the badge's TOP on the card's top edge — it tucks
+                                // into the top-right corner and hangs into the gap above the vessels. The
+                                // previous "+ half the badge height" centred it ON the border, where it read
+                                // as a pill floating detached above the card (two users flagged it).
+                                .offset(y = -Metrics.space16)
                                 .semantics { contentDescription = "Source: $heroSourceLabel" },
                         )
                     }

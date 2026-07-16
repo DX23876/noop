@@ -1984,14 +1984,18 @@ private val WorkoutRow.sourceBadge: Pair<String, Color>
     get() = when (WorkoutEditing.classify(source)) {
         // Detected (on-device auto-detector) is honestly labelled so a duplicate is recognisable +
         // removable (#107); manual = user-logged. Both classify on `source` BEFORE the import labels.
-        WorkoutSource.DETECTED -> "Detected" to Palette.metricPurple
-        WorkoutSource.MANUAL -> "Manual" to Palette.statusWarning
-        WorkoutSource.LIFTING -> "Lifting" to Palette.zone2 // imported Hevy / Liftosaur strength log
-        WorkoutSource.ACTIVITY_FILE -> "File" to Palette.metricAmber // imported GPX / TCX / FIT
+        // #486: SHORT badge codes so the label fits the narrow weight-1 Src column on a phone instead of
+        // ellipsising ("Manual"->"MA...", "Whoop"->"WH...", "Detected"->"DE..."). The colour + the row
+        // context disambiguate. iOS keeps the full words — its Source column is a fixed 80pt that fits them
+        // and those labels are localized; Android's badge labels are hardcoded, so this stays platform-local.
+        WorkoutSource.DETECTED -> "AUTO" to Palette.metricPurple
+        WorkoutSource.MANUAL -> "MAN" to Palette.statusWarning
+        WorkoutSource.LIFTING -> "LIFT" to Palette.zone2 // imported Hevy / Liftosaur strength log
+        WorkoutSource.ACTIVITY_FILE -> "FILE" to Palette.metricAmber // imported GPX / TCX / FIT
         else -> when (workoutSourceLabel(deviceId, source)) {
             "HC" -> "HC" to Palette.metricPurple
-            "Whoop" -> "Whoop" to Palette.accent
-            else -> "Apple" to Palette.metricCyan
+            "Whoop" -> "WHP" to Palette.accent
+            else -> "APL" to Palette.metricCyan
         }
     }
 
