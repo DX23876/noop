@@ -590,16 +590,18 @@ private func decodeWhoop5HistoricalV26(_ frame: [UInt8], fb: FieldBuilder) {
 /// Both versions reuse the v18 record header — layout version @9, a marker byte @10 (0x81 on v20, 0x80 on
 /// v21), the monotonic u32 record index @11 (the same lifetime counter as v18), and the u32 unix second
 /// @15. Their bodies are blocks of fixed-length sample channels, established from captured frames:
-///   • v21 (1244 B): a (100, 100, 3) descriptor near @22, then three 100-sample i16 channels at @28 /
-///     @228 / @428 (200 B apart), each a bounded pulsatile waveform at its own DC baseline.
+///   • v21 (1244 B): a (100, 100, 3) descriptor near @22, then SIX 100-sample i16 channels in two blocks —
+///     accelerometer at @28 / @228 / @428 and gyroscope at @640 / @840 / @1040 (200 B apart; countB @630 =
+///     100). This is 6-axis IMU, not optical: the accel channels sphere-fit to a ~1 g gravity shell on a
+///     stationary strap (validated by Whoop5RawImu over 1423 real buffers, #423/#493).
 ///   • v20 (2140 B): five channel blocks, each preceded by a presence byte (0x19 = active, 0x00 =
 ///     empty / zero-filled); an active block holds two 50-sample i32 channels. The presence bytes sit at
 ///     @0x1a / @0x1c0 / @0x366 / @0x50c / @0x6b2; the ten channel slots start at
 ///     @0x2f / 0xf7 / 0x1d5 / 0x29d / 0x37b / 0x443 / 0x521 / 0x5e9 / 0x6c7 / 0x78f.
 ///
-/// Channels are exposed as raw sample arrays with NO invented scale or unit (an optical waveform has no
-/// absolute unit). Which channel maps to which optical LED — and which carries motion — needs a labelled
-/// capture (e.g. a deliberate moving window), so no per-channel identity is asserted here.
+/// v21 channels are named accel_/gyro_ per the gravity-shell evidence above; v20 sensor identity is still
+/// OPEN (no labelled/moving v20 capture in the tree) so its channels stay neutrally named. Both are exposed
+/// as raw i16 sample arrays with no scale applied here — Whoop5RawImu.decode applies the physical scales.
 private func decodeWhoop5HistoricalV2021(_ frame: [UInt8], fb: FieldBuilder, version: Int, payloadEnd: Int?) {
     if frame.count > 10 {
         fb.add(10, 1, "layout_marker", "meta", value: .int(Int(frame[10])))
@@ -611,16 +613,26 @@ private func decodeWhoop5HistoricalV2021(_ frame: [UInt8], fb: FieldBuilder, ver
         fb.add(15, 4, "unix", "time", value: .int(unix), note: "real unix seconds")
     }
     if version == 21 {
-        // Three 100-sample i16 channels, 200 B apart.
-        for (ch, start) in [(0, 28), (1, 228), (2, 428)] {
+        // TWO blocks of three 100-sample i16 channels: accelerometer (@28/@228/@428) then gyroscope
+        // (@640/@840/@1040), matching the (100,100,3) header @22 and countB @630. NOT optical: on a
+        // stationary strap the three accel channels sphere-fit to a ~1 g gravity shell (median |a| =
+        // 1.006 g, 100/100 samples in-shell on the real fixture) — a gravity vector, which PPG cannot
+        // produce. Validated as 6-axis IMU by Whoop5RawImu over 1423 real buffers (#423/#493). Emitted as
+        // raw i16 arrays (this field layer applies no scale); the physical scales — 1/4096 g/LSB (accel),
+        // 2000/32768 (°/s)/LSB (gyro) — are applied by Whoop5RawImu.decode.
+        let channels: [(name: String, start: Int)] = [
+            ("accel_x", 28), ("accel_y", 228), ("accel_z", 428),
+            ("gyro_x", 640), ("gyro_y", 840), ("gyro_z", 1040),
+        ]
+        for (name, start) in channels {
             var samples: [Int] = []
             for i in 0..<100 {
                 guard let v = readI16(frame, start + i * 2) else { break }
                 samples.append(v)
             }
             if samples.count == 100 {
-                fb.add(start, 200, "optical_ch\(ch)", "ppg", value: .intArray(samples),
-                       note: "raw i16 channel samples (no absolute unit)")
+                fb.add(start, 200, name, "imu", value: .intArray(samples),
+                       note: "raw i16 samples (scale via Whoop5RawImu: 1/4096 g accel, 2000/32768 dps gyro)")
             }
         }
         fb.parsed["sensor_channel_samples"] = .int(100)

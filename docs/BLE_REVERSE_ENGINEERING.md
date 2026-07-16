@@ -528,22 +528,29 @@ captured frame of both versions, which is what lets the body offsets be trusted.
 
 The bodies are blocks of fixed-length **sample channels**:
 
-- **v21 (1244 B):** a `(100, 100, 3)` descriptor near `@22`, then **three 100-sample i16 channels at
-  `@28` / `@228` / `@428`** (200 B apart). Each is a bounded pulsatile waveform at its own DC baseline
-  (≈1820 / 720 / 3630) — the signature of optical (PPG) channels.
+- **v21 (1244 B):** a `(100, 100, 3)` descriptor near `@22`, then **six 100-sample i16 channels** in two
+  blocks — **accelerometer at `@28` / `@228` / `@428`** and **gyroscope at `@640` / `@840` / `@1040`**
+  (200 B apart; the second block's count sits at `@630` = 100). This is **6-axis IMU, not optical**: on a
+  stationary strap the three accel channels sphere-fit to a **~1 g gravity shell** (median |a| = 1.006 g,
+  100/100 samples in-shell on the real fixture) — a gravity vector, which a PPG channel cannot produce.
+  (The DC "baselines" ≈1820 / 720 / 3630 a stationary capture shows are exactly that gravity vector:
+  √(1820²+720²+3630²)/4096 = 1.007 g.) Validated as 6-axis IMU by `Whoop5RawImu` over 1423 real buffers.
 - **v20 (2140 B):** **five channel blocks**, each preceded by a **presence byte** (`0x19` = active,
   `0x00` = empty/zero-filled). An active block holds **two 50-sample i32 channels**. Presence bytes at
   `@0x1a / 0x1c0 / 0x366 / 0x50c / 0x6b2`; the ten channel slots start at
   `@0x2f / 0xf7 / 0x1d5 / 0x29d / 0x37b / 0x443 / 0x521 / 0x5e9 / 0x6c7 / 0x78f`. i32 LE is the correct
   width (only that alignment yields smooth waveforms; an empty block's 200-byte slots are all-zero across
-  every frame, matching its `0x00` presence byte). So v20 carries the same sensor set as v21 at i32 /
-  50-sample resolution.
+  every frame, matching its `0x00` presence byte). **v20 sensor identity is OPEN**: there is no labelled
+  or moving v20 capture in the tree, and the earlier "same sensor set as v21" claim was the only basis for
+  calling it optical — now that v21 is inertial, that inference no longer supports an optical reading. Do
+  not treat v20 as an SpO₂/BP optical substrate pending a labelled **moving** capture.
 
-`decodeWhoop5HistoricalV2021` exposes `layout_marker`, `record_index`, `unix`, and the active channels as
-**raw sample arrays with no invented scale** (an optical waveform has no absolute unit). Which channel is
-which optical LED — and which carries motion/accelerometer — is **not** determinable from a stationary
-capture and needs a **labelled (e.g. deliberately moving) window**, so no per-channel identity is asserted.
-Tests: `Whoop5HistoricalV2021Tests.swift`.
+`decodeWhoop5HistoricalV2021` exposes `layout_marker`, `record_index`, `unix`, and the channels as **raw
+i16 sample arrays with no scale applied at this layer**. For **v21** the channels are named `accel_x/y/z`
+and `gyro_x/y/z` per the gravity-shell evidence above (`Whoop5RawImu.decode` applies the physical scales —
+1/4096 g/LSB accel, 2000/32768 (°/s)/LSB gyro). For **v20** the channels stay neutrally named because its
+sensor identity is still open (needs a labelled/moving capture). Tests: `Whoop5HistoricalV2021Tests.swift`
+(incl. a real-frame gravity-shell assertion) and `Whoop5RawImuTests.swift`.
 
 > The v18 per-second record's own optical region (bytes [57:120]) carries **no simple summary of this
 > PPG** (no field tracks its DC or AC amplitude), and its SpO₂ / skin-temp channels have no internal
