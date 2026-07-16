@@ -147,10 +147,6 @@ final class AppModel: ObservableObject {
     // via BiofeedbackPrefs so a relaunch can't re-fire), carried verbatim between evaluations.
     private var rrBuf: [Int] = []
     private var stressState = BiofeedbackPrefs.loadStressState()
-    // Legacy experimental stress-nudge state (the older `behavior.stressNudge` buzz path) , a slow HRV
-    // baseline + a rate limiter, kept so that toggle still works independently of the L3 check-in.
-    private var hrvBaseline: Double = 0
-    private var lastStressBuzzAt: Date = .distantPast
 
     /// Import source currently writing to the local store, if any.
     @Published private var activeImportSource: DataSourceImportKind?
@@ -750,39 +746,19 @@ final class AppModel: ObservableObject {
         bpm = nil
     }
 
-    /// Stress evaluation, two independent layers (each opt-in, each off by default):
-    ///   • the legacy experimental `behavior.stressNudge` buzz (a fresh HRV dip → one confirming buzz);
-    ///   • the v5 L3 closed-loop check-in , the unit-tested `StressOnsetDetector` decides, at the moment
-    ///     it matters, whether to offer a 60-s guided breath. On a fresh, non-metabolic HRV dip while the
-    ///     user is still it fires a single confirming buzz AND posts a passive nudge to `stressNudgeCenter`
-    ///     (the dismissible Stress check-in card surfaces it). The detector carries its own replay-safe
-    ///     state (de-dup + slow baseline + rate limit), persisted via `BiofeedbackPrefs` so a relaunch
-    ///     can't re-fire. Honest / non-clinical: "stress" is an autonomic proxy vs the user's own
-    ///     baseline, never a diagnosis.
+    /// The unit-tested `StressOnsetDetector` decides whether to offer a 60-s guided breath. On a fresh,
+    /// non-metabolic HRV dip while the user is still, it fires a single confirming buzz and posts a
+    /// passive nudge to `stressNudgeCenter`. The detector carries replay-safe state (de-dup + slow
+    /// baseline + rate limit), persisted via `BiofeedbackPrefs` so a relaunch can't re-fire. Honest /
+    /// non-clinical: "stress" is an autonomic proxy vs the user's own baseline, never a diagnosis.
     private func evaluateStress() {
         let fresh = live.rr.filter { $0 > 300 && $0 < 2000 }   // plausible R-R (30–200 bpm)
         guard !fresh.isEmpty else { return }
         rrBuf.append(contentsOf: fresh)
         if rrBuf.count > 120 { rrBuf.removeFirst(rrBuf.count - 120) }
 
-        // ── Legacy experimental nudge (behavior.stressNudge) , unchanged behaviour, kept separate.
-        if behavior.stressNudge, live.bonded, live.worn, rrBuf.count >= 20 {
-            let rmssd = AppModel.rmssd(Array(rrBuf.suffix(60)))
-            if rmssd > 0 {
-                hrvBaseline = hrvBaseline == 0 ? rmssd : hrvBaseline * 0.98 + rmssd * 0.02   // slow EMA
-                if let hr = bpm, hr >= 55, hr <= 100 {            // resting band , not a workout
-                    let now = Date()
-                    if rmssd < hrvBaseline * 0.6, now.timeIntervalSince(lastStressBuzzAt) > 900 {
-                        lastStressBuzzAt = now
-                        buzz(loops: 1)
-                        live.append(log: "Stress nudge , take a paced breath")
-                    }
-                }
-            }
-        }
-
-        // ── v5 L3 closed-loop check-in (StressOnsetDetector). Inert unless the master toggle is on; the
-        // engine itself owns every gate (auto-nudge, exercise gate, quiet hours, rate limit, edge).
+        // Inert unless the master toggle is on; the engine owns every gate (auto-nudge, exercise gate,
+        // quiet hours, rate limit, edge).
         let cfg = BiofeedbackPrefs.stressConfig()
         guard cfg.enabled, live.bonded, live.worn else { return }
         let decision = StressOnsetDetector.evaluate(
@@ -805,13 +781,6 @@ final class AppModel: ObservableObject {
     /// Whether the encrypted channel is up so a confirming buzz can actually fire (the command
     /// characteristic is gated on bond; an un-encrypted live-HR-only link can't buzz).
     private var canBuzz: Bool { live.bonded && live.encryptedBond }
-
-    static func rmssd(_ rr: [Int]) -> Double {
-        guard rr.count >= 2 else { return 0 }
-        var sum = 0.0, n = 0
-        for i in 1..<rr.count { let d = Double(rr[i] - rr[i - 1]); sum += d * d; n += 1 }
-        return n > 0 ? (sum / Double(n)).squareRoot() : 0
-    }
 
     /// Start scanning for the strap. When no model is given, use the one the user
     /// picked (persisted under "selectedWhoopModel"), so every scan entry point ,
