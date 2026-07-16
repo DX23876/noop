@@ -25,10 +25,12 @@ struct CoachView: View {
     @FocusState private var composerFocused: Bool
     /// Presented sheet: all configuration, or the conversation history. One enum-driven sheet rather
     /// than two stacked `.sheet` modifiers (which don't compose reliably).
-    private enum ActiveSheet: Int, Identifiable { case settings, history; var id: Int { rawValue } }
+    private enum ActiveSheet: Int, Identifiable { case settings, history, plan; var id: Int { rawValue } }
     @State private var activeSheet: ActiveSheet?
     /// First-run goal onboarding (offered once, skippable — see the `.task` that arms it).
     @State private var showGoalOnboarding = false
+    /// Drives the header's pending-proposal dot.
+    @ObservedObject private var planStore = CoachPlanStore.shared
 
     private let suggestions = [
         String(localized: "How's my charge trending?"),
@@ -56,6 +58,7 @@ struct CoachView: View {
             switch which {
             case .settings: CoachSettingsView().environmentObject(coach)
             case .history:  CoachHistoryView(onPick: { activeSheet = nil }).environmentObject(coach)
+            case .plan:     CoachPlanView().environmentObject(coach)
             }
         }
         .task(id: coach.dataConsent) { await coach.startBriefIfNeeded() }
@@ -117,6 +120,26 @@ struct CoachView: View {
             .frame(maxWidth: .infinity)
 
             HStack(spacing: 14) {
+                // The plan book. The dot means something is waiting for YOUR answer — the coach can
+                // propose, but only you can turn a suggestion into a plan.
+                Button { activeSheet = .plan } label: {
+                    Image(systemName: "calendar")
+                        .font(StrandFont.headline)
+                        .foregroundStyle(planStore.pending.isEmpty
+                                         ? StrandPalette.textSecondary : StrandPalette.accent)
+                        .overlay(alignment: .topTrailing) {
+                            if !planStore.pending.isEmpty {
+                                Circle().fill(StrandPalette.accent)
+                                    .frame(width: 6, height: 6)
+                                    .offset(x: 3, y: -2)
+                            }
+                        }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(planStore.pending.isEmpty
+                                    ? "Your plan"
+                                    : "Your plan, \(planStore.pending.count) waiting for your decision")
+
                 Button { coach.newConversation() } label: {
                     Image(systemName: "square.and.pencil")
                         .font(StrandFont.headline)
