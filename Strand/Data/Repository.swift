@@ -457,6 +457,7 @@ final class Repository: ObservableObject {
     static let whoopSource = "my-whoop"
     static let appleHealthSource = "apple-health"
     static let healthConnectSource = "health-connect"
+    static let activityFileSource = "activity-file"
 
     /// Imported wearable-export sources whose DAILY aggregates (HRV / resting HR / sleep) can be scored
     /// for a NOOP Charge/Rest on an import-only day, exactly like a live day (#823). These carry no raw HR
@@ -694,6 +695,7 @@ final class Repository: ObservableObject {
         let imported = await unionDailyMetrics(store: store, from: fromDay, to: toDay)
         let computed = await unionComputedDailyMetrics(store: store, from: fromDay, to: toDay)
         let apple = (try? await store.dailyMetrics(deviceId: Self.appleHealthSource, from: fromDay, to: toDay)) ?? []
+        let activityFile = (try? await store.dailyMetrics(deviceId: Self.activityFileSource, from: fromDay, to: toDay)) ?? []
         let impSleep = await unionSleepSessions(store: store, from: lo, to: hi)
         let compSleep = await unionComputedSleepSessions(store: store, from: lo, to: hi)
 
@@ -720,7 +722,10 @@ final class Repository: ObservableObject {
             let editedDays = Self.userEditedDays(compSleep)
             return MergedCaches(
                 importedSleep: fig,
-                days: Self.mergeDaily(imported: imported, computed: computed, userEditedDays: editedDays),
+                days: Self.mergeActivityFileSteps(
+                    into: Self.mergeDaily(imported: imported, computed: computed, userEditedDays: editedDays),
+                    activityFile
+                ),
                 sleeps: Self.mergeSleep(imported: impSleep, computed: compSleep),
                 vitalRows: Self.sourceRows(imported: imported, computed: computed, apple: apple),
                 freshness: Self.computeFreshness(imported: imported, computed: computed, apple: apple,
@@ -792,6 +797,43 @@ final class Repository: ObservableObject {
                     : merged
             } else {
                 byDay[d.day] = d
+            }
+        }
+        return byDay.values.sorted { $0.day < $1.day }
+    }
+
+    nonisolated static func mergeActivityFileSteps(into base: [DailyMetric],
+                                                   _ activityFile: [DailyMetric]) -> [DailyMetric] {
+        guard !activityFile.isEmpty else { return base }
+        var byDay = Dictionary(uniqueKeysWithValues: base.map { ($0.day, $0) })
+        for row in activityFile {
+            guard let steps = row.steps, steps > 0 else { continue }
+            if let existing = byDay[row.day] {
+                if existing.steps == nil {
+                    byDay[row.day] = DailyMetric(
+                        day: existing.day,
+                        totalSleepMin: existing.totalSleepMin,
+                        efficiency: existing.efficiency,
+                        deepMin: existing.deepMin,
+                        remMin: existing.remMin,
+                        lightMin: existing.lightMin,
+                        disturbances: existing.disturbances,
+                        restingHr: existing.restingHr,
+                        avgHrv: existing.avgHrv,
+                        recovery: existing.recovery,
+                        strain: existing.strain,
+                        exerciseCount: existing.exerciseCount,
+                        spo2Pct: existing.spo2Pct,
+                        skinTempDevC: existing.skinTempDevC,
+                        respRateBpm: existing.respRateBpm,
+                        steps: steps,
+                        activeKcalEst: existing.activeKcalEst,
+                        spo2Red: existing.spo2Red,
+                        spo2Ir: existing.spo2Ir
+                    )
+                }
+            } else {
+                byDay[row.day] = row
             }
         }
         return byDay.values.sorted { $0.day < $1.day }

@@ -1085,11 +1085,15 @@ class WhoopRepository(private val dao: WhoopDao) {
     suspend fun daysMerged(deviceId: String): List<DailyMetric> {
         val imported = unionByDay(importedSourceIds(deviceId).map { dao.days(it) })
         val computed = unionByDay(computedSourceIds(deviceId).map { dao.days(it) })
+        val activityFile = dao.days(ACTIVITY_FILE_SOURCE)
         // H5 (#509): days the user hand-edited the sleep of (the edit lives under the computed source); on
         // those days the computed sleep fields win over a re-imported night. Pool the edited sessions across
         // every computed source in the union so a re-add doesn't lose an earlier-id edit's precedence.
         val editedSessions = computedSourceIds(deviceId).flatMap { dao.editedSleepSessions(it) }
-        return mergeDaily(imported = imported, computed = computed, userEditedDays = userEditedDays(editedSessions))
+        return mergeActivityFileSteps(
+            mergeDaily(imported = imported, computed = computed, userEditedDays = userEditedDays(editedSessions)),
+            activityFile,
+        )
     }
 
     /**
@@ -1118,9 +1122,13 @@ class WhoopRepository(private val dao: WhoopDao) {
         combine(
             unionDaysFlow(importedSourceIds(deviceId).map { dao.daysFlow(it) }),
             unionDaysFlow(computedSourceIds(deviceId).map { dao.daysFlow(it) }),
+            dao.daysFlow(ACTIVITY_FILE_SOURCE),
             editedSleepSessionsFlow(deviceId),
-        ) { imported, computed, edited ->
-            mergeDaily(imported = imported, computed = computed, userEditedDays = userEditedDays(edited))
+        ) { imported, computed, activityFile, edited ->
+            mergeActivityFileSteps(
+                mergeDaily(imported = imported, computed = computed, userEditedDays = userEditedDays(edited)),
+                activityFile,
+            )
         }
 
     /**
@@ -1142,11 +1150,15 @@ class WhoopRepository(private val dao: WhoopDao) {
         combine(
             unionDaysFlow(importedSourceIds(deviceId).map { dao.recentDaysFlow(it, RECENT_DAYS_CAP) }),
             unionDaysFlow(computedSourceIds(deviceId).map { dao.recentDaysFlow(it, RECENT_DAYS_CAP) }),
+            dao.recentDaysFlow(ACTIVITY_FILE_SOURCE, RECENT_DAYS_CAP),
             editedSleepSessionsFlow(deviceId),
-        ) { imported, computed, edited ->
+        ) { imported, computed, activityFile, edited ->
             // recentDaysFlow returns newest-first (DESC LIMIT); mergeDaily re-sorts ascending by day, so the
             // emitted order matches daysMergedFlow exactly.
-            mergeDaily(imported = imported, computed = computed, userEditedDays = userEditedDays(edited))
+            mergeActivityFileSteps(
+                mergeDaily(imported = imported, computed = computed, userEditedDays = userEditedDays(edited)),
+                activityFile,
+            )
         }
 
     /** Pooled user-edited sleep sessions across every computed source in the active∪canonical union, so a
@@ -1405,6 +1417,7 @@ class WhoopRepository(private val dao: WhoopDao) {
         const val WHOOP_SOURCE = "my-whoop"
         const val APPLE_HEALTH_SOURCE = "apple-health"
         const val HEALTH_CONNECT_SOURCE = "health-connect"
+        const val ACTIVITY_FILE_SOURCE = "activity-file"
 
         /**
          * The IMPORTED daily-source ids to read for an [activeDeviceId]: the UNION of the active strap id
@@ -1813,6 +1826,26 @@ class WhoopRepository(private val dao: WhoopDao) {
                     )
                 } else {
                     merged
+                }
+            }
+            return byDay.values.sortedBy { it.day }
+        }
+
+        internal fun mergeActivityFileSteps(
+            base: List<DailyMetric>,
+            activityFile: List<DailyMetric>,
+        ): List<DailyMetric> {
+            if (activityFile.isEmpty()) return base
+            val byDay = LinkedHashMap<String, DailyMetric>()
+            for (row in base) byDay[row.day] = row
+            for (row in activityFile) {
+                val steps = row.steps ?: continue
+                if (steps <= 0) continue
+                val existing = byDay[row.day]
+                byDay[row.day] = if (existing == null) row else if (existing.steps == null) {
+                    existing.copy(steps = steps)
+                } else {
+                    existing
                 }
             }
             return byDay.values.sortedBy { it.day }

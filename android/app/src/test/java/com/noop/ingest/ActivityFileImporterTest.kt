@@ -181,13 +181,14 @@ class ActivityFileImporterTest {
         val fit = FitFixture()
         val sessionStart = 100_000L
         fit.definition(0, 18, listOf(
-            Triple(2, 4, 0x86), Triple(5, 1, 0x00), Triple(9, 4, 0x86),
+            Triple(2, 4, 0x86), Triple(5, 1, 0x00), Triple(9, 4, 0x86), Triple(10, 4, 0x86),
             Triple(11, 2, 0x84), Triple(16, 1, 0x02), Triple(17, 1, 0x02),
         ))
         fit.dataHeader(0)
         fit.u32(sessionStart)
         fit.u8(1)            // sport = running
         fit.u32(523)         // total_distance → 5.23 m
+        fit.u32(1175)        // total_cycles: Suunto walking/running step total
         fit.u16(300)         // total_calories
         fit.u8(150)          // avg_hr
         fit.u8(182)          // max_hr
@@ -214,6 +215,7 @@ class ActivityFileImporterTest {
         assertEquals(3, a.hrSampleCount)
         assertEquals(5.23, a.distanceM!!, 1e-3)
         assertEquals(300.0, a.energyKcal!!, 1e-6)
+        assertEquals(1175, a.steps)
         assertEquals(150, a.avgHr)
         assertEquals(182, a.maxHr)
         assertEquals(lat, a.route.first().lat, 1e-4)

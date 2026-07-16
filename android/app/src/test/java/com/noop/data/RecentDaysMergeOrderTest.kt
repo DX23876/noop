@@ -71,4 +71,23 @@ class RecentDaysMergeOrderTest {
         val merged = WhoopRepository.mergeDaily(imported = importedDesc, computed = computedDesc)
         assertEquals(471.0, merged.first { it.day == "2026-06-14" }.totalSleepMin)
     }
+
+    @Test
+    fun activityFileStepsFillMissingStepDaysOnly() {
+        val base = listOf(
+            DailyMetric(deviceId = "my-whoop", day = "2026-06-14", recovery = 70.0),
+            DailyMetric(deviceId = "apple-health", day = "2026-06-15", steps = 9000),
+        )
+        val activity = listOf(
+            DailyMetric(deviceId = "activity-file", day = "2026-06-14", steps = 1175),
+            DailyMetric(deviceId = "activity-file", day = "2026-06-15", steps = 2222),
+            DailyMetric(deviceId = "activity-file", day = "2026-06-16", steps = 3333),
+        )
+
+        val merged = WhoopRepository.mergeActivityFileSteps(base, activity)
+
+        assertEquals(1175, merged.first { it.day == "2026-06-14" }.steps)
+        assertEquals(9000, merged.first { it.day == "2026-06-15" }.steps)
+        assertEquals(3333, merged.first { it.day == "2026-06-16" }.steps)
+    }
 }

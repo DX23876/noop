@@ -27,9 +27,9 @@ import Foundation
 
 // MARK: - Normalized model
 
-/// One imported activity (the shape the app layer maps 1:1 onto a `WorkoutRow`). Distances are
-/// metres, HR is bpm, energy is kcal. Times are UTC `Date`s. A field is `nil` when the file didn't
-/// carry it — never fabricated.
+/// One imported activity (the shape the app layer maps onto a `WorkoutRow`, plus optional
+/// activity-file daily metrics when present). Distances are metres, HR is bpm, energy is kcal.
+/// Times are UTC `Date`s. A field is `nil` when the file didn't carry it — never fabricated.
 public struct ActivityFile: Sendable, Equatable {
     /// Which interchange format the file was.
     public enum Kind: String, Sendable, Equatable { case gpx, tcx, fit }
@@ -46,6 +46,8 @@ public struct ActivityFile: Sendable, Equatable {
     public var distanceM: Double?
     /// Total active energy in kilocalories, when present.
     public var energyKcal: Double?
+    /// Activity step count when the file carries one.
+    public var steps: Int?
     /// Average heart rate (bpm), when present (a summary value, else the mean of sampled HR).
     public var avgHr: Int?
     /// Maximum heart rate (bpm), when present.
@@ -78,6 +80,7 @@ public struct ActivityFile: Sendable, Equatable {
         sport: String? = nil,
         distanceM: Double? = nil,
         energyKcal: Double? = nil,
+        steps: Int? = nil,
         avgHr: Int? = nil,
         maxHr: Int? = nil,
         ascentM: Double? = nil,
@@ -92,6 +95,7 @@ public struct ActivityFile: Sendable, Equatable {
         self.sport = sport
         self.distanceM = distanceM
         self.energyKcal = energyKcal
+        self.steps = steps
         self.avgHr = avgHr
         self.maxHr = maxHr
         self.ascentM = ascentM
@@ -117,6 +121,7 @@ public struct ActivityFile: Sendable, Equatable {
         }
         if gpsPointCount > 0 { parts.append("\(gpsPointCount) GPS points") }
         if hrSampleCount > 0 { parts.append("\(hrSampleCount) HR samples") }
+        if let steps, steps > 0 { parts.append("\(steps) steps") }
         return parts.joined(separator: " · ")
     }
 }
@@ -276,7 +281,7 @@ public enum ActivityFileImporter {
             let a = ActivityFile(
                 kind: kind, start: now, end: now, sport: sportHint,
                 distanceM: dist, energyKcal: summaryEnergyKcal,
-                avgHr: summaryAvgHr, maxHr: summaryMaxHr,
+                steps: nil, avgHr: summaryAvgHr, maxHr: summaryMaxHr,
                 ascentM: summaryAscentM, gpsPointCount: route.count,
                 hrSampleCount: 0, route: cappedRoute(route)
             )
@@ -298,6 +303,7 @@ public enum ActivityFileImporter {
             sport: sportHint,
             distanceM: distance,
             energyKcal: summaryEnergyKcal,
+            steps: nil,
             avgHr: avg,
             maxHr: mx,
             ascentM: ascent,

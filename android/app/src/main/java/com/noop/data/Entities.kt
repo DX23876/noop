@@ -239,8 +239,9 @@ data class DailyMetric(
     val spo2Pct: Double? = null,        // mean SpO2 (%) during sleep
     val skinTempDevC: Double? = null,   // skin-temperature deviation (°C) from baseline
     val respRateBpm: Double? = null,    // mean respiration rate (breaths/min) during sleep
-    // On-device derived daily step total from the WHOOP5 step_motion_counter@57 (sum of positive
-    // consecutive u16-counter deltas over the day). APPROXIMATE, not cloud/clinical parity. (#78)
+    // On-device derived or imported step total. WHOOP5 days use step_motion_counter@57 (sum of
+    // positive u16-counter deltas); activity-file imports can fill missing steps from file summaries.
+    // APPROXIMATE, not cloud/clinical parity. (#78)
     val steps: Int? = null,
     // On-device APPROXIMATE whole-day active+resting energy estimate (kcal), computed from HR alone
     // by AnalyticsEngine (Keytel active + Harris–Benedict BMR). Null when the day has no scored HR
