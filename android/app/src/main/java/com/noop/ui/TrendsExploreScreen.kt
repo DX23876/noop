@@ -143,7 +143,7 @@ private val builtInMetrics: List<MetricSpec> = listOf(
         key = "recovery", title = "Charge", unit = "%", category = "Charge",
         accent = Palette.accent, higherIsBetter = true, decimals = 0,
         dailyPick = { it.recovery },
-        description = "How recovered you are , led by HRV versus your personal baseline.",
+        description = "How recovered you are, led by HRV versus your personal baseline.",
     ),
     MetricSpec(
         key = "strain", title = "Effort", unit = "/100", category = "Effort",
@@ -167,7 +167,7 @@ private val builtInMetrics: List<MetricSpec> = listOf(
         // sleep_performance / sleep_total_min , to StrandPalette.accent), not a stray metric hue.
         accent = Palette.accent, higherIsBetter = true, decimals = 1,
         dailyPick = { it.totalSleepMin?.let { m -> m / 60.0 } },
-        description = "How restorative your sleep was , duration, efficiency, deep+REM, timing.",
+        description = "How restorative your sleep was: duration, efficiency, deep+REM, timing.",
     ),
     MetricSpec(
         key = "efficiency", title = "Sleep Efficiency", unit = "%", category = "Rest",

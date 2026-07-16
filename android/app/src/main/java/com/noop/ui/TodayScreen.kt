@@ -2030,7 +2030,9 @@ private fun LiquidTodayHeader(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .clip(RoundedCornerShape(Metrics.cornerSm))
+                // #492: NO rounded clip here. With indication = null there's no ripple to shape, and the
+                // rounded corners were clipping the title/date text's bottom-left (the "W" of "Wednesday").
+                // iOS's title Button uses a plain contentShape(Rectangle()) with no clip — mirror that.
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -4677,7 +4679,10 @@ private fun MetricGrid(
         KeyMetric.EFFORT to KeyTileData(
             label = "Strain",
             value = d?.strain?.let { UnitFormatter.effortDisplay(it, effortScale) } ?: NO_DATA,
-            unit = if (d?.strain != null) "%" else "",
+            // #492: Strain/Effort is a load index (0–21 WHOOP / 0–100 NOOP), NOT a percentage — the "%"
+            // was wrong (esp. on the 0–21 scale). Recovery/Rest ARE 0–100 % and keep it. iOS shows the
+            // strain axis as an "of 21"/"of 100" caption with no % (TodayView effort tile); match that.
+            unit = "",
             tint = d?.strain?.let { Palette.effortTint(it / StrainScorer.maxStrain) } ?: Palette.effortColor,
             frac = d?.strain?.let { (it / 100.0).coerceIn(0.0, 1.0) },
             spark = w.strain,
