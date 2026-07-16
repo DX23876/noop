@@ -46,6 +46,8 @@ public enum Whoop5Config {
     /// on-strap iOS HCI capture of the official app (WHOOP 5.0, #103), which otherwise reproduced flags
     /// 1–15 byte-for-byte in this exact order. Its effect is undocumented (like `enable_sig11_during_sleep`);
     /// it is included because it is part of what the official app actually writes on every connect.
+    /// `enable_sig12`'s value was corrected 0x32→0x31 (#423): a second real on-strap capture, this time
+    /// spanning a live workout, reproduced flags 1–15 identically but decoded `enable_sig12` as ASCII '1'.
     public static let enableR22Sequence: [Flag] = [
         Flag("enable_r22_packets", 0x32),
         Flag("enable_r22_v2_packets", 0x32),
@@ -62,7 +64,7 @@ public enum Whoop5Config {
         Flag("enable_passive_strap_fit_gen5", 0x31),
         Flag("enable_sig11_during_sleep", 0x32),
         Flag("dorset_inhibit_wpt", 0x32),
-        Flag("enable_sig12", 0x32),   // #103: 16th flag seen in a real on-strap capture, not in judes.club
+        Flag("enable_sig12", 0x31),   // #423: real on-strap capture during a live workout, corrected from 0x32
     ]
 
     /// The 40-byte SET_CONFIG payload body: flag name as UTF-8/ASCII NUL-padded to 32 bytes, value byte

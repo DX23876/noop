@@ -34,7 +34,9 @@ object Whoop5Config {
      *  detection and sleep behaviour. Flags 1–15 are transcribed verbatim from judes.club's frame-builder
      *  FLAGS array; flag 16 `enable_sig12` is NOT in that array — it was observed as a 16th SET_FF_VALUE
      *  write in a real on-strap iOS HCI capture (WHOOP 5.0, #103) that otherwise reproduced flags 1–15
-     *  byte-for-byte in this order. Keep in lockstep with the Swift `Whoop5Config.enableR22Sequence`. */
+     *  byte-for-byte in this order. `enable_sig12`'s value was corrected 0x32→0x31 (#423): a second real
+     *  on-strap capture, this time spanning a live workout, reproduced flags 1–15 identically but decoded
+     *  enable_sig12 as ASCII '1'. Keep in lockstep with the Swift `Whoop5Config.enableR22Sequence`. */
     val enableR22Sequence: List<Flag> = listOf(
         Flag("enable_r22_packets", 0x32),
         Flag("enable_r22_v2_packets", 0x32),
@@ -51,7 +53,7 @@ object Whoop5Config {
         Flag("enable_passive_strap_fit_gen5", 0x31),
         Flag("enable_sig11_during_sleep", 0x32),
         Flag("dorset_inhibit_wpt", 0x32),
-        Flag("enable_sig12", 0x32),   // #103: 16th flag seen in a real on-strap capture, not in judes.club
+        Flag("enable_sig12", 0x31),   // #423: real on-strap capture during a live workout, corrected from 0x32
     )
 
     /** The 40-byte SET_CONFIG payload body: flag name as ASCII NUL-padded to 32 bytes, value byte at

@@ -52,20 +52,22 @@ final class Whoop5ConfigTests: XCTestCase {
     }
 
     func testEnableSequenceEndsWithSig12FromRealCapture() {
-        // #103: the 16th flag `enable_sig12` (value ASCII '2') was observed in a real on-strap HCI capture
-        // of the official app, appended after the 15 judes.club-documented flags. It uses the identical
-        // SET_CONFIG encoding, so its frame must build, verify, and carry the exact name+value body.
+        // #103: the 16th flag `enable_sig12` was observed in a real on-strap HCI capture of the official
+        // app, appended after the 15 judes.club-documented flags. It uses the identical SET_CONFIG
+        // encoding, so its frame must build, verify, and carry the exact name+value body.
+        // #423: a second real on-strap capture (this one spanning a live workout) reproduced flags 1–15
+        // identically but decoded enable_sig12's value as ASCII '1' (0x31), not '2' (0x32) — corrected here.
         let seq = Whoop5Config.enableR22Sequence
         XCTAssertEqual(seq.count, 16)
         XCTAssertEqual(seq.last?.name, "enable_sig12")
-        XCTAssertEqual(seq.last?.value, 0x32)
-        let frame = Whoop5Config.frame(flag: Whoop5Config.Flag("enable_sig12", 0x32), seq: 16)
+        XCTAssertEqual(seq.last?.value, 0x31)
+        let frame = Whoop5Config.frame(flag: Whoop5Config.Flag("enable_sig12", 0x31), seq: 16)
         XCTAssertTrue(verifyFrame(frame, family: .whoop5).ok, "enable_sig12 SET_CONFIG must pass CRC")
         // The 40-byte body carried in the frame is name-NUL-padded with the value at offset 32.
-        let body = Whoop5Config.payloadBody(name: "enable_sig12", value: 0x32)
+        let body = Whoop5Config.payloadBody(name: "enable_sig12", value: 0x31)
         XCTAssertEqual(Array(body[0..<12]), Array("enable_sig12".utf8))
         XCTAssertTrue(body[12..<32].allSatisfy { $0 == 0 })
-        XCTAssertEqual(body[32], 0x32)
+        XCTAssertEqual(body[32], 0x31)
     }
 
     /// Broadcast-HR device-config body (#181): key name ASCII NUL-padded to 32 bytes, then the value
