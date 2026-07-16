@@ -494,9 +494,9 @@ fun StatTile(
     deltaColor: Color = Palette.textTertiary,
     tint: Color? = null,
     // When true, the trailing delta chip yields width to the value instead of taking its full
-    // intrinsic size. Used by the workout tiles, where a wide kcal chip (e.g. "1234 kcal") was
-    // starving the duration column and clipping it to "4…"/"2…" on narrow phones (#332). The
-    // default keeps the sparkline key-metric tiles (Rest/Respiratory/HRV) exactly as they were.
+    // intrinsic size. Used by narrow two-column tiles where a wide chip (e.g. "1234 kcal" or
+    // "+10 vs base") would otherwise starve the reading column and clip its value. The default
+    // keeps callers that have enough width exactly as they were.
     compactDelta: Boolean = false,
 ) {
     // Each tile borrows its accent as a faint card wash, so a metric reads as part of its
@@ -522,7 +522,7 @@ fun StatTile(
                     Spacer(Modifier.width(8.dp))
                     // In compact mode the chip shares the row's remaining space (fill = false, so it
                     // never grows past its content) — this guarantees the weighted value column keeps
-                    // its half and the duration reads in full beside the kcal chip (#332).
+                    // its half and the primary reading remains intact beside a wide chip (#332/#492).
                     TrendChip(
                         text = delta,
                         color = deltaColor,

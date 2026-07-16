@@ -953,6 +953,10 @@ private fun MarkerTile(
         accent = accent,
         delta = deltaText,
         deltaColor = deltaColor,
+        // #492 item 5: on narrow two-column cards the intrinsic-width "vs base" chip used to consume
+        // nearly the whole row and leave the reading as "4…" / "73…". Share the row evenly so the real
+        // physiological value stays intact; the explanatory chip is the element allowed to ellipsize.
+        compactDelta = true,
     )
 }
 
