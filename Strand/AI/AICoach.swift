@@ -1265,6 +1265,46 @@ final class AICoachEngine: ObservableObject {
         return lines.joined(separator: "\n")
     }
 
+    // MARK: - Journey (read-only accessors for the Journey page)
+
+    /// The current on-device Readiness verdict, straight from the engine — for surfaces (like the
+    /// Journey page) that want to render it with their own styling rather than consume the text block
+    /// built for the model. Calls the SAME `ReadinessEngine.evaluate` the coach's context and Today's
+    /// synthesis card use, so this can never disagree with either.
+    func currentReadiness() -> ReadinessEngine.Readiness {
+        ReadinessEngine.evaluate(days: repo.days, today: Repository.logicalDayKey(Date()))
+    }
+
+    /// The most recent Apple-Health-logged body weight (kg), or nil if none has ever synced. Kept
+    /// separate from `ProfileStore.weightKg`, which is a manually-set profile default, not a
+    /// measurement — callers should label which one they're showing rather than conflate them.
+    func latestLoggedWeightKg() async -> Double? {
+        let rows = await repo.series(key: "weight", source: "apple-health", days: 365)
+        return rows.sorted(by: { $0.day < $1.day }).last?.value
+    }
+
+    /// Mean Charge over a trailing window, counting ONLY days whose score the app itself trusts
+    /// (skipping `.calibrating` rows) — so a recovery-trend read is never built from placeholder
+    /// numbers. `endingDaysAgo` lets the caller ask for the window before this one (e.g. "last week"
+    /// vs "the week before"), for a simple week-over-week comparison. nil when nothing usable falls
+    /// inside the window.
+    func meanTrustedCharge(lastDays days: Int, endingDaysAgo offset: Int = 0) -> Double? {
+        let sorted = repo.days.sorted { $0.day < $1.day }
+        guard !sorted.isEmpty else { return nil }
+        let endIndex = sorted.count - offset
+        guard endIndex > 0 else { return nil }
+        let window = sorted[max(0, endIndex - days)..<endIndex]
+        guard !window.isEmpty else { return nil }
+        let hrvBase = Baselines.foldHistory(sorted.map(\.avgHrv), cfg: Baselines.hrvCfg)
+        let trusted = window.compactMap { row -> Double? in
+            guard let r = row.recovery,
+                  ScoreConfidence.charge(recovery: r, hrvBaseline: hrvBase) != .calibrating else { return nil }
+            return r
+        }
+        guard !trusted.isEmpty else { return nil }
+        return trusted.reduce(0, +) / Double(trusted.count)
+    }
+
     // MARK: - Plan: inputs, adherence, context
 
     /// Assemble everything `PlanConsequence` needs from the repository, in one pass. Sports come from
