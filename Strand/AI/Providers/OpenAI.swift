@@ -55,10 +55,10 @@ struct OpenAIClient: AIProviderClient {
     ) async throws -> String {
         var body: [String: Any] = ["model": model, "messages": wire]
         if modernParams {
-            body["max_completion_tokens"] = 900
+            body["max_completion_tokens"] = CoachOutputBudget.maxTokens
         } else {
             body["temperature"] = 0.6
-            body["max_tokens"] = 900
+            body["max_tokens"] = CoachOutputBudget.maxTokens
         }
 
         var req = URLRequest(url: AIProvider.openAI.endpoint)
