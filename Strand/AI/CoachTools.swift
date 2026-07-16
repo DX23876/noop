@@ -41,6 +41,14 @@ enum CoachTool: String, CaseIterable {
     case readiness = "get_readiness"
     /// The ordered "why is my Charge what it is" breakdown — signed points per contributing term.
     case chargeDrivers = "get_charge_drivers"
+    /// SUGGEST a session for a day. It lands as a proposal the USER must accept — never an active plan.
+    case proposePlan = "propose_plan"
+    /// What a session would cost, from the user's own history (+ what swapping it would change).
+    case sessionOutlook = "get_session_outlook"
+    /// "What if I train hard today and sleep 7h?" — project tomorrow's Charge.
+    case simulateDay = "simulate_day"
+    /// What the user agreed to vs what actually happened, with skip reasons.
+    case planAdherence = "get_plan_adherence"
 
     /// Natural-language description the model reads to decide when to call the tool.
     var description: String {
@@ -110,6 +118,27 @@ enum CoachTool: String, CaseIterable {
                 + "term (HRV, resting HR, respiration, skin temperature) with its signed point "
                 + "contribution, measured value, personal baseline, and a plain-English verdict. Use this "
                 + "instead of guessing a reason when the user asks why their Charge/recovery is high or low."
+        case .proposePlan:
+            return "SUGGEST a training session for a day. This creates a PROPOSAL the user must accept, "
+                + "decline or change in the app — it does NOT schedule anything, and you must never "
+                + "describe it as settled. Use it when you recommend a specific session, then tell them "
+                + "it's waiting for their yes. Give a short rationale; they'll read it again next week."
+        case .sessionOutlook:
+            return "Find out what a session would cost this user, from THEIR OWN history: typical Charge "
+                + "cost the next morning, bounce-back days, and a projection for tomorrow. Pass "
+                + "swap_from to compare two activities side by side (e.g. they want CrossFit instead of "
+                + "the easy ride). Use it before recommending or when they ask to change a session — "
+                + "then let them decide."
+        case .simulateDay:
+            return "Project tomorrow-morning Charge for a hypothetical: a given effort today plus a "
+                + "given number of hours' sleep tonight. Use for 'what if' questions ('can I go hard "
+                + "today and still be fresh?'). Returns nothing when there's too little history to "
+                + "project honestly."
+        case .planAdherence:
+            return "Get what the user agreed to versus what actually happened over recent days, "
+                + "including WHY a session was skipped when they told us. Use it to open a check-in or "
+                + "review. Never treat a skip as laziness — the reason is right there, and days whose "
+                + "data is still calibrating carry no verdict at all."
         }
     }
 
@@ -266,6 +295,88 @@ enum CoachTool: String, CaseIterable {
                     ]
                 ]
             ]
+        case .proposePlan:
+            return [
+                "type": "object",
+                "properties": [
+                    "day": [
+                        "type": "string",
+                        "description": "The day it's for, yyyy-MM-dd. Defaults to today."
+                    ],
+                    "sport": [
+                        "type": "string",
+                        "description": "The activity, e.g. \"Zone 2 ride\", \"CrossFit\", \"Easy run\". "
+                            + "Prefer wording that matches the user's own logged sports."
+                    ],
+                    "intent": [
+                        "type": "string",
+                        "enum": ["rest", "easy", "moderate", "hard", "mobility"],
+                        "description": "How hard the session is meant to be."
+                    ],
+                    "target_effort": [
+                        "type": "number",
+                        "description": "Optional target Effort for the session (0–100)."
+                    ],
+                    "rationale": [
+                        "type": "string",
+                        "description": "One line on WHY this session, citing their numbers. They'll see "
+                            + "it again when reviewing the plan."
+                    ],
+                    "time": [
+                        "type": "string",
+                        "description": "Optional time of day, HH:mm, if the user named one."
+                    ]
+                ],
+                "required": ["sport", "intent"]
+            ]
+        case .sessionOutlook:
+            return [
+                "type": "object",
+                "properties": [
+                    "sport": [
+                        "type": "string",
+                        "description": "The activity to size up, e.g. \"CrossFit\"."
+                    ],
+                    "swap_from": [
+                        "type": "string",
+                        "description": "Optional: the activity it would REPLACE, to compare the two."
+                    ],
+                    "planned_effort": [
+                        "type": "number",
+                        "description": "Optional expected Effort (0–100) for the session."
+                    ],
+                    "planned_sleep_hours": [
+                        "type": "number",
+                        "description": "Optional sleep hours tonight; defaults to the user's typical."
+                    ]
+                ],
+                "required": ["sport"]
+            ]
+        case .simulateDay:
+            return [
+                "type": "object",
+                "properties": [
+                    "effort": [
+                        "type": "number",
+                        "description": "Hypothetical Effort for today (0–100)."
+                    ],
+                    "sleep_hours": [
+                        "type": "number",
+                        "description": "Hypothetical sleep hours tonight."
+                    ]
+                ],
+                "required": ["sleep_hours"]
+            ]
+        case .planAdherence:
+            return [
+                "type": "object",
+                "properties": [
+                    "days": [
+                        "type": "integer",
+                        "description": "How many days back to review (1–30). Defaults to 7."
+                    ]
+                ]
+            ]
         default:
             return ["type": "object", "properties": [String: Any]()]
         }
@@ -306,6 +417,7 @@ extension AICoachEngine {
         var tools: [CoachTool] = [
             .biometricSummary, .recentWorkouts, .stressIndex, .plotMetric,
             .sleepDetail, .rangeReport, .readiness, .chargeDrivers,
+            .proposePlan, .sessionOutlook, .simulateDay, .planAdherence,
             .rememberFact, .updateFact, .forgetFact, .searchPastConversations,
             .logCaffeine, .logJournal, .logLabMarker
         ]
@@ -414,6 +526,32 @@ extension AICoachEngine {
             return readinessBlock()
         case .chargeDrivers:
             return chargeDriversBlock()
+        case .proposePlan:
+            return proposePlanTool(
+                day: input["day"] as? String,
+                sport: (input["sport"] as? String) ?? "",
+                intent: (input["intent"] as? String) ?? "",
+                targetEffort: (input["target_effort"] as? Double)
+                    ?? (input["target_effort"] as? Int).map(Double.init),
+                rationale: (input["rationale"] as? String) ?? "",
+                time: input["time"] as? String)
+        case .sessionOutlook:
+            return await sessionOutlookTool(
+                sport: (input["sport"] as? String) ?? "",
+                swapFrom: input["swap_from"] as? String,
+                plannedEffort: (input["planned_effort"] as? Double)
+                    ?? (input["planned_effort"] as? Int).map(Double.init),
+                plannedSleepHours: (input["planned_sleep_hours"] as? Double)
+                    ?? (input["planned_sleep_hours"] as? Int).map(Double.init))
+        case .simulateDay:
+            let sleep = (input["sleep_hours"] as? Double)
+                ?? (input["sleep_hours"] as? Int).map(Double.init)
+            return await simulateDayTool(
+                effort: (input["effort"] as? Double) ?? (input["effort"] as? Int).map(Double.init),
+                sleepHours: sleep)
+        case .planAdherence:
+            let days = (input["days"] as? Int) ?? Int(input["days"] as? Double ?? 7)
+            return await planAdherenceBlock(days: max(1, min(days, 30)))
         case .none:
             return "Unknown tool \"\(name)\"."
         }

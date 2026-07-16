@@ -297,6 +297,12 @@ final class AICoachEngine: ObservableObject {
     program deloads/periodisation, and treat sleep as the single biggest recovery lever.
     • Always cite the user's ACTUAL numbers, give a concrete plan (today and the week ahead), and \
     be specific, punchy and motivating - like a coach who knows them.
+    • Plans are AGREED, not issued. When you recommend a session, record it with propose_plan - that \
+    creates a proposal the user accepts, changes or declines in the app. It is NOT scheduled until they \
+    say yes, so never describe it as booked. If they want to swap a session, use get_session_outlook to \
+    tell them what their own history says it costs, then let them choose: inform, never overrule. A \
+    declined or skipped session is information, not a failure - the skip reason is usually right there, \
+    so ask about it rather than assuming laziness.
     If no data is provided, coach generally and invite them to turn on data access for personalised \
     advice. You are NOT a doctor - never diagnose; suggest a professional for genuine health concerns.
     Format replies in simple Markdown, chat-sized: short paragraphs, **bold** for key numbers, \
@@ -1102,6 +1108,10 @@ final class AICoachEngine: ObservableObject {
         // Charge confidence: whether today's number is a real, baseline-trusted score or still a
         // cold-start placeholder, so the coach never states progress/trends off a "calibrating" number.
         if let confidence = chargeConfidenceLine() { ctx += "\n\n" + confidence }
+        // What's already proposed/agreed, so the coach doesn't talk over a plan the user is mid-way
+        // through, plus how the last week actually went (skips carry their reason).
+        if let plan = planContextBlock() { ctx += "\n\n" + plan }
+        ctx += "\n\n" + (await planAdherenceBlock())
         // Derived stress: a single Baevsky Stress Index summary line over today's R-R, computed the same
         // way StressView does. Gated here under `dataConsent` (the caller only reaches buildFullContext()
         // with consent on), so it rides the SAME consent + text-only channel as the HRV/RHR summary, a
@@ -1253,6 +1263,172 @@ final class AICoachEngine: ObservableObject {
             if !motivation.isEmpty { lines.append("Why it matters to them: \(motivation)") }
         }
         return lines.joined(separator: "\n")
+    }
+
+    // MARK: - Plan: inputs, adherence, context
+
+    /// Assemble everything `PlanConsequence` needs from the repository, in one pass. Sports come from
+    /// the user's OWN workout history (not a fixed vocabulary), which is what lets the cost figures be
+    /// about them rather than about runners in general.
+    func planInputs() async -> PlanConsequence.Inputs {
+        let days = repo.days   // oldest → newest
+        var inputs = PlanConsequence.Inputs()
+        inputs.recoveryByDay = Dictionary(days.compactMap { d in d.recovery.map { (d.day, $0) } },
+                                          uniquingKeysWith: { _, last in last })
+        inputs.recentCharge = days.compactMap { $0.recovery }
+        inputs.recentEffort = days.compactMap { $0.strain }
+
+        let sleeps = days.suffix(RecoveryForecaster.baselineWindow).compactMap { $0.totalSleepMin }
+        if !sleeps.isEmpty {
+            inputs.typicalSleepHours = (sleeps.reduce(0, +) / Double(sleeps.count)) / 60
+            inputs.sleepNights = sleeps.count
+        }
+
+        // Tag each day with the sports done on it, from the workout rows themselves.
+        let rows = await repo.workoutRows(days: 365)
+        var bySport: [String: Set<String>] = [:]
+        for w in rows {
+            bySport[w.sport, default: []].insert(dateString(w.startTs))
+        }
+        inputs.activityDaysBySport = bySport
+        return inputs
+    }
+
+    /// What the user committed to versus what actually happened.
+    ///
+    /// GATED ON CONFIDENCE: a day whose Charge is still `.calibrating` is a placeholder, not a
+    /// measurement, so it gets no adherence verdict. Grading someone against numbers the app itself
+    /// doesn't trust is exactly the kind of confident nonsense this whole phase exists to prevent.
+    /// Skips are reported WITH their reason — "didn't train" without "because my knee hurt" is a
+    /// scoreboard, not coaching.
+    func planAdherenceBlock(days: Int = 7) async -> String {
+        let store = CoachPlanStore.shared
+        let cal = Calendar.current
+        let from = cal.date(byAdding: .day, value: -max(1, days), to: Date()) ?? Date()
+        let fromKey = Repository.localDayKey(from)
+        let relevant = store.proposals
+            .filter { $0.day >= fromKey && $0.status.isDecided }
+            .sorted { $0.day > $1.day }
+        guard !relevant.isEmpty else {
+            return "PLAN: nothing has been proposed or agreed in the last \(days) days."
+        }
+
+        let hrvBase = Baselines.foldHistory(repo.days.map(\.avgHrv), cfg: Baselines.hrvCfg)
+        let byDay = Dictionary(repo.days.map { ($0.day, $0) }, uniquingKeysWith: { _, last in last })
+
+        var lines = ["PLAN vs WHAT HAPPENED (last \(days) days):"]
+        for p in relevant.prefix(14) {
+            var line = "  \(p.day): \(p.summary()) — \(p.status.rawValue)"
+            if let reason = p.skipReason { line += " (\(reason.label))" }
+            // Only quote the day's real Effort when the app actually trusts that day's numbers.
+            if let row = byDay[p.day] {
+                let confidence = ScoreConfidence.charge(recovery: row.recovery, hrvBaseline: hrvBase)
+                if confidence == .calibrating {
+                    line += " — that day's data is still calibrating, so don't read progress into it"
+                } else if let effort = row.strain {
+                    line += String(format: " — actual effort %.1f", effort)
+                }
+            }
+            lines.append(line)
+        }
+
+        // The filter-bubble floor. Without this, a run of "not today"s quietly trains the coach into
+        // never asking for anything again, which feels supportive and is actually abandonment.
+        if store.declineStreak >= CoachPlanStore.declineStreakFloor {
+            lines.append("NOTE: the user has declined \(store.declineStreak) suggestions in a row. Don't "
+                         + "just keep making them easier — ask what's actually getting in the way "
+                         + "(time, motivation, the sessions themselves), and keep offering real work "
+                         + "once you know.")
+        }
+        if let caution = store.recentCautionSkip() {
+            lines.append("CAUTION: a recent session was skipped due to \(caution.skipReason?.label ?? "pain/illness"). "
+                         + "Do not propose an escalation; check in on it first.")
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    /// Pending proposals + upcoming commitments, so the coach knows what's already on the table instead
+    /// of proposing over the top of it.
+    func planContextBlock() -> String? {
+        let store = CoachPlanStore.shared
+        let today = Repository.localDayKey(Date())
+        var lines: [String] = []
+        let pending = store.pending.filter { $0.day >= today }
+        if !pending.isEmpty {
+            lines.append("AWAITING THE USER'S DECISION (you proposed these; they haven't answered):")
+            for p in pending.prefix(5) { lines.append("  \(p.day): \(p.summary())") }
+        }
+        let committed = store.commitments(fromDay: today)
+        if !committed.isEmpty {
+            lines.append("THE USER HAS COMMITTED TO:")
+            for p in committed.prefix(7) {
+                var line = "  \(p.day): \(p.summary())"
+                if let from = p.swappedFrom { line += " (swapped from \(from))" }
+                lines.append(line)
+            }
+        }
+        return lines.isEmpty ? nil : lines.joined(separator: "\n")
+    }
+
+    // MARK: - Plan tools
+
+    /// `propose_plan`: record a SUGGESTION. Note what this deliberately cannot do — it cannot accept,
+    /// schedule, or activate anything. The proposal sits in `.proposed` until the user taps yes, and the
+    /// returned string tells the model to say exactly that rather than describing it as settled.
+    func proposePlanTool(day: String?, sport: String, intent: String,
+                         targetEffort: Double?, rationale: String, time: String?) -> String {
+        let trimmedSport = sport.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedSport.isEmpty else { return "Nothing proposed: name the activity." }
+        guard let parsedIntent = PlanProposal.Intent(rawValue: intent.lowercased()) else {
+            return "Nothing proposed: intent must be one of rest, easy, moderate, hard, mobility."
+        }
+        let requestedDay = (day ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let dayKey = requestedDay.isEmpty ? Repository.localDayKey(Date()) : requestedDay
+
+        // "HH:mm" on the proposal's own day — a time without its day would silently land on today.
+        var when: Date?
+        if let time, !time.isEmpty {
+            let df = DateFormatter()
+            df.dateFormat = "yyyy-MM-dd HH:mm"
+            df.timeZone = .current
+            when = df.date(from: "\(dayKey) \(time)")
+        }
+
+        let proposal = PlanProposal(day: dayKey, time: when, sport: trimmedSport,
+                                    intent: parsedIntent,
+                                    targetEffort: targetEffort.map { max(0, min($0, 100)) },
+                                    rationale: rationale)
+        CoachPlanStore.shared.propose(proposal)
+        return "Proposed (NOT scheduled): \(proposal.summary()) on \(dayKey). It's waiting for the user "
+            + "to accept, change or decline it in the app — tell them it's there for their yes, and "
+            + "don't refer to it as booked."
+    }
+
+    /// `get_session_outlook`: what a session costs THIS user, and what swapping would change.
+    func sessionOutlookTool(sport: String, swapFrom: String?,
+                            plannedEffort: Double?, plannedSleepHours: Double?) async -> String {
+        let trimmed = sport.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "Name the activity to size up." }
+        let inputs = await planInputs()
+        if let from = swapFrom?.trimmingCharacters(in: .whitespacesAndNewlines), !from.isEmpty {
+            return PlanConsequence.compare(from: from, fromEffort: plannedEffort,
+                                           to: trimmed, toEffort: plannedEffort,
+                                           plannedSleepHours: plannedSleepHours,
+                                           inputs: inputs).sentence()
+        }
+        return PlanConsequence.outlook(sport: trimmed, plannedEffort: plannedEffort,
+                                       plannedSleepHours: plannedSleepHours,
+                                       inputs: inputs).sentence()
+    }
+
+    /// `simulate_day`: the what-if. Returns an honest "not enough history" rather than a made-up number.
+    func simulateDayTool(effort: Double?, sleepHours: Double?) async -> String {
+        guard let sleepHours else { return "Tell me how many hours you plan to sleep and I'll project it." }
+        let inputs = await planInputs()
+        return PlanConsequence.simulate(todayEffort: effort.map { max(0, min($0, 100)) },
+                                        plannedSleepHours: max(0, sleepHours),
+                                        inputs: inputs)
+            ?? "There isn't enough recent Charge history to project tomorrow honestly yet."
     }
 
     /// Gather what the app can actually measure about the user's starting point, for the feasibility
