@@ -80,8 +80,9 @@ struct CoachGoalEditorView: View {
                 Button("Cancel", role: .cancel) {}
                 Button("Save anyway") { save(acknowledging: true) }
             } message: {
-                Text("This is faster than usually recommended. It's your call — tell me why and I'll "
-                     + "note it, so I coach you through it instead of arguing with you every week.")
+                // One single literal, not `+`-concatenation: a concatenated argument is a plain String,
+                // which hits Text's verbatim initialiser and silently skips localization.
+                Text("This is faster than usually recommended. It's your call — tell me why and I'll note it, so I coach you through it instead of arguing with you every week.")
             }
             .onAppear(perform: load)
         }
@@ -94,8 +95,8 @@ struct CoachGoalEditorView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("What are you working towards?")
                     .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                Text("With a target and a date I can tell you where you stand, not just how you slept. "
-                     + "Entirely optional — everything else works without it.")
+                // Single literal — see the localization note above.
+                Text("With a target and a date I can tell you where you stand, not just how you slept. Entirely optional — everything else works without it.")
                     .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -113,14 +114,13 @@ struct CoachGoalEditorView: View {
                 .tint(StrandPalette.accent)
                 .accessibilityLabel("Goal type")
                 if kind == .weight {
-                    Text("I'll track your weight and plan your training around it — but I have no "
-                         + "nutrition data, and that's where most of weight change is decided. I won't "
-                         + "pretend otherwise.")
+                    // Single literal — see the localization note above.
+                    Text("I'll track your weight and plan your training around it — but I have no nutrition data, and that's where most of weight change is decided. I won't pretend otherwise.")
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
                 } else if !kind.isQuantified {
-                    Text("I can hold this goal and shape your training around it, but I can't measure it "
-                         + "from your strap — so I won't invent progress numbers for it.")
+                    // Single literal — see the localization note above.
+                    Text("I can hold this goal and shape your training around it, but I can't measure it from your strap — so I won't invent progress numbers for it.")
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
