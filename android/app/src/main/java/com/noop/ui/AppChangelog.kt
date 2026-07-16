@@ -39,7 +39,7 @@ object AppChangelog {
     val releases: List<Release> = listOf(
         Release(
             version = "9.0.1",
-            title = "German, French & Spanish, pull-to-sync on Today, and a wave of polish",
+            title = uiString(R.string.l10n_app_changelog_german_french_spanish_pull_to_sync_1109bda2),
             date = "July 2026",
             items = listOf(
                 "**NOOP now speaks German, French and Spanish (#453).** The whole app — every screen and label — is translated across iPhone, Mac and Android, so it reads in your language end to end.",
