@@ -476,17 +476,24 @@ fun CompareScreen(vm: AppViewModel) {
             SectionHeader("Metrics", overline = "Overlay 2-4 signals")
             NoopCard {
                 Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        SegmentedPillControl(
-                            items = CompareRange.entries.toList(),
-                            selection = range,
-                            label = { it.label },
-                            onSelect = {
-                                range = it
-                                ComparePrefs.writeRange(context, it)
-                            },
-                        )
-                        Spacer(Modifier.weight(1f))
+                    SegmentedPillControl(
+                        items = CompareRange.entries.toList(),
+                        selection = range,
+                        label = { it.label },
+                        onSelect = {
+                            range = it
+                            ComparePrefs.writeRange(context, it)
+                        },
+                    )
+
+                    // #492: this used to share a row with the segmented range picker. On narrow
+                    // screens the picker consumed the width and collapsed "Add metric" into a
+                    // one-character-wide column. Give the action its own trailing-aligned row so
+                    // both controls retain their intended intrinsic width.
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                    ) {
                         AddMetricMenu(
                             selectedCount = selected.size,
                             maxSelection = maxSelection,
@@ -626,6 +633,7 @@ private fun AddMetricMenu(
                 if (atMax) "Max 4" else "Add metric",
                 style = NoopType.subhead,
                 color = tint,
+                maxLines = 1,
             )
         }
 
