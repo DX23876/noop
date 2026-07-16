@@ -43,29 +43,20 @@ struct CoachSettingsView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 16) {
-                    if coach.isConfigured {
-                        connectedHeader
-                        consentBar
-                        if coach.dataConsent { onDeviceSignalsBar }
-                        personaBar
-                        goalBar
-                        coachEntryBar
-                        checkInBar
-                        memoryBar
-                        if coach.dataConsent { memoryMaintenanceBar }
-                        tokenUsageBar
-                        systemPromptBar
-                        disconnectRow
-                    } else {
-                        setupCard
+            Group {
+                if coach.isConfigured {
+                    hub
+                } else {
+                    ScrollView {
+                        VStack(spacing: 16) {
+                            setupCard
+                            privacyFootnote
+                        }
+                        .padding(16)
                     }
-                    privacyFootnote
+                    .background(StrandPalette.surfaceBase.ignoresSafeArea())
                 }
-                .padding(16)
             }
-            .background(StrandPalette.surfaceBase.ignoresSafeArea())
             // Drop an explicit "Custom…" pick made on the OLD provider — otherwise `customModel` stays
             // true after switching away and forces the free-text field open even though the new
             // provider's model list is perfectly valid. `isCustomModelSelected` still catches the new
@@ -98,6 +89,196 @@ struct CoachSettingsView: View {
     /// Drives the edit-fact alert from `editingFactID` without a separate bool.
     private var editingBinding: Binding<Bool> {
         Binding(get: { editingFactID != nil }, set: { if !$0 { editingFactID = nil } })
+    }
+
+    // MARK: - Hub
+
+    /// The configured-state landing page: the status pill, then five rows drilling into their own
+    /// subpages. Used to be one scroll of 11 stacked cards; every card below is UNCHANGED — only which
+    /// page it lives on moved. Titles/subtitles are written as literal `Text(...)` calls (not routed
+    /// through a shared `title: String` helper parameter) on purpose: `Tools/i18n_audit.py` only
+    /// recognises a translatable string when it's a literal argument directly at a `Text(`/
+    /// `.navigationTitle(` call site — piping it through a variable first would make these 10 new
+    /// strings invisible to the very gate that just closed 27 identical gaps fork-wide (M1).
+    private var hub: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                connectedHeader
+
+                NavigationLink { connectionSubpage } label: {
+                    NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "key.fill")
+                                .foregroundStyle(StrandPalette.accent)
+                                .accessibilityHidden(true)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text("Connection & model")
+                                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                                Text("Provider, API key and which model answers.")
+                                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            Spacer(minLength: 8)
+                            Image(systemName: "chevron.right")
+                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                                .accessibilityHidden(true)
+                        }
+                    }
+                }
+                .accessibilityElement(children: .combine)
+
+                NavigationLink { goalJourneySubpage } label: {
+                    NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "target")
+                                .foregroundStyle(StrandPalette.accent)
+                                .accessibilityHidden(true)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text("Goal & Journey")
+                                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                                Text("Set a target and see your progress.")
+                                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            Spacer(minLength: 8)
+                            Image(systemName: "chevron.right")
+                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                                .accessibilityHidden(true)
+                        }
+                    }
+                }
+                .accessibilityElement(children: .combine)
+
+                NavigationLink { coachingSubpage } label: {
+                    NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "bubble.left.and.bubble.right")
+                                .foregroundStyle(StrandPalette.accent)
+                                .accessibilityHidden(true)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text("Coaching")
+                                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                                Text("Style, how you open Coach, and daily check-ins.")
+                                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            Spacer(minLength: 8)
+                            Image(systemName: "chevron.right")
+                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                                .accessibilityHidden(true)
+                        }
+                    }
+                }
+                .accessibilityElement(children: .combine)
+
+                NavigationLink { memorySubpage } label: {
+                    NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "brain")
+                                .foregroundStyle(StrandPalette.accent)
+                                .accessibilityHidden(true)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text("Memory")
+                                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                                Text("What the coach remembers, and chat summaries.")
+                                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            Spacer(minLength: 8)
+                            Image(systemName: "chevron.right")
+                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                                .accessibilityHidden(true)
+                        }
+                    }
+                }
+                .accessibilityElement(children: .combine)
+
+                NavigationLink { privacySubpage } label: {
+                    NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "lock.shield")
+                                .foregroundStyle(StrandPalette.accent)
+                                .accessibilityHidden(true)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text("Privacy & data")
+                                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                                Text("What's shared, and the coach's instructions.")
+                                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            Spacer(minLength: 8)
+                            Image(systemName: "chevron.right")
+                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                                .accessibilityHidden(true)
+                        }
+                    }
+                }
+                .accessibilityElement(children: .combine)
+
+                privacyFootnote
+            }
+            .padding(16)
+        }
+        .background(StrandPalette.surfaceBase.ignoresSafeArea())
+    }
+
+    /// Shared scroll/padding/background scaffold for a subpage. Deliberately takes NO title parameter —
+    /// each subpage applies its own literal `.navigationTitle("...")` outside this wrapper, for the same
+    /// scanner-visibility reason as the hub rows above.
+    private func subpageScaffold<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        ScrollView {
+            VStack(spacing: 16) { content() }
+                .padding(16)
+        }
+        .background(StrandPalette.surfaceBase.ignoresSafeArea())
+        #if !os(macOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
+    }
+
+    /// Provider, key, model, token usage, disconnect. Was reachable only by first tapping Disconnect —
+    /// `providerConfigFields` now lives here too so switching provider or model doesn't require that.
+    private var connectionSubpage: some View {
+        subpageScaffold {
+            providerConfigFields
+            tokenUsageBar
+            disconnectRow
+        }
+        .navigationTitle("Connection & model")
+    }
+
+    /// `goalBar` already carries its own sheets for the goal editor and Journey — unchanged, just relocated.
+    private var goalJourneySubpage: some View {
+        subpageScaffold {
+            goalBar
+        }
+        .navigationTitle("Goal & Journey")
+    }
+
+    private var coachingSubpage: some View {
+        subpageScaffold {
+            personaBar
+            coachEntryBar
+            checkInBar
+        }
+        .navigationTitle("Coaching")
+    }
+
+    private var memorySubpage: some View {
+        subpageScaffold {
+            memoryBar
+            if coach.dataConsent { memoryMaintenanceBar }
+        }
+        .navigationTitle("Memory")
+    }
+
+    private var privacySubpage: some View {
+        subpageScaffold {
+            consentBar
+            if coach.dataConsent { onDeviceSignalsBar }
+            systemPromptBar
+        }
+        .navigationTitle("Privacy & data")
     }
 
     // MARK: - Coach entry preference (iOS: card vs. draggable floating button vs. both)
@@ -706,69 +887,78 @@ struct CoachSettingsView: View {
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Provider").strandOverline()
-                    Picker("Provider", selection: $coach.provider) {
-                        ForEach(AIProvider.allCases) { p in
-                            Text(p.displayName).tag(p)
-                        }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.segmented)
-                    .accessibilityLabel("Provider")
-                }
+                providerConfigFields
+            }
+        }
+    }
 
-                if coach.provider == .custom {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Server URL").strandOverline()
-                        TextField("http://localhost:11434/v1", text: $coach.customBaseURL)
-                            .textFieldStyle(.plain)
-                            .font(StrandFont.body)
-                            .foregroundStyle(StrandPalette.textPrimary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 9)
-                            .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
-                            .overlay(RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous)
-                                .strokeBorder(StrandPalette.hairline, lineWidth: 1))
-                            .disableAutocorrection(true)
-                            .accessibilityLabel("Server URL")
-                        Text("Any OpenAI-compatible server: Ollama, LM Studio, llama.cpp, or your own gateway. Stays on your network; nothing leaves \(Platform.deviceNounPhrase).")
-                            .font(StrandFont.footnote)
-                            .foregroundStyle(StrandPalette.textSecondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-
-                modelSelector
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(coach.provider == .custom ? "API key (optional)" : "API key").strandOverline()
-                    SecureField(coach.provider == .custom
-                                ? "Only if your server requires one"
-                                : "Paste your \(coach.provider.displayName) API key", text: $keyDraft)
-                        .textFieldStyle(.plain)
-                        .font(StrandFont.body)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 9)
-                        .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous)
-                            .strokeBorder(StrandPalette.hairline, lineWidth: 1))
-                        .onSubmit { coach.provider == .custom ? connectCustom() : saveKey() }
-                        .accessibilityLabel("API key")
-                }
-
-                HStack {
-                    if coach.provider == .custom {
-                        NoopButton("Connect", systemImage: "link", kind: .primary, action: connectCustom)
-                            .disabled(coach.customBaseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    } else {
-                        NoopButton("Save key", systemImage: "key.fill", kind: .primary, action: saveKey)
-                            .disabled(keyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    }
-                    Spacer()
+    /// Provider / server-URL / model / key controls. Shared by `setupCard` (not yet connected) and the
+    /// "Connection & model" hub subpage (once connected) — before the hub, once `isConfigured` was true
+    /// the only path back to these controls was `disconnectRow`, i.e. disconnecting first. Same fields,
+    /// same actions, just reachable from a second place now.
+    @ViewBuilder
+    private var providerConfigFields: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Provider").strandOverline()
+            Picker("Provider", selection: $coach.provider) {
+                ForEach(AIProvider.allCases) { p in
+                    Text(p.displayName).tag(p)
                 }
             }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .accessibilityLabel("Provider")
+        }
+
+        if coach.provider == .custom {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Server URL").strandOverline()
+                TextField("http://localhost:11434/v1", text: $coach.customBaseURL)
+                    .textFieldStyle(.plain)
+                    .font(StrandFont.body)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 9)
+                    .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous)
+                        .strokeBorder(StrandPalette.hairline, lineWidth: 1))
+                    .disableAutocorrection(true)
+                    .accessibilityLabel("Server URL")
+                Text("Any OpenAI-compatible server: Ollama, LM Studio, llama.cpp, or your own gateway. Stays on your network; nothing leaves \(Platform.deviceNounPhrase).")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+
+        modelSelector
+
+        VStack(alignment: .leading, spacing: 6) {
+            Text(coach.provider == .custom ? "API key (optional)" : "API key").strandOverline()
+            SecureField(coach.provider == .custom
+                        ? "Only if your server requires one"
+                        : "Paste your \(coach.provider.displayName) API key", text: $keyDraft)
+                .textFieldStyle(.plain)
+                .font(StrandFont.body)
+                .foregroundStyle(StrandPalette.textPrimary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 9)
+                .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous)
+                    .strokeBorder(StrandPalette.hairline, lineWidth: 1))
+                .onSubmit { coach.provider == .custom ? connectCustom() : saveKey() }
+                .accessibilityLabel("API key")
+        }
+
+        HStack {
+            if coach.provider == .custom {
+                NoopButton("Connect", systemImage: "link", kind: .primary, action: connectCustom)
+                    .disabled(coach.customBaseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            } else {
+                NoopButton("Save key", systemImage: "key.fill", kind: .primary, action: saveKey)
+                    .disabled(keyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            Spacer()
         }
     }
 
