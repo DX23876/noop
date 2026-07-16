@@ -102,9 +102,9 @@ struct LiquidTodayView: View {
     /// Content sits above the surface so it stays readable. Mirrors Kotlin `NoopPrefs.cardOpacityPercent`.
     @AppStorage(CardAppearancePrefs.opacityKey) private var cardOpacityPercent = CardAppearancePrefs.defaultPercent
     private var cardOpacity: Double { max(0, min(1, Double(cardOpacityPercent) / 100)) }
-    /// "Sky behind cards" (opt-in, default OFF): extend the day-cycle sky behind the WHOLE scroll so the
-    /// Card-transparency slider reveals it under every card. Mirrors Kotlin `NoopPrefs.skyBehindCards`.
-    @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = false
+    /// "Sky behind cards" (default ON): extend the day-cycle sky behind the WHOLE scroll so the
+    /// Card-transparency slider reveals it under every card. User-toggleable. Mirrors Kotlin `NoopPrefs.skyBehindCards`.
+    @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = true
     /// Day-cycle scene backdrop (#698). Default ON. When off, the liquid Today drops the sky for the plain
     /// dark canvas — parity with Android and the classic TodayView, which already honour this pref. Mirrors
     /// Kotlin `NoopPrefs.showDayCycleBackground`.

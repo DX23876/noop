@@ -470,7 +470,7 @@ struct MetricDetailView: View {
     /// liquid Today's sky to a flat page. Same keys TodayView/LiquidTodayView gate on; "Sky behind cards"
     /// extends the sky to the full viewport (softer settle) so the transparent cards reveal it throughout.
     @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = true
-    @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = false
+    @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = true
     // Profile basics for the Fitness Age not-ready countdown (age/sex gate its readiness lead). Injected
     // app-wide at the root; previews supply their own. Only read on the fitness_age empty-state path.
     @EnvironmentObject var profile: ProfileStore
