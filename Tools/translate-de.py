@@ -502,16 +502,12 @@ DE: dict[str, str] = {
     "Progress": "Fortschritt",
     "Set one from Coach settings to see your journey here.": "Lege in den Coach-Einstellungen eines fest, um hier deine Reise zu sehen.",
     "Your journey": "Deine Reise",
-    # Runtime keys for the three interpolated strings — the %@ form SwiftUI looks up.
+    # The interpolated strings, in the %@ form both SwiftUI and the audit resolve to. Upstream 9.0.1's
+    # rebuilt i18n_audit.py understands `\(...)` itself (swift_catalog_pattern), so the raw-source
+    # twins this file used to carry alongside these are gone — the audit no longer looks them up.
     "Instead of %@": "Statt %@",
     "swapped from %@": "getauscht von %@",
     'Pace acknowledged: "%@"': "Tempo bestätigt: „%@“",
-    # Audit-shape twins of the three above: Tools/i18n_audit.py looks the RAW source literal up
-    # in the catalog (incl. `\(...)`), while runtime resolves the %@ keys. These are never
-    # rendered — passed through unchanged, like the symbol-only entries at the top.
-    "Instead of \\(proposal.sport)": "Instead of \\(proposal.sport)",
-    "swapped from \\(from)": "swapped from \\(from)",
-    "Pace acknowledged: \\\"\\(ack.reason)\\\"": "Pace acknowledged: \\\"\\(ack.reason)\\\"",
 }
 
 
