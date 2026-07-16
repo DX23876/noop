@@ -2106,8 +2106,13 @@ final class Repository: ObservableObject {
                     // so the child task crosses only Sendable scalars.
                     let cls = WorkoutSource.classify(rows[idx].source)
                     let wantStrain = (cls == .manual || cls == .detected) && rows[idx].strain == nil
-                    group.addTask { [deviceId] in
-                        let samples = (try? await store.hrSamples(deviceId: deviceId,
+                    // #510: read HR under the workout's OWN recording strap, not a single active id. A detected
+                    // row's `source` IS its computed strap id ("<base>-noop"), so a bout auto-detected on a 2nd
+                    // WHOOP reads "<base>" instead of the active strap's empty window. Resolved on the main actor;
+                    // only the resulting Sendable String crosses into the task.
+                    let hrDeviceId = Self.workoutHrDeviceId(source: rows[idx].source, activeStrapId: deviceId)
+                    group.addTask { [hrDeviceId] in
+                        let samples = (try? await store.hrSamples(deviceId: hrDeviceId,
                                                                   from: startTs, to: endTs,
                                                                   limit: 8000)) ?? []
                         guard samples.count >= minSamples else { return nil }
@@ -2148,6 +2153,20 @@ final class Repository: ObservableObject {
                               avgHr: r.avg, maxHr: newMax, strain: newStrain, distanceM: row.distanceM,
                               zonesJSON: row.zonesJSON, notes: row.notes)
         }
+    }
+
+    /// #510 (Kotlin twin: `WhoopRepository.workoutHrDeviceId`). The device id whose `hrSample` rows back a
+    /// workout's Avg HR / Effort reconcile. A DETECTED row's own `source` IS its computed strap id
+    /// ("<base>-noop"), so strip the suffix to read HR under the raw "<base>" — a bout auto-detected on a
+    /// SECOND WHOOP no longer reads the active strap's empty window (which blanked its reconcile). MANUAL and
+    /// IMPORTED rows carry no strap id in `source`, so they reconcile against the active strap [activeStrapId]
+    /// as before; on a single-device install a detected "<base>-noop" strips to the active id, so the read is
+    /// byte-identical. (The Kotlin twin also keys MANUAL rows on their stored deviceId; the Swift read-model
+    /// `WorkoutRow` carries no deviceId, so a manual session created on a NON-active strap reconciles here
+    /// against the active strap instead — a minor, display-only divergence, never persisted.)
+    nonisolated static func workoutHrDeviceId(source: String, activeStrapId: String) -> String {
+        guard WorkoutSource.classify(source) == .detected else { return activeStrapId }
+        return source.hasSuffix("-noop") ? String(source.dropLast(5)) : source
     }
 
     /// #833: the per-workout HR reduction (mean bpm → rounded Int, peak bpm), pulled OUT of the @MainActor
