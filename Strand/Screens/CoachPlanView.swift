@@ -162,8 +162,9 @@ struct CoachPlanView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("No plan yet")
                     .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                Text("Ask the coach what to do this week. Anything it suggests lands here for your yes "
-                     + "first — nothing gets scheduled behind your back.")
+                // One single literal, not `+`-concatenation: a concatenated argument is a plain String,
+                // which hits Text's verbatim initialiser and silently skips localization.
+                Text("Ask the coach what to do this week. Anything it suggests lands here for your yes first — nothing gets scheduled behind your back.")
                     .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }
