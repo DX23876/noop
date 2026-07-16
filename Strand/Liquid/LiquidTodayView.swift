@@ -20,6 +20,11 @@ struct LiquidTodayView: View {
     @EnvironmentObject var repo: Repository
     @EnvironmentObject var router: NavRouter
     @EnvironmentObject var profile: ProfileStore
+    // For the pull-to-sync gesture (#334): a pull kicks a manual strap history offload via ble.syncNow().
+    // Observe BLEManager, NOT AppModel — AppModel @Publishes `bpm` on the ~1 Hz HR tick, so observing it
+    // would re-render all of Today every second (the exact churn the LiveState leaves isolate). BLEManager
+    // only publishes connect/discovery state, never HR. Injected at the app roots beside .environmentObject(model).
+    @EnvironmentObject var ble: BLEManager
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Shared with the real Today's card-customise editor so the two stay in sync.
@@ -375,6 +380,11 @@ struct LiquidTodayView: View {
             refreshArmed = false
             refreshing = true
             Task {
+                // #334 (iOS twin of Android #426): a pull requests a fresh strap history offload, not just
+                // a UI reload. syncNow() is internally gated (connected + bonded + not-already-backfilling),
+                // so a pull while disconnected or mid-offload safely no-ops. The sync status chip owns the
+                // ongoing offload progress; the pull spinner stays short (the reload below).
+                ble.syncNow()
                 await repo.refresh()
                 await load()
                 try? await Task.sleep(nanoseconds: 350_000_000)   // let the fill read as "done"

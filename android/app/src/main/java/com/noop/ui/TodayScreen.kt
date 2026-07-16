@@ -1050,7 +1050,15 @@ fun TodayScreen(
         )
     }
     val canPullToSync = todayPullToSyncEnabled(liveSnap.connected, liveSnap.bonded, liveSnap.backfilling)
-    val pullToSyncState = rememberPullToRefreshState(enabled = { canPullToSync })
+    // material3 1.2.1's rememberPullToRefreshState CAPTURES the `enabled` lambda ONCE (rememberSaveable,
+    // no rememberUpdatedState), so `{ canPullToSync }` would freeze the plain Boolean from the FIRST
+    // composition — and Today usually first composes before the strap has (re)connected, leaving the
+    // gesture permanently disabled for the session. Read the stable `liveSnap` State live inside the lambda
+    // instead, so each gesture check sees the current connected/bonded/backfilling. (syncNow is triple-gated
+    // anyway; this just makes the gesture actually enable once the strap is ready.)
+    val pullToSyncState = rememberPullToRefreshState(
+        enabled = { todayPullToSyncEnabled(liveSnap.connected, liveSnap.bonded, liveSnap.backfilling) },
+    )
     LaunchedEffect(pullToSyncState.isRefreshing, canPullToSync) {
         if (pullToSyncState.isRefreshing) {
             if (canPullToSync) viewModel.syncNow()

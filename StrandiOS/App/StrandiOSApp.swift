@@ -63,6 +63,7 @@ struct StrandiOSApp: App {
         WindowGroup {
             iOSRootView()
                 .environmentObject(model)
+                .environmentObject(model.ble)   // #334: Today pull-to-sync reads BLEManager (no HR churn)
                 .environmentObject(model.live)
                 .environmentObject(model.repo)
                 .environmentObject(model.profile)
