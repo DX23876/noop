@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import android.content.Intent
 import android.net.Uri
 import android.text.format.DateUtils
@@ -138,21 +140,21 @@ fun BackupSyncScreen() {
     }
 
     LazyScreenScaffold(
-        title = "Backup & Sync",
+        title = uiString(R.string.l10n_backup_sync_screen_backup_sync_81758ffa),
         subtitle = "Save a full backup to a folder you choose - point it at Google Drive / Dropbox for off-device sync.",
     ) {
         // 1 · Destination folder
         item {
             NoopCard(padding = 20.dp) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Backup folder", style = NoopType.headline, color = Palette.textPrimary)
+                    Text(uiString(R.string.l10n_backup_sync_screen_backup_folder_2a33df93), style = NoopType.headline, color = Palette.textPrimary)
                     Text(
                         treeUri?.let { "Saving to: ${folderLabel(it)}" }
                             ?: "No folder chosen yet. Pick one your cloud app already syncs, or any local folder.",
                         style = NoopType.footnote, color = Palette.textTertiary,
                     )
                     Text(
-                        "Tip: a desktop Drive / Dropbox app auto-syncs a chosen folder. On the phone, save to a " +
+                        uiString(R.string.l10n_backup_sync_screen_tip_a_desktop_drive_dropbox_app_2eaff1e3) +
                             "folder a sync app (e.g. FolderSync / Autosync) keeps in your cloud.",
                         style = NoopType.caption, color = Palette.accent,
                     )
@@ -176,9 +178,9 @@ fun BackupSyncScreen() {
                             modifier = Modifier.weight(1f),
                             verticalArrangement = Arrangement.spacedBy(2.dp),
                         ) {
-                            Text("Daily auto-backup", style = NoopType.body, color = Palette.textPrimary)
+                            Text(uiString(R.string.l10n_backup_sync_screen_daily_auto_backup_e5627357), style = NoopType.body, color = Palette.textPrimary)
                             Text(
-                                "Writes a fresh dated backup to your folder once a day at the time below, keeping " +
+                                uiString(R.string.l10n_backup_sync_screen_writes_a_fresh_dated_backup_to_bd964fc5) +
                                     "the latest $keep. Off by default - flip it on if you want it.",
                                 style = NoopType.footnote, color = Palette.textTertiary,
                             )
@@ -208,9 +210,9 @@ fun BackupSyncScreen() {
                             modifier = Modifier.weight(1f),
                             verticalArrangement = Arrangement.spacedBy(2.dp),
                         ) {
-                            Text("Keep last snapshots", style = NoopType.body, color = Palette.textPrimary)
+                            Text(uiString(R.string.l10n_backup_sync_screen_keep_last_snapshots_cd5c9ea9), style = NoopType.body, color = Palette.textPrimary)
                             Text(
-                                "Older backups beyond this many are pruned, oldest first (≈ that many days of " +
+                                uiString(R.string.l10n_backup_sync_screen_older_backups_beyond_this_many_are_00b7daa6) +
                                     "daily backups). For recovery: if data ever corrupts, grab the newest snapshot.",
                                 style = NoopType.footnote, color = Palette.textTertiary,
                             )
@@ -221,7 +223,7 @@ fun BackupSyncScreen() {
                                 enabled = treeUri != null && !busy,
                                 onClick = { keepMenu = true },
                             ) {
-                                Text("$keep", style = NoopType.body, color = Palette.accent)
+                                Text(uiString(R.string.l10n_backup_sync_screen_keep_1addd33c, keep), style = NoopType.body, color = Palette.accent)
                             }
                             DropdownMenu(
                                 expanded = keepMenu,
@@ -231,7 +233,7 @@ fun BackupSyncScreen() {
                                     DropdownMenuItem(
                                         text = {
                                             Text(
-                                                "$n",
+                                                uiString(R.string.l10n_backup_sync_screen_n_9e03569f, n),
                                                 style = NoopType.body,
                                                 color = if (n == keep) Palette.accent else Palette.textPrimary,
                                             )
@@ -253,9 +255,9 @@ fun BackupSyncScreen() {
                             modifier = Modifier.weight(1f),
                             verticalArrangement = Arrangement.spacedBy(2.dp),
                         ) {
-                            Text("Backup time", style = NoopType.body, color = Palette.textPrimary)
+                            Text(uiString(R.string.l10n_backup_sync_screen_backup_time_81557aaa), style = NoopType.body, color = Palette.textPrimary)
                             Text(
-                                "Roughly when the daily backup runs (best-effort — the system may slide it a little).",
+                                uiString(R.string.l10n_backup_sync_screen_roughly_when_the_daily_backup_runs_71de04e1),
                                 style = NoopType.footnote, color = Palette.textTertiary,
                             )
                         }
@@ -309,14 +311,14 @@ fun BackupSyncScreen() {
         item {
             NoopCard(padding = 20.dp) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Restore", style = NoopType.headline, color = Palette.textPrimary)
+                    Text(uiString(R.string.l10n_backup_sync_screen_restore_3cbe6d6b), style = NoopType.headline, color = Palette.textPrimary)
                     Text(
-                        "Replace this device's data with one of your backups. This overwrites current data, " +
+                        uiString(R.string.l10n_backup_sync_screen_replace_this_device_s_data_with_b8679c51) +
                             "so back up first if unsure.",
                         style = NoopType.footnote, color = Palette.textTertiary,
                     )
                     NoopButton(
-                        text = "Restore from a backup…",
+                        text = uiString(R.string.l10n_backup_sync_screen_restore_from_a_backup_c28917c6),
                         leadingIcon = Icons.Filled.Restore,
                         kind = NoopButtonKind.Secondary,
                         enabled = !busy,
@@ -353,12 +355,12 @@ fun BackupSyncScreen() {
             onDismissRequest = { showSnapshotPicker = false },
             containerColor = Palette.surfaceOverlay,
             title = {
-                Text("Choose a backup", style = NoopType.title2, color = Palette.textPrimary)
+                Text(uiString(R.string.l10n_backup_sync_screen_choose_a_backup_2fbfb0d6), style = NoopType.title2, color = Palette.textPrimary)
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        "Newest first. Restoring replaces this device's data.",
+                        uiString(R.string.l10n_backup_sync_screen_newest_first_restoring_replaces_this_device_97dbcd8b),
                         style = NoopType.footnote, color = Palette.textSecondary,
                     )
                     snapshots.forEach { snap ->
@@ -392,7 +394,7 @@ fun BackupSyncScreen() {
             },
             confirmButton = {
                 TextButton(onClick = { showSnapshotPicker = false }) {
-                    Text("Cancel", style = NoopType.body, color = Palette.textSecondary)
+                    Text(uiString(R.string.l10n_backup_sync_screen_cancel_77dfd213), style = NoopType.body, color = Palette.textSecondary)
                 }
             },
         )
@@ -404,11 +406,11 @@ fun BackupSyncScreen() {
             onDismissRequest = { pendingRestore = null },
             containerColor = Palette.surfaceOverlay,
             title = {
-                Text("Replace all current data?", style = NoopType.title2, color = Palette.textPrimary)
+                Text(uiString(R.string.l10n_backup_sync_screen_replace_all_current_data_e9244799), style = NoopType.title2, color = Palette.textPrimary)
             },
             text = {
                 Text(
-                    "Replace all current data with $label? This cannot be undone.",
+                    uiString(R.string.l10n_backup_sync_screen_replace_all_current_data_with_label_b7799a16, label),
                     style = NoopType.subhead, color = Palette.textSecondary,
                 )
             },
@@ -417,12 +419,12 @@ fun BackupSyncScreen() {
                     pendingRestore = null
                     runRestore(uri)
                 }) {
-                    Text("Replace", style = NoopType.body, color = Palette.statusCritical)
+                    Text(uiString(R.string.l10n_backup_sync_screen_replace_a7cf7b25), style = NoopType.body, color = Palette.statusCritical)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { pendingRestore = null }) {
-                    Text("Cancel", style = NoopType.body, color = Palette.textSecondary)
+                    Text(uiString(R.string.l10n_backup_sync_screen_cancel_77dfd213), style = NoopType.body, color = Palette.textSecondary)
                 }
             },
         )

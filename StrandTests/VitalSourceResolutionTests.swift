@@ -39,6 +39,24 @@ final class VitalSourceResolutionTests: XCTestCase {
         XCTAssertEqual(merged[0].steps, 9_240)
     }
 
+    func testActivityFileStepsFillMissingStepDaysOnly() {
+        let base = [
+            daily(day: "2026-06-14", recovery: 70, steps: nil),
+            daily(day: "2026-06-15", steps: 9000),
+        ]
+        let activity = [
+            daily(day: "2026-06-14", steps: 1175),
+            daily(day: "2026-06-15", steps: 2222),
+            daily(day: "2026-06-16", steps: 3333),
+        ]
+
+        let merged = Repository.mergeActivityFileSteps(into: base, activity)
+
+        XCTAssertEqual(merged.first { $0.day == "2026-06-14" }?.steps, 1175)
+        XCTAssertEqual(merged.first { $0.day == "2026-06-15" }?.steps, 9000)
+        XCTAssertEqual(merged.first { $0.day == "2026-06-16" }?.steps, 3333)
+    }
+
     func testAppleHealthCanFillBloodOxygenWhenStrapSourcesAreMissing() {
         let readings = BodyVitalSigns.readings(
             sourceRows: [

@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -103,14 +105,14 @@ fun MindSection(vm: AppViewModel) {
             Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
                 if (!loaded) {
                     Text(
-                        "Reading your check-ins…",
+                        uiString(R.string.l10n_mind_section_reading_your_check_ins_71a100a9),
                         style = NoopType.subhead,
                         color = Palette.textTertiary,
                     )
                 } else if (todayMood == null || editing) {
                     // --- Open check-in: the 5-face scale -----------------------
                     Text(
-                        "How are you feeling today?",
+                        uiString(R.string.l10n_mind_section_how_are_you_feeling_today_5667deff),
                         style = NoopType.headline,
                         color = Palette.textPrimary,
                     )
@@ -134,7 +136,7 @@ fun MindSection(vm: AppViewModel) {
                         }
                     }
                     Text(
-                        "One check-in per day; picking another face overwrites today's.",
+                        uiString(R.string.l10n_mind_section_one_check_in_per_day_picking_b103f22e),
                         style = NoopType.footnote,
                         color = Palette.textTertiary,
                     )
@@ -149,7 +151,7 @@ fun MindSection(vm: AppViewModel) {
                         Spacer(Modifier.width(10.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(face.word, style = NoopType.headline, color = Palette.textPrimary)
-                            Text("Logged today", style = NoopType.caption, color = Palette.textTertiary)
+                            Text(uiString(R.string.l10n_mind_section_logged_today_0071a46c), style = NoopType.caption, color = Palette.textTertiary)
                         }
                         MoodChip("Edit") { editing = true }
                     }
@@ -161,14 +163,14 @@ fun MindSection(vm: AppViewModel) {
                     if (checkInDays < MIND_GATE_DAYS) {
                         val left = MIND_GATE_DAYS - checkInDays
                         Text(
-                            "Mood correlations unlock after $MIND_GATE_DAYS days of " +
+                            uiString(R.string.l10n_mind_section_mood_correlations_unlock_after_mind_gate_f0c62abe, MIND_GATE_DAYS) +
                                 "check-ins: $left more ${if (left == 1) "day" else "days"} to go.",
                             style = NoopType.footnote,
                             color = Palette.textTertiary,
                         )
                     } else if (lines.isEmpty()) {
                         Text(
-                            "Not enough overlapping history to correlate mood with your " +
+                            uiString(R.string.l10n_mind_section_not_enough_overlapping_history_to_correlate_d36b91f9) +
                                 "body metrics yet.",
                             style = NoopType.footnote,
                             color = Palette.textTertiary,
@@ -239,7 +241,7 @@ private fun MindCorrelationRow(line: MindLine) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp)
-            .semantics { contentDescription = "${line.title}: $sentence" },
+            .semantics { contentDescription = uiString(R.string.l10n_mind_section_line_title_sentence_6d3418f9, line.title, sentence) },
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Row(

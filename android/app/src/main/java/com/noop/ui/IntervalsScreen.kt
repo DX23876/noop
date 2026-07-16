@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -203,7 +205,7 @@ fun IntervalsScreen(vm: AppViewModel) {
     // (the heavy per-second BevelGauge hero) and off-screen cards (config) don't recompose or get
     // semantics-walked. Order/spacing unchanged (LazyColumn reproduces the eager `spacedBy(20.dp)`).
     LazyScreenScaffold(
-        title = "Interval Timer",
+        title = uiString(R.string.l10n_intervals_screen_interval_timer_1d703deb),
         subtitle = "Silent haptic HIIT - the strap buzzes the transitions",
     ) {
         // --- Status row ---
@@ -304,7 +306,7 @@ fun IntervalsScreen(vm: AppViewModel) {
                                 contentDescription = null,
                                 modifier = Modifier.padding(end = 6.dp),
                             )
-                            Text("Reset", style = NoopType.headline)
+                            Text(uiString(R.string.l10n_intervals_screen_reset_44c57abd), style = NoopType.headline)
                         }
                     }
 
@@ -322,7 +324,7 @@ fun IntervalsScreen(vm: AppViewModel) {
                             )
                             Spacer(Modifier.width(6.dp))
                             Text(
-                                "Bond your strap on the Live screen to feel the transitions hands-free.",
+                                uiString(R.string.l10n_intervals_screen_bond_your_strap_on_the_live_d799cbc2),
                                 style = NoopType.footnote,
                                 color = Palette.textTertiary,
                                 textAlign = TextAlign.Center,
@@ -345,7 +347,7 @@ fun IntervalsScreen(vm: AppViewModel) {
                     Overline("Session")
                     Spacer(Modifier.weight(1f))
                     Text(
-                        "${timeString(elapsed)} / ${timeString(totalPlanned)}",
+                        uiString(R.string.l10n_intervals_screen_timestring_elapsed_timestring_totalplanned_7b68f8d7, timeString(elapsed), timeString(totalPlanned)),
                         style = NoopType.bodyNumber,
                         color = Palette.textPrimary,
                     )
@@ -396,25 +398,25 @@ fun IntervalsScreen(vm: AppViewModel) {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Overline("Configure")
                 ConfigStepper(
-                    title = "Work", unit = "sec", value = workSeconds,
+                    title = uiString(R.string.l10n_intervals_screen_work_00040bab), unit = "sec", value = workSeconds,
                     range = 5..600, step = 5, tint = Palette.effortColor, enabled = !running,
                     onChange = { workSeconds = it },
                 )
                 Divider()
                 ConfigStepper(
-                    title = "Rest", unit = "sec", value = restSeconds,
+                    title = uiString(R.string.l10n_intervals_screen_rest_b79e5f48), unit = "sec", value = restSeconds,
                     range = 5..600, step = 5, tint = Palette.restColor, enabled = !running,
                     onChange = { restSeconds = it },
                 )
                 Divider()
                 ConfigStepper(
-                    title = "Rounds", unit = null, value = rounds,
+                    title = uiString(R.string.l10n_intervals_screen_rounds_ceeac4ac), unit = null, value = rounds,
                     range = 1..30, step = 1, tint = Palette.textPrimary, enabled = !running,
                     onChange = { rounds = it },
                 )
                 if (running) {
                     Text(
-                        "Pause to change work, rest, or rounds.",
+                        uiString(R.string.l10n_intervals_screen_pause_to_change_work_rest_or_f54f9cc5),
                         style = NoopType.footnote,
                         color = Palette.textTertiary,
                     )
@@ -460,7 +462,7 @@ private fun RoundChip(currentRound: Int, rounds: Int) {
         Spacer(Modifier.width(6.dp))
         Text(currentRound.toString(), style = NoopType.number(18f), color = Palette.textPrimary)
         Spacer(Modifier.width(2.dp))
-        Text("/ $rounds", style = NoopType.number(18f), color = Palette.textTertiary)
+        Text(uiString(R.string.l10n_intervals_screen_rounds_1c13358c, rounds), style = NoopType.number(18f), color = Palette.textTertiary)
     }
 }
 
@@ -503,7 +505,13 @@ private fun ConfigStepper(
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, style = NoopType.headline, color = Palette.textPrimary.copy(alpha = dim))
             Text(
-                "${range.first} - ${range.last}${unit?.let { " $it" } ?: ""} · step $step",
+                uiString(
+                    R.string.intervals_range_step,
+                    range.first,
+                    range.last,
+                    unit?.let { " $it" } ?: "",
+                    step,
+                ),
                 style = NoopType.footnote,
                 color = Palette.textTertiary.copy(alpha = dim),
             )

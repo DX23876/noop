@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -193,7 +195,7 @@ private fun LiveSessionBody(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text("Live Session", style = NoopType.title1, color = Palette.textPrimary)
+            Text(uiString(R.string.l10n_live_session_screen_live_session_73c925a5), style = NoopType.title1, color = Palette.textPrimary)
             StatePill("BETA", tone = StrandTone.Accent, showsDot = false)
         }
 
@@ -246,7 +248,7 @@ private fun LiveSessionBody(
             colors = ButtonDefaults.buttonColors(
                 containerColor = Palette.statusCritical, contentColor = Palette.surfaceBase,
             ),
-        ) { Text("End session", style = NoopType.headline) }
+        ) { Text(uiString(R.string.l10n_live_session_screen_end_session_8c0f4c33), style = NoopType.headline) }
     }
 }
 
@@ -279,7 +281,7 @@ private fun GuardianRing(
         position == LiveSessionEngine.Position.BELOW -> teal.copy(alpha = 0.30f)
         else -> teal
     }
-    val ringColor by animateColorAsState(target, animationSpec = tween(600), label = "guardianRingColor")
+    val ringColor by animateColorAsState(target, animationSpec = tween(600), label = uiString(R.string.l10n_live_session_screen_guardianringcolor_f20ad757))
 
     val reduced = rememberReduceMotion()
     val breathing = !stale && settled && position == LiveSessionEngine.Position.IN_BAND && !reduced
@@ -294,20 +296,20 @@ private fun GuardianRing(
         modifier = Modifier
             .size(260.dp)
             .pointerInput(Unit) { detectTapGestures(onLongPress = { onLongPress() }) }
-            .semantics { contentDescription = "Session ring. $stateLabel. Long-press to show heart rate." },
+            .semantics { contentDescription = uiString(R.string.l10n_live_session_screen_session_ring_statelabel_long_press_to_42ac1b3b, stateLabel) },
         contentAlignment = Alignment.Center,
     ) {
         if (breathing) {
             // Slow breath: ~5.2s per full cycle, composed only while in-band so an off-band or stale
             // ring keeps zero per-frame animation work.
-            val breath by rememberInfiniteTransition(label = "guardianBreath").animateFloat(
+            val breath by rememberInfiniteTransition(label = uiString(R.string.l10n_live_session_screen_guardianbreath_f76a0607)).animateFloat(
                 initialValue = 0f,
                 targetValue = 1f,
                 animationSpec = infiniteRepeatable(
                     animation = tween(2_600, easing = FastOutSlowInEasing),
                     repeatMode = RepeatMode.Reverse,
                 ),
-                label = "guardianBreathScale",
+                label = uiString(R.string.l10n_live_session_screen_guardianbreathscale_38b62ee7),
             )
             RingCanvas(ringColor, breath, inBandFraction, arcColor = if (stale) ringColor else teal)
         } else {
@@ -316,7 +318,7 @@ private fun GuardianRing(
         // Long-press reveal — the ONLY number this screen can show, and only from a live smoothed read.
         if (revealedBpm != null) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("$revealedBpm", style = NoopType.number(44f), color = Palette.textPrimary)
+                Text(uiString(R.string.l10n_live_session_screen_revealedbpm_dbe24cbe, revealedBpm), style = NoopType.number(44f), color = Palette.textPrimary)
                 Text("bpm", style = NoopType.caption, color = Palette.textTertiary)
             }
         }
@@ -413,7 +415,7 @@ private fun LiveSessionSummary(
         ) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Overline("Live Session", color = teal)
-                Text("Session summary", style = NoopType.title1, color = Palette.textPrimary)
+                Text(uiString(R.string.l10n_live_session_screen_session_summary_f9418e16), style = NoopType.title1, color = Palette.textPrimary)
             }
             StatePill("BETA", tone = StrandTone.Accent, showsDot = false)
         }
@@ -421,7 +423,7 @@ private fun LiveSessionSummary(
         // The stale auto-end declares itself — an unexplained early end would read as a bug.
         if (snap.endedAutomatically) {
             Text(
-                "The strap signal was gone for 10 minutes, so the session ended itself.",
+                uiString(R.string.l10n_live_session_screen_the_strap_signal_was_gone_for_57a2fead),
                 style = NoopType.footnote,
                 color = Palette.statusWarning,
             )
@@ -434,7 +436,7 @@ private fun LiveSessionSummary(
             color = Palette.textPrimary,
         )
         Text(
-            "Guarded for ${elapsedClock(snap.elapsedSec.toLong())}",
+            uiString(R.string.l10n_live_session_screen_guarded_for_elapsedclock_snap_elapsedsec_tolong_a61f2d32, elapsedClock(snap.elapsedSec.toLong())),
             style = NoopType.subhead,
             color = Palette.textSecondary,
         )
@@ -442,15 +444,15 @@ private fun LiveSessionSummary(
         // Where the time went — the three accrued buckets, on the shared StatTile.
         Row(horizontalArrangement = Arrangement.spacedBy(Metrics.gap), modifier = Modifier.fillMaxWidth()) {
             StatTile(
-                modifier = Modifier.weight(1f), label = "In band",
+                modifier = Modifier.weight(1f), label = uiString(R.string.l10n_live_session_screen_in_band_2c23d86e),
                 value = elapsedClock(inBandSec.toLong()), accent = teal,
             )
             StatTile(
-                modifier = Modifier.weight(1f), label = "Below",
+                modifier = Modifier.weight(1f), label = uiString(R.string.l10n_live_session_screen_below_5ba07a31),
                 value = elapsedClock(snap.belowSec.toLong()), accent = Palette.textSecondary,
             )
             StatTile(
-                modifier = Modifier.weight(1f), label = "Above",
+                modifier = Modifier.weight(1f), label = uiString(R.string.l10n_live_session_screen_above_6370c271),
                 value = elapsedClock(snap.aboveSec.toLong()), accent = Palette.statusCritical,
             )
         }
@@ -478,7 +480,7 @@ private fun LiveSessionSummary(
             colors = ButtonDefaults.buttonColors(
                 containerColor = Palette.accent, contentColor = Palette.surfaceBase,
             ),
-        ) { Text("Done", style = NoopType.headline) }
+        ) { Text(uiString(R.string.l10n_live_session_screen_done_e9b450d1), style = NoopType.headline) }
     }
 }
 

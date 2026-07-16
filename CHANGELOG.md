@@ -17,6 +17,28 @@ approximate; downloads are on the [Releases](https://github.com/NoopApp/noop/rel
 
 ---
 
+## 9.0.1: German, French & Spanish, pull-to-sync on Today, and a wave of polish (all platforms)
+
+A polish-and-translation release on top of 9.0.0.
+
+**New**
+
+- **German, French and Spanish, everywhere (#453).** The complete app UI is now translated across iPhone, Mac, Android, the watch app and complications, with a CI gate to keep it from drifting back to English-only.
+- **Pull to sync on Today (#334).** Pull down on Today to request a fresh strap-history offload (iPhone, Mac, Android). It reuses the safe manual-sync path, so it only fires when the strap is connected, bonded and idle.
+- **The day-cycle sky behind your cards is on by default.** Still a Settings toggle; existing choices are kept.
+- **Trend charts show the inspected date on Android (#492),** matching the Apple readout.
+
+**Fixed**
+
+- **macOS could no longer be granted Bluetooth (#429).** The macOS build is now ad-hoc signed, giving it a code identity recent macOS can bind a Bluetooth permission to.
+- **WHOOP 5.0/MG battery % didn't show on iPhone/Mac (#490).** The 0x2A19 read is now retried after bonding and kept current.
+- **Activity-file (FIT) imports now fill in steps for foot sports (#483).**
+- **A batch of Today polish (#486, #492):** the day title no longer clips, Strain drops a stray "%", source badges tuck into their cards, workout Source labels fit, and Compare's "Add metric" no longer wraps one letter per line.
+- **A duplicate resting-stress buzz is gone (#330).**
+- **Android reconnect no longer stalls next to the official WHOOP app (#313).**
+
+---
+
 ## 9.0.0: Power saving for your strap, a Gemini coach on Android, and richer metric detail (all platforms)
 
 A major release. Power saving now looks after *your strap's* battery, the AI Coach runs Google Gemini on Android too, metric detail and trend windows expand across the app, sleep and recovery get more accurate, and the WHOOP 5.0/MG motion sensors are decoded for the first time. Everything still runs on your own device, offline, no account.

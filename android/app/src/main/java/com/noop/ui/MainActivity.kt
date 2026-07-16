@@ -532,8 +532,11 @@ object NoopPrefs {
      *  [showDayCycleBackground] — no effect when the scene is off. Read once on Today entry. */
     const val KEY_SKY_BEHIND_CARDS = "noop.skyBehindCards"
 
+    // Default ON: the day-cycle sky extends behind the whole scroll out of the box. Still user-toggleable
+    // in Settings ("Sky behind cards"); only never-toggled users pick up the new default. Twin of the iOS
+    // @AppStorage(SkyBehindCardsPrefs.enabledKey) defaults.
     fun skyBehindCards(context: Context): Boolean =
-        of(context).getBoolean(KEY_SKY_BEHIND_CARDS, false)
+        of(context).getBoolean(KEY_SKY_BEHIND_CARDS, true)
 
     fun setSkyBehindCards(context: Context, enabled: Boolean) {
         of(context).edit().putBoolean(KEY_SKY_BEHIND_CARDS, enabled).apply()

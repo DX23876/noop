@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -238,7 +240,7 @@ private fun OnboardingTopBar(page: Int, total: Int, progress: Float) {
     val animated by animateFloatAsState(
         targetValue = progress.coerceIn(0f, 1f),
         animationSpec = tween(Motion.durationStandard),
-        label = "onboardingProgress",
+        label = uiString(R.string.l10n_onboarding_screen_onboardingprogress_6e1e5c29),
     )
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -248,7 +250,7 @@ private fun OnboardingTopBar(page: Int, total: Int, progress: Float) {
         ) {
             Overline("NOOP", color = Palette.accent)
             Spacer(Modifier.weight(1f))
-            Text("$page / $total", style = NoopType.captionNumber, color = Palette.textTertiary)
+            Text(uiString(R.string.l10n_onboarding_screen_page_total_50b38f9a, page, total), style = NoopType.captionNumber, color = Palette.textTertiary)
         }
         Box(
             modifier = Modifier
@@ -291,7 +293,7 @@ private fun OnboardingFooter(
             ),
             modifier = Modifier.weight(0.9f),
         ) {
-            Text("Back", style = NoopType.subhead)
+            Text(uiString(R.string.l10n_onboarding_screen_back_b52b36b7), style = NoopType.subhead)
         }
         Button(
             onClick = onNext,
@@ -372,14 +374,14 @@ private fun WelcomeStep() {
             }
             Spacer(Modifier.height(18.dp))
             Text(
-                "all your data, none of the cloud",
+                uiString(R.string.l10n_onboarding_screen_all_your_data_none_of_the_6fc6f26d),
                 style = NoopType.title2,
                 color = Palette.textSecondary,
                 textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(12.dp))
             Text(
-                "A private window into your recovery, sleep and strain. Read straight from your strap, kept only on this phone.",
+                uiString(R.string.l10n_onboarding_screen_a_private_window_into_your_recovery_b8dd2ff2),
                 style = NoopType.body,
                 color = Palette.textTertiary,
                 textAlign = TextAlign.Center,
@@ -391,26 +393,26 @@ private fun WelcomeStep() {
 @Composable
 private fun WhatItDoesStep() {
     StepShell(
-        title = "What NOOP does",
+        title = uiString(R.string.l10n_onboarding_screen_what_noop_does_b25b362d),
         subtitle = "Three quiet promises.",
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
             FeatureRow(
                 icon = Icons.Filled.AutoGraph,
                 tint = Palette.accent,
-                title = "See recovery, clearly",
+                title = uiString(R.string.l10n_onboarding_screen_see_recovery_clearly_d8db34a9),
                 body = "A calm ring rolls HRV, resting heart rate and sleep into one read on whether to push or rest.",
             )
             FeatureRow(
                 icon = Icons.Filled.MonitorHeart,
                 tint = Palette.accent,
-                title = "Watch your heart, live",
+                title = uiString(R.string.l10n_onboarding_screen_watch_your_heart_live_8c9c1267),
                 body = "Connect a WHOOP, a heart-rate strap or a gym machine and watch each beat in real time, with zones that match your profile. Already have history elsewhere? Import it from WHOOP, Apple Health, Oura, Fitbit or Garmin.",
             )
             FeatureRow(
                 icon = Icons.Filled.Lock,
                 tint = Palette.statusPositive,
-                title = "Own your data, offline",
+                title = uiString(R.string.l10n_onboarding_screen_own_your_data_offline_997fe15e),
                 body = "Everything lives on this phone. No account, no sync, no cloud.",
             )
         }
@@ -420,7 +422,7 @@ private fun WhatItDoesStep() {
 @Composable
 private fun ExpectationsStep() {
     StepShell(
-        title = "What to expect",
+        title = uiString(R.string.l10n_onboarding_screen_what_to_expect_ed98f851),
         subtitle = "A few honest words, so nothing is a surprise.",
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
@@ -434,7 +436,7 @@ private fun ExpectationsStep() {
 @Composable
 private fun BluetoothStep() {
     StepShell(
-        title = "A quick word before you connect",
+        title = uiString(R.string.l10n_onboarding_screen_a_quick_word_before_you_connect_5a29015a),
         subtitle = "NOOP uses Bluetooth to find your strap. When you continue, allow the permission so it can scan.",
     ) {
         Column(
@@ -446,7 +448,7 @@ private fun BluetoothStep() {
             InfoCard(
                 icon = Icons.Filled.Lock,
                 tint = Palette.statusPositive,
-                title = "Nothing leaves your phone",
+                title = uiString(R.string.l10n_onboarding_screen_nothing_leaves_your_phone_502d5d0c),
                 message = "NOOP talks to your strap directly over Bluetooth Low Energy. There's no server in the middle. The connection is local, and so is every reading it pulls in.",
             )
             Checkline("When Android asks, allow Bluetooth so NOOP can scan and connect.")
@@ -458,7 +460,7 @@ private fun BluetoothStep() {
 @Composable
 private fun WearStep() {
     StepShell(
-        title = "Put your strap on",
+        title = uiString(R.string.l10n_onboarding_screen_put_your_strap_on_031d4807),
         subtitle = "The sensor needs skin contact before data starts to mean anything.",
     ) {
         Column(
@@ -505,7 +507,7 @@ private fun ConnectStep(viewModel: AppViewModel) {
     }
 
     StepShell(
-        title = "Find your strap",
+        title = uiString(R.string.l10n_onboarding_screen_find_your_strap_fe460461),
         subtitle = when {
             live.bonded -> "Bonded. You can keep going."
             bleGranted -> "NOOP starts looking as soon as this step appears. You can keep going while it bonds."
@@ -548,7 +550,7 @@ private fun ConnectStep(viewModel: AppViewModel) {
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            Text("Strap", style = NoopType.footnote, color = Palette.textSecondary)
+                            Text(uiString(R.string.l10n_onboarding_screen_strap_02b88eeb), style = NoopType.footnote, color = Palette.textSecondary)
                             SegmentedPillControl(
                                 items = WhoopModel.entries.toList(),
                                 selection = selectedModel,
@@ -583,7 +585,7 @@ private fun ConnectStep(viewModel: AppViewModel) {
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Palette.statusCritical),
                                 modifier = Modifier.weight(1f),
                             ) {
-                                Text("Stop", style = NoopType.body)
+                                Text(uiString(R.string.l10n_onboarding_screen_stop_9e253470), style = NoopType.body)
                             }
                         }
                     }
@@ -593,7 +595,7 @@ private fun ConnectStep(viewModel: AppViewModel) {
             InfoCard(
                 icon = Icons.Filled.Lock,
                 tint = Palette.statusPositive,
-                title = "This can run while you finish setup",
+                title = uiString(R.string.l10n_onboarding_screen_this_can_run_while_you_finish_cd7ef783),
                 message = "If the strap is nearby, NOOP will keep the BLE link alive in the background. You can continue through profile and import while it bonds.",
             )
 
@@ -602,7 +604,7 @@ private fun ConnectStep(viewModel: AppViewModel) {
             // they can continue now and pair a heart-rate strap or import data afterwards.
             if (!live.bonded) {
                 Text(
-                    "No WHOOP? You can still continue. Pair a heart-rate strap (Polar, Wahoo, Coospo, Garmin HRM…) " +
+                    uiString(R.string.l10n_onboarding_screen_no_whoop_you_can_still_continue_ec58d88d) +
                         "or a gym machine under Devices, or import from WHOOP, Apple Health, Oura, Fitbit, Garmin " +
                         "and more under Data Sources. You can do either any time.",
                     style = NoopType.footnote,
@@ -638,7 +640,7 @@ private fun BondedStep(viewModel: AppViewModel) {
             }
             Spacer(Modifier.height(24.dp))
             Text(
-                "You're connected.",
+                uiString(R.string.l10n_onboarding_screen_you_re_connected_7e06aee0),
                 style = NoopType.title1,
                 color = Palette.textPrimary,
                 textAlign = TextAlign.Center,
@@ -682,12 +684,12 @@ private fun ProfileStep() {
     val heightOptions = remember(unitSystem) { heightSteps.map { UnitFormatter.heightFromCentimeters(it.toDouble(), unitSystem) } }
 
     StepShell(
-        title = "About you",
+        title = uiString(R.string.l10n_onboarding_screen_about_you_5c4698b6),
         subtitle = "So your zones, calories and on-device scoring start from the right numbers.",
     ) {
         NoopCard(padding = 18.dp) {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                ProfileFieldRow(label = "Age") {
+                ProfileFieldRow(label = uiString(R.string.l10n_onboarding_screen_age_ff9f1ff3)) {
                     WheelPickerField(
                         value = "${profile.age}",
                         unit = "yrs",
@@ -730,7 +732,7 @@ private fun ProfileStep() {
                     )
                 }
                 ThinDivider()
-                ProfileFieldRow(label = "Weight") {
+                ProfileFieldRow(label = uiString(R.string.l10n_onboarding_screen_weight_69c0b815)) {
                     WheelPickerField(
                         // Full re-labelled string (e.g. "74.5 kg" / "164.2 lb"); unit folded into value.
                         value = UnitFormatter.massFromKilograms(profile.weightKg, unitSystem),
@@ -742,7 +744,7 @@ private fun ProfileStep() {
                     )
                 }
                 ThinDivider()
-                ProfileFieldRow(label = "Height") {
+                ProfileFieldRow(label = uiString(R.string.l10n_onboarding_screen_height_3f608b49)) {
                     WheelPickerField(
                         value = UnitFormatter.heightFromCentimeters(profile.heightCm, unitSystem),
                         accessibility = "Height",
@@ -756,13 +758,13 @@ private fun ProfileStep() {
         }
 
         Row(
-            modifier = Modifier.semantics { contentDescription = "Estimated max heart rate ${profile.hrMax} bpm" },
+            modifier = Modifier.semantics { contentDescription = uiString(R.string.l10n_onboarding_screen_estimated_max_heart_rate_profile_hrmax_622da889, profile.hrMax) },
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Icon(Icons.Filled.FavoriteBorder, contentDescription = null, tint = Palette.accent, modifier = Modifier.size(17.dp))
             Text(
-                "Estimated max heart rate · ${profile.hrMax} bpm",
+                uiString(R.string.l10n_onboarding_screen_estimated_max_heart_rate_profile_hrmax_06356290, profile.hrMax),
                 style = NoopType.footnote,
                 color = Palette.textTertiary,
             )
@@ -833,7 +835,7 @@ private fun ImportStep(viewModel: AppViewModel) {
     }
 
     StepShell(
-        title = "Bring your history",
+        title = uiString(R.string.l10n_onboarding_screen_bring_your_history_5b8775c9),
         subtitle = "Optional: import now, or skip and return to Data Sources later.",
     ) {
         Column(
@@ -845,24 +847,24 @@ private fun ImportStep(viewModel: AppViewModel) {
             InfoCard(
                 icon = Icons.Filled.AutoGraph,
                 tint = Palette.accent,
-                title = "History fills the dashboard immediately",
+                title = uiString(R.string.l10n_onboarding_screen_history_fills_the_dashboard_immediately_9728dde5),
                 message = "A WHOOP export backfills recovery, strain, sleep and workouts. Health Connect can add steps, HR, HRV, sleep and weight from Android sources.",
             )
 
             NoopCard(padding = 16.dp) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     OnboardingActionButton(
-                        label = "Import WHOOP export (.zip)",
+                        label = uiString(R.string.l10n_onboarding_screen_import_whoop_export_zip_16f4176b),
                         icon = Icons.Filled.FileUpload,
                         enabled = !busy,
                     ) { whoopImportLauncher.launch(arrayOf("*/*")) }
                     OnboardingActionButton(
-                        label = "Import from Health Connect",
+                        label = uiString(R.string.l10n_onboarding_screen_import_from_health_connect_35d55e21),
                         icon = Icons.Filled.MonitorHeart,
                         enabled = !busy && healthConnectAvailable,
                     ) { startHealthConnect() }
                     OnboardingActionButton(
-                        label = "Import Apple Health export",
+                        label = uiString(R.string.l10n_onboarding_screen_import_apple_health_export_077b5624),
                         icon = Icons.Filled.FavoriteBorder,
                         enabled = !busy,
                     ) { appleImportLauncher.launch(arrayOf("*/*")) }
@@ -871,7 +873,7 @@ private fun ImportStep(viewModel: AppViewModel) {
 
             if (!healthConnectAvailable) {
                 Text(
-                    "Health Connect is not available on this device.",
+                    uiString(R.string.l10n_onboarding_screen_health_connect_is_not_available_on_0336b16d),
                     style = NoopType.footnote,
                     color = Palette.textTertiary,
                     textAlign = TextAlign.Center,
@@ -892,7 +894,7 @@ private fun ImportStep(viewModel: AppViewModel) {
 @Composable
 private fun NotificationsStep() {
     StepShell(
-        title = "Stay in the loop",
+        title = uiString(R.string.l10n_onboarding_screen_stay_in_the_loop_f54254af),
         subtitle = "NOOP keeps your strap connected in the background. When you continue, allow notifications so it can show that link and reach your wrist.",
     ) {
         Column(
@@ -904,7 +906,7 @@ private fun NotificationsStep() {
             InfoCard(
                 icon = Icons.Filled.Bluetooth,
                 tint = Palette.statusPositive,
-                title = "A quiet, ongoing status",
+                title = uiString(R.string.l10n_onboarding_screen_a_quiet_ongoing_status_97bf2a44),
                 message = "NOOP holds the Bluetooth link open in the background so your data stays current. One low-priority notification shows it's connected. Nothing noisy.",
             )
             Checkline("Wrist alerts (strain nudges and your smart alarm) arrive as notifications too.")
@@ -923,7 +925,7 @@ private fun AppearanceStep() {
     var mode by remember { mutableStateOf(AppearancePrefs.mode) }
 
     StepShell(
-        title = "Make it yours",
+        title = uiString(R.string.l10n_onboarding_screen_make_it_yours_54135155),
         subtitle = "NOOP follows your system by default, or pick Light or Dark. You can change this any time in Settings → Appearance.",
     ) {
         Column(
@@ -939,13 +941,13 @@ private fun AppearanceStep() {
                 horizontalArrangement = Arrangement.spacedBy(Metrics.gap),
             ) {
                 ThemeSwatch(
-                    title = "Light",
+                    title = uiString(R.string.l10n_onboarding_screen_light_a36ef8ab),
                     tokens = LightTokens,
                     selected = Palette.isLight,
                     modifier = Modifier.weight(1f),
                 )
                 ThemeSwatch(
-                    title = "Dark",
+                    title = uiString(R.string.l10n_onboarding_screen_dark_ae1ef014),
                     tokens = DarkTokens,
                     selected = !Palette.isLight,
                     modifier = Modifier.weight(1f),
@@ -954,7 +956,7 @@ private fun AppearanceStep() {
 
             NoopCard(padding = 18.dp) {
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    ProfileFieldRow(label = "Theme") {
+                    ProfileFieldRow(label = uiString(R.string.l10n_onboarding_screen_theme_a797e309)) {
                         SegmentedPillControl(
                             items = listOf(AppearanceMode.SYSTEM, AppearanceMode.LIGHT, AppearanceMode.DARK),
                             selection = mode,
@@ -1074,14 +1076,14 @@ private fun DoneStep() {
             IconBadge(icon = Icons.Filled.CheckCircle, tint = Palette.statusPositive, size = 100)
             Spacer(Modifier.height(22.dp))
             Text(
-                "Your thread starts here.",
+                uiString(R.string.l10n_onboarding_screen_your_thread_starts_here_acdccf92),
                 style = NoopType.title1,
                 color = Palette.textPrimary,
                 textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(10.dp))
             Text(
-                "Every beat, every night, every day, woven into one quiet picture of you. Welcome to NOOP.",
+                uiString(R.string.l10n_onboarding_screen_every_beat_every_night_every_day_ab536123),
                 style = NoopType.body,
                 color = Palette.textSecondary,
                 textAlign = TextAlign.Center,

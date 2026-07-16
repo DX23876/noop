@@ -26,6 +26,18 @@
             "state": "translated",
             "value": "%@ %lld"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ %2$lld"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ %2$lld"
+          }
         }
       }
     },
@@ -54,6 +66,18 @@
             "state": "translated",
             "value": "%@ калибруется"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Calibración %1$@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Étalonnage %1$@"
+          }
         }
       }
     },
@@ -81,6 +105,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ недоступно"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ no disponible"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ non disponible"
           }
         }
       }
@@ -168,6 +204,18 @@
             "state": "translated",
             "value": "Заряд %lld из 100"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carga %1$lld de 100"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chargez %1$lld sur 100"
+          }
         }
       }
     },
@@ -195,6 +243,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Заряд %lld · %lld уд/мин%@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carga %1$lld · %2$lld bpm%3$@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charger %1$lld · %2$lld bpm%3$@"
           }
         }
       }
@@ -224,6 +284,18 @@
             "state": "translated",
             "value": "Заряд %lld%@"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carga %1$lld%2$@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charger %1$lld%2$@"
+          }
         }
       }
     },
@@ -251,6 +323,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Заряд калибруется"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Calibración de carga"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Étalonnage des charges"
           }
         }
       }
@@ -280,6 +364,18 @@
             "state": "translated",
             "value": "Заряд калибруется, нужно больше данных"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Calibración de carga, necesita más datos"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Étalonnage de charge, besoin de plus de données"
+          }
         }
       }
     },
@@ -307,6 +403,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Заряд устарел, последняя синхронизация %@. Откройте NOOP на iPhone."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carga fuera de la fecha, última sincronizada %1$@. Abrir NOOP en iPhone."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charge hors date, dernière synchronisation %1$@. Ouvrez NOOP sur iPhone."
           }
         }
       }
@@ -336,6 +444,18 @@
             "state": "translated",
             "value": "Заряд устарел · %@"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estabilización de carga · %1$@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intervalle de charge · %1$@"
+          }
         }
       }
     },
@@ -363,6 +483,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Заряд недоступен"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carga no disponible"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frais non disponibles"
           }
         }
       }
@@ -392,6 +524,18 @@
             "state": "translated",
             "value": "Заряд · %@"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carga · %1$@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charge · %1$@"
+          }
         }
       }
     },
@@ -420,6 +564,18 @@
             "state": "translated",
             "value": "Заряд · кал"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carga · cal"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charge"
+          }
         }
       }
     },
@@ -447,6 +603,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Заряд –"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carga –"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frais –"
           }
         }
       }
@@ -558,6 +726,12 @@
             "state": "translated",
             "value": "NOOP 能量"
           }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charge NOOP"
+          }
         }
       }
     },
@@ -585,6 +759,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "NOOP · откройте на iPhone"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP · abierto en iPhone"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP · ouvert sur iPhone"
           }
         }
       }
@@ -614,6 +800,18 @@
             "state": "translated",
             "value": "NOOP. %@, %@, %@."
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP. %1$@, %2$@, %3$@."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "- Oui. %1$@, %2$@, %3$@."
+          }
         }
       }
     },
@@ -641,6 +839,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "NOOP. Данных пока нет, откройте NOOP на iPhone для синхронизации."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP. Aún no hay datos, abra NOOP en su iPhone para sincronizar."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "- Oui. Pas encore de données, ouvrez NOOP sur votre iPhone pour synchroniser."
           }
         }
       }
@@ -670,6 +880,18 @@
             "state": "translated",
             "value": "NOOP. Показатели устарели, последняя синхронизация %@. Откройте NOOP на iPhone, чтобы обновить."
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP. Resultados fuera de la fecha, último sincronizado %1$@. Abra NOOP en iPhone para refrescarse."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "- Oui. Les scores sont dépassés, le dernier %1$@ synchronisé. Ouvrez NOOP sur iPhone pour vous rafraîchir."
+          }
         }
       }
     },
@@ -698,6 +920,18 @@
             "state": "translated",
             "value": "Нет данных, откройте NOOP на iPhone"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No hay datos, abra NOOP en iPhone"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pas de données, ouvrir NOOP sur iPhone"
+          }
         }
       }
     },
@@ -725,6 +959,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "Открыть NOOP"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open NOOP"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrir NOOP"
           }
         }
       }
@@ -836,6 +1082,12 @@
             "state": "translated",
             "value": "錶面上顯示你的能量（恢復），矩形卡片中則是消耗與休息。"
           }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Votre charge (récupération) sur le cadran, avec l'effort et le repos dans la carte rectangulaire."
+          }
         }
       }
     },
@@ -863,6 +1115,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "некоторое время назад"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "hace un tiempo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il y a longtemps"
           }
         }
       }
@@ -892,6 +1156,18 @@
             "state": "translated",
             "value": "кал"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "cal"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "cal"
+          }
         }
       }
     },
@@ -919,6 +1195,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "устарело"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "viejo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "vieux"
           }
         }
       }
@@ -948,6 +1236,18 @@
             "state": "translated",
             "value": "открыть iPhone"
           }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iPhone abierto"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrir un iPhone"
+          }
         }
       }
     },
@@ -975,6 +1275,18 @@
           "stringUnit": {
             "state": "translated",
             "value": "устарело"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "stale"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stable"
           }
         }
       }

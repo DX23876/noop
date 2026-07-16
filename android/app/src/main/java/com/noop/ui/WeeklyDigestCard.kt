@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -124,11 +126,11 @@ fun WeeklyDigestCard(vm: AppViewModel, modifier: Modifier = Modifier) {
 fun WeeklyDigestScreen(vm: AppViewModel) {
     val days by vm.recentDays.collectAsStateWithLifecycle()
     val factor = effortDisplayFactor(UnitPrefs.effortScale(LocalContext.current))
-    ScreenScaffold(title = "Week in review", subtitle = "Your Monday-to-Sunday, read in one glance.") {
+    ScreenScaffold(title = uiString(R.string.l10n_weekly_digest_card_week_in_review_66d95a07), subtitle = "Your Monday-to-Sunday, read in one glance.") {
         val digest = buildWeeklyDigest(days, effortDisplayFactor = factor)
         if (digest.isEmpty) {
             DataPendingNote(
-                title = "No readings this week yet",
+                title = uiString(R.string.l10n_weekly_digest_card_no_readings_this_week_yet_0745a2df),
                 body = "Wear your strap or import your WHOOP export in Data Sources. Once this week has a " +
                     "day or two of data, your week-in-review appears here.",
             )
@@ -169,11 +171,11 @@ fun WeeklyDigestContent(digest: WeeklyDigest, compact: Boolean = false) {
                 Text(weekRangeLabel(digest), style = NoopType.title2, color = Palette.textPrimary)
             }
             Text(
-                "${digest.daysWithData}/7 days",
+                uiString(R.string.l10n_weekly_digest_card_digest_dayswithdata_7_days_182e6a18, digest.daysWithData),
                 style = NoopType.footnote,
                 color = Palette.textSecondary,
                 modifier = Modifier.semantics {
-                    contentDescription = "${digest.daysWithData} of 7 days had data this week"
+                    contentDescription = uiString(R.string.l10n_weekly_digest_card_digest_dayswithdata_of_7_days_had_8068f0ee, digest.daysWithData)
                 },
             )
         }
@@ -199,14 +201,14 @@ fun WeeklyDigestContent(digest: WeeklyDigest, compact: Boolean = false) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 digest.sleepConsistencySD?.let { sd ->
                     Text(
-                        "Sleep steadiness: Rest varied ±${fmt1(sd)} pts night to night.",
+                        uiString(R.string.l10n_weekly_digest_card_sleep_steadiness_rest_varied_fmt1_sd_44997f21, fmt1(sd)),
                         style = NoopType.footnote,
                         color = Palette.textTertiary,
                     )
                 }
                 Text(digest.balance.sentence, style = NoopType.footnote, color = Palette.textTertiary)
                 Text(
-                    "Informational only, not medical advice.",
+                    uiString(R.string.l10n_weekly_digest_card_informational_only_not_medical_advice_593feb77),
                     style = NoopType.footnote,
                     color = Palette.textTertiary,
                 )

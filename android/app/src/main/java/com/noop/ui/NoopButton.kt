@@ -1,5 +1,6 @@
 package com.noop.ui
 
+import com.noop.R
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -120,7 +121,7 @@ private fun appearanceFor(kind: NoopButtonKind): NoopButtonAppearance = when (ki
  * Reduce-Motion aware. Mirrors iOS `NoopButton`.
  *
  * ```
- * NoopButton(text = "Save changes", leadingIcon = Icons.Filled.Check, kind = NoopButtonKind.Primary, fullWidth = true) {
+ * NoopButton(text = uiString(R.string.l10n_noop_button_save_changes_179359b3), leadingIcon = Icons.Filled.Check, kind = NoopButtonKind.Primary, fullWidth = true) {
  *     save()
  * }
  * ```
@@ -153,7 +154,7 @@ fun NoopButton(
     val scale by animateFloatAsState(
         targetValue = targetScale,
         animationSpec = if (reduced) tween(0) else NoopMotion.value(),
-        label = "NoopButton.scale",
+        label = uiString(R.string.l10n_noop_button_noopbutton_scale_1bee88be),
     )
     val opacity = when {
         !enabled -> NoopButtonMetrics.disabledOpacity

@@ -6,8 +6,8 @@ import org.junit.Test
 /**
  * The LineChart tap/drag pinpoint label (#463). The overlay used to draw the RAW plotted value
  * unconditionally, so on Trends' Effort chart a tapped day printed the stored 0-100 figure (a bare
- * "13") beside a 0-21 converted axis. Callers can now inject the same formatter the axis uses;
- * with no formatter the raw near-integer-collapsing default is unchanged.
+ * "13") beside a 0-21 converted axis. Callers can inject the same formatter the axis uses and
+ * prefix a selected daily point with its date; with neither, the raw default is unchanged.
  */
 class ChartSelectionLabelTest {
 
@@ -43,5 +43,20 @@ class ChartSelectionLabelTest {
 
     @Test fun withoutATimestampTheLabelIsUnchanged() {
         assertEquals("87", lineChartSelectionLabel(87.0, null, null))
+    }
+
+    @Test fun aSuppliedPointLabelPrefixesTheFormattedValue() {
+        assertEquals(
+            "16 Jul · 87 bpm",
+            lineChartSelectionLabel(
+                value = 87.2,
+                formatValue = { "${it.toInt()} bpm" },
+                pointLabel = "16 Jul",
+            ),
+        )
+    }
+
+    @Test fun aBlankPointLabelLeavesTheValueUnchanged() {
+        assertEquals("87", lineChartSelectionLabel(87.0, null, pointLabel = ""))
     }
 }

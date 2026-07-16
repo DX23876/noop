@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -97,11 +99,11 @@ fun InsightsHubScreen(vm: AppViewModel) {
     // PERF (#707): lazy scaffold — each section (and its standalone Spacer, a real child of the eager
     // `spacedBy(20.dp)` Column) becomes one `item { }`, so the LazyColumn's matching `spacedBy(20.dp)`
     // reproduces identical spacing and only on-screen sections compose + are semantics-walked.
-    LazyScreenScaffold(title = "Insights", subtitle = "Patterns in your own data: association, not cause.") {
+    LazyScreenScaffold(title = uiString(R.string.l10n_insights_hub_screen_insights_b4510362), subtitle = "Patterns in your own data: association, not cause.") {
         if (!state.loaded) {
             item {
             NoopCard {
-                Text("Reading your journal and outcomes…", style = NoopType.subhead, color = Palette.textTertiary)
+                Text(uiString(R.string.l10n_insights_hub_screen_reading_your_journal_and_outcomes_4a59af69), style = NoopType.subhead, color = Palette.textTertiary)
             }
             }
             return@LazyScreenScaffold
@@ -123,7 +125,7 @@ fun InsightsHubScreen(vm: AppViewModel) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Overline("How to read this", color = Palette.textTertiary)
                 Text(
-                    "Everything here is a pattern in your own logged days: an association with an " +
+                    uiString(R.string.l10n_insights_hub_screen_everything_here_is_a_pattern_in_ed2162a6) +
                         "effect size and confidence, never a cause or a diagnosis. Population patterns " +
                         "are shown as “typical” and are always overridden by your own data once " +
                         "you have enough of it. Approximations, not WHOOP’s scores; not a medical device.",
@@ -161,7 +163,7 @@ private fun MoversSection(
         if (ranked.isEmpty()) {
             NoopCard {
                 Text(
-                    "Not enough overlap between your journal answers and " +
+                    uiString(R.string.l10n_insights_hub_screen_not_enough_overlap_between_your_journal_0ebdd7a2) +
                         "${outcome.outcomeName.lowercase(Locale.US)} yet. Keep logging. Each behaviour " +
                         "needs days both with and without it before NOOP can read its effect.",
                     style = NoopType.subhead,
@@ -228,7 +230,7 @@ private fun MoverCard(r: RankedEffect, outcome: InsightsOutcome) {
             Row(horizontalArrangement = Arrangement.spacedBy(Metrics.gap)) {
                 StatTile(
                     modifier = Modifier.weight(1f),
-                    label = "With",
+                    label = uiString(R.string.l10n_insights_hub_screen_with_564f8c6e),
                     value = outcome.format(e.meanWith),
                     caption = "n = ${e.nWith}",
                     accent = tintColor,
@@ -237,7 +239,7 @@ private fun MoverCard(r: RankedEffect, outcome: InsightsOutcome) {
                 )
                 StatTile(
                     modifier = Modifier.weight(1f),
-                    label = "Without",
+                    label = uiString(R.string.l10n_insights_hub_screen_without_cb735356),
                     value = outcome.format(e.meanWithout),
                     caption = "n = ${e.nWithout}",
                     accent = Palette.textPrimary,
@@ -269,7 +271,7 @@ private fun DoseSection(cards: List<DoseCardData>) {
         if (cards.isEmpty()) {
             NoopCard {
                 Text(
-                    "Log alcohol or late caffeine with an amount and NOOP fits a personal dose curve: " +
+                    uiString(R.string.l10n_insights_hub_screen_log_alcohol_or_late_caffeine_with_dec9dadf) +
                         "how much each extra unit tends to move your numbers. Until then it shows " +
                         "typical patterns, clearly labelled as not yet yours.",
                     style = NoopType.subhead,
@@ -329,7 +331,7 @@ private fun DoseResponseCard(card: DoseCardData) {
 
             if (card.timingProxy) {
                 Text(
-                    "“Dose” here is timing (later in the day = stronger), not milligrams.",
+                    uiString(R.string.l10n_insights_hub_screen_dose_here_is_timing_later_in_1b1e9326),
                     style = NoopType.footnote,
                     color = Palette.textTertiary,
                 )
@@ -375,14 +377,14 @@ private fun DamageForecast(
         Row(horizontalArrangement = Arrangement.spacedBy(Metrics.gap)) {
             StatTile(
                 modifier = Modifier.weight(1f),
-                label = "Per extra ${card.unitNoun}",
+                label = uiString(R.string.l10n_insights_hub_screen_per_extra_card_unitnoun_a92a5e91, card.unitNoun),
                 value = signed(r.perUnit, card.outcomeSuffix),
                 caption = if (r.priorDominated) "typical" else "your data",
                 accent = if (r.perUnit < 0) Palette.statusCritical else Palette.statusPositive,
             )
             StatTile(
                 modifier = Modifier.weight(1f),
-                label = "Tomorrow’s ${card.outcomeName}",
+                label = uiString(R.string.l10n_insights_hub_screen_tomorrow_s_card_outcomename_ad70b7f9, card.outcomeName),
                 value = projected?.let { "${it.roundToInt()}${card.outcomeSuffix}" } ?: "—",
                 caption = if (projected != null) "projected · $stepLabel" else "needs a recent day",
                 accent = domain.color,

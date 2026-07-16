@@ -1,5 +1,6 @@
 package com.noop.ui
 
+import com.noop.R
 import android.content.Context
 import android.content.Intent
 import android.graphics.Canvas
@@ -619,9 +620,9 @@ fun TrendsReportExportSection(vm: AppViewModel, modifier: Modifier = Modifier) {
     NoopCard(modifier = modifier, tint = Palette.accent) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Overline("Export")
-            Text("Trends report (PDF)", style = NoopType.title2, color = Palette.textPrimary)
+            Text(uiString(R.string.l10n_trends_report_trends_report_pdf_481e8a5f), style = NoopType.title2, color = Palette.textPrimary)
             Text(
-                "A clean, shareable one-page PDF of your recovery, sleep, HRV, resting heart rate " +
+                uiString(R.string.l10n_trends_report_a_clean_shareable_one_page_pdf_a3c4f889) +
                     "and strain over a date range. Built and saved on your phone - nothing leaves the device.",
                 style = NoopType.subhead,
                 color = Palette.textSecondary,
@@ -639,7 +640,7 @@ fun TrendsReportExportSection(vm: AppViewModel, modifier: Modifier = Modifier) {
             // Routed through the unified NoopButton (crisp filled accent, no gold) — the same button
             // system every other CTA uses, mirroring the iOS exportReportRow.
             NoopButton(
-                text = "Export PDF",
+                text = uiString(R.string.l10n_trends_report_export_pdf_3dd7d56a),
                 leadingIcon = Icons.Filled.IosShare,
                 kind = NoopButtonKind.Primary,
                 fullWidth = true,
@@ -647,7 +648,7 @@ fun TrendsReportExportSection(vm: AppViewModel, modifier: Modifier = Modifier) {
             )
 
             Text(
-                "The share sheet can save the PDF to Files, or send it on.",
+                uiString(R.string.l10n_trends_report_the_share_sheet_can_save_the_ecddbca7),
                 style = NoopType.footnote,
                 color = Palette.textTertiary,
             )

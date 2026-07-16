@@ -220,6 +220,9 @@ fun LineChart(
     // Optional per-point unix-second timestamps, index-aligned with [values]: when supplied, the
     // tap/drag pinpoint read-out prefixes the selected sample's local clock time ("14:32 · 87 bpm").
     timestamps: List<Long>? = null,
+    // Optional per-point display labels, index-aligned with [values]. Daily charts use this for a
+    // human-readable date prefix ("16 Jul · 87"); live charts keep using [timestamps].
+    selectionLabels: List<String>? = null,
 ) {
     val cleanValues = remember(values) { values.filter { it.isFinite() } }
     // Timestamps filtered by the SAME finiteness cut as cleanValues so indices stay aligned;
@@ -227,6 +230,10 @@ fun LineChart(
     val cleanTimestamps = remember(values, timestamps) {
         if (timestamps == null || timestamps.size != values.size) null
         else values.indices.filter { values[it].isFinite() }.map { timestamps[it] }
+    }
+    val cleanSelectionLabels = remember(values, selectionLabels) {
+        if (selectionLabels == null || selectionLabels.size != values.size) null
+        else values.indices.filter { values[it].isFinite() }.map { selectionLabels[it] }
     }
     var selectedIndex by remember(cleanValues) { mutableIntStateOf(-1) }
     val interactiveModifier = if (selectionEnabled) {
@@ -381,9 +388,10 @@ fun LineChart(
                             drawCircle(color = color, radius = 4.5f, center = p)
                             drawContext.canvas.nativeCanvas.apply {
                                 val label = lineChartSelectionLabel(
-                                    cleanValues[selectedIndex],
-                                    formatValue,
-                                    cleanTimestamps?.getOrNull(selectedIndex),
+                                    value = cleanValues[selectedIndex],
+                                    formatValue = formatValue,
+                                    epochSec = cleanTimestamps?.getOrNull(selectedIndex),
+                                    pointLabel = cleanSelectionLabels?.getOrNull(selectedIndex),
                                 )
                                 drawText(label, 8f, 32f, markerPaint)
                             }
@@ -455,16 +463,18 @@ private fun nearestIndexForX(count: Int, width: Float, x: Float): Int {
 }
 
 /** The tap/drag pinpoint label: the caller's display formatter when supplied (#463), else the raw
- *  near-integer-collapsing default. When the caller also supplies the sample's [epochSec] the local
- *  clock time PREFIXES the formatted value ("14:32 · 87 bpm"). Split out so both choices are
+ *  near-integer-collapsing default. A non-blank [pointLabel] prefixes the formatted value; otherwise
+ *  [epochSec] prefixes its local clock time ("14:32 · 87 bpm"). Split out so each choice is
  *  JVM-testable. */
 internal fun lineChartSelectionLabel(
     value: Double,
     formatValue: ((Double) -> String)?,
     epochSec: Long? = null,
     zone: ZoneId = ZoneId.systemDefault(),
+    pointLabel: String? = null,
 ): String {
     val base = formatValue?.invoke(value) ?: formatLineValue(value)
+    pointLabel?.takeIf { it.isNotBlank() }?.let { return "$it · $base" }
     if (epochSec == null) return base
     val time = Instant.ofEpochSecond(epochSec).atZone(zone).format(chartTickTimeFormat)
     return "$time · $base"

@@ -1,5 +1,7 @@
 package com.noop.widget
+import com.noop.ui.uiString
 
+import androidx.compose.ui.res.stringResource
 import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -123,7 +125,7 @@ private fun WidgetContent(snap: WidgetSnapshot, dark: Boolean) {
             verticalAlignment = Alignment.Bottom,
         ) {
             ScoreCell(
-                label = "REST",
+                label = uiString(R.string.l10n_noop_glance_widget_rest_cbaaa181),
                 pct = snap.restPct,
                 color = snap.restPct?.let { bandColor(it, dark) } ?: textSecondary,
                 valueSize = 22.sp,
@@ -131,7 +133,7 @@ private fun WidgetContent(snap: WidgetSnapshot, dark: Boolean) {
                 modifier = GlanceModifier.defaultWeight(),
             )
             ScoreCell(
-                label = "CHARGE",
+                label = uiString(R.string.l10n_noop_glance_widget_charge_49a8cb83),
                 pct = snap.recoveryPct,
                 color = snap.recoveryPct?.let { bandColor(it, dark) } ?: textSecondary,
                 valueSize = 30.sp,
@@ -139,7 +141,7 @@ private fun WidgetContent(snap: WidgetSnapshot, dark: Boolean) {
                 modifier = GlanceModifier.defaultWeight(),
             )
             ScoreCell(
-                label = "EFFORT",
+                label = uiString(R.string.l10n_noop_glance_widget_effort_660752e7),
                 pct = snap.effortPct,
                 color = snap.effortPct?.let { effortColor(dark) } ?: textSecondary,
                 valueSize = 22.sp,

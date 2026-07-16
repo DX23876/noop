@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import android.app.DatePickerDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -145,9 +147,9 @@ fun MarkerEditorScreen(
 
     NoopBottomSheet(onDismiss = onDismiss) {
         Column(verticalArrangement = Arrangement.spacedBy(Metrics.sectionGap)) {
-            Text("Add a reading", style = NoopType.title2, color = Palette.textPrimary)
+            Text(uiString(R.string.l10n_marker_editor_screen_add_a_reading_ed7708ee), style = NoopType.title2, color = Palette.textPrimary)
             Text(
-                "Type in a number from your own report. It stays on this phone.",
+                uiString(R.string.l10n_marker_editor_screen_type_in_a_number_from_your_c2f4ffb8),
                 style = NoopType.subhead,
                 color = Palette.textSecondary,
             )
@@ -181,11 +183,11 @@ fun MarkerEditorScreen(
                             OutlinedTextField(
                                 value = search,
                                 onValueChange = { search = it },
-                                placeholder = { Text("Search markers (e.g. LDL, ferritin)", style = NoopType.body, color = Palette.textTertiary) },
+                                placeholder = { Text(uiString(R.string.l10n_marker_editor_screen_search_markers_e_g_ldl_ferritin_66c17802), style = NoopType.body, color = Palette.textTertiary) },
                                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = Palette.textTertiary) },
                                 singleLine = true,
                                 colors = editorFieldColors(),
-                                modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Search markers" },
+                                modifier = Modifier.fillMaxWidth().semantics { contentDescription = uiString(R.string.l10n_marker_editor_screen_search_markers_103981e0) },
                             )
                             CatalogList(search) { def ->
                                 selection = def; unitChoice = 0
@@ -211,7 +213,7 @@ fun MarkerEditorScreen(
                                 }
                             }
                             Text(
-                                "Entered together; stored as two markers so each lines up cleanly against your signals.",
+                                uiString(R.string.l10n_marker_editor_screen_entered_together_stored_as_two_markers_af8f3ba0),
                                 style = NoopType.footnote,
                                 color = Palette.textTertiary,
                             )
@@ -229,7 +231,7 @@ fun MarkerEditorScreen(
                                     NumberBox(valueText, { valueText = it }, "e.g. 3.1", activeUnit)
                                     if (unitOptions.size > 1 && activeUnit != canonicalUnit) {
                                         Text(
-                                            "Stored as $canonicalUnit.",
+                                            uiString(R.string.l10n_marker_editor_screen_stored_as_canonicalunit_0bf7f702, canonicalUnit),
                                             style = NoopType.footnote,
                                             color = Palette.textTertiary,
                                         )
@@ -247,7 +249,7 @@ fun MarkerEditorScreen(
                             EditorTextField(referenceText, { referenceText = it }, "e.g. 2.0-5.0 (your report's own range)")
                         }
                         Text(
-                            "NOOP never fills this in - it only shows back exactly what you type from your own report.",
+                            uiString(R.string.l10n_marker_editor_screen_noop_never_fills_this_in_it_7be9653b),
                             style = NoopType.footnote,
                             color = Palette.textTertiary,
                         )
@@ -256,7 +258,7 @@ fun MarkerEditorScreen(
             }
 
             Text(
-                "Lab Book keeps your own numbers - it doesn't test, read, or judge them, and it's not medical " +
+                uiString(R.string.l10n_marker_editor_screen_lab_book_keeps_your_own_numbers_9085ce2c) +
                     "advice. Everything stays on this phone.",
                 style = NoopType.footnote,
                 color = Palette.textTertiary,
@@ -293,7 +295,7 @@ private fun CatalogList(search: String, onPick: (MarkerDefinition) -> Unit) {
                     .fillMaxWidth()
                     .clickable { onPick(def) }
                     .padding(vertical = 9.dp)
-                    .semantics { contentDescription = "${def.displayName}, ${def.canonicalUnit}" },
+                    .semantics { contentDescription = uiString(R.string.l10n_marker_editor_screen_def_displayname_def_canonicalunit_e86ef8de, def.displayName, def.canonicalUnit) },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
@@ -307,7 +309,7 @@ private fun CatalogList(search: String, onPick: (MarkerDefinition) -> Unit) {
             }
         }
         if (filtered.isEmpty()) {
-            Text("No match. Add it as a custom marker below.", style = NoopType.footnote, color = Palette.textTertiary, modifier = Modifier.padding(vertical = 8.dp))
+            Text(uiString(R.string.l10n_marker_editor_screen_no_match_add_it_as_a_ad5c59ec), style = NoopType.footnote, color = Palette.textTertiary, modifier = Modifier.padding(vertical = 8.dp))
         }
     }
 }
@@ -339,7 +341,7 @@ private fun DateRow(millis: Long, onPick: (Long) -> Unit) {
                 ).apply { datePicker.maxDate = System.currentTimeMillis() }.show()
             }
             .padding(horizontal = 12.dp, vertical = 11.dp)
-            .semantics { contentDescription = "Date taken" },
+            .semantics { contentDescription = uiString(R.string.l10n_marker_editor_screen_date_taken_76edfcab) },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {

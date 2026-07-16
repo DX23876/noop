@@ -168,12 +168,14 @@ final class ActivityFileImporterTests: XCTestCase {
         //                      total_calories(11,u16), avg_hr(16,u8), max_hr(17,u8)
         let sessionStart: UInt32 = 100_000           // FIT seconds
         fit.definition(local: 0, global: 18, fields: [
-            (2, 4, 0x86), (5, 1, 0x00), (9, 4, 0x86), (11, 2, 0x84), (16, 1, 0x02), (17, 1, 0x02),
+            (2, 4, 0x86), (5, 1, 0x00), (9, 4, 0x86), (10, 4, 0x86),
+            (11, 2, 0x84), (16, 1, 0x02), (17, 1, 0x02),
         ])
         fit.dataHeader(local: 0)
         fit.u32(sessionStart)
         fit.u8(1)                                    // sport = running
         fit.u32(523)                                 // total_distance = 5.23 m? scale 100 → 5.23m; use 523 → 5.23 m
+        fit.u32(1175)                                // total_cycles: Suunto walking/running step total
         fit.u16(300)                                 // total_calories
         fit.u8(150)                                  // avg_hr
         fit.u8(182)                                  // max_hr
@@ -203,6 +205,7 @@ final class ActivityFileImporterTests: XCTestCase {
         XCTAssertEqual(a.hrSampleCount, 3)
         XCTAssertEqual(a.distanceM ?? 0, 5.23, accuracy: 0.001)   // session summary
         XCTAssertEqual(a.energyKcal, 300)
+        XCTAssertEqual(a.steps, 1175)
         XCTAssertEqual(a.avgHr, 150)                 // session avg wins over the sampled mean
         XCTAssertEqual(a.maxHr, 182)
         // Coordinates round-trip through semicircles (~1e-7° precision).

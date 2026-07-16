@@ -1,10 +1,12 @@
 import XCTest
 @testable import OuraProtocol
 
-/// Golden per-tag fixture tests: raw TLV record bytes -> expected decoded event(s). Vectors are
-/// SYNTHETIC, built from the byte layouts in docs/OURA_PROTOCOL.md s6 (no real biometric capture is
-/// embedded). The full record is `type len rt(4 LE) payload` with rt = 0x00010002 (counter 2, session
-/// 1) throughout, so every assertion pins ringTimestamp == 65538.
+/// Golden per-tag fixture tests: raw TLV record bytes -> expected decoded event(s). Most vectors are
+/// SYNTHETIC, built from the byte layouts in docs/OURA_PROTOCOL.md s6 — EXCEPT the 0x60 and 0x80 IBI
+/// packets, which are two real captured records (a handful of anonymous inter-beat intervals) used to
+/// pin the byte-scatter decode against a known-good ~60/70 bpm beat train. The full record is
+/// `type len rt(4 LE) payload` with rt = 0x00010002 (counter 2, session 1) throughout, so every
+/// assertion pins ringTimestamp == 65538.
 final class DecoderGoldenTests: XCTestCase {
     private let rt: UInt32 = 0x0001_0002   // 65538
 
@@ -28,23 +30,26 @@ final class DecoderGoldenTests: XCTestCase {
         return rec
     }
 
-    // MARK: - 0x80 green IBI quality (filters on qual; only the good sample passes)
+    // MARK: - 0x80 green IBI quality (high-byte-first 11-bit IBI; quality==1 gate)
 
-    func testGreenIBIQuality0x80FiltersOnQuality() {
-        // body 200b (ibi800, qualA1, qualB0 -> pass) ee42 (ibi750, qualB1 -> reject)
-        let rec = record("800802000100200bee42")
+    func testGreenIBIQuality0x80RealCapture() {
+        // Real 0x80 record from an overnight capture: 7 samples. Six are quality 1 and form a clean
+        // ~70 bpm train; the 7th (846 ms) is quality 3 and must be rejected. Validated against open_oura.
+        let rec = record("801202000100698c660e652a6a09670f6d2b693e")
         let ibis = OuraDecoders.decodeGreenIBIQuality(rec)
-        XCTAssertEqual(ibis, [OuraIBI(ringTimestamp: rt, ibiMs: 800)])
+        XCTAssertEqual(ibis?.map { $0.ibiMs }, [844, 822, 810, 849, 831, 875])
     }
 
-    // MARK: - 0x60 IBI + amplitude (MSB-first bit-packed; n=7 -> shift 0)
+    // MARK: - 0x60 IBI + amplitude (byte-scatter 11-bit IBIs; shift from b13 low nibble)
 
-    func testIBIAmplitude0x60BitPacked() {
-        // first pair ibi1000 amp-mantissa64, last byte low nibble = 7 (shift 0).
-        let rec = record("6012020001007d10000000000000000000000007")
+    func testIBIAmplitude0x60RealCapture() {
+        // Real 0x60 record from an overnight capture: six IBIs forming a coherent ~60 bpm train under
+        // the byte-scatter layout (the old linear-bitstream decode scrambled all but the first).
+        // Validated against open_oura parse_api_ibi_and_amplitude_event.
+        let rec = record("601202000100807b77757a78e4ddccd4e8d79d33")
         let ibis = OuraDecoders.decodeIBIAmplitude(rec)
-        XCTAssertNotNil(ibis)
-        XCTAssertEqual(ibis?.first, OuraIBI(ringTimestamp: rt, ibiMs: 1000, amplitude: 64))
+        XCTAssertEqual(ibis?.map { $0.ibiMs }, [1028, 987, 958, 938, 976, 967])
+        XCTAssertEqual(ibis?.map { $0.amplitude }, [1824, 1760, 1632, 1696, 1856, 1712])
     }
 
     // MARK: - 0x6E SpO2 IBI (REVERSE byte order x8)

@@ -1,5 +1,6 @@
 package com.noop.ui
 
+import com.noop.R
 import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -89,7 +90,7 @@ fun PipBar(
         targetValue = driver,
         // Quick eased cascade (~0.6s) so the pips light left→right; instant under Reduce Motion.
         animationSpec = if (reduced) tween(0) else tween(durationMillis = 600, easing = EaseOut),
-        label = "PipBar",
+        label = uiString(R.string.l10n_pip_bar_pipbar_197c22c4),
     )
     val f = if (reduced) targetFraction else animatedFraction
 

@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -142,11 +144,11 @@ fun LiveWorkoutScreen(vm: AppViewModel, onClose: () -> Unit) {
 
             // Live stats grid — avg / peak / effort, from the captured window.
             Row(horizontalArrangement = Arrangement.spacedBy(Metrics.gap), modifier = Modifier.fillMaxWidth()) {
-                StatTile(modifier = Modifier.weight(1f), label = "Avg", value = if (w.avgHr > 0) "${w.avgHr}" else "—",
+                StatTile(modifier = Modifier.weight(1f), label = uiString(R.string.l10n_live_workout_screen_avg_cdc93143), value = if (w.avgHr > 0) "${w.avgHr}" else "—",
                     accent = if (w.avgHr > 0) Palette.metricRose else Palette.textPrimary)
-                StatTile(modifier = Modifier.weight(1f), label = "Peak", value = if (w.peakHr > 0) "${w.peakHr}" else "—",
+                StatTile(modifier = Modifier.weight(1f), label = uiString(R.string.l10n_live_workout_screen_peak_c83dbbd3), value = if (w.peakHr > 0) "${w.peakHr}" else "—",
                     accent = if (w.peakHr > 0) Palette.metricRose else Palette.textPrimary)
-                StatTile(modifier = Modifier.weight(1f), label = "Effort", value = UnitFormatter.effortDisplay(w.liveStrain, effortScale),
+                StatTile(modifier = Modifier.weight(1f), label = uiString(R.string.l10n_live_workout_screen_effort_8c974bc6), value = UnitFormatter.effortDisplay(w.liveStrain, effortScale),
                     accent = Palette.strainColor(w.liveStrain))
             }
 
@@ -166,7 +168,7 @@ fun LiveWorkoutScreen(vm: AppViewModel, onClose: () -> Unit) {
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Palette.statusCritical, contentColor = Palette.surfaceBase,
                 ),
-            ) { Text("End workout", style = NoopType.headline) }
+            ) { Text(uiString(R.string.l10n_live_workout_screen_end_workout_3e8d6238), style = NoopType.headline) }
         }
     }
 }
@@ -189,13 +191,13 @@ private fun SensorRow(sensor: StandardHrSource.SensorMetrics) {
         Overline("Sensor")
         Row(horizontalArrangement = Arrangement.spacedBy(Metrics.gap), modifier = Modifier.fillMaxWidth()) {
             if (speed != null) {
-                StatTile(modifier = Modifier.weight(1f), label = "Speed", value = "$speed km/h", accent = Palette.effortColor)
+                StatTile(modifier = Modifier.weight(1f), label = uiString(R.string.l10n_live_workout_screen_speed_2d2cb022), value = "$speed km/h", accent = Palette.effortColor)
             }
             if (cadence != null) {
-                StatTile(modifier = Modifier.weight(1f), label = "Cadence", value = "$cadence/min", accent = Palette.effortColor)
+                StatTile(modifier = Modifier.weight(1f), label = uiString(R.string.l10n_live_workout_screen_cadence_68af11f0), value = "$cadence/min", accent = Palette.effortColor)
             }
             if (power != null) {
-                StatTile(modifier = Modifier.weight(1f), label = "Power", value = "$power W", accent = Palette.effortColor)
+                StatTile(modifier = Modifier.weight(1f), label = uiString(R.string.l10n_live_workout_screen_power_7548ab52), value = "$power W", accent = Palette.effortColor)
             }
         }
     }
@@ -280,7 +282,7 @@ private fun ZoneRail(zone: Int, zoneSet: com.noop.analytics.HrZoneSet) {
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        "Z$z",
+                        uiString(R.string.l10n_live_workout_screen_z_z_d3991a28, z),
                         style = NoopType.captionNumber,
                         color = if (active) Palette.surfaceBase else Palette.textTertiary,
                     )

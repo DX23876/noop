@@ -628,6 +628,11 @@ class WhoopRepository(private val dao: WhoopDao) {
      */
     suspend fun fillWorkoutHrFromStrap(
         rows: List<WorkoutRow>,
+        // HR read key for IMPORTED rows ONLY (Apple/HC/CSV/activity file): they carry no strap HR of their
+        // own, so #77 derives it from the worn strap. STRAP-NATIVE rows ignore this and key on their OWN
+        // recording strap (see [workoutHrDeviceId]). The canonical "my-whoop" default is the worn strap on a
+        // single-WHOOP install (and every current caller uses it); which strap was worn during an imported
+        // session on a MULTI-strap install is undetermined, so that case is left as-is (not the active strap).
         strapDeviceId: String = "my-whoop",
         minSamples: Long = 60,
         cap: Int = 300,
@@ -645,19 +650,23 @@ class WhoopRepository(private val dao: WhoopDao) {
             // Strap-native rows are graphed/zoned/scored from the strap trace, so their Avg HR must come
             // from that same trace (recompute, overriding any stored/edited value). Imported rows keep
             // their own avg/max and are only filled when missing.
-            val src = row.source.lowercase()
-            val strapNative = src == "manual" || src.endsWith("-noop")
+            val strapNative = isStrapNativeWorkout(row.source)
             // #961: a strap-native row still missing a strain is a fill target even when its avgHr is present.
             val needsStrainFill = strapNative && row.strain == null && strainMaxHR != null
             if (!strapNative && row.avgHr != null && !needsStrainFill) return@map row
             budget -= 1
-            val stats = dao.hrWindowStats(strapDeviceId, row.startTs, row.endTs)
+            // #510: read the HR window under the device that ACTUALLY recorded this workout — its OWN strap
+            // for a strap-native row (never a hardcoded id), the [strapDeviceId] worn-strap default for an
+            // imported one. A 2nd WHOOP (id "whoop-<mac>") used to read the empty "my-whoop" window, so its
+            // strap-native workouts' Avg HR wasn't reconciled from the trace and a null Effort wasn't recomputed.
+            val hrDeviceId = workoutHrDeviceId(row.source, row.deviceId, strapDeviceId)
+            val stats = dao.hrWindowStats(hrDeviceId, row.startTs, row.endTs)
             if (stats.n < minSamples || stats.avg == null || stats.max == null) return@map row
             // #961: recompute Effort from the SAME samples the graph/zones use. Read the raw window ONLY when
             // this row actually needs a strain (keeps the common no-fill path a single aggregate query), and
             // let StrainScorer return null on a still-too-thin window (never a fabricated number).
             val filledStrain = if (needsStrainFill && strainMaxHR != null) {
-                val samples = dao.hrSamples(strapDeviceId, row.startTs, row.endTs, 8000)
+                val samples = dao.hrSamples(hrDeviceId, row.startTs, row.endTs, 8000)
                 com.noop.analytics.StrainScorer.strain(samples, maxHR = strainMaxHR, sex = strainSex)
             } else null
             if (strapNative) {
@@ -1085,11 +1094,15 @@ class WhoopRepository(private val dao: WhoopDao) {
     suspend fun daysMerged(deviceId: String): List<DailyMetric> {
         val imported = unionByDay(importedSourceIds(deviceId).map { dao.days(it) })
         val computed = unionByDay(computedSourceIds(deviceId).map { dao.days(it) })
+        val activityFile = dao.days(ACTIVITY_FILE_SOURCE)
         // H5 (#509): days the user hand-edited the sleep of (the edit lives under the computed source); on
         // those days the computed sleep fields win over a re-imported night. Pool the edited sessions across
         // every computed source in the union so a re-add doesn't lose an earlier-id edit's precedence.
         val editedSessions = computedSourceIds(deviceId).flatMap { dao.editedSleepSessions(it) }
-        return mergeDaily(imported = imported, computed = computed, userEditedDays = userEditedDays(editedSessions))
+        return mergeActivityFileSteps(
+            mergeDaily(imported = imported, computed = computed, userEditedDays = userEditedDays(editedSessions)),
+            activityFile,
+        )
     }
 
     /**
@@ -1118,9 +1131,13 @@ class WhoopRepository(private val dao: WhoopDao) {
         combine(
             unionDaysFlow(importedSourceIds(deviceId).map { dao.daysFlow(it) }),
             unionDaysFlow(computedSourceIds(deviceId).map { dao.daysFlow(it) }),
+            dao.daysFlow(ACTIVITY_FILE_SOURCE),
             editedSleepSessionsFlow(deviceId),
-        ) { imported, computed, edited ->
-            mergeDaily(imported = imported, computed = computed, userEditedDays = userEditedDays(edited))
+        ) { imported, computed, activityFile, edited ->
+            mergeActivityFileSteps(
+                mergeDaily(imported = imported, computed = computed, userEditedDays = userEditedDays(edited)),
+                activityFile,
+            )
         }
 
     /**
@@ -1142,11 +1159,15 @@ class WhoopRepository(private val dao: WhoopDao) {
         combine(
             unionDaysFlow(importedSourceIds(deviceId).map { dao.recentDaysFlow(it, RECENT_DAYS_CAP) }),
             unionDaysFlow(computedSourceIds(deviceId).map { dao.recentDaysFlow(it, RECENT_DAYS_CAP) }),
+            dao.recentDaysFlow(ACTIVITY_FILE_SOURCE, RECENT_DAYS_CAP),
             editedSleepSessionsFlow(deviceId),
-        ) { imported, computed, edited ->
+        ) { imported, computed, activityFile, edited ->
             // recentDaysFlow returns newest-first (DESC LIMIT); mergeDaily re-sorts ascending by day, so the
             // emitted order matches daysMergedFlow exactly.
-            mergeDaily(imported = imported, computed = computed, userEditedDays = userEditedDays(edited))
+            mergeActivityFileSteps(
+                mergeDaily(imported = imported, computed = computed, userEditedDays = userEditedDays(edited)),
+                activityFile,
+            )
         }
 
     /** Pooled user-edited sleep sessions across every computed source in the active∪canonical union, so a
@@ -1392,6 +1413,25 @@ class WhoopRepository(private val dao: WhoopDao) {
     suspend fun latestBattery(deviceId: String): BatterySample? = dao.latestBattery(deviceId)
 
     companion object {
+        /** A workout row is STRAP-NATIVE when NOOP recorded/scored it from a strap trace: a "manual"
+         *  session or a detected bout (source "<id>-noop"). Everything else (Apple Health / Health Connect /
+         *  WHOOP CSV / activity file) is IMPORTED and carries its own avg/max. Single source of truth for the
+         *  classification shared by [fillWorkoutHrFromStrap] and [workoutHrDeviceId]. */
+        fun isStrapNativeWorkout(source: String): Boolean {
+            val s = source.lowercase()
+            return s == "manual" || s.endsWith("-noop")
+        }
+
+        /** #510: the device id whose `hrSample` rows back a workout's Avg HR / calories / Effort recompute.
+         *  A STRAP-NATIVE row was charted from its OWN strap's trace, so read HR under that strap — strip the
+         *  computed "-noop" suffix to reach the raw hrSample id (a detected row lives under "<id>-noop", its
+         *  HR under "<id>"). An IMPORTED row has no strap HR of its own; #77 fills it from the WORN strap, i.e.
+         *  the active strap [activeStrapId]. Before this both keyed on a hardcoded "my-whoop", so a strap-native
+         *  workout on a SECOND WHOOP ("whoop-<mac>") read an empty window — its Avg HR went un-reconciled and a
+         *  null Effort un-recomputed. (This fill only sets avgHr/maxHr/strain; calories come from the detector.) */
+        fun workoutHrDeviceId(source: String, rowDeviceId: String, activeStrapId: String): String =
+            if (isStrapNativeWorkout(source)) rowDeviceId.removeSuffix("-noop") else activeStrapId
+
         /** Default row cap on range reads. Matches the Swift call sites' bounded scans. */
         const val DEFAULT_LIMIT = 100_000
 
@@ -1405,6 +1445,7 @@ class WhoopRepository(private val dao: WhoopDao) {
         const val WHOOP_SOURCE = "my-whoop"
         const val APPLE_HEALTH_SOURCE = "apple-health"
         const val HEALTH_CONNECT_SOURCE = "health-connect"
+        const val ACTIVITY_FILE_SOURCE = "activity-file"
 
         /**
          * The IMPORTED daily-source ids to read for an [activeDeviceId]: the UNION of the active strap id
@@ -1813,6 +1854,26 @@ class WhoopRepository(private val dao: WhoopDao) {
                     )
                 } else {
                     merged
+                }
+            }
+            return byDay.values.sortedBy { it.day }
+        }
+
+        internal fun mergeActivityFileSteps(
+            base: List<DailyMetric>,
+            activityFile: List<DailyMetric>,
+        ): List<DailyMetric> {
+            if (activityFile.isEmpty()) return base
+            val byDay = LinkedHashMap<String, DailyMetric>()
+            for (row in base) byDay[row.day] = row
+            for (row in activityFile) {
+                val steps = row.steps ?: continue
+                if (steps <= 0) continue
+                val existing = byDay[row.day]
+                byDay[row.day] = if (existing == null) row else if (existing.steps == null) {
+                    existing.copy(steps = steps)
+                } else {
+                    existing
                 }
             }
             return byDay.values.sortedBy { it.day }

@@ -11,10 +11,11 @@ import org.junit.Test
  *
  * PARITY NOTE: every fixture hex string below is byte-for-byte identical to the Swift
  * DecoderGoldenTests fixtures, so the SAME raw record bytes must decode to the SAME values across the
- * Swift and Kotlin ports (that is the whole point of the twin). Vectors are SYNTHETIC, built from the
- * byte layouts in docs/OURA_PROTOCOL.md s6 (no real biometric capture is embedded). The full record is
- * `type len rt(4 LE) payload` with rt = 0x00010002 (counter 2, session 1) throughout, so every
- * assertion pins ringTimestamp == 65538.
+ * Swift and Kotlin ports (that is the whole point of the twin). Most vectors are SYNTHETIC, built from
+ * the byte layouts in docs/OURA_PROTOCOL.md s6 — EXCEPT the 0x60 and 0x80 IBI packets, which are two
+ * real captured records (a handful of anonymous inter-beat intervals) used to pin the byte-scatter
+ * decode against a known-good beat train. The full record is `type len rt(4 LE) payload` with
+ * rt = 0x00010002 (counter 2, session 1) throughout, so every assertion pins ringTimestamp == 65538.
  */
 class DecoderGoldenTest {
     private val rt: Long = 0x0001_0002   // 65538
@@ -30,24 +31,28 @@ class DecoderGoldenTest {
         return rec
     }
 
-    // MARK: - 0x80 green IBI quality (filters on qual; only the good sample passes)
+    // MARK: - 0x80 green IBI quality (high-byte-first 11-bit IBI; quality==1 gate)
 
     @Test
-    fun testGreenIBIQuality0x80FiltersOnQuality() {
-        // body 200b (ibi800, qualA1, qualB0 -> pass) ee42 (ibi750, qualB1 -> reject)
-        val rec = record("800802000100200bee42")
+    fun testGreenIBIQuality0x80RealCapture() {
+        // Real 0x80 record from an overnight capture: 7 samples. Six are quality 1 and form a clean
+        // ~70 bpm train; the 7th (846 ms) is quality 3 and must be rejected. Validated against open_oura.
+        val rec = record("801202000100698c660e652a6a09670f6d2b693e")
         val ibis = OuraDecoders.decodeGreenIBIQuality(rec)
-        assertEquals(listOf(OuraIBI(ringTimestamp = rt, ibiMs = 800)), ibis)
+        assertEquals(listOf(844, 822, 810, 849, 831, 875), ibis?.map { it.ibiMs })
     }
 
-    // MARK: - 0x60 IBI + amplitude (MSB-first bit-packed; n=7 -> shift 0)
+    // MARK: - 0x60 IBI + amplitude (byte-scatter 11-bit IBIs; shift from b13 low nibble)
 
     @Test
-    fun testIBIAmplitude0x60BitPacked() {
-        // first pair ibi1000 amp-mantissa64, last byte low nibble = 7 (shift 0).
-        val rec = record("6012020001007d10000000000000000000000007")
+    fun testIBIAmplitude0x60RealCapture() {
+        // Real 0x60 record from an overnight capture: six IBIs forming a coherent ~60 bpm train under
+        // the byte-scatter layout (the old linear-bitstream decode scrambled all but the first).
+        // Validated against open_oura parse_api_ibi_and_amplitude_event.
+        val rec = record("601202000100807b77757a78e4ddccd4e8d79d33")
         val ibis = OuraDecoders.decodeIBIAmplitude(rec)
-        assertEquals(OuraIBI(ringTimestamp = rt, ibiMs = 1000, amplitude = 64), ibis?.first())
+        assertEquals(listOf(1028, 987, 958, 938, 976, 967), ibis?.map { it.ibiMs })
+        assertEquals(listOf(1824, 1760, 1632, 1696, 1856, 1712), ibis?.map { it.amplitude })
     }
 
     // MARK: - 0x6E SpO2 IBI (REVERSE byte order x8)

@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -64,14 +66,14 @@ private enum class PrimerSection(
     val icon: ImageVector,
 ) {
     SLEEP(
-        title = "How your sleep is sorted",
+        title = uiString(R.string.l10n_how_noop_works_screen_how_your_sleep_is_sorted_6a8e82e0),
         body = "NOOP picks your main sleep as your longest real block, and (once it has " +
             "learned your usual hours) the one nearest your normal sleep time. Everything " +
             "else that day is a nap. You can always edit bed and wake times.",
         icon = Icons.Filled.Bedtime,
     ),
     SCORES(
-        title = "How your scores work",
+        title = uiString(R.string.l10n_how_noop_works_screen_how_your_scores_work_21a0e2be),
         body = "Charge, Effort and Rest are scored on your own device from your strap data. " +
             "Charge needs about four nights of sleep to learn your baseline (that's \"Calibrating\", " +
             "counted as nights of 4 on the ring), and keeps sharpening over your first couple of weeks. " +
@@ -81,7 +83,7 @@ private enum class PrimerSection(
         icon = Icons.Filled.Insights,
     ),
     SCORE_RECIPE(
-        title = "How your scores are computed",
+        title = uiString(R.string.l10n_how_noop_works_screen_how_your_scores_are_computed_1b2d6c30),
         body = "Charge weighs five signals against your own baseline: your overnight HRV matters most, " +
             "then your resting heart rate, how well you slept, your breathing rate, and how far your skin " +
             "temperature drifted from normal. Higher HRV and lower resting heart rate lift Charge; a big " +
@@ -93,13 +95,13 @@ private enum class PrimerSection(
         icon = Icons.Filled.Calculate,
     ),
     RECORDING(
-        title = "What \"recording\" means",
+        title = uiString(R.string.l10n_how_noop_works_screen_what_recording_means_b896c422),
         body = "When your strap is connected NOOP is saving data live. \"Last synced\" tells " +
             "you how fresh it is. If it says \"Not recording\", reconnect.",
         icon = Icons.Filled.Sensors,
     ),
     PROVENANCE(
-        title = "Where your numbers come from",
+        title = uiString(R.string.l10n_how_noop_works_screen_where_your_numbers_come_from_e169963a),
         body = "A badge shows whether a number was scored on-device by NOOP, or imported " +
             "from Whoop or Apple Health.",
         icon = Icons.Filled.Verified,
@@ -175,9 +177,9 @@ private fun Header(onClose: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Overline("The basics", color = Palette.textTertiary)
-            Text("How NOOP works", style = NoopType.display(26f), color = Palette.textPrimary)
+            Text(uiString(R.string.l10n_how_noop_works_screen_how_noop_works_3396b27a), style = NoopType.display(26f), color = Palette.textPrimary)
             Text(
-                "Sleep · scores · recording · where your numbers come from",
+                uiString(R.string.l10n_how_noop_works_screen_sleep_scores_recording_where_your_numbers_1b3e981f),
                 style = NoopType.caption,
                 color = Palette.textSecondary,
             )
@@ -185,7 +187,7 @@ private fun Header(onClose: () -> Unit) {
         IconButton(onClick = onClose, modifier = Modifier.size(36.dp)) {
             Icon(
                 Icons.Filled.Close,
-                contentDescription = "Close",
+                contentDescription = uiString(R.string.l10n_how_noop_works_screen_close_bbfa773e),
                 tint = Palette.textTertiary,
                 modifier = Modifier.size(22.dp),
             )
@@ -201,7 +203,7 @@ private fun IntroCard() {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Overline("The one rule")
             Text(
-                "NOOP never shows you a number it had to make up. If a score isn't ready, " +
+                uiString(R.string.l10n_how_noop_works_screen_noop_never_shows_you_a_number_d1db9958) +
                     "it tells you why and what to do next. Everything here runs on your " +
                     "device, from your strap.",
                 style = NoopType.subhead,
@@ -231,7 +233,7 @@ private fun PrimerCard(section: PrimerSection) {
     NoopCard(padding = 20.dp, tint = section.accent) {
         Column(
             modifier = Modifier.semantics {
-                contentDescription = "${section.title}. ${section.body}"
+                contentDescription = uiString(R.string.l10n_how_noop_works_screen_section_title_section_body_efb1a999, section.title, section.body)
             },
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -257,7 +259,7 @@ private fun PrimerCard(section: PrimerSection) {
 @Composable
 private fun FooterNote() {
     Text(
-        "NOOP never makes up a number. When it can't compute one honestly it tells you " +
+        uiString(R.string.l10n_how_noop_works_screen_noop_never_makes_up_a_number_da29aca5) +
             "what's missing and what to do, rather than showing a fake value.",
         style = NoopType.footnote,
         color = Palette.textTertiary,
@@ -282,7 +284,7 @@ private fun Footer(onClose: () -> Unit) {
                 contentColor = Palette.surfaceBase,
             ),
         ) {
-            Text("Got it", style = NoopType.captionNumber)
+            Text(uiString(R.string.l10n_how_noop_works_screen_got_it_5b8027fa), style = NoopType.captionNumber)
         }
     }
 }

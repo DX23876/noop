@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.util.Xml
 import com.noop.analytics.RouteMath
+import com.noop.data.DailyMetric
 import com.noop.data.HrSample
 import com.noop.data.ImportSummary
 import com.noop.data.WhoopRepository
@@ -75,6 +76,7 @@ object ActivityFileImporter {
         val sport: String?,
         val distanceM: Double?,
         val energyKcal: Double?,
+        val steps: Int?,
         val avgHr: Int?,
         val maxHr: Int?,
         val ascentM: Double?,
@@ -104,6 +106,7 @@ object ActivityFileImporter {
             }
             if (gpsPointCount > 0) parts.add("$gpsPointCount GPS points")
             if (hrSampleCount > 0) parts.add("$hrSampleCount HR samples")
+            if (steps != null && steps > 0) parts.add("$steps steps")
             return parts.joinToString(" · ")
         }
     }
@@ -224,10 +227,17 @@ object ActivityFileImporter {
         if (activity.hrSamples.isNotEmpty()) {
             repo.insertHr(activity.hrSamples.map { HrSample(deviceId = deviceId, ts = it.ts, bpm = it.bpm) })
         }
+        if (activity.steps != null && activity.steps > 0) {
+            repo.upsertDailyMetrics(
+                listOf(DailyMetric(deviceId = deviceId, day = localDayString(activity.startTs), steps = activity.steps)),
+            )
+        }
 
+        val counts = linkedMapOf("workouts" to 1)
+        if (activity.steps != null && activity.steps > 0) counts["dailyMetric"] = 1
         return ImportSummary(
             source = SOURCE_LABEL,
-            counts = linkedMapOf("workouts" to 1),
+            counts = counts,
             firstDay = dayString(activity.startTs),
             lastDay = dayString(activity.endTs),
             message = summaryText(activity),
@@ -416,7 +426,7 @@ object ActivityFileImporter {
             // A pure coordinate track (no timestamps): keep it but with no interval.
             if (route.isEmpty()) return Result(null, kind, skipped)
             val dist = summaryDistanceM ?: routeDistanceM(route)
-            val a = Activity(kind, 0L, 0L, sportHint, dist, summaryEnergyKcal, summaryAvgHr, summaryMaxHr,
+            val a = Activity(kind, 0L, 0L, sportHint, dist, summaryEnergyKcal, null, summaryAvgHr, summaryMaxHr,
                 summaryAscentM, route.size, 0, cappedRoute(route))
             return Result(a, kind, skipped)
         }
@@ -437,6 +447,7 @@ object ActivityFileImporter {
             sport = sportHint,
             distanceM = distance,
             energyKcal = summaryEnergyKcal,
+            steps = null,
             avgHr = avg,
             maxHr = mx,
             ascentM = ascent,
@@ -540,11 +551,15 @@ object ActivityFileImporter {
         if (a.gpsPointCount > 0) parts.add("${a.gpsPointCount} GPS points")
         if (a.hrSampleCount > 0) parts.add("${a.hrSampleCount} HR samples")
         if (a.avgHr != null) parts.add("avg ${a.avgHr} bpm")
+        if (a.steps != null && a.steps > 0) parts.add("${a.steps} steps")
         return parts.joinToString(" · ")
     }
 
     private fun dayString(ts: Long): String =
         Instant.ofEpochSecond(ts).atOffset(ZoneOffset.UTC).toLocalDate().toString()
+
+    private fun localDayString(ts: Long): String =
+        Instant.ofEpochSecond(ts).atZone(java.time.ZoneId.systemDefault()).toLocalDate().toString()
 
     private fun displayName(context: Context, uri: Uri): String? = runCatching {
         context.contentResolver.query(uri, null, null, null, null)?.use { c ->
@@ -583,12 +598,14 @@ internal class FitDecoder(raw: ByteArray) {
     private var sessionElapsedS: Double? = null
     private var sessionDistance: Double? = null
     private var sessionCalories: Double? = null
+    private var sessionSteps: Int? = null
     private var sessionAscent: Double? = null
     private var sessionAvgHr: Int? = null
     private var sessionMaxHr: Int? = null
 
     private var lapDistanceSum = 0.0
     private var lapCalorieSum = 0.0
+    private var lapStepSum = 0
     private var lapAscentSum = 0.0
     private var lapMaxHr: Int? = null
 
@@ -710,6 +727,7 @@ internal class FitDecoder(raw: ByteArray) {
             when (f.num) {
                 9 -> u(off, f.size, def.bigEndian)?.let { if (it != 0xFFFFFFFFL) lapDistanceSum += it.toDouble() / 100.0 }
                 11 -> u(off, f.size, def.bigEndian)?.let { if (it != 0xFFFFL) lapCalorieSum += it.toDouble() }
+                10 -> u(off, f.size, def.bigEndian)?.let { validSteps(it, f.size)?.let { steps -> lapStepSum += steps } }
                 21 -> u(off, f.size, def.bigEndian)?.let { if (it != 0xFFFFL) lapAscentSum += it.toDouble() }
                 16 -> u(off, f.size, def.bigEndian)?.let { v -> ActivityFileImporter.validHr(v.toDouble())?.let { lapMaxHr = maxOf(lapMaxHr ?: 0, it) } }
             }
@@ -726,6 +744,7 @@ internal class FitDecoder(raw: ByteArray) {
                 7 -> u(off, f.size, def.bigEndian)?.let { if (it != 0xFFFFFFFFL) sessionElapsedS = it.toDouble() / 1000.0 }
                 9 -> u(off, f.size, def.bigEndian)?.let { if (it != 0xFFFFFFFFL) sessionDistance = it.toDouble() / 100.0 }
                 11 -> u(off, f.size, def.bigEndian)?.let { if (it != 0xFFFFL) sessionCalories = it.toDouble() }
+                10 -> u(off, f.size, def.bigEndian)?.let { sessionSteps = validSteps(it, f.size) }
                 22 -> u(off, f.size, def.bigEndian)?.let { if (it != 0xFFFFL) sessionAscent = it.toDouble() }
                 16 -> u(off, f.size, def.bigEndian)?.let { sessionAvgHr = ActivityFileImporter.validHr(it.toDouble()) }
                 17 -> u(off, f.size, def.bigEndian)?.let { sessionMaxHr = ActivityFileImporter.validHr(it.toDouble()) }
@@ -788,6 +807,16 @@ internal class FitDecoder(raw: ByteArray) {
         else -> null
     }
 
+    private fun validSteps(v: Long, size: Int): Int? {
+        val invalid = if (size >= 8) -1L else (1L shl (size * 8)) - 1L
+        return if (v != invalid && v in 1..1_000_000L) v.toInt() else null
+    }
+
+    private fun isFootSport(sport: String?): Boolean = when (sport?.lowercase(Locale.US)) {
+        "running", "walking", "hiking" -> true
+        else -> false
+    }
+
     private fun build(): ActivityFileImporter.Result {
         if (samples.isEmpty() && sessionStartS == null) return fail()
         val route = samples.mapNotNull { it.point }
@@ -796,6 +825,11 @@ internal class FitDecoder(raw: ByteArray) {
         val distance = sessionDistance
             ?: if (lapDistanceSum > 0) lapDistanceSum else if (route.size >= 2) ActivityFileImporter.routeDistanceM(route) else null
         val calories = sessionCalories ?: if (lapCalorieSum > 0) lapCalorieSum else null
+        val steps = if (isFootSport(sessionSport)) {
+            sessionSteps ?: if (lapStepSum > 0) lapStepSum else null
+        } else {
+            null
+        }
         val ascent = sessionAscent ?: if (lapAscentSum > 0) lapAscentSum else ActivityFileImporter.ascentM(samples)
 
         val sampledHrs = samples.mapNotNull { it.hr }
@@ -814,6 +848,7 @@ internal class FitDecoder(raw: ByteArray) {
             sport = sessionSport,
             distanceM = distance,
             energyKcal = calories,
+            steps = steps,
             avgHr = avgHr,
             maxHr = maxHr,
             ascentM = ascent,

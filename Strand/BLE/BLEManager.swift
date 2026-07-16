@@ -2638,6 +2638,20 @@ public final class BLEManager: NSObject, ObservableObject {
         for c in chars where !c.isNotifying {
             requestNotify(c, on: p, reason: reason)
         }
+        // #490: a 5/MG's 0x2A19 battery READ is refused pre-bond (it fires in didDiscoverCharacteristicsFor,
+        // before the link is encrypted) and is never retried, so `batteryPct` stays nil from connect — and
+        // the 5/MG sends NO unsolicited battery notification (so the notify subscription above never fills
+        // it on its own). Re-issue the read here: every caller is post-bond (CLIENT_HELLO-ack, post-bond,
+        // keep-alive), so the link is encrypted and the read succeeds; the keep-alive caller also RE-polls
+        // it (~every 30 s) so the reading stays current as the strap drains and BatteryEstimator gets its
+        // discharge samples on any screen. This is the iOS parity for Android's post-handshake read +
+        // ~60 s keep-alive poll (WhoopBleClient BATTERY_ON_CONNECT_DELAY_MS / refreshBattery). 4.0 is
+        // EXCLUDED — its 0x2A19 is a stub constant 100 (real value = GET_BATTERY_LEVEL; re-reading the stub
+        // would revert the true reading, #77). The 600 s same-% throttle in LiveState guards the estimator.
+        if let b = batteryCharacteristic, b.properties.contains(.read),
+           selectedModel.deviceFamily != .whoop4 {
+            p.readValue(for: b)
+        }
     }
 
     private func requestNotify(_ c: CBCharacteristic, on p: CBPeripheral, reason: String) {

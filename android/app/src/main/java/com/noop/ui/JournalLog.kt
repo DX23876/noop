@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -190,7 +192,7 @@ fun JournalLogCard(
             Column(modifier = Modifier.weight(1f)) {
                 Overline("Log")
                 Text(
-                    "Journal",
+                    uiString(R.string.l10n_journal_log_journal_57d7f743),
                     style = NoopType.title2,
                     color = Palette.textPrimary,
                     maxLines = 1,
@@ -293,7 +295,7 @@ private fun JournalGroupBlock(
         ) {
             Text(group.title.uppercase(), style = NoopType.overline, color = Palette.textTertiary)
             Spacer(Modifier.width(6.dp))
-            Text("${items.size}", style = NoopType.caption, color = Palette.textTertiary)
+            Text(uiString(R.string.l10n_journal_log_items_size_f76ab912, items.size), style = NoopType.caption, color = Palette.textTertiary)
             Spacer(Modifier.weight(1f))
             Text(if (collapsed) "▸" else "▾", style = NoopType.caption, color = Palette.textTertiary)
         }
@@ -398,11 +400,11 @@ private fun JournalItemEditControls(
                 modifier = Modifier.clickable { menuOpen = true }.padding(horizontal = 8.dp))
             androidx.compose.material3.DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                 androidx.compose.material3.DropdownMenuItem(
-                    text = { Text("Rename…") },
+                    text = { Text(uiString(R.string.l10n_journal_log_rename_94ac9a58)) },
                     onClick = { menuOpen = false; onStartRename() },
                 )
                 androidx.compose.material3.DropdownMenuItem(
-                    text = { Text("Group…") },
+                    text = { Text(uiString(R.string.l10n_journal_log_group_995a11e5)) },
                     onClick = { menuOpen = false; groupMenuOpen = true },
                 )
                 androidx.compose.material3.DropdownMenuItem(
@@ -436,25 +438,25 @@ private fun JournalRenameDialog(
     var draft by remember { mutableStateOf(item.displayName ?: item.canonical) }
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Rename item") },
+        title = { Text(uiString(R.string.l10n_journal_log_rename_item_3d21d6ca)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = draft,
                     onValueChange = { draft = it },
-                    placeholder = { Text("Display name") },
+                    placeholder = { Text(uiString(R.string.l10n_journal_log_display_name_c7874aaa)) },
                     singleLine = true,
                     colors = journalFieldColors(),
                 )
                 Text(
-                    "History stays under the original question so WHOOP imports still line up.",
+                    uiString(R.string.l10n_journal_log_history_stays_under_the_original_question_dc91ce89),
                     style = NoopType.footnote,
                     color = Palette.textTertiary,
                 )
             }
         },
-        confirmButton = { Text("Save", color = Palette.accent, modifier = Modifier.clickable { onSave(draft) }.padding(8.dp)) },
-        dismissButton = { Text("Cancel", color = Palette.textSecondary, modifier = Modifier.clickable { onDismiss() }.padding(8.dp)) },
+        confirmButton = { Text(uiString(R.string.l10n_journal_log_save_efc007a3), color = Palette.accent, modifier = Modifier.clickable { onSave(draft) }.padding(8.dp)) },
+        dismissButton = { Text(uiString(R.string.l10n_journal_log_cancel_77dfd213), color = Palette.textSecondary, modifier = Modifier.clickable { onDismiss() }.padding(8.dp)) },
     )
 }
 
@@ -470,7 +472,7 @@ private fun JournalAddRow(onAddCustom: (String, JournalKind, JournalGroup) -> Un
             OutlinedTextField(
                 value = draft,
                 onValueChange = { draft = it },
-                placeholder = { Text("Add a custom item…", style = NoopType.body, color = Palette.textTertiary) },
+                placeholder = { Text(uiString(R.string.l10n_journal_log_add_a_custom_item_0dbd8f7c), style = NoopType.body, color = Palette.textTertiary) },
                 singleLine = true,
                 textStyle = NoopType.body,
                 colors = journalFieldColors(),
@@ -489,7 +491,7 @@ private fun JournalAddRow(onAddCustom: (String, JournalKind, JournalGroup) -> Un
             }
         }
         Box {
-            Text("Group: ${group.title}", style = NoopType.footnote, color = Palette.textSecondary,
+            Text(uiString(R.string.l10n_journal_log_group_group_title_1f88621e, group.title), style = NoopType.footnote, color = Palette.textSecondary,
                 modifier = Modifier.clickable { groupMenu = true })
             androidx.compose.material3.DropdownMenu(expanded = groupMenu, onDismissRequest = { groupMenu = false }) {
                 JournalGroup.displayOrder.forEach { g ->
