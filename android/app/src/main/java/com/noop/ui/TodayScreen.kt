@@ -1019,6 +1019,8 @@ fun TodayScreen(
         val hcDaysCount = viewModel.repo.appleDaily("health-connect", "0000-01-01", "9999-12-31").size
         footer = TodayFooterState(
             // fillWorkoutHrFromStrap: imported sessions carry no HR, derive it from strap samples (#77).
+            // #510: strap-native rows now read HR under their OWN recording strap (inside the fill), so a 2nd
+            // WHOOP's workouts reconcile Avg HR + Effort from their own trace; imported rows keep the default.
             recentWorkouts = viewModel.repo.fillWorkoutHrFromStrap(recentUnion),
             whoopDays = days.size,
             whoopWorkouts = whoopWorkouts.size,
