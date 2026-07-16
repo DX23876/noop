@@ -23,7 +23,8 @@ struct DataSourcesView: View {
     @State private var liftingSummary: String?
     @State private var liftingFailed = false
     // Activity-file (GPX / TCX / FIT) import state — same lightweight, self-contained pattern: parse the
-    // file, upsert one workout row under the "activity-file" source, refresh. No HR Effort is touched.
+    // file, upsert one workout row under the "activity-file" source, and persist optional measured
+    // summaries like file steps under that source, refresh. No HR Effort is touched.
     @State private var activityFileImporting = false
     @State private var activityFileSummary: String?
     @State private var activityFileFailed = false
@@ -571,6 +572,25 @@ struct DataSourcesView: View {
                 if !activity.hrSamples.isEmpty {
                     let hr = activity.hrSamples.map { HRSample(ts: $0.ts, bpm: $0.bpm) }
                     _ = try? await store.insert(Streams(hr: hr), deviceId: ActivityFileImporter.sourceId)
+                }
+                if let steps = activity.steps, steps > 0 {
+                    let day = Repository.localDayKey(activity.start)
+                    let metric = DailyMetric(
+                        day: day,
+                        totalSleepMin: nil,
+                        efficiency: nil,
+                        deepMin: nil,
+                        remMin: nil,
+                        lightMin: nil,
+                        disturbances: nil,
+                        restingHr: nil,
+                        avgHrv: nil,
+                        recovery: nil,
+                        strain: nil,
+                        exerciseCount: nil,
+                        steps: steps
+                    )
+                    try? await store.upsertDailyMetrics([metric], deviceId: ActivityFileImporter.sourceId)
                 }
 
                 // #137 (B1): register `activity-file` as an `.activityFile` device so the per-day owner

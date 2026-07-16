@@ -36,7 +36,7 @@ The package contains more analytics than the app currently surfaces. This sectio
 
 | Engine | File | Status in the app |
 |---|---|---|
-| `HRVAnalyzer` | `HRVAnalyzer.swift` | **Library-only** as a type. The app computes RMSSD inline via `AppModel.rmssd(_:)` (same Task-Force formula) for the live stress nudge. |
+| `HRVAnalyzer` | `HRVAnalyzer.swift` | **Library-only** as a type. Live stress check-ins use the dedicated `StressOnsetDetector`. |
 | `RecoveryScorer` | `RecoveryScorer.swift` | **Live.** Computes the **Charge** score. Runs inside `AnalyticsEngine.analyzeDay` via `Strand/Data/IntelligenceEngine.swift`; computed values are persisted under the `"<deviceId>-noop"` source and merged **under** any imported `recovery_score_pct` (imports always win). APPROXIMATE. |
 | `StrainScorer` | `StrainScorer.swift` | **Live.** Computes the **Effort** score (0–100). Day load is computed on-device for nights the strap offloaded; the imported `day_strain` column still wins for imported days. APPROXIMATE. |
 | `SleepStager` | `SleepStager.swift` | **Live.** Stages each offloaded night inside `analyzeDay`; the per-night stages feed the **Rest** composite. Computed sessions are persisted under the `"-noop"` source, with imported sleeps taking precedence. APPROXIMATE. |
@@ -74,30 +74,7 @@ bpm = vals.isEmpty ? nil : Int(vals[vals.count / 2].rounded())
 
 Median (not mean) is deliberate: it rejects single-beat outliers without lagging the signal.
 
-### 2. RMSSD for the stress nudge (`rmssd` + `evaluateStress`)
-
-The live RMSSD uses the classic Task-Force successive-difference formula over a rolling R-R buffer:
-
-```swift
-static func rmssd(_ rr: [Int]) -> Double {
-    guard rr.count >= 2 else { return 0 }
-    var sum = 0.0, n = 0
-    for i in 1..<rr.count { let d = Double(rr[i] - rr[i - 1]); sum += d * d; n += 1 }
-    return n > 0 ? (sum / Double(n)).squareRoot() : 0
-}
-```
-
-`evaluateStress()` is an **experimental, off-by-default** resting-stress nudge:
-
-- Only runs when `behavior.stressNudge` is on **and** the strap is bonded **and** worn.
-- Filters R-R to plausible beats (`300 < rr < 2000` ms, i.e. 30–200 bpm), keeps the last 60, needs ≥ 20.
-- Tracks a **slow HRV baseline** as an EWMA: `hrvBaseline = hrvBaseline * 0.98 + rmssd * 0.02`.
-- Only fires when HR is in a **resting band** (`55…100` bpm — not a workout) and current RMSSD has dropped **below 60% of baseline**.
-- Rate-limited to **once per 15 minutes** (`> 900` s). On fire it buzzes the strap once and logs "take a paced breath."
-
-It is intentionally conservative so it rarely false-fires.
-
-### 3. HR-zone haptic coaching (`coachZone`)
+### 2. HR-zone haptic coaching (`coachZone`)
 
 Watches the smoothed `bpm`, computes `%HRmax` from `profile.hrMax`, and buckets into 5 zones at `0.6 / 0.7 / 0.8 / 0.9` of max:
 

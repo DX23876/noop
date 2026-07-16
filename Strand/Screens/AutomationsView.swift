@@ -172,15 +172,11 @@ struct AutomationsView: View {
     private var coachingCard: some View {
         Section2(icon: "bolt.heart.fill", title: String(localized: "Haptic coaching"),
                  blurb: String(localized: "Train by feel. The strap buzzes so you don't have to watch a screen."),
-                 active: behavior.zoneCoaching || behavior.stressNudge || behavior.stressCheckIn) {
+                 active: behavior.zoneCoaching || behavior.stressCheckIn) {
             VStack(spacing: 0) {
                 ToggleRow(label: String(localized: "HR-zone coaching"),
                           help: String(localized: "Buzz when you hit your top zone (ease off) and again when you recover. Uses your max HR from Settings."),
                           isOn: $behavior.zoneCoaching)
-                rowDivider
-                ToggleRow(label: String(localized: "Resting stress nudge (experimental)"),
-                          help: String(localized: "A gentle buzz when your HRV drops while your heart rate is calm, a cue to take a paced breath. Rate-limited to once every 15 minutes; off by default."),
-                          isOn: $behavior.stressNudge)
                 rowDivider
                 // v5 L3 closed-loop check-in (master + sub toggles). Default OFF, manual-first. The keys
                 // mirror BiofeedbackPrefs, which the central detector (AppModel.evaluateStress) reads.

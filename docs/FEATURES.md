@@ -452,9 +452,8 @@ React when the strap comes off or goes on:
 ### Haptic coaching
 - **HR-zone coaching** — buzz when you hit your top zone (ease off) and again when you recover,
   using your max HR from Settings.
-- **Resting stress nudge (experimental)** — a gentle buzz when your HRV drops while your heart
-  rate is calm — a cue to take a paced breath. Conservative, rate-limited to **once every
-  15 minutes**, off by default.
+- **Stress check-ins (haptic)** — offer a guided breathing check-in after a fresh HRV dip while
+  you are still. Off by default, with optional auto-nudges, quiet hours, and your resonance pace.
 
 ### Smart alarm
 Wake to a wrist buzz. This arms the strap's **own firmware alarm**, so it still fires even if the

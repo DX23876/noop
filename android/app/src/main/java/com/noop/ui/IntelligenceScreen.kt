@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -100,7 +102,7 @@ fun IntelligenceScreen(vm: AppViewModel) {
     }
 
     LazyScreenScaffold(
-        title = "Intelligence",
+        title = uiString(R.string.l10n_intelligence_screen_intelligence_c698f940),
         subtitle = "Charge, effort and rest - scored with the model, explained in plain terms.",
     ) {
         item { forecast?.let { ForecastCard(it) } }
@@ -124,7 +126,7 @@ fun IntelligenceScreen(vm: AppViewModel) {
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Overline("Recent")
-                        Text("By Day", style = NoopType.title2, color = Palette.textPrimary)
+                        Text(uiString(R.string.l10n_intelligence_screen_by_day_2e5d14ca), style = NoopType.title2, color = Palette.textPrimary)
                     }
                     SegmentedPillControl(
                         items = IntelRange.entries.toList(),
@@ -136,7 +138,11 @@ fun IntelligenceScreen(vm: AppViewModel) {
             }
             item {
                 Text(
-                    "${filtered.size} ${if (filtered.size == 1) "day" else "days"}",
+                    uiString(
+                        if (filtered.size == 1) R.string.intelligence_day_count
+                        else R.string.intelligence_days_count,
+                        filtered.size,
+                    ),
                     style = NoopType.footnote,
                     color = Palette.textTertiary,
                 )
@@ -146,7 +152,7 @@ fun IntelligenceScreen(vm: AppViewModel) {
                 item {
                     NoopCard(padding = 18.dp) {
                         Text(
-                            "No scored days in this window. Widen the range or import more history.",
+                            uiString(R.string.l10n_intelligence_screen_no_scored_days_in_this_window_03f1165b),
                             style = NoopType.subhead,
                             color = Palette.textSecondary,
                         )
@@ -193,7 +199,7 @@ private fun ForecastCard(f: RecoveryForecast) {
                         lineWidth = 168.dp * 0.10f,
                     )
                     Text(
-                        "± $band",
+                        uiString(R.string.l10n_intelligence_screen_band_ec8a8993, band),
                         style = NoopType.captionNumber,
                         color = Palette.textTertiary,
                         modifier = Modifier.padding(top = 4.dp),
@@ -210,13 +216,13 @@ private fun ForecastCard(f: RecoveryForecast) {
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     Text(
-                        "You'll likely wake around $charge ± $band Charge if you sleep about " +
+                        uiString(R.string.l10n_intelligence_screen_you_ll_likely_wake_around_charge_ed3abe2e, charge, band) +
                             "${sleepHoursLabel(f.plannedSleepHours)} tonight.",
                         style = NoopType.subhead,
                         color = Palette.textSecondary,
                     )
                     Text(
-                        "Estimate from today's effort, your typical sleep and your ${f.nights}-night " +
+                        uiString(R.string.l10n_intelligence_screen_estimate_from_today_s_effort_your_667d7560, f.nights) +
                             "recovery baseline - not a measurement. Your real Charge is scored from " +
                             "tomorrow's HRV when you wake.",
                         style = NoopType.footnote,
@@ -252,10 +258,10 @@ private fun ExplainerCard(effortScale: EffortScale) {
                     tint = Palette.chargeColor,
                     modifier = Modifier.size(20.dp),
                 )
-                Text("How this works", style = NoopType.headline, color = Palette.textPrimary)
+                Text(uiString(R.string.l10n_intelligence_screen_how_this_works_b895a8c3), style = NoopType.headline, color = Palette.textPrimary)
             }
             Text(
-                "Charge weighs your heart-rate variability against your personal baseline " +
+                uiString(R.string.l10n_intelligence_screen_charge_weighs_your_heart_rate_variability_026745e6) +
                     "(~55%), resting heart rate (~20%), rest quality (~15%), respiration (~5%) " +
                     "and skin-temperature deviation (~5%). Effort is a 0 - ${UnitFormatter.effortScaleMax(effortScale)} " +
                     "cardiovascular load from time spent in each heart-rate zone. Rest is staged " +
@@ -284,7 +290,7 @@ private fun EmptyNote() {
                 modifier = Modifier.size(18.dp),
             )
             Text(
-                "No scored days yet. Sync your strap to collect raw streams. Effort and Rest are " +
+                uiString(R.string.l10n_intelligence_screen_no_scored_days_yet_sync_your_cdd47684) +
                     "scored once a day's data is in. Charge needs about four nights of sleep to learn your " +
                     "baseline (you'll see \"Calibrating\" until then), and keeps sharpening over your first " +
                     "couple of weeks. On a WHOOP 5 or MG the strap banks little history, so that night count " +
@@ -319,13 +325,13 @@ private fun ModelBreakdownCard(effortScale: EffortScale) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "Effort",
+                    uiString(R.string.l10n_intelligence_screen_effort_8c974bc6),
                     style = NoopType.subhead,
                     color = Palette.textSecondary,
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    "0 - ${UnitFormatter.effortScaleMax(effortScale)} scale",
+                    uiString(R.string.l10n_intelligence_screen_0_unitformatter_effortscalemax_effortscale_scale_b5c43f56, UnitFormatter.effortScaleMax(effortScale)),
                     style = NoopType.captionNumber,
                     color = Palette.effortColor,
                 )

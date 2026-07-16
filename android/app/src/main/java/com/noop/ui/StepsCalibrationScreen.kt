@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -202,11 +204,11 @@ private fun Header(onClose: () -> Unit) {
     ) {
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Overline("Steps estimate", color = Palette.textTertiary)
-            Text("Calibrate your steps", style = NoopType.display(26f), color = Palette.textPrimary)
-            Text("WHOOP 4.0 · motion → steps", style = NoopType.caption, color = Palette.textSecondary)
+            Text(uiString(R.string.l10n_steps_calibration_screen_calibrate_your_steps_38b4e814), style = NoopType.display(26f), color = Palette.textPrimary)
+            Text(uiString(R.string.l10n_steps_calibration_screen_whoop_4_0_motion_steps_a63239dc), style = NoopType.caption, color = Palette.textSecondary)
         }
         IconButton(onClick = onClose, modifier = Modifier.size(36.dp)) {
-            Icon(Icons.Filled.Close, contentDescription = "Close", tint = Palette.textTertiary, modifier = Modifier.size(22.dp))
+            Icon(Icons.Filled.Close, contentDescription = uiString(R.string.l10n_steps_calibration_screen_close_bbfa773e), tint = Palette.textTertiary, modifier = Modifier.size(22.dp))
         }
     }
 }
@@ -218,7 +220,7 @@ private fun Footer(onClose: () -> Unit) {
             onClick = onClose,
             colors = ButtonDefaults.buttonColors(containerColor = Palette.accent, contentColor = Palette.surfaceBase),
         ) {
-            Text("Done", modifier = Modifier.padding(horizontal = 24.dp))
+            Text(uiString(R.string.l10n_steps_calibration_screen_done_e9b450d1), modifier = Modifier.padding(horizontal = 24.dp))
         }
     }
 }
@@ -242,16 +244,16 @@ private fun ExplainerCard() {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.AutoMirrored.Filled.DirectionsWalk, contentDescription = null, tint = Palette.accent, modifier = Modifier.size(20.dp))
-                Text("How this works", style = NoopType.headline, color = Palette.textPrimary)
+                Text(uiString(R.string.l10n_steps_calibration_screen_how_this_works_b895a8c3), style = NoopType.headline, color = Palette.textPrimary)
             }
             Text(
-                "NOOP estimates your steps from your WHOOP's motion, calibrated to your phone's step " +
+                uiString(R.string.l10n_steps_calibration_screen_noop_estimates_your_steps_from_your_d569bc31) +
                     "count. It's an estimate, not a step counter. A WHOOP 4.0 doesn't transmit steps.",
                 style = NoopType.subhead,
                 color = Palette.textSecondary,
             )
             Text(
-                "On the days your phone also counted steps, NOOP learns how much your motion maps to " +
+                uiString(R.string.l10n_steps_calibration_screen_on_the_days_your_phone_also_2f65a14c) +
                     "steps, then applies that to the strap-only days. The more matching days it has, the " +
                     "more it trusts the estimate.",
                 style = NoopType.footnote,
@@ -270,17 +272,17 @@ private fun NoMotionNote() {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(Icons.Filled.SyncProblem, contentDescription = null, tint = Palette.metricAmber, modifier = Modifier.size(20.dp))
-                Text("No motion synced yet", style = NoopType.headline, color = Palette.textPrimary)
+                Text(uiString(R.string.l10n_steps_calibration_screen_no_motion_synced_yet_65106670), style = NoopType.headline, color = Palette.textPrimary)
             }
             Text(
-                "We're not seeing any motion from your strap yet. Steps are estimated from your WHOOP's " +
+                uiString(R.string.l10n_steps_calibration_screen_we_re_not_seeing_any_motion_6ac8e092) +
                     "banked motion history, so your strap needs to sync that history before NOOP has " +
                     "anything to count.",
                 style = NoopType.subhead,
                 color = Palette.textSecondary,
             )
             Text(
-                "Open NOOP near your strap and let it catch up (a full history sync can take a while on " +
+                uiString(R.string.l10n_steps_calibration_screen_open_noop_near_your_strap_and_e08ddd6d) +
                     "first run). Once a day or two of motion lands, your step estimate and the calibration " +
                     "below will start to fill in.",
                 style = NoopType.footnote,
@@ -305,7 +307,7 @@ private fun CurrentFitCard(profile: ProfileStore, matchedDays: Int) {
                 }
                 Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(String.format(Locale.US, "%.1f", coeff), style = NoopType.number(30f), color = Palette.accent)
-                    Text("steps per motion unit", style = NoopType.footnote, color = Palette.textTertiary, modifier = Modifier.padding(bottom = 4.dp))
+                    Text(uiString(R.string.l10n_steps_calibration_screen_steps_per_motion_unit_a2c2ac56), style = NoopType.footnote, color = Palette.textTertiary, modifier = Modifier.padding(bottom = 4.dp))
                 }
                 if (profile.stepsManualCoefficient > 0) {
                     StatLine("Source", "Manual (you set this by hand)")
@@ -319,7 +321,7 @@ private fun CurrentFitCard(profile: ProfileStore, matchedDays: Int) {
                     )
                 }
             } else {
-                Text("Not calibrated yet", style = NoopType.bodyNumber, color = Palette.textPrimary)
+                Text(uiString(R.string.l10n_steps_calibration_screen_not_calibrated_yet_30abe0d0), style = NoopType.bodyNumber, color = Palette.textPrimary)
                 // #589: a concrete countdown instead of a vague "a few days". Headline comes straight from
                 // the engine's NeedsMoreDays state so the wording matches the Today steps tile + the Swift card.
                 Text(
@@ -330,7 +332,7 @@ private fun CurrentFitCard(profile: ProfileStore, matchedDays: Int) {
                     color = Palette.accent,
                 )
                 Text(
-                    "These are the days where your phone also counted steps, so NOOP can learn how your " +
+                    uiString(R.string.l10n_steps_calibration_screen_these_are_the_days_where_your_ae5c9c2c) +
                         "motion maps to steps. Or set the coefficient manually below.",
                     style = NoopType.footnote,
                     color = Palette.textTertiary,
@@ -349,7 +351,7 @@ private fun ComparisonCard(rows: List<StepsComparisonRow>) {
             Overline("Estimated vs your phone")
             if (rows.isEmpty()) {
                 Text(
-                    "No days yet where both NOOP and your phone counted steps. Once your phone logs a " +
+                    uiString(R.string.l10n_steps_calibration_screen_no_days_yet_where_both_noop_71d6005b) +
                         "few days alongside the strap, they'll appear here so you can see how close the " +
                         "estimate is.",
                     style = NoopType.footnote,
@@ -357,16 +359,16 @@ private fun ComparisonCard(rows: List<StepsComparisonRow>) {
                 )
             } else {
                 Row(modifier = Modifier.fillMaxWidth()) {
-                    Text("Day", style = NoopType.caption, color = Palette.textTertiary, modifier = Modifier.weight(1f))
-                    Text("Est.", style = NoopType.caption, color = Palette.textTertiary, textAlign = TextAlign.End, modifier = Modifier.width(64.dp))
-                    Text("Phone", style = NoopType.caption, color = Palette.textTertiary, textAlign = TextAlign.End, modifier = Modifier.width(64.dp))
+                    Text(uiString(R.string.l10n_steps_calibration_screen_day_987b9ced), style = NoopType.caption, color = Palette.textTertiary, modifier = Modifier.weight(1f))
+                    Text(uiString(R.string.l10n_steps_calibration_screen_est_18b405fb), style = NoopType.caption, color = Palette.textTertiary, textAlign = TextAlign.End, modifier = Modifier.width(64.dp))
+                    Text(uiString(R.string.l10n_steps_calibration_screen_phone_77064d52), style = NoopType.caption, color = Palette.textTertiary, textAlign = TextAlign.End, modifier = Modifier.width(64.dp))
                     Text("Δ", style = NoopType.caption, color = Palette.textTertiary, textAlign = TextAlign.End, modifier = Modifier.width(52.dp))
                 }
                 for (row in rows) {
                     Row(
                         modifier = Modifier.fillMaxWidth().semantics {
                             contentDescription =
-                                "${shortDay(row.day)}: estimated ${row.estimated} steps, phone ${row.actual} " +
+                                uiString(R.string.l10n_steps_calibration_screen_shortday_row_day_estimated_row_estimated_f2d71597, shortDay(row.day), row.estimated, row.actual) +
                                     "steps, ${row.errorPct.roundToInt()} percent difference"
                         },
                         verticalAlignment = Alignment.CenterVertically,
@@ -384,7 +386,7 @@ private fun ComparisonCard(rows: List<StepsComparisonRow>) {
                     }
                 }
                 Text(
-                    "These days are excluded from the estimate (your phone's real count is shown instead). " +
+                    uiString(R.string.l10n_steps_calibration_screen_these_days_are_excluded_from_the_6bedabbf) +
                         "They're here only so you can judge the estimate's accuracy.",
                     style = NoopType.caption,
                     color = Palette.textTertiary,
@@ -409,7 +411,7 @@ private fun ManualAdjustCard(
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Overline("Adjust manually")
             Text(
-                "Override the automatic fit with your own steps-per-motion value. Useful if your phone " +
+                uiString(R.string.l10n_steps_calibration_screen_override_the_automatic_fit_with_your_36a7b6fa) +
                     "has no step history to learn from, or the estimate runs consistently high or low. " +
                     "Set it back to auto by dragging to the far left.",
                 style = NoopType.footnote,
@@ -429,7 +431,7 @@ private fun ManualAdjustCard(
                 )
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Auto", style = NoopType.caption, color = Palette.textTertiary)
+                Text(uiString(R.string.l10n_steps_calibration_screen_auto_c614ba7c), style = NoopType.caption, color = Palette.textTertiary)
                 Slider(
                     // Continuous (no discrete `steps`): the coefficient range can be large, so a 0.5-tick
                     // grid would mean thousands of ticks. The commit rounds to 0.5 instead (see onCommit).
@@ -452,7 +454,7 @@ private fun ManualAdjustCard(
                             }
                         },
                 )
-                Text("High", style = NoopType.caption, color = Palette.textTertiary)
+                Text(uiString(R.string.l10n_steps_calibration_screen_high_b1a5954a), style = NoopType.caption, color = Palette.textTertiary)
             }
             // Live preview: a typical recent day re-estimated at the draft (or auto) coefficient.
             if (sampleMotion != null) {
@@ -467,7 +469,7 @@ private fun ManualAdjustCard(
             }
             if (draftManual > 0) {
                 Text(
-                    "Takes effect on the next analytics pass (after the next sync).",
+                    uiString(R.string.l10n_steps_calibration_screen_takes_effect_on_the_next_analytics_13205327),
                     style = NoopType.caption,
                     color = Palette.textTertiary,
                 )

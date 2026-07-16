@@ -450,6 +450,20 @@ class WhoopBleClient(
             if (attempts >= SCAN_POWER_BACKOFF_THRESHOLD) ScanSettings.SCAN_MODE_BALANCED
             else ScanSettings.SCAN_MODE_LOW_LATENCY
 
+        /** #313: escalate a reconnect to PASSIVE (autoConnect=true) by WHY the link is down, not just the
+         *  attempt count. A strap the OS still holds ACL-connected — co-resident with the official WHOOP
+         *  app — never re-emits the advertisement / connection-complete that autoConnect waits for, so
+         *  PASSIVE STALLS it (frozen keep-alive battery poll + stopped offload) no matter how high the
+         *  attempt count climbs; only fast DIRECT reconnect recovers it. So keep an ACL-held band on DIRECT;
+         *  only a genuinely-out-of-range band (not ACL-held) falls back to PASSIVE past [threshold], where
+         *  autoConnect is the correct power-efficient choice (#61). This replaces the old plain
+         *  `failedAttempts >= 3` — which #265 kept alive only because a co-resident band usually flaps
+         *  through STATE_CONNECTED and zeroes the counter; a band that fails BEFORE STATE_CONNECTED for
+         *  [threshold]+ attempts hit the same stall. Pure, so the discrimination is pinned without a BLE
+         *  stack (the [scanModeForReconnectAttempts] idiom). */
+        fun passiveReconnectDecision(failedAttempts: Int, aclHeld: Boolean, threshold: Int = 3): Boolean =
+            failedAttempts >= threshold && !aclHeld
+
         /** Pure GATT connection-priority decision (battery, #477), unit-testable without a BLE stack
          *  (the [scanModeForReconnectAttempts] idiom). TWO independent halves, split by risk:
          *   - SAFE (always, once management is on): escalate to HIGH during an offload burst or a
@@ -2841,15 +2855,27 @@ class WhoopBleClient(
         }
     }
 
-    /** The OS-bonded 5/MG-family strap, if any (name "WHOOP …" but not "WHOOP 4…" — MG-named units
-     *  match too). Fails open to a scan on any lookup problem. (#78 fork) */
+    /** #313: does the OS still hold [address]'s ACL? getConnectedDevices returns a band the OS keeps
+     *  GATT-connected — co-resident with the official WHOOP app — even after it stops advertising, so this
+     *  is the "contended, not out of range" signal. Model-agnostic (4.0 + 5.0), matched by exact address.
+     *  Fails SAFE to false (→ normal attempt-count escalation, the pre-#313 behaviour) on any lookup issue,
+     *  so a detection gap can never be worse than before. */
     @SuppressLint("MissingPermission")
-    /**
+    private fun isStrapAclHeld(address: String): Boolean = try {
+        bluetoothManager?.getConnectedDevices(BluetoothProfile.GATT)
+            ?.any { it.address.equals(address, ignoreCase = true) } == true
+    } catch (se: SecurityException) {
+        false
+    }
+
+    /** The OS-bonded 5/MG-family strap, if any (name "WHOOP …" but not "WHOOP 4…" — MG-named units
+     *  match too). Fails open to a scan on any lookup problem. (#78 fork)
+     *
      * A WHOOP 5/MG the OS already holds GATT-connected. Android multiplexes one ACL across GATT clients, so
      * a band connected to another app is still returned by getConnectedDevices even after it stops
      * advertising, and a client can attach to it without a scan. Uses the same 5/MG name filter and
-     * multi-strap pin selection as [bondedWhoopDevice]; a WHOOP 4 is excluded and left to the scan.
-     */
+     * multi-strap pin selection as [bondedWhoopDevice]; a WHOOP 4 is excluded and left to the scan. */
+    @SuppressLint("MissingPermission")
     private fun getConnectedWhoopDevice(): BluetoothDevice? = try {
         val connected = bluetoothManager?.getConnectedDevices(BluetoothProfile.GATT)?.filter { d ->
             val n = try { d.name } catch (se: SecurityException) { null } ?: return@filter false
@@ -5633,8 +5659,12 @@ class WhoopBleClient(
                 // so the passive mode stalls. Fall back to autoConnect=true from the third attempt for a
                 // strap that is genuinely out of range (#61: reconnect once it returns to range, with no
                 // scan or advertisement needed).
-                val passiveReconnect = failedReconnectAttempts >= 3
-                log("Disconnected (status=$status); reconnecting ${if (passiveReconnect) "passively" else "directly"} in ${directDelay / 1000}s (attempt $failedReconnectAttempts)")
+                // #313: don't escalate to PASSIVE on attempt count alone. A band the OS still holds
+                // ACL-connected (co-resident with the WHOOP app) stalls under autoConnect regardless of
+                // count — keep it DIRECT; only a genuinely-out-of-range band escalates to PASSIVE for power.
+                val aclHeld = isStrapAclHeld(dev.address)
+                val passiveReconnect = passiveReconnectDecision(failedReconnectAttempts, aclHeld)
+                log("Disconnected (status=$status); reconnecting ${if (passiveReconnect) "passively" else "directly"} in ${directDelay / 1000}s (attempt $failedReconnectAttempts${if (aclHeld) ", ACL-held" else ""})")
                 // #1030 (ryanbr): cancellable backoff timer (see scheduleReconnect).
                 scheduleReconnect(directDelay) { connectToDevice(dev, autoConnect = passiveReconnect) }
             } else {

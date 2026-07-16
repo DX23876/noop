@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -66,7 +68,7 @@ fun WheelPickerField(
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
             .clickable(enabled = options.isNotEmpty()) { open = true }
-            .semantics { contentDescription = "$accessibility. Tap to choose." },
+            .semantics { contentDescription = uiString(R.string.l10n_wheel_picker_accessibility_tap_to_choose_1314c4ed, accessibility) },
     ) {
         Text(value, style = NoopType.bodyNumber, color = Palette.textPrimary, modifier = Modifier.widthIn(min = 44.dp))
         if (unit != null) Text(unit, style = NoopType.caption, color = Palette.textTertiary)
@@ -112,12 +114,12 @@ private fun WheelPickerDialog(
         },
         confirmButton = {
             TextButton(onClick = { onConfirm(index.coerceIn(0, options.lastIndex)) }) {
-                Text("Done", style = NoopType.headline, color = Palette.accent)
+                Text(uiString(R.string.l10n_wheel_picker_done_e9b450d1), style = NoopType.headline, color = Palette.accent)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", style = NoopType.body, color = Palette.textSecondary)
+                Text(uiString(R.string.l10n_wheel_picker_cancel_77dfd213), style = NoopType.body, color = Palette.textSecondary)
             }
         },
     )

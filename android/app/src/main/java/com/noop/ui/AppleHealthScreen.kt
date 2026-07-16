@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -162,7 +164,7 @@ fun AppleHealthScreen(vm: AppViewModel) {
     // so only on-screen sections compose + are accessibility-walked on scroll (this data view is the long,
     // chart-heavy one). The loading/empty branches stay single items. Order + spacing are unchanged
     // (LazyColumn reproduces the eager `spacedBy(20.dp)` between the six sections).
-    LazyScreenScaffold(title = "Apple Health", subtitle = subtitle) {
+    LazyScreenScaffold(title = uiString(R.string.l10n_apple_health_screen_apple_health_b19b87da), subtitle = subtitle) {
         when {
             !loaded -> item { LoadingCard() }
             !data.hasAnyData -> item { EmptyState() }
@@ -235,7 +237,7 @@ private fun LoadingCard() {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             ConnectionDot(tone = StrandTone.Accent, pulsing = true)
             Text(
-                "Reading your Apple Health history…",
+                uiString(R.string.l10n_apple_health_screen_reading_your_apple_health_history_1a3bf76d),
                 style = NoopType.subhead,
                 color = Palette.textSecondary,
             )
@@ -246,7 +248,7 @@ private fun LoadingCard() {
 @Composable
 private fun EmptyState() {
     DataPendingNote(
-        title = "Nothing imported yet",
+        title = uiString(R.string.l10n_apple_health_screen_nothing_imported_yet_f457cdbe),
         body = "Nothing imported yet. On an iPhone: Health app, tap your photo, Export " +
             "All Health Data, then import the .zip here in Data Sources.",
     )
@@ -508,7 +510,7 @@ private fun EmptyChart() {
         modifier = Modifier.fillMaxWidth().height(Metrics.chartHeight),
         contentAlignment = Alignment.Center,
     ) {
-        Text("No readings recorded.", style = NoopType.subhead, color = Palette.textTertiary)
+        Text(uiString(R.string.l10n_apple_health_screen_no_readings_recorded_05018b26), style = NoopType.subhead, color = Palette.textTertiary)
     }
 }
 

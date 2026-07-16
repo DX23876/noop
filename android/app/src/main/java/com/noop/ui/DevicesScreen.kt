@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -140,7 +142,7 @@ fun DevicesScreen(
     // the static button/footer are single items. Only on-screen cards compose + are accessibility-walked.
     // Conditional rows use `if (cond) { item/items }` so a hidden section adds no row.
     LazyScreenScaffold(
-        title = "Devices",
+        title = uiString(R.string.l10n_devices_screen_devices_df485c87),
         subtitle = "Pair and manage the bands NOOP reads from.",
         // LIQUID SKY BACKDROP (the pilot pattern — LiquidScreenSky.kt): the time-of-day liquid sky settles
         // into the flat canvas behind the top of the screen so the frosted device cards float over it. The
@@ -155,7 +157,7 @@ fun DevicesScreen(
             // The registry resolves a beat after launch. Show a calm pending note in that brief window.
             item {
             DataPendingNote(
-                title = "Getting your devices ready",
+                title = uiString(R.string.l10n_devices_screen_getting_your_devices_ready_bd391949),
                 body = "NOOP is opening your on-device data. Your paired bands will appear here in a moment.",
             )
             }
@@ -252,7 +254,7 @@ fun DevicesScreen(
     // --- Switch confirm ---
     switchTarget?.let { device ->
         ConfirmDialog(
-            title = "Make this your active strap?",
+            title = uiString(R.string.l10n_devices_screen_make_this_your_active_strap_fea6bebd),
             message = "Make ${displayName(device)} your active strap? From now on it provides your live data. " +
                 "$currentActiveName's history stays exactly as it is. Only new days come from ${displayName(device)}.",
             confirmLabel = "Make active",
@@ -279,7 +281,7 @@ fun DevicesScreen(
     // --- Remove confirm ---
     removeTarget?.let { device ->
         ConfirmDialog(
-            title = "Remove this device?",
+            title = uiString(R.string.l10n_devices_screen_remove_this_device_dd9dbda9),
             message = "Remove ${displayName(device)}? NOOP will stop connecting to it. Its recorded data is " +
                 "kept and you can re-add it any time.",
             confirmLabel = "Remove",
@@ -304,7 +306,7 @@ fun DevicesScreen(
     // --- Restart strap confirm (#166) ---
     rebootTarget?.let { device ->
         ConfirmDialog(
-            title = "Restart this strap?",
+            title = uiString(R.string.l10n_devices_screen_restart_this_strap_50fc481b),
             message = "Restart ${displayName(device)}? It disconnects for about 30 seconds while it " +
                 "reboots, then reconnects on its own. Your recorded data is kept.",
             confirmLabel = "Restart",
@@ -326,7 +328,7 @@ fun DevicesScreen(
     // --- Second, strongly-worded delete-data confirm (from the Removed card's secondary control) ---
     deleteDataTarget?.let { device ->
         ConfirmDialog(
-            title = "Delete all of this device's data?",
+            title = uiString(R.string.l10n_devices_screen_delete_all_of_this_device_s_754cde90),
             message = "This permanently deletes all data recorded from ${displayName(device)}. This can't be undone.",
             confirmLabel = "Delete data",
             destructive = true,
@@ -537,16 +539,16 @@ private fun BatteryTube(pct: Int) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = Modifier.semantics { contentDescription = "Battery $clamped%" },
+        modifier = Modifier.semantics { contentDescription = uiString(R.string.l10n_devices_screen_battery_clamped_2494c8c9, clamped) },
     ) {
-        Text("Battery", style = NoopType.footnote, color = Palette.textTertiary)
+        Text(uiString(R.string.l10n_devices_screen_battery_4a9be042), style = NoopType.footnote, color = Palette.textTertiary)
         LiquidTube(
             frac = clamped / 100.0,
             tint = Palette.accent,
             animated = false,
             modifier = Modifier.weight(1f),
         )
-        Text("$clamped%", style = NoopType.footnote, color = Palette.textSecondary)
+        Text(uiString(R.string.l10n_devices_screen_clamped_1f39cebb, clamped), style = NoopType.footnote, color = Palette.textSecondary)
     }
 }
 
@@ -624,7 +626,7 @@ private fun DeviceActionsMenu(
             onClick = { onOpenChange(true) },
             modifier = Modifier
                 .size(32.dp)
-                .semantics { contentDescription = "Device actions for ${displayName(device)}" },
+                .semantics { contentDescription = uiString(R.string.l10n_devices_screen_device_actions_for_displayname_device_160eb3de, displayName(device)) },
         ) {
             Icon(Icons.Filled.MoreVert, contentDescription = null, tint = Palette.textSecondary, modifier = Modifier.size(20.dp))
         }
@@ -698,13 +700,13 @@ private fun AddDeviceButton(onClick: () -> Unit) {
     // filled-accent-blue / white-label primary the iOS DevicesView uses (`NoopButton(... kind: .primary,
     // fullWidth: true)`) — no hand-rolled gold-text fill, no glow.
     NoopButton(
-        text = "Add a device",
+        text = uiString(R.string.l10n_devices_screen_add_a_device_f90866b8),
         leadingIcon = Icons.Filled.Add,
         kind = NoopButtonKind.Primary,
         fullWidth = true,
         modifier = Modifier
             .padding(top = 4.dp)
-            .semantics { contentDescription = "Add a device" },
+            .semantics { contentDescription = uiString(R.string.l10n_devices_screen_add_a_device_f90866b8) },
         onClick = onClick,
     )
 }
@@ -723,7 +725,7 @@ private fun WhoopFirstFooter() {
             modifier = Modifier.size(16.dp),
         )
         Text(
-            "WHOOP is NOOP's primary, fully-supported band. Other heart-rate straps are an early, " +
+            uiString(R.string.l10n_devices_screen_whoop_is_noop_s_primary_fully_1c9e67fd) +
                 "in-development addition: they stream live heart rate and HRV, but not WHOOP's deeper " +
                 "sleep and recovery data.",
             style = NoopType.footnote,
@@ -776,11 +778,11 @@ private fun RebootProbeDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Palette.surfaceOverlay,
-        title = { Text("WHOOP 4.0 reboot probe", style = NoopType.title2, color = Palette.textPrimary) },
+        title = { Text(uiString(R.string.l10n_devices_screen_whoop_4_0_reboot_probe_b51fb50f), style = NoopType.title2, color = Palette.textPrimary) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    "The WHOOP 4.0 reboot frame isn't confirmed — a normal Restart is ignored (#235). " +
+                    uiString(R.string.l10n_devices_screen_the_whoop_4_0_reboot_frame_690a8ff2) +
                         "Send each candidate and watch BOTH the strap log and the strap itself. " +
                         "“no disconnect within 12s” means the strap ignored the frame. A “link dropped” line " +
                         "means the frame reached the strap — but a dropped link alone isn't a reboot: a real " +
@@ -805,7 +807,7 @@ private fun RebootProbeDialog(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", style = NoopType.body, color = Palette.textSecondary)
+                Text(uiString(R.string.l10n_devices_screen_cancel_77dfd213), style = NoopType.body, color = Palette.textSecondary)
             }
         },
     )
@@ -821,11 +823,11 @@ private fun RenameDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Palette.surfaceOverlay,
-        title = { Text("Rename device", style = NoopType.title2, color = Palette.textPrimary) },
+        title = { Text(uiString(R.string.l10n_devices_screen_rename_device_ee233604), style = NoopType.title2, color = Palette.textPrimary) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    "Give ${device.brand} ${device.model} a name you'll recognise.",
+                    uiString(R.string.l10n_devices_screen_give_device_brand_device_model_a_7a15585c, device.brand, device.model),
                     style = NoopType.subhead,
                     color = Palette.textSecondary,
                 )
@@ -833,20 +835,20 @@ private fun RenameDialog(
                     value = draft,
                     onValueChange = { draft = it },
                     singleLine = true,
-                    placeholder = { Text("Name", style = NoopType.body, color = Palette.textTertiary) },
+                    placeholder = { Text(uiString(R.string.l10n_devices_screen_name_709a2322), style = NoopType.body, color = Palette.textTertiary) },
                     colors = devicesFieldColors(),
-                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Device name" },
+                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = uiString(R.string.l10n_devices_screen_device_name_79d7a157) },
                 )
             }
         },
         confirmButton = {
             TextButton(onClick = { onSave(draft) }) {
-                Text("Save", style = NoopType.body, color = Palette.accent)
+                Text(uiString(R.string.l10n_devices_screen_save_efc007a3), style = NoopType.body, color = Palette.accent)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", style = NoopType.body, color = Palette.textSecondary)
+                Text(uiString(R.string.l10n_devices_screen_cancel_77dfd213), style = NoopType.body, color = Palette.textSecondary)
             }
         },
     )
@@ -861,11 +863,11 @@ private fun PickActiveDialog(
     AlertDialog(
         onDismissRequest = onLeaveNone,
         containerColor = Palette.surfaceOverlay,
-        title = { Text("Pick a new active strap", style = NoopType.title2, color = Palette.textPrimary) },
+        title = { Text(uiString(R.string.l10n_devices_screen_pick_a_new_active_strap_edd73542), style = NoopType.title2, color = Palette.textPrimary) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    "You removed your active strap. Choose which paired band provides your live data, or " +
+                    uiString(R.string.l10n_devices_screen_you_removed_your_active_strap_choose_2ac91d48) +
                         "leave none active and pair one later.",
                     style = NoopType.subhead,
                     color = Palette.textSecondary,
@@ -888,7 +890,7 @@ private fun PickActiveDialog(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onLeaveNone) {
-                Text("Leave none active", style = NoopType.body, color = Palette.textSecondary)
+                Text(uiString(R.string.l10n_devices_screen_leave_none_active_b5c858cb), style = NoopType.body, color = Palette.textSecondary)
             }
         },
     )
@@ -1097,7 +1099,7 @@ private fun OuraLocalStateNote() {
     ) {
         Icon(Icons.Filled.Info, contentDescription = null, tint = Palette.statusWarning, modifier = Modifier.size(14.dp))
         Text(
-            "Paired locally. NOOP owns this ring while it holds the key. If you reset it again or set it " +
+            uiString(R.string.l10n_devices_screen_paired_locally_noop_owns_this_ring_30c16190) +
                 "up in the Oura app, NOOP no longer owns it and you would re-add it to take it over.",
             style = NoopType.caption,
             color = Palette.statusWarning,

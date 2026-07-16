@@ -20,6 +20,11 @@ struct LiquidTodayView: View {
     @EnvironmentObject var repo: Repository
     @EnvironmentObject var router: NavRouter
     @EnvironmentObject var profile: ProfileStore
+    // For the pull-to-sync gesture (#334): a pull kicks a manual strap history offload via ble.syncNow().
+    // Observe BLEManager, NOT AppModel — AppModel @Publishes `bpm` on the ~1 Hz HR tick, so observing it
+    // would re-render all of Today every second (the exact churn the LiveState leaves isolate). BLEManager
+    // only publishes connect/discovery state, never HR. Injected at the app roots beside .environmentObject(model).
+    @EnvironmentObject var ble: BLEManager
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Shared with the real Today's card-customise editor so the two stay in sync.
@@ -108,9 +113,9 @@ struct LiquidTodayView: View {
     /// Content sits above the surface so it stays readable. Mirrors Kotlin `NoopPrefs.cardOpacityPercent`.
     @AppStorage(CardAppearancePrefs.opacityKey) private var cardOpacityPercent = CardAppearancePrefs.defaultPercent
     private var cardOpacity: Double { max(0, min(1, Double(cardOpacityPercent) / 100)) }
-    /// "Sky behind cards" (opt-in, default OFF): extend the day-cycle sky behind the WHOLE scroll so the
-    /// Card-transparency slider reveals it under every card. Mirrors Kotlin `NoopPrefs.skyBehindCards`.
-    @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = false
+    /// "Sky behind cards" (default ON): extend the day-cycle sky behind the WHOLE scroll so the
+    /// Card-transparency slider reveals it under every card. User-toggleable. Mirrors Kotlin `NoopPrefs.skyBehindCards`.
+    @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = true
     /// Day-cycle scene backdrop (#698). Default ON. When off, the liquid Today drops the sky for the plain
     /// dark canvas — parity with Android and the classic TodayView, which already honour this pref. Mirrors
     /// Kotlin `NoopPrefs.showDayCycleBackground`.
@@ -383,6 +388,11 @@ struct LiquidTodayView: View {
             refreshArmed = false
             refreshing = true
             Task {
+                // #334 (iOS twin of Android #426): a pull requests a fresh strap history offload, not just
+                // a UI reload. syncNow() is internally gated (connected + bonded + not-already-backfilling),
+                // so a pull while disconnected or mid-offload safely no-ops. The sync status chip owns the
+                // ongoing offload progress; the pull spinner stays short (the reload below).
+                ble.syncNow()
                 await repo.refresh()
                 await load()
                 try? await Task.sleep(nanoseconds: 350_000_000)   // let the fill read as "done"
@@ -546,11 +556,14 @@ struct LiquidTodayView: View {
                 .overlay(alignment: .top) {
                     if let sourceLabel = heroSourceLabel {
                         SourceBadge("\(sourceLabel)", tint: StrandPalette.onDarkSecondary)
-                            // Match the badge's trailing edge to the fixed-width Rest vessel on every
-                            // card width, then lift its centre onto the card's top border.
+                            // Match the badge's trailing edge to the fixed-width Rest vessel on every card
+                            // width, then lift by the space4 gap above the cells so the badge's TOP sits on
+                            // the card's top edge — tucked into the top-right corner. (#486: the old
+                            // "+ half the badge height" centred it ON the border, reading as a pill floating
+                            // detached above the card; two users flagged it. Twin of Android TodayScreen.)
                             .fixedSize()
                             .frame(width: HeroScoreCell.vesselDiameter, alignment: .trailing)
-                            .offset(y: -(NoopMetrics.space4 + NoopMetrics.sourceBadgeHeight / 2))
+                            .offset(y: -NoopMetrics.space4)
                             .allowsHitTesting(false)
                             .accessibilityLabel(Text("Source: \(sourceLabel)"))
                     }

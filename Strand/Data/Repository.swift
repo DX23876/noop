@@ -457,6 +457,7 @@ final class Repository: ObservableObject {
     static let whoopSource = "my-whoop"
     static let appleHealthSource = "apple-health"
     static let healthConnectSource = "health-connect"
+    static let activityFileSource = "activity-file"
 
     /// Imported wearable-export sources whose DAILY aggregates (HRV / resting HR / sleep) can be scored
     /// for a NOOP Charge/Rest on an import-only day, exactly like a live day (#823). These carry no raw HR
@@ -694,6 +695,7 @@ final class Repository: ObservableObject {
         let imported = await unionDailyMetrics(store: store, from: fromDay, to: toDay)
         let computed = await unionComputedDailyMetrics(store: store, from: fromDay, to: toDay)
         let apple = (try? await store.dailyMetrics(deviceId: Self.appleHealthSource, from: fromDay, to: toDay)) ?? []
+        let activityFile = (try? await store.dailyMetrics(deviceId: Self.activityFileSource, from: fromDay, to: toDay)) ?? []
         let impSleep = await unionSleepSessions(store: store, from: lo, to: hi)
         let compSleep = await unionComputedSleepSessions(store: store, from: lo, to: hi)
 
@@ -720,7 +722,10 @@ final class Repository: ObservableObject {
             let editedDays = Self.userEditedDays(compSleep)
             return MergedCaches(
                 importedSleep: fig,
-                days: Self.mergeDaily(imported: imported, computed: computed, userEditedDays: editedDays),
+                days: Self.mergeActivityFileSteps(
+                    into: Self.mergeDaily(imported: imported, computed: computed, userEditedDays: editedDays),
+                    activityFile
+                ),
                 sleeps: Self.mergeSleep(imported: impSleep, computed: compSleep),
                 vitalRows: Self.sourceRows(imported: imported, computed: computed, apple: apple),
                 freshness: Self.computeFreshness(imported: imported, computed: computed, apple: apple,
@@ -792,6 +797,43 @@ final class Repository: ObservableObject {
                     : merged
             } else {
                 byDay[d.day] = d
+            }
+        }
+        return byDay.values.sorted { $0.day < $1.day }
+    }
+
+    nonisolated static func mergeActivityFileSteps(into base: [DailyMetric],
+                                                   _ activityFile: [DailyMetric]) -> [DailyMetric] {
+        guard !activityFile.isEmpty else { return base }
+        var byDay = Dictionary(uniqueKeysWithValues: base.map { ($0.day, $0) })
+        for row in activityFile {
+            guard let steps = row.steps, steps > 0 else { continue }
+            if let existing = byDay[row.day] {
+                if existing.steps == nil {
+                    byDay[row.day] = DailyMetric(
+                        day: existing.day,
+                        totalSleepMin: existing.totalSleepMin,
+                        efficiency: existing.efficiency,
+                        deepMin: existing.deepMin,
+                        remMin: existing.remMin,
+                        lightMin: existing.lightMin,
+                        disturbances: existing.disturbances,
+                        restingHr: existing.restingHr,
+                        avgHrv: existing.avgHrv,
+                        recovery: existing.recovery,
+                        strain: existing.strain,
+                        exerciseCount: existing.exerciseCount,
+                        spo2Pct: existing.spo2Pct,
+                        skinTempDevC: existing.skinTempDevC,
+                        respRateBpm: existing.respRateBpm,
+                        steps: steps,
+                        activeKcalEst: existing.activeKcalEst,
+                        spo2Red: existing.spo2Red,
+                        spo2Ir: existing.spo2Ir
+                    )
+                }
+            } else {
+                byDay[row.day] = row
             }
         }
         return byDay.values.sorted { $0.day < $1.day }
@@ -2064,8 +2106,13 @@ final class Repository: ObservableObject {
                     // so the child task crosses only Sendable scalars.
                     let cls = WorkoutSource.classify(rows[idx].source)
                     let wantStrain = (cls == .manual || cls == .detected) && rows[idx].strain == nil
-                    group.addTask { [deviceId] in
-                        let samples = (try? await store.hrSamples(deviceId: deviceId,
+                    // #510: read HR under the workout's OWN recording strap, not a single active id. A detected
+                    // row's `source` IS its computed strap id ("<base>-noop"), so a bout auto-detected on a 2nd
+                    // WHOOP reads "<base>" instead of the active strap's empty window. Resolved on the main actor;
+                    // only the resulting Sendable String crosses into the task.
+                    let hrDeviceId = Self.workoutHrDeviceId(source: rows[idx].source, activeStrapId: deviceId)
+                    group.addTask { [hrDeviceId] in
+                        let samples = (try? await store.hrSamples(deviceId: hrDeviceId,
                                                                   from: startTs, to: endTs,
                                                                   limit: 8000)) ?? []
                         guard samples.count >= minSamples else { return nil }
@@ -2106,6 +2153,20 @@ final class Repository: ObservableObject {
                               avgHr: r.avg, maxHr: newMax, strain: newStrain, distanceM: row.distanceM,
                               zonesJSON: row.zonesJSON, notes: row.notes)
         }
+    }
+
+    /// #510 (Kotlin twin: `WhoopRepository.workoutHrDeviceId`). The device id whose `hrSample` rows back a
+    /// workout's Avg HR / Effort reconcile. A DETECTED row's own `source` IS its computed strap id
+    /// ("<base>-noop"), so strip the suffix to read HR under the raw "<base>" — a bout auto-detected on a
+    /// SECOND WHOOP no longer reads the active strap's empty window (which blanked its reconcile). MANUAL and
+    /// IMPORTED rows carry no strap id in `source`, so they reconcile against the active strap [activeStrapId]
+    /// as before; on a single-device install a detected "<base>-noop" strips to the active id, so the read is
+    /// byte-identical. (The Kotlin twin also keys MANUAL rows on their stored deviceId; the Swift read-model
+    /// `WorkoutRow` carries no deviceId, so a manual session created on a NON-active strap reconciles here
+    /// against the active strap instead — a minor, display-only divergence, never persisted.)
+    nonisolated static func workoutHrDeviceId(source: String, activeStrapId: String) -> String {
+        guard WorkoutSource.classify(source) == .detected else { return activeStrapId }
+        return source.hasSuffix("-noop") ? String(source.dropLast(5)) : source
     }
 
     /// #833: the per-workout HR reduction (mean bpm → rounded Int, peak bpm), pulled OUT of the @MainActor

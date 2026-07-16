@@ -46,18 +46,18 @@ import java.util.Locale
 // we re-read at the new resolution. Mirrors macOS FullDayChartView + OverviewHRChart's zoom binding.
 
 private enum class TimelineMetric(val title: String) {
-    Hr("Heart Rate"),
+    Hr(uiString(R.string.timeline_metric_heart_rate)),
     // #803: this trace is a rolling rMSSD over the RR series, NOT the raw RR interval it used to plot.
     // The honest title says exactly what the curve is (windowed rMSSD), not a bare "HRV".
-    Hrv("rMSSD (5 min)"),
-    Spo2("SpO₂"),
-    SkinTemp("Skin Temp"),
-    Respiration("Respiration"),
-    Motion("Motion"),
+    Hrv(uiString(R.string.timeline_metric_rmssd)),
+    Spo2(uiString(R.string.timeline_metric_spo2)),
+    SkinTemp(uiString(R.string.timeline_metric_skin_temp)),
+    Respiration(uiString(R.string.timeline_metric_respiration)),
+    Motion(uiString(R.string.timeline_metric_motion)),
     // #175: the strap's OWN band sleep_state track (0 wake/1 still/2 asleep/3 up), shown as a distinct
     // stepped track alongside the derived hypnogram. This is the band's REPORTED state, NOT a stage NOOP
     // trusts as truth — the pill names it "Band Sleep State" so it can't be mistaken for the derived stages.
-    BandSleepState("Band Sleep State"),
+    BandSleepState(uiString(R.string.timeline_metric_band_sleep_state)),
 }
 
 @Composable

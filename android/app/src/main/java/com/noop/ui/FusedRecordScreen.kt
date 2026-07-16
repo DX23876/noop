@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -109,12 +111,12 @@ fun FusedRecordScreen(
         "$dayLabel · your record, on $deviceNoun."
     }
 
-    ScreenScaffold(title = "Your Data, Fused", subtitle = subtitle, modifier = modifier) {
+    ScreenScaffold(title = uiString(R.string.l10n_fused_record_screen_your_data_fused_a740fd4a), subtitle = subtitle, modifier = modifier) {
         if (isMultiSource) DayBadgeRow(record.dayOwner)
 
         if (record.rows.isEmpty()) {
             DataPendingNote(
-                title = "Nothing to fuse yet",
+                title = uiString(R.string.l10n_fused_record_screen_nothing_to_fuse_yet_30789c4e),
                 body = "Import a WHOOP export, Health Connect or a second band and your best-sourced record builds here, on this device.",
             )
         } else {
@@ -192,7 +194,7 @@ private fun PrivacyNote(deviceNoun: String) {
             modifier = Modifier.size(13.dp),
         )
         Text(
-            "Fused on $deviceNoun. Nothing leaves it: no account, no cloud.",
+            uiString(R.string.l10n_fused_record_screen_fused_on_devicenoun_nothing_leaves_it_8a1e6a3d, deviceNoun),
             style = NoopType.footnote,
             color = Palette.textTertiary,
         )
@@ -203,7 +205,7 @@ private fun PrivacyNote(deviceNoun: String) {
 @Composable
 private fun DisclaimerNote() {
     Text(
-        "NOOP picks the best-sourced number and shows you where each came from. It's for wellness and curiosity. It doesn't diagnose or replace medical advice.",
+        uiString(R.string.l10n_fused_record_screen_noop_picks_the_best_sourced_number_5e48b86a),
         style = NoopType.footnote,
         color = Palette.textTertiary,
         modifier = Modifier.padding(horizontal = 4.dp),
@@ -283,7 +285,7 @@ private fun AgreementLine(point: FusedMetricPoint, onCompare: () -> Unit) {
 
         AgreementState.AGREE -> if (other != null) {
             Text(
-                "${other.source.displayName} agrees: ${FusionFormat.value(other.value, point.metric)}",
+                uiString(R.string.l10n_fused_record_screen_other_source_displayname_agrees_fusionformat_value_78e29c2a, other.source.displayName, FusionFormat.value(other.value, point.metric)),
                 style = NoopType.footnote,
                 color = Palette.textTertiary,
             )
@@ -296,7 +298,7 @@ private fun AgreementLine(point: FusedMetricPoint, onCompare: () -> Unit) {
             ) {
                 StatePill("Differs slightly", tone = StrandTone.Neutral, showsDot = false)
                 Text(
-                    "${other.source.displayName}: ${FusionFormat.value(other.value, point.metric)}",
+                    uiString(R.string.l10n_fused_record_screen_other_source_displayname_fusionformat_value_other_207f7548, other.source.displayName, FusionFormat.value(other.value, point.metric)),
                     style = NoopType.footnote,
                     color = Palette.textSecondary,
                 )
@@ -355,7 +357,7 @@ private fun ConflictCompareDialog(row: FusedRow, onDismiss: () -> Unit) {
             ) {
                 SectionHeader(title = row.label, overline = "Sources differ")
                 Text(
-                    "Your bands report different numbers. Here's every source, and the one NOOP is using.",
+                    uiString(R.string.l10n_fused_record_screen_your_bands_report_different_numbers_here_03d20d81),
                     style = NoopType.subhead,
                     color = Palette.textSecondary,
                 )
@@ -385,7 +387,7 @@ private fun ConflictCompareDialog(row: FusedRow, onDismiss: () -> Unit) {
                             modifier = Modifier.size(16.dp),
                         )
                         Text(
-                            "NOOP shows the ${winner.source.displayName} reading because it ${winner.reason} for this metric: a higher-trust source here, not a verdict that the others are wrong.",
+                            uiString(R.string.l10n_fused_record_screen_noop_shows_the_winner_source_displayname_4a3892cc, winner.source.displayName, winner.reason),
                             style = NoopType.subhead,
                             color = Palette.textSecondary,
                         )
@@ -397,7 +399,7 @@ private fun ConflictCompareDialog(row: FusedRow, onDismiss: () -> Unit) {
                     horizontalArrangement = Arrangement.End,
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text("Done", style = NoopType.headline, color = Palette.accent)
+                        Text(uiString(R.string.l10n_fused_record_screen_done_e9b450d1), style = NoopType.headline, color = Palette.accent)
                     }
                 }
             }
@@ -417,7 +419,7 @@ private fun ContributorRow(
             .padding(vertical = 12.dp)
             .semantics {
                 contentDescription =
-                    "${contrib.source.displayName}, ${FusionFormat.value(contrib.value, metricKey)}" +
+                    uiString(R.string.l10n_fused_record_screen_contrib_source_displayname_fusionformat_value_contrib_d182dd7f, contrib.source.displayName, FusionFormat.value(contrib.value, metricKey)) +
                     if (isWinner) ", in use" else ""
             },
         verticalAlignment = Alignment.CenterVertically,

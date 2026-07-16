@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -201,7 +203,7 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
     }
 
     LazyScreenScaffold(
-        title = "Live Body Console",
+        title = uiString(R.string.l10n_live_screen_live_body_console_54838e06),
         subtitle = "Current physiology, strap trust, and session controls",
         // LIQUID SKY BACKDROP (the pilot pattern — LiquidScreenSky.kt): the time-of-day liquid sky settles
         // behind the header + hero and the cards float over the flat canvas below. Reuses the shared
@@ -264,7 +266,7 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
                 verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
                 Text(
-                    "Can't connect - your strap's pairing was reset",
+                    uiString(R.string.l10n_live_screen_can_t_connect_your_strap_s_cf78be83),
                     style = NoopType.subhead,
                     color = Palette.textPrimary,
                 )
@@ -315,7 +317,7 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
             } else {
                 live.lastSyncAt?.let { at ->
                     Text(
-                        "History synced ${relativeAgo(at)}",
+                        uiString(R.string.l10n_live_screen_history_synced_relativeago_at_0ece753a, relativeAgo(at)),
                         style = NoopType.footnote,
                         color = Palette.textTertiary,
                         modifier = Modifier.fillMaxWidth(),
@@ -347,7 +349,7 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
 
         // Session console — record or inspect the current stream.
         item {
-        SectionHeader(title = "Session", overline = "Record or inspect the current stream")
+        SectionHeader(title = uiString(R.string.l10n_live_screen_session_f7f1997c), overline = "Record or inspect the current stream")
         }
 
         // Manual workout — start/stop a session yourself; records HR + strain until you end it.
@@ -368,7 +370,7 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
             NoopCard(tint = Palette.effortColor) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                        Text("● ${w.sport.name.uppercase()}", style = NoopType.overline, color = Palette.statusCritical)
+                        Text(uiString(R.string.l10n_live_screen_w_sport_name_uppercase_e59bc678, w.sport.name.uppercase()), style = NoopType.overline, color = Palette.statusCritical)
                         Spacer(Modifier.weight(1f))
                         Text(
                             // Shared clock: M:SS up to an hour, H:MM:SS past it (so a long session reads
@@ -378,17 +380,17 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
                         )
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-                        StatTile(modifier = Modifier.weight(1f), label = "HR", value = bpm?.toString() ?: "—",
+                        StatTile(modifier = Modifier.weight(1f), label = uiString(R.string.l10n_live_screen_hr_f187928f), value = bpm?.toString() ?: "—",
                             accent = if (bpm == null) Palette.textPrimary else Palette.metricRose)
-                        StatTile(modifier = Modifier.weight(1f), label = "Avg", value = if (w.avgHr > 0) "${w.avgHr}" else "—")
-                        StatTile(modifier = Modifier.weight(1f), label = "Peak", value = if (w.peakHr > 0) "${w.peakHr}" else "—")
-                        StatTile(modifier = Modifier.weight(1f), label = "Effort", value = UnitFormatter.effortDisplay(w.liveStrain, effortScale),
+                        StatTile(modifier = Modifier.weight(1f), label = uiString(R.string.l10n_live_screen_avg_cdc93143), value = if (w.avgHr > 0) "${w.avgHr}" else "—")
+                        StatTile(modifier = Modifier.weight(1f), label = uiString(R.string.l10n_live_screen_peak_c83dbbd3), value = if (w.peakHr > 0) "${w.peakHr}" else "—")
+                        StatTile(modifier = Modifier.weight(1f), label = uiString(R.string.l10n_live_screen_effort_8c974bc6), value = UnitFormatter.effortDisplay(w.liveStrain, effortScale),
                             accent = Palette.strainColor(w.liveStrain))
                     }
                     if (w.gpsEnabled) {
                         Row(horizontalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-                            StatTile(modifier = Modifier.weight(1f), label = "Distance", value = liveDistance(w.distanceM, unitSystem))
-                            StatTile(modifier = Modifier.weight(1f), label = "Pace", value = w.paceSecPerKm?.let { livePace(it, unitSystem) } ?: "—")
+                            StatTile(modifier = Modifier.weight(1f), label = uiString(R.string.l10n_live_screen_distance_42320809), value = liveDistance(w.distanceM, unitSystem))
+                            StatTile(modifier = Modifier.weight(1f), label = uiString(R.string.l10n_live_screen_pace_7a9a6226), value = w.paceSecPerKm?.let { livePace(it, unitSystem) } ?: "—")
                         }
                     }
                     Button(
@@ -398,7 +400,7 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Palette.statusCritical, contentColor = Palette.surfaceBase,
                         ),
-                    ) { Text("End workout", style = NoopType.captionNumber) }
+                    ) { Text(uiString(R.string.l10n_live_screen_end_workout_3e8d6238), style = NoopType.captionNumber) }
                 }
             }
         } else {
@@ -415,7 +417,7 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
                     ),
                 ) {
                     Text(
-                        "Start workout", style = NoopType.captionNumber,
+                        uiString(R.string.l10n_live_screen_start_workout_d0f3f2cd), style = NoopType.captionNumber,
                         maxLines = 1, softWrap = false, overflow = TextOverflow.Clip,
                     )
                 }
@@ -432,7 +434,7 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
                         modifier = Modifier.size(18.dp).padding(end = 4.dp),
                     )
                     Text(
-                        "Refresh", style = NoopType.captionNumber,
+                        uiString(R.string.l10n_live_screen_refresh_56e3badc), style = NoopType.captionNumber,
                         maxLines = 1, softWrap = false, overflow = TextOverflow.Clip,
                     )
                 }
@@ -446,7 +448,7 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
                     row.strain?.let { "strain ${UnitFormatter.effortDisplay(it, effortScale)}" },
                 )
                 Text(
-                    "✓ ${row.sport} saved · ${parts.joinToString(" · ")}",
+                    uiString(R.string.live_workout_saved_summary, row.sport, parts.joinToString(" · ")),
                     style = NoopType.footnote, color = Palette.textSecondary,
                 )
                 row.routePolyline?.let { RouteCanvas(it, modifier = Modifier.padding(top = 8.dp)) }
@@ -467,7 +469,7 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
                     modifier = Modifier.size(18.dp).padding(end = 4.dp),
                 )
                 Text(
-                    "Take an HRV reading", style = NoopType.captionNumber,
+                    uiString(R.string.l10n_live_screen_take_an_hrv_reading_20ecb2d2), style = NoopType.captionNumber,
                     maxLines = 1, softWrap = false, overflow = TextOverflow.Clip,
                 )
             }
@@ -488,7 +490,7 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
                 horizontalArrangement = Arrangement.spacedBy(Metrics.gap),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Strap", style = NoopType.footnote, color = Palette.textSecondary)
+                Text(uiString(R.string.l10n_live_screen_strap_02b88eeb), style = NoopType.footnote, color = Palette.textSecondary)
                 SegmentedPillControl(
                     items = WhoopModel.entries.toList(),
                     selection = selectedModel,
@@ -500,7 +502,7 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
             // nothing while it's still paired in the official WHOOP app. Shown the moment 5/MG is picked.
             if (selectedModel == WhoopModel.WHOOP5_MG) {
                 Text(
-                    "WHOOP 5.0/MG pairs with one app at a time. If a scan finds nothing, unpair it in " +
+                    uiString(R.string.l10n_live_screen_whoop_5_0_mg_pairs_with_b93143f2) +
                         "the official WHOOP app and fully close that app, then Connect again.",
                     style = NoopType.footnote,
                     color = Palette.textSecondary,
@@ -565,7 +567,7 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
                         .padding(end = 4.dp),
                 )
                 Text(
-                    "Buzz",
+                    uiString(R.string.l10n_live_screen_buzz_edbd47b2),
                     style = NoopType.captionNumber,
                     maxLines = 1,
                     softWrap = false,
@@ -588,7 +590,7 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
                         .padding(end = 4.dp),
                 )
                 Text(
-                    "End",
+                    uiString(R.string.l10n_live_screen_end_a2bb9d34),
                     style = NoopType.captionNumber,
                     maxLines = 1,
                     softWrap = false,
@@ -665,13 +667,13 @@ private fun MaxHrZoneCard(hrMax: Int, zone5Bpm: Int, coachingOn: Boolean) {
             Row(horizontalArrangement = Arrangement.spacedBy(Metrics.gap)) {
                 StatTile(
                     modifier = Modifier.weight(1f),
-                    label = "Max HR",
+                    label = uiString(R.string.l10n_live_screen_max_hr_6acd9e07),
                     value = "$hrMax bpm",
                     accent = Palette.textPrimary,
                 )
                 StatTile(
                     modifier = Modifier.weight(1f),
-                    label = "Top zone",
+                    label = uiString(R.string.l10n_live_screen_top_zone_282d0f66),
                     value = "≥ $zone5Bpm bpm",
                     accent = if (coachingOn) Palette.accent else Palette.textTertiary,
                 )
@@ -722,10 +724,10 @@ private fun ActiveBandRow(name: String, onManageDevices: () -> Unit) {
                         indication = null,
                         onClick = onManageDevices,
                     )
-                    .semantics { contentDescription = "Manage devices" }
+                    .semantics { contentDescription = uiString(R.string.l10n_live_screen_manage_devices_e5c277ff) }
                     .padding(horizontal = 8.dp, vertical = 6.dp),
             ) {
-                Text("Manage devices", style = NoopType.subhead, color = Palette.accent)
+                Text(uiString(R.string.l10n_live_screen_manage_devices_e5c277ff), style = NoopType.subhead, color = Palette.accent)
                 Icon(
                     Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
@@ -794,7 +796,7 @@ private fun HeaderStat(title: String, value: String, charging: Boolean = false) 
             if (charging) {
                 Icon(
                     Icons.Filled.Bolt,
-                    contentDescription = "Charging",
+                    contentDescription = uiString(R.string.l10n_live_screen_charging_5f99fe21),
                     tint = Palette.statusPositive,
                     modifier = Modifier.size(14.dp),
                 )
@@ -827,9 +829,9 @@ private fun OfflineConnectCallout(scanning: Boolean, onConnect: () -> Unit) {
                     modifier = Modifier.size(20.dp),
                 )
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Start a live stream", style = NoopType.headline, color = Palette.textPrimary)
+                    Text(uiString(R.string.l10n_live_screen_start_a_live_stream_419bf5aa), style = NoopType.headline, color = Palette.textPrimary)
                     Text(
-                        "Scan and connect to start a live stream.",
+                        uiString(R.string.l10n_live_screen_scan_and_connect_to_start_a_3e27b47b),
                         style = NoopType.subhead,
                         color = Palette.textSecondary,
                     )
@@ -978,7 +980,7 @@ private fun HeartReadout(live: LiveState, bpm: Int?, activeConnection: Boolean, 
                 }
                 Text("bpm", style = NoopType.subhead, color = Palette.textSecondary)
                 if (zone >= 1) {
-                    Text("ZONE $zone", style = NoopType.overline, color = tint)
+                    Text(uiString(R.string.l10n_live_screen_zone_zone_b8e9c0f9, zone), style = NoopType.overline, color = tint)
                 }
             }
         }
@@ -1002,8 +1004,8 @@ private fun PhysiologyStack(live: LiveState, activeConnection: Boolean) {
             }
             if (rmssd != null) {
                 Column(horizontalAlignment = Alignment.End) {
-                    Text("RMSSD", style = NoopType.footnote, color = Palette.textTertiary)
-                    Text("${rmssd.roundToInt()} ms", style = NoopType.number(24f), color = Palette.metricCyan)
+                    Text(uiString(R.string.l10n_live_screen_rmssd_e240fd3c), style = NoopType.footnote, color = Palette.textTertiary)
+                    Text(uiString(R.string.l10n_live_screen_rmssd_roundtoint_ms_9e6c0887, rmssd.roundToInt()), style = NoopType.number(24f), color = Palette.metricCyan)
                 }
             }
         }
@@ -1103,7 +1105,7 @@ private fun LiveProofMetric(modifier: Modifier, label: String, value: String, ti
 private fun SignalTrustRail(live: LiveState, bpm: Int?, activeConnection: Boolean) {
     val tiles = signalTiles(live, bpm, activeConnection)
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-        SectionHeader(title = "Signal Trust", overline = "Proof that the console is current")
+        SectionHeader(title = uiString(R.string.l10n_live_screen_signal_trust_4a91fe00), overline = "Proof that the console is current")
         // Two tiles per row (a LazyVerticalGrid can't live inside the scrolling ScreenScaffold —
         // infinite-height constraints — so use fixed Rows, the correct Compose idiom here).
         tiles.chunked(2).forEach { rowTiles ->

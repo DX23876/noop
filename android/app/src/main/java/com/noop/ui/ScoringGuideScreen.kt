@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import android.content.Context
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
@@ -248,9 +250,9 @@ private fun Header(onClose: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Overline("Your daily scores", color = Palette.textTertiary)
-            Text("How your scores work", style = NoopType.display(26f), color = Palette.textPrimary)
+            Text(uiString(R.string.l10n_scoring_guide_screen_how_your_scores_work_21a0e2be), style = NoopType.display(26f), color = Palette.textPrimary)
             Text(
-                "Charge · Effort · Rest",
+                uiString(R.string.l10n_scoring_guide_screen_charge_effort_rest_f396a530),
                 style = NoopType.caption,
                 color = Palette.textSecondary,
             )
@@ -258,7 +260,7 @@ private fun Header(onClose: () -> Unit) {
         IconButton(onClick = onClose, modifier = Modifier.size(36.dp)) {
             Icon(
                 Icons.Filled.Close,
-                contentDescription = "Close",
+                contentDescription = uiString(R.string.l10n_scoring_guide_screen_close_bbfa773e),
                 tint = Palette.textTertiary,
                 modifier = Modifier.size(22.dp),
             )
@@ -274,7 +276,7 @@ private fun IntroCard() {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Overline("The three scores")
             Text(
-                "NOOP gives you three daily scores (Charge, Effort and Rest), each on a 0-100 " +
+                uiString(R.string.l10n_scoring_guide_screen_noop_gives_you_three_daily_scores_36244209) +
                     "scale. They're built from your strap's raw signals using published, " +
                     "peer-reviewed sport science, and computed entirely on your device. They are " +
                     "NOT WHOOP's scores: we don't have WHOOP's private algorithms and don't pretend " +
@@ -323,7 +325,7 @@ private fun ScoreCard(
     // Deep-link highlight: a brief accent ring when arrived at via an ⓘ, fading back to the hairline.
     val ringColor by animateColorAsState(
         targetValue = if (highlighted) section.accent else Palette.hairline,
-        label = "scoreCardHighlight",
+        label = uiString(R.string.l10n_scoring_guide_screen_scorecardhighlight_4af6985c),
     )
     val shape = RoundedCornerShape(Metrics.cardRadius)
     Box(
@@ -374,7 +376,7 @@ private fun ScoreCard(
                 verticalAlignment = Alignment.Top,
             ) {
                 Text(
-                    "VS WHOOP",
+                    uiString(R.string.l10n_scoring_guide_screen_vs_whoop_9a8126a7),
                     style = NoopType.overline,
                     color = section.accent,
                     modifier = Modifier.padding(top = 1.dp),
@@ -423,7 +425,7 @@ private fun ConfidenceCard() {
     NoopCard(padding = 20.dp) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
-                "How sure is NOOP?  ·  Solid · Building · Calibrating",
+                uiString(R.string.l10n_scoring_guide_screen_how_sure_is_noop_solid_building_c21d86d7),
                 style = NoopType.headline,
                 color = Palette.textPrimary,
             )
@@ -433,7 +435,7 @@ private fun ConfidenceCard() {
                 StatePill("Calibrating", tone = StrandTone.Neutral, showsDot = true)
             }
             Text(
-                "Every score carries a small honesty label. Calibrating means NOOP is still " +
+                uiString(R.string.l10n_scoring_guide_screen_every_score_carries_a_small_honesty_e5b722eb) +
                     "learning your baseline, or doesn't have enough data yet. Building means there's " +
                     "enough to show, but it's thin. Solid means full inputs are present. When NOOP " +
                     "can't compute a score honestly, it shows nothing rather than a fake number.",
@@ -449,7 +451,7 @@ private fun ConfidenceCard() {
 @Composable
 private fun FooterNote() {
     Text(
-        "These are independent approximations from a consumer strap, built on open science: not " +
+        uiString(R.string.l10n_scoring_guide_screen_these_are_independent_approximations_from_a_301457ed) +
             "medical advice, and not WHOOP's official scores.",
         style = NoopType.footnote,
         color = Palette.textTertiary,
@@ -474,7 +476,7 @@ private fun Footer(onClose: () -> Unit) {
                 contentColor = Palette.surfaceBase,
             ),
         ) {
-            Text("Got it", style = NoopType.captionNumber)
+            Text(uiString(R.string.l10n_scoring_guide_screen_got_it_5b8027fa), style = NoopType.captionNumber)
         }
     }
 }

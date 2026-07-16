@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -177,7 +179,7 @@ fun HydrationScreen(viewModel: AppViewModel) {
     // pattern — LiquidScreenSky.kt), replacing the classic flat canvas. Gated on the day-cycle pref, so an
     // opted-out user still gets the plain surface. Mirrors the liquid Today scaffold.
     LazyScreenScaffold(
-        title = "Hydration",
+        title = uiString(R.string.l10n_hydration_screen_hydration_bdfb040f),
         subtitle = "Your fluid intake today, on this phone only.",
         topBackground = if (showDayCycleBackground) { { LiquidScreenSky(fillHeight = skyBehindCards) } } else null,
         // Sky-behind-cards fills the viewport so the transparent cards reveal the sky the whole way
@@ -249,11 +251,11 @@ fun HydrationScreen(viewModel: AppViewModel) {
                             .fillMaxWidth()
                             .semantics {
                                 contentDescription =
-                                    "${kotlin.math.min(100, (fraction * 100).toInt())} percent of today's goal"
+                                    uiString(R.string.l10n_hydration_screen_kotlin_math_min_100_fraction_100_416d2889, kotlin.math.min(100, (fraction * 100).toInt()))
                             },
                     )
                     Text(
-                        "${kotlin.math.min(100, (fraction * 100).toInt())}% of today's goal",
+                        uiString(R.string.l10n_hydration_screen_kotlin_math_min_100_fraction_100_72f2dfde, kotlin.math.min(100, (fraction * 100).toInt())),
                         style = NoopType.footnote,
                         color = Color.White.copy(alpha = 0.6f),
                     )
@@ -267,19 +269,19 @@ fun HydrationScreen(viewModel: AppViewModel) {
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                 LiquidLogTile(
-                    label = "Sip",
+                    label = uiString(R.string.l10n_hydration_screen_sip_78cca3e8),
                     icon = Icons.Filled.WaterDrop,
                     accent = accent,
                     modifier = Modifier.weight(1f),
                 ) { log(HydrationGoal.SIP_ML) }
                 LiquidLogTile(
-                    label = "Cup",
+                    label = uiString(R.string.l10n_hydration_screen_cup_04b95071),
                     icon = Icons.Filled.LocalDrink,
                     accent = accent,
                     modifier = Modifier.weight(1f),
                 ) { log(HydrationGoal.CUP_ML) }
                 LiquidLogTile(
-                    label = "Bottle",
+                    label = uiString(R.string.l10n_hydration_screen_bottle_3b8ac6c7),
                     icon = Icons.Filled.LocalDrink,
                     accent = accent,
                     modifier = Modifier.weight(1f),
@@ -291,7 +293,7 @@ fun HydrationScreen(viewModel: AppViewModel) {
         // NoopButton — it carries its own press feedback and this is a secondary affordance, not a quick-log.)
         item {
             NoopButton(
-                text = "Custom amount",
+                text = uiString(R.string.l10n_hydration_screen_custom_amount_f7219236),
                 leadingIcon = Icons.Filled.Add,
                 kind = NoopButtonKind.Secondary,
                 modifier = Modifier.fillMaxWidth(),
@@ -299,7 +301,7 @@ fun HydrationScreen(viewModel: AppViewModel) {
         }
         item {
             Text(
-                "Sip ${HydrationGoal.SIP_ML} ml · Cup ${HydrationGoal.CUP_ML} ml · Bottle ${HydrationGoal.BOTTLE_ML} ml",
+                uiString(R.string.l10n_hydration_screen_sip_hydrationgoal_sip_ml_ml_cup_287647f5, HydrationGoal.SIP_ML, HydrationGoal.CUP_ML, HydrationGoal.BOTTLE_ML),
                 style = NoopType.footnote,
                 color = Palette.textTertiary,
             )
@@ -324,7 +326,7 @@ fun HydrationScreen(viewModel: AppViewModel) {
                     Overline("Today")
                     if (totalMl <= 0.0) {
                         Text(
-                            "No drinks logged yet. Tap Sip, Cup or Bottle to start.",
+                            uiString(R.string.l10n_hydration_screen_no_drinks_logged_yet_tap_sip_cc0d2f72),
                             style = NoopType.subhead,
                             color = Palette.textSecondary,
                         )
@@ -341,13 +343,13 @@ fun HydrationScreen(viewModel: AppViewModel) {
                             )
                             Spacer(Modifier.width(10.dp))
                             Text(
-                                "Logged today",
+                                uiString(R.string.l10n_hydration_screen_logged_today_0071a46c),
                                 style = NoopType.subhead,
                                 color = Palette.textPrimary,
                                 modifier = Modifier.weight(1f),
                             )
                             Text(
-                                "${totalMl.toInt()} ml",
+                                uiString(R.string.l10n_hydration_screen_totalml_toint_ml_522b262a, totalMl.toInt()),
                                 style = NoopType.headline.copy(fontWeight = FontWeight.SemiBold),
                                 color = Palette.textPrimary,
                             )
@@ -359,14 +361,14 @@ fun HydrationScreen(viewModel: AppViewModel) {
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                             lastLoggedMl?.let { last ->
                                 NoopButton(
-                                    text = "Undo last ($last ml)",
+                                    text = uiString(R.string.l10n_hydration_screen_undo_last_last_ml_330befc5, last),
                                     leadingIcon = Icons.AutoMirrored.Filled.Undo,
                                     kind = NoopButtonKind.Secondary,
                                     modifier = Modifier.weight(1f),
                                 ) { remove(last) }
                             }
                             NoopButton(
-                                text = "Clear today",
+                                text = uiString(R.string.l10n_hydration_screen_clear_today_1be870ea),
                                 leadingIcon = Icons.Filled.Delete,
                                 kind = NoopButtonKind.Secondary,
                                 modifier = Modifier.weight(1f),
@@ -379,7 +381,7 @@ fun HydrationScreen(viewModel: AppViewModel) {
 
         item {
             Text(
-                "A simple goal that adjusts to your effort. General wellness guidance, not medical advice.",
+                uiString(R.string.l10n_hydration_screen_a_simple_goal_that_adjusts_to_723dc08a),
                 style = NoopType.footnote,
                 color = Palette.textTertiary,
                 textAlign = TextAlign.Start,
@@ -448,7 +450,7 @@ private fun HydrationHistoryBars(
     accent: Color,
 ) {
     if (history.isEmpty()) {
-        Text("No history yet.", style = NoopType.footnote, color = Palette.textTertiary)
+        Text(uiString(R.string.l10n_hydration_screen_no_history_yet_933f417e), style = NoopType.footnote, color = Palette.textTertiary)
         return
     }
     val goal = goalMl.coerceAtLeast(1).toDouble()
@@ -540,7 +542,7 @@ private fun CustomAmountDialog(
                     modifier = Modifier.size(20.dp),
                 )
                 Spacer(Modifier.width(10.dp))
-                Text("Custom amount", style = NoopType.title2, color = Palette.textPrimary)
+                Text(uiString(R.string.l10n_hydration_screen_custom_amount_f7219236), style = NoopType.title2, color = Palette.textPrimary)
             }
         },
         text = {
@@ -548,7 +550,7 @@ private fun CustomAmountDialog(
                 OutlinedTextField(
                     value = text,
                     onValueChange = { new -> text = new.filter { it.isDigit() }.take(5) },
-                    label = { Text("Millilitres (ml)", style = NoopType.footnote) },
+                    label = { Text(uiString(R.string.l10n_hydration_screen_millilitres_ml_0fb0d2a4), style = NoopType.footnote) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -565,7 +567,7 @@ private fun CustomAmountDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
-                    "Enter any amount from 1 to $MAX_CUSTOM_ML ml.",
+                    uiString(R.string.l10n_hydration_screen_enter_any_amount_from_1_to_a85a639e, MAX_CUSTOM_ML),
                     style = NoopType.footnote,
                     color = if (text.isNotEmpty() && parsed == null) Palette.statusWarning else Palette.textTertiary,
                 )
@@ -573,12 +575,12 @@ private fun CustomAmountDialog(
         },
         confirmButton = {
             TextButton(onClick = { parsed?.let(onConfirm) }, enabled = parsed != null) {
-                Text("Log", color = if (parsed != null) accent else Palette.textTertiary)
+                Text(uiString(R.string.l10n_hydration_screen_log_8bf95ea3), color = if (parsed != null) accent else Palette.textTertiary)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = Palette.textSecondary)
+                Text(uiString(R.string.l10n_hydration_screen_cancel_77dfd213), color = Palette.textSecondary)
             }
         },
     )

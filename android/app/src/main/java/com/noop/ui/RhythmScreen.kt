@@ -1,5 +1,7 @@
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import android.content.Context
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
@@ -135,10 +137,10 @@ fun RhythmConsentGate(
     Surface(modifier = Modifier.fillMaxSize(), color = Palette.surfaceBase) {
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
             Spacer(Modifier.height(40.dp))
-            Text("Before you turn on Rhythm", style = NoopType.title1, color = Palette.textPrimary)
+            Text(uiString(R.string.l10n_rhythm_screen_before_you_turn_on_rhythm_e85a832c), style = NoopType.title1, color = Palette.textPrimary)
             Spacer(Modifier.height(4.dp))
             Text(
-                "An experimental picture of your beat-to-beat timing. Please read these first.",
+                uiString(R.string.l10n_rhythm_screen_an_experimental_picture_of_your_beat_966289c6),
                 style = NoopType.subhead, color = Palette.textSecondary,
             )
             Spacer(Modifier.height(20.dp))
@@ -154,7 +156,7 @@ fun RhythmConsentGate(
                     }
                 }
                 Text(
-                    "This is a wellness visualization, not a screening test. It does not tell you to see a clinician and it names no condition. This is not legal or medical advice.",
+                    uiString(R.string.l10n_rhythm_screen_this_is_a_wellness_visualization_not_3409b935),
                     style = NoopType.footnote, color = Palette.textTertiary,
                 )
             }
@@ -168,7 +170,7 @@ fun RhythmConsentGate(
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    "I understand this is an experimental wellness feature, not a medical device or a diagnosis.",
+                    uiString(R.string.l10n_rhythm_screen_i_understand_this_is_an_experimental_3dab06e6),
                     style = NoopType.footnote, color = Palette.textPrimary,
                     modifier = Modifier.padding(top = 14.dp),
                 )
@@ -183,11 +185,11 @@ fun RhythmConsentGate(
                     contentColor = Palette.goldDeepText,
                 ),
             ) {
-                Text("Turn on Rhythm", style = NoopType.body)
+                Text(uiString(R.string.l10n_rhythm_screen_turn_on_rhythm_2275168c), style = NoopType.body)
             }
             if (onCancel != null) {
                 TextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) {
-                    Text("Not now", style = NoopType.body, color = Palette.gold)
+                    Text(uiString(R.string.l10n_rhythm_screen_not_now_e4571490), style = NoopType.body, color = Palette.gold)
                 }
             }
             Spacer(Modifier.height(24.dp))
@@ -246,12 +248,12 @@ private fun RhythmVisualization(
     // only on-screen cards compose + are accessibility-walked, with the LazyColumn's `spacedBy(20.dp)`
     // reproducing the eager column's inter-card spacing exactly. The Poincaré PlotCard is the heavy one.
     LazyScreenScaffold(
-        title = "Rhythm",
+        title = uiString(R.string.l10n_rhythm_screen_rhythm_c715bb28),
         subtitle = "An experimental picture of your beat-to-beat timing",
         trailing = if (onClose != null) {
             {
                 IconButton(onClick = onClose) {
-                    Icon(Icons.Filled.Close, contentDescription = "Close Rhythm", tint = Palette.textTertiary)
+                    Icon(Icons.Filled.Close, contentDescription = uiString(R.string.l10n_rhythm_screen_close_rhythm_e0239fa8), tint = Palette.textTertiary)
                 }
             }
         } else {
@@ -263,7 +265,7 @@ private fun RhythmVisualization(
         if (allPoints.isEmpty()) {
             item {
             DataPendingNote(
-                title = "No clear reading yet",
+                title = uiString(R.string.l10n_rhythm_screen_no_clear_reading_yet_92f40443),
                 body = "Rhythm only looks during quiet, still, resting windows, so it needs a calm night's worth of steady beats. Once there's a clean window, the scatter and its description show here.",
             )
             }
@@ -341,7 +343,7 @@ private fun PlotCard(points: List<RhythmScreener.PoincarePoint>) {
                 )
             }
             Text(
-                "Each dot pairs one heartbeat interval with the next. A tight line along the diagonal means a steady beat; a rounder, more spread-out cloud means the timing varied more.",
+                uiString(R.string.l10n_rhythm_screen_each_dot_pairs_one_heartbeat_interval_07a1502c),
                 style = NoopType.footnote, color = Palette.textTertiary,
             )
         }
@@ -408,39 +410,39 @@ private fun PoincarePlot(
 @Composable
 private fun StatsCard(headline: RhythmScreener.WindowResult?) {
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-        SectionHeader(title = "The numbers", overline = "Descriptive stats")
+        SectionHeader(title = uiString(R.string.l10n_rhythm_screen_the_numbers_7b3cbf64), overline = "Descriptive stats")
         Row(horizontalArrangement = Arrangement.spacedBy(Metrics.gap)) {
             StatTile(
-                label = "Short axis", value = fmt(headline?.sd1, "%.0f"),
+                label = uiString(R.string.l10n_rhythm_screen_short_axis_66a0b7bf), value = fmt(headline?.sd1, "%.0f"),
                 caption = "SD1 · ms", accent = Palette.restBright,
                 modifier = Modifier.weight(1f),
             )
             StatTile(
-                label = "Long axis", value = fmt(headline?.sd2, "%.0f"),
+                label = uiString(R.string.l10n_rhythm_screen_long_axis_02300830), value = fmt(headline?.sd2, "%.0f"),
                 caption = "SD2 · ms", accent = Palette.restColor,
                 modifier = Modifier.weight(1f),
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(Metrics.gap)) {
             StatTile(
-                label = "Cloud shape", value = fmt(headline?.sd1sd2, "%.2f"),
+                label = uiString(R.string.l10n_rhythm_screen_cloud_shape_2a745ff0), value = fmt(headline?.sd1sd2, "%.2f"),
                 caption = "SD1:SD2 ratio", accent = Palette.metricCyan,
                 modifier = Modifier.weight(1f),
             )
             StatTile(
-                label = "Beat-to-beat", value = percent(headline?.normRmssd),
+                label = uiString(R.string.l10n_rhythm_screen_beat_to_beat_34a3a652), value = percent(headline?.normRmssd),
                 caption = "variation index", accent = Palette.metricPurple,
                 modifier = Modifier.weight(1f),
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(Metrics.gap)) {
             StatTile(
-                label = "Extra / skipped", value = percent(headline?.ectopicFraction),
+                label = uiString(R.string.l10n_rhythm_screen_extra_skipped_4a153489), value = percent(headline?.ectopicFraction),
                 caption = "of beats", accent = Palette.restColor,
                 modifier = Modifier.weight(1f),
             )
             StatTile(
-                label = "Beats read", value = headline?.nBeats?.toString() ?: "—",
+                label = uiString(R.string.l10n_rhythm_screen_beats_read_15da45e3), value = headline?.nBeats?.toString() ?: "—",
                 caption = "clean intervals", accent = Palette.textSecondary,
                 modifier = Modifier.weight(1f),
             )
@@ -456,7 +458,7 @@ private fun MethodologyCard() {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Overline("How this is measured")
             Text(
-                "During quiet, still, resting windows, NOOP looks at the timing between your heartbeats (R-R intervals) and draws their Poincaré scatter. From the cloud it computes its short and long axes (SD1, SD2) and a few plain regularity numbers. Movement and noisy windows are skipped, not shown. These are transparent, published descriptive statistics: a picture of your timing, never a clinical measurement.",
+                uiString(R.string.l10n_rhythm_screen_during_quiet_still_resting_windows_noop_45488969),
                 style = NoopType.footnote, color = Palette.textTertiary,
             )
         }
@@ -481,7 +483,7 @@ private fun RhythmDisclaimerNote() {
                 modifier = Modifier.size(18.dp),
             )
             Text(
-                "Experimental wellness visualization: not a diagnosis, not an ECG, and not a medical device. It cannot detect any heart condition. Beat-to-beat variation has many ordinary, benign causes. If you feel unwell or are worried, contact a qualified professional; in an emergency, your local emergency service. Everything is computed on your device.",
+                uiString(R.string.l10n_rhythm_screen_experimental_wellness_visualization_not_a_diagnosis_0745e8b7),
                 style = NoopType.footnote, color = Palette.textTertiary,
             )
         }

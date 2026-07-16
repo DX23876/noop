@@ -2,6 +2,8 @@
 
 package com.noop.ui
 
+import com.noop.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -90,7 +92,7 @@ fun UpdatesInboxScreen(
         // Header — "INBOX" overline + "Updates" title + a live subtitle.
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Overline("Inbox", color = Palette.textTertiary)
-            Text("Updates", style = NoopType.title1, color = Palette.textPrimary)
+            Text(uiString(R.string.l10n_updates_inbox_screen_updates_c76d1807), style = NoopType.title1, color = Palette.textPrimary)
             Text(subtitle(store), style = NoopType.caption, color = Palette.textSecondary)
         }
 
@@ -99,7 +101,7 @@ fun UpdatesInboxScreen(
         } else {
             if (unread.isNotEmpty()) {
                 InboxSection(
-                    label = "New",
+                    label = uiString(R.string.l10n_updates_inbox_screen_new_6403f2b7),
                     items = unread,
                     onTap = { handleTap(it, store, onDeepLink, onClose) },
                     onRestore = { handleRestore(it, store, onRestore, onClose) },
@@ -109,7 +111,7 @@ fun UpdatesInboxScreen(
             }
             if (read.isNotEmpty()) {
                 InboxSection(
-                    label = "Earlier",
+                    label = uiString(R.string.l10n_updates_inbox_screen_earlier_13f7aee7),
                     items = read,
                     onTap = { handleTap(it, store, onDeepLink, onClose) },
                     onRestore = { handleRestore(it, store, onRestore, onClose) },
@@ -134,7 +136,7 @@ fun UpdatesInboxScreen(
                         modifier = Modifier.size(Metrics.iconSmall),
                     )
                     Spacer(Modifier.width(6.dp))
-                    Text("Clear all", style = NoopType.subhead, color = Palette.textSecondary)
+                    Text(uiString(R.string.l10n_updates_inbox_screen_clear_all_c043160a), style = NoopType.subhead, color = Palette.textSecondary)
                 }
                 Spacer(Modifier.weight(1f))
                 Button(
@@ -157,7 +159,7 @@ fun UpdatesInboxScreen(
                         modifier = Modifier.size(Metrics.iconSmall),
                     )
                     Spacer(Modifier.width(6.dp))
-                    Text("Mark all read", style = NoopType.subhead)
+                    Text(uiString(R.string.l10n_updates_inbox_screen_mark_all_read_8958e22c), style = NoopType.subhead)
                 }
             }
         }
@@ -270,7 +272,7 @@ private fun SwipeBackground(direction: SwipeToDismissBoxValue) {
                     tint = contentColor,
                     modifier = Modifier.size(Metrics.iconSmall),
                 )
-                Text("Mark read", style = NoopType.subhead, color = contentColor)
+                Text(uiString(R.string.l10n_updates_inbox_screen_mark_read_3bf98fa6), style = NoopType.subhead, color = contentColor)
             }
         }
     }
@@ -354,7 +356,7 @@ private fun UpdateRow(
                             modifier = Modifier.size(Metrics.iconSmall),
                         )
                         Spacer(Modifier.width(6.dp))
-                        Text("Restore to Today", style = NoopType.subhead, color = Palette.accent)
+                        Text(uiString(R.string.l10n_updates_inbox_screen_restore_to_today_77c7c8e5), style = NoopType.subhead, color = Palette.accent)
                     }
                 }
             }
@@ -377,9 +379,9 @@ private fun EmptyInboxState() {
             tint = Palette.textTertiary,
             modifier = Modifier.size(34.dp),
         )
-        Text("You're all caught up.", style = NoopType.headline, color = Palette.textPrimary)
+        Text(uiString(R.string.l10n_updates_inbox_screen_you_re_all_caught_up_3d39c469), style = NoopType.headline, color = Palette.textPrimary)
         Text(
-            "New release notes and fresh data will land here.",
+            uiString(R.string.l10n_updates_inbox_screen_new_release_notes_and_fresh_data_1632c576),
             style = NoopType.subhead,
             color = Palette.textSecondary,
         )

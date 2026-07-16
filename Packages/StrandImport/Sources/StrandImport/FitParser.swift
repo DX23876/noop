@@ -128,12 +128,14 @@ private struct FitDecoder {
     private var sessionElapsed: Double?
     private var sessionDistance: Double?
     private var sessionCalories: Double?
+    private var sessionSteps: Int?
     private var sessionAscent: Double?
     private var sessionAvgHr: Int?
     private var sessionMaxHr: Int?
 
     private var lapDistanceSum = 0.0
     private var lapCalorieSum = 0.0
+    private var lapStepSum = 0
     private var lapAscentSum = 0.0
     private var lapMaxHr: Int?
 
@@ -303,6 +305,11 @@ private struct FitDecoder {
                 if let v = uintField(at: offset, size: f.size, bigEndian: def.bigEndian), v != 0xFFFF {
                     lapCalorieSum += Double(v)
                 }
+            case 10: // total_cycles; converted to steps only for foot activities in buildResult().
+                if let v = uintField(at: offset, size: f.size, bigEndian: def.bigEndian),
+                   let steps = Self.validSteps(v, size: f.size) {
+                    lapStepSum += steps
+                }
             case 21: // total_ascent (u16 metres)
                 if let v = uintField(at: offset, size: f.size, bigEndian: def.bigEndian), v != 0xFFFF {
                     lapAscentSum += Double(v)
@@ -339,6 +346,10 @@ private struct FitDecoder {
             case 11: // total_calories (u16 kcal)
                 if let v = uintField(at: offset, size: f.size, bigEndian: def.bigEndian), v != 0xFFFF {
                     sessionCalories = Double(v)
+                }
+            case 10: // total_cycles; converted to steps only for foot activities in buildResult().
+                if let v = uintField(at: offset, size: f.size, bigEndian: def.bigEndian) {
+                    sessionSteps = Self.validSteps(v, size: f.size)
                 }
             case 22: // total_ascent (u16 metres)
                 if let v = uintField(at: offset, size: f.size, bigEndian: def.bigEndian), v != 0xFFFF {
@@ -424,6 +435,19 @@ private struct FitDecoder {
         }
     }
 
+    static func validSteps(_ v: UInt64, size: Int) -> Int? {
+        let invalid = size >= 8 ? UInt64.max : ((UInt64(1) << UInt64(size * 8)) - 1)
+        guard v != invalid, v > 0, v <= 1_000_000 else { return nil }
+        return Int(v)
+    }
+
+    static func isFootSport(_ sport: String?) -> Bool {
+        switch sport?.lowercased() {
+        case "running", "walking", "hiking": return true
+        default: return false
+        }
+    }
+
     // MARK: - Build
 
     func buildResult() -> ActivityFileImportResult {
@@ -438,6 +462,7 @@ private struct FitDecoder {
         let distance = sessionDistance
             ?? (lapDistanceSum > 0 ? lapDistanceSum : (route.count >= 2 ? ActivityFileImporter.routeDistanceM(route) : nil))
         let calories = sessionCalories ?? (lapCalorieSum > 0 ? lapCalorieSum : nil)
+        let steps = Self.isFootSport(sessionSport) ? (sessionSteps ?? (lapStepSum > 0 ? lapStepSum : nil)) : nil
         let ascent = sessionAscent
             ?? (lapAscentSum > 0 ? lapAscentSum : ActivityFileImporter.ascentM(from: samples))
 
@@ -463,6 +488,7 @@ private struct FitDecoder {
             sport: sessionSport,
             distanceM: distance,
             energyKcal: calories,
+            steps: steps,
             avgHr: avgHr,
             maxHr: maxHr,
             ascentM: ascent,
