@@ -26,7 +26,7 @@ object AppChangelog {
      * Bump this when you add a release below. The "What's New" sheet shows automatically when the
      * stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
      */
-    const val CURRENT_VERSION = "9.0.0"
+    const val CURRENT_VERSION = "9.0.1"
 
     data class Release(
         val version: String,
@@ -37,6 +37,18 @@ object AppChangelog {
 
     /** Newest first. */
     val releases: List<Release> = listOf(
+        Release(
+            version = "9.0.1",
+            title = "German, French & Spanish, pull-to-sync on Today, and a wave of polish",
+            date = "July 2026",
+            items = listOf(
+                "**NOOP now speaks German, French and Spanish (#453).** The whole app — every screen and label — is translated across iPhone, Mac and Android, so it reads in your language end to end.",
+                "**Pull to sync on Today (#334).** Pull down on the Today screen to ask your strap for a fresh history sync — on iPhone, Mac and Android. It only fires when the strap is connected and ready, and the sync status keeps you posted.",
+                "**The day-cycle sky shows behind your cards by default.** The Today background now extends behind the whole scroll out of the box; turn it off in Settings if you prefer the flat canvas.",
+                "**Trend charts show the date when you inspect them (#492).** Tap or scrub a point on an Android trend chart and it shows the date beside the value now, matching iPhone and Mac.",
+                "**Fixes.** macOS can hold its Bluetooth permission again (#429), WHOOP 5.0/MG battery % shows reliably (#490), activity-file (FIT) imports fill in your steps (#483), and a batch of Today polish — the day title no longer clips, Strain drops a stray %, and the source badges sit right (#486, #492).",
+            ),
+        ),
         Release(
             version = "9.0.0",
             title = uiString(R.string.l10n_app_changelog_power_saving_that_protects_your_strap_57a32503),
