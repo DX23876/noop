@@ -132,6 +132,7 @@ enum AICoachError: LocalizedError {
     case decode
     case keySaveFailed
     case badCustomURL(String)
+    case noModel
 
     var errorDescription: String? {
         switch self {
@@ -139,6 +140,12 @@ enum AICoachError: LocalizedError {
             return message
         case .noKey:
             return "Add your own API key first to use the coach."
+        case .noModel:
+            // Reachable mainly on the Custom provider, whose model list starts empty on purpose. Say
+            // what to do rather than forwarding the server's 400, which reads as if the request itself
+            // were malformed.
+            return "Pick a model first. Tap Refresh next to Model in Coach settings to load the ones "
+                + "your provider offers, or type an id yourself."
         case .keySaveFailed:
             return "Couldn't save the key to the Keychain. The key was not stored, so try again."
         case .emptyQuestion:
@@ -671,10 +678,17 @@ final class AICoachEngine: ObservableObject {
 
             // Merge: keep the captured provider's built-in options on top, append any newly-discovered
             // ids (sorted), and preserve a current custom selection if it isn't otherwise present.
+            //
+            // "Current selection" only counts when there IS one. The Custom provider's defaultModel is
+            // empty by design (the user picks from the server's own list), so `model` is legitimately ""
+            // right up until they choose — and inserting that emptiness would make it a selectable entry
+            // AND the list's first, which `connectCustom()` then adopts as its default. The request
+            // would go out with `"model": ""` and come back a 400 that looks like the user's fault.
             let builtin = capturedProvider.modelOptions
             let discovered = Set(ids).subtracting(builtin).sorted()
             var merged = builtin + discovered
-            if !merged.contains(model) { merged.insert(model, at: 0) }
+            let current = model.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !current.isEmpty && !merged.contains(model) { merged.insert(model, at: 0) }
             availableModels = merged
         } catch {
             // A switch mid-flight makes any error moot for the old provider, so don't surface it.
@@ -693,6 +707,11 @@ final class AICoachEngine: ObservableObject {
         let trimmed = userText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { errorText = AICoachError.emptyQuestion.errorDescription; return }
         guard let key = resolvedKey else { errorText = AICoachError.noKey.errorDescription; return }
+        // Catch an unset model here rather than letting it reach the provider: every server answers a
+        // `"model": ""` body with an opaque 400 that gives the user nothing to act on.
+        guard !model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            errorText = AICoachError.noModel.errorDescription; return
+        }
 
         errorText = nil
         messages.append(ChatMessage(role: .user, text: trimmed))
