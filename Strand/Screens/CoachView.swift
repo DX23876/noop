@@ -27,6 +27,8 @@ struct CoachView: View {
     /// than two stacked `.sheet` modifiers (which don't compose reliably).
     private enum ActiveSheet: Int, Identifiable { case settings, history; var id: Int { rawValue } }
     @State private var activeSheet: ActiveSheet?
+    /// First-run goal onboarding (offered once, skippable — see the `.task` that arms it).
+    @State private var showGoalOnboarding = false
 
     private let suggestions = [
         String(localized: "How's my charge trending?"),
@@ -61,7 +63,24 @@ struct CoachView: View {
         .onReceive(NotificationCenter.default.publisher(for: .noopOpenCoachCheckIn)) { _ in
             Task { await coach.refreshBrief() }
         }
+        // Goal onboarding: offered ONCE, only to a configured coach with no goal yet, and skippable.
+        // The flag is set whichever way the sheet closes, so declining is respected permanently — you
+        // can always set a goal later from settings, and NOOP is fully usable without one.
+        .task {
+            guard coach.isConfigured,
+                  CoachGoalStore.shared.goal == nil,
+                  !UserDefaults.standard.bool(forKey: Self.goalOnboardingAskedKey) else { return }
+            showGoalOnboarding = true
+        }
+        .sheet(isPresented: $showGoalOnboarding) {
+            CoachGoalEditorView(isOnboarding: true) {
+                UserDefaults.standard.set(true, forKey: Self.goalOnboardingAskedKey)
+            }
+        }
     }
+
+    /// Set once the goal onboarding has been offered — saved or skipped — so it never nags twice.
+    static let goalOnboardingAskedKey = "coach.goalOnboardingAsked"
 
     /// The full-bleed day-of-sky backdrop the liquid tabs carry, so Coach sits in one atmosphere.
     private var chatBackground: some View {
