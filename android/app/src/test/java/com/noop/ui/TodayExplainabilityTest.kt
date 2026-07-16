@@ -3,6 +3,7 @@ package com.noop.ui
 import com.noop.analytics.FusionSource
 import com.noop.data.DailyMetric
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -362,5 +363,14 @@ class TodayExplainabilityTest {
                 usesCarriedRecovery = false,
             ),
         )
+    }
+
+    @Test
+    fun pullToSync_onlyEnabledWhenConnectedBondedAndIdle() {
+        assertTrue(todayPullToSyncEnabled(connected = true, bonded = true, backfilling = false))
+
+        assertFalse(todayPullToSyncEnabled(connected = false, bonded = true, backfilling = false))
+        assertFalse(todayPullToSyncEnabled(connected = true, bonded = false, backfilling = false))
+        assertFalse(todayPullToSyncEnabled(connected = true, bonded = true, backfilling = true))
     }
 }

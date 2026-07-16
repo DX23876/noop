@@ -58,6 +58,7 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -66,6 +67,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshContainer
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -98,6 +101,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.withFrameNanos
 import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
@@ -147,6 +151,7 @@ import com.noop.analytics.RestScorer
 import com.noop.analytics.ScoreConfidence
 import com.noop.analytics.StepsEstimateEngine
 import com.noop.analytics.StrainScorer
+import com.noop.ble.WhoopBleClient
 import com.noop.data.AppleDaily
 import com.noop.data.DailyMetric
 import com.noop.data.HrBucket
@@ -224,6 +229,7 @@ private val LIQUID_PURPLE: Color = Color(red = 0x9b / 255f, green = 0x7b / 255f,
  */
 private data class TodayLiveSnapshot(
     val connected: Boolean,
+    val bonded: Boolean,
     val hrStreaming: Boolean,
     val lastSyncAt: Long?,
     val backfilling: Boolean,
@@ -238,6 +244,7 @@ private data class TodayLiveSnapshot(
     val charging: Boolean?,
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TodayScreen(
     viewModel: AppViewModel,
@@ -289,6 +296,7 @@ fun TodayScreen(
             val s = live
             TodayLiveSnapshot(
                 connected = s.connected,
+                bonded = s.bonded,
                 hrStreaming = s.heartRate != null,
                 lastSyncAt = s.lastSyncAt,
                 backfilling = s.backfilling,
@@ -1041,7 +1049,21 @@ fun TodayScreen(
             onHorizontalDrag = { _, dragAmount -> accumulatedX += dragAmount },
         )
     }
+    val canPullToSync = todayPullToSyncEnabled(liveSnap.connected, liveSnap.bonded, liveSnap.backfilling)
+    val pullToSyncState = rememberPullToRefreshState(enabled = { canPullToSync })
+    LaunchedEffect(pullToSyncState.isRefreshing, canPullToSync) {
+        if (pullToSyncState.isRefreshing) {
+            if (canPullToSync) viewModel.syncNow()
+            // Historical offloads can run for a while; the existing sync chip/note owns ongoing progress.
+            pullToSyncState.endRefresh()
+        }
+    }
 
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .nestedScroll(pullToSyncState.nestedScrollConnection),
+    ) {
     LazyScreenScaffold(
         modifier = daySwipeModifier,
         // title = null suppresses the big scaffold header (the nullable-title path); the compact
@@ -1496,6 +1518,11 @@ fun TodayScreen(
                 onToggle = { sourcesExpanded = !sourcesExpanded },
             )
         }
+    }
+        PullToRefreshContainer(
+            state = pullToSyncState,
+            modifier = Modifier.align(Alignment.TopCenter),
+        )
     }
 
     // Scoring guide sheet, full-screen Dialog, mirroring Settings' What's-new presentation. Opened
@@ -4588,6 +4615,14 @@ internal fun scoreHeroSourceLabel(
         deviceId = deviceId,
     )
 }
+
+/** Today pull-to-sync mirrors the BLE client's manual-sync guard, so the gesture never starts a sync while
+ *  disconnected, still bonding, or already offloading. Kept pure for the UI-specific contract test. */
+internal fun todayPullToSyncEnabled(
+    connected: Boolean,
+    bonded: Boolean,
+    backfilling: Boolean,
+): Boolean = WhoopBleClient.canRequestSync(connected, bonded, backfilling)
 
 /** The tint for a per-metric provenance badge, keyed on the resolved LABEL, gold for Whoop, cyan for
  *  Apple Health, the positive status hue for on-device (and anything else). Matches the Data Sources
