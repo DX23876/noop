@@ -746,6 +746,16 @@ class WhoopRepository(private val dao: WhoopDao) {
     suspend fun dismissedSleeps(strapDeviceId: String = "my-whoop"): List<DismissedSleep> =
         dao.dismissedSleeps(strapDeviceId) + dao.dismissedSleeps(computedDeviceId(strapDeviceId))
 
+    /** Deleted-sleep tombstones across the active strap + canonical import union (#515). The Sleep screen
+     *  uses this management view so a night deleted before a strap remove/re-add does not lose its
+     *  "Recompute this night" escape hatch. The engine-facing [dismissedSleeps] stays scoped to the source
+     *  it is currently analysing; this read is deliberately broader because it is user-facing history. */
+    suspend fun dismissedSleepsUnion(activeDeviceId: String): List<DismissedSleep> =
+        (importedSourceIds(activeDeviceId) + computedSourceIds(activeDeviceId))
+            .flatMap { dao.dismissedSleeps(it) }
+            .distinctBy { it.deviceId to it.startTs }
+            .sortedByDescending { it.endTs }
+
     /**
      * Persist a retroactive / edited manual workout under the strap source. [replacing] is the row the
      * edit started from:

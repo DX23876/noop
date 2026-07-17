@@ -55,6 +55,17 @@ class SleepEditRescoreTest {
         rescoreAfterSleepEdit(analyzeRecent)
     }
 
+    /** Pure mirror of recomputeDeletedSleep: the marker must be cleared before analysis, and a failed
+     *  clear must not run a detector that would still suppress the same night. */
+    private suspend fun recomputeDeletedSleep(
+        clearMarker: suspend () -> Unit,
+        analyzeRecent: suspend () -> Unit,
+    ): Boolean {
+        if (runCatching { clearMarker() }.isFailure) return false
+        rescoreAfterSleepEdit(analyzeRecent)
+        return true
+    }
+
     @Test
     fun rescoreRunsAfterAPersist() = runTest {
         val rec = Recorder()
@@ -99,5 +110,27 @@ class SleepEditRescoreTest {
         } catch (e: CancellationException) {
             assertEquals("VM cleared", e.message)
         }
+    }
+
+    @Test
+    fun deletedSleepMarkerIsClearedBeforeRedetection() = runTest {
+        val rec = Recorder()
+        val accepted = recomputeDeletedSleep(
+            clearMarker = { rec.events += "clear" },
+            analyzeRecent = { rec.events += "redetect" },
+        )
+        assertTrue(accepted)
+        assertEquals(listOf("clear", "redetect"), rec.events)
+    }
+
+    @Test
+    fun failedMarkerClearDoesNotRunRedetection() = runTest {
+        val rec = Recorder()
+        val accepted = recomputeDeletedSleep(
+            clearMarker = { throw IllegalStateException("DB write failed") },
+            analyzeRecent = { rec.events += "redetect" },
+        )
+        assertTrue(!accepted)
+        assertTrue(rec.events.isEmpty())
     }
 }

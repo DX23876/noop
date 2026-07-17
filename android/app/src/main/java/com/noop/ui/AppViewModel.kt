@@ -1276,6 +1276,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         rescoreAfterEdit()
     }
 
+    /** Re-open one deliberately deleted sleep window (#515): remove its durable tombstone first, then
+     *  immediately run the normal detector/scorer over the stored raw data. Unlike optimistic edits, this
+     *  returns false when the marker could not be removed — rescoring while it is still present would keep
+     *  suppressing the night and make a successful-looking button a no-op. */
+    suspend fun recomputeDeletedSleep(marker: com.noop.data.DismissedSleep): Boolean {
+        val cleared = runCatching {
+            repository.allowSleepReDetection(marker.deviceId, marker.startTs)
+        }.isSuccess
+        if (!cleared) return false
+        rescoreAfterEdit()
+        return true
+    }
+
     /** Manually add a missed nap as its OWN session (#508) — staged from raw, written under the computed
      *  source with userEdited=true so the recompute guard keeps it and it's never folded into main sleep —
      *  then re-score the affected day immediately so the day's aggregates pick up the new session, matching

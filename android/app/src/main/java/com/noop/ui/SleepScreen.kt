@@ -88,6 +88,7 @@ import com.noop.analytics.SleepDebtLedger
 import com.noop.analytics.SleepEditGuard
 import com.noop.analytics.SleepStageTotals
 import com.noop.data.DailyMetric
+import com.noop.data.DismissedSleep
 import com.noop.data.SleepSession
 import com.noop.data.WhoopRepository
 import kotlinx.coroutines.launch
@@ -160,6 +161,10 @@ fun SleepScreen(
     // mergeSleep but WITHOUT the per-night collapse). Keyed on `days` so a sync/import (which always
     // rewrites dailyMetric too) reloads; these reads have no Flow. (#160, #170)
     var sleeps by remember { mutableStateOf<List<SleepSession>>(emptyList()) }
+    // Durable deleted-night markers. Unlike the 7-second Undo banner these remain reachable after the
+    // session row is gone, giving each suppressed window a "Recompute this night" escape hatch (#515).
+    var dismissedSleeps by remember { mutableStateOf<List<DismissedSleep>>(emptyList()) }
+    var recomputingSleep by remember { mutableStateOf<Pair<String, Long>?>(null) }
     // 0 = latest night, N = N sleep-sessions back. Reset to the newest night only on a REAL data
     // reload (new sync / re-import via `days` changing). The optimistic bed/wake edit rewrites
     // `sleeps` in place WITHOUT touching `days`, so it must not reset the browse — keeping the
@@ -191,6 +196,14 @@ fun SleepScreen(
                 .sortedBy { it.effectiveStartTs }
         }.getOrDefault(emptyList())
         nightOffset = 0
+    }
+
+    // Read the active∪canonical management union so a marker created before a strap re-add remains
+    // visible. Keyed on days because deletes/recomputes both rescore and republish the affected day.
+    LaunchedEffect(days) {
+        dismissedSleeps = runCatching {
+            vm.repo.dismissedSleepsUnion(vm.activeStrapId)
+        }.getOrDefault(dismissedSleeps)
     }
 
     // #65: the transient UNDO banner shown after a suppressing delete. Holds the deleted SleepSession
@@ -405,6 +418,34 @@ fun SleepScreen(
                 )
             }
         }
+        if (dismissedSleeps.isNotEmpty()) {
+            item {
+                DeletedSleepWindowsCard(
+                    windows = dismissedSleeps,
+                    recomputing = recomputingSleep,
+                    onRecompute = { marker ->
+                        val key = marker.deviceId to marker.startTs
+                        recomputingSleep = key
+                        scope.launch {
+                            val cleared = vm.recomputeDeletedSleep(marker)
+                            dismissedSleeps = runCatching {
+                                vm.repo.dismissedSleepsUnion(vm.activeStrapId)
+                            }.getOrDefault(dismissedSleeps)
+                            recomputingSleep = null
+                            Toast.makeText(
+                                context,
+                                if (cleared) {
+                                    uiString(R.string.l10n_sleep_screen_sleep_detection_reran_using_the_data_01757aad)
+                                } else {
+                                    uiString(R.string.l10n_sleep_screen_couldn_t_reopen_this_night_try_88265690)
+                                },
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                    },
+                )
+            }
+        }
         // #940: the empty state is ONLY for a truly empty history. A newest day that merely fails
         // to merge (the phantom-edit shape) keeps the hero (night != null) and the full-history
         // tiles (tilesModel != null), so intact older nights are never hidden behind "no nights".
@@ -500,7 +541,12 @@ fun SleepScreen(
                     // everything undo needs to restore it into the original namespace.
                     sleeps = sleeps.filterNot { it.deviceId == s.deviceId && it.startTs == s.startTs }
                     sleepUndo = s
-                    scope.launch { vm.deleteSleepSession(s) }
+                    scope.launch {
+                        vm.deleteSleepSession(s)
+                        dismissedSleeps = runCatching {
+                            vm.repo.dismissedSleepsUnion(vm.activeStrapId)
+                        }.getOrDefault(dismissedSleeps)
+                    }
                 },
                 onAddNap = { startTs, endTs ->
                     // Persist the new nap as its OWN session (#508); reload `sleeps` afterwards so the
@@ -654,6 +700,78 @@ private fun SleepUndoBanner(session: SleepSession, onUndo: () -> Unit) {
             ) {
                 Text(uiString(R.string.l10n_sleep_screen_undo_39fc7212), style = NoopType.subhead, color = Palette.restColor)
             }
+        }
+    }
+}
+
+/** Persistent management surface for detected nights whose deletion tombstone outlived the transient
+ * Undo banner. Each row targets one exact marker; clearing it lets the normal analysis pass derive sleep
+ * from the raw data again without weakening the default "deleted means deleted" behaviour (#515). */
+@Composable
+private fun DeletedSleepWindowsCard(
+    windows: List<DismissedSleep>,
+    recomputing: Pair<String, Long>?,
+    onRecompute: (DismissedSleep) -> Unit,
+) {
+    val dateFmt = remember { SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()) }
+    NoopCard(tint = Palette.restColor) {
+        Column(verticalArrangement = Arrangement.spacedBy(Metrics.space12)) {
+            Column(verticalArrangement = Arrangement.spacedBy(Metrics.space2)) {
+                Text(
+                    uiString(R.string.l10n_sleep_screen_deleted_sleep_windows_46fea77a),
+                    style = NoopType.headline,
+                    color = Palette.textPrimary,
+                )
+                Text(
+                    uiString(R.string.l10n_sleep_screen_recompute_a_night_to_clear_its_fd9e15c3),
+                    style = NoopType.footnote,
+                    color = Palette.textSecondary,
+                )
+            }
+            windows.forEach { marker ->
+                val key = marker.deviceId to marker.startTs
+                val busy = recomputing == key
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Metrics.space8),
+                ) {
+                    Text(
+                        uiString(
+                            R.string.l10n_sleep_screen_deleted_sleep_window_range_7bc5f027,
+                            dateFmt.format(Date(marker.startTs * 1000L)),
+                            dateFmt.format(Date(marker.endTs * 1000L)),
+                        ),
+                        style = NoopType.footnote,
+                        color = Palette.textSecondary,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(
+                        enabled = recomputing == null,
+                        onClick = { onRecompute(marker) },
+                        modifier = Modifier.semantics {
+                            contentDescription = uiString(
+                                R.string.l10n_sleep_screen_recompute_this_deleted_sleep_night_2d2f46f6,
+                            )
+                        },
+                    ) {
+                        Text(
+                            if (busy) {
+                                uiString(R.string.l10n_sleep_screen_recomputing_6f8e54e3)
+                            } else {
+                                uiString(R.string.l10n_sleep_screen_recompute_this_night_5ba0d05c)
+                            },
+                            style = NoopType.subhead,
+                            color = if (recomputing == null) Palette.restColor else Palette.textTertiary,
+                        )
+                    }
+                }
+            }
+            Text(
+                uiString(R.string.l10n_sleep_screen_if_this_sleep_came_only_from_d0892088),
+                style = NoopType.footnote,
+                color = Palette.textTertiary,
+            )
         }
     }
 }
