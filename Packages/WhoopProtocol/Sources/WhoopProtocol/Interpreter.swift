@@ -594,10 +594,11 @@ private func decodeWhoop5HistoricalV26(_ frame: [UInt8], fb: FieldBuilder) {
 ///     accelerometer at @28 / @228 / @428 and gyroscope at @640 / @840 / @1040 (200 B apart; countB @630 =
 ///     100). This is 6-axis IMU, not optical: the accel channels sphere-fit to a ~1 g gravity shell on a
 ///     stationary strap (validated by Whoop5RawImu over 1423 real buffers, #423/#493).
-///   • v20 (2140 B): five channel blocks, each preceded by a presence byte (0x19 = active, 0x00 =
-///     empty / zero-filled); an active block holds two 50-sample i32 channels. The presence bytes sit at
-///     @0x1a / @0x1c0 / @0x366 / @0x50c / @0x6b2; the ten channel slots start at
-///     @0x2f / 0xf7 / 0x1d5 / 0x29d / 0x37b / 0x443 / 0x521 / 0x5e9 / 0x6c7 / 0x78f.
+///   • v20 (2140 B): five channel blocks, each preceded by a block-header byte (0x19 = active, 0x00 =
+///     empty / zero-filled); an active block holds two 25-sample i32 channels (~25 Hz). The header bytes
+///     sit at @0x1a / @0x1c0 / @0x366 / @0x50c / @0x6b2; the ten channel slots start at
+///     @0x2f / 0xf7 / 0x1d5 / 0x29d / 0x37b / 0x443 / 0x521 / 0x5e9 / 0x6c7 / 0x78f (see the decode site
+///     for the 25-vs-50 sample-count evidence: samples 25..49 are zero across every captured buffer).
 ///
 /// v21 channels are named accel_/gyro_ per the gravity-shell evidence above; v20 sensor identity is still
 /// OPEN (no labelled/moving v20 capture in the tree) so its channels stay neutrally named. Both are exposed
@@ -638,7 +639,23 @@ private func decodeWhoop5HistoricalV2021(_ frame: [UInt8], fb: FieldBuilder, ver
         fb.parsed["sensor_channel_samples"] = .int(100)
         return
     }
-    // version == 20: five blocks of two 50-sample i32 channels, each block gated by a presence byte.
+    // version == 20: five blocks, each gated by a block-header byte @0x1a/0x1c0/0x366/0x50c/0x6b2 (0x19 =
+    // active, 0x00 = empty / zero-filled). An active block holds two channels of 25 i32 samples (~25 Hz).
+    //
+    // EVIDENCE (why 25, not 50): across all 29,203 captured 2140-B buffers, exactly blocks 0/3/4 are active
+    // (channel slots @47/247/1313/1513/1735/1935) and, in every active channel, sample slots 25..49 are
+    // exactly 0.0 — only samples 0..24 carry data. Earlier builds read 50 and emitted arrays that were half
+    // zeros. The block-header byte itself reads 0x19 = 25 on every active block, consistent with a live
+    // per-block sample count. Each sample is a 4-byte LE container holding a 20-bit signed value (its upper
+    // 12 bits are only ever 0x000/0xFFF — pure sign extension — across all captures), so reading it as i32
+    // recovers the correct signed magnitude with no masking.
+    //
+    // Channel IDENTITY is NOT proven: no labelled/moving v20 capture exists in the tree, so channels stay
+    // neutrally named (channel_b<block>_<half>). RE notes only, NOT authoritative — see issue #423: the
+    // buffer's config header [19:47] carries an LED-current field @28 and per-photodiode offset DACs @38/@45,
+    // and the six active channels are INFERRED to be optical (green/IR/red/ambient); the red/IR split is
+    // under active dispute, so no wavelength label is encoded here. v20 stays raw i32 with no scale applied.
+    let sampleCount = 25
     let blocks: [(present: Int, ch0: Int, ch1: Int)] = [
         (0x1a, 0x2f, 0xf7), (0x1c0, 0x1d5, 0x29d), (0x366, 0x37b, 0x443),
         (0x50c, 0x521, 0x5e9), (0x6b2, 0x6c7, 0x78f),
@@ -648,18 +665,18 @@ private func decodeWhoop5HistoricalV2021(_ frame: [UInt8], fb: FieldBuilder, ver
         guard frame.count > blk.present, frame[blk.present] != 0 else { continue }
         for (half, start) in [(0, blk.ch0), (1, blk.ch1)] {
             var samples: [Int] = []
-            for i in 0..<50 {
+            for i in 0..<sampleCount {
                 guard let v = readI32(frame, start + i * 4) else { break }
                 samples.append(v)
             }
-            if samples.count == 50 {
-                fb.add(start, 200, "channel_b\(b)_\(half)", "sensor", value: .intArray(samples),
-                       note: "raw i32 channel samples (no absolute unit)")
+            if samples.count == sampleCount {
+                fb.add(start, sampleCount * 4, "channel_b\(b)_\(half)", "sensor", value: .intArray(samples),
+                       note: "25 raw i32 samples (~25 Hz; 20-bit signed container, no absolute unit)")
                 present += 1
             }
         }
     }
-    fb.parsed["sensor_channel_samples"] = .int(50)
+    fb.parsed["sensor_channel_samples"] = .int(sampleCount)
     fb.parsed["sensor_channels_present"] = .int(present)
 }
 
