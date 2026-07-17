@@ -470,6 +470,7 @@ fun SettingsScreen(
     // "Keep connected in the background" — drives WhoopConnectionService (foreground service). Default
     // on. SharedPreferences isn't reactive, so the Switch mirrors into a local state.
     var backgroundConnection by remember { mutableStateOf(NoopPrefs.backgroundConnection(context)) }
+    var fastHistorySync by remember { mutableStateOf(NoopPrefs.fastHistorySync(context)) }
 
     // "Continuous HRV capture" — hold the dense realtime stream armed 24/7 (better overnight HRV) at the
     // cost of more battery. Default OFF; only does anything with background connection on. Local mirror.
@@ -1269,6 +1270,43 @@ fun SettingsScreen(
                         onCheckedChange = {
                             backgroundConnection = it
                             vm.setBackgroundConnection(it)
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Palette.surfaceBase,
+                            checkedTrackColor = Palette.accent,
+                            uncheckedThumbColor = Palette.textSecondary,
+                            uncheckedTrackColor = Palette.surfaceInset,
+                            uncheckedBorderColor = Palette.hairline,
+                        ),
+                    )
+                }
+
+                // "Faster history sync" (#533, EXPERIMENTAL): asks Android for a shorter GATT connection
+                // interval for the BOUNDED historical-offload burst only. Off by default — BLE behaviour
+                // can't be CI-tested, so this needs real-strap field reports on both the speedup and the
+                // battery cost. The live/overnight stream deliberately never escalates.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.fast_history_sync),
+                            style = NoopType.subhead,
+                            color = Palette.textPrimary,
+                        )
+                        Text(
+                            stringResource(R.string.fast_history_sync_desc),
+                            style = NoopType.footnote,
+                            color = Palette.textTertiary,
+                        )
+                    }
+                    Switch(
+                        checked = fastHistorySync,
+                        onCheckedChange = {
+                            fastHistorySync = it
+                            vm.setFastHistorySync(it)
                         },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Palette.surfaceBase,

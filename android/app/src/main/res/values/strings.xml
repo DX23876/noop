@@ -156,6 +156,8 @@
     <string name="timeline_other_sources_no_offload">Other sources don\'t offload raw per-second data on-device.</string>
 
     <!-- Power saving (#477) -->
+    <string name="fast_history_sync">Faster history sync (experimental)</string>
+    <string name="fast_history_sync_desc">Ask Android for a faster Bluetooth link while your strap hands over its stored history, so a big backlog catches up sooner. Only during the sync itself — your live heart rate and the overnight stream are untouched. New and unproven: if it doesn\'t help, or costs more battery than it\'s worth, turn it back off and say so on the issue tracker.</string>
     <string name="power_saving">Power saving</string>
     <string name="power_saving_blurb">Ease the load on your strap when its battery is running low. The strap keeps banking data on its own, so nothing is lost — NOOP just talks to it less often to help it last until you can charge it.</string>
     <string name="power_saving_mode">Power saving mode</string>

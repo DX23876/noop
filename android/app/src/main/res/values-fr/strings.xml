@@ -1591,6 +1591,8 @@
     <string name="timeline_empty_metric">Pas de %1$s ici</string>
     <string name="timeline_nothing_offloaded">Rien de déchargé pour cette fenêtre pour l\'instant.</string>
     <string name="timeline_other_sources_no_offload">D\'autres sources ne déchargent pas les données brutes par seconde sur les appareils.</string>
+    <string name="fast_history_sync">Synchronisation de l\'historique plus rapide (expérimental)</string>
+    <string name="fast_history_sync_desc">Demande une connexion Bluetooth plus rapide pendant que votre sangle transfère son historique stocké, afin qu\'un gros retard se rattrape plus vite. Uniquement pendant la synchronisation : votre fréquence cardiaque en direct et le flux nocturne ne sont pas affectés. Nouveau et non éprouvé : si cela n\'aide pas ou consomme trop de batterie, désactivez-le.</string>
     <string name="power_saving">Économie d\'énergie</string>
     <string name="power_saving_blurb">Diminuer la charge sur votre sangle lorsque sa batterie est basse. La sangle garde les données bancaires à elle seule, donc rien n\'est perdu — NOOP lui parle moins souvent pour l\'aider jusqu\'à ce que vous puissiez les charger.</string>
     <string name="power_saving_mode">Mode d\'économie d\'énergie</string>

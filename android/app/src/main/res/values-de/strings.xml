@@ -147,6 +147,8 @@
     <string name="timeline_other_sources_no_offload">Andere Quellen übertragen keine rohen Sekundendaten auf das Gerät.</string>
 
     <!-- Power saving (#477) -->
+    <string name="fast_history_sync">Schnellere Verlaufssynchronisierung (experimentell)</string>
+    <string name="fast_history_sync_desc">Fordert eine schnellere Bluetooth-Verbindung an, während Ihr Riemen seinen gespeicherten Verlauf überträgt, damit ein großer Rückstand schneller aufholt. Nur während der Synchronisierung — Ihre Live-Herzfrequenz und der nächtliche Datenstrom bleiben unberührt. Neu und unerprobt: Wenn es nicht hilft oder zu viel Akku kostet, schalten Sie es wieder aus.</string>
     <string name="power_saving">Energie sparen</string>
     <string name="power_saving_blurb">Entlastet dein Band, wenn sein Akku zur Neige geht. Das Band speichert die Daten selbst, es geht also nichts verloren – NOOP kommuniziert nur seltener mit ihm, damit es durchhält, bis du es laden kannst.</string>
     <string name="power_saving_mode">Energiesparmodus</string>

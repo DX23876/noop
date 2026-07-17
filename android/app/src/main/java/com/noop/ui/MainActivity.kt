@@ -244,6 +244,23 @@ object NoopPrefs {
         of(context).edit().putBoolean(KEY_PAUSE_HRV_ON_POWER_SAVE, enabled).apply()
     }
 
+    /** EXPERIMENTAL (#533): escalate the GATT connection interval to HIGH for the bounded historical
+     *  offload burst, so a large backlog drains faster. Drives the SAFE half of #477's connection-priority
+     *  management via [com.noop.ble.WhoopBleClient.setConnectionPriorityManagement]; the risky idle
+     *  throttle stays off, and the live/overnight stream never escalates.
+     *
+     *  DEFAULT OFF and behind an "(experimental)" label on purpose: BLE behaviour cannot be CI- or
+     *  Linux-tested, so both the speedup and its battery cost need real-strap field reports before this
+     *  could ever be considered for default-on. */
+    const val KEY_FAST_HISTORY_SYNC = "noop.fastHistorySync"
+
+    fun fastHistorySync(context: Context): Boolean =
+        of(context).getBoolean(KEY_FAST_HISTORY_SYNC, false)
+
+    fun setFastHistorySync(context: Context, enabled: Boolean) {
+        of(context).edit().putBoolean(KEY_FAST_HISTORY_SYNC, enabled).apply()
+    }
+
     /** #836, the raw-HR fingerprint ("count:maxTs") the last COMPLETED idle rescore scored against. The
      *  15-min backstop tick skips when the current fingerprint equals this; cleared implicitly by any HR
      *  insert/delete (the fingerprint moves). Mirrors the Swift `analyzeWatermark` UserDefaults key. */
