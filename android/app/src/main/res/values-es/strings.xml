@@ -1449,11 +1449,7 @@
     <string name="l10n_wheel_picker_accessibility_tap_to_choose_1314c4ed">%1$s. Toca para elegir.</string>
     <string name="l10n_workouts_screen_minutes_total_100_roundtoint_5bb7c6d8">%1$s%%</string>
     <!-- #453 manually migrated complex Kotlin templates. -->
-    <string name="intelligence_day_count">%1$d día</string>
-    <string name="intelligence_days_count">%1$d días</string>
     <string name="intervals_range_step">%1$s – %2$s%3$s · paso %4$d</string>
-    <string name="lab_book_reading_count">%1$d lectura · tu propia entrada</string>
-    <string name="lab_book_readings_count">%1$d lecturas · tus propias entradas</string>
     <string name="live_workout_saved_summary">✓ %1$s guardado · %2$s</string>
     <string name="skin_temp_reason_summary">%1$s: %2$s</string>
     <string name="stress_score_accessibility">Estrés %1$s de 3, %2$s</string>
@@ -1537,7 +1533,6 @@
     <string name="trends_no_readings_body">Pasa a otra semana con las flechas de arriba para ver su resumen.</string>
     <string name="trends_this_week">Esta semana</string>
     <string name="trends_last_week">La semana pasada</string>
-    <string name="trends_weeks_ago">hace %1$d semanas</string>
     <string name="trends_previous_week">Semana anterior</string>
     <string name="trends_next_week">Próxima semana</string>
     <string name="trends_daily_signals">Señales diarias</string>
@@ -1568,7 +1563,6 @@
     <string name="explore_delta_vs_prev">Δ vs ant.</string>
     <string name="explore_summary">Resumen</string>
     <string name="explore_over_visible_window">Sobre la ventana visible</string>
-    <string name="explore_n_days">%1$d días</string>
     <string name="explore_n_pts">%1$d pts</string>
     <string name="explore_vs_prev_window">vs prev %1$s</string>
     <string name="explore_all_history">todo el historial</string>
@@ -1631,4 +1625,20 @@
     <string name="explore_description_charge">Qué tan recuperado estás, según tu VFC frente a tu línea base personal.</string>
     <string name="explore_description_effort">Carga cardiovascular del día, en una escala de 0–100 (antes 0–21).</string>
     <string name="explore_description_rest">Qué tan reparador fue tu sueño: duración, eficiencia, sueño profundo y REM, y horario.</string>
+    <plurals name="intelligence_days_count">
+        <item quantity="one">%1$d día</item>
+        <item quantity="other">%1$d días</item>
+    </plurals>
+    <plurals name="lab_book_readings_count">
+        <item quantity="one">%1$d lectura · tu propia entrada</item>
+        <item quantity="other">%1$d lecturas · tus propias entradas</item>
+    </plurals>
+    <plurals name="trends_weeks_ago">
+        <item quantity="one">hace %1$d semana</item>
+        <item quantity="other">hace %1$d semanas</item>
+    </plurals>
+    <plurals name="explore_n_days">
+        <item quantity="one">%1$d día</item>
+        <item quantity="other">%1$d días</item>
+    </plurals>
 </resources>

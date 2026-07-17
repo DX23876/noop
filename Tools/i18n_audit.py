@@ -97,7 +97,10 @@ def android_strings_xml_gaps() -> dict[str, set[str]]:
     existing values-<lang>/strings.xml. (Doesn't invent missing locale dirs —
     see the audit summary for languages with NO directory at all.)"""
     base_path = ROOT / "android/app/src/main/res/values/strings.xml"
-    base_keys = set(re.findall(r'<string name="([^"]+)"', base_path.read_text(encoding="utf-8")))
+    # <plurals> count too: converting a hand-rolled singular/plural PAIR into one <plurals> would
+    # otherwise DROP those keys out of this gate's view entirely, so a locale could silently lose them —
+    # fixing the plural model must not open a coverage hole (see #540 for the same class of blind spot).
+    base_keys = set(re.findall(r'<(?:string|plurals) name="([^"]+)"', base_path.read_text(encoding="utf-8")))
     exempt = {"app_name"}  # brand name, deliberately identical everywhere
     gaps: dict[str, set[str]] = {}
     for lang in LANGS:
@@ -105,7 +108,7 @@ def android_strings_xml_gaps() -> dict[str, set[str]]:
         if not lang_path.exists():
             gaps[lang] = {"<entire values-%s/ directory is missing>" % lang}
             continue
-        lang_keys = set(re.findall(r'<string name="([^"]+)"', lang_path.read_text(encoding="utf-8")))
+        lang_keys = set(re.findall(r'<(?:string|plurals) name="([^"]+)"', lang_path.read_text(encoding="utf-8")))
         missing = (base_keys - exempt) - lang_keys
         if missing:
             gaps[lang] = missing
@@ -121,17 +124,35 @@ def android_format_gaps() -> dict[str, list[str]]:
         "en": ROOT / "android/app/src/main/res/values/strings.xml",
         **{lang: ROOT / f"android/app/src/main/res/values-{lang}/strings.xml" for lang in LANGS},
     }
+    def signature(value: str) -> list[str]:
+        return sorted(ANDROID_FORMAT_PATTERN.findall(value))
+
     values: dict[str, dict[str, str]] = {}
+    plural_items: dict[str, dict[str, list[str]]] = {}
     for lang, path in paths.items():
         if not path.exists():
             continue
-        values[lang] = {
-            node.attrib["name"]: node.text or ""
-            for node in ET.parse(path).getroot().findall("string")
-        }
-
-    def signature(value: str) -> list[str]:
-        return sorted(ANDROID_FORMAT_PATTERN.findall(value))
+        root = ET.parse(path).getroot()
+        entries = {node.attrib["name"]: node.text or "" for node in root.findall("string")}
+        items_by_key: dict[str, list[str]] = {}
+        # <plurals> carry their format args on the <item> CHILDREN, so a plain findall("string") leaves
+        # every plural's placeholders unchecked.
+        #
+        # Compare ONE REPRESENTATIVE form across languages, never the concatenated set: the signature is a
+        # MULTISET, so folding would make it depend on how many quantity categories a language HAS —
+        # Polish (one/few/many/other) would read as a format mismatch against English (one/other) purely
+        # for having more forms, and this gate would reject the very thing <plurals> exist to support.
+        # `other` is the CLDR fallback every language defines, so it is the stable representative.
+        # A dropped placeholder in a NON-representative form is caught by the intra-plural check below.
+        for node in root.findall("plurals"):
+            items = node.findall("item")
+            texts = [i.text or "" for i in items]
+            rep = next((i.text or "" for i in items if i.attrib.get("quantity") == "other"),
+                       texts[0] if texts else "")
+            entries[node.attrib["name"]] = rep
+            items_by_key[node.attrib["name"]] = texts
+        values[lang] = entries
+        plural_items[lang] = items_by_key
 
     gaps: dict[str, list[str]] = {}
     for lang in LANGS:
@@ -141,6 +162,13 @@ def android_format_gaps() -> dict[str, list[str]]:
             key for key, source in values["en"].items()
             if signature(source) != signature(values[lang].get(key, ""))
         ]
+        # Every quantity form of ONE plural must carry the same placeholders as its siblings. This is a
+        # within-language invariant, so it stays correct no matter how many categories the language has —
+        # it catches the "translator dropped %1$d from just the `one` form" case that the representative
+        # comparison above cannot see.
+        for key, texts in plural_items.get(lang, {}).items():
+            if len({tuple(signature(x)) for x in texts}) > 1 and key not in mismatched:
+                mismatched.append(key)
         if mismatched:
             gaps[lang] = mismatched
     return gaps

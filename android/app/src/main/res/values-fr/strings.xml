@@ -1449,11 +1449,7 @@
     <string name="l10n_wheel_picker_accessibility_tap_to_choose_1314c4ed">%1$s. Appuyez sur pour choisir.</string>
     <string name="l10n_workouts_screen_minutes_total_100_roundtoint_5bb7c6d8">%1$s%%</string>
     <!-- #453 manually migrated complex Kotlin templates. -->
-    <string name="intelligence_day_count">%1$d jour</string>
-    <string name="intelligence_days_count">%1$d jours</string>
     <string name="intervals_range_step">%1$s – %2$s%3$s · pas %4$d</string>
-    <string name="lab_book_reading_count">%1$d mesure · votre propre entrée</string>
-    <string name="lab_book_readings_count">%1$d mesures · vos propres entrées</string>
     <string name="live_workout_saved_summary">✓ %1$s enregistré · %2$s</string>
     <string name="skin_temp_reason_summary">%1$s : %2$s</string>
     <string name="stress_score_accessibility">Stress %1$s sur 3, %2$s</string>
@@ -1537,7 +1533,6 @@
     <string name="trends_no_readings_body">Passez à une autre semaine avec les flèches ci-dessus pour voir son bilan.</string>
     <string name="trends_this_week">Cette semaine</string>
     <string name="trends_last_week">La semaine dernière</string>
-    <string name="trends_weeks_ago">il y a %1$d semaines</string>
     <string name="trends_previous_week">Semaine précédente</string>
     <string name="trends_next_week">Semaine prochaine</string>
     <string name="trends_daily_signals">Signaux quotidiens</string>
@@ -1568,7 +1563,6 @@
     <string name="explore_delta_vs_prev">Δ vs préc.</string>
     <string name="explore_summary">Résumé</string>
     <string name="explore_over_visible_window">Sur la fenêtre visible</string>
-    <string name="explore_n_days">%1$d jours</string>
     <string name="explore_n_pts">%1$d pts</string>
     <string name="explore_vs_prev_window">vs prev %1$s</string>
     <string name="explore_all_history">tout l\'historique</string>
@@ -1631,4 +1625,20 @@
     <string name="explore_description_charge">Votre niveau de récupération, mesuré par la VFC par rapport à votre référence personnelle.</string>
     <string name="explore_description_effort">Charge cardiovasculaire de la journée, sur une échelle de 0 à 100 (auparavant 0 à 21).</string>
     <string name="explore_description_rest">À quel point votre sommeil a été réparateur : durée, efficacité, sommeil profond et paradoxal, et horaires.</string>
+    <plurals name="intelligence_days_count">
+        <item quantity="one">%1$d jour</item>
+        <item quantity="other">%1$d jours</item>
+    </plurals>
+    <plurals name="lab_book_readings_count">
+        <item quantity="one">%1$d mesure · votre propre entrée</item>
+        <item quantity="other">%1$d mesures · vos propres entrées</item>
+    </plurals>
+    <plurals name="trends_weeks_ago">
+        <item quantity="one">il y a %1$d semaine</item>
+        <item quantity="other">il y a %1$d semaines</item>
+    </plurals>
+    <plurals name="explore_n_days">
+        <item quantity="one">%1$d jour</item>
+        <item quantity="other">%1$d jours</item>
+    </plurals>
 </resources>

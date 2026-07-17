@@ -89,7 +89,6 @@
     <string name="trends_no_readings_body">Wechsle mit den Pfeilen oben zu einer anderen Woche, um ihren Rückblick zu sehen.</string>
     <string name="trends_this_week">Diese Woche</string>
     <string name="trends_last_week">Letzte Woche</string>
-    <string name="trends_weeks_ago">vor %1$d Wochen</string>
     <string name="trends_previous_week">Vorherige Woche</string>
     <string name="trends_next_week">Nächste Woche</string>
     <string name="trends_daily_signals">Tägliche Signale</string>
@@ -121,7 +120,6 @@
     <string name="explore_delta_vs_prev">Δ vs. vorher</string>
     <string name="explore_summary">Zusammenfassung</string>
     <string name="explore_over_visible_window">Über das sichtbare Fenster</string>
-    <string name="explore_n_days">%1$d Tage</string>
     <string name="explore_n_pts">%1$d Pkt.</string>
     <string name="explore_vs_prev_window">vs. vorher %1$s</string>
     <string name="explore_all_history">gesamte Historie</string>
@@ -1611,11 +1609,7 @@
     <string name="l10n_wheel_picker_accessibility_tap_to_choose_1314c4ed">%1$s. Tippen Sie, um zu wählen.</string>
     <string name="l10n_workouts_screen_minutes_total_100_roundtoint_5bb7c6d8">%1$s%%</string>
     <!-- #453 manually migrated complex Kotlin templates. -->
-    <string name="intelligence_day_count">%1$d Tag</string>
-    <string name="intelligence_days_count">%1$d Tage</string>
     <string name="intervals_range_step">%1$s – %2$s%3$s · Schritt %4$d</string>
-    <string name="lab_book_reading_count">%1$d Messwert · dein eigener Eintrag</string>
-    <string name="lab_book_readings_count">%1$d Messwerte · deine eigenen Einträge</string>
     <string name="live_workout_saved_summary">✓ %1$s gespeichert · %2$s</string>
     <string name="skin_temp_reason_summary">%1$s: %2$s</string>
     <string name="stress_score_accessibility">Stress %1$s von 3, %2$s</string>
@@ -1646,4 +1640,20 @@
     <string name="explore_description_charge">Wie erholt du bist, angeführt von der HRV gegenüber deiner persönlichen Basislinie.</string>
     <string name="explore_description_effort">Herz-Kreislauf-Belastung für den Tag auf einer Skala von 0–100 (zuvor 0–21).</string>
     <string name="explore_description_rest">Wie erholsam dein Schlaf war: Dauer, Effizienz, Tief- und REM-Schlaf sowie Timing.</string>
+    <plurals name="intelligence_days_count">
+        <item quantity="one">%1$d Tag</item>
+        <item quantity="other">%1$d Tage</item>
+    </plurals>
+    <plurals name="lab_book_readings_count">
+        <item quantity="one">%1$d Messwert · dein eigener Eintrag</item>
+        <item quantity="other">%1$d Messwerte · deine eigenen Einträge</item>
+    </plurals>
+    <plurals name="trends_weeks_ago">
+        <item quantity="one">vor %1$d Woche</item>
+        <item quantity="other">vor %1$d Wochen</item>
+    </plurals>
+    <plurals name="explore_n_days">
+        <item quantity="one">%1$d Tag</item>
+        <item quantity="other">%1$d Tage</item>
+    </plurals>
 </resources>

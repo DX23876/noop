@@ -98,7 +98,6 @@
     <string name="trends_no_readings_body">Step to another week with the arrows above to see its review.</string>
     <string name="trends_this_week">This week</string>
     <string name="trends_last_week">Last week</string>
-    <string name="trends_weeks_ago">%1$d weeks ago</string>
     <string name="trends_previous_week">Previous week</string>
     <string name="trends_next_week">Next week</string>
     <string name="trends_daily_signals">Daily signals</string>
@@ -130,7 +129,6 @@
     <string name="explore_delta_vs_prev">Δ vs prev</string>
     <string name="explore_summary">Summary</string>
     <string name="explore_over_visible_window">Over the visible window</string>
-    <string name="explore_n_days">%1$d days</string>
     <string name="explore_n_pts">%1$d pts</string>
     <string name="explore_vs_prev_window">vs prev %1$s</string>
     <string name="explore_all_history">all history</string>
@@ -1620,11 +1618,7 @@
     <string name="l10n_wheel_picker_accessibility_tap_to_choose_1314c4ed">%1$s. Tap to choose.</string>
     <string name="l10n_workouts_screen_minutes_total_100_roundtoint_5bb7c6d8">%1$s%%</string>
     <!-- #453 manually migrated complex Kotlin templates. -->
-    <string name="intelligence_day_count">%1$d day</string>
-    <string name="intelligence_days_count">%1$d days</string>
     <string name="intervals_range_step">%1$s – %2$s%3$s · step %4$d</string>
-    <string name="lab_book_reading_count">%1$d reading · your own entry</string>
-    <string name="lab_book_readings_count">%1$d readings · your own entries</string>
     <string name="live_workout_saved_summary">✓ %1$s saved · %2$s</string>
     <string name="skin_temp_reason_summary">%1$s: %2$s</string>
     <string name="stress_score_accessibility">Stress %1$s of 3, %2$s</string>
@@ -1655,4 +1649,20 @@
     <string name="explore_description_charge">How recovered you are, led by HRV versus your personal baseline.</string>
     <string name="explore_description_effort">Cardiovascular load for the day, on a 0-100 scale (was 0-21).</string>
     <string name="explore_description_rest">How restorative your sleep was: duration, efficiency, deep+REM, timing.</string>
+    <plurals name="intelligence_days_count">
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
+    </plurals>
+    <plurals name="lab_book_readings_count">
+        <item quantity="one">%1$d reading · your own entry</item>
+        <item quantity="other">%1$d readings · your own entries</item>
+    </plurals>
+    <plurals name="trends_weeks_ago">
+        <item quantity="one">%1$d week ago</item>
+        <item quantity="other">%1$d weeks ago</item>
+    </plurals>
+    <plurals name="explore_n_days">
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
+    </plurals>
 </resources>
