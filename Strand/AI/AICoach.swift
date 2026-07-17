@@ -226,6 +226,12 @@ final class AICoachEngine: ObservableObject {
     /// The model ids offered in the picker. Seeded from `provider.modelOptions`, reset when the
     /// provider changes, and optionally extended by `refreshModels()` with the provider's live list.
     @Published var availableModels: [String] = []
+    /// OpenRouter model ids confirmed to support tool-calling (from `/models`' `supported_parameters`),
+    /// populated by `refreshModels()`. `toolCallingActive` (`CoachTools.swift`) reads this to gate P9's
+    /// tool path per model — not every model behind OpenRouter can take tool definitions. Empty until a
+    /// refresh runs, and NOT reset by a provider switch (see `provider.didSet`): a stale set for a model
+    /// no longer selected is simply never consulted.
+    @Published var openRouterToolCapableModels: Set<String> = []
     /// Explicit permission for the coach to read & transmit the user's biometric data. OFF by
     /// default, until this is true, NO metrics are included in any request (only the question).
     @Published var dataConsent: Bool {
@@ -640,7 +646,20 @@ final class AICoachEngine: ObservableObject {
     /// below is byte-identical in release builds.
     #if DEBUG
     var fetchModelsOverride: ((_ provider: AIProvider, _ key: String) async throws -> [String])?
+    /// Test seam for OpenRouter's richer fetch (id list + per-model tool capability), separate from
+    /// `fetchModelsOverride` above since that one only carries plain ids.
+    var openRouterModelDetailsOverride: ((_ key: String) async throws -> [OpenRouterModel])?
     #endif
+
+    /// OpenRouter-only: `refreshModels()` needs BOTH the id list and per-model tool-support from the
+    /// SAME `/models` response — `toolCallingActive` (`CoachTools.swift`) gates P9's tool path per model,
+    /// not every model behind OpenRouter can take tool definitions.
+    private func fetchOpenRouterModelDetails(key: String) async throws -> [OpenRouterModel] {
+        #if DEBUG
+        if let override = openRouterModelDetailsOverride { return try await override(key) }
+        #endif
+        return try await OpenRouterClient().fetchModelDetails(key: key, session: session)
+    }
 
     /// Best-effort: GET the chosen provider's models endpoint with the saved key and merge the
     /// returned ids into `availableModels`. Never crashes; failures land in `errorText` and leave
@@ -660,19 +679,33 @@ final class AICoachEngine: ObservableObject {
 
         do {
             let ids: [String]
+            // Carried past the #873 race guard below alongside `ids`, so a mid-flight provider switch
+            // discards a stale capability set exactly the same way it already discards stale ids.
+            var toolCapable: Set<String>?
             #if DEBUG
             if let override = fetchModelsOverride {
                 ids = try await override(capturedProvider, key)
+            } else if capturedProvider == .openRouter {
+                let details = try await fetchOpenRouterModelDetails(key: key)
+                ids = details.map { $0.id }
+                toolCapable = Set(details.filter { $0.supportsTools }.map { $0.id })
             } else {
                 ids = try await capturedProvider.client.fetchModels(key: key, session: session)
             }
             #else
-            ids = try await capturedProvider.client.fetchModels(key: key, session: session)
+            if capturedProvider == .openRouter {
+                let details = try await fetchOpenRouterModelDetails(key: key)
+                ids = details.map { $0.id }
+                toolCapable = Set(details.filter { $0.supportsTools }.map { $0.id })
+            } else {
+                ids = try await capturedProvider.client.fetchModels(key: key, session: session)
+            }
             #endif
 
             // The user switched providers while we were awaiting, so these ids belong to the old one.
             // Drop them rather than write a list for a provider that's no longer selected.
             guard provider == capturedProvider else { return }
+            if let toolCapable { openRouterToolCapableModels = toolCapable }
 
             guard !ids.isEmpty else {
                 errorText = AICoachError.decode.errorDescription

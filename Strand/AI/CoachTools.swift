@@ -386,6 +386,12 @@ enum CoachTool: String, CaseIterable {
     var anthropicSpec: [String: Any] {
         ["name": rawValue, "description": description, "input_schema": inputSchema]
     }
+
+    /// OpenAI-compatible (OpenAI, OpenRouter) function descriptor — same underlying schema as
+    /// `anthropicSpec`, wrapped in the `{type: "function", function: {...}}` shape those APIs expect.
+    var openAIFunctionSpec: [String: Any] {
+        ["type": "function", "function": ["name": rawValue, "description": description, "parameters": inputSchema]]
+    }
 }
 
 // MARK: - Provider capability
@@ -427,8 +433,17 @@ extension AICoachEngine {
 
     /// True when the current turn should use the tool-use path: the user has granted data access, tools
     /// exist, and the chosen provider can run them. When false, the engine keeps the plain text-context path.
+    ///
+    /// OpenRouter fronts 300+ models from many vendors, and not every one of them can take tool
+    /// definitions at all — the gate below additionally requires the SELECTED model to be confirmed
+    /// tool-capable (`openRouterToolCapableModels`, populated by `refreshModels()` from the same
+    /// `/models` response that lists the model). Before a first refresh that set is empty, so a fresh
+    /// OpenRouter connection safely uses the context path rather than guessing a model can take tools
+    /// and sending it a request it silently mishandles.
     var toolCallingActive: Bool {
-        dataConsent && !coachTools.isEmpty && (provider.client is ToolCallingClient)
+        guard dataConsent, !coachTools.isEmpty, provider.client is ToolCallingClient else { return false }
+        if provider == .openRouter { return openRouterToolCapableModels.contains(model) }
+        return true
     }
 
     /// Short note sent in place of the pre-baked metrics context when tool-calling is active: it tells
