@@ -202,6 +202,7 @@ struct TodayView: View {
     /// Today matches the liquid one's prominent Coach entry instead of burying it under More.
     @EnvironmentObject var coach: AICoachEngine
     @State private var showCoach = false
+    @State private var showPlan = false
     @AppStorage(CoachEntryMode.storageKey) private var coachEntryModeRaw = CoachEntryMode.both.rawValue
 
     // Imperial/Metric display preference (D#103). Only the Weight tile carries a convertible unit here.
@@ -1259,6 +1260,7 @@ struct TodayView: View {
                 // clock, so the live tick never re-renders TodayView.body.
                 ActiveWorkoutIndicatorSection()
                 if (CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both).showsCard { coachCard }
+                PlanTodayCard(showPlan: $showPlan)
                 // The "still building" and "new here?" prompts are about getting today's scores going,
                 // so they stay anchored to today rather than reappearing on every navigated past day.
                 if selectedDayOffset == 0 && repo.today?.recovery == nil {
@@ -1410,6 +1412,8 @@ struct TodayView: View {
         // The Coach chat, opened by the prominent Coach card above. Uses the shared View.coachCover
         // helper (defined alongside LiquidTodayView's covers).
         .coachCover(isPresented: $showCoach, coach: coach)
+        // The plan book, opened from PlanTodayCard when a committed session has a time coming up.
+        .sheet(isPresented: $showPlan) { CoachPlanView().environmentObject(coach) }
         // H6, the steps-calibration sheet, opened from an estimated Steps tile (the same sheet Settings
         // hosts). Presented from Today so a WHOOP 4.0 user can calibrate from where the "est." caption shows.
         .sheet(isPresented: $showStepsCalibration) {

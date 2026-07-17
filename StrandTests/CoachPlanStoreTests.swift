@@ -59,6 +59,21 @@ final class CoachPlanStoreTests: XCTestCase {
         XCTAssertTrue(store.pending.isEmpty)
     }
 
+    /// `clearTime` undoes a set time without touching status — the counterpart PlanTimeSheet's "Set"
+    /// was missing (B3). It must not decide anything else about the session.
+    func testClearTimeRemovesOnlyTheTimeNotTheDecision() {
+        let store = makeStore()
+        store.propose(proposal())
+        let id = store.proposals[0].id
+        store.accept(id, at: Date().addingTimeInterval(3600))
+        XCTAssertNotNil(store.proposals[0].time)
+
+        store.clearTime(id)
+
+        XCTAssertNil(store.proposals[0].time)
+        XCTAssertEqual(store.proposals[0].status, .accepted, "clearing the time is not un-accepting")
+    }
+
     /// A user planning their own session doesn't need to approve their own idea.
     func testUserCreatedSessionIsAcceptedImmediately() {
         let store = makeStore()

@@ -53,6 +53,7 @@ struct LiquidTodayView: View {
     /// The card only shows when the user's Coach-entry preference includes it (card / both).
     @EnvironmentObject private var coach: AICoachEngine
     @State private var showCoach = false
+    @State private var showPlan = false
     @AppStorage(CoachEntryMode.storageKey) private var coachEntryModeRaw = CoachEntryMode.both.rawValue
 
     /// Live Sessions (silent guardian) beta gate — the SAME key the Settings toggle writes. Default ON
@@ -244,6 +245,7 @@ struct LiquidTodayView: View {
                     // and taps straight through to Live. Renders nothing when no workout is active.
                     ActiveWorkoutIndicatorSection()
                     if (CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both).showsCard { coachCard }
+                    PlanTodayCard(showPlan: $showPlan)
                     // #today-layout (parity with Android): every Today section — the Charge/Effort/Rest hero
                     // and Start-session included — renders in the user's saved order. Reorder via the Arrange
                     // sheet (the header's up/down button; native drag rows); the order persists under the
@@ -328,6 +330,8 @@ struct LiquidTodayView: View {
         // fullScreenCover doesn't exist.
         .liveSessionCover(isPresented: $showLiveSession)
         .coachCover(isPresented: $showCoach, coach: coach)
+        // The plan book, opened from PlanTodayCard when a committed session has a time coming up.
+        .sheet(isPresented: $showPlan) { CoachPlanView().environmentObject(coach) }
         // #today-layout: the Arrange sheet — native drag-to-reorder rows over the same persisted order.
         .sheet(isPresented: $showArrangeSheet) {
             TodayArrangeSheet(orderRaw: $sectionOrderRaw)

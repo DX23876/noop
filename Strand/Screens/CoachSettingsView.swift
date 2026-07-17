@@ -20,6 +20,8 @@ struct CoachSettingsView: View {
     @State private var checkInOn: Bool = CoachCheckIn.isEnabled
     @State private var checkInTime: Date = CoachCheckIn.timeAsDate
     @State private var checkInDenied: Bool = false
+    @State private var planReminderOn: Bool = PlanReminder.isEnabled
+    @State private var planReminderDenied: Bool = false
     @ObservedObject private var memory = CoachMemory.shared
     /// The structured goal (P3). The memory card's field still edits its title inline; the full editor
     /// with target/date/pace lives in the dedicated goal card.
@@ -265,6 +267,7 @@ struct CoachSettingsView: View {
             personaBar
             coachEntryBar
             checkInBar
+            planReminderBar
         }
         .navigationTitle("Coaching")
     }
@@ -632,6 +635,49 @@ struct CoachSettingsView: View {
                 }
                 if checkInDenied {
                     Text("Notifications are off. Enable them for NOOP in Settings to use check-ins.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.recovery000)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
+    /// Opt-in local reminder for a committed, timed plan session — "a plan with a time is a plan you
+    /// keep", made real. On-device only; no AI call fires it, and no notification exists until a session
+    /// actually has a time (`PlanReminder.schedule` no-ops otherwise).
+    private var planReminderBar: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 10) {
+                    Image(systemName: planReminderOn ? "bell.badge.fill" : "bell")
+                        .foregroundStyle(planReminderOn ? StrandPalette.accent : StrandPalette.textTertiary)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Plan reminders")
+                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                        Text(planReminderOn
+                             ? "On: a reminder at the time you set for a planned session."
+                             : "Off: sessions with a time don't remind you.")
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 8)
+                    Toggle("", isOn: $planReminderOn)
+                        .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                        .accessibilityLabel("Plan session reminders")
+                        .onChangeCompat(of: planReminderOn) { on in
+                            PlanReminder.setEnabled(on) { outcome in
+                                if outcome == .denied {
+                                    planReminderOn = false
+                                    planReminderDenied = true
+                                } else {
+                                    planReminderDenied = false
+                                }
+                            }
+                        }
+                }
+                if planReminderDenied {
+                    Text("Notifications are off. Enable them for NOOP in Settings to use reminders.")
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.recovery000)
                         .fixedSize(horizontal: false, vertical: true)
                 }

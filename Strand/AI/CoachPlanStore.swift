@@ -298,6 +298,12 @@ final class CoachPlanStore: ObservableObject {
         }
     }
 
+    /// Undo a set time without deciding anything else about the session — the counterpart to
+    /// `PlanTimeSheet`'s "Set" that was missing. Also cancels any reminder scheduled for it, via `update`.
+    func clearTime(_ id: UUID) {
+        update(id) { p in p.time = nil }
+    }
+
     /// A session the USER planned themselves, already accepted (they don't need to approve their own idea).
     func addUserSession(day: String, time: Date?, sport: String, intent: PlanProposal.Intent) {
         var p = PlanProposal(day: day, time: time, sport: sport, intent: intent,
@@ -305,15 +311,26 @@ final class CoachPlanStore: ObservableObject {
         p.decidedAt = Date()
         proposals.insert(p, at: 0)
         trim()
+        PlanReminder.schedule(for: p)
     }
 
-    func remove(_ id: UUID) { proposals.removeAll { $0.id == id } }
+    func remove(_ id: UUID) {
+        PlanReminder.cancel(for: id)
+        proposals.removeAll { $0.id == id }
+    }
 
-    func clearAll() { proposals = [] }
+    func clearAll() {
+        for p in proposals { PlanReminder.cancel(for: p.id) }
+        proposals = []
+    }
 
+    /// Every status-changing entry point above goes through this one choke point, so rescheduling the
+    /// reminder from the CURRENT state after each mutation is enough to keep it truthful — there is no
+    /// second cancellation path to forget when a commitment is swapped, skipped, or its time cleared.
     private func update(_ id: UUID, _ mutate: (inout PlanProposal) -> Void) {
         guard let idx = proposals.firstIndex(where: { $0.id == id }) else { return }
         mutate(&proposals[idx])
+        PlanReminder.schedule(for: proposals[idx])
     }
 
     private func trim() {

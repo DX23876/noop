@@ -541,6 +541,14 @@ DE: dict[str, str] = {
     "This goal was set aside": "Dieses Ziel wurde beiseitegelegt",
     "Its story below stays yours. A new goal is one tap away in Coach settings.": "Seine Geschichte unten bleibt deine. Ein neues Ziel ist in den Coach-Einstellungen einen Tipp entfernt.",
 
+    # Plan-on-Today + reminder (B3).
+    "Next up: %@": "Als Nächstes: %@",
+    "Remove time": "Zeit entfernen",
+    "Plan reminders": "Plan-Erinnerungen",
+    "On: a reminder at the time you set for a planned session.": "An: eine Erinnerung zur Uhrzeit, die du für eine geplante Einheit gesetzt hast.",
+    "Off: sessions with a time don't remind you.": "Aus: Einheiten mit Uhrzeit erinnern dich nicht.",
+    "Notifications are off. Enable them for NOOP in Settings to use reminders.": "Mitteilungen sind aus. Aktiviere sie für NOOP in den Einstellungen, um Erinnerungen zu nutzen.",
+
 }
 
 

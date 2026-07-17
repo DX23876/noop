@@ -343,6 +343,13 @@ struct PlanTimeSheet: View {
                             .accessibilityLabel("Session time")
                     }
                 }
+                if proposal.time != nil {
+                    Button("Remove time", role: .destructive) {
+                        store.clearTime(proposal.id)
+                        dismiss()
+                    }
+                    .font(StrandFont.footnote)
+                }
                 Spacer()
             }
             .padding(16)
