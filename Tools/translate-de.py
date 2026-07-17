@@ -552,6 +552,9 @@ DE: dict[str, str] = {
     # Chat retry (B4).
     "Retry": "Erneut versuchen",
 
+    # API key help (B5).
+    "Don't have a key? Get one from %@.": "Noch keinen Schlüssel? Hol dir einen bei %@.",
+
 }
 
 

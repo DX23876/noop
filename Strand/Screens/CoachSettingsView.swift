@@ -22,6 +22,35 @@ struct CoachSettingsView: View {
     @State private var checkInDenied: Bool = false
     @State private var planReminderOn: Bool = PlanReminder.isEnabled
     @State private var planReminderDenied: Bool = false
+
+    // MARK: Hub attention badges
+
+    /// A blank model is the one "configured yet still broken" state reachable from the hub: Custom can
+    /// be `isConfigured` (a base URL was saved) with no model chosen, and `send()` would otherwise be the
+    /// first place this surfaces (as an opaque 400 further down the line).
+    private var connectionNeedsAttention: Bool {
+        coach.model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// An active goal whose date has passed — the same condition `expiredGoalCard` acts on — is exactly
+    /// the state B2 gave a decision UI to; the badge is what tells you it's waiting.
+    private var goalNeedsAttention: Bool {
+        guard let g = goalStore.goal, g.status == .active, let weeks = g.weeksRemaining() else { return false }
+        return weeks < 0
+    }
+
+    /// The daily check-in LOOKS on but silently never fires once notification authorization is revoked
+    /// (in iOS Settings, outside the app) — `checkInDenied` alone only catches a denial from THIS
+    /// session's toggle; `refreshCheckInAuthorization` below also catches a revocation from any time.
+    private var coachingNeedsAttention: Bool { checkInOn && checkInDenied }
+
+    /// Re-check authorization whenever the Coaching subpage appears, so a permission revoked in iOS
+    /// Settings since the toggle was last touched still surfaces as "needs attention" instead of staying
+    /// silently broken.
+    private func refreshCheckInAuthorization() async {
+        guard checkInOn else { return }
+        checkInDenied = await !CoachCheckIn.isCurrentlyAuthorized()
+    }
     @ObservedObject private var memory = CoachMemory.shared
     /// The structured goal (P3). The memory card's field still edits its title inline; the full editor
     /// with target/date/pace lives in the dedicated goal card.
@@ -124,6 +153,7 @@ struct CoachSettingsView: View {
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                             Spacer(minLength: 8)
+                            attentionBadge(connectionNeedsAttention)
                             Image(systemName: "chevron.right")
                                 .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                                 .accessibilityHidden(true)
@@ -131,6 +161,7 @@ struct CoachSettingsView: View {
                     }
                 }
                 .accessibilityElement(children: .combine)
+                .accessibilityValue(connectionNeedsAttention ? "Needs attention" : "")
 
                 NavigationLink { goalJourneySubpage } label: {
                     NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
@@ -146,6 +177,7 @@ struct CoachSettingsView: View {
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                             Spacer(minLength: 8)
+                            attentionBadge(goalNeedsAttention)
                             Image(systemName: "chevron.right")
                                 .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                                 .accessibilityHidden(true)
@@ -153,6 +185,7 @@ struct CoachSettingsView: View {
                     }
                 }
                 .accessibilityElement(children: .combine)
+                .accessibilityValue(goalNeedsAttention ? "Needs attention" : "")
 
                 NavigationLink { coachingSubpage } label: {
                     NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
@@ -168,6 +201,7 @@ struct CoachSettingsView: View {
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                             Spacer(minLength: 8)
+                            attentionBadge(coachingNeedsAttention)
                             Image(systemName: "chevron.right")
                                 .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                                 .accessibilityHidden(true)
@@ -175,6 +209,7 @@ struct CoachSettingsView: View {
                     }
                 }
                 .accessibilityElement(children: .combine)
+                .accessibilityValue(coachingNeedsAttention ? "Needs attention" : "")
 
                 NavigationLink { memorySubpage } label: {
                     NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
@@ -227,6 +262,19 @@ struct CoachSettingsView: View {
         .background(StrandPalette.surfaceBase.ignoresSafeArea())
     }
 
+    /// A small dot on a hub row when something on its subpage needs the user's attention — computed
+    /// fresh each render from state already loaded for the row, no separate persistence. The row's own
+    /// `.accessibilityValue` carries the same signal for VoiceOver, since a dot alone is purely visual.
+    @ViewBuilder
+    private func attentionBadge(_ needsAttention: Bool) -> some View {
+        if needsAttention {
+            Circle()
+                .fill(StrandPalette.statusWarning)
+                .frame(width: 8, height: 8)
+                .accessibilityHidden(true)
+        }
+    }
+
     /// Shared scroll/padding/background scaffold for a subpage. Deliberately takes NO title parameter —
     /// each subpage applies its own literal `.navigationTitle("...")` outside this wrapper, for the same
     /// scanner-visibility reason as the hub rows above.
@@ -270,6 +318,7 @@ struct CoachSettingsView: View {
             planReminderBar
         }
         .navigationTitle("Coaching")
+        .task { await refreshCheckInAuthorization() }
     }
 
     private var memorySubpage: some View {
@@ -1039,13 +1088,16 @@ struct CoachSettingsView: View {
     private var providerConfigFields: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Provider").strandOverline()
+            // .menu, not .segmented: "Custom (OpenAI-compatible)" alongside three other labels doesn't
+            // fit a 4-way segmented control on iPhone width without truncating. Same style CoachGoalView
+            // already uses for its own multi-option picker.
             Picker("Provider", selection: $coach.provider) {
                 ForEach(AIProvider.allCases) { p in
                     Text(p.displayName).tag(p)
                 }
             }
-            .labelsHidden()
-            .pickerStyle(.segmented)
+            .pickerStyle(.menu)
+            .tint(StrandPalette.accent)
             .accessibilityLabel("Provider")
         }
 
@@ -1087,6 +1139,7 @@ struct CoachSettingsView: View {
                     .strokeBorder(StrandPalette.hairline, lineWidth: 1))
                 .onSubmit { coach.provider == .custom ? connectCustom() : saveKey() }
                 .accessibilityLabel("API key")
+            apiKeyHelpRow
         }
 
         HStack {
@@ -1098,6 +1151,35 @@ struct CoachSettingsView: View {
                     .disabled(keyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             Spacer()
+        }
+    }
+
+    /// A first-time, non-technical user hits a wall at "paste your API key" with no idea where one comes
+    /// from. One static link to the provider's own key page — no telemetry, no in-app browser, just
+    /// `Link` opening the system browser. Nothing to show for Custom: a self-hosted server has no key
+    /// vendor of its own.
+    @ViewBuilder
+    private var apiKeyHelpRow: some View {
+        if let url = apiKeyHelpURL {
+            Link(destination: url) {
+                HStack(spacing: 6) {
+                    Image(systemName: "questionmark.circle")
+                        .accessibilityHidden(true)
+                    Text("Don't have a key? Get one from \(coach.provider.displayName).")
+                        .font(StrandFont.footnote)
+                        .multilineTextAlignment(.leading)
+                }
+                .foregroundStyle(StrandPalette.accent)
+            }
+        }
+    }
+
+    private var apiKeyHelpURL: URL? {
+        switch coach.provider {
+        case .openAI:    return URL(string: "https://platform.openai.com/api-keys")
+        case .anthropic: return URL(string: "https://console.anthropic.com/settings/keys")
+        case .gemini:    return URL(string: "https://aistudio.google.com/apikey")
+        case .custom:    return nil
         }
     }
 

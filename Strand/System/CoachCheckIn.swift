@@ -30,6 +30,17 @@ enum CoachCheckIn {
 
     static var isEnabled: Bool { UserDefaults.standard.bool(forKey: K.enabled) }
 
+    /// The CURRENT OS authorization state, re-checked live rather than assumed from the persisted
+    /// `isEnabled` flag — that flag only reflects what happened the last time the toggle was touched in
+    /// this app, not a permission the user later revoked in iOS Settings.
+    static func isCurrentlyAuthorized() async -> Bool {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        switch settings.authorizationStatus {
+        case .authorized, .provisional, .ephemeral: return true
+        default: return false
+        }
+    }
+
     /// The daily fire time as minutes since midnight, clamped to a valid minute-of-day. Defaults to 08:00.
     static var timeMinutes: Int {
         let v = UserDefaults.standard.object(forKey: K.time) as? Int ?? 8 * 60
