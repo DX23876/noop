@@ -62,6 +62,10 @@ struct CoachSettingsView: View {
     @State private var memoryExpanded: Bool = false
     /// How the user reaches Coach from Today: the card, the draggable floating button, or both.
     @AppStorage(CoachEntryMode.storageKey) private var coachEntryModeRaw = CoachEntryMode.both.rawValue
+    /// Opt-in: opening Today on a new day generates a workout suggestion. Same key MorningSuggestionCard
+    /// reads. Default OFF — a Today-triggered generation is the one thing that talks to the network on
+    /// open, so it must be chosen.
+    @AppStorage("coach.morningSuggestion") private var morningSuggestionOn = false
     /// Which corner the floating button is pinned to (`.custom` once dragged), and whether it's locked.
     @AppStorage(CoachButtonCorner.storageKey) private var fabCornerRaw = CoachButtonCorner.bottomTrailing.rawValue
     @AppStorage(CoachButtonCorner.lockedKey) private var fabLocked = false
@@ -317,6 +321,7 @@ struct CoachSettingsView: View {
         subpageScaffold {
             personaBar
             coachEntryBar
+            morningSuggestionBar
             checkInBar
             planReminderBar
         }
@@ -638,6 +643,43 @@ struct CoachSettingsView: View {
                 .accessibilityLabel("Coaching style")
             }
         }
+    }
+
+    // MARK: - Morning suggestion (Today-triggered)
+
+    /// A plain opt-in toggle, NOT a `CoachCheckIn.setEnabled` case: no notification authorization is
+    /// involved (the generation happens on open, foreground), so there's no `.denied` outcome and no
+    /// async gate. Gated on a configured coach with data consent, so the card never has to render a
+    /// "no key" state.
+    private var morningSuggestionBar: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 10) {
+                    Image(systemName: morningSuggestionOn ? "sun.max.fill" : "sun.max")
+                        .foregroundStyle(morningSuggestionOn ? StrandPalette.accent : StrandPalette.textTertiary)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Morning suggestion on Today")
+                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                        Text(morningSuggestionOn
+                             ? "On: opening Today generates one workout suggestion a day to accept, change or decline."
+                             : "Off: the coach suggests a session only when you ask in chat.")
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 8)
+                    Toggle("", isOn: $morningSuggestionOn)
+                        .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                        .accessibilityLabel("Morning suggestion on Today")
+                }
+                if !(coach.isConfigured && coach.dataConsent) {
+                    Text("Needs a connected provider and data access, so the coach has something to suggest from.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .disabled(!(coach.isConfigured && coach.dataConsent))
     }
 
     // MARK: - Daily check-in

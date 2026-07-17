@@ -1260,6 +1260,7 @@ struct TodayView: View {
                 // clock, so the live tick never re-renders TodayView.body.
                 ActiveWorkoutIndicatorSection()
                 if (CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both).showsCard { coachCard }
+                MorningSuggestionCard(showPlan: $showPlan)
                 PlanTodayCard(showPlan: $showPlan)
                 // The "still building" and "new here?" prompts are about getting today's scores going,
                 // so they stay anchored to today rather than reappearing on every navigated past day.

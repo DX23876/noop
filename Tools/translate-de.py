@@ -581,6 +581,16 @@ DE: dict[str, str] = {
     # Plan Today card — untimed commitment (W4).
     "Today · no time set": "Heute · keine Zeit gesetzt",
 
+    # Morning suggestion card (W6).
+    "Morning suggestion on Today": "Morgen-Vorschlag auf Today",
+    "On: opening Today generates one workout suggestion a day to accept, change or decline.": "An: Beim Öffnen von Today entsteht täglich ein Workout-Vorschlag zum Annehmen, Ändern oder Ablehnen.",
+    "Off: the coach suggests a session only when you ask in chat.": "Aus: Der Coach schlägt eine Einheit nur vor, wenn du im Chat fragst.",
+    "Needs a connected provider and data access, so the coach has something to suggest from.": "Braucht einen verbundenen Anbieter und Datenzugriff, damit der Coach eine Grundlage für Vorschläge hat.",
+    "Working out today's session…": "Ermittle die heutige Einheit …",
+    "Today's session": "Heutige Einheit",
+    "Accept": "Annehmen",
+    "Not this one": "Nicht diese",
+
 }
 
 

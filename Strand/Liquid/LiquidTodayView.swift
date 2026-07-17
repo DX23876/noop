@@ -245,6 +245,7 @@ struct LiquidTodayView: View {
                     // and taps straight through to Live. Renders nothing when no workout is active.
                     ActiveWorkoutIndicatorSection()
                     if (CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both).showsCard { coachCard }
+                    MorningSuggestionCard(showPlan: $showPlan)
                     PlanTodayCard(showPlan: $showPlan)
                     // #today-layout (parity with Android): every Today section — the Charge/Effort/Rest hero
                     // and Start-session included — renders in the user's saved order. Reorder via the Arrange
