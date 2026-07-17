@@ -53,13 +53,15 @@ extension OpenAICompatibleToolClient {
         tools: [CoachTool],
         runTool: (String, [String: Any]) async -> String,
         session: URLSession
-    ) async throws -> String {
+    ) async throws -> CoachToolReply {
         var wire: [[String: Any]] = [["role": "system", "content": systemPrompt]]
         for m in messages { wire.append(["role": m.role.rawValue, "content": m.content]) }
         let toolSpecs = tools.map { $0.openAIFunctionSpec }
         // Decided at most once per conversation, not per round: if round 1 needs the modern param shape,
         // every later round will too (same model, same server) — mirrors OpenAIClient.send's own retry.
         var modernParams = false
+        // The evidence chain (P6): every tool name actually called, in call order, across every round.
+        var calledTools: [String] = []
 
         for _ in 0..<Self.maxToolRounds {
             let message = try await roundOrRetry(key: key, model: model, wire: wire, tools: toolSpecs,
@@ -73,18 +75,19 @@ extension OpenAICompatibleToolClient {
                 for call in calls {
                     guard let parsed = Self.parseToolCall(call) else { continue }
                     let output = await runTool(parsed.name, parsed.input)
+                    calledTools.append(parsed.name)
                     wire.append(["role": "tool", "tool_call_id": parsed.id, "content": output])
                 }
                 continue
             }
-            return (message["content"] as? String) ?? ""
+            return CoachToolReply(text: (message["content"] as? String) ?? "", toolsUsed: calledTools)
         }
 
         // Exhausted the round cap without a final answer: one last call WITHOUT tools forces text, with
         // the gathered tool data folded into the closing turn (B1's fix, same shape here).
         let closing = try await roundOrRetry(key: key, model: model, wire: Self.closingWire(from: wire),
                                              tools: [], modernParams: &modernParams, session: session)
-        return (closing["content"] as? String) ?? ""
+        return CoachToolReply(text: (closing["content"] as? String) ?? "", toolsUsed: calledTools)
     }
 
     /// One request, transparently retried once with the modern param shape (`max_completion_tokens`, no

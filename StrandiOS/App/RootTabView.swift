@@ -199,6 +199,11 @@ struct RootTabView: View {
                 // so a deep-link lands on the Today tab where that entry lives.
                 withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 0 }
                 router.requestedDestination = nil
+            case .breathe:
+                // Reuses the SAME quick-action sheet machinery `.activeWorkout` does for `.live` — the
+                // coach chat's action row asks for Breathe directly, skipping the quick-action MENU step.
+                withAnimation(Self.sheetEase) { quickAction = .breathe }
+                router.requestedDestination = nil
             case nil:
                 break
             }
@@ -239,6 +244,9 @@ struct RootTabView: View {
                 // .liveSession routes to the Today tab (handled above — its Start entry owns the cover);
                 // this keeps the switch exhaustive and falls back to Today if it ever reaches the host.
                 case .liveSession: LiquidTodayView()
+                // .breathe routes through the quick-action sheet (handled above); this keeps the switch
+                // exhaustive and falls back to BreathingView directly if it ever reaches the host.
+                case .breathe: BreathingView()
                 }
             }
             // The Trends/Today fallbacks above emit TabRoute value pushes (#198), which need a

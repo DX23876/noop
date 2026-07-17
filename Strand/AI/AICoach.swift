@@ -32,15 +32,21 @@ struct ChatMessage: Identifiable, Equatable, Codable {
     /// When the turn was created — drives time separators in the transcript. Defaulted on decode so
     /// transcripts saved before this field existed still load (they just show "now" for old turns).
     let date: Date
+    /// Tool names actually called by the model to produce THIS reply, in call order (may repeat a name
+    /// across rounds) — the evidence chain a user can expand to see what grounded the answer. Empty for
+    /// user turns, for a plain-context-path reply (no tool-calling provider), and for turns predating
+    /// this field (back-compat decode).
+    let toolsUsed: [String]
 
-    init(id: UUID = UUID(), role: Role, text: String, date: Date = Date()) {
+    init(id: UUID = UUID(), role: Role, text: String, date: Date = Date(), toolsUsed: [String] = []) {
         self.id = id
         self.role = role
         self.text = text
         self.date = date
+        self.toolsUsed = toolsUsed
     }
 
-    private enum CodingKeys: String, CodingKey { case id, role, text, date }
+    private enum CodingKeys: String, CodingKey { case id, role, text, date, toolsUsed }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -48,6 +54,21 @@ struct ChatMessage: Identifiable, Equatable, Codable {
         role = try c.decode(Role.self, forKey: .role)
         text = try c.decode(String.self, forKey: .text)
         date = try c.decodeIfPresent(Date.self, forKey: .date) ?? Date()
+        toolsUsed = try c.decodeIfPresent([String].self, forKey: .toolsUsed) ?? []
+    }
+
+    /// Pure: unique tool names from `toolsUsed`, in FIRST-call order — a tool called twice across rounds
+    /// (e.g. re-checking readiness after a swap) only needs to be listed once in the evidence chain
+    /// (P6). Unrecognised names are dropped rather than shown as a raw identifier. No view dependency —
+    /// unit-tested.
+    static func uniqueTools(from toolsUsed: [String]) -> [CoachTool] {
+        var seen = Set<String>()
+        var result: [CoachTool] = []
+        for name in toolsUsed {
+            guard seen.insert(name).inserted, let tool = CoachTool(rawValue: name) else { continue }
+            result.append(tool)
+        }
+        return result
     }
 }
 
@@ -770,9 +791,10 @@ final class AICoachEngine: ObservableObject {
         // single-shot path below, unchanged.
         if let streamer = provider.client as? StreamingToolClient {
             let replyId = UUID()
-            messages.append(ChatMessage(id: replyId, role: .assistant, text: ""))
+            let startedAt = Date()
+            messages.append(ChatMessage(id: replyId, role: .assistant, text: "", date: startedAt))
             do {
-                _ = try await streamer.streamWithTools(
+                let reply = try await streamer.streamWithTools(
                     key: key,
                     model: model,
                     systemPrompt: systemPrompt,
@@ -784,14 +806,20 @@ final class AICoachEngine: ObservableObject {
                     onDelta: { [weak self] delta in self?.appendDelta(delta, to: replyId) },
                     session: session
                 )
-                // An empty reply shows "(no reply)" — unless the turn produced a chart, in which case we
-                // drop the blank bubble and let the chart (flushed below) stand on its own.
+                // Attach the evidence chain (P6) now that streaming is done — `appendDelta` only
+                // accumulated text as it arrived, it never carries `toolsUsed`.
                 if let idx = messages.firstIndex(where: { $0.id == replyId }), messages[idx].text.isEmpty {
+                    // An empty reply shows "(no reply)" — unless the turn produced a chart, in which case
+                    // we drop the blank bubble and let the chart (flushed below) stand on its own.
                     if pendingCharts.isEmpty {
-                        messages[idx] = ChatMessage(id: replyId, role: .assistant, text: "(no reply)")
+                        messages[idx] = ChatMessage(id: replyId, role: .assistant, text: "(no reply)",
+                                                    date: startedAt, toolsUsed: reply.toolsUsed)
                     } else {
                         messages.remove(at: idx)
                     }
+                } else if let idx = messages.firstIndex(where: { $0.id == replyId }), !reply.toolsUsed.isEmpty {
+                    messages[idx] = ChatMessage(id: replyId, role: .assistant, text: messages[idx].text,
+                                                date: startedAt, toolsUsed: reply.toolsUsed)
                 }
                 flushPendingCharts()
             } catch let e as AICoachError {
@@ -810,8 +838,9 @@ final class AICoachEngine: ObservableObject {
 
         do {
             let reply = try await callProvider(key: key, messages: wire)
-            let clean = reply.trimmingCharacters(in: .whitespacesAndNewlines)
-            messages.append(ChatMessage(role: .assistant, text: clean.isEmpty ? "(no reply)" : clean))
+            let clean = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            messages.append(ChatMessage(role: .assistant, text: clean.isEmpty ? "(no reply)" : clean,
+                                        toolsUsed: reply.toolsUsed))
             flushPendingCharts()
         } catch let e as AICoachError {
             discardPendingCharts(); errorText = e.errorDescription
@@ -1151,9 +1180,10 @@ final class AICoachEngine: ObservableObject {
         let wire: [(role: ChatMessage.Role, content: String)] = [(.user, context + "\n\n---\n\n" + instruction)]
         do {
             let reply = try await callProvider(key: key, messages: wire)
-            let clean = reply.trimmingCharacters(in: .whitespacesAndNewlines)
+            let clean = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
             if !clean.isEmpty {
-                messages.append(ChatMessage(role: .assistant, text: "Today's brief\n\n" + clean))
+                messages.append(ChatMessage(role: .assistant, text: "Today's brief\n\n" + clean,
+                                            toolsUsed: reply.toolsUsed))
                 // Stamp only on genuine success, so a network failure doesn't burn the day's slot — a
                 // retry (reopening, or the check-in notification's forced refreshBrief) can still land one.
                 UserDefaults.standard.set(Repository.logicalDayKey(Date()), forKey: Self.lastBriefDayKey)
@@ -1774,7 +1804,7 @@ final class AICoachEngine: ObservableObject {
     /// tool-capable provider such as Anthropic), run the tool-use loop so the model pulls the user's real
     /// numbers on demand; otherwise fall back to the plain single-shot text path.
     private func callProvider(key: String,
-                              messages: [(role: ChatMessage.Role, content: String)]) async throws -> String {
+                              messages: [(role: ChatMessage.Role, content: String)]) async throws -> CoachToolReply {
         if toolCallingActive, let toolClient = provider.client as? ToolCallingClient {
             return try await toolClient.sendWithTools(
                 key: key,
@@ -1788,13 +1818,14 @@ final class AICoachEngine: ObservableObject {
                 session: session
             )
         }
-        return try await provider.client.send(
+        let text = try await provider.client.send(
             key: key,
             model: model,
             systemPrompt: systemPrompt,
             messages: messages,
             session: session
         )
+        return CoachToolReply(text: text, toolsUsed: [])
     }
 
     /// Sliding window over the chat: the FIRST user turn (it carries the metrics context) plus the most

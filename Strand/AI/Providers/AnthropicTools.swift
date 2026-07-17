@@ -18,10 +18,12 @@ extension AnthropicClient: ToolCallingClient {
         tools: [CoachTool],
         runTool: (String, [String: Any]) async -> String,
         session: URLSession
-    ) async throws -> String {
+    ) async throws -> CoachToolReply {
         // Running transcript in Anthropic wire form. Seed it from the chat turns (plain-string content).
         var wire: [[String: Any]] = messages.map { ["role": $0.role.rawValue, "content": $0.content] }
         let toolSpecs = tools.map { $0.anthropicSpec }
+        // The evidence chain (P6): every tool name actually called, in call order, across every round.
+        var calledTools: [String] = []
         await Self.beginUsageTurn()
 
         for _ in 0..<Self.maxToolRounds {
@@ -50,7 +52,7 @@ extension AnthropicClient: ToolCallingClient {
 
             // Not a tool request → this is the final answer: concatenate its text blocks.
             if (json["stop_reason"] as? String) != "tool_use" {
-                return Self.joinedText(from: content)
+                return CoachToolReply(text: Self.joinedText(from: content), toolsUsed: calledTools)
             }
 
             // Echo the assistant's tool_use turn back verbatim (required), then answer every tool_use
@@ -61,6 +63,7 @@ extension AnthropicClient: ToolCallingClient {
                 guard let id = block["id"] as? String, let name = block["name"] as? String else { continue }
                 let toolInput = block["input"] as? [String: Any] ?? [:]
                 let output = await runTool(name, toolInput)
+                calledTools.append(name)
                 results.append([
                     "type": "tool_result",
                     "tool_use_id": id,
@@ -68,16 +71,17 @@ extension AnthropicClient: ToolCallingClient {
                 ])
             }
             // A tool_use stop with no decodable blocks would loop forever — bail with the text we have.
-            if results.isEmpty { return Self.joinedText(from: content) }
+            if results.isEmpty { return CoachToolReply(text: Self.joinedText(from: content), toolsUsed: calledTools) }
             wire.append(["role": "user", "content": results])
         }
 
         // Exhausted the round cap without a final answer: one last call WITHOUT tools forces text.
-        return try await send(
+        let closingText = try await send(
             key: key, model: model, systemPrompt: systemPrompt,
             messages: Self.messagesForFinal(wire: wire),
             session: session
         )
+        return CoachToolReply(text: closingText, toolsUsed: calledTools)
     }
 
     /// Concatenate the `text` blocks of an Anthropic content array into one reply string.

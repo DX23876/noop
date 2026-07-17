@@ -396,12 +396,21 @@ enum CoachTool: String, CaseIterable {
 
 // MARK: - Provider capability
 
+/// What a tool-calling round produced: the reply text, and every tool actually called to ground it, in
+/// call order (a name may repeat across rounds) — the "evidence chain" P6 surfaces per message so a user
+/// can see what the answer is actually based on, not just read a claim.
+struct CoachToolReply {
+    let text: String
+    let toolsUsed: [String]
+}
+
 /// A provider client that can run a tool-use loop. Providers opt in by conforming (see
 /// `AnthropicClient`); the engine falls back to plain `send` for those that don't. Declared here
 /// rather than in `AIProvider.swift` so tracking the upstream repo never conflicts on the protocol.
 protocol ToolCallingClient {
-    /// Run a multi-round tool-use conversation and return the final assistant text. `runTool` executes
-    /// a tool call by name and returns a compact text result to feed back to the model.
+    /// Run a multi-round tool-use conversation and return the final assistant text plus which tools
+    /// grounded it. `runTool` executes a tool call by name and returns a compact text result to feed
+    /// back to the model.
     func sendWithTools(
         key: String,
         model: String,
@@ -410,7 +419,7 @@ protocol ToolCallingClient {
         tools: [CoachTool],
         runTool: (String, [String: Any]) async -> String,
         session: URLSession
-    ) async throws -> String
+    ) async throws -> CoachToolReply
 }
 
 // MARK: - Engine: tool availability + execution

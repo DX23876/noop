@@ -19,6 +19,9 @@ import AppKit
 /// button). See `docs/CONTRIBUTING.md` for the design-system rules this screen follows.
 struct CoachView: View {
     @EnvironmentObject var coach: AICoachEngine
+    /// Injected at the app root (`StrandApp`/`StrandiOSApp`) — resolves from the environment wherever
+    /// this view is actually presented, since Coach is always reached from within that root's hierarchy.
+    @EnvironmentObject var navRouter: NavRouter
 
     /// Draft text in the composer (the question being typed).
     @State private var draft: String = ""
@@ -27,6 +30,9 @@ struct CoachView: View {
     /// than two stacked `.sheet` modifiers (which don't compose reliably).
     private enum ActiveSheet: Int, Identifiable { case settings, history, plan; var id: Int { rawValue } }
     @State private var activeSheet: ActiveSheet?
+    /// Which messages' evidence chains (P6) are expanded — per-message, so opening one doesn't open
+    /// every reply that has one.
+    @State private var expandedEvidenceIds: Set<UUID> = []
     /// First-run goal onboarding (offered once, skippable — see the `.task` that arms it).
     @State private var showGoalOnboarding = false
     /// Drives the header's pending-proposal dot.
@@ -305,6 +311,8 @@ struct CoachView: View {
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Coach said: \(message.text)")
 
+                    evidenceChain(for: message)
+
                     // Visible, not just a long-press away — the context menu above still works too.
                     if isLastAssistant(message) {
                         Button { coach.regenerate() } label: {
@@ -316,6 +324,8 @@ struct CoachView: View {
                         .disabled(coach.sending)
                         .padding(.leading, 14)
                         .accessibilityLabel("Regenerate this reply")
+
+                        actionRow
                     }
                 }
             }
@@ -324,6 +334,123 @@ struct CoachView: View {
 
     private func copyButton(_ text: String) -> some View {
         Button { CoachClipboard.copy(text) } label: { Label("Copy", systemImage: "doc.on.doc") }
+    }
+
+    // MARK: - Evidence chain (P6): what actually grounded this reply
+
+    /// A short, human label per tool for the evidence list. Written as a switch of literal `Text(...)`
+    /// calls (not a computed `String` on `CoachTool`) for the same scanner-visibility reason as the
+    /// settings hub's row titles — piping this through a property would make it invisible to
+    /// `Tools/i18n_audit.py`. Several cases intentionally share one literal ("Memory" for all three
+    /// memory-editing tools) — one catalog entry, not three near-duplicates.
+    @ViewBuilder
+    private func evidenceLabel(_ tool: CoachTool) -> some View {
+        switch tool {
+        case .biometricSummary:        Text("Your metrics")
+        case .recentWorkouts:          Text("Recent workouts")
+        case .stressIndex:             Text("Stress index")
+        case .personalPatterns:        Text("Your patterns")
+        case .plotMetric:              Text("Chart")
+        case .rememberFact, .updateFact, .forgetFact: Text("Memory")
+        case .searchPastConversations: Text("Past conversations")
+        case .logCaffeine:             Text("Caffeine log")
+        case .logJournal:              Text("Journal")
+        case .logLabMarker:            Text("Lab Book")
+        case .sleepDetail:             Text("Sleep detail")
+        case .rangeReport:             Text("Range report")
+        case .readiness:               Text("Readiness")
+        case .chargeDrivers:           Text("Charge breakdown")
+        case .proposePlan:             Text("Plan proposal")
+        case .sessionOutlook:          Text("Session outlook")
+        case .simulateDay:             Text("Simulation")
+        case .planAdherence:           Text("Plan adherence")
+        }
+    }
+
+    /// Expandable per-message evidence — which tools actually backed this specific reply, and hence
+    /// which of the user's own data it's grounded in. The tool loop already knows this (`toolsUsed` on
+    /// the message); this is purely a disclosure, not new computation. Empty for replies from a
+    /// non-tool-calling provider, matching `toolsUsed`'s own emptiness there.
+    @ViewBuilder
+    private func evidenceChain(for message: ChatMessage) -> some View {
+        let tools = ChatMessage.uniqueTools(from: message.toolsUsed)
+        if !tools.isEmpty {
+            let isExpanded = expandedEvidenceIds.contains(message.id)
+            VStack(alignment: .leading, spacing: 4) {
+                Button {
+                    withAnimation(StrandMotion.fade) {
+                        if isExpanded { expandedEvidenceIds.remove(message.id) }
+                        else { expandedEvidenceIds.insert(message.id) }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.seal")
+                            .accessibilityHidden(true)
+                        Text("What grounded this answer")
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .accessibilityHidden(true)
+                    }
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isExpanded ? "Hide what grounded this answer" : "Show what grounded this answer")
+
+                if isExpanded {
+                    VStack(alignment: .leading, spacing: 3) {
+                        ForEach(tools, id: \.self) { tool in
+                            HStack(spacing: 6) {
+                                Image(systemName: "circle.fill")
+                                    .font(.system(size: 3))
+                                    .accessibilityHidden(true)
+                                evidenceLabel(tool)
+                            }
+                            .font(StrandFont.caption)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                        }
+                    }
+                    .padding(.leading, 14)
+                }
+            }
+            .padding(.leading, 14)
+        }
+    }
+
+    // MARK: - Action row (P6): advice → action without a navigation break
+
+    /// Three one-tap hops to common next steps after coaching advice, under the LAST reply only (like
+    /// Regenerate) so the transcript doesn't accumulate a row under every message. Not content-triggered
+    /// (the reply text isn't scanned for "you should breathe" etc.) — guessing intent from prose is
+    /// fragile; these are just the standing fast paths from advice to doing something about it.
+    private var actionRow: some View {
+        HStack(spacing: 8) {
+            // Each title is a literal `Text(...)` at its own call site (not a `String` routed through
+            // `actionChip`'s parameter) — the same scanner-visibility reason as `evidenceLabel` above.
+            actionChip(icon: "wind", action: { navRouter.openBreathe() }) { Text("Breathe") }
+            actionChip(icon: "waveform.path.ecg", action: { navRouter.openLiveSession() }) { Text("Live Session") }
+            actionChip(icon: "calendar.badge.plus", action: { activeSheet = .plan }) { Text("Schedule a session") }
+        }
+        .padding(.leading, 14)
+        .padding(.top, 2)
+    }
+
+    private func actionChip<Content: View>(
+        icon: String, action: @escaping () -> Void, @ViewBuilder label: () -> Content
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Image(systemName: icon).accessibilityHidden(true)
+                label()
+            }
+            .font(StrandFont.caption)
+            .foregroundStyle(StrandPalette.textSecondary)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 5)
+            .background(StrandPalette.surfaceInset, in: Capsule(style: .continuous))
+            .overlay(Capsule(style: .continuous).strokeBorder(StrandPalette.hairline, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
     }
 
     private var typingIndicator: some View {

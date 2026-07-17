@@ -28,6 +28,7 @@ final class NavRouter: ObservableObject {
         case trends
         case activeWorkout
         case liveSession
+        case breathe
 
         var id: String { rawValue }
 
@@ -77,4 +78,7 @@ final class NavRouter: ObservableObject {
     /// directly today; this route exists for deep-link parity so a future shell/inbox item can raise it
     /// the same way as every other destination.
     func openLiveSession() { requestedDestination = .liveSession }
+    /// Open Breathe. Raised by the coach chat's action row (P6) so a reply that suggests calming down
+    /// leads somewhere in one tap instead of "go find it in the menu yourself".
+    func openBreathe() { requestedDestination = .breathe }
 }

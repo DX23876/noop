@@ -560,6 +560,24 @@ DE: dict[str, str] = {
     "Choose a model": "Modell wählen",
     "Use \"%@\"": "„%@\" verwenden",
 
+    # Evidence chain + action row (P6).
+    "Your metrics": "Deine Werte",
+    "Recent workouts": "Letzte Workouts",
+    "Stress index": "Stress-Index",
+    "Your patterns": "Deine Muster",
+    "Chart": "Diagramm",
+    "Past conversations": "Frühere Gespräche",
+    "Caffeine log": "Koffein-Log",
+    "Sleep detail": "Schlafdetails",
+    "Range report": "Zeitraum-Bericht",
+    "Charge breakdown": "Charge-Aufschlüsselung",
+    "Plan proposal": "Plan-Vorschlag",
+    "Session outlook": "Einheiten-Ausblick",
+    "Simulation": "Simulation",
+    "Plan adherence": "Plan-Treue",
+    "What grounded this answer": "Worauf diese Antwort beruht",
+    "Schedule a session": "Einheit verplanen",
+
 }
 
 

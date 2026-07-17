@@ -16,10 +16,12 @@ extension AnthropicClient: StreamingToolClient {
         runTool: (String, [String: Any]) async -> String,
         onDelta: @MainActor (String) -> Void,
         session: URLSession
-    ) async throws -> String {
+    ) async throws -> CoachToolReply {
         var wire: [[String: Any]] = messages.map { ["role": $0.role.rawValue, "content": $0.content] }
         let toolSpecs = tools.map { $0.anthropicSpec }
         var fullText = ""
+        // The evidence chain (P6): every tool name actually called, in call order, across every round.
+        var calledTools: [String] = []
         await Self.beginUsageTurn()
 
         for _ in 0..<Self.maxToolRounds {
@@ -55,14 +57,15 @@ extension AnthropicClient: StreamingToolClient {
                     guard let id = block["id"] as? String, let name = block["name"] as? String else { continue }
                     let input = block["input"] as? [String: Any] ?? [:]
                     let output = await runTool(name, input)
+                    calledTools.append(name)
                     results.append(["type": "tool_result", "tool_use_id": id, "content": output])
                 }
-                if results.isEmpty { return fullText }
+                if results.isEmpty { return CoachToolReply(text: fullText, toolsUsed: calledTools) }
                 wire.append(["role": "user", "content": results])
                 continue
             }
 
-            return fullText
+            return CoachToolReply(text: fullText, toolsUsed: calledTools)
         }
 
         // Exhausted the round cap mid-tool-use. The non-streaming loop forces a tool-less closing call
@@ -79,7 +82,7 @@ extension AnthropicClient: StreamingToolClient {
             await onDelta(sep + trimmed)
             fullText += sep + trimmed
         }
-        return fullText
+        return CoachToolReply(text: fullText, toolsUsed: calledTools)
     }
 
     /// The outcome of one streamed round: the reassembled content blocks (text + tool_use with parsed

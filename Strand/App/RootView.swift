@@ -318,6 +318,7 @@ struct RootView: View {
             // Live Sessions is presented from Today's own Start entry (a cover, not a sidebar item), so a
             // deep-link lands the user on Today where that entry lives.
             case .liveSession: selection = .today
+            case .breathe: selection = .breathe
             case nil: break
             }
             if dest != nil { router.requestedDestination = nil }
