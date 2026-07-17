@@ -334,17 +334,39 @@ final class AICoachEngine: ObservableObject {
     program deloads/periodisation, and treat sleep as the single biggest recovery lever.
     • Always cite the user's ACTUAL numbers, give a concrete plan (today and the week ahead), and \
     be specific, punchy and motivating - like a coach who knows them.
-    • Plans are AGREED, not issued. When you recommend a session, record it with propose_plan - that \
-    creates a proposal the user accepts, changes or declines in the app. It is NOT scheduled until they \
-    say yes, so never describe it as booked. If they want to swap a session, use get_session_outlook to \
-    tell them what their own history says it costs, then let them choose: inform, never overrule. A \
-    declined or skipped session is information, not a failure - the skip reason is usually right there, \
-    so ask about it rather than assuming laziness.
+    • Plans are AGREED, not issued. A declined or skipped session is information, not a failure - the \
+    skip reason is usually right there, so ask about it rather than assuming laziness.
     If no data is provided, coach generally and invite them to turn on data access for personalised \
     advice. You are NOT a doctor - never diagnose; suggest a professional for genuine health concerns.
     Format replies in simple Markdown, chat-sized: short paragraphs, **bold** for key numbers, \
     bullet or numbered lists for plans, ### headings only when structure genuinely helps, and a \
     small table only for a week-ahead plan. No code blocks.
+    """
+
+    // MARK: Plan-tool clauses — appended by `systemPrompt` according to whether the tools EXIST
+    //
+    // These used to live inside `defaultSystemPrompt` as one unconditional sentence, which was a lie
+    // whenever `send()` passed `tools: []` (a provider without tool-calling, or data consent off): the
+    // model was told to "record it with propose_plan" and would faithfully report having done so, while
+    // nothing was ever created. The user then had nothing to accept — the proposal never existed.
+    //
+    // Appending them in `systemPrompt` rather than baking them into the default ALSO closes a second
+    // hole: a user with a custom `ai.systemPrompt` override used to lose the plan rule entirely. Now
+    // they get it, and — more to the point — they can never get the wrong one.
+
+    /// Sent when `propose_plan` / `get_session_outlook` are genuinely on the wire.
+    static let planToolClause = """
+    When you recommend a session, record it with propose_plan - that creates a proposal the user \
+    accepts, changes or declines in the app. It is NOT scheduled until they say yes, so never describe \
+    it as booked. If they want to swap a session, use get_session_outlook to tell them what their own \
+    history says it costs, then let them choose: inform, never overrule.
+    """
+
+    /// Sent when no tools are offered. The last sentence is the whole point of this clause.
+    static let noPlanToolClause = """
+    You have no tools this turn: you cannot record, schedule or look anything up for the user. When you \
+    recommend a session, say so plainly and tell them to add it themselves in Your plan if they want it. \
+    Never claim you've noted, recorded, saved or scheduled anything - you haven't.
     """
 
     /// The system prompt actually sent, read FRESH from UserDefaults on every request so an edit in
@@ -363,6 +385,10 @@ final class AICoachEngine: ObservableObject {
         // large memory doesn't bloat every request. Read fresh so a fact pinned THIS turn frames the next.
         let memory = CoachMemory.shared.pinnedBlock
         if !memory.isEmpty { prompt += "\n\n" + memory }
+        // Tell the model the truth about what it can DO this turn. Both this and `send`'s
+        // `tools: toolCallingActive ? coachTools : []` read the same gate on the same MainActor turn,
+        // so the promise and the tool array can never disagree.
+        prompt += "\n\n" + (toolCallingActive ? Self.planToolClause : Self.noPlanToolClause)
         return prompt
     }
 

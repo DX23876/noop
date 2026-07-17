@@ -24,12 +24,19 @@ final class AICoachPromptAndStressTests: XCTestCase {
         return AICoachEngine(repo: Repository(deviceId: "test-aicoach-prompt"))
     }
 
-    /// The full prompt `systemPrompt` builds when nothing custom is set: the current persona's voice
-    /// preamble, then the built-in methodology. `defaultSystemPrompt` alone is never what gets sent —
-    /// asserting equality against it directly (as this file used to) can never pass now that personas
-    /// exist.
-    private var expectedDefaultPrompt: String {
-        CoachPersona.current.systemPreamble + "\n\n" + AICoachEngine.defaultSystemPrompt
+    /// What `systemPrompt` assembles around a given base: the persona's voice preamble in front, and the
+    /// plan-tool clause behind (the clause is conditional on `toolCallingActive`, so it's read off the
+    /// engine rather than assumed). `defaultSystemPrompt` alone is never what gets sent — asserting
+    /// equality against it directly, as this file originally did, cannot pass once either wrapper exists.
+    /// These tests are about which BASE is chosen (default vs. override); the wrappers are assembled the
+    /// same way here so that equality still pins exactly that.
+    private func expectedPrompt(base: String, engine: AICoachEngine) -> String {
+        let clause = engine.toolCallingActive ? AICoachEngine.planToolClause : AICoachEngine.noPlanToolClause
+        return CoachPersona.current.systemPreamble + "\n\n" + base + "\n\n" + clause
+    }
+
+    private func expectedDefaultPrompt(_ engine: AICoachEngine) -> String {
+        expectedPrompt(base: AICoachEngine.defaultSystemPrompt, engine: engine)
     }
 
     override func tearDown() {
@@ -42,7 +49,7 @@ final class AICoachPromptAndStressTests: XCTestCase {
 
     func testDefaultsToBuiltInPromptWhenNothingStored() {
         let engine = makeEngine()
-        XCTAssertEqual(engine.systemPrompt, expectedDefaultPrompt)
+        XCTAssertEqual(engine.systemPrompt, expectedDefaultPrompt(engine))
         XCTAssertFalse(engine.hasCustomSystemPrompt)
     }
 
@@ -54,14 +61,14 @@ final class AICoachPromptAndStressTests: XCTestCase {
         // Persisted under the documented key, and surfaced by the fresh-read property. The persona
         // preamble still rides on top of a CUSTOM prompt too — only the methodology underneath changes.
         XCTAssertEqual(UserDefaults.standard.string(forKey: AICoachEngine.systemPromptKey), custom)
-        XCTAssertEqual(engine.systemPrompt, CoachPersona.current.systemPreamble + "\n\n" + custom)
+        XCTAssertEqual(engine.systemPrompt, expectedPrompt(base: custom, engine: engine))
         XCTAssertTrue(engine.hasCustomSystemPrompt)
 
         // "Read fresh per send" — a write straight to UserDefaults (as another session might) is
         // picked up by the next `systemPrompt` read without rebuilding the engine.
         let edited = custom + " Always cite a number."
         UserDefaults.standard.set(edited, forKey: AICoachEngine.systemPromptKey)
-        XCTAssertEqual(engine.systemPrompt, CoachPersona.current.systemPreamble + "\n\n" + edited)
+        XCTAssertEqual(engine.systemPrompt, expectedPrompt(base: edited, engine: engine))
     }
 
     func testResetRestoresDefaultAndClearsTheKey() {
@@ -71,7 +78,7 @@ final class AICoachPromptAndStressTests: XCTestCase {
 
         engine.resetSystemPrompt()
         XCTAssertNil(UserDefaults.standard.string(forKey: AICoachEngine.systemPromptKey))
-        XCTAssertEqual(engine.systemPrompt, expectedDefaultPrompt)
+        XCTAssertEqual(engine.systemPrompt, expectedDefaultPrompt(engine))
         XCTAssertFalse(engine.hasCustomSystemPrompt)
     }
 
@@ -80,7 +87,7 @@ final class AICoachPromptAndStressTests: XCTestCase {
         engine.customSystemPrompt = "   \n  "   // whitespace only
         // A blank override clears the key, so the default is sent — never an empty system prompt.
         XCTAssertNil(UserDefaults.standard.string(forKey: AICoachEngine.systemPromptKey))
-        XCTAssertEqual(engine.systemPrompt, expectedDefaultPrompt)
+        XCTAssertEqual(engine.systemPrompt, expectedDefaultPrompt(engine))
         XCTAssertFalse(engine.hasCustomSystemPrompt)
     }
 
