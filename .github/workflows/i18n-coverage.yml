@@ -11,6 +11,15 @@ name: i18n Coverage
 on:
   pull_request:
     branches: [main]
+  # Audit main itself too, not just PRs into it. A RELEASE pushes STRAIGHT to main with no PR, and
+  # Tools/appchangelog-gen.py emits the What's New title as a RAW Kotlin literal that has to be
+  # localized by hand afterwards (Compose has no Xcode-style auto-extraction). With a PR-only
+  # trigger that landed completely unaudited, and — because --ci is a whole-tree gate, not a diff —
+  # it then red-checked EVERY contributor's PR on a line none of them touched (9.0.1, fixed by
+  # #514). Auditing the push surfaces it on main the moment it lands, so it is fixed before anyone
+  # else trips over it. Same 8-second job; no new cost.
+  push:
+    branches: [main]
 
 concurrency:
   group: i18n-coverage-${{ github.ref }}
@@ -25,5 +34,8 @@ jobs:
         with:
           fetch-depth: 0
 
+      # `github.base_ref` is set ONLY for pull_request; on a push to main it is empty, which would
+      # pass a bare `origin/`. Fall back to main. (The ref is retained for workflow compatibility —
+      # `--ci` is a whole-tree gate, so the value it resolves to does not change the verdict.)
       - name: i18n audit (regression gate)
-        run: python3 Tools/i18n_audit.py --ci origin/${{ github.base_ref }}
+        run: python3 Tools/i18n_audit.py --ci origin/${{ github.base_ref || 'main' }}
