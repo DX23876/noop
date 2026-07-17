@@ -1341,6 +1341,7 @@
     <string name="l10n_sleep_screen_add_a_nap_a1b3204f">Ajouter une sieste</string>
     <string name="l10n_sleep_screen_adjust_sleep_times_1e325561">Régler les temps de sommeil</string>
     <string name="l10n_sleep_screen_cancel_77dfd213">Annuler</string>
+    <string name="l10n_sleep_screen_save_efc007a3">Enregistrer</string>
     <string name="l10n_sleep_screen_daytime_sleep_871c03ca">JOURNÉE</string>
     <string name="l10n_sleep_screen_delete_f6fdbe48">Supprimer</string>
     <string name="l10n_sleep_screen_delete_this_sleep_session_6932e931">Supprimer cette séance de sommeil</string>

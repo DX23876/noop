@@ -1732,6 +1732,9 @@ private fun NightNavHeader(
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var editingBed by remember { mutableStateOf(false) }
     var editingWake by remember { mutableStateOf(false) }
+    var sleepEditDraft by remember(session?.deviceId, session?.startTs) {
+        mutableStateOf<SleepTimeEditDraft?>(null)
+    }
     var showDatePicker by remember { mutableStateOf(false) }
     // #940 guard 2: a corrected (start, end) window that no longer touches the night's recorded
     // coverage parks here awaiting an explicit confirm; committing it silently fabricated an
@@ -1743,14 +1746,32 @@ private fun NightNavHeader(
     var addingNapEnd by remember { mutableStateOf(false) }
     var napStartTs by remember { mutableStateOf(0L) }
 
-    // Step 1 of the time edit: pick which end of the night to adjust (bedtime or wake-up).
-    if (showTimeChoice && session != null) {
+    // Commit funnel for the COMPLETE drafted window (#515/#940). Neither picker writes by itself:
+    // only Save reaches this function, so an edited bedtime can never be persisted against the old
+    // wake (or vice versa). A window outside the recorded coverage still uses #940's explicit confirm.
+    fun commitTimes(s: SleepSession, newStart: Long, newEnd: Long) {
+        val coverageStart = minOf(s.startTs, s.effectiveStartTs)
+        if (SleepEditGuard.isDisjoint(newStart, newEnd, coverageStart, s.endTs)) {
+            pendingDisjointTimes = newStart to newEnd
+        } else {
+            onUpdateTimes(s, newStart, newEnd)
+        }
+    }
+
+    // Atomic editor (#515): both rows mutate an in-memory draft. Save validates and commits the pair
+    // once; Cancel discards it. This mirrors Apple SleepTimeEditor's single start+end save funnel.
+    val currentDraft = sleepEditDraft
+    if (showTimeChoice && session != null && currentDraft != null) {
         val timeFmt = SimpleDateFormat("HH:mm", Locale.US)
-        val bedText = timeFmt.format(Date(session.effectiveStartTs * 1000L))
-        val wakeText = timeFmt.format(Date(session.endTs * 1000L))
+        val bedText = timeFmt.format(Date(currentDraft.startTs * 1000L))
+        val wakeText = timeFmt.format(Date(currentDraft.endTs * 1000L))
+        val validated = currentDraft.validatedWindow(System.currentTimeMillis() / 1000L)
         val blockShape2 = RoundedCornerShape(Metrics.cornerSm)
         androidx.compose.material3.AlertDialog(
-            onDismissRequest = { showTimeChoice = false },
+            onDismissRequest = {
+                showTimeChoice = false
+                sleepEditDraft = null
+            },
             containerColor = Palette.surfaceRaised,
             titleContentColor = Palette.textPrimary,
             textContentColor = Palette.textSecondary,
@@ -1791,94 +1812,90 @@ private fun NightNavHeader(
                     }
                 }
             },
-            confirmButton = {},
+            confirmButton = {
+                TextButton(
+                    enabled = validated != null,
+                    onClick = {
+                        val window = validated ?: return@TextButton
+                        showTimeChoice = false
+                        sleepEditDraft = null
+                        commitTimes(session, window.first, window.second)
+                    },
+                ) {
+                    Text(
+                        uiString(R.string.l10n_sleep_screen_save_efc007a3),
+                        style = NoopType.body,
+                        color = if (validated != null) Palette.accent else Palette.textTertiary,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showTimeChoice = false
+                    sleepEditDraft = null
+                }) {
+                    Text(
+                        uiString(R.string.l10n_sleep_screen_cancel_77dfd213),
+                        style = NoopType.body,
+                        color = Palette.textSecondary,
+                    )
+                }
+            },
         )
     }
 
-    // Commit funnel for BOTH time edits (#940): a corrected window that abandons the night's
-    // recorded coverage (detected onset ... current wake) has no data to stage from, so it parks
-    // behind an explicit confirm instead of silently creating an all-awake phantom night. An
-    // in-coverage window commits straight through, exactly as before.
-    fun commitTimes(s: SleepSession, newStart: Long, newEnd: Long) {
-        val coverageStart = minOf(s.startTs, s.effectiveStartTs)
-        if (SleepEditGuard.isDisjoint(newStart, newEnd, coverageStart, s.endTs)) {
-            pendingDisjointTimes = newStart to newEnd
-        } else {
-            onUpdateTimes(s, newStart, newEnd)
-        }
-    }
-
-    // Bed-time picker — keeps the original calendar date, only moves the hour/minute. Pre-fills from
-    // the EFFECTIVE onset so re-editing an already-corrected night starts from the edited bedtime, and
-    // the new onset is passed through onUpdateTimes (which stores it in startTsAdjusted). (PR #395)
-    if (editingBed && session != null) {
-        val startCal = Calendar.getInstance().apply { timeInMillis = session.effectiveStartTs * 1000L }
+    // Bed-time picker mutates only the draft. Returning to the parent dialog lets the user inspect and
+    // adjust BOTH endpoints before the single Save (#515). The cross-midnight correction stays in the
+    // pure SleepTimeEditDraft/SleepEditGuard path pinned by JVM tests.
+    val draftForBed = sleepEditDraft
+    if (editingBed && session != null && draftForBed != null) {
+        val startCal = Calendar.getInstance().apply { timeInMillis = draftForBed.startTs * 1000L }
         DisposableEffect(Unit) {
             val dialog = TimePickerDialog(
                 context,
                 { _, h, m ->
                     val cal = Calendar.getInstance().apply {
-                        timeInMillis = session.effectiveStartTs * 1000L
+                        timeInMillis = draftForBed.startTs * 1000L
                         set(Calendar.HOUR_OF_DAY, h); set(Calendar.MINUTE, m)
+                        set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
                     }
-                    // #940 guard 1: keeping the original DATE means rolling the time back across
-                    // midnight (01:06 -> 23:00) lands the bed AFTER the wake / in the future: the
-                    // reporter's "phantom night". A roll past the wake or past the clock almost
-                    // always means the previous evening; snap the date back a day. Pure rule +
-                    // tests: SleepEditGuard (Swift twin in StrandAnalytics).
-                    val bedTs = SleepEditGuard.autoCorrectedBed(
-                        previousBedTs = session.effectiveStartTs,
+                    sleepEditDraft = draftForBed.withBedCandidate(
                         candidateBedTs = cal.timeInMillis / 1000L,
-                        originalWakeTs = session.endTs,
                         nowTs = System.currentTimeMillis() / 1000L,
                     )
-                    commitTimes(session, bedTs, session.endTs)
-                    editingBed = false
                 },
                 startCal.get(Calendar.HOUR_OF_DAY),
                 startCal.get(Calendar.MINUTE),
                 true,
             ).apply { setTitle("Bedtime") }
-            dialog.setOnDismissListener { editingBed = false }
+            dialog.setOnDismissListener {
+                editingBed = false
+                if (sleepEditDraft != null) showTimeChoice = true
+            }
             dialog.show()
             onDispose { runCatching { dialog.dismiss() } }
         }
     }
 
-    // Wake-up time picker — TIME-ONLY; its calendar day is always DERIVED from bedtime, never the
-    // original detected wake day. Picking a wake time-of-day lands it on the FIRST occurrence strictly
-    // after the effective bed instant (within 24h), so a 23:00→07:00 night resolves 07:00 to the next
-    // morning and an evening nap resolves to the same evening. An independent wake date was what let an
-    // edit silently re-bucket a night onto the wrong day (selectNight keys the day off endTs) and split
-    // its stages/totals across two days — the edit-scramble half of #406. Mirrors the iOS sleep-edit
-    // cross-day constraint (SleepView.SleepTimeEditor.resolvedWake).
-    if (editingWake && session != null) {
-        val endCal = Calendar.getInstance().apply { timeInMillis = session.endTs * 1000L }
+    // Wake-up picker also mutates only the draft. Its calendar day is derived from the DRAFT bedtime,
+    // so editing bedtime first and wake second produces one coherent cross-midnight window (#515/#406).
+    val draftForWake = sleepEditDraft
+    if (editingWake && session != null && draftForWake != null) {
+        val endCal = Calendar.getInstance().apply { timeInMillis = draftForWake.endTs * 1000L }
         DisposableEffect(Unit) {
             val dialog = TimePickerDialog(
                 context,
                 { _, h, m ->
-                    // Land the picked hour:minute on the first instant strictly after bed: start at the
-                    // bed day, set the time-of-day, then roll forward one day if that is at or before bed
-                    // (keeps wake inside (bed, bed+24h], matching iOS's nextDate(after: bed+60s)).
-                    val bedTs = session.effectiveStartTs
-                    val cal = Calendar.getInstance().apply {
-                        timeInMillis = bedTs * 1000L
-                        set(Calendar.HOUR_OF_DAY, h); set(Calendar.MINUTE, m)
-                        set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-                        if (timeInMillis / 1000L <= bedTs) add(Calendar.DAY_OF_MONTH, 1)
-                    }
-                    // Pass the EFFECTIVE onset so a wake-only edit preserves a previously-edited
-                    // bedtime (startTsAdjusted) rather than resetting it to the detected startTs.
-                    // (PR #395; routed through the #940 disjoint-confirm funnel like the bed edit.)
-                    commitTimes(session, bedTs, cal.timeInMillis / 1000L)
-                    editingWake = false
+                    sleepEditDraft = draftForWake.withWakeTime(hour = h, minute = m)
                 },
                 endCal.get(Calendar.HOUR_OF_DAY),
                 endCal.get(Calendar.MINUTE),
                 true,
             ).apply { setTitle("Wake-up time") }
-            dialog.setOnDismissListener { editingWake = false }
+            dialog.setOnDismissListener {
+                editingWake = false
+                if (sleepEditDraft != null) showTimeChoice = true
+            }
             dialog.show()
             onDispose { runCatching { dialog.dismiss() } }
         }
@@ -2062,7 +2079,10 @@ private fun NightNavHeader(
                     Icons.Filled.Edit,
                     contentDescription = uiString(R.string.l10n_sleep_screen_adjust_sleep_times_1e325561),
                     tint = Palette.textTertiary,
-                    modifier = Modifier.size(14.dp).clickable { showTimeChoice = true },
+                    modifier = Modifier.size(14.dp).clickable {
+                        sleepEditDraft = SleepTimeEditDraft(session.effectiveStartTs, session.endTs)
+                        showTimeChoice = true
+                    },
                 )
                 Spacer(Modifier.width(Metrics.space12))
                 Icon(

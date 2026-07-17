@@ -1341,6 +1341,7 @@
     <string name="l10n_sleep_screen_add_a_nap_a1b3204f">Añadir una siesta</string>
     <string name="l10n_sleep_screen_adjust_sleep_times_1e325561">Tiempos de sueño ajustables</string>
     <string name="l10n_sleep_screen_cancel_77dfd213">Cancelar</string>
+    <string name="l10n_sleep_screen_save_efc007a3">Guardar</string>
     <string name="l10n_sleep_screen_daytime_sleep_871c03ca">DAYTIME SLEEP</string>
     <string name="l10n_sleep_screen_delete_f6fdbe48">Eliminar</string>
     <string name="l10n_sleep_screen_delete_this_sleep_session_6932e931">Suprímase esta sesión de sueño</string>

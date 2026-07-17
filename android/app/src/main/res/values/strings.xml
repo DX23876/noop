@@ -1505,6 +1505,7 @@
     <string name="l10n_sleep_screen_add_a_nap_a1b3204f">Add a nap</string>
     <string name="l10n_sleep_screen_adjust_sleep_times_1e325561">Adjust sleep times</string>
     <string name="l10n_sleep_screen_cancel_77dfd213">Cancel</string>
+    <string name="l10n_sleep_screen_save_efc007a3">Save</string>
     <string name="l10n_sleep_screen_daytime_sleep_871c03ca">DAYTIME SLEEP</string>
     <string name="l10n_sleep_screen_delete_f6fdbe48">Delete</string>
     <string name="l10n_sleep_screen_delete_this_sleep_session_6932e931">Delete this sleep session</string>
