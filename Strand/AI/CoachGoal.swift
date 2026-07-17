@@ -220,6 +220,27 @@ final class CoachGoalStore: ObservableObject {
         goal = g
     }
 
+    // MARK: Lifecycle
+
+    /// Close the goal as reached. It STAYS in the store — the Journey page shows the closure and the
+    /// coach gets to congratulate — until a new goal replaces it. Only an open goal can be closed.
+    func markAchieved(on date: Date = Date()) {
+        guard var g = goal, g.status == .active || g.status == .paused else { return }
+        g.status = .achieved
+        g.history.append(.init(date: date, what: "Goal achieved"))
+        goal = g
+    }
+
+    /// Set the goal aside without shame — injuries, life, changed priorities are all legitimate ends.
+    /// The one-tap reason lands in the history so the story stays honest, never as a debt to explain.
+    func setAside(reason: String, on date: Date = Date()) {
+        guard var g = goal, g.status == .active || g.status == .paused else { return }
+        g.status = .abandoned
+        let why = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+        g.history.append(.init(date: date, what: why.isEmpty ? "Goal set aside" : "Goal set aside — \(why)"))
+        goal = g
+    }
+
     func clear() { goal = nil }
 
     private func save() {

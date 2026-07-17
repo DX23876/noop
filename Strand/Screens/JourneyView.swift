@@ -18,12 +18,15 @@ struct JourneyView: View {
     @State private var evidence = GoalFeasibility.Evidence()
     @State private var latestWeightKg: Double?
     @State private var loaded = false
+    @State private var showEditor = false
+    @State private var showSetAsideDialog = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 if let goal = goalStore.goal {
                     VStack(spacing: 16) {
+                        closureOrExpiryCard(goal)
                         headerCard(goal)
                         progressCard(goal)
                         milestonesCard(goal)
@@ -50,6 +53,83 @@ struct JourneyView: View {
                 evidence = await coach.goalEvidence()
                 latestWeightKg = await coach.latestLoggedWeightKg()
             }
+            .sheet(isPresented: $showEditor) { CoachGoalEditorView(isOnboarding: false) }
+            .confirmationDialog("Set this goal aside?", isPresented: $showSetAsideDialog, titleVisibility: .visible) {
+                Button("Injury or health") { goalStore.setAside(reason: "injury or health") }
+                Button("Life got busy") { goalStore.setAside(reason: "life got busy") }
+                Button("Priorities changed") { goalStore.setAside(reason: "priorities changed") }
+                Button("No particular reason") { goalStore.setAside(reason: "") }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("It stays in your history — nothing is lost, and there's nothing to justify.")
+            }
+        }
+    }
+
+    // MARK: - Closure & expiry: a goal must be able to END, and the page must say how it ended
+
+    /// Matter-of-fact closure (milestone aesthetics, no gamification — setbacks are never shamed), or
+    /// the passed-date fork for an active goal: reached / more time / set aside.
+    @ViewBuilder
+    private func closureOrExpiryCard(_ goal: CoachGoal) -> some View {
+        switch goal.status {
+        case .achieved:
+            NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.seal.fill")
+                            .foregroundStyle(StrandPalette.accent)
+                            .accessibilityHidden(true)
+                        Text("You made it")
+                            .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                    }
+                    Text("This goal is closed as achieved. Everything below is its story — set a new one whenever you're ready.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        case .abandoned:
+            NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "moon.zzz")
+                            .foregroundStyle(StrandPalette.textSecondary)
+                            .accessibilityHidden(true)
+                        Text("This goal was set aside")
+                            .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                    }
+                    Text("Its story below stays yours. A new goal is one tap away in Coach settings.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        case .active where (goal.weeksRemaining() ?? 0) < 0:
+            NoopCard(padding: 14, tint: StrandPalette.statusWarning) {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "calendar.badge.exclamationmark")
+                            .foregroundStyle(StrandPalette.statusWarning)
+                            .accessibilityHidden(true)
+                        Text("Your target date has passed")
+                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                    }
+                    Text("How did it go? Close it out, give it more time, or set it aside — your call.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    HStack(spacing: 14) {
+                        Button("I reached it") { goalStore.markAchieved() }
+                            .foregroundStyle(StrandPalette.accent)
+                        Button("Extend the date") { showEditor = true }
+                            .foregroundStyle(StrandPalette.accent)
+                        Button("Set aside") { showSetAsideDialog = true }
+                            .foregroundStyle(StrandPalette.textSecondary)
+                    }
+                    .font(StrandFont.footnote)
+                    .buttonStyle(.plain)
+                }
+            }
+        default:
+            EmptyView()
         }
     }
 
@@ -78,7 +158,9 @@ struct JourneyView: View {
     }
 
     /// "N weeks to go · build phase" — built outside the view builder so it stays a single Text.
+    /// A closed goal has no countdown; its closure card already says how it ended.
     private func timeSummary(_ goal: CoachGoal) -> String? {
+        guard goal.status == .active else { return nil }
         var parts: [String] = []
         if let weeks = goal.weeksRemaining() {
             parts.append(weeks < 0 ? "target date has passed"

@@ -519,6 +519,28 @@ DE: dict[str, str] = {
     "Instead of %@": "Statt %@",
     "swapped from %@": "getauscht von %@",
     'Pace acknowledged: "%@"': "Tempo bestätigt: „%@“",
+    # Goal lifecycle (B2).
+    "Set this goal aside?": "Dieses Ziel beiseitelegen?",
+    "Injury or health": "Verletzung oder Gesundheit",
+    "Life got busy": "Das Leben kam dazwischen",
+    "Priorities changed": "Prioritäten haben sich geändert",
+    "No particular reason": "Kein bestimmter Grund",
+    "It stays in your history — nothing is lost, and there's nothing to justify.": "Es bleibt in deiner Historie — nichts geht verloren, und du musst nichts rechtfertigen.",
+    "Delete this goal?": "Dieses Ziel löschen?",
+    "Delete goal": "Ziel löschen",
+    "This removes the goal and its history from the device. There is no undo.": "Das entfernt das Ziel und seine Historie vom Gerät. Es gibt kein Zurück.",
+    "Mark as achieved": "Als erreicht markieren",
+    "Set aside": "Beiseitelegen",
+    "Set a new goal": "Neues Ziel setzen",
+    "Your target date has passed": "Dein Zieldatum ist verstrichen",
+    "How did it go? Close it out, give it more time, or set it aside — your call.": "Wie ist es gelaufen? Schließ es ab, gib ihm mehr Zeit oder leg es beiseite — deine Entscheidung.",
+    "I reached it": "Ich habe es erreicht",
+    "Extend the date": "Datum verlängern",
+    "You made it": "Du hast es geschafft",
+    "This goal is closed as achieved. Everything below is its story — set a new one whenever you're ready.": "Dieses Ziel ist als erreicht abgeschlossen. Alles unten ist seine Geschichte — setz ein neues, wann immer du bereit bist.",
+    "This goal was set aside": "Dieses Ziel wurde beiseitegelegt",
+    "Its story below stays yours. A new goal is one tap away in Coach settings.": "Seine Geschichte unten bleibt deine. Ein neues Ziel ist in den Coach-Einstellungen einen Tipp entfernt.",
+
 }
 
 

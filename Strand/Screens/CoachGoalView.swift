@@ -16,6 +16,9 @@ struct CoachGoalEditorView: View {
     let isOnboarding: Bool
     /// Called when the sheet closes either way, so onboarding can mark itself as asked.
     var onClose: () -> Void = {}
+    /// True when replacing a CLOSED (achieved/abandoned) goal: the form starts blank and Save mints a
+    /// brand-new goal with its own id and history, instead of editing the finished one back to life.
+    var startsFresh: Bool = false
 
     @State private var kind: CoachGoal.Kind = .run
     @State private var title = ""
@@ -238,7 +241,7 @@ struct CoachGoalEditorView: View {
     // MARK: - Load / save
 
     private func load() {
-        guard let g = store.goal else { return }
+        guard !startsFresh, let g = store.goal else { return }
         kind = g.kind
         title = g.title
         baselineText = g.baseline.map { String(format: "%g", $0) } ?? ""
@@ -262,8 +265,9 @@ struct CoachGoalEditorView: View {
     private func save(acknowledging: Bool) {
         var g = draft
         g.status = .active
-        // Preserve identity + history across an edit so the change log stays continuous.
-        if let existing = store.goal {
+        // Preserve identity + history across an edit so the change log stays continuous — unless this
+        // deliberately replaces a closed goal, which keeps its own story and makes way for a new one.
+        if !startsFresh, let existing = store.goal {
             g = CoachGoal(id: existing.id, kind: g.kind, title: g.title,
                           baseline: g.baseline, target: g.target, targetDate: g.targetDate,
                           status: .active, motivation: g.motivation,

@@ -1261,9 +1261,24 @@ final class AICoachEngine: ObservableObject {
     /// `motivation` is included ONLY when the user explicitly opted in (`shareMotivation`). It is the
     /// most personal line in the app and it stays on the device by default.
     private func goalBlock(profile: ProfileStore) -> String? {
-        guard let goal = CoachGoalStore.shared.goal, goal.status == .active else { return nil }
+        guard let goal = CoachGoalStore.shared.goal else { return nil }
         let title = goal.title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return nil }
+
+        // A CLOSED goal still matters for one conversation beat: the coach should congratulate (or
+        // respect the decision to stop) instead of coaching towards a goal that no longer exists.
+        switch goal.status {
+        case .achieved:
+            return "Goal: \"\(title)\" — ACHIEVED (the user marked it done). Congratulate them when it "
+                 + "fits naturally, and ask what's next before proposing any new target yourself."
+        case .abandoned:
+            return "The user's previous goal \"\(title)\" was set aside by them. Do not nag about it or "
+                 + "treat it as a failure; whether and when to set a new goal is their call."
+        case .paused, .archived:
+            return nil
+        case .active:
+            break
+        }
 
         var parts = ["Goal: \(title)"]
         if goal.kind.isQuantified, let target = goal.target {
