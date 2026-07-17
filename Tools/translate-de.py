@@ -555,6 +555,11 @@ DE: dict[str, str] = {
     # API key help (B5).
     "Don't have a key? Get one from %@.": "Noch keinen Schlüssel? Hol dir einen bei %@.",
 
+    # OpenRouter / searchable model picker (P8).
+    "Search models": "Modelle suchen",
+    "Choose a model": "Modell wählen",
+    "Use \"%@\"": "„%@\" verwenden",
+
 }
 
 

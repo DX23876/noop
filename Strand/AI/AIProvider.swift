@@ -6,25 +6,28 @@ enum AIProvider: String, CaseIterable, Identifiable {
     case openAI
     case anthropic
     case gemini
+    case openRouter
     case custom
 
     var id: String { rawValue }
 
     var displayName: String {
         switch self {
-        case .openAI:    return "OpenAI"
-        case .anthropic: return "Anthropic"
-        case .gemini:    return "Google Gemini"
-        case .custom:    return "Custom (OpenAI-compatible)"
+        case .openAI:     return "OpenAI"
+        case .anthropic:  return "Anthropic"
+        case .gemini:     return "Google Gemini"
+        case .openRouter: return "OpenRouter"
+        case .custom:     return "Custom (OpenAI-compatible)"
         }
     }
 
     var defaultModel: String {
         switch self {
-        case .openAI:    return "gpt-4o-mini"
-        case .anthropic: return "claude-sonnet-4-6"
-        case .gemini:    return "gemini-flash-latest"   // stable alias → current Flash, no version churn (#400)
-        case .custom:    return ""   // the user picks the model their server serves
+        case .openAI:     return "gpt-4o-mini"
+        case .anthropic:  return "claude-sonnet-4-6"
+        case .gemini:     return "gemini-flash-latest"   // stable alias → current Flash, no version churn (#400)
+        case .openRouter: return "anthropic/claude-sonnet-4.6"
+        case .custom:     return ""   // the user picks the model their server serves
         }
     }
 
@@ -32,10 +35,11 @@ enum AIProvider: String, CaseIterable, Identifiable {
     /// that shouldn't burn the pricier coaching model. Empty for Custom (falls back to the user's model).
     var cheapModel: String {
         switch self {
-        case .openAI:    return "gpt-4o-mini"
-        case .anthropic: return "claude-haiku-4-5-20251001"
-        case .gemini:    return "gemini-flash-lite-latest"
-        case .custom:    return ""
+        case .openAI:     return "gpt-4o-mini"
+        case .anthropic:  return "claude-haiku-4-5-20251001"
+        case .gemini:     return "gemini-flash-lite-latest"
+        case .openRouter: return "openai/gpt-4o-mini"
+        case .custom:     return ""
         }
     }
 
@@ -64,6 +68,17 @@ enum AIProvider: String, CaseIterable, Identifiable {
                 "gemini-flash-latest",
                 "gemini-flash-lite-latest"
             ]
+        case .openRouter:
+            // A small, currently-valid starting handful (verified against the live catalogue, not
+            // guessed) — a `vendor/slug` id per vendor. `refreshModels()` pulls the other 300+ from the
+            // real catalogue; this list will drift over time exactly like the three above already do.
+            return [
+                "anthropic/claude-sonnet-4.6",
+                "openai/gpt-4o-mini",
+                "google/gemini-2.5-flash",
+                "deepseek/deepseek-chat",
+                "meta-llama/llama-3.3-70b-instruct"
+            ]
         case .custom:
             return []   // populated from the server's /models (refreshModels) or typed in
         }
@@ -71,28 +86,31 @@ enum AIProvider: String, CaseIterable, Identifiable {
 
     var endpoint: URL {
         switch self {
-        case .openAI:    return URL(string: "https://api.openai.com/v1/chat/completions")!
-        case .anthropic: return URL(string: "https://api.anthropic.com/v1/messages")!
-        case .gemini:    return URL(string: "https://generativelanguage.googleapis.com/v1beta/models")!
-        case .custom:    return AIProvider.customURL(path: "/chat/completions")
+        case .openAI:     return URL(string: "https://api.openai.com/v1/chat/completions")!
+        case .anthropic:  return URL(string: "https://api.anthropic.com/v1/messages")!
+        case .gemini:     return URL(string: "https://generativelanguage.googleapis.com/v1beta/models")!
+        case .openRouter: return URL(string: "https://openrouter.ai/api/v1/chat/completions")!
+        case .custom:     return AIProvider.customURL(path: "/chat/completions")
         }
     }
 
     var modelsEndpoint: URL {
         switch self {
-        case .openAI:    return URL(string: "https://api.openai.com/v1/models")!
-        case .anthropic: return URL(string: "https://api.anthropic.com/v1/models")!
-        case .gemini:    return URL(string: "https://generativelanguage.googleapis.com/v1beta/models")!
-        case .custom:    return AIProvider.customURL(path: "/models")
+        case .openAI:     return URL(string: "https://api.openai.com/v1/models")!
+        case .anthropic:  return URL(string: "https://api.anthropic.com/v1/models")!
+        case .gemini:     return URL(string: "https://generativelanguage.googleapis.com/v1beta/models")!
+        case .openRouter: return URL(string: "https://openrouter.ai/api/v1/models")!
+        case .custom:     return AIProvider.customURL(path: "/models")
         }
     }
 
     var client: any AIProviderClient {
         switch self {
-        case .openAI:    return OpenAIClient()
-        case .anthropic: return AnthropicClient()
-        case .gemini:    return GeminiClient()
-        case .custom:    return CustomClient()
+        case .openAI:     return OpenAIClient()
+        case .anthropic:  return AnthropicClient()
+        case .gemini:     return GeminiClient()
+        case .openRouter: return OpenRouterClient()
+        case .custom:     return CustomClient()
         }
     }
 

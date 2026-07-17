@@ -17,6 +17,9 @@ struct CoachSettingsView: View {
     @State private var customModelDraft: String = ""
     @State private var promptExpanded: Bool = false
     @State private var promptDraft: String = ""
+    /// Presents the searchable model sheet — only reachable once a provider's list exceeds
+    /// `searchableModelThreshold` (today just OpenRouter).
+    @State private var showModelSearch = false
     @State private var checkInOn: Bool = CoachCheckIn.isEnabled
     @State private var checkInTime: Date = CoachCheckIn.timeAsDate
     @State private var checkInDenied: Bool = false
@@ -1176,12 +1179,18 @@ struct CoachSettingsView: View {
 
     private var apiKeyHelpURL: URL? {
         switch coach.provider {
-        case .openAI:    return URL(string: "https://platform.openai.com/api-keys")
-        case .anthropic: return URL(string: "https://console.anthropic.com/settings/keys")
-        case .gemini:    return URL(string: "https://aistudio.google.com/apikey")
-        case .custom:    return nil
+        case .openAI:     return URL(string: "https://platform.openai.com/api-keys")
+        case .anthropic:  return URL(string: "https://console.anthropic.com/settings/keys")
+        case .gemini:     return URL(string: "https://aistudio.google.com/apikey")
+        case .openRouter: return URL(string: "https://openrouter.ai/keys")
+        case .custom:     return nil
         }
     }
+
+    /// Above this many entries an inline `.menu` Picker stops being usable — today only OpenRouter's
+    /// 300+ catalogue crosses it, but the switch below is a plain count check, not a provider name, so
+    /// any provider whose live list grows past this threshold gets the searchable sheet automatically.
+    private static let searchableModelThreshold = 50
 
     private var modelSelector: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -1204,39 +1213,74 @@ struct CoachSettingsView: View {
                 .accessibilityLabel("Refresh models from provider")
             }
 
-            Picker("Model", selection: modelPickerSelection) {
-                ForEach(coach.availableModels, id: \.self) { m in
-                    Text(m).tag(m)
+            if coach.availableModels.count > Self.searchableModelThreshold {
+                searchableModelButton
+            } else {
+                Picker("Model", selection: modelPickerSelection) {
+                    ForEach(coach.availableModels, id: \.self) { m in
+                        Text(m).tag(m)
+                    }
+                    Divider()
+                    Text("Custom…").tag(customModelTag)
                 }
-                Divider()
-                Text("Custom…").tag(customModelTag)
-            }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .fixedSize()
-            .accessibilityLabel("Model")
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .fixedSize()
+                .accessibilityLabel("Model")
 
-            if isCustomModelSelected {
-                HStack(spacing: 8) {
-                    TextField("Enter a model id", text: $customModelDraft)
-                        .textFieldStyle(.plain)
-                        .font(StrandFont.body)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 9)
-                        .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous)
-                            .strokeBorder(StrandPalette.hairline, lineWidth: 1))
-                        .onSubmit(applyCustomModel)
-                        .accessibilityLabel("Custom model id")
+                if isCustomModelSelected {
+                    HStack(spacing: 8) {
+                        TextField("Enter a model id", text: $customModelDraft)
+                            .textFieldStyle(.plain)
+                            .font(StrandFont.body)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 9)
+                            .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous)
+                                .strokeBorder(StrandPalette.hairline, lineWidth: 1))
+                            .onSubmit(applyCustomModel)
+                            .accessibilityLabel("Custom model id")
 
-                    Button("Use", action: applyCustomModel)
-                        .buttonStyle(NoopButtonStyle(.secondary))
-                        .disabled(customModelDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                        .accessibilityLabel("Use custom model")
+                        Button("Use", action: applyCustomModel)
+                            .buttonStyle(NoopButtonStyle(.secondary))
+                            .disabled(customModelDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            .accessibilityLabel("Use custom model")
+                    }
                 }
             }
         }
+        .sheet(isPresented: $showModelSearch) {
+            ModelSearchSheet(models: coach.availableModels, selection: $coach.model)
+        }
+    }
+
+    /// Opens the searchable sheet. Free-text entry lives IN the sheet (typing an unmatched query offers
+    /// it directly), so this path skips the inline picker's separate "Custom…" tag/TextField dance —
+    /// one way to type an id, not two.
+    private var searchableModelButton: some View {
+        Button { showModelSearch = true } label: {
+            HStack {
+                Text(coach.model.isEmpty ? "Choose a model" : coach.model)
+                    .font(StrandFont.body)
+                    .foregroundStyle(coach.model.isEmpty ? StrandPalette.textTertiary : StrandPalette.textPrimary)
+                    .lineLimit(1)
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .accessibilityHidden(true)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous)
+                .strokeBorder(StrandPalette.hairline, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(coach.model.isEmpty
+                            ? "Model not set. Opens a searchable list of \(coach.availableModels.count) models."
+                            : "Model: \(coach.model). Opens a searchable list of \(coach.availableModels.count) models.")
     }
 
     /// Whether the model field should read as "Custom…" — either the user explicitly picked that tag,
