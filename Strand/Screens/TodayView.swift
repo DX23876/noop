@@ -3219,6 +3219,14 @@ struct TodayView: View {
     private func keyMetricTile(_ metric: KeyMetric) -> some View {
         let d = displayDay
         let aLatest = appleDays.last
+        // Weight is logged sparsely, so the newest AppleDaily often carries none — the tile would then
+        // read blank even though a recent weigh-in exists. Pick the most recent day that actually has a
+        // weight (mirrors Android's latestWeightKg); weightTile falls back to the sparkline / profile
+        // weight when even this is nil.
+        let latestWeightKg = appleDays
+            .filter { $0.weightKg != nil }
+            .max(by: { $0.day < $1.day })?
+            .weightKg
         switch metric {
         case .charge:
             // Order of precedence: today's own scored recovery → mid-calibration "N of 4" → the last
@@ -3384,8 +3392,8 @@ struct TodayView: View {
         case .weight:
             StatTile(
                 label: "Weight",
-                value: weightTile(aLatest?.weightKg).value,
-                caption: weightTile(aLatest?.weightKg).caption,
+                value: weightTile(latestWeightKg).value,
+                caption: weightTile(latestWeightKg).caption,
                 accent: StrandPalette.accent,
                 sparkline: sparks["weight"],
                 sparkColor: StrandPalette.accent
@@ -4143,10 +4151,17 @@ struct TodayView: View {
     /// sparse-but-recent value still renders); when neither carries a weight, falls back to the user's
     /// self-reported profile weight instead of ", " (#204). Always formatted through the shared
     /// `UnitFormatter` so the Imperial/Metric toggle reaches this tile. Mirrors Android's `weightTile`.
+    /// Updated to ignore unrealistic weight values (< 10 kg) and use profile weight instead.
     private func weightTile(_ appleWeightKg: Double?) -> (value: String, caption: String) {
-        if let kg = appleWeightKg ?? sparks["weight"]?.last {
+        // Check for realistic weight values (> 10 kg)
+        if let kg = appleWeightKg, kg > 10 {
             return (UnitFormatter.massFromKilograms(kg, system: unitSystem), String(localized: "latest"))
         }
+        // Check sparkline weight
+        if let kg = sparks["weight"]?.last, kg > 10 {
+            return (UnitFormatter.massFromKilograms(kg, system: unitSystem), String(localized: "latest"))
+        }
+        // Fallback to profile weight
         return (UnitFormatter.massFromKilograms(profile.weightKg, system: unitSystem), String(localized: "from profile"))
     }
 
