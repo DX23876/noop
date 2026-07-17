@@ -1234,6 +1234,33 @@ final class AICoachEngine: ObservableObject {
         if sendTask == task { sendTask = nil }
     }
 
+    /// The morning brief's instruction, split out so it's testable and so part (2) can require a
+    /// structured proposal — but ONLY when the tool to make one is actually on the wire. When it isn't
+    /// (a non-tool provider, consent off), it mirrors W1's honesty: name the session, don't pretend to
+    /// have recorded it. Part (2) is where "the text should work that way too" lives — the brief names
+    /// today's session concretely and says it's waiting on a yes (WHOOP's Daily-Outlook tone, NOOP's
+    /// consent model).
+    static func briefInstruction(toolsActive: Bool) -> String {
+        let training = toolsActive
+            ? """
+            (2) exactly what training to do today and what to avoid — then record THAT session with \
+            propose_plan for today's date so it shows on the Today screen for the user to accept, change \
+            or decline. Propose exactly ONE session for today. It is a suggestion, not a booking — never \
+            describe it as scheduled. Anything already listed as awaiting the user's decision is already \
+            recorded; do not propose it again;
+            """
+            : """
+            (2) exactly what training to do today and what to avoid — you cannot record it for them, so \
+            close by telling them to add it in Your plan if they want it;
+            """
+        return """
+        Based on the data above, give me TODAY'S coaching brief in three short parts: \
+        (1) my readiness in one line, citing charge, HRV and rest; \
+        \(training) \
+        (3) one specific thing to improve my charge. Be punchy and motivating.
+        """
+    }
+
     /// Shared brief generation: build today's context and ask the provider for the three-part brief.
     /// Gated on a key + data consent; `!sending` prevents overlapping a brief with an in-flight message.
     private func generateBrief() async {
@@ -1248,13 +1275,8 @@ final class AICoachEngine: ObservableObject {
         await ensureOpenRouterCapabilities()
 
         let context = toolCallingActive ? toolModeContext : await buildFullContext()
-        let instruction = """
-        Based on the data above, give me TODAY'S coaching brief in three short parts: \
-        (1) my readiness in one line, citing charge, HRV and rest; \
-        (2) exactly what training to do today and what to avoid; \
-        (3) one specific thing to improve my charge. Be punchy and motivating.
-        """
-        let wire: [(role: ChatMessage.Role, content: String)] = [(.user, context + "\n\n---\n\n" + instruction)]
+        let wire: [(role: ChatMessage.Role, content: String)] =
+            [(.user, context + "\n\n---\n\n" + Self.briefInstruction(toolsActive: toolCallingActive))]
         do {
             let reply = try await callProvider(key: key, messages: wire)
             let clean = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)

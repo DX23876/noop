@@ -91,6 +91,41 @@ final class AICoachPromptAndStressTests: XCTestCase {
         XCTAssertFalse(engine.hasCustomSystemPrompt)
     }
 
+    // MARK: - The morning brief instruction (W5)
+
+    /// With tools live, part (2) must require a structured proposal — that's what turns the brief's prose
+    /// into an acceptable session on Today.
+    func testBriefAsksForAProposalWhenToolsAreActive() {
+        let instruction = AICoachEngine.briefInstruction(toolsActive: true)
+        XCTAssertTrue(instruction.contains("propose_plan"))
+    }
+
+    /// The first line of defence against duplicate proposals (the other two are the plan block on the
+    /// tool path and the store-side dedup).
+    func testBriefAsksForExactlyOneSession() {
+        let instruction = AICoachEngine.briefInstruction(toolsActive: true)
+        XCTAssertTrue(instruction.contains("exactly ONE"))
+    }
+
+    /// Without tools the brief must not name propose_plan — the honesty counterpart of W1: point the
+    /// user at Your plan instead of pretending to have recorded anything.
+    func testBriefWithoutToolsTellsTheUserToAddItThemselves() {
+        let instruction = AICoachEngine.briefInstruction(toolsActive: false)
+        XCTAssertFalse(instruction.contains("propose_plan"),
+                       "must not promise a tool that isn't on the wire")
+        XCTAssertTrue(instruction.contains("Your plan"))
+    }
+
+    /// Both variants still deliver the three-part brief the check-in notification promises.
+    func testBothVariantsKeepTheThreePartShape() {
+        for active in [true, false] {
+            let instruction = AICoachEngine.briefInstruction(toolsActive: active)
+            XCTAssertTrue(instruction.contains("(1)"))
+            XCTAssertTrue(instruction.contains("(2)"))
+            XCTAssertTrue(instruction.contains("(3)"))
+        }
+    }
+
     // MARK: - Feature 2: derived stress line
 
     func testStressIndexSummaryFormatsOneRoundedNumber() {
