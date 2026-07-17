@@ -236,12 +236,38 @@ final class CoachPlanStore: ObservableObject {
 
     /// Record a coach suggestion. It lands as `.proposed` and stays there — this is the ONLY entry point
     /// the model can reach, and it deliberately cannot set any other status.
+    ///
+    /// Deduped on `(day, sport)`: a re-proposal of the SAME session on the SAME day replaces the pending
+    /// row IN PLACE (keeping its id + createdAt, so the card doesn't flicker and a mid-flight tap can't
+    /// hit a dead row) rather than stacking a second card. Scoped to `.proposed` ONLY, and that scoping
+    /// is load-bearing: a decided proposal is the user's answer, and re-proposing must never reach it —
+    /// it must not silently rewrite an accepted commitment, nor erase a decline (`declineStreak` depends
+    /// on the decline surviving). Deduping on `(day, sport)` and not `day` alone keeps a legitimate
+    /// AM-ride + PM-mobility on one day as two separate proposals.
     func propose(_ proposal: PlanProposal) {
         var p = proposal
         p.status = .proposed
         p.source = .coachProposed
+        let key = Self.dedupKey(day: p.day, sport: p.sport)
+        if let idx = proposals.firstIndex(where: {
+            $0.status == .proposed && Self.dedupKey(day: $0.day, sport: $0.sport) == key
+        }) {
+            let existing = proposals[idx]
+            proposals[idx] = PlanProposal(
+                id: existing.id, day: p.day, time: p.time, sport: p.sport, intent: p.intent,
+                targetEffort: p.targetEffort, rationale: p.rationale, status: .proposed,
+                source: .coachProposed, createdAt: existing.createdAt)
+            return
+        }
         proposals.insert(p, at: 0)
         trim()
+    }
+
+    /// The `(day, sport)` identity two proposals share when one supersedes the other. Pure + static so
+    /// the dedup rule can be pinned directly; sport is trimmed and case-folded so "  Zone 2 RIDE " and
+    /// "Zone 2 ride" collapse.
+    static func dedupKey(day: String, sport: String) -> String {
+        day + "|" + sport.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
     /// The user said yes. Only ever called from a UI action.

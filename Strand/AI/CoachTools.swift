@@ -466,6 +466,17 @@ extension AICoachEngine {
     inventing figures.
     """
 
+    /// The context actually sent on the tool path: the fetch-your-numbers note PLUS what's already on
+    /// the table (pending proposals + commitments). Without the plan block the model is blind to its own
+    /// pending proposals exactly when `propose_plan` is callable, so it re-proposes what it already
+    /// proposed — `buildFullContext()` carries `planContextBlock()`, but the tool path skips that whole
+    /// builder in favour of the lean note.
+    var toolModeContext: String {
+        var note = Self.toolModeContextNote
+        if let plan = planContextBlock() { note += "\n\n" + plan }
+        return note
+    }
+
     /// Execute one tool call and return a compact text result. Routes to the same consent-gated summaries
     /// the text-context path uses, so the no-raw-egress posture holds. Unknown names and missing-consent
     /// are reported as plain text so the model can recover gracefully.

@@ -59,6 +59,81 @@ final class CoachPlanStoreTests: XCTestCase {
         XCTAssertTrue(store.pending.isEmpty)
     }
 
+    // MARK: - Dedup: a re-proposal replaces, it doesn't stack (W3)
+
+    /// The daily brief could fire propose_plan for the same session repeatedly; without dedup that's N
+    /// identical cards. A re-proposal of the same (day, sport) updates the pending row in place.
+    func testReProposingTheSameSessionReplacesRatherThanDuplicates() {
+        let store = makeStore()
+        store.propose(proposal(sport: "Zone 2 ride"))
+        let firstId = store.proposals[0].id
+        let firstCreatedAt = store.proposals[0].createdAt
+
+        var second = proposal(sport: "Zone 2 ride")
+        second.rationale = "Recovery is up — a longer easy ride today."
+        store.propose(second)
+
+        XCTAssertEqual(store.pending.count, 1, "the same session must not stack a second card")
+        XCTAssertEqual(store.proposals[0].id, firstId, "the row keeps its id so the card can't flicker")
+        XCTAssertEqual(store.proposals[0].createdAt, firstCreatedAt)
+        XCTAssertEqual(store.proposals[0].rationale, "Recovery is up — a longer easy ride today.",
+                       "the newer rationale wins")
+    }
+
+    func testADifferentSportOnTheSameDayIsKeptSeparately() {
+        let store = makeStore()
+        store.propose(proposal(day: "2026-07-16", sport: "Zone 2 ride"))
+        store.propose(proposal(day: "2026-07-16", sport: "Mobility"))
+        XCTAssertEqual(store.pending.count, 2, "an AM ride and PM mobility are two real sessions")
+    }
+
+    func testDedupIgnoresSportCaseAndSurroundingWhitespace() {
+        let store = makeStore()
+        store.propose(proposal(sport: "Zone 2 ride"))
+        store.propose(proposal(sport: "  zone 2 RIDE "))
+        XCTAssertEqual(store.pending.count, 1)
+    }
+
+    /// The load-bearing scope: dedup must never reach a DECIDED proposal. Re-proposing an identical
+    /// session after it was accepted must not silently rewrite the commitment.
+    func testDedupNeverReachesAnAcceptedProposal() {
+        let store = makeStore()
+        store.propose(proposal(sport: "Zone 2 ride"))
+        let acceptedId = store.proposals[0].id
+        store.accept(acceptedId)
+
+        store.propose(proposal(sport: "Zone 2 ride"))
+
+        XCTAssertEqual(store.proposals.count, 2, "a fresh proposal, not an overwrite of the commitment")
+        XCTAssertEqual(store.proposals.first(where: { $0.id == acceptedId })?.status, .accepted,
+                       "the accepted commitment must be untouched")
+        XCTAssertEqual(store.pending.count, 1)
+    }
+
+    /// A decline must survive a re-proposal, or the filter-bubble floor (`declineStreak`) is defeated.
+    func testDedupCannotResurrectADeclinedProposal() {
+        let store = makeStore()
+        store.propose(proposal(sport: "Zone 2 ride"))
+        let declinedId = store.proposals[0].id
+        store.decline(declinedId)
+        XCTAssertEqual(store.declineStreak, 1)
+
+        store.propose(proposal(sport: "Zone 2 ride"))
+
+        XCTAssertEqual(store.proposals.first(where: { $0.id == declinedId })?.status, .declined,
+                       "the decline is information the coach needs — it must not be erased")
+        XCTAssertEqual(store.declineStreak, 1, "the streak must still count the surviving decline")
+        XCTAssertEqual(store.pending.count, 1, "the re-proposal is a new pending row")
+    }
+
+    func testDedupKeyIsPureAndDayScoped() {
+        XCTAssertEqual(CoachPlanStore.dedupKey(day: "2026-07-16", sport: "Zone 2 ride"),
+                       CoachPlanStore.dedupKey(day: "2026-07-16", sport: "  zone 2 RIDE "))
+        XCTAssertNotEqual(CoachPlanStore.dedupKey(day: "2026-07-16", sport: "Zone 2 ride"),
+                          CoachPlanStore.dedupKey(day: "2026-07-17", sport: "Zone 2 ride"),
+                          "the same sport on two days is two distinct sessions")
+    }
+
     /// `clearTime` undoes a set time without touching status — the counterpart PlanTimeSheet's "Set"
     /// was missing (B3). It must not decide anything else about the session.
     func testClearTimeRemovesOnlyTheTimeNotTheDecision() {

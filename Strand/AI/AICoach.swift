@@ -855,7 +855,7 @@ final class AICoachEngine: ObservableObject {
         // In tool-calling mode we send a lean note and let the model FETCH the data it needs via tools,
         // instead of pre-baking the whole summary into the prompt.
         let context = toolCallingActive
-            ? Self.toolModeContextNote
+            ? toolModeContext
             : (dataConsent ? await buildFullContext() : noConsentNote)
         let wire = wireMessages(context: context)
 
@@ -1247,7 +1247,7 @@ final class AICoachEngine: ObservableObject {
         // not know yet, and the brief is exactly where a missing propose_plan hurts most.
         await ensureOpenRouterCapabilities()
 
-        let context = toolCallingActive ? Self.toolModeContextNote : await buildFullContext()
+        let context = toolCallingActive ? toolModeContext : await buildFullContext()
         let instruction = """
         Based on the data above, give me TODAY'S coaching brief in three short parts: \
         (1) my readiness in one line, citing charge, HRV and rest; \
@@ -1583,9 +1583,9 @@ final class AICoachEngine: ObservableObject {
     }
 
     /// Pending proposals + upcoming commitments, so the coach knows what's already on the table instead
-    /// of proposing over the top of it.
-    func planContextBlock() -> String? {
-        let store = CoachPlanStore.shared
+    /// of proposing over the top of it. `store` is injectable so the block can be exercised without the
+    /// singleton; production always passes the default.
+    func planContextBlock(store: CoachPlanStore = .shared) -> String? {
         let today = Repository.localDayKey(Date())
         var lines: [String] = []
         let pending = store.pending.filter { $0.day >= today }
