@@ -46,10 +46,10 @@ class PreferredPhyTest {
     /** The on→off edge rule is shared with the connection-priority lever (#536): only a real on→off
      *  transition releases, so the default launch path (re-applying false while already off) is a no-op. */
     @Test fun onlyTheOnToOffEdgeReleasesThePhy() {
-        assertTrue(WhoopBleClient.releasesConnectionPriority(wasEnabled = true, nowEnabled = false))
-        assertEquals(false, WhoopBleClient.releasesConnectionPriority(wasEnabled = false, nowEnabled = false))
-        assertEquals(false, WhoopBleClient.releasesConnectionPriority(wasEnabled = false, nowEnabled = true))
-        assertEquals(false, WhoopBleClient.releasesConnectionPriority(wasEnabled = true, nowEnabled = true))
+        assertTrue(WhoopBleClient.releasesOnDisable(wasEnabled = true, nowEnabled = false))
+        assertEquals(false, WhoopBleClient.releasesOnDisable(wasEnabled = false, nowEnabled = false))
+        assertEquals(false, WhoopBleClient.releasesOnDisable(wasEnabled = false, nowEnabled = true))
+        assertEquals(false, WhoopBleClient.releasesOnDisable(wasEnabled = true, nowEnabled = true))
     }
 
     /**

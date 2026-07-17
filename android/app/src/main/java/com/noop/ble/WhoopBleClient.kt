@@ -503,13 +503,15 @@ class WhoopBleClient(
         fun idleThrottleActive(batteryPct: Int, charging: Boolean, thresholdPct: Int): Boolean =
             thresholdPct > 0 && !charging && batteryPct <= thresholdPct
 
-        /** #533: whether flipping connection-priority management from [wasEnabled] to [nowEnabled] must
-         *  RELEASE the link back to the stack default. ONLY the on→off edge does: [refreshConnectionPriority]
-         *  early-returns once disabled, so without an explicit release a link currently pinned at HIGH would
-         *  stay there until the next reconnect — a user turning the experiment off *because* of battery would
-         *  keep paying for it. Enabling, or re-applying while already off (every launch on the default), must
-         *  issue no request at all. */
-        fun releasesConnectionPriority(wasEnabled: Boolean, nowEnabled: Boolean): Boolean =
+        /** #533: whether flipping an experimental link lever from [wasEnabled] to [nowEnabled] must RELEASE
+         *  what it changed. Shared by BOTH levers — the connection-priority escalation and the 2M PHY
+         *  preference — hence the neutral name; each applies its own release.
+         *
+         *  ONLY the on→off edge does: both apply-paths early-return once disabled, so without an explicit
+         *  release a link left pinned at HIGH (or at 2M) would stay there until the next reconnect — and a
+         *  user switching an experiment off *because* it hurt would keep paying for it. Enabling, or
+         *  re-applying while already off (every launch on the default), must issue no request at all. */
+        fun releasesOnDisable(wasEnabled: Boolean, nowEnabled: Boolean): Boolean =
             wasEnabled && !nowEnabled
 
         /** #533: the PHY mask to ask the controller for. NOOP has never called `setPreferredPhy`, so every
@@ -1267,8 +1269,8 @@ class WhoopBleClient(
             // link currently pinned at HIGH would STAY there until the next reconnect — a user turning the
             // toggle off *because* of battery would keep paying for it, potentially for hours on a
             // background connection. Only fires on a real on→off edge; enabling (or a no-op re-apply while
-            // already off) never issues a stray request. See [releasesConnectionPriority].
-            if (releasesConnectionPriority(wasEnabled, enabled)) releaseConnectionPriority()
+            // already off) never issues a stray request. See [releasesOnDisable].
+            if (releasesOnDisable(wasEnabled, enabled)) releaseConnectionPriority()
             else refreshConnectionPriority()
         }
     }
@@ -1297,13 +1299,13 @@ class WhoopBleClient(
      *  Turning it OFF hands the link back to 1M rather than merely stopping future offloads from asking for
      *  2M. A PHY PERSISTS once negotiated, so without this an already-2M link would stay 2M until the next
      *  reconnect — and this toggle's own copy tells the user to switch it off if syncing goes flaky at
-     *  range, which is exactly the case where 2M is the suspect. Reuses [releasesConnectionPriority]'s
+     *  range, which is exactly the case where 2M is the suspect. Reuses [releasesOnDisable]'s
      *  edge rule, so the default path (re-applying `false` while already off, every launch) issues ZERO
      *  BLE ops. */
     fun setFastLinkPhy(enabled: Boolean) {
         val wasEnabled = fastLinkPhyEnabled
         fastLinkPhyEnabled = enabled
-        if (releasesConnectionPriority(wasEnabled, enabled)) handler.post { releasePreferredPhy() }
+        if (releasesOnDisable(wasEnabled, enabled)) handler.post { releasePreferredPhy() }
     }
 
     /** #533: ask the controller to prefer 2M for this link (mask always includes 1M so it can fall back).
@@ -5229,6 +5231,15 @@ class WhoopBleClient(
         if (!backfilling) return
         backfilling = false
         refreshConnectionPriority()   // #477: offload done — drop back to idle priority. No-op unless enabled.
+        // #533: offload done — hand the PHY back to 1M too, so the 2M preference is BOUNDED to the burst
+        // exactly like the priority escalation above. A PHY PERSISTS once negotiated, so without this a link
+        // that went 2M for the sync stayed 2M for the WHOLE connection — including the overnight window —
+        // which is not what the toggle's copy promises ("while your strap hands over its stored history"),
+        // and left 2M's range trade-off in force long after the transfer it was for.
+        // Guarded here rather than inside releasePreferredPhy: that method cannot check the flag, because
+        // setFastLinkPhy's on→off edge calls it AFTER the flag is already false. So the default path still
+        // issues ZERO BLE ops.
+        if (fastLinkPhyEnabled) releasePreferredPhy()
         // #174: a backfill just ended. Start (or extend) the deep-packet cooldown from this instant so
         // any type-0x2F records the strap flushes in the seconds after the session aren't miscounted as
         // the live R22 stream — they're the offload's tail.

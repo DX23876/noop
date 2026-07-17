@@ -99,15 +99,15 @@ class ConnectionPriorityTest {
      * if it costs battery) for anyone on a background connection.
      */
     @Test fun disablingReleasesTheLinkBackToDefault() {
-        assertTrue(WhoopBleClient.releasesConnectionPriority(wasEnabled = true, nowEnabled = false))
+        assertTrue(WhoopBleClient.releasesOnDisable(wasEnabled = true, nowEnabled = false))
     }
 
     /** Every other transition must issue NO request — notably the default launch path, which re-applies
      *  `enabled = false` while already off and must stay byte-for-byte today's zero-BLE-op behaviour. */
     @Test fun onlyTheOnToOffEdgeReleases() {
-        assertFalse(WhoopBleClient.releasesConnectionPriority(wasEnabled = false, nowEnabled = false))
-        assertFalse(WhoopBleClient.releasesConnectionPriority(wasEnabled = false, nowEnabled = true))
-        assertFalse(WhoopBleClient.releasesConnectionPriority(wasEnabled = true, nowEnabled = true))
+        assertFalse(WhoopBleClient.releasesOnDisable(wasEnabled = false, nowEnabled = false))
+        assertFalse(WhoopBleClient.releasesOnDisable(wasEnabled = false, nowEnabled = true))
+        assertFalse(WhoopBleClient.releasesOnDisable(wasEnabled = true, nowEnabled = true))
     }
 
     // --- battery-adaptive gate, keyed on STRAP battery only (#477) ---
