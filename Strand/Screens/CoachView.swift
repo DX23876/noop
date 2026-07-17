@@ -188,7 +188,7 @@ struct CoachView: View {
                         typingIndicator.id("typing")
                     }
                     if let error = coach.errorText, !error.isEmpty {
-                        errorBanner(error)
+                        errorBanner(error).id("error")
                     }
                     // Suggestion chips live at the bottom of an empty transcript, just above the composer.
                     if coach.messages.isEmpty {
@@ -200,9 +200,18 @@ struct CoachView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .onChangeCompat(of: coach.messages.count) { _ in scrollToEnd(proxy) }
-            .onChangeCompat(of: coach.sending) { _ in scrollToEnd(proxy) }
+            .onChangeCompat(of: coach.sending) { sending in
+                scrollToEnd(proxy)
+                // Announce completion (not every token) so a VoiceOver user knows a reply landed —
+                // a streamed reply otherwise gives no signal beyond the initial "Coach is thinking".
+                if !sending, coach.errorText == nil { announceReplyComplete() }
+            }
             // Keep pinned to the bottom as a streamed reply grows token-by-token.
             .onChangeCompat(of: coach.messages.last?.text.count ?? 0) { _ in scrollToEnd(proxy) }
+            // A failed send must scroll into view even if the transcript's message COUNT didn't change
+            // (the failed turn's placeholder is removed, not appended) — otherwise the error can sit
+            // scrolled off-screen after a long prior reply.
+            .onChangeCompat(of: coach.errorText) { _ in scrollToEnd(proxy) }
         }
     }
 
@@ -272,28 +281,43 @@ struct CoachView: View {
             if let chart = coach.chartsByMessage[message.id] {
                 CoachChartBubble(artifact: chart)
             } else if !message.text.isEmpty {
-                HStack {
-                    Markdown(message.text)
-                        .markdownTheme(.strand)
-                        .textSelection(.enabled)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 11)
-                        .frostedCardSurface(tint: StrandPalette.chargeColor, cornerRadius: CoachRadius.card)
-                        .frame(maxWidth: 560, alignment: .leading)
-                        .contextMenu {
-                            copyButton(message.text)
-                            if isLastAssistant(message) {
-                                Button { coach.regenerate() } label: {
-                                    Label("Regenerate", systemImage: "arrow.clockwise")
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Markdown(message.text)
+                            .markdownTheme(.strand)
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 11)
+                            .frostedCardSurface(tint: StrandPalette.chargeColor, cornerRadius: CoachRadius.card)
+                            .frame(maxWidth: 560, alignment: .leading)
+                            .contextMenu {
+                                copyButton(message.text)
+                                if isLastAssistant(message) {
+                                    Button { coach.regenerate() } label: {
+                                        Label("Regenerate", systemImage: "arrow.clockwise")
+                                    }
+                                    .disabled(coach.sending)
                                 }
-                                .disabled(coach.sending)
                             }
+                        Spacer(minLength: 48)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Coach said: \(message.text)")
+
+                    // Visible, not just a long-press away — the context menu above still works too.
+                    if isLastAssistant(message) {
+                        Button { coach.regenerate() } label: {
+                            Label("Regenerate", systemImage: "arrow.clockwise")
+                                .font(StrandFont.caption)
+                                .foregroundStyle(StrandPalette.textTertiary)
                         }
-                    Spacer(minLength: 48)
+                        .buttonStyle(.plain)
+                        .disabled(coach.sending)
+                        .padding(.leading, 14)
+                        .accessibilityLabel("Regenerate this reply")
+                    }
                 }
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel("Coach said: \(message.text)")
             }
         }
     }
@@ -317,21 +341,36 @@ struct CoachView: View {
         .accessibilityLabel("Coach is thinking")
     }
 
+    /// A failure used to strand the user with the question still typed and no one-tap way back. `Retry`
+    /// reuses `regenerate()`: after a failed send there's a user turn with no assistant reply after it
+    /// (the empty placeholder was already removed on error), so dropping from that turn and resending
+    /// is exactly a retry of the same question — no separate code path needed.
     private func errorBanner(_ message: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(StrandPalette.statusCritical)
-                .accessibilityHidden(true)
-            Text(message)
-                .font(StrandFont.subhead)
-                .foregroundStyle(StrandPalette.statusCritical)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(StrandPalette.statusCritical)
+                    .accessibilityHidden(true)
+                Text(message)
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.statusCritical)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Error: \(message)")
+
+            Button { coach.regenerate() } label: {
+                Label("Retry", systemImage: "arrow.clockwise")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.statusCritical)
+            }
+            .buttonStyle(.plain)
+            .disabled(coach.sending)
+            .accessibilityLabel("Retry sending your last message")
         }
         .padding(14)
         .background(StrandPalette.surfaceOverlay, in: RoundedRectangle(cornerRadius: CoachRadius.card, style: .continuous))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Error: \(message)")
     }
 
     private var suggestionChips: some View {
@@ -450,10 +489,26 @@ struct CoachView: View {
         withAnimation(StrandMotion.fade) {
             if coach.sending {
                 proxy.scrollTo("typing", anchor: .bottom)
+            } else if let error = coach.errorText, !error.isEmpty {
+                proxy.scrollTo("error", anchor: .bottom)
             } else if let last = coach.messages.last {
                 proxy.scrollTo(last.id, anchor: .bottom)
             }
         }
+    }
+
+    /// Post a VoiceOver announcement without narrating every streamed token — only the moment a reply
+    /// finishes. Cross-platform: `UIAccessibility`/`NSAccessibility` are the only APIs for this, so there
+    /// is no shared abstraction to reuse (unlike `onChangeCompat`, which papers over an API-shape
+    /// difference rather than a platform-exclusive one).
+    private func announceReplyComplete() {
+        let message = String(localized: "Coach replied")
+        #if canImport(UIKit)
+        UIAccessibility.post(notification: .announcement, argument: message)
+        #elseif canImport(AppKit)
+        NSAccessibility.post(element: NSApp as Any, notification: .announcementRequested,
+                            userInfo: [.announcement: message])
+        #endif
     }
 }
 

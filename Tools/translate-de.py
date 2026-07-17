@@ -549,6 +549,9 @@ DE: dict[str, str] = {
     "Off: sessions with a time don't remind you.": "Aus: Einheiten mit Uhrzeit erinnern dich nicht.",
     "Notifications are off. Enable them for NOOP in Settings to use reminders.": "Mitteilungen sind aus. Aktiviere sie für NOOP in den Einstellungen, um Erinnerungen zu nutzen.",
 
+    # Chat retry (B4).
+    "Retry": "Erneut versuchen",
+
 }
 
 
