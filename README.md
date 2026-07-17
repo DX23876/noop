@@ -8,9 +8,9 @@
 
 <p align="center">
   <img alt="Fork of ryanbr/noop" src="https://img.shields.io/badge/fork%20of-ryanbr%2Fnoop-6B737B?style=flat-square&logo=github&logoColor=white">
-  <img alt="Version" src="https://img.shields.io/badge/version-9.0.0-234F9E?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-9.0.1-234F9E?style=flat-square">
   <img alt="Platform" src="https://img.shields.io/badge/platform-iOS%20only-234F9E?style=flat-square">
-  <img alt="AI coach" src="https://img.shields.io/badge/AI%20coach-14%20tools-C8902F?style=flat-square">
+  <img alt="AI coach" src="https://img.shields.io/badge/AI%20coach-19%20tools-C8902F?style=flat-square">
   <img alt="Apple Health" src="https://img.shields.io/badge/Apple%20Health-auto%20sync-60A0E0?style=flat-square">
   <img alt="No cloud" src="https://img.shields.io/badge/no%20server-no%20account-E8B84B?style=flat-square">
   <a href="LICENSE"><img alt="License: PolyForm Noncommercial 1.0.0" src="https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-6B737B?style=flat-square"></a>
@@ -29,10 +29,9 @@ server, no account, no telemetry. It's a genuinely lovely piece of clean-room en
 somebody else's project: **[ryanbr/noop](https://github.com/ryanbr/noop)**.
 
 **NOOP AI** — this fork — solves a second half that only matters to one person: *the numbers still
-don't talk back.* So it grows an AI coach into a thing you'd actually open every morning. One that
-knows your training goal, remembers the knee you tweaked in March, can pull your real numbers when
-it needs them, and can say "your HRV is 12 % under baseline, take today easy" — because it went and
-looked.
+don't talk back.* So it grows an AI coach into a thing you'd actually open every morning. One with a
+real goal, a real memory, a plan you actually agreed to, and a Readiness verdict it never contradicts
+— because it's reading the same numbers Today shows you, not guessing.
 
 > **Just want a great WHOOP app?** Use **[ryanbr/noop](https://github.com/ryanbr/noop)**. It's the
 > real project — macOS, Android, iOS, actively maintained, and the right answer for almost everyone.
@@ -67,18 +66,50 @@ It needs to iterate quickly, on one platform, for one person. So rather than pus
 - **Additive only.** Everything this fork adds lives in its own new files under `Strand/AI/`. No
   upstream logic is rewritten in place. Nothing touches BLE, protocol decoding, or the analytics
   math — the parts that genuinely benefit from cross-platform parity are left completely alone.
-- **It works.** Upstream `v9.0.0` merged into this fork with **zero conflicts**. That's the whole
-  design paying off.
+- **It works.** Upstream `9.0.0` and `9.0.1` have both merged into this fork. Between them they've
+  produced exactly one merge conflict, ever — two purely additive edits to the translation catalog
+  landing in the same spot, not overlapping content. Not one coach file has ever needed a manual
+  merge. That's the additive-files design paying off, not luck.
 
 ## The coach
 
 The base app already had a chat-with-your-own-API-key coach that got one pre-baked block of text
-per message. This fork turns that into something closer to an agent with hands and a memory.
+per message. This fork turns that into something with a goal, a plan, a memory, and hands to go
+fetch its own data instead of being handed a fixed summary and hoping for the best.
 
-### It fetches its own data (14 tools)
+### It knows your goal, and says so honestly
+
+Set one target — a run, a consistency streak, sleep, weight, or something free-text — and the coach
+stops improvising:
+
+- **Two safety checks, and neither one ever blocks you.** Is the pace *aggressive*? Rate is measured
+  as a percentage of your own body weight or volume per week, so the same 20 kg cut reads correctly
+  whether you weigh 60 kg or 160 kg — an aggressive pace just asks for a one-line reason (cut phase,
+  medically supervised, your call) and remembers it. Is it *realistic*? A separate check against your
+  on-device VO₂max estimate, evidence-based rather than a guess — and for weight goals, always
+  honestly reported as "no data to judge that on," because there isn't.
+- **It never plans your diet.** Weight is tracked, training is planned around it, and that's the
+  entire lever the coach has — it says so outright rather than pretending otherwise.
+- **The [Journey page](#the-rest-of-it)** shows where you stand — with no invented percentages.
+
+### It proposes a plan; you decide
+
+The coach can **suggest** a session for a day — it cannot schedule one. Every suggestion sits as a
+proposal until you accept, decline, reschedule, or swap it yourself in the plan book.
+
+Swapping shows the consequence *before* you decide, computed from your own workout history, not a
+generic chart: *"CrossFit at 10:00 instead of Zone 2 — about 18 points and 2 recovery days instead of
+6 and one. Tomorrow's projection drops from ~62 to ~45."* The same engine answers "what if" questions
+free-form (*"hard session today, 7 hours' sleep — how do I look tomorrow?"*). Skipping something is
+one tap and a reason, never a daily ritual, and reasons like pain or illness are read back with
+context, not judgment — a skip streak doesn't get you permanently written off, either.
+
+### It fetches its own data (19 tools)
 
 Instead of being handed a fixed summary, the coach decides what it needs and goes and gets it —
-mid-sentence, while it's answering you.
+mid-sentence, while it's answering you. `get_readiness` and `get_charge_drivers` in particular read
+from the **exact same engines** the Today screen does, so the coach's verdict can never contradict
+what you already see there.
 
 | | Tool | What it pulls |
 |---|---|---|
@@ -87,6 +118,11 @@ mid-sentence, while it's answering you.
 | 😰 | `get_stress_index` | Today's autonomic load (Baevsky index over your R-R intervals) |
 | 😴 | `get_sleep_detail` | Per-night stages, efficiency, and your rolling sleep-debt ledger |
 | 📅 | `get_range_report` | Any 7–365 day window: averages, trends, headline changes |
+| 🎯 | `get_readiness` | The same push/maintain/rest verdict Today shows — ACWR, training monotony, contributing signals |
+| 🔬 | `get_charge_drivers` | *Why* today's Charge is what it is, term by term — never an invented reason |
+| 📝 | `propose_plan` | Suggests a session. Never schedules one — that's your call, in the app |
+| ⚖️ | `get_session_outlook` · `simulate_day` | What a session (or a swap, or a hypothetical) actually costs, from your own history |
+| ✅ | `get_plan_adherence` | What you agreed to vs. what happened — and why, when you told it |
 | 🔍 | `get_personal_patterns` | Your own n-of-1 correlations ("late meals cost you 8 % recovery") |
 | 📈 | `plot_metric` | Draws a real chart, inline in the chat |
 | 🧠 | `remember_fact` · `update_fact` · `forget_fact` | Its own long-term memory (below) |
@@ -120,31 +156,44 @@ person's.
 Every fact is visible and editable in Settings. Nothing is remembered that you can't see, correct,
 or delete.
 
+### It's honest about token cost, and caches what it can
+
+Anthropic conversations get real **prompt caching**: the tool loop's largest recurring cost — the
+tool-definition list and system prompt, re-sent on every round of a multi-round answer — is cached
+after the first hit. Because a cache can silently fail to engage below a length threshold rather than
+erroring, Settings shows a **plain-language card** after every question: cached, just written, or "no
+caching, and here's probably why" — a number, not a hope.
+
 ### The rest of it
 
 | Feature | What it does |
 |---|---|
+| **Settings hub** | A landing page and five focused subpages (Connection & model · Goal & Journey · Coaching · Memory · Privacy & data) instead of one long scroll. |
+| **A daily briefing that's actually daily** | Gated on the calendar day, not on "haven't opened this chat yet" — it can't go stale across a long-running conversation. |
 | **Personas** | **Guardian** (calm, protective), **Friend** (warm), **Commander** (direct). Tone only — the methodology and the "I'm not a doctor" guardrails never change. |
 | **Streaming** | Replies land token-by-token, with tool calls running inline, instead of a silent wait. |
 | **Real chat UI** | Full-screen messenger: docked composer, time separators, copy + regenerate, stop mid-reply. |
 | **Conversation history** | Named, searchable threads. "New chat" no longer throws the old one away. |
 | **In-chat charts** | Native trend charts drawn in the conversation, tappable to enlarge, and they survive a relaunch. |
 | **Two ways in** | A card on Today, and/or a **draggable floating button** you can pin to any corner (clear of the tab bar) or lock in place. Your choice, in Settings. |
-| **Daily check-in** | An opt-in reminder that deep-links to a *freshly generated* brief, not a stale one. |
 | **Editable instructions** | Upstream's free-text system-prompt editor still works underneath any persona. |
+| **Bring almost any model** | Anthropic, OpenAI, Gemini, or any OpenAI-compatible endpoint — a local Ollama/LM Studio server, or a hosted gateway like OpenRouter (confirmed working today over the same Custom path). |
+| **Deutsch** | The coach's own UI — goal editor, plan book, Journey page, settings — is fully localised in German alongside English, on top of upstream's own translation coverage. |
 
 All of it rides on NOOP's **automatic Apple Health sync** (HealthKit background delivery), inherited
 unchanged from upstream — so the coach is always reasoning over fresh data.
 
 📖 **Want the deep version?** → **[`docs/COACH.md`](docs/COACH.md)** — architecture, every tool's
-schema, the memory ranking algorithm, provider support, and the file map.
+schema, the two safety gates, the plan book's state machine, the memory ranking algorithm, provider
+support, and the file map.
 
 ## What actually leaves your phone
 
 Worth being precise about, because "AI" and "private" usually don't share a sentence:
 
 - **The app itself is still fully offline.** Your strap data, your database, your computed scores,
-  your memory, your chat history — all on-device. There is no NOOP server. There is no account.
+  your goal, your plan, your memory, your chat history — all on-device. There is no NOOP server.
+  There is no account.
 - **Only the coach talks to the internet**, only when you send a message, only to **your own API
   provider using your own key**, and only if you've turned on data access. Turn that off and the
   coach still works — it just doesn't see your numbers.
@@ -154,6 +203,24 @@ Worth being precise about, because "AI" and "private" usually don't share a sent
   and *nothing* leaves your network at all.
 
 More: [`docs/PRIVACY_SECURITY.md`](docs/PRIVACY_SECURITY.md).
+
+## What NOOP itself does
+
+If you landed here without knowing the base project: everything below is **ryanbr/noop**, not this
+fork — credit and detail belong to [the real project](https://github.com/ryanbr/noop) and
+[`docs/FEATURES.md`](docs/FEATURES.md). The short version:
+
+- **Pairs directly with a WHOOP 4.0 or 5.0/MG strap over Bluetooth Low Energy** — no WHOOP account,
+  no WHOOP cloud, nothing in the middle. WHOOP straps don't show up in *Settings → Bluetooth*; NOOP
+  finds them on their own advertising profile.
+- **Computes its own scores, entirely on-device, from published methods**: **Charge** (recovery),
+  **Effort** (strain), **Rest** (sleep quality) — an energy economy you wake with, spend through the
+  day, and rebuild overnight — alongside HRV, resting heart rate, SpO₂, respiration and skin
+  temperature. These are honest approximations, explicitly **not WHOOP's own scores**.
+- **Everything lives in an on-device SQLite database.** Import a WHOOP or Apple Health export for
+  instant history, or just wear the strap and let it build over the following nights.
+- **No server, no account, no telemetry, anywhere in the project** — this fork included. The AI
+  coach above is the *one* opt-in exception, and it only ever talks to the provider you chose.
 
 ## Quickstart (iOS)
 
@@ -188,7 +255,7 @@ Management*.
   generate` clears the Team field — reselect it, or pin `DEVELOPMENT_TEAM` in `project.yml`.)
 
 Then in the app: pair your strap → grant Apple Health access → open **Coach** → paste your API key
-→ pick a persona → turn on the daily check-in.
+→ pick a persona → optionally set a goal.
 
 ## Under the hood
 
@@ -224,15 +291,21 @@ git merge upstream/main    # keep this fork's README/branding + project.yml sign
 ```
 
 Because every fork-specific change lives in its own file rather than editing upstream code in place,
-this stays remarkably clean — **upstream `v9.0.0` merged with zero conflicts.**
+this stays remarkably clean — two merges in, `Strand/AI/` has needed **zero** manual conflict
+resolutions. Watch for one thing after any merge: `Tools/i18n_audit.py` gates German, Spanish and
+French coverage as a *standing invariant* (upstream tightened this in `9.0.1`), so a merge that adds
+upstream UI text needs upstream's own translations to already cover it — which they do; it's new
+**fork** strings that need adding by hand.
 
 ## Docs
 
 **This fork**
-- [`docs/COACH.md`](docs/COACH.md) — the coach in full: tools, memory, providers, architecture.
+- [`docs/COACH.md`](docs/COACH.md) — the coach in full: tools, goal gates, the plan book, memory,
+  providers, architecture.
 - [`docs/IOS.md`](docs/IOS.md) — iOS build + HealthKit details.
 
 **Upstream (all still accurate)**
+- [`docs/FEATURES.md`](docs/FEATURES.md) — the full feature guide for NOOP itself.
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — how the whole thing fits together.
 - [`docs/ANALYTICS.md`](docs/ANALYTICS.md) — the recovery/strain/sleep maths, with citations.
 - [`docs/PROTOCOL.md`](docs/PROTOCOL.md) — the WHOOP BLE protocol.
