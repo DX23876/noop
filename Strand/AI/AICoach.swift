@@ -208,6 +208,9 @@ final class AICoachEngine: ObservableObject {
     @Published var provider: AIProvider {
         didSet {
             guard provider != oldValue else { return }
+            // A switch mid-stream would leave the old provider's request in flight while `model` is
+            // re-pointed underneath it — cancel first, keeping whatever already streamed.
+            stop()
             UserDefaults.standard.set(provider.rawValue, forKey: Self.providerKey)
             // Reset the model list to the new provider's built-in options.
             availableModels = provider.modelOptions
@@ -1073,13 +1076,27 @@ final class AICoachEngine: ObservableObject {
         let today = Repository.logicalDayKey(Date())
         guard UserDefaults.standard.string(forKey: Self.lastBriefDayKey) != today else { return }
         if let last = messages.last, Repository.logicalDayKey(last.date) == today { return }
-        await generateBrief()
+        await runBriefCancellable()
     }
 
     /// Force a fresh "Today's brief" even mid-conversation — used when the user taps the daily check-in
     /// notification, so tapping always surfaces an up-to-date brief rather than an old one.
     func refreshBrief() async {
-        await generateBrief()
+        await runBriefCancellable()
+    }
+
+    /// Run the brief as `sendTask` so the composer's Stop button actually cancels it — previously the
+    /// button rendered during a brief but cancelled nothing. A cancelled brief doesn't stamp the day,
+    /// so it is retried on the next open.
+    private func runBriefCancellable() async {
+        guard !sending else { return }
+        let task = Task<Void, Never> { [weak self] in
+            guard let self else { return }
+            await self.generateBrief()
+        }
+        sendTask = task
+        await task.value
+        if sendTask == task { sendTask = nil }
     }
 
     /// Shared brief generation: build today's context and ask the provider for the three-part brief.
@@ -1111,7 +1128,11 @@ final class AICoachEngine: ObservableObject {
         } catch let e as AICoachError {
             errorText = e.errorDescription
         } catch {
-            errorText = AICoachError.network(error.localizedDescription).errorDescription
+            // A user-initiated Stop is not an error — and must not stamp the day (see above), so the
+            // brief comes back on the next open instead of silently vanishing until tomorrow.
+            if !Self.isCancellation(error) {
+                errorText = AICoachError.network(error.localizedDescription).errorDescription
+            }
         }
     }
 
@@ -1745,16 +1766,25 @@ final class AICoachEngine: ObservableObject {
     /// The chat as `(role, content)` pairs, with the metrics context prepended to the first user turn.
     /// The facts most relevant to the CURRENT question are folded into that context (pinned facts already
     /// ride the system prompt), so memory scales without every prompt carrying all 40 facts.
+    /// Chart-host messages (`flushPendingCharts` appends an empty assistant turn per chart) never go on
+    /// the wire: Anthropic rejects empty content, so a follow-up question after a chart would 400.
     private func wireMessages(context: String) -> [(role: ChatMessage.Role, content: String)] {
         let question = messages.last(where: { $0.role == .user })?.text ?? ""
         let relevant = CoachMemory.shared.relevantBlock(for: question, limit: 8)
         let fullContext = relevant.isEmpty ? context : context + "\n\n" + relevant
+        return Self.wirePairs(from: windowedMessages(), context: fullContext)
+    }
+
+    /// Pure: fold the windowed transcript into wire pairs. Split from `wireMessages` so the
+    /// empty-turn filter is unit-testable without an engine instance.
+    nonisolated static func wirePairs(from windowed: [ChatMessage], context: String) -> [(role: ChatMessage.Role, content: String)] {
         var out: [(role: ChatMessage.Role, content: String)] = []
         var contextInjected = false
-        for m in windowedMessages() {
+        for m in windowed {
+            if m.text.isEmpty { continue }
             if m.role == .user && !contextInjected {
                 contextInjected = true
-                out.append((.user, fullContext + "\n\n---\n\nQuestion: " + m.text))
+                out.append((.user, context + "\n\n---\n\nQuestion: " + m.text))
             } else {
                 out.append((m.role, m.text))
             }

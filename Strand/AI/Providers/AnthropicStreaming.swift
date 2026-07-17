@@ -27,7 +27,7 @@ extension AnthropicClient: StreamingToolClient {
             // so caching that pair is what keeps a multi-round answer from paying for them each time.
             var body: [String: Any] = [
                 "model": model,
-                "max_tokens": 1200,
+                "max_tokens": CoachOutputBudget.maxTokens,
                 "system": Self.cacheableSystem(systemPrompt),
                 "messages": wire,
                 "stream": true
@@ -65,6 +65,20 @@ extension AnthropicClient: StreamingToolClient {
             return fullText
         }
 
+        // Exhausted the round cap mid-tool-use. The non-streaming loop forces a tool-less closing call
+        // here; without it the user gets whatever half-round text accumulated — possibly nothing. The
+        // closing reply doesn't stream, so it is forwarded through `onDelta` to reach the live bubble.
+        let closing = try await send(
+            key: key, model: model, systemPrompt: systemPrompt,
+            messages: Self.messagesForFinal(wire: wire),
+            session: session
+        )
+        let trimmed = closing.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            let sep = fullText.isEmpty ? "" : "\n\n"
+            await onDelta(sep + trimmed)
+            fullText += sep + trimmed
+        }
         return fullText
     }
 
@@ -96,6 +110,9 @@ extension AnthropicClient: StreamingToolClient {
         // JSON input arrives as fragments in "__json" and is parsed into "input" at content_block_stop.
         var blocks: [Int: [String: Any]] = [:]
         var stopReason: String?
+        // Set on `message_stop` — the only reliable end-of-stream signal. A byte stream that just ends
+        // without it was cut off (network drop, proxy timeout), not completed.
+        var sawMessageStop = false
         // Token counts arrive split across two events: the input/cache side on `message_start`, the
         // output side on `message_delta`.
         var usage = CoachUsageLog.Round()
@@ -166,9 +183,20 @@ extension AnthropicClient: StreamingToolClient {
                     usage.outputTokens = Self.parseUsage(u).outputTokens
                 }
 
+            case "message_stop":
+                sawMessageStop = true
+
             default:
-                break   // ping, content_block_stop for text, message_stop, etc.
+                break   // ping, content_block_stop for text, etc.
             }
+        }
+
+        // The stream ended without `message_stop`: the connection was cut mid-reply. Surfacing this
+        // matters because the partial text already streamed into the UI and would otherwise pass as a
+        // complete (short) answer. A user-initiated Stop never reaches here — cancellation throws out
+        // of the `for try await` above.
+        guard sawMessageStop else {
+            throw AICoachError.network("The reply was cut off mid-stream — what streamed so far may be incomplete.")
         }
 
         // Order blocks by their stream index and strip the transient JSON-accumulator key.

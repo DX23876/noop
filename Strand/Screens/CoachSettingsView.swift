@@ -976,7 +976,9 @@ struct CoachSettingsView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(StrandPalette.accent)
-                .disabled(!coach.hasKey)
+                // Custom is deliberately keyless for local servers (Ollama, LM Studio) — a base URL is
+                // enough to list models there.
+                .disabled(!coach.hasKey && coach.provider != .custom)
                 .help("Fetch the available models from \(coach.provider.displayName) using your saved key")
                 .accessibilityLabel("Refresh models from provider")
             }

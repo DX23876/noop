@@ -29,7 +29,7 @@ extension AnthropicClient: ToolCallingClient {
             // so caching that pair is what keeps a multi-round answer from paying for them each time.
             let body: [String: Any] = [
                 "model": model,
-                "max_tokens": 1200,
+                "max_tokens": CoachOutputBudget.maxTokens,
                 "system": Self.cacheableSystem(systemPrompt),
                 "messages": wire,
                 "tools": toolSpecs
@@ -75,7 +75,7 @@ extension AnthropicClient: ToolCallingClient {
         // Exhausted the round cap without a final answer: one last call WITHOUT tools forces text.
         return try await send(
             key: key, model: model, systemPrompt: systemPrompt,
-            messages: messagesForFinal(wire: wire),
+            messages: Self.messagesForFinal(wire: wire),
             session: session
         )
     }
@@ -90,18 +90,47 @@ extension AnthropicClient: ToolCallingClient {
     }
 
     /// Reduce the accumulated tool-use transcript to plain `(role, content)` turns for the tool-less
-    /// final call: tool_use / tool_result blocks are dropped, string content is preserved. Guarantees the
-    /// last-resort request stays valid even after several tool rounds.
-    private func messagesForFinal(wire: [[String: Any]]) -> [(role: ChatMessage.Role, content: String)] {
+    /// final call. tool_use blocks are dropped, but every tool_result's CONTENT is carried over as text —
+    /// the closing instruction says "using the data gathered above", so that data must actually be in the
+    /// request. Assistant text produced between tool rounds is kept too. Static and pure — unit-tested.
+    static func messagesForFinal(wire: [[String: Any]]) -> [(role: ChatMessage.Role, content: String)] {
         var out: [(role: ChatMessage.Role, content: String)] = []
+        var gathered: [String] = []
         for turn in wire {
             guard let roleStr = turn["role"] as? String,
                   let role = ChatMessage.Role(rawValue: roleStr) else { continue }
             if let s = turn["content"] as? String {
                 out.append((role, s))
+            } else if let blocks = turn["content"] as? [[String: Any]] {
+                for block in blocks {
+                    switch block["type"] as? String {
+                    case "text":
+                        if let t = block["text"] as? String, !t.isEmpty { out.append((role, t)) }
+                    case "tool_result":
+                        if let c = block["content"] as? String, !c.isEmpty { gathered.append(c) }
+                    default:
+                        break   // tool_use inputs carry nothing the final answer needs
+                    }
+                }
             }
         }
-        out.append((.user, "Answer now using the data gathered above. Do not request more tools."))
-        return out
+        var closing = "Answer now using the data gathered above. Do not request more tools."
+        if !gathered.isEmpty {
+            closing = "Data gathered by the tools so far:\n\n"
+                + gathered.joined(separator: "\n\n")
+                + "\n\n" + closing
+        }
+        out.append((.user, closing))
+        // Dropping the tool_result turns can leave two same-role turns back to back; the API wants
+        // alternation, so fold those into one.
+        var merged: [(role: ChatMessage.Role, content: String)] = []
+        for pair in out {
+            if let last = merged.last, last.role == pair.role {
+                merged[merged.count - 1].content += "\n\n" + pair.content
+            } else {
+                merged.append(pair)
+            }
+        }
+        return merged
     }
 }
