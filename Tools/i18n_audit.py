@@ -330,6 +330,47 @@ APPLE_FORMAT_PATTERN = re.compile(
 )
 
 
+def _string_units(entry: dict, lang: str) -> list[dict]:
+    """Every stringUnit a localization carries — plain value OR plural variations.
+
+    An xcstrings localization is either
+
+        localizations.<lang>.stringUnit
+
+    or, once the string has plural forms,
+
+        localizations.<lang>.variations.plural.<category>.stringUnit
+
+    (device variations nest the same way, and the two can combine). Reading only the FIRST shape makes
+    every pluralised entry look untranslated to this gate — so converting a hand-rolled ternary into real
+    plural variations would red-flag the string in every language. Walk both shapes.
+    """
+    loc = (entry.get("localizations", {}) or {}).get(lang) or {}
+    units: list[dict] = []
+    unit = loc.get("stringUnit")
+    if isinstance(unit, dict):
+        units.append(unit)
+
+    def walk(node: object) -> None:
+        if not isinstance(node, dict):
+            return
+        for key, value in node.items():
+            if key == "stringUnit" and isinstance(value, dict):
+                units.append(value)
+            elif isinstance(value, dict):
+                walk(value)
+
+    walk(loc.get("variations") or {})
+    return units
+
+
+def _is_translated(entry: dict, lang: str) -> bool:
+    """True when the localization exists AND every one of its stringUnits is translated — so a plural
+    with one category still marked `new` is correctly reported as a gap, not silently accepted."""
+    units = _string_units(entry, lang)
+    return bool(units) and all(u.get("state") == "translated" for u in units)
+
+
 def apple_format_gaps(cat: dict, lang: str) -> list[str]:
     """Catalog keys whose localized printf arguments differ from the source."""
     def signature(value: str) -> list[str]:
@@ -339,9 +380,11 @@ def apple_format_gaps(cat: dict, lang: str) -> list[str]:
     for key, entry in cat.get("strings", {}).items():
         if entry.get("shouldTranslate") is False:
             continue
-        value = ((entry.get("localizations", {}).get(lang) or {}).get("stringUnit", {})
-                 .get("value", ""))
-        if signature(key) != signature(value):
+        # Compare EVERY form independently against the key, never a folded concatenation: folding would
+        # make the signature depend on how many plural categories the language HAS (ru/pl carry four,
+        # zh one), so a correct translation would read as a format mismatch purely for having more forms.
+        values = [u.get("value", "") for u in _string_units(entry, lang)] or [""]
+        if any(signature(key) != signature(v) for v in values):
             mismatched.append(key)
     return mismatched
 
@@ -376,10 +419,8 @@ def scan_ios() -> tuple[list[tuple[str, int, str]], dict[str, list[str]]]:
                         continue
                     if entry.get("shouldTranslate") is False:
                         continue
-                    loc = entry.get("localizations", {})
                     for lang in LANGS:
-                        state = (loc.get(lang) or {}).get("stringUnit", {}).get("state")
-                        if state != "translated":
+                        if not _is_translated(entry, lang):
                             lang_gaps[lang].append(f"{catalog_path.relative_to(ROOT)} :: {literal!r}")
     for lang in lang_gaps:
         lang_gaps[lang] = sorted(set(lang_gaps[lang]))
@@ -475,8 +516,7 @@ def ci_check(base_ref: str) -> int:
         for lang in LANGS:
             missing = sum(
                 1 for v in cat.get("strings", {}).values()
-                if v.get("shouldTranslate") is not False
-                and (v.get("localizations", {}).get(lang) or {}).get("stringUnit", {}).get("state") != "translated"
+                if v.get("shouldTranslate") is not False and not _is_translated(v, lang)
             )
             if missing:
                 failed = True
