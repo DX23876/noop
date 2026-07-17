@@ -2,6 +2,7 @@ package com.noop
 
 import android.app.Application
 import android.content.Context
+import androidx.annotation.PluralsRes
 import androidx.annotation.StringRes
 import android.util.Log
 import com.noop.ble.SourceCoordinator
@@ -132,6 +133,14 @@ class NoopApplication : Application() {
         fun localizedString(@StringRes id: Int, vararg formatArgs: Any): String {
             val app = checkNotNull(instance) { "NoopApplication is not attached" }
             return if (formatArgs.isEmpty()) app.getString(id) else app.getString(id, *formatArgs)
+        }
+
+        /** Quantity-aware twin of [localizedString]: resolves a `<plurals>` for [count] under the active
+         *  locale's own plural rules. Same Application-resources path, so it stays locale-aware off the
+         *  composition. */
+        fun localizedPlural(@PluralsRes id: Int, count: Int, vararg formatArgs: Any): String {
+            val app = checkNotNull(instance) { "NoopApplication is not attached" }
+            return app.resources.getQuantityString(id, count, *formatArgs)
         }
     }
 }

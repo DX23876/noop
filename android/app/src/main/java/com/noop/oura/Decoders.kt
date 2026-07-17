@@ -68,7 +68,7 @@ object OuraDecoders {
      * from the b[12]/b[13] nibbles>`. Amplitude = `(b[6+k] shr 1) shl shift`, exponent = low nibble of
      * b[13] (shift = (n==7) ? 0 : n+1). Returns null on a short body.
      *
-     * NOTE (decode fix): the previous layout read the body as a linear MSB-first bitstream, which only
+     * NOTE (#511, decode fix): the previous layout read the body as a linear MSB-first bitstream, which only
      * ever recovered the FIRST IBI correctly and scrambled the other five — a real overnight capture
      * decoded to an 82% beat-to-beat >200ms "jump" rate (not a heartbeat train). This byte-scatter
      * layout yields a coherent ~60 bpm train (10% jump rate). Validated against open_oura. Byte-identical
@@ -107,7 +107,7 @@ object OuraDecoders {
      * (300..2000 ms). Up to 7 samples per 14-byte record. Per the native `parse_api_green_ibi_quality
      * _event`. Returns null on a short body.
      *
-     * NOTE (decode fix): the previous layout read a little-endian u16 and masked bits 0-10, placing the
+     * NOTE (#511, decode fix): the previous layout read a little-endian u16 and masked bits 0-10, placing the
      * high byte in the LOW bits — a bit-order error that scrambled the interval (real-capture within-
      * record jitter 583ms). This high-byte-first layout with the `quality == 1` gate yields a clean beat
      * train (45ms jitter). Validated against open_oura. Byte-identical twin of Swift's decodeGreenIBIQuality.

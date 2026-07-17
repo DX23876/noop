@@ -1341,11 +1341,16 @@
     <string name="l10n_sleep_screen_add_a_nap_a1b3204f">Añadir una siesta</string>
     <string name="l10n_sleep_screen_adjust_sleep_times_1e325561">Tiempos de sueño ajustables</string>
     <string name="l10n_sleep_screen_cancel_77dfd213">Cancelar</string>
+    <string name="l10n_sleep_screen_save_efc007a3">Guardar</string>
     <string name="l10n_sleep_screen_daytime_sleep_871c03ca">DAYTIME SLEEP</string>
     <string name="l10n_sleep_screen_delete_f6fdbe48">Eliminar</string>
     <string name="l10n_sleep_screen_delete_this_sleep_session_6932e931">Suprímase esta sesión de sueño</string>
     <string name="l10n_sleep_screen_delete_this_sleep_session_c347b909">¿Eliminar esta sesión de sueño?</string>
+    <string name="l10n_sleep_screen_deleted_sleep_window_range_7bc5f027">%1$s – %2$s</string>
+    <string name="l10n_sleep_screen_deleted_sleep_windows_46fea77a">Periodos de sueño eliminados</string>
     <string name="l10n_sleep_screen_good_morning_33e88869">¡Buenos días!</string>
+    <string name="l10n_sleep_screen_couldn_t_reopen_this_night_try_88265690">No se pudo volver a abrir esta noche. Inténtalo de nuevo.</string>
+    <string name="l10n_sleep_screen_if_this_sleep_came_only_from_d0892088">Si este sueño procede únicamente de una importación y no hay muestras sin procesar guardadas, es posible que no vuelva a aparecer.</string>
     <string name="l10n_sleep_screen_maybe_later_27ad1d83">Quizás más tarde.</string>
     <string name="l10n_sleep_screen_move_anyway_19ee824d">Muévete.</string>
     <string name="l10n_sleep_screen_move_this_sleep_438dd3b5">¿A dormir?</string>
@@ -1357,7 +1362,12 @@
     <string name="l10n_sleep_screen_no_stage_data_recorded_for_this_93a86806">No se registraron datos de fases para esta noche.</string>
     <string name="l10n_sleep_screen_open_journal_4bf0daee">Open Journal</string>
     <string name="l10n_sleep_screen_previous_night_9f339047">Noche anterior</string>
+    <string name="l10n_sleep_screen_recompute_a_night_to_clear_its_fd9e15c3">Vuelve a calcular una noche para borrar su marcador de eliminación y analizar de nuevo los datos sin procesar disponibles.</string>
+    <string name="l10n_sleep_screen_recompute_this_deleted_sleep_night_2d2f46f6">Volver a calcular esta noche de sueño eliminada</string>
+    <string name="l10n_sleep_screen_recompute_this_night_5ba0d05c">Volver a calcular esta noche</string>
+    <string name="l10n_sleep_screen_recomputing_6f8e54e3">Recalculando…</string>
     <string name="l10n_sleep_screen_sleep_3cac34e6">Sueño</string>
+    <string name="l10n_sleep_screen_sleep_detection_reran_using_the_data_01757aad">La detección del sueño se volvió a ejecutar con los datos disponibles para esta noche.</string>
     <string name="l10n_sleep_screen_stage_breakdown_e9b714f9">Desglose de fases</string>
     <string name="l10n_sleep_screen_this_moves_the_night_to_a_fac2fb46">Esto mueve la noche a un tiempo sin datos registrados. Las etapas no se pueden derivar allí, por lo que puede mostrar como vacía hasta que los datos lo cubren.</string>
     <string name="l10n_sleep_screen_your_night_data_is_in_logging_ec461720">Tus datos nocturnos están dentro. Logging how you felt helps NOOP learn what drives your best recovery.</string>
@@ -1439,11 +1449,7 @@
     <string name="l10n_wheel_picker_accessibility_tap_to_choose_1314c4ed">%1$s. Toca para elegir.</string>
     <string name="l10n_workouts_screen_minutes_total_100_roundtoint_5bb7c6d8">%1$s%%</string>
     <!-- #453 manually migrated complex Kotlin templates. -->
-    <string name="intelligence_day_count">%1$d día</string>
-    <string name="intelligence_days_count">%1$d días</string>
     <string name="intervals_range_step">%1$s – %2$s%3$s · paso %4$d</string>
-    <string name="lab_book_reading_count">%1$d lectura · tu propia entrada</string>
-    <string name="lab_book_readings_count">%1$d lecturas · tus propias entradas</string>
     <string name="live_workout_saved_summary">✓ %1$s guardado · %2$s</string>
     <string name="skin_temp_reason_summary">%1$s: %2$s</string>
     <string name="stress_score_accessibility">Estrés %1$s de 3, %2$s</string>
@@ -1527,7 +1533,6 @@
     <string name="trends_no_readings_body">Pasa a otra semana con las flechas de arriba para ver su resumen.</string>
     <string name="trends_this_week">Esta semana</string>
     <string name="trends_last_week">La semana pasada</string>
-    <string name="trends_weeks_ago">hace %1$d semanas</string>
     <string name="trends_previous_week">Semana anterior</string>
     <string name="trends_next_week">Próxima semana</string>
     <string name="trends_daily_signals">Señales diarias</string>
@@ -1558,7 +1563,6 @@
     <string name="explore_delta_vs_prev">Δ vs ant.</string>
     <string name="explore_summary">Resumen</string>
     <string name="explore_over_visible_window">Sobre la ventana visible</string>
-    <string name="explore_n_days">%1$d días</string>
     <string name="explore_n_pts">%1$d pts</string>
     <string name="explore_vs_prev_window">vs prev %1$s</string>
     <string name="explore_all_history">todo el historial</string>
@@ -1581,6 +1585,13 @@
     <string name="timeline_empty_metric">No %1$s aquí</string>
     <string name="timeline_nothing_offloaded">Aún no se ha descargado nada para esta ventana.</string>
     <string name="timeline_other_sources_no_offload">Otras fuentes no descargan datos brutos por segundo en el dispositivo.</string>
+    <string name="fast_link_phy">Conexión Bluetooth más rápida (experimental)</string>
+    <string name="fast_link_phy_desc">Solicita un modo de radio Bluetooth más rápido mientras su correa transfiere su historial almacenado. Los mismos datos en menos tiempo de emisión: puede sincronizar antes y consumir algo menos de batería de la correa. Su correa debe admitirlo, y se sacrifica algo de alcance. Nuevo y no probado: si la sincronización falla cuando el teléfono está lejos, vuelva a desactivarlo.</string>
+    <string name="fast_history_sync">Sincronización de historial más rápida (experimental)</string>
+    <string name="fast_history_sync_desc">Solicita una conexión Bluetooth más rápida mientras su correa transfiere su historial almacenado, para que un gran retraso se ponga al día antes. Solo durante la sincronización: su frecuencia cardíaca en vivo y el flujo nocturno no se ven afectados. Nuevo y no probado: si no ayuda o consume demasiada batería, vuelva a desactivarlo.</string>
+    <string name="keep_alive_allowed">Permitido: su teléfono no detendrá la sincronización nocturna de NOOP para ahorrar batería. El permiso en sí no consume batería; la consume la sincronización nocturna que activó arriba.</string>
+    <string name="keep_alive_needed_vendor">Su teléfono (%1$s) puede detener las aplicaciones en segundo plano para ahorrar batería, lo que puede hacer que NOOP pierda datos nocturnos de sueño y recuperación. Actívelo para incluir NOOP en la lista blanca.\n\nAndroid preguntará «¿Dejar de optimizar el uso de la batería?» y advertirá que NOOP puede agotar la batería: es su redacción estándar para cualquier aplicación que pueda ejecutarse en segundo plano. Toque Permitir. La batería la consume la sincronización nocturna que ya activó arriba; esto solo evita que Android la interrumpa.</string>
+    <string name="keep_alive_needed_generic">Algunos teléfonos pueden detener las aplicaciones en segundo plano para ahorrar batería, lo que puede hacer que NOOP pierda datos nocturnos de sueño y recuperación. Actívelo para incluir NOOP en la lista blanca.\n\nAndroid preguntará «¿Dejar de optimizar el uso de la batería?» y advertirá que NOOP puede agotar la batería: es su redacción estándar para cualquier aplicación que pueda ejecutarse en segundo plano. Toque Permitir. La batería la consume la sincronización nocturna que ya activó arriba; esto solo evita que Android la interrumpa.</string>
     <string name="power_saving">Salvamento de energía</string>
     <string name="power_saving_blurb">Facilite la carga en la correa cuando su batería esté baja. La correa mantiene datos bancarios por sí solas, por lo que nada se pierde — NOOP sólo habla con ella con menos frecuencia para ayudarle a durar hasta que pueda cargarlo.</string>
     <string name="power_saving_mode">Modo de ahorro de energía</string>
@@ -1614,4 +1625,20 @@
     <string name="explore_description_charge">Qué tan recuperado estás, según tu VFC frente a tu línea base personal.</string>
     <string name="explore_description_effort">Carga cardiovascular del día, en una escala de 0–100 (antes 0–21).</string>
     <string name="explore_description_rest">Qué tan reparador fue tu sueño: duración, eficiencia, sueño profundo y REM, y horario.</string>
+    <plurals name="intelligence_days_count">
+        <item quantity="one">%1$d día</item>
+        <item quantity="other">%1$d días</item>
+    </plurals>
+    <plurals name="lab_book_readings_count">
+        <item quantity="one">%1$d lectura · tu propia entrada</item>
+        <item quantity="other">%1$d lecturas · tus propias entradas</item>
+    </plurals>
+    <plurals name="trends_weeks_ago">
+        <item quantity="one">hace %1$d semana</item>
+        <item quantity="other">hace %1$d semanas</item>
+    </plurals>
+    <plurals name="explore_n_days">
+        <item quantity="one">%1$d día</item>
+        <item quantity="other">%1$d días</item>
+    </plurals>
 </resources>

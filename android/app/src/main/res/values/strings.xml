@@ -98,7 +98,6 @@
     <string name="trends_no_readings_body">Step to another week with the arrows above to see its review.</string>
     <string name="trends_this_week">This week</string>
     <string name="trends_last_week">Last week</string>
-    <string name="trends_weeks_ago">%1$d weeks ago</string>
     <string name="trends_previous_week">Previous week</string>
     <string name="trends_next_week">Next week</string>
     <string name="trends_daily_signals">Daily signals</string>
@@ -130,7 +129,6 @@
     <string name="explore_delta_vs_prev">Δ vs prev</string>
     <string name="explore_summary">Summary</string>
     <string name="explore_over_visible_window">Over the visible window</string>
-    <string name="explore_n_days">%1$d days</string>
     <string name="explore_n_pts">%1$d pts</string>
     <string name="explore_vs_prev_window">vs prev %1$s</string>
     <string name="explore_all_history">all history</string>
@@ -156,6 +154,13 @@
     <string name="timeline_other_sources_no_offload">Other sources don\'t offload raw per-second data on-device.</string>
 
     <!-- Power saving (#477) -->
+    <string name="fast_link_phy">Faster Bluetooth link (experimental)</string>
+    <string name="fast_link_phy_desc">Ask for a faster Bluetooth radio mode while your strap hands over its stored history. Sends the same data in less airtime, so it may sync sooner and use a little less strap battery — but your strap has to support it, and it trades some range for speed. New and unproven: if syncing gets flaky when your phone is further away, turn it back off.</string>
+    <string name="fast_history_sync">Faster history sync (experimental)</string>
+    <string name="fast_history_sync_desc">Ask Android for a faster Bluetooth link while your strap hands over its stored history, so a big backlog catches up sooner. Only during the sync itself — your live heart rate and the overnight stream are untouched. New and unproven: if it doesn\'t help, or costs more battery than it\'s worth, turn it back off and say so on the issue tracker.</string>
+    <string name="keep_alive_allowed">Allowed — your phone won\'t stop NOOP\'s overnight sync to save battery. The permission itself uses no battery; what uses it is the overnight sync you switched on above.</string>
+    <string name="keep_alive_needed_vendor">Your phone (%1$s) can stop background apps to save battery, which can make NOOP miss overnight sleep and recovery data. Turn this on to whitelist NOOP.\n\nAndroid will ask “Stop optimising battery usage?” and warn that NOOP may drain your battery — that\'s its standard wording for any app allowed to run in the background. Tap Allow. The battery goes on the overnight sync you already switched on above; this only stops Android cutting it short.</string>
+    <string name="keep_alive_needed_generic">Some phones can stop background apps to save battery, which can make NOOP miss overnight sleep and recovery data. Turn this on to whitelist NOOP.\n\nAndroid will ask “Stop optimising battery usage?” and warn that NOOP may drain your battery — that\'s its standard wording for any app allowed to run in the background. Tap Allow. The battery goes on the overnight sync you already switched on above; this only stops Android cutting it short.</string>
     <string name="power_saving">Power saving</string>
     <string name="power_saving_blurb">Ease the load on your strap when its battery is running low. The strap keeps banking data on its own, so nothing is lost — NOOP just talks to it less often to help it last until you can charge it.</string>
     <string name="power_saving_mode">Power saving mode</string>
@@ -1505,11 +1510,16 @@
     <string name="l10n_sleep_screen_add_a_nap_a1b3204f">Add a nap</string>
     <string name="l10n_sleep_screen_adjust_sleep_times_1e325561">Adjust sleep times</string>
     <string name="l10n_sleep_screen_cancel_77dfd213">Cancel</string>
+    <string name="l10n_sleep_screen_save_efc007a3">Save</string>
     <string name="l10n_sleep_screen_daytime_sleep_871c03ca">DAYTIME SLEEP</string>
     <string name="l10n_sleep_screen_delete_f6fdbe48">Delete</string>
     <string name="l10n_sleep_screen_delete_this_sleep_session_6932e931">Delete this sleep session</string>
     <string name="l10n_sleep_screen_delete_this_sleep_session_c347b909">Delete this sleep session?</string>
+    <string name="l10n_sleep_screen_deleted_sleep_window_range_7bc5f027">%1$s – %2$s</string>
+    <string name="l10n_sleep_screen_deleted_sleep_windows_46fea77a">Deleted sleep windows</string>
     <string name="l10n_sleep_screen_good_morning_33e88869">Good morning!</string>
+    <string name="l10n_sleep_screen_couldn_t_reopen_this_night_try_88265690">Couldn\'t reopen this night. Try again.</string>
+    <string name="l10n_sleep_screen_if_this_sleep_came_only_from_d0892088">If this sleep came only from an import and no raw samples are stored, it may not reappear.</string>
     <string name="l10n_sleep_screen_maybe_later_27ad1d83">Maybe later</string>
     <string name="l10n_sleep_screen_move_anyway_19ee824d">Move anyway</string>
     <string name="l10n_sleep_screen_move_this_sleep_438dd3b5">Move this sleep?</string>
@@ -1521,7 +1531,12 @@
     <string name="l10n_sleep_screen_no_stage_data_recorded_for_this_93a86806">No stage data recorded for this night.</string>
     <string name="l10n_sleep_screen_open_journal_4bf0daee">Open Journal</string>
     <string name="l10n_sleep_screen_previous_night_9f339047">Previous night</string>
+    <string name="l10n_sleep_screen_recompute_a_night_to_clear_its_fd9e15c3">Recompute a night to clear its deletion marker and scan the available raw data again.</string>
+    <string name="l10n_sleep_screen_recompute_this_deleted_sleep_night_2d2f46f6">Recompute this deleted sleep night</string>
+    <string name="l10n_sleep_screen_recompute_this_night_5ba0d05c">Recompute this night</string>
+    <string name="l10n_sleep_screen_recomputing_6f8e54e3">Recomputing…</string>
     <string name="l10n_sleep_screen_sleep_3cac34e6">Sleep</string>
+    <string name="l10n_sleep_screen_sleep_detection_reran_using_the_data_01757aad">Sleep detection reran using the data available for this night.</string>
     <string name="l10n_sleep_screen_stage_breakdown_e9b714f9">Stage breakdown</string>
     <string name="l10n_sleep_screen_this_moves_the_night_to_a_fac2fb46">This moves the night to a time with no recorded data. Stages can\'t be derived there, so it may show as empty until data covers it.</string>
     <string name="l10n_sleep_screen_your_night_data_is_in_logging_ec461720">Your night data is in. Logging how you felt helps NOOP learn what drives your best recovery.</string>
@@ -1603,11 +1618,7 @@
     <string name="l10n_wheel_picker_accessibility_tap_to_choose_1314c4ed">%1$s. Tap to choose.</string>
     <string name="l10n_workouts_screen_minutes_total_100_roundtoint_5bb7c6d8">%1$s%%</string>
     <!-- #453 manually migrated complex Kotlin templates. -->
-    <string name="intelligence_day_count">%1$d day</string>
-    <string name="intelligence_days_count">%1$d days</string>
     <string name="intervals_range_step">%1$s – %2$s%3$s · step %4$d</string>
-    <string name="lab_book_reading_count">%1$d reading · your own entry</string>
-    <string name="lab_book_readings_count">%1$d readings · your own entries</string>
     <string name="live_workout_saved_summary">✓ %1$s saved · %2$s</string>
     <string name="skin_temp_reason_summary">%1$s: %2$s</string>
     <string name="stress_score_accessibility">Stress %1$s of 3, %2$s</string>
@@ -1638,4 +1649,20 @@
     <string name="explore_description_charge">How recovered you are, led by HRV versus your personal baseline.</string>
     <string name="explore_description_effort">Cardiovascular load for the day, on a 0-100 scale (was 0-21).</string>
     <string name="explore_description_rest">How restorative your sleep was: duration, efficiency, deep+REM, timing.</string>
+    <plurals name="intelligence_days_count">
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
+    </plurals>
+    <plurals name="lab_book_readings_count">
+        <item quantity="one">%1$d reading · your own entry</item>
+        <item quantity="other">%1$d readings · your own entries</item>
+    </plurals>
+    <plurals name="trends_weeks_ago">
+        <item quantity="one">%1$d week ago</item>
+        <item quantity="other">%1$d weeks ago</item>
+    </plurals>
+    <plurals name="explore_n_days">
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
+    </plurals>
 </resources>

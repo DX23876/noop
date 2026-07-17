@@ -408,11 +408,7 @@ private fun MarkerDetailSheet(
         Column(verticalArrangement = Arrangement.spacedBy(Metrics.sectionGap)) {
             Text(name, style = NoopType.title2, color = Palette.textPrimary)
             Text(
-                uiString(
-                    if (readings.size == 1) R.string.lab_book_reading_count
-                    else R.string.lab_book_readings_count,
-                    readings.size,
-                ),
+                uiPlural(R.plurals.lab_book_readings_count, readings.size, readings.size),
                 style = NoopType.subhead,
                 color = Palette.textSecondary,
             )

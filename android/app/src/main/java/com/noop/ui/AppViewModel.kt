@@ -892,12 +892,28 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         autoReconnectOnLaunch()
     }
 
-    /** Push the persisted #477 Power-saving prefs to the BLE client. The offload-cadence stretch uses the
-     *  battery-% threshold (0 = off when the master is off); the HRV pause is its own Battery-Saver toggle.
-     *  The riskier connection-priority idle throttle is deliberately NOT exposed here — it stays dormant
-     *  pending on-strap validation (#478). */
+    /** Push the persisted BLE-behaviour prefs to the client. The #477 Power-saving levers: the
+     *  offload-cadence stretch uses the battery-% threshold (0 = off when the master is off); the HRV pause
+     *  is its own Battery-Saver toggle. The riskier connection-priority idle throttle is deliberately NOT
+     *  exposed here — it stays dormant pending on-strap validation (#478). Also pushes the independent
+     *  #533 "Faster history sync" experiment (its own toggle, NOT gated on the Power-saving master: it is a
+     *  sync-speed lever, not a power-saving one). */
     private fun applyPowerSaving() {
         val on = NoopPrefs.powerSaving(appContext)
+        // #533: the SAFE half of #477's connection-priority management shipped fully implemented but
+        // DORMANT — nothing ever called this, so refreshConnectionPriority early-returned and EVERY
+        // historical offload ran at the stack default. Behind the experimental toggle it escalates to HIGH
+        // for the bounded offload burst (faster backlog drain). The RISKY idle→LOW_POWER half stays at 0
+        // (still dormant, #478), and live-HR does not escalate (see WhoopBleClient.escalateForLiveHr) —
+        // realtimeArmed covers the overnight capture window, which would otherwise hold HIGH for hours.
+        ble.setConnectionPriorityManagement(
+            enabled = NoopPrefs.fastHistorySync(appContext),
+            idleThrottleBatteryPct = 0,
+        )
+        // #533: the second, orthogonal sync-speed lever — prefer LE 2M around the offload burst. Also
+        // independent of the Power-saving master, and its own toggle so a field report can tell the two
+        // apart (they have opposite battery profiles). No-op unless on.
+        ble.setFastLinkPhy(NoopPrefs.fastLinkPhy(appContext))
         ble.setLowBatteryOffloadThrottle(if (on) NoopPrefs.powerSavingBatteryPct(appContext) else 0)
         // HRV pause is a sub-option: only effective while the master is on (defaults on when it is), and
         // now battery-%-aware like the offload lever — pass the same threshold.
@@ -922,6 +938,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Flip "Pause HRV capture in Battery Saver" (Settings). Persists + applies immediately. */
     fun setPauseHrvOnPowerSave(enabled: Boolean) {
         NoopPrefs.setPauseHrvOnPowerSave(appContext, enabled)
+        applyPowerSaving()
+    }
+
+    /** Flip the experimental "Faster history sync" (#533). Persists + applies immediately, so the next
+     *  offload burst uses the new priority without waiting for a reconnect. */
+    fun setFastHistorySync(enabled: Boolean) {
+        NoopPrefs.setFastHistorySync(appContext, enabled)
+        applyPowerSaving()
+    }
+
+    /** Flip the experimental LE 2M PHY preference (#533). Persists + pushes it to the client; it applies
+     *  at the next offload burst, and switching it off releases an already-2M link back to 1M. */
+    fun setFastLinkPhy(enabled: Boolean) {
+        NoopPrefs.setFastLinkPhy(appContext, enabled)
         applyPowerSaving()
     }
 
@@ -1274,6 +1304,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     suspend fun undoDeleteSleepSession(session: com.noop.data.SleepSession) {
         runCatching { repository.undoDeleteSleepSession(session) }
         rescoreAfterEdit()
+    }
+
+    /** Re-open one deliberately deleted sleep window (#515): remove its durable tombstone first, then
+     *  immediately run the normal detector/scorer over the stored raw data. Unlike optimistic edits, this
+     *  returns false when the marker could not be removed — rescoring while it is still present would keep
+     *  suppressing the night and make a successful-looking button a no-op. */
+    suspend fun recomputeDeletedSleep(marker: com.noop.data.DismissedSleep): Boolean {
+        val cleared = runCatching {
+            repository.allowSleepReDetection(marker.deviceId, marker.startTs)
+        }.isSuccess
+        if (!cleared) return false
+        rescoreAfterEdit()
+        return true
     }
 
     /** Manually add a missed nap as its OWN session (#508) — staged from raw, written under the computed

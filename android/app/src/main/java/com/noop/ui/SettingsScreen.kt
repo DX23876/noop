@@ -470,6 +470,8 @@ fun SettingsScreen(
     // "Keep connected in the background" — drives WhoopConnectionService (foreground service). Default
     // on. SharedPreferences isn't reactive, so the Switch mirrors into a local state.
     var backgroundConnection by remember { mutableStateOf(NoopPrefs.backgroundConnection(context)) }
+    var fastHistorySync by remember { mutableStateOf(NoopPrefs.fastHistorySync(context)) }
+    var fastLinkPhy by remember { mutableStateOf(NoopPrefs.fastLinkPhy(context)) }
 
     // "Continuous HRV capture" — hold the dense realtime stream armed 24/7 (better overnight HRV) at the
     // cost of more battery. Default OFF; only does anything with background connection on. Local mirror.
@@ -1280,6 +1282,82 @@ fun SettingsScreen(
                     )
                 }
 
+                // "Faster history sync" (#533, EXPERIMENTAL): asks Android for a shorter GATT connection
+                // interval for the BOUNDED historical-offload burst only. Off by default — BLE behaviour
+                // can't be CI-tested, so this needs real-strap field reports on both the speedup and the
+                // battery cost. The live/overnight stream deliberately never escalates.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.fast_history_sync),
+                            style = NoopType.subhead,
+                            color = Palette.textPrimary,
+                        )
+                        Text(
+                            stringResource(R.string.fast_history_sync_desc),
+                            style = NoopType.footnote,
+                            color = Palette.textTertiary,
+                        )
+                    }
+                    Switch(
+                        checked = fastHistorySync,
+                        onCheckedChange = {
+                            fastHistorySync = it
+                            vm.setFastHistorySync(it)
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Palette.surfaceBase,
+                            checkedTrackColor = Palette.accent,
+                            uncheckedThumbColor = Palette.textSecondary,
+                            uncheckedTrackColor = Palette.surfaceInset,
+                            uncheckedBorderColor = Palette.hairline,
+                        ),
+                    )
+                }
+
+                // "Faster Bluetooth link" (#533, EXPERIMENTAL): the other, orthogonal sync-speed lever —
+                // prefer the LE 2M PHY around the offload. Same bytes in half the airtime, so unlike the
+                // interval lever above it should cost LESS strap radio energy, not more. Separate toggle so
+                // a field report can attribute which lever did what. Off by default: the strap may decline
+                // it, 2M trades range for speed, and BLE behaviour can't be CI-tested. The negotiated PHY
+                // lands in the strap log (onPhyUpdate).
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.fast_link_phy),
+                            style = NoopType.subhead,
+                            color = Palette.textPrimary,
+                        )
+                        Text(
+                            stringResource(R.string.fast_link_phy_desc),
+                            style = NoopType.footnote,
+                            color = Palette.textTertiary,
+                        )
+                    }
+                    Switch(
+                        checked = fastLinkPhy,
+                        onCheckedChange = {
+                            fastLinkPhy = it
+                            vm.setFastLinkPhy(it)
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Palette.surfaceBase,
+                            checkedTrackColor = Palette.accent,
+                            uncheckedThumbColor = Palette.textSecondary,
+                            uncheckedTrackColor = Palette.surfaceInset,
+                            uncheckedBorderColor = Palette.hairline,
+                        ),
+                    )
+                }
+
                 // "Keep NOOP alive overnight" (#386): the battery-optimisation whitelist. Shown ONLY while
                 // background connection is on (meaningless otherwise), so it never adds noise on a
                 // foreground-only setup. `checked` reflects the LIVE system exempt state, so an already-exempt
@@ -1322,15 +1400,20 @@ fun SettingsScreen(
                                 style = NoopType.subhead,
                                 color = Palette.textPrimary,
                             )
+                            // #386: these were hardcoded literals — and INVISIBLE to the i18n gate, whose
+                            // Android regex only matches a literal directly after `Text(`. Inside a
+                            // `Text(if ...)` expression it slid past, so this whole warning shipped
+                            // English-only to de/es/fr while the audit reported clean. Now resources.
+                            // TWO "needed" strings rather than one with a %s subject fragment: verb
+                            // agreement differs once translated — German needs "Ihr Telefon … kann" but
+                            // "Manche Telefone … können", so a composed subject would be ungrammatical.
                             Text(
                                 if (batteryExempt) {
-                                    "Allowed — your phone won't stop NOOP's overnight sync to save battery. This " +
-                                        "doesn't use extra battery on its own; it just lets the settings above run reliably."
+                                    uiString(R.string.keep_alive_allowed)
+                                } else if (aggressiveVendor) {
+                                    uiString(R.string.keep_alive_needed_vendor, android.os.Build.MANUFACTURER)
                                 } else {
-                                    val who = if (aggressiveVendor) "Your phone (${android.os.Build.MANUFACTURER})" else "Some phones"
-                                    "$who can stop background apps to save battery, which can make NOOP miss overnight " +
-                                        "sleep and recovery data. Turn this on to whitelist NOOP. It doesn't use extra " +
-                                        "battery on its own — it only lets the overnight sync you've enabled above actually finish."
+                                    uiString(R.string.keep_alive_needed_generic)
                                 },
                                 style = NoopType.footnote,
                                 color = Palette.textTertiary,

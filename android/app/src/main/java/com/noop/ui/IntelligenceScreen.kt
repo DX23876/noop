@@ -138,11 +138,7 @@ fun IntelligenceScreen(vm: AppViewModel) {
             }
             item {
                 Text(
-                    uiString(
-                        if (filtered.size == 1) R.string.intelligence_day_count
-                        else R.string.intelligence_days_count,
-                        filtered.size,
-                    ),
+                    uiPlural(R.plurals.intelligence_days_count, filtered.size, filtered.size),
                     style = NoopType.footnote,
                     color = Palette.textTertiary,
                 )

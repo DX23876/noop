@@ -39,6 +39,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -802,7 +803,7 @@ private fun StatRow(
                 modifier = Modifier.weight(1f),
                 label = stringResource(R.string.explore_average),
                 value = if (s.n > 0) metric.format(s.mean) else ",",
-                caption = stringResource(R.string.explore_n_days, s.n),
+                caption = pluralStringResource(R.plurals.explore_n_days, s.n, s.n),
                 accent = metric.accent,
             )
             StatTile(

@@ -97,7 +97,10 @@ def android_strings_xml_gaps() -> dict[str, set[str]]:
     existing values-<lang>/strings.xml. (Doesn't invent missing locale dirs —
     see the audit summary for languages with NO directory at all.)"""
     base_path = ROOT / "android/app/src/main/res/values/strings.xml"
-    base_keys = set(re.findall(r'<string name="([^"]+)"', base_path.read_text(encoding="utf-8")))
+    # <plurals> count too: converting a hand-rolled singular/plural PAIR into one <plurals> would
+    # otherwise DROP those keys out of this gate's view entirely, so a locale could silently lose them —
+    # fixing the plural model must not open a coverage hole (see #540 for the same class of blind spot).
+    base_keys = set(re.findall(r'<(?:string|plurals) name="([^"]+)"', base_path.read_text(encoding="utf-8")))
     exempt = {"app_name"}  # brand name, deliberately identical everywhere
     gaps: dict[str, set[str]] = {}
     for lang in LANGS:
@@ -105,7 +108,7 @@ def android_strings_xml_gaps() -> dict[str, set[str]]:
         if not lang_path.exists():
             gaps[lang] = {"<entire values-%s/ directory is missing>" % lang}
             continue
-        lang_keys = set(re.findall(r'<string name="([^"]+)"', lang_path.read_text(encoding="utf-8")))
+        lang_keys = set(re.findall(r'<(?:string|plurals) name="([^"]+)"', lang_path.read_text(encoding="utf-8")))
         missing = (base_keys - exempt) - lang_keys
         if missing:
             gaps[lang] = missing
@@ -121,17 +124,35 @@ def android_format_gaps() -> dict[str, list[str]]:
         "en": ROOT / "android/app/src/main/res/values/strings.xml",
         **{lang: ROOT / f"android/app/src/main/res/values-{lang}/strings.xml" for lang in LANGS},
     }
+    def signature(value: str) -> list[str]:
+        return sorted(ANDROID_FORMAT_PATTERN.findall(value))
+
     values: dict[str, dict[str, str]] = {}
+    plural_items: dict[str, dict[str, list[str]]] = {}
     for lang, path in paths.items():
         if not path.exists():
             continue
-        values[lang] = {
-            node.attrib["name"]: node.text or ""
-            for node in ET.parse(path).getroot().findall("string")
-        }
-
-    def signature(value: str) -> list[str]:
-        return sorted(ANDROID_FORMAT_PATTERN.findall(value))
+        root = ET.parse(path).getroot()
+        entries = {node.attrib["name"]: node.text or "" for node in root.findall("string")}
+        items_by_key: dict[str, list[str]] = {}
+        # <plurals> carry their format args on the <item> CHILDREN, so a plain findall("string") leaves
+        # every plural's placeholders unchecked.
+        #
+        # Compare ONE REPRESENTATIVE form across languages, never the concatenated set: the signature is a
+        # MULTISET, so folding would make it depend on how many quantity categories a language HAS —
+        # Polish (one/few/many/other) would read as a format mismatch against English (one/other) purely
+        # for having more forms, and this gate would reject the very thing <plurals> exist to support.
+        # `other` is the CLDR fallback every language defines, so it is the stable representative.
+        # A dropped placeholder in a NON-representative form is caught by the intra-plural check below.
+        for node in root.findall("plurals"):
+            items = node.findall("item")
+            texts = [i.text or "" for i in items]
+            rep = next((i.text or "" for i in items if i.attrib.get("quantity") == "other"),
+                       texts[0] if texts else "")
+            entries[node.attrib["name"]] = rep
+            items_by_key[node.attrib["name"]] = texts
+        values[lang] = entries
+        plural_items[lang] = items_by_key
 
     gaps: dict[str, list[str]] = {}
     for lang in LANGS:
@@ -141,6 +162,13 @@ def android_format_gaps() -> dict[str, list[str]]:
             key for key, source in values["en"].items()
             if signature(source) != signature(values[lang].get(key, ""))
         ]
+        # Every quantity form of ONE plural must carry the same placeholders as its siblings. This is a
+        # within-language invariant, so it stays correct no matter how many categories the language has —
+        # it catches the "translator dropped %1$d from just the `one` form" case that the representative
+        # comparison above cannot see.
+        for key, texts in plural_items.get(lang, {}).items():
+            if len({tuple(signature(x)) for x in texts}) > 1 and key not in mismatched:
+                mismatched.append(key)
         if mismatched:
             gaps[lang] = mismatched
     return gaps
@@ -302,6 +330,47 @@ APPLE_FORMAT_PATTERN = re.compile(
 )
 
 
+def _string_units(entry: dict, lang: str) -> list[dict]:
+    """Every stringUnit a localization carries — plain value OR plural variations.
+
+    An xcstrings localization is either
+
+        localizations.<lang>.stringUnit
+
+    or, once the string has plural forms,
+
+        localizations.<lang>.variations.plural.<category>.stringUnit
+
+    (device variations nest the same way, and the two can combine). Reading only the FIRST shape makes
+    every pluralised entry look untranslated to this gate — so converting a hand-rolled ternary into real
+    plural variations would red-flag the string in every language. Walk both shapes.
+    """
+    loc = (entry.get("localizations", {}) or {}).get(lang) or {}
+    units: list[dict] = []
+    unit = loc.get("stringUnit")
+    if isinstance(unit, dict):
+        units.append(unit)
+
+    def walk(node: object) -> None:
+        if not isinstance(node, dict):
+            return
+        for key, value in node.items():
+            if key == "stringUnit" and isinstance(value, dict):
+                units.append(value)
+            elif isinstance(value, dict):
+                walk(value)
+
+    walk(loc.get("variations") or {})
+    return units
+
+
+def _is_translated(entry: dict, lang: str) -> bool:
+    """True when the localization exists AND every one of its stringUnits is translated — so a plural
+    with one category still marked `new` is correctly reported as a gap, not silently accepted."""
+    units = _string_units(entry, lang)
+    return bool(units) and all(u.get("state") == "translated" for u in units)
+
+
 def apple_format_gaps(cat: dict, lang: str) -> list[str]:
     """Catalog keys whose localized printf arguments differ from the source."""
     def signature(value: str) -> list[str]:
@@ -311,9 +380,11 @@ def apple_format_gaps(cat: dict, lang: str) -> list[str]:
     for key, entry in cat.get("strings", {}).items():
         if entry.get("shouldTranslate") is False:
             continue
-        value = ((entry.get("localizations", {}).get(lang) or {}).get("stringUnit", {})
-                 .get("value", ""))
-        if signature(key) != signature(value):
+        # Compare EVERY form independently against the key, never a folded concatenation: folding would
+        # make the signature depend on how many plural categories the language HAS (ru/pl carry four,
+        # zh one), so a correct translation would read as a format mismatch purely for having more forms.
+        values = [u.get("value", "") for u in _string_units(entry, lang)] or [""]
+        if any(signature(key) != signature(v) for v in values):
             mismatched.append(key)
     return mismatched
 
@@ -348,10 +419,8 @@ def scan_ios() -> tuple[list[tuple[str, int, str]], dict[str, list[str]]]:
                         continue
                     if entry.get("shouldTranslate") is False:
                         continue
-                    loc = entry.get("localizations", {})
                     for lang in LANGS:
-                        state = (loc.get(lang) or {}).get("stringUnit", {}).get("state")
-                        if state != "translated":
+                        if not _is_translated(entry, lang):
                             lang_gaps[lang].append(f"{catalog_path.relative_to(ROOT)} :: {literal!r}")
     for lang in lang_gaps:
         lang_gaps[lang] = sorted(set(lang_gaps[lang]))
@@ -447,8 +516,7 @@ def ci_check(base_ref: str) -> int:
         for lang in LANGS:
             missing = sum(
                 1 for v in cat.get("strings", {}).values()
-                if v.get("shouldTranslate") is not False
-                and (v.get("localizations", {}).get(lang) or {}).get("stringUnit", {}).get("state") != "translated"
+                if v.get("shouldTranslate") is not False and not _is_translated(v, lang)
             )
             if missing:
                 failed = True

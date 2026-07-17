@@ -48,6 +48,68 @@ class ConnectionPriorityTest {
         )
     }
 
+    // --- #533: which ACTIVE work escalates, once the safe half is switched on ---
+
+    /**
+     * The production wiring passes `liveHrActive = realtimeArmed && escalateForLiveHr`, and
+     * `escalateForLiveHr` is DEFAULT OFF. That matters because `realtimeArmed` is true for the whole
+     * OVERNIGHT continuous-HRV window, not just while a Live screen is open: escalating it would hold an
+     * ~11.25 ms interval for hours to carry a 1 Hz stream BALANCED already serves. Pin that an armed live
+     * stream alone stays BALANCED, while the bounded offload burst still escalates through it.
+     */
+    @Test fun liveHrAloneDoesNotEscalateByDefault() {
+        val realtimeArmed = true
+        val escalateForLiveHr = false      // the shipped default
+        val liveHrActive = realtimeArmed && escalateForLiveHr
+
+        // Overnight capture armed, no offload → stays BALANCED (no all-night HIGH).
+        assertEquals(
+            BluetoothGatt.CONNECTION_PRIORITY_BALANCED,
+            WhoopBleClient.connectionPriorityFor(
+                offloadActive = false, liveHrActive = liveHrActive, idleThrottleEnabled = false,
+            ),
+        )
+        // ...but an offload burst during that same window DOES escalate — the point of #533.
+        assertEquals(
+            BluetoothGatt.CONNECTION_PRIORITY_HIGH,
+            WhoopBleClient.connectionPriorityFor(
+                offloadActive = true, liveHrActive = liveHrActive, idleThrottleEnabled = false,
+            ),
+        )
+    }
+
+    /** Opting the knob ON restores the #477 behaviour (the R22 deep-buffer capture is the one high-rate
+     *  live case that could legitimately want it), so the resolver branch stays live, not dead. */
+    @Test fun liveHrEscalatesWhenTheKnobIsOptedIn() {
+        val liveHrActive = true && true     // realtimeArmed && escalateForLiveHr
+        assertEquals(
+            BluetoothGatt.CONNECTION_PRIORITY_HIGH,
+            WhoopBleClient.connectionPriorityFor(
+                offloadActive = false, liveHrActive = liveHrActive, idleThrottleEnabled = false,
+            ),
+        )
+    }
+
+    // --- #533: turning the experiment OFF must UNDO a live escalation ---
+
+    /**
+     * `refreshConnectionPriority` early-returns once management is disabled, so disabling can only stop
+     * FUTURE escalations — a link already pinned at HIGH would stay there until the next reconnect unless
+     * the on→off edge explicitly releases it. That would break the toggle's own promise ("turn it back off"
+     * if it costs battery) for anyone on a background connection.
+     */
+    @Test fun disablingReleasesTheLinkBackToDefault() {
+        assertTrue(WhoopBleClient.releasesOnDisable(wasEnabled = true, nowEnabled = false))
+    }
+
+    /** Every other transition must issue NO request — notably the default launch path, which re-applies
+     *  `enabled = false` while already off and must stay byte-for-byte today's zero-BLE-op behaviour. */
+    @Test fun onlyTheOnToOffEdgeReleases() {
+        assertFalse(WhoopBleClient.releasesOnDisable(wasEnabled = false, nowEnabled = false))
+        assertFalse(WhoopBleClient.releasesOnDisable(wasEnabled = false, nowEnabled = true))
+        assertFalse(WhoopBleClient.releasesOnDisable(wasEnabled = true, nowEnabled = true))
+    }
+
     // --- battery-adaptive gate, keyed on STRAP battery only (#477) ---
 
     @Test fun idleThrottleEngagesOnlyWhenDischargingAtOrBelowThreshold() {

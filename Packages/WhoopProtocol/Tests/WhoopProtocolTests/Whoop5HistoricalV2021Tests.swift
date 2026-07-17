@@ -7,10 +7,11 @@ import XCTest
 ///
 /// Both versions reuse the v18 record header (layout version @9, marker @10, record index u32 @11, unix
 /// u32 @15). v21 (1244 B) carries six 100-sample i16 IMU channels — accelerometer @28/@228/@428 and
-/// gyroscope @640/@840/@1040 (#493); v20 (2140 B) carries five blocks of two 50-sample i32 channels, each
-/// block gated by a presence byte (0x19 = active, 0x00 = empty). The layout was established from captured
+/// gyroscope @640/@840/@1040 (#493); v20 (2140 B) carries five blocks of two 25-sample i32 channels, each
+/// block gated by a header byte (0x19 = active, 0x00 = empty). The layout was established from captured
 /// v20/v21 frames; these tests exercise the decode mechanics on frames assembled with valid header-CRC16
-/// and trailer-CRC32 envelopes — plus one real captured v21 buffer for the gravity-shell identity check.
+/// and trailer-CRC32 envelopes — plus one real captured v20 buffer (the 25-vs-50 sample-count fix) and one
+/// real captured v21 buffer (the gravity-shell identity check).
 final class Whoop5HistoricalV2021Tests: XCTestCase {
 
     /// Assemble a valid WHOOP 5.0 type-47 frame of the given total length and layout version.
@@ -112,13 +113,14 @@ final class Whoop5HistoricalV2021Tests: XCTestCase {
             f[10] = 0x81
             putU32(&f, 11, idx)
             putU32(&f, 15, unix)
-            // Block 0 active: presence byte + two i32 channels.
+            // Block 0 active: header byte + two i32 channels. Fill ALL 50 slots with a monotone sentinel so
+            // the test proves the decoder keeps only samples 0..24 and DROPS 25..49 (the half-zeros bug).
             f[0x1a] = 0x19
             for i in 0..<50 { putI32(&f, 0x2f + i * 4, Int32(100000 + i)) }   // ch b0_0
             for i in 0..<50 { putI32(&f, 0xf7 + i * 4, Int32(200000 - i)) }   // ch b0_1
-            // Block 1 empty: presence byte stays 0x00, channel slots stay zero.
+            // Block 1 empty: header byte stays 0x00, channel slots stay zero.
             f[0x1c0] = 0x00
-            // Block 3 active (gated tail block): presence + one channel.
+            // Block 3 active (gated tail block): header + two channels.
             f[0x50c] = 0x19
             for i in 0..<50 { putI32(&f, 0x521 + i * 4, Int32(140 + i)) }
             for i in 0..<50 { putI32(&f, 0x5e9 + i * 4, Int32(130 + i)) }
@@ -129,14 +131,72 @@ final class Whoop5HistoricalV2021Tests: XCTestCase {
         XCTAssertEqual(p.parsed["layout_marker"]?.intValue, 0x81)
         XCTAssertEqual(p.parsed["record_index"]?.intValue, Int(idx))
         XCTAssertEqual(p.parsed["unix"]?.intValue, Int(unix))
-        XCTAssertEqual(p.parsed["sensor_channel_samples"]?.intValue, 50)
+        // 25 real samples per channel, not 50 (the fix): the strap zero-pads slots 25..49.
+        XCTAssertEqual(p.parsed["sensor_channel_samples"]?.intValue, 25)
         // Active blocks 0 and 3 -> 4 channels; empty block 1 contributes none.
         XCTAssertEqual(p.parsed["sensor_channels_present"]?.intValue, 4)
         let b00 = p.parsed["channel_b0_0"]?.intArrayValue ?? []
-        XCTAssertEqual(b00.count, 50); XCTAssertEqual(b00.first, 100000); XCTAssertEqual(b00.last, 100049)
+        XCTAssertEqual(b00.count, 25)                       // 25, not 50
+        XCTAssertEqual(b00.first, 100000); XCTAssertEqual(b00.last, 100024)   // sample 24, not sample 49
+        XCTAssertEqual(p.parsed["channel_b0_1"]?.intArrayValue?.count, 25)
         XCTAssertEqual(p.parsed["channel_b0_1"]?.intArrayValue?.first, 200000)
         XCTAssertEqual(p.parsed["channel_b3_0"]?.intArrayValue?.first, 140)
         // Empty block 1 produced no channel.
         XCTAssertNil(p.parsed["channel_b1_0"])
     }
+
+    /// Real captured 2140-byte v20 buffer (one line of the 29,203-buffer set behind the sample-count fix,
+    /// #423). The artifact facts the decoder must encode: exactly blocks 0/3/4 are active (channel slots
+    /// @47/247/1313/1513/1735/1935), each active channel carries 25 real i32 samples, and slots 25..49 are
+    /// exactly 0 in the raw frame. Earlier builds read 50 and emitted arrays that were half zeros. Channel
+    /// IDENTITY stays open (no labelled/moving v20 capture); this asserts STRUCTURE only, never wavelengths.
+    func testV20RealFrame25SamplesAndZeroPaddedTail() {
+        let f = Self.realFrameV20Bytes
+        XCTAssertEqual(f.count, 2140)
+        let p = parseFrame(f, family: .whoop5)
+        XCTAssertTrue(p.ok); XCTAssertEqual(p.crcOK, true)
+        XCTAssertEqual(p.parsed["hist_version"]?.intValue, 20)
+        XCTAssertEqual(p.parsed["layout_marker"]?.intValue, 0x81)
+        XCTAssertEqual(p.parsed["record_index"]?.intValue, 11494060)
+        XCTAssertEqual(p.parsed["unix"]?.intValue, 1784054004)
+        // The count the whole fix is about.
+        XCTAssertEqual(p.parsed["sensor_channel_samples"]?.intValue, 25)
+        // Exactly blocks 0/3/4 active on every captured buffer -> six channels.
+        XCTAssertEqual(p.parsed["sensor_channels_present"]?.intValue, 6)
+        // The six proven active channel slots @47/247/1313/1513/1735/1935 -> b0_0/b0_1/b3_0/b3_1/b4_0/b4_1,
+        // each decoding exactly 25 samples.
+        for k in ["channel_b0_0", "channel_b0_1", "channel_b3_0", "channel_b3_1", "channel_b4_0", "channel_b4_1"] {
+            XCTAssertEqual(p.parsed[k]?.intArrayValue?.count, 25, "\(k) must decode 25 samples, not 50")
+        }
+        // Empty blocks 1 and 2 (header byte 0x00) emit nothing.
+        XCTAssertNil(p.parsed["channel_b1_0"]); XCTAssertNil(p.parsed["channel_b2_0"])
+        // Spot-check decoded values against the raw artifact (first/last real sample).
+        XCTAssertEqual(p.parsed["channel_b0_0"]?.intArrayValue?.first, 118434)
+        XCTAssertEqual(p.parsed["channel_b0_0"]?.intArrayValue?.last, 147258)   // sample 24
+        XCTAssertEqual(p.parsed["channel_b0_1"]?.intArrayValue?.first, -22101)
+        XCTAssertEqual(p.parsed["channel_b4_1"]?.intArrayValue?.last, 11318)
+        // The decisive artifact fact: at each active channel start, the 4-byte i32 slots for samples 25..49
+        // (bytes start+100 .. start+200) are exactly 0 in the raw frame — reading 50 was reading padding —
+        // while sample 24 (the last real one) is nonzero here.
+        func rawI32(_ off: Int) -> Int {
+            Int(Int32(bitPattern: UInt32(f[off]) | (UInt32(f[off + 1]) << 8)
+                | (UInt32(f[off + 2]) << 16) | (UInt32(f[off + 3]) << 24)))
+        }
+        for start in [47, 247, 1313, 1513, 1735, 1935] {
+            XCTAssertNotEqual(rawI32(start + 24 * 4), 0, "sample 24 at channel @\(start) is a real value")
+            for i in 25..<50 {
+                XCTAssertEqual(rawI32(start + i * 4), 0, "sample \(i) at channel @\(start) must be zero padding")
+            }
+        }
+    }
+
+    /// One real 2140-byte type-0x2F v20 buffer captured off a WHOOP 5.0 (fw 50.x), issue #423 — a valid
+    /// frame (header CRC16 + payload CRC32 both check). Kept as hex so the test is self-contained on CI.
+    static let realFrameV20Bytes: [UInt8] = {
+        let hex = "aa0154080100b5b32f1481ac62af00f480566ab85e04001900001901160d042c1a0320000000000004200000002003a2ce0100abcb0100daca010004cd0100ffd00100ded50100fedb010019e001003be201004ae50100d0e90100d9ef0100acf601004afd01005d040200ce0e0200db180200622402005f2e020075320200be34020037390200e03c02004a3f02003a3f020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000aba9ffff57a8ffff09a7ffff8ca5ffff25a3ffffeca1ffff30a1ffffe6a0ffff8fa1fffff6a3ffffeaa7fffffaacffff0db3ffffdebaffff78c0ffff70c5fffffdd6ffff3fe1ffffeae3ffff6eedffff0debffff64e0ffff17d9ffffbad4ffff39cfffff00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003ce31040000011000000000000210000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002fa1904000001200000004006022000000060090000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000190200000400000320000000000004200000000000b9000000c0000000ae000000bd000000b3000000b0000000ba000000bc000000c6000000a0000000b7000000b9000000b0000000bb000000af000000a6000000aa000000b9000000b8000000b7000000bb0000009f000000ae000000ac000000ab00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c3000000b7000000c8000000bb000000a9000000bb000000c7000000ac000000ca000000a2000000bd000000bc000000b9000000bf000000b7000000bc000000b5000000b8000000ae000000b7000000c0000000b6000000ba000000be000000aa00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001902c8000400000320000000000001200000000000b0860100ca8601001d87010018880100b5880100c08801005d8901006c89010016890100f688010010890100b4890100b18a0100fe8b01003d8d0100be8f0100e5920100c29501001e980100ab9a0100bb9e010010a201008ba301002fa40100fba3010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000f82600000f2700002d27000058270000a2270000b5270000cb270000c6270000a727000090270000892700009c270000c0270000e7270000172800008a280000ca280000f8280000822900005f2a00008d2b00003f2c00008d2c0000942c0000362c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a9a4a5c0"
+        return stride(from: 0, to: hex.count, by: 2).map {
+            let s = hex.index(hex.startIndex, offsetBy: $0)
+            return UInt8(hex[s...hex.index(after: s)], radix: 16)!
+        }
+    }()
 }
