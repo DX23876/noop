@@ -248,11 +248,20 @@ final class AICoachEngine: ObservableObject {
     /// provider changes, and optionally extended by `refreshModels()` with the provider's live list.
     @Published var availableModels: [String] = []
     /// OpenRouter model ids confirmed to support tool-calling (from `/models`' `supported_parameters`),
-    /// populated by `refreshModels()`. `toolCallingActive` (`CoachTools.swift`) reads this to gate P9's
-    /// tool path per model — not every model behind OpenRouter can take tool definitions. Empty until a
-    /// refresh runs, and NOT reset by a provider switch (see `provider.didSet`): a stale set for a model
-    /// no longer selected is simply never consulted.
-    @Published var openRouterToolCapableModels: Set<String> = []
+    /// populated by `refreshModels()` / `ensureOpenRouterCapabilities()`. `toolCallingActive`
+    /// (`CoachTools.swift`) reads this to gate the tool path per model — not every model behind
+    /// OpenRouter can take tool definitions. NOT reset by a provider switch (see `provider.didSet`):
+    /// a stale set for a model no longer selected is simply never consulted.
+    ///
+    /// PERSISTED, and that is load-bearing: as a plain in-memory `@Published` this emptied on every
+    /// launch, so `toolCallingActive` went false and an OpenRouter user silently lost every tool —
+    /// `propose_plan` included — until they happened to tap "Refresh models" again. That made the whole
+    /// plan/suggestion feature a no-op for them, once per launch, with no UI hint anything was off.
+    @Published var openRouterToolCapableModels: Set<String> = [] {
+        didSet {
+            UserDefaults.standard.set(Array(openRouterToolCapableModels), forKey: Self.orToolCapableKey)
+        }
+    }
     /// Explicit permission for the coach to read & transmit the user's biometric data. OFF by
     /// default, until this is true, NO metrics are included in any request (only the question).
     @Published var dataConsent: Bool {
@@ -308,6 +317,9 @@ final class AICoachEngine: ObservableObject {
     /// for ANY conversation — so at most one auto-brief lands per day, and a conversation reopened after
     /// a day boundary gets a fresh one instead of showing Monday's brief on Friday.
     private static let lastBriefDayKey = "ai.lastBriefDay"
+    /// Backs `openRouterToolCapableModels`. Stored as an array (UserDefaults has no Set type); order is
+    /// irrelevant, only membership is ever read.
+    private static let orToolCapableKey = "ai.openRouterToolCapableModels"
     /// UserDefaults key holding the user's EDITED system prompt. Absent (or blank) means "use the
     /// built-in default". Small text key, never a secret, so plain UserDefaults is fine. Read FRESH
     /// per request (see `systemPrompt`) so an edit takes effect on the very next message.
@@ -460,6 +472,11 @@ final class AICoachEngine: ObservableObject {
             seeded.insert(storedModel, at: 0)
         }
         self.availableModels = seeded
+
+        // Restore which OpenRouter models are known tool-capable. Direct assignment in `init` doesn't
+        // fire `didSet`, so this doesn't write straight back — same as `model`/`provider` above.
+        self.openRouterToolCapableModels =
+            Set(UserDefaults.standard.stringArray(forKey: Self.orToolCapableKey) ?? [])
 
         self.dataConsent = UserDefaults.standard.bool(forKey: Self.consentKey)
         self.customBaseURL = UserDefaults.standard.string(forKey: AIProvider.customBaseURLKey) ?? ""
@@ -665,9 +682,10 @@ final class AICoachEngine: ObservableObject {
         objectWillChange.send() // `hasKey` is computed; nudge SwiftUI to re-read it.
         // #288: do NOT auto-fetch the provider's model list on key-save. For a cloud provider that GET
         // egresses to the provider the MOMENT a key is saved (IP + request timing + key-validity) — before
-        // any send, in an app that is zero-network by default. The picker shows the curated models; the LIVE
-        // list is pulled only when the user taps Refresh (an explicit action that is its own consent) or
-        // sends. Local Custom servers still refresh on Connect.
+        // any send, in an app that is zero-network by default. The picker shows the curated models; the
+        // LIVE list is pulled only when the user taps Refresh (an explicit action that is its own
+        // consent), or — for OpenRouter, whose tool support is per-model — on the first send, via
+        // `ensureOpenRouterCapabilities()`. Local Custom servers still refresh on Connect.
     }
 
     /// Forget the stored key.
@@ -706,6 +724,31 @@ final class AICoachEngine: ObservableObject {
         if let override = openRouterModelDetailsOverride { return try await override(key) }
         #endif
         return try await OpenRouterClient().fetchModelDetails(key: key, session: session)
+    }
+
+    /// One-shot, before an OpenRouter send: learn which models can take tools, if we don't know yet.
+    ///
+    /// Without this an OpenRouter user who never taps "Refresh models" has `toolCallingActive == false`
+    /// forever — no `propose_plan`, no charts, no memory, and no hint that anything is missing.
+    ///
+    /// On #288 (don't egress on key-save): that concern was egress the user didn't ask for, at the
+    /// moment a key is saved and before any send. This runs *as part of* a send the user just asked
+    /// for, to an endpoint we are already talking to on the very same turn — it adds no new surface and
+    /// no new party. The result is persisted, so in practice it runs once per install.
+    ///
+    /// Deliberately silent: it must NEVER write `errorText`. A failed capability probe is not the
+    /// user's send failing — the send proceeds on the context path, exactly as it would have anyway.
+    private func ensureOpenRouterCapabilities() async {
+        guard provider == .openRouter, openRouterToolCapableModels.isEmpty else { return }
+        guard let key = resolvedKey, !key.isEmpty else { return }
+        guard let details = try? await fetchOpenRouterModelDetails(key: key) else { return }
+        // The user can switch providers while this is in flight (#873's concern, same shape): a set
+        // fetched for OpenRouter is meaningless if they've moved on, and is only ever consulted for
+        // OpenRouter anyway.
+        guard provider == .openRouter else { return }
+        let capable = Set(details.filter { $0.supportsTools }.map { $0.id })
+        guard !capable.isEmpty else { return }
+        openRouterToolCapableModels = capable
     }
 
     /// Best-effort: GET the chosen provider's models endpoint with the saved key and merge the
@@ -800,6 +843,10 @@ final class AICoachEngine: ObservableObject {
         messages.append(ChatMessage(role: .user, text: trimmed))
         sending = true
         defer { sending = false }
+
+        // Before deciding whether tools are live: on OpenRouter that answer is per-model and we may not
+        // know it yet. Silent no-op for every other provider, and after the first successful probe.
+        await ensureOpenRouterCapabilities()
 
         // Build the data context once and prepend it to the FIRST user turn we send. We send the
         // full running history so follow-ups stay coherent; the context only needs to ride the
@@ -1195,6 +1242,10 @@ final class AICoachEngine: ObservableObject {
         errorText = nil
         sending = true
         defer { sending = false }
+
+        // Same reason as in `send()`: on OpenRouter, whether tools are live is a per-model fact we may
+        // not know yet, and the brief is exactly where a missing propose_plan hurts most.
+        await ensureOpenRouterCapabilities()
 
         let context = toolCallingActive ? Self.toolModeContextNote : await buildFullContext()
         let instruction = """

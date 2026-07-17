@@ -9,6 +9,19 @@ import XCTest
 @MainActor
 final class ToolCallingActiveGatingTests: XCTestCase {
 
+    // `openRouterToolCapableModels` is now persisted in UserDefaults.standard (W2), so a fresh engine
+    // restores it. Several tests here assume "fresh engine ⇒ no capabilities known"; clear the key so
+    // that premise holds regardless of what a prior test (or a real app run) left behind.
+    override func setUp() {
+        super.setUp()
+        UserDefaults.standard.removeObject(forKey: "ai.openRouterToolCapableModels")
+    }
+
+    override func tearDown() {
+        UserDefaults.standard.removeObject(forKey: "ai.openRouterToolCapableModels")
+        super.tearDown()
+    }
+
     private func makeEngine() -> AICoachEngine {
         AICoachEngine(repo: Repository(deviceId: "test-tool-gating-\(UUID().uuidString)"))
     }
