@@ -1591,6 +1591,8 @@
     <string name="timeline_empty_metric">No %1$s aquí</string>
     <string name="timeline_nothing_offloaded">Aún no se ha descargado nada para esta ventana.</string>
     <string name="timeline_other_sources_no_offload">Otras fuentes no descargan datos brutos por segundo en el dispositivo.</string>
+    <string name="fast_link_phy">Conexión Bluetooth más rápida (experimental)</string>
+    <string name="fast_link_phy_desc">Solicita un modo de radio Bluetooth más rápido mientras su correa transfiere su historial almacenado. Los mismos datos en menos tiempo de emisión: puede sincronizar antes y consumir algo menos de batería de la correa. Su correa debe admitirlo, y se sacrifica algo de alcance. Nuevo y no probado: si la sincronización falla cuando el teléfono está lejos, vuelva a desactivarlo.</string>
     <string name="fast_history_sync">Sincronización de historial más rápida (experimental)</string>
     <string name="fast_history_sync_desc">Solicita una conexión Bluetooth más rápida mientras su correa transfiere su historial almacenado, para que un gran retraso se ponga al día antes. Solo durante la sincronización: su frecuencia cardíaca en vivo y el flujo nocturno no se ven afectados. Nuevo y no probado: si no ayuda o consume demasiada batería, vuelva a desactivarlo.</string>
     <string name="power_saving">Salvamento de energía</string>

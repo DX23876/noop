@@ -281,6 +281,11 @@ interface GattOps {
     /** Request a GATT connection priority (battery, #477). Mirrors `BluetoothGatt`'s boolean contract;
      *  the stack no-ops a request equal to the current interval. */
     fun requestConnectionPriorityCompat(priority: Int): Boolean
+
+    /** Ask the controller to prefer a PHY for this link (#533). Mirrors `BluetoothGatt.setPreferredPhy`,
+     *  which is VOID and fire-and-forget: the real outcome arrives on `onPhyUpdate`, and the peer can
+     *  decline. Masks (not single values) so the controller may fall back. API 26 = our minSdk. */
+    fun setPreferredPhyCompat(txPhy: Int, rxPhy: Int, phyOptions: Int)
 }
 
 /**
@@ -332,6 +337,8 @@ class RealGattOps(private val gatt: BluetoothGatt) : GattOps {
     override fun readRemoteRssiCompat(): Boolean = gatt.readRemoteRssi()
     override fun discoverServicesCompat(): Boolean = gatt.discoverServices()
     override fun requestConnectionPriorityCompat(priority: Int): Boolean = gatt.requestConnectionPriority(priority)
+    override fun setPreferredPhyCompat(txPhy: Int, rxPhy: Int, phyOptions: Int) =
+        gatt.setPreferredPhy(txPhy, rxPhy, phyOptions)
 }
 
 class WhoopBleClient(
@@ -504,6 +511,34 @@ class WhoopBleClient(
          *  issue no request at all. */
         fun releasesConnectionPriority(wasEnabled: Boolean, nowEnabled: Boolean): Boolean =
             wasEnabled && !nowEnabled
+
+        /** #533: the PHY mask to ask the controller for. NOOP has never called `setPreferredPhy`, so every
+         *  offload has run on the 1M PHY. LE 2M doubles the symbol rate, which for a bulk transfer means the
+         *  SAME bytes spend HALF the air-time — unlike the connection-interval lever above it should cost
+         *  LESS radio energy per byte, not more. The two are orthogonal and stack.
+         *
+         *  Always a MASK INCLUDING 1M, never 2M alone: this is a preference, and leaving 1M in it lets the
+         *  controller fall back rather than cling to a 2M link that has gone marginal (2M trades range for
+         *  speed). Off → plain 1M, byte-for-byte today's link. The peer still has the final say, and
+         *  `onPhyUpdate` reports what was actually negotiated.
+         *
+         *  Android-only by necessity, exactly like [connectionPriorityFor]: CoreBluetooth exposes no
+         *  app-side PHY API — Apple's stack negotiates the PHY itself and gives apps no say — so there is
+         *  no Swift twin. A deliberate platform divergence, not a parity gap. (It also makes iOS/macOS a
+         *  useful control: their link parameters are chosen for them, so a Mac draining a backlog faster
+         *  than Android would show the strap is not the bottleneck.) */
+        fun preferredPhyMask(fastLinkEnabled: Boolean): Int =
+            if (fastLinkEnabled) BluetoothDevice.PHY_LE_1M_MASK or BluetoothDevice.PHY_LE_2M_MASK
+            else BluetoothDevice.PHY_LE_1M_MASK
+
+        /** Human-readable PHY for the strap log (#533). `onPhyUpdate` reports a PHY_LE_* VALUE (1/2/3),
+         *  not the *_MASK constants used to request one — don't compare the two. */
+        fun phyLabel(phy: Int): String = when (phy) {
+            BluetoothDevice.PHY_LE_1M -> "1M"
+            BluetoothDevice.PHY_LE_2M -> "2M"
+            BluetoothDevice.PHY_LE_CODED -> "coded"
+            else -> "unknown($phy)"
+        }
 
         /** Stretched periodic-offload interval while the STRAP is low on battery (#477). The offload tick
          *  is a PURE sync timer (the live-stream keep-alive is separate), so stretching it can't affect
@@ -1247,6 +1282,57 @@ class WhoopBleClient(
             ops.requestConnectionPriorityCompat(BluetoothGatt.CONNECTION_PRIORITY_BALANCED)
         } catch (t: Throwable) {
             log("connection-priority release failed (${t.javaClass.simpleName}); skipped")
+        }
+    }
+
+    /** #533 (EXPERIMENTAL, default off): ask for the LE 2M PHY around the historical offload. See
+     *  [preferredPhyMask]. Requested at offload START rather than on connect ON PURPOSE: the connect
+     *  handshake is fragile — an extra GATT op before `requestMtu` can make it return false, which skips
+     *  the MTU bump and caps the very offload this is trying to speed up (#85/#50). The offload burst is
+     *  where the throughput matters anyway, and PHY is a link-level setting that persists once negotiated. */
+    @Volatile private var fastLinkPhyEnabled: Boolean = false
+
+    /** Opt into the experimental LE 2M PHY preference (#533). No-op by default; applied at the next offload.
+     *
+     *  Turning it OFF hands the link back to 1M rather than merely stopping future offloads from asking for
+     *  2M. A PHY PERSISTS once negotiated, so without this an already-2M link would stay 2M until the next
+     *  reconnect — and this toggle's own copy tells the user to switch it off if syncing goes flaky at
+     *  range, which is exactly the case where 2M is the suspect. Reuses [releasesConnectionPriority]'s
+     *  edge rule, so the default path (re-applying `false` while already off, every launch) issues ZERO
+     *  BLE ops. */
+    fun setFastLinkPhy(enabled: Boolean) {
+        val wasEnabled = fastLinkPhyEnabled
+        fastLinkPhyEnabled = enabled
+        if (releasesConnectionPriority(wasEnabled, enabled)) handler.post { releasePreferredPhy() }
+    }
+
+    /** #533: ask the controller to prefer 2M for this link (mask always includes 1M so it can fall back).
+     *  Fire-and-forget — `setPreferredPhy` is void and the peer may decline; `onPhyUpdate` logs the PHY
+     *  actually negotiated, which is also how we learn whether WHOOP supports 2M at all. Swallows throws
+     *  like the connection-priority hint: a PHY preference must never tear the link down. No-op when off,
+     *  so the default path issues ZERO extra BLE ops. */
+    private fun applyPreferredPhy() {
+        if (!fastLinkPhyEnabled) return
+        val ops = gattOps ?: return
+        val mask = preferredPhyMask(true)
+        try {
+            ops.setPreferredPhyCompat(mask, mask, BluetoothDevice.PHY_OPTION_NO_PREFERRED)
+            log("Offload: requested LE 2M PHY preference (#533)")
+        } catch (t: Throwable) {
+            log("preferred-PHY request failed (${t.javaClass.simpleName}); skipped")
+        }
+    }
+
+    /** #533: ask the controller back down to 1M when the experiment is switched off, undoing a 2M link
+     *  still in force. Swallows throws like [applyPreferredPhy]. */
+    private fun releasePreferredPhy() {
+        val ops = gattOps ?: return
+        val mask = preferredPhyMask(false)
+        try {
+            ops.setPreferredPhyCompat(mask, mask, BluetoothDevice.PHY_OPTION_NO_PREFERRED)
+            log("Offload: released the LE 2M PHY preference — back to 1M (#533)")
+        } catch (t: Throwable) {
+            log("preferred-PHY release failed (${t.javaClass.simpleName}); skipped")
         }
     }
 
@@ -3466,6 +3552,15 @@ class WhoopBleClient(
             kickServiceDiscovery(g, "mtu=$mtu")
         }
 
+        /** #533: what the controller and the strap ACTUALLY settled on — the request is only a preference
+         *  and the peer can decline, so this is the only way to know whether 2M took (and whether WHOOP
+         *  supports it at all). Fires on any PHY change, including a fall back to 1M on a marginal link, so
+         *  a before/after strap log shows the negotiated PHY next to the offload's records/sec.
+         *  Log-only: nothing branches on the PHY. */
+        override fun onPhyUpdate(g: BluetoothGatt, txPhy: Int, rxPhy: Int, status: Int) {
+            log("PHY negotiated: tx=${phyLabel(txPhy)} rx=${phyLabel(rxPhy)} (status=$status)")
+        }
+
         override fun onReadRemoteRssi(g: BluetoothGatt, rssi: Int, status: Int) {
             // Signal strength at connect — diagnoses weak-link syncs (drops/busy storms/timeouts) that
             // otherwise look mysterious in the log. Only on a clean read; a failure just stays silent.
@@ -4955,6 +5050,7 @@ class WhoopBleClient(
         historicalKickSent = false
         _state.update { it.copy(backfilling = true, syncChunksThisSession = 0) }
         refreshConnectionPriority()   // #477: escalate to HIGH for the offload burst (faster sync). No-op unless enabled.
+        applyPreferredPhy()           // #533: prefer LE 2M for the burst (halves air-time). No-op unless enabled.
         // Opt-in raw capture (research aid): pref read fresh per session, like the probes gate.
         if (connectedFamily == DeviceFamily.WHOOP5 && PuffinExperiment.from(context).isCaptureEnabled) {
             startWhoop5BackfillCapture()

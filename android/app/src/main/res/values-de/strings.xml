@@ -147,6 +147,8 @@
     <string name="timeline_other_sources_no_offload">Andere Quellen übertragen keine rohen Sekundendaten auf das Gerät.</string>
 
     <!-- Power saving (#477) -->
+    <string name="fast_link_phy">Schnellere Bluetooth-Verbindung (experimentell)</string>
+    <string name="fast_link_phy_desc">Fordert einen schnelleren Bluetooth-Funkmodus an, während Ihr Riemen seinen gespeicherten Verlauf überträgt. Dieselben Daten in kürzerer Sendezeit — möglicherweise schnellere Synchronisierung und etwas weniger Akkuverbrauch am Riemen. Ihr Riemen muss dies unterstützen, und es geht etwas Reichweite verloren. Neu und unerprobt: Schalten Sie es aus, wenn die Synchronisierung auf Distanz unzuverlässig wird.</string>
     <string name="fast_history_sync">Schnellere Verlaufssynchronisierung (experimentell)</string>
     <string name="fast_history_sync_desc">Fordert eine schnellere Bluetooth-Verbindung an, während Ihr Riemen seinen gespeicherten Verlauf überträgt, damit ein großer Rückstand schneller aufholt. Nur während der Synchronisierung — Ihre Live-Herzfrequenz und der nächtliche Datenstrom bleiben unberührt. Neu und unerprobt: Wenn es nicht hilft oder zu viel Akku kostet, schalten Sie es wieder aus.</string>
     <string name="power_saving">Energie sparen</string>

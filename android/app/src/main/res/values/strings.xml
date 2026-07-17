@@ -156,6 +156,8 @@
     <string name="timeline_other_sources_no_offload">Other sources don\'t offload raw per-second data on-device.</string>
 
     <!-- Power saving (#477) -->
+    <string name="fast_link_phy">Faster Bluetooth link (experimental)</string>
+    <string name="fast_link_phy_desc">Ask for a faster Bluetooth radio mode while your strap hands over its stored history. Sends the same data in less airtime, so it may sync sooner and use a little less strap battery — but your strap has to support it, and it trades some range for speed. New and unproven: if syncing gets flaky when your phone is further away, turn it back off.</string>
     <string name="fast_history_sync">Faster history sync (experimental)</string>
     <string name="fast_history_sync_desc">Ask Android for a faster Bluetooth link while your strap hands over its stored history, so a big backlog catches up sooner. Only during the sync itself — your live heart rate and the overnight stream are untouched. New and unproven: if it doesn\'t help, or costs more battery than it\'s worth, turn it back off and say so on the issue tracker.</string>
     <string name="power_saving">Power saving</string>

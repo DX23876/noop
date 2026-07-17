@@ -910,6 +910,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             enabled = NoopPrefs.fastHistorySync(appContext),
             idleThrottleBatteryPct = 0,
         )
+        // #533: the second, orthogonal sync-speed lever — prefer LE 2M around the offload burst. Also
+        // independent of the Power-saving master, and its own toggle so a field report can tell the two
+        // apart (they have opposite battery profiles). No-op unless on.
+        ble.setFastLinkPhy(NoopPrefs.fastLinkPhy(appContext))
         ble.setLowBatteryOffloadThrottle(if (on) NoopPrefs.powerSavingBatteryPct(appContext) else 0)
         // HRV pause is a sub-option: only effective while the master is on (defaults on when it is), and
         // now battery-%-aware like the offload lever — pass the same threshold.
@@ -941,6 +945,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      *  offload burst uses the new priority without waiting for a reconnect. */
     fun setFastHistorySync(enabled: Boolean) {
         NoopPrefs.setFastHistorySync(appContext, enabled)
+        applyPowerSaving()
+    }
+
+    /** Flip the experimental LE 2M PHY preference (#533). Persists + pushes it to the client; it applies
+     *  at the next offload burst, and switching it off releases an already-2M link back to 1M. */
+    fun setFastLinkPhy(enabled: Boolean) {
+        NoopPrefs.setFastLinkPhy(appContext, enabled)
         applyPowerSaving()
     }
 

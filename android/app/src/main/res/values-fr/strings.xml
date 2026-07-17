@@ -1591,6 +1591,8 @@
     <string name="timeline_empty_metric">Pas de %1$s ici</string>
     <string name="timeline_nothing_offloaded">Rien de déchargé pour cette fenêtre pour l\'instant.</string>
     <string name="timeline_other_sources_no_offload">D\'autres sources ne déchargent pas les données brutes par seconde sur les appareils.</string>
+    <string name="fast_link_phy">Liaison Bluetooth plus rapide (expérimental)</string>
+    <string name="fast_link_phy_desc">Demande un mode radio Bluetooth plus rapide pendant que votre sangle transfère son historique stocké. Les mêmes données en moins de temps d\'antenne : la synchronisation peut être plus rapide et consommer un peu moins de batterie. Votre sangle doit le prendre en charge, et cela réduit un peu la portée. Nouveau et non éprouvé : si la synchronisation devient instable à distance, désactivez-le.</string>
     <string name="fast_history_sync">Synchronisation de l\'historique plus rapide (expérimental)</string>
     <string name="fast_history_sync_desc">Demande une connexion Bluetooth plus rapide pendant que votre sangle transfère son historique stocké, afin qu\'un gros retard se rattrape plus vite. Uniquement pendant la synchronisation : votre fréquence cardiaque en direct et le flux nocturne ne sont pas affectés. Nouveau et non éprouvé : si cela n\'aide pas ou consomme trop de batterie, désactivez-le.</string>
     <string name="power_saving">Économie d\'énergie</string>

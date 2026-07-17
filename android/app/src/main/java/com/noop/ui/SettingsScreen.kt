@@ -471,6 +471,7 @@ fun SettingsScreen(
     // on. SharedPreferences isn't reactive, so the Switch mirrors into a local state.
     var backgroundConnection by remember { mutableStateOf(NoopPrefs.backgroundConnection(context)) }
     var fastHistorySync by remember { mutableStateOf(NoopPrefs.fastHistorySync(context)) }
+    var fastLinkPhy by remember { mutableStateOf(NoopPrefs.fastLinkPhy(context)) }
 
     // "Continuous HRV capture" — hold the dense realtime stream armed 24/7 (better overnight HRV) at the
     // cost of more battery. Default OFF; only does anything with background connection on. Local mirror.
@@ -1307,6 +1308,45 @@ fun SettingsScreen(
                         onCheckedChange = {
                             fastHistorySync = it
                             vm.setFastHistorySync(it)
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Palette.surfaceBase,
+                            checkedTrackColor = Palette.accent,
+                            uncheckedThumbColor = Palette.textSecondary,
+                            uncheckedTrackColor = Palette.surfaceInset,
+                            uncheckedBorderColor = Palette.hairline,
+                        ),
+                    )
+                }
+
+                // "Faster Bluetooth link" (#533, EXPERIMENTAL): the other, orthogonal sync-speed lever —
+                // prefer the LE 2M PHY around the offload. Same bytes in half the airtime, so unlike the
+                // interval lever above it should cost LESS strap radio energy, not more. Separate toggle so
+                // a field report can attribute which lever did what. Off by default: the strap may decline
+                // it, 2M trades range for speed, and BLE behaviour can't be CI-tested. The negotiated PHY
+                // lands in the strap log (onPhyUpdate).
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.fast_link_phy),
+                            style = NoopType.subhead,
+                            color = Palette.textPrimary,
+                        )
+                        Text(
+                            stringResource(R.string.fast_link_phy_desc),
+                            style = NoopType.footnote,
+                            color = Palette.textTertiary,
+                        )
+                    }
+                    Switch(
+                        checked = fastLinkPhy,
+                        onCheckedChange = {
+                            fastLinkPhy = it
+                            vm.setFastLinkPhy(it)
                         },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Palette.surfaceBase,
