@@ -578,6 +578,9 @@ DE: dict[str, str] = {
     "What grounded this answer": "Worauf diese Antwort beruht",
     "Schedule a session": "Einheit verplanen",
 
+    # Plan Today card — untimed commitment (W4).
+    "Today · no time set": "Heute · keine Zeit gesetzt",
+
 }
 
 

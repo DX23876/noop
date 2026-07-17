@@ -1,26 +1,37 @@
 import SwiftUI
 import StrandDesign
 
-/// "A plan with a time is a plan you keep" — made visible where you'll actually look each morning,
-/// instead of living only inside the coach. Shows just the SINGLE next committed, timed session; a tap
-/// opens the plan book. Silent (`EmptyView`) when there's nothing timed to show — this augments the
-/// plan book, it doesn't duplicate it.
+/// The single next committed session, made visible where you'll actually look each morning instead of
+/// living only inside the coach. A tap opens the plan book. Silent (`EmptyView`) when there's nothing
+/// to show — this augments the plan book, it doesn't duplicate it.
 struct PlanTodayCard: View {
     @ObservedObject private var store = CoachPlanStore.shared
     @Binding var showPlan: Bool
 
     private var today: String { Repository.localDayKey(Date()) }
 
-    /// The soonest committed session with a time still ahead, within the next two days. Anything
-    /// further out is the plan book's job to show, not Today's.
-    private var next: PlanProposal? {
-        let horizon = Calendar.current.date(byAdding: .day, value: 2, to: Date()) ?? Date()
-        return store.commitments(fromDay: today)
+    /// The soonest committed session worth showing. Pure + static so the selection rule is testable
+    /// without a `View`.
+    ///
+    /// A timed session shows when its time is still ahead, within the next two days. An UNTIMED
+    /// commitment shows too, but only for TODAY: accepting a proposal from the morning card or the plan
+    /// book records no time (accept is a yes, not a scheduling act), and excluding untimed sessions made
+    /// Accept look like it did nothing — the session vanished from Today until the user separately
+    /// opened PlanTimeSheet to give it a time. An untimed session two days out isn't "next up", so it
+    /// stays out.
+    static func next(from proposals: [PlanProposal], today: String, now: Date) -> PlanProposal? {
+        let horizon = Calendar.current.date(byAdding: .day, value: 2, to: now) ?? now
+        return proposals
+            .filter { $0.status.isCommitment && $0.day >= today }
             .filter { p in
-                guard let t = p.time else { return false }
-                return t > Date() && t < horizon
+                if let t = p.time { return t > now && t < horizon }
+                return p.day == today
             }
             .min { ($0.time ?? .distantFuture) < ($1.time ?? .distantFuture) }
+    }
+
+    private var next: PlanProposal? {
+        Self.next(from: store.proposals, today: today, now: Date())
     }
 
     var body: some View {
@@ -35,8 +46,16 @@ struct PlanTodayCard: View {
                             Text("Next up: \(p.summary())")
                                 .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                                 .lineLimit(1)
-                            Text(dayLabel(p.day))
-                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            // A committed session with no time is a real commitment the user just hasn't
+                            // scheduled — say so and let the tap route them to PlanTimeSheet, rather than
+                            // showing a bare "Today" that reads as if it's already set.
+                            if p.time == nil {
+                                Text("Today · no time set")
+                                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            } else {
+                                Text(dayLabel(p.day))
+                                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            }
                         }
                         Spacer(minLength: 8)
                         Image(systemName: "chevron.right")
