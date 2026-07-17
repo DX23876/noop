@@ -1400,15 +1400,20 @@ fun SettingsScreen(
                                 style = NoopType.subhead,
                                 color = Palette.textPrimary,
                             )
+                            // #386: these were hardcoded literals — and INVISIBLE to the i18n gate, whose
+                            // Android regex only matches a literal directly after `Text(`. Inside a
+                            // `Text(if ...)` expression it slid past, so this whole warning shipped
+                            // English-only to de/es/fr while the audit reported clean. Now resources.
+                            // TWO "needed" strings rather than one with a %s subject fragment: verb
+                            // agreement differs once translated — German needs "Ihr Telefon … kann" but
+                            // "Manche Telefone … können", so a composed subject would be ungrammatical.
                             Text(
                                 if (batteryExempt) {
-                                    "Allowed — your phone won't stop NOOP's overnight sync to save battery. This " +
-                                        "doesn't use extra battery on its own; it just lets the settings above run reliably."
+                                    uiString(R.string.keep_alive_allowed)
+                                } else if (aggressiveVendor) {
+                                    uiString(R.string.keep_alive_needed_vendor, android.os.Build.MANUFACTURER)
                                 } else {
-                                    val who = if (aggressiveVendor) "Your phone (${android.os.Build.MANUFACTURER})" else "Some phones"
-                                    "$who can stop background apps to save battery, which can make NOOP miss overnight " +
-                                        "sleep and recovery data. Turn this on to whitelist NOOP. It doesn't use extra " +
-                                        "battery on its own — it only lets the overnight sync you've enabled above actually finish."
+                                    uiString(R.string.keep_alive_needed_generic)
                                 },
                                 style = NoopType.footnote,
                                 color = Palette.textTertiary,
