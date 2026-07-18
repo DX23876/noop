@@ -75,9 +75,10 @@ struct CoachView: View {
             }
         }
         .task(id: coach.dataConsent) { await coach.startBriefIfNeeded() }
-        // Tapping the daily check-in notification (routed here by RootTabView) forces a fresh brief.
+        // Tapping the daily check-in notification (routed here by RootTabView) runs a real check-in —
+        // a look BACK at what happened, not a re-run of the morning brief. Its own once-a-day lock.
         .onReceive(NotificationCenter.default.publisher(for: .noopOpenCoachCheckIn)) { _ in
-            Task { await coach.refreshBrief() }
+            Task { await coach.checkInIfNeeded() }
         }
         // Goal onboarding: offered ONCE, only to a configured coach with no goal yet, and skippable.
         // The flag is set whichever way the sheet closes, so declining is respected permanently — you

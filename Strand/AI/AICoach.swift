@@ -317,6 +317,10 @@ final class AICoachEngine: ObservableObject {
     /// for ANY conversation — so at most one auto-brief lands per day, and a conversation reopened after
     /// a day boundary gets a fresh one instead of showing Monday's brief on Friday.
     private static let lastBriefDayKey = "ai.lastBriefDay"
+    /// The logical day the last CHECK-IN ran. Deliberately SEPARATE from `lastBriefDayKey`: a check-in is
+    /// its own thing (it reflects on what happened, it doesn't re-brief), so a morning brief must not
+    /// suppress the evening check-in, nor the other way round. (T6)
+    private static let lastCheckInDayKey = "ai.lastCheckInDay"
     /// Backs `openRouterToolCapableModels`. Stored as an array (UserDefaults has no Set type); order is
     /// irrelevant, only membership is ever read.
     private static let orToolCapableKey = "ai.openRouterToolCapableModels"
@@ -1418,12 +1422,6 @@ final class AICoachEngine: ObservableObject {
         await runBriefCancellable()
     }
 
-    /// Force a fresh "Today's brief" even mid-conversation — used when the user taps the daily check-in
-    /// notification, so tapping always surfaces an up-to-date brief rather than an old one.
-    func refreshBrief() async {
-        await runBriefCancellable()
-    }
-
     /// Run the brief as `sendTask` so the composer's Stop button actually cancels it — previously the
     /// button rendered during a brief but cancelled nothing. A cancelled brief doesn't stamp the day,
     /// so it is retried on the next open.
@@ -1476,6 +1474,36 @@ final class AICoachEngine: ObservableObject {
         """
     }
 
+    /// The check-in's instruction — a SIBLING of `briefInstruction`, same two-branch split, but a
+    /// different act. A brief looks forward ("here's today's plan"); a check-in looks back ("how did the
+    /// last one go?"). It opens on what the user actually DID and LOGGED, asks about the reason already
+    /// in the data rather than inventing one, and stops at a single small adjustment — a conversation,
+    /// not a second briefing. The skip-reason tone is `CoachPlanStore`'s, verbatim: a skip is
+    /// information, never laziness.
+    static func checkInInstruction(toolsActive: Bool) -> String {
+        guard toolsActive else {
+            return """
+            This is a check-in, not a fresh brief. Using the plan-adherence and logs above, reply in two \
+            or three short sentences: \
+            (1) reflect back the ONE thing that stands out in what I actually did — a session hit, or one \
+            skipped (the skip reason is right there; read it as information, NEVER as laziness), or a log \
+            worth noting; \
+            (2) ask ONE genuine question about it, grounded in that reason; \
+            (3) offer AT MOST ONE small adjustment, and only if it clearly helps. No full plan, no \
+            lecture — a conversation, not a briefing.
+            """
+        }
+        return """
+        This is a check-in, not a fresh brief. Call get_plan_adherence and get_my_logs to see what I \
+        actually did and logged since we last spoke. Then reply in two or three short sentences: \
+        (1) reflect back the ONE thing that stands out — a session hit, or one skipped (the skip reason \
+        is in the data; read it as information, NEVER as laziness), or a log worth noting; \
+        (2) ask ONE genuine question about it, grounded in that reason; \
+        (3) offer AT MOST ONE small adjustment, and only if it clearly helps. No full plan, no lecture — \
+        a conversation, not a briefing.
+        """
+    }
+
     /// Shared brief generation: build today's context and ask the provider for the three-part brief.
     /// Gated on a key + data consent; `!sending` prevents overlapping a brief with an in-flight message.
     private func generateBrief() async {
@@ -1503,7 +1531,7 @@ final class AICoachEngine: ObservableObject {
                 messages.append(ChatMessage(role: .assistant, text: "Today's brief\n\n" + clean,
                                             toolsUsed: reply.toolsUsed))
                 // Stamp only on genuine success, so a network failure doesn't burn the day's slot — a
-                // retry (reopening, or the check-in notification's forced refreshBrief) can still land one.
+                // retry (reopening the conversation after a day boundary) can still land one.
                 UserDefaults.standard.set(Repository.logicalDayKey(Date()), forKey: Self.lastBriefDayKey)
             }
         } catch let e as AICoachError {
@@ -1515,6 +1543,85 @@ final class AICoachEngine: ObservableObject {
                 errorText = AICoachError.network(error.localizedDescription).errorDescription
             }
         }
+    }
+
+    /// Generate a check-in once per logical day (its OWN lock, independent of the brief's — see
+    /// `lastCheckInDayKey`). Backs the daily check-in notification's tap. A failed run doesn't stamp the
+    /// day, so the next tap retries.
+    func checkInIfNeeded() async {
+        let today = Repository.logicalDayKey(Date())
+        guard UserDefaults.standard.string(forKey: Self.lastCheckInDayKey) != today else { return }
+        await runCheckInCancellable()
+    }
+
+    /// Cancellable check-in runner, mirroring `runBriefCancellable` so the composer's Stop button
+    /// actually cancels it.
+    private func runCheckInCancellable() async {
+        guard !sending else { return }
+        let task = Task<Void, Never> { [weak self] in
+            guard let self else { return }
+            await self.generateCheckIn()
+        }
+        sendTask = task
+        await task.value
+        if sendTask == task { sendTask = nil }
+    }
+
+    /// Shared check-in generation. Unlike `generateBrief` — which sends a single synthetic user turn with
+    /// no transcript — a check-in is a CONTINUATION, so it routes with the windowed history behind it and
+    /// relevant memory folded in, exactly like a normal `send()` turn. Stamps `lastCheckInDayKey` only on
+    /// success.
+    private func generateCheckIn() async {
+        guard isConfigured, dataConsent, !sending else { return }
+        guard let key = resolvedKey else { return }
+        errorText = nil
+        sending = true
+        defer { sending = false }
+
+        await ensureOpenRouterCapabilities()
+
+        let context = toolCallingActive ? toolModeContext : await buildFullContext()
+        let instruction = Self.checkInInstruction(toolsActive: toolCallingActive)
+        // Fold relevant memory in like a normal turn (wireMessages does the same for send()).
+        let relevant = CoachMemory.shared.relevantBlock(for: instruction, limit: 8)
+        let preamble = [context, relevant]
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            .joined(separator: "\n\n")
+        let trailer = preamble.isEmpty ? instruction : preamble + "\n\n---\n\n" + instruction
+        // History (windowed) + the check-in as the trailing user turn, kept role-alternating.
+        let history = Self.wirePairs(from: windowedMessages(), context: "")
+        let wire = Self.appendTrailingUserTurn(history, content: trailer)
+        do {
+            let reply = try await callProvider(key: key, messages: wire)
+            let clean = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !clean.isEmpty {
+                messages.append(ChatMessage(role: .assistant, text: "Check-in\n\n" + clean,
+                                            toolsUsed: reply.toolsUsed))
+                UserDefaults.standard.set(Repository.logicalDayKey(Date()), forKey: Self.lastCheckInDayKey)
+            }
+        } catch let e as AICoachError {
+            errorText = e.errorDescription
+        } catch {
+            if !Self.isCancellation(error) {
+                errorText = AICoachError.network(error.localizedDescription).errorDescription
+            }
+        }
+    }
+
+    /// Pure: append a trailing user turn to already-wired history, keeping roles ALTERNATING. The
+    /// Anthropic client maps wire pairs 1:1 with no coalescing, so two consecutive user turns would be a
+    /// 400 — if the history already ends on a user turn (an errored send that left no reply), the new
+    /// content folds into it rather than emitting a second user turn. Split out so it's unit-testable.
+    nonisolated static func appendTrailingUserTurn(
+        _ history: [(role: ChatMessage.Role, content: String)], content: String
+    ) -> [(role: ChatMessage.Role, content: String)] {
+        var wire = history
+        if let last = wire.last, last.role == .user {
+            wire[wire.count - 1] = (.user, last.content + "\n\n---\n\n" + content)
+        } else {
+            wire.append((.user, content))
+        }
+        return wire
     }
 
     /// Full data context = the metrics summary + recent workouts (+ an OPT-IN on-device-signals summary
