@@ -1956,27 +1956,51 @@ final class AICoachEngine: ObservableObject {
     }
 
     /// A SUMMARY-ONLY block of the new on-device signals, the user's strongest n-of-1 correlations
-    /// (lag-aware EffectRanker) and a one-line roll-up of their Lab Book markers. Plain sentences, never
-    /// raw readings: this rides the same text channel as the metrics summary, so the no-raw-egress posture
-    /// holds. Gated by the caller on the second opt-in; returns "" when there's nothing worth adding.
-    func onDeviceSignalsBlock() async -> String {
+    /// (lag-aware EffectRanker), a personal dose-response read for dosed behaviours, and a one-line
+    /// roll-up of their Lab Book markers. Plain sentences, never raw readings: this rides the same text
+    /// channel as the metrics summary, so the no-raw-egress posture holds. Gated by the caller on the
+    /// second opt-in; returns "" when there's nothing worth adding. `limit` caps the correlation list
+    /// (the `get_personal_patterns` tool parameter), not the dose-response section (at most one line per
+    /// `DosedBehavior` case).
+    func onDeviceSignalsBlock(limit: Int = 3) async -> String {
         var lines: [String] = []
 
         // 1. Strongest behaviour→outcome associations (EffectRanker over the journal × Charge).
         let entries = await repo.journalEntries()
         var byBehaviour: [String: Set<String>] = [:]
         for e in entries where e.answeredYes { byBehaviour[e.question, default: []].insert(e.day) }
+        let recoveryByDay = Dictionary(
+            repo.days.compactMap { d in d.recovery.map { (d.day, $0) } },
+            uniquingKeysWith: { _, last in last })
         if !byBehaviour.isEmpty {
-            let outcomeByDay = Dictionary(
-                repo.days.compactMap { d in d.recovery.map { (d.day, $0) } },
-                uniquingKeysWith: { _, last in last })
-            let ranked = EffectRanker.rank(behaviors: byBehaviour, outcomeByDay: outcomeByDay, outcome: "Charge")
+            let ranked = EffectRanker.rank(behaviors: byBehaviour, outcomeByDay: recoveryByDay, outcome: "Charge")
                 .filter { $0.effect.significant }
-                .prefix(3)
+                .prefix(limit)
             if !ranked.isEmpty {
                 lines.append("STRONGEST PERSONAL PATTERNS (the user's own data — association, not cause):")
                 for r in ranked { lines.append("  • " + r.sentence()) }
             }
+        }
+
+        // 1b. Personal dose-response (alcohol→Charge, caffeine→HRV): a prior-shrunk "each extra unit ≈
+        // Δ for you" read once the user logs doses — the SAME engine + documented priors the Insights
+        // Dose cards use (`InsightsHubViewModel.load`), reusing its dose-key/dose-source/matches helpers
+        // so the two can't drift.
+        let hrvByDay = Dictionary(
+            repo.days.compactMap { d in d.avgHrv.map { (d.day, $0) } },
+            uniquingKeysWith: { _, last in last })
+        var doseRowsByBehavior: [DosedBehavior: [(day: String, value: Double)]] = [:]
+        for behavior in DosedBehavior.allCases {
+            let key = InsightsHubViewModel.doseKey(for: behavior)
+            doseRowsByBehavior[behavior] = await repo.series(key: key, source: InsightsHubViewModel.doseSource)
+        }
+        let doseLines = Self.doseResponseLines(byBehaviour: byBehaviour, doseRowsByBehavior: doseRowsByBehavior,
+                                               recoveryByDay: recoveryByDay, hrvByDay: hrvByDay)
+        if !doseLines.isEmpty {
+            lines.append("")
+            lines.append("PERSONAL DOSE-RESPONSE (shrunk toward a documented prior until there's enough "
+                         + "of the user's own data):")
+            lines.append(contentsOf: doseLines)
         }
 
         // 2. Lab Book markers roll-up (count + latest of a few, never the full history).
@@ -2000,6 +2024,29 @@ final class AICoachEngine: ObservableObject {
         }
 
         return lines.joined(separator: "\n")
+    }
+
+    /// Pure core for the dose-response section of `onDeviceSignalsBlock`: given the journal's yes-day
+    /// map, each dosed behaviour's explicit dose rows, and the two outcome series it might shrink
+    /// against, returns one line per behaviour with enough dose data to produce an estimate. Kept
+    /// separate from the `repo`/store reads that gather its inputs so it's independently testable.
+    static func doseResponseLines(byBehaviour: [String: Set<String>],
+                                  doseRowsByBehavior: [DosedBehavior: [(day: String, value: Double)]],
+                                  recoveryByDay: [String: Double], hrvByDay: [String: Double]) -> [String] {
+        var doseLines: [String] = []
+        for behavior in DosedBehavior.allCases {
+            var doses: [String: Int] = [:]
+            for (question, days) in byBehaviour where InsightsHubViewModel.matches(behavior, question: question) {
+                for day in days { doses[day] = max(doses[day] ?? 0, 1) }
+            }
+            for row in (doseRowsByBehavior[behavior] ?? []) { doses[row.day] = Int(row.value.rounded()) }
+            guard !doses.isEmpty else { continue }
+            let outcomeByDay = DoseResponsePriors.defaultOutcome(for: behavior) == "HRV" ? hrvByDay : recoveryByDay
+            guard let response = DoseResponseEngine.estimate(
+                behavior: behavior, doseByDay: doses, outcomeByDay: outcomeByDay) else { continue }
+            doseLines.append("  • \(behavior.rawValue.capitalized): " + response.sentence())
+        }
+        return doseLines
     }
 
     /// Dispatch to the user's chosen provider client. When tool-calling is active (data consent on and a

@@ -64,8 +64,9 @@ enum CoachTool: String, CaseIterable {
             return "Get today's derived stress index (Baevsky Stress Index over today's R-R intervals); "
                 + "higher means more sympathetic / under load. Use for stress or autonomic-balance questions."
         case .personalPatterns:
-            return "Get the user's strongest personal patterns (their own n-of-1 correlations) and a "
-                + "roll-up of their logged Lab Book health numbers. Use to explain what helps or hurts them."
+            return "Get the user's strongest personal patterns (their own n-of-1 correlations), a "
+                + "personal dose-response read for alcohol/caffeine when they log doses, and a roll-up "
+                + "of their logged Lab Book health numbers. Use to explain what helps or hurts them."
         case .plotMetric:
             return "Draw a chart of one metric over time, shown directly in the chat. Use it when a "
                 + "trend is easier to see than to describe. metric is one of charge, effort, hrv, rhr, sleep."
@@ -152,6 +153,16 @@ enum CoachTool: String, CaseIterable {
                     "limit": [
                         "type": "integer",
                         "description": "How many recent workouts to return (1–30). Defaults to 6."
+                    ]
+                ]
+            ]
+        case .personalPatterns:
+            return [
+                "type": "object",
+                "properties": [
+                    "limit": [
+                        "type": "integer",
+                        "description": "How many personal patterns to return (1–10). Defaults to 3."
                     ]
                 ]
             ]
@@ -501,7 +512,9 @@ extension AICoachEngine {
             guard includeOnDeviceSignals else {
                 return "The user hasn't shared their patterns or Lab Book, so this isn't available."
             }
-            let block = await onDeviceSignalsBlock()
+            let raw = (input["limit"] as? Int) ?? Int(input["limit"] as? Double ?? 3)
+            let limit = max(1, min(raw, 10))
+            let block = await onDeviceSignalsBlock(limit: limit)
             return block.isEmpty ? "No strong personal patterns have emerged yet." : block
         case .plotMetric:
             let metric = (input["metric"] as? String) ?? ""
