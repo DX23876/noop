@@ -99,7 +99,9 @@ enum CoachTool: String, CaseIterable {
                 + "Use when the user reports something they did. Confirm what you logged."
         case .logLabMarker:
             return "Log a Lab Book health marker the user reports — a lab/blood value, body metric or "
-                + "supplement dose (marker name + numeric value + unit). Confirm what you logged."
+                + "supplement dose (marker name + numeric value + unit). Call it when the user shares a "
+                + "number from a blood test, checkup or scale, or a supplement dose ('my fasting glucose "
+                + "was 92', 'weighed in at 82kg today', 'started 2000 IU vitamin D'). Confirm what you logged."
         case .sleepDetail:
             return "Get per-night sleep detail for recent nights: bed/wake times, efficiency, deep/REM/"
                 + "light minutes, disturbances, plus the rolling 14-night sleep-debt balance. Use for "
