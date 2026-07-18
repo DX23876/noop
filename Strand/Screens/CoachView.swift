@@ -364,6 +364,8 @@ struct CoachView: View {
         case .sessionOutlook:          Text("Session outlook")
         case .simulateDay:             Text("Simulation")
         case .planAdherence:           Text("Plan adherence")
+        case .myLogs:                  Text("Your logs")
+        case .zoneMinutes:             Text("Zone minutes")
         }
     }
 

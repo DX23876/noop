@@ -393,8 +393,9 @@ final class AICoachEngine: ObservableObject {
     Nothing about this user is in front of you until you fetch it — reach for a tool before you answer, \
     not after guessing. What your tools do:
     • READ their data — get_biometric_summary, get_readiness, get_charge_drivers, get_sleep_detail, \
-    get_recent_workouts, get_stress_index, get_range_report, get_plan_adherence, plot_metric to draw \
-    one, and get_personal_patterns when they've shared it. Call get_readiness before any \
+    get_recent_workouts, get_stress_index, get_zone_minutes, get_range_report, get_plan_adherence, \
+    get_my_logs (read back what they logged — caffeine, journal, lab, hydration, mood), plot_metric to \
+    draw one, and get_personal_patterns when they've shared it. Call get_readiness before any \
     push/maintain/rest call; never re-derive that from the raw charge number.
     • PROJECT forward — get_session_outlook (what a session would cost, from their own history), \
     simulate_day (tomorrow's Charge under a plan).
@@ -1175,6 +1176,111 @@ final class AICoachEngine: ObservableObject {
         } catch {
             return "Couldn't save the marker: \(error.localizedDescription)"
         }
+    }
+
+    /// `get_my_logs`: read back what the user has LOGGED, by kind. Closes the write-without-read
+    /// asymmetry — the coach could log a coffee/journal/marker but never recall them — with ONE tool
+    /// instead of five. Each kind reads the SAME store the corresponding log/UI writes. An unknown kind
+    /// returns recoverable text (never throws), and `lab` refuses without the second on-device-signals
+    /// opt-in, mirroring `get_personal_patterns`. Never a bare empty string: a blank tool result is what
+    /// makes a model hallucinate, so an empty log says so in words.
+    func myLogsTool(kind: String, days: Int) async -> String {
+        switch kind.lowercased() {
+        case "caffeine":
+            let cutoff = Date().addingTimeInterval(-Double(days) * 86_400)
+            let recent = CaffeineLogStore.shared.intakes.filter { $0.at >= cutoff }
+            let estimate = CaffeineLogStore.shared.estimate()
+            guard !recent.isEmpty else { return "No caffeine logged in the last \(days) days." }
+            var lines = ["CAFFEINE LOG (newest first, last \(days) days):"]
+            for i in recent.prefix(30) {
+                let when = DateFormatter.localizedString(from: i.at, dateStyle: .short, timeStyle: .short)
+                let amount = i.mg.map { "\(Int($0.rounded())) mg" } ?? "unspecified amount"
+                lines.append("  • \(when): \(amount)")
+            }
+            if estimate.hasActive {
+                let mg = estimate.totalRemainingMg.map { " (~\(Int($0.rounded())) mg)" } ?? ""
+                lines.append("Still active now: \(estimate.activeIntakeCount) intake(s)\(mg).")
+            } else {
+                lines.append("Nothing estimated still active right now.")
+            }
+            return lines.joined(separator: "\n")
+
+        case "journal":
+            let cutoffDay = Repository.localDayKey(Date().addingTimeInterval(-Double(days) * 86_400))
+            let entries = (await repo.journalEntries()).filter { $0.day >= cutoffDay }
+                .sorted { $0.day > $1.day }
+            guard !entries.isEmpty else { return "No journal entries in the last \(days) days." }
+            var lines = ["JOURNAL LOG (newest first, last \(days) days):"]
+            for e in entries.prefix(40) {
+                let val = e.numericValue.map { " = \($0)" } ?? (e.answeredYes ? ": yes" : ": no")
+                lines.append("  • \(e.day) — \(e.question)\(val)")
+            }
+            return lines.joined(separator: "\n")
+
+        case "lab":
+            guard includeOnDeviceSignals else {
+                return "The user hasn't shared their Lab Book, so this isn't available."
+            }
+            guard let store = await repo.storeHandle() else { return "Couldn't open the local store." }
+            var lines: [String] = []
+            for category in LabMarkerCategory.allCases {
+                let rows = (try? await store.labMarkers(deviceId: repo.deviceId, category: category.rawValue)) ?? []
+                for (key, kRows) in Dictionary(grouping: rows, by: { $0.markerKey }) {
+                    guard let latest = kRows.sorted(by: { $0.takenAt < $1.takenAt }).last else { continue }
+                    let name = MarkerCatalog.definition(for: key)?.displayName ?? key
+                    let value = latest.value.map { "\(LabBookFormat.value($0, key: key)) \(latest.unit)" }
+                        ?? latest.valueText ?? "—"
+                    lines.append("  • \(name): \(value) (\(latest.day))")
+                }
+            }
+            guard !lines.isEmpty else { return "No Lab Book markers logged yet." }
+            return "LAB BOOK (latest per marker — the user's own logged health numbers, not medical "
+                + "advice):\n" + lines.joined(separator: "\n")
+
+        case "hydration":
+            let history = await repo.hydrationHistory(days: days)
+            let logged = history.filter { $0.value > 0 }
+            guard !logged.isEmpty else { return "No hydration logged in the last \(days) days." }
+            let goal = repo.hydrationGoalML(profileSex: ProfileStore().sex)
+            var lines = ["HYDRATION LOG (ml per day, today's goal \(goal) ml, last \(days) days):"]
+            for (day, ml) in history.reversed() where ml > 0 {
+                lines.append("  • \(day): \(Int(ml.rounded())) ml")
+            }
+            return lines.joined(separator: "\n")
+
+        case "mood":
+            let cutoffDay = Repository.localDayKey(Date().addingTimeInterval(-Double(days) * 86_400))
+            let series = (await repo.moodSeries()).filter { $0.day >= cutoffDay }
+            guard !series.isEmpty else { return "No mood check-ins in the last \(days) days." }
+            var lines = ["MOOD LOG (daily 1–5 check-in, newest first, last \(days) days):"]
+            for (day, value) in series.sorted(by: { $0.day > $1.day }).prefix(40) {
+                let v = Int(value.rounded())
+                lines.append("  • \(day): \(v)/5 (\(MoodStore.label(for: v)))")
+            }
+            return lines.joined(separator: "\n")
+
+        default:
+            return "Unknown log kind \"\(kind)\". Choose one of: caffeine, journal, lab, hydration, mood."
+        }
+    }
+
+    /// `get_zone_minutes`: time-in-zone (Zone 1–5) minutes over the user's recent workout HR, so a "did
+    /// I hit Zone 2?" question — and `propose_plan`'s own Zone-2 prescriptions — can be checked against
+    /// what was actually done. Wraps `Repository.workoutZoneMinutes` (HRZones math), aged from the
+    /// profile. Nil (no HR/workout data) returns a plain "no zone data" line, never an empty string.
+    func zoneMinutesTool(days: Int) async -> String {
+        let now = Int(Date().timeIntervalSince1970)
+        let from = now - days * 86_400
+        let age = ProfileStore().age
+        guard let minutes = await repo.workoutZoneMinutes(from: from, to: now, age: age),
+              minutes.count == 5 else {
+            return "No workout heart-rate data in the last \(days) days to compute zone minutes."
+        }
+        var lines = ["TIME IN ZONE (minutes, last \(days) days — from workout HR):"]
+        for (i, m) in minutes.enumerated() {
+            lines.append(String(format: "  Zone %d: %.0f min", i + 1, m))
+        }
+        return lines.joined(separator: "\n")
     }
 
     /// `get_sleep_detail`: per-night stages/efficiency from the daily roll-up plus the rolling

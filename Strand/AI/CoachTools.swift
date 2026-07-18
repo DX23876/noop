@@ -49,6 +49,12 @@ enum CoachTool: String, CaseIterable {
     case simulateDay = "simulate_day"
     /// What the user agreed to vs what actually happened, with skip reasons.
     case planAdherence = "get_plan_adherence"
+    /// READ back what the user has LOGGED — caffeine, journal behaviours, Lab Book, hydration, mood —
+    /// closing the write-without-read gap (the coach can log a coffee but couldn't recall it).
+    case myLogs = "get_my_logs"
+    /// Time-in-zone minutes (Zone 1–5) over recent workouts, so a "did I hit Zone 2?" question — and
+    /// `propose_plan`'s own Zone-2 prescriptions — can actually be checked against what was done.
+    case zoneMinutes = "get_zone_minutes"
 
     /// Natural-language description the model reads to decide when to call the tool.
     var description: String {
@@ -144,6 +150,17 @@ enum CoachTool: String, CaseIterable {
                 + "including WHY a session was skipped when they told us. Use it to open a check-in or "
                 + "review. Never treat a skip as laziness — the reason is right there, and days whose "
                 + "data is still calibrating carry no verdict at all."
+        case .myLogs:
+            return "Read back what the user has LOGGED, by kind: caffeine (intakes + what's still "
+                + "active), journal (recent behaviours they recorded), lab (their Lab Book health "
+                + "numbers), hydration (daily fluid vs goal) or mood (daily 1–5 check-ins). Call it when "
+                + "a question turns on something they logged — 'is my coffee hurting my sleep?', 'how's "
+                + "my hydration this week?' — so you answer from their real logs, not a guess. You can "
+                + "log these; this is how you read them back."
+        case .zoneMinutes:
+            return "Get time-in-zone minutes (Zone 1–5, from the user's HR during recent workouts) over "
+                + "the last N days. Use it to check whether they actually hit an intensity — especially "
+                + "a Zone 2 session you prescribed — rather than assuming a plan was followed as written."
         }
     }
 
@@ -392,6 +409,32 @@ enum CoachTool: String, CaseIterable {
                     ]
                 ]
             ]
+        case .myLogs:
+            return [
+                "type": "object",
+                "properties": [
+                    "kind": [
+                        "type": "string",
+                        "enum": ["caffeine", "journal", "lab", "hydration", "mood"],
+                        "description": "Which log to read back."
+                    ],
+                    "days": [
+                        "type": "integer",
+                        "description": "How many days back to include (1–90). Defaults to 14."
+                    ]
+                ],
+                "required": ["kind"]
+            ]
+        case .zoneMinutes:
+            return [
+                "type": "object",
+                "properties": [
+                    "days": [
+                        "type": "integer",
+                        "description": "How many days back to total (1–90). Defaults to 7."
+                    ]
+                ]
+            ]
         default:
             return ["type": "object", "properties": [String: Any]()]
         }
@@ -448,6 +491,7 @@ extension AICoachEngine {
             .biometricSummary, .recentWorkouts, .stressIndex, .plotMetric,
             .sleepDetail, .rangeReport, .readiness, .chargeDrivers,
             .proposePlan, .sessionOutlook, .simulateDay, .planAdherence,
+            .myLogs, .zoneMinutes,
             .rememberFact, .updateFact, .forgetFact, .searchPastConversations,
             .logCaffeine, .logJournal, .logLabMarker
         ]
@@ -598,6 +642,12 @@ extension AICoachEngine {
         case .planAdherence:
             let days = (input["days"] as? Int) ?? Int(input["days"] as? Double ?? 7)
             return await planAdherenceBlock(days: max(1, min(days, 30)))
+        case .myLogs:
+            let raw = (input["days"] as? Int) ?? Int(input["days"] as? Double ?? 14)
+            return await myLogsTool(kind: (input["kind"] as? String) ?? "", days: max(1, min(raw, 90)))
+        case .zoneMinutes:
+            let raw = (input["days"] as? Int) ?? Int(input["days"] as? Double ?? 7)
+            return await zoneMinutesTool(days: max(1, min(raw, 90)))
         case .none:
             return "Unknown tool \"\(name)\"."
         }
