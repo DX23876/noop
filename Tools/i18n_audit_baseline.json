@@ -1,0 +1,942 @@
+{
+  "android": [
+    [
+      "android/app/src/main/java/com/noop/ui/AddDeviceWizard.kt",
+      "The most common cause is the ring was not fully reset in the Oura app, or the Oura "
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/BackupSyncScreen.kt",
+      "Back up now"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/BackupSyncScreen.kt",
+      "Change folder"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/BackupSyncScreen.kt",
+      "Choose folder"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/BackupSyncScreen.kt",
+      "Last backup: ${DateUtils.getRelativeTimeSpanString(lastMs)}"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/BackupSyncScreen.kt",
+      "No backup yet."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/BackupSyncScreen.kt",
+      "No folder chosen yet. Pick one your cloud app already syncs, or any local folder."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/BackupSyncScreen.kt",
+      "Saving to: ${folderLabel(it)}"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/BackupSyncScreen.kt",
+      "Working…"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/BreatheScreen.kt",
+      "%.1f br/min"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/BreatheScreen.kt",
+      "Start session"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/BreatheScreen.kt",
+      "Stop session"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/BreatheScreen.kt",
+      "Sweeping…"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/CaffeineLog.kt",
+      "About ${it.roundToInt()} mg may still be active"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/CaffeineLog.kt",
+      "Caffeine may still be active"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/CaffeineLog.kt",
+      "Estimated mostly cleared. Nothing logged is likely still active."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/CaffeineLog.kt",
+      "No caffeine logged. Log an intake to see an estimate."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
+      "Bring your own API key. It is stored encrypted on this device and only used to "
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
+      "Customised. Your edited instructions frame every reply."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
+      "Edit how the coach thinks and talks. Takes effect on your next message."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
+      "Fetching…"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
+      "Off: the coach answers generally and sends none of your metrics."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
+      "On: your recovery, sleep, HRV and workouts are shared with the provider for tailored coaching."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
+      "Only if your server requires one"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
+      "Paste your ${provider.displayName} key"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
+      "Point the coach at any OpenAI-compatible server: a local model (Ollama, LM "
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
+      "Private by default: only your question and a short metrics summary are sent, "
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
+      "Refresh models"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
+      "The coach talks only to the server URL you set. Point it at a local model to "
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/CompareScreen.kt",
+      "Add metric"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/CompareScreen.kt",
+      "Each line min-max normalized within ${range.phrase}"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/CompareScreen.kt",
+      "Each line min-max normalized · sparse series widened past ${range.phrase}"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/CompareScreen.kt",
+      "Max 4"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/CoupledScreen.kt",
+      "A classic one-glance read of NOOP's own scores. Same data, different lens."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/DataSourcesScreen.kt",
+      "Imported"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/DataSourcesScreen.kt",
+      "No samples yet"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/DataSourcesScreen.kt",
+      "Nothing imported"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/DataSourcesScreen.kt",
+      "Streaming locally"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/DataSourcesScreen.kt",
+      "not yet"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/DevicesScreen.kt",
+      " · $it"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/DevicesScreen.kt",
+      " · FW $it"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
+      "$displayHr bpm"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
+      "${detail.format(it)} ${detail.unit}"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
+      "${kotlin.math.abs(delta)} ${yearWord(delta)} ${if (younger) \"younger\" else \"older\"}"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
+      "Awaiting strap"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
+      "CALIBRATING"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
+      "Estimated from R-R interval"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
+      "Pairing…"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
+      "Ready to sync"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
+      "SOLID"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
+      "Streaming live"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
+      "Sync now"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
+      "Syncing…"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
+      "Vital Signs"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
+      "about your age"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/HrvSnapshotScreen.kt",
+      "Save"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/HrvSnapshotScreen.kt",
+      "Saved"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/HydrationScreen.kt",
+      "of %.1f L"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/InsightsHubScreen.kt",
+      "d = %.2f"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/InsightsScreen.kt",
+      "d = %.2f"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/InsightsScreen.kt",
+      "r = %+.2f"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/IntervalsScreen.kt",
+      " $it"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/IntervalsScreen.kt",
+      "Pause"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/IntervalsScreen.kt",
+      "Restart"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/IntervalsScreen.kt",
+      "Start"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/JournalLog.kt",
+      "Answers are about the night and day leading into this morning, the "
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/JournalLog.kt",
+      "Change to Number"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/JournalLog.kt",
+      "Change to Yes/No"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/JournalLog.kt",
+      "Delete"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/JournalLog.kt",
+      "Hide"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/JournalLog.kt",
+      "Logging ahead for tomorrow: today's activities inform tomorrow's "
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/JournalLog.kt",
+      "Rename, regroup, or remove an item to tidy your list. Renaming keeps the "
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/LabBookScreen.kt",
+      "$n reading${if (n == 1) \"\" else \"s\"} line up so far, not enough to read a trend yet "
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/LabBookScreen.kt",
+      "Choose a signal"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/LabBookScreen.kt",
+      "No overlap yet between this marker and ${signal.title.lowercase()}. Log a few more readings "
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/LiveScreen.kt",
+      "Connect"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/LiveScreen.kt",
+      "Re-scan"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/LiveScreen.kt",
+      "Recent intervals: "
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/LiveScreen.kt",
+      "Scan & Connect"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/LiveScreen.kt",
+      "Searching…"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/LiveScreen.kt",
+      "Strap buzzes when you climb into Zone 5 (≥ $zone5Bpm bpm). Manage it in Automations → Haptic coaching."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/LiveScreen.kt",
+      "Sync now"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/LiveScreen.kt",
+      "Syncing your strap history…"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/LiveScreen.kt",
+      "Syncing your strap history… ${live.syncChunksThisSession} chunks pulled"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/LiveScreen.kt",
+      "Syncing…"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/LiveScreen.kt",
+      "Turn on HR-zone coaching in Automations for a wrist buzz when you reach Zone 5 (≥ $zone5Bpm bpm)."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/LiveScreen.kt",
+      "Waiting for R-R intervals."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/LiveSessionScreen.kt",
+      "Guarding your session. Silence means you're on track."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/LiveSessionScreen.kt",
+      "Signal lost — coaching paused."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/LiveWorkoutScreen.kt",
+      "%d:%02d"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/LiveWorkoutScreen.kt",
+      "Below Zone 1"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/LiveWorkoutScreen.kt",
+      "Warming up - keep moving to climb into Zone 1."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/LiveWorkoutScreen.kt",
+      "Zone $zone · ${zoneName(zone)}"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/LiveWorkoutScreen.kt",
+      "Zone $zone: ${band.lower.toInt()} - ${band.upper.toInt()} bpm (${(band.lowerPct * 100).toInt()} - ${(band.upperPct * 100).toInt()}% max HR)"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/MindSection.kt",
+      "r = %+.2f"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/NotificationsSettingsScreen.kt",
+      "Buzzes your wrist"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/NotificationsSettingsScreen.kt",
+      "Off"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/OnboardingScreen.kt",
+      "Deep blue accent on a dark blue-grey canvas."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/OnboardingScreen.kt",
+      "Deep blue accent on warm paper."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/OnboardingScreen.kt",
+      "Following your phone's light/dark setting."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/OnboardingScreen.kt",
+      "Re-scan"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/OnboardingScreen.kt",
+      "Scan again"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/OnboardingScreen.kt",
+      "Your strap is bonded and ready to stream."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/OnboardingScreen.kt",
+      "Your strap is bonded · ${it.toInt()}% battery."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      " · Charging"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Adds your VO₂max estimate"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Auto · ${profile.hrMaxAuto} bpm (Tanaka)"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Change photo"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Choose photo"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Manual override"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Needs the full encrypted bond: close the official WHOOP app and pair the strap to NOOP first (a live-HR-only link can't carry the unlock)."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Optional · adds your VO₂max estimate"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Put the strap on first. The deep stream is on-wrist only."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Re-scan"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Searching…"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Strap accepted ${live.r22FlagsAccepted}/15 R22 flags…"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Wear the strap, tap once, then let it sync and share your strap log."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "✓ Strap accepted all 15 R22 flags"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SkinTempCardsScreen.kt",
+      "Plan a trip or shift"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SkinTempCardsScreen.kt",
+      "View the full plan"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SleepScreen.kt",
+      "Edit nap times"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SleepScreen.kt",
+      "Edit nap times (edited)"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SleepScreen.kt",
+      "Removes this recorded sleep and recomputes the day without it. NOOP won't re-detect sleep in this window. You can undo for a few seconds after."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SleepScreen.kt",
+      "Removes this sleep and recomputes the day without it. You can undo for a few seconds after."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SmartAlarmScreen.kt",
+      "Armed on the strap itself with the experimental 5/MG command. A strap-driven wake is still unconfirmed on 5/MG on our side (confirmed only on WHOOP 4.0), so keep a backup alarm for anything you truly can't miss."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SmartAlarmScreen.kt",
+      "Armed on the strap itself, so it can buzz at your wake time even if your phone is asleep or NOOP is closed. Sends the exact alarm command the official app sends, confirmed buzzing on a real WHOOP 4.0 (community wire capture + on-device test, #535). Keep a backup alarm for anything you truly can't miss."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SmartAlarmScreen.kt",
+      "Connect your strap to arm this; it's set on the strap's own firmware alarm. Confirmed working on WHOOP 4.0; still experimental on 5.0 and MG. Keep a backup alarm for anything you truly can't miss."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/StepsCalibrationScreen.kt",
+      "%+.0f%%"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/StepsCalibrationScreen.kt",
+      "Auto"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/StepsCalibrationScreen.kt",
+      "fit from your phone"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/StepsCalibrationScreen.kt",
+      "steps / motion unit"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/StressScreen.kt",
+      "Stress is derived from two autonomic signals."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/StressScreen.kt",
+      "Today's value is your recorded daily stress score (0-3)."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
+      "CALIBRATING"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
+      "Calibrating , no heart rate banked yet today. Your curve fills in as the strap offloads."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
+      "No heart rate for this day. Step back to a day the strap was worn."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
+      "No heart rate in the last ${hrWindow.label}. Try a wider window or Today."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
+      "Not connected"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
+      "Pinch to zoom · drag to pan"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
+      "SOLID"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
+      "Show all metrics ($hidden)"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
+      "Show fewer"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
+      "Zoomed in · drag to pan"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/UpdateStore.kt",
+      "What's new in NOOP $version"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutStart.kt",
+      "%d:%02d"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "Add"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "Add Workout"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "All sources"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "All sports"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "Done"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "Edit Workout"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "Effort (0-100)"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "From strap HR"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "Logged sessions across ${effectiveRange.caption}."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "Mostly ${WorkoutEditing.displaySport(modal.sport)} (${effectiveRange.caption})."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "Save"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "Select"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "Time in each %HRmax zone, derived from the strap's heart rate over this window (approximate)."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "WHOOP's imported per-zone split for this session."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "Whoop import"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "strain (0-21)"
+    ],
+    [
+      "android/app/src/main/java/com/noop/widget/NoopCompactGlanceWidget.kt",
+      "$it%"
+    ],
+    [
+      "android/app/src/main/java/com/noop/widget/NoopCompactGlanceWidget.kt",
+      "Connected"
+    ],
+    [
+      "android/app/src/main/java/com/noop/widget/NoopCompactGlanceWidget.kt",
+      "Open NOOP to connect"
+    ],
+    [
+      "android/app/src/main/java/com/noop/widget/NoopCompactGlanceWidget.kt",
+      "♥ $it"
+    ],
+    [
+      "android/app/src/main/java/com/noop/widget/NoopGlanceWidget.kt",
+      "$it%"
+    ],
+    [
+      "android/app/src/main/java/com/noop/widget/NoopGlanceWidget.kt",
+      "Connected"
+    ],
+    [
+      "android/app/src/main/java/com/noop/widget/NoopGlanceWidget.kt",
+      "Open NOOP to connect"
+    ],
+    [
+      "android/app/src/main/java/com/noop/widget/NoopGlanceWidget.kt",
+      "♥ $it"
+    ],
+    [
+      "android/app/src/main/java/com/noop/widget/NoopGlanceWidget.kt",
+      "⚡ $it%"
+    ]
+  ],
+  "ios": [
+    [
+      "Packages/StrandDesign/Sources/StrandDesign/ChartHover.swift",
+      "\\(value), \\(label!)"
+    ],
+    [
+      "Packages/StrandDesign/Sources/StrandDesign/DayNavBar.swift",
+      "Next day"
+    ],
+    [
+      "Packages/StrandDesign/Sources/StrandDesign/DayNavBar.swift",
+      "Pick a date"
+    ],
+    [
+      "Packages/StrandDesign/Sources/StrandDesign/DayNavBar.swift",
+      "Previous day"
+    ],
+    [
+      "Packages/StrandDesign/Sources/StrandDesign/TrendChart.swift",
+      "Trend"
+    ],
+    [
+      "Packages/StrandDesign/Sources/StrandDesign/YearHeatStrip.swift",
+      "\\(DateFormatterCache.day.string(from: day.date)) · recovery \\(Int(score.rounded()))"
+    ],
+    [
+      "Strand/Liquid/LiquidPrimitives.swift",
+      "%.\\(decimals)f"
+    ],
+    [
+      "Strand/Liquid/LiquidTodayView.swift",
+      " \\(unit)"
+    ],
+    [
+      "Strand/Liquid/LiquidTodayView.swift",
+      "Arrange Today sections"
+    ],
+    [
+      "Strand/Screens/AddDeviceWizard.swift",
+      "The most common cause is the ring was not fully reset in the Oura app, or the Oura app is still running. Reset the ring again, force-quit Oura, then try once more. If it keeps failing, your ring may be a generation NOOP cannot adopt yet. The ring is not bricked: re-pair it in the Oura app to recover it. You can still use file import."
+    ],
+    [
+      "Strand/Screens/BreathingView.swift",
+      "%.1f br/min"
+    ],
+    [
+      "Strand/Screens/DataSourcesView.swift",
+      "Import your Oura history"
+    ],
+    [
+      "Strand/Screens/DevicesView.swift",
+      "Historical record layout v\\(layout)"
+    ],
+    [
+      "Strand/Screens/FullDayChartView.swift",
+      "Pinch to zoom · drag to pan · hold to read"
+    ],
+    [
+      "Strand/Screens/FullDayChartView.swift",
+      "Zoomed in. Drag to pan · hold to read"
+    ],
+    [
+      "Strand/Screens/HealthView.swift",
+      "Refresh Fitness Age now"
+    ],
+    [
+      "Strand/Screens/HealthView.swift",
+      "Vitality \\(Int(v.rounded())) out of 100"
+    ],
+    [
+      "Strand/Screens/HydrationView.swift",
+      "Progress toward today's goal"
+    ],
+    [
+      "Strand/Screens/InsightsHubView.swift",
+      "d = %.2f"
+    ],
+    [
+      "Strand/Screens/InsightsView.swift",
+      "d = %.2f"
+    ],
+    [
+      "Strand/Screens/InsightsView.swift",
+      "r = %+.2f"
+    ],
+    [
+      "Strand/Screens/JournalLogCard.swift",
+      "Clear \\(item.display)"
+    ],
+    [
+      "Strand/Screens/JournalLogCard.swift",
+      "Decrease"
+    ],
+    [
+      "Strand/Screens/JournalLogCard.swift",
+      "Delete this custom item"
+    ],
+    [
+      "Strand/Screens/JournalLogCard.swift",
+      "Edit \\(item.display)"
+    ],
+    [
+      "Strand/Screens/JournalLogCard.swift",
+      "Hide this item"
+    ],
+    [
+      "Strand/Screens/JournalLogCard.swift",
+      "Increase"
+    ],
+    [
+      "Strand/Screens/JournalLogCard.swift",
+      "New item group"
+    ],
+    [
+      "Strand/Screens/JournalLogCard.swift",
+      "Rename, regroup, or remove an item to tidy your list. Renaming keeps the original question behind the scenes, so a WHOOP import still lines up. Custom items are deleted; built-in ones are hidden and can be restored below."
+    ],
+    [
+      "Strand/Screens/JournalLogCard.swift",
+      "\\(group.title), \\(groupItems.count) items, \\(collapsed ? \"collapsed\" : \"expanded\")"
+    ],
+    [
+      "Strand/Screens/LabBookView.swift",
+      "Choose CSV…"
+    ],
+    [
+      "Strand/Screens/LabBookView.swift",
+      "Choose a markers CSV file to import"
+    ],
+    [
+      "Strand/Screens/LabBookView.swift",
+      "Choose a signal"
+    ],
+    [
+      "Strand/Screens/LabBookView.swift",
+      "the signal"
+    ],
+    [
+      "Strand/Screens/MetricExplorerView.swift",
+      "\\(row.time), \\(row.value), \\(row.source)"
+    ],
+    [
+      "Strand/Screens/SettingsView.swift",
+      "%+.0f%%"
+    ],
+    [
+      "Strand/Screens/SettingsView.swift",
+      "Date of birth, age \\(profile.age) years"
+    ],
+    [
+      "Strand/Screens/SettingsView.swift",
+      "NOOP estimates your steps from your WHOOP's motion, calibrated to your phone's step count. It's an estimate, not a step counter — a WHOOP 5.0 / MG streams motion (not a step count) only with deep data on."
+    ],
+    [
+      "Strand/Screens/SettingsView.swift",
+      "Trend chart style"
+    ],
+    [
+      "Strand/Screens/SettingsView.swift",
+      "WHOOP 5.0 / MG · motion → steps"
+    ],
+    [
+      "Strand/Screens/SleepView.swift",
+      "Removes this recorded sleep and recomputes the day without it. NOOP won't re-detect sleep in this window. You can undo for a few seconds after."
+    ],
+    [
+      "Strand/Screens/SleepView.swift",
+      "Removes this sleep and recomputes the day without it. You can undo for a few seconds after."
+    ],
+    [
+      "Strand/Screens/SleepView.swift",
+      "Undo sleep deletion"
+    ],
+    [
+      "Strand/Screens/SmartAlarmView.swift",
+      "Notifications are off"
+    ],
+    [
+      "Strand/Screens/SmartAlarmView.swift",
+      "Open Settings"
+    ],
+    [
+      "Strand/Screens/StressView.swift",
+      "Stress \\(String(format: \"%.1f\", score)) of 3"
+    ],
+    [
+      "Strand/Screens/StressView.swift",
+      "Today's value is your recorded daily stress score (0-3)."
+    ],
+    [
+      "Strand/Screens/TodayView.swift",
+      "Acute (7-day) vs chronic (28-day) training load. 0.8-1.3 is the sweet spot."
+    ],
+    [
+      "Strand/Screens/TrendsView.swift",
+      "Opens the full Charge metric."
+    ],
+    [
+      "Strand/Screens/TrendsView.swift",
+      "Opens the full \\(accessibilityTitle) metric."
+    ],
+    [
+      "Strand/Screens/WorkoutDetailView.swift",
+      "Effort \\(UnitFormatter.effortDisplay(strain, scale: effortScale)) \\(effortScale == .whoop ? \"of 21\" : \"of 100\")"
+    ],
+    [
+      "Strand/Screens/WorkoutDetailView.swift",
+      "of 21"
+    ],
+    [
+      "Strand/Screens/WorkoutsView.swift",
+      "All sources"
+    ],
+    [
+      "Strand/Screens/WorkoutsView.swift",
+      "All sports"
+    ],
+    [
+      "Strand/Screens/WorkoutsView.swift",
+      "Clear filters"
+    ],
+    [
+      "Strand/Screens/WorkoutsView.swift",
+      "Clear search"
+    ],
+    [
+      "Strand/Screens/WorkoutsView.swift",
+      "Delete (\\(chosen.count))"
+    ],
+    [
+      "Strand/Screens/WorkoutsView.swift",
+      "Finish selecting"
+    ],
+    [
+      "Strand/Screens/WorkoutsView.swift",
+      "Merge (\\(chosen.count))"
+    ],
+    [
+      "Strand/Screens/WorkoutsView.swift",
+      "Select"
+    ],
+    [
+      "Strand/Screens/WorkoutsView.swift",
+      "Select sessions to merge or delete"
+    ],
+    [
+      "Strand/Screens/WorkoutsView.swift",
+      "Typical effort \\(UnitFormatter.effortDisplay(avgStrain, scale: effortScale))"
+    ],
+    [
+      "Strand/Screens/WorkoutsView.swift",
+      "Typical effort, no data"
+    ],
+    [
+      "Strand/Screens/WorkoutsView.swift",
+      "of 21"
+    ]
+  ]
+}
