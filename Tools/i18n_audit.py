@@ -259,6 +259,15 @@ ANDROID_DIRS = [
 ANDROID_CALL_PATTERN = re.compile(r"\b(?:Text|Snackbar|TopAppBar)\s*\(")
 ANDROID_KWARG_PATTERN = re.compile(r"\b(?:title|label|text|contentDescription|placeholder)\s*=\s*")
 
+# `contentDescription = <expr>` is UI accessibility text wherever it is ASSIGNED. Unlike the general
+# kwargs it most often sits inside a `Modifier.semantics { }` lambda, whose `{` is NOT an argument
+# boundary — so the kwarg pass skips it and the a11y copy stays invisible in a green audit (#571). Scan
+# the assignment on its own: a bare `contentDescription =` that is not a `==` comparison, a `.member`
+# read, or a `val`/`var` local declaration is a UI-text site. Only its OWN value span is read (via
+# `_argument_span_end`, which stops at the enclosing `}`), so unrelated lambda content is never swept in.
+ANDROID_A11Y_ASSIGN_PATTERN = re.compile(r"(?<![.\w])contentDescription\s*=(?!=)\s*")
+_LOCAL_DECL_BEFORE = re.compile(r"\b(?:val|var)\s+\Z")
+
 
 def _mask_comments(text: str) -> str:
     """`text` with `//...` and `/* ... */` comment BODIES blanked out (same
@@ -334,6 +343,13 @@ def scan_android() -> list[tuple[str, int, str]]:
             # recognize by name, including AlertDialog's named slots.
             for m in ANDROID_KWARG_PATTERN.finditer(text):
                 if not _PRECEDED_BY_ARG_BOUNDARY.search(text, 0, m.start()):
+                    continue
+                record(m.end(), _argument_span_end(text, m.end()))
+
+            # `Modifier.semantics { contentDescription = if (x) "a" else "b" }` and friends — the a11y
+            # assignment the kwarg pass above cannot see (its `{` isn't an arg boundary). (#571)
+            for m in ANDROID_A11Y_ASSIGN_PATTERN.finditer(text):
+                if _LOCAL_DECL_BEFORE.search(text, 0, m.start()):
                     continue
                 record(m.end(), _argument_span_end(text, m.end()))
 

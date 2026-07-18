@@ -172,6 +172,49 @@ class ScanAndroidEndToEnd(unittest.TestCase):
         # outer AlertDialog's text= span was swept.
         self.assertEqual(sorted(found), ["First deep child", "Second deep child"])
 
+    # --- #571: contentDescription assigned inside a `semantics {}` lambda ---
+
+    def test_content_description_in_semantics_lambda_found(self):
+        # The standard Compose a11y idiom: the `{` is not an arg boundary, so the
+        # general kwarg pass skips it — the dedicated assignment pass must catch it.
+        self.write(
+            "A.kt",
+            'Modifier.semantics { contentDescription = if (hr) "Recovery ready" else "Recovery, no data yet" }',
+        )
+        found = {lit for _p, _l, lit in ia.scan_android()}
+        self.assertEqual(found, {"Recovery ready", "Recovery, no data yet"})
+
+    def test_content_description_multiline_semantics_found(self):
+        self.write(
+            "A.kt",
+            "Modifier.semantics {\n    contentDescription = \"Charge calibrating tonight\"\n}",
+        )
+        found = {lit for _p, _l, lit in ia.scan_android()}
+        self.assertEqual(found, {"Charge calibrating tonight"})
+
+    def test_content_description_pass_excludes_decl_and_member_read(self):
+        # A `val` local decl and a `.member ==` comparison are NOT a11y UI-text sites;
+        # neither may be flagged (guards the pass against false positives).
+        self.write(
+            "A.kt",
+            'val contentDescription = "local decl not ui"\n'
+            'if (view.contentDescription == "compare not ui") doThing()\n',
+        )
+        found = {lit for _p, _l, lit in ia.scan_android()}
+        self.assertEqual(found, set())
+
+    def test_content_description_lambda_does_not_reopen_unrelated_slot(self):
+        # The a11y pass must not resurrect the 489-explosion: an unrelated slot
+        # lambda beside a contentDescription assignment stays scanned only on its own.
+        self.write(
+            "A.kt",
+            'Box(Modifier.semantics { contentDescription = "Tap target" }) {\n'
+            '    AlertDialog(text = { Column { Text("Deep child") } })\n'
+            "}",
+        )
+        found = sorted(lit for _p, _l, lit in ia.scan_android())
+        self.assertEqual(found, ["Deep child", "Tap target"])
+
 
 class Baseline(unittest.TestCase):
     def setUp(self):

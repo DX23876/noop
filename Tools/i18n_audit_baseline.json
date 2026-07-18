@@ -5,6 +5,14 @@
       "The most common cause is the ring was not fully reset in the Oura app, or the Oura "
     ],
     [
+      "android/app/src/main/java/com/noop/ui/AppRoot.kt",
+      "Collapsed"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/AppRoot.kt",
+      "Expanded"
+    ],
+    [
       "android/app/src/main/java/com/noop/ui/BackupSyncScreen.kt",
       "Back up now"
     ],
@@ -74,7 +82,15 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
+      "Collapse coach instructions"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
       "Customised. Your edited instructions frame every reply."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
+      "Edit coach instructions"
     ],
     [
       "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
@@ -165,6 +181,10 @@
       " · FW $it"
     ],
     [
+      "android/app/src/main/java/com/noop/ui/FusedRecordScreen.kt",
+      ", in use"
+    ],
+    [
       "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
       "$displayHr bpm"
     ],
@@ -190,6 +210,14 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
+      "Live heart rate over time, $displayHr beats per minute, zone $zone"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
+      "Live heart rate over time, no data"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
       "Pairing…"
     ],
     [
@@ -207,6 +235,18 @@
     [
       "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
       "Sync now"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
+      "Sync now. A sync is already in progress."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
+      "Sync now. Connect your strap first."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
+      "Sync now. Pulls your strap's stored history immediately, without waiting "
     ],
     [
       "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
@@ -417,6 +457,14 @@
       "Your strap is bonded · ${it.toInt()}% battery."
     ],
     [
+      "android/app/src/main/java/com/noop/ui/PipBar.kt",
+      "$label: $valueText"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/PipBar.kt",
+      "$label: $valueText $unit"
+    ],
+    [
       "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
       " · Charging"
     ],
@@ -435,6 +483,14 @@
     [
       "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
       "Choose photo"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Collapsed"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
+      "Expanded"
     ],
     [
       "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
@@ -518,6 +574,14 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/StepsCalibrationScreen.kt",
+      "Manual steps coefficient, %.1f steps per motion unit"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/StepsCalibrationScreen.kt",
+      "Manual steps coefficient, automatic"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/StepsCalibrationScreen.kt",
       "fit from your phone"
     ],
     [
@@ -577,8 +641,24 @@
       "What's new in NOOP $version"
     ],
     [
+      "android/app/src/main/java/com/noop/ui/UpdatesInboxScreen.kt",
+      "${item.title}. ${item.message}"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/UpdatesInboxScreen.kt",
+      "Unread. ${item.title}. ${item.message}"
+    ],
+    [
       "android/app/src/main/java/com/noop/ui/WorkoutStart.kt",
       "%d:%02d"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "0 to 100 Effort"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "0 to 21 strain"
     ],
     [
       "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
@@ -610,6 +690,10 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "Finish selecting"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
       "From strap HR"
     ],
     [
@@ -627,6 +711,10 @@
     [
       "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
       "Select"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "Select sessions to merge or delete"
     ],
     [
       "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
