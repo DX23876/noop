@@ -623,7 +623,10 @@ struct LiquidTodayView: View {
                      value: unitText(displayDay?.respRateBpm, card.unit, decimals: 1),
                      tint: StrandPalette.accent, frac: fracOver(displayDay?.respRateBpm, 24))
         case .steps:
-            cardLink(.metric(stepsDetailKey), title: card.title, sub: card.subtitle,
+            // Route by exact source (my-whoop for both the measured "steps" and the "steps_est" fallback),
+            // NOT by bare key — bare "steps" resolves to apple-health and would show an empty detail for a
+            // WHOOP user. Order-independent, so the catalog needn't declare my-whoop first.
+            cardLink(.metricSourced(key: stepsDetailKey, source: "my-whoop"), title: card.title, sub: card.subtitle,
                      value: stepsText, tint: StrandPalette.metricCyan, frac: fracOver(stepCount, 10000))
         case .bloodOxygen:
             // Not wired to a real read yet — render EMPTY (not half-full) so it doesn't imply a reading.

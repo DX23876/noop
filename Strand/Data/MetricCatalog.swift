@@ -156,10 +156,13 @@ enum MetricCatalog {
         // ── Effort (was Strain)
         d("strain", String(localized: "Effort"), "Effort", "/100", "my-whoop", "flame", 1, nil,
           String(localized: "Cardiovascular load for the day, on a 0-100 scale (was 0-21).")),
-        // WHOOP 5.0 / MG exposes a measured daily step count. Keep it separate from Apple Health's
-        // identically-keyed series so Today can open the same source it used for the displayed value.
-        d("steps", String(localized: "Steps"), "Effort", "steps", "my-whoop", "figure.walk", 0, true),
         d("steps", String(localized: "Steps"), "Effort", "", "apple-health", "figure.walk", 0, true),
+        // WHOOP 5.0 / MG exposes a measured daily step count. Declared AFTER apple-health on purpose:
+        // the bare-key `first { key == "steps" }` resolvers (LabBookView, CompareView, the TabRoute
+        // `.metric` fallback) keep their prior apple-health default, so this entry's position never
+        // changes where any of them tap through. The Today card/tile route to it EXPLICITLY by source
+        // (`.metricSourced` / `todayStepsMetric`), which is what actually needs it.
+        d("steps", String(localized: "Steps"), "Effort", "steps", "my-whoop", "figure.walk", 0, true),
         // On-device steps ESTIMATE for a WHOOP 4.0 (no real step count over BLE): the strap's daily
         // motion volume scaled by a personal calibration. Stored under the computed "-noop" source, so
         // it reads through the same exploreSeries fallback fitness_age/vitality use. Distinct from the
