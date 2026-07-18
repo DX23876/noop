@@ -67,8 +67,8 @@ enum DebugDataDiagnostics {
         // placeholder, see `BackupSync.iCloudPlaceholderRealName`) looks very different from a genuinely
         // empty folder, and neither was visible in a debug export before this.
         if let health = FolderBackup.restoreListHealth() {
-            lines.append("Backup folder: \(health.folderName)")
-            lines.append("Restore list: \(health.snapshots) snapshot(s) recognized of \(health.rawEntries) folder entrie(s)")
+            lines.append("Backup folder: \(health.isICloud ? "iCloud Drive" : "local")")
+            lines.append("Restore list: \(health.snapshots) snapshot(s) recognized of \(health.rawEntries) folder entries")
         } else {
             lines.append("Backup folder: none chosen")
         }
