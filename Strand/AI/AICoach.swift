@@ -1704,6 +1704,27 @@ final class AICoachEngine: ObservableObject {
             ?? "There isn't enough recent Charge history to project tomorrow honestly yet."
     }
 
+    /// VO₂max estimate from the same inputs the Fitness Age screen and `IntelligenceEngine.fitnessAgeRows`
+    /// use (median resting HR + strain-derived PA index over the last 7 days); nil without a waist
+    /// measurement, exactly as `FitnessAgeEngine` specifies. Shared by `goalEvidence()` (goal feasibility)
+    /// and `buildContext()` (chat), so the two can never disagree.
+    private func estimatedVO2max(days: [DailyMetric], profile: ProfileStore) -> Double? {
+        let gate7 = Array(days.suffix(7))
+        let rhrs = gate7.compactMap { $0.restingHr }.map(Double.init)
+        guard !rhrs.isEmpty, profile.age > 0, profile.waistCm > 0 else { return nil }
+        let strains = gate7.compactMap { $0.strain }.filter { $0 >= 30 }
+        let meanStrain = strains.isEmpty ? 0 : strains.reduce(0, +) / Double(strains.count)
+        let sorted = rhrs.sorted()
+        let medianRHR = sorted.count % 2 == 1
+            ? sorted[sorted.count / 2]
+            : (sorted[sorted.count / 2 - 1] + sorted[sorted.count / 2]) / 2
+        return FitnessAgeEngine.compute(
+            age: Double(profile.age), sex: profile.sex, restingHR: medianRHR,
+            paIndex: FitnessAgeEngine.physicalActivityIndexFromStrain(
+                activeDaysPerWeek: strains.count, meanActiveStrain: meanStrain),
+            waistCm: profile.waistCm)?.vo2max
+    }
+
     /// Gather what the app can actually measure about the user's starting point, for the feasibility
     /// check. Every field degrades to nil rather than guessing. VO₂max mirrors
     /// `IntelligenceEngine.fitnessAgeRows`'s assembly (median resting HR + strain-derived PA index over
@@ -1715,21 +1736,7 @@ final class AICoachEngine: ObservableObject {
         var evidence = GoalFeasibility.Evidence()
 
         // VO₂max (context only): the same inputs the Fitness Age screen uses.
-        let gate7 = Array(days.suffix(7))
-        let rhrs = gate7.compactMap { $0.restingHr }.map(Double.init)
-        if !rhrs.isEmpty, profile.age > 0, profile.waistCm > 0 {
-            let strains = gate7.compactMap { $0.strain }.filter { $0 >= 30 }
-            let meanStrain = strains.isEmpty ? 0 : strains.reduce(0, +) / Double(strains.count)
-            let sorted = rhrs.sorted()
-            let medianRHR = sorted.count % 2 == 1
-                ? sorted[sorted.count / 2]
-                : (sorted[sorted.count / 2 - 1] + sorted[sorted.count / 2]) / 2
-            evidence.vo2max = FitnessAgeEngine.compute(
-                age: Double(profile.age), sex: profile.sex, restingHR: medianRHR,
-                paIndex: FitnessAgeEngine.physicalActivityIndexFromStrain(
-                    activeDaysPerWeek: strains.count, meanActiveStrain: meanStrain),
-                waistCm: profile.waistCm)?.vo2max
-        }
+        evidence.vo2max = estimatedVO2max(days: days, profile: profile)
 
         // Running base + weekly session count, from the last 30 days of workouts.
         let rows = await repo.workoutRows(days: 30)
@@ -2040,6 +2047,9 @@ final class AICoachEngine: ObservableObject {
                      + ", skin-temp deviation: \(avgOne(last30.compactMap { $0.skinTempDevC }))°C"
                      + ", steps: \(avgInt(last30.compactMap { $0.steps.map(Double.init) }))/day"
                      + ", active energy: \(avgInt(last30.compactMap { $0.activeKcalEst }))kcal/day")
+        if let vo2max = estimatedVO2max(days: days, profile: profile) {
+            lines.append(String(format: "Estimated VO2max: %.1f ml/kg/min", vo2max))
+        }
 
         return lines.joined(separator: "\n")
     }
