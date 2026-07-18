@@ -156,6 +156,9 @@ enum MetricCatalog {
         // ── Effort (was Strain)
         d("strain", String(localized: "Effort"), "Effort", "/100", "my-whoop", "flame", 1, nil,
           String(localized: "Cardiovascular load for the day, on a 0-100 scale (was 0-21).")),
+        // WHOOP 5.0 / MG exposes a measured daily step count. Keep it separate from Apple Health's
+        // identically-keyed series so Today can open the same source it used for the displayed value.
+        d("steps", String(localized: "Steps"), "Effort", "steps", "my-whoop", "figure.walk", 0, true),
         d("steps", String(localized: "Steps"), "Effort", "", "apple-health", "figure.walk", 0, true),
         // On-device steps ESTIMATE for a WHOOP 4.0 (no real step count over BLE): the strap's daily
         // motion volume scaled by a personal calibration. Stored under the computed "-noop" source, so
@@ -205,6 +208,17 @@ enum MetricCatalog {
     ]
 
     static func inCategory(_ c: String) -> [MetricDescriptor] { all.filter { $0.category == c } }
+
+    static func metric(key: String, source: String) -> MetricDescriptor? {
+        all.first { $0.key == key && $0.source == source }
+    }
+
+    /// The Today screen prefers the measured WHOOP 5.0 / MG count and falls back to the WHOOP 4.0
+    /// motion estimate. Apple Health remains an independent catalog metric and is never substituted
+    /// for a WHOOP value after the tile has already chosen what to display.
+    static func todayStepsMetric(hasMeasuredSteps: Bool) -> MetricDescriptor? {
+        metric(key: hasMeasuredSteps ? "steps" : "steps_est", source: "my-whoop")
+    }
 
     /// Localized display name for a catalog category, mapped AT THE RENDER SITE only. The
     /// catalog's `category` VALUES stay English identifiers on purpose (`inCategory` and the

@@ -623,7 +623,7 @@ struct LiquidTodayView: View {
                      value: unitText(displayDay?.respRateBpm, card.unit, decimals: 1),
                      tint: StrandPalette.accent, frac: fracOver(displayDay?.respRateBpm, 24))
         case .steps:
-            cardLink(.metric("steps_est"), title: card.title, sub: card.subtitle,
+            cardLink(.metric(stepsDetailKey), title: card.title, sub: card.subtitle,
                      value: stepsText, tint: StrandPalette.metricCyan, frac: fracOver(stepCount, 10000))
         case .bloodOxygen:
             // Not wired to a real read yet — render EMPTY (not half-full) so it doesn't imply a reading.
@@ -857,7 +857,8 @@ struct LiquidTodayView: View {
             let resp = displayDay?.respRateBpm ?? vitalsDay?.respRateBpm
             ktile(String(localized: "Respiratory"), resp.map { String(format: "%.1f", $0) } ?? "—", "rpm", StrandPalette.accent, fracOver(resp, 24), key: "resp_rate")
         case .steps:
-            ktile(String(localized: "Steps"), stepsText, "", StrandPalette.chargeColor, fracOver(stepCount, 10000), key: "steps")
+            ktile(String(localized: "Steps"), stepsText, "", StrandPalette.chargeColor,
+                  fracOver(stepCount, 10000), key: stepsDetailKey, detailMetric: stepsDetailMetric)
         case .weight:
             ktile(String(localized: "Weight"), "—", "", StrandPalette.metricAmber, nil, key: "weight")
         case .calories:
@@ -866,7 +867,7 @@ struct LiquidTodayView: View {
     }
 
     private func ktile(_ label: String, _ value: String, _ unit: String, _ tint: Color, _ frac: Double?,
-                       key: String? = nil) -> some View {
+                       key: String? = nil, detailMetric: MetricDescriptor? = nil) -> some View {
         let tile = VStack(alignment: .leading, spacing: 6) {
             Text(label.uppercased()).font(StrandFont.overlineScaled(9)).tracking(1.2)
                 .foregroundStyle(StrandPalette.textTertiary)
@@ -906,7 +907,9 @@ struct LiquidTodayView: View {
         // #430 parity: tap -> the metric's trend detail (the same Explore dossier its MetricRow pushes,
         // closure-based NavigationLink per #38). A metric with no catalog entry stays inert.
         return Group {
-            if let key, let metric = MetricCatalog.all.first(where: { $0.key == key }) {
+            if let metric = detailMetric ?? key.flatMap({ key in
+                MetricCatalog.all.first(where: { $0.key == key })
+            }) {
                 NavigationLink { MetricDetailView(metric: metric) } label: { tile }
                     .buttonStyle(.plain)
             } else {
@@ -1043,6 +1046,7 @@ struct LiquidTodayView: View {
                                                     days: sourceLookback)
 
         let restSeries = await restA
+        let stepsSeries = await stepsA
         let restByDay = Dictionary(restSeries.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
         // Selected day's Rest; tail fallback only at offset 0 (a past day with no row shows nothing) AND
         // only when the tail night is still fresh. #977: a live 5.0 whose sleep never scores (no overnight
@@ -1073,6 +1077,9 @@ struct LiquidTodayView: View {
             "rhr": sparkRows.compactMap { r in r.restingHr.map { (r.day, Double($0)) } },
             "spo2": sparkRows.compactMap { r in r.spo2Pct.map { (r.day, $0) } },
             "resp_rate": sparkRows.compactMap { r in r.respRateBpm.map { (r.day, $0) } },
+            "steps": sparkRows.compactMap { r in r.steps.map { (r.day, Double($0)) } },
+            "steps_est": stepsSeries.filter { $0.day >= sparkCutoff && $0.day <= selectedDayKey }
+                .map { ($0.day, $0.value) },
             "sleep_performance": restSeries.filter { $0.day >= sparkCutoff && $0.day <= selectedDayKey }
                 .map { ($0.day, $0.value) },
         ]
@@ -1084,7 +1091,6 @@ struct LiquidTodayView: View {
         // Steps is a DAILY metric, so key it to the SELECTED day (like restScore above), not the history-wide
         // latest. Without this, swiping to a past day with no strap step count showed today's estimate (the
         // `.last` value) instead of that day's. Mirrors the classic Today's stepsEstByDay[selectedDayKey].
-        let stepsSeries = await stepsA
         let stepsByDay = Dictionary(stepsSeries.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
         stepsEst = stepsByDay[selectedDayKey] ?? (selectedDayOffset == 0 ? stepsSeries.last?.value : nil)
         hrValues = (await hrA).map { $0.bpm }
@@ -1166,6 +1172,12 @@ struct LiquidTodayView: View {
     }
 
     private var stepCount: Double? { displayDay?.steps.map(Double.init) ?? stepsEst }
+
+    private var stepsDetailMetric: MetricDescriptor? {
+        MetricCatalog.todayStepsMetric(hasMeasuredSteps: displayDay?.steps != nil)
+    }
+
+    private var stepsDetailKey: String { stepsDetailMetric?.key ?? "steps_est" }
 
     private var liveHour: Double {
         let c = Calendar.current.dateComponents([.hour, .minute], from: Date())
