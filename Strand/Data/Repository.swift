@@ -805,7 +805,10 @@ final class Repository: ObservableObject {
     nonisolated static func mergeActivityFileSteps(into base: [DailyMetric],
                                                    _ activityFile: [DailyMetric]) -> [DailyMetric] {
         guard !activityFile.isEmpty else { return base }
-        var byDay = Dictionary(uniqueKeysWithValues: base.map { ($0.day, $0) })
+        // Last-wins on a duplicate day rather than `uniqueKeysWithValues`, which TRAPS (crashes) if `base`
+        // ever carries two rows for one day. Matches the Kotlin twin's graceful merge and this file's own
+        // safe convention (the other `Dictionary(…, uniquingKeysWith:)` builders here).
+        var byDay = Dictionary(base.map { ($0.day, $0) }, uniquingKeysWith: { _, last in last })
         for row in activityFile {
             guard let steps = row.steps, steps > 0 else { continue }
             if let existing = byDay[row.day] {
