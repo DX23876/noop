@@ -139,6 +139,24 @@ class BackfillContinuationTest {
         )
     }
 
+    /** #533: a genuine deep backlog must keep draining PAST the old 6-pass cap in one connection, instead
+     *  of being throttled to the 15-min floor mid-drain. At 10 consecutive continues with the strap still
+     *  a day ahead of our frontier and the trim advancing, it must still continue (the cap is now higher). */
+    @Test
+    fun continues_pastOldSixCap_onDeepBacklog() {
+        assertTrue(WhoopBleClient.MAX_AUTO_CONTINUES > 6)   // pins the #533 raise
+        assertTrue(
+            WhoopBleClient.shouldAutoContinue(
+                stillConnected = true,
+                strapNewestTs = 1_800_000_000L,
+                ourFrontierTs = 1_800_000_000L - 86_400L,   // a full day behind
+                wallNowUnix = wallNow,
+                lastTrimAdvanced = true,
+                consecutiveCount = 10,                       // well past the old cap of 6
+            ),
+        )
+    }
+
     /** Unknown range (no GET_DATA_RANGE answer, or nothing persisted yet) ⇒ don't auto-continue. */
     @Test
     fun stops_whenRangeUnknown() {
@@ -258,7 +276,9 @@ class BackfillContinuationTest {
     @Test
     fun multiPassDrain_untilCaughtUpOrCapped() {
         val strapNewest = 1_800_000_000L
-        var frontier = strapNewest - 7L * 86_400L   // a week behind
+        // Backlog DEEPER than the cap (each pass advances the frontier one day) so the drain is bounded by
+        // the cap, not by catching up — that is the invariant this test pins, independent of the cap value.
+        var frontier = strapNewest - (WhoopBleClient.MAX_AUTO_CONTINUES + 5).toLong() * 86_400L
         var count = 0
         var passes = 0
         while (WhoopBleClient.shouldAutoContinue(

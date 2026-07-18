@@ -310,14 +310,18 @@ struct Whoop5EmptyOffloadTracker {
 /// #1012: a FUTURE-dated `strapNewestTs` (more than `futureSkewSeconds` past the wall clock, #928) not
 /// only nulls guard 2a — it also STOPS guard 2b. A future-clock strap banks future-dated records, so the
 /// rows it hands over are future-timestamped too and "real rows persisted" is no evidence of genuine
-/// backlog; 2b would chase the future-dated range through the whole cap (six back-to-back passes, each to
-/// its idle timeout — the reported ~15-min sync). The stale/PAST-epoch case 2b actually exists for (#451)
+/// backlog; 2b would chase the future-dated range through the whole cap (every consecutive pass back-to-back,
+/// each to its idle timeout — the reported ~15-min sync). The stale/PAST-epoch case 2b actually exists for (#451)
 /// reads BEHIND the frontier, never future-dated, so it is untouched.
 struct BackfillContinuation {
-    /// Hard cap on consecutive auto-continues per connection (resets on disconnect). 6 × ~60s ≈ 6 min of
-    /// back-to-back draining — enough to chew through a multi-night backlog far faster than the 15-min
-    /// floor, without letting a misbehaving strap monopolise Bluetooth.
-    static let defaultMaxAutoContinues = 6
+    /// Hard cap on consecutive auto-continues per connection (resets on disconnect). Guards 1-3 in
+    /// `shouldAutoContinue` (plus the #928/#1012 future-clock exclusion) already stop the pathological
+    /// cases, so this is only the backstop against a strap that advances its trim but never advances OUR
+    /// frontier. #533: at 6, a well-behaved deep backlog hit the cap and got throttled to the 15-min floor
+    /// mid-drain (recent nights landing hours after waking — a false sleep-detection bug in #515). Raised so
+    /// a typical deep backlog drains in ONE connection (~24 productive passes ≈ a few minutes back-to-back);
+    /// the backstop only ever bites the rare data-shape spin. TUNABLE — needs on-strap validation.
+    static let defaultMaxAutoContinues = 24
     /// How far ahead the strap must be (seconds) before "more backlog remains" is real, not clock noise.
     /// Matches StuckStrapDetector.behindGapSeconds (5 min) so the two agree on "behind".
     static let defaultBehindGapSeconds = 300
@@ -372,7 +376,7 @@ struct BackfillContinuation {
         // #1012: a future-dated newest also gates 2b, not just 2a. A strap whose clock is set ahead
         // (#928) BANKED future-dated records, so the rows this session persisted are themselves
         // future-timestamped — "real rows" is NOT evidence of genuine backlog there, and 2b used to
-        // chase the future-dated range through the whole cap (six back-to-back passes, each run to its
+        // chase the future-dated range through the whole cap (every consecutive pass back-to-back, each run to its
         // idle timeout: the reported ~15-min sync). Stop after this single pass; the periodic floor
         // keeps draining across connects, restoring the pre-#928 single-pass behaviour. The stale/
         // PAST-epoch case 2b exists for (#451) reads BEHIND the frontier, never future-dated, so it

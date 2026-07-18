@@ -964,9 +964,16 @@ class WhoopBleClient(
         fun dataRangeOldestUnix(frame: ByteArray): Long? = com.noop.protocol.DataRange.oldestUnix(frame)
 
         /** #364 auto-continue cap: consecutive immediate re-kicks per connection before falling back to
-         *  the 900s periodic timer. 6 × ~60s ≈ 6 min of back-to-back draining without letting a
-         *  misbehaving strap monopolise Bluetooth. Mirrors Swift BackfillContinuation.defaultMaxAutoContinues. */
-        const val MAX_AUTO_CONTINUES = 6
+         *  the 900s periodic timer. Guards 1-3 in [shouldAutoContinue] (healthy link, genuine backlog,
+         *  advancing trim, plus the #928/#1012 future-clock exclusion) already stop the pathological cases;
+         *  this cap is only the backstop against a strap that advances its trim but never advances OUR
+         *  frontier (a data-shape spin). #533: at 6, a WELL-BEHAVED deep backlog hit the cap and got
+         *  throttled to the 15-min floor mid-drain (~9s bursts, 15-20 min apart, 95% waiting), so recent
+         *  nights landed hours after waking (which surfaced as a false sleep-detection bug in #515). Raised
+         *  so a typical deep backlog drains in ONE connection: 24 productive passes (~10-15s each) ≈ a few
+         *  minutes of back-to-back draining; the ~24-min backstop only ever bites the rare data-shape spin.
+         *  Mirrors Swift BackfillContinuation.defaultMaxAutoContinues. TUNABLE — needs on-strap validation. */
+        const val MAX_AUTO_CONTINUES = 24
 
         /** #364 "more backlog remains" margin (seconds): how far ahead the strap must be of our persisted
          *  data frontier before we treat it as behind, not clock noise. Matches the Swift
@@ -1037,8 +1044,8 @@ class WhoopBleClient(
          * #1012: a FUTURE-dated [strapNewestTs] (more than [futureSkewSeconds] past the wall clock, #928)
          * not only nulls guard 2a — it also STOPS guard 2b. A future-clock strap banks future-dated
          * records, so the rows it hands over are future-timestamped too and "real rows persisted" is no
-         * evidence of genuine backlog; 2b would chase the future-dated range through the whole cap (six
-         * back-to-back passes, each to its idle timeout — the reported ~15-min sync). The stale/PAST-epoch
+         * evidence of genuine backlog; 2b would chase the future-dated range through the whole cap (every
+         * consecutive pass back-to-back, each to its idle timeout — the reported ~15-min sync). The stale/PAST-epoch
          * case 2b actually exists for (#451) reads BEHIND the frontier, never future-dated, so it is
          * untouched.
          */
@@ -1069,8 +1076,8 @@ class WhoopBleClient(
             // #1012: a future-dated newest also gates 2b, not just 2a. A strap whose clock is set ahead
             // (#928) BANKED future-dated records, so the rows this session persisted are themselves
             // future-timestamped — "real rows" is NOT evidence of genuine backlog there, and 2b used to
-            // chase the future-dated range through the whole cap (six back-to-back passes, each run to
-            // its idle timeout: the reported ~15-min sync). Stop after this single pass; the periodic
+            // chase the future-dated range through the whole cap (every consecutive pass back-to-back,
+            // each run to its idle timeout: the reported ~15-min sync). Stop after this single pass; the periodic
             // floor keeps draining across connects, restoring the pre-#928 single-pass behaviour. The
             // stale/PAST-epoch case 2b exists for (#451) reads BEHIND the frontier, never future-dated,
             // so it falls through untouched below.
