@@ -1423,7 +1423,43 @@ final class AICoachEngine: ObservableObject {
             lines.append("SAFETY: do not suggest increasing training load or intensity while this signal "
                          + "is present; favor rest, recovery, and seeing a professional if warranted.")
         }
+        // Cycle phase, ONLY when the user opted in AND the engine actually detected one (never
+        // `.learning`/`.unknown`) — the same gate + skin-temp/RHR/HRV z-scored inputs
+        // `AppModel.computeCyclePhase()` uses for the Health hub's cards, so the two can't disagree.
+        // Costs nothing for a user without cycle data: the UserDefaults check short-circuits first.
+        if UserDefaults.standard.bool(forKey: AppModel.cycleAwarenessKey) {
+            let (nights, baselineUsable) = Self.cyclePhaseNights(days: repo.days)
+            let phase = CyclePhaseEngine.classify(nights, baselineUsable: baselineUsable)
+            if phase.phase != .learning, phase.phase != .unknown {
+                lines.append("")
+                lines.append("Cycle phase (\(phase.confidence.rawValue) confidence): \(phase.note)")
+            }
+        }
         return lines.joined(separator: "\n")
+    }
+
+    /// Pure: builds `CyclePhaseEngine.Night` rows (+ whether the skin-temp baseline is usable) from
+    /// daily history, exactly as `AppModel.computeCyclePhase()` does — nightly skin-temp deviation / RHR
+    /// / HRV z-scored against their own folded baselines. Duplicated rather than shared (`AICoachEngine`
+    /// has no `AppModel` reference) so `readinessBlock()`'s cycle-phase line can never disagree with the
+    /// Health hub's skin-temp cards.
+    static func cyclePhaseNights(days: [DailyMetric]) -> (nights: [CyclePhaseEngine.Night], baselineUsable: Bool) {
+        guard let tempCfg = Baselines.metricCfg["skin_temp"],
+              let rhrCfg = Baselines.metricCfg["resting_hr"],
+              let hrvCfg = Baselines.metricCfg["hrv"] else { return ([], false) }
+        let sorted = days.sorted { $0.day < $1.day }
+        let skinState = Baselines.foldHistory(sorted.map { $0.skinTempDevC }, cfg: tempCfg)
+        let rhrState = Baselines.foldHistory(sorted.map { $0.restingHr.map(Double.init) }, cfg: rhrCfg)
+        let hrvState = Baselines.foldHistory(sorted.map { $0.avgHrv }, cfg: hrvCfg)
+        let nights: [CyclePhaseEngine.Night] = sorted.map { d in
+            let tempZ = d.skinTempDevC.map {
+                skinState.usable ? Baselines.deviation($0, state: skinState).z : $0 / 0.3
+            }
+            let rhrZ = rhrState.usable ? d.restingHr.map { Baselines.deviation(Double($0), state: rhrState).z } : nil
+            let hrvZ = hrvState.usable ? d.avgHrv.map { Baselines.deviation($0, state: hrvState).z } : nil
+            return CyclePhaseEngine.Night(day: d.day, tempZ: tempZ, rhrZ: rhrZ, hrvZ: hrvZ)
+        }
+        return (nights, skinState.usable)
     }
 
     /// The ordered "why is my Charge what it is" breakdown (`ChargeDrivers`), computed from the SAME
