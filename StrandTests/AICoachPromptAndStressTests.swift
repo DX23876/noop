@@ -116,6 +116,34 @@ final class AICoachPromptAndStressTests: XCTestCase {
         XCTAssertTrue(instruction.contains("Your plan"))
     }
 
+    /// Golden string: T1 must not touch the non-tool path at all. `buildFullContext()` genuinely puts
+    /// charge/HRV/rest/readiness in the message there, so "Based on the data above" stays true and the
+    /// text is pinned byte-for-byte.
+    func testBriefWithoutToolsIsUnchangedFromBeforeT1() {
+        let instruction = AICoachEngine.briefInstruction(toolsActive: false)
+        XCTAssertEqual(instruction, """
+        Based on the data above, give me TODAY'S coaching brief in three short parts: \
+        (1) my readiness in one line, citing charge, HRV and rest; \
+        (2) exactly what training to do today and what to avoid — you cannot record it for them, so \
+        close by telling them to add it in Your plan if they want it; \
+        (3) one specific thing to improve my charge. Be punchy and motivating.
+        """)
+    }
+
+    /// T1's actual fix: on the tool path there IS no data above (toolModeContext carries no numbers), so
+    /// the brief must not claim there is, and must tell the model how to get real ones instead.
+    func testBriefWithToolsDoesNotClaimDataItWasNotGiven() {
+        let instruction = AICoachEngine.briefInstruction(toolsActive: true)
+        XCTAssertFalse(instruction.contains("Based on the data above"),
+                       "the tool path is given no numbers, so it must not claim it was")
+    }
+
+    func testBriefWithToolsNamesTheReadTools() {
+        let instruction = AICoachEngine.briefInstruction(toolsActive: true)
+        XCTAssertTrue(instruction.contains("get_readiness"))
+        XCTAssertTrue(instruction.contains("get_biometric_summary"))
+    }
+
     /// Both variants still deliver the three-part brief the check-in notification promises.
     func testBothVariantsKeepTheThreePartShape() {
         for active in [true, false] {

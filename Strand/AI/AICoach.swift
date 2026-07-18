@@ -1240,24 +1240,35 @@ final class AICoachEngine: ObservableObject {
     /// have recorded it. Part (2) is where "the text should work that way too" lives — the brief names
     /// today's session concretely and says it's waiting on a yes (WHOOP's Daily-Outlook tone, NOOP's
     /// consent model).
+    ///
+    /// The two branches differ in their OPENING PREMISE, not just part (2). "Based on the data above" is
+    /// only true on the non-tool path, where `buildFullContext()` really did put charge/HRV/rest/readiness
+    /// in the message. On the tool path the brief runs on `toolModeContext` — a short note plus the plan
+    /// block, no numbers at all — so a brief that opened the same way for both was asking the model to
+    /// cite figures it had never been given. The tool-mode premise instead requires fetching them first.
     static func briefInstruction(toolsActive: Bool) -> String {
-        let training = toolsActive
-            ? """
-            (2) exactly what training to do today and what to avoid — then record THAT session with \
-            propose_plan for today's date so it shows on the Today screen for the user to accept, change \
-            or decline. Propose exactly ONE session for today. It is a suggestion, not a booking — never \
-            describe it as scheduled. Anything already listed as awaiting the user's decision is already \
-            recorded; do not propose it again;
-            """
-            : """
+        guard toolsActive else {
+            return """
+            Based on the data above, give me TODAY'S coaching brief in three short parts: \
+            (1) my readiness in one line, citing charge, HRV and rest; \
             (2) exactly what training to do today and what to avoid — you cannot record it for them, so \
-            close by telling them to add it in Your plan if they want it;
+            close by telling them to add it in Your plan if they want it; \
+            (3) one specific thing to improve my charge. Be punchy and motivating.
             """
+        }
         return """
-        Based on the data above, give me TODAY'S coaching brief in three short parts: \
-        (1) my readiness in one line, citing charge, HRV and rest; \
-        \(training) \
-        (3) one specific thing to improve my charge. Be punchy and motivating.
+        You have not been given any of my numbers yet. Before you write anything, call get_readiness and \
+        get_biometric_summary; call get_charge_drivers too if my Charge is notably high or low, and \
+        get_sleep_detail if sleep is the story. Once you have real numbers, give me TODAY'S coaching brief \
+        in three short parts: \
+        (1) my readiness in one line, citing the charge, HRV and rest you just fetched; \
+        (2) exactly what training to do today and what to avoid — then record THAT session with \
+        propose_plan for today's date so it shows on the Today screen for the user to accept, change \
+        or decline. Propose exactly ONE session for today. It is a suggestion, not a booking — never \
+        describe it as scheduled. Anything already listed as awaiting the user's decision is already \
+        recorded; do not propose it again; \
+        (3) one specific thing to improve my charge, grounded in what get_charge_drivers showed. Be punchy \
+        and motivating.
         """
     }
 
