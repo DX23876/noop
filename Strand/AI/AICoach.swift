@@ -1919,13 +1919,40 @@ final class AICoachEngine: ObservableObject {
         let rr = (try? await store.rrIntervals(
             deviceId: repo.deviceId, from: from, to: to, limit: 200_000)) ?? []
         guard let si = StressIndex.stressIndex(rr: rr) else { return nil }
-        return Self.stressIndexSummary(si: si)
+        var line = Self.stressIndexSummary(si: si)
+
+        // Hourly history alongside the single number, the SAME per-hour proxy the Stress screen's
+        // timeline shows (`DaytimeStress.analyze`) — so the coach can say WHEN today ran high, not just
+        // by how much overall.
+        let hr = await repo.hrSamples(from: from, to: to, limit: 200_000)
+        let tz = TimeZone.current.secondsFromGMT(for: Date())
+        let daytime = DaytimeStress.analyze(hr: hr, rr: rr, tzOffsetSeconds: tz)
+        if let daytimeLine = Self.daytimeStressLine(daytime) { line += "\n" + daytimeLine }
+        return line
     }
 
     /// Pure formatter for the derived stress line, kept separate so it is unit-testable without a store.
     /// One summary number, labelled, with a plain-English note that it's an autonomic-balance proxy.
     static func stressIndexSummary(si: Double) -> String {
         "Stress (SI): \(Int(si.rounded())) (Baevsky Stress Index over today's R-R; higher means more sympathetic / under load; an autonomic-balance proxy, not a clinical figure)."
+    }
+
+    /// Pure formatter for the hourly daytime-stress history: nil once nothing scored yet today (too
+    /// little HR — same gate `DaytimeStress` applies), otherwise each scored hour's 0–3 level, the peak
+    /// hour, and a sustained-high call-out when the most recent scored hours all sit in the HIGH band.
+    nonisolated static func daytimeStressLine(_ result: DaytimeStress.Result) -> String? {
+        let scored = result.scored
+        guard !scored.isEmpty else { return nil }
+        let points = scored.map { String(format: "%02d:00 %.1f", $0.hour, $0.level ?? 0) }
+            .joined(separator: ", ")
+        var line = "Daytime stress (hourly, 0-3 proxy): \(points)"
+        if let peak = result.peak {
+            line += String(format: "; peak %02d:00 (%.1f)", peak.hour, peak.level ?? 0)
+        }
+        if result.sustainedHigh {
+            line += "; sustained HIGH for the last \(result.sustainedRun) scored hours"
+        }
+        return line
     }
 
     /// A SUMMARY-ONLY block of the new on-device signals, the user's strongest n-of-1 correlations
