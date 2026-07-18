@@ -470,26 +470,16 @@ extension AICoachEngine {
         return true
     }
 
-    /// Short note sent in place of the pre-baked metrics context when tool-calling is active: it tells
-    /// the model it must FETCH the user's real numbers via tools before advising, and never invent them.
-    static let toolModeContextNote = """
-    You have TOOLS to fetch the user's own wearable data on demand (biometric summary, recent workouts, \
-    today's stress index, readiness verdict, Charge breakdown, and — if shared — their personal \
-    patterns). Call get_readiness before any push/maintain/rest advice — never derive that call yourself \
-    from the raw charge number. Call the tools you need to ground your answer in their REAL numbers \
-    before advising, and cite those numbers. If a tool reports no data, say so plainly rather than \
-    inventing figures.
-    """
-
-    /// The context actually sent on the tool path: the fetch-your-numbers note PLUS what's already on
-    /// the table (pending proposals + commitments). Without the plan block the model is blind to its own
-    /// pending proposals exactly when `propose_plan` is callable, so it re-proposes what it already
-    /// proposed — `buildFullContext()` carries `planContextBlock()`, but the tool path skips that whole
-    /// builder in favour of the lean note.
+    /// The context actually sent on the tool path — now ONLY the LIVING data: what's already on the
+    /// table (pending proposals + commitments). The stable "you have tools, fetch before advising"
+    /// prose moved to the CACHED system block (`AICoachEngine.toolModeClause`), where it's paid once
+    /// rather than re-sent uncached in this user message every round. Without the plan block the model
+    /// would be blind to its own pending proposals exactly when `propose_plan` is callable and re-propose
+    /// them; `buildFullContext()` carries `planContextBlock()` on the non-tool path, so the tool path
+    /// carries it here. Empty when nothing is pending — `wirePairs` then sends the question alone rather
+    /// than wrapping a "Question:" scaffold around nothing.
     var toolModeContext: String {
-        var note = Self.toolModeContextNote
-        if let plan = planContextBlock() { note += "\n\n" + plan }
-        return note
+        planContextBlock() ?? ""
     }
 
     /// Execute one tool call and return a compact text result. Routes to the same consent-gated summaries

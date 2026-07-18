@@ -101,4 +101,40 @@ final class CoachSystemPromptToolClauseTests: XCTestCase {
         XCTAssertTrue(AICoachEngine.defaultSystemPrompt.contains("Plans are AGREED, not issued"))
         XCTAssertTrue(AICoachEngine.defaultSystemPrompt.contains("not a failure"))
     }
+
+    // MARK: - T4: the tool-awareness map (toolModeClause) rides the cached system block
+
+    /// The four-verb map is present EXACTLY when tools are live — the same gate as the plan clause, so
+    /// the model is never told about tools it wasn't handed.
+    func testToolModeClauseIsPresentWhenToolCallingIsOn() {
+        let engine = makeEngine()
+        engine.provider = .anthropic
+        engine.dataConsent = true
+        XCTAssertTrue(engine.toolCallingActive)
+        XCTAssertTrue(engine.systemPrompt.contains(AICoachEngine.toolModeClause))
+    }
+
+    func testToolModeClauseIsAbsentWhenToolCallingIsOff() {
+        let engine = makeEngine()
+        engine.provider = .gemini
+        engine.dataConsent = true
+        XCTAssertFalse(engine.toolCallingActive)
+        XCTAssertFalse(engine.systemPrompt.contains(AICoachEngine.toolModeClause))
+        // Mutually exclusive with the no-tool clause: they never both ride the same prompt.
+        XCTAssertTrue(engine.systemPrompt.contains(AICoachEngine.noPlanToolClause))
+    }
+
+    /// The regression the W1 clause split exists for: a user with a custom `ai.systemPrompt` override
+    /// used to lose mode-specific rules entirely (they lived inside `defaultSystemPrompt`, which an
+    /// override replaces wholesale). Because `toolModeClause` is APPENDED in `systemPrompt`, an override
+    /// can't strip it.
+    func testToolModeClauseSurvivesACustomSystemPromptOverride() {
+        let engine = makeEngine()
+        engine.provider = .anthropic
+        engine.dataConsent = true
+        engine.customSystemPrompt = "Be brief."
+        XCTAssertTrue(engine.systemPrompt.contains("Be brief."), "premise: the override is in effect")
+        XCTAssertTrue(engine.systemPrompt.contains(AICoachEngine.toolModeClause),
+                      "a custom prompt must not silently drop the tool-awareness map")
+    }
 }

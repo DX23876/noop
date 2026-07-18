@@ -1,9 +1,11 @@
 import XCTest
 @testable import Strand
 
-/// The tool path used to send `toolModeContextNote` alone — no plan block — so the model was blind to
-/// its own pending proposals exactly when `propose_plan` was callable, and re-proposed what it had
-/// already proposed. W3 folds `planContextBlock()` into the tool-path context (`toolModeContext`).
+/// The tool path used to be blind to its own pending proposals exactly when `propose_plan` was
+/// callable, and re-proposed what it had already proposed. W3 folded `planContextBlock()` into the
+/// tool-path context (`toolModeContext`); T4 then shrank `toolModeContext` to ONLY that living plan
+/// block (the stable "you have tools" prose moved to the cached system block, `toolModeClause`), so the
+/// tool-path context is the plan block or empty — never a fixed note.
 ///
 /// Two layers are pinned: the injectable `planContextBlock(store:)` (pollution-free), and the real
 /// `toolModeContext` wrapper that `send()`/`generateBrief()` actually send (via the shared store, so
@@ -50,15 +52,15 @@ final class PlanContextBlockTests: XCTestCase {
         CoachPlanStore.shared.propose(PlanProposal(day: today, sport: "Tempo run", intent: .hard))
 
         let ctx = makeEngine().toolModeContext
-        XCTAssertTrue(ctx.contains(AICoachEngine.toolModeContextNote),
-                      "the fetch-your-numbers note must still be there")
         XCTAssertTrue(ctx.contains("AWAITING THE USER'S DECISION"),
-                      "and now so is what's already on the table")
+                      "what's already on the table must ride the tool-path context")
         XCTAssertTrue(ctx.contains("Tempo run"))
     }
 
-    func testToolModeContextIsJustTheNoteWhenNothingIsPending() {
-        XCTAssertEqual(makeEngine().toolModeContext, AICoachEngine.toolModeContextNote,
-                       "with an empty plan store the tool-path context is exactly the note, nothing appended")
+    /// T4: the stable prose moved to the cached system block, so with nothing pending the tool-path
+    /// context is EMPTY — `wirePairs` then sends the question alone, no scaffold around nothing.
+    func testToolModeContextIsEmptyWhenNothingIsPending() {
+        XCTAssertTrue(makeEngine().toolModeContext.isEmpty,
+                      "with an empty plan store the tool-path context carries no living data at all")
     }
 }

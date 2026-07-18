@@ -24,10 +24,33 @@ final class CoachWireHygieneTests: XCTestCase {
 
         XCTAssertEqual(wire.count, 3)
         XCTAssertFalse(wire.contains { $0.content.isEmpty })
-        // The context rides the FIRST user turn only.
-        XCTAssertTrue(wire[0].content.hasPrefix("CTX"))
-        XCTAssertTrue(wire[0].content.hasSuffix("Plot my HRV"))
-        XCTAssertEqual(wire[2].content, "What does the dip mean?")
+        // T4: the context rides the LAST user turn (the actual question), not the first.
+        XCTAssertEqual(wire[0].content, "Plot my HRV")
+        XCTAssertTrue(wire[2].content.hasPrefix("CTX"))
+        XCTAssertTrue(wire[2].content.hasSuffix("What does the dip mean?"))
+    }
+
+    /// T4 empty-context edge: with a blank context (the tool path with no pending proposals — the stable
+    /// prose now lives in the cached system block), the question rides the wire ALONE, never wrapped in a
+    /// "\n\n---\n\nQuestion:" scaffold around nothing.
+    func testBlankContextSendsTheQuestionAloneWithNoScaffold() {
+        let windowed = [
+            ChatMessage(role: .user, text: "How's my recovery?")
+        ]
+        let wire = AICoachEngine.wirePairs(from: windowed, context: "   \n  ")
+        XCTAssertEqual(wire.count, 1)
+        XCTAssertEqual(wire[0].content, "How's my recovery?")
+        XCTAssertFalse(wire[0].content.contains("---"))
+        XCTAssertFalse(wire[0].content.contains("Question:"))
+    }
+
+    /// A transcript with no user turn at all must not crash and must inject the context nowhere (the
+    /// context is dropped rather than fabricated onto an assistant turn).
+    func testNoUserTurnDoesNotCrashAndInjectsNowhere() {
+        let windowed = [ChatMessage(role: .assistant, text: "Today's brief\n\n…")]
+        let wire = AICoachEngine.wirePairs(from: windowed, context: "CTX")
+        XCTAssertEqual(wire.count, 1)
+        XCTAssertEqual(wire[0].content, "Today's brief\n\n…")
     }
 
     func testChartOnlyReplyStillYieldsValidWire() {

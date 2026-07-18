@@ -32,7 +32,10 @@ final class AICoachPromptAndStressTests: XCTestCase {
     /// same way here so that equality still pins exactly that.
     private func expectedPrompt(base: String, engine: AICoachEngine) -> String {
         let clause = engine.toolCallingActive ? AICoachEngine.planToolClause : AICoachEngine.noPlanToolClause
-        return CoachPersona.current.systemPreamble + "\n\n" + base + "\n\n" + clause
+        var prompt = CoachPersona.current.systemPreamble + "\n\n" + base + "\n\n" + clause
+        // T4: the tool-awareness map rides the cached system block under the same tool-calling gate.
+        if engine.toolCallingActive { prompt += "\n\n" + AICoachEngine.toolModeClause }
+        return prompt
     }
 
     private func expectedDefaultPrompt(_ engine: AICoachEngine) -> String {

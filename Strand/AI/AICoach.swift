@@ -330,15 +330,16 @@ final class AICoachEngine: ObservableObject {
     /// custom is stored. Editing the live prompt overrides this via `systemPromptKey`.
     static let defaultSystemPrompt = """
     You are an elite, supportive recovery and performance coach with a real training methodology. \
-    You may be given a summary of the user's own wearable data (charge 0-100, effort 0-100, rest 0-100, \
-    HRV, resting heart rate) and recent workouts. Charge is the daily recovery/readiness score, effort \
-    is the daily cardiovascular load score, and rest is the nightly sleep-quality score. \
+    Your source of truth is the user's own wearable data (charge 0-100, effort 0-100, rest 0-100, \
+    HRV, resting heart rate) and recent workouts — provided below as a summary, or fetched with your \
+    tools. Charge is the daily recovery/readiness score, effort is the daily cardiovascular load score, \
+    and rest is the nightly sleep-quality score. \
     Coach using autoregulation:
-    • Readiness → prescription: you are given (or can fetch via get_readiness) a Readiness verdict \
-    computed the SAME way the app's own Today screen shows it - level (primed/balanced/strained/rundown), \
-    acute:chronic workload ratio, training monotony, and the contributing signals. FOLLOW that verdict \
-    rather than re-deriving your own call from the raw charge number, so your advice never contradicts \
-    what the user sees on Today. primed = green light to build/push, higher effort is fine; balanced = \
+    • Readiness → prescription: your autoregulation input is a Readiness verdict computed the SAME way \
+    the app's own Today screen shows it - level (primed/balanced/strained/rundown), acute:chronic \
+    workload ratio, training monotony, and the contributing signals. FOLLOW that verdict rather than \
+    re-deriving your own call from the raw charge number, so your advice never contradicts what the \
+    user sees on Today. primed = green light to build/push, higher effort is fine; balanced = \
     maintain, quality over volume, keep it controlled; strained/rundown = active recovery only (Zone 2, \
     mobility, extra sleep) and protect against accumulating effort debt. If a HEALTH SIGNAL / SAFETY note \
     is present, do not suggest increasing training load regardless of the readiness level.
@@ -348,8 +349,9 @@ final class AICoachEngine: ObservableObject {
     be specific, punchy and motivating - like a coach who knows them.
     • Plans are AGREED, not issued. A declined or skipped session is information, not a failure - the \
     skip reason is usually right there, so ask about it rather than assuming laziness.
-    If no data is provided, coach generally and invite them to turn on data access for personalised \
-    advice. You are NOT a doctor - never diagnose; suggest a professional for genuine health concerns.
+    When you have no data to work from, coach generally and invite them to turn on data access for \
+    personalised advice. You are NOT a doctor - never diagnose; suggest a professional for genuine \
+    health concerns.
     Format replies in simple Markdown, chat-sized: short paragraphs, **bold** for key numbers, \
     bullet or numbered lists for plans, ### headings only when structure genuinely helps, and a \
     small table only for a week-ahead plan. No code blocks.
@@ -381,6 +383,29 @@ final class AICoachEngine: ObservableObject {
     Never claim you've noted, recorded, saved or scheduled anything - you haven't.
     """
 
+    /// The tool-awareness map, appended to the CACHED system block when tools are live (same
+    /// `toolCallingActive` gate as `planToolClause`). It lands in the system block — cached by Anthropic
+    /// after round 1 — rather than in a per-round user message, where its predecessor
+    /// (`toolModeContextNote`) was re-paid uncached every round. Written as a four-VERB map, not a list
+    /// of 20 names: the model already has all 20 full tool definitions in the same request, so what it
+    /// needs is a sense of the families and the discipline to reach for them, not the names repeated.
+    static let toolModeClause = """
+    Nothing about this user is in front of you until you fetch it — reach for a tool before you answer, \
+    not after guessing. What your tools do:
+    • READ their data — get_biometric_summary, get_readiness, get_charge_drivers, get_sleep_detail, \
+    get_recent_workouts, get_stress_index, get_range_report, get_plan_adherence, plot_metric to draw \
+    one, and get_personal_patterns when they've shared it. Call get_readiness before any \
+    push/maintain/rest call; never re-derive that from the raw charge number.
+    • PROJECT forward — get_session_outlook (what a session would cost, from their own history), \
+    simulate_day (tomorrow's Charge under a plan).
+    • WRITE to the app — propose_plan, log_caffeine, log_journal, log_lab_marker; always say plainly \
+    what you wrote.
+    • REMEMBER across chats — remember_fact, update_fact, forget_fact, and search_past_conversations \
+    to pull earlier context back.
+    Cite the real numbers a tool returns; if one reports no data, say so rather than inventing figures. \
+    Two tool calls and an answer you can stand behind beat one confident sentence you can't.
+    """
+
     /// The system prompt actually sent, read FRESH from UserDefaults on every request so an edit in
     /// the settings takes effect on the next message, with no engine rebuild. A blank/absent stored
     /// value falls back to `defaultSystemPrompt`, so a user who clears it never sends an empty prompt.
@@ -401,6 +426,9 @@ final class AICoachEngine: ObservableObject {
         // `tools: toolCallingActive ? coachTools : []` read the same gate on the same MainActor turn,
         // so the promise and the tool array can never disagree.
         prompt += "\n\n" + (toolCallingActive ? Self.planToolClause : Self.noPlanToolClause)
+        // The tool-awareness map rides the cached system block (not a per-round user message) so the
+        // model is reminded what its tools are for at ~1/10th the per-round cost. Same gate as above.
+        if toolCallingActive { prompt += "\n\n" + Self.toolModeClause }
         return prompt
     }
 
@@ -1356,8 +1384,12 @@ final class AICoachEngine: ObservableObject {
         await ensureOpenRouterCapabilities()
 
         let context = toolCallingActive ? toolModeContext : await buildFullContext()
-        let wire: [(role: ChatMessage.Role, content: String)] =
-            [(.user, context + "\n\n---\n\n" + Self.briefInstruction(toolsActive: toolCallingActive))]
+        // Empty context (tool path, nothing pending) → the instruction alone, no dangling "---" separator.
+        let instruction = Self.briefInstruction(toolsActive: toolCallingActive)
+        let briefContent = context.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? instruction
+            : context + "\n\n---\n\n" + instruction
+        let wire: [(role: ChatMessage.Role, content: String)] = [(.user, briefContent)]
         do {
             let reply = try await callProvider(key: key, messages: wire)
             let clean = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -2158,13 +2190,19 @@ final class AICoachEngine: ObservableObject {
 
     /// Pure: fold the windowed transcript into wire pairs. Split from `wireMessages` so the
     /// empty-turn filter is unit-testable without an engine instance.
+    ///
+    /// The context rides the LAST user turn (the actual question), not the first: it's all behind the
+    /// system-block cache breakpoint, so anchoring it later costs nothing, and the living plan block ends
+    /// up next to the question the user just asked instead of ten messages back. When `context` is blank
+    /// (the tool path with no pending proposals — the stable prose now lives in the cached system block),
+    /// the question is sent ALONE: no `\n\n---\n\nQuestion:` scaffold wrapped around nothing.
     nonisolated static func wirePairs(from windowed: [ChatMessage], context: String) -> [(role: ChatMessage.Role, content: String)] {
+        let anchorIndex = windowed.lastIndex(where: { $0.role == .user && !$0.text.isEmpty })
+        let ctx = context.trimmingCharacters(in: .whitespacesAndNewlines)
         var out: [(role: ChatMessage.Role, content: String)] = []
-        var contextInjected = false
-        for m in windowed {
+        for (i, m) in windowed.enumerated() {
             if m.text.isEmpty { continue }
-            if m.role == .user && !contextInjected {
-                contextInjected = true
+            if i == anchorIndex && !ctx.isEmpty {
                 out.append((.user, context + "\n\n---\n\nQuestion: " + m.text))
             } else {
                 out.append((m.role, m.text))
