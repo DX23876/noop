@@ -313,6 +313,14 @@ struct LiquidTodayView: View {
         // A firm tick when the pull passes the release threshold (the custom liquid refresh).
         .liquidMediumHaptic(trigger: pullHaptic)
         .task(id: "\(repo.refreshSeq)-\(selectedDayOffset)") { await load() }
+        // Honour a one-shot "open Live Session" request (the coach chat's action chip, or any future
+        // deep-link) — fires on the flag itself, not just on appear, so it still works when Today is
+        // ALREADY the active tab and RootTabView's own tab switch is a no-op. Tab roots stay alive across
+        // switches, so this reacts regardless of which tab is currently visible.
+        .onChangeCompat(of: router.presentLiveSession) { present in
+            guard present else { return }
+            consumeLiveSessionRequest()
+        }
         .sheet(item: $guideSection) { section in
             NavigationStack { ScoringGuideView(initialSection: section, onClose: { guideSection = nil }) }
         }
@@ -501,6 +509,17 @@ struct LiquidTodayView: View {
         }
         .buttonStyle(LiquidPressStyle())
         .accessibilityLabel("Ask your Coach. Opens the AI coach chat, grounded in your own numbers.")
+    }
+
+    /// Consume `router.presentLiveSession`: opens the SAME cover the manual Start-session row does.
+    /// Guarded on the beta toggle so a user who turned the feature off doesn't get it silently opened
+    /// from the coach chat — the chip that raised this request is itself hidden when the toggle is off
+    /// (see `CoachView.actionRow`), so reaching here with the toggle off would only happen for a stale
+    /// request, and it stays a no-op rather than presenting a screen the user disabled.
+    private func consumeLiveSessionRequest() {
+        router.presentLiveSession = false
+        guard liveSessionsBeta else { return }
+        showLiveSession = true
     }
 
     /// One-tap Live Session start (silent guardian, beta) — sits directly under the hero scores, the

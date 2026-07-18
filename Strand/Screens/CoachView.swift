@@ -37,6 +37,10 @@ struct CoachView: View {
     @State private var showGoalOnboarding = false
     /// Drives the header's pending-proposal dot.
     @ObservedObject private var planStore = CoachPlanStore.shared
+    /// Live Sessions (silent guardian) beta gate — the SAME key `LiquidTodayView`/Settings read. Hides
+    /// the action row's "Live Session" chip when the user has turned the feature off, so the chip never
+    /// looks tappable for something it can't actually open (#P3).
+    @AppStorage(LiveSessionPrefs.betaKey) private var liveSessionsBeta = true
     #if os(iOS)
     /// Extra clearance the composer needs to clear RootTabView's floating tab bar, which is drawn on
     /// top of pushed content and isn't part of this screen's own safe area. Zero everywhere else: a
@@ -430,7 +434,11 @@ struct CoachView: View {
             // Each title is a literal `Text(...)` at its own call site (not a `String` routed through
             // `actionChip`'s parameter) — the same scanner-visibility reason as `evidenceLabel` above.
             actionChip(icon: "wind", action: { navRouter.openBreathe() }) { Text("Breathe") }
-            actionChip(icon: "waveform.path.ecg", action: { navRouter.openLiveSession() }) { Text("Live Session") }
+            // Hidden when the user turned Live Sessions off (Settings/Today's own toggle) — the chip
+            // would otherwise look tappable for a feature it can't actually open (#P3).
+            if liveSessionsBeta {
+                actionChip(icon: "waveform.path.ecg", action: { navRouter.openLiveSession() }) { Text("Live Session") }
+            }
             actionChip(icon: "calendar.badge.plus", action: { activeSheet = .plan }) { Text("Schedule a session") }
         }
         .padding(.leading, 14)

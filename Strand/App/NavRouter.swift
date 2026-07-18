@@ -55,6 +55,13 @@ final class NavRouter: ObservableObject {
     /// flight, so this is the one path that re-opens the live workout for an existing session.
     @Published var presentActiveWorkout = false
 
+    /// One-shot: `LiquidTodayView` reads this to actually present the Live Session cover, since routing
+    /// alone (`requestedDestination = .liveSession`) only switches the shell to Today — where the session
+    /// screen is local `@State`, not reachable from outside. Without this, the coach chat's "Live Session"
+    /// action chip looked wired but did nothing beyond a tab switch (#P3). Consumed and cleared by
+    /// `LiquidTodayView.consumeLiveSessionRequest()`.
+    @Published var presentLiveSession = false
+
     /// Ask the shell to open the quick-action sheet (Live HR · workout · journal · breathe).
     func requestQuickActions() { quickActionsRequested = true }
 
@@ -74,10 +81,11 @@ final class NavRouter: ObservableObject {
     /// presents the in-exercise screen even when the workout is already running, in one tap from the Today
     /// indicator card. The flag is consumed (and cleared) by `LiveView.consumeActiveWorkoutRequest()`.
     func openActiveWorkout() { presentActiveWorkout = true; requestedDestination = .activeWorkout }
-    /// Open a Live Session (silent guardian, beta). The Liquid Today entry presents the session screen
-    /// directly today; this route exists for deep-link parity so a future shell/inbox item can raise it
-    /// the same way as every other destination.
-    func openLiveSession() { requestedDestination = .liveSession }
+    /// Open a Live Session (silent guardian, beta): route to Today AND raise the one-shot flag so
+    /// `LiquidTodayView` actually presents the session cover, the same `presentActiveWorkout` pattern
+    /// `openActiveWorkout()` uses. Consumed by `LiquidTodayView.consumeLiveSessionRequest()`, which
+    /// no-ops if the beta toggle is off rather than presenting a feature the user turned off.
+    func openLiveSession() { presentLiveSession = true; requestedDestination = .liveSession }
     /// Open Breathe. Raised by the coach chat's action row (P6) so a reply that suggests calming down
     /// leads somewhere in one tap instead of "go find it in the menu yourself".
     func openBreathe() { requestedDestination = .breathe }
