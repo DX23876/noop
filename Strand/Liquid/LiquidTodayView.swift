@@ -39,6 +39,7 @@ struct LiquidTodayView: View {
     @State private var fitnessAge: Double?         // exploreSeries("fitness_age").last
     @State private var vitality: Double?           // exploreSeries("vitality").last
     @State private var stepsEst: Double?           // steps_est, day-keyed to the selected day (fallback)
+    @State private var importedStepsDay: Int?      // Apple Health steps for the selected day (middle tier)
     @State private var hrValues: [Double] = []     // hrBuckets since midnight → 5-min means
     @State private var workouts: [WorkoutRow] = [] // newest-first
 
@@ -623,10 +624,10 @@ struct LiquidTodayView: View {
                      value: unitText(displayDay?.respRateBpm, card.unit, decimals: 1),
                      tint: StrandPalette.accent, frac: fracOver(displayDay?.respRateBpm, 24))
         case .steps:
-            // Route by exact source (my-whoop for both the measured "steps" and the "steps_est" fallback),
-            // NOT by bare key — bare "steps" resolves to apple-health and would show an empty detail for a
-            // WHOOP user. Order-independent, so the catalog needn't declare my-whoop first.
-            cardLink(.metricSourced(key: stepsDetailKey, source: "my-whoop"), title: card.title, sub: card.subtitle,
+            // Route by the EXACT (key, source) the tile chose to display — measured my-whoop, imported
+            // apple-health, or the my-whoop estimate — NOT by bare key (bare "steps" resolves to
+            // apple-health and would mismatch a WHOOP-measured value). Order-independent.
+            cardLink(.metricSourced(key: stepsDetailKey, source: stepsDetailSource), title: card.title, sub: card.subtitle,
                      value: stepsText, tint: StrandPalette.metricCyan, frac: fracOver(stepCount, 10000))
         case .bloodOxygen:
             // Not wired to a real read yet — render EMPTY (not half-full) so it doesn't imply a reading.
@@ -1035,6 +1036,7 @@ struct LiquidTodayView: View {
         async let fitA = repo.exploreSeries(key: "fitness_age", source: "my-whoop")
         async let vitA = repo.exploreSeries(key: "vitality", source: "my-whoop")
         async let stepsA = repo.exploreSeries(key: "steps_est", source: "my-whoop")
+        async let appleA = repo.appleDailyRows()
         async let hrA = repo.hrBuckets(from: from, to: to, bucketSeconds: 300)
         async let wkA = repo.workoutRows()
         // Ask the same cross-source resolver the Classic Today view uses which source actually won each
@@ -1096,6 +1098,10 @@ struct LiquidTodayView: View {
         // `.last` value) instead of that day's. Mirrors the classic Today's stepsEstByDay[selectedDayKey].
         let stepsByDay = Dictionary(stepsSeries.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
         stepsEst = stepsByDay[selectedDayKey] ?? (selectedDayOffset == 0 ? stepsSeries.last?.value : nil)
+        // Imported Apple Health steps for the SELECTED day (max across rows), the middle tier between the
+        // measured strap count and the motion estimate. Health Connect is Android-only, so apple-health is
+        // the sole import source on iOS. Mirrors Android `stepsForDay` (#377).
+        importedStepsDay = (await appleA).filter { $0.day == selectedDayKey }.compactMap { $0.steps }.max()
         hrValues = (await hrA).map { $0.bpm }
         workouts = await wkA
 
@@ -1174,13 +1180,19 @@ struct LiquidTodayView: View {
             : String(localized: "Good evening")
     }
 
-    private var stepCount: Double? { displayDay?.steps.map(Double.init) ?? stepsEst }
+    // Measured strap count ?: imported Apple Health count ?: motion estimate — the same precedence the
+    // detail routing follows below, so the tapped-through source always matches the number shown (#377).
+    private var stepCount: Double? {
+        displayDay?.steps.map(Double.init) ?? importedStepsDay.map(Double.init) ?? stepsEst
+    }
 
     private var stepsDetailMetric: MetricDescriptor? {
-        MetricCatalog.todayStepsMetric(hasMeasuredSteps: displayDay?.steps != nil)
+        MetricCatalog.todayStepsMetric(hasMeasuredSteps: displayDay?.steps != nil,
+                                       hasImportedSteps: importedStepsDay != nil)
     }
 
     private var stepsDetailKey: String { stepsDetailMetric?.key ?? "steps_est" }
+    private var stepsDetailSource: String { stepsDetailMetric?.source ?? "my-whoop" }
 
     private var liveHour: Double {
         let c = Calendar.current.dateComponents([.hour, .minute], from: Date())

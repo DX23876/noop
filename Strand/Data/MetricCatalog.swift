@@ -216,11 +216,14 @@ enum MetricCatalog {
         all.first { $0.key == key && $0.source == source }
     }
 
-    /// The Today screen prefers the measured WHOOP 5.0 / MG count and falls back to the WHOOP 4.0
-    /// motion estimate. Apple Health remains an independent catalog metric and is never substituted
-    /// for a WHOOP value after the tile has already chosen what to display.
-    static func todayStepsMetric(hasMeasuredSteps: Bool) -> MetricDescriptor? {
-        metric(key: hasMeasuredSteps ? "steps" : "steps_est", source: "my-whoop")
+    /// The source the Today steps tile taps through to, matching the value it displays. Precedence
+    /// mirrors Android's `TodayScreen` (#377): the measured WHOOP 5.0 / MG count, else the imported
+    /// Apple Health count, else the WHOOP 4.0 motion estimate. `hasImportedSteps` defaults false so
+    /// existing callers keep the measured-or-estimate behaviour unchanged.
+    static func todayStepsMetric(hasMeasuredSteps: Bool, hasImportedSteps: Bool = false) -> MetricDescriptor? {
+        if hasMeasuredSteps { return metric(key: "steps", source: "my-whoop") }
+        if hasImportedSteps { return metric(key: "steps", source: "apple-health") }
+        return metric(key: "steps_est", source: "my-whoop")
     }
 
     /// Localized display name for a catalog category, mapped AT THE RENDER SITE only. The
