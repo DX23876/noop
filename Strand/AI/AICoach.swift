@@ -1140,9 +1140,55 @@ final class AICoachEngine: ObservableObject {
         let recent = Array(all.suffix(n))
         guard !recent.isEmpty else { return "No sleep data recorded yet." }
 
-        var lines = ["SLEEP DETAIL (newest first) — asleep(h), efficiency(%), deep/REM/light(min), disturbances, RHR, HRV:"]
-        for d in recent.reversed() {
+        // Stage minutes (`SleepStager.hypnogramMetrics`) stay out of this tool deliberately — bed/wake
+        // consistency is the most actionable thing a coach has on sleep, not a third data source
+        // bloating every call.
+        let now = Int(Date().timeIntervalSince1970)
+        let sessions = await repo.sleepSessions(from: now - (n + 2) * 86_400, to: now + 86_400, limit: n + 5)
+        let habitual = await repo.habitualMidsleepSec()
+        var text = Self.formatSleepDetail(recentDays: recent, sessions: sessions, habitualMidsleepSec: habitual)
+
+        // Rolling sleep-debt ledger over the last 30 nights (14-night window inside the engine).
+        let ledger = SleepDebt.ledger(series: all.suffix(30).map { ($0.day, $0.totalSleepMin) })
+        if !ledger.nights.isEmpty {
+            let bal = ledger.balanceMin / 60
+            let need = ledger.needMin / 60
+            text += "\n\n" + String(format: "Sleep debt (rolling %d nights vs a %.1fh need): %+.1fh %@",
+                                    ledger.nights.count, need, bal,
+                                    bal < 0 ? "(deficit — behind on sleep)" : "(surplus)")
+        }
+        return text
+    }
+
+    /// Pure formatter for `sleepDetailTool`: bed/wake times (keyed by wake-day exactly as
+    /// `Repository.mergeSleep.endDay` does, so a night's times line up with its `DailyMetric` row) plus a
+    /// comparison of last night's sleep midpoint to the user's LEARNED habitual midsleep
+    /// (`repo.habitualMidsleepSec()` — the same value the Sleep tab's main-night picker uses).
+    /// Consistency is the lever a coach can actually act on; only surfaced once there's enough history to
+    /// have learned a habit, and only when the shift is large enough to be worth a line. Kept free of
+    /// `repo`/store reads so it's unit-testable without a database.
+    nonisolated static func formatSleepDetail(recentDays: [DailyMetric], sessions: [CachedSleepSession],
+                                              habitualMidsleepSec: Int?) -> String {
+        guard !recentDays.isEmpty else { return "No sleep data recorded yet." }
+
+        func wakeDay(_ s: CachedSleepSession) -> String {
+            let offsetSec = TimeZone.current.secondsFromGMT(for: Date(timeIntervalSince1970: TimeInterval(s.endTs)))
+            return AnalyticsEngine.dayString(s.endTs, offsetSec: offsetSec)
+        }
+        let sessionByDay = Dictionary(sessions.map { (wakeDay($0), $0) }, uniquingKeysWith: { _, latest in latest })
+        let clockFmt = DateFormatter()
+        clockFmt.dateFormat = "HH:mm"
+        clockFmt.timeZone = .current
+        func clock(_ ts: Int) -> String { clockFmt.string(from: Date(timeIntervalSince1970: TimeInterval(ts))) }
+
+        var lines = ["SLEEP DETAIL (newest first) — bed→wake, asleep(h), efficiency(%), deep/REM/light(min), disturbances, RHR, HRV:"]
+        for d in recentDays.reversed() {
             var parts = ["  \(d.day):"]
+            if let s = sessionByDay[d.day] {
+                parts.append("\(clock(s.effectiveStartTs))→\(clock(s.endTs))")
+            } else {
+                parts.append("bed/wake —")
+            }
             parts.append("slept " + (d.totalSleepMin.map { String(format: "%.1fh", $0 / 60) } ?? "—"))
             parts.append("eff " + (d.efficiency.map { "\(Int($0.rounded()))%" } ?? "—"))
             parts.append("deep " + (d.deepMin.map { "\(Int($0.rounded()))m" } ?? "—"))
@@ -1154,16 +1200,23 @@ final class AICoachEngine: ObservableObject {
             lines.append(parts.joined(separator: ", "))
         }
 
-        // Rolling sleep-debt ledger over the last 30 nights (14-night window inside the engine).
-        let ledger = SleepDebt.ledger(series: all.suffix(30).map { ($0.day, $0.totalSleepMin) })
-        if !ledger.nights.isEmpty {
-            let bal = ledger.balanceMin / 60
-            let need = ledger.needMin / 60
-            lines.append("")
-            lines.append(String(format: "Sleep debt (rolling %d nights vs a %.1fh need): %+.1fh %@",
-                                ledger.nights.count, need, bal,
-                                bal < 0 ? "(deficit — behind on sleep)" : "(surplus)"))
+        if let habitual = habitualMidsleepSec, let lastNight = sessions.max(by: { $0.endTs < $1.endTs }) {
+            let offsetSec = TimeZone.current.secondsFromGMT(
+                for: Date(timeIntervalSince1970: TimeInterval(lastNight.endTs)))
+            let secondsPerDay = 86_400
+            let mid = (lastNight.effectiveStartTs + lastNight.endTs) / 2
+            let localMid = (((mid + offsetSec) % secondsPerDay) + secondsPerDay) % secondsPerDay
+            var diff = localMid - habitual
+            if diff > secondsPerDay / 2 { diff -= secondsPerDay }
+            if diff < -secondsPerDay / 2 { diff += secondsPerDay }
+            let deltaMin = abs(diff) / 60
+            if deltaMin >= 20 {
+                lines.append("")
+                lines.append("Last night's sleep midpoint was ~\(deltaMin) min \(diff >= 0 ? "later" : "earlier") "
+                             + "than the user's usual, learned midsleep.")
+            }
         }
+
         return lines.joined(separator: "\n")
     }
 
