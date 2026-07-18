@@ -953,8 +953,8 @@ final class AICoachEngine: ObservableObject {
 
     /// Handle a `plot_metric` tool call: build the chart and queue it, returning a text confirmation the
     /// model can reference. Returns a "no data" note (never a fabricated chart) when the metric is empty.
-    func handlePlotMetric(metric: String, days: Int) -> String {
-        guard let art = chartArtifact(metric: metric, days: days) else {
+    func handlePlotMetric(metric: String, days: Int) async -> String {
+        guard let art = await chartArtifact(metric: metric, days: days) else {
             return "No data available to plot \"\(metric)\"."
         }
         pendingCharts.append(art)
@@ -983,11 +983,13 @@ final class AICoachEngine: ObservableObject {
     func discardPendingCharts() { pendingCharts.removeAll() }
 
     /// Build a chart artifact from the user's own daily metrics. Reads the private store, so it lives on
-    /// the engine rather than in the tool extension. Returns nil for an unknown metric or too little data.
-    private func chartArtifact(metric rawMetric: String, days: Int) -> CoachChartArtifact? {
+    /// the engine rather than in the tool extension. Returns nil for too little data. The five hand-named
+    /// metrics below read straight off `repo.days` (no store hit); anything else falls through to any
+    /// metric key this user actually has data for (`Repository.availableKeys`/`series`), so `plot_metric`
+    /// isn't limited to a hardcoded list of five.
+    private func chartArtifact(metric rawMetric: String, days: Int) async -> CoachChartArtifact? {
         let n = max(7, min(days, 180))
         let recent = Array(repo.days.suffix(n))
-        guard !recent.isEmpty else { return nil }
 
         func series(_ extract: (DailyMetric) -> Double?) -> [TrendPoint] {
             recent.compactMap { d in
@@ -1015,11 +1017,26 @@ final class AICoachEngine: ObservableObject {
         case "sleep", "rest":
             title = "Sleep"; points = series { $0.totalSleepMin.map { $0 / 60 } }; range = 0...12; kind = .sleep
         default:
-            return nil
+            guard await repo.availableKeys(source: Repository.whoopSource).contains(rawMetric) else { return nil }
+            let rows = await repo.series(key: rawMetric, source: Repository.whoopSource, days: n)
+            title = Self.humanizeMetricKey(rawMetric)
+            points = rows.compactMap { row in Self.parseDay(row.day).map { TrendPoint(date: $0, value: row.value) } }
+            let vals = points.map(\.value)
+            let span = (vals.max() ?? 0) - (vals.min() ?? 0)
+            range = Self.paddedRange(vals, pad: max(span * 0.1, 0.5))
+            kind = .other
         }
 
         guard points.count >= 2 else { return nil }
         return CoachChartArtifact(title: title, points: points, valueRange: range, kind: kind)
+    }
+
+    /// "sleep_performance" → "Sleep Performance", for a chart title built from an arbitrary metric key
+    /// the user has data for but that isn't one of the five hand-named metrics above.
+    static func humanizeMetricKey(_ key: String) -> String {
+        key.split(separator: "_")
+            .map { $0.isEmpty ? "" : $0.prefix(1).uppercased() + $0.dropFirst() }
+            .joined(separator: " ")
     }
 
     /// A y-range padded around the data's min/max, guaranteeing lower < upper so the chart never gets a

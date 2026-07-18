@@ -69,7 +69,9 @@ enum CoachTool: String, CaseIterable {
                 + "of their logged Lab Book health numbers. Use to explain what helps or hurts them."
         case .plotMetric:
             return "Draw a chart of one metric over time, shown directly in the chat. Use it when a "
-                + "trend is easier to see than to describe. metric is one of charge, effort, hrv, rhr, sleep."
+                + "trend is easier to see than to describe. metric is charge, effort, hrv, rhr or sleep, "
+                + "or any other metric key this user actually has data for (e.g. stress, spo2, steps) — "
+                + "an unavailable key returns a \"no data\" note instead of a chart."
         case .rememberFact:
             return "Save one durable fact about the user to your persistent memory (goals, injuries, "
                 + "schedule, preferences, constraints). Call it PROACTIVELY whenever the user shares "
@@ -172,8 +174,8 @@ enum CoachTool: String, CaseIterable {
                 "properties": [
                     "metric": [
                         "type": "string",
-                        "enum": ["charge", "effort", "hrv", "rhr", "sleep"],
-                        "description": "Which metric to chart."
+                        "description": "Which metric to chart: charge, effort, hrv, rhr, sleep, or any "
+                            + "other metric key this user has data for."
                     ],
                     "days": [
                         "type": "integer",
@@ -519,7 +521,7 @@ extension AICoachEngine {
         case .plotMetric:
             let metric = (input["metric"] as? String) ?? ""
             let days = (input["days"] as? Int) ?? Int(input["days"] as? Double ?? 30)
-            return handlePlotMetric(metric: metric, days: days)
+            return await handlePlotMetric(metric: metric, days: days)
         case .rememberFact:
             let fact = (input["fact"] as? String) ?? ""
             let category = (input["category"] as? String)

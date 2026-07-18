@@ -5,14 +5,16 @@ import StrandDesign
 /// instead of as text. Built on-device from the user's own daily metrics — no data leaves the phone to
 /// draw it. Kept in its own file so it stays merge-clean against upstream.
 struct CoachChartArtifact {
-    enum Kind: String { case charge, effort, hrv, rhr, sleep }
+    enum Kind: String { case charge, effort, hrv, rhr, sleep, other }
 
     let title: String
     let points: [TrendPoint]
     let valueRange: ClosedRange<Double>
     let kind: Kind
 
-    /// Y-axis / tooltip formatting per metric, so units read correctly.
+    /// Y-axis / tooltip formatting per metric, so units read correctly. `.other` (any metric key
+    /// `plot_metric` fell through to, not one of the five hand-named ones) has no known unit, so it
+    /// formats to one decimal place, unlabelled.
     var valueFormat: (Double) -> String {
         switch kind {
         case .charge: return { "\(Int($0.rounded()))" }
@@ -20,6 +22,7 @@ struct CoachChartArtifact {
         case .hrv:    return { "\(Int($0.rounded())) ms" }
         case .rhr:    return { "\(Int($0.rounded())) bpm" }
         case .sleep:  return { String(format: "%.1f h", $0) }
+        case .other:  return { String(format: "%.1f", $0) }
         }
     }
 }
