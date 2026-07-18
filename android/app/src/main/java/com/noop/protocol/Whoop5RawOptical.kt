@@ -40,6 +40,12 @@ data class Whoop5OpticalFrame(
  * metadata. In the 29,203-record corpus used to establish this layout, counts are always
  * `[25, 0, 0, 25, 25]`; active slots contain 25 sign-extended i32 readings followed by zero padding.
  * The two slots under one header must not be named as two wavelengths without independent evidence.
+ *
+ * RE notes (issue #423, NOT authoritative): the record's config header carries an LED-current field @28
+ * and per-photodiode offset DACs @38/@45. Under the split above those land as ONE drive current in a
+ * block's shared bytes (@27..32 for block 0) and ONE offset DAC in each of its two 7-byte channel
+ * descriptors (@33..39 and @40..46) — one LED per block, one detector per channel, which aligns with the
+ * "two readout channels share one measurement config" model. Kotlin twin of the Swift note.
  */
 object Whoop5RawOptical {
     const val BUFFER_LENGTH = 2140

@@ -44,6 +44,11 @@ class Whoop5RawImuTest {
     @Test
     fun rejectsWrongLengthOrCounts() {
         assertNull(Whoop5RawImu.decode(ByteArray(500)))            // too short
+        // Exact-length contract (parity with Swift Whoop5RawImuTests): a valid buffer plus one trailing
+        // byte still has countA/countB == 100 and enough bytes, but must be rejected — an over-length
+        // frame is not a valid prefix. Pins the `f.size != bufferLength` gate (was `< bufferLength`).
+        val oversized = syntheticFrame(i = 0, axLSB = 0, gxLSB = 0).copyOf(Whoop5RawImu.bufferLength + 1)
+        assertNull(Whoop5RawImu.decode(oversized))
         val f = syntheticFrame(i = 0, axLSB = 0, gxLSB = 0)
         f[24] = 0.toByte(); f[25] = 0.toByte()                     // countA != 100
         assertNull(Whoop5RawImu.decode(f))

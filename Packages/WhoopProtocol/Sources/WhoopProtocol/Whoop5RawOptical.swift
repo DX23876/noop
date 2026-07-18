@@ -10,6 +10,13 @@ import Foundation
 // split consistently into six block-level bytes and seven bytes per channel. That split is exposed as
 // raw metadata: its register meanings and the LED wavelength assigned to each block are not yet proven.
 //
+// RE notes (issue #423, NOT authoritative — no labelled/moving v20 capture exists): the record's config
+// header carries an LED-current field @28 and per-photodiode offset DACs @38/@45. Under the split above
+// those land as ONE drive current in a block's shared bytes (@27...32 for block 0) and ONE offset DAC in
+// each of its two 7-byte channel descriptors (@33...39 and @40...46) — i.e. one LED per block, one detector
+// per channel. That aligns with the "two readout channels share one measurement config" model, and is a
+// line of evidence for treating the slots as a paired detector/readout rather than two wavelengths.
+//
 // In the 29,203-record corpus used to establish this layout, block counts are always [25, 0, 0, 25,
 // 25]. Active channels contain 25 signed 20-bit readings in sign-extended i32 containers; slots 25...49
 // are zero padding. Two channels in the same block therefore belong to one shared measurement/config,
