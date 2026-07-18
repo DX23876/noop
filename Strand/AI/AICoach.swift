@@ -1413,7 +1413,12 @@ final class AICoachEngine: ObservableObject {
     /// placeholder instead of treating every number as equally trustworthy. nil when there's no row to
     /// judge. Effort/Rest confidence need additional store reads (HR sample density, sleep-session
     /// matching) not cheaply available from `repo.days` alone; a later pass can add them.
-    private func chargeConfidenceLine() -> String? {
+    ///
+    /// Internal (not private): `CoachTools.runCoachTool` appends this to the `get_biometric_summary` and
+    /// `get_charge_drivers` tool OUTPUTS on the tool path, where `buildFullContext()` never runs — the
+    /// line has to travel with the number it qualifies rather than live in a context block the tool path
+    /// never sees.
+    func chargeConfidenceLine() -> String? {
         let days = repo.days
         let todayKey = Repository.logicalDayKey(Date())
         guard let today = days.last(where: { $0.day == todayKey }) ?? days.last else { return nil }

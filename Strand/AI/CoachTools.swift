@@ -487,7 +487,9 @@ extension AICoachEngine {
         }
         switch CoachTool(rawValue: name) {
         case .biometricSummary:
-            return buildContext()
+            var block = buildContext()
+            if let confidence = chargeConfidenceLine() { block += "\n\n" + confidence }
+            return block
         case .recentWorkouts:
             let raw = (input["limit"] as? Int) ?? Int(input["limit"] as? Double ?? 6)
             let limit = max(1, min(raw, 30))
@@ -560,7 +562,9 @@ extension AICoachEngine {
         case .readiness:
             return readinessBlock()
         case .chargeDrivers:
-            return chargeDriversBlock()
+            var block = chargeDriversBlock()
+            if let confidence = chargeConfidenceLine() { block += "\n\n" + confidence }
+            return block
         case .proposePlan:
             return proposePlanTool(
                 day: input["day"] as? String,
