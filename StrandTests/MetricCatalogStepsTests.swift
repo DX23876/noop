@@ -16,6 +16,23 @@ final class MetricCatalogStepsTests: XCTestCase {
         XCTAssertEqual(metric?.source, "my-whoop")
     }
 
+    /// #377 parity: with no measured strap count but an imported Apple Health count for the day, Today
+    /// shows and taps through to the imported value — NOT the motion estimate.
+    func testTodayStepsPrefersImportedAppleHealthOverEstimate() {
+        let metric = MetricCatalog.todayStepsMetric(hasMeasuredSteps: false, hasImportedSteps: true)
+
+        XCTAssertEqual(metric?.key, "steps")
+        XCTAssertEqual(metric?.source, "apple-health")
+    }
+
+    /// A measured strap count always wins, even when an import also exists (real ?: imported ?: estimate).
+    func testMeasuredStepsWinOverImported() {
+        let metric = MetricCatalog.todayStepsMetric(hasMeasuredSteps: true, hasImportedSteps: true)
+
+        XCTAssertEqual(metric?.key, "steps")
+        XCTAssertEqual(metric?.source, "my-whoop")
+    }
+
     func testAppleHealthStepsRemainsAnIndependentCatalogMetric() {
         let metric = MetricCatalog.metric(key: "steps", source: "apple-health")
 
