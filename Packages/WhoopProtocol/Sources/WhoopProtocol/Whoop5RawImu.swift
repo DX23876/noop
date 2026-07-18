@@ -58,7 +58,7 @@ public enum Whoop5RawImu {
     /// Decode a raw-IMU buffer, or nil if it isn't one. Gates on the exact length + the two in-packet
     /// sample counts (=100) rather than the type byte, so it can't misfire on a same-type non-IMU frame.
     public static func decode(_ f: [UInt8]) -> Whoop5ImuFrame? {
-        guard f.count >= bufferLength,
+        guard f.count == bufferLength,
               u16(f, countAOff) == sampleCount, u16(f, countBOff) == sampleCount,
               gzOff + 2 * sampleCount <= f.count else { return nil }
         let baseTs = Int(u32(f, tsOff))
