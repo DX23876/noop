@@ -462,7 +462,12 @@ private struct FitDecoder {
         let distance = sessionDistance
             ?? (lapDistanceSum > 0 ? lapDistanceSum : (route.count >= 2 ? ActivityFileImporter.routeDistanceM(route) : nil))
         let calories = sessionCalories ?? (lapCalorieSum > 0 ? lapCalorieSum : nil)
-        let steps = Self.isFootSport(sessionSport) ? (sessionSteps ?? (lapStepSum > 0 ? lapStepSum : nil)) : nil
+        // FIT field 10 is total_cycles — for foot sports that's STRIDES (one stride = two steps), so
+        // double it to the real step count. The "converted to steps" note above was never applied, so a
+        // walk logged as 1150 strides read as 1150 steps instead of 2300 (#568).
+        let steps = Self.isFootSport(sessionSport)
+            ? (sessionSteps ?? (lapStepSum > 0 ? lapStepSum : nil)).map { $0 * 2 }
+            : nil
         let ascent = sessionAscent
             ?? (lapAscentSum > 0 ? lapAscentSum : ActivityFileImporter.ascentM(from: samples))
 
