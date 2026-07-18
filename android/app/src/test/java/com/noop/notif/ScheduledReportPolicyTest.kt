@@ -19,7 +19,7 @@ class ScheduledReportPolicyTest {
     @Test fun morningFiresWhenEnabledScorePresentAndNotYetToday() {
         assertTrue(
             ScheduledReportPolicy.shouldNotifyMorning(
-                enabled = true, chargeOrRestPresent = true, lastNotifiedDay = "2026-06-20", today = "2026-06-21",
+                enabled = true, chargeOrRestPresent = true, lastNotifiedDay = "2026-06-20", reportDay = "2026-06-21",
             ),
         )
     }
@@ -27,7 +27,7 @@ class ScheduledReportPolicyTest {
     @Test fun morningSuppressedWhenDisabled() {
         assertFalse(
             ScheduledReportPolicy.shouldNotifyMorning(
-                enabled = false, chargeOrRestPresent = true, lastNotifiedDay = null, today = "2026-06-21",
+                enabled = false, chargeOrRestPresent = true, lastNotifiedDay = null, reportDay = "2026-06-21",
             ),
         )
     }
@@ -35,7 +35,7 @@ class ScheduledReportPolicyTest {
     @Test fun morningSuppressedWhenAlreadyFiredToday() {
         assertFalse(
             ScheduledReportPolicy.shouldNotifyMorning(
-                enabled = true, chargeOrRestPresent = true, lastNotifiedDay = "2026-06-21", today = "2026-06-21",
+                enabled = true, chargeOrRestPresent = true, lastNotifiedDay = "2026-06-21", reportDay = "2026-06-21",
             ),
         )
     }
@@ -43,7 +43,21 @@ class ScheduledReportPolicyTest {
     @Test fun morningSuppressedWhenNoScore() {
         assertFalse(
             ScheduledReportPolicy.shouldNotifyMorning(
-                enabled = true, chargeOrRestPresent = false, lastNotifiedDay = null, today = "2026-06-21",
+                enabled = true, chargeOrRestPresent = false, lastNotifiedDay = null, reportDay = "2026-06-21",
+            ),
+        )
+    }
+
+    /** #567: after midnight a late-nighter's row still resolves to LAST night (reportDay stays that
+     *  night's day) even though the calendar day has rolled. Keyed on reportDay (not the calendar day),
+     *  the recap must NOT re-fire — it was already posted for that night. Guards the fix against a
+     *  regression back to `LocalDate.now()`. */
+    @Test fun morningDoesNotRefireAtMidnightWhenReportDayIsStillLastNight() {
+        // Fired this morning for the 06-20 night; now it's just past midnight (calendar day 06-21) but the
+        // resolved row is still the 06-20 night → reportDay = "2026-06-20", already notified → suppressed.
+        assertFalse(
+            ScheduledReportPolicy.shouldNotifyMorning(
+                enabled = true, chargeOrRestPresent = true, lastNotifiedDay = "2026-06-20", reportDay = "2026-06-20",
             ),
         )
     }

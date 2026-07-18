@@ -646,6 +646,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     if (todayRow.totalSleepMin != null) {
                         ScheduledReportNotifier.onMorning(
                             context = appContext,
+                            // Key the once-per-recap gate on the banked NIGHT's day, not the calendar day —
+                            // otherwise the midnight rollover re-fires last night's recap for late-nighters (#567).
+                            reportDay = todayRow.day,
                             chargePct = todayRow.recovery.scorePctOrNull(),
                             restPct = RestScorer.restFromDaily(todayRow).scorePctOrNull(),
                         )

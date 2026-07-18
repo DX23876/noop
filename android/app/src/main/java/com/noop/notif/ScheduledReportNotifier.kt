@@ -33,14 +33,17 @@ import kotlin.math.roundToInt
  *  by ScheduledReportPolicyTest independently of the notification plumbing. */
 object ScheduledReportPolicy {
 
-    /** Fire the morning recap at most once per local day: only when enabled, a recap value exists, and we
-     *  haven't already posted for [today]. */
+    /** Fire the morning recap at most once per REPORTED NIGHT: only when enabled, a recap value exists, and
+     *  we haven't already posted for [reportDay]. [reportDay] is the day of the banked night the recap is
+     *  FOR (the resolved today-row's `day`), NOT the phone's calendar day — keying on the calendar day made
+     *  it re-fire at midnight for anyone up late, since the row still resolves to last night's until a new
+     *  night is banked (#567). */
     fun shouldNotifyMorning(
         enabled: Boolean,
         chargeOrRestPresent: Boolean,
         lastNotifiedDay: String?,
-        today: String,
-    ): Boolean = enabled && chargeOrRestPresent && lastNotifiedDay != today
+        reportDay: String,
+    ): Boolean = enabled && chargeOrRestPresent && lastNotifiedDay != reportDay
 
     /** Fire the post-workout summary only for a workout STRICTLY newer than the last one summarised, so a
      *  re-sync of the same backlog never re-notifies. [lastWorkoutTs] is 0 before the first ever. */
@@ -106,13 +109,15 @@ object ScheduledReportNotifier {
      * policy, so the caller can fire it freely each time the days collector republishes.
      */
     @SuppressLint("MissingPermission") // guarded by areNotificationsEnabled() + runCatching
-    fun onMorning(context: Context, chargePct: Int?, restPct: Int?) {
-        val today = java.time.LocalDate.now().toString()
+    fun onMorning(context: Context, reportDay: String, chargePct: Int?, restPct: Int?) {
+        // reportDay is the banked night's day (the resolved today-row's `day`), NOT LocalDate.now() — the
+        // calendar day rolls at midnight while the row still resolves to last night's until a new night is
+        // banked, which re-fired the recap at the start of a new day for late-nighters (#567).
         if (!ScheduledReportPolicy.shouldNotifyMorning(
                 enabled = NoopPrefs.morningReportEnabled(context),
                 chargeOrRestPresent = chargePct != null || restPct != null,
                 lastNotifiedDay = NoopPrefs.reportMorningDay(context),
-                today = today,
+                reportDay = reportDay,
             )
         ) return
         val copy = ScheduledReportPolicy.morningCopy(chargePct, restPct) ?: return
@@ -120,9 +125,9 @@ object ScheduledReportNotifier {
             if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return
             ensureChannel(context)
             post(context, MORNING_NOTIF_ID, copy.first, copy.second)
-            // Mark fired only after a successful post, so a notifications-disabled morning still notifies
-            // once they're re-enabled the same day.
-            NoopPrefs.setReportMorningDay(context, today)
+            // Mark fired only after a successful post, so a notifications-disabled night still notifies
+            // once they're re-enabled while the same night's row is showing.
+            NoopPrefs.setReportMorningDay(context, reportDay)
         }
     }
 
