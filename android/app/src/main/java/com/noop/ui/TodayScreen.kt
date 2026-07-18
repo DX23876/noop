@@ -1529,10 +1529,16 @@ fun TodayScreen(
             )
         }
     }
-        PullToRefreshContainer(
-            state = pullToSyncState,
-            modifier = Modifier.align(Alignment.TopCenter),
-        )
+        // Material3's PullToRefreshContainer draws its indicator circle even at rest (progress 0, not
+        // refreshing), so an idle Today showed a permanent grey dot at the top (#582). Compose it only
+        // while a pull is in progress or a sync is running — the pull GESTURE flows through the Box's
+        // nestedScroll above, not this container, so gating the visual can't disable pull-to-sync.
+        if (pullToSyncState.progress > 0f || pullToSyncState.isRefreshing) {
+            PullToRefreshContainer(
+                state = pullToSyncState,
+                modifier = Modifier.align(Alignment.TopCenter),
+            )
+        }
     }
 
     // Scoring guide sheet, full-screen Dialog, mirroring Settings' What's-new presentation. Opened
