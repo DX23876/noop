@@ -442,6 +442,18 @@ final class AICoachEngine: ObservableObject {
     plainly rather than asserting it.
     """
 
+    /// Coach voice (#P13 7.2): appended to EVERY prompt, under the chosen persona. It keeps the human,
+    /// careful register the whole product wants — plain sentences over hype, and honesty over false
+    /// medical certainty — so a persona can be warm or demanding without tipping into cheesy or
+    /// pseudo-clinical. Deliberately says nothing about emoji: that is a user setting handled in P14.
+    static let voiceClause = """
+    However your style reads, sound like a real, careful human coach. Plain, natural sentences — not a \
+    hype account, not a greeting card, not a textbook. No exclamation-point spray, no cheesy \
+    affirmations, no buzzwords. Never speak with false medical certainty and never diagnose; when the \
+    data is thin or something sounds clinical, say what you can actually see and point them to a \
+    professional. Your confidence comes from the data you cite, not from volume.
+    """
+
     /// The tool-awareness map, appended to the CACHED system block when tools are live (same
     /// `toolCallingActive` gate as `planToolClause`). It lands in the system block — cached by Anthropic
     /// after round 1 — rather than in a per-round user message, where its predecessor
@@ -492,6 +504,8 @@ final class AICoachEngine: ObservableObject {
         // Explainability (#P12): always ask the coach to name the source under each claim — in both
         // modes, and after the tool/plan clauses so it reads as the closing discipline on top of them.
         prompt += "\n\n" + Self.citationClause
+        // Coach voice (#P13): the human/careful register, under whichever persona leads the prompt.
+        prompt += "\n\n" + Self.voiceClause
         return prompt
     }
 

@@ -159,20 +159,35 @@ struct CoachView: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Conversation history")
 
-            VStack(spacing: 1) {
-                Text(coach.activeConversation?.title.isEmpty == false
-                     ? coach.activeConversation!.title
-                     : String(localized: "Coach"))
-                    .font(StrandFont.headline)
-                    .foregroundStyle(StrandPalette.textPrimary)
-                    .lineLimit(1)
-                if coach.sending {
-                    Text("Thinking…")
-                        .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.accent)
+            HStack(spacing: 8) {
+                // The coach's identity (#P13 7.4): the chosen persona's avatar + name, so the chat has a
+                // consistent face and self, not a generic "Coach". A named conversation takes the title
+                // slot; the avatar stays either way.
+                Image(systemName: coach.persona.symbol)
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.accent)
+                    .frame(width: 26, height: 26)
+                    .background(StrandPalette.accent.opacity(0.14), in: Circle())
+                    .accessibilityHidden(true)
+                VStack(spacing: 1) {
+                    Text(coach.activeConversation?.title.isEmpty == false
+                         ? coach.activeConversation!.title
+                         : coach.persona.title)
+                        .font(StrandFont.headline)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                        .lineLimit(1)
+                    if coach.sending {
+                        Text("Thinking…")
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.accent)
+                    }
                 }
             }
             .frame(maxWidth: .infinity)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(coach.activeConversation?.title.isEmpty == false
+                                 ? coach.activeConversation!.title
+                                 : "\(coach.persona.title), your coach")
 
             HStack(spacing: 14) {
                 // The plan book. The dot means something is waiting for YOUR answer — the coach can

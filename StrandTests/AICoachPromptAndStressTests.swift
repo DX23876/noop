@@ -37,6 +37,8 @@ final class AICoachPromptAndStressTests: XCTestCase {
         if engine.toolCallingActive { prompt += "\n\n" + AICoachEngine.toolModeClause }
         // P12: the citation clause rides EVERY prompt, appended last (both modes).
         prompt += "\n\n" + AICoachEngine.citationClause
+        // P13: the coach-voice clause rides every prompt too, after the citation clause.
+        prompt += "\n\n" + AICoachEngine.voiceClause
         return prompt
     }
 

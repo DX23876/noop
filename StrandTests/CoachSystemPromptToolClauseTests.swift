@@ -167,4 +167,27 @@ final class CoachSystemPromptToolClauseTests: XCTestCase {
         XCTAssertTrue(engine.systemPrompt.contains(AICoachEngine.citationClause),
                       "a custom prompt must not drop the citation discipline")
     }
+
+    // MARK: - P13: the coach-voice clause rides every prompt
+
+    /// The human/careful register (#P13 7.2) is universal like the citation clause — present with or
+    /// without tools, and unstrippable by a custom prompt.
+    func testVoiceClauseIsPresentInBothModes() {
+        let withTools = makeEngine()
+        withTools.provider = .anthropic; withTools.dataConsent = true
+        XCTAssertTrue(withTools.toolCallingActive)
+        XCTAssertTrue(withTools.systemPrompt.contains(AICoachEngine.voiceClause))
+
+        let withoutTools = makeEngine()
+        withoutTools.provider = .gemini; withoutTools.dataConsent = true
+        XCTAssertFalse(withoutTools.toolCallingActive)
+        XCTAssertTrue(withoutTools.systemPrompt.contains(AICoachEngine.voiceClause))
+    }
+
+    func testVoiceClauseSurvivesACustomSystemPromptOverride() {
+        let engine = makeEngine()
+        engine.provider = .anthropic; engine.dataConsent = true
+        engine.customSystemPrompt = "Be brief."
+        XCTAssertTrue(engine.systemPrompt.contains(AICoachEngine.voiceClause))
+    }
 }
