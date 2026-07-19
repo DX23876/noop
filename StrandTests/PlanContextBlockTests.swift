@@ -46,6 +46,22 @@ final class PlanContextBlockTests: XCTestCase {
         XCTAssertNil(makeEngine().planContextBlock(store: store))
     }
 
+    /// #P7 9.8: a session the USER planned themselves is marked as theirs in the context, so the coach
+    /// comments on the routine instead of re-pitching it as its own idea. And the committed list tells
+    /// the model not to re-propose any of them.
+    func testPlanBlockMarksAUserRoutineAsTheirOwnAndForbidsReProposing() {
+        let store = CoachPlanStore(loading: false)
+        store.addUserSession(day: today, time: nil, sport: "Morning run", intent: .easy)
+
+        let block = makeEngine().planContextBlock(store: store)
+        XCTAssertNotNil(block)
+        XCTAssertTrue(block!.contains("do NOT propose any of these again"),
+                      "committed sessions must be marked off-limits for a fresh proposal")
+        XCTAssertTrue(block!.contains("the user's own session"),
+                      "a user-created routine must be flagged as theirs, not the coach's idea")
+        XCTAssertTrue(block!.contains("Morning run"))
+    }
+
     // MARK: - The real wrapper `send()` sends
 
     func testToolModeContextCarriesThePlanBlockWhenSomethingIsPending() {

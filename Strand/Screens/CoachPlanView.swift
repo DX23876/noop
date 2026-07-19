@@ -202,6 +202,7 @@ struct CoachPlanView: View {
         case .declined:       return "hand.thumbsdown"
         case .paused:         return "pause.circle"
         case .modifiedByUser: return "arrow.triangle.2.circlepath"
+        case .rescheduled:    return "calendar.badge.clock"
         case .accepted:       return "calendar"
         case .proposed:       return "sparkles"
         }
@@ -210,9 +211,10 @@ struct CoachPlanView: View {
     /// Deliberately neutral wording — a skip states its reason, it doesn't editorialise about it.
     private func statusLine(_ p: PlanProposal) -> String {
         switch p.status {
-        case .skipped:  return p.skipReason.map { "didn't happen — \($0.label.lowercased())" } ?? "didn't happen"
-        case .declined: return "you passed on this one"
-        default:        return p.status.rawValue
+        case .skipped:     return p.skipReason.map { "didn't happen — \($0.label.lowercased())" } ?? "didn't happen"
+        case .declined:    return "you passed on this one"
+        case .rescheduled: return p.rescheduledFrom.map { "moved from \(dayLabel($0).lowercased())" } ?? "moved"
+        default:           return p.status.rawValue
         }
     }
 

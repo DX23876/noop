@@ -43,11 +43,18 @@ struct PlanProposal: Codable, Identifiable, Equatable {
         case skipped
         /// Deliberately parked (illness, travel) rather than skipped in place.
         case paused
+        /// The user MOVED it to another day/time — still intends to do it, just not when first committed.
+        /// Distinct from `skipped` (didn't happen) so adherence reads a move as a move, not a miss.
+        /// `rescheduledFrom` keeps the original day for the story.
+        case rescheduled
 
         /// True once the user has engaged with the proposal at all.
         var isDecided: Bool { self != .proposed }
-        /// True when this counts as a commitment we can later measure against.
-        var isCommitment: Bool { self == .accepted || self == .modifiedByUser || self == .completed }
+        /// True when this counts as a commitment we can later measure against — a session the user still
+        /// intends to do (accepted, modified, or moved), or one they already did.
+        var isCommitment: Bool {
+            self == .accepted || self == .modifiedByUser || self == .completed || self == .rescheduled
+        }
     }
 
     /// Why a session didn't happen. Captured as ONE TAP, because a reason you have to type is a reason
@@ -94,6 +101,8 @@ struct PlanProposal: Codable, Identifiable, Equatable {
     var source: Source
     /// What this replaced, when the user swapped it.
     var swappedFrom: String?
+    /// The day this session was originally on, when the user rescheduled it to another day.
+    var rescheduledFrom: String?
     var skipReason: SkipReason?
     let createdAt: Date
     var decidedAt: Date?
@@ -108,6 +117,7 @@ struct PlanProposal: Codable, Identifiable, Equatable {
          status: Status = .proposed,
          source: Source = .coachProposed,
          swappedFrom: String? = nil,
+         rescheduledFrom: String? = nil,
          skipReason: SkipReason? = nil,
          createdAt: Date = Date(),
          decidedAt: Date? = nil) {
@@ -121,6 +131,7 @@ struct PlanProposal: Codable, Identifiable, Equatable {
         self.status = status
         self.source = source
         self.swappedFrom = swappedFrom
+        self.rescheduledFrom = rescheduledFrom
         self.skipReason = skipReason
         self.createdAt = createdAt
         self.decidedAt = decidedAt
@@ -129,7 +140,7 @@ struct PlanProposal: Codable, Identifiable, Equatable {
     // Back-compat: fields added later decode with defaults so a stored plan never fails to load.
     private enum CodingKeys: String, CodingKey {
         case id, day, time, sport, intent, targetEffort, rationale, status
-        case source, swappedFrom, skipReason, createdAt, decidedAt
+        case source, swappedFrom, rescheduledFrom, skipReason, createdAt, decidedAt
     }
 
     init(from decoder: Decoder) throws {
@@ -144,6 +155,7 @@ struct PlanProposal: Codable, Identifiable, Equatable {
         status = try c.decodeIfPresent(Status.self, forKey: .status) ?? .proposed
         source = try c.decodeIfPresent(Source.self, forKey: .source) ?? .coachProposed
         swappedFrom = try c.decodeIfPresent(String.self, forKey: .swappedFrom)
+        rescheduledFrom = try c.decodeIfPresent(String.self, forKey: .rescheduledFrom)
         skipReason = try c.decodeIfPresent(SkipReason.self, forKey: .skipReason)
         createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
         decidedAt = try c.decodeIfPresent(Date.self, forKey: .decidedAt)
@@ -244,11 +256,23 @@ final class CoachPlanStore: ObservableObject {
     /// it must not silently rewrite an accepted commitment, nor erase a decline (`declineStreak` depends
     /// on the decline surviving). Deduping on `(day, sport)` and not `day` alone keeps a legitimate
     /// AM-ride + PM-mobility on one day as two separate proposals.
-    func propose(_ proposal: PlanProposal) {
+    @discardableResult
+    func propose(_ proposal: PlanProposal) -> Bool {
         var p = proposal
         p.status = .proposed
         p.source = .coachProposed
         let key = Self.dedupKey(day: p.day, sport: p.sport)
+
+        // Don't re-pitch what the user already has (#P7 9.8 / 10.5): if a same-(day, sport) COMMITMENT
+        // already exists — whether the coach proposed it and the user accepted, or the user planned it
+        // themselves as their own routine — the coach must not surface it again as a fresh idea. Drop the
+        // proposal rather than stack a duplicate card next to a session the user already said yes to.
+        if proposals.contains(where: {
+            $0.status.isCommitment && Self.dedupKey(day: $0.day, sport: $0.sport) == key
+        }) {
+            return false
+        }
+
         if let idx = proposals.firstIndex(where: {
             $0.status == .proposed && Self.dedupKey(day: $0.day, sport: $0.sport) == key
         }) {
@@ -257,10 +281,11 @@ final class CoachPlanStore: ObservableObject {
                 id: existing.id, day: p.day, time: p.time, sport: p.sport, intent: p.intent,
                 targetEffort: p.targetEffort, rationale: p.rationale, status: .proposed,
                 source: .coachProposed, createdAt: existing.createdAt)
-            return
+            return true
         }
         proposals.insert(p, at: 0)
         trim()
+        return true
     }
 
     /// The `(day, sport)` identity two proposals share when one supersedes the other. Pure + static so
@@ -296,6 +321,19 @@ final class CoachPlanStore: ObservableObject {
             if let time { p.time = time }
             p.status = .modifiedByUser
             p.source = .userSwapped
+            p.decidedAt = Date()
+        }
+    }
+
+    /// The user MOVED a committed session to another day (and optionally a new time). It stays a
+    /// commitment; adherence reads this as a move, not a miss. `rescheduledFrom` keeps the original day
+    /// (captured once, so moving twice still points back to where it started).
+    func reschedule(_ id: UUID, toDay newDay: String, at time: Date? = nil) {
+        update(id) { p in
+            if p.rescheduledFrom == nil { p.rescheduledFrom = p.day }
+            p.day = newDay
+            p.time = time
+            p.status = .rescheduled
             p.decidedAt = Date()
         }
     }

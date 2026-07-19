@@ -96,17 +96,35 @@ final class CoachPlanStoreTests: XCTestCase {
 
     /// The load-bearing scope: dedup must never reach a DECIDED proposal. Re-proposing an identical
     /// session after it was accepted must not silently rewrite the commitment.
-    func testDedupNeverReachesAnAcceptedProposal() {
+    /// Re-proposing a session the user already committed to is now REFUSED entirely (#P7 10.5): the
+    /// coach must not re-pitch what's already on the table as a fresh idea. The commitment stays
+    /// untouched either way — that invariant is the load-bearing one — but there's also no duplicate
+    /// pending card anymore.
+    func testReProposingAnAlreadyCommittedSessionIsRefused() {
         let store = makeStore()
         store.propose(proposal(sport: "Zone 2 ride"))
         let acceptedId = store.proposals[0].id
         store.accept(acceptedId)
 
-        store.propose(proposal(sport: "Zone 2 ride"))
+        let created = store.propose(proposal(sport: "Zone 2 ride"))
 
-        XCTAssertEqual(store.proposals.count, 2, "a fresh proposal, not an overwrite of the commitment")
+        XCTAssertFalse(created, "propose must report it declined to duplicate an existing commitment")
+        XCTAssertEqual(store.proposals.count, 1, "no fresh proposal next to the commitment")
         XCTAssertEqual(store.proposals.first(where: { $0.id == acceptedId })?.status, .accepted,
                        "the accepted commitment must be untouched")
+        XCTAssertTrue(store.pending.isEmpty)
+    }
+
+    /// The guard is scoped to COMMITMENTS: a DECLINED session is not a commitment, so re-proposing it
+    /// still creates a fresh pending row (the decline survives — the filter-bubble floor needs it).
+    func testReProposingADeclinedSessionStillCreatesAFreshProposal() {
+        let store = makeStore()
+        store.propose(proposal(sport: "Zone 2 ride"))
+        let declinedId = store.proposals[0].id
+        store.decline(declinedId)
+
+        let created = store.propose(proposal(sport: "Zone 2 ride"))
+        XCTAssertTrue(created, "a declined session isn't a commitment — it can be offered again")
         XCTAssertEqual(store.pending.count, 1)
     }
 
@@ -253,6 +271,63 @@ final class CoachPlanStoreTests: XCTestCase {
 
         XCTAssertEqual(store.proposals[0].sport, "Swim")
         XCTAssertEqual(store.proposals[0].swappedFrom, "Zone 2 ride")
+    }
+
+    // MARK: - Reschedule (#P7 9.7): moved, not missed
+
+    /// Moving a committed session to another day marks it `.rescheduled` (still a commitment), keeps its
+    /// origin day in `rescheduledFrom`, and lands it on the new day — so adherence reads a move as a move,
+    /// not a skip.
+    func testRescheduleMovesTheSessionAndRecordsWhereItCameFrom() {
+        let store = makeStore()
+        store.propose(proposal(day: "2026-07-16", sport: "Zone 2 ride"))
+        let id = store.proposals[0].id
+        store.accept(id)
+
+        store.reschedule(id, toDay: "2026-07-17")
+
+        XCTAssertEqual(store.proposals[0].status, .rescheduled)
+        XCTAssertTrue(store.proposals[0].status.isCommitment, "a moved session is still intended")
+        XCTAssertEqual(store.proposals[0].day, "2026-07-17")
+        XCTAssertEqual(store.proposals[0].rescheduledFrom, "2026-07-16")
+        XCTAssertNotNil(store.proposals[0].decidedAt)
+    }
+
+    /// Rescheduling twice keeps the ORIGINAL day, mirroring how a double-swap keeps the original sport.
+    func testReschedulingTwiceKeepsTheOriginalDay() {
+        let store = makeStore()
+        store.propose(proposal(day: "2026-07-16", sport: "Zone 2 ride"))
+        let id = store.proposals[0].id
+        store.accept(id)
+        store.reschedule(id, toDay: "2026-07-17")
+        store.reschedule(id, toDay: "2026-07-18")
+
+        XCTAssertEqual(store.proposals[0].day, "2026-07-18")
+        XCTAssertEqual(store.proposals[0].rescheduledFrom, "2026-07-16", "the story starts where it started")
+    }
+
+    /// A rescheduled session shows up as a commitment on its NEW day, not the old one.
+    func testRescheduledSessionIsACommitmentOnItsNewDay() {
+        let store = makeStore()
+        store.propose(proposal(day: "2026-07-16", sport: "Zone 2 ride"))
+        let id = store.proposals[0].id
+        store.accept(id)
+        store.reschedule(id, toDay: "2026-07-20")
+
+        XCTAssertEqual(store.commitments(fromDay: "2026-07-18").count, 1,
+                       "the moved session counts from its new day")
+    }
+
+    // MARK: - Round-trip: rescheduledFrom survives persistence
+
+    func testRescheduledFromSurvivesEncodingRoundTrip() throws {
+        var p = PlanProposal(day: "2026-07-17", sport: "Zone 2 ride", intent: .easy,
+                             status: .rescheduled, rescheduledFrom: "2026-07-16")
+        p.decidedAt = Date()
+        let data = try JSONEncoder().encode(p)
+        let back = try JSONDecoder().decode(PlanProposal.self, from: data)
+        XCTAssertEqual(back.status, .rescheduled)
+        XCTAssertEqual(back.rescheduledFrom, "2026-07-16")
     }
 
     // MARK: - Consequence maths

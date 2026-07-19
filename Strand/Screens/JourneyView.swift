@@ -393,6 +393,7 @@ struct JourneyView: View {
         case .declined:       return "hand.thumbsdown"
         case .paused:         return "pause.circle"
         case .modifiedByUser: return "arrow.triangle.2.circlepath"
+        case .rescheduled:    return "calendar.badge.clock"
         case .accepted:       return "calendar"
         case .proposed:       return "sparkles"
         }
@@ -400,9 +401,10 @@ struct JourneyView: View {
 
     private func planStatusLine(_ p: PlanProposal) -> String {
         switch p.status {
-        case .skipped:  return p.skipReason.map { "didn't happen — \($0.label.lowercased())" } ?? "didn't happen"
-        case .declined: return "passed on this one"
-        default:        return p.status.rawValue
+        case .skipped:     return p.skipReason.map { "didn't happen — \($0.label.lowercased())" } ?? "didn't happen"
+        case .declined:    return "passed on this one"
+        case .rescheduled: return "moved to another day"
+        default:           return p.status.rawValue
         }
     }
 

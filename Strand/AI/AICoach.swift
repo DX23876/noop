@@ -2040,10 +2040,17 @@ final class AICoachEngine: ObservableObject {
         }
         let committed = store.commitments(fromDay: today)
         if !committed.isEmpty {
-            lines.append("THE USER HAS COMMITTED TO:")
+            lines.append("THE USER HAS COMMITTED TO (do NOT propose any of these again — comment on them, "
+                         + "adjust them if asked, but they're already on the table):")
             for p in committed.prefix(7) {
                 var line = "  \(p.day): \(p.summary())"
-                if let from = p.swappedFrom { line += " (swapped from \(from))" }
+                // Mark the ORIGIN so the coach doesn't re-pitch the user's OWN routine as its idea (#P7 9.8).
+                switch p.source {
+                case .userCreated: line += " — the user's own session"
+                case .userSwapped: line += p.swappedFrom.map { " (swapped from \($0))" } ?? ""
+                case .coachProposed: line += p.swappedFrom.map { " (swapped from \($0))" } ?? ""
+                }
+                if let from = p.rescheduledFrom { line += " (moved from \(from))" }
                 lines.append(line)
             }
         }
@@ -2078,7 +2085,13 @@ final class AICoachEngine: ObservableObject {
                                     intent: parsedIntent,
                                     targetEffort: targetEffort.map { max(0, min($0, 100)) },
                                     rationale: rationale)
-        CoachPlanStore.shared.propose(proposal)
+        guard CoachPlanStore.shared.propose(proposal) else {
+            // The user already has this exact session committed for that day (their own routine, or a
+            // proposal they accepted) — the store refused the duplicate (#P7 9.8/10.5). Tell the model so
+            // it acknowledges what's already there instead of re-pitching it.
+            return "Not proposed: the user already has \(trimmedSport) committed for \(dayKey). "
+                + "Acknowledge their existing plan rather than suggesting it again as if it were new."
+        }
         return "Proposed (NOT scheduled): \(proposal.summary()) on \(dayKey). It's waiting for the user "
             + "to accept, change or decline it in the app — tell them it's there for their yes, and "
             + "don't refer to it as booked."
