@@ -2714,9 +2714,16 @@ private fun SynthesisHeroCard(
         // the SAME in both states, only the detail body and chrome fold, never the read (#506).
         val status = if (recoveryCalibration != null) "Calibrating" else synthesisWord(recovery)
         val detail = if (recoveryCalibration != null) {
-            // Comma (not the old em-dash) to match the Swift canonical synthesis copy VERBATIM
-            // (TodayView "Learning your baseline, N of M nights.") and the no-em-dash standing rule.
-            "Learning your baseline, $recoveryCalibration of ${Baselines.minNightsSeed} nights."
+            // #612: if the baseline aged out silently — connected, but no new night for > staleDays — say WHY
+            // it's calibrating instead of only "learning your baseline". `stale` is always > staleDays (14).
+            val stale = Baselines.nightsSinceNewestValidNight(days.map { it.day }, days.map { it.avgHrv }, logicalDayKeyNow())
+            if (stale != null && stale > Baselines.staleDays) {
+                uiString(R.string.l10n_today_screen_no_new_nights_from_your_strap_for_stale_days_8863bcfe, stale)
+            } else {
+                // Comma (not the old em-dash) to match the Swift canonical synthesis copy VERBATIM
+                // (TodayView "Learning your baseline, N of M nights.") and the no-em-dash standing rule.
+                "Learning your baseline, $recoveryCalibration of ${Baselines.minNightsSeed} nights."
+            }
         } else if (carriedDay != null) {
             // Carried prior-day read, summarise that day + stamp it so it isn't passed off as today's.
             synthesisDetail(carriedDay) + " ${carriedCaption(carriedDay.day)}."

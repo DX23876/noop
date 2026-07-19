@@ -1179,6 +1179,16 @@ struct LiquidTodayView: View {
     }
 
     private var synthLine: String {
+        // #612: when still calibrating BECAUSE the strap stopped delivering nights (connected, but no new
+        // night for > staleDays), say so directly instead of "still learning your baseline" — the honest
+        // calibrating state with its reason attached. `stale` is always > staleDays (14), so always plural.
+        if readiness.level == .insufficient,
+           let stale = Baselines.nightsSinceNewestValidNight(dayKeys: repo.days.map(\.day),
+                                                             nightlyHrv: repo.days.map(\.avgHrv),
+                                                             today: Repository.logicalDayKey(Date())),
+           stale > Baselines.staleDays {
+            return String(localized: "No new nights from your strap for \(stale) days. Check it's connected and saving data.")
+        }
         switch readiness.level {
         case .primed: return String(localized: "You're primed. A hard session should land well today.")
         case .balanced: return String(localized: "You're in a good spot for training.")

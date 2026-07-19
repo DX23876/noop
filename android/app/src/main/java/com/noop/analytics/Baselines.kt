@@ -149,6 +149,43 @@ object Baselines {
         return BaselineStatus.TRUSTED
     }
 
+    /** #612: calendar days since the newest night that carried a usable HRV reading (the baseline's input),
+     *  or null when there is none / a key can't be parsed. DISTINCT from `calibrationNights` (which counts
+     *  progress TOWARD a usable baseline) — this measures staleness, so a surface can say "no new nights from
+     *  your strap for N days" when the baseline aged out silently instead of only "building your baseline".
+     *  Pure and TZ-free (civil-day arithmetic); byte-identical mirror of the Swift twin. `dayKeys`/`nightlyHrv`
+     *  are parallel (same night per index); `today` is an ISO `yyyy-MM-dd` key. */
+    fun nightsSinceNewestValidNight(dayKeys: List<String>, nightlyHrv: List<Double?>, today: String): Int? {
+        var newest: String? = null
+        for (i in 0 until minOf(dayKeys.size, nightlyHrv.size)) {
+            if (nightlyHrv[i] == null) continue
+            val k = dayKeys[i]
+            if (newest == null || k > newest!!) newest = k
+        }
+        val n = newest ?: return null
+        val a = isoEpochDay(n) ?: return null
+        val b = isoEpochDay(today) ?: return null
+        val d = b - a
+        return if (d >= 0) d else null
+    }
+
+    /** Days from civil epoch (proleptic Gregorian) for an ISO `yyyy-MM-dd`, or null if unparseable. TZ-free
+     *  (Howard Hinnant's algorithm), so Kotlin and Swift agree bit-for-bit on the day difference. */
+    internal fun isoEpochDay(iso: String): Int? {
+        val p = iso.split("-")
+        if (p.size != 3) return null
+        val y = p[0].toIntOrNull() ?: return null
+        val m = p[1].toIntOrNull() ?: return null
+        val d = p[2].toIntOrNull() ?: return null
+        if (m < 1 || m > 12) return null
+        val yy = if (m <= 2) y - 1 else y
+        val era = (if (yy >= 0) yy else yy - 399) / 400
+        val yoe = yy - era * 400
+        val doy = (153 * (if (m > 2) m - 3 else m + 9) + 2) / 5 + d - 1
+        val doe = yoe * 365 + yoe / 4 - yoe / 100 + doy
+        return era * 146097 + doe - 719468
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Winsorized EWMA update (production model)
     // ─────────────────────────────────────────────────────────────────────────

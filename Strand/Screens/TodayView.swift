@@ -939,6 +939,15 @@ struct TodayView: View {
     }
     private var calibrationDetail: LocalizedStringKey? {
         guard let n = recoveryCalibration else { return nil }
+        // #612: if the baseline aged out silently — connected, but no new night for > staleDays — say WHY
+        // it's calibrating instead of only "learning your baseline". The honest calibrating state is correct;
+        // this attaches its reason. `stale` is always > staleDays (14) here, so the copy is always plural.
+        if let stale = Baselines.nightsSinceNewestValidNight(dayKeys: repo.days.map(\.day),
+                                                             nightlyHrv: repo.days.map(\.avgHrv),
+                                                             today: Repository.logicalDayKey(Date())),
+           stale > Baselines.staleDays {
+            return "No new nights from your strap for \(stale) days. Check it's connected and saving data."
+        }
         return "Learning your baseline, \(n) of \(Baselines.minNightsSeed) nights."
     }
 

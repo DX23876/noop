@@ -187,6 +187,36 @@ public enum Baselines {
         return .trusted
     }
 
+    /// #612: calendar days since the newest night that carried a usable HRV reading (the baseline's input),
+    /// or nil when there is none / a key can't be parsed. This is DISTINCT from `calibrationNights` (which
+    /// counts progress TOWARD a usable baseline) — it measures staleness, so a surface can say "no new nights
+    /// from your strap for N days" when the baseline aged out silently instead of only "building your
+    /// baseline". Pure and TZ-free (civil-day arithmetic); mirror EXACTLY in the Kotlin twin.
+    /// `dayKeys`/`nightlyHrv` are parallel (same night per index); `today` is an ISO `yyyy-MM-dd` key.
+    public static func nightsSinceNewestValidNight(dayKeys: [String], nightlyHrv: [Double?], today: String) -> Int? {
+        var newest: String? = nil
+        for i in 0..<Swift.min(dayKeys.count, nightlyHrv.count) where nightlyHrv[i] != nil {
+            let k = dayKeys[i]
+            if newest == nil || k > newest! { newest = k }
+        }
+        guard let n = newest, let a = isoEpochDay(n), let b = isoEpochDay(today) else { return nil }
+        let d = b - a
+        return d >= 0 ? d : nil
+    }
+
+    /// Days from civil epoch (proleptic Gregorian) for an ISO `yyyy-MM-dd`, or nil if unparseable. TZ-free
+    /// (Howard Hinnant's algorithm), so Swift and Kotlin agree bit-for-bit on the day difference.
+    static func isoEpochDay(_ iso: String) -> Int? {
+        let p = iso.split(separator: "-")
+        guard p.count == 3, let y = Int(p[0]), let m = Int(p[1]), let d = Int(p[2]), m >= 1, m <= 12 else { return nil }
+        let yy = m <= 2 ? y - 1 : y
+        let era = (yy >= 0 ? yy : yy - 399) / 400
+        let yoe = yy - era * 400
+        let doy = (153 * (m > 2 ? m - 3 : m + 9) + 2) / 5 + d - 1
+        let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy
+        return era * 146097 + doe - 719468
+    }
+
     // MARK: - Winsorized EWMA update (production model)
 
     /// Incorporate one new nightly value into the baseline state.
