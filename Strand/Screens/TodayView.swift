@@ -2063,7 +2063,7 @@ struct TodayView: View {
                     Button {
                         showingDashboardEditor = true
                     } label: {
-                        Label("CUSTOMISE", systemImage: "slider.horizontal.3")
+                        Label(String(localized: "Edit").uppercased(), systemImage: "slider.horizontal.3")   // #492/#563: unified "EDIT"
                             .font(StrandFont.overline)
                             .tracking(StrandFont.overlineTracking)
                     }
@@ -3076,7 +3076,7 @@ struct TodayView: View {
                 Button {
                     showingMetricsEditor = true
                 } label: {
-                    Label("Edit", systemImage: "slider.horizontal.3")
+                    Label(String(localized: "Edit").uppercased(), systemImage: "slider.horizontal.3")   // #492/#563: uppercase to match
                         .font(StrandFont.footnote)
                 }
                 .buttonStyle(.plain)

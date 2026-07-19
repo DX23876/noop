@@ -570,7 +570,10 @@ struct LiquidTodayView: View {
                     .foregroundStyle(StrandPalette.textTertiary)
                 Spacer()
                 Button { showCustomise = true } label: {
-                    Text("CUSTOMISE").font(StrandFont.overlineScaled(11)).tracking(1.0)
+                    // #492 item 4 parity: unify the Your Cards / Key Metrics edit affordance to "EDIT" across
+                    // platforms (Android #563). Reuse the localized "Edit" key, uppercased at display, so this
+                    // stays translated (BEARBEITEN / MODIFIER / …) without a new literal.
+                    Text(String(localized: "Edit").uppercased()).font(StrandFont.overlineScaled(11)).tracking(1.0)
                         .foregroundStyle(StrandPalette.accent)
                 }
                 .buttonStyle(.plain)
