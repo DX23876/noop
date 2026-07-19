@@ -4,6 +4,7 @@ import com.noop.R
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -80,7 +81,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -92,6 +97,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.noop.analytics.WorkoutSport
+import com.noop.analytics.HeartRateRecovery
 import com.noop.data.WorkoutRow
 import java.time.Instant
 import java.time.ZoneId
@@ -126,6 +132,7 @@ fun WorkoutsScreen(vm: AppViewModel) {
     // The ViewModel owns the loaded rows now (ALL sources incl. detected, dismissed-filtered) so a
     // mutation (add / edit / relabel / dismiss / delete) republishes the list and the screen updates.
     val allRows by vm.workouts.collectAsState()
+    val lastHistorySyncAt by vm.lastHistorySyncAt.collectAsStateWithLifecycle()
     // Cached daily metrics — the Charge side of the post-log activity-cost note (#439).
     val recentDays by vm.recentDays.collectAsStateWithLifecycle()
     var loaded by remember { mutableStateOf(false) }
@@ -162,6 +169,7 @@ fun WorkoutsScreen(vm: AppViewModel) {
     // A transient one-line note shown after a manual save / relabel for a sport that already has a
     // solid/building ActivityCost entry — "Sessions like this usually …" (#439). Auto-clears.
     var postLogNote by remember { mutableStateOf<String?>(null) }
+    var recoveryTrend by remember { mutableStateOf<List<WorkoutRecoveryTrendPoint>>(emptyList()) }
     // The sport whose recovery-cost note to surface once the reloaded sessions land. saveManualWorkout
     // / relabelDetected reload `vm.workouts` asynchronously, so we wait for `allRows` to update before
     // computing the note (otherwise it would read the pre-save list). Cleared once consumed.
@@ -177,6 +185,26 @@ fun WorkoutsScreen(vm: AppViewModel) {
             kotlinx.coroutines.delay(7_000)
             postLogNote = null
         }
+    }
+
+    // #516: use the same active filter/range as the workout page, capped to 90 days. The cap keeps a deep
+    // imported history from launching hundreds of raw-HR reads; 7D/30D/90D are the promised trend views.
+    val recoveryRange = run {
+        val resolved = effectiveRange(allRows, range, filter)
+        if (resolved.days == null || resolved.days > 90) WorkoutRange.Quarter else resolved
+    }
+    val recoveryRows = filter.apply(sessions(allRows, recoveryRange)).sortedBy { it.startTs }
+    val recoveryInputKey = buildString {
+        append(recoveryRange.name)
+        recoveryRows.forEach { append('|').append(it.startTs).append(':').append(it.endTs) }
+    }
+    LaunchedEffect(recoveryInputKey, vm.activeStrapId, lastHistorySyncAt) {
+        val built = ArrayList<WorkoutRecoveryTrendPoint>()
+        for (row in recoveryRows) {
+            val result = vm.workoutHeartRateRecovery(row.startTs, row.endTs) ?: continue
+            built += WorkoutRecoveryTrendPoint(row.startTs, result)
+        }
+        recoveryTrend = built
     }
 
     LaunchedEffect(Unit) {
@@ -259,6 +287,9 @@ fun WorkoutsScreen(vm: AppViewModel) {
             item { SummarySection(rows = windowRows, effectiveRange = resolved, groups = groups) }
             item { BreakdownSection(groups = groups, rows = windowRows) }
             item { ZonesSection(windowRows) }
+            if (recoveryTrend.isNotEmpty()) {
+                item { RecoveryTrendSection(recoveryTrend, recoveryRange.localizedCaption()) }
+            }
             item {
             SessionsSection(
                 vm = vm,
@@ -325,6 +356,11 @@ fun WorkoutsScreen(vm: AppViewModel) {
 
 /** Drives the manual add/edit dialog. [editing] null = add a new workout, non-null = edit it. */
 private data class DialogTarget(val editing: WorkoutRow?)
+
+private data class WorkoutRecoveryTrendPoint(
+    val startTs: Long,
+    val result: HeartRateRecovery.Result,
+)
 
 // MARK: - Empty / loading state
 
@@ -1254,6 +1290,7 @@ private fun WorkoutDetailSheet(vm: AppViewModel, row: WorkoutRow, onDismiss: () 
     var hrCurve by remember(row.startTs) { mutableStateOf<List<Double>>(emptyList()) }
     var zoneMinutes by remember(row.startTs) { mutableStateOf<List<Double>?>(null) }
     var zonesFromImport by remember(row.startTs) { mutableStateOf(false) }
+    var heartRateRecovery by remember(row.startTs) { mutableStateOf<HeartRateRecovery.Result?>(null) }
     // Steps for an on-foot sport (#398): the strap's own counter over the window, computed at display time
     // so it "fills in after sync". null for non-foot sports or when no strap counter covers the window.
     var steps by remember(row.startTs) { mutableStateOf<Int?>(null) }
@@ -1272,6 +1309,7 @@ private fun WorkoutDetailSheet(vm: AppViewModel, row: WorkoutRow, onDismiss: () 
             zoneMinutes = vm.workoutZoneMinutes(row.startTs, row.endTs)
             zonesFromImport = false
         }
+        heartRateRecovery = vm.workoutHeartRateRecovery(row.startTs, row.endTs)
     }
 
     ModalBottomSheet(
@@ -1389,7 +1427,194 @@ private fun WorkoutDetailSheet(vm: AppViewModel, row: WorkoutRow, onDismiss: () 
                     )
                 }
             }
+
+            heartRateRecovery?.let {
+                CardDivider()
+                HeartRateRecoveryCard(it)
+            }
         }
+    }
+}
+
+/** Per-workout HRR readout (#516). Values are signed bpm changes from the exercise-end HR; missing
+ *  minute windows remain dashes rather than being interpolated across a strap disconnect. */
+@Composable
+private fun HeartRateRecoveryCard(result: HeartRateRecovery.Result) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SectionHeader(
+            title = uiString(R.string.l10n_workouts_screen_heart_rate_recovery_516),
+            overline = uiString(R.string.l10n_workouts_screen_after_high_intensity_effort_516),
+            trailing = uiString(R.string.l10n_workouts_screen_peak_hr_bpm_516, result.endHr),
+        )
+        NoopCard(tint = Palette.metricRose) {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    RecoveryStat(
+                        uiString(R.string.l10n_workouts_screen_hrr_one_minute_516),
+                        result.after1Minute,
+                        Modifier.weight(1f),
+                    )
+                    RecoveryStat(
+                        uiString(R.string.l10n_workouts_screen_hrr_two_minutes_516),
+                        result.after2Minutes,
+                        Modifier.weight(1f),
+                    )
+                    RecoveryStat(
+                        uiString(R.string.l10n_workouts_screen_hrr_five_minutes_516),
+                        result.after5Minutes,
+                        Modifier.weight(1f),
+                    )
+                }
+                CardDivider()
+                Text(
+                    uiString(R.string.l10n_workouts_screen_hrr_explanation_516),
+                    style = NoopType.footnote,
+                    color = Palette.textTertiary,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecoveryStat(label: String, value: Int?, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.semantics {
+            contentDescription = uiString(
+                R.string.l10n_workouts_screen_hrr_accessibility_516,
+                label,
+                value?.toString() ?: uiString(R.string.l10n_workouts_screen_hrr_not_available_516),
+            )
+        },
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        Overline(label)
+        Text(
+            value?.toString() ?: "–",
+            style = NoopType.number(24f),
+            color = value?.let { if (it >= 0) Palette.statusPositive else Palette.statusWarning }
+                ?: Palette.textTertiary,
+        )
+        Text(
+            uiString(R.string.l10n_workouts_screen_hrr_bpm_516),
+            style = NoopType.footnote,
+            color = Palette.textTertiary,
+        )
+    }
+}
+
+/** Shared-axis 1/2/5-minute HRR trend (#516). These are raw bpm changes, not normalized values, so the
+ *  distance between lines remains meaningful. Missing minute windows are omitted from that series. */
+@Composable
+private fun RecoveryTrendSection(points: List<WorkoutRecoveryTrendPoint>, rangeCaption: String) {
+    val oneColor = Palette.metricRose
+    val twoColor = Palette.metricCyan
+    val fiveColor = Palette.metricPurple
+    Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
+        SectionHeader(
+            title = uiString(R.string.l10n_workouts_screen_recovery_trend_516),
+            overline = uiString(R.string.l10n_workouts_screen_hrr_range_516, rangeCaption),
+            trailing = uiPlural(
+                R.plurals.l10n_workouts_screen_hrr_workout_count_516,
+                points.size,
+                points.size,
+            ),
+        )
+        NoopCard(tint = Palette.metricRose) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                RecoveryTrendChart(
+                    points = points,
+                    oneColor = oneColor,
+                    twoColor = twoColor,
+                    fiveColor = fiveColor,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(Metrics.chartHeight),
+                )
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Text(dateLabel(points.first().startTs), style = NoopType.footnote, color = Palette.textTertiary)
+                    Spacer(Modifier.weight(1f))
+                    Text(dateLabel(points.last().startTs), style = NoopType.footnote, color = Palette.textTertiary)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    RecoveryLegend(uiString(R.string.l10n_workouts_screen_hrr_one_minute_516), oneColor)
+                    RecoveryLegend(uiString(R.string.l10n_workouts_screen_hrr_two_minutes_516), twoColor)
+                    RecoveryLegend(uiString(R.string.l10n_workouts_screen_hrr_five_minutes_516), fiveColor)
+                }
+                CardDivider()
+                Text(
+                    uiString(R.string.l10n_workouts_screen_hrr_trend_explanation_516),
+                    style = NoopType.footnote,
+                    color = Palette.textTertiary,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecoveryLegend(label: String, color: Color) {
+    Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(8.dp).clip(androidx.compose.foundation.shape.CircleShape).background(color))
+        Text(label, style = NoopType.footnote, color = Palette.textSecondary)
+    }
+}
+
+@Composable
+private fun RecoveryTrendChart(
+    points: List<WorkoutRecoveryTrendPoint>,
+    oneColor: Color,
+    twoColor: Color,
+    fiveColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    val allValues = points.flatMap {
+        listOfNotNull(it.result.after1Minute, it.result.after2Minutes, it.result.after5Minutes)
+    }
+    if (allValues.isEmpty()) return
+    val low = allValues.minOrNull() ?: 0
+    val high = allValues.maxOrNull() ?: low
+    val padding = maxOf(4.0, (high - low) * 0.12)
+    val yMin = low - padding
+    val yMax = high + padding
+    val xMin = points.first().startTs
+    val xMax = points.last().startTs
+    val chartDescription = uiString(R.string.l10n_workouts_screen_hrr_chart_accessibility_516)
+
+    Canvas(modifier = modifier.semantics { contentDescription = chartDescription }) {
+        val gridColor = Palette.hairline
+        repeat(4) { index ->
+            val y = size.height * index / 3f
+            drawLine(gridColor, Offset(0f, y), Offset(size.width, y), strokeWidth = 1f)
+        }
+
+        fun x(ts: Long): Float = if (xMax == xMin) size.width / 2f
+            else ((ts - xMin).toDouble() / (xMax - xMin).toDouble() * size.width).toFloat()
+        fun y(value: Int): Float =
+            (size.height - ((value - yMin) / (yMax - yMin) * size.height)).toFloat()
+
+        fun drawSeries(color: Color, pick: (HeartRateRecovery.Result) -> Int?) {
+            val series = points.mapNotNull { point -> pick(point.result)?.let { point.startTs to it } }
+            if (series.isEmpty()) return
+            val path = Path()
+            series.forEachIndexed { index, (ts, value) ->
+                val px = x(ts)
+                val py = y(value)
+                if (index == 0) path.moveTo(px, py) else path.lineTo(px, py)
+            }
+            if (series.size > 1) {
+                drawPath(
+                    path = path,
+                    color = color,
+                    style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
+                )
+            }
+            series.forEach { (ts, value) -> drawCircle(color, radius = 3.5.dp.toPx(), center = Offset(x(ts), y(value))) }
+        }
+
+        drawSeries(oneColor) { it.after1Minute }
+        drawSeries(twoColor) { it.after2Minutes }
+        drawSeries(fiveColor) { it.after5Minutes }
     }
 }
 
@@ -1847,6 +2072,14 @@ private enum class WorkoutRange(val label: String, val caption: String, val days
     Quarter("90D", "last 90 days", 90, "quarter"),
     Year("1Y", "last year", 365, "year"),
     All("All", "all time", null, "log"),
+}
+
+/** The HRR card must not interpolate the range enum's legacy English-only caption into localized copy. */
+private fun WorkoutRange.localizedCaption(): String = when (this) {
+    WorkoutRange.Week -> uiString(R.string.l10n_workouts_screen_hrr_last_7_days_516)
+    WorkoutRange.Month -> uiString(R.string.l10n_workouts_screen_hrr_last_30_days_516)
+    WorkoutRange.Quarter, WorkoutRange.Year, WorkoutRange.All ->
+        uiString(R.string.l10n_workouts_screen_hrr_last_90_days_516)
 }
 
 /** This range plus every larger range, ascending — the auto-expand search order. */

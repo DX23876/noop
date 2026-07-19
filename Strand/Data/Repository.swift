@@ -2487,6 +2487,19 @@ final class Repository: ObservableObject {
         return minutes.contains(where: { $0 > 0 }) ? minutes : nil
     }
 
+    /// HRR for one workout (#516), derived from the final five minutes of recorded effort plus the five
+    /// post-workout minutes. This is a narrow read (at most ~10 minutes), not a whole-workout scan, and the
+    /// pure engine owns every eligibility/coverage guard. Missing post-workout HR therefore returns nil
+    /// instead of fabricating a recovery value. Kotlin twin: `AppViewModel.workoutHeartRateRecovery`.
+    func workoutHeartRateRecovery(from: Int, to: Int, maxHR: Double) async -> HeartRateRecovery.Result? {
+        guard to > from, maxHR > 0 else { return nil }
+        let readFrom = max(from, to - HeartRateRecovery.eligibilityLookbackSeconds)
+        let readTo = to + 5 * 60 + HeartRateRecovery.measurementToleranceSeconds
+        let samples = await hrSamples(from: readFrom, to: readTo, limit: 2_000)
+        return HeartRateRecovery.calculate(samples: samples, workoutStart: from, workoutEnd: to,
+                                           maxHR: maxHR)
+    }
+
     /// Apple Health daily aggregates (steps/energy/vo2/hr).
     func appleDailyRows(days: Int = 4000) async -> [AppleDaily] {
         guard let store = await ensureStore() else { return [] }

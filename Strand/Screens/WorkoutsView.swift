@@ -1,8 +1,15 @@
 import SwiftUI
+import Charts
 import StrandDesign
 import StrandAnalytics
 import WhoopStore
 import Foundation
+
+private struct WorkoutRecoveryTrendPoint: Identifiable, Equatable {
+    let startTs: Int
+    let result: HeartRateRecovery.Result
+    var id: Int { startTs }
+}
 
 // MARK: - Workouts
 //
@@ -74,6 +81,11 @@ struct WorkoutsView: View {
     /// A transient one-line note shown after a manual save / relabel for a sport that already has a
     /// solid/building ActivityCost entry — "Sessions like this usually …" (#439). Auto-clears.
     @State private var postLogNote: String?
+
+    /// #516: eligible workouts in the visible 7/30/90-day window, calculated from recorded HR. Wider
+    /// workout ranges intentionally keep this trend capped at 90 days so opening a deep history never
+    /// launches hundreds of raw-HR reads.
+    @State private var recoveryTrend: [WorkoutRecoveryTrendPoint] = []
 
     // MARK: - Filters + selection (#64)
 
@@ -163,6 +175,7 @@ struct WorkoutsView: View {
                 if let z = zonesSummary {
                     zonesSection(z, totalSessions: windowRows.count)
                 }
+                recoveryTrendSection
                 sessionsSection(rows: windowRows)
             }
         }
@@ -191,6 +204,9 @@ struct WorkoutsView: View {
         // full read is needed to show the older sessions.
         .onChange(of: range) { newRange in
             Task { await expandWindowIfNeeded(for: newRange == .all ? .all : effectiveRange) }
+        }
+        .task(id: recoveryTrendInputKey) {
+            await loadRecoveryTrend()
         }
         .sheet(item: $sheet) { target in
             ManualWorkoutSheet(editing: target.editing) { row, replacing in
@@ -258,6 +274,76 @@ struct WorkoutsView: View {
     /// (`effectiveRange`) still covers a now-empty window.
     private func reload() async {
         allRows = await repo.workoutRows(days: loadedWindowDays ?? 4000)
+    }
+
+    // MARK: - Heart-rate recovery trend (#516)
+
+    /// Apply the screen's active filter + range, capped to the latest 90 days as promised by the feature.
+    private var recoveryTrendRows: [WorkoutRow] {
+        let visible = sessions(for: effectiveRange)
+        guard let last = latestTs else { return [] }
+        let cutoff = last - 90 * 86_400
+        return visible.filter { $0.startTs >= cutoff }.sorted { $0.startTs < $1.startTs }
+    }
+
+    /// Stable task identity: changing the range/filter/rows or HRmax cancels and rebuilds the trend.
+    private var recoveryTrendInputKey: String {
+        let rows = recoveryTrendRows
+        return "\(repo.refreshSeq)|\(model.profile.hrMax)|"
+            + rows.map { "\($0.startTs):\($0.endTs)" }.joined(separator: ",")
+    }
+
+    private var recoveryTrendCaption: String {
+        if let days = effectiveRange.days, days <= 90 { return effectiveRange.caption }
+        return String(localized: "last 90 days")
+    }
+
+    private func loadRecoveryTrend() async {
+        guard !usesPreviewRows else { recoveryTrend = []; return }
+        var built: [WorkoutRecoveryTrendPoint] = []
+        for row in recoveryTrendRows {
+            if Task.isCancelled { return }
+            if let result = await repo.workoutHeartRateRecovery(
+                from: row.startTs, to: row.endTs, maxHR: Double(model.profile.hrMax)) {
+                built.append(WorkoutRecoveryTrendPoint(startTs: row.startTs, result: result))
+            }
+        }
+        guard !Task.isCancelled else { return }
+        recoveryTrend = built
+    }
+
+    @ViewBuilder private var recoveryTrendSection: some View {
+        if !recoveryTrend.isEmpty {
+            VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+                SectionHeader("Recovery Trend", overline: "Heart-rate recovery · \(recoveryTrendCaption)",
+                              trailing: recoveryTrend.count == 1
+                                ? String(localized: "1 workout")
+                                : String(localized: "\(recoveryTrend.count) workouts"))
+                NoopCard(tint: StrandPalette.metricRose) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        WorkoutRecoveryTrendChart(points: recoveryTrend)
+                            .frame(height: NoopMetrics.chartHeight)
+                        HStack(spacing: 16) {
+                            recoveryLegend("1 min", color: StrandPalette.metricRose)
+                            recoveryLegend("2 min", color: StrandPalette.metricCyan)
+                            recoveryLegend("5 min", color: StrandPalette.metricPurple)
+                        }
+                        Divider().overlay(StrandPalette.hairline)
+                        Text("Each line shows how many beats per minute your heart rate changed after exercise. Only high-intensity workouts with recorded post-workout heart rate are included.")
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+        }
+    }
+
+    private func recoveryLegend(_ label: LocalizedStringKey, color: Color) -> some View {
+        HStack(spacing: 5) {
+            Circle().fill(color).frame(width: 8, height: 8)
+            Text(label).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+        }
     }
 
     /// #797: page the FULL workout history in when the user selects a range wider than the bounded
@@ -1580,6 +1666,79 @@ struct WorkoutsView: View {
         static let effort: CGFloat = 64   // #796 per-session Effort column
         static let source: CGFloat = 80
         static let action: CGFloat = 36   // trailing "•••" per-row actions menu
+    }
+}
+
+/// Three raw-bpm HRR lines on one shared axis (#516). Unlike Compare's normalized overlay, these values
+/// share a unit and scale, so their vertical distance remains meaningful. Point marks keep a single eligible
+/// workout visible even when there is not yet enough history to draw a line.
+private struct WorkoutRecoveryTrendChart: View {
+    let points: [WorkoutRecoveryTrendPoint]
+
+    private struct Plot: Identifiable {
+        let startTs: Int
+        let interval: String
+        let value: Int
+        var id: String { "\(interval)@\(startTs)" }
+        var date: Date { Date(timeIntervalSince1970: TimeInterval(startTs)) }
+    }
+
+    private var plots: [Plot] {
+        points.flatMap { point in
+            var out: [Plot] = []
+            if let value = point.result.after1Minute {
+                out.append(Plot(startTs: point.startTs, interval: String(localized: "1 min"), value: value))
+            }
+            if let value = point.result.after2Minutes {
+                out.append(Plot(startTs: point.startTs, interval: String(localized: "2 min"), value: value))
+            }
+            if let value = point.result.after5Minutes {
+                out.append(Plot(startTs: point.startTs, interval: String(localized: "5 min"), value: value))
+            }
+            return out
+        }
+    }
+
+    var body: some View {
+        let one = String(localized: "1 min")
+        let two = String(localized: "2 min")
+        let five = String(localized: "5 min")
+        Chart(plots) { point in
+            LineMark(
+                x: .value("Workout", point.date),
+                y: .value("Recovery", point.value)
+            )
+            .foregroundStyle(by: .value("Recovery interval", point.interval))
+            .interpolationMethod(.catmullRom)
+            PointMark(
+                x: .value("Workout", point.date),
+                y: .value("Recovery", point.value)
+            )
+            .foregroundStyle(by: .value("Recovery interval", point.interval))
+            .symbolSize(28)
+        }
+        .chartForegroundStyleScale(
+            domain: [one, two, five],
+            range: [StrandPalette.metricRose, StrandPalette.metricCyan, StrandPalette.metricPurple]
+        )
+        .chartLegend(.hidden)
+        .chartXAxis {
+            AxisMarks(values: .automatic(desiredCount: 4)) { value in
+                AxisGridLine().foregroundStyle(StrandPalette.hairline)
+                AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                    .foregroundStyle(StrandPalette.textTertiary)
+            }
+        }
+        .chartYAxis {
+            AxisMarks(position: .leading, values: .automatic(desiredCount: 5)) { value in
+                AxisGridLine().foregroundStyle(StrandPalette.hairline)
+                AxisValueLabel {
+                    if let bpm = value.as(Int.self) { Text("\(bpm)") }
+                }
+                .foregroundStyle(StrandPalette.textTertiary)
+            }
+        }
+        .accessibilityLabel("Heart-rate recovery trend in beats per minute")
     }
 }
 

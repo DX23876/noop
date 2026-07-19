@@ -1636,6 +1636,23 @@
     <string name="explore_description_charge">Qué tan recuperado estás, según tu VFC frente a tu línea base personal.</string>
     <string name="explore_description_effort">Carga cardiovascular del día, en una escala de 0–100 (antes 0–21).</string>
     <string name="explore_description_rest">Qué tan reparador fue tu sueño: duración, eficiencia, sueño profundo y REM, y horario.</string>
+    <string name="l10n_workouts_screen_heart_rate_recovery_516">Recuperación de la frecuencia cardíaca</string>
+    <string name="l10n_workouts_screen_after_high_intensity_effort_516">Después de un esfuerzo de alta intensidad</string>
+    <string name="l10n_workouts_screen_peak_hr_bpm_516">Pico de %1$d lpm</string>
+    <string name="l10n_workouts_screen_hrr_one_minute_516">1 min</string>
+    <string name="l10n_workouts_screen_hrr_two_minutes_516">2 min</string>
+    <string name="l10n_workouts_screen_hrr_five_minutes_516">5 min</string>
+    <string name="l10n_workouts_screen_hrr_bpm_516">lpm</string>
+    <string name="l10n_workouts_screen_hrr_not_available_516">no disponible</string>
+    <string name="l10n_workouts_screen_hrr_accessibility_516">Recuperación de la frecuencia cardíaca a los %1$s: %2$s latidos por minuto</string>
+    <string name="l10n_workouts_screen_hrr_explanation_516">El cambio respecto a tu frecuencia cardíaca al terminar el ejercicio. Los valores positivos indican que la frecuencia cardíaca bajó; un guion indica que la pulsera no registró suficientes datos alrededor de ese minuto.</string>
+    <string name="l10n_workouts_screen_recovery_trend_516">Tendencia de recuperación</string>
+    <string name="l10n_workouts_screen_hrr_range_516">Recuperación cardíaca · %1$s</string>
+    <string name="l10n_workouts_screen_hrr_trend_explanation_516">Cada línea muestra cuántos latidos por minuto cambió tu frecuencia cardíaca después del ejercicio. Solo se incluyen entrenamientos de alta intensidad con frecuencia cardíaca registrada después del ejercicio.</string>
+    <string name="l10n_workouts_screen_hrr_chart_accessibility_516">Tendencia de recuperación de la frecuencia cardíaca en latidos por minuto</string>
+    <string name="l10n_workouts_screen_hrr_last_7_days_516">últimos 7 días</string>
+    <string name="l10n_workouts_screen_hrr_last_30_days_516">últimos 30 días</string>
+    <string name="l10n_workouts_screen_hrr_last_90_days_516">últimos 90 días</string>
     <plurals name="intelligence_days_count">
         <item quantity="one">%1$d día</item>
         <item quantity="other">%1$d días</item>
@@ -1651,5 +1668,9 @@
     <plurals name="explore_n_days">
         <item quantity="one">%1$d día</item>
         <item quantity="other">%1$d días</item>
+    </plurals>
+    <plurals name="l10n_workouts_screen_hrr_workout_count_516">
+        <item quantity="one">%1$d entrenamiento</item>
+        <item quantity="other">%1$d entrenamientos</item>
     </plurals>
 </resources>

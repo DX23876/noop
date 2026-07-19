@@ -1660,6 +1660,23 @@
     <string name="explore_description_charge">How recovered you are, led by HRV versus your personal baseline.</string>
     <string name="explore_description_effort">Cardiovascular load for the day, on a 0-100 scale (was 0-21).</string>
     <string name="explore_description_rest">How restorative your sleep was: duration, efficiency, deep+REM, timing.</string>
+    <string name="l10n_workouts_screen_heart_rate_recovery_516">Heart Rate Recovery</string>
+    <string name="l10n_workouts_screen_after_high_intensity_effort_516">After high-intensity effort</string>
+    <string name="l10n_workouts_screen_peak_hr_bpm_516">Peak %1$d bpm</string>
+    <string name="l10n_workouts_screen_hrr_one_minute_516">1 min</string>
+    <string name="l10n_workouts_screen_hrr_two_minutes_516">2 min</string>
+    <string name="l10n_workouts_screen_hrr_five_minutes_516">5 min</string>
+    <string name="l10n_workouts_screen_hrr_bpm_516">bpm</string>
+    <string name="l10n_workouts_screen_hrr_not_available_516">not available</string>
+    <string name="l10n_workouts_screen_hrr_accessibility_516">Heart rate recovery at %1$s, %2$s beats per minute</string>
+    <string name="l10n_workouts_screen_hrr_explanation_516">The change from your heart rate at the end of exercise. Positive values mean your heart rate fell; a dash means the strap did not record enough data around that minute.</string>
+    <string name="l10n_workouts_screen_recovery_trend_516">Recovery Trend</string>
+    <string name="l10n_workouts_screen_hrr_range_516">Heart-rate recovery · %1$s</string>
+    <string name="l10n_workouts_screen_hrr_trend_explanation_516">Each line shows how many beats per minute your heart rate changed after exercise. Only high-intensity workouts with recorded post-workout heart rate are included.</string>
+    <string name="l10n_workouts_screen_hrr_chart_accessibility_516">Heart-rate recovery trend in beats per minute</string>
+    <string name="l10n_workouts_screen_hrr_last_7_days_516">last 7 days</string>
+    <string name="l10n_workouts_screen_hrr_last_30_days_516">last 30 days</string>
+    <string name="l10n_workouts_screen_hrr_last_90_days_516">last 90 days</string>
     <plurals name="intelligence_days_count">
         <item quantity="one">%1$d day</item>
         <item quantity="other">%1$d days</item>
@@ -1675,5 +1692,9 @@
     <plurals name="explore_n_days">
         <item quantity="one">%1$d day</item>
         <item quantity="other">%1$d days</item>
+    </plurals>
+    <plurals name="l10n_workouts_screen_hrr_workout_count_516">
+        <item quantity="one">%1$d workout</item>
+        <item quantity="other">%1$d workouts</item>
     </plurals>
 </resources>

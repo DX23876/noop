@@ -1651,6 +1651,23 @@
     <string name="explore_description_charge">Wie erholt du bist, angeführt von der HRV gegenüber deiner persönlichen Basislinie.</string>
     <string name="explore_description_effort">Herz-Kreislauf-Belastung für den Tag auf einer Skala von 0–100 (zuvor 0–21).</string>
     <string name="explore_description_rest">Wie erholsam dein Schlaf war: Dauer, Effizienz, Tief- und REM-Schlaf sowie Timing.</string>
+    <string name="l10n_workouts_screen_heart_rate_recovery_516">Herzfrequenzerholung</string>
+    <string name="l10n_workouts_screen_after_high_intensity_effort_516">Nach hochintensiver Belastung</string>
+    <string name="l10n_workouts_screen_peak_hr_bpm_516">Spitze %1$d bpm</string>
+    <string name="l10n_workouts_screen_hrr_one_minute_516">1 Min.</string>
+    <string name="l10n_workouts_screen_hrr_two_minutes_516">2 Min.</string>
+    <string name="l10n_workouts_screen_hrr_five_minutes_516">5 Min.</string>
+    <string name="l10n_workouts_screen_hrr_bpm_516">bpm</string>
+    <string name="l10n_workouts_screen_hrr_not_available_516">nicht verfügbar</string>
+    <string name="l10n_workouts_screen_hrr_accessibility_516">Herzfrequenzerholung nach %1$s: %2$s Schläge pro Minute</string>
+    <string name="l10n_workouts_screen_hrr_explanation_516">Die Veränderung gegenüber deiner Herzfrequenz am Ende der Belastung. Positive Werte bedeuten, dass deine Herzfrequenz gesunken ist; ein Strich bedeutet, dass das Band um diese Minute herum nicht genügend Daten aufgezeichnet hat.</string>
+    <string name="l10n_workouts_screen_recovery_trend_516">Erholungstrend</string>
+    <string name="l10n_workouts_screen_hrr_range_516">Herzfrequenzerholung · %1$s</string>
+    <string name="l10n_workouts_screen_hrr_trend_explanation_516">Jede Linie zeigt, um wie viele Schläge pro Minute sich deine Herzfrequenz nach der Belastung verändert hat. Berücksichtigt werden nur hochintensive Workouts mit aufgezeichneter Herzfrequenz nach der Belastung.</string>
+    <string name="l10n_workouts_screen_hrr_chart_accessibility_516">Trend der Herzfrequenzerholung in Schlägen pro Minute</string>
+    <string name="l10n_workouts_screen_hrr_last_7_days_516">letzte 7 Tage</string>
+    <string name="l10n_workouts_screen_hrr_last_30_days_516">letzte 30 Tage</string>
+    <string name="l10n_workouts_screen_hrr_last_90_days_516">letzte 90 Tage</string>
     <plurals name="intelligence_days_count">
         <item quantity="one">%1$d Tag</item>
         <item quantity="other">%1$d Tage</item>
@@ -1666,5 +1683,9 @@
     <plurals name="explore_n_days">
         <item quantity="one">%1$d Tag</item>
         <item quantity="other">%1$d Tage</item>
+    </plurals>
+    <plurals name="l10n_workouts_screen_hrr_workout_count_516">
+        <item quantity="one">%1$d Workout</item>
+        <item quantity="other">%1$d Workouts</item>
     </plurals>
 </resources>

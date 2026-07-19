@@ -1636,6 +1636,23 @@
     <string name="explore_description_charge">Votre niveau de récupération, mesuré par la VFC par rapport à votre référence personnelle.</string>
     <string name="explore_description_effort">Charge cardiovasculaire de la journée, sur une échelle de 0 à 100 (auparavant 0 à 21).</string>
     <string name="explore_description_rest">À quel point votre sommeil a été réparateur : durée, efficacité, sommeil profond et paradoxal, et horaires.</string>
+    <string name="l10n_workouts_screen_heart_rate_recovery_516">Récupération de la fréquence cardiaque</string>
+    <string name="l10n_workouts_screen_after_high_intensity_effort_516">Après un effort intense</string>
+    <string name="l10n_workouts_screen_peak_hr_bpm_516">Pic à %1$d bpm</string>
+    <string name="l10n_workouts_screen_hrr_one_minute_516">1 min</string>
+    <string name="l10n_workouts_screen_hrr_two_minutes_516">2 min</string>
+    <string name="l10n_workouts_screen_hrr_five_minutes_516">5 min</string>
+    <string name="l10n_workouts_screen_hrr_bpm_516">bpm</string>
+    <string name="l10n_workouts_screen_hrr_not_available_516">indisponible</string>
+    <string name="l10n_workouts_screen_hrr_accessibility_516">Récupération de la fréquence cardiaque à %1$s : %2$s battements par minute</string>
+    <string name="l10n_workouts_screen_hrr_explanation_516">La variation par rapport à votre fréquence cardiaque à la fin de l’exercice. Une valeur positive indique que la fréquence cardiaque a baissé ; un tiret signifie que le bracelet n’a pas enregistré assez de données autour de cette minute.</string>
+    <string name="l10n_workouts_screen_recovery_trend_516">Tendance de récupération</string>
+    <string name="l10n_workouts_screen_hrr_range_516">Récupération cardiaque · %1$s</string>
+    <string name="l10n_workouts_screen_hrr_trend_explanation_516">Chaque ligne indique de combien de battements par minute votre fréquence cardiaque a changé après l’effort. Seuls les entraînements intenses avec une fréquence cardiaque enregistrée après l’effort sont inclus.</string>
+    <string name="l10n_workouts_screen_hrr_chart_accessibility_516">Tendance de récupération de la fréquence cardiaque en battements par minute</string>
+    <string name="l10n_workouts_screen_hrr_last_7_days_516">7 derniers jours</string>
+    <string name="l10n_workouts_screen_hrr_last_30_days_516">30 derniers jours</string>
+    <string name="l10n_workouts_screen_hrr_last_90_days_516">90 derniers jours</string>
     <plurals name="intelligence_days_count">
         <item quantity="one">%1$d jour</item>
         <item quantity="other">%1$d jours</item>
@@ -1651,5 +1668,9 @@
     <plurals name="explore_n_days">
         <item quantity="one">%1$d jour</item>
         <item quantity="other">%1$d jours</item>
+    </plurals>
+    <plurals name="l10n_workouts_screen_hrr_workout_count_516">
+        <item quantity="one">%1$d entraînement</item>
+        <item quantity="other">%1$d entraînements</item>
     </plurals>
 </resources>
