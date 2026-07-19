@@ -1437,22 +1437,15 @@ fun TodayScreen(
                             modifier = Modifier.fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(verticalAlignment = Alignment.Top) {
                                 Box(modifier = Modifier.weight(1f)) {
                                     SectionHeader("Key Metrics", overline = dayLabel, trailing = trendWindowLabel(keyMetricsWindowDays))
                                 }
-                                TextButton(
+                                TodayEditAction(
                                     onClick = { showMetricsEditor = true },
-                                    colors = ButtonDefaults.textButtonColors(contentColor = Palette.accent),
-                                ) {
-                                    Icon(
-                                        Icons.Filled.Tune,
-                                        contentDescription = uiString(R.string.l10n_today_screen_edit_key_metrics_f95e61a4),
-                                        modifier = Modifier.size(Metrics.iconSmall),
-                                    )
-                                    Spacer(Modifier.width(4.dp))
-                                    Text(uiString(R.string.l10n_today_screen_edit_5301648d), style = NoopType.footnote)
-                                }
+                                    contentDescription = uiString(R.string.l10n_today_screen_edit_key_metrics_f95e61a4),
+                                    contentAlignment = Alignment.TopCenter,
+                                )
                             }
                             Box(modifier = Modifier.fillMaxWidth().staggeredAppear(stagger)) {
                                 MetricGrid(
@@ -2962,6 +2955,41 @@ private fun HeroVitalRow(label: String, value: String, tint: Color, fraction: Do
 // big white value + small unit + chevron on the right. A card with no value yet renders a dash rather than
 // vanishing. Mirrors iOS TodayView.yourCardsSection / pinnedCardRow / dashboardValue / dashboardTint.
 
+/** Shared Today section edit affordance. The 48dp box keeps the whole control easy to tap while its
+ *  visible content stays pinned to the overline instead of centring against a two-line header. */
+@Composable
+private fun TodayEditAction(
+    contentDescription: String,
+    onClick: () -> Unit,
+    contentAlignment: Alignment = Alignment.Center,
+) {
+    Box(
+        modifier = Modifier
+            .height(48.dp)
+            .clickable(onClick = onClick)
+            .semantics { this.contentDescription = contentDescription }
+            .padding(horizontal = Metrics.space12),
+    ) {
+        Row(
+            modifier = Modifier.align(contentAlignment),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Filled.Tune,
+                contentDescription = null,
+                tint = Palette.accent,
+                modifier = Modifier.size(14.dp),
+            )
+            Spacer(Modifier.width(Metrics.space4))
+            Text(
+                uiString(R.string.l10n_today_screen_edit_5301648d).uppercase(Locale.getDefault()),
+                style = NoopType.overline.copy(letterSpacing = 0.4.sp),
+                color = Palette.accent,
+            )
+        }
+    }
+}
+
 @Composable
 private fun YourCardsSection(
     cards: List<DashboardCard>,
@@ -2987,26 +3015,13 @@ private fun YourCardsSection(
 ) {
     Box(modifier = Modifier.fillMaxWidth().staggeredAppear(2)) {
         Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-            // Header: "YOUR CARDS" overline + a right-aligned blue CUSTOMISE action (the WHOOP ✎ affordance).
+            // Header: "YOUR CARDS" overline + a right-aligned blue EDIT action (the WHOOP ✎ affordance).
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Overline("Your cards", modifier = Modifier.weight(1f))
-                TextButton(
+                TodayEditAction(
                     onClick = onCustomise,
-                    colors = ButtonDefaults.textButtonColors(contentColor = Palette.accent),
-                    modifier = Modifier.semantics { contentDescription = uiString(R.string.l10n_today_screen_customise_your_cards_2428d761) },
-                ) {
-                    Icon(
-                        Icons.Filled.Tune,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp),
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        uiString(R.string.l10n_today_screen_customise_b378dddc),
-                        style = NoopType.overline.copy(letterSpacing = 0.4.sp),
-                        color = Palette.accent,
-                    )
-                }
+                    contentDescription = uiString(R.string.l10n_today_screen_customise_your_cards_2428d761),
+                )
             }
             cards.forEach { card ->
                 DashboardCardRow(
