@@ -1072,6 +1072,11 @@ struct LiquidTodayView: View {
             "spo2": sparkRows.compactMap { r in r.spo2Pct.map { (r.day, $0) } },
             "resp_rate": sparkRows.compactMap { r in r.respRateBpm.map { (r.day, $0) } },
             "steps": sparkRows.compactMap { r in r.steps.map { (r.day, Double($0)) } },
+            // #616: the Calories tile (key "energy_kcal") drew no trend line — this dict had no matching
+            // entry, so windowedSpark returned []. Bank the on-device HR-estimate series that the tile's
+            // VALUE already reads (activeKcalEst), so its sparkline matches its number. (Classic TodayView
+            // already sparks calories; this brings Liquid to parity, and mirrors Android's Window.calories.)
+            "energy_kcal": sparkRows.compactMap { r in r.activeKcalEst.map { (r.day, $0) } },
             "steps_est": stepsSeries.filter { $0.day >= sparkCutoff && $0.day <= selectedDayKey }
                 .map { ($0.day, $0.value) },
             "sleep_performance": restSeries.filter { $0.day >= sparkCutoff && $0.day <= selectedDayKey }
