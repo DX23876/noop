@@ -4796,6 +4796,7 @@ private fun MetricGrid(
                 unit = "",
                 tint = Palette.metricCyan,
                 frac = steps?.let { (it / 10000.0).coerceIn(0.0, 1.0) },
+                spark = w.steps,   // #616: was missing → no trend line under the tile
             )
         },
         KeyMetric.WEIGHT to run {
@@ -4814,6 +4815,7 @@ private fun MetricGrid(
             unit = if (d?.activeKcalEst != null) "kcal" else "",
             tint = Palette.metricAmber,
             frac = d?.activeKcalEst?.let { (it / 800.0).coerceIn(0.0, 1.0) },
+            spark = w.calories,   // #616: was missing → no trend line under the tile
         ),
     )
 
@@ -6325,6 +6327,12 @@ private data class Window(
     val rhr: List<Double>,
     val spo2: List<Double>,
     val resp: List<Double>,
+    // #616: the Steps and Calories tiles alone carried no `spark` series, so they drew no trend line while
+    // every other tile did. On-device DailyMetric columns (the strap @57 step count / the HR-based
+    // calorie estimate) — the same signals the tiles' VALUES read — matching iOS LiquidTodayView's
+    // kSparks "steps" / "energy_kcal".
+    val steps: List<Double>,
+    val calories: List<Double>,
 )
 
 /**
@@ -6353,6 +6361,8 @@ private fun rememberTrendWindow(
             rhr = series { it.restingHr?.toDouble() },
             spo2 = series { it.spo2Pct },
             resp = series { it.respRateBpm },
+            steps = series { it.steps?.toDouble() },   // #616
+            calories = series { it.activeKcalEst },      // #616
         )
     }
 
