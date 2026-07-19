@@ -5929,6 +5929,7 @@ private fun TodaySourcesSection(
     onToggle: () -> Unit = {},
 ) {
     SectionHeader("Data Sources", overline = "Provenance")
+    Spacer(Modifier.height(Metrics.gap))
     val whoopPresent = (footer.whoopDays ?: 0) > 0 || strapBatteryPct != null
     val applePresent = (footer.appleDays ?: 0) > 0 || (footer.appleWorkouts ?: 0) > 0
     val hcPresent = (footer.hcDays ?: 0) > 0 || (footer.hcWorkouts ?: 0) > 0
