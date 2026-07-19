@@ -213,4 +213,38 @@ final class HRVAnalyzerTests: XCTestCase {
         XCTAssertEqual(HRVAnalyzer.duplicateBeatCount(tsSec: [100, 100, 100], rrMs: [1000, 1000, 1000]), 2)
         XCTAssertEqual(HRVAnalyzer.duplicateBeatCount(tsSec: [100, 100], rrMs: [1000, 1010]), 0)  // diff rr = distinct
     }
+
+    // #550 — collapsedCoverage: previews a SAME-SECOND R-R de-dup so the always-on diag reveals whether
+    // the #257 over-count is same-second (collapsible) or cross-second (needs an ingest-path fix).
+
+    func testCollapsedCoverageNoOpOnCleanStream() {
+        // No same-second collisions → collapse changes nothing → equals rrCoverage.
+        let ts = [100, 101, 102, 103, 104], rr: [Double] = [1000, 1000, 1000, 1000, 1000]
+        XCTAssertEqual(HRVAnalyzer.collapsedCoverage(tsSec: ts, rrMs: rr),
+                       HRVAnalyzer.rrCoverage(tsSec: ts, rrMs: rr), accuracy: 1e-9)
+    }
+
+    func testCollapsedCoverageCollapsesSameSecondNearDuplicates() {
+        // Each beat double-stamped WITHIN one second, the copies within the 30 ms tol (#257 live+historical).
+        let ts = [100, 100, 101, 101, 102, 102]
+        let rr: [Double] = [1000, 1010, 1000, 1015, 1000, 1005]
+        XCTAssertEqual(HRVAnalyzer.rrCoverage(tsSec: ts, rrMs: rr), 3.015, accuracy: 1e-9)       // raw over-counts
+        XCTAssertEqual(HRVAnalyzer.collapsedCoverage(tsSec: ts, rrMs: rr), 1.5, accuracy: 1e-9)  // one per second
+    }
+
+    func testCollapsedCoverageKeepsCrossSecondDuplicates() {
+        // The SAME beat stamped one second apart (live now-anchored vs historical RTC) — a same-second
+        // collapse CANNOT catch it, so collapsedCov stays == raw. This is the discriminating signal.
+        let ts = [100, 101, 102, 103], rr: [Double] = [1000, 1000, 1000, 1000]
+        XCTAssertEqual(HRVAnalyzer.collapsedCoverage(tsSec: ts, rrMs: rr),
+                       HRVAnalyzer.rrCoverage(tsSec: ts, rrMs: rr), accuracy: 1e-9)
+    }
+
+    func testCollapsedCoverageRespectsRrToleranceForGenuineTwoBeatsInOneSecond() {
+        // Two beats in one second whose rr differ by MORE than the tol are genuine distinct beats, not
+        // duplicates — both kept, so collapse is a no-op here too.
+        let ts = [100, 100, 101], rr: [Double] = [900, 1200, 1000]  // |1200-900| = 300 ms > 30 ms tol
+        XCTAssertEqual(HRVAnalyzer.collapsedCoverage(tsSec: ts, rrMs: rr),
+                       HRVAnalyzer.rrCoverage(tsSec: ts, rrMs: rr), accuracy: 1e-9)
+    }
 }

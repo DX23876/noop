@@ -46,4 +46,40 @@ class HrvRrCoverageTest {
         // same ts but DIFFERENT rrMs are distinct beats, not duplicates.
         assertEquals(0, HrvAnalyzer.duplicateBeatCount(listOf(100L, 100L), listOf(1000.0, 1010.0)))
     }
+
+    // #550 — collapsedCoverage: previews a SAME-SECOND R-R de-dup so the always-on diag reveals whether
+    // the #257 over-count is same-second (collapsible) or cross-second (needs an ingest-path fix).
+
+    @Test fun collapsedCoverage_noOpOnCleanStream() {
+        // No same-second collisions → collapse changes nothing → equals rrCoverage.
+        val ts = listOf(100L, 101L, 102L, 103L, 104L)
+        val rr = listOf(1000.0, 1000.0, 1000.0, 1000.0, 1000.0)
+        assertEquals(HrvAnalyzer.rrCoverage(ts, rr), HrvAnalyzer.collapsedCoverage(ts, rr), 1e-9)
+    }
+
+    @Test fun collapsedCoverage_collapsesSameSecondNearDuplicates() {
+        // Each beat double-stamped WITHIN one second, the copies within the 30 ms tol (#257 live+historical).
+        val ts = listOf(100L, 100L, 101L, 101L, 102L, 102L)
+        val rr = listOf(1000.0, 1010.0, 1000.0, 1015.0, 1000.0, 1005.0)
+        // Raw over-counts: sum 6030 ms over a 2 s span → 3.015.
+        assertEquals(3.015, HrvAnalyzer.rrCoverage(ts, rr), 1e-9)
+        // Collapsed keeps one per second (1000 each) → 3000 ms / 2 s → 1.5, far below raw.
+        assertEquals(1.5, HrvAnalyzer.collapsedCoverage(ts, rr), 1e-9)
+    }
+
+    @Test fun collapsedCoverage_keepsCrossSecondDuplicates() {
+        // The SAME beat stamped one second apart (live now-anchored vs historical RTC) — a same-second
+        // collapse CANNOT catch it, so collapsedCov stays == raw. This is the discriminating signal.
+        val ts = listOf(100L, 101L, 102L, 103L)
+        val rr = listOf(1000.0, 1000.0, 1000.0, 1000.0)
+        assertEquals(HrvAnalyzer.rrCoverage(ts, rr), HrvAnalyzer.collapsedCoverage(ts, rr), 1e-9)
+    }
+
+    @Test fun collapsedCoverage_respectsRrToleranceForGenuineTwoBeatsInOneSecond() {
+        // Two beats in one second whose rr differ by MORE than the tol are genuine distinct beats (a brief
+        // >60 bpm moment), not duplicates — both are kept, so collapse is a no-op here too.
+        val ts = listOf(100L, 100L, 101L)
+        val rr = listOf(900.0, 1200.0, 1000.0)   // |1200-900| = 300 ms > 30 ms tol
+        assertEquals(HrvAnalyzer.rrCoverage(ts, rr), HrvAnalyzer.collapsedCoverage(ts, rr), 1e-9)
+    }
 }

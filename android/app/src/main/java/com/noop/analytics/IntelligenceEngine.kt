@@ -605,9 +605,12 @@ object IntelligenceEngine {
                 // from the always-on log instead of hand-computing beat density.
                 val ts = sleepRrRows.map { it.ts }
                 val cov = String.format(java.util.Locale.US, "%.2f", HrvAnalyzer.rrCoverage(ts, sleepRr))
+                // #550: collapsedCov previews a same-second R-R de-dup — well below `coverage` ⇒ the
+                // over-count is same-second (a dedup fix would work); still high ⇒ cross-second overlap.
+                val colCov = String.format(java.util.Locale.US, "%.2f", HrvAnalyzer.collapsedCoverage(ts, sleepRr))
                 val dup = HrvAnalyzer.duplicateBeatCount(ts, sleepRr)
                 diag("hrv diag day=${res.daily.day} rmssd=${ms(h.rmssd)}ms sdnn=${ms(h.sdnn)}ms meanNN=${ms(h.meanNN)}ms " +
-                    "rr=${h.nInput}/${h.nClean} rejected=$rej% coverage=$cov dupBeats=$dup")
+                    "rr=${h.nInput}/${h.nClean} rejected=$rej% coverage=$cov collapsedCov=$colCov dupBeats=$dup")
             }
 
             // Steps test mode: emit the 5/MG raw-counter trace for this day (cumulative @57 series +
