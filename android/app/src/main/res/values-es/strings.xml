@@ -478,6 +478,7 @@
     <string name="l10n_notifications_settings_screen_only_buzz_when_worn_6211cee3">Vibrar solo cuando se lleva puesta</string>
     <string name="l10n_notifications_settings_screen_open_notification_access_658fd30f">Acceso de notificación abierta</string>
     <string name="l10n_notifications_settings_screen_open_notification_access_settings_93fcd1bf">Configuración de acceso de notificación abierta</string>
+    <string name="l10n_notifications_settings_screen_optimal_strain_reached_2862ec2b">Esfuerzo óptimo alcanzado</string>
     <string name="l10n_notifications_settings_screen_phone_calls_b79420d9">Llamadas telefónicas</string>
     <string name="l10n_notifications_settings_screen_phone_permission_was_denied_so_phone_db0ebdd8">Se denegó el permiso del teléfono, así que el zumbido del teléfono está apagado.</string>
     <string name="l10n_notifications_settings_screen_post_workout_summary_13e488f5">Resumen posterior al ejercicio</string>

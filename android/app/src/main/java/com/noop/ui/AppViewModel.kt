@@ -44,6 +44,7 @@ import com.noop.ingest.HealthConnectWriter
 import com.noop.ingest.LiftingImporter
 import com.noop.notif.IllnessAlertNotifier
 import com.noop.notif.ScheduledReportNotifier
+import com.noop.notif.StrainTargetNotifier
 import com.noop.notif.ScheduledReportPolicy
 import com.noop.notif.scorePctOrNull
 import com.noop.protocol.CommandNumber
@@ -653,6 +654,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                             restPct = RestScorer.restFromDaily(todayRow).scorePctOrNull(),
                         )
                     }
+                    // #593: once-a-day optimal-strain-reached nudge. Convert the stored 0-100 Effort to the
+                    // 0-21 coupled axis with the SHIPPED formatter (so it matches every Effort read-out), and
+                    // gate against the LOW end of today's recovery-derived optimal band (#43). The notifier's
+                    // persisted day gate makes this safe to fire on every republish; null recovery (calibrating)
+                    // yields a null band → no target → no notification.
+                    StrainTargetNotifier.onStrainTarget(
+                        context = appContext,
+                        day = todayRow.day,
+                        dayStrain21 = todayRow.strain?.let { UnitFormatter.effortValue(it, EffortScale.WHOOP) },
+                        target21 = optimalStrainRange(todayRow.recovery)?.low,
+                    )
                 }
                 // v5 skin-temp suite: run the Cycle / Body-clock / Illness-heads-up engines over the same
                 // cached history and publish their RESULTS for the Health hub. The richer IllnessSignalEngine

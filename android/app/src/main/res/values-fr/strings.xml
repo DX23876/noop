@@ -478,6 +478,7 @@
     <string name="l10n_notifications_settings_screen_only_buzz_when_worn_6211cee3">Vibrer uniquement si porté</string>
     <string name="l10n_notifications_settings_screen_open_notification_access_658fd30f">Accès ouvert aux notifications</string>
     <string name="l10n_notifications_settings_screen_open_notification_access_settings_93fcd1bf">Paramètres d\'accès à la notification ouverte</string>
+    <string name="l10n_notifications_settings_screen_optimal_strain_reached_2862ec2b">Effort optimal atteint</string>
     <string name="l10n_notifications_settings_screen_phone_calls_b79420d9">Appels téléphoniques</string>
     <string name="l10n_notifications_settings_screen_phone_permission_was_denied_so_phone_db0ebdd8">La permission du téléphone a été refusée, donc l\'appel est éteint.</string>
     <string name="l10n_notifications_settings_screen_post_workout_summary_13e488f5">Résumé après l\'entraînement</string>
