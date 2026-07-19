@@ -973,6 +973,12 @@ class WhoopBleClient(
          *  so a typical deep backlog drains in ONE connection: 24 productive passes (~10-15s each) ≈ a few
          *  minutes of back-to-back draining; the ~24-min backstop only ever bites the rare data-shape spin.
          *  Mirrors Swift BackfillContinuation.defaultMaxAutoContinues. TUNABLE — needs on-strap validation. */
+        /** #592: sentinel value of [extendedBatteryProbe] between sending the probe and its reply landing. */
+        const val WAITING_EXTENDED_BATTERY_PROBE = "__waiting__"
+
+        /** #592: how long to wait for a probe COMMAND_RESPONSE before treating silence as "no reply". */
+        const val EXTENDED_BATTERY_PROBE_TIMEOUT_MS = 8_000L
+
         const val MAX_AUTO_CONTINUES = 24
 
         /** #364 "more backlog remains" margin (seconds): how far ahead the strap must be of our persisted
@@ -1174,6 +1180,11 @@ class WhoopBleClient(
     /** WHOOP straps seen while [scanningForList] is true (the Add-a-device wizard's present-scan), WITHOUT
      *  auto-connecting. Cleared at the start of each [scanForWhoops]. Empty/unused on the default path. */
     val discoveredWhoops: StateFlow<List<DiscoveredWhoop>> = _discoveredWhoops.asStateFlow()
+
+    // #592 extended-battery probe result text (raw hex + payload triage), null until a probe reply lands.
+    // Drives the Devices result dialog so a capture is readable/copyable without a full log export.
+    private val _extendedBatteryProbe = MutableStateFlow<String?>(null)
+    val extendedBatteryProbe: StateFlow<String?> = _extendedBatteryProbe.asStateFlow()
 
     private val _connectedPeripheralAddress = MutableStateFlow<String?>(null)
     /** The BLE address of the strap currently connected, or null when disconnected. Twin of macOS
@@ -2776,9 +2787,30 @@ class WhoopBleClient(
             log("Extended-battery probe (#592) ignored — not connected")
             return
         }
+        // Sentinel so the Devices dialog can show "waiting for the strap's reply…" until the response lands
+        // (or the user closes it). The COMMAND_RESPONSE hook overwrites this with the decoded result text.
+        _extendedBatteryProbe.value = WAITING_EXTENDED_BATTERY_PROBE
         log("Extended-battery probe (#592): sending GET_EXTENDED_BATTERY_INFO(98, read-only) on family=$connectedFamily; the raw COMMAND_RESPONSE is dumped below when it lands")
         send(CommandNumber.GET_EXTENDED_BATTERY_INFO)
+        // #592: if NO COMMAND_RESPONSE for 98 arrives within the window, the silence is itself the verdict —
+        // the firmware served no reply, which is evidence AGAINST 98 (toward the decompile's 87). Surface +
+        // log that instead of a dialog stuck on "waiting" forever. Guarded on the value still being the
+        // sentinel, so a real reply (which overwrites it) is never clobbered by this late timeout.
+        handler.postDelayed({
+            val msg = "Extended-battery probe (#592): no COMMAND_RESPONSE for opcode 98 within " +
+                "${EXTENDED_BATTERY_PROBE_TIMEOUT_MS / 1000}s — the strap served no reply. That silence " +
+                "is evidence AGAINST 98 on this firmware (toward the decompile's 87); a gated 87 probe is " +
+                "the follow-up. (If a sync/offload was mid-flight the response can be delayed — retry idle.)"
+            // ATOMIC compare-and-set: only replace the still-waiting sentinel. If a real reply landed on the
+            // binder thread in the meantime (even microseconds before this fires at the timeout boundary),
+            // it already overwrote the value and the CAS fails — so a genuine capture is never clobbered by
+            // a late "no reply". Log only when the CAS actually wins.
+            if (_extendedBatteryProbe.compareAndSet(WAITING_EXTENDED_BATTERY_PROBE, msg)) log(msg)
+        }, EXTENDED_BATTERY_PROBE_TIMEOUT_MS)
     }
+
+    /** Clear the #592 probe result (Devices dialog dismissed). */
+    fun clearExtendedBatteryProbe() { _extendedBatteryProbe.value = null }
 
     /** Shared reboot send + debug trail + watchdog, used by both the production [rebootStrap] and the
      *  4.0 [rebootProbe]. `probe == null` is the normal restart; a non-null variant is a probe attempt
@@ -3864,31 +3896,30 @@ class WhoopBleClient(
                     // the disputed number: a battery-shaped payload (mV etc.) confirms 98 on this firmware;
                     // a short generic stub keeps it ambiguous (see the probe note on the enum case).
                     if (frame.size > cmdOff && (frame[cmdOff].toInt() and 0xFF) == CommandNumber.GET_EXTENDED_BATTERY_INFO.rawValue) {
-                        log("Extended-battery probe raw response (#592 — full frame, len=${frame.size}): " +
+                        // Build the #592 result as text lines, then BOTH log them (so they ride the strap-log
+                        // bundle) AND publish them to a StateFlow the Devices probe dialog shows + copies —
+                        // so a capture doesn't require a full log export to read/share.
+                        val lines = ArrayList<String>(3)
+                        lines.add("Extended-battery probe raw response (#592 — full frame, len=${frame.size}): " +
                             frame.joinToString("") { "%02x".format(it) })
                         // 5/MG replies carry an explicit result code @12 (0 FAILURE / 1 SUCCESS / 2 PENDING /
                         // 3 UNSUPPORTED — 3 is hardware-confirmed as the MG's rejection code, #48). UNSUPPORTED
-                        // here is a DECISIVE #592 verdict: the firmware itself says opcode 98 isn't a command,
-                        // which is far stronger than inferring from a short stub.
+                        // here is a DECISIVE #592 verdict: the firmware itself says opcode 98 isn't a command.
                         if (connectedFamily == DeviceFamily.WHOOP5 && frame.size > 12) {
                             val r = frame[12].toInt() and 0xFF
                             val label = when (r) {
                                 0 -> "FAILURE"; 1 -> "SUCCESS"; 2 -> "PENDING"; 3 -> "UNSUPPORTED"
                                 else -> "result$r"
                             }
-                            log("Extended-battery probe result code (#592, 5/MG @12): $label($r)" +
+                            lines.add("Result code (#592, 5/MG @12): $label($r)" +
                                 if (r == 3) " — the firmware explicitly does NOT recognise opcode 98; the decompile's 87 becomes the live candidate (gated follow-up)" else "")
                         }
-                        // #592 payload triage: is there more here than the mV word NOOP already gets from
-                        // the ordinary battery event? Report the payload length (bytes after the command
-                        // byte) and every 16-bit LE word with its payload offset, tagging the mV-band ones
-                        // (3000-4300) vs OTHER in-range values — a rich payload (extra plausible words past
-                        // the mV) means a real battery-health feature to map; just mV/none means #592 is a
-                        // correctness fix with no feature behind it. Read-only scan of the already-logged bytes.
+                        // #592 payload triage: is there more here than the mV word NOOP already gets from the
+                        // ordinary battery event? Report the payload length and every 16-bit LE word with its
+                        // offset, tagging the mV-band ones (3000-4300) vs OTHER in-range values. Bound the scan
+                        // to the DECODABLE payload, excluding the 4-byte CRC32 trailer both families carry
+                        // (total frame = length + 4), so the CRC never reads as a phantom "candidate field".
                         val payStart = cmdOff + 1
-                        // Bound the scan to the DECODABLE payload, excluding the 4-byte CRC32 trailer both
-                        // families carry (total frame = length + 4), so the CRC never reads as a phantom
-                        // "candidate field" and inflates the count. Empty payload ⇒ bare stub.
                         val payEnd = frame.size - 4
                         if (payEnd > payStart) {
                             val pay = frame.copyOfRange(payStart, payEnd)
@@ -3904,11 +3935,13 @@ class WhoopBleClient(
                                 if (tag != null) words.append(" @$o=$v($tag)")
                                 o += 1
                             }
-                            log("Extended-battery probe payload (#592): len=${pay.size} bytes (CRC excluded), overlapping 16-bit LE words:$words " +
+                            lines.add("Payload (#592): len=${pay.size} bytes (CRC excluded), overlapping 16-bit LE words:$words " +
                                 "— words BEYOND an mV are unmapped candidate fields (cycle count / health / temp?); mV-only or none ⇒ no new data over the battery event")
                         } else {
-                            log("Extended-battery probe payload (#592): no payload beyond the command byte (bare stub) ⇒ no data over the battery event; opcode 98 may be an unknown-command ack on this firmware")
+                            lines.add("Payload (#592): no payload beyond the command byte (bare stub) ⇒ no data over the battery event; opcode 98 may be an unknown-command ack on this firmware")
                         }
+                        lines.forEach { log(it) }
+                        _extendedBatteryProbe.value = lines.joinToString("\n\n")
                     }
                     if (frame.size > cmdOff && (frame[cmdOff].toInt() and 0xFF) == CommandNumber.GET_DATA_RANGE.rawValue) {
                         // #451: dump raw GET_DATA_RANGE response bytes unconditionally (even if decode returns

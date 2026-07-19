@@ -58,7 +58,14 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import com.noop.ble.WhoopBleClient
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -104,6 +111,8 @@ fun DevicesScreen(
 ) {
     val scope = rememberCoroutineScope()
     val live by viewModel.live.collectAsStateWithLifecycle()
+    // #592 extended-battery probe result — non-null (incl. the " waiting" sentinel) shows the result dialog.
+    val batteryProbeResult by viewModel.extendedBatteryProbe.collectAsStateWithLifecycle()
 
     // Liquid sky backdrop gate — the SAME "Day-cycle background" preference the liquid Today honours (#698,
     // default ON). Off falls back to the flat dark canvas, so the setting governs every liquid screen alike.
@@ -339,6 +348,15 @@ fun DevicesScreen(
         BatteryInfoProbeDialog(
             onSend = { viewModel.probeExtendedBatteryInfo(); batteryProbeTarget = null },
             onDismiss = { batteryProbeTarget = null },
+        )
+    }
+
+    // #592: the probe reply (or the " waiting" sentinel while in flight) — readable + copyable in place,
+    // so a capture doesn't need a full strap-log export to read or share.
+    batteryProbeResult?.let { result ->
+        BatteryInfoProbeResultDialog(
+            text = result,
+            onDismiss = { viewModel.clearExtendedBatteryProbe() },
         )
     }
 
@@ -866,6 +884,43 @@ private fun BatteryInfoProbeDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(uiString(R.string.l10n_devices_screen_cancel_77dfd213), style = NoopType.body, color = Palette.textSecondary)
+            }
+        },
+    )
+}
+
+/** #592 probe result: shows the raw hex + payload triage from the strap's reply (or a "waiting…" line
+ *  while in flight), with a Copy button so the capture can be pasted into the issue without exporting the
+ *  whole strap log. Read-only; dismiss clears the result. */
+@Composable
+private fun BatteryInfoProbeResultDialog(
+    text: String,
+    onDismiss: () -> Unit,
+) {
+    val clipboard = LocalClipboardManager.current
+    val waiting = text == WhoopBleClient.WAITING_EXTENDED_BATTERY_PROBE
+    val shown = if (waiting) uiString(R.string.l10n_devices_screen_waiting_for_the_straps_reply_5a06e7ac) else text
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Palette.surfaceOverlay,
+        title = { Text(uiString(R.string.l10n_devices_screen_battery_info_probe_result_592_b97c0bb8), style = NoopType.title2, color = Palette.textPrimary) },
+        text = {
+            Column(modifier = Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
+                SelectionContainer {
+                    Text(shown, style = if (waiting) NoopType.subhead else NoopType.mono, color = Palette.textSecondary)
+                }
+            }
+        },
+        confirmButton = {
+            if (!waiting) {
+                TextButton(onClick = { clipboard.setText(AnnotatedString(text)) }) {
+                    Text(uiString(R.string.l10n_devices_screen_copy_af74f7c5), style = NoopType.body, color = Palette.accent)
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(uiString(R.string.l10n_devices_screen_close_bbfa773e), style = NoopType.body, color = Palette.textSecondary)
             }
         },
     )

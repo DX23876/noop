@@ -226,9 +226,12 @@
     <string name="l10n_devices_screen_battery_4a9be042">Batería</string>
     <string name="l10n_devices_screen_battery_clamped_2494c8c9">Batería %1$s%%</string>
     <string name="l10n_devices_screen_battery_info_probe_592_re_1dbd4c0f">Sonda de info de batería (#592 RE)…</string>
+    <string name="l10n_devices_screen_battery_info_probe_result_592_b97c0bb8">Resultado de la sonda de info de batería (#592)</string>
     <string name="l10n_devices_screen_battery_probe_explainer_2858bb6a">Dos tablas de protocolo independientes discrepan sobre el opcode de batería extendida (98 vs 87). Esto envía el 98 curado y de solo lectura y vuelca la respuesta cruda completa de la banda al registro. Una carga tipo batería confirma 98 en tu firmware; un stub corto lo deja ambiguo. No se escribe nada en la banda. Exporta y comparte el registro después.</string>
     <string name="l10n_devices_screen_cancel_77dfd213">Cancelar</string>
     <string name="l10n_devices_screen_clamped_1f39cebb">%1$s%%</string>
+    <string name="l10n_devices_screen_close_bbfa773e">Cerrar</string>
+    <string name="l10n_devices_screen_copy_af74f7c5">Copiar</string>
     <string name="l10n_devices_screen_device_name_79d7a157">Nombre del dispositivo</string>
     <string name="l10n_devices_screen_give_device_brand_device_model_a_7a15585c">Dale a %1$s %2$s un nombre que reconocerás.</string>
     <string name="l10n_devices_screen_leave_none_active_b5c858cb">No dejar ninguna activa</string>
@@ -239,6 +242,7 @@
     <string name="l10n_devices_screen_send_probe_read_only_36b318bc">Enviar sonda (solo lectura)</string>
     <string name="l10n_devices_screen_save_efc007a3">Guardar</string>
     <string name="l10n_devices_screen_the_whoop_4_0_reboot_frame_690a8ff2">El marco de reinicio WHOOP 4.0 no está confirmado: se ignora un reinicio normal (#235).</string>
+    <string name="l10n_devices_screen_waiting_for_the_straps_reply_5a06e7ac">Esperando la respuesta de la banda…</string>
     <string name="l10n_devices_screen_whoop_4_0_reboot_probe_b51fb50f">WHOOP 4.0 sonda de reinicio</string>
     <string name="l10n_devices_screen_whoop_is_noop_s_primary_fully_1c9e67fd">WHOOP es la banda primaria y totalmente apoyada de NOOP. Otras correas de corazón son tempranas,</string>
     <string name="l10n_devices_screen_you_removed_your_active_strap_choose_2ac91d48">Te quitaste la correa activa. Elija qué banda pareada proporciona sus datos en vivo, o</string>

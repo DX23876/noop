@@ -1674,6 +1674,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      *  battery-info opcode (98 vs an APK decompile's 87) from a normal strap-log export. */
     fun probeExtendedBatteryInfo() = ble.probeExtendedBatteryInfo()
 
+    /** #592 probe result text (null until a reply lands; " waiting" sentinel while in flight). */
+    val extendedBatteryProbe = ble.extendedBatteryProbe
+
+    fun clearExtendedBatteryProbe() = ble.clearExtendedBatteryProbe()
+
     /**
      * Flip the "keep connected in the background" preference (driven by Settings). Turning it on
      * while a strap is live promotes to the foreground immediately; turning it off drops the

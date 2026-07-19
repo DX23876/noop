@@ -226,9 +226,12 @@
     <string name="l10n_devices_screen_battery_4a9be042">Batterie</string>
     <string name="l10n_devices_screen_battery_clamped_2494c8c9">Batterie %1$s%%</string>
     <string name="l10n_devices_screen_battery_info_probe_592_re_1dbd4c0f">Sonde d\'info batterie (#592 RE)…</string>
+    <string name="l10n_devices_screen_battery_info_probe_result_592_b97c0bb8">Résultat de la sonde d\'info batterie (#592)</string>
     <string name="l10n_devices_screen_battery_probe_explainer_2858bb6a">Deux tables de protocole indépendantes divergent sur l\'opcode de batterie étendue (98 contre 87). Ceci envoie le 98 curé en lecture seule et consigne la réponse brute complète du bracelet dans le journal. Une charge de type batterie confirme 98 sur votre firmware ; un stub court le laisse ambigu. Rien n\'est écrit sur le bracelet. Exportez et partagez le journal ensuite.</string>
     <string name="l10n_devices_screen_cancel_77dfd213">Annuler</string>
     <string name="l10n_devices_screen_clamped_1f39cebb">%1$s%%</string>
+    <string name="l10n_devices_screen_close_bbfa773e">Fermer</string>
+    <string name="l10n_devices_screen_copy_af74f7c5">Copier</string>
     <string name="l10n_devices_screen_device_name_79d7a157">Nom de l\'appareil</string>
     <string name="l10n_devices_screen_give_device_brand_device_model_a_7a15585c">Donnez %1$s %2$s un nom que vous reconnaîtrez.</string>
     <string name="l10n_devices_screen_leave_none_active_b5c858cb">N\'en laisser aucune active</string>
@@ -239,6 +242,7 @@
     <string name="l10n_devices_screen_send_probe_read_only_36b318bc">Envoyer la sonde (lecture seule)</string>
     <string name="l10n_devices_screen_save_efc007a3">Enregistrer</string>
     <string name="l10n_devices_screen_the_whoop_4_0_reboot_frame_690a8ff2">Le cadre de redémarrage WHOOP 4.0 n\'est pas confirmé – un redémarrage normal est ignoré (#235).</string>
+    <string name="l10n_devices_screen_waiting_for_the_straps_reply_5a06e7ac">En attente de la réponse du bracelet…</string>
     <string name="l10n_devices_screen_whoop_4_0_reboot_probe_b51fb50f">Sonde de redémarrage WHOOP 4.0</string>
     <string name="l10n_devices_screen_whoop_is_noop_s_primary_fully_1c9e67fd">WHOOP est la bande principale et entièrement supportée de NOOP. D\'autres sangles de rythme cardiaque sont un tôt,</string>
     <string name="l10n_devices_screen_you_removed_your_active_strap_choose_2ac91d48">Vous avez enlevé votre sangle active. Choisissez quelle bande jumelée fournit vos données en direct, ou</string>

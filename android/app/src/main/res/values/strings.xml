@@ -395,9 +395,12 @@
     <string name="l10n_devices_screen_battery_4a9be042">Battery</string>
     <string name="l10n_devices_screen_battery_clamped_2494c8c9">Battery %1$s%%</string>
     <string name="l10n_devices_screen_battery_info_probe_592_re_1dbd4c0f">Battery-info probe (#592 RE)…</string>
+    <string name="l10n_devices_screen_battery_info_probe_result_592_b97c0bb8">Battery-info probe result (#592)</string>
     <string name="l10n_devices_screen_battery_probe_explainer_2858bb6a">Two independent protocol tables disagree on the extended-battery opcode (98 vs 87). This sends the curated read-only 98 and dumps the strap\'s full raw reply to the strap log. A battery-style payload confirms 98 on your firmware; a short stub means it stays ambiguous. Nothing is written to the strap. Please export and share the strap log afterwards.</string>
     <string name="l10n_devices_screen_cancel_77dfd213">Cancel</string>
     <string name="l10n_devices_screen_clamped_1f39cebb">%1$s%%</string>
+    <string name="l10n_devices_screen_close_bbfa773e">Close</string>
+    <string name="l10n_devices_screen_copy_af74f7c5">Copy</string>
     <string name="l10n_devices_screen_device_name_79d7a157">Device name</string>
     <string name="l10n_devices_screen_give_device_brand_device_model_a_7a15585c">Give %1$s %2$s a name you\'ll recognise.</string>
     <string name="l10n_devices_screen_leave_none_active_b5c858cb">Leave none active</string>
@@ -408,6 +411,7 @@
     <string name="l10n_devices_screen_send_probe_read_only_36b318bc">Send probe (read-only)</string>
     <string name="l10n_devices_screen_save_efc007a3">Save</string>
     <string name="l10n_devices_screen_the_whoop_4_0_reboot_frame_690a8ff2">The WHOOP 4.0 reboot frame isn\'t confirmed — a normal Restart is ignored (#235). </string>
+    <string name="l10n_devices_screen_waiting_for_the_straps_reply_5a06e7ac">Waiting for the strap\'s reply…</string>
     <string name="l10n_devices_screen_whoop_4_0_reboot_probe_b51fb50f">WHOOP 4.0 reboot probe</string>
     <string name="l10n_devices_screen_whoop_is_noop_s_primary_fully_1c9e67fd">WHOOP is NOOP\'s primary, fully-supported band. Other heart-rate straps are an early, </string>
     <string name="l10n_devices_screen_you_removed_your_active_strap_choose_2ac91d48">You removed your active strap. Choose which paired band provides your live data, or </string>
