@@ -59,6 +59,10 @@ public final class LiveState: ObservableObject {
     /// replaced) by `setRRIntervals(_:)`; emptied by `clearBiometrics()`.
     @Published public private(set) var rrRecent: [Int] = []
     @Published public var batteryPct: Double? = nil
+    /// Strap battery pack VOLTAGE (mV), decoded from the ~8-min BATTERY_LEVEL event (mv@21/@25) and the
+    /// GET_EXTENDED_BATTERY_INFO response (#592). Shown on the Devices card as a "x.xx V" readout beside the
+    /// percent; nil until the first battery event lands. Twin of the Android LiveState.batteryMv.
+    @Published public var batteryMv: Int? = nil
     /// Charging flag from the strap's BATTERY_LEVEL events — wire observation: u8 bit0 in the
     /// event payload (4.0 @26 / 5.0 @30), pushed ~every 8 min on captured links. nil until the
     /// first event of a session; cleared on disconnect so a stale flag can't outlive the link.
@@ -224,6 +228,11 @@ public final class LiveState: ObservableObject {
     /// SET_ADVERTISING_NAME_HARVARD ack, or a local validation message from BLEManager.renameStrap.
     /// Surfaced under the rename field; overwritten by the next attempt.
     @Published public var renameStatus: String? = nil
+    /// #592: the read-only extended-battery probe result (raw hex + payload triage + capture diff), or a
+    /// `" waiting"` sentinel while a probe is in flight; nil otherwise. Drives the Devices result dialog so
+    /// a capture is readable/copyable without a full log export. BLEManager writes it; cleared on disconnect
+    /// and on dialog dismiss. Twin of the Android StateFlow LiveState/WhoopBleClient.extendedBatteryProbe.
+    @Published public var extendedBatteryProbe: String? = nil
     /// Wrist-wear state from WRIST_ON/WRIST_OFF events. Defaults true so wear-gated features work
     /// before the first event arrives; flipped by FrameRouter on a real event.
     @Published public var worn: Bool = true

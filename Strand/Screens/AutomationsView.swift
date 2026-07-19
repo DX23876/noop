@@ -55,6 +55,7 @@ struct AutomationsView: View {
             illnessCard
             healthInsightsCard
             batteryCard
+            strainTargetCard
         }
     }
 
@@ -357,6 +358,27 @@ struct AutomationsView: View {
                           help: String(localized: "An early \"recharge tonight\" heads-up when the strap has about a day of estimated runtime left, at most once per discharge cycle. Turn off to keep only the 15% warning."),
                           isOn: $behavior.batteryPredictiveAlerts)
             }
+        }
+    }
+
+    // MARK: - Strain target nudge (#593)
+
+    private var strainTargetCard: some View {
+        Section2(icon: "flame", title: String(localized: "Strain target"),
+                 blurb: String(localized: "A once-a-day nudge when your Effort reaches the low end of today's optimal strain range, worked out from your recovery."),
+                 active: behavior.strainTargetNudge) {
+            ToggleRow(label: String(localized: "Notify when optimal strain is reached"),
+                      help: String(localized: "Posts after your strap syncs and NOOP scores the day — not the exact second you cross it. At most once per day."),
+                      isOn: $behavior.strainTargetNudge)
+                .onChangeCompat(of: behavior.strainTargetNudge) { on in
+                    if on {
+                        StrainTargetNotifier.requestAuthorization()
+                        // The repo.$days sink only fires on data changes, so if today's target is
+                        // already reached, evaluate now rather than waiting for the next refresh
+                        // (the reevaluateIllness idiom).
+                        model.evaluateStrainTarget()
+                    }
+                }
         }
     }
 

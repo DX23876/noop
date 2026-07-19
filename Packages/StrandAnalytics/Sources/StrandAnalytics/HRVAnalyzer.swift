@@ -367,6 +367,38 @@ public enum HRVAnalyzer {
         return dups
     }
 
+    /// #550: coverage AFTER collapsing SAME-SECOND near-duplicate beats (equal ts AND |Δrr| ≤ `rrTolMs`)
+    /// to a single representative — a PREVIEW of what an R-R de-duplication fix would achieve, for the
+    /// always-on #257 diag ONLY. It does NOT feed the shipped nightly HRV. On clean data (no same-second
+    /// duplicates) it equals `rrCoverage`; when a live+historical merge double-stamps the same beat WITHIN
+    /// one second, it falls toward ~1. If it stays well above 1, the duplication is CROSS-second (the two
+    /// copies land in adjacent seconds), which a same-second collapse cannot catch — telling us the real
+    /// fix must reconcile the two ingest paths rather than dedup within a second. The collapse is
+    /// deliberately same-second-ONLY: R-R ts are stored at second resolution, and at rest genuine
+    /// consecutive beats are ~1 s apart, so collapsing ACROSS a second would drop real beats. Deterministic
+    /// (ts, rr, index) ordering. Byte-parity twin of Kotlin `HrvAnalyzer.collapsedCoverage`.
+    public static func collapsedCoverage(tsSec: [Int], rrMs: [Double], rrTolMs: Double = 30) -> Double {
+        let n = min(tsSec.count, rrMs.count)
+        guard n >= 2 else { return 0 }
+        let order = (0..<n).sorted { a, b in
+            (tsSec[a], rrMs[a], a) < (tsSec[b], rrMs[b], b)
+        }
+        var keptTs: [Int] = []
+        var keptRr: [Double] = []
+        for idx in order {
+            let t = tsSec[idx]
+            let r = rrMs[idx]
+            var dup = false
+            var j = keptTs.count - 1
+            while j >= 0 && keptTs[j] == t {      // inspect only beats already kept in the SAME second
+                if abs(keptRr[j] - r) <= rrTolMs { dup = true; break }
+                j -= 1
+            }
+            if !dup { keptTs.append(t); keptRr.append(r) }
+        }
+        return rrCoverage(tsSec: keptTs, rrMs: keptRr)
+    }
+
     // MARK: - Helpers
 
     /// Median of a non-empty array. (Caller guarantees non-empty.)

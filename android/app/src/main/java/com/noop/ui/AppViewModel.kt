@@ -44,6 +44,7 @@ import com.noop.ingest.HealthConnectWriter
 import com.noop.ingest.LiftingImporter
 import com.noop.notif.IllnessAlertNotifier
 import com.noop.notif.ScheduledReportNotifier
+import com.noop.notif.StrainTargetNotifier
 import com.noop.notif.ScheduledReportPolicy
 import com.noop.notif.scorePctOrNull
 import com.noop.protocol.CommandNumber
@@ -646,10 +647,24 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     if (todayRow.totalSleepMin != null) {
                         ScheduledReportNotifier.onMorning(
                             context = appContext,
+                            // Key the once-per-recap gate on the banked NIGHT's day, not the calendar day —
+                            // otherwise the midnight rollover re-fires last night's recap for late-nighters (#567).
+                            reportDay = todayRow.day,
                             chargePct = todayRow.recovery.scorePctOrNull(),
                             restPct = RestScorer.restFromDaily(todayRow).scorePctOrNull(),
                         )
                     }
+                    // #593: once-a-day optimal-strain-reached nudge. Convert the stored 0-100 Effort to the
+                    // 0-21 coupled axis with the SHIPPED formatter (so it matches every Effort read-out), and
+                    // gate against the LOW end of today's recovery-derived optimal band (#43). The notifier's
+                    // persisted day gate makes this safe to fire on every republish; null recovery (calibrating)
+                    // yields a null band → no target → no notification.
+                    StrainTargetNotifier.onStrainTarget(
+                        context = appContext,
+                        day = todayRow.day,
+                        dayStrain21 = todayRow.strain?.let { UnitFormatter.effortValue(it, EffortScale.WHOOP) },
+                        target21 = optimalStrainRange(todayRow.recovery)?.low,
+                    )
                 }
                 // v5 skin-temp suite: run the Cycle / Body-clock / Illness-heads-up engines over the same
                 // cached history and publish their RESULTS for the Health hub. The richer IllnessSignalEngine
@@ -1653,6 +1668,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Send one WHOOP 4.0 reboot-probe candidate (Test Centre → Connection, 4.0 only). Confirmation-gated
      *  in DevicesScreen; finds the real 4.0 reboot frame when the production one is ignored (#235). */
     fun rebootProbe(variant: com.noop.protocol.RebootProbeVariant) = ble.rebootProbe(variant)
+
+    /** #592 opcode probe: read-only GET_EXTENDED_BATTERY_INFO(98) with a full raw-response dump to the
+     *  strap log. Confirmation-gated in DevicesScreen (Test Centre → Connection); settles the disputed
+     *  battery-info opcode (98 vs an APK decompile's 87) from a normal strap-log export. */
+    fun probeExtendedBatteryInfo() = ble.probeExtendedBatteryInfo()
+
+    /** #592 probe result text (null until a reply lands; " waiting" sentinel while in flight). */
+    val extendedBatteryProbe = ble.extendedBatteryProbe
+
+    fun clearExtendedBatteryProbe() = ble.clearExtendedBatteryProbe()
 
     /**
      * Flip the "keep connected in the background" preference (driven by Settings). Turning it on

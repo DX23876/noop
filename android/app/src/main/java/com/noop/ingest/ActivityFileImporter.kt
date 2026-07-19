@@ -825,8 +825,11 @@ internal class FitDecoder(raw: ByteArray) {
         val distance = sessionDistance
             ?: if (lapDistanceSum > 0) lapDistanceSum else if (route.size >= 2) ActivityFileImporter.routeDistanceM(route) else null
         val calories = sessionCalories ?: if (lapCalorieSum > 0) lapCalorieSum else null
+        // FIT field 10 is total_cycles — for foot sports that's STRIDES, and one stride = two steps, so
+        // double it to the real step count. Reading it raw showed exactly half (a walk logged as 1150
+        // strides read as 1150 steps instead of 2300, #568). Non-foot sports carry no steps.
         val steps = if (isFootSport(sessionSport)) {
-            sessionSteps ?: if (lapStepSum > 0) lapStepSum else null
+            (sessionSteps ?: if (lapStepSum > 0) lapStepSum else null)?.let { it * 2 }
         } else {
             null
         }

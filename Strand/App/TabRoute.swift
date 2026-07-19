@@ -22,6 +22,11 @@ enum TabRoute: Hashable {
     /// Trends' small-multiples share. Each card opens ITS metric (2026-07-02: not the shared
     /// Health screen).
     case metric(String)
+    /// One metric's detail by BOTH key and source. `steps` exists under several sources (my-whoop,
+    /// apple-health, xiaomi-band); routing by bare key alone resolves whichever catalog entry is
+    /// declared first, so a card's tap-through would silently depend on declaration order. This pins
+    /// the exact source, so the catalog's ordering can never decide where a card taps through.
+    case metricSourced(key: String, source: String)
     case metricExplorer
     case workouts
     case dataSources
@@ -45,6 +50,15 @@ extension View {
                 // catch-all vitals surface. (Pre-#198 Trends fell back to the Explorer instead —
                 // unified here rather than carrying two never-taken branches.)
                 if let m = MetricCatalog.all.first(where: { $0.key == key }) {
+                    MetricDetailView(metric: m)
+                } else {
+                    HealthView()
+                }
+            case .metricSourced(let key, let source):
+                // Exact (key, source) resolution, order-independent. Fall back to the bare-key entry,
+                // then Health, so a stale route can never dead-end.
+                if let m = MetricCatalog.metric(key: key, source: source)
+                    ?? MetricCatalog.all.first(where: { $0.key == key }) {
                     MetricDetailView(metric: m)
                 } else {
                     HealthView()

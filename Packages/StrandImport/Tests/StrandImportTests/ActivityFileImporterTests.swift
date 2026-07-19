@@ -205,7 +205,7 @@ final class ActivityFileImporterTests: XCTestCase {
         XCTAssertEqual(a.hrSampleCount, 3)
         XCTAssertEqual(a.distanceM ?? 0, 5.23, accuracy: 0.001)   // session summary
         XCTAssertEqual(a.energyKcal, 300)
-        XCTAssertEqual(a.steps, 1175)
+        XCTAssertEqual(a.steps, 2350)   // FIT field 10 = 1175 strides → ×2 = 2350 steps (#568)
         XCTAssertEqual(a.avgHr, 150)                 // session avg wins over the sampled mean
         XCTAssertEqual(a.maxHr, 182)
         // Coordinates round-trip through semicircles (~1e-7° precision).

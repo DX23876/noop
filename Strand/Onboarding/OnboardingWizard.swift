@@ -2,6 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 import StrandDesign
 import WhoopStore
+import UserNotifications
 
 // MARK: - OnboardingWizard
 //
@@ -212,7 +213,31 @@ public struct OnboardingWizard: View {
 
     // MARK: Navigation
 
+    /// Leaving the Notifications step is the one point in onboarding where we actually ask the OS for
+    /// notification permission — everything before this only explained why (the `NotificationsStep`
+    /// card). Without this, NOOP never showed up under Settings → Notifications at all unless a user
+    /// later found and enabled one of the opt-in automations (wind-down, battery, illness) buried in
+    /// More → Alarms/Automations, each of which lazily requests on its own toggle. Mirrors the Android
+    /// onboarding's `OnboardingPage.Notifications` step (`OnboardingScreen.kt`): request only if not
+    /// already determined (so a re-run/upgrade doesn't re-prompt), and advance once the OS dialog is
+    /// dismissed either way — the per-feature toggles still handle a later denial on their own.
     private func advance() {
+        guard step != .notifications else {
+            UNUserNotificationCenter.current().getNotificationSettings { settings in
+                guard settings.authorizationStatus == .notDetermined else {
+                    Task { @MainActor in advanceStep() }
+                    return
+                }
+                UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in
+                    Task { @MainActor in advanceStep() }
+                }
+            }
+            return
+        }
+        advanceStep()
+    }
+
+    private func advanceStep() {
         guard let next = Step(rawValue: step.rawValue + 1) else { onFinished(); return }
         withAnimation(StrandMotion.gentle) { step = next }
     }

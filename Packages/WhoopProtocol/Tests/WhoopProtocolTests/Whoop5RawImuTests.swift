@@ -38,6 +38,10 @@ final class Whoop5RawImuTests: XCTestCase {
         var f = syntheticFrame(i: 0, axLSB: 0, gxLSB: 0)
         f[24] = 0; f[25] = 0                                                    // countA != 100
         XCTAssertNil(Whoop5RawImu.decode(f))
+
+        var oversized = syntheticFrame(i: 0, axLSB: 0, gxLSB: 0)
+        oversized.append(0)
+        XCTAssertNil(Whoop5RawImu.decode(oversized))   // exact-length contract, not a valid prefix
     }
 
     func testDecodesRealBufferAsGravityShell() {

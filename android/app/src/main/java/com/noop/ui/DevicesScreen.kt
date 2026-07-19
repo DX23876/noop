@@ -58,7 +58,14 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import com.noop.ble.WhoopBleClient
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -104,6 +111,8 @@ fun DevicesScreen(
 ) {
     val scope = rememberCoroutineScope()
     val live by viewModel.live.collectAsStateWithLifecycle()
+    // #592 extended-battery probe result — non-null (incl. the " waiting" sentinel) shows the result dialog.
+    val batteryProbeResult by viewModel.extendedBatteryProbe.collectAsStateWithLifecycle()
 
     // Liquid sky backdrop gate — the SAME "Day-cycle background" preference the liquid Today honours (#698,
     // default ON). Off falls back to the flat dark canvas, so the setting governs every liquid screen alike.
@@ -127,6 +136,7 @@ fun DevicesScreen(
     var rebootTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
     // WHOOP 4.0 reboot probe (Test Centre → Connection, 4.0 only) — the device whose probe sheet is open.
     var probeTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
+    var batteryProbeTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
     // After removing the ACTIVE device with other devices still paired, prompt to pick a new active one.
     var pickNewActive by remember { mutableStateOf(false) }
 
@@ -184,6 +194,8 @@ fun DevicesScreen(
                 // strap, or an FTMS machine all funnel into live.batteryPct). null otherwise.
                 liveBatteryPct = if (device.status == DeviceStatus.active.name && live.connected)
                     live.batteryPct?.let { Math.round(it).toInt() } else null,
+                liveBatteryMv = if (device.status == DeviceStatus.active.name && live.connected)
+                    live.batteryMv else null,
                 // Firmware version from the connect handshake: only for the active, connected strap.
                 liveFirmware = if (device.status == DeviceStatus.active.name && live.connected)
                     live.strapFirmware else null,
@@ -214,6 +226,13 @@ fun DevicesScreen(
                     SourceCoordinator.isWhoop(device) && !live.whoop5Detected &&
                     TestCentre.from(context).active(TestDomain.CONNECTION)
                 ) { { probeTarget = device } } else null,
+                // #592 extended-battery opcode probe: read-only, BOTH families (the 4.0 is the
+                // discriminating device, but a 5/MG capture is useful too). Same Test Centre →
+                // Connection gate as the reboot probe.
+                onBatteryProbe = if (device.status == DeviceStatus.active.name && live.connected &&
+                    SourceCoordinator.isWhoop(device) &&
+                    TestCentre.from(context).active(TestDomain.CONNECTION)
+                ) { { batteryProbeTarget = device } } else null,
             )
         }
 
@@ -325,6 +344,24 @@ fun DevicesScreen(
         )
     }
 
+    // --- #592 extended-battery opcode probe: read-only, dumps the strap's full raw reply to the log so a
+    //     normal export settles the disputed GET_EXTENDED_BATTERY_INFO number (98 vs an APK decompile's 87). ---
+    batteryProbeTarget?.let {
+        BatteryInfoProbeDialog(
+            onSend = { viewModel.probeExtendedBatteryInfo(); batteryProbeTarget = null },
+            onDismiss = { batteryProbeTarget = null },
+        )
+    }
+
+    // #592: the probe reply (or the " waiting" sentinel while in flight) — readable + copyable in place,
+    // so a capture doesn't need a full strap-log export to read or share.
+    batteryProbeResult?.let { result ->
+        BatteryInfoProbeResultDialog(
+            text = result,
+            onDismiss = { viewModel.clearExtendedBatteryProbe() },
+        )
+    }
+
     // --- Second, strongly-worded delete-data confirm (from the Removed card's secondary control) ---
     deleteDataTarget?.let { device ->
         ConfirmDialog(
@@ -378,6 +415,7 @@ private fun DeviceCard(
     /** The active+connected device's live battery percent (0–100) — surfaced the same way for WHOOP, a
      *  generic strap, or an FTMS machine. null when not active/connected or no battery was reported. */
     liveBatteryPct: Int? = null,
+    liveBatteryMv: Int? = null,
     /** The active+connected strap's firmware version (from the connect handshake). null when not
      *  active/connected, or for a source that reports no firmware (e.g. a non-WHOOP strap). */
     liveFirmware: String? = null,
@@ -394,6 +432,8 @@ private fun DeviceCard(
     // WHOOP 4.0 reboot probe (Test Centre → Connection, 4.0 only). Non-null only when the parent has
     // decided the probe applies (live-connected WHOOP 4.0 + Connection test mode on); null otherwise. (#235)
     onRebootProbe: (() -> Unit)? = null,
+    // #592 extended-battery opcode probe (Test Centre → Connection, both WHOOP families). Read-only.
+    onBatteryProbe: (() -> Unit)? = null,
 ) {
     val profile = deviceProfile(device)
     // The per-device actions menu's open state is hoisted here so the WHOLE card is a tap target that opens
@@ -478,10 +518,16 @@ private fun DeviceCard(
                 BatteryTube(pct = liveBatteryPct)
             }
 
+            // #592: strap pack voltage (mV → volts, 2dp) beside the percent, when the battery event has
+            // reported it. Localized unit resource; purely additive, the percent tube is unchanged.
+            val voltsSuffix = if (liveBatteryMv != null)
+                " · " + stringResource(R.string.l10n_devices_screen_pack_voltage_9af3c3ff, liveBatteryMv / 1000.0)
+            else ""
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     lastSeenLine(device, isLiveConnected, bondRefused) +
                         (liveFirmware?.let { " · FW $it" } ?: "") +
+                        voltsSuffix +
                         (historyLayoutLine(liveHistoryLayout)?.let { " · $it" } ?: ""),
                     style = NoopType.footnote,
                     color = Palette.textTertiary,
@@ -502,6 +548,7 @@ private fun DeviceCard(
                     onDisconnect = onDisconnect,
                     onReboot = onReboot,
                     onRebootProbe = onRebootProbe,
+                    onBatteryProbe = onBatteryProbe,
                 )
             }
         }
@@ -620,6 +667,7 @@ private fun DeviceActionsMenu(
     onDisconnect: (() -> Unit)? = null,
     onReboot: (() -> Unit)? = null,
     onRebootProbe: (() -> Unit)? = null,
+    onBatteryProbe: (() -> Unit)? = null,
 ) {
     Box {
         IconButton(
@@ -667,6 +715,11 @@ private fun DeviceActionsMenu(
                 // Connection on + a live WHOOP 4.0). Finds the real reboot frame the 4.0 accepts (#235).
                 if (onRebootProbe != null) {
                     MenuItem("Reboot probe (4.0 RE)…", Icons.Filled.BugReport) { onOpenChange(false); onRebootProbe() }
+                }
+                // #592: read-only extended-battery opcode probe — settles the disputed GET_EXTENDED_
+                // BATTERY_INFO number (98 vs an APK decompile's 87) from a strap-log export.
+                if (onBatteryProbe != null) {
+                    MenuItem(uiString(R.string.l10n_devices_screen_battery_info_probe_592_re_1dbd4c0f), Icons.Filled.BugReport) { onOpenChange(false); onBatteryProbe() }
                 }
                 if (onRemove != null) {
                     HorizontalDivider(color = Palette.hairline)
@@ -808,6 +861,75 @@ private fun RebootProbeDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(uiString(R.string.l10n_devices_screen_cancel_77dfd213), style = NoopType.body, color = Palette.textSecondary)
+            }
+        },
+    )
+}
+
+/** #592 extended-battery opcode probe: a single read-only send + a full raw-response dump to the strap
+ *  log. Settles whether GET_EXTENDED_BATTERY_INFO is 98 (this table) or 87 (an independent APK decompile)
+ *  from a normal strap-log export. Gated to Test Centre → Connection + a live WHOOP at the call site. */
+@Composable
+private fun BatteryInfoProbeDialog(
+    onSend: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Palette.surfaceOverlay,
+        title = { Text(uiString(R.string.l10n_devices_screen_battery_info_probe_592_re_1dbd4c0f), style = NoopType.title2, color = Palette.textPrimary) },
+        text = {
+            Text(
+                uiString(R.string.l10n_devices_screen_battery_probe_explainer_2858bb6a),
+                style = NoopType.subhead,
+                color = Palette.textSecondary,
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onSend) {
+                Text(uiString(R.string.l10n_devices_screen_send_probe_read_only_36b318bc), style = NoopType.body, color = Palette.accent)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(uiString(R.string.l10n_devices_screen_cancel_77dfd213), style = NoopType.body, color = Palette.textSecondary)
+            }
+        },
+    )
+}
+
+/** #592 probe result: shows the raw hex + payload triage from the strap's reply (or a "waiting…" line
+ *  while in flight), with a Copy button so the capture can be pasted into the issue without exporting the
+ *  whole strap log. Read-only; dismiss clears the result. */
+@Composable
+private fun BatteryInfoProbeResultDialog(
+    text: String,
+    onDismiss: () -> Unit,
+) {
+    val clipboard = LocalClipboardManager.current
+    val waiting = text == WhoopBleClient.WAITING_EXTENDED_BATTERY_PROBE
+    val shown = if (waiting) uiString(R.string.l10n_devices_screen_waiting_for_the_straps_reply_5a06e7ac) else text
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Palette.surfaceOverlay,
+        title = { Text(uiString(R.string.l10n_devices_screen_battery_info_probe_result_592_b97c0bb8), style = NoopType.title2, color = Palette.textPrimary) },
+        text = {
+            Column(modifier = Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
+                SelectionContainer {
+                    Text(shown, style = if (waiting) NoopType.subhead else NoopType.mono, color = Palette.textSecondary)
+                }
+            }
+        },
+        confirmButton = {
+            if (!waiting) {
+                TextButton(onClick = { clipboard.setText(AnnotatedString(text)) }) {
+                    Text(uiString(R.string.l10n_devices_screen_copy_af74f7c5), style = NoopType.body, color = Palette.accent)
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(uiString(R.string.l10n_devices_screen_close_bbfa773e), style = NoopType.body, color = Palette.textSecondary)
             }
         },
     )

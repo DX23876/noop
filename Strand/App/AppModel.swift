@@ -264,7 +264,10 @@ final class AppModel: ObservableObject {
         // HR-zone haptic coaching watches the smoothed bpm.
         $bpm.sink { [weak self] hr in self?.coachZone(hr) }.store(in: &hrCancellables)
         // Illness/strain early-warning recomputes when the daily history changes.
-        repo.$days.sink { [weak self] days in self?.evaluateIllness(days) }.store(in: &hrCancellables)
+        repo.$days.sink { [weak self] days in
+            self?.evaluateIllness(days)
+            self?.evaluateStrainTarget()
+        }.store(in: &hrCancellables)
         // Re-arm the strap's firmware alarm once the connection has SETTLED — not the instant it (re)bonds.
         // A smart-alarm time changed while the strap was away never reached it , the send is gated on bond
         // , so the strap kept the OLD time and fired at it (#59).
@@ -804,6 +807,10 @@ final class AppModel: ObservableObject {
     /// Send one WHOOP 4.0 reboot-probe candidate (Test Centre → Connection, 4.0 only). Confirmation-gated
     /// in DevicesView; finds the real 4.0 reboot frame when the production one is ignored (#235).
     func rebootProbe(_ variant: RebootProbeVariant) { ble.rebootProbe(variant) }
+
+    /// #592 read-only extended-battery opcode probe (Devices → strap menu, Test Centre → Connection gated).
+    func probeExtendedBatteryInfo() { ble.probeExtendedBatteryInfo() }
+    func clearExtendedBatteryProbe() { ble.clearExtendedBatteryProbe() }
 
     /// Drop the current strap and clear bond state so a newly-picked strap model connects fresh
     /// (lets a user with both a WHOOP 4 and a 5/MG switch between them).
@@ -1442,6 +1449,21 @@ final class AppModel: ObservableObject {
         if let alert = healthAlert, previous == nil {
             IllnessNotifier.post(alert)
         }
+    }
+
+    /// #593: once-a-day "optimal strain reached" nudge. Reads the resolved today-row (the same
+    /// logical-day resolution every dashboard surface uses), converts the stored 0-100 Effort to the
+    /// 0-21 coupled axis with the SHIPPED formatter (so it matches every Effort read-out), and gates
+    /// against the LOW end of today's recovery-derived optimal band (#43). The notifier's persisted
+    /// day gate makes this safe to fire on every days republish; nil recovery (calibrating) yields a
+    /// nil band → no target → no notification. Android twin: AppViewModel's days-collector call.
+    func evaluateStrainTarget() {
+        guard let row = repo.today else { return }
+        StrainTargetNotifier.onDayUpdate(
+            day: row.day,
+            dayStrain21: row.strain.map { UnitFormatter.effortValue($0, scale: .whoop) },
+            target21: CoupledView.optimalStrainRange(recovery: row.recovery)?.lowerBound,
+            enabled: behavior.strainTargetNudge)
     }
 
     /// Re-run the illness watch over the cached history. Called when the Automations toggle

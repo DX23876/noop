@@ -73,6 +73,19 @@ jobs:
           CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
           build
 
+      # Run the app-target unit tests (StrandTests, wired into the Strand scheme's test action in
+      # project.yml). ONLY the macOS/Strand leg: StrandTests is hosted in the macOS app; the NOOPiOS
+      # leg stays compile-only. Uses a concrete (runnable) macOS destination, not the universal
+      # generic one above. This is what runs the pure app-target logic tests (backfill continuation,
+      # scheduled-report / strain-target policy, etc.) that swift-packages can't reach.
+      - name: Test ${{ matrix.scheme }}
+        if: matrix.scheme == 'Strand'
+        run: >-
+          xcodebuild -scheme Strand -configuration Debug
+          -destination 'platform=macOS'
+          CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+          test
+
   # Fork-only housekeeping: on-demand app-build runs are dispatched from disposable `ci/<name>` branches
   # (a PR's content pushed somewhere the workflow can run). Once the build finishes (pass OR fail —
   # always()), delete that branch so GitHub's "Compare & pull request" banner doesn't linger after each

@@ -42,7 +42,11 @@ final class ReadSpineActiveDeviceTests: XCTestCase {
 
         // Seeded with the canonical id, the latest data is the stale canonical day.
         let staleLatest = await repo.latestDataDayStart()
-        XCTAssertEqual(staleLatest, Repository.logicalDayStart(Date(timeIntervalSince1970: TimeInterval(staleBase))),
+        // Expected day = the LATEST sample's day (base + 299 for a 300-sample seed), which is what
+        // latestDataDayStart (MAX ts) resolves to — NOT the seed's first sample. When a seed spans the
+        // 04:00 logical-day rollover, base and base+299 land on different days, and asserting against the
+        // first sample flaked in that window (only ever surfaced once app-build began running StrandTests).
+        XCTAssertEqual(staleLatest, Repository.logicalDayStart(Date(timeIntervalSince1970: TimeInterval(staleBase + 299))),
                        "before re-point the read model sees only the canonical namespace")
 
         // Re-add → re-point. The active-strap read id now equals the write id.
@@ -52,7 +56,7 @@ final class ReadSpineActiveDeviceTests: XCTestCase {
 
         // The latest data is now TODAY's (union picks the most recent across both ids), not the stale day.
         let freshLatest = await repo.latestDataDayStart()
-        XCTAssertEqual(freshLatest, Repository.logicalDayStart(Date(timeIntervalSince1970: TimeInterval(freshBase))),
+        XCTAssertEqual(freshLatest, Repository.logicalDayStart(Date(timeIntervalSince1970: TimeInterval(freshBase + 299))),  // latest sample's day (MAX ts); see stale note re: 04:00 rollover straddle
                        "after re-point the auto-land reads today's live data under the new id, not the stale day")
         XCTAssertNotEqual(freshLatest, staleLatest, "Today must not snap back to the stale namespace's day")
     }
@@ -161,7 +165,7 @@ final class ReadSpineActiveDeviceTests: XCTestCase {
 
         // (iii) Today does NOT snap to a stale day: the auto-land anchor is the fresh live day.
         let landDay = await repo.latestDataDayStart()
-        XCTAssertEqual(landDay, Repository.logicalDayStart(Date(timeIntervalSince1970: TimeInterval(liveBase))),
+        XCTAssertEqual(landDay, Repository.logicalDayStart(Date(timeIntervalSince1970: TimeInterval(liveBase + 599))),  // 600-sample seed → latest sample = liveBase+599 (MAX ts); avoids the 04:00 straddle flake
                        "Today must anchor on the fresh live day, not a stale imported day")
     }
 

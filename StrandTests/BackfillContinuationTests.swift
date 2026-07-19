@@ -213,7 +213,9 @@ final class BackfillContinuationTests: XCTestCase {
     /// the strap's newest) until either we catch up OR the cap is hit — never silently stalling at one.
     func testMultiPassDrainUntilCaughtUpOrCapped() {
         let strapNewest = 1_800_000_000
-        var frontier = strapNewest - 7 * 86_400      // a full week behind
+        // Backlog DEEPER than the cap (each pass advances the frontier one day) so the drain is bounded by
+        // the cap, not by catching up — that is the invariant this test pins, independent of the cap value.
+        var frontier = strapNewest - (BackfillContinuation.defaultMaxAutoContinues + 5) * 86_400
         var count = 0
         var passes = 0
         while BackfillContinuation.shouldAutoContinue(
@@ -232,6 +234,20 @@ final class BackfillContinuationTests: XCTestCase {
         }
         // It stopped because it hit the cap (deep backlog), not because it silently stalled at pass 1.
         XCTAssertEqual(count, BackfillContinuation.defaultMaxAutoContinues)
+    }
+
+    /// #533: a genuine deep backlog must keep draining PAST the old 6-pass cap in one connection, instead
+    /// of being throttled to the 15-min floor mid-drain. At 10 consecutive continues with the strap still
+    /// a day ahead of our frontier and the trim advancing, it must still continue (the cap is now higher).
+    func testContinuesPastOldSixCapOnDeepBacklog() {
+        XCTAssertGreaterThan(BackfillContinuation.defaultMaxAutoContinues, 6)   // pins the #533 raise
+        XCTAssertTrue(BackfillContinuation.shouldAutoContinue(
+            stillConnected: true,
+            strapNewestTs: 1_800_000_000,
+            ourFrontierTs: 1_800_000_000 - 86_400,   // a full day behind
+            wallNowUnix: wallNow,
+            lastTrimAdvanced: true,
+            consecutiveCount: 10))                    // well past the old cap of 6
     }
 
     // MARK: #25 — HISTORY_COMPLETE-sliced offloads

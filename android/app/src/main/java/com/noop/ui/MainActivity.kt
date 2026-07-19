@@ -697,6 +697,9 @@ object NoopPrefs {
     const val KEY_REPORT_MORNING = "noop.report.morningRecap"
     const val KEY_REPORT_WORKOUT = "noop.report.postWorkout"
     const val KEY_REPORT_MORNING_DAY = "noop.report.lastMorningDay"
+    // #593 target-strain nudge: opt-in enable flag + the once-per-day dedupe (last local day it fired).
+    const val KEY_REPORT_STRAIN_TARGET = "noop.report.strainTarget"
+    const val KEY_REPORT_STRAIN_TARGET_DAY = "noop.report.lastStrainTargetDay"
     const val KEY_REPORT_LAST_WORKOUT_TS = "noop.report.lastWorkoutTs"
 
     fun morningReportEnabled(context: Context): Boolean =
@@ -719,6 +722,22 @@ object NoopPrefs {
 
     fun setReportMorningDay(context: Context, day: String) {
         of(context).edit().putString(KEY_REPORT_MORNING_DAY, day).apply()
+    }
+
+    /** #593: opt-in (default OFF) for the once-a-day optimal-strain-reached nudge. */
+    fun strainTargetEnabled(context: Context): Boolean =
+        of(context).getBoolean(KEY_REPORT_STRAIN_TARGET, false)
+
+    fun setStrainTargetEnabled(context: Context, enabled: Boolean) {
+        of(context).edit().putBoolean(KEY_REPORT_STRAIN_TARGET, enabled).apply()
+    }
+
+    /** Last local day (ISO yyyy-MM-dd) the strain-target nudge was posted, the once-a-day gate. */
+    fun reportStrainTargetDay(context: Context): String? =
+        of(context).getString(KEY_REPORT_STRAIN_TARGET_DAY, null)
+
+    fun setReportStrainTargetDay(context: Context, day: String) {
+        of(context).edit().putString(KEY_REPORT_STRAIN_TARGET_DAY, day).apply()
     }
 
     /** Start-ts (epoch seconds) of the most recent workout already summarised, only a STRICTLY newer

@@ -188,7 +188,7 @@ class ActivityFileImporterTest {
         fit.u32(sessionStart)
         fit.u8(1)            // sport = running
         fit.u32(523)         // total_distance → 5.23 m
-        fit.u32(1175)        // total_cycles: Suunto walking/running step total
+        fit.u32(1175)        // total_cycles = STRIDES for a foot sport; 1 stride = 2 steps → 2350 steps (#568)
         fit.u16(300)         // total_calories
         fit.u8(150)          // avg_hr
         fit.u8(182)          // max_hr
@@ -215,7 +215,7 @@ class ActivityFileImporterTest {
         assertEquals(3, a.hrSampleCount)
         assertEquals(5.23, a.distanceM!!, 1e-3)
         assertEquals(300.0, a.energyKcal!!, 1e-6)
-        assertEquals(1175, a.steps)
+        assertEquals(2350, a.steps)   // FIT field 10 = 1175 strides → ×2 = 2350 steps (#568)
         assertEquals(150, a.avgHr)
         assertEquals(182, a.maxHr)
         assertEquals(lat, a.route.first().lat, 1e-4)

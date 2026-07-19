@@ -278,6 +278,23 @@ enum FolderBackup {
         await backupNow(checkpoint: checkpoint)
     }
 
+    /// Diagnostic-only snapshot of the restore list's health: the chosen folder's name, its raw entry
+    /// count, and how many of those resolve into recognized `.noopbak` snapshots. Nil when no folder is
+    /// chosen. Lets a "restore shows no files" report (#278) distinguish a genuinely empty folder from a
+    /// resolution problem (e.g. undownloaded iCloud placeholders, see `iCloudPlaceholderRealName`)
+    /// without needing a live repro. Used by `DebugDataDiagnostics`.
+    static func restoreListHealth() -> (isICloud: Bool, rawEntries: Int, snapshots: Int)? {
+        guard let folder = resolveFolder() else { return nil }
+        let scoped = folder.startAccessingSecurityScopedResource()
+        defer { if scoped { folder.stopAccessingSecurityScopedResource() } }
+        let raw = (try? FileManager.default.contentsOfDirectory(atPath: folder.path))?.count ?? 0
+        // Report iCloud-vs-local (the actual #278 triage signal — undownloaded placeholders live in the
+        // iCloud container) WITHOUT the folder's user-chosen name, which redactPii can't scrub and the
+        // iOS twin never exposes. The iCloud ubiquity container path contains "Mobile Documents".
+        let isICloud = folder.path.contains("Mobile Documents")
+        return (isICloud, raw, listSnapshots().count)
+    }
+
     // MARK: - Restore from the configured folder (must-fix #1)
 
     /// One restorable snapshot in the chosen folder: its display name + a friendly absolute-time line.

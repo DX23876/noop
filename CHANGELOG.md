@@ -17,6 +17,33 @@ approximate; downloads are on the [Releases](https://github.com/NoopApp/noop/rel
 
 ---
 
+## 9.0.2: Optimal-strain alerts, faster history sync, and a wave of accuracy fixes (all platforms)
+
+A feature-and-accuracy release on top of 9.0.1.
+
+**New**
+
+- **"Optimal strain reached" notification (#593).** Opt in and NOOP buzzes once when your day's effort lands in the optimal range for your recovery. Off by default; it only fires for the day you're actually building, never for a backfilled past day.
+- **Strap pack voltage in Devices (#592).** Alongside the battery percent, NOOP now shows the strap's measured pack voltage — a truer read of remaining charge than the percentage alone.
+- **Faster history sync (experimental, #533).** New opt-in toggles ask the strap for a higher-priority connection and a faster radio mode during a history offload, so a deep backlog drains in fewer, quicker syncs. Off by default while it's being proven out.
+- **Recompute a sleep you deleted (#526).** Removing a bad sleep window no longer leaves a hole — you can ask NOOP to recompute the night from the raw stream.
+
+**Fixed**
+
+- **Multi-strap workouts showed blank heart rate and calories (#512, #513).** Workout heart rate is now read under the strap that actually recorded the session, not a hardcoded device, so second-strap workouts fill in correctly (iPhone, Mac, Android).
+- **Today steps counted from the wrong source (#551, #574, #575).** Steps now route by their real source and blend an imported Apple Health count where present, matching Android.
+- **Foot-sport step counts were half of reality (#568).** Activity-file imports now double the reported cycle count into steps for running and walking sports.
+- **Oura IBI (heartbeat-interval) imports decoded wrong (#511).** The 0x60/0x80 decoders now match the ring's real byte layout.
+- **The morning recap could fire twice or on the wrong day (#567).** Its once-per-recap gate is keyed to the night it banked, not the calendar day.
+- **Sleep time edits are now saved atomically (#525),** so an interrupted edit can't leave a half-written night.
+- **Pull-to-sync polish on Today (#582, #587, #590).** The pull indicator shows "Syncing…", stays up for the real backfill instead of flickering per chunk, and hides at rest — it only appears when you pull.
+- **iPhone now actually asks for notification permission during onboarding (#591),** so alerts you enable can be delivered.
+- **Stress marker values stay readable (#507),** and Android's battery dialog no longer contradicts Settings (#539).
+
+**Also:** real plural forms and translation fixes across the app (#541–#544, #559), and WHOOP 5.0/MG decode groundwork continues under the hood.
+
+---
+
 ## 9.0.1: German, French & Spanish, pull-to-sync on Today, and a wave of polish (all platforms)
 
 A polish-and-translation release on top of 9.0.0.

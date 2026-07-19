@@ -39,6 +39,8 @@ struct LiquidTodayView: View {
     @State private var fitnessAge: Double?         // exploreSeries("fitness_age").last
     @State private var vitality: Double?           // exploreSeries("vitality").last
     @State private var stepsEst: Double?           // steps_est, day-keyed to the selected day (fallback)
+    @State private var importedStepsDay: Int?      // Apple Health steps for the selected day (middle tier)
+    @State private var importedActiveKcalDay: Double?  // #616: Apple Health active energy for the day (calorie fallback)
     @State private var hrValues: [Double] = []     // hrBuckets since midnight → 5-min means
     @State private var workouts: [WorkoutRow] = [] // newest-first
 
@@ -369,23 +371,12 @@ struct LiquidTodayView: View {
     static let pullSpace = "liqTodayScroll"
 
     /// Reserves the revealed space at the top and shows a vessel that fills with the pull, then sloshes
-    /// while the refresh runs.
+    /// while the refresh runs. A plain computed property (not a LiveState-isolated leaf) — it doesn't read
+    /// LiveState itself, so it's cheap to re-evaluate as part of the main body. It hands the actual
+    /// visibility decision to `LiquidRefreshIndicator` below, which DOES own LiveState.
     private var liquidRefreshIndicator: some View {
-        let progress = min(1, max(0, pullY / pullThreshold))
-        return ZStack {
-            if refreshing {
-                LiquidVessel(value: 0.6, tint: liquidHeart, animated: true)
-                    .frame(width: 34, height: 34)
-            } else if pullY > 2 {
-                LiquidVessel(value: progress, tint: liquidHeart, animated: false)
-                    .frame(width: 30, height: 30)
-                    .opacity(progress)
-                    .scaleEffect(0.7 + 0.3 * progress)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: refreshing ? 64 : min(pullY, pullThreshold * 1.15))
-        .animation(.easeOut(duration: 0.22), value: refreshing)
+        LiquidRefreshIndicator(pullY: pullY, pullThreshold: pullThreshold, refreshing: refreshing,
+                               liquidHeart: liquidHeart)
     }
 
     /// Arm the refresh once the pull passes the threshold; FIRE it when the finger releases (the pull
@@ -689,7 +680,10 @@ struct LiquidTodayView: View {
                      value: unitText(displayDay?.respRateBpm, card.unit, decimals: 1),
                      tint: StrandPalette.accent, frac: fracOver(displayDay?.respRateBpm, 24))
         case .steps:
-            cardLink(.metric("steps_est"), title: card.title, sub: card.subtitle,
+            // Route by the EXACT (key, source) the tile chose to display — measured my-whoop, imported
+            // apple-health, or the my-whoop estimate — NOT by bare key (bare "steps" resolves to
+            // apple-health and would mismatch a WHOOP-measured value). Order-independent.
+            cardLink(.metricSourced(key: stepsDetailKey, source: stepsDetailSource), title: card.title, sub: card.subtitle,
                      value: stepsText, tint: StrandPalette.metricCyan, frac: fracOver(stepCount, 10000))
         case .bloodOxygen:
             // Not wired to a real read yet — render EMPTY (not half-full) so it doesn't imply a reading.
@@ -699,8 +693,10 @@ struct LiquidTodayView: View {
             cardLink(.metric("skin_temp"), title: card.title, sub: card.subtitle,
                      value: "–", tint: StrandPalette.metricAmber, frac: nil)
         case .calories:
-            cardLink(.metric("active_kcal"), title: card.title, sub: card.subtitle,
-                     value: "–", tint: StrandPalette.metricAmber, frac: nil)
+            // #616: show the resolved imported-first value and route to the matching detail source, like
+            // the Steps card — was a "–" placeholder wired to the imported-only detail.
+            cardLink(.metricSourced(key: caloriesDetailKey, source: caloriesDetailSource), title: card.title, sub: card.subtitle,
+                     value: intText(caloriesCount), tint: StrandPalette.metricAmber, frac: fracOver(caloriesCount, 800))
         case .sleep:
             cardLink(.sleep, title: card.title, sub: card.subtitle,
                      value: sleepText, tint: StrandPalette.restColor, frac: fracOver(displayDay?.totalSleepMin, 480))
@@ -923,16 +919,20 @@ struct LiquidTodayView: View {
             let resp = displayDay?.respRateBpm ?? vitalsDay?.respRateBpm
             ktile(String(localized: "Respiratory"), resp.map { String(format: "%.1f", $0) } ?? "—", "rpm", StrandPalette.accent, fracOver(resp, 24), key: "resp_rate")
         case .steps:
-            ktile(String(localized: "Steps"), stepsText, "", StrandPalette.chargeColor, fracOver(stepCount, 10000), key: "steps")
+            ktile(String(localized: "Steps"), stepsText, "", StrandPalette.chargeColor,
+                  fracOver(stepCount, 10000), key: stepsDetailKey, detailMetric: stepsDetailMetric)
         case .weight:
             ktile(String(localized: "Weight"), "—", "", StrandPalette.metricAmber, nil, key: "weight")
         case .calories:
-            ktile(String(localized: "Calories"), intText(displayDay?.activeKcalEst), "kcal", StrandPalette.metricAmber, fracOver(displayDay?.activeKcalEst, 800), key: "energy_kcal")
+            // #616: imported-first value (imported ?: activeKcalEst) + route the tap to the matching
+            // detail source, so the number, its sparkline and the chart it opens all agree.
+            ktile(String(localized: "Calories"), intText(caloriesCount), "kcal", StrandPalette.metricAmber,
+                  fracOver(caloriesCount, 800), key: "energy_kcal", detailMetric: caloriesDetailMetric)
         }
     }
 
     private func ktile(_ label: String, _ value: String, _ unit: String, _ tint: Color, _ frac: Double?,
-                       key: String? = nil) -> some View {
+                       key: String? = nil, detailMetric: MetricDescriptor? = nil) -> some View {
         let tile = VStack(alignment: .leading, spacing: 6) {
             Text(label.uppercased()).font(StrandFont.overlineScaled(9)).tracking(1.2)
                 .foregroundStyle(StrandPalette.textTertiary)
@@ -972,7 +972,9 @@ struct LiquidTodayView: View {
         // #430 parity: tap -> the metric's trend detail (the same Explore dossier its MetricRow pushes,
         // closure-based NavigationLink per #38). A metric with no catalog entry stays inert.
         return Group {
-            if let key, let metric = MetricCatalog.all.first(where: { $0.key == key }) {
+            if let metric = detailMetric ?? key.flatMap({ key in
+                MetricCatalog.all.first(where: { $0.key == key })
+            }) {
                 NavigationLink { MetricDetailView(metric: metric) } label: { tile }
                     .buttonStyle(.plain)
             } else {
@@ -1095,6 +1097,7 @@ struct LiquidTodayView: View {
         async let fitA = repo.exploreSeries(key: "fitness_age", source: "my-whoop")
         async let vitA = repo.exploreSeries(key: "vitality", source: "my-whoop")
         async let stepsA = repo.exploreSeries(key: "steps_est", source: "my-whoop")
+        async let appleA = repo.appleDailyRows()
         async let hrA = repo.hrBuckets(from: from, to: to, bucketSeconds: 300)
         async let wkA = repo.workoutRows()
         // Ask the same cross-source resolver the Classic Today view uses which source actually won each
@@ -1109,6 +1112,7 @@ struct LiquidTodayView: View {
                                                     days: sourceLookback)
 
         let restSeries = await restA
+        let stepsSeries = await stepsA
         let restByDay = Dictionary(restSeries.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
         // Selected day's Rest; tail fallback only at offset 0 (a past day with no row shows nothing) AND
         // only when the tail night is still fresh. #977: a live 5.0 whose sleep never scores (no overnight
@@ -1132,6 +1136,19 @@ struct LiquidTodayView: View {
         // Window all read the same signal. Rest reuses the already-loaded sleep_performance series.
         let sparkCutoff = Repository.localDayKey(cal.date(byAdding: .day, value: -13, to: dayStart) ?? dayStart)
         let sparkRows = daysSnapshot.filter { $0.day >= sparkCutoff && $0.day <= selectedDayKey }
+        // #616: imported-first calorie spark (the day's imported Apple active energy ?: NOOP's on-device
+        // estimate) over the window, so a Health-Connect / Apple-only calorie user gets a trend too —
+        // matching the imported-first VALUE. Union of imported days + strap-row days. Mirrors Android's
+        // caloriesSpark (windowed caloriesByDay).
+        let appleRowsForSpark = await appleA
+        var winImportedKcal: [String: Double] = [:]
+        for r in appleRowsForSpark where r.day >= sparkCutoff && r.day <= selectedDayKey {
+            if let k = r.activeKcal { winImportedKcal[r.day] = max(winImportedKcal[r.day] ?? 0, k) }
+        }
+        var winOnDeviceKcal: [String: Double] = [:]
+        for r in sparkRows { if let k = r.activeKcalEst { winOnDeviceKcal[r.day] = k } }
+        let energyKcalSpark: [(String, Double)] = Set(winImportedKcal.keys).union(winOnDeviceKcal.keys).sorted()
+            .compactMap { day in (winImportedKcal[day] ?? winOnDeviceKcal[day]).map { (day, $0) } }
         kSparks = [
             "recovery": sparkRows.compactMap { r in r.recovery.map { (r.day, $0) } },
             "strain": sparkRows.compactMap { r in r.strain.map { (r.day, $0) } },
@@ -1139,6 +1156,13 @@ struct LiquidTodayView: View {
             "rhr": sparkRows.compactMap { r in r.restingHr.map { (r.day, Double($0)) } },
             "spo2": sparkRows.compactMap { r in r.spo2Pct.map { (r.day, $0) } },
             "resp_rate": sparkRows.compactMap { r in r.respRateBpm.map { (r.day, $0) } },
+            "steps": sparkRows.compactMap { r in r.steps.map { (r.day, Double($0)) } },
+            // #616: the Calories tile drew no trend line — this dict had no matching entry, so windowedSpark
+            // returned []. Bank the imported-first calorie series (built above) so the sparkline matches the
+            // tile's imported-first number and a Health-Connect / Apple-only user gets a trend.
+            "energy_kcal": energyKcalSpark,
+            "steps_est": stepsSeries.filter { $0.day >= sparkCutoff && $0.day <= selectedDayKey }
+                .map { ($0.day, $0.value) },
             "sleep_performance": restSeries.filter { $0.day >= sparkCutoff && $0.day <= selectedDayKey }
                 .map { ($0.day, $0.value) },
         ]
@@ -1150,9 +1174,15 @@ struct LiquidTodayView: View {
         // Steps is a DAILY metric, so key it to the SELECTED day (like restScore above), not the history-wide
         // latest. Without this, swiping to a past day with no strap step count showed today's estimate (the
         // `.last` value) instead of that day's. Mirrors the classic Today's stepsEstByDay[selectedDayKey].
-        let stepsSeries = await stepsA
         let stepsByDay = Dictionary(stepsSeries.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
         stepsEst = stepsByDay[selectedDayKey] ?? (selectedDayOffset == 0 ? stepsSeries.last?.value : nil)
+        // Imported Apple Health steps for the SELECTED day (max across rows), the middle tier between the
+        // measured strap count and the motion estimate. Health Connect is Android-only, so apple-health is
+        // the sole import source on iOS. Mirrors Android `stepsForDay` (#377).
+        importedStepsDay = (await appleA).filter { $0.day == selectedDayKey }.compactMap { $0.steps }.max()
+        // #616: same-day imported active energy — the calorie fallback when the strap banked no on-device
+        // HR estimate for the day, so the tile/card/detail agree (imported-first, mirrors steps).
+        importedActiveKcalDay = (await appleA).filter { $0.day == selectedDayKey }.compactMap { $0.activeKcal }.max()
         hrValues = (await hrA).map { $0.bpm }
         workouts = await wkA
 
@@ -1231,7 +1261,34 @@ struct LiquidTodayView: View {
             : String(localized: "Good evening")
     }
 
-    private var stepCount: Double? { displayDay?.steps.map(Double.init) ?? stepsEst }
+    // Measured strap count ?: imported Apple Health count ?: motion estimate — the same precedence the
+    // detail routing follows below, so the tapped-through source always matches the number shown (#377).
+    private var stepCount: Double? {
+        displayDay?.steps.map(Double.init) ?? importedStepsDay.map(Double.init) ?? stepsEst
+    }
+
+    private var stepsDetailMetric: MetricDescriptor? {
+        MetricCatalog.todayStepsMetric(hasMeasuredSteps: displayDay?.steps != nil,
+                                       hasImportedSteps: importedStepsDay != nil)
+    }
+
+    private var stepsDetailKey: String { stepsDetailMetric?.key ?? "steps_est" }
+    private var stepsDetailSource: String { stepsDetailMetric?.source ?? "my-whoop" }
+
+    // #616: calories resolved IMPORTED-FIRST (the day's imported Apple active energy — the figure these
+    // surfaces already showed — else NOOP's on-device HR estimate `activeKcalEst`) — one number across the
+    // tile, card and the detail it taps to. Mirrors the steps precedence above.
+    private var caloriesCount: Double? {
+        importedActiveKcalDay ?? displayDay?.activeKcalEst
+    }
+
+    private var caloriesDetailMetric: MetricDescriptor? {
+        MetricCatalog.todayCaloriesMetric(hasImportedKcal: importedActiveKcalDay != nil,
+                                          hasOnDeviceKcal: displayDay?.activeKcalEst != nil)
+    }
+
+    private var caloriesDetailKey: String { caloriesDetailMetric?.key ?? "energy_kcal" }
+    private var caloriesDetailSource: String { caloriesDetailMetric?.source ?? "my-whoop" }
 
     private var liveHour: Double {
         let c = Calendar.current.dateComponents([.hour, .minute], from: Date())
@@ -1447,6 +1504,75 @@ private struct HeroScoreCell: View {
 
 
 // MARK: - Scene controls (LiveState-isolated leaves)
+
+/// The liquid pull-to-refresh vessel + a "Syncing…" label. Owns LiveState (isolated leaf, per the file's
+/// convention — see `LiquidLiveHR`) so a live-HR notify doesn't re-render the whole Today, but the vessel
+/// still knows about an ONGOING strap backfill.
+///
+/// Visibility used to be driven only by the local `refreshing` flag, which flips false ~350ms after the
+/// pull releases (once the local repo reload + a short "let the fill read as done" delay complete) — but
+/// `ble.syncNow()` kicks off a real BLE history offload that can run far longer than that. The vessel was
+/// disappearing while the strap was still mid-sync, with no feedback beyond the easy-to-miss header
+/// `SyncStatusChip`. `syncing` now also holds it (and the label) up while `live.backfilling` is true, so
+/// releasing the pull and watching it go away actually means the sync finished.
+private struct LiquidRefreshIndicator: View {
+    let pullY: CGFloat
+    let pullThreshold: CGFloat
+    let refreshing: Bool
+    let liquidHeart: Color
+
+    @EnvironmentObject private var live: LiveState
+
+    private var progress: CGFloat { min(1, max(0, pullY / pullThreshold)) }
+
+    /// The RAW "a sync is happening" signal. `live.backfilling` toggles false→true between EVERY offload
+    /// chunk (`exitBackfilling` at each HISTORY_END → auto-continue re-kick → `beginBackfill`), with a real
+    /// BLE round-trip gap in between. A deep backlog is now up to ~24 chunks in ONE connection (#594 raised
+    /// the auto-continue cap 6→24), so binding the vessel straight to this strobes it in/out on every chunk
+    /// boundary. The MenuBar header pins a constant height for exactly this reason (see MenuBarContent).
+    private var syncingRaw: Bool { refreshing || live.backfilling }
+
+    /// Debounced visibility that drives the body: goes true INSTANTLY, but only goes false after riding out
+    /// [hideDelay] with no new chunk — so a brief per-chunk `backfilling` gap can't flicker the vessel.
+    @State private var syncing = false
+    @State private var hideTask: Task<Void, Never>?
+    private static let hideDelaySeconds: UInt64 = 3   // comfortably longer than an inter-chunk gap
+
+    var body: some View {
+        ZStack {
+            if syncing {
+                VStack(spacing: 6) {
+                    LiquidVessel(value: 0.6, tint: liquidHeart, animated: true)
+                        .frame(width: 34, height: 34)
+                    Text("Syncing…")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
+            } else if pullY > 2 {
+                LiquidVessel(value: progress, tint: liquidHeart, animated: false)
+                    .frame(width: 30, height: 30)
+                    .opacity(progress)
+                    .scaleEffect(0.7 + 0.3 * progress)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: syncing ? 64 : min(pullY, pullThreshold * 1.15))
+        .animation(.easeOut(duration: 0.22), value: syncing)
+        .onAppear { syncing = syncingRaw }
+        .onChangeCompat(of: syncingRaw) { raw in
+            hideTask?.cancel()
+            if raw {
+                syncing = true                       // a sync (or pull) is active — show at once
+            } else {
+                // Might just be the gap between two chunks — wait it out; a new chunk cancels this.
+                hideTask = Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: Self.hideDelaySeconds * 1_000_000_000)
+                    if !Task.isCancelled { syncing = false }
+                }
+            }
+        }
+    }
+}
 
 /// Quick-actions "+" button. Tap → the shell's quick-action menu.
 /// #today-layout: the Arrange sheet — reorder the Today sections by dragging rows (SwiftUI's native

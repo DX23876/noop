@@ -60,6 +60,19 @@ enum DebugDataDiagnostics {
         }
         lines.append("Backup mode:  \(FolderBackup.useInternalFolder ? "NOOP's own folder (#52 fallback)" : (FolderBackup.hasFolder ? "external folder" : "none chosen"))")
         #endif
+        #if os(macOS)
+        // #278: macOS Backup & Sync restore-list health. When a user reports "restore shows no files",
+        // this pins whether a folder is even configured and whether its raw entries are being recognized
+        // as backups — a folder with real snapshots but 0 recognized (e.g. an undownloaded iCloud Drive
+        // placeholder, see `BackupSync.iCloudPlaceholderRealName`) looks very different from a genuinely
+        // empty folder, and neither was visible in a debug export before this.
+        if let health = FolderBackup.restoreListHealth() {
+            lines.append("Backup folder: \(health.isICloud ? "iCloud Drive" : "local")")
+            lines.append("Restore list: \(health.snapshots) snapshot(s) recognized of \(health.rawEntries) folder entries")
+        } else {
+            lines.append("Backup folder: none chosen")
+        }
+        #endif
         lines.append("Timezone:    \(tzLine())")
         return lines
     }

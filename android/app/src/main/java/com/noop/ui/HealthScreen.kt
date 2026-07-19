@@ -1938,6 +1938,13 @@ internal fun mergeStepsReadings(
     (real.keys + imported.keys + est.keys).toSortedSet()
         .mapNotNull { d -> real[d] ?: imported[d] ?: est[d] }
 
+/** #616: per-day precedence merge for a metric with disjoint stores (first non-null per day wins),
+ *  ascending. The N-store generalisation of [mergeStepsReadings]; calories reuse it as the two-store
+ *  on-device (`activeKcalEst`) ?: imported (Apple/Health-Connect `activeKcal`) union. Pure for testability. */
+internal fun mergeReadings(vararg stores: Map<String, VitalReading>): List<VitalReading> =
+    stores.flatMap { it.keys }.toSortedSet()
+        .mapNotNull { day -> stores.firstNotNullOfOrNull { it[day] } }
+
 private data class VitalDetailModel(
     val key: String,
     val title: String,
@@ -2595,21 +2602,28 @@ private suspend fun buildSeriesVitalDetail(vm: AppViewModel, key: String): Vital
         )
     }
     "active_kcal" -> {
-        // Read active energy from the SAME apple-health ∪ health-connect union the Today Calories card uses.
-        // Health Connect (the common Android source) writes activeKcal only into the AppleDaily table under
-        // "health-connect", not as an active_kcal metricSeries row, so reading metricSeries("apple-health") alone
-        // opened an empty detail for a Health-Connect-only user whose card DID show a number. One point per day,
-        // apple-health winning a tie (matching the card's newest-value read), ascending.
-        val rows = vm.repo.appleDaily("apple-health", "0000-01-01", "9999-12-31") +
-            vm.repo.appleDaily("health-connect", "0000-01-01", "9999-12-31")
-        val byDay = LinkedHashMap<String, VitalReading>()
-        for (r in rows) r.activeKcal?.let { byDay.putIfAbsent(r.day, VitalReading(r.day, it, r.deviceId)) }
+        // #616: calories, like steps (#377), come from TWO disjoint stores — the on-device HR estimate
+        // (DailyMetric.activeKcalEst, exposed by resolvedSeries("active_kcal")) and imported Apple/Health-
+        // Connect active energy (AppleDaily.activeKcal, where Health Connect writes it — NOT an active_kcal
+        // metricSeries row). Reading imports ALONE opened an empty / HealthConnect-only detail for a WHOOP
+        // 5.0 user whose calories are on-device, and disagreed with the Key-Metrics tile. Resolve per day
+        // IMPORTED-FIRST (the phone's activeKcal, else NOOP's on-device estimate) — matching the tile + card
+        // so the chart + Readings agree, while keeping every imported day in the union.
+        val real = vm.repo.resolvedSeries("active_kcal", "my-whoop", "0000-00-00", "9999-99-99",
+            strapDeviceId = vm.activeStrapId)
+            .points.associateBy({ it.day }, { VitalReading(it.day, it.value, it.source) })
+        val imported = LinkedHashMap<String, VitalReading>()
+        for (r in vm.repo.appleDaily("apple-health", "0000-01-01", "9999-12-31") +
+            vm.repo.appleDaily("health-connect", "0000-01-01", "9999-12-31")) {
+            val k = r.activeKcal
+            if (k != null && k > 0) imported.putIfAbsent(r.day, VitalReading(r.day, k, r.deviceId))
+        }
         VitalDetailModel(
             key = key,
             title = uiString(R.string.l10n_health_screen_active_energy_2d3288f9),
             unit = "kcal",
             color = Palette.metricAmber,
-            readings = byDay.entries.sortedBy { it.key }.map { it.value },
+            readings = mergeReadings(imported, real),   // imported wins its day, else on-device estimate
             format = { it.roundToInt().toString() },
         )
     }

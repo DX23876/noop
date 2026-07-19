@@ -88,6 +88,10 @@ public final class FrameRouter {
             if let pct = parsed.parsed["battery_pct"]?.doubleValue {
                 state.setBattery(pct)
             }
+            // #592: GET_EXTENDED_BATTERY_INFO / GET_BATTERY_LEVEL responses may carry pack voltage.
+            if let mv = parsed.parsed["battery_mV"]?.intValue {
+                state.batteryMv = mv
+            }
             // Firmware version from the connect handshake: WHOOP 4.0 decodes `fw_harvard`
             // (REPORT_VERSION_INFO), WHOOP 5/MG decodes `fw_version` (GET_HELLO). Take whichever the
             // decoder produced; one branch covers both families. It's stable for the connection, so
@@ -202,6 +206,10 @@ public final class FrameRouter {
                 if ev.hasPrefix("BATTERY_LEVEL"),
                    let ch = parsed.parsed["battery_charging"]?.intValue {
                     state.charging = (ch != 0)
+                }
+                // #592: the same battery event carries pack voltage (mv@21) — surface it on the Devices card.
+                if ev.hasPrefix("BATTERY_LEVEL"), let mv = parsed.parsed["battery_mV"]?.intValue {
+                    state.batteryMv = mv
                 }
                 // Physical inputs the strap exposes — live only (this path never sees historical
                 // replay, which goes through the Backfiller). Event strings are "NAME(rawValue)".

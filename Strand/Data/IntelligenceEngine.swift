@@ -726,9 +726,12 @@ final class IntelligenceEngine: ObservableObject {
                     // from the always-on log instead of hand-computing beat density.
                     let ts = sleepRrRows.map { $0.ts }
                     let cov = String(format: "%.2f", HRVAnalyzer.rrCoverage(tsSec: ts, rrMs: sleepRr))
+                    // #550: collapsedCov previews a same-second R-R de-dup — well below `coverage` ⇒ the
+                    // over-count is same-second (a dedup fix would work); still high ⇒ cross-second overlap.
+                    let colCov = String(format: "%.2f", HRVAnalyzer.collapsedCoverage(tsSec: ts, rrMs: sleepRr))
                     let dup = HRVAnalyzer.duplicateBeatCount(tsSec: ts, rrMs: sleepRr)
                     hrvDiag = "hrv diag day=\(res.daily.day) rmssd=\(ms(h.rmssd))ms sdnn=\(ms(h.sdnn))ms "
-                        + "meanNN=\(ms(h.meanNN))ms rr=\(h.nInput)/\(h.nClean) rejected=\(rej)% coverage=\(cov) dupBeats=\(dup)"
+                        + "meanNN=\(ms(h.meanNN))ms rr=\(h.nInput)/\(h.nClean) rejected=\(rej)% coverage=\(cov) collapsedCov=\(colCov) dupBeats=\(dup)"
                 }
                 // ── Steps test mode: 5/MG raw-counter trace ──────────────────────────────────────────────
                 // Only built when the Steps mode is on (the gate was read once before the loop). Recomputes
