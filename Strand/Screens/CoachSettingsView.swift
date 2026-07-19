@@ -13,6 +13,12 @@ struct CoachSettingsView: View {
 
     /// Pending key text (never persisted here, handed to `setKey`).
     @State private var keyDraft: String = ""
+    /// Whether `keyDraft` renders as plaintext (show/hide toggle, #P4 5.1) — while TYPING a new key
+    /// only; the already-stored key is never loaded back into this field to be revealed.
+    @State private var keyDraftVisible: Bool = false
+    /// Confirmation gate before `clearKey()` — a deliberately separate, harder-to-reach action from
+    /// Disconnect (#P4 4.3), since it actually deletes the Keychain key.
+    @State private var showForgetKeyConfirm = false
     @State private var customModel: Bool = false
     @State private var customModelDraft: String = ""
     @State private var promptExpanded: Bool = false
@@ -549,18 +555,48 @@ struct CoachSettingsView: View {
     }
 
     private var disconnectRow: some View {
-        HStack {
-            Spacer()
-            Button(role: .destructive) {
-                coach.disconnect()
-                keyDraft = ""
-            } label: {
-                Label("Disconnect", systemImage: "xmark.circle")
-                    .font(StrandFont.subhead)
+        VStack(alignment: .trailing, spacing: 10) {
+            HStack {
+                Spacer()
+                Button(role: .destructive) {
+                    coach.disconnect()
+                    keyDraft = ""
+                } label: {
+                    Label("Disconnect", systemImage: "xmark.circle")
+                        .font(StrandFont.subhead)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(StrandPalette.statusCritical)
+                .accessibilityLabel("Disconnect provider")
+                .accessibilityHint("Stops using this provider. Your saved key is kept.")
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(StrandPalette.statusCritical)
-            .accessibilityLabel("Disconnect provider")
+            // Deliberately a SEPARATE, smaller action from Disconnect (#P4 4.3): disconnecting stops
+            // using the provider but keeps the key so reconnecting is one tap; forgetting the key is the
+            // only thing that actually deletes it from the Keychain, and needs its own confirmation.
+            if coach.provider != .custom && coach.hasKey {
+                Button(role: .destructive) {
+                    showForgetKeyConfirm = true
+                } label: {
+                    Text("Forget saved key")
+                        .font(StrandFont.footnote)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .accessibilityHint("Deletes your \(coach.provider.displayName) key from the Keychain. You'll need to paste it again to reconnect.")
+                .confirmationDialog(
+                    "Forget your saved \(coach.provider.displayName) key?",
+                    isPresented: $showForgetKeyConfirm,
+                    titleVisibility: .visible
+                ) {
+                    Button("Forget key", role: .destructive) {
+                        coach.clearKey()
+                        keyDraft = ""
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("You'll need to paste it again to reconnect. This is different from Disconnect, which keeps the key.")
+                }
+            }
         }
     }
 
@@ -1103,22 +1139,37 @@ struct CoachSettingsView: View {
 
     // MARK: - Setup (no key yet)
 
+    /// True when the user disconnected from the current (cloud) provider but its key is STILL in the
+    /// Keychain (#P4 4.3: disconnect never deletes it) — the setup card then offers a one-tap Reconnect
+    /// instead of asking them to paste the same key again.
+    private var canReconnectWithoutKey: Bool {
+        coach.provider != .custom && coach.hasKey && !coach.isConfigured
+    }
+
     private var setupCard: some View {
         StrandCard(padding: 20) {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 10) {
-                    Image(systemName: "sparkles")
+                    Image(systemName: canReconnectWithoutKey ? "key.fill" : "sparkles")
                         .foregroundStyle(StrandPalette.accent)
                         .accessibilityHidden(true)
-                    Text("Connect a provider")
+                    Text(canReconnectWithoutKey ? "Reconnect to \(coach.provider.displayName)" : "Connect a provider")
                         .font(StrandFont.headline)
                         .foregroundStyle(StrandPalette.textPrimary)
                 }
 
-                Text("Coach uses your own API key. Pick a provider, paste a key, and choose a model. Your key is stored securely in the Keychain and never leaves \(Platform.deviceNounPhrase) except as the request you make.")
-                    .font(StrandFont.subhead)
-                    .foregroundStyle(StrandPalette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                if canReconnectWithoutKey {
+                    Text("You disconnected, but your key is still saved locally — reconnect without re-entering it, or pick a different provider below.")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    NoopButton("Reconnect", systemImage: "link", kind: .primary) { coach.reconnect() }
+                } else {
+                    Text("Coach uses your own API key. Pick a provider, paste a key, and choose a model. Your key is stored securely in the Keychain and never leaves \(Platform.deviceNounPhrase) except as the request you make.")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
 
                 providerConfigFields
             }
@@ -1170,20 +1221,56 @@ struct CoachSettingsView: View {
         modelSelector
 
         VStack(alignment: .leading, spacing: 6) {
-            Text(coach.provider == .custom ? "API key (optional)" : "API key").strandOverline()
-            SecureField(coach.provider == .custom
-                        ? "Only if your server requires one"
-                        : "Paste your \(coach.provider.displayName) API key", text: $keyDraft)
+            HStack(spacing: 8) {
+                Text(coach.provider == .custom ? "API key (optional)" : "API key").strandOverline()
+                // Distinguishes "empty" from "a key is saved, just not shown here" (#P4 5.1) — the
+                // field itself always starts blank (the stored key is never loaded back into it).
+                if coach.hasKey && keyDraft.isEmpty {
+                    Label("Saved", systemImage: "checkmark.circle.fill")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.statusPositive)
+                }
+            }
+            HStack(spacing: 6) {
+                Group {
+                    if keyDraftVisible {
+                        TextField(coach.provider == .custom
+                                  ? "Only if your server requires one"
+                                  : "Paste your \(coach.provider.displayName) API key", text: $keyDraft)
+                            .disableAutocorrection(true)
+                            #if os(iOS)
+                            .textInputAutocapitalization(.never)
+                            #endif
+                    } else {
+                        SecureField(coach.provider == .custom
+                                    ? "Only if your server requires one"
+                                    : "Paste your \(coach.provider.displayName) API key", text: $keyDraft)
+                    }
+                }
                 .textFieldStyle(.plain)
                 .font(StrandFont.body)
                 .foregroundStyle(StrandPalette.textPrimary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 9)
-                .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous)
-                    .strokeBorder(StrandPalette.hairline, lineWidth: 1))
                 .onSubmit { coach.provider == .custom ? connectCustom() : saveKey() }
                 .accessibilityLabel("API key")
+
+                // Show/hide toggle (#P4 5.1) — only ever reveals what's currently being TYPED; the
+                // already-saved key is never re-loaded into this field, so there's nothing to leak.
+                if !keyDraft.isEmpty {
+                    Button {
+                        keyDraftVisible.toggle()
+                    } label: {
+                        Image(systemName: keyDraftVisible ? "eye.slash" : "eye")
+                            .foregroundStyle(StrandPalette.textTertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(keyDraftVisible ? "Hide key" : "Show key")
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous)
+                .strokeBorder(StrandPalette.hairline, lineWidth: 1))
             apiKeyHelpRow
         }
 

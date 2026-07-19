@@ -277,6 +277,12 @@ final class AICoachEngine: ObservableObject {
     @Published var customConnected: Bool {
         didSet { UserDefaults.standard.set(customConnected, forKey: Self.customConnectedKey) }
     }
+    /// Cloud-provider counterpart to `customConnected` — whether the user has explicitly disconnected
+    /// (Settings' Disconnect button) since the last time they saved a key or reconnected. Never touches
+    /// `AIKeyStore` itself; see `disconnect()`/`reconnect()`. (#P4 4.2/4.3)
+    @Published var explicitlyDisconnected: Bool {
+        didSet { UserDefaults.standard.set(explicitlyDisconnected, forKey: Self.explicitlyDisconnectedKey) }
+    }
     /// SECOND opt-in (v5): also fold a SUMMARY of the new on-device signals, your strongest n-of-1
     /// correlations and your Lab Book markers, into the coach context. OFF by default and gated behind
     /// `dataConsent` too, so it never adds anything without both consents. Summary-only: a few one-line
@@ -310,6 +316,11 @@ final class AICoachEngine: ObservableObject {
     private static let modelKey = "ai.model"
     private static let consentKey = "ai.dataConsent"
     private static let customConnectedKey = "ai.customConnected"
+    /// True once the user has explicitly tapped Disconnect on a CLOUD provider — kept separate from
+    /// `AIKeyStore` entirely (#P4 4.3: disconnect must never delete the stored key, only stop using it).
+    /// Defaults false (not disconnected), so an existing user who already has a key saved from before
+    /// this flag existed reads as still connected — no migration step needed.
+    private static let explicitlyDisconnectedKey = "ai.explicitlyDisconnected"
     private static let onDeviceSignalsKey = "ai.includeOnDeviceSignals"
     private static let memoryModelKey = "ai.memoryModel"
     private static let autoSummarizeKey = "ai.autoSummarize"
@@ -514,6 +525,7 @@ final class AICoachEngine: ObservableObject {
         self.dataConsent = UserDefaults.standard.bool(forKey: Self.consentKey)
         self.customBaseURL = UserDefaults.standard.string(forKey: AIProvider.customBaseURLKey) ?? ""
         self.customConnected = UserDefaults.standard.bool(forKey: Self.customConnectedKey)
+        self.explicitlyDisconnected = UserDefaults.standard.bool(forKey: Self.explicitlyDisconnectedKey)
         self.includeOnDeviceSignals = UserDefaults.standard.bool(forKey: Self.onDeviceSignalsKey)
         // Memory maintenance: cheap model (default per provider) + auto-summarise (default ON).
         let storedMemoryModel = UserDefaults.standard.string(forKey: Self.memoryModelKey)
@@ -655,27 +667,40 @@ final class AICoachEngine: ObservableObject {
 
     // MARK: Key management
 
-    /// True when a key is present in the Keychain.
-    var hasKey: Bool { AIKeyStore.read() != nil }
+    /// Whether a Keychain key exists AND belongs to the CURRENTLY SELECTED provider (a legacy ownerless
+    /// key counts as belonging to any cloud provider, matching `resolvedKey`'s rule below — the two must
+    /// never disagree). There is only ever ONE stored key at a time (a single Keychain slot, not one per
+    /// provider — #P4 explicitly avoids a multi-provider key architecture), so switching to a provider
+    /// that isn't the key's owner correctly reads as "no key here yet", not a stale leftover connection.
+    private var storedKeyBelongsToCurrentProvider: Bool {
+        guard AIKeyStore.read() != nil else { return false }
+        let owner = AIKeyStore.ownerProvider
+        if owner == provider.rawValue { return true }
+        if owner == nil && provider != .custom { return true }
+        return false
+    }
 
-    /// True once the coach can actually send: a stored key for the cloud providers, or, for the
-    /// Custom (local) provider, a committed base URL (a key is optional there, as local servers
-    /// usually need none). Gates the setup card vs. the live chat.
-    var isConfigured: Bool { provider == .custom ? customConnected : hasKey }
+    /// True when a key is present in the Keychain **for the currently selected provider**. Ownership-
+    /// aware (#P4 4.1): before this, `hasKey` (and thus `isConfigured`) just checked "is any key present
+    /// at all" — so switching from a configured provider to a fresh one left `isConfigured` true off the
+    /// OLD provider's key, which `resolvedKey` would then correctly refuse to send (owner mismatch),
+    /// producing a confusing "looks connected, silently fails" state. Now the two can't disagree.
+    var hasKey: Bool { storedKeyBelongsToCurrentProvider }
+
+    /// True once the coach can actually send: a stored key for the cloud providers (and the user hasn't
+    /// explicitly disconnected — #P4 4.2/4.3), or, for the Custom (local) provider, a committed base URL
+    /// (a key is optional there, as local servers usually need none). Gates the setup card vs. the live chat.
+    var isConfigured: Bool { provider == .custom ? customConnected : (hasKey && !explicitlyDisconnected) }
 
     /// The key to send with a request: the stored key, or an empty string for the keyless Custom
-    /// provider. `nil` means "not configured", the caller surfaces `.noKey`.
+    /// provider. `nil` means "not configured", the caller surfaces `.noKey`. Deliberately does NOT check
+    /// `explicitlyDisconnected` beyond what `isConfigured`/callers already gate on — `resolvedKey` is
+    /// only ever reached once a send has been allowed to proceed.
     private var resolvedKey: String? {
-        if let k = AIKeyStore.read() {
-            // Only send the stored key to the provider it was SAVED for, never Bearer one provider's
-            // key (e.g. a cloud OpenAI/Anthropic secret) to another provider's endpoint, above all the
-            // arbitrary user-typed Custom URL. A legacy key with no recorded owner is assumed to belong
-            // to a cloud provider, so it is never auto-sent to Custom.
-            let owner = AIKeyStore.ownerProvider
-            if owner == provider.rawValue { return k }
-            if owner == nil && provider != .custom { return k }
+        guard storedKeyBelongsToCurrentProvider, let k = AIKeyStore.read() else {
+            return provider == .custom ? "" : nil
         }
-        return provider == .custom ? "" : nil
+        return k
     }
 
     /// Commit the Custom (local) provider once the user has entered a server URL. Optionally stores a
@@ -695,11 +720,25 @@ final class AICoachEngine: ObservableObject {
         }
     }
 
-    /// Disconnect entirely: forget any stored key and un-commit the Custom provider. The base URL is
-    /// kept so reconnecting pre-fills it.
+    /// Disconnect: stop using the current provider WITHOUT touching the stored key (#P4 4.3 — disconnect
+    /// and forgetting a key are different actions; only `clearKey()` deletes anything). For Custom this
+    /// un-commits the base URL (kept so reconnecting pre-fills it); for a cloud provider this flips
+    /// `explicitlyDisconnected`, so `isConfigured` goes false immediately and consistently (#P4 4.2) while
+    /// the Keychain key survives for `setKey`/`reconnect()` to pick back up without re-entering it.
     func disconnect() {
-        AIKeyStore.clear()
-        customConnected = false
+        if provider == .custom {
+            customConnected = false
+        } else {
+            explicitlyDisconnected = true
+        }
+        objectWillChange.send()
+    }
+
+    /// Resume a cloud provider using the key ALREADY in the Keychain, without re-entering it — the
+    /// counterpart to `disconnect()` when the user disconnected but never cleared the key. A no-op if
+    /// there's no matching key to resume with (the UI only offers this when `hasKey` is already true).
+    func reconnect() {
+        explicitlyDisconnected = false
         objectWillChange.send()
     }
 
@@ -711,6 +750,9 @@ final class AICoachEngine: ObservableObject {
             objectWillChange.send()
             return
         }
+        // Saving a (possibly new) key is an implicit reconnect — a user who disconnected, then pastes a
+        // fresh key, obviously wants to use it rather than stay marked disconnected underneath (#P4 4.3).
+        explicitlyDisconnected = false
         errorText = nil
         objectWillChange.send() // `hasKey` is computed; nudge SwiftUI to re-read it.
         // #288: do NOT auto-fetch the provider's model list on key-save. For a cloud provider that GET
