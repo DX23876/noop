@@ -245,6 +245,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      *  failure too. Mirrors Swift `AppModel.ouraNeedsPairing`. */
     val ouraNeedsPairing: StateFlow<String?> = noopApp.sourceCoordinator.ouraNeedsPairing
 
+    /** The active Oura ring's live wear/charge state (worn / charging / off), or null when no Oura source
+     *  is live. The Live screen prefers this for its On-wrist / Off-wrist read (#628). Mirrors iOS
+     *  `LiveState.ouraWearState`. */
+    val ouraWearState: StateFlow<com.noop.oura.OuraWearState?> =
+        noopApp.sourceCoordinator.ouraWearState
+
     /**
      * Point the WHOOP scan at a specific family, then present nearby straps WITHOUT auto-connecting (the
      * Add-a-device wizard's WHOOP path). [WhoopBleClient.prepareForPresentScan] KEEPS a live same-model
