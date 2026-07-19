@@ -47,6 +47,9 @@ object DataBackup {
     /** Entry name of the optional whitelisted-settings JSON (#1000). Matches the Apple exporter. */
     private const val SETTINGS_ENTRY_NAME = BackupSettingsCodec.ENTRY_NAME
 
+    private const val MAX_BACKUP_SQLITE_BYTES = 2_147_483_648L
+    private const val MAX_BACKUP_SETTINGS_BYTES = 1_048_576L
+
     /** First 16 bytes of every SQLite 3 file: "SQLite format 3\0". */
     private val SQLITE_MAGIC: ByteArray =
         byteArrayOf(
@@ -173,6 +176,11 @@ object DataBackup {
                 StageResult.NO_DB_IN_ZIP -> {
                     tempSettings.delete()
                     return ImportResult.Failed("The backup archive doesn't contain a database file.")
+                }
+                StageResult.ENTRY_TOO_LARGE -> {
+                    tempSqlite.delete()
+                    tempSettings.delete()
+                    return ImportResult.Failed("The backup archive is too large to restore safely.")
                 }
                 StageResult.NOT_A_BACKUP -> return ImportResult.Failed(
                     "That file is not a NOOP backup - it doesn't look like a .noopbak archive or a SQLite database."
@@ -331,7 +339,7 @@ object DataBackup {
     // ── Container staging (pure file/stream layer, unit-tested under real file I/O) ──────
 
     /** Outcome of [stageBackupSqlite]: the SQLite was staged, or why it wasn't. */
-    enum class StageResult { OK, CANNOT_OPEN, NO_DB_IN_ZIP, NOT_A_BACKUP }
+    enum class StageResult { OK, CANNOT_OPEN, NO_DB_IN_ZIP, NOT_A_BACKUP, ENTRY_TOO_LARGE }
 
     /**
      * Stage the SQLite payload of a backup into [dest], from an already-opened [input] stream whose
@@ -364,13 +372,24 @@ object DataBackup {
                         var entry = zip.nextEntry
                         while (entry != null) {
                             when {
-                                !entry.isDirectory && !foundDb && entry.name.endsWith(".sqlite") -> {
-                                    FileOutputStream(dest).use { out -> zip.copyTo(out) }
+                                !entry.isDirectory && !foundDb &&
+                                    entry.name.substringAfterLast('/') == ZIP_ENTRY_NAME -> {
+                                    FileOutputStream(dest).use { out ->
+                                        if (!copyBounded(zip, out, MAX_BACKUP_SQLITE_BYTES)) {
+                                            dest.delete()
+                                            return StageResult.ENTRY_TOO_LARGE
+                                        }
+                                    }
                                     foundDb = true
                                 }
                                 !entry.isDirectory && !foundSettings && settingsDest != null &&
                                     entry.name.substringAfterLast('/') == SETTINGS_ENTRY_NAME -> {
-                                    FileOutputStream(settingsDest).use { out -> zip.copyTo(out) }
+                                    FileOutputStream(settingsDest).use { out ->
+                                        if (!copyBounded(zip, out, MAX_BACKUP_SETTINGS_BYTES)) {
+                                            settingsDest.delete()
+                                            return StageResult.ENTRY_TOO_LARGE
+                                        }
+                                    }
                                     foundSettings = true
                                 }
                             }
@@ -382,11 +401,28 @@ object DataBackup {
                     return if (foundDb) StageResult.OK else StageResult.NO_DB_IN_ZIP
                 }
                 header.startsWith(SQLITE_MAGIC) -> {
-                    FileOutputStream(dest).use { out -> stream.copyTo(out) }
+                    FileOutputStream(dest).use { out ->
+                        if (!copyBounded(stream, out, MAX_BACKUP_SQLITE_BYTES)) {
+                            dest.delete()
+                            return StageResult.ENTRY_TOO_LARGE
+                        }
+                    }
                     return StageResult.OK
                 }
                 else -> return StageResult.NOT_A_BACKUP
             }
+        }
+    }
+
+    private fun copyBounded(input: java.io.InputStream, out: java.io.OutputStream, cap: Long): Boolean {
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        var total = 0L
+        while (true) {
+            val read = input.read(buffer)
+            if (read < 0) return true
+            if (total + read > cap) return false
+            out.write(buffer, 0, read)
+            total += read
         }
     }
 

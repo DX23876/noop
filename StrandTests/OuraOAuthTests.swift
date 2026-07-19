@@ -18,9 +18,11 @@ final class OuraOAuthTests: XCTestCase {
         XCTAssertEqual(q["client_id"], "cid")
         XCTAssertEqual(q["redirect_uri"], "noop://oura/callback")
         XCTAssertEqual(q["state"], "xyz")
-        // `scope` is deliberately omitted: Oura grants ALL app-configured scopes when it's blank —
-        // covering the portal-only scopes (Stress, Heart Health, Ring Configuration) the docs don't name.
-        XCTAssertNil(q["scope"])
+        XCTAssertEqual(q["scope"], OuraOAuth.scopes.joined(separator: " "))
+        XCTAssertTrue(OuraOAuth.scopes.contains("daily"))
+        XCTAssertTrue(OuraOAuth.scopes.contains("heartrate"))
+        XCTAssertTrue(OuraOAuth.scopes.contains("spo2"))
+        XCTAssertFalse(OuraOAuth.scopes.contains("spo2Daily"))
     }
 
     func testTokenExchangeRequestIsFormPost() throws {

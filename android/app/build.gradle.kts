@@ -13,6 +13,10 @@ val keystorePropsFile = rootProject.file("keystore.properties")
 val keystoreProps = Properties().apply {
     if (keystorePropsFile.exists()) keystorePropsFile.inputStream().use { load(it) }
 }
+val isStagingRelease = project.hasProperty("stagingRelease")
+val requestedReleaseBuild = gradle.startParameter.taskNames.any {
+    it.contains("Release", ignoreCase = true)
+}
 
 android {
     namespace = "com.noop"
@@ -69,16 +73,23 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Real release key when keystore.properties is present; otherwise the debug key,
-            // so a fresh clone can still build an installable release APK.
-            signingConfig = if (keystorePropsFile.exists())
+            if (!keystorePropsFile.exists() && !isStagingRelease && requestedReleaseBuild) {
+                throw GradleException(
+                    "Refusing to build a real release without keystore.properties. " +
+                        "Use -PstagingRelease for debug-key staging artifacts only."
+                )
+            }
+            // Real release key when keystore.properties is present. The debug-key fallback is allowed
+            // only for explicit fork/staging artifacts that install under their own application id.
+            signingConfig = if (keystorePropsFile.exists()) {
                 signingConfigs.getByName("release")
-            else
+            } else {
                 signingConfigs.getByName("debug")
+            }
             // Fork staging release: built with -PstagingRelease (the fork testing-build CI only), the
             // release APK gets its own id/name so it installs BESIDE both the official app and the
             // .debug staging build. A real release (no property) keeps the true com.noop.whoop id.
-            if (project.hasProperty("stagingRelease")) {
+            if (isStagingRelease) {
                 applicationIdSuffix = ".staging"
                 versionNameSuffix = "-staging"
             }

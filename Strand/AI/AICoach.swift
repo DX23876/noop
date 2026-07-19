@@ -75,7 +75,7 @@ enum AIKeyStore {
 
         var attrs = baseQuery
         attrs[kSecValueData as String] = data
-        attrs[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+        attrs[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         let status = SecItemAdd(attrs as CFDictionary, nil)
         guard status == errSecSuccess else { return false }
         UserDefaults.standard.set(owner, forKey: ownerKey)

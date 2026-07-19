@@ -1,5 +1,6 @@
 import XCTest
 import SQLite3
+import ZIPFoundation
 @testable import Strand
 
 /// Real file-I/O tests for the Backup & Sync restore path - not string logic (must-fix #5).
@@ -170,6 +171,28 @@ final class BackupSyncRoundTripTests: XCTestCase {
         let result = DataBackup.restore(from: corrupt, toDatabaseAt: liveDB.path)
         guard case .failure = result else {
             return XCTFail("A corrupt file must be rejected, got \(result)")
+        }
+        XCTAssertEqual(try Data(contentsOf: liveDB), before,
+                       "The live DB must be unchanged after a rejected restore")
+    }
+
+    func testZipWithNonCanonicalSqliteEntryIsRejectedAndLiveDbIntact() throws {
+        let wrong = tmp.appendingPathComponent("wrong-entry.noopbak")
+        let fake = tmp.appendingPathComponent("evil.sqlite")
+        var bytes = Data("SQLite format 3".utf8)
+        bytes.append(0)
+        bytes.append(Data("junk".utf8))
+        try bytes.write(to: fake)
+        let archive = try XCTUnwrap(Archive(url: wrong, accessMode: .create))
+        try archive.addEntry(with: "evil.sqlite", fileURL: fake)
+
+        let liveDB = tmp.appendingPathComponent("live.sqlite")
+        try makeNoopDatabase(at: liveDB, deviceRows: ["original"])
+        let before = try Data(contentsOf: liveDB)
+
+        let result = DataBackup.restore(from: wrong, toDatabaseAt: liveDB.path)
+        guard case .failure = result else {
+            return XCTFail("A zip without noop-backup.sqlite must be rejected, got \(result)")
         }
         XCTAssertEqual(try Data(contentsOf: liveDB), before,
                        "The live DB must be unchanged after a rejected restore")

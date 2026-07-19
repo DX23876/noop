@@ -162,6 +162,8 @@ final class AppModel: ObservableObject {
     @Published var whoopImportFailed = false
     @Published var appleHealthImportFailed = false
     @Published var xiaomiImportFailed = false
+    /// A decoded Health Shortcut import waiting for explicit user confirmation before it writes rows.
+    @Published var pendingShortcutHealthImport: ShortcutHealthImport.PendingImport?
 
     /// True while any data-source import is writing to the local store.
     var hasActiveImport: Bool { activeImportSource != nil }
@@ -1921,35 +1923,54 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// Handle a `noop://import-health` deep link (PR #581) , the HealthKit-free Shortcuts import for
-    /// sideloaded installs. Ingests the Shortcut-built payload into the `apple-health` source (NEVER the
-    /// strap , `ShortcutHealthImport` enforces the loop guard), then refreshes the dashboard. Surfaces
-    /// the result on the Apple Health card like the file import does. The iOS `.onOpenURL` in StrandiOS/
-    /// calls this; macOS never registers the scheme.
+    /// Handle a `noop://import-health` deep link (PR #581), the HealthKit-free Shortcuts import for
+    /// sideloaded installs. Custom URL schemes are forgeable by other apps/sites, so this only decodes
+    /// and stages the payload. The iOS shell shows a confirmation alert before `confirmHealthImport()`
+    /// writes anything into the `apple-health` source.
     func handleHealthImportURL(_ url: URL) {
+        switch ShortcutHealthImport.prepare(url: url) {
+        case .success(let pending):
+            pendingShortcutHealthImport = pending
+        case .failure(let outcome):
+            beginImport(.appleHealth)
+            Task { await finishShortcutHealthImport(outcome) }
+        }
+    }
+
+    func cancelPendingHealthImport() {
+        pendingShortcutHealthImport = nil
+    }
+
+    func confirmPendingHealthImport() {
+        guard let pending = pendingShortcutHealthImport else { return }
+        pendingShortcutHealthImport = nil
         beginImport(.appleHealth)
         Task {
             guard let store = await repo.storeHandle() else {
                 finishImport(.appleHealth, summary: "Couldn't open the local store.", failed: true)
                 return
             }
-            let outcome = await ShortcutHealthImport.ingest(url: url, into: store)
-            switch outcome {
-            case .imported(let days, let workouts):
-                await repo.refresh()
-                // #833/v7.7.2: the Shortcuts import writes body-composition series (e.g. weight) into
-                // metricSeries, which sits OUTSIDE refresh()'s diff, so refresh() may leave `refreshSeq`
-                // unchanged and AppleHealthView's re-mount cache would serve stale data. Drop the cache so the
-                // next visit re-reads. (Same reasoning as the file-import path above.)
-                repo.appleHealthCache = nil
-                repo.appleHealthLoadedSeq = -1
-                let w = workouts > 0 ? " · \(workouts) workouts" : ""
-                finishImport(.appleHealth, summary: "Imported \(days) days\(w)")
-            case .nothingToImport:
-                finishImport(.appleHealth, summary: "Nothing new to import.")
-            case .rejected(let reason):
-                finishImport(.appleHealth, summary: reason, failed: true)
-            }
+            let outcome = await ShortcutHealthImport.ingest(prepared: pending, into: store)
+            await finishShortcutHealthImport(outcome)
+        }
+    }
+
+    private func finishShortcutHealthImport(_ outcome: ShortcutHealthImport.Outcome) async {
+        switch outcome {
+        case .imported(let days, let workouts):
+            await repo.refresh()
+            // #833/v7.7.2: the Shortcuts import writes body-composition series (e.g. weight) into
+            // metricSeries, which sits OUTSIDE refresh()'s diff, so refresh() may leave `refreshSeq`
+            // unchanged and AppleHealthView's re-mount cache would serve stale data. Drop the cache so the
+            // next visit re-reads. (Same reasoning as the file-import path above.)
+            repo.appleHealthCache = nil
+            repo.appleHealthLoadedSeq = -1
+            let w = workouts > 0 ? " · \(workouts) workouts" : ""
+            finishImport(.appleHealth, summary: "Imported \(days) days\(w)")
+        case .nothingToImport:
+            finishImport(.appleHealth, summary: "Nothing new to import.")
+        case .rejected(let reason):
+            finishImport(.appleHealth, summary: reason, failed: true)
         }
     }
 

@@ -17,7 +17,7 @@ struct OuraTokens: Equatable, Codable {
 
 /// Keychain Services wrapper for the Oura tokens. One generic-password item (JSON-encoded `OuraTokens`)
 /// under a fixed service, so tokens never land in UserDefaults, a plist, or on disk in the clear.
-/// Mirrors AIKeyStore exactly (delete-then-add, kSecAttrAccessibleAfterFirstUnlock).
+/// Mirrors AIKeyStore exactly (delete-then-add, ThisDeviceOnly Keychain accessibility).
 enum OuraTokenStore {
     private static let service = "com.noop.oura"
     private static let account = "oauth-tokens"
@@ -38,7 +38,7 @@ enum OuraTokenStore {
         SecItemDelete(baseQuery as CFDictionary)
         var attrs = baseQuery
         attrs[kSecValueData as String] = data
-        attrs[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+        attrs[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         return SecItemAdd(attrs as CFDictionary, nil) == errSecSuccess
     }
 
