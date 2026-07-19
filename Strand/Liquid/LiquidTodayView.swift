@@ -40,6 +40,7 @@ struct LiquidTodayView: View {
     @State private var vitality: Double?           // exploreSeries("vitality").last
     @State private var stepsEst: Double?           // steps_est, day-keyed to the selected day (fallback)
     @State private var importedStepsDay: Int?      // Apple Health steps for the selected day (middle tier)
+    @State private var importedActiveKcalDay: Double?  // #616: Apple Health active energy for the day (calorie fallback)
     @State private var hrValues: [Double] = []     // hrBuckets since midnight → 5-min means
     @State private var workouts: [WorkoutRow] = [] // newest-first
 
@@ -626,8 +627,10 @@ struct LiquidTodayView: View {
             cardLink(.metric("skin_temp"), title: card.title, sub: card.subtitle,
                      value: "–", tint: StrandPalette.metricAmber, frac: nil)
         case .calories:
-            cardLink(.metric("active_kcal"), title: card.title, sub: card.subtitle,
-                     value: "–", tint: StrandPalette.metricAmber, frac: nil)
+            // #616: show the resolved imported-first value and route to the matching detail source, like
+            // the Steps card — was a "–" placeholder wired to the imported-only detail.
+            cardLink(.metricSourced(key: caloriesDetailKey, source: caloriesDetailSource), title: card.title, sub: card.subtitle,
+                     value: intText(caloriesCount), tint: StrandPalette.metricAmber, frac: fracOver(caloriesCount, 800))
         case .sleep:
             cardLink(.sleep, title: card.title, sub: card.subtitle,
                      value: sleepText, tint: StrandPalette.restColor, frac: fracOver(displayDay?.totalSleepMin, 480))
@@ -855,7 +858,10 @@ struct LiquidTodayView: View {
         case .weight:
             ktile(String(localized: "Weight"), "—", "", StrandPalette.metricAmber, nil, key: "weight")
         case .calories:
-            ktile(String(localized: "Calories"), intText(displayDay?.activeKcalEst), "kcal", StrandPalette.metricAmber, fracOver(displayDay?.activeKcalEst, 800), key: "energy_kcal")
+            // #616: imported-first value (imported ?: activeKcalEst) + route the tap to the matching
+            // detail source, so the number, its sparkline and the chart it opens all agree.
+            ktile(String(localized: "Calories"), intText(caloriesCount), "kcal", StrandPalette.metricAmber,
+                  fracOver(caloriesCount, 800), key: "energy_kcal", detailMetric: caloriesDetailMetric)
         }
     }
 
@@ -1064,6 +1070,19 @@ struct LiquidTodayView: View {
         // Window all read the same signal. Rest reuses the already-loaded sleep_performance series.
         let sparkCutoff = Repository.localDayKey(cal.date(byAdding: .day, value: -13, to: dayStart) ?? dayStart)
         let sparkRows = daysSnapshot.filter { $0.day >= sparkCutoff && $0.day <= selectedDayKey }
+        // #616: imported-first calorie spark (the day's imported Apple active energy ?: NOOP's on-device
+        // estimate) over the window, so a Health-Connect / Apple-only calorie user gets a trend too —
+        // matching the imported-first VALUE. Union of imported days + strap-row days. Mirrors Android's
+        // caloriesSpark (windowed caloriesByDay).
+        let appleRowsForSpark = await appleA
+        var winImportedKcal: [String: Double] = [:]
+        for r in appleRowsForSpark where r.day >= sparkCutoff && r.day <= selectedDayKey {
+            if let k = r.activeKcal { winImportedKcal[r.day] = max(winImportedKcal[r.day] ?? 0, k) }
+        }
+        var winOnDeviceKcal: [String: Double] = [:]
+        for r in sparkRows { if let k = r.activeKcalEst { winOnDeviceKcal[r.day] = k } }
+        let energyKcalSpark: [(String, Double)] = Set(winImportedKcal.keys).union(winOnDeviceKcal.keys).sorted()
+            .compactMap { day in (winImportedKcal[day] ?? winOnDeviceKcal[day]).map { (day, $0) } }
         kSparks = [
             "recovery": sparkRows.compactMap { r in r.recovery.map { (r.day, $0) } },
             "strain": sparkRows.compactMap { r in r.strain.map { (r.day, $0) } },
@@ -1072,11 +1091,10 @@ struct LiquidTodayView: View {
             "spo2": sparkRows.compactMap { r in r.spo2Pct.map { (r.day, $0) } },
             "resp_rate": sparkRows.compactMap { r in r.respRateBpm.map { (r.day, $0) } },
             "steps": sparkRows.compactMap { r in r.steps.map { (r.day, Double($0)) } },
-            // #616: the Calories tile (key "energy_kcal") drew no trend line — this dict had no matching
-            // entry, so windowedSpark returned []. Bank the on-device HR-estimate series that the tile's
-            // VALUE already reads (activeKcalEst), so its sparkline matches its number. (Classic TodayView
-            // already sparks calories; this brings Liquid to parity, and mirrors Android's Window.calories.)
-            "energy_kcal": sparkRows.compactMap { r in r.activeKcalEst.map { (r.day, $0) } },
+            // #616: the Calories tile drew no trend line — this dict had no matching entry, so windowedSpark
+            // returned []. Bank the imported-first calorie series (built above) so the sparkline matches the
+            // tile's imported-first number and a Health-Connect / Apple-only user gets a trend.
+            "energy_kcal": energyKcalSpark,
             "steps_est": stepsSeries.filter { $0.day >= sparkCutoff && $0.day <= selectedDayKey }
                 .map { ($0.day, $0.value) },
             "sleep_performance": restSeries.filter { $0.day >= sparkCutoff && $0.day <= selectedDayKey }
@@ -1096,6 +1114,9 @@ struct LiquidTodayView: View {
         // measured strap count and the motion estimate. Health Connect is Android-only, so apple-health is
         // the sole import source on iOS. Mirrors Android `stepsForDay` (#377).
         importedStepsDay = (await appleA).filter { $0.day == selectedDayKey }.compactMap { $0.steps }.max()
+        // #616: same-day imported active energy — the calorie fallback when the strap banked no on-device
+        // HR estimate for the day, so the tile/card/detail agree (imported-first, mirrors steps).
+        importedActiveKcalDay = (await appleA).filter { $0.day == selectedDayKey }.compactMap { $0.activeKcal }.max()
         hrValues = (await hrA).map { $0.bpm }
         workouts = await wkA
 
@@ -1187,6 +1208,21 @@ struct LiquidTodayView: View {
 
     private var stepsDetailKey: String { stepsDetailMetric?.key ?? "steps_est" }
     private var stepsDetailSource: String { stepsDetailMetric?.source ?? "my-whoop" }
+
+    // #616: calories resolved IMPORTED-FIRST (the day's imported Apple active energy — the figure these
+    // surfaces already showed — else NOOP's on-device HR estimate `activeKcalEst`) — one number across the
+    // tile, card and the detail it taps to. Mirrors the steps precedence above.
+    private var caloriesCount: Double? {
+        importedActiveKcalDay ?? displayDay?.activeKcalEst
+    }
+
+    private var caloriesDetailMetric: MetricDescriptor? {
+        MetricCatalog.todayCaloriesMetric(hasImportedKcal: importedActiveKcalDay != nil,
+                                          hasOnDeviceKcal: displayDay?.activeKcalEst != nil)
+    }
+
+    private var caloriesDetailKey: String { caloriesDetailMetric?.key ?? "energy_kcal" }
+    private var caloriesDetailSource: String { caloriesDetailMetric?.source ?? "my-whoop" }
 
     private var liveHour: Double {
         let c = Calendar.current.dateComponents([.hour, .minute], from: Date())
