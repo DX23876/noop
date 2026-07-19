@@ -59,11 +59,25 @@ public enum WhoopCommand: UInt8, CaseIterable {
     case setAdvertisingNameHarvard = 77
     case startRawData          = 81
     case stopRawData           = 82
+    /// UNCONFIRMED number (#592): no build in this repo's history has ever SENT 96 (`git log -S` finds no
+    /// send site), so the value rests on whoomp's table alone — an independent APK decompile reads this
+    /// family 11 lower (85/86/87). Two mechanisms could explain that shift without whoomp being wrong: the
+    /// EVENT space has HIGH_FREQ_SYNC_PROMPT/ENABLED/DISABLED at exactly 96/97/98 (a decompile reading a
+    /// neighbouring table lands −11), or enum ordinals vs wire values (ordinal drift grows with value,
+    /// matching the reporter's low anchor 29 agreeing while 96 reads −11). Unresolved — see #592.
     case enterHighFreqSync     = 96
     /// Leave high-frequency-sync mode. Sent defensively on connect to release a strap left parked in
-    /// high-freq by an older app build (we no longer ENTER it — see the sync-hardening design). Payload
-    /// [0x00]. Safe/reversible.
+    /// high-freq by a PREVIOUS app (not this codebase — see 96's note; straps found parked in the field
+    /// were a real failure mode per the sync-hardening notes). Payload [0x00]. Safe/reversible. Sent on
+    /// every connect; note the release EFFECT on a genuinely-parked strap is not separately documented, so
+    /// this exercises the opcode without fully confirming its semantics (#592).
     case exitHighFreqSync      = 97
+    /// PARTIAL hardware support (#592): sent to a real WHOOP 5 (fw 50.38.1.0) and ANSWERED — but with a
+    /// short stub (see Interpreter.decodeWhoop5CommandResponse's note), which could be either
+    /// valid-but-minimal (REPORT_VERSION_INFO, definitely valid, also stubs on that firmware) or a generic
+    /// unknown-command ack. Not yet probed on a 4.0, where EXTENDED_BATTERY_INFORMATION events carry real
+    /// payloads. If probing (#592): send THIS curated number first and capture the response — do NOT lead
+    /// with the decompile's 87, an opcode unknown to this table (the curated-safe-subset rule).
     case getExtendedBatteryInfo = 98
     case toggleIMUMode         = 106
     case enableOpticalData     = 107
