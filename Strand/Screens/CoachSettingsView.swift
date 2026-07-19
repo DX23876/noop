@@ -80,13 +80,24 @@ struct CoachSettingsView: View {
     /// In-place fact editing: the fact being edited + its working text.
     @State private var editingFactID: UUID?
     @State private var editingFactText: String = ""
-    /// Presents the structured goal editor.
-    @State private var showGoalEditor = false
-    @State private var showNewGoalEditor = false
-    @State private var showSetAsideDialog = false
-    @State private var showDeleteGoalConfirm = false
-    /// Presents the Journey page (progress, milestones, plan history) — only reachable once a goal exists.
-    @State private var showJourney = false
+    /// Presented sheet from the goal card: the editor, "set a new goal", or the Journey page. One
+    /// enum-driven `.sheet(item:)` rather than three stacked `.sheet(isPresented:)` modifiers — which
+    /// don't compose reliably (#R2; same fix `CoachView.ActiveSheet` already applies), and were the
+    /// actual cause of "Set Goal does nothing / sometimes crashes": five independent presentation
+    /// modifiers lived on one view node (`goalBar`), fed by buttons split across two sibling views
+    /// (`goalBar` and `expiredGoalCard`). Hosted on the shared parent `goalJourneySubpage` so both
+    /// views' buttons write into the same state the modifiers observe.
+    private enum GoalSheet: Int, Identifiable {
+        case edit, newGoal, journey
+        var id: Int { rawValue }
+    }
+    @State private var goalSheet: GoalSheet?
+    /// Same consolidation for the two confirmation dialogs.
+    private enum GoalConfirmation: Int, Identifiable {
+        case setAside, delete
+        var id: Int { rawValue }
+    }
+    @State private var goalConfirmation: GoalConfirmation?
 
     private let customModelTag = "__custom__"
 
@@ -375,14 +386,67 @@ struct CoachSettingsView: View {
         }
     }
 
-    /// `goalBar` already carries its own sheets for the goal editor and Journey — unchanged, just relocated.
-    /// A passed target date surfaces as a decision card here, not a dead-end footnote.
+    /// A passed target date surfaces as a decision card here, not a dead-end footnote. Hosts the ONE
+    /// enum-driven sheet + ONE enum-driven confirmation dialog for the whole goal card (#R2) — both
+    /// `expiredGoalCard`'s and `goalBar`'s buttons below write into `goalSheet`/`goalConfirmation`.
     private var goalJourneySubpage: some View {
         subpageScaffold {
             expiredGoalCard
             goalBar
         }
         .navigationTitle("Goal & Journey")
+        .sheet(item: $goalSheet) { which in
+            switch which {
+            case .edit:    CoachGoalEditorView(isOnboarding: false)
+            case .newGoal: CoachGoalEditorView(isOnboarding: false, startsFresh: true)
+            case .journey: JourneyView().environmentObject(coach)
+            }
+        }
+        .confirmationDialog(goalConfirmationTitle,
+                            isPresented: goalConfirmationIsPresented,
+                            titleVisibility: .visible) {
+            goalConfirmationActions
+        } message: {
+            goalConfirmationMessage
+        }
+    }
+
+    private var goalConfirmationIsPresented: Binding<Bool> {
+        Binding(get: { goalConfirmation != nil }, set: { if !$0 { goalConfirmation = nil } })
+    }
+
+    private var goalConfirmationTitle: LocalizedStringKey {
+        switch goalConfirmation {
+        case .setAside: return "Set this goal aside?"
+        case .delete:   return "Delete this goal?"
+        case nil:       return ""
+        }
+    }
+
+    @ViewBuilder
+    private var goalConfirmationActions: some View {
+        switch goalConfirmation {
+        case .setAside:
+            Button("Injury or health") { goalStore.setAside(reason: "injury or health") }
+            Button("Life got busy") { goalStore.setAside(reason: "life got busy") }
+            Button("Priorities changed") { goalStore.setAside(reason: "priorities changed") }
+            Button("No particular reason") { goalStore.setAside(reason: "") }
+            Button("Cancel", role: .cancel) {}
+        case .delete:
+            Button("Delete goal", role: .destructive) { goalStore.clear() }
+            Button("Cancel", role: .cancel) {}
+        case nil:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private var goalConfirmationMessage: some View {
+        switch goalConfirmation {
+        case .setAside: Text("It stays in your history — nothing is lost, and there's nothing to justify.")
+        case .delete:   Text("This removes the goal and its history from the device. There is no undo.")
+        case nil:       EmptyView()
+        }
     }
 
     private var coachingSubpage: some View {
@@ -988,7 +1052,7 @@ struct CoachSettingsView: View {
         NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
             VStack(alignment: .leading, spacing: 10) {
                 Button {
-                    if goalIsClosed { showNewGoalEditor = true } else { showGoalEditor = true }
+                    goalSheet = goalIsClosed ? .newGoal : .edit
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: goalStore.goal?.status == .achieved ? "checkmark.seal.fill" : "target")
@@ -1019,7 +1083,7 @@ struct CoachSettingsView: View {
 
                 if goalStore.goal != nil {
                     Divider().overlay(StrandPalette.hairline)
-                    Button { showJourney = true } label: {
+                    Button { goalSheet = .journey } label: {
                         HStack(spacing: 8) {
                             Image(systemName: "chart.line.uptrend.xyaxis")
                                 .foregroundStyle(StrandPalette.accent)
@@ -1041,24 +1105,6 @@ struct CoachSettingsView: View {
                 }
             }
         }
-        .sheet(isPresented: $showGoalEditor) { CoachGoalEditorView(isOnboarding: false) }
-        .sheet(isPresented: $showNewGoalEditor) { CoachGoalEditorView(isOnboarding: false, startsFresh: true) }
-        .sheet(isPresented: $showJourney) { JourneyView().environmentObject(coach) }
-        .confirmationDialog("Set this goal aside?", isPresented: $showSetAsideDialog, titleVisibility: .visible) {
-            Button("Injury or health") { goalStore.setAside(reason: "injury or health") }
-            Button("Life got busy") { goalStore.setAside(reason: "life got busy") }
-            Button("Priorities changed") { goalStore.setAside(reason: "priorities changed") }
-            Button("No particular reason") { goalStore.setAside(reason: "") }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("It stays in your history — nothing is lost, and there's nothing to justify.")
-        }
-        .confirmationDialog("Delete this goal?", isPresented: $showDeleteGoalConfirm, titleVisibility: .visible) {
-            Button("Delete goal", role: .destructive) { goalStore.clear() }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This removes the goal and its history from the device. There is no undo.")
-        }
     }
 
     /// A goal must be able to END: close it as reached, set it aside, or delete it entirely.
@@ -1068,14 +1114,14 @@ struct CoachSettingsView: View {
             if goalStore.goal?.status == .active || goalStore.goal?.status == .paused {
                 Button("Mark as achieved") { goalStore.markAchieved() }
                     .font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
-                Button("Set aside") { showSetAsideDialog = true }
+                Button("Set aside") { goalConfirmation = .setAside }
                     .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
             } else {
-                Button("Set a new goal") { showNewGoalEditor = true }
+                Button("Set a new goal") { goalSheet = .newGoal }
                     .font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
             }
             Spacer(minLength: 8)
-            Button { showDeleteGoalConfirm = true } label: {
+            Button { goalConfirmation = .delete } label: {
                 Image(systemName: "trash")
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.statusWarning)
@@ -1105,9 +1151,9 @@ struct CoachSettingsView: View {
                     HStack(spacing: 14) {
                         Button("I reached it") { goalStore.markAchieved() }
                             .foregroundStyle(StrandPalette.accent)
-                        Button("Extend the date") { showGoalEditor = true }
+                        Button("Extend the date") { goalSheet = .edit }
                             .foregroundStyle(StrandPalette.accent)
-                        Button("Set aside") { showSetAsideDialog = true }
+                        Button("Set aside") { goalConfirmation = .setAside }
                             .foregroundStyle(StrandPalette.textSecondary)
                     }
                     .font(StrandFont.footnote)
