@@ -1764,6 +1764,13 @@ final class AICoachEngine: ObservableObject {
 
     /// The weekly-review instruction — a short coach's word on the week, not a report (#P10 13.2). Same
     /// two-branch tool/non-tool split as the brief/check-in.
+    ///
+    /// #P15 (16.2): explicitly directs `get_zone_minutes` when a prescribed Moderate/Hard session is in
+    /// the week — the intent alone ("Moderate") says what was PLANNED, not what actually happened at the
+    /// heart-rate level, and `propose_plan`'s own Zone-2 prescriptions on low-readiness days are exactly
+    /// the kind of thing that quietly drifts. Without this the review can only ever comment on whether a
+    /// session happened, never on whether it was trained at the right intensity — an oberflächlicher
+    /// (superficial) read the catalog explicitly calls out.
     static func weeklyReviewInstruction(toolsActive: Bool) -> String {
         guard toolsActive else {
             return """
@@ -1773,10 +1780,13 @@ final class AICoachEngine: ObservableObject {
             """
         }
         return """
-        It's the weekly review. Call get_range_report and get_plan_adherence to see the week. Then, in a \
-        short paragraph or two: what went well, where I was consistent, where it slipped (read any skip \
-        reasons as information, never laziness), and ONE thing to adjust next week. No long analysis — a \
-        coach's weekly word, not a report.
+        It's the weekly review. Call get_range_report and get_plan_adherence to see the week. If a \
+        Moderate or Hard session was completed, or a low-readiness day called for Zone 2, also call \
+        get_zone_minutes — don't assume the prescribed intensity was hit just because the session is \
+        marked done. Then, in a short paragraph or two: what went well, where I was consistent, where it \
+        slipped (read any skip reasons as information, never laziness), and ONE thing to adjust next \
+        week — grounded in the trend across the week, not one day. No long analysis — a coach's weekly \
+        word, not a report.
         """
     }
 
