@@ -141,7 +141,9 @@ struct JourneyView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "target").foregroundStyle(StrandPalette.accent)
                         .accessibilityHidden(true)
-                    Text(goal.title.isEmpty ? goal.kind.label : goal.title)
+                    // `goal.kind.label` is a fixed-set English label (#P14); `goal.title` is the user's
+                    // own free text, harmlessly passed through unresolved.
+                    Text(goal.title.isEmpty ? goal.kind.label.localizedCatalogValue : goal.title)
                         .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
                 }
                 if let timeLine = timeSummary(goal) {
@@ -399,11 +401,18 @@ struct JourneyView: View {
         }
     }
 
+    /// Same restructuring as `CoachPlanView.statusLine` (#P14): every branch resolves via
+    /// `String(localized:)`, with `SkipReason.label` pre-resolved through `.localizedCatalogValue` so the
+    /// embedded word follows the system language too, not just the sentence around it.
     private func planStatusLine(_ p: PlanProposal) -> String {
         switch p.status {
-        case .skipped:     return p.skipReason.map { "didn't happen — \($0.label.lowercased())" } ?? "didn't happen"
-        case .declined:    return "passed on this one"
-        case .rescheduled: return "moved to another day"
+        case .skipped:
+            if let reason = p.skipReason {
+                return String(localized: "didn't happen — \(reason.label.localizedCatalogValue)")
+            }
+            return String(localized: "didn't happen")
+        case .declined:    return String(localized: "passed on this one")
+        case .rescheduled: return String(localized: "moved to another day")
         default:           return p.status.rawValue
         }
     }

@@ -170,9 +170,12 @@ struct CoachView: View {
                     .background(StrandPalette.accent.opacity(0.14), in: Circle())
                     .accessibilityHidden(true)
                 VStack(spacing: 1) {
+                    // `coach.persona.title` is a fixed-set English label (#P14): resolved against the
+                    // catalog before display so the header follows the system language, exactly like the
+                    // conversation-title branch (already free text, harmlessly passed through unchanged).
                     Text(coach.activeConversation?.title.isEmpty == false
                          ? coach.activeConversation!.title
-                         : coach.persona.title)
+                         : coach.persona.title.localizedCatalogValue)
                         .font(StrandFont.headline)
                         .foregroundStyle(StrandPalette.textPrimary)
                         .lineLimit(1)
@@ -187,7 +190,7 @@ struct CoachView: View {
             .accessibilityElement(children: .combine)
             .accessibilityLabel(coach.activeConversation?.title.isEmpty == false
                                  ? coach.activeConversation!.title
-                                 : "\(coach.persona.title), your coach")
+                                 : String(localized: "\(coach.persona.title.localizedCatalogValue), your coach"))
 
             HStack(spacing: 14) {
                 // The plan book. The dot means something is waiting for YOUR answer — the coach can

@@ -316,6 +316,11 @@ final class AICoachEngine: ObservableObject {
         didSet { UserDefaults.standard.set(proactiveLevel.rawValue, forKey: ProactiveLevel.storageKey) }
     }
 
+    /// Emoji in coach replies (#P14 7.3) — off by default; read fresh into `emojiClause` on every prompt.
+    @Published var allowEmoji: Bool {
+        didSet { UserDefaults.standard.set(allowEmoji, forKey: Self.allowEmojiKey) }
+    }
+
     /// Card-AI (#P11): the metric card the user tapped "Ask coach" on, consumed once when the Coach opens
     /// (`runCardAnalysisIfNeeded`). Set via `openedFromCard`; cleared as it's read so a later plain open
     /// doesn't re-run the analysis.
@@ -350,6 +355,9 @@ final class AICoachEngine: ObservableObject {
     private static let memoryModelKey = CoachModelRole.summary.overrideDefaultsKey!
     private static let cardModelKey = CoachModelRole.cardAnalysis.overrideDefaultsKey!
     private static let autoSummarizeKey = "ai.autoSummarize"
+    /// Emoji in coach replies (#P14 7.3) — off by default, matching the careful/human register the P13
+    /// voice clause already asks for; a user who wants a lighter touch can opt in.
+    private static let allowEmojiKey = "ai.allowEmoji"
     /// The logical day (rolls 04:00, same as the rest of the app) the last daily brief was generated on
     /// for ANY conversation — so at most one auto-brief lands per day, and a conversation reopened after
     /// a day boundary gets a fresh one instead of showing Monday's brief on Friday.
@@ -454,6 +462,14 @@ final class AICoachEngine: ObservableObject {
     professional. Your confidence comes from the data you cite, not from volume.
     """
 
+    /// Emoji in replies (#P14 7.3) — a user-set dial, appended after the voice clause so it reads as a
+    /// narrow exception to it rather than a competing instruction.
+    static let emojiOnClause = "You may use the ODD, well-placed emoji if it genuinely fits — never more than one per message, and never in a serious or cautionary line."
+    static let emojiOffClause = "Do not use emoji."
+
+    /// The emoji clause matching `allowEmoji`'s current value.
+    var emojiClause: String { allowEmoji ? Self.emojiOnClause : Self.emojiOffClause }
+
     /// The tool-awareness map, appended to the CACHED system block when tools are live (same
     /// `toolCallingActive` gate as `planToolClause`). It lands in the system block — cached by Anthropic
     /// after round 1 — rather than in a per-round user message, where its predecessor
@@ -506,6 +522,8 @@ final class AICoachEngine: ObservableObject {
         prompt += "\n\n" + Self.citationClause
         // Coach voice (#P13): the human/careful register, under whichever persona leads the prompt.
         prompt += "\n\n" + Self.voiceClause
+        // Emoji (#P14 7.3): a user-set dial, read fresh so a settings change applies next message.
+        prompt += "\n\n" + emojiClause
         return prompt
     }
 
@@ -597,6 +615,7 @@ final class AICoachEngine: ObservableObject {
         self.autoSummarize = (UserDefaults.standard.object(forKey: Self.autoSummarizeKey) as? Bool) ?? true
         self.proactiveLevel = UserDefaults.standard.string(forKey: ProactiveLevel.storageKey)
             .flatMap(ProactiveLevel.init(rawValue:)) ?? .important
+        self.allowEmoji = UserDefaults.standard.bool(forKey: Self.allowEmojiKey)
 
         // Restore saved conversations (migrating a legacy single transcript on first run) so history
         // survives a relaunch. Start on the most-recent one, or a fresh empty conversation.

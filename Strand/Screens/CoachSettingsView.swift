@@ -388,6 +388,7 @@ struct CoachSettingsView: View {
     private var coachingSubpage: some View {
         subpageScaffold {
             personaBar
+            emojiBar
             coachEntryBar
             morningSuggestionBar
             proactiveBar
@@ -396,6 +397,31 @@ struct CoachSettingsView: View {
         }
         .navigationTitle("Coaching")
         .task { await refreshCheckInAuthorization() }
+    }
+
+    /// Emoji in coach replies (#P14 7.3) — off by default (matches the careful voice from P13); a plain
+    /// opt-in toggle, same shape as the other binary settings on this page.
+    private var emojiBar: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            HStack(spacing: 10) {
+                Image(systemName: coach.allowEmoji ? "face.smiling.fill" : "face.smiling")
+                    .foregroundStyle(coach.allowEmoji ? StrandPalette.accent : StrandPalette.textTertiary)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Emoji in replies")
+                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                    Text(coach.allowEmoji
+                         ? "On: the coach may use the odd, well-placed emoji."
+                         : "Off: replies are plain text only.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Toggle("", isOn: $coach.allowEmoji)
+                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                    .accessibilityLabel("Emoji in replies")
+            }
+        }
     }
 
     /// How chatty the coach is UNPROMPTED (#P10 10.4) — proactive messages cost tokens, so this is a
@@ -410,14 +436,14 @@ struct CoachSettingsView: View {
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Proactive messages")
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                        Text(coach.proactiveLevel.blurb)
+                        Text(LocalizedStringKey(coach.proactiveLevel.blurb))
                             .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 8)
                 }
                 Picker("Proactive messages", selection: $coach.proactiveLevel) {
-                    ForEach(ProactiveLevel.allCases) { level in Text(level.label).tag(level) }
+                    ForEach(ProactiveLevel.allCases) { level in Text(LocalizedStringKey(level.label)).tag(level) }
                 }
                 .pickerStyle(.segmented)
                 .accessibilityLabel("How often the coach messages you first")
@@ -514,7 +540,7 @@ struct CoachSettingsView: View {
                 }
                 Picker("Coach entry", selection: $coachEntryModeRaw) {
                     ForEach(CoachEntryMode.allCases) { mode in
-                        Text(mode.label).tag(mode.rawValue)
+                        Text(LocalizedStringKey(mode.label)).tag(mode.rawValue)
                     }
                 }
                 .pickerStyle(.segmented)
@@ -560,13 +586,17 @@ struct CoachSettingsView: View {
                             )
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(c.label)
+                    .accessibilityLabel(Text(LocalizedStringKey(c.label)))
                     .accessibilityAddTraits(active ? [.isButton, .isSelected] : .isButton)
                 }
             }
+            // Both branches resolved via String(localized:) rather than left as a literal ternary (#P14):
+            // the pinned branch embeds `corner.label`, a fixed-set English computed property, and a plain
+            // Text(String) never performs a catalog lookup — so without pre-resolving it here, the label
+            // itself would ride along in English even once the surrounding sentence translates.
             Text(corner == .custom
-                 ? "Dragged freely — tap a corner to pin it. Corners stay clear of the tab bar and header."
-                 : "Pinned: \(corner.label). Drag the button anytime to place it freely.")
+                 ? String(localized: "Dragged freely — tap a corner to pin it. Corners stay clear of the tab bar and header.")
+                 : String(localized: "Pinned: \(corner.label.localizedCatalogValue). Drag the button anytime to place it freely."))
                 .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -787,7 +817,7 @@ struct CoachSettingsView: View {
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Coaching style")
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                        Text(coach.persona.subtitle)
+                        Text(LocalizedStringKey(coach.persona.subtitle))
                             .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -798,7 +828,7 @@ struct CoachSettingsView: View {
                     set: { coach.persona = $0 }
                 )) {
                     ForEach(CoachPersona.allCases) { p in
-                        Text(p.title).tag(p)
+                        Text(LocalizedStringKey(p.title)).tag(p)
                     }
                 }
                 .labelsHidden()
@@ -963,7 +993,11 @@ struct CoachSettingsView: View {
                             .foregroundStyle(goalStore.goal == nil ? StrandPalette.textTertiary : StrandPalette.accent)
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(goalStore.goal?.title.isEmpty == false ? goalStore.goal!.title : "Set a goal")
+                            // The fallback branch is a fixed literal; the other is the user's own free
+                            // text — String(localized:) resolves the former without touching the latter.
+                            Text(goalStore.goal?.title.isEmpty == false
+                                 ? goalStore.goal!.title
+                                 : String(localized: "Set a goal"))
                                 .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                                 .lineLimit(1)
                             Text(goalSubtitle)
@@ -1120,8 +1154,10 @@ struct CoachSettingsView: View {
                             Text("Coach memory")
                                 .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                             Text(memory.facts.isEmpty
-                                 ? "What the coach remembers about you, across conversations."
-                                 : "\(memory.facts.count) remembered fact\(memory.facts.count == 1 ? "" : "s"). The coach uses these in every reply.")
+                                 ? String(localized: "What the coach remembers about you, across conversations.")
+                                 : (memory.facts.count == 1
+                                    ? String(localized: "1 remembered fact. The coach uses these in every reply.")
+                                    : String(localized: "\(memory.facts.count) remembered facts. The coach uses these in every reply.")))
                                 .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                                 .fixedSize(horizontal: false, vertical: true)
                         }

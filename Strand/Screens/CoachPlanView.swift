@@ -126,7 +126,7 @@ struct CoachPlanView: View {
                     // recorded — and then "didn't train" reads as laziness when it was a sore knee.
                     Menu {
                         ForEach(PlanProposal.SkipReason.allCases, id: \.self) { reason in
-                            Button(reason.label) { store.skip(p.id, reason: reason) }
+                            Button(LocalizedStringKey(reason.label)) { store.skip(p.id, reason: reason) }
                         }
                     } label: {
                         Label("Didn't happen", systemImage: "xmark.circle")
@@ -214,12 +214,27 @@ struct CoachPlanView: View {
     }
 
     /// Deliberately neutral wording — a skip states its reason, it doesn't editorialise about it.
+    ///
+    /// Every branch resolves through `String(localized:)`, with any embedded fixed-set label
+    /// (`SkipReason.label`, `dayLabel(_:)`) pre-resolved via `.localizedCatalogValue` (#P14): this
+    /// function returns a plain `String` reused both in a `Text()` and inside a larger accessibility
+    /// label, neither of which performs a catalog lookup on their own — the resolution has to happen here.
     private func statusLine(_ p: PlanProposal) -> String {
         switch p.status {
-        case .skipped:     return p.skipReason.map { "didn't happen — \($0.label.lowercased())" } ?? "didn't happen"
-        case .declined:    return "you passed on this one"
-        case .rescheduled: return p.rescheduledFrom.map { "moved from \(dayLabel($0).lowercased())" } ?? "moved"
-        default:           return p.status.rawValue
+        case .skipped:
+            if let reason = p.skipReason {
+                return String(localized: "didn't happen — \(reason.label.localizedCatalogValue)")
+            }
+            return String(localized: "didn't happen")
+        case .declined:
+            return String(localized: "you passed on this one")
+        case .rescheduled:
+            if let from = p.rescheduledFrom {
+                return String(localized: "moved from \(dayLabel(from).localizedCatalogValue)")
+            }
+            return String(localized: "moved")
+        default:
+            return p.status.rawValue
         }
     }
 
@@ -276,7 +291,7 @@ struct PlanSwapSheet: View {
                                 .accessibilityLabel("New activity")
                             Picker("How hard", selection: $intent) {
                                 ForEach(PlanProposal.Intent.allCases, id: \.self) { i in
-                                    Text(i.label).tag(i)
+                                    Text(LocalizedStringKey(i.label)).tag(i)
                                 }
                             }
                             .pickerStyle(.segmented)

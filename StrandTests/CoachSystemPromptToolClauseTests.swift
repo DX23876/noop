@@ -20,6 +20,9 @@ final class CoachSystemPromptToolClauseTests: XCTestCase {
     override func tearDown() {
         UserDefaults.standard.removeObject(forKey: AICoachEngine.systemPromptKey)
         UserDefaults.standard.removeObject(forKey: CoachPersona.defaultsKey)
+        // Reset via the setter (its didSet owns the private UserDefaults key) rather than a hardcoded
+        // string, so a test that flips allowEmoji never leaks into the next test's default-off premise.
+        AICoachEngine(repo: Repository(deviceId: "cleanup-\(UUID().uuidString)")).allowEmoji = false
         super.tearDown()
     }
 
@@ -189,5 +192,40 @@ final class CoachSystemPromptToolClauseTests: XCTestCase {
         engine.provider = .anthropic; engine.dataConsent = true
         engine.customSystemPrompt = "Be brief."
         XCTAssertTrue(engine.systemPrompt.contains(AICoachEngine.voiceClause))
+    }
+
+    // MARK: - P14: the emoji clause matches the user's dial and rides every prompt
+
+    func testEmojiOffByDefaultForbidsEmoji() {
+        let engine = makeEngine()
+        XCTAssertFalse(engine.allowEmoji, "off by default, matching the P13 careful-voice register")
+        XCTAssertEqual(engine.emojiClause, AICoachEngine.emojiOffClause)
+        XCTAssertTrue(engine.systemPrompt.contains(AICoachEngine.emojiOffClause))
+    }
+
+    func testEmojiOnUsesTheOnClause() {
+        let engine = makeEngine()
+        engine.allowEmoji = true
+        XCTAssertEqual(engine.emojiClause, AICoachEngine.emojiOnClause)
+        XCTAssertTrue(engine.systemPrompt.contains(AICoachEngine.emojiOnClause))
+        XCTAssertFalse(engine.systemPrompt.contains(AICoachEngine.emojiOffClause),
+                       "the two emoji clauses are mutually exclusive")
+    }
+
+    func testEmojiClauseIsPresentInBothToolModes() {
+        let withTools = makeEngine()
+        withTools.provider = .anthropic; withTools.dataConsent = true
+        XCTAssertTrue(withTools.systemPrompt.contains(AICoachEngine.emojiOffClause))
+
+        let withoutTools = makeEngine()
+        withoutTools.provider = .gemini; withoutTools.dataConsent = true
+        XCTAssertTrue(withoutTools.systemPrompt.contains(AICoachEngine.emojiOffClause))
+    }
+
+    func testEmojiClauseSurvivesACustomSystemPromptOverride() {
+        let engine = makeEngine()
+        engine.provider = .anthropic; engine.dataConsent = true
+        engine.customSystemPrompt = "Be brief."
+        XCTAssertTrue(engine.systemPrompt.contains(AICoachEngine.emojiOffClause))
     }
 }

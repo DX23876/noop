@@ -141,9 +141,9 @@ struct CoachGoalEditorView: View {
                     .font(.system(size: 20))
                     .foregroundStyle(selected ? StrandPalette.accent : StrandPalette.textSecondary)
                     .accessibilityHidden(true)
-                Text(k.label)
+                Text(LocalizedStringKey(k.label))
                     .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                Text(k.blurb)
+                Text(LocalizedStringKey(k.blurb))
                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -156,7 +156,7 @@ struct CoachGoalEditorView: View {
                               lineWidth: selected ? 1.5 : 1))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(k.label)
+        .accessibilityLabel(Text(LocalizedStringKey(k.label)))
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
     }
 
@@ -252,7 +252,7 @@ struct CoachGoalEditorView: View {
                     .font(StrandFont.footnote)
                     .foregroundStyle(selected ? StrandPalette.accent : StrandPalette.textSecondary)
                     .accessibilityHidden(true)
-                Text(tag.label)
+                Text(LocalizedStringKey(tag.label))
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textPrimary)
                     .lineLimit(2).multilineTextAlignment(.leading)
@@ -267,7 +267,7 @@ struct CoachGoalEditorView: View {
                               lineWidth: selected ? 1.5 : 1))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(tag.label)
+        .accessibilityLabel(Text(LocalizedStringKey(tag.label)))
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
     }
 
@@ -277,7 +277,10 @@ struct CoachGoalEditorView: View {
     private func field(_ label: String, placeholder: String,
                        text: Binding<String>, numeric: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(label).strandOverline()
+            // `label` is a fixed literal at some call sites ("Goal") and a composed unit string at others
+            // ("From (km)"); `.localizedCatalogValue` resolves the former and harmlessly passes the
+            // latter through unchanged (#P14).
+            Text(label.localizedCatalogValue).strandOverline()
             TextField(placeholder, text: text)
                 .textFieldStyle(.plain)
                 .font(StrandFont.body)
@@ -291,7 +294,7 @@ struct CoachGoalEditorView: View {
                             in: RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous)
                     .strokeBorder(StrandPalette.hairline, lineWidth: 1))
-                .accessibilityLabel(label)
+                .accessibilityLabel(label.localizedCatalogValue)
         }
     }
 
