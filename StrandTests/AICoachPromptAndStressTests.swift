@@ -119,18 +119,32 @@ final class AICoachPromptAndStressTests: XCTestCase {
         XCTAssertTrue(instruction.contains("Your plan"))
     }
 
-    /// Golden string: T1 must not touch the non-tool path at all. `buildFullContext()` genuinely puts
-    /// charge/HRV/rest/readiness in the message there, so "Based on the data above" stays true and the
-    /// text is pinned byte-for-byte.
-    func testBriefWithoutToolsIsUnchangedFromBeforeT1() {
+    /// Golden string for the non-tool path. `buildFullContext()` genuinely puts charge/HRV/rest/readiness
+    /// in the message there, so "Based on the data above" stays true. Pinned byte-for-byte; updated in P9
+    /// to carry intensity + duration and a low-readiness alternative (9.2/9.3) while keeping the shape.
+    func testBriefWithoutToolsGoldenString() {
         let instruction = AICoachEngine.briefInstruction(toolsActive: false)
         XCTAssertEqual(instruction, """
-        Based on the data above, give me TODAY'S coaching brief in three short parts: \
+        Based on the data above, give me TODAY'S coaching brief — kept tight, no preamble, three \
+        short parts: \
         (1) my readiness in one line, citing charge, HRV and rest; \
-        (2) exactly what training to do today and what to avoid — you cannot record it for them, so \
-        close by telling them to add it in Your plan if they want it; \
-        (3) one specific thing to improve my charge. Be punchy and motivating.
+        (2) exactly what to do today — the activity, its intensity, and a rough duration — and what \
+        to avoid. If my readiness is low, make it the easy/short option (or rest) and say so plainly. \
+        You cannot record it for me, so close by telling me to add it in Your plan if I want it; \
+        (3) one specific thing to improve my charge. Be punchy and motivating — not long.
         """)
+    }
+
+    /// #P9 9.2: both branches now ask for the session's intensity and a rough duration, plus a lighter
+    /// option when readiness is low — the difference between "train" and an actionable prescription.
+    func testBriefAsksForIntensityDurationAndALowReadinessAlternative() {
+        for active in [true, false] {
+            let instruction = AICoachEngine.briefInstruction(toolsActive: active)
+            XCTAssertTrue(instruction.contains("intensity"), "brief must prescribe intensity")
+            XCTAssertTrue(instruction.contains("duration"), "brief must give a rough duration")
+            XCTAssertTrue(instruction.lowercased().contains("readiness is low"),
+                          "brief must offer a lighter option on a low day")
+        }
     }
 
     /// T1's actual fix: on the tool path there IS no data above (toolModeContext carries no numbers), so

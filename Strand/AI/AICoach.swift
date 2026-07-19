@@ -1507,26 +1507,29 @@ final class AICoachEngine: ObservableObject {
     static func briefInstruction(toolsActive: Bool) -> String {
         guard toolsActive else {
             return """
-            Based on the data above, give me TODAY'S coaching brief in three short parts: \
+            Based on the data above, give me TODAY'S coaching brief — kept tight, no preamble, three \
+            short parts: \
             (1) my readiness in one line, citing charge, HRV and rest; \
-            (2) exactly what training to do today and what to avoid — you cannot record it for them, so \
-            close by telling them to add it in Your plan if they want it; \
-            (3) one specific thing to improve my charge. Be punchy and motivating.
+            (2) exactly what to do today — the activity, its intensity, and a rough duration — and what \
+            to avoid. If my readiness is low, make it the easy/short option (or rest) and say so plainly. \
+            You cannot record it for me, so close by telling me to add it in Your plan if I want it; \
+            (3) one specific thing to improve my charge. Be punchy and motivating — not long.
             """
         }
         return """
         You have not been given any of my numbers yet. Before you write anything, call get_readiness and \
         get_biometric_summary; call get_charge_drivers too if my Charge is notably high or low, and \
         get_sleep_detail if sleep is the story. Once you have real numbers, give me TODAY'S coaching brief \
-        in three short parts: \
+        — kept tight, no preamble, three short parts: \
         (1) my readiness in one line, citing the charge, HRV and rest you just fetched; \
-        (2) exactly what training to do today and what to avoid — then record THAT session with \
-        propose_plan for today's date so it shows on the Today screen for the user to accept, change \
-        or decline. Propose exactly ONE session for today. It is a suggestion, not a booking — never \
-        describe it as scheduled. Anything already listed as awaiting the user's decision is already \
-        recorded; do not propose it again; \
+        (2) exactly what to do today — the activity, its intensity, and a rough duration. If my readiness \
+        is low, make it the easy/short option (or rest) and say so. Then record THAT session with \
+        propose_plan for today's date so it shows on the Today screen for me to accept, change or \
+        decline. Propose exactly ONE session for today. It is a suggestion, not a booking — never \
+        describe it as scheduled. Anything already awaiting my decision or already committed is recorded; \
+        do not propose it again; \
         (3) one specific thing to improve my charge, grounded in what get_charge_drivers showed. Be punchy \
-        and motivating.
+        and motivating — not long.
         """
     }
 

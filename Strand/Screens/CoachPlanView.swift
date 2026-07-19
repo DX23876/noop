@@ -14,6 +14,7 @@ struct CoachPlanView: View {
     @State private var inputs = PlanConsequence.Inputs()
     @State private var swapping: PlanProposal?
     @State private var scheduling: PlanProposal?
+    @State private var rescheduling: PlanProposal?
 
     private var today: String { Repository.localDayKey(Date()) }
 
@@ -58,6 +59,9 @@ struct CoachPlanView: View {
             }
             .sheet(item: $scheduling) { p in
                 PlanTimeSheet(proposal: p)
+            }
+            .sheet(item: $rescheduling) { p in
+                PlanRescheduleSheet(proposal: p)
             }
         }
     }
@@ -113,6 +117,7 @@ struct CoachPlanView: View {
                 }
                 HStack(spacing: 8) {
                     action(p.time == nil ? "Set a time" : "Change time", icon: "clock") { scheduling = p }
+                    action("Move day", icon: "calendar.badge.clock") { rescheduling = p }
                     action("Swap", icon: "arrow.triangle.2.circlepath") { swapping = p }
                 }
                 HStack(spacing: 8) {
@@ -381,6 +386,63 @@ struct PlanTimeSheet: View {
                 }
             }
             .onAppear { time = proposal.time ?? Date() }
+        }
+    }
+}
+
+/// Move a committed session to another DAY (#P9 9.6). Keeps its time-of-day if it had one, so moving a
+/// "10:00 ride" to tomorrow keeps 10:00. Routes through `CoachPlanStore.reschedule`, which records the
+/// move (status `.rescheduled`, `rescheduledFrom`) rather than silently overwriting the day.
+struct PlanRescheduleSheet: View {
+    let proposal: PlanProposal
+
+    @ObservedObject private var store = CoachPlanStore.shared
+    @Environment(\.dismiss) private var dismiss
+    @State private var day = Date()
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 16) {
+                NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(proposal.sport).strandOverline()
+                        DatePicker("New day", selection: $day, in: Date()..., displayedComponents: .date)
+                            .datePickerStyle(.graphical)
+                            .labelsHidden()
+                            .accessibilityLabel("New day")
+                    }
+                }
+                Spacer()
+            }
+            .padding(16)
+            .background(StrandPalette.surfaceBase.ignoresSafeArea())
+            .navigationTitle("Move to another day")
+            #if !os(macOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Move") {
+                        let df = DateFormatter(); df.dateFormat = "yyyy-MM-dd"
+                        let newDay = df.string(from: day)
+                        // Carry the existing time-of-day onto the new date, if the session had one.
+                        var newTime: Date?
+                        if let t = proposal.time {
+                            let cal = Calendar.current
+                            let hm = cal.dateComponents([.hour, .minute], from: t)
+                            newTime = cal.date(bySettingHour: hm.hour ?? 0, minute: hm.minute ?? 0,
+                                               second: 0, of: day)
+                        }
+                        store.reschedule(proposal.id, toDay: newDay, at: newTime)
+                        dismiss()
+                    }
+                }
+            }
+            .onAppear {
+                let df = DateFormatter(); df.dateFormat = "yyyy-MM-dd"
+                day = df.date(from: proposal.day) ?? Date()
+            }
         }
     }
 }
