@@ -35,6 +35,9 @@ struct CoachView: View {
     @State private var expandedEvidenceIds: Set<UUID> = []
     /// First-run goal onboarding (offered once, skippable — see the `.task` that arms it).
     @State private var showGoalOnboarding = false
+    /// First-use trust/expectations note (#P6 6.3): shown once before the first conversation.
+    @AppStorage(CoachFirstUse.acknowledgedKey) private var coachFirstUseAcknowledged = false
+    @State private var showFirstUse = false
     /// Drives the header's pending-proposal dot.
     @ObservedObject private var planStore = CoachPlanStore.shared
     /// Live Sessions (silent guardian) beta gate — the SAME key `LiquidTodayView`/Settings read. Hides
@@ -84,11 +87,26 @@ struct CoachView: View {
         .onReceive(NotificationCenter.default.publisher(for: .noopOpenCoachCheckIn)) { _ in
             Task { await coach.checkInIfNeeded() }
         }
+        // First-use note (#P6 6.3): once the coach is connected, show the trust/expectations dialog
+        // before the first conversation. Keyed on `isConfigured` so it also arms right after the user
+        // connects from the setup screen (not just on a fresh, already-connected open).
+        .task(id: coach.isConfigured) {
+            if coach.isConfigured && !coachFirstUseAcknowledged { showFirstUse = true }
+        }
+        .sheet(isPresented: $showFirstUse) {
+            CoachFirstUseSheet(onAcknowledge: {
+                coachFirstUseAcknowledged = true
+                showFirstUse = false
+            })
+            .environmentObject(coach)
+        }
         // Goal onboarding: offered ONCE, only to a configured coach with no goal yet, and skippable.
-        // The flag is set whichever way the sheet closes, so declining is respected permanently — you
-        // can always set a goal later from settings, and NOOP is fully usable without one.
+        // Gated behind the first-use ack too, so the two one-time sheets never stack — goal onboarding
+        // simply waits for the next open after the note is acknowledged. The flag is set whichever way
+        // the sheet closes, so declining is respected permanently — you can always set a goal later.
         .task {
             guard coach.isConfigured,
+                  coachFirstUseAcknowledged,
                   CoachGoalStore.shared.goal == nil,
                   !UserDefaults.standard.bool(forKey: Self.goalOnboardingAskedKey) else { return }
             showGoalOnboarding = true

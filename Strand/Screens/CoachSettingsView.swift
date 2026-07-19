@@ -19,6 +19,8 @@ struct CoachSettingsView: View {
     /// Confirmation gate before `clearKey()` — a deliberately separate, harder-to-reach action from
     /// Disconnect (#P4 4.3), since it actually deletes the Keychain key.
     @State private var showForgetKeyConfirm = false
+    /// Presents the "How Coach works" transparency page (#P6 6.2).
+    @State private var showCoachInfo = false
     @State private var customModel: Bool = false
     @State private var customModelDraft: String = ""
     @State private var promptExpanded: Bool = false
@@ -405,11 +407,59 @@ struct CoachSettingsView: View {
 
     private var privacySubpage: some View {
         subpageScaffold {
+            howItWorksRow
             consentBar
             if coach.dataConsent { onDeviceSignalsBar }
+            dataTransparencyNote
             systemPromptBar
         }
         .navigationTitle("Privacy & data")
+    }
+
+    /// Entry into the full "how the coach works / what's shared" page (#P6 6.2). A row, not buried text,
+    /// so the transparency story is one tap from where consent is granted.
+    private var howItWorksRow: some View {
+        Button { showCoachInfo = true } label: {
+            NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+                HStack(spacing: 10) {
+                    Image(systemName: "info.circle")
+                        .foregroundStyle(StrandPalette.accent)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("How Coach works")
+                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                        Text("What runs on \(Platform.deviceNounPhrase), what's sent, and why the model matters.")
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .accessibilityHidden(true)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .sheet(isPresented: $showCoachInfo) { CoachInfoView().environmentObject(coach) }
+    }
+
+    /// The data-sharing posture in plain words (#P6 6.4 / 14.x): the coach is DELIBERATELY data-driven —
+    /// that's its value — so the honest goal is transparency and picking a trustworthy provider, not
+    /// starving it of data. Names the provider so the privacy question is concrete.
+    private var dataTransparencyNote: some View {
+        Label {
+            Text(coach.provider == .custom
+                 ? "The coach works with your data on purpose — that's what makes it personal. With a Custom server you point it at, nothing leaves \(Platform.deviceNounPhrase) at all. NOOP only ever sends what a request needs — a summary of the relevant metrics, never raw sensor data."
+                 : "The coach works with your data on purpose — that's what makes it personal. The real privacy question is your provider (\(coach.provider.displayName)): they receive what you send, so choose one you trust. NOOP only ever sends what a request needs — a summary of the relevant metrics, never raw sensor data or unrelated personal details.")
+                .font(StrandFont.footnote)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: "checkmark.shield")
+                .foregroundStyle(StrandPalette.textTertiary)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Coach entry preference (iOS: card vs. draggable floating button vs. both)
