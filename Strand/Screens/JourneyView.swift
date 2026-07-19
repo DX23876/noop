@@ -231,7 +231,7 @@ struct JourneyView: View {
             let frac = min(1, max(0, sessions / target))
             return (frac, String(format: "Averaging %.1f sessions/week toward a target of %.0f.",
                                  sessions, target))
-        case .strength, .custom:
+        case .strength, .stress, .recovery, .custom:
             return nil
         }
     }
@@ -247,7 +247,7 @@ struct JourneyView: View {
         case .weight:
             line += " I track training, not diet, so this page won't guess at weight progress without "
                   + "a synced weigh-in."
-        case .strength, .custom:
+        case .strength, .stress, .recovery, .custom:
             line += " This kind of goal isn't something I can measure from your strap — tell the coach "
                   + "how it's going and it'll factor that in."
         default:

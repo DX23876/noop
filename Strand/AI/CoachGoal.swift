@@ -21,6 +21,8 @@ struct CoachGoal: Codable, Identifiable, Equatable {
         case sleep        // average nightly hours
         case strength     // strength work — NOOP has no load tracking, so it is held, not measured
         case weight       // body weight — TRACKED only; the coach never plans nutrition (see below)
+        case stress       // reduce stress — held, not measured (no target rate to judge)
+        case recovery     // recover better — held, not measured
         case custom       // free text; no measurement
 
         var id: String { rawValue }
@@ -32,7 +34,37 @@ struct CoachGoal: Codable, Identifiable, Equatable {
             case .sleep:       return "Sleep better"
             case .strength:    return "Build strength"
             case .weight:      return "Body weight"
+            case .stress:      return "Reduce stress"
+            case .recovery:    return "Recover better"
             case .custom:      return "Something else"
+            }
+        }
+
+        /// A short line under the label on the goal cards — what this goal is, in the user's terms.
+        var blurb: String {
+            switch self {
+            case .run:         return "A distance or time you're building toward."
+            case .consistency: return "Show up a set number of times a week."
+            case .sleep:       return "More, or steadier, nightly sleep."
+            case .strength:    return "Get stronger over time."
+            case .weight:      return "Move your body weight toward a target."
+            case .stress:      return "Bring your daily load down."
+            case .recovery:    return "Give your body more room to bounce back."
+            case .custom:      return "Anything else — the coach will hold it."
+            }
+        }
+
+        /// SF Symbol for the goal cards (8.3 — visual, not a bare dropdown).
+        var icon: String {
+            switch self {
+            case .run:         return "figure.run"
+            case .consistency: return "calendar.badge.checkmark"
+            case .sleep:       return "bed.double.fill"
+            case .strength:    return "dumbbell.fill"
+            case .weight:      return "scalemass.fill"
+            case .stress:      return "wind"
+            case .recovery:    return "heart.fill"
+            case .custom:      return "sparkles"
             }
         }
 
@@ -43,12 +75,44 @@ struct CoachGoal: Codable, Identifiable, Equatable {
             case .consistency: return "sessions/week"
             case .sleep:       return "h"
             case .weight:      return "kg"
-            case .strength, .custom: return ""
+            case .strength, .stress, .recovery, .custom: return ""
             }
         }
 
         /// True when this kind can carry a baseline/target pair worth doing arithmetic on.
         var isQuantified: Bool { !unit.isEmpty }
+    }
+
+    /// The user's WHY, as a structured pick (8.4) — coarse categories the coach can actually use to
+    /// personalise, distinct from the intimate free-text `motivation`. These ride the coach context (they
+    /// describe the goal, like `kind`/`target`) rather than being gated behind `shareMotivation`, which
+    /// guards only the personal prose.
+    enum MotivationTag: String, Codable, CaseIterable, Identifiable {
+        case moreEnergy, feelHealthier, lessExhausted, buildRoutine, manageWeight, performBetter
+
+        var id: String { rawValue }
+
+        var label: String {
+            switch self {
+            case .moreEnergy:    return "More energy"
+            case .feelHealthier: return "Feel healthier"
+            case .lessExhausted: return "Less exhausted"
+            case .buildRoutine:  return "Build a routine"
+            case .manageWeight:  return "Manage my weight"
+            case .performBetter: return "Perform better day to day"
+            }
+        }
+
+        var icon: String {
+            switch self {
+            case .moreEnergy:    return "bolt.fill"
+            case .feelHealthier: return "leaf.fill"
+            case .lessExhausted: return "battery.75"
+            case .buildRoutine:  return "repeat"
+            case .manageWeight:  return "scalemass"
+            case .performBetter: return "chart.line.uptrend.xyaxis"
+            }
+        }
     }
 
     enum Status: String, Codable, CaseIterable {
@@ -87,7 +151,12 @@ struct CoachGoal: Codable, Identifiable, Equatable {
     /// Why this matters to them. The most personal line in the app — held locally and NOT sent to any
     /// provider unless `shareMotivation` is explicitly turned on.
     var motivation: String
-    /// Explicit opt-in to include `motivation` in the coach context. Off by default.
+    /// The user's WHY as structured tags (8.4) — coarse categories the coach uses for personalisation.
+    /// Unlike the free-text `motivation`, these describe the goal and ride the context by default (within
+    /// the standing `dataConsent` gate), so the coach can act on them without the user opting into
+    /// sharing their private prose.
+    var motivationTags: [MotivationTag]
+    /// Explicit opt-in to include the free-text `motivation` in the coach context. Off by default.
     var shareMotivation: Bool
     var acknowledgedRisk: RiskAcknowledgement?
     let createdAt: Date
@@ -101,6 +170,7 @@ struct CoachGoal: Codable, Identifiable, Equatable {
          targetDate: Date? = nil,
          status: Status = .active,
          motivation: String = "",
+         motivationTags: [MotivationTag] = [],
          shareMotivation: Bool = false,
          acknowledgedRisk: RiskAcknowledgement? = nil,
          createdAt: Date = Date(),
@@ -113,6 +183,7 @@ struct CoachGoal: Codable, Identifiable, Equatable {
         self.targetDate = targetDate
         self.status = status
         self.motivation = motivation
+        self.motivationTags = motivationTags
         self.shareMotivation = shareMotivation
         self.acknowledgedRisk = acknowledgedRisk
         self.createdAt = createdAt
@@ -123,7 +194,7 @@ struct CoachGoal: Codable, Identifiable, Equatable {
     // never fails to load and silently vanish.
     private enum CodingKeys: String, CodingKey {
         case id, kind, title, baseline, target, targetDate, status
-        case motivation, shareMotivation, acknowledgedRisk, createdAt, history
+        case motivation, motivationTags, shareMotivation, acknowledgedRisk, createdAt, history
     }
 
     init(from decoder: Decoder) throws {
@@ -136,6 +207,7 @@ struct CoachGoal: Codable, Identifiable, Equatable {
         targetDate = try c.decodeIfPresent(Date.self, forKey: .targetDate)
         status = try c.decodeIfPresent(Status.self, forKey: .status) ?? .active
         motivation = try c.decodeIfPresent(String.self, forKey: .motivation) ?? ""
+        motivationTags = try c.decodeIfPresent([MotivationTag].self, forKey: .motivationTags) ?? []
         shareMotivation = try c.decodeIfPresent(Bool.self, forKey: .shareMotivation) ?? false
         acknowledgedRisk = try c.decodeIfPresent(RiskAcknowledgement.self, forKey: .acknowledgedRisk)
         createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()

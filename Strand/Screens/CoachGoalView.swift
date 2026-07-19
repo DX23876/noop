@@ -27,9 +27,13 @@ struct CoachGoalEditorView: View {
     @State private var hasTargetDate = false
     @State private var targetDate = Date().addingTimeInterval(60 * 24 * 3600)
     @State private var motivation = ""
+    @State private var motivationTags: Set<CoachGoal.MotivationTag> = []
     @State private var shareMotivation = false
     @State private var reason = ""
     @State private var showReasonPrompt = false
+
+    /// Two-column grid for the goal-type tiles and the motivation chips — no custom flow layout needed.
+    private let twoColumns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
 
     /// The profile weight the safety gate normalises against — read once, like the rest of the context.
     private var bodyWeightKg: Double { ProfileStore().weightKg }
@@ -42,6 +46,7 @@ struct CoachGoalEditorView: View {
                   target: Double(targetText.replacingOccurrences(of: ",", with: ".")),
                   targetDate: hasTargetDate ? targetDate : nil,
                   motivation: motivation,
+                  motivationTags: CoachGoal.MotivationTag.allCases.filter { motivationTags.contains($0) },
                   shareMotivation: shareMotivation)
     }
 
@@ -106,29 +111,53 @@ struct CoachGoalEditorView: View {
         }
     }
 
+    /// Visual goal-type CARDS (8.2 / 8.3) — a tappable icon+label+blurb tile per kind, replacing the old
+    /// dropdown so the choice reads as a set of directions, not a form field.
     private var kindCard: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Goal type").strandOverline()
-                Picker("Goal type", selection: $kind) {
-                    ForEach(CoachGoal.Kind.allCases) { k in Text(k.label).tag(k) }
-                }
-                .pickerStyle(.menu)
-                .tint(StrandPalette.accent)
-                .accessibilityLabel("Goal type")
-                if kind == .weight {
-                    // Single literal — see the localization note above.
-                    Text("I'll track your weight and plan your training around it — but I have no nutrition data, and that's where most of weight change is decided. I won't pretend otherwise.")
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
-                        .fixedSize(horizontal: false, vertical: true)
-                } else if !kind.isQuantified {
-                    // Single literal — see the localization note above.
-                    Text("I can hold this goal and shape your training around it, but I can't measure it from your strap — so I won't invent progress numbers for it.")
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Goal type").strandOverline()
+            LazyVGrid(columns: twoColumns, spacing: 10) {
+                ForEach(CoachGoal.Kind.allCases) { k in kindTile(k) }
+            }
+            if kind == .weight {
+                // Single literal — see the localization note above.
+                Text("I'll track your weight and plan your training around it — but I have no nutrition data, and that's where most of weight change is decided. I won't pretend otherwise.")
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if !kind.isQuantified {
+                // Single literal — see the localization note above.
+                Text("I can hold this goal and shape your training around it, but I can't measure it from your strap — so I won't invent progress numbers for it.")
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
+    }
+
+    private func kindTile(_ k: CoachGoal.Kind) -> some View {
+        let selected = kind == k
+        return Button { kind = k } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                Image(systemName: k.icon)
+                    .font(.system(size: 20))
+                    .foregroundStyle(selected ? StrandPalette.accent : StrandPalette.textSecondary)
+                    .accessibilityHidden(true)
+                Text(k.label)
+                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                Text(k.blurb)
+                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(selected ? StrandPalette.accent.opacity(0.12) : StrandPalette.surfaceInset))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(selected ? StrandPalette.accent : StrandPalette.hairline,
+                              lineWidth: selected ? 1.5 : 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(k.label)
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
     }
 
     private var detailsCard: some View {
@@ -183,8 +212,18 @@ struct CoachGoalEditorView: View {
 
     private var motivationCard: some View {
         NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
-            VStack(alignment: .leading, spacing: 8) {
-                field("Why does this matter to you? (optional)",
+            VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("What are you really after?").strandOverline()
+                    Text("Pick what's driving this — the coach uses it to shape its advice, not just decorate the screen.")
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    LazyVGrid(columns: twoColumns, spacing: 8) {
+                        ForEach(CoachGoal.MotivationTag.allCases) { tag in motivationChip(tag) }
+                    }
+                }
+                Divider().overlay(StrandPalette.hairline)
+                field("Anything more personal? (optional)",
                       placeholder: "the reason you'll remember at 6am", text: $motivation)
                 Toggle(isOn: $shareMotivation) {
                     VStack(alignment: .leading, spacing: 1) {
@@ -201,6 +240,35 @@ struct CoachGoalEditorView: View {
                 .disabled(motivation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
+    }
+
+    private func motivationChip(_ tag: CoachGoal.MotivationTag) -> some View {
+        let selected = motivationTags.contains(tag)
+        return Button {
+            if selected { motivationTags.remove(tag) } else { motivationTags.insert(tag) }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: tag.icon)
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(selected ? StrandPalette.accent : StrandPalette.textSecondary)
+                    .accessibilityHidden(true)
+                Text(tag.label)
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                    .lineLimit(2).multilineTextAlignment(.leading)
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 10).padding(.vertical, 8)
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(selected ? StrandPalette.accent.opacity(0.12) : StrandPalette.surfaceInset))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(selected ? StrandPalette.accent : StrandPalette.hairline,
+                              lineWidth: selected ? 1.5 : 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(tag.label)
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
     }
 
     // MARK: - Pieces
@@ -234,6 +302,8 @@ struct CoachGoalEditorView: View {
         case .sleep:       return "e.g. Sleep 7.5 hours a night"
         case .strength:    return "e.g. Get back to full-body strength work"
         case .weight:      return "e.g. Get to 78 kg"
+        case .stress:      return "e.g. Fewer high-stress days each week"
+        case .recovery:    return "e.g. Wake up feeling more recovered"
         case .custom:      return "e.g. Feel good on the hills again"
         }
     }
@@ -249,6 +319,7 @@ struct CoachGoalEditorView: View {
         hasTargetDate = g.targetDate != nil
         if let d = g.targetDate { targetDate = d }
         motivation = g.motivation
+        motivationTags = Set(g.motivationTags)
         shareMotivation = g.shareMotivation
     }
 
@@ -271,6 +342,7 @@ struct CoachGoalEditorView: View {
             g = CoachGoal(id: existing.id, kind: g.kind, title: g.title,
                           baseline: g.baseline, target: g.target, targetDate: g.targetDate,
                           status: .active, motivation: g.motivation,
+                          motivationTags: g.motivationTags,
                           shareMotivation: g.shareMotivation,
                           acknowledgedRisk: existing.acknowledgedRisk,
                           createdAt: existing.createdAt, history: existing.history)
