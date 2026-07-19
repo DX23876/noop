@@ -390,11 +390,42 @@ struct CoachSettingsView: View {
             personaBar
             coachEntryBar
             morningSuggestionBar
+            proactiveBar
             checkInBar
             planReminderBar
         }
         .navigationTitle("Coaching")
         .task { await refreshCheckInAuthorization() }
+    }
+
+    /// How chatty the coach is UNPROMPTED (#P10 10.4) — proactive messages cost tokens, so this is a
+    /// user dial: off / only important / normal.
+    private var proactiveBar: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
+                    Image(systemName: "bell.badge")
+                        .foregroundStyle(coach.proactiveLevel == .off ? StrandPalette.textTertiary : StrandPalette.accent)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Proactive messages")
+                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                        Text(coach.proactiveLevel.blurb)
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 8)
+                }
+                Picker("Proactive messages", selection: $coach.proactiveLevel) {
+                    ForEach(ProactiveLevel.allCases) { level in Text(level.label).tag(level) }
+                }
+                .pickerStyle(.segmented)
+                .accessibilityLabel("How often the coach messages you first")
+                Text("The coach only reaches out on a real milestone or a run of missed sessions — never chatter. Each message uses your provider (and your tokens).")
+                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 
     private var memorySubpage: some View {

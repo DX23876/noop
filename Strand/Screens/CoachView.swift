@@ -81,7 +81,15 @@ struct CoachView: View {
             case .plan:     CoachPlanView().environmentObject(coach)
             }
         }
-        .task(id: coach.dataConsent) { await coach.startBriefIfNeeded() }
+        .task(id: coach.dataConsent) {
+            // On open: the morning brief (forward), then — sequentially, each with its own once-per-day
+            // or once-per-week lock and a real-signal gate — a proactive nudge and a weekly review (#P10).
+            // In practice the latter two stay silent most days; they only speak on a streak, a run of
+            // skips, or once a week. Sequential so two auto-messages never race the `sending` flag.
+            await coach.startBriefIfNeeded()
+            await coach.runProactiveNudgeIfNeeded()
+            await coach.runWeeklyReviewIfNeeded()
+        }
         // Tapping the daily check-in notification (routed here by RootTabView) runs a real check-in —
         // a look BACK at what happened, not a re-run of the morning brief. Its own once-a-day lock.
         .onReceive(NotificationCenter.default.publisher(for: .noopOpenCoachCheckIn)) { _ in

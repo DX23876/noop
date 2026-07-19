@@ -308,6 +308,13 @@ final class AICoachEngine: ObservableObject {
     @Published var autoSummarize: Bool {
         didSet { UserDefaults.standard.set(autoSummarize, forKey: Self.autoSummarizeKey) }
     }
+    /// How chatty the coach is allowed to be UNPROMPTED (#P10 10.4). A proactive message costs tokens, so
+    /// this is a user dial: `off` silences it, `important` limits it to setbacks + big wins, `normal` also
+    /// celebrates smaller wins and adds a light weekly review. Defaults to `important` — present but
+    /// conservative, never chatty.
+    @Published var proactiveLevel: ProactiveLevel {
+        didSet { UserDefaults.standard.set(proactiveLevel.rawValue, forKey: ProactiveLevel.storageKey) }
+    }
 
     private let repo: Repository
     private let session: URLSession
@@ -343,6 +350,11 @@ final class AICoachEngine: ObservableObject {
     /// its own thing (it reflects on what happened, it doesn't re-brief), so a morning brief must not
     /// suppress the evening check-in, nor the other way round. (T6)
     private static let lastCheckInDayKey = "ai.lastCheckInDay"
+    /// The logical day the last PROACTIVE nudge fired, and the logical day the last WEEKLY review ran —
+    /// separate locks so neither crowds out the brief/check-in, and a nudge lands at most once a day and
+    /// a review at most once a week. (#P10)
+    private static let lastProactiveDayKey = "ai.lastProactiveDay"
+    private static let lastWeeklyReviewDayKey = "ai.lastWeeklyReviewDay"
     /// Backs `openRouterToolCapableModels`. Stored as an array (UserDefaults has no Set type); order is
     /// irrelevant, only membership is ever read.
     private static let orToolCapableKey = "ai.openRouterToolCapableModels"
@@ -545,6 +557,8 @@ final class AICoachEngine: ObservableObject {
         self.memoryModel = UserDefaults.standard.string(forKey: Self.memoryModelKey) ?? ""
         self.cardModel = UserDefaults.standard.string(forKey: Self.cardModelKey) ?? ""
         self.autoSummarize = (UserDefaults.standard.object(forKey: Self.autoSummarizeKey) as? Bool) ?? true
+        self.proactiveLevel = UserDefaults.standard.string(forKey: ProactiveLevel.storageKey)
+            .flatMap(ProactiveLevel.init(rawValue:)) ?? .important
 
         // Restore saved conversations (migrating a legacy single transcript on first run) so history
         // survives a relaunch. Start on the most-recent one, or a fresh empty conversation.
@@ -1657,6 +1671,133 @@ final class AICoachEngine: ObservableObject {
                 messages.append(ChatMessage(role: .assistant, text: "Check-in\n\n" + clean,
                                             toolsUsed: reply.toolsUsed))
                 UserDefaults.standard.set(Repository.logicalDayKey(Date()), forKey: Self.lastCheckInDayKey)
+            }
+        } catch let e as AICoachError {
+            errorText = e.errorDescription
+        } catch {
+            if !Self.isCancellation(error) {
+                errorText = AICoachError.network(error.localizedDescription).errorDescription
+            }
+        }
+    }
+
+    // MARK: - Proactive coaching (#P10) + weekly review
+
+    /// The instruction for an UNPROMPTED nudge, seeded by a detected signal. Milestone = a short, warm
+    /// congratulation; setback = a short, kind "let's make this realistic" — never a scolding, since a
+    /// skip is information, not laziness (the store's tone, held here too).
+    static func proactiveNudgeInstruction(for signal: ProactiveSignal) -> String {
+        switch signal.category {
+        case .milestone:
+            return """
+            The user just hit a real milestone: \(signal.seed). Send ONE short, warm message — \
+            congratulate them specifically on that in a sentence or two, then either ask one light \
+            question or offer one small next step. Not over-the-top, no bullet lists, no lecture.
+            """
+        case .setback:
+            return """
+            The user has fallen behind: \(signal.seed). Send ONE short, kind message. A skip is \
+            information, NEVER laziness — do not scold. Acknowledge it plainly, ask what's getting in the \
+            way, and offer ONE concrete way to make the plan more realistic (smaller, less often, or a \
+            different form). Keep it to a few sentences.
+            """
+        }
+    }
+
+    /// The weekly-review instruction — a short coach's word on the week, not a report (#P10 13.2). Same
+    /// two-branch tool/non-tool split as the brief/check-in.
+    static func weeklyReviewInstruction(toolsActive: Bool) -> String {
+        guard toolsActive else {
+            return """
+            It's the weekly review. Using the range and adherence data above, in a short paragraph or \
+            two: what went well, where I was consistent, where it slipped (skip reasons are information, \
+            never laziness), and ONE thing to adjust next week. Keep it short — a coach's weekly word.
+            """
+        }
+        return """
+        It's the weekly review. Call get_range_report and get_plan_adherence to see the week. Then, in a \
+        short paragraph or two: what went well, where I was consistent, where it slipped (read any skip \
+        reasons as information, never laziness), and ONE thing to adjust next week. No long analysis — a \
+        coach's weekly word, not a report.
+        """
+    }
+
+    /// Fire a proactive nudge at most once per logical day, only when the level allows AND the detector
+    /// finds a real signal in the plan history (10.2/10.3/10.4). Wired to Coach opening, alongside the
+    /// brief — but signals are rare (a streak, or a run of skips), so this stays quiet on ordinary days.
+    func runProactiveNudgeIfNeeded() async {
+        guard proactiveLevel != .off, isConfigured, dataConsent, !sending else { return }
+        let today = Repository.logicalDayKey(Date())
+        guard UserDefaults.standard.string(forKey: Self.lastProactiveDayKey) != today else { return }
+        guard let signal = ProactiveCoach.detect(proposals: CoachPlanStore.shared.proposals,
+                                                  goal: CoachGoalStore.shared.goal,
+                                                  level: proactiveLevel) else { return }
+        let prefix = signal.category == .milestone ? "Nice work" : "A quick nudge"
+        await runSeededTurnCancellable(
+            instruction: Self.proactiveNudgeInstruction(for: signal),
+            prefix: prefix, stampKey: Self.lastProactiveDayKey)
+    }
+
+    /// Fire a weekly review at most once every 7 logical days, only at the `normal` level and only when
+    /// there's plan activity to review (#P10 13.2).
+    func runWeeklyReviewIfNeeded() async {
+        guard proactiveLevel == .normal, isConfigured, dataConsent, !sending else { return }
+        let today = Repository.localDayKey(Date())
+        if let last = UserDefaults.standard.string(forKey: Self.lastWeeklyReviewDayKey),
+           let days = Self.dayKeyDistance(from: last, to: today), days < 7 { return }
+        guard CoachPlanStore.shared.proposals.contains(where: { $0.status.isDecided }) else { return }
+        await runSeededTurnCancellable(
+            instruction: Self.weeklyReviewInstruction(toolsActive: toolCallingActive),
+            prefix: "Weekly review", stampKey: Self.lastWeeklyReviewDayKey)
+    }
+
+    /// Whole-day distance between two "yyyy-MM-dd" keys, or nil if either doesn't parse.
+    static func dayKeyDistance(from: String, to: String) -> Int? {
+        let df = DateFormatter(); df.dateFormat = "yyyy-MM-dd"; df.timeZone = .current
+        guard let a = df.date(from: from), let b = df.date(from: to) else { return nil }
+        return Calendar.current.dateComponents([.day], from: a, to: b).day
+    }
+
+    /// Cancellable runner for the proactive/weekly generated turns — mirrors `runCheckInCancellable` so
+    /// the composer's Stop button cancels them too. Stamps its day key (via the generator) only on a
+    /// non-empty success.
+    private func runSeededTurnCancellable(instruction: String, prefix: String, stampKey: String) async {
+        guard !sending else { return }
+        let task = Task<Void, Never> { [weak self] in
+            await self?.generateSeededTurn(instruction: instruction, prefix: prefix, stampKey: stampKey)
+        }
+        sendTask = task
+        await task.value
+        if sendTask == task { sendTask = nil }
+    }
+
+    /// Shared generation for an unprompted, seeded coach turn (proactive nudge / weekly review): the same
+    /// history-carrying wire `generateCheckIn` builds, with the seed instruction as the trailing turn.
+    /// Stamps `stampKey` with today's logical day only on a genuine, non-empty reply.
+    private func generateSeededTurn(instruction: String, prefix: String, stampKey: String) async {
+        guard isConfigured, dataConsent, !sending else { return }
+        guard let key = resolvedKey else { return }
+        errorText = nil
+        sending = true
+        defer { sending = false }
+
+        await ensureOpenRouterCapabilities()
+
+        let context = toolCallingActive ? toolModeContext : await buildFullContext()
+        let relevant = CoachMemory.shared.relevantBlock(for: instruction, limit: 8)
+        let preamble = [context, relevant]
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            .joined(separator: "\n\n")
+        let trailer = preamble.isEmpty ? instruction : preamble + "\n\n---\n\n" + instruction
+        let history = Self.wirePairs(from: windowedMessages(), context: "")
+        let wire = Self.appendTrailingUserTurn(history, content: trailer)
+        do {
+            let reply = try await callProvider(key: key, messages: wire)
+            let clean = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !clean.isEmpty {
+                messages.append(ChatMessage(role: .assistant, text: prefix + "\n\n" + clean,
+                                            toolsUsed: reply.toolsUsed))
+                UserDefaults.standard.set(Repository.logicalDayKey(Date()), forKey: stampKey)
             }
         } catch let e as AICoachError {
             errorText = e.errorDescription
