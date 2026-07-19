@@ -3986,7 +3986,10 @@ private fun RecoveryDriversSection(
 
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
         // Header row: section title + the SURFACED confidence pill (dot + tier tag) on the right.
-        Row(verticalAlignment = Alignment.Top) {
+        Row(
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(Metrics.space8),
+        ) {
             Box(modifier = Modifier.weight(1f)) {
                 SectionHeader("What shaped it", overline = overline, trailing = "vs your baseline")
             }
