@@ -802,6 +802,10 @@ final class AppModel: ObservableObject {
     /// in DevicesView; finds the real 4.0 reboot frame when the production one is ignored (#235).
     func rebootProbe(_ variant: RebootProbeVariant) { ble.rebootProbe(variant) }
 
+    /// #592 read-only extended-battery opcode probe (Devices → strap menu, Test Centre → Connection gated).
+    func probeExtendedBatteryInfo() { ble.probeExtendedBatteryInfo() }
+    func clearExtendedBatteryProbe() { ble.clearExtendedBatteryProbe() }
+
     /// Drop the current strap and clear bond state so a newly-picked strap model connects fresh
     /// (lets a user with both a WHOOP 4 and a 5/MG switch between them).
     func prepareStrapSwitch() { ble.prepareForModelSwitch() }

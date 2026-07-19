@@ -1432,6 +1432,9 @@ public final class BLEManager: NSObject, ObservableObject {
                 // below. NOT hardware-confirmed on 5/MG — rebootStrap() logs the COMMAND_RESPONSE so a strap
                 // log confirms whether the frame is accepted. User-initiated + confirmation-gated only.
                 || command == .rebootStrap
+                // GET_EXTENDED_BATTERY_INFO (98) over puffin: read-only opcode probe (#592) — a real WHOOP 5
+                // (fw 50.38.1.0) already answered this number. Driven only by probeExtendedBatteryInfo().
+                || command == .getExtendedBatteryInfo
                 || command == .sendHistoricalData || command == .historicalDataResult
                 || command == .setClock || command == .getClock
                 // SET_CONFIG (the R22 deep-stream unlock) is allowed ONLY while the deep-data
@@ -2367,6 +2370,50 @@ public final class BLEManager: NSObject, ObservableObject {
         sendRebootFrame(command: variant.command, payload: variant.payload, probe: variant)
     }
 
+    /// #592: sentinel value of `LiveState.extendedBatteryProbe` between sending the probe and its reply
+    /// landing (or the no-reply timeout). The result dialog shows a "waiting…" line for this value.
+    public static let extendedBatteryProbeWaiting = "__waiting__"
+    private static let extendedBatteryProbeTimeout: TimeInterval = 8
+    private static let extendedBatteryPrevPayloadKey = "noop.592.prevPayload"
+
+    /// #592 opcode probe: send the read-only GET_EXTENDED_BATTERY_INFO(98) and surface the strap's reply
+    /// (raw hex + payload triage + capture diff) on `LiveState.extendedBatteryProbe` for the Devices dialog.
+    /// The number is disputed (an APK decompile reads 87); a battery-shaped payload confirms 98 on this
+    /// firmware. Works on both families (the 4.0 is the discriminating device). User-initiated only.
+    public func probeExtendedBatteryInfo() {
+        guard state.connected else {
+            log("Extended-battery probe (#592) ignored — not connected")
+            return
+        }
+        state.extendedBatteryProbe = BLEManager.extendedBatteryProbeWaiting
+        log("Extended-battery probe (#592): sending GET_EXTENDED_BATTERY_INFO(98, read-only) on family=\(selectedModel.deviceFamily); the raw COMMAND_RESPONSE is surfaced when it lands")
+        send(.getExtendedBatteryInfo)
+        // No-reply timeout: if no COMMAND_RESPONSE for 98 arrives, the silence is itself the verdict (98 not
+        // served → toward the decompile's 87). BLE callbacks + this timer both run on the main queue, so the
+        // guard-then-set is race-free (no CAS needed): a real reply already overwrote the sentinel.
+        DispatchQueue.main.asyncAfter(deadline: .now() + BLEManager.extendedBatteryProbeTimeout) { [weak self] in
+            guard let self, self.state.extendedBatteryProbe == BLEManager.extendedBatteryProbeWaiting else { return }
+            let secs = Int(BLEManager.extendedBatteryProbeTimeout)
+            let msg = "Extended-battery probe (#592): no COMMAND_RESPONSE for opcode 98 within \(secs)s — the strap served no reply. That silence is evidence AGAINST 98 on this firmware (toward the decompile's 87); a gated 87 probe is the follow-up. (If a sync/offload was mid-flight the response can be delayed — retry idle.)"
+            self.log(msg)
+            self.state.extendedBatteryProbe = msg
+        }
+    }
+
+    /// Clear the #592 probe result (Devices dialog dismissed). Twin of Android clearExtendedBatteryProbe().
+    public func clearExtendedBatteryProbe() { state.extendedBatteryProbe = nil }
+
+    /// #592: format a GET_EXTENDED_BATTERY_INFO COMMAND_RESPONSE and publish it, diffing against the
+    /// persisted previous payload. Called from the inbound frame handler for both families.
+    private func handleExtendedBatteryProbeResponse(_ frame: [UInt8], isWhoop5: Bool) {
+        let prev = UserDefaults.standard.string(forKey: BLEManager.extendedBatteryPrevPayloadKey)
+        let (text, payHex) = ExtendedBatteryProbe.format(
+            frame: frame, cmdOff: isWhoop5 ? 10 : 6, isWhoop5: isWhoop5, prevPayloadHex: prev)
+        log("Extended-battery probe (#592):\n\(text)")
+        state.extendedBatteryProbe = text
+        if let payHex { UserDefaults.standard.set(payHex, forKey: BLEManager.extendedBatteryPrevPayloadKey) }
+    }
+
     /// Shared reboot send + debug trail + watchdog, used by both the production `rebootStrap()` and the
     /// 4.0 `rebootProbe(_:)`. `probe == nil` is the normal restart; a non-nil variant is a probe attempt
     /// (its `logTag` is stamped first so the strap log correlates the attempt with what the strap did).
@@ -3213,7 +3260,9 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         state.connected = false
         state.encryptedBond = false   // cleared with didBond; next session must re-prove the bond (#69)
         state.charging = nil          // a stale charging flag must not outlive the link
+        state.batteryMv = nil         // #592: a stale pack voltage must not outlive the link
         state.strapFirmware = nil     // a stale firmware version must not outlive the link
+        state.extendedBatteryProbe = nil  // #592: drop a stale probe result on disconnect
         state.clearBiometrics()       // and a stale HR / R-R must not outlive the link either
         state.liveFeedActive = false  // a drop while Live is open must not leave a stale "Stop live feed"
         didBond = false
@@ -3871,6 +3920,11 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                 // the router + collector re-checks the invariant).
                 let parsed = parseFrame(frame, family: .whoop4)
                 router.handle(parsed: parsed, frame: frame)       // live/UI path
+                // #592: the read-only extended-battery probe's COMMAND_RESPONSE — format + publish it for the
+                // Devices dialog (raw hex + payload triage + capture diff). Sibling of the #451 dump below.
+                if frame.count > 6, frame[6] == WhoopCommand.getExtendedBatteryInfo.rawValue {
+                    handleExtendedBatteryProbeResponse(frame, isWhoop5: false)
+                }
                 if frame.count > 6, frame[6] == WhoopCommand.getDataRange.rawValue {
                     // #451: the decoded "newest" can latch a stale/wrong-epoch field (claypilat saw 2024 when
                     // the real newest was 2026). To tell a genuinely-stale strap apart from a frame-alignment
@@ -3984,6 +4038,11 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                         continue
                     }
                     router.handle(frame: frame)
+                    // #592: a 5/MG extended-battery probe COMMAND_RESPONSE (puffin envelope: type @8, cmd
+                    // @10). Format + publish it for the Devices dialog, exactly like the 4.0 path above.
+                    if frame.count > 10, frame[8] == 0x24, frame[10] == WhoopCommand.getExtendedBatteryInfo.rawValue {
+                        handleExtendedBatteryProbeResponse(frame, isWhoop5: true)
+                    }
                     // NOTE: we deliberately do NOT ingest live 5/MG REALTIME_DATA into the Collector
                     // here. For a 5/MG the standard 0x2A37 Heart-Rate profile is already the RELIABLE,
                     // continuously-persisted live source (see didUpdateValueFor 0x2A37 → ingestStandardHR);
