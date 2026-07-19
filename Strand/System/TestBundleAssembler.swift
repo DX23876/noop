@@ -14,6 +14,15 @@ enum TestBundleAssembler {
     /// The redaction stamp written into meta.json so a maintainer knows the whole-bundle scrub ran.
     static let redactionVersion = "v2"
 
+    /// The bundle files that may be trimmed to fit the cap (newest-tail kept). The strap-log tail and
+    /// meta.json are already bounded, so only these raw research streams can blow the budget: the WHOOP
+    /// frame capture plus the Oura ring's Tier-B JSONL sidecars (raw notifications / IBI-HR / activity MET).
+    /// Everything NOT listed here is kept whole and its bytes are reserved before the trimmable group is
+    /// given the remainder. These are the NORMALIZED entry names (the ring id is dropped from the filename).
+    static let trimmableNames: Set<String> = [
+        "raw-capture.jsonl", "oura-raw.jsonl", "oura-ibihr.jsonl", "oura-activity.jsonl",
+    ]
+
     /// Re-run the redaction sink over every entry. Text entries are decoded as UTF-8, scrubbed via the same
     /// LiveState.redactPii used by the live sink, and re-encoded. A non-UTF-8 entry (none today) passes
     /// through untouched rather than risk corrupting binary. meta.json and report.txt have no PII shapes so
@@ -27,24 +36,32 @@ enum TestBundleAssembler {
     }
 
     /// Hard cap the bundle at `capBytes` (20 MB default, under GitHub's 25 MB; spec section 5.4). The
-    /// strap-log tail is already bounded, so only raw-capture can exceed. We keep the MOST-RECENT tail of
-    /// raw-capture.jsonl (newest data is the most diagnostic) and trim from the front. Returns the capped
-    /// entries plus whether any truncation happened, which the caller writes to meta.truncated.
+    /// strap-log tail and meta.json are already bounded, so only the `trimmableNames` research streams can
+    /// exceed. We reserve the whole size of every non-trimmable file, then split the remaining budget across
+    /// the trimmable files IN PROPORTION to their size, keeping the MOST-RECENT tail of each (newest data is
+    /// the most diagnostic) and trimming from the front. With a single trimmable file this is identical to
+    /// the prior raw-capture-only behaviour (its share is the whole remainder). Returns the capped entries
+    /// plus whether any truncation happened, which the caller writes to meta.truncated.
     static func capEntries(_ entries: [FileExport.BundleEntry],
                            capBytes: Int = 20 * 1024 * 1024) -> (entries: [FileExport.BundleEntry], truncated: Bool) {
         let total = entries.reduce(0) { $0 + $1.data.count }
         guard total > capBytes else { return (entries, false) }
-        // Budget for everything that is NOT raw-capture (kept whole), then give raw-capture the remainder.
-        let rawName = "raw-capture.jsonl"
-        let nonRaw = entries.filter { $0.name != rawName }.reduce(0) { $0 + $1.data.count }
-        let budget = max(0, capBytes - nonRaw)
+        // Reserve the non-trimmable files (kept whole), then share the remainder across the trimmable ones.
+        let nonTrimmable = entries.filter { !trimmableNames.contains($0.name) }.reduce(0) { $0 + $1.data.count }
+        let budget = max(0, capBytes - nonTrimmable)
+        let trimmableTotal = entries.filter { trimmableNames.contains($0.name) }.reduce(0) { $0 + $1.data.count }
         var truncated = false
         let capped = entries.map { entry -> FileExport.BundleEntry in
-            guard entry.name == rawName, entry.data.count > budget else { return entry }
+            guard trimmableNames.contains(entry.name) else { return entry }
+            // Each trimmable file gets a byte share proportional to its size (integer floor keeps the sum
+            // under budget, so the bundle never breaches the cap). Kept whole if already within its share.
+            let share = trimmableTotal > 0
+                ? Int(Double(budget) * Double(entry.data.count) / Double(trimmableTotal))
+                : 0
+            guard entry.data.count > share else { return entry }
             truncated = true
-            // Keep the tail (most recent): the last `budget` bytes.
-            let tail = entry.data.suffix(budget)
-            return FileExport.BundleEntry(name: entry.name, data: Data(tail))
+            // Keep the tail (most recent): the last `share` bytes.
+            return FileExport.BundleEntry(name: entry.name, data: Data(entry.data.suffix(share)))
         }
         return (capped, truncated)
     }
@@ -130,12 +147,22 @@ enum TestBundleAssembler {
         let crash: FileExport.BundleEntry? = crashLogURL()
             .flatMap { fileEntry(at: $0, name: "last-crash.txt") }
 
-        // 2. Redact the TEXT files (report.txt, raw-capture.jsonl, last-crash.txt), then cap. The screenshot
+        // 1e. Oura ring diagnostics: the Tier-B JSONL sidecars (raw notifications / IBI-HR / activity MET)
+        //     the ring writes to <App Support>/OpenWhoop/Diagnostics whenever it connects. Attached WHEN
+        //     PRESENT — exactly like raw-capture.jsonl, NOT behind a test domain: they cut across Sleep /
+        //     HRV / Connection / Sources, and file presence is the honest gate (no ring used → no files →
+        //     nothing attached, so an Experimental ring needs no separate brand check here). They are TEXT
+        //     (JSON lines) whose only PII is the ring UUID inside each line, which the redactEntries pass
+        //     below masks to <device>; the ENTRY name is normalized (id dropped) since redaction never
+        //     touches names. Trimmed to the cap alongside raw-capture via `trimmableNames`.
+        let ouraDiagnostics = ouraDiagnosticEntries()
+
+        // 2. Redact the TEXT files (report.txt, raw-capture.jsonl, last-crash.txt, oura-*.jsonl), then cap. The screenshot
         //    is included in the cap input (NOT the redact input) so its bytes COUNT against the 20 MB cap:
         //    capEntries budgets raw-capture as capBytes - (everything else), so a large/retina PNG shrinks
         //    the raw-capture tail rather than breaching the cap. Only raw-capture is trimmed; report.txt and
         //    last-crash are bounded and the PNG is kept whole.
-        let textEntries = [reportEntry] + (rawCapture.map { [$0] } ?? []) + (crash.map { [$0] } ?? [])
+        let textEntries = [reportEntry] + (rawCapture.map { [$0] } ?? []) + (crash.map { [$0] } ?? []) + ouraDiagnostics
         let redacted = redactEntries(textEntries)
         let (capped, truncated) = capEntries(redacted + (shot.map { [$0] } ?? []))
         var entries = capped
@@ -221,6 +248,49 @@ enum TestBundleAssembler {
         guard FileManager.default.fileExists(atPath: url.path),
               let data = try? Data(contentsOf: url) else { return nil }
         return FileExport.BundleEntry(name: name, data: data)
+    }
+
+    /// The `OpenWhoop/Diagnostics` directory the Oura dumps write into, mirroring the dumps' own resolver
+    /// (`OuraRawDump.resolveURL` et al.): Application Support + `OpenWhoop/Diagnostics`. Read-only — never
+    /// creates the directory (a bundle build must not have side effects), so it returns nil when nothing has
+    /// ever been captured. iOS and macOS both resolve Application Support here.
+    static func ouraDiagnosticsDir() -> URL? {
+        guard let base = try? FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask,
+                                                      appropriateFor: nil, create: false) else { return nil }
+        return base.appendingPathComponent("OpenWhoop/Diagnostics", isDirectory: true)
+    }
+
+    /// Map a diagnostics filename to a NORMALIZED bundle entry name that drops the ring id, or nil when the
+    /// file is not one of the three Oura sidecars. `oura-<type>-<ringId>.jsonl` → `oura-<type>.jsonl`, which
+    /// (a) keeps the ring id out of the bundle's filenames (redaction scrubs content, never names) and
+    /// (b) lands on the `trimmableNames` set so the cap can trim it. Pure/string-only for unit testing.
+    static func normalizedOuraEntryName(forFile filename: String) -> String? {
+        for kind in ["raw", "ibihr", "activity"] {
+            if filename.hasPrefix("oura-\(kind)-"), filename.hasSuffix(".jsonl") {
+                return "oura-\(kind).jsonl"
+            }
+        }
+        return nil
+    }
+
+    /// Gather the Oura ring's Tier-B JSONL sidecars as bundle entries, normalized names and RAW bytes (the
+    /// caller redacts + caps). Enumerates the Diagnostics dir rather than reconstructing per-ring filenames,
+    /// so it needs no active-ring id and picks up whatever was captured. If two rings produced the same kind
+    /// (rare), the entry names would collide; we keep the LARGEST file per normalized name (the fuller
+    /// capture is the more useful one) so the bundle never carries duplicate names.
+    static func ouraDiagnosticEntries() -> [FileExport.BundleEntry] {
+        guard let dir = ouraDiagnosticsDir(),
+              let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)
+        else { return [] }
+        var byName: [String: FileExport.BundleEntry] = [:]
+        for url in files.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
+            guard let name = normalizedOuraEntryName(forFile: url.lastPathComponent),
+                  let entry = fileEntry(at: url, name: name) else { continue }
+            if let existing = byName[name], existing.data.count >= entry.data.count { continue }
+            byName[name] = entry
+        }
+        // Stable order (raw, ibihr, activity) so the bundle listing is deterministic.
+        return ["oura-raw.jsonl", "oura-ibihr.jsonl", "oura-activity.jsonl"].compactMap { byName[$0] }
     }
 
     /// The on-disk path a crash report would live at, when a crash handler is wired. There is no producer
