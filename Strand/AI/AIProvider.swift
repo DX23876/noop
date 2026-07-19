@@ -21,18 +21,23 @@ enum AIProvider: String, CaseIterable, Identifiable {
         }
     }
 
+    /// The default CHAT (coaching) model — the one that runs the actual conversation. Deliberately a
+    /// STRONG model per provider, not a mini/flash one (#P4 5.6): the coach's whole value is the quality
+    /// of its reasoning over the user's data, so a weak default would make the first experience feel bad
+    /// for no reason the user chose. Cheap models have their own role (`cheapModel`, summary/card work).
     var defaultModel: String {
         switch self {
-        case .openAI:     return "gpt-4o-mini"
+        case .openAI:     return "gpt-4o"
         case .anthropic:  return "claude-sonnet-4-6"
-        case .gemini:     return "gemini-flash-latest"   // stable alias → current Flash, no version churn (#400)
+        case .gemini:     return "gemini-pro-latest"   // stable alias → current Pro, no version churn (#400)
         case .openRouter: return "anthropic/claude-sonnet-4.6"
         case .custom:     return ""   // the user picks the model their server serves
         }
     }
 
-    /// A cheap, fast model for background memory maintenance (summarising chats, distilling facts) — work
-    /// that shouldn't burn the pricier coaching model. Empty for Custom (falls back to the user's model).
+    /// A cheap, fast model for BACKGROUND work — summarising chats into memory, and short one-off card
+    /// analyses — that shouldn't burn the pricier coaching model. This is the default for the `.summary`
+    /// and `.cardAnalysis` roles (see `CoachModelRole`). Empty for Custom (falls back to the user's model).
     var cheapModel: String {
         switch self {
         case .openAI:     return "gpt-4o-mini"
@@ -40,6 +45,16 @@ enum AIProvider: String, CaseIterable, Identifiable {
         case .gemini:     return "gemini-flash-lite-latest"
         case .openRouter: return "openai/gpt-4o-mini"
         case .custom:     return ""
+        }
+    }
+
+    /// The built-in default model for a given ROLE. `.chat` gets the strong `defaultModel`; the cheaper
+    /// background roles (`.summary`, `.cardAnalysis`) share `cheapModel`. The engine's `model(for:)`
+    /// resolver layers the user's own per-role override (and a chat-model fallback) on top of this.
+    func defaultModel(for role: CoachModelRole) -> String {
+        switch role {
+        case .chat:                     return defaultModel
+        case .summary, .cardAnalysis:   return cheapModel
         }
     }
 
@@ -191,6 +206,40 @@ enum AIProvider: String, CaseIterable, Identifiable {
         case a == 192 && b == 168: return true           // 192.168.0.0/16
         case a == 169 && b == 254: return true           // 169.254.0.0/16 link-local
         default: return false
+        }
+    }
+}
+
+// MARK: - Model roles
+
+/// Which job a model does for the coach. The coach isn't one model — it's a few, matched to the work:
+///
+///  - `.chat` — the actual coaching conversation. Wants the strongest model (see `defaultModel`).
+///  - `.summary` — distilling a finished chat into a short memory the coach can recall later. Runs in
+///    the background, needs far less model quality than a live conversation, so it defaults to a cheap
+///    one. (This is the role the pre-existing "memory model" setting configures.)
+///  - `.cardAnalysis` — a short, cautious read of ONE health card (opened from that card). Also a small,
+///    bounded job, so it too defaults to the cheap model. (Consumed by the card-AI feature.)
+///
+/// Splitting these lets a user spend on the conversation while keeping the background/quick work cheap —
+/// a concrete cost lever, not a preference. The engine's `model(for:)` resolves each role to the user's
+/// own override if set, else the provider's per-role default, else the chat model (so a role is never
+/// left pointing at nothing).
+enum CoachModelRole: String, CaseIterable, Identifiable {
+    case chat
+    case summary
+    case cardAnalysis
+
+    var id: String { rawValue }
+
+    /// UserDefaults key holding the user's override for this role, or nil for `.chat` (whose model is the
+    /// primary `ai.model` selection, not a separate override). `.summary` reuses the pre-existing
+    /// `ai.memoryModel` key so no user loses the memory model they already configured.
+    var overrideDefaultsKey: String? {
+        switch self {
+        case .chat:         return nil
+        case .summary:      return "ai.memoryModel"
+        case .cardAnalysis: return "ai.cardModel"
         }
     }
 }

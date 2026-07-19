@@ -307,10 +307,70 @@ struct CoachSettingsView: View {
     private var connectionSubpage: some View {
         subpageScaffold {
             providerConfigFields
+            backgroundModelsSection
             tokenUsageBar
             disconnectRow
         }
         .navigationTitle("Connection & model")
+    }
+
+    /// The cheaper models the coach uses for BACKGROUND work, gathered in one place next to the coaching
+    /// model (#P5 5.2–5.4 / 6.1): a `.summary` model (distilling finished chats into memory) and a
+    /// `.cardAnalysis` model (a short read of one health card). Both default to the provider's cheap
+    /// model when left blank, so a user who ignores this pays nothing extra and nothing breaks — the
+    /// placeholder shows exactly which model that fallback resolves to.
+    @ViewBuilder
+    private var backgroundModelsSection: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Background models")
+                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                    Text("Cheaper models for background jobs — leave blank to use \(coach.provider.displayName)'s small model. Keeps the pricey coaching model for the actual conversation.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                roleModelField(
+                    title: "Chat summaries",
+                    caption: "Distils a finished chat so the coach can recall it later.",
+                    text: $coach.memoryModel,
+                    accessibility: "Chat-summary model id"
+                )
+                roleModelField(
+                    title: "Card analyses",
+                    caption: "A short read when you ask the coach about one health card.",
+                    text: $coach.cardModel,
+                    accessibility: "Card-analysis model id"
+                )
+            }
+        }
+    }
+
+    /// One labelled model-id field for a background role. Empty = "use the provider default", shown as the
+    /// grey placeholder (the actual cheap model id), so the field distinguishes "unset (default)" from a
+    /// deliberate override without a separate control.
+    private func roleModelField(title: LocalizedStringKey, caption: LocalizedStringKey,
+                                text: Binding<String>, accessibility: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title).strandOverline()
+            TextField(coach.provider.cheapModel.isEmpty ? "Same as coaching model" : coach.provider.cheapModel,
+                      text: text)
+                .textFieldStyle(.plain)
+                .font(StrandFont.body)
+                .foregroundStyle(StrandPalette.textPrimary)
+                .disableAutocorrection(true)
+                #if os(iOS)
+                .textInputAutocapitalization(.never)
+                #endif
+                .padding(.horizontal, 12).padding(.vertical, 9)
+                .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous)
+                    .strokeBorder(StrandPalette.hairline, lineWidth: 1))
+                .accessibilityLabel(accessibility)
+            Text(caption)
+                .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     /// `goalBar` already carries its own sheets for the goal editor and Journey — unchanged, just relocated.
@@ -468,23 +528,9 @@ struct CoachSettingsView: View {
                         .accessibilityLabel("Summarise past chats automatically")
                 }
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Memory model").strandOverline()
-                    TextField(coach.provider.cheapModel.isEmpty ? "Same as coaching model" : coach.provider.cheapModel,
-                              text: $coach.memoryModel)
-                        .textFieldStyle(.plain)
-                        .font(StrandFont.body)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                        .disableAutocorrection(true)
-                        .padding(.horizontal, 12).padding(.vertical, 9)
-                        .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous)
-                            .strokeBorder(StrandPalette.hairline, lineWidth: 1))
-                        .accessibilityLabel("Memory model id")
-                    Text("The cheap, fast model used only for memory upkeep — keep it small to stay cheap.")
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                Text("The model this uses lives under Connection & model → Background models.")
+                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 HStack {
                     Spacer()
@@ -1324,7 +1370,7 @@ struct CoachSettingsView: View {
     private var modelSelector: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text("Model").strandOverline()
+                Text("Coaching model").strandOverline()
                 Spacer()
                 Button {
                     Task { await coach.refreshModels() }

@@ -293,8 +293,15 @@ final class AICoachEngine: ObservableObject {
     /// The cheap/fast model used for background memory maintenance (summarising chats + distilling
     /// facts), kept separate from the coaching `model` so that work never burns the pricier model.
     /// Defaults to `provider.cheapModel`; editable in settings. Empty falls back to the coaching model.
+    /// This is the `.summary` role's override (see `CoachModelRole` / `model(for:)`).
     @Published var memoryModel: String {
         didSet { UserDefaults.standard.set(memoryModel, forKey: Self.memoryModelKey) }
+    }
+    /// The cheap/fast model used for short one-off CARD analyses (the `.cardAnalysis` role). Empty →
+    /// falls back to `provider.cheapModel`, then the coaching model. Configured in settings; consumed by
+    /// the card-AI feature. Separate from `memoryModel` so the two background jobs can be tuned apart.
+    @Published var cardModel: String {
+        didSet { UserDefaults.standard.set(cardModel, forKey: Self.cardModelKey) }
     }
     /// Whether the coach auto-summarises a conversation (via the cheap model) when the user moves on from
     /// it, feeding cross-conversation memory. ON by default; gated behind `dataConsent` at run time.
@@ -322,7 +329,11 @@ final class AICoachEngine: ObservableObject {
     /// this flag existed reads as still connected — no migration step needed.
     private static let explicitlyDisconnectedKey = "ai.explicitlyDisconnected"
     private static let onDeviceSignalsKey = "ai.includeOnDeviceSignals"
-    private static let memoryModelKey = "ai.memoryModel"
+    /// `.summary` and `.cardAnalysis` role override keys — kept in sync with `CoachModelRole`'s own
+    /// `overrideDefaultsKey` (the single source of truth), used here only for the `init` restore + the
+    /// `didSet` writes above. `memoryModelKey` pre-dates the role system, hence the name.
+    private static let memoryModelKey = CoachModelRole.summary.overrideDefaultsKey!
+    private static let cardModelKey = CoachModelRole.cardAnalysis.overrideDefaultsKey!
     private static let autoSummarizeKey = "ai.autoSummarize"
     /// The logical day (rolls 04:00, same as the rest of the app) the last daily brief was generated on
     /// for ANY conversation — so at most one auto-brief lands per day, and a conversation reopened after
@@ -527,9 +538,12 @@ final class AICoachEngine: ObservableObject {
         self.customConnected = UserDefaults.standard.bool(forKey: Self.customConnectedKey)
         self.explicitlyDisconnected = UserDefaults.standard.bool(forKey: Self.explicitlyDisconnectedKey)
         self.includeOnDeviceSignals = UserDefaults.standard.bool(forKey: Self.onDeviceSignalsKey)
-        // Memory maintenance: cheap model (default per provider) + auto-summarise (default ON).
-        let storedMemoryModel = UserDefaults.standard.string(forKey: Self.memoryModelKey)
-        self.memoryModel = (storedMemoryModel?.isEmpty == false) ? storedMemoryModel! : storedProvider.cheapModel
+        // Role model OVERRIDES: restore the user's explicit choice, or empty. Empty is the honest
+        // default — `model(for:)` then resolves it to the provider's cheap model DYNAMICALLY, so it
+        // always matches the current provider (an earlier version baked the cheap model in at init, which
+        // went stale across a provider switch). auto-summarise defaults ON.
+        self.memoryModel = UserDefaults.standard.string(forKey: Self.memoryModelKey) ?? ""
+        self.cardModel = UserDefaults.standard.string(forKey: Self.cardModelKey) ?? ""
         self.autoSummarize = (UserDefaults.standard.object(forKey: Self.autoSummarizeKey) as? Bool) ?? true
 
         // Restore saved conversations (migrating a legacy single transcript on first run) so history
@@ -2222,17 +2236,38 @@ final class AICoachEngine: ObservableObject {
         return lines.joined(separator: "\n")
     }
 
+    // MARK: - Model roles
+
+    /// The model id to use for a given ROLE (`CoachModelRole`), resolved in priority order:
+    ///   1. the user's explicit per-role override, if any (`.chat` → `model`; others → their setting);
+    ///   2. the provider's built-in default for that role (strong for chat, cheap for the rest);
+    ///   3. the resolved CHAT model, so a role is never left pointing at an empty string.
+    /// Single resolution point so every caller (chat send, summary upkeep, card analysis) agrees, and so
+    /// the fallback chain can't drift between them.
+    func model(for role: CoachModelRole) -> String {
+        func firstNonEmpty(_ values: String...) -> String {
+            values.first(where: { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) ?? ""
+        }
+        switch role {
+        case .chat:
+            return firstNonEmpty(model, provider.defaultModel)
+        case .summary:
+            return firstNonEmpty(memoryModel, provider.cheapModel, model, provider.defaultModel)
+        case .cardAnalysis:
+            return firstNonEmpty(cardModel, provider.cheapModel, model, provider.defaultModel)
+        }
+    }
+
     // MARK: - Memory maintenance support (cheap-model one-off calls)
 
-    /// A one-off completion via the CHEAP memory model (falls back to the coaching model / provider
-    /// default when unset). Internal so `MemoryMaintainer` can drive summaries without touching the
-    /// private key. Returns nil on ANY failure — memory upkeep is best-effort and never surfaces an error.
-    func cheapComplete(system: String, user: String) async -> String? {
+    /// A one-off completion via the CHEAP model for a background role (summary upkeep or a card analysis).
+    /// Internal so `MemoryMaintainer` (and the card-AI feature) can drive short calls without touching the
+    /// private key. Returns nil on ANY failure — this work is best-effort and never surfaces an error.
+    func cheapComplete(system: String, user: String, role: CoachModelRole = .summary) async -> String? {
         guard let key = resolvedKey else { return nil }
-        let m = !memoryModel.isEmpty ? memoryModel : (!model.isEmpty ? model : provider.defaultModel)
         do {
             return try await provider.client.send(
-                key: key, model: m, systemPrompt: system,
+                key: key, model: model(for: role), systemPrompt: system,
                 messages: [(role: .user, content: user)], session: session
             )
         } catch { return nil }
