@@ -76,7 +76,6 @@
     <string name="trends_no_readings_body">使用上方箭头切换到其他周次查看健康回顾。</string>
     <string name="trends_this_week">本周</string>
     <string name="trends_last_week">上周</string>
-    <string name="trends_weeks_ago">%1$d 周前</string>
     <string name="trends_previous_week">上一周</string>
     <string name="trends_next_week">下一周</string>
     <string name="trends_daily_signals">每日体征</string>
@@ -107,7 +106,6 @@
     <string name="explore_delta_vs_prev">与上期差值</string>
     <string name="explore_summary">总结</string>
     <string name="explore_over_visible_window">当前可视窗口内</string>
-    <string name="explore_n_days">%1$d 天</string>
     <string name="explore_n_pts">%1$d 个数据点</string>
     <string name="explore_vs_prev_window">对比上个 %1$s</string>
     <string name="explore_all_history">全部历史</string>
@@ -842,7 +840,6 @@
     <string name="l10n_today_screen_calibratingnights_of_baselines_minnightsseed_3b76e55c">%1$s / %2$s 晚</string>
     <string name="l10n_today_screen_choose_which_cards_show_on_today_f79942e1">选择在“今日”面板显示的卡片，点击箭头调整顺序。</string>
     <string name="l10n_today_screen_close_bbfa773e">关闭</string>
-    <string name="l10n_today_screen_customise_b378dddc">自定义面板</string>
     <string name="l10n_today_screen_customise_your_cards_2428d761">自定义您的卡片布局</string>
     <string name="l10n_today_screen_dismiss_70afe9ef">清除</string>
     <string name="l10n_today_screen_done_e9b450d1">完成</string>
@@ -1595,11 +1592,7 @@
     <string name="l10n_weekly_digest_card_sleep_steadiness_rest_varied_fmt1_sd_44997f21">睡眠稳定性：各晚的恢复(Rest)得分上下浮动约 ±%1$s 分。</string>
     <string name="l10n_wheel_picker_accessibility_tap_to_choose_1314c4ed">%1$s。点击进行选择。</string>
     <string name="l10n_workouts_screen_minutes_total_100_roundtoint_5bb7c6d8">%1$s%%</string>
-    <string name="intelligence_day_count">%1$d 天</string>
-    <string name="intelligence_days_count">%1$d 天</string>
     <string name="intervals_range_step">%1$s – %2$s%3$s · 步长 %4$d</string>
-    <string name="lab_book_reading_count">%1$d 次记录 · 你添加的条目</string>
-    <string name="lab_book_readings_count">%1$d 次记录 · 你添加的条目</string>
     <string name="live_workout_saved_summary">✓ 已保存 %1$s · %2$s</string>
     <string name="skin_temp_reason_summary">%1$s: %2$s</string>
     <string name="stress_score_accessibility">压力值 %1$s / 3，%2$s</string>
