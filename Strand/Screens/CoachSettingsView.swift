@@ -348,8 +348,8 @@ struct CoachSettingsView: View {
         }
     }
 
-    /// One labelled model-id field for a background role. Empty = "use the provider default", shown as the
-    /// grey placeholder (the actual cheap model id), so the field distinguishes "unset (default)" from a
+    /// One labelled model-id field for a background role. Empty = use the provider default, shown as the
+    /// grey placeholder (the actual cheap model id), so the field distinguishes unset (default) from a
     /// deliberate override without a separate control.
     private func roleModelField(title: LocalizedStringKey, caption: LocalizedStringKey,
                                 text: Binding<String>, accessibility: String) -> some View {
@@ -473,7 +473,7 @@ struct CoachSettingsView: View {
         .navigationTitle("Privacy & data")
     }
 
-    /// Entry into the full "how the coach works / what's shared" page (#P6 6.2). A row, not buried text,
+    /// Entry into the full how-the-coach-works / what's-shared page (#P6 6.2). A row, not buried text,
     /// so the transparency story is one tap from where consent is granted.
     private var howItWorksRow: some View {
         Button { showCoachInfo = true } label: {
@@ -560,7 +560,7 @@ struct CoachSettingsView: View {
 
     #if os(iOS)
     /// Pin the floating button to one of four chrome-clear corners, or lock it where it is. Four tappable
-    /// icons rather than a Picker: a segmented Picker can't show "no corner selected" for a dragged button.
+    /// icons rather than a Picker: a segmented Picker can't show a no-corner-selected state for a dragged button.
     @ViewBuilder private var buttonPlacementControls: some View {
         let corner = CoachButtonCorner(rawValue: fabCornerRaw) ?? .bottomTrailing
         VStack(alignment: .leading, spacing: 8) {
@@ -695,9 +695,11 @@ struct CoachSettingsView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel("Last question token usage. "
-                                    + CoachUsageLog.summaryLine(for: turn) + ". "
-                                    + CoachUsageLog.cacheVerdict(for: turn))
+                // `+` string concatenation types the whole thing as plain `String`, which
+                // `.accessibilityLabel(String)` never runs through the catalog — String(localized:)
+                // interpolation is what actually localizes the static wrapper text around the two
+                // dynamic, already-computed pieces.
+                .accessibilityLabel(String(localized: "Last question token usage. \(CoachUsageLog.summaryLine(for: turn)). \(CoachUsageLog.cacheVerdict(for: turn))"))
             }
         }
     }
@@ -843,7 +845,7 @@ struct CoachSettingsView: View {
     /// A plain opt-in toggle, NOT a `CoachCheckIn.setEnabled` case: no notification authorization is
     /// involved (the generation happens on open, foreground), so there's no `.denied` outcome and no
     /// async gate. Gated on a configured coach with data consent, so the card never has to render a
-    /// "no key" state.
+    /// no-key state.
     private var morningSuggestionBar: some View {
         NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
             VStack(alignment: .leading, spacing: 8) {
@@ -929,8 +931,8 @@ struct CoachSettingsView: View {
         }
     }
 
-    /// Opt-in local reminder for a committed, timed plan session — "a plan with a time is a plan you
-    /// keep", made real. On-device only; no AI call fires it, and no notification exists until a session
+    /// Opt-in local reminder for a committed, timed plan session — a plan with a time is a plan you
+    /// keep, made real. On-device only; no AI call fires it, and no notification exists until a session
     /// actually has a time (`PlanReminder.schedule` no-ops otherwise).
     private var planReminderBar: some View {
         NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
@@ -1449,7 +1451,7 @@ struct CoachSettingsView: View {
         }
     }
 
-    /// A first-time, non-technical user hits a wall at "paste your API key" with no idea where one comes
+    /// A first-time, non-technical user hits a wall at paste-your-API-key with no idea where one comes
     /// from. One static link to the provider's own key page — no telemetry, no in-app browser, just
     /// `Link` opening the system browser. Nothing to show for Custom: a self-hosted server has no key
     /// vendor of its own.

@@ -57,7 +57,12 @@ struct ModelSearchSheet: View {
                                 }
                             }
                         }
-                        .accessibilityLabel(candidate == selection ? "\(candidate), selected" : candidate)
+                        // `candidate` is a technical model id (not translated); mixing it with a plain
+                        // `candidate` branch typed the whole ternary as `String`, which never localizes
+                        // even the "selected" suffix — String(localized:) fixes that while leaving the
+                        // id itself exactly as typed.
+                        .accessibilityLabel(candidate == selection
+                                            ? String(localized: "\(candidate), selected") : candidate)
                     }
                 }
             }
