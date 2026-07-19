@@ -323,6 +323,12 @@ struct RootView: View {
             }
             if dest != nil { router.requestedDestination = nil }
         }
+        // "Ask coach" tapped on a metric card (#P11): select the Coach pane. CoachView then consumes the
+        // engine's pending card context on appear (or via the same notification if it's already up) and
+        // gives a short read of that metric.
+        .onReceive(NotificationCenter.default.publisher(for: .noopOpenCoachCard)) { _ in
+            selection = .coach
+        }
         // Whenever the selection moves (a cross-screen route, or restoring a deep destination), make sure
         // the group that owns it is expanded so the selected row is actually visible, not hidden inside a
         // collapsed section (S1). User-driven collapses of OTHER groups are preserved.

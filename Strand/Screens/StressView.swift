@@ -29,6 +29,7 @@ import WhoopStore
 
 struct StressView: View {
     @EnvironmentObject var repo: Repository
+    @EnvironmentObject private var coach: AICoachEngine
 
     /// The stored 0–3 stress series ("my-whoop"), oldest→newest. Empty → derive.
     @State private var storedSeries: [(day: String, value: Double)] = []
@@ -68,7 +69,10 @@ struct StressView: View {
                        // The day-of-sky liquid backdrop, matching Today / Health / Live / Sleep / Trends: a
                        // fixed, full-bleed time-of-day sky behind the scroll content (does not scroll), so the
                        // Stress screen sits in the same liquid atmosphere as every other tab.
-                       topBackground: liquidScaffoldSky()) {
+                       topBackground: liquidScaffoldSky(),
+                       // Card-AI (#P11): "Ask coach" in the header, fed this screen's own read (today's
+                       // 0–3 stress, RHR/HRV vs baseline, the intraday peak). Only shows once connected.
+                       trailing: { if let ctx = coachCardContext { CoachCardButton(context: ctx) } }) {
             if let model {
                 content(model)
             } else if !loaded {
@@ -80,6 +84,37 @@ struct StressView: View {
         .onAppear { rebuildModelIfNeeded() }
         .onChangeCompat(of: repo.days) { _ in rebuildModelIfNeeded() }
         .task(id: repo.refreshSeq) { await load() }
+    }
+
+    /// The card's own context for the coach (#P11): today's 0–3 stress and band, RHR/HRV against the
+    /// 30-day baseline, and — when the day has enough intraday HR — the hourly peak/sustained-high read.
+    /// Built from data this screen already loaded, in plain English (the coach's context is English, like
+    /// every other block it reads). Nil until the model exists, which also hides the button until then.
+    private var coachCardContext: CoachCardContext? {
+        guard let model else { return nil }
+        var lines = [String(format: "Today's stress: %.1f of 3 (%@).", model.score, model.band.title)]
+        if let rhr = model.rhrToday {
+            var l = "Resting HR \(rhr) bpm"
+            if let d = model.rhrDelta { l += String(format: " (%+.0f vs 30-day baseline)", d) }
+            lines.append(l + ".")
+        }
+        if let hrv = model.hrvToday {
+            var l = String(format: "HRV %.0f ms", hrv)
+            if let d = model.hrvDelta { l += String(format: " (%+.0f vs baseline)", d) }
+            lines.append(l + ".")
+        }
+        if let daytime, let dayLine = AICoachEngine.daytimeStressLine(daytime) {
+            lines.append(dayLine + ".")
+        }
+        return CoachCardContext(
+            title: "Stress",
+            summary: lines.joined(separator: " "),
+            suggestions: [
+                String(localized: "Why is my stress like this today?"),
+                String(localized: "What can I do to bring it down?"),
+                String(localized: "Should I train today?"),
+            ]
+        )
     }
 
     private func load() async {

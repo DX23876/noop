@@ -316,6 +316,14 @@ final class AICoachEngine: ObservableObject {
         didSet { UserDefaults.standard.set(proactiveLevel.rawValue, forKey: ProactiveLevel.storageKey) }
     }
 
+    /// Card-AI (#P11): the metric card the user tapped "Ask coach" on, consumed once when the Coach opens
+    /// (`runCardAnalysisIfNeeded`). Set via `openedFromCard`; cleared as it's read so a later plain open
+    /// doesn't re-run the analysis.
+    @Published var pendingCardContext: CoachCardContext?
+    /// Metric-specific follow-up questions offered as chips after a card read (11.3). Cleared on the next
+    /// user turn so they don't linger past the moment they belong to.
+    @Published var cardSuggestions: [String] = []
+
     private let repo: Repository
     private let session: URLSession
 
@@ -944,6 +952,7 @@ final class AICoachEngine: ObservableObject {
 
         errorText = nil
         messages.append(ChatMessage(role: .user, text: trimmed))
+        cardSuggestions = []   // the card's follow-up chips belong to the moment after its read (#P11)
         sending = true
         defer { sending = false }
 
@@ -1806,6 +1815,63 @@ final class AICoachEngine: ObservableObject {
                 errorText = AICoachError.network(error.localizedDescription).errorDescription
             }
         }
+    }
+
+    // MARK: - Card AI (#P11)
+
+    /// Record that the coach was opened from a metric card, so the next Coach open gives a short read of
+    /// it and offers its follow-up questions. Kept trivial (just state) so the button can fire it and
+    /// immediately post the open notification; the generation happens on the Coach side.
+    func openedFromCard(_ context: CoachCardContext) {
+        pendingCardContext = context
+    }
+
+    /// System prompt for the cheap per-card read: the persona's voice, scoped to ONE metric and told to
+    /// stay short, careful, and non-diagnostic — the "small AI on a card" role. Kept lean (no tool
+    /// clauses) because it runs on the cheap card model with the figures handed to it, not tool calls.
+    static func cardAnalysisSystem(persona: CoachPersona) -> String {
+        persona.systemPreamble + "\n\n" + """
+        You are giving a brief, careful read of ONE metric the user just opened. Two or three sentences: \
+        what the value and its recent trend suggest, in plain language, and at most one gentle, optional \
+        next step. Ground everything in the figures you are given — never invent data or numbers. This \
+        is not a diagnosis and you are not a doctor. No bullet lists, no headings, no preamble.
+        """
+    }
+
+    /// The user turn for a card read: the card's own title and factual summary, framed as a request.
+    /// Pure/testable — the summary is what the card already computed.
+    static func cardAnalysisUserTurn(for context: CoachCardContext) -> String {
+        """
+        I just opened my \(context.title) card. Here's what it shows:
+
+        \(context.summary)
+
+        Give me a short, careful read of this.
+        """
+    }
+
+    /// Consume a pending card context: produce a short read of that one metric (11.4) on the cheap card
+    /// model (11.5) and drop it into the chat as the opening coach message, then surface its follow-up
+    /// questions (11.3). User-initiated (they tapped the card), so there is no daily lock — one read per
+    /// tap — but it still respects connection + data-sharing consent like every other send.
+    func runCardAnalysisIfNeeded() async {
+        guard let context = pendingCardContext else { return }
+        pendingCardContext = nil
+        guard isConfigured, dataConsent, !sending else { return }
+        errorText = nil
+        sending = true
+        defer { sending = false }
+
+        let system = Self.cardAnalysisSystem(persona: persona)
+        let user = Self.cardAnalysisUserTurn(for: context)
+        guard let reply = await cheapComplete(system: system, user: user, role: .cardAnalysis) else {
+            errorText = AICoachError.network("The card read didn't come through.").errorDescription
+            return
+        }
+        let clean = reply.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { return }
+        messages.append(ChatMessage(role: .assistant, text: context.title + "\n\n" + clean))
+        cardSuggestions = context.suggestions
     }
 
     /// Pure: append a trailing user turn to already-wired history, keeping roles ALTERNATING. The

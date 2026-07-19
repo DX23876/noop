@@ -95,6 +95,17 @@ struct CoachView: View {
         .onReceive(NotificationCenter.default.publisher(for: .noopOpenCoachCheckIn)) { _ in
             Task { await coach.checkInIfNeeded() }
         }
+        // Opened from a metric card (#P11): read the pending card context and give a short, cheap read of
+        // that one metric, then offer its follow-up questions. No-op if the coach was opened another way.
+        // Fires two ways so both cases are covered, and is idempotent (it clears the pending context and
+        // no-ops when nil): the notification catches an ALREADY-mounted CoachView (the iOS tab that's up),
+        // and the .task catches a JUST-mounted one (a fresh Coach pane on macOS, opened by the same tap).
+        .onReceive(NotificationCenter.default.publisher(for: .noopOpenCoachCard)) { _ in
+            Task { await coach.runCardAnalysisIfNeeded() }
+        }
+        .task {
+            if coach.pendingCardContext != nil { await coach.runCardAnalysisIfNeeded() }
+        }
         // First-use note (#P6 6.3): once the coach is connected, show the trust/expectations dialog
         // before the first conversation. Keyed on `isConfigured` so it also arms right after the user
         // connects from the setup screen (not just on a fresh, already-connected open).
@@ -230,6 +241,9 @@ struct CoachView: View {
                     // Suggestion chips live at the bottom of an empty transcript, just above the composer.
                     if coach.messages.isEmpty {
                         suggestionChips.padding(.top, 4)
+                    } else if !coach.cardSuggestions.isEmpty {
+                        // After a card read (#P11): metric-specific follow-ups, offered until the next turn.
+                        cardSuggestionChips.padding(.top, 4)
                     }
                 }
                 .padding(.horizontal, 16)
@@ -541,6 +555,30 @@ struct CoachView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(suggestions, id: \.self) { prompt in
+                    Button { send(prompt) } label: {
+                        Text(prompt)
+                            .font(StrandFont.captionNumber)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 7)
+                            .background(StrandPalette.surfaceInset, in: Capsule(style: .continuous))
+                            .overlay(Capsule(style: .continuous).strokeBorder(StrandPalette.hairline, lineWidth: 1))
+                    }
+                    .buttonStyle(LiquidPressStyle())
+                    .disabled(coach.sending)
+                    .accessibilityLabel("Suggested prompt: \(prompt)")
+                }
+            }
+            .padding(.vertical, 1)
+        }
+    }
+
+    /// Follow-up chips offered right after a card read (#P11 11.3), styled like `suggestionChips` but fed
+    /// from the engine's `cardSuggestions` (metric-specific) rather than the fixed starter set.
+    private var cardSuggestionChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(coach.cardSuggestions, id: \.self) { prompt in
                     Button { send(prompt) } label: {
                         Text(prompt)
                             .font(StrandFont.captionNumber)

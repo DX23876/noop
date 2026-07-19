@@ -214,6 +214,12 @@ struct RootTabView: View {
             withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 3 }
             tabPaths[3] = NavigationPath([MoreDestination.coach])
         }
+        // "Ask coach" tapped on a metric card (#P11): same jump — open Coach on top of the More tab; it
+        // reads the pending card context and gives a short read of that metric.
+        .onReceive(NotificationCenter.default.publisher(for: .noopOpenCoachCard)) { _ in
+            withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 3 }
+            tabPaths[3] = NavigationPath([MoreDestination.coach])
+        }
         // A screen's top-bar "+" routes here: open the quick-action sheet, then clear the flag.
         .onChange(of: router.quickActionsRequested) { _, req in
             if req {

@@ -104,6 +104,44 @@ enum CoachButtonCorner: String, CaseIterable, Identifiable {
     }
 }
 
+/// Card-AI entry (#P11): a small "ask the coach about this" affordance a metric screen mounts in its
+/// header. Tapping it hands the coach the card's own context (current value + trend) and opens the chat,
+/// which then produces a short read of that one metric. Only appears once the coach is connected — a dead
+/// sparkle on a card the user never set up would be noise. Design tokens only; shared (macOS + iOS).
+struct CoachCardButton: View {
+    /// Built by the card from data it already loaded — the coach reads this, nothing new is derived.
+    let context: CoachCardContext
+
+    @EnvironmentObject private var coach: AICoachEngine
+    /// Dismisses a presenting sheet (some cards open as sheets) so the coach isn't buried under it; a
+    /// no-op for a pushed or root screen, which is fine.
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        if coach.isConfigured {
+            Button {
+                coach.openedFromCard(context)
+                NotificationCenter.default.post(name: .noopOpenCoachCard, object: nil)
+                dismiss()
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "sparkles")
+                    Text("Ask coach")
+                }
+                .font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.accent)
+                .padding(.horizontal, 11)
+                .padding(.vertical, 6)
+                .background(StrandPalette.accent.opacity(0.12), in: Capsule(style: .continuous))
+                .overlay(Capsule(style: .continuous).strokeBorder(StrandPalette.accent.opacity(0.25), lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Ask coach about \(context.title)")
+            .accessibilityHint("Opens the AI coach with this metric's data.")
+        }
+    }
+}
+
 #if os(iOS)
 /// A circular button that opens the Coach, floating over the whole app. It can be pinned to one of four
 /// chrome-clear corners from Coach settings, or dragged anywhere (which switches it to `.custom` and
