@@ -103,8 +103,12 @@ final class HugeImportFirstPaintStressTests: XCTestCase {
         repo.setStoreForTesting(store)
         let latest = await repo.latestDataDayStart()
         XCTAssertNotNil(latest, "the latest-data lookup must resolve over a deep history")
-        // It points at today's dense HR day (the only raw stream), not an arbitrary old daily row.
-        let expected = Repository.logicalDayStart(Date(timeIntervalSince1970: TimeInterval(Int(Date().timeIntervalSince1970) - 3_600)))
+        // It points at today's dense HR day (the only raw stream), not an arbitrary old daily row. The
+        // day of the LATEST seeded sample (todayBase+3599 ≈ now), NOT the earliest (todayBase = now−3600):
+        // the seed spans an hour, so using the earliest landed in the PREVIOUS logical day across the 04:00
+        // rollover and flaked this test in the 04:00–05:00 window (only ever surfaced once app-build began
+        // running StrandTests). The latest sample is what MAX(ts) — and latestDataDayStart — resolves to.
+        let expected = Repository.logicalDayStart(Date())
         XCTAssertEqual(latest, expected)
     }
 }
