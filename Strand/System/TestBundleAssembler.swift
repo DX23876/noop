@@ -23,6 +23,17 @@ enum TestBundleAssembler {
         "raw-capture.jsonl", "oura-raw.jsonl", "oura-ibihr.jsonl", "oura-activity.jsonl",
     ]
 
+    /// #572 follow-up: the Oura Tier-B sidecars carry the ring id in a `"deviceId"` JSON field. The
+    /// whole-bundle UUID scrub (`LiveState.redactPii`) masks it only when it is a CANONICAL dashed
+    /// `uuidString`; a dashless or truncated id would leak verbatim into a bundle the user shares. For these
+    /// sidecars we ALSO mask the `deviceId` VALUE by field name — format-independent, so any id shape is
+    /// covered, and (unlike broadening the UUID regex to dashless hex) it CANNOT touch the raw `hex` capture
+    /// field, which a greedier rule would shred. Scoped to the sidecars so a non-PII logical `deviceId`
+    /// (e.g. "my-whoop") elsewhere in the bundle stays readable. NORMALIZED names (ring id already dropped).
+    static let ouraSidecarNames: Set<String> = [
+        "oura-raw.jsonl", "oura-ibihr.jsonl", "oura-activity.jsonl",
+    ]
+
     /// Re-run the redaction sink over every entry. Text entries are decoded as UTF-8, scrubbed via the same
     /// LiveState.redactPii used by the live sink, and re-encoded. A non-UTF-8 entry (none today) passes
     /// through untouched rather than risk corrupting binary. meta.json and report.txt have no PII shapes so
@@ -30,7 +41,16 @@ enum TestBundleAssembler {
     static func redactEntries(_ entries: [FileExport.BundleEntry]) -> [FileExport.BundleEntry] {
         entries.map { entry in
             guard let text = String(data: entry.data, encoding: .utf8) else { return entry }
-            let scrubbed = LiveState.redactPii(text)
+            var scrubbed = LiveState.redactPii(text)
+            // #572 follow-up: field-aware deviceId mask for the Oura sidecars (see `ouraSidecarNames`). Runs
+            // AFTER redactPii, so it catches a non-canonical id that the dash-anchored UUID rule misses; on an
+            // already-canonical id redactPii turned into `<device>`, this is a no-op. Key-anchored to
+            // "deviceId", so it never touches the raw `hex` field. `[^"]*` stops at the value's closing quote.
+            if ouraSidecarNames.contains(entry.name) {
+                scrubbed = scrubbed.replacingOccurrences(
+                    of: "(\"deviceId\"\\s*:\\s*\")[^\"]*(\")",
+                    with: "$1<device>$2", options: .regularExpression)
+            }
             return FileExport.BundleEntry(name: entry.name, data: Data(scrubbed.utf8))
         }
     }

@@ -123,4 +123,30 @@ final class TestBundleAssemblerTests: XCTestCase {
         // …while the raw capture bytes pass through byte-for-byte (redaction must never corrupt the capture).
         XCTAssertTrue(out.contains("\"hex\":\"\(hex)\""), "the raw hex bytes must survive redaction intact")
     }
+
+    /// #572 follow-up: the field-aware `deviceId` mask closes the gap the canonical-only contract left — a
+    /// DASHLESS (or truncated) ring id, which the dash-anchored UUID rule can't match and would otherwise
+    /// leak verbatim, is still masked to `<device>`, and the raw `hex` capture is STILL untouched (the mask
+    /// is key-anchored to "deviceId", not a greedier hex rule that would shred it). This is the direction the
+    /// earlier hardcoded contract test could not enforce.
+    func testSidecarRedactionMasksDashlessRingIdAndKeepsHexIntact() {
+        let dashless = "5C4C0BF82DF61B3A18D03DF0B3590148" // no dashes → redactPii's UUID rule cannot match it
+        let hex = "0b3c1e00a1b2c3d4e5f60718293a4b5c6d7e8f90aabbccdd"
+        let line = "{\"schema\":1,\"deviceId\":\"\(dashless)\",\"utc\":1,\"hex\":\"\(hex)\"}"
+        let out = String(data: TestBundleAssembler.redactEntries(
+            [FileExport.BundleEntry(name: "oura-ibihr.jsonl", data: Data(line.utf8))]).first!.data, encoding: .utf8)!
+        XCTAssertFalse(out.contains(dashless), "a dashless ring id must not survive the scrub")
+        XCTAssertTrue(out.contains("\"deviceId\":\"<device>\""), "the deviceId value must be masked to <device>")
+        XCTAssertTrue(out.contains("\"hex\":\"\(hex)\""), "the raw hex bytes must survive redaction intact")
+    }
+
+    /// The field-aware mask is SCOPED to the Oura sidecars: it must NOT rewrite a non-PII logical `deviceId`
+    /// (e.g. "my-whoop") in a non-sidecar entry, which would strip useful, non-sensitive context from the
+    /// report body the user reviews.
+    func testSidecarDeviceIdMaskDoesNotTouchNonSidecarEntries() {
+        let line = "{\"deviceId\":\"my-whoop\",\"note\":\"hi\"}"
+        let out = String(data: TestBundleAssembler.redactEntries(
+            [FileExport.BundleEntry(name: "report.txt", data: Data(line.utf8))]).first!.data, encoding: .utf8)!
+        XCTAssertTrue(out.contains("\"deviceId\":\"my-whoop\""), "a non-sidecar logical deviceId must be left readable")
+    }
 }
