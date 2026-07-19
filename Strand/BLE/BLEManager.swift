@@ -646,6 +646,14 @@ public final class BLEManager: NSObject, ObservableObject {
     /// didUpdateNotificationStateFor re-fire (or any other later call into the check) can't double-bump.
     /// Reset on disconnect.
     private var connectSettledSignaled = false
+    /// #613: set for one restored session when CoreBluetooth hands back an ALREADY-connected peripheral
+    /// via `willRestoreState`. The inherited notify subscriptions come back reported-active but no longer
+    /// deliver, and the subscribe loops skip anything already `isNotifying` — so nothing re-arms and no live
+    /// HR/R-R arrive, while `didUpdateNotificationStateFor` never fires (→ `cmdNotifyConfirmedActive` →
+    /// `connectSettled` never latch). While this is true, `requestNotify` forces one real off→on
+    /// re-subscribe so delivery — and the settle/alarm-re-arm chain — is re-established. Cleared the moment
+    /// `connectSettled` bumps, and on disconnect.
+    private var restoreNeedsResubscribe = false
     /// Re-entrancy guard for captureRawAccel: true while a bounded on-demand window is running.
     /// A second tap is a no-op until the active capture's asyncAfter block fires and clears this.
     private var rawCaptureInFlight = false
@@ -706,6 +714,14 @@ public final class BLEManager: NSObject, ObservableObject {
     /// shape (#429) — and the #295 re-grant banner is shown after all.
     private var unauthorizedSettleWork: DispatchWorkItem?
     private var cmdCharacteristic: CBCharacteristic?
+    /// #613: true when a command would ACTUALLY reach the strap right now — the same condition `send()`
+    /// requires (connected peripheral + a discovered command characteristic). The alarm-arm log and the
+    /// persisted `alarm.lastArmConnected` diagnostic key off THIS, not merely a non-nil
+    /// `connectedPeripheralUUID`, so an arm attempted before characteristic discovery finishes (e.g. mid
+    /// state-restoration) is reported "queued" — matching whether `send()` dropped it — not a false "armed".
+    private var commandChannelReady: Bool {
+        state.connected && peripheral?.state == .connected && cmdCharacteristic != nil
+    }
     private var cmdNotifyCharacteristic: CBCharacteristic?
     private var eventNotifyCharacteristic: CBCharacteristic?
     private var dataNotifyCharacteristic: CBCharacteristic?
@@ -2686,7 +2702,10 @@ public final class BLEManager: NSObject, ObservableObject {
             heartRateCharacteristic,
             batteryCharacteristic,
         ].compactMap { $0 }
-        for c in chars where !c.isNotifying {
+        // #613: normally skip already-notifying chars (requestNotify would just log "already active" on
+        // every keep-alive tick). On a restored session also pass them through so requestNotify can force a
+        // real re-subscribe on the inherited-but-dead subscriptions.
+        for c in chars where !c.isNotifying || restoreNeedsResubscribe {
             requestNotify(c, on: p, reason: reason)
         }
         // #490: a 5/MG's 0x2A19 battery READ is refused pre-bond (it fires in didDiscoverCharacteristicsFor,
@@ -2711,6 +2730,17 @@ public final class BLEManager: NSObject, ObservableObject {
             return
         }
         if c.isNotifying {
+            // #613: after CoreBluetooth state restoration the inherited subscription is reported active but
+            // no longer delivers, and `setNotifyValue(true)` on an already-notifying char yields NO callback
+            // (no state change). Force one real off→on cycle so delivery is re-established AND
+            // `didUpdateNotificationStateFor` fires — the only path that latches `cmdNotifyConfirmedActive`
+            // → `connectSettled` → the alarm re-arm. One-shot: `restoreNeedsResubscribe` clears at settle.
+            if restoreNeedsResubscribe {
+                log("Notify re-arming after restore \(c.uuid) (\(reason))")
+                p.setNotifyValue(false, for: c)
+                p.setNotifyValue(true, for: c)
+                return
+            }
             log("Notify already active \(c.uuid) (\(reason))")
             return
         }
@@ -2757,7 +2787,7 @@ public final class BLEManager: NSObject, ObservableObject {
             recordAlarmArm(sentEpoch: Int(wakeMs / 1000))
             // #34: don't claim "armed" when the strap isn't connected (the send was dropped) — the arm
             // re-fires on the next connect.
-            log(connectedPeripheralUUID != nil
+            log(commandChannelReady   // #613: reflect whether send() actually reached the strap, not just a non-nil uuid
                 ? "Alarm: armed 5/MG rev4 for \(localFmt.string(from: date)) — your local wake time"
                 : "Alarm: queued 5/MG rev4 for \(localFmt.string(from: date)) — strap not connected; will send on next connect")
             return
@@ -2769,7 +2799,7 @@ public final class BLEManager: NSObject, ObservableObject {
         recordAlarmArm(sentEpoch: Int(epochSec))
         // #34: only claim "armed" when the strap is connected (the send actually went out); otherwise it's
         // queued and re-sent on the next connect.
-        if connectedPeripheralUUID != nil {
+        if commandChannelReady {   // #613: reflect whether send() actually reached the strap, not just a non-nil uuid
             log("Alarm: armed for \(localFmt.string(from: date)) — your local wake time (sent as UTC epoch \(epochSec))")
         } else {
             log("Alarm: queued for \(localFmt.string(from: date)) — strap not connected; will send on next connect")
@@ -2789,7 +2819,7 @@ public final class BLEManager: NSObject, ObservableObject {
         let d = UserDefaults.standard
         d.set(sentEpoch, forKey: "alarm.lastArmSentEpoch")
         d.set(Date().timeIntervalSince1970, forKey: "alarm.lastArmAt")
-        d.set(connectedPeripheralUUID != nil, forKey: "alarm.lastArmConnected")
+        d.set(commandChannelReady, forKey: "alarm.lastArmConnected")   // #613: true only if the arm actually went out
         // #34: the strap-clock skew (its own RTC minus wall, seconds) AT THE MOMENT we armed. A wrong RTC
         // is a top cause of the firmware alarm never firing, and knowing the clock state at arm — not just
         // now — tells whether the arm even had a chance (skew ~0 but the strap still rejects ⇒ a corrupted
@@ -3277,6 +3307,7 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         connectHandshakeDone = false
         cmdNotifyConfirmedActive = false   // #34: a fresh connection needs its own notify-confirm + settle
         connectSettledSignaled = false
+        restoreNeedsResubscribe = false    // #613: a real reconnect isn't a restore — never force-toggle here
         realtimeArmedAt = nil   // cleared after the marginal-radio detector above read it (#80)
         // Reset backfill state so the next connect starts a fresh offload (incl. the syncing pill —
         // a dropped link mid-offload must not leave "Syncing strap history…" stuck on, #77).
@@ -3430,8 +3461,15 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         // Collection only runs post-bond, so a restored link was already bonded;
         // seed those flags now. `didWriteValueFor` won't re-fire on its own.
         state.bonded = true
-        state.encryptedBond = true   // a restored link was genuinely encrypted-bonded before (#69)
         didBond = true
+        // #613: didConnect never fires for an ALREADY-connected restored peripheral, so publish the strap
+        // identity HERE — BEFORE encryptedBond flips true — so SourceCoordinator sees the ordinary
+        // (encryptedBond == false) identity semantics `didConnect` uses (adopt-if-unknown / never clobber a
+        // different registered strap), NOT the #52 post-bond re-adoption seam. Without it
+        // connectedPeripheralUUID stays nil the whole session: no identity to SourceCoordinator, and the
+        // alarm diagnostics read "strap not connected" though the link is up.
+        if p.state == .connected { connectedPeripheralUUID = p.identifier.uuidString }
+        state.encryptedBond = true   // a restored link was genuinely encrypted-bonded before (#69)
         noteGenuineBond(of: p)   // #52: a restored link was genuinely bonded; eligible as a re-adopt target
         // clockRef is nil in the fresh process after restore, so we must re-request it.
         // Reset the flag so the post-restore didWriteValueFor issues exactly one getClock.
@@ -3440,6 +3478,11 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         Task { @MainActor in await bootstrapStore() }
         if p.state == .connected {
             state.connected = true
+            // #613: the inherited notify subscriptions come back reported-active but dead. Force one real
+            // off→on re-subscribe this session (see `requestNotify`) so live HR/R-R resume AND
+            // `didUpdateNotificationStateFor` fires → `cmdNotifyConfirmedActive` → `connectSettled` → the
+            // alarm re-arm. Cleared when `connectSettled` bumps.
+            restoreNeedsResubscribe = true
             log("Restored CONNECTED peripheral \(p.identifier) — re-discovering services")
             discoverPrimaryServices(on: p)
         } else {
@@ -3647,8 +3690,8 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                 emitConnectionBondState("encryptedBond family=whoop5 (CLIENT_HELLO acked)")
                 log("WHOOP 5/MG: CLIENT_HELLO acked — link established; subscribing notify chars (experimental).")
             }
-            for c in whoop5NotifyCharacteristics where !c.isNotifying {
-                requestNotify(c, on: peripheral, reason: "post-bond puffin")
+            for c in whoop5NotifyCharacteristics where !c.isNotifying || restoreNeedsResubscribe {
+                requestNotify(c, on: peripheral, reason: "post-bond puffin")   // #613: force re-arm on restore
             }
             enableLiveNotifications(reason: "post-bond 5/MG")   // standard HR/battery that failed pre-bond
             // Arm realtime HR with puffin framing — the verified step that makes a bonded 5/MG strap start
@@ -3702,6 +3745,7 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                 if !connectSettledSignaled {
                     connectSettledSignaled = true
                     state.connectSettled &+= 1
+                    restoreNeedsResubscribe = false   // #613: forced re-subscribe pass is done (5/MG path)
                 }
             }
             return
@@ -3804,6 +3848,7 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
         guard connectHandshakeDone, cmdNotifyConfirmedActive, !connectSettledSignaled else { return }
         connectSettledSignaled = true
         state.connectSettled &+= 1
+        restoreNeedsResubscribe = false   // #613: forced re-subscribe pass is done — keep-alive resumes normal
         log("Connect settled: handshake done + cmd-notify confirmed — alarm re-arm (if due) can fire now")
     }
 
