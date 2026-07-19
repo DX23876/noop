@@ -439,11 +439,14 @@
     <string name="l10n_live_session_screen_the_strap_signal_was_gone_for_57a2fead">Le signal de la sangle a disparu pendant 10 minutes, donc la séance s\'est terminée.</string>
     <string name="l10n_live_workout_screen_avg_cdc93143">Moy.</string>
     <string name="l10n_live_workout_screen_cadence_68af11f0">Cadence</string>
+    <string name="l10n_live_workout_screen_cancel_77dfd213">Annuler</string>
     <string name="l10n_live_workout_screen_effort_8c974bc6">Effort</string>
+    <string name="l10n_live_workout_screen_end_this_workout_4869c76a">Terminer l\'entraînement ?</string>
     <string name="l10n_live_workout_screen_end_workout_3e8d6238">Terminer l\'entraînement</string>
     <string name="l10n_live_workout_screen_peak_c83dbbd3">Pic</string>
     <string name="l10n_live_workout_screen_power_7548ab52">Puissance</string>
     <string name="l10n_live_workout_screen_speed_2d2cb022">Vitesse</string>
+    <string name="l10n_live_workout_screen_this_stops_recording_and_saves_what_3e17a23e">Cela arrête l\'enregistrement et sauvegarde ce qui a été capturé jusqu\'à présent. Impossible de le reprendre.</string>
     <string name="l10n_live_workout_screen_z_z_d3991a28">Z%1$s</string>
     <string name="l10n_marker_editor_screen_add_a_reading_ed7708ee">Ajouter une lecture</string>
     <string name="l10n_marker_editor_screen_date_taken_76edfcab">Date de la mesure</string>

@@ -599,11 +599,14 @@
     <string name="l10n_live_session_screen_the_strap_signal_was_gone_for_57a2fead">Das Bandsignal war 10 Minuten lang weg, so dass die Sitzung von selbst endete.</string>
     <string name="l10n_live_workout_screen_avg_cdc93143">Ø</string>
     <string name="l10n_live_workout_screen_cadence_68af11f0">Trittfrequenz</string>
+    <string name="l10n_live_workout_screen_cancel_77dfd213">Abbrechen</string>
     <string name="l10n_live_workout_screen_effort_8c974bc6">Anstrengung</string>
+    <string name="l10n_live_workout_screen_end_this_workout_4869c76a">Workout beenden?</string>
     <string name="l10n_live_workout_screen_end_workout_3e8d6238">Workout beenden</string>
     <string name="l10n_live_workout_screen_peak_c83dbbd3">Spitze</string>
     <string name="l10n_live_workout_screen_power_7548ab52">Leistung</string>
     <string name="l10n_live_workout_screen_speed_2d2cb022">Drehzahl</string>
+    <string name="l10n_live_workout_screen_this_stops_recording_and_saves_what_3e17a23e">Das beendet die Aufzeichnung und speichert, was bisher erfasst wurde. Das lässt sich nicht fortsetzen.</string>
     <string name="l10n_live_workout_screen_z_z_d3991a28">Z%1$s</string>
     <string name="l10n_marker_editor_screen_add_a_reading_ed7708ee">Messwert hinzufügen</string>
     <string name="l10n_marker_editor_screen_date_taken_76edfcab">Datum der Messung</string>

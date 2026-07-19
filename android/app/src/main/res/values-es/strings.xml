@@ -439,11 +439,14 @@
     <string name="l10n_live_session_screen_the_strap_signal_was_gone_for_57a2fead">La señal de correa se fue durante 10 minutos, así que la sesión terminó.</string>
     <string name="l10n_live_workout_screen_avg_cdc93143">Prom</string>
     <string name="l10n_live_workout_screen_cadence_68af11f0">Cadence</string>
+    <string name="l10n_live_workout_screen_cancel_77dfd213">Cancelar</string>
     <string name="l10n_live_workout_screen_effort_8c974bc6">Esfuerzo</string>
+    <string name="l10n_live_workout_screen_end_this_workout_4869c76a">¿Finalizar entrenamiento?</string>
     <string name="l10n_live_workout_screen_end_workout_3e8d6238">Finalizar entrenamiento</string>
     <string name="l10n_live_workout_screen_peak_c83dbbd3">Pico</string>
     <string name="l10n_live_workout_screen_power_7548ab52">Poder</string>
     <string name="l10n_live_workout_screen_speed_2d2cb022">Speed</string>
+    <string name="l10n_live_workout_screen_this_stops_recording_and_saves_what_3e17a23e">Esto detiene la grabación y guarda lo registrado hasta ahora. No se puede reanudar.</string>
     <string name="l10n_live_workout_screen_z_z_d3991a28">Z%1$s</string>
     <string name="l10n_marker_editor_screen_add_a_reading_ed7708ee">Añadir una lectura</string>
     <string name="l10n_marker_editor_screen_date_taken_76edfcab">Fecha de la toma</string>

@@ -34,6 +34,10 @@ struct LiveWorkoutView: View {
     /// the moment it leaves, which is exactly the bounded usage Apple asks for. iOS-only (no-op on Mac).
     @AppStorage("workoutKeepScreenOn") private var keepScreenOn = false
 
+    /// Guards the destructive End action behind a confirm (#517) — a stray tap on the full-width button
+    /// used to end the workout instantly with no way back.
+    @State private var showEndConfirm = false
+
     private var zoneSet: HRZoneSet { HRZones.zones(maxHR: Double(model.profile.hrMax)) }
     private var zone: Int { model.bpm.map { zoneSet.zoneNumber(forBPM: Double($0)) } ?? 0 }
 
@@ -86,6 +90,18 @@ struct LiveWorkoutView: View {
             // Always release on the way out so the system idle timer resumes. Even if the toggle was
             // flipped off mid-workout, this clears any hold we placed.
             ScreenIdle.keepAwake(false)
+        }
+        // Confirm before ending (#517): a stray tap on "End workout" used to stop the session and
+        // discard the in-progress recording with no way back.
+        .alert("End this workout?",
+               isPresented: $showEndConfirm) {
+            Button("Cancel", role: .cancel) { }
+            Button("End workout", role: .destructive) {
+                model.endWorkout()
+                onClose()
+            }
+        } message: {
+            Text("This stops recording and saves what's captured so far. It can't be resumed.")
         }
     }
 
@@ -221,8 +237,7 @@ struct LiveWorkoutView: View {
 
     private var endButton: some View {
         NoopButton("End workout", systemImage: "stop.fill", kind: .destructive, fullWidth: true) {
-            model.endWorkout()
-            onClose()
+            showEndConfirm = true
         }
     }
 
