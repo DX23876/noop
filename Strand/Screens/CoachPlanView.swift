@@ -15,6 +15,12 @@ struct CoachPlanView: View {
     @State private var swapping: PlanProposal?
     @State private var scheduling: PlanProposal?
     @State private var rescheduling: PlanProposal?
+    /// Which committed session is choosing a skip reason (#R3). A `.confirmationDialog` here, not a
+    /// native `Menu` — the `Menu` sat directly over `NoopCard`'s frosted/material background, and its
+    /// dismiss transition briefly showed unrendered black compositor layers (a known Menu-over-material
+    /// interaction) before settling. A confirmationDialog's system sheet transition doesn't touch that
+    /// material at all.
+    @State private var skippingReason: PlanProposal?
 
     private var today: String { Repository.localDayKey(Date()) }
 
@@ -62,6 +68,16 @@ struct CoachPlanView: View {
             }
             .sheet(item: $rescheduling) { p in
                 PlanRescheduleSheet(proposal: p)
+            }
+            .confirmationDialog("Why didn't it happen?",
+                                isPresented: Binding(get: { skippingReason != nil },
+                                                     set: { if !$0 { skippingReason = nil } }),
+                                titleVisibility: .visible,
+                                presenting: skippingReason) { p in
+                ForEach(PlanProposal.SkipReason.allCases, id: \.self) { reason in
+                    Button(LocalizedStringKey(reason.label)) { store.skip(p.id, reason: reason) }
+                }
+                Button("Cancel", role: .cancel) {}
             }
         }
     }
@@ -124,11 +140,9 @@ struct CoachPlanView: View {
                     action("Done", icon: "checkmark.circle", prominent: true) { store.complete(p.id) }
                     // The one-tap reason. A reason you have to type is a reason that never gets
                     // recorded — and then "didn't train" reads as laziness when it was a sore knee.
-                    Menu {
-                        ForEach(PlanProposal.SkipReason.allCases, id: \.self) { reason in
-                            Button(LocalizedStringKey(reason.label)) { store.skip(p.id, reason: reason) }
-                        }
-                    } label: {
+                    // A plain Button + confirmationDialog (#R3), not a Menu — see `skippingReason`'s
+                    // doc comment for why.
+                    Button { skippingReason = p } label: {
                         Label("Didn't happen", systemImage: "xmark.circle")
                             .font(StrandFont.footnote)
                             .foregroundStyle(StrandPalette.textSecondary)
@@ -136,6 +150,7 @@ struct CoachPlanView: View {
                             .background(StrandPalette.surfaceInset,
                                         in: RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
                     }
+                    .buttonStyle(.plain)
                     .accessibilityLabel("Mark as not done, and say why")
                 }
             }
