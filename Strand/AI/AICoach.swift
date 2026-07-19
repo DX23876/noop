@@ -429,6 +429,19 @@ final class AICoachEngine: ObservableObject {
     Never claim you've noted, recorded, saved or scheduled anything - you haven't.
     """
 
+    /// Explainability (#P12 12.3): appended to EVERY prompt (tool and non-tool), so the coach shows the
+    /// ground under its claims instead of asserting them bare — and so a user with a custom system prompt
+    /// still gets the rule. It asks for the SOURCE, not a raw-data dump (12.2): the metric/window the
+    /// claim rests on, named in the sentence, phrased in one mode-appropriate way.
+    static let citationClause = """
+    Show your ground. When you state a number, a trend, or a training call, name where it comes from in \
+    the same breath — the tool you just called, or the specific metric and time window from the data \
+    summary you were given (e.g. "your HRV is down ~12ms on your 30-day average" or "readiness says \
+    maintain"). Don't dump raw data or list every figure; cite the one or two that actually drive each \
+    point, so the user can see what the advice rests on. If you don't have the data for a claim, say so \
+    plainly rather than asserting it.
+    """
+
     /// The tool-awareness map, appended to the CACHED system block when tools are live (same
     /// `toolCallingActive` gate as `planToolClause`). It lands in the system block — cached by Anthropic
     /// after round 1 — rather than in a per-round user message, where its predecessor
@@ -476,6 +489,9 @@ final class AICoachEngine: ObservableObject {
         // The tool-awareness map rides the cached system block (not a per-round user message) so the
         // model is reminded what its tools are for at ~1/10th the per-round cost. Same gate as above.
         if toolCallingActive { prompt += "\n\n" + Self.toolModeClause }
+        // Explainability (#P12): always ask the coach to name the source under each claim — in both
+        // modes, and after the tool/plan clauses so it reads as the closing discipline on top of them.
+        prompt += "\n\n" + Self.citationClause
         return prompt
     }
 

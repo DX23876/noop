@@ -137,4 +137,34 @@ final class CoachSystemPromptToolClauseTests: XCTestCase {
         XCTAssertTrue(engine.systemPrompt.contains(AICoachEngine.toolModeClause),
                       "a custom prompt must not silently drop the tool-awareness map")
     }
+
+    // MARK: - P12: the citation clause rides EVERY prompt
+
+    /// Explainability (#P12 12.3): unlike the tool clauses, the citation discipline is universal — it
+    /// must be present whether or not tools are live, so the coach names its source in both modes.
+    func testCitationClauseIsPresentWithTools() {
+        let engine = makeEngine()
+        engine.provider = .anthropic
+        engine.dataConsent = true
+        XCTAssertTrue(engine.toolCallingActive)
+        XCTAssertTrue(engine.systemPrompt.contains(AICoachEngine.citationClause))
+    }
+
+    func testCitationClauseIsPresentWithoutTools() {
+        let engine = makeEngine()
+        engine.provider = .gemini
+        engine.dataConsent = true
+        XCTAssertFalse(engine.toolCallingActive)
+        XCTAssertTrue(engine.systemPrompt.contains(AICoachEngine.citationClause),
+                      "the source-citation rule is universal, not gated on tools")
+    }
+
+    func testCitationClauseSurvivesACustomSystemPromptOverride() {
+        let engine = makeEngine()
+        engine.provider = .anthropic
+        engine.dataConsent = true
+        engine.customSystemPrompt = "Be brief."
+        XCTAssertTrue(engine.systemPrompt.contains(AICoachEngine.citationClause),
+                      "a custom prompt must not drop the citation discipline")
+    }
 }

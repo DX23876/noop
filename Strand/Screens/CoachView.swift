@@ -414,6 +414,35 @@ struct CoachView: View {
         }
     }
 
+    /// A one-line "what this source contributed" note per tool (#P12 12.2) — the data BEHIND the label, so
+    /// the evidence chain reads as reasoning ("grounded in your recovery + HRV"), not a bare tool name or a
+    /// raw-data dump. Same literal-`Text` switch as `evidenceLabel` for i18n-scanner visibility.
+    @ViewBuilder
+    private func evidenceDetail(_ tool: CoachTool) -> some View {
+        switch tool {
+        case .biometricSummary:        Text("Recovery, HRV, resting HR and sleep")
+        case .recentWorkouts:          Text("Your last few sessions and their strain")
+        case .stressIndex:             Text("Autonomic load from today's heart-rate variability")
+        case .personalPatterns:        Text("Your own strongest n-of-1 correlations")
+        case .plotMetric:              Text("A metric plotted over time")
+        case .rememberFact, .updateFact, .forgetFact: Text("Facts you've asked the coach to keep")
+        case .searchPastConversations: Text("Earlier things you discussed")
+        case .logCaffeine:             Text("Caffeine you logged")
+        case .logJournal:              Text("A journal note you logged")
+        case .logLabMarker:            Text("A lab marker you logged")
+        case .sleepDetail:             Text("Last night's stages, timing and debt")
+        case .rangeReport:             Text("Trends across a range of weeks or months")
+        case .readiness:               Text("Today's push / maintain / rest call")
+        case .chargeDrivers:           Text("What moved your Charge up or down")
+        case .proposePlan:             Text("A session proposed for you to accept or change")
+        case .sessionOutlook:          Text("What a session would cost, from your history")
+        case .simulateDay:             Text("Tomorrow's Charge under a plan")
+        case .planAdherence:           Text("How closely you've kept to your plan")
+        case .myLogs:                  Text("What you logged — caffeine, journal, lab, mood")
+        case .zoneMinutes:             Text("Time spent in each heart-rate zone")
+        }
+    }
+
     /// Expandable per-message evidence — which tools actually backed this specific reply, and hence
     /// which of the user's own data it's grounded in. The tool loop already knows this (`toolsUsed` on
     /// the message); this is purely a disclosure, not new computation. Empty for replies from a
@@ -433,7 +462,9 @@ struct CoachView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "checkmark.seal")
                             .accessibilityHidden(true)
-                        Text("What grounded this answer")
+                        // Source count sits in the collapsed header (#P12 12.1) so the ground is VISIBLE
+                        // without expanding — "grounded in 3 of your sources", not a mystery until tapped.
+                        Text("Grounded in \(tools.count) of your data sources")
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                             .accessibilityHidden(true)
                     }
@@ -444,16 +475,22 @@ struct CoachView: View {
                 .accessibilityLabel(isExpanded ? "Hide what grounded this answer" : "Show what grounded this answer")
 
                 if isExpanded {
-                    VStack(alignment: .leading, spacing: 3) {
+                    VStack(alignment: .leading, spacing: 6) {
                         ForEach(tools, id: \.self) { tool in
-                            HStack(spacing: 6) {
+                            HStack(alignment: .firstTextBaseline, spacing: 6) {
                                 Image(systemName: "circle.fill")
                                     .font(.system(size: 3))
                                     .accessibilityHidden(true)
-                                evidenceLabel(tool)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    // The source, then what it actually contributed (#P12 12.2): a label a
+                                    // user can read, plus the data behind it — reasoning, not a raw dump.
+                                    evidenceLabel(tool)
+                                        .foregroundStyle(StrandPalette.textSecondary)
+                                    evidenceDetail(tool)
+                                        .foregroundStyle(StrandPalette.textTertiary)
+                                }
                             }
                             .font(StrandFont.caption)
-                            .foregroundStyle(StrandPalette.textTertiary)
                         }
                     }
                     .padding(.leading, 14)
