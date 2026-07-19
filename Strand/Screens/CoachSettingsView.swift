@@ -531,8 +531,10 @@ struct CoachSettingsView: View {
             howItWorksRow
             consentBar
             if coach.dataConsent { onDeviceSignalsBar }
-            dataTransparencyNote
+            // Coach Instructions (the actual editable setting) before the explanatory note (#R4) — the
+            // settings lead, the rationale follows.
             systemPromptBar
+            dataTransparencyNote
         }
         .navigationTitle("Privacy & data")
     }
