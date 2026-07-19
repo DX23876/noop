@@ -1305,6 +1305,12 @@
     <string name="l10n_insights_screen_rest_b79e5f48">恢复(Rest)</string>
     <string name="l10n_insights_screen_rhr_04edf9b3">静息心率(RHR)</string>
     <string name="l10n_journal_log_journal_57d7f743">日记</string>
+    <string name="l10n_journal_reminder_log_today_s_journal_cb33be3e">记录今天的日志</string>
+    <string name="l10n_journal_reminder_open_journal_bbd88cc1">打开日志</string>
+    <string name="l10n_journal_reminder_journal_reminder_0fdc0d9c">日志提醒</string>
+    <string name="l10n_journal_reminder_show_a_today_card_reminding_you_to_log_your_journal_8228bc77">在“今天”页面显示提醒你记录日志的卡片</string>
+    <string name="l10n_journal_reminder_journal_57d7f743">日志</string>
+    <string name="l10n_journal_reminder_logged_today_0071a46c">今天已记录</string>
     <string name="l10n_liquid_primitives_liquidpressalpha_2c4048a8">liquidPressAlpha</string>
     <string name="l10n_liquid_primitives_liquidpressscale_7520ddb3">liquidPressScale</string>
     <string name="l10n_live_screen_avg_cdc93143">平均</string>

@@ -274,6 +274,9 @@ fun TodayScreen(
     // The liquid header battery ring taps through to Devices (iOS parity: the battery ring → router.openDevices()).
     // Defaulted to fall back to Settings so the call site stays compiling; AppRoot binds it to the Devices route.
     onOpenDevices: () -> Unit = onOpenSettings,
+    // The #627 journal-reminder card links straight to the journal (Insights). Defaulted to a no-op so
+    // the call site stays compiling; AppRoot binds it to nav.navigateTopLevel(Insights), same as Sleep.
+    onOpenJournal: () -> Unit = {},
 ) {
     val today by viewModel.today.collectAsStateWithLifecycle()
     val alert by viewModel.healthAlert.collectAsStateWithLifecycle()
@@ -1531,6 +1534,11 @@ fun TodayScreen(
         // toggle is off or there's nothing to suggest. Save → a manual "Workout" row; × → dismissed forever.
         if (selectedDayOffset == 0) {
             item { AutoWorkoutNudgeCard(viewModel = viewModel, days = days) }
+        }
+        // #627: a dismissible "log today's journal" reminder — shows only when nothing is logged today
+        // and the reminder is enabled (default ON). Self-hides otherwise. Taps through to the journal.
+        if (selectedDayOffset == 0) {
+            item { JournalReminderCard(viewModel = viewModel, days = days, onOpenJournal = onOpenJournal) }
         }
         // Strap battery only while the link is up AND a real reading exists, a stale % from a
         // dropped connection must not present as live (#159).

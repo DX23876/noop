@@ -28,6 +28,7 @@ final class NavRouter: ObservableObject {
         case trends
         case activeWorkout
         case liveSession
+        case journal
 
         var id: String { rawValue }
 
@@ -77,4 +78,7 @@ final class NavRouter: ObservableObject {
     /// directly today; this route exists for deep-link parity so a future shell/inbox item can raise it
     /// the same way as every other destination.
     func openLiveSession() { requestedDestination = .liveSession }
+    /// Open the journal (hosted in the classic Insights screen). The #627 Today journal widget taps here;
+    /// iOS presents InsightsView (the journal quick-action sheet), macOS selects the Insights sidebar row.
+    func openJournal() { requestedDestination = .journal }
 }

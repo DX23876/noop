@@ -1945,6 +1945,17 @@ final class Repository: ObservableObject {
         return out
     }
 
+    /// Distinct local-day keys (yyyy-MM-dd) in the inclusive range [from, to] that carry at least one
+    /// NATIVE journal entry (the "noop-journal" device id only — matching the Android widget's
+    /// `repo.journal(JOURNAL_DEVICE_ID, from, to)`). Backs the #627 Today journal widget's completion
+    /// strip. Read-only.
+    func nativeJournalDays(from: String, to: String) async -> Set<String> {
+        guard let store = await ensureStore() else { return [] }
+        let rows = (try? await store.journalEntries(deviceId: Self.journalDeviceId,
+                                                    from: from, to: to)) ?? []
+        return Set(rows.map { $0.day })
+    }
+
     /// Union; the NATIVE row wins per (day, question) , the in-app answer is the user's most recent
     /// explicit action and stays editable, unlike the immutable imported history.
     nonisolated static func mergeJournal(imported: [JournalEntry], native: [JournalEntry]) -> [JournalEntry] {

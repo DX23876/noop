@@ -190,6 +190,15 @@ object NoopPrefs {
      *  Sleep screen's "Good morning" sheet to at most once per day. */
     const val KEY_LAST_JOURNAL_PROMPT = "noop.lastJournalPromptDay"
 
+    /** "Journal reminder" (#627). When ON, Today shows a dismissible card whenever nothing has been
+     *  logged to today's journal yet, and the Sleep screen's morning sheet may fire — one switch gates
+     *  both surfaces. Default ON. Mirrors iOS @AppStorage("noopJournalReminder"). */
+    const val KEY_JOURNAL_REMINDER_ENABLED = "noop.journalReminder"
+
+    /** The calendar day (yyyy-MM-dd) on which the Today journal-reminder card was last dismissed, so an
+     *  X hides it until the next day (per-day, like [KEY_LAST_JOURNAL_PROMPT]). */
+    const val KEY_JOURNAL_REMINDER_DISMISSED_DAY = "noop.journalReminderDismissedDay"
+
     /** "Debug logging", when on, the strap log is also written to logcat (`adb`). Default OFF so a
      *  normal user never emits the connection log to the system log; the in-app ring buffer (and the
      *  "Share strap log" export) work regardless. See [com.noop.ble.WhoopBleClient.debugLogcat]. */
@@ -616,6 +625,13 @@ object NoopPrefs {
 
     fun setAutoDetectWorkouts(context: Context, enabled: Boolean) {
         of(context).edit().putBoolean(KEY_AUTO_DETECT_WORKOUTS, enabled).apply()
+    }
+
+    fun journalReminderEnabled(context: Context): Boolean =
+        of(context).getBoolean(KEY_JOURNAL_REMINDER_ENABLED, true)
+
+    fun setJournalReminderEnabled(context: Context, enabled: Boolean) {
+        of(context).edit().putBoolean(KEY_JOURNAL_REMINDER_ENABLED, enabled).apply()
     }
 
     /** Last local day (ISO yyyy-MM-dd) an illness notification was posted, the once-a-day gate,

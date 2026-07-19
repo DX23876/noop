@@ -1332,6 +1332,9 @@ struct TodayView: View {
                 // Opt-in "looks like a workout?" suggestion (default OFF). Renders only when the
                 // Settings toggle is on AND the detector finds a recent unsaved, un-dismissed window.
                 AutoWorkoutCard()
+                // #627: the persistent journal widget (last-7-days strip + tap-through to the journal).
+                // Today only; self-hides when the reminder toggle is off. Twin of Android JournalReminderCard.
+                if selectedDayOffset == 0 { JournalReminderCard() }
                 sourcesSection
             }
             #if os(iOS)

@@ -318,6 +318,8 @@ struct RootView: View {
             // Live Sessions is presented from Today's own Start entry (a cover, not a sidebar item), so a
             // deep-link lands the user on Today where that entry lives.
             case .liveSession: selection = .today
+            // The #627 Today journal widget routes to the Insights sidebar row (which hosts the journal card).
+            case .journal: selection = .insights
             case nil: break
             }
             if dest != nil { router.requestedDestination = nil }

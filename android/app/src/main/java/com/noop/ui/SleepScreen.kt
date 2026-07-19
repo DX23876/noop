@@ -275,6 +275,9 @@ fun SleepScreen(
     var showJournalPrompt by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     LaunchedEffect(sleeps) {
+        // #627: the journal-reminder toggle (default ON) gates this morning sheet too, so disabling the
+        // reminder silences both the Today card and this sheet with one switch.
+        if (!NoopPrefs.journalReminderEnabled(context)) return@LaunchedEffect
         val latestEnd = sleeps.lastOrNull()?.endTs ?: return@LaunchedEffect
         val nowS = System.currentTimeMillis() / 1000L
         val hoursAgo = (nowS - latestEnd) / 3600.0

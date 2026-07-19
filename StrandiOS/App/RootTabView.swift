@@ -161,6 +161,11 @@ struct RootTabView: View {
                 // so a deep-link lands on the Today tab where that entry lives.
                 withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 0 }
                 router.requestedDestination = nil
+            case .journal:
+                // The #627 Today journal widget opens the journal through the quick-action Journal sheet
+                // (InsightsView), matching the FAB's "Log journal" action. Calm sheet easing.
+                withAnimation(Self.sheetEase) { quickAction = .journal }
+                router.requestedDestination = nil
             case nil:
                 break
             }
@@ -195,6 +200,9 @@ struct RootTabView: View {
                 // .liveSession routes to the Today tab (handled above — its Start entry owns the cover);
                 // this keeps the switch exhaustive and falls back to Today if it ever reaches the host.
                 case .liveSession: LiquidTodayView()
+                // .journal opens through the quick-action Journal sheet (handled above); this keeps the
+                // switch exhaustive and falls back to the journal's Insights host if it ever reaches here.
+                case .journal: InsightsView()
                 }
             }
             // The Trends/Today fallbacks above emit TabRoute value pushes (#198), which need a

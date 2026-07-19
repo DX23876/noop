@@ -256,6 +256,9 @@ struct LiquidTodayView: View {
                         case .yourCards: yourCardsSection
                         }
                     }
+                    // #627: the persistent journal widget (last-7-days strip + tap-through to the journal).
+                    // Today only; self-hides when the reminder toggle is off. Twin of Android JournalReminderCard.
+                    if selectedDayOffset == 0 { JournalReminderCard() }
                     dataSourcesSection
                     Color.clear.frame(height: 90) // floating tab-bar clearance
                 }
