@@ -236,6 +236,7 @@
     <string name="l10n_devices_screen_give_device_brand_device_model_a_7a15585c">Donnez %1$s %2$s un nom que vous reconnaîtrez.</string>
     <string name="l10n_devices_screen_leave_none_active_b5c858cb">N\'en laisser aucune active</string>
     <string name="l10n_devices_screen_name_709a2322">Nom</string>
+    <string name="l10n_devices_screen_pack_voltage_9af3c3ff">%1$.2f V</string>
     <string name="l10n_devices_screen_paired_locally_noop_owns_this_ring_30c16190">Jumelé localement. NOOP possède cette bague pendant qu\'elle tient la clé. Si vous le réinitialisez ou le définissez</string>
     <string name="l10n_devices_screen_pick_a_new_active_strap_edd73542">Choisir un nouveau bracelet actif</string>
     <string name="l10n_devices_screen_rename_device_ee233604">Renommer l\'appareil</string>

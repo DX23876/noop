@@ -405,6 +405,7 @@
     <string name="l10n_devices_screen_give_device_brand_device_model_a_7a15585c">Give %1$s %2$s a name you\'ll recognise.</string>
     <string name="l10n_devices_screen_leave_none_active_b5c858cb">Leave none active</string>
     <string name="l10n_devices_screen_name_709a2322">Name</string>
+    <string name="l10n_devices_screen_pack_voltage_9af3c3ff">%1$.2f V</string>
     <string name="l10n_devices_screen_paired_locally_noop_owns_this_ring_30c16190">Paired locally. NOOP owns this ring while it holds the key. If you reset it again or set it </string>
     <string name="l10n_devices_screen_pick_a_new_active_strap_edd73542">Pick a new active strap</string>
     <string name="l10n_devices_screen_rename_device_ee233604">Rename device</string>

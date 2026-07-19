@@ -119,6 +119,10 @@ data class LiveState(
      *  [withRRIntervals]; emptied by [clearedBiometrics]. Twin of macOS LiveState.rrRecent (PR#191). */
     val rrRecent: List<Int> = emptyList(),
     val batteryPct: Double? = null,
+    /** Strap battery pack VOLTAGE (mV), decoded from the ~8-min BATTERY_LEVEL event (mv@21/@25) and the
+     *  GET_EXTENDED_BATTERY_INFO response (#592). Shown on the Devices card as a "x.xx V" readout beside
+     *  the percent. null until the first battery event lands. */
+    val batteryMv: Int? = null,
     /** Strap firmware version captured during the connect handshake: WHOOP 4.0 reports `fw_harvard`
      *  (a.b.c.d) via REPORT_VERSION_INFO, WHOOP 5/MG reports `fw_version` via GET_HELLO. Shown on the
      *  Devices card. Null until the handshake response decodes. The Swift WhoopProtocol decodes the
@@ -4143,6 +4147,8 @@ class WhoopBleClient(
 
             "COMMAND_RESPONSE" -> {
                 doubleValue(parsed.parsed["battery_pct"])?.let { setBattery(it) }
+                // #592: GET_EXTENDED_BATTERY_INFO / GET_BATTERY_LEVEL responses may carry pack voltage.
+                (parsed.parsed["battery_mV"] as? Int)?.let { mv -> _state.update { it.copy(batteryMv = mv) } }
                 // Firmware version from the handshake: 4.0 reports fw_harvard (REPORT_VERSION_INFO),
                 // 5/MG reports fw_version (GET_HELLO). Keyed on whichever field decoded rather than
                 // resp_cmd, so a single branch covers both families. Stable for the connection, so we
@@ -4281,6 +4287,11 @@ class WhoopBleClient(
                         if (ev.startsWith("BATTERY_LEVEL") && shouldApplyChargingFromBatteryEvent(replayedOffload)) {
                             (parsed.parsed["battery_charging"] as? Int)?.let {
                                 _state.update { s -> s.copy(charging = it != 0) }
+                            }
+                            // #592: the same battery event carries pack voltage (mv@21) — surface it on the
+                            // Devices card. Range-gated by the parser already; only a live (non-replayed) event.
+                            (parsed.parsed["battery_mV"] as? Int)?.let { mv ->
+                                _state.update { s -> s.copy(batteryMv = mv) }
                             }
                         }
                         // PR #577: the strap fired its firmware smart alarm (STRAP_DRIVEN_ALARM_EXECUTED,
