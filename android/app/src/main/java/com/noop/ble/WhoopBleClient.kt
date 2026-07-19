@@ -983,6 +983,106 @@ class WhoopBleClient(
         /** #592: how long to wait for a probe COMMAND_RESPONSE before treating silence as "no reply". */
         const val EXTENDED_BATTERY_PROBE_TIMEOUT_MS = 8_000L
 
+        /** #592: persisted previous extended-battery payload hex, so a new capture can diff against it. */
+        private const val KEY_592_PREV_PAYLOAD = "noop.592.prevPayload"
+
+        /**
+         * #592: format a GET_EXTENDED_BATTERY_INFO COMMAND_RESPONSE into a clean, readable, copyable report
+         * (verdict, full raw hex, an offset-labelled payload hex grid, the decoded voltage, and a per-byte
+         * diff vs [prevPayloadHex]). Pure + deterministic so it's unit-tested without a strap. Returns the
+         * display text and the payload hex to persist for the next capture's diff (null when there's no
+         * decodable payload). [cmdOff] is the response-command byte offset (6 on WHOOP4, 10 on 5/MG); the
+         * 4-byte CRC32 trailer both families carry is excluded from the payload.
+         */
+        internal fun formatExtendedBatteryProbe(
+            frame: ByteArray,
+            cmdOff: Int,
+            isWhoop5: Boolean,
+            prevPayloadHex: String?,
+        ): Pair<String, String?> {
+            val fam = if (isWhoop5) "WHOOP 5/MG" else "WHOOP 4.0"
+            val payStart = cmdOff + 1
+            val payEnd = frame.size - 4
+            val hasPayload = payEnd > payStart
+            val pay = if (hasPayload) frame.copyOfRange(payStart, payEnd) else ByteArray(0)
+
+            // 5/MG replies carry an explicit result code @12 (0 FAILURE / 1 SUCCESS / 2 PENDING /
+            // 3 UNSUPPORTED — 3 is the MG's hardware-confirmed rejection code, #48).
+            val resultCode = if (isWhoop5 && frame.size > 12) frame[12].toInt() and 0xFF else null
+            val resultLabel = when (resultCode) {
+                0 -> "FAILURE"; 1 -> "SUCCESS"; 2 -> "PENDING"; 3 -> "UNSUPPORTED"
+                null -> null; else -> "result$resultCode"
+            }
+            val verdict = when {
+                resultCode == 3 -> "opcode 98 REJECTED by firmware (UNSUPPORTED) — evidence for the decompile's 87"
+                hasPayload -> "opcode 98 ACCEPTED — ${pay.size}-byte payload"
+                else -> "opcode 98 answered with a bare stub — ambiguous"
+            }
+
+            val sb = StringBuilder()
+            sb.append("#592 EXTENDED-BATTERY PROBE — ").append(fam).append('\n')
+            sb.append("Verdict: ").append(verdict).append('\n')
+            if (resultLabel != null) sb.append("Result code @12: ").append(resultLabel).append('(').append(resultCode).append(")\n")
+            // Full raw hex on ONE line so it copies cleanly for sharing.
+            sb.append("\nRaw frame (").append(frame.size).append(" B):\n")
+            sb.append(frame.joinToString("") { "%02x".format(it) }).append('\n')
+
+            var payloadHex: String? = null
+            if (hasPayload) {
+                payloadHex = pay.joinToString("") { "%02x".format(it) }
+                sb.append("\nPayload (").append(pay.size).append(" B, CRC excluded):\n")
+                sb.append(hexGrid(pay))
+                // NOOP's decoder reads the pack voltage at payload bytes 7..8 (LE) — but that offset is only
+                // confirmed on WHOOP 4.0 (the 5/MG response to 98 is an undecoded stub, #592), so DON'T print
+                // a decoded voltage for 5/MG where it'd be a guess presented as fact; the raw grid stands.
+                if (!isWhoop5 && pay.size >= 9) {
+                    val mv = (pay[7].toInt() and 0xFF) or ((pay[8].toInt() and 0xFF) shl 8)
+                    sb.append("\nVoltage: ").append("%.2f V".format(java.util.Locale.US, mv / 1000.0))
+                        .append("  (mV=").append(mv).append(" @07) — the field NOOP already reads\n")
+                }
+                // Per-byte diff vs the previous capture — the field-mapping signal.
+                sb.append('\n')
+                if (prevPayloadHex != null && prevPayloadHex.length == payloadHex.length) {
+                    val prev = prevPayloadHex.chunked(2).map { it.toInt(16) }
+                    val deltas = StringBuilder()
+                    for (i in pay.indices) {
+                        val a = prev[i]
+                        val b = pay[i].toInt() and 0xFF
+                        if (a != b) deltas.append(" @%02d:%02x→%02x".format(i, a, b))
+                    }
+                    if (deltas.isEmpty()) {
+                        sb.append("Δ vs previous capture: identical — re-probe at a different % / after wear to expose the fields")
+                    } else {
+                        sb.append("Δ vs previous capture:").append(deltas).append('\n')
+                        sb.append("(a byte tracking battery % = SoC/capacity; drifting with wear = temperature; only ever climbing = cycle count)")
+                    }
+                } else {
+                    sb.append("Δ vs previous capture: first capture — probe again at another battery % to diff")
+                }
+            } else {
+                sb.append("\nNo payload beyond the command byte (bare stub) — no data over the battery event; ")
+                sb.append("opcode 98 may be an unknown-command ack on this firmware")
+            }
+            return sb.toString() to payloadHex
+        }
+
+        /** Offset-labelled hex grid, 8 bytes per row ("  @00  0d 01 …"), for the #592 payload dump. */
+        private fun hexGrid(bytes: ByteArray): String {
+            val sb = StringBuilder()
+            var i = 0
+            while (i < bytes.size) {
+                sb.append("  @%02d ".format(i))
+                var j = i
+                while (j < minOf(i + 8, bytes.size)) {
+                    sb.append(" %02x".format(bytes[j]))
+                    j++
+                }
+                sb.append('\n')
+                i += 8
+            }
+            return sb.toString()
+        }
+
         const val MAX_AUTO_CONTINUES = 24
 
         /** #364 "more backlog remains" margin (seconds): how far ahead the strap must be of our persisted
@@ -3900,52 +4000,17 @@ class WhoopBleClient(
                     // the disputed number: a battery-shaped payload (mV etc.) confirms 98 on this firmware;
                     // a short generic stub keeps it ambiguous (see the probe note on the enum case).
                     if (frame.size > cmdOff && (frame[cmdOff].toInt() and 0xFF) == CommandNumber.GET_EXTENDED_BATTERY_INFO.rawValue) {
-                        // Build the #592 result as text lines, then BOTH log them (so they ride the strap-log
-                        // bundle) AND publish them to a StateFlow the Devices probe dialog shows + copies —
-                        // so a capture doesn't require a full log export to read/share.
-                        val lines = ArrayList<String>(3)
-                        lines.add("Extended-battery probe raw response (#592 — full frame, len=${frame.size}): " +
-                            frame.joinToString("") { "%02x".format(it) })
-                        // 5/MG replies carry an explicit result code @12 (0 FAILURE / 1 SUCCESS / 2 PENDING /
-                        // 3 UNSUPPORTED — 3 is hardware-confirmed as the MG's rejection code, #48). UNSUPPORTED
-                        // here is a DECISIVE #592 verdict: the firmware itself says opcode 98 isn't a command.
-                        if (connectedFamily == DeviceFamily.WHOOP5 && frame.size > 12) {
-                            val r = frame[12].toInt() and 0xFF
-                            val label = when (r) {
-                                0 -> "FAILURE"; 1 -> "SUCCESS"; 2 -> "PENDING"; 3 -> "UNSUPPORTED"
-                                else -> "result$r"
-                            }
-                            lines.add("Result code (#592, 5/MG @12): $label($r)" +
-                                if (r == 3) " — the firmware explicitly does NOT recognise opcode 98; the decompile's 87 becomes the live candidate (gated follow-up)" else "")
-                        }
-                        // #592 payload triage: is there more here than the mV word NOOP already gets from the
-                        // ordinary battery event? Report the payload length and every 16-bit LE word with its
-                        // offset, tagging the mV-band ones (3000-4300) vs OTHER in-range values. Bound the scan
-                        // to the DECODABLE payload, excluding the 4-byte CRC32 trailer both families carry
-                        // (total frame = length + 4), so the CRC never reads as a phantom "candidate field".
-                        val payStart = cmdOff + 1
-                        val payEnd = frame.size - 4
-                        if (payEnd > payStart) {
-                            val pay = frame.copyOfRange(payStart, payEnd)
-                            val words = StringBuilder()
-                            var o = 0
-                            while (o + 1 < pay.size) {
-                                val v = (pay[o].toInt() and 0xFF) or ((pay[o + 1].toInt() and 0xFF) shl 8)
-                                val tag = when {
-                                    v in 3000..4300 -> "mV?"      // battery voltage band (already known)
-                                    v in 1..0xFFFE -> "other"     // any other non-trivial word — candidate field
-                                    else -> null
-                                }
-                                if (tag != null) words.append(" @$o=$v($tag)")
-                                o += 1
-                            }
-                            lines.add("Payload (#592): len=${pay.size} bytes (CRC excluded), overlapping 16-bit LE words:$words " +
-                                "— words BEYOND an mV are unmapped candidate fields (cycle count / health / temp?); mV-only or none ⇒ no new data over the battery event")
-                        } else {
-                            lines.add("Payload (#592): no payload beyond the command byte (bare stub) ⇒ no data over the battery event; opcode 98 may be an unknown-command ack on this firmware")
-                        }
-                        lines.forEach { log(it) }
-                        _extendedBatteryProbe.value = lines.joinToString("\n\n")
+                        // Format the #592 result (pure + testable), then BOTH log it (so it rides the strap-log
+                        // bundle) AND publish it to the StateFlow the Devices dialog shows + copies — so a
+                        // capture doesn't require a full log export. Diffs against the persisted previous
+                        // payload to help map the fields across captures.
+                        val prevHex = NoopPrefs.of(context).getString(KEY_592_PREV_PAYLOAD, null)
+                        val (text, payHex) = formatExtendedBatteryProbe(
+                            frame, cmdOff, connectedFamily == DeviceFamily.WHOOP5, prevHex,
+                        )
+                        log("Extended-battery probe (#592):\n$text")
+                        _extendedBatteryProbe.value = text
+                        if (payHex != null) NoopPrefs.of(context).edit().putString(KEY_592_PREV_PAYLOAD, payHex).apply()
                     }
                     if (frame.size > cmdOff && (frame[cmdOff].toInt() and 0xFF) == CommandNumber.GET_DATA_RANGE.rawValue) {
                         // #451: dump raw GET_DATA_RANGE response bytes unconditionally (even if decode returns
