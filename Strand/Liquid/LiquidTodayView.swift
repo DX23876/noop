@@ -86,6 +86,10 @@ struct LiquidTodayView: View {
     /// today's row has no vitals yet, so these fall back to the last night that recorded them. Never
     /// resolved in body — body rescans repo.days ~23× per pass, and this cache keeps that read O(1).
     @State private var cachedVitalsDay: DailyMetric?
+    /// The Charge hero's resolved state (#543 carry + the honest label), resolved ONCE in load() alongside
+    /// the other caches. It composes `TodayView.lastScoredRecoveryDay`, which is O(days) — exactly the scan
+    /// this cache exists to keep out of body. Never resolved in body.
+    @State private var cachedChargeDisplay: ChargeDisplay = .noData
     /// Flips true once the first load() completes. Until then the hero gauges + sky render STATIC so the
     /// launch data-churn (refresh publish + BLE/HR notifies) isn't fighting 4 live canvases + CoreMotion.
     @State private var dataLoaded = false
@@ -135,6 +139,8 @@ struct LiquidTodayView: View {
     /// The prior-day vitals carry (see `cachedVitalsDay`), read O(1) from the cache. Non-nil only at
     /// offset 0 (today); a navigated past day carries nothing (its own row is the whole story).
     private var vitalsDay: DailyMetric? { cachedVitalsDay }
+    /// The Charge hero's resolved state (see `cachedChargeDisplay`), read O(1) from the cache.
+    private var chargeDisplay: ChargeDisplay { cachedChargeDisplay }
 
     /// The actual O(days) resolution. Offset 0 prefers live repo.today; past offsets look up. Run ONCE
     /// per data/day change from load(), never from body.
@@ -491,7 +497,11 @@ struct LiquidTodayView: View {
 
     private var heroCard: some View {
         HStack(alignment: .top, spacing: 4) {
-            HeroScoreCell(label: String(localized: "Charge"), score: displayDay?.recovery, tint: StrandPalette.chargeColor,
+            // #543 carry: an unscored today shows the last scored night's REAL Charge (labelled as prior by
+            // the state pill) rather than an empty vessel, matching the classic Today, the widget/watch/Live
+            // Activity (`Repository.widgetAnchor`) and Android. Effort deliberately does NOT carry — it is
+            // today's own accumulation, so yesterday's number would be a false statement, not a stale one.
+            HeroScoreCell(label: String(localized: "Charge"), score: chargeDisplay.pct, tint: StrandPalette.chargeColor,
                           animated: dataLoaded, onGuide: { guideSection = .charge })
             // #45: the hero Effort must honour the user's Effort scale like every other Effort read-out.
             // Show the value on the chosen scale (0–100 or WHOOP 0–21) with the matching vessel max, and
@@ -700,7 +710,7 @@ struct LiquidTodayView: View {
                     }
                     HStack(spacing: 5) {
                         Circle().fill(StrandPalette.chargeColor).frame(width: 6, height: 6)
-                        Text(displayDay?.recovery != nil ? "Solid" : "Calibrating")
+                        Text(chargeDisplay.stateLabel)
                             .font(StrandFont.caption.weight(.bold))
                             .foregroundStyle(StrandPalette.chargeColor)
                     }
@@ -723,7 +733,12 @@ struct LiquidTodayView: View {
                             Text(synthesisExpanded ? "hide" : "show").font(StrandFont.caption)
                                 .foregroundStyle(StrandPalette.textTertiary)
                         }
-                        Text(synthLine).font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
+                        // While the baseline calibrates, the honest "N of 4 nights" progress replaces the
+                        // readiness one-liner here — the same swap classic makes (`calibrationDetail ??
+                        // synthesisCardDetail`), so the count the short greeting pill can't carry lands in
+                        // the card and both Today screens read identically.
+                        Text(chargeDisplay.calibrationDetail ?? synthLine)
+                            .font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
                             .fixedSize(horizontal: false, vertical: true)
                         if synthesisExpanded {
                             Text(LocalizedStringKey(readiness.summary)).font(StrandFont.caption)
@@ -843,7 +858,11 @@ struct LiquidTodayView: View {
     private func ktileFor(_ metric: KeyMetric, hrv: Double?, rhr: Double?) -> some View {
         switch metric {
         case .charge:
-            ktile(String(localized: "Recovery"), intText(displayDay?.recovery), "%", StrandPalette.chargeColor, frac(displayDay?.recovery), key: "recovery")
+            // Reads the SAME resolved Charge the hero draws, not `displayDay?.recovery` raw — the tile and the
+            // hero are the same number, so a carry that reached only one of them would put two answers for
+            // Charge on one screen. (#543: one prior row feeds every recovery-derived read-out.) Strain below
+            // stays raw, matching the Effort hero, which correctly does not carry.
+            ktile(String(localized: "Recovery"), intText(chargeDisplay.pct), "%", StrandPalette.chargeColor, frac(chargeDisplay.pct), key: "recovery")
         case .effort:
             ktile(String(localized: "Strain"), intText(displayDay?.strain), "%", StrandPalette.effortColor, frac(displayDay?.strain), key: "strain")
         case .rest:
@@ -979,6 +998,7 @@ struct LiquidTodayView: View {
                             }
                         }
                         LiquidStrapBatteryRow()
+                        LiquidSyncStatusRow()
                     }
                 }
             }
@@ -1023,6 +1043,23 @@ struct LiquidTodayView: View {
         // echo today's still-forming row; only on today (a past day's own row is the whole story).
         let tkey = cachedDisplayDay?.day ?? selectedDayKey
         cachedVitalsDay = (selectedDayOffset == 0) ? Repository.lastVitalsDay(days: repo.days, todayKey: tkey) : nil
+        // Charge carry (#543) + the honest label, resolved here for the same reason as the two above: the
+        // selector below scans repo.days. Calibration nights come from the SAME `RecoveryScorer` helper the
+        // classic Today reads, so the two screens agree on when a wearer is genuinely mid-calibration
+        // rather than simply lacking a scored night.
+        let calNights = (selectedDayOffset == 0)
+            ? RecoveryScorer.calibrationNights(nightlyHrv: repo.days.map(\.avgHrv),
+                                               dayKeys: repo.days.map(\.day),
+                                               hasRecovery: day?.recovery != nil)
+            : nil
+        cachedChargeDisplay = ChargeDisplay.resolve(
+            todayRecovery: day?.recovery,
+            priorScored: TodayView.lastScoredRecoveryDay(days: repo.days, selectedDayKey: tkey,
+                                                         isToday: selectedDayOffset == 0,
+                                                         todayScored: day?.recovery != nil,
+                                                         isCalibrating: calNights != nil),
+            calibrationNights: calNights,
+            todayKey: tkey)
 
         let cal = Calendar.current
         let dayStart = cal.startOfDay(for: selectedLogicalDay)
@@ -1672,16 +1709,126 @@ private struct LiquidLiveHR: View {
     }
 }
 
+extension LiquidTodayView {
+    /// What the strap-battery ring can honestly say, resolved from the three live signals it has.
+    /// Pure + static so the truth table is testable with no strap (`LiquidBatteryDisplayTests`).
+    ///
+    /// The three signals are INDEPENDENT and land separately, which is the whole reason this exists:
+    ///  • `connected` — the CoreBluetooth link.
+    ///  • `batteryPct` — standard 0x2A19 (5/MG) or the GET_BATTERY_LEVEL response (4.0).
+    ///  • `charging` — a different source entirely: the strap's BATTERY_LEVEL event (~every 8 min),
+    ///    which keeps arriving live even mid-offload (`FrameRouter`, "flag only — battery % keeps its
+    ///    family-specific source", #77).
+    ///
+    /// So "charging, but no % yet" is REACHABLE, not hypothetical. The old code nested the bolt inside
+    /// `if let pct`, so that state rendered as `bolt.slash` — a crossed-out bolt at a wearer whose strap
+    /// was on the charger, which reads as "battery dead". And it drew the ring on `batteryPct` alone with
+    /// no `connected` gate: `LiveState.batteryPct` is never cleared (`clearBiometrics` deliberately leaves
+    /// it), so a dead strap kept showing its last % as if live — a 21 h old reading rendered identically
+    /// to a fresh one. Gating on `connected` here also makes this ring agree with `LiquidStrapBatteryRow`
+    /// directly below it, which already required `live.connected`.
+    /// (A3/B2, docs/bugs/2026-07-15-strap-battery-backfill-observability.md)
+    enum StrapBatteryDisplay: Equatable {
+        /// No link — say nothing about charge. A stale % is worse than no %.
+        case offline
+        /// Linked, but no charge reading has landed yet. `charging` is still knowable on its own.
+        case pending(charging: Bool)
+        /// A reading from the current link.
+        case charge(pct: Double, charging: Bool)
+
+        static func resolve(connected: Bool, batteryPct: Double?, charging: Bool?) -> StrapBatteryDisplay {
+            guard connected else { return .offline }
+            guard let pct = batteryPct else { return .pending(charging: charging == true) }
+            return .charge(pct: pct, charging: charging == true)
+        }
+    }
+
+    /// What the Charge hero can honestly say for the selected day. Pure + static so the truth table is
+    /// testable with no clock and no view (`LiquidChargeCarryTests`).
+    ///
+    /// See `LiquidChargeCarryTests` for the regression this closes: Liquid read `displayDay?.recovery`
+    /// raw, so after the 04:00 rollover — or on any day with no scored night — Charge blanked while the
+    /// Rest hero (`freshRestScore`) and the vitals (`Repository.lastVitalsDay`) carried right beside it,
+    /// and the widget/watch/Live Activity (`Repository.widgetAnchor`, #911) all showed a number.
+    ///
+    /// The SELECTION is not re-implemented here: callers pass the row `TodayView.lastScoredRecoveryDay`
+    /// picked (its #547 future-day guard included) and the caption comes from `TodayView.carriedCaption`,
+    /// so the two Today screens cannot drift apart.
+    enum ChargeDisplay: Equatable {
+        /// The selected day scored its own Charge.
+        case scored(pct: Double)
+        /// No score for the selected day; showing a REAL prior night's, stamped with whose it is.
+        case carried(pct: Double, caption: String)
+        /// Pre-seed-gate: the baseline is still learning and owns its own "N of 4 nights" copy.
+        case calibrating(nights: Int)
+        /// Nothing honest to show — no score, no prior night, and not calibrating.
+        case noData
+
+        /// The number the hero vessel draws, or nil for the honest empty state. A carry draws the REAL
+        /// prior value; the empty states draw nothing rather than a fabricated zero.
+        var pct: Double? {
+            switch self {
+            case .scored(let p): return p
+            case .carried(let p, _): return p
+            case .calibrating, .noData: return nil
+            }
+        }
+
+        /// The short Charge-state pill beside the greeting. It shares a row with the greeting under a
+        /// `fixedSize`, so it stays SHORT — the carried day's full "Last night · <date>" stamp lives in
+        /// `caption`, not here. Only `.calibrating` may say "Calibrating": the pill used to key off
+        /// `recovery != nil` and so claimed a calibrating baseline on every unscored day, including a
+        /// trusted wearer who simply hadn't worn the strap that night.
+        var stateLabel: String {
+            switch self {
+            case .scored: return String(localized: "Solid")
+            case .carried: return String(localized: "Last night")
+            case .calibrating: return String(localized: "Calibrating")
+            case .noData: return String(localized: "No data")
+            }
+        }
+
+        /// The synthesis-card detail line while the baseline is still forming — the same "N of
+        /// `Baselines.minNightsSeed` nights" progress classic `TodayView.calibrationDetail` surfaces, so a
+        /// wearer in their first few nights reads identical calibration copy on both Today screens (before
+        /// this, Liquid dropped the count and showed a bare "Calibrating"). Non-nil ONLY for `.calibrating`:
+        /// the compact greeting pill stays short ("Calibrating") because it shares a `fixedSize` row with
+        /// the greeting, so the count lives here in the card, exactly as classic keeps it out of its
+        /// `ScoreStatePill`. Reuses classic's String Catalog key verbatim — one entry serves both screens.
+        var calibrationDetail: String? {
+            guard case .calibrating(let nights) = self else { return nil }
+            return String(localized: "Learning your baseline, \(nights) of \(Baselines.minNightsSeed) nights.")
+        }
+
+        static func resolve(todayRecovery: Double?, priorScored: DailyMetric?,
+                            calibrationNights: Int?, todayKey: String) -> ChargeDisplay {
+            if let pct = todayRecovery { return .scored(pct: pct) }
+            // Calibration owns its own copy and beats the carry — mid-calibration there is no trustworthy
+            // prior score to stand in. Mirrors `lastScoredRecoveryDay`, which returns nil when calibrating.
+            if let n = calibrationNights { return .calibrating(nights: n) }
+            // `lastScoredRecoveryDay` only ever selects a row whose recovery is non-nil, so the second bind
+            // is belt-and-suspenders: a nil falls through to noData rather than fabricating a carry.
+            guard let prior = priorScored, let pct = prior.recovery else { return .noData }
+            return .carried(pct: pct,
+                            caption: TodayView.carriedCaption(priorDayKey: prior.day, todayKey: todayKey))
+        }
+    }
+}
+
 /// Strap-battery ring. Owns LiveState. Tap → Devices.
 private struct LiquidBatteryButton: View {
     @EnvironmentObject var live: LiveState
     @EnvironmentObject var router: NavRouter
+    private var display: LiquidTodayView.StrapBatteryDisplay {
+        .resolve(connected: live.connected, batteryPct: live.batteryPct, charging: live.charging)
+    }
     var body: some View {
         Button { router.openDevices() } label: {
             ZStack {
                 Circle().fill(Color(.sRGB, red: 10 / 255, green: 11 / 255, blue: 16 / 255, opacity: 0.5))
                 Circle().strokeBorder(.white.opacity(0.15), lineWidth: 1)
-                if let pct = live.batteryPct {
+                switch display {
+                case .charge(let pct, let charging):
                     Circle()
                         .trim(from: 0, to: max(0.02, min(1, pct / 100)))
                         .stroke(ringColor(pct), style: StrokeStyle(lineWidth: 3, lineCap: .round))
@@ -1690,7 +1837,7 @@ private struct LiquidBatteryButton: View {
                     Text("\(Int(pct.rounded()))")
                         .font(.system(size: 9, weight: .bold))
                         .foregroundStyle(.white.opacity(0.9))
-                    if live.charging == true {
+                    if charging {
                         // #972: the default Today never surfaced charging state — only the % ring. A small
                         // bolt over the ring gives the same signal as the "· Charging" text on Mac/Android.
                         Image(systemName: "bolt.fill")
@@ -1698,7 +1845,13 @@ private struct LiquidBatteryButton: View {
                             .foregroundStyle(StrandPalette.chargeColor)
                             .offset(y: -10)
                     }
-                } else {
+                case .pending(let charging):
+                    // Connected, no % yet. If the BATTERY_LEVEL event has told us we're charging, SAY so —
+                    // that is the one thing we actually know, and it is the wearer's live question.
+                    Image(systemName: charging ? "bolt.fill" : "ellipsis")
+                        .font(.system(size: charging ? 11 : 9, weight: .bold))
+                        .foregroundStyle(charging ? StrandPalette.chargeColor : .white.opacity(0.5))
+                case .offline:
                     Image(systemName: "bolt.slash")
                         .font(.system(size: 11))
                         .foregroundStyle(.white.opacity(0.5))
@@ -1709,15 +1862,67 @@ private struct LiquidBatteryButton: View {
         .buttonStyle(LiquidPressStyle())
         .accessibilityLabel(batteryAccessibility)
     }
+    /// Never "Strap battery" alone for a no-reading state — that was indistinguishable from a real one.
     private var batteryAccessibility: String {
-        guard let pct = live.batteryPct else { return String(localized: "Strap battery") }
-        let n = Int(pct.rounded())
-        return live.charging == true
-            ? String(localized: "Strap battery \(n) percent, charging")
-            : String(localized: "Strap battery \(n) percent")
+        switch display {
+        case .offline:
+            return String(localized: "Strap battery, strap not connected")
+        case .pending(let charging):
+            return charging
+                ? String(localized: "Strap battery charging, no reading yet")
+                : String(localized: "Strap battery, no reading yet")
+        case .charge(let pct, let charging):
+            let n = Int(pct.rounded())
+            return charging
+                ? String(localized: "Strap battery \(n) percent, charging")
+                : String(localized: "Strap battery \(n) percent")
+        }
     }
     private func ringColor(_ p: Double) -> Color {
         p < 15 ? StrandPalette.statusCritical : p < 35 ? StrandPalette.statusWarning : StrandPalette.chargeColor
+    }
+}
+
+/// Strap-history sync state inside the Data Sources card. Owns LiveState; display-only.
+///
+/// B1 (docs/bugs/2026-07-15-strap-battery-backfill-observability.md): the v8 Liquid redesign shipped no
+/// backfill indication AT ALL, so on the iOS default Today a multi-hour history recovery was completely
+/// invisible — the wearer could not tell a working strap mid-drain from a dead one. The classic
+/// `TodayView` has always had this (`SyncStatusChip`), as do the Mac Sleep/Intelligence screens and the
+/// menu bar (`SyncingHistoryNote`); Liquid simply dropped it. Same class of regression as #992, which
+/// dropped the "~X days left" runtime estimate from the row directly above this one.
+///
+/// Deliberately scoped to what LiveState can honestly answer: THAT a drain is running, how many chunks
+/// it has pulled, and when one last completed. It does NOT yet say "~15h behind" — that needs the
+/// persisted data frontier (max HR ts) compared against `strapRange.newestUnix`, and the frontier is a
+/// Repository read that LiveState does not carry. That remains open in B1.
+private struct LiquidSyncStatusRow: View {
+    @EnvironmentObject var live: LiveState
+    var body: some View {
+        if live.backfilling {
+            row(String(localized: "Strap history"), value: chunks, tone: StrandPalette.accent)
+        } else if let ts = live.lastSyncedAt {
+            row(String(localized: "Strap history"),
+                value: String(localized: "Synced \(relativeAgo(ts)) ago"), tone: StrandPalette.textPrimary)
+        }
+    }
+
+    /// "Syncing…" alone reads as a spinner that might be stuck; the chunk count is the cheapest available
+    /// proof that the drain is actually moving. Suppressed at zero — a session that has pulled nothing yet
+    /// should not claim "0 chunks pulled" as if that were progress.
+    private var chunks: String {
+        live.syncChunksThisSession > 0
+            ? String(localized: "Syncing… \(live.syncChunksThisSession) chunks")
+            : String(localized: "Syncing…")
+    }
+
+    private func row(_ label: String, value: String, tone: Color) -> some View {
+        HStack {
+            Text(label).font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+            Spacer()
+            Text(value).font(StrandFont.subhead).foregroundStyle(tone)
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 
