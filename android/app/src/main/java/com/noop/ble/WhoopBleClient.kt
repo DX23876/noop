@@ -2390,6 +2390,10 @@ class WhoopBleClient(
                 // below. NOT hardware-confirmed on 5/MG — rebootStrap() logs the COMMAND_RESPONSE so a strap
                 // log confirms whether the frame is accepted. User-initiated + confirmation-gated only.
                 cmd != CommandNumber.REBOOT_STRAP &&
+                // GET_EXTENDED_BATTERY_INFO (98) over puffin: read-only opcode probe (#592) — a real
+                // WHOOP 5 (fw 50.38.1.0) already answered this number, proving the frame is at least
+                // accepted. Driven only by probeExtendedBatteryInfo() (user-initiated, Test Centre gated).
+                cmd != CommandNumber.GET_EXTENDED_BATTERY_INFO &&
                 // SET_CONFIG (the R22 deep-stream unlock) is allowed ONLY while the deep-data experiment
                 // is opted in — it writes a persistent feature flag to the strap, so it must never fire
                 // on a default install. Reversible; driven only by enableWhoop5DeepData(). (#174)
@@ -2759,6 +2763,21 @@ class WhoopBleClient(
             return
         }
         sendRebootFrame(variant.command, variant.payload, variant)
+    }
+
+    /** #592 opcode probe: send the read-only GET_EXTENDED_BATTERY_INFO(98) and let the COMMAND_RESPONSE
+     *  hook dump the full raw reply to the strap log. The number is disputed (an APK decompile reads 87);
+     *  a battery-shaped payload in the reply confirms 98 on this firmware, a short generic stub keeps it
+     *  ambiguous. Works on both families (the 4.0 is the discriminating device — its firmware banks real
+     *  EXTENDED_BATTERY_INFORMATION event payloads; the 5.0 answered 98 with a stub on fw 50.38.1.0).
+     *  User-initiated only (Devices → strap menu, Test Centre → Connection gated); never automatic. */
+    fun probeExtendedBatteryInfo() {
+        if (!_state.value.connected) {
+            log("Extended-battery probe (#592) ignored — not connected")
+            return
+        }
+        log("Extended-battery probe (#592): sending GET_EXTENDED_BATTERY_INFO(98, read-only) on family=$connectedFamily; the raw COMMAND_RESPONSE is dumped below when it lands")
+        send(CommandNumber.GET_EXTENDED_BATTERY_INFO)
     }
 
     /** Shared reboot send + debug trail + watchdog, used by both the production [rebootStrap] and the
@@ -3840,6 +3859,57 @@ class WhoopBleClient(
                     // stays: on 5/MG it lands word-aligned with the body at 11, and a straddling word
                     // can't fall in the unix-range window. (#78 fork)
                     val cmdOff = if (connectedFamily == DeviceFamily.WHOOP5) 10 else 6
+                    // #592 opcode probe: dump the raw GET_EXTENDED_BATTERY_INFO(98) response in FULL (no
+                    // prefix cap — the tail fields are the evidence) so a normal strap-log export settles
+                    // the disputed number: a battery-shaped payload (mV etc.) confirms 98 on this firmware;
+                    // a short generic stub keeps it ambiguous (see the probe note on the enum case).
+                    if (frame.size > cmdOff && (frame[cmdOff].toInt() and 0xFF) == CommandNumber.GET_EXTENDED_BATTERY_INFO.rawValue) {
+                        log("Extended-battery probe raw response (#592 — full frame, len=${frame.size}): " +
+                            frame.joinToString("") { "%02x".format(it) })
+                        // 5/MG replies carry an explicit result code @12 (0 FAILURE / 1 SUCCESS / 2 PENDING /
+                        // 3 UNSUPPORTED — 3 is hardware-confirmed as the MG's rejection code, #48). UNSUPPORTED
+                        // here is a DECISIVE #592 verdict: the firmware itself says opcode 98 isn't a command,
+                        // which is far stronger than inferring from a short stub.
+                        if (connectedFamily == DeviceFamily.WHOOP5 && frame.size > 12) {
+                            val r = frame[12].toInt() and 0xFF
+                            val label = when (r) {
+                                0 -> "FAILURE"; 1 -> "SUCCESS"; 2 -> "PENDING"; 3 -> "UNSUPPORTED"
+                                else -> "result$r"
+                            }
+                            log("Extended-battery probe result code (#592, 5/MG @12): $label($r)" +
+                                if (r == 3) " — the firmware explicitly does NOT recognise opcode 98; the decompile's 87 becomes the live candidate (gated follow-up)" else "")
+                        }
+                        // #592 payload triage: is there more here than the mV word NOOP already gets from
+                        // the ordinary battery event? Report the payload length (bytes after the command
+                        // byte) and every 16-bit LE word with its payload offset, tagging the mV-band ones
+                        // (3000-4300) vs OTHER in-range values — a rich payload (extra plausible words past
+                        // the mV) means a real battery-health feature to map; just mV/none means #592 is a
+                        // correctness fix with no feature behind it. Read-only scan of the already-logged bytes.
+                        val payStart = cmdOff + 1
+                        // Bound the scan to the DECODABLE payload, excluding the 4-byte CRC32 trailer both
+                        // families carry (total frame = length + 4), so the CRC never reads as a phantom
+                        // "candidate field" and inflates the count. Empty payload ⇒ bare stub.
+                        val payEnd = frame.size - 4
+                        if (payEnd > payStart) {
+                            val pay = frame.copyOfRange(payStart, payEnd)
+                            val words = StringBuilder()
+                            var o = 0
+                            while (o + 1 < pay.size) {
+                                val v = (pay[o].toInt() and 0xFF) or ((pay[o + 1].toInt() and 0xFF) shl 8)
+                                val tag = when {
+                                    v in 3000..4300 -> "mV?"      // battery voltage band (already known)
+                                    v in 1..0xFFFE -> "other"     // any other non-trivial word — candidate field
+                                    else -> null
+                                }
+                                if (tag != null) words.append(" @$o=$v($tag)")
+                                o += 1
+                            }
+                            log("Extended-battery probe payload (#592): len=${pay.size} bytes (CRC excluded), overlapping 16-bit LE words:$words " +
+                                "— words BEYOND an mV are unmapped candidate fields (cycle count / health / temp?); mV-only or none ⇒ no new data over the battery event")
+                        } else {
+                            log("Extended-battery probe payload (#592): no payload beyond the command byte (bare stub) ⇒ no data over the battery event; opcode 98 may be an unknown-command ack on this firmware")
+                        }
+                    }
                     if (frame.size > cmdOff && (frame[cmdOff].toInt() and 0xFF) == CommandNumber.GET_DATA_RANGE.rawValue) {
                         // #451: dump raw GET_DATA_RANGE response bytes unconditionally (even if decode returns
                         // null) so a stale/wrong-epoch "newest" can be told apart from a frame-alignment bug in

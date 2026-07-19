@@ -127,6 +127,7 @@ fun DevicesScreen(
     var rebootTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
     // WHOOP 4.0 reboot probe (Test Centre → Connection, 4.0 only) — the device whose probe sheet is open.
     var probeTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
+    var batteryProbeTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
     // After removing the ACTIVE device with other devices still paired, prompt to pick a new active one.
     var pickNewActive by remember { mutableStateOf(false) }
 
@@ -214,6 +215,13 @@ fun DevicesScreen(
                     SourceCoordinator.isWhoop(device) && !live.whoop5Detected &&
                     TestCentre.from(context).active(TestDomain.CONNECTION)
                 ) { { probeTarget = device } } else null,
+                // #592 extended-battery opcode probe: read-only, BOTH families (the 4.0 is the
+                // discriminating device, but a 5/MG capture is useful too). Same Test Centre →
+                // Connection gate as the reboot probe.
+                onBatteryProbe = if (device.status == DeviceStatus.active.name && live.connected &&
+                    SourceCoordinator.isWhoop(device) &&
+                    TestCentre.from(context).active(TestDomain.CONNECTION)
+                ) { { batteryProbeTarget = device } } else null,
             )
         }
 
@@ -325,6 +333,15 @@ fun DevicesScreen(
         )
     }
 
+    // --- #592 extended-battery opcode probe: read-only, dumps the strap's full raw reply to the log so a
+    //     normal export settles the disputed GET_EXTENDED_BATTERY_INFO number (98 vs an APK decompile's 87). ---
+    batteryProbeTarget?.let {
+        BatteryInfoProbeDialog(
+            onSend = { viewModel.probeExtendedBatteryInfo(); batteryProbeTarget = null },
+            onDismiss = { batteryProbeTarget = null },
+        )
+    }
+
     // --- Second, strongly-worded delete-data confirm (from the Removed card's secondary control) ---
     deleteDataTarget?.let { device ->
         ConfirmDialog(
@@ -394,6 +411,8 @@ private fun DeviceCard(
     // WHOOP 4.0 reboot probe (Test Centre → Connection, 4.0 only). Non-null only when the parent has
     // decided the probe applies (live-connected WHOOP 4.0 + Connection test mode on); null otherwise. (#235)
     onRebootProbe: (() -> Unit)? = null,
+    // #592 extended-battery opcode probe (Test Centre → Connection, both WHOOP families). Read-only.
+    onBatteryProbe: (() -> Unit)? = null,
 ) {
     val profile = deviceProfile(device)
     // The per-device actions menu's open state is hoisted here so the WHOLE card is a tap target that opens
@@ -502,6 +521,7 @@ private fun DeviceCard(
                     onDisconnect = onDisconnect,
                     onReboot = onReboot,
                     onRebootProbe = onRebootProbe,
+                    onBatteryProbe = onBatteryProbe,
                 )
             }
         }
@@ -620,6 +640,7 @@ private fun DeviceActionsMenu(
     onDisconnect: (() -> Unit)? = null,
     onReboot: (() -> Unit)? = null,
     onRebootProbe: (() -> Unit)? = null,
+    onBatteryProbe: (() -> Unit)? = null,
 ) {
     Box {
         IconButton(
@@ -667,6 +688,11 @@ private fun DeviceActionsMenu(
                 // Connection on + a live WHOOP 4.0). Finds the real reboot frame the 4.0 accepts (#235).
                 if (onRebootProbe != null) {
                     MenuItem("Reboot probe (4.0 RE)…", Icons.Filled.BugReport) { onOpenChange(false); onRebootProbe() }
+                }
+                // #592: read-only extended-battery opcode probe — settles the disputed GET_EXTENDED_
+                // BATTERY_INFO number (98 vs an APK decompile's 87) from a strap-log export.
+                if (onBatteryProbe != null) {
+                    MenuItem(uiString(R.string.l10n_devices_screen_battery_info_probe_592_re_1dbd4c0f), Icons.Filled.BugReport) { onOpenChange(false); onBatteryProbe() }
                 }
                 if (onRemove != null) {
                     HorizontalDivider(color = Palette.hairline)
@@ -805,6 +831,38 @@ private fun RebootProbeDialog(
             }
         },
         confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(uiString(R.string.l10n_devices_screen_cancel_77dfd213), style = NoopType.body, color = Palette.textSecondary)
+            }
+        },
+    )
+}
+
+/** #592 extended-battery opcode probe: a single read-only send + a full raw-response dump to the strap
+ *  log. Settles whether GET_EXTENDED_BATTERY_INFO is 98 (this table) or 87 (an independent APK decompile)
+ *  from a normal strap-log export. Gated to Test Centre → Connection + a live WHOOP at the call site. */
+@Composable
+private fun BatteryInfoProbeDialog(
+    onSend: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Palette.surfaceOverlay,
+        title = { Text(uiString(R.string.l10n_devices_screen_battery_info_probe_592_re_1dbd4c0f), style = NoopType.title2, color = Palette.textPrimary) },
+        text = {
+            Text(
+                uiString(R.string.l10n_devices_screen_battery_probe_explainer_2858bb6a),
+                style = NoopType.subhead,
+                color = Palette.textSecondary,
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onSend) {
+                Text(uiString(R.string.l10n_devices_screen_send_probe_read_only_36b318bc), style = NoopType.body, color = Palette.accent)
+            }
+        },
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(uiString(R.string.l10n_devices_screen_cancel_77dfd213), style = NoopType.body, color = Palette.textSecondary)

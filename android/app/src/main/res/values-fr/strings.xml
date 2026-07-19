@@ -225,6 +225,8 @@
     <string name="l10n_devices_screen_add_a_device_f90866b8">Ajouter un appareil</string>
     <string name="l10n_devices_screen_battery_4a9be042">Batterie</string>
     <string name="l10n_devices_screen_battery_clamped_2494c8c9">Batterie %1$s%%</string>
+    <string name="l10n_devices_screen_battery_info_probe_592_re_1dbd4c0f">Sonde d\'info batterie (#592 RE)…</string>
+    <string name="l10n_devices_screen_battery_probe_explainer_2858bb6a">Deux tables de protocole indépendantes divergent sur l\'opcode de batterie étendue (98 contre 87). Ceci envoie le 98 curé en lecture seule et consigne la réponse brute complète du bracelet dans le journal. Une charge de type batterie confirme 98 sur votre firmware ; un stub court le laisse ambigu. Rien n\'est écrit sur le bracelet. Exportez et partagez le journal ensuite.</string>
     <string name="l10n_devices_screen_cancel_77dfd213">Annuler</string>
     <string name="l10n_devices_screen_clamped_1f39cebb">%1$s%%</string>
     <string name="l10n_devices_screen_device_name_79d7a157">Nom de l\'appareil</string>
@@ -234,6 +236,7 @@
     <string name="l10n_devices_screen_paired_locally_noop_owns_this_ring_30c16190">Jumelé localement. NOOP possède cette bague pendant qu\'elle tient la clé. Si vous le réinitialisez ou le définissez</string>
     <string name="l10n_devices_screen_pick_a_new_active_strap_edd73542">Choisir un nouveau bracelet actif</string>
     <string name="l10n_devices_screen_rename_device_ee233604">Renommer l\'appareil</string>
+    <string name="l10n_devices_screen_send_probe_read_only_36b318bc">Envoyer la sonde (lecture seule)</string>
     <string name="l10n_devices_screen_save_efc007a3">Enregistrer</string>
     <string name="l10n_devices_screen_the_whoop_4_0_reboot_frame_690a8ff2">Le cadre de redémarrage WHOOP 4.0 n\'est pas confirmé – un redémarrage normal est ignoré (#235).</string>
     <string name="l10n_devices_screen_whoop_4_0_reboot_probe_b51fb50f">Sonde de redémarrage WHOOP 4.0</string>

@@ -133,6 +133,14 @@ enum class CommandNumber(val rawValue: Int) {
     SET_DEVICE_CONFIG(119),
     START_RAW_DATA(81),
     STOP_RAW_DATA(82),
+    // GET_EXTENDED_BATTERY_INFO (98) — read-only extended battery read (mV etc.). The NUMBER is disputed
+    // (#592): an independent APK decompile reads this family 11 lower (87), while whoomp's table says 98 —
+    // partially supported by a real WHOOP 5 (fw 50.38.1.0) ANSWERING 98, though with a short stub that
+    // could be valid-but-minimal or a generic unknown-command ack. Sent ONLY by probeExtendedBatteryInfo()
+    // (user-initiated, Test Centre → Connection gated, never automatic); the raw COMMAND_RESPONSE is
+    // dumped in full to the strap log so a normal export settles which number this firmware serves.
+    // Mirrors Swift WhoopCommand.getExtendedBatteryInfo.
+    GET_EXTENDED_BATTERY_INFO(98),
     STOP_HAPTICS(122),
     SELECT_WRIST(123);
 

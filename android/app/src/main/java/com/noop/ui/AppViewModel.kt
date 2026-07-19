@@ -1669,6 +1669,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      *  in DevicesScreen; finds the real 4.0 reboot frame when the production one is ignored (#235). */
     fun rebootProbe(variant: com.noop.protocol.RebootProbeVariant) = ble.rebootProbe(variant)
 
+    /** #592 opcode probe: read-only GET_EXTENDED_BATTERY_INFO(98) with a full raw-response dump to the
+     *  strap log. Confirmation-gated in DevicesScreen (Test Centre → Connection); settles the disputed
+     *  battery-info opcode (98 vs an APK decompile's 87) from a normal strap-log export. */
+    fun probeExtendedBatteryInfo() = ble.probeExtendedBatteryInfo()
+
     /**
      * Flip the "keep connected in the background" preference (driven by Settings). Turning it on
      * while a strap is live promotes to the foreground immediately; turning it off drops the

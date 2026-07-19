@@ -385,6 +385,8 @@
     <string name="l10n_devices_screen_add_a_device_f90866b8">Gerät hinzufügen</string>
     <string name="l10n_devices_screen_battery_4a9be042">Akku</string>
     <string name="l10n_devices_screen_battery_clamped_2494c8c9">Batterie %1$s%%</string>
+    <string name="l10n_devices_screen_battery_info_probe_592_re_1dbd4c0f">Akku-Info-Test (#592 RE)…</string>
+    <string name="l10n_devices_screen_battery_probe_explainer_2858bb6a">Zwei unabhängige Protokolltabellen widersprechen sich beim Extended-Battery-Opcode (98 vs. 87). Dies sendet das kuratierte, nur lesende 98 und schreibt die vollständige Rohantwort des Bands ins Strap-Log. Eine batterieartige Nutzlast bestätigt 98 auf deiner Firmware; ein kurzer Stub bleibt mehrdeutig. Es wird nichts auf das Band geschrieben. Bitte exportiere und teile danach das Strap-Log.</string>
     <string name="l10n_devices_screen_cancel_77dfd213">Abbrechen</string>
     <string name="l10n_devices_screen_clamped_1f39cebb">%1$s%%</string>
     <string name="l10n_devices_screen_device_name_79d7a157">Gerätename</string>
@@ -394,6 +396,7 @@
     <string name="l10n_devices_screen_paired_locally_noop_owns_this_ring_30c16190">Lokal gepaart. NOOP besitzt diesen Ring, während er den Schlüssel hält. Wenn Sie es erneut zurücksetzen oder einstellen</string>
     <string name="l10n_devices_screen_pick_a_new_active_strap_edd73542">Neuen aktiven Strap auswählen</string>
     <string name="l10n_devices_screen_rename_device_ee233604">Gerät umbenennen</string>
+    <string name="l10n_devices_screen_send_probe_read_only_36b318bc">Test senden (nur lesen)</string>
     <string name="l10n_devices_screen_save_efc007a3">Sichern</string>
     <string name="l10n_devices_screen_the_whoop_4_0_reboot_frame_690a8ff2">Der WHOOP 4.0-Reboot-Frame wird nicht bestätigt - ein normaler Neustart wird ignoriert (# 235).</string>
     <string name="l10n_devices_screen_whoop_4_0_reboot_probe_b51fb50f">WHOOP 4.0-Reboot-Sonde</string>
