@@ -1417,7 +1417,19 @@ private struct LiquidRefreshIndicator: View {
     @EnvironmentObject private var live: LiveState
 
     private var progress: CGFloat { min(1, max(0, pullY / pullThreshold)) }
-    private var syncing: Bool { refreshing || live.backfilling }
+
+    /// The RAW "a sync is happening" signal. `live.backfilling` toggles false→true between EVERY offload
+    /// chunk (`exitBackfilling` at each HISTORY_END → auto-continue re-kick → `beginBackfill`), with a real
+    /// BLE round-trip gap in between. A deep backlog is now up to ~24 chunks in ONE connection (#594 raised
+    /// the auto-continue cap 6→24), so binding the vessel straight to this strobes it in/out on every chunk
+    /// boundary. The MenuBar header pins a constant height for exactly this reason (see MenuBarContent).
+    private var syncingRaw: Bool { refreshing || live.backfilling }
+
+    /// Debounced visibility that drives the body: goes true INSTANTLY, but only goes false after riding out
+    /// [hideDelay] with no new chunk — so a brief per-chunk `backfilling` gap can't flicker the vessel.
+    @State private var syncing = false
+    @State private var hideTask: Task<Void, Never>?
+    private static let hideDelaySeconds: UInt64 = 3   // comfortably longer than an inter-chunk gap
 
     var body: some View {
         ZStack {
@@ -1439,6 +1451,19 @@ private struct LiquidRefreshIndicator: View {
         .frame(maxWidth: .infinity)
         .frame(height: syncing ? 64 : min(pullY, pullThreshold * 1.15))
         .animation(.easeOut(duration: 0.22), value: syncing)
+        .onAppear { syncing = syncingRaw }
+        .onChangeCompat(of: syncingRaw) { raw in
+            hideTask?.cancel()
+            if raw {
+                syncing = true                       // a sync (or pull) is active — show at once
+            } else {
+                // Might just be the gap between two chunks — wait it out; a new chunk cancels this.
+                hideTask = Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: Self.hideDelaySeconds * 1_000_000_000)
+                    if !Task.isCancelled { syncing = false }
+                }
+            }
+        }
     }
 }
 
