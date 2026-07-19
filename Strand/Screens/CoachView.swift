@@ -661,12 +661,17 @@ struct CoachView: View {
                 .font(StrandFont.body)
                 .foregroundStyle(StrandPalette.textPrimary)
                 .lineLimit(1...5)
-                .focused($composerFocused)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 9)
                 .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous)
                     .strokeBorder(composerFocused ? StrandPalette.focusRing : StrandPalette.hairline, lineWidth: 1))
+                // Tap-to-focus must cover the whole visible bar, not just the TextField's own tight
+                // glyph-rendering rect (#R1) — without an explicit shape here, the hit area follows the
+                // pre-padding geometry, so most of what reads as "the input bar" doesn't focus it and a
+                // tap can silently miss (worst near the trailing/vertical edges of the padded field).
+                .contentShape(RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
+                .focused($composerFocused)
                 .onSubmit { send(draft) }
                 .accessibilityLabel("Question")
 
