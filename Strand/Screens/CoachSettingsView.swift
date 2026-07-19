@@ -25,9 +25,23 @@ struct CoachSettingsView: View {
     @State private var customModelDraft: String = ""
     @State private var promptExpanded: Bool = false
     @State private var promptDraft: String = ""
-    /// Presents the searchable model sheet — only reachable once a provider's list exceeds
+    /// Which model field's searchable sheet is open — the coaching model, or one of the two background
+    /// roles (#R5). One enum-driven `.sheet(item:)` (same consolidation as R2's goal sheets) rather than
+    /// three independently-toggled `.sheet(isPresented:)` modifiers, since all three fields live in the
+    /// same Connection & model subpage. Only reachable once a provider's list exceeds
     /// `searchableModelThreshold` (today just OpenRouter).
-    @State private var showModelSearch = false
+    private enum ModelSearchTarget: Int, Identifiable {
+        case chat, summary, cardAnalysis
+        var id: Int { rawValue }
+    }
+    @State private var modelSearchTarget: ModelSearchTarget?
+    /// Custom-id entry state for the two background-role pickers, mirroring `customModel`/
+    /// `customModelDraft` above (#R5) — each role needs its own, since either can independently be
+    /// mid-way through typing a model id the current provider's list doesn't have (yet).
+    @State private var memoryModelCustom: Bool = false
+    @State private var memoryModelCustomDraft: String = ""
+    @State private var cardModelCustom: Bool = false
+    @State private var cardModelCustomDraft: String = ""
     @State private var checkInOn: Bool = CoachCheckIn.isEnabled
     @State private var checkInTime: Date = CoachCheckIn.timeAsDate
     @State private var checkInDenied: Bool = false
@@ -325,6 +339,13 @@ struct CoachSettingsView: View {
             disconnectRow
         }
         .navigationTitle("Connection & model")
+        .sheet(item: $modelSearchTarget) { target in
+            switch target {
+            case .chat:         ModelSearchSheet(models: coach.availableModels, selection: $coach.model)
+            case .summary:      ModelSearchSheet(models: coach.availableModels, selection: $coach.memoryModel)
+            case .cardAnalysis: ModelSearchSheet(models: coach.availableModels, selection: $coach.cardModel)
+            }
+        }
     }
 
     /// The cheaper models the coach uses for BACKGROUND work, gathered in one place next to the coaching
@@ -336,54 +357,152 @@ struct CoachSettingsView: View {
     private var backgroundModelsSection: some View {
         NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
             VStack(alignment: .leading, spacing: 14) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Background models")
-                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                    Text("Cheaper models for background jobs — leave blank to use \(coach.provider.displayName)'s small model. Keeps the pricey coaching model for the actual conversation.")
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
-                        .fixedSize(horizontal: false, vertical: true)
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Background models")
+                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                        Text("Cheaper models for background jobs — leave on default to use \(coach.provider.displayName)'s small model. Keeps the pricey coaching model for the actual conversation.")
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 8)
+                    // Both roles read the SAME per-provider list `modelSelector`'s own Refresh button
+                    // already updates (#R5) — repeated here too since this card is a separate visual
+                    // section a user might reach without scrolling back up to it.
+                    Button {
+                        Task { await coach.refreshModels() }
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                            .font(StrandFont.footnote)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(StrandPalette.accent)
+                    .disabled(!coach.hasKey && coach.provider != .custom)
+                    .help("Fetch the available models from \(coach.provider.displayName) using your saved key")
+                    .accessibilityLabel("Refresh models from provider")
                 }
                 roleModelField(
                     title: "Chat summaries",
                     caption: "Distils a finished chat so the coach can recall it later.",
-                    text: $coach.memoryModel,
-                    accessibility: "Chat-summary model id"
+                    model: $coach.memoryModel, custom: $memoryModelCustom, customDraft: $memoryModelCustomDraft,
+                    searchTarget: .summary,
+                    accessibility: "Chat-summary model"
                 )
                 roleModelField(
                     title: "Card analyses",
                     caption: "A short read when you ask the coach about one health card.",
-                    text: $coach.cardModel,
-                    accessibility: "Card-analysis model id"
+                    model: $coach.cardModel, custom: $cardModelCustom, customDraft: $cardModelCustomDraft,
+                    searchTarget: .cardAnalysis,
+                    accessibility: "Card-analysis model"
                 )
             }
         }
     }
 
-    /// One labelled model-id field for a background role. Empty = use the provider default, shown as the
-    /// grey placeholder (the actual cheap model id), so the field distinguishes unset (default) from a
-    /// deliberate override without a separate control.
+    /// One model field for a background role (#R5) — the SAME picker/searchable-sheet/"Custom…" pattern
+    /// `modelSelector` uses for the coaching model, not a bare `TextField`: every model the provider
+    /// actually offers is selectable, not just typeable-and-hope. Empty ("") is its own real option,
+    /// "Same as coaching model" — the role's default — kept distinct from "Custom…" (typing an id outside
+    /// the fetched list).
     private func roleModelField(title: LocalizedStringKey, caption: LocalizedStringKey,
-                                text: Binding<String>, accessibility: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+                                model: Binding<String>, custom: Binding<Bool>, customDraft: Binding<String>,
+                                searchTarget: ModelSearchTarget, accessibility: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
             Text(title).strandOverline()
-            TextField(coach.provider.cheapModel.isEmpty ? "Same as coaching model" : coach.provider.cheapModel,
-                      text: text)
-                .textFieldStyle(.plain)
-                .font(StrandFont.body)
-                .foregroundStyle(StrandPalette.textPrimary)
-                .disableAutocorrection(true)
-                #if os(iOS)
-                .textInputAutocapitalization(.never)
-                #endif
-                .padding(.horizontal, 12).padding(.vertical, 9)
-                .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous)
-                    .strokeBorder(StrandPalette.hairline, lineWidth: 1))
+
+            if coach.availableModels.count > Self.searchableModelThreshold {
+                Button { modelSearchTarget = searchTarget } label: {
+                    HStack {
+                        Text(model.wrappedValue.isEmpty ? "Same as coaching model" : model.wrappedValue)
+                            .font(StrandFont.body)
+                            .foregroundStyle(model.wrappedValue.isEmpty
+                                             ? StrandPalette.textTertiary : StrandPalette.textPrimary)
+                            .lineLimit(1)
+                        Spacer(minLength: 8)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .accessibilityHidden(true)
+                    }
+                    .padding(.horizontal, 12).padding(.vertical, 9)
+                    .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous)
+                        .strokeBorder(StrandPalette.hairline, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
                 .accessibilityLabel(accessibility)
+            } else {
+                Picker(title, selection: roleModelPickerSelection(model: model, custom: custom, draft: customDraft)) {
+                    Text("Same as coaching model").tag("")
+                    ForEach(coach.availableModels, id: \.self) { m in
+                        Text(m).tag(m)
+                    }
+                    Divider()
+                    Text("Custom…").tag(customModelTag)
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .accessibilityLabel(accessibility)
+
+                if custom.wrappedValue {
+                    HStack(spacing: 8) {
+                        TextField("Enter a model id", text: customDraft)
+                            .textFieldStyle(.plain)
+                            .font(StrandFont.body)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                            .disableAutocorrection(true)
+                            #if os(iOS)
+                            .textInputAutocapitalization(.never)
+                            #endif
+                            .padding(.horizontal, 12).padding(.vertical, 9)
+                            .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous)
+                                .strokeBorder(StrandPalette.hairline, lineWidth: 1))
+                            .onSubmit { applyCustomRoleModel(model: model, custom: custom, draft: customDraft) }
+                            .accessibilityLabel("Custom model id")
+
+                        Button("Use") { applyCustomRoleModel(model: model, custom: custom, draft: customDraft) }
+                            .buttonStyle(NoopButtonStyle(.secondary))
+                            .disabled(customDraft.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            .accessibilityLabel("Use custom model")
+                    }
+                }
+            }
             Text(caption)
                 .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    /// Mirrors `modelPickerSelection` for a background role: reads as `customModelTag` when the field is
+    /// mid-custom-entry OR holds a non-empty value the current provider's list doesn't have (e.g. right
+    /// after a provider switch invalidates it) — so the Picker never shows an unmatched tag, and empty
+    /// always reads as the real "Same as coaching model" option rather than falling into Custom.
+    private func roleModelPickerSelection(model: Binding<String>, custom: Binding<Bool>,
+                                          draft: Binding<String>) -> Binding<String> {
+        Binding(
+            get: {
+                if custom.wrappedValue { return customModelTag }
+                if model.wrappedValue.isEmpty { return "" }
+                return coach.availableModels.contains(model.wrappedValue) ? model.wrappedValue : customModelTag
+            },
+            set: { newValue in
+                if newValue == customModelTag {
+                    custom.wrappedValue = true
+                    if draft.wrappedValue.isEmpty { draft.wrappedValue = model.wrappedValue }
+                } else {
+                    custom.wrappedValue = false
+                    model.wrappedValue = newValue
+                }
+            }
+        )
+    }
+
+    private func applyCustomRoleModel(model: Binding<String>, custom: Binding<Bool>, draft: Binding<String>) {
+        let trimmed = draft.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        model.wrappedValue = trimmed
+        custom.wrappedValue = false
     }
 
     /// A passed target date surfaces as a decision card here, not a dead-end footnote. Hosts the ONE
@@ -1592,16 +1711,13 @@ struct CoachSettingsView: View {
                 }
             }
         }
-        .sheet(isPresented: $showModelSearch) {
-            ModelSearchSheet(models: coach.availableModels, selection: $coach.model)
-        }
     }
 
     /// Opens the searchable sheet. Free-text entry lives IN the sheet (typing an unmatched query offers
     /// it directly), so this path skips the inline picker's separate "Custom…" tag/TextField dance —
     /// one way to type an id, not two.
     private var searchableModelButton: some View {
-        Button { showModelSearch = true } label: {
+        Button { modelSearchTarget = .chat } label: {
             HStack {
                 Text(coach.model.isEmpty ? "Choose a model" : coach.model)
                     .font(StrandFont.body)
