@@ -1183,6 +1183,7 @@
     <string name="l10n_journal_reminder_show_a_today_card_reminding_you_to_log_your_journal_8228bc77">Afficher une carte Aujourd\'hui vous rappelant de remplir votre journal</string>
     <string name="l10n_journal_reminder_journal_57d7f743">Journal</string>
     <string name="l10n_journal_reminder_logged_today_0071a46c">Enregistré aujourd\'hui</string>
+    <string name="l10n_journal_reminder_tap_a_day_to_catch_up_10d16728">Touchez un jour pour le compléter</string>
     <string name="l10n_liquid_primitives_liquidpressalpha_2c4048a8">liquidePresseAlpha</string>
     <string name="l10n_liquid_primitives_liquidpressscale_7520ddb3">liquidePressScale</string>
     <string name="l10n_live_screen_avg_cdc93143">Moy.</string>

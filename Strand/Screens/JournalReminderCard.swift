@@ -46,6 +46,12 @@ struct JournalReminderCard: View {
         let keys = Self.dayKeys()
         let todayKey = keys.last ?? ""
         let todayLogged = logged.contains(todayKey)
+        // A recent PAST day with no entry — surfaces the tap-a-bar-to-backfill interaction once today is
+        // done (#656). Accent while anything is actionable; calm secondary once fully caught up.
+        let hasMissed = keys.contains { $0 != todayKey && !logged.contains($0) }
+        let subtitle: String = !todayLogged ? String(localized: "Log today's journal")
+            : hasMissed ? String(localized: "Tap a day to catch up")
+            : String(localized: "Logged today")
         // No outer Button: each bar is its own tap target that deep-links the journal to THAT day (#656),
         // and nested SwiftUI buttons don't work — so header + subtitle carry their own onTapGesture (→
         // today) and the bars carry theirs. The regions are non-overlapping in the VStack, so a tap lands
@@ -99,11 +105,9 @@ struct JournalReminderCard: View {
                             .accessibilityLabel(Self.barLabel(off))
                     }
                 }
-                Text(todayLogged
-                     ? String(localized: "Logged today")
-                     : String(localized: "Log today's journal"))
+                Text(subtitle)
                     .font(StrandFont.footnote)
-                    .foregroundStyle(todayLogged ? StrandPalette.textSecondary : StrandPalette.accent)
+                    .foregroundStyle((!todayLogged || hasMissed) ? StrandPalette.accent : StrandPalette.textSecondary)
                     .contentShape(Rectangle())
                     .onTapGesture { router.openJournal() }
                     .accessibilityAddTraits(.isButton)   // it opens the journal — announce it as one

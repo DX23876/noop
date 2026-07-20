@@ -260,11 +260,13 @@ struct LiquidTodayView: View {
                         case .heartRate: heartRateSection
                         case .recoveryVitals: recoveryVitalsSection
                         case .yourCards: yourCardsSection
+                        // #656: the persistent journal widget (last-7-days strip + tap-through). Now a
+                        // reorderable section like the others — the Arrange sheet moves it. Today only;
+                        // the card self-hides when the reminder toggle is off (an empty branch renders
+                        // nothing yet keeps its slot). Twin of Android TodayScreen's JOURNAL arm.
+                        case .journal: if selectedDayOffset == 0 { JournalReminderCard() }
                         }
                     }
-                    // #627: the persistent journal widget (last-7-days strip + tap-through to the journal).
-                    // Today only; self-hides when the reminder toggle is off. Twin of Android JournalReminderCard.
-                    if selectedDayOffset == 0 { JournalReminderCard() }
                     dataSourcesSection
                     Color.clear.frame(height: 90) // floating tab-bar clearance
                 }

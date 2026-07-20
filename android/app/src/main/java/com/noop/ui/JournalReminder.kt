@@ -154,14 +154,19 @@ fun JournalReminderCard(
                     }
                 }
             }
+            // A recent PAST day with no entry — surfaces the (otherwise invisible) tap-a-bar-to-backfill
+            // interaction once today is done. #656.
+            val hasMissed = dayKeys.any { it != todayKey && it !in logged }
             Text(
-                if (todayLogged) {
-                    uiString(R.string.l10n_journal_reminder_logged_today_0071a46c)
-                } else {
-                    uiString(R.string.l10n_journal_reminder_log_today_s_journal_cb33be3e)
+                when {
+                    !todayLogged -> uiString(R.string.l10n_journal_reminder_log_today_s_journal_cb33be3e)
+                    hasMissed -> uiString(R.string.l10n_journal_reminder_tap_a_day_to_catch_up_10d16728)
+                    else -> uiString(R.string.l10n_journal_reminder_logged_today_0071a46c)
                 },
                 style = NoopType.footnote,
-                color = if (todayLogged) Palette.textSecondary else Palette.accent,
+                // Accent while there's something actionable (log today, or catch up a missed day);
+                // calm secondary once fully caught up.
+                color = if (!todayLogged || hasMissed) Palette.accent else Palette.textSecondary,
             )
         }
     }

@@ -1308,6 +1308,7 @@
     <string name="l10n_journal_reminder_show_a_today_card_reminding_you_to_log_your_journal_8228bc77">在“今天”页面显示提醒你记录日志的卡片</string>
     <string name="l10n_journal_reminder_journal_57d7f743">日志</string>
     <string name="l10n_journal_reminder_logged_today_0071a46c">今天已记录</string>
+    <string name="l10n_journal_reminder_tap_a_day_to_catch_up_10d16728">点按某一天进行补记</string>
     <string name="l10n_liquid_primitives_liquidpressalpha_2c4048a8">liquidPressAlpha</string>
     <string name="l10n_liquid_primitives_liquidpressscale_7520ddb3">liquidPressScale</string>
     <string name="l10n_live_screen_avg_cdc93143">平均</string>
