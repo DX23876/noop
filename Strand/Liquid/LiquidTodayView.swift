@@ -692,6 +692,14 @@ struct LiquidTodayView: View {
 
     // MARK: - Synthesis (greeting + readiness pills + one-liner)
 
+    /// Liquid parity with classic `effortZeroNote`: the "no cardio load yet" line shown in the synthesis
+    /// card when today's Effort is ~0, so a calm day explains itself instead of a bare 0. Reuses classic's
+    /// String Catalog entry verbatim — one key serves both Today screens.
+    private var effortZeroNote: String? {
+        guard EffortDisplay.showsZeroNote(strain: displayDay?.strain, isToday: selectedDayOffset == 0) else { return nil }
+        return String(localized: "No cardio load yet. Effort builds once your heart rate climbs into your effort zone (around 50% of your heart-rate reserve). A calm day honestly reads near zero.")
+    }
+
     private var synthesisSection: some View {
         VStack(spacing: 8) {
             HStack {
@@ -740,6 +748,20 @@ struct LiquidTodayView: View {
                         Text(chargeDisplay.calibrationDetail ?? synthLine)
                             .font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
                             .fixedSize(horizontal: false, vertical: true)
+                        // #530 follow-up: the classic hero's "no cardio load yet" note (effortZeroNote),
+                        // shown on a calm day so today's ~0 Effort explains itself instead of a bare 0.
+                        if let note = effortZeroNote {
+                            HStack(alignment: .top, spacing: 6) {
+                                Image(systemName: "info.circle")
+                                    .font(StrandFont.footnote)
+                                    .foregroundStyle(StrandPalette.effortColor)
+                                    .accessibilityHidden(true)
+                                Text(note)
+                                    .font(StrandFont.footnote)
+                                    .foregroundStyle(StrandPalette.textTertiary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
                         if synthesisExpanded {
                             Text(LocalizedStringKey(readiness.summary)).font(StrandFont.caption)
                                 .foregroundStyle(StrandPalette.textSecondary)
@@ -1727,6 +1749,19 @@ extension LiquidTodayView {
     /// it), so a dead strap kept showing its last % as if live — a 21 h old reading rendered identically
     /// to a fresh one. Gating on `connected` here also makes this ring agree with `LiquidStrapBatteryRow`
     /// directly below it, which already required `live.connected`.
+    /// The Effort hero's "no cardio load yet" honest note (#530 follow-up — Liquid parity with classic
+    /// `TodayView.effortZeroNote`). Pure + static so the gate is testable with no view: the note shows
+    /// ONLY for today when a strain value exists and is ~0 — a genuinely calm day reads near zero, while a
+    /// no-data day shows its own ring overlay and a past day is never annotated. Liquid reads
+    /// `displayDay?.strain` directly (it has no live-strain accumulator like classic's `liveTodayStrain`),
+    /// which is exactly the value its Effort hero draws.
+    enum EffortDisplay {
+        static func showsZeroNote(strain: Double?, isToday: Bool) -> Bool {
+            guard isToday, let s = strain else { return false }
+            return s < 1.0
+        }
+    }
+
     /// (A3/B2, docs/bugs/2026-07-15-strap-battery-backfill-observability.md)
     enum StrapBatteryDisplay: Equatable {
         /// No link — say nothing about charge. A stale % is worse than no %.
