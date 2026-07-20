@@ -32,7 +32,9 @@ final class AICoachPromptAndStressTests: XCTestCase {
     /// same way here so that equality still pins exactly that.
     private func expectedPrompt(base: String, engine: AICoachEngine) -> String {
         let clause = engine.toolCallingActive ? AICoachEngine.planToolClause : AICoachEngine.noPlanToolClause
-        var prompt = CoachPersona.current.systemPreamble + "\n\n" + base + "\n\n" + clause
+        // R9: the identity clause (name + tone) leads, ahead of the persona STYLE preamble.
+        var prompt = CoachIdentityStore.shared.identity.identityPreamble + "\n\n"
+            + CoachPersona.current.systemPreamble + "\n\n" + base + "\n\n" + clause
         // T4: the tool-awareness map rides the cached system block under the same tool-calling gate.
         if engine.toolCallingActive { prompt += "\n\n" + AICoachEngine.toolModeClause }
         // P12: the citation clause rides EVERY prompt, appended last (both modes).

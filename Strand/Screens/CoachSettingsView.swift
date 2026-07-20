@@ -77,6 +77,8 @@ struct CoachSettingsView: View {
         checkInDenied = await !CoachCheckIn.isCurrentlyAuthorized()
     }
     @ObservedObject private var memory = CoachMemory.shared
+    /// The coach's identity (#R9) — name, avatar, tone. Observed so the `identityBar` row updates live.
+    @ObservedObject private var identityStore = CoachIdentityStore.shared
     /// The structured goal (P3). The memory card's field still edits its title inline; the full editor
     /// with target/date/pace lives in the dedicated goal card.
     @ObservedObject private var goalStore = CoachGoalStore.shared
@@ -570,6 +572,7 @@ struct CoachSettingsView: View {
 
     private var coachingSubpage: some View {
         subpageScaffold {
+            identityBar
             personaBar
             emojiBar
             coachEntryBar
@@ -580,6 +583,32 @@ struct CoachSettingsView: View {
         }
         .navigationTitle("Coaching")
         .task { await refreshCheckInAuthorization() }
+    }
+
+    /// Entry into the coach-identity editor (#R9): the coach's name + picture + tone (the "who"), distinct
+    /// from the coaching STYLE (`personaBar`, the "how"). A compact row showing the current avatar + name,
+    /// pushing the full editor.
+    private var identityBar: some View {
+        NavigationLink { CoachIdentityEditor() } label: {
+            NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+                HStack(spacing: 10) {
+                    CoachAvatarView(size: 34)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Coach identity")
+                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                        Text(identityStore.identity.name)
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .accessibilityHidden(true)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Coach identity: \(identityStore.identity.name)")
     }
 
     /// Emoji in coach replies (#P14 7.3) — off by default (matches the careful voice from P13); a plain

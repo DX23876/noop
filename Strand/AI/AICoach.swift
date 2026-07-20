@@ -501,10 +501,13 @@ final class AICoachEngine: ObservableObject {
         let stored = UserDefaults.standard.string(forKey: Self.systemPromptKey)?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let base = (stored?.isEmpty == false) ? stored! : Self.defaultSystemPrompt
-        // The selected persona sets the coach's VOICE on top of the methodology in `base`, so
-        // the tone changes while the coaching logic and guardrails stay intact. Read fresh so a
-        // persona switch applies to the very next message, like the prompt itself.
-        var prompt = persona.systemPreamble + "\n\n" + base
+        // The coach's IDENTITY (#R9) leads: its name and phrasing lean, so the model knows WHO it is
+        // (Svea / Marv / a custom name) — the "who" axis. Then the selected persona sets the STYLE (how it
+        // decides and how hard it holds you) on top of the methodology in `base`. Both read fresh so a
+        // change to either applies on the very next message. Name comes from the identity, behaviour from
+        // the persona — they never fight over "who you are".
+        var prompt = CoachIdentityStore.shared.identity.identityPreamble
+            + "\n\n" + persona.systemPreamble + "\n\n" + base
         // Persistent memory: the user's goal + PINNED facts (injuries, hard constraints) ride every
         // prompt. Query-relevant normal facts are injected per-question in `wireMessages` instead, so a
         // large memory doesn't bloat every request. Read fresh so a fact pinned THIS turn frames the next.

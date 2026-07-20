@@ -40,6 +40,8 @@ struct CoachView: View {
     @State private var showFirstUse = false
     /// Drives the header's pending-proposal dot.
     @ObservedObject private var planStore = CoachPlanStore.shared
+    /// The coach's identity (#R9) — avatar + name shown in the header, updated live from settings.
+    @ObservedObject private var identityStore = CoachIdentityStore.shared
     /// Live Sessions (silent guardian) beta gate — the SAME key `LiquidTodayView`/Settings read. Hides
     /// the action row's "Live Session" chip when the user has turned the feature off, so the chip never
     /// looks tappable for something it can't actually open (#P3).
@@ -160,22 +162,17 @@ struct CoachView: View {
             .accessibilityLabel("Conversation history")
 
             HStack(spacing: 8) {
-                // The coach's identity (#P13 7.4): the chosen persona's avatar + name, so the chat has a
-                // consistent face and self, not a generic "Coach". A named conversation takes the title
-                // slot; the avatar stays either way.
-                Image(systemName: coach.persona.symbol)
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.accent)
-                    .frame(width: 26, height: 26)
-                    .background(StrandPalette.accent.opacity(0.14), in: Circle())
-                    .accessibilityHidden(true)
+                // The coach's IDENTITY (#R9): its chosen avatar (a design-system mark or the user's photo)
+                // + its name, so the chat has a consistent face and self — Svea, Marv, or a custom coach —
+                // not a generic "Coach". A named conversation takes the title slot; the avatar stays either
+                // way. (The behavioural STYLE lives on `coach.persona`, a separate axis.)
+                CoachAvatarView(size: 26)
                 VStack(spacing: 1) {
-                    // `coach.persona.title` is a fixed-set English label (#P14): resolved against the
-                    // catalog before display so the header follows the system language, exactly like the
-                    // conversation-title branch (already free text, harmlessly passed through unchanged).
+                    // The identity name is the user's own free text (like the conversation title) — shown
+                    // as-is, no catalog lookup needed.
                     Text(coach.activeConversation?.title.isEmpty == false
                          ? coach.activeConversation!.title
-                         : coach.persona.title.localizedCatalogValue)
+                         : identityStore.identity.name)
                         .font(StrandFont.headline)
                         .foregroundStyle(StrandPalette.textPrimary)
                         .lineLimit(1)
@@ -190,7 +187,7 @@ struct CoachView: View {
             .accessibilityElement(children: .combine)
             .accessibilityLabel(coach.activeConversation?.title.isEmpty == false
                                  ? coach.activeConversation!.title
-                                 : String(localized: "\(coach.persona.title.localizedCatalogValue), your coach"))
+                                 : String(localized: "\(identityStore.identity.name), your coach"))
 
             HStack(spacing: 14) {
                 // The plan book. The dot means something is waiting for YOUR answer — the coach can

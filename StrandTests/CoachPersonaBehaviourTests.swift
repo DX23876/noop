@@ -2,16 +2,23 @@ import XCTest
 @testable import Strand
 
 /// Pins P13's promise (7.5): the three coaching styles are BEHAVIOURALLY different — a decision lean, a
-/// strictness, a focus — not just three tones of the same coach; and (7.4) each preamble carries the
-/// coach's own identity so its self-reference matches the chosen style. Pure over `CoachPersona`.
+/// strictness, a focus — not just three tones of the same coach. Pure over `CoachPersona`.
+///
+/// #R9 note: the persona is now the STYLE only ("how"); the coach's NAME comes from its identity
+/// (`CoachIdentity`, the "who" axis), so the persona preambles deliberately no longer claim a name.
 final class CoachPersonaBehaviourTests: XCTestCase {
 
-    // MARK: - 7.4: identity
+    // MARK: - 7.4 / R9: style describes itself, and does NOT claim a coach name
 
-    func testEachPersonaNamesItselfInTheFirstLine() {
-        XCTAssertTrue(CoachPersona.guardian.systemPreamble.contains("You are Guardian"))
-        XCTAssertTrue(CoachPersona.friend.systemPreamble.contains("You are Friend"))
-        XCTAssertTrue(CoachPersona.commander.systemPreamble.contains("You are Commander"))
+    func testEachPersonaDescribesItsStyleWithoutClaimingAName() {
+        XCTAssertTrue(CoachPersona.guardian.systemPreamble.contains("COACHING STYLE"))
+        XCTAssertTrue(CoachPersona.commander.systemPreamble.contains("COACHING STYLE"))
+        // The name is the identity's job now — the persona must not hard-claim one, or it fights the
+        // identity clause that leads the prompt (#R9).
+        for p in CoachPersona.allCases {
+            XCTAssertFalse(p.systemPreamble.contains("You are \(p.title)"),
+                           "\(p.title)'s style preamble must not claim to BE the coach's name")
+        }
     }
 
     // MARK: - 7.5: distinct DECISION LEAN on an ambiguous readiness call
