@@ -59,6 +59,8 @@ struct LiquidTodayView: View {
     @AppStorage(CoachEntryMode.storageKey) private var coachEntryModeRaw = CoachEntryMode.both.rawValue
     /// Master switch (#R7): hides the Coach's Today card when the coach UI is turned off.
     @AppStorage(CoachEntryMode.uiEnabledKey) private var coachUIEnabled = true
+    /// Show the coach's avatar on the Today entry (#R11); off restores the plain sparkle.
+    @AppStorage(CoachEntryMode.todayAvatarKey) private var todayAvatar = true
 
     /// Live Sessions (silent guardian) beta gate — the SAME key the Settings toggle writes. Default ON
     /// (the entry is BETA-labelled in-UI); off removes the Start-session control entirely.
@@ -475,9 +477,13 @@ struct LiquidTodayView: View {
     private var coachCard: some View {
         Button { showCoach = true } label: {
             HStack(spacing: 10) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(StrandPalette.accent)
+                if todayAvatar {
+                    CoachAvatarView(size: 34)
+                } else {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(StrandPalette.accent)
+                }
                 VStack(alignment: .leading, spacing: 1) {
                     Text("Ask your Coach")
                         .font(StrandFont.subhead)

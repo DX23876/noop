@@ -206,6 +206,8 @@ struct TodayView: View {
     @AppStorage(CoachEntryMode.storageKey) private var coachEntryModeRaw = CoachEntryMode.both.rawValue
     /// Master switch (#R7): hides the Coach's Today card when the coach UI is turned off.
     @AppStorage(CoachEntryMode.uiEnabledKey) private var coachUIEnabled = true
+    /// Show the coach's avatar on the Today entry (#R11); off restores the plain sparkle.
+    @AppStorage(CoachEntryMode.todayAvatarKey) private var todayAvatar = true
 
     // Imperial/Metric display preference (D#103). Only the Weight tile carries a convertible unit here.
     @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
@@ -1441,9 +1443,13 @@ struct TodayView: View {
         Button { showCoach = true } label: {
             NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
                 HStack(spacing: 10) {
-                    Image(systemName: "sparkles")
-                        .foregroundStyle(StrandPalette.accent)
-                        .accessibilityHidden(true)
+                    if todayAvatar {
+                        CoachAvatarView(size: 34)
+                    } else {
+                        Image(systemName: "sparkles")
+                            .foregroundStyle(StrandPalette.accent)
+                            .accessibilityHidden(true)
+                    }
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Ask your Coach")
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)

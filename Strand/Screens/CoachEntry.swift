@@ -38,6 +38,10 @@ enum CoachEntryMode: String, CaseIterable, Identifiable {
             : UserDefaults.standard.bool(forKey: uiEnabledKey)
     }
 
+    /// Show the current coach's avatar (rather than a generic sparkle) on the Today entry card (#R11).
+    /// Default on; turning it off restores the previous plain-icon look. Independent of `uiEnabled`.
+    static let todayAvatarKey = "coach.todayAvatar"
+
     /// Current mode from UserDefaults (defaults to `.both`). A tiny helper so call sites don't repeat the
     /// `@AppStorage` raw-string dance.
     static var current: CoachEntryMode {

@@ -89,6 +89,8 @@ struct CoachSettingsView: View {
     /// Master switch for the Coach's home-surface UI (#R7). Off hides the Today card and floating button;
     /// card- and background-AI, and the coach settings themselves, are untouched.
     @AppStorage(CoachEntryMode.uiEnabledKey) private var coachUIEnabled = true
+    /// Show the coach's avatar on the Today entry (#R11); off restores the plain sparkle icon.
+    @AppStorage(CoachEntryMode.todayAvatarKey) private var todayAvatar = true
     /// Opt-in: opening Today on a new day generates a workout suggestion. Same key MorningSuggestionCard
     /// reads. Default OFF — a Today-triggered generation is the one thing that talks to the network on
     /// open, so it must be chosen.
@@ -682,6 +684,23 @@ struct CoachSettingsView: View {
                     }
                 }
                 .tint(StrandPalette.accent)
+
+                if coachUIEnabled {
+                    Divider().overlay(StrandPalette.hairline)
+                    Toggle(isOn: $todayAvatar) {
+                        HStack(spacing: 10) {
+                            CoachAvatarView(size: 30)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text("Show coach avatar")
+                                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                                Text("Use your coach’s picture on the Today entry instead of a plain icon.")
+                                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                    }
+                    .tint(StrandPalette.accent)
+                }
             }
         }
     }
