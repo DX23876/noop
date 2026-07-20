@@ -19,6 +19,11 @@ struct CoachAvatarView: View {
 
     private var resolved: CoachIdentity { identity ?? store.identity }
 
+    /// The ring stroke scales with the disc so it stays proportionally visible at a much bigger size
+    /// (#R-bigger-avatar) — at the existing 26-28pt call sites this stays ≈1pt (unchanged), only exceeding
+    /// 1pt above ~28.6pt.
+    private var strokeWidth: CGFloat { max(1, size * 0.035) }
+
     var body: some View {
         Group {
             switch resolved.avatar {
@@ -28,7 +33,7 @@ struct CoachAvatarView: View {
                     .foregroundStyle(StrandPalette.accent)
                     .frame(width: size, height: size)
                     .background(StrandPalette.accent.opacity(0.14), in: Circle())
-                    .overlay(Circle().strokeBorder(StrandPalette.accent.opacity(0.22), lineWidth: 1))
+                    .overlay(Circle().strokeBorder(StrandPalette.accent.opacity(0.22), lineWidth: strokeWidth))
             case .photo:
                 photoView
             }
@@ -47,7 +52,7 @@ struct CoachAvatarView: View {
                 .scaledToFill()
                 .frame(width: size, height: size)
                 .clipShape(Circle())
-                .overlay(Circle().strokeBorder(StrandPalette.hairline, lineWidth: 1))
+                .overlay(Circle().strokeBorder(StrandPalette.hairline, lineWidth: strokeWidth))
         } else {
             Image(systemName: "person.crop.circle.fill")
                 .font(.system(size: size * 0.5, weight: .semibold))

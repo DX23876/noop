@@ -30,6 +30,10 @@ struct CoachView: View {
     /// than two stacked `.sheet` modifiers (which don't compose reliably).
     private enum ActiveSheet: Int, Identifiable { case settings, history, plan, goal; var id: Int { rawValue } }
     @State private var activeSheet: ActiveSheet?
+    /// The coach's avatar diameter beside its bubbles and in the typing indicator (#R-bigger-avatar) — one
+    /// named constant instead of a magic number repeated at every call site, since the gutter spacer
+    /// (`assistantGutter`) and the evidence/actionRow indent below a reply both have to match it exactly.
+    private static let assistantAvatarSize: CGFloat = 36
     /// Which messages' evidence chains (P6) are expanded — per-message, so opening one doesn't open
     /// every reply that has one.
     @State private var expandedEvidenceIds: Set<UUID> = []
@@ -356,9 +360,9 @@ struct CoachView: View {
     @ViewBuilder
     private func assistantGutter(groupStart: Bool) -> some View {
         if groupStart {
-            CoachAvatarView(size: 28)
+            CoachAvatarView(size: Self.assistantAvatarSize)
         } else {
-            Color.clear.frame(width: 28, height: 1)
+            Color.clear.frame(width: Self.assistantAvatarSize, height: 1)
         }
     }
 
@@ -438,7 +442,7 @@ struct CoachView: View {
                             actionRow
                         }
                     }
-                    .padding(.leading, 36)
+                    .padding(.leading, Self.assistantAvatarSize + 8)
                 }
             }
         }
@@ -610,7 +614,7 @@ struct CoachView: View {
 
     private var typingIndicator: some View {
         HStack(alignment: .top, spacing: 8) {
-            CoachAvatarView(size: 28)
+            CoachAvatarView(size: Self.assistantAvatarSize)
             HStack(spacing: 8) {
                 ProgressView().controlSize(.small).tint(StrandPalette.accent)
                 Text("Coach is thinking…")
