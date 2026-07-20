@@ -243,6 +243,34 @@ final class IntelligenceEngine: ObservableObject {
         return rows
     }
 
+    /// Daily 0–3 stress-proxy points (#R-stress-chart) — the SAME z-score formula `StressView` derives
+    /// live when nothing is stored for a day (`StressMath.rawScore`/`.squash` over a rolling RHR/HRV
+    /// baseline), computed here so it can be PERSISTED and therefore charted (`plot_metric`'s generic
+    /// day-series lookup only finds keys that are actually in the store — "stress" never was). `days` must
+    /// be oldest→newest; the baseline for each day is up to the 30 days ending the day BEFORE it, the exact
+    /// window `StressModel.init` uses, so a plotted chart and the live Stress screen never disagree. A day
+    /// with neither a resting HR nor an HRV reading (and no baseline to fall back on either) is skipped —
+    /// no fabricated value.
+    nonisolated static func stressProxyRows(days: [DailyMetric]) -> [MetricPoint] {
+        var rows: [MetricPoint] = []
+        for (idx, today) in days.enumerated() {
+            let baseline = idx > 0 ? Array(days[0..<idx].suffix(30)) : []
+            let rhrBase = baseline.compactMap { $0.restingHr }.map(Double.init)
+            let hrvBase = baseline.compactMap { $0.avgHrv }
+            let meanRHR = StressMath.mean(rhrBase)
+            let sdRHR = StressMath.std(rhrBase, mean: meanRHR)
+            let meanHRV = StressMath.mean(hrvBase)
+            let sdHRV = StressMath.std(hrvBase, mean: meanHRV)
+            let rhrToday = today.restingHr.map(Double.init)
+            let hrvToday = today.avgHrv
+            guard (rhrToday != nil && meanRHR != nil) || (hrvToday != nil && meanHRV != nil) else { continue }
+            let raw = StressMath.rawScore(rhrToday: rhrToday, meanRHR: meanRHR, sdRHR: sdRHR,
+                                          hrvToday: hrvToday, meanHRV: meanHRV, sdHRV: sdHRV)
+            rows.append(MetricPoint(day: today.day, key: "stress", value: StressMath.squash(raw)))
+        }
+        return rows
+    }
+
     /// Manual "refresh Fitness Age" (the button on the not-ready card): recompute the weekly Fitness Age NOW
     /// from the PERSISTED merged daily history , NO raw-HR rescoring , and upsert it. Same gate
     /// (`fitnessAgeRows`) + date/window logic as the recompute pass, so it reads exactly what the readiness
@@ -1196,6 +1224,27 @@ final class IntelligenceEngine: ObservableObject {
                 MetricPoint(day: satKey, key: "vitality", value: vRes.vitality),
                 MetricPoint(day: satKey, key: "body_age", value: vRes.bodyAge),
             ], deviceId: computedId)
+        }
+
+        // ── Stress proxy (#R-stress-chart), DAILY, gap-filled under the canonical "my-whoop" source ─────
+        // Written under `Repository.whoopSource` (NOT the "-noop" computed sibling every other block here
+        // uses) because that's the id BOTH readers actually check: `StressView` reads
+        // `repo.series(key: "stress", source: "my-whoop")`, and `plot_metric`'s generic fallback reads the
+        // same source — neither ever looks at a "-noop" id for this key. Gap-filled, never overwritten: a
+        // day that already has a stress value (an import, or a previous pass) keeps it, so a live day's
+        // number is stable across passes and an imported day is never silently replaced by a differently-
+        // windowed recomputation.
+        let daysForStress = Array((faGateByDay.values.sorted { $0.day < $1.day }))
+        if !daysForStress.isEmpty {
+            let existingStressDays = Set(
+                ((try? await store.metricSeries(deviceId: Repository.whoopSource, key: "stress",
+                                                 from: oldestDay, to: newestDay)) ?? [])
+                    .map(\.day))
+            let stressRows = Self.stressProxyRows(days: daysForStress)
+                .filter { !existingStressDays.contains($0.day) }
+            if !stressRows.isEmpty {
+                _ = try? await store.upsertMetricSeries(stressRows, deviceId: Repository.whoopSource)
+            }
         }
 
         // ── Steps ESTIMATE (WHOOP 4.0) , DAILY, keyed to each strap-only day ────────────────────────
