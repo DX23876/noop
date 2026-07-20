@@ -1697,4 +1697,7 @@
         <item quantity="one">%1$d Workout</item>
         <item quantity="other">%1$d Workouts</item>
     </plurals>
+    <string name="l10n_data_sources_screen_last_shared_6bf8389c">"Zuletzt geteilt "</string>
+    <string name="l10n_data_sources_screen_sharing_paused_health_connect_permission_was_e8950315">Teilen pausiert – die Health-Connect-Berechtigung wurde entzogen. Zum erneuten Erteilen tippen.</string>
+    <string name="l10n_data_sources_screen_last_share_didn_t_finish_noop_0d6c27f0">Letztes Teilen unvollständig – NOOP versucht es automatisch erneut.</string>
 </resources>

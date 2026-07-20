@@ -417,6 +417,27 @@ object NoopPrefs {
         of(context).edit().putBoolean(KEY_HC_WRITEBACK, enabled).apply()
     }
 
+    /** Last writeback OUTCOME (#660) — surfaced in Data Sources so a silently-failing share (revoked
+     *  permission, provider error) is visible instead of a healthy-looking toggle. [KEY_HC_WB_STATUS]
+     *  holds a PII-safe category ([HC_WB_OK] / [HC_WB_PERMISSION_DENIED] / [HC_WB_REMOTE_ERROR]); "" = never. */
+    const val KEY_HC_WB_STATUS = "noop.hcWritebackStatus"
+    const val KEY_HC_WB_AT = "noop.hcWritebackAtMs"
+    const val KEY_HC_WB_WRITTEN = "noop.hcWritebackWritten"
+    const val HC_WB_OK = "OK"
+    const val HC_WB_PERMISSION_DENIED = "PERMISSION_DENIED"
+    const val HC_WB_REMOTE_ERROR = "REMOTE_ERROR"
+
+    fun hcWritebackStatus(context: Context): String = of(context).getString(KEY_HC_WB_STATUS, "") ?: ""
+    fun hcWritebackAt(context: Context): Long = of(context).getLong(KEY_HC_WB_AT, 0L)
+    fun hcWritebackWritten(context: Context): Int = of(context).getInt(KEY_HC_WB_WRITTEN, 0)
+    fun setHcWritebackStatus(context: Context, code: String, written: Int, atMs: Long) {
+        of(context).edit()
+            .putString(KEY_HC_WB_STATUS, code)
+            .putInt(KEY_HC_WB_WRITTEN, written)
+            .putLong(KEY_HC_WB_AT, atMs)
+            .apply()
+    }
+
     /** #528, last HR sample epoch-second exported to Health Connect (0 = nothing exported yet). The
      *  HR share-back only emits samples newer than this, so each writeback is incremental. */
     const val KEY_HC_HR_FRONTIER = "noop.hcHrFrontierTs"

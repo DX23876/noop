@@ -1623,4 +1623,7 @@
     <string name="explore_description_charge">你当前的恢复水平，以 HRV 相对于你个人基线的表现为主导。</string>
     <string name="explore_description_effort">全天累积的心血管负荷，采用 0-100 分制（旧版为 0-21）。</string>
     <string name="explore_description_rest">你的睡眠质量与修复力：综合睡眠时长、睡眠效率、深睡+REM占比以及入睡时机等。</string>
+    <string name="l10n_data_sources_screen_last_shared_6bf8389c">"上次分享 "</string>
+    <string name="l10n_data_sources_screen_sharing_paused_health_connect_permission_was_e8950315">分享已暂停——Health Connect 权限已被撤销。点按以重新授予。</string>
+    <string name="l10n_data_sources_screen_last_share_didn_t_finish_noop_0d6c27f0">上次分享未完成——NOOP 将自动重试。</string>
 </resources>
