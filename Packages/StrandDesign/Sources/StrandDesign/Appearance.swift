@@ -1,9 +1,11 @@
 import SwiftUI
 
-/// The data-visualisation colour style: the brand "Titanium & Gold" data ramps, or a "Classic"
+/// The data-visualisation colour style: the brand "Titanium & Gold" data ramps, a "Classic"
 /// throwback — the recognizable red → amber → green readiness scale (cool→hot zones, green→red stress,
-/// purple REM) that health apps have always used. Works in BOTH light and dark. It only re-colours the
-/// DATA encodings (gauge rings, charts, sparklines, scales, stage bands) — never the chrome/surfaces.
+/// purple REM) that health apps have always used — or "Apple Health", built from Apple's own public
+/// iOS system semantic colours (the same reds/greens/indigo Apple's own Health app uses for its
+/// category icons). Works in BOTH light and dark. It only re-colours the DATA encodings (gauge rings,
+/// charts, sparklines, scales, stage bands) — never the chrome/surfaces.
 ///
 /// Read globally via `StrandPalette.chartStyle` (set from `@AppStorage(ChartStyle.storageKey)` at the
 /// app root); the data-ramp accessors in `StrandPalette` branch on it. The app root keys its content on
@@ -11,6 +13,7 @@ import SwiftUI
 public enum ChartStyle: String, CaseIterable, Identifiable, Sendable {
     case titanium   // brand: gold recovery, amber strain, blue rest
     case classic    // throwback: red→green recovery, cool→hot zones, green→red stress
+    case health     // Apple system colours: systemRed→...→systemGreen recovery, indigo sleep, pink stress
 
     public var id: String { rawValue }
     public static let storageKey = "chart.style"
@@ -19,6 +22,7 @@ public enum ChartStyle: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .titanium: return String(localized: "Default", bundle: .module)
         case .classic:  return String(localized: "Classic", bundle: .module)
+        case .health:   return String(localized: "Apple Health", bundle: .module)
         }
     }
 

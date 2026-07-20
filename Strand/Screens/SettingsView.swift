@@ -686,7 +686,8 @@ struct SettingsView: View {
                 rowDivider   // #79: the segmented rows sat flush against each other (missing separator)
                 FormRow(label: "Chart colours") {
                     // Default = NOOP's clean metric ramps; Classic = the throwback red→amber→green
-                    // readiness scale (cool→hot zones, green→red stress). Both schemes.
+                    // readiness scale (cool→hot zones, green→red stress); Apple Health = Apple's own
+                    // system colours (systemRed/Green/Indigo/Pink). All three work in both schemes.
                     Picker("Chart colours", selection: $chartStyleRaw) {
                         ForEach(ChartStyle.allCases) { style in
                             Text(style.label).tag(style.rawValue)
