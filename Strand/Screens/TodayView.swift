@@ -1456,7 +1456,7 @@ struct TodayView: View {
             NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
                 HStack(spacing: 10) {
                     if todayAvatar {
-                        CoachAvatarView(size: 34)
+                        CoachAvatarView(size: 68)
                     } else {
                         Image(systemName: "sparkles")
                             .foregroundStyle(StrandPalette.accent)

@@ -489,7 +489,7 @@ struct LiquidTodayView: View {
         Button { showCoach = true } label: {
             HStack(spacing: 10) {
                 if todayAvatar {
-                    CoachAvatarView(size: 34)
+                    CoachAvatarView(size: 68)
                 } else {
                     Image(systemName: "sparkles")
                         .font(.system(size: 14, weight: .semibold))
