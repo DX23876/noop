@@ -20,21 +20,43 @@ class ReportReviewGate(private val entries: List<Pair<String, ByteArray>>) {
      */
     val previewText: String
         get() {
-            // Text files shown inline; the bounded raw-capture stream and any binary attachment (the
-            // Display mode's screenshot.png) are excluded from the inline text. Mirrors Swift.
+            // #570 parity: text files shown inline; the large raw streams (by NAME), any binary attachment,
+            // and ANYTHING over the size guard are excluded — rendering megabytes as one Compose Text risks
+            // the layout choke iOS hit — and EVERY excluded entry is NAMED below so the review stays honest
+            // about the WHOLE bundle. Mirrors Swift.
             val textBlocks = entries
-                .filter { it.first != "raw-capture.jsonl" && !isBinaryEntry(it.first) }
+                .filterNot { (name, data) -> isExcludedFromInline(name, data.size) }
                 .joinToString("\n\n") { (name, data) -> "=== $name ===\n${String(data)}" }
-            // Name the binary attachments so the review is HONEST about everything in the bundle: the user
-            // sees that a screenshot is attached and can cancel if they don't want to share it.
-            val binaryNames = entries.map { it.first }.filter { isBinaryEntry(it) }
-            if (binaryNames.isEmpty()) return textBlocks
-            val note = "=== attached (not shown above) ===\n" + binaryNames.joinToString("\n")
+            val excludedNames = entries
+                .filter { (name, data) -> isExcludedFromInline(name, data.size) }
+                .map { it.first }
+            if (excludedNames.isEmpty()) return textBlocks
+            val note = "=== attached (not shown above) ===\n" + excludedNames.joinToString("\n")
             return if (textBlocks.isEmpty()) note else textBlocks + "\n\n" + note
         }
 
     /** A bundle entry that is binary image bytes (not text to show inline). screenshot.png is the only one. */
     private fun isBinaryEntry(name: String): Boolean = name == DisplayScreenshot.BUNDLE_NAME
+
+    /** #570 parity: an entry NEVER shown inline — a binary, a large raw research stream (by name), or ANY
+     *  entry over [MAX_INLINE_BYTES] (a future stream, or a pathologically large report.txt). The size guard
+     *  is belt-and-braces so no single Compose Text can choke the review sheet regardless of what a branch
+     *  attaches. Mirrors Swift ReportReviewGate.notShownInline + maxInlineBytes. */
+    private fun isExcludedFromInline(name: String, size: Int): Boolean =
+        isBinaryEntry(name) || name in NOT_SHOWN_INLINE || size > MAX_INLINE_BYTES
+
+    companion object {
+        /** Large raw research streams never shown inline by NAME: the WHOOP frame capture plus the Oura
+         *  Tier-B sidecars (harmless on Android today — it doesn't attach them — but kept for parity and a
+         *  future producer port). The binary screenshot is caught by [isBinaryEntry]. */
+        private val NOT_SHOWN_INLINE = setOf(
+            "raw-capture.jsonl", "oura-raw.jsonl", "oura-ibihr.jsonl", "oura-activity.jsonl",
+        )
+
+        /** 1 MiB — far above a normal report.txt / meta.json (those still show in full) yet well below the
+         *  Compose-text layout-choke point. Mirrors Swift `maxInlineBytes`. */
+        private const val MAX_INLINE_BYTES = 1024 * 1024
+    }
 
     /** Explicit user confirmation: the only way the gate clears. */
     fun confirm() { isCleared = true }

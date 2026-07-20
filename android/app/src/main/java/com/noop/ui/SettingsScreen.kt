@@ -498,6 +498,7 @@ fun SettingsScreen(
     var rhythmEnabled by remember { mutableStateOf(RhythmConsent.isEnabled(context)) }
     var coachSignals by remember { mutableStateOf(NoopPrefs.coachSignals(context)) }
     var autoDetectWorkouts by remember { mutableStateOf(NoopPrefs.autoDetectWorkouts(context)) }
+    var journalReminder by remember { mutableStateOf(NoopPrefs.journalReminderEnabled(context)) }
     // Keep the screen on during a manual workout recording (#703), default OFF. The live-workout
     // screen reads this same "workoutKeepScreenOn" key. String shared verbatim with the iOS/Mac twin
     // (AppStorage "workoutKeepScreenOn"). Read/written inline against the shared prefs store.
@@ -2127,6 +2128,16 @@ fun SettingsScreen(
                     onCheckedChange = {
                         autoDetectWorkouts = it
                         NoopPrefs.setAutoDetectWorkouts(context, it)
+                    },
+                )
+                RowDivider()
+                ToggleRow(
+                    title = uiString(R.string.l10n_journal_reminder_journal_reminder_0fdc0d9c),
+                    detail = uiString(R.string.l10n_journal_reminder_show_a_today_card_reminding_you_to_log_your_journal_8228bc77),
+                    checked = journalReminder,
+                    onCheckedChange = {
+                        journalReminder = it
+                        NoopPrefs.setJournalReminderEnabled(context, it)
                     },
                 )
                 RowDivider()

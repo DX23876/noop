@@ -949,6 +949,15 @@ struct TodayView: View {
     }
     private var calibrationDetail: LocalizedStringKey? {
         guard let n = recoveryCalibration else { return nil }
+        // #612: if the baseline aged out silently — connected, but no new night for > staleDays — say WHY
+        // it's calibrating instead of only "learning your baseline". The honest calibrating state is correct;
+        // this attaches its reason. `stale` is always > staleDays (14) here, so the copy is always plural.
+        if let stale = Baselines.nightsSinceNewestValidNight(dayKeys: repo.days.map(\.day),
+                                                             nightlyHrv: repo.days.map(\.avgHrv),
+                                                             today: Repository.logicalDayKey(Date())),
+           stale > Baselines.staleDays {
+            return "No new nights from your strap for \(stale) days. Check it's connected and saving data."
+        }
         return "Learning your baseline, \(n) of \(Baselines.minNightsSeed) nights."
     }
 
@@ -1336,6 +1345,9 @@ struct TodayView: View {
                 // Opt-in "looks like a workout?" suggestion (default OFF). Renders only when the
                 // Settings toggle is on AND the detector finds a recent unsaved, un-dismissed window.
                 AutoWorkoutCard()
+                // #627: the persistent journal widget (last-7-days strip + tap-through to the journal).
+                // Today only; self-hides when the reminder toggle is off. Twin of Android JournalReminderCard.
+                if selectedDayOffset == 0 { JournalReminderCard() }
                 sourcesSection
             }
             #if os(iOS)
@@ -2103,7 +2115,7 @@ struct TodayView: View {
                     Button {
                         showingDashboardEditor = true
                     } label: {
-                        Label("CUSTOMISE", systemImage: "slider.horizontal.3")
+                        Label(String(localized: "Edit").uppercased(), systemImage: "slider.horizontal.3")   // #492/#563: unified "EDIT"
                             .font(StrandFont.overline)
                             .tracking(StrandFont.overlineTracking)
                     }
@@ -3116,7 +3128,7 @@ struct TodayView: View {
                 Button {
                     showingMetricsEditor = true
                 } label: {
-                    Label("Edit", systemImage: "slider.horizontal.3")
+                    Label(String(localized: "Edit").uppercased(), systemImage: "slider.horizontal.3")   // #492/#563: uppercase to match
                         .font(StrandFont.footnote)
                 }
                 .buttonStyle(.plain)

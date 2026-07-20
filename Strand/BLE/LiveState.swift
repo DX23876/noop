@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import StrandAnalytics
 import WhoopProtocol
+import OuraProtocol
 
 /// Observable snapshot of the live connection + biometric state, driven by FrameRouter
 /// (from decoded frames) and BLEManager (from CoreBluetooth callbacks).
@@ -68,6 +69,12 @@ public final class LiveState: ObservableObject {
     /// first event of a session; cleared on disconnect so a stale flag can't outlive the link.
     /// Flag ONLY — the battery % keeps its family-specific source (#77).
     @Published public var charging: Bool? = nil
+
+    /// The Oura ring's current wear/charge state (nil for non-Oura straps or before any evidence this
+    /// session). Driven by OuraLiveSource from the live-HR push + the ring's STATE charger strings: a live
+    /// beat only comes from a finger (`.worn`); "chg. detected"/"stopped" bracket `.charging`; a silent
+    /// live-HR stream drops to `.off` (removed). Lets the Live view show On wrist / Off wrist.
+    @Published public var ouraWearState: OuraWearState? = nil
 
     // MARK: - Battery runtime estimate (#713)
 
@@ -482,6 +489,7 @@ public final class LiveState: ObservableObject {
         recentGravitySamples.removeAll()
         clearStrapRange()                 // a stale clock-drift window must not outlive the link either
         lastFrameAtUnix = nil             // #987: a stale "last frame" freshness must not outlive it either
+        ouraWearState = nil               // a stale worn/charging badge must not outlive the link either
     }
 
     /// Cap on the in-app strap-log ring buffer. Raised from the old ~1h (200 lines) to retain a rolling

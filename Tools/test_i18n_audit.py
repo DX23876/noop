@@ -79,6 +79,38 @@ class AndroidLiteralExtraction(unittest.TestCase):
         self.assertEqual(literals(text), ['$left more ${if (left == 1) "day" else "days"} to go.'])
 
 
+class ArgumentSpanDetection(unittest.TestCase):
+    """`AndroidLiteralExtraction` above hands `_extract_literals` a span that is
+    already correct, so it never exercises `_argument_span_end` — the function
+    that decides where a `Text(...)` argument actually ends in real source, and
+    the piece most likely to break under future edits (nested bracket balancing
+    plus transparent-vs-opaque brace classification).
+
+    Both tests use a multi-arg call whose first argument has braced branches, so
+    they fail in BOTH directions: stopping one brace early truncates the span
+    mid-conditional, and running past the top-level comma swallows the sibling
+    arguments.
+    """
+
+    # `if (x) { … } else { … }` (not the flat ternary) is deliberate: without a
+    # brace in the argument, an early-stopping regression is invisible.
+    SOURCE = 'Text(if (x) { "Saved" } else { "Save" }, modifier = Modifier.testTag("hrv_row"))'
+
+    def test_span_ends_at_top_level_comma_not_at_a_nested_brace(self):
+        start = self.SOURCE.index("(") + 1
+        end = ia._argument_span_end(self.SOURCE, start)
+        self.assertEqual(self.SOURCE[start:end], 'if (x) { "Saved" } else { "Save" }')
+
+    def test_extraction_over_the_real_span_excludes_sibling_arguments(self):
+        # `hrv_row` is the overrun canary: it is only reachable if the span runs
+        # past the comma. (It could not do this job through `scan_android()` —
+        # `is_probably_ui_text` filters snake_case testTags out again.)
+        start = self.SOURCE.index("(") + 1
+        end = ia._argument_span_end(self.SOURCE, start)
+        found = [lit for _offset, lit in ia._extract_literals(self.SOURCE, start, end)]
+        self.assertEqual(found, ["Saved", "Save"])
+
+
 class MaskComments(unittest.TestCase):
     def test_line_comment_blanked(self):
         text = 'val x = 1 // "Take over this ring?"\nText("Real")'

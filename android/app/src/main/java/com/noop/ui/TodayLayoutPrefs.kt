@@ -30,14 +30,17 @@ enum class TodaySection(val raw: String, val title: String) {
     WORKOUTS("workouts", "Workouts"),
     HEART_RATE("heartRate", "Heart Rate"),
     RECOVERY_VITALS("recoveryVitals", "Recovery Vitals"),
-    YOUR_CARDS("yourCards", "Your Cards");
+    YOUR_CARDS("yourCards", "Your Cards"),
+    JOURNAL("journal", "Journal");
 
     companion object {
         fun fromRaw(raw: String?): TodaySection? = entries.firstOrNull { it.raw == raw }
 
-        /** The original, hard-coded section order — the default when the layout isn't customised. */
+        /** The original, hard-coded section order — the default when the layout isn't customised. The
+         *  journal widget (#656) is last by default, where it was first added, above the data-sources card. */
         val defaultOrder: List<TodaySection> = listOf(
             HERO, LIVE_SESSION, SYNTHESIS, KEY_METRICS, WORKOUTS, HEART_RATE, RECOVERY_VITALS, YOUR_CARDS,
+            JOURNAL,
         )
     }
 }

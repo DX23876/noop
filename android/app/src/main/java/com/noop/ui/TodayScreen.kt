@@ -274,6 +274,9 @@ fun TodayScreen(
     // The liquid header battery ring taps through to Devices (iOS parity: the battery ring → router.openDevices()).
     // Defaulted to fall back to Settings so the call site stays compiling; AppRoot binds it to the Devices route.
     onOpenDevices: () -> Unit = onOpenSettings,
+    // The #627 journal-reminder card links straight to the journal (Insights). Defaulted to a no-op so
+    // the call site stays compiling; AppRoot binds it to nav.navigateTopLevel(Insights), same as Sleep.
+    onOpenJournal: () -> Unit = {},
 ) {
     val today by viewModel.today.collectAsStateWithLifecycle()
     val alert by viewModel.healthAlert.collectAsStateWithLifecycle()
@@ -626,6 +629,10 @@ fun TodayScreen(
     var showLiveSession by remember { mutableStateOf(false) }
     val liveSessionsEnabled = remember { LiveSessionPrefs.enabled(context) }
     val activeLiveSession by LiveSessionRunner.active.collectAsStateWithLifecycle()
+    // The journal widget's own opt-out (default ON). Read here too so its reorderable section emits no
+    // item when disabled — an always-present zero-height slot would leave a blank draggable gap. Same
+    // remember-once idiom the card uses; a resume/recompose re-reads it. (#656)
+    val journalReminderOn = remember { NoopPrefs.journalReminderEnabled(context) }
     // S4: the Synthesis card collapses to a one-liner that expands on tap (default collapsed). Mirrors iOS.
     var synthesisExpanded by remember { mutableStateOf(false) }
     // S5: the Key Metrics grid caps at the first METRICS_COLLAPSED_CAP tiles behind a "Show all metrics"
@@ -1324,6 +1331,8 @@ fun TodayScreen(
                     selectedDayOffset == 0 && (liveSessionsEnabled || activeLiveSession != null)
                 TodaySection.YOUR_CARDS ->
                     selectedDayOffset == 0 && visibleDashboardCards.isNotEmpty()
+                TodaySection.JOURNAL ->
+                    selectedDayOffset == 0 && journalReminderOn
                 else -> true
             }
             if (!sectionVisible) return@forEach
@@ -1437,22 +1446,15 @@ fun TodayScreen(
                             modifier = Modifier.fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(verticalAlignment = Alignment.Top) {
                                 Box(modifier = Modifier.weight(1f)) {
                                     SectionHeader("Key Metrics", overline = dayLabel, trailing = trendWindowLabel(keyMetricsWindowDays))
                                 }
-                                TextButton(
+                                TodayEditAction(
                                     onClick = { showMetricsEditor = true },
-                                    colors = ButtonDefaults.textButtonColors(contentColor = Palette.accent),
-                                ) {
-                                    Icon(
-                                        Icons.Filled.Tune,
-                                        contentDescription = uiString(R.string.l10n_today_screen_edit_key_metrics_f95e61a4),
-                                        modifier = Modifier.size(Metrics.iconSmall),
-                                    )
-                                    Spacer(Modifier.width(4.dp))
-                                    Text(uiString(R.string.l10n_today_screen_edit_5301648d), style = NoopType.footnote)
-                                }
+                                    contentDescription = uiString(R.string.l10n_today_screen_edit_key_metrics_f95e61a4),
+                                    contentAlignment = Alignment.TopCenter,
+                                )
                             }
                             Box(modifier = Modifier.fillMaxWidth().staggeredAppear(stagger)) {
                                 MetricGrid(
@@ -1528,6 +1530,15 @@ fun TodayScreen(
                             onOpenSleep = onOpenSleep,
                             onOpenCoupled = onOpenCoupled,
                             onCustomise = { showDashboardEditor = true },
+                        )
+                        // #656: the persistent journal widget (last-7-days strip + tap-through). Now a
+                        // reorderable section like the others — hold-drag or Arrange moves it. Today-only
+                        // and enabled-gated at the loop level (sectionVisible) so it never leaves a blank
+                        // draggable slot. Twin of iOS LiquidTodayView's `.journal` arm.
+                        TodaySection.JOURNAL -> JournalReminderCard(
+                            viewModel = viewModel,
+                            days = days,
+                            onOpenJournal = onOpenJournal,
                         )
                     }
                 }
@@ -2714,9 +2725,16 @@ private fun SynthesisHeroCard(
         // the SAME in both states, only the detail body and chrome fold, never the read (#506).
         val status = if (recoveryCalibration != null) "Calibrating" else synthesisWord(recovery)
         val detail = if (recoveryCalibration != null) {
-            // Comma (not the old em-dash) to match the Swift canonical synthesis copy VERBATIM
-            // (TodayView "Learning your baseline, N of M nights.") and the no-em-dash standing rule.
-            "Learning your baseline, $recoveryCalibration of ${Baselines.minNightsSeed} nights."
+            // #612: if the baseline aged out silently — connected, but no new night for > staleDays — say WHY
+            // it's calibrating instead of only "learning your baseline". `stale` is always > staleDays (14).
+            val stale = Baselines.nightsSinceNewestValidNight(days.map { it.day }, days.map { it.avgHrv }, logicalDayKeyNow())
+            if (stale != null && stale > Baselines.staleDays) {
+                uiString(R.string.l10n_today_screen_no_new_nights_from_your_strap_for_stale_days_8863bcfe, stale)
+            } else {
+                // Comma (not the old em-dash) to match the Swift canonical synthesis copy VERBATIM
+                // (TodayView "Learning your baseline, N of M nights.") and the no-em-dash standing rule.
+                "Learning your baseline, $recoveryCalibration of ${Baselines.minNightsSeed} nights."
+            }
         } else if (carriedDay != null) {
             // Carried prior-day read, summarise that day + stamp it so it isn't passed off as today's.
             synthesisDetail(carriedDay) + " ${carriedCaption(carriedDay.day)}."
@@ -2955,6 +2973,41 @@ private fun HeroVitalRow(label: String, value: String, tint: Color, fraction: Do
 // big white value + small unit + chevron on the right. A card with no value yet renders a dash rather than
 // vanishing. Mirrors iOS TodayView.yourCardsSection / pinnedCardRow / dashboardValue / dashboardTint.
 
+/** Shared Today section edit affordance. The 48dp box keeps the whole control easy to tap while its
+ *  visible content stays pinned to the overline instead of centring against a two-line header. */
+@Composable
+private fun TodayEditAction(
+    contentDescription: String,
+    onClick: () -> Unit,
+    contentAlignment: Alignment = Alignment.Center,
+) {
+    Box(
+        modifier = Modifier
+            .height(48.dp)
+            .clickable(onClick = onClick)
+            .semantics { this.contentDescription = contentDescription }
+            .padding(horizontal = Metrics.space12),
+    ) {
+        Row(
+            modifier = Modifier.align(contentAlignment),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Filled.Tune,
+                contentDescription = null,
+                tint = Palette.accent,
+                modifier = Modifier.size(14.dp),
+            )
+            Spacer(Modifier.width(Metrics.space4))
+            Text(
+                uiString(R.string.l10n_today_screen_edit_5301648d).uppercase(Locale.getDefault()),
+                style = NoopType.overline.copy(letterSpacing = 0.4.sp),
+                color = Palette.accent,
+            )
+        }
+    }
+}
+
 @Composable
 private fun YourCardsSection(
     cards: List<DashboardCard>,
@@ -2980,26 +3033,13 @@ private fun YourCardsSection(
 ) {
     Box(modifier = Modifier.fillMaxWidth().staggeredAppear(2)) {
         Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-            // Header: "YOUR CARDS" overline + a right-aligned blue CUSTOMISE action (the WHOOP ✎ affordance).
+            // Header: "YOUR CARDS" overline + a right-aligned blue EDIT action (the WHOOP ✎ affordance).
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Overline("Your cards", modifier = Modifier.weight(1f))
-                TextButton(
+                TodayEditAction(
                     onClick = onCustomise,
-                    colors = ButtonDefaults.textButtonColors(contentColor = Palette.accent),
-                    modifier = Modifier.semantics { contentDescription = uiString(R.string.l10n_today_screen_customise_your_cards_2428d761) },
-                ) {
-                    Icon(
-                        Icons.Filled.Tune,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp),
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        uiString(R.string.l10n_today_screen_customise_b378dddc),
-                        style = NoopType.overline.copy(letterSpacing = 0.4.sp),
-                        color = Palette.accent,
-                    )
-                }
+                    contentDescription = uiString(R.string.l10n_today_screen_customise_your_cards_2428d761),
+                )
             }
             cards.forEach { card ->
                 DashboardCardRow(
@@ -3964,7 +4004,10 @@ private fun RecoveryDriversSection(
 
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
         // Header row: section title + the SURFACED confidence pill (dot + tier tag) on the right.
-        Row(verticalAlignment = Alignment.Top) {
+        Row(
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(Metrics.space8),
+        ) {
             Box(modifier = Modifier.weight(1f)) {
                 SectionHeader("What shaped it", overline = overline, trailing = "vs your baseline")
             }
@@ -5922,6 +5965,7 @@ private fun TodaySourcesSection(
     onToggle: () -> Unit = {},
 ) {
     SectionHeader("Data Sources", overline = "Provenance")
+    Spacer(Modifier.height(Metrics.gap))
     val whoopPresent = (footer.whoopDays ?: 0) > 0 || strapBatteryPct != null
     val applePresent = (footer.appleDays ?: 0) > 0 || (footer.appleWorkouts ?: 0) > 0
     val hcPresent = (footer.hcDays ?: 0) > 0 || (footer.hcWorkouts ?: 0) > 0

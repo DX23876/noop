@@ -1828,8 +1828,10 @@ class WhoopBleClient(
                 }
                 // Keep the opt-in Health Connect writeback fresh in background-only operation too.
                 if (NoopPrefs.hcWriteback(context)) {
+                    // #660: log the count AND any PII-safe failure categories (the writer also persists
+                    // the outcome to prefs, so Data Sources surfaces a failing background share).
                     runCatching { HealthConnectWriter.write(context, repository, deviceId) }
-                        .onSuccess { log("HC writeback: $it record(s)") }
+                        .onSuccess { r -> log("HC writeback: ${r.written} record(s)" + if (r.ok) "" else " (failed: ${r.failures.joinToString()})") }
                 }
             } finally {
                 analyzeAfterBackfillScheduled.set(false)

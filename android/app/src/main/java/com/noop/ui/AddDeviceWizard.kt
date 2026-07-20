@@ -616,8 +616,7 @@ fun AddDeviceWizard(
             title = { Text(uiString(R.string.l10n_add_device_wizard_take_over_this_ring_cc79ef5e), style = NoopType.title2, color = Palette.textPrimary) },
             text = {
                 Text(
-                    uiString(R.string.l10n_add_device_wizard_noop_will_install_its_own_key_d3f6321e) +
-                        "longer control this ring. This is intended and it cannot be undone from NOOP.",
+                    uiString(R.string.l10n_add_device_wizard_noop_will_install_its_own_key_d3f6321e),
                     style = NoopType.subhead,
                     color = Palette.textSecondary,
                 )
@@ -748,8 +747,7 @@ private fun ExperimentalTierNote() {
     ) {
         Icon(Icons.Filled.Science, contentDescription = null, tint = Palette.statusWarning, modifier = Modifier.size(18.dp))
         Text(
-            uiString(R.string.l10n_add_device_wizard_experimental_best_effort_support_we_re_db288aa8) +
-                "every device. They never make up data, and they'll tell you honestly when live isn't possible.",
+            uiString(R.string.l10n_add_device_wizard_experimental_best_effort_support_we_re_db288aa8),
             style = NoopType.footnote,
             color = Palette.statusWarning,
         )
@@ -792,8 +790,7 @@ private fun WhoopFirstNote() {
     ) {
         Icon(Icons.Filled.FavoriteBorder, contentDescription = null, tint = Palette.textTertiary, modifier = Modifier.size(16.dp))
         Text(
-            uiString(R.string.l10n_add_device_wizard_whoop_is_noop_s_primary_fully_ac6fa33b) +
-                "and HRV, but not WHOOP's deeper sleep and recovery data.",
+            uiString(R.string.l10n_add_device_wizard_whoop_is_noop_s_primary_fully_ac6fa33b),
             style = NoopType.footnote,
             color = Palette.textTertiary,
         )
@@ -1161,8 +1158,7 @@ private fun OuraGateStep(
                 modifier = Modifier.size(20.dp),
             )
             Text(
-                uiString(R.string.l10n_add_device_wizard_i_understand_this_disconnects_the_ring_66bbb125) +
-                    "go back to Oura I would factory-reset the ring again and set it up in the Oura app.",
+                uiString(R.string.l10n_add_device_wizard_i_understand_this_disconnects_the_ring_66bbb125),
                 style = NoopType.footnote,
                 color = Palette.statusCritical,
             )
@@ -1329,8 +1325,7 @@ private fun OuraPickStep(
                 CircularProgressIndicator(color = Palette.accent, modifier = Modifier.size(22.dp))
                 Text(uiString(R.string.l10n_add_device_wizard_searching_1a6a5ba8), style = NoopType.body, color = Palette.textPrimary)
                 Text(
-                    uiString(R.string.l10n_add_device_wizard_not_showing_up_make_sure_you_60a8a61b) +
-                        "tap Rescan. A ring still owned by Oura will not list here.",
+                    uiString(R.string.l10n_add_device_wizard_not_showing_up_make_sure_you_60a8a61b),
                     style = NoopType.subhead,
                     color = Palette.textSecondary,
                 )
@@ -1416,8 +1411,7 @@ private fun OuraConfirmStep(
                 Text(uiString(R.string.l10n_add_device_wizard_connect_to_this_ring_02b9442b), style = NoopType.headline, color = Palette.goldDeepText)
             }
             Text(
-                uiString(R.string.l10n_add_device_wizard_both_noop_and_the_oura_app_4f219db3) +
-                    "Bluetooth link at a time.",
+                uiString(R.string.l10n_add_device_wizard_both_noop_and_the_oura_app_4f219db3),
                 style = NoopType.footnote,
                 color = Palette.textTertiary,
             )
@@ -1453,8 +1447,7 @@ private fun OuraAdoptingStep() {
             Text(uiString(R.string.l10n_add_device_wizard_taking_over_your_ring_b64a3852), style = NoopType.headline, color = Palette.textPrimary)
         }
         Text(
-            uiString(R.string.l10n_add_device_wizard_installing_noop_s_key_and_confirming_aab5cf61) +
-                "do not open the Oura app.",
+            uiString(R.string.l10n_add_device_wizard_installing_noop_s_key_and_confirming_aab5cf61),
             style = NoopType.subhead,
             color = Palette.textSecondary,
         )

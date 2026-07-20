@@ -190,6 +190,15 @@ object NoopPrefs {
      *  Sleep screen's "Good morning" sheet to at most once per day. */
     const val KEY_LAST_JOURNAL_PROMPT = "noop.lastJournalPromptDay"
 
+    /** "Journal reminder" (#627). When ON, Today shows a dismissible card whenever nothing has been
+     *  logged to today's journal yet, and the Sleep screen's morning sheet may fire — one switch gates
+     *  both surfaces. Default ON. Mirrors iOS @AppStorage("noopJournalReminder"). */
+    const val KEY_JOURNAL_REMINDER_ENABLED = "noop.journalReminder"
+
+    /** The calendar day (yyyy-MM-dd) on which the Today journal-reminder card was last dismissed, so an
+     *  X hides it until the next day (per-day, like [KEY_LAST_JOURNAL_PROMPT]). */
+    const val KEY_JOURNAL_REMINDER_DISMISSED_DAY = "noop.journalReminderDismissedDay"
+
     /** "Debug logging", when on, the strap log is also written to logcat (`adb`). Default OFF so a
      *  normal user never emits the connection log to the system log; the in-app ring buffer (and the
      *  "Share strap log" export) work regardless. See [com.noop.ble.WhoopBleClient.debugLogcat]. */
@@ -408,6 +417,27 @@ object NoopPrefs {
         of(context).edit().putBoolean(KEY_HC_WRITEBACK, enabled).apply()
     }
 
+    /** Last writeback OUTCOME (#660) — surfaced in Data Sources so a silently-failing share (revoked
+     *  permission, provider error) is visible instead of a healthy-looking toggle. [KEY_HC_WB_STATUS]
+     *  holds a PII-safe category ([HC_WB_OK] / [HC_WB_PERMISSION_DENIED] / [HC_WB_REMOTE_ERROR]); "" = never. */
+    const val KEY_HC_WB_STATUS = "noop.hcWritebackStatus"
+    const val KEY_HC_WB_AT = "noop.hcWritebackAtMs"
+    const val KEY_HC_WB_WRITTEN = "noop.hcWritebackWritten"
+    const val HC_WB_OK = "OK"
+    const val HC_WB_PERMISSION_DENIED = "PERMISSION_DENIED"
+    const val HC_WB_REMOTE_ERROR = "REMOTE_ERROR"
+
+    fun hcWritebackStatus(context: Context): String = of(context).getString(KEY_HC_WB_STATUS, "") ?: ""
+    fun hcWritebackAt(context: Context): Long = of(context).getLong(KEY_HC_WB_AT, 0L)
+    fun hcWritebackWritten(context: Context): Int = of(context).getInt(KEY_HC_WB_WRITTEN, 0)
+    fun setHcWritebackStatus(context: Context, code: String, written: Int, atMs: Long) {
+        of(context).edit()
+            .putString(KEY_HC_WB_STATUS, code)
+            .putInt(KEY_HC_WB_WRITTEN, written)
+            .putLong(KEY_HC_WB_AT, atMs)
+            .apply()
+    }
+
     /** #528, last HR sample epoch-second exported to Health Connect (0 = nothing exported yet). The
      *  HR share-back only emits samples newer than this, so each writeback is incremental. */
     const val KEY_HC_HR_FRONTIER = "noop.hcHrFrontierTs"
@@ -616,6 +646,13 @@ object NoopPrefs {
 
     fun setAutoDetectWorkouts(context: Context, enabled: Boolean) {
         of(context).edit().putBoolean(KEY_AUTO_DETECT_WORKOUTS, enabled).apply()
+    }
+
+    fun journalReminderEnabled(context: Context): Boolean =
+        of(context).getBoolean(KEY_JOURNAL_REMINDER_ENABLED, true)
+
+    fun setJournalReminderEnabled(context: Context, enabled: Boolean) {
+        of(context).edit().putBoolean(KEY_JOURNAL_REMINDER_ENABLED, enabled).apply()
     }
 
     /** Last local day (ISO yyyy-MM-dd) an illness notification was posted, the once-a-day gate,

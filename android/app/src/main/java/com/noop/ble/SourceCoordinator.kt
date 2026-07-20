@@ -8,6 +8,7 @@ import com.noop.data.SourceKind
 import com.noop.data.StreamBatch
 import com.noop.data.WhoopRepository
 import com.noop.oura.OuraRingGen
+import com.noop.oura.OuraWearState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -121,6 +122,11 @@ class SourceCoordinator(
      *  source is live. Mirrors Swift `AppModel.ouraNeedsPairing`. */
     private val _ouraNeedsPairing = MutableStateFlow<String?>(null)
     val ouraNeedsPairing: StateFlow<String?> = _ouraNeedsPairing.asStateFlow()
+
+    /** The active Oura source's live wear/charge state (worn / charging / off), or null when no Oura source
+     *  is live. Drives the Live screen's On-wrist / Off-wrist read (#628). Mirrors iOS `LiveState.ouraWearState`. */
+    private val _ouraWearState = MutableStateFlow<OuraWearState?>(null)
+    val ouraWearState: StateFlow<OuraWearState?> = _ouraWearState.asStateFlow()
 
     /** Collects the active Oura source's adoptPhase / needsPairing into the mirrors above; cancelled and
      *  nulled on teardown so a forgotten ring never leaks a stale outcome. */
@@ -430,6 +436,7 @@ class SourceCoordinator(
         ouraStateJob = scope.launch {
             launch { source.adoptPhase.collect { _ouraAdoptPhase.value = it } }
             launch { source.needsPairing.collect { _ouraNeedsPairing.value = it } }
+            launch { source.ouraWearState.collect { _ouraWearState.value = it } }
         }
         return source
     }
@@ -444,6 +451,7 @@ class SourceCoordinator(
         ouraStateJob?.cancel(); ouraStateJob = null
         _ouraAdoptPhase.value = OuraLiveSource.AdoptPhase.Idle
         _ouraNeedsPairing.value = null
+        _ouraWearState.value = null   // #628: no live Oura source -> no wear badge
         // A stale speed/cadence/power readout must not outlive the strap session (the source's own stop()
         // already pushes an empty SensorMetrics, but reset here too so leaving for WHOOP / FTMS / Huami —
         // none of which feed this flow — is clean and immediate).

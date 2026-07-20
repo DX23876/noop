@@ -206,6 +206,11 @@ struct RootTabView: View {
                 // coach chat's action row asks for Breathe directly, skipping the quick-action MENU step.
                 withAnimation(Self.sheetEase) { quickAction = .breathe }
                 router.requestedDestination = nil
+            case .journal:
+                // The #627 Today journal widget opens the journal through the quick-action Journal sheet
+                // (InsightsView), matching the FAB's "Log journal" action. Calm sheet easing.
+                withAnimation(Self.sheetEase) { quickAction = .journal }
+                router.requestedDestination = nil
             case nil:
                 break
             }
@@ -255,6 +260,9 @@ struct RootTabView: View {
                 // .breathe routes through the quick-action sheet (handled above); this keeps the switch
                 // exhaustive and falls back to BreathingView directly if it ever reaches the host.
                 case .breathe: BreathingView()
+                // .journal opens through the quick-action Journal sheet (handled above); this keeps the
+                // switch exhaustive and falls back to the journal's Insights host if it ever reaches here.
+                case .journal: InsightsView()
                 }
             }
             // The Trends/Today fallbacks above emit TabRoute value pushes (#198), which need a

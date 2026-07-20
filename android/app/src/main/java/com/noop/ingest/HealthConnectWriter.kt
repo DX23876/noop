@@ -24,6 +24,37 @@ import java.time.LocalTime
 import java.time.ZoneId
 import kotlin.reflect.KClass
 
+/** PII-safe category of a Health Connect writeback failure — a coarse reason, never a raw message. */
+enum class WritebackFailure { PERMISSION_DENIED, REMOTE_ERROR }
+
+/**
+ * Outcome of a writeback attempt (#660): how many records landed, plus any per-concern failure
+ * categories. Lets callers/UI distinguish "wrote 0 because nothing to share" from "wrote 0 because
+ * the write FAILED" — the silent-zero the previous `Int` return couldn't express.
+ */
+data class WritebackResult(val written: Int, val failures: List<WritebackFailure>) {
+    val ok: Boolean get() = failures.isEmpty()
+
+    /** PII-safe status code persisted for the UI — a permission failure outranks a generic one, since it
+     *  needs a distinct "re-grant" action. Pure/testable; must equal the `NoopPrefs.HC_WB_*` constants. */
+    val statusCode: String get() = when {
+        WritebackFailure.PERMISSION_DENIED in failures -> "PERMISSION_DENIED"
+        failures.isNotEmpty() -> "REMOTE_ERROR"
+        else -> "OK"
+    }
+
+    companion object {
+        /** HC unavailable / nothing attempted — benign, not a failure. */
+        val UNAVAILABLE = WritebackResult(0, emptyList())
+    }
+}
+
+/** Map a thrown write error to a PII-safe category; rethrow coroutine cancellation (never a "failure"). */
+private fun Throwable.writebackCategory(): WritebackFailure {
+    if (this is kotlin.coroutines.cancellation.CancellationException) throw this
+    return if (this is SecurityException) WritebackFailure.PERMISSION_DENIED else WritebackFailure.REMOTE_ERROR
+}
+
 /**
  * OPT-IN writeback: pushes NOOP's on-device computed nightly metrics (resting HR, HRV RMSSD, sleep
  * SpO2, respiratory rate) INTO Health Connect, so other apps can see what the strap measured.
@@ -57,20 +88,30 @@ object HealthConnectWriter {
         WRITE_RECORDS.map { HealthPermission.getWritePermission(it) }.toSet()
 
     /**
-     * Write the last [WINDOW_DAYS] of computed metrics. Returns the number of records written,
-     * 0 when HC is unavailable / nothing computed yet. Assumes [PERMISSIONS] are granted (HC
-     * throws SecurityException otherwise — callers wrap in runCatching).
+     * Write the last [WINDOW_DAYS] of computed metrics. Returns a [WritebackResult] — the record
+     * count PLUS any per-concern failure categories, so a revoked permission no longer looks like a
+     * benign "wrote 0" (#660). Persists the outcome via [recordStatus] for the Data Sources UI.
+     * Assumes [PERMISSIONS] are granted (HC throws SecurityException otherwise — caught + categorized).
      *
      * [deviceId] must be the registry's ACTIVE strap id (SPINE / #814): a wizard-paired strap banks
      * rows under `whoop-<address>`, so a hardcoded legacy "my-whoop" id reads empty tables and
      * exports nothing.
      */
-    suspend fun write(context: Context, repo: WhoopRepository, deviceId: String): Int {
-        if (HealthConnectClient.getSdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) return 0
-        val client = HealthConnectClient.getOrCreate(context)
+    suspend fun write(context: Context, repo: WhoopRepository, deviceId: String): WritebackResult {
+        if (HealthConnectClient.getSdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) return WritebackResult.UNAVAILABLE
 
-        val cutoff = LocalDate.now().minusDays(WINDOW_DAYS).toString()
-        val days = repo.days(repo.computedDeviceId(deviceId)).filter { it.day >= cutoff }
+        // Guard the pre-insert work (client acquisition + the day read) the same way the concern inserts
+        // below are guarded, so a provider race or DB error can't throw PAST recordStatus and leave the
+        // UI showing a stale "OK" while sharing is actually broken (#660). Cancellation still propagates.
+        val (client, days) = runCatching {
+            val c = HealthConnectClient.getOrCreate(context)
+            val cutoff = LocalDate.now().minusDays(WINDOW_DAYS).toString()
+            c to repo.days(repo.computedDeviceId(deviceId)).filter { it.day >= cutoff }
+        }.getOrElse { t ->
+            val result = WritebackResult(0, listOf(t.writebackCategory()))
+            recordStatus(context, result)
+            return result
+        }
 
         val zone = ZoneId.systemDefault()
         // Stamp every record in this batch with one version so a later recompute (higher stamp)
@@ -118,15 +159,27 @@ object HealthConnectWriter {
         // totals. iOS (#249) excludes them for the same reason; this keeps the two platforms aligned.
         // The unique strap signals (vitals, HR, sleep, workouts) are still written below.
 
-        // Each export concern inserts independently (own runCatching) so a failure in one — e.g. a
-        // revoked per-type WRITE permission — can't suppress the others.
+        // Each export concern inserts independently so a failure in one — e.g. a revoked per-type WRITE
+        // permission — can't suppress the others. Failures are CATEGORIZED (PII-safe, never raw messages)
+        // and folded into the result instead of collapsing to a silent 0, so the UI can surface them (#660).
         var total = 0
+        val failures = mutableListOf<WritebackFailure>()
         if (records.isNotEmpty()) {
-            total += runCatching { client.insertRecords(records); records.size }.getOrDefault(0)
+            runCatching { client.insertRecords(records); records.size }
+                .fold({ total += it }, { failures += it.writebackCategory() })
         }
-        total += runCatching { writeHeartRate(client, context, repo, deviceId, version) }.getOrDefault(0)
-        total += runCatching { writeSleep(client, repo, deviceId) }.getOrDefault(0)
-        return total
+        runCatching { writeHeartRate(client, context, repo, deviceId, version) }
+            .fold({ total += it }, { failures += it.writebackCategory() })
+        runCatching { writeSleep(client, repo, deviceId) }
+            .fold({ total += it }, { failures += it.writebackCategory() })
+        val result = WritebackResult(total, failures.distinct())
+        recordStatus(context, result)
+        return result
+    }
+
+    /** Persist the last writeback outcome (PII-safe category + count + time) for the Data Sources UI (#660). */
+    private fun recordStatus(context: Context, result: WritebackResult) {
+        NoopPrefs.setHcWritebackStatus(context, result.statusCode, result.written, System.currentTimeMillis())
     }
 
     private fun meta(metric: String, day: String, version: Long) = Metadata(
@@ -273,11 +326,14 @@ object HealthConnectWriter {
         return out
     }
 
-    /** Insert one workout's records into Health Connect. Opt-in caller; wrap in runCatching. */
-    suspend fun writeExercise(context: Context, row: WorkoutRow, exerciseType: Int): Int {
-        if (HealthConnectClient.getSdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) return 0
+    /** Insert one workout's records into Health Connect. Opt-in caller. Returns a [WritebackResult] so a
+     *  failed exercise share is visible instead of silently swallowed, and records the outcome (#660). */
+    suspend fun writeExercise(context: Context, row: WorkoutRow, exerciseType: Int): WritebackResult {
+        if (HealthConnectClient.getSdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) return WritebackResult.UNAVAILABLE
         val recs = buildExerciseRecords(row, exerciseType)
-        HealthConnectClient.getOrCreate(context).insertRecords(recs)
-        return recs.size
+        val result = runCatching { HealthConnectClient.getOrCreate(context).insertRecords(recs); recs.size }
+            .fold({ WritebackResult(it, emptyList()) }, { WritebackResult(0, listOf(it.writebackCategory())) })
+        recordStatus(context, result)
+        return result
     }
 }

@@ -8,6 +8,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.File
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 
 /**
  * The `settings.json` half of #1000 ("restore doesn't bring back settings/weight/height"): the pure
@@ -162,5 +164,22 @@ class BackupSettingsCodecTest {
         val result = DataBackup.stageBackupSqlite(backup.inputStream(), DataBackup.peekHeader(backup), stagedDb)
         assertEquals(DataBackup.StageResult.OK, result)
         assertEquals(liveDb.readBytes().toList(), stagedDb.readBytes().toList())
+    }
+
+    @Test fun zipWithNonCanonicalSqliteEntryIsRejected() {
+        val backup = tmp.newFile("wrong-entry.noopbak")
+        ZipOutputStream(backup.outputStream()).use { zip ->
+            zip.putNextEntry(ZipEntry("evil.sqlite"))
+            zip.write(sqliteMagic)
+            zip.write("rows".toByteArray())
+            zip.closeEntry()
+        }
+
+        val stagedDb = tmp.newFile()
+        val result = DataBackup.stageBackupSqlite(
+            backup.inputStream(), DataBackup.peekHeader(backup), stagedDb,
+        )
+
+        assertEquals(DataBackup.StageResult.NO_DB_IN_ZIP, result)
     }
 }

@@ -8,7 +8,7 @@
 
 <p align="center">
   <img alt="Fork of ryanbr/noop" src="https://img.shields.io/badge/fork%20of-ryanbr%2Fnoop-6B737B?style=flat-square&logo=github&logoColor=white">
-  <img alt="Version" src="https://img.shields.io/badge/version-9.0.2-234F9E?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-9.0.3-234F9E?style=flat-square">
   <img alt="Platform" src="https://img.shields.io/badge/platform-iOS%20only-234F9E?style=flat-square">
   <img alt="AI coach" src="https://img.shields.io/badge/AI%20coach-19%20tools-C8902F?style=flat-square">
   <img alt="Apple Health" src="https://img.shields.io/badge/Apple%20Health-auto%20sync-60A0E0?style=flat-square">

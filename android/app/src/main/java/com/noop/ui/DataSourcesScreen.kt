@@ -117,6 +117,10 @@ fun DataSourcesScreen(vm: AppViewModel) {
     val hcSyncHours by vm.hcSyncHours.collectAsStateWithLifecycle()
     val hcLastSync by vm.hcLastSync.collectAsStateWithLifecycle()
     val hcWriteback by vm.hcWriteback.collectAsStateWithLifecycle()
+    val hcWbStatus by vm.hcWritebackStatus.collectAsStateWithLifecycle()
+    // A background (BLE-path) writeback updates prefs, not the VM's flow — re-read on entry so the
+    // status line reflects the latest attempt whenever this screen is opened (#660).
+    LaunchedEffect(Unit) { vm.refreshHcWritebackStatus() }
 
     // Cached-store counts, loaded once from the repo (newest data is fine to recount).
     var whoopDays by remember { mutableStateOf<Int?>(null) }
@@ -535,6 +539,32 @@ fun DataSourcesScreen(vm: AppViewModel) {
                             contentDescription = uiString(R.string.l10n_data_sources_screen_share_computed_metrics_back_to_health_c11f5d70)
                         },
                     )
+                }
+                // #660: surface the last writeback OUTCOME so a silently-failing share (revoked
+                // permission, provider error) is visible instead of a healthy-looking toggle. Only
+                // while enabled and after at least one attempt (empty status = never tried).
+                if (hcWriteback && hcWbStatus.code.isNotEmpty()) {
+                    when (hcWbStatus.code) {
+                        NoopPrefs.HC_WB_PERMISSION_DENIED -> Text(
+                            uiString(R.string.l10n_data_sources_screen_sharing_paused_health_connect_permission_was_e8950315),
+                            style = NoopType.footnote,
+                            color = Palette.accent,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { startWriteback() },   // tap re-requests the WRITE permissions
+                        )
+                        NoopPrefs.HC_WB_REMOTE_ERROR -> Text(
+                            uiString(R.string.l10n_data_sources_screen_last_share_didn_t_finish_noop_0d6c27f0),
+                            style = NoopType.footnote,
+                            color = Palette.accent,
+                        )
+                        else -> Text(   // HC_WB_OK
+                            uiString(R.string.l10n_data_sources_screen_last_shared_6bf8389c) +
+                                DateUtils.getRelativeTimeSpanString(hcWbStatus.atMs).toString(),
+                            style = NoopType.footnote,
+                            color = Palette.textTertiary,
+                        )
+                    }
                 }
             } else {
                 RoadmapNote("Health Connect isn't set up on this device. Install it from Google Play, then return here to import.")

@@ -48,6 +48,9 @@ struct FullDayChartView: View {
     /// "Owned only" hides empty non-strap rows; "All sources" surfaces the disclosure (#574). The strap is
     /// always the owned source, so this currently scopes the empty-state copy rather than swapping reads.
     @State private var ownedOnly = true
+    /// #623: true when the current SpO2/respiration metric is genuinely unsupported on the active strap —
+    /// a 5.0-family strap that has NEVER produced it (4.0-only wire signals) — vs merely an empty window.
+    @State private var metricUnsupported = false
 
     @State private var series: Repository.TimelineSeries = .empty
     // #979 spin-off — day annotations, mirroring the classic Today's Overview HR markers: the main
@@ -89,6 +92,18 @@ struct FullDayChartView: View {
         .task(id: taskKey) { await reload() }
         .task(id: annotationKey) { await reloadAnnotations() }
         .task { await landOnLatestDayIfNeeded() }
+        .task(id: metric) { await resolveMetricUnsupported() }   // #623
+    }
+
+    /// #623: a SpO2/respiration track is "unsupported on this strap" only when it's a 5.0-family strap that
+    /// has never produced the metric — not merely an empty window (a 4.0-v24 banks SpO2, and the legacy
+    /// bare-"WHOOP" model resolves to the 5.0 family). Re-resolves when the metric changes.
+    private func resolveMetricUnsupported() async {
+        guard repo.activeStrapFamily() == .whoop5, metric == .spo2 || metric == .respiration else {
+            metricUnsupported = false
+            return
+        }
+        metricUnsupported = !(await repo.strapHasEverProduced(metric))
     }
 
     /// Annotations re-read only when the shown day changes or fresh strap data lands — deliberately NOT
@@ -273,15 +288,29 @@ struct FullDayChartView: View {
             Text("No \(metric.title.lowercased()) here")
                 .font(StrandFont.body)
                 .foregroundStyle(StrandPalette.textSecondary)
-            Text(ownedOnly
-                 ? "Nothing offloaded for this window yet."
-                 : "Other sources don’t offload raw per-second data on-device.")
+            Text(emptyReason)
                 .font(StrandFont.footnote)
                 .foregroundStyle(StrandPalette.textTertiary)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, NoopMetrics.space6)
+    }
+
+    /// #623: on a 5.0/MG the SpO2 + raw respiration tracks are PERMANENTLY empty (4.0-only wire signals),
+    /// so say that instead of a generic "nothing offloaded" that reads as broken, and point respiration at
+    /// the Health screen where the R-R/RSA estimate surfaces. Strap view only (ownedOnly). Twin of Android
+    /// FullDayChartScreen.EmptyTimelineState.
+    private var emptyReason: String {
+        if ownedOnly, metricUnsupported, metric == .spo2 {
+            return String(localized: "This strap doesn’t send SpO₂ over Bluetooth. Import a WHOOP export or Health Connect to see it.")
+        }
+        if ownedOnly, metricUnsupported, metric == .respiration {
+            return String(localized: "This strap sends no raw respiration stream. Your estimated respiratory rate appears on the Health screen.")
+        }
+        return ownedOnly
+            ? String(localized: "Nothing offloaded for this window yet.")
+            : String(localized: "Other sources don’t offload raw per-second data on-device.")
     }
 
     @ViewBuilder private var zoomHint: some View {

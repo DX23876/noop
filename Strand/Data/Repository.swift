@@ -1536,6 +1536,32 @@ final class Repository: ObservableObject {
         return out
     }
 
+    /// Family of the ACTIVE strap (#623), for the deep timeline's family-specific empty-state copy. Reuses
+    /// the canonical `DeviceFamily.forRegistryModel` (#171) with its `.whoop5` fallback for nil/unknown/
+    /// ambiguous, matching Android's `FullDayChartScreen`. Best-effort: no store / unreadable registry → `.whoop5`.
+    func activeStrapFamily() -> DeviceFamily {
+        guard let store else { return .whoop5 }
+        let devices = (try? DeviceRegistryStore(dbQueue: store.registryWriter).all()) ?? []
+        return DeviceFamily.forRegistryModel(devices.first(where: { $0.id == deviceId })?.model)
+    }
+
+    /// Whether the active strap has EVER banked a sample of `metric` (#623) — distinguishes a strap that
+    /// never produces it (honest "not supported on this strap" copy) from one with just an unsynced window.
+    /// Only SpO₂/respiration are asked; any other metric returns true so the generic empty copy stands.
+    /// Twin of the Android `FullDayChartScreen` `everSpo2`/`everResp` reads. Best-effort.
+    func strapHasEverProduced(_ metric: TimelineMetric) async -> Bool {
+        guard let store else { return true }
+        let now = Int(Date().timeIntervalSince1970)
+        switch metric {
+        case .spo2:
+            return !(((try? await store.spo2Samples(deviceId: deviceId, from: 0, to: now, limit: 1)) ?? []).isEmpty)
+        case .respiration:
+            return !(((try? await store.respSamples(deviceId: deviceId, from: 0, to: now, limit: 1)) ?? []).isEmpty)
+        default:
+            return true
+        }
+    }
+
     /// Raw points for a non-HR timeline metric, mapped to display units (skin temp → °C DEVICE-FAMILY-AWARE
     /// via `skinTempCelsius`: 5/MG centidegrees (#156), WHOOP 4.0 v24 raw ADC (#938); HRV → per-RR
     /// instantaneous from RR ms; respiration/SpO₂/motion as the stored signal). Empty when the strap
@@ -1943,6 +1969,17 @@ final class Repository: ObservableObject {
         var out: [String: Double] = [:]
         for r in rows { if let v = r.numericValue { out[r.question] = v } }
         return out
+    }
+
+    /// Distinct local-day keys (yyyy-MM-dd) in the inclusive range [from, to] that carry at least one
+    /// NATIVE journal entry (the "noop-journal" device id only — matching the Android widget's
+    /// `repo.journal(JOURNAL_DEVICE_ID, from, to)`). Backs the #627 Today journal widget's completion
+    /// strip. Read-only.
+    func nativeJournalDays(from: String, to: String) async -> Set<String> {
+        guard let store = await ensureStore() else { return [] }
+        let rows = (try? await store.journalEntries(deviceId: Self.journalDeviceId,
+                                                    from: from, to: to)) ?? []
+        return Set(rows.map { $0.day })
     }
 
     /// Union; the NATIVE row wins per (day, question) , the in-app answer is the user's most recent
@@ -2485,6 +2522,19 @@ final class Repository: ObservableObject {
         let tiz = HRZones.timeInZone(samples, zoneSet: zoneSet)
         let minutes = tiz.seconds.map { $0 / 60.0 }
         return minutes.contains(where: { $0 > 0 }) ? minutes : nil
+    }
+
+    /// HRR for one workout (#516), derived from the final five minutes of recorded effort plus the five
+    /// post-workout minutes. This is a narrow read (at most ~10 minutes), not a whole-workout scan, and the
+    /// pure engine owns every eligibility/coverage guard. Missing post-workout HR therefore returns nil
+    /// instead of fabricating a recovery value. Kotlin twin: `AppViewModel.workoutHeartRateRecovery`.
+    func workoutHeartRateRecovery(from: Int, to: Int, maxHR: Double) async -> HeartRateRecovery.Result? {
+        guard to > from, maxHR > 0 else { return nil }
+        let readFrom = max(from, to - HeartRateRecovery.eligibilityLookbackSeconds)
+        let readTo = to + 5 * 60 + HeartRateRecovery.measurementToleranceSeconds
+        let samples = await hrSamples(from: readFrom, to: readTo, limit: 2_000)
+        return HeartRateRecovery.calculate(samples: samples, workoutStart: from, workoutEnd: to,
+                                           maxHR: maxHR)
     }
 
     /// Apple Health daily aggregates (steps/energy/vo2/hr).

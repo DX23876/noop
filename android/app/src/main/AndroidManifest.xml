@@ -101,9 +101,10 @@
     <uses-permission android:name="android.permission.health.WRITE_HEART_RATE_VARIABILITY" />
     <uses-permission android:name="android.permission.health.WRITE_OXYGEN_SATURATION" />
     <uses-permission android:name="android.permission.health.WRITE_RESPIRATORY_RATE" />
-    <!-- HR samples, steps, active energy, and sleep writeback (#528, opt-in, default OFF). -->
-    <uses-permission android:name="android.permission.health.WRITE_ACTIVE_CALORIES_BURNED" />
-    <uses-permission android:name="android.permission.health.WRITE_STEPS" />
+    <!-- HR samples and sleep writeback (#528, opt-in, default OFF). Steps + active-calories are
+         deliberately NOT written back (they'd double-count the phone/watch's authoritative totals — see
+         HealthConnectWriter.kt; iOS #249 aligns), so their WRITE permissions are intentionally NOT
+         declared here — the writer's WRITE_RECORDS set never requests them (#659). -->
     <uses-permission android:name="android.permission.health.WRITE_HEART_RATE" />
     <uses-permission android:name="android.permission.health.WRITE_SLEEP" />
     <!-- Exercise-session + distance writeback (GPS workouts, opt-in). MUST be declared or Health

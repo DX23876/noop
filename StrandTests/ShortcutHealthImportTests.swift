@@ -30,6 +30,15 @@ final class ShortcutHealthImportTests: XCTestCase {
         XCTAssertEqual(text, "D,2026-06-01,1000,,,,,,,")
     }
 
+    func testPrepareStagesWithoutWriting() {
+        let u = url(payloadText: "D,2026-06-01,1000,,,,,,,\nW,1000,1600,Walking,,,")
+        guard case .success(let pending) = ShortcutHealthImport.prepare(url: u) else {
+            return XCTFail("expected pending import")
+        }
+        XCTAssertEqual(pending.daysCount, 1)
+        XCTAssertEqual(pending.workoutsCount, 1)
+    }
+
     func testRejectsForeignScheme() {
         let u = url(payloadText: "D,2026-06-01,1000", scheme: "https")
         guard case .failure = ShortcutHealthImport.decodePayload(from: u) else {
@@ -48,6 +57,14 @@ final class ShortcutHealthImportTests: XCTestCase {
         let u = url(payloadText: "D,2026-06-01,1000", version: 99)
         guard case .failure = ShortcutHealthImport.decodePayload(from: u) else {
             return XCTFail("a future version must be rejected")
+        }
+    }
+
+    func testRejectsOversizedPayloadBeforeImport() {
+        let huge = String(repeating: "A", count: ShortcutHealthImport.maxPayloadBytes + 1)
+        let u = url(payloadText: huge)
+        guard case .failure = ShortcutHealthImport.decodePayload(from: u) else {
+            return XCTFail("an oversized payload must be rejected")
         }
     }
 

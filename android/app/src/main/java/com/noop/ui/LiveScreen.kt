@@ -74,6 +74,7 @@ import com.noop.analytics.SpotHrvReading
 import com.noop.analytics.Sport
 import com.noop.analytics.WorkoutSport
 import com.noop.ble.LiveState
+import com.noop.oura.OuraWearState
 import com.noop.ble.WhoopModel
 
 /**
@@ -95,6 +96,9 @@ private val LIVE_HERO_RADIUS: Dp = 26.dp
 @Composable
 fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
     val live by viewModel.live.collectAsStateWithLifecycle()
+    // #628: the Oura ring's live wear/charge state (null for WHOOP / before evidence). Preferred by the
+    // "Worn" stat below, so removing the ring or putting it on the charger flips it instead of lingering.
+    val ouraWear by viewModel.ouraWearState.collectAsStateWithLifecycle()
     val bpm by viewModel.bpm.collectAsStateWithLifecycle()
     val selectedModel by viewModel.selectedModel.collectAsStateWithLifecycle()
     // Active band name (MW-6) — names the band whose live data the console shows; falls back to "WHOOP".
@@ -225,7 +229,7 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
         // Console header — the pill + a connection-mode badge (+ a live SYNCING badge during a history
         // offload), with battery / worn / last-sync stats. Mirrors the macOS consoleHeader.
         item {
-        ConsoleHeader(live = live, activeConnection = activeConnection)
+        ConsoleHeader(live = live, activeConnection = activeConnection, ouraWear = ouraWear)
         }
 
         // Primary Connect affordance, surfaced ABOVE the fold whenever there's no link — the real
@@ -740,7 +744,7 @@ private fun ActiveBandRow(name: String, onManageDevices: () -> Unit) {
 }
 
 @Composable
-private fun ConsoleHeader(live: LiveState, activeConnection: Boolean) {
+private fun ConsoleHeader(live: LiveState, activeConnection: Boolean, ouraWear: OuraWearState? = null) {
     NoopCard(padding = 14.dp) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             // Badges row — pill + connection-mode badge + a live SYNCING badge during an offload.
@@ -777,7 +781,7 @@ private fun ConsoleHeader(live: LiveState, activeConnection: Boolean) {
                     live.batteryPct?.let { "${it.toInt()}%" } ?: "—",
                     charging = live.charging == true,
                 )
-                HeaderStat("Worn", if (activeConnection) (if (live.worn) "Yes" else "No") else "—")
+                HeaderStat("Worn", wornLabel(live, activeConnection, ouraWear))
                 HeaderStat("Last sync", lastSyncLabel(live))
             }
         }
@@ -871,6 +875,21 @@ private fun OfflineConnectCallout(scanning: Boolean, onConnect: () -> Unit) {
  *  the bond-only feature gates (buzz, alarm, HRV snapshot) keep keying off `activeConnection`. Twin of the
  *  iOS LiveView.ringStreaming. */
 private fun ringStreaming(live: LiveState): Boolean = live.connected && live.streamingLiveHR
+
+/** The "Worn" stat text. An Oura ring reports a precise live wear/charge state (live-HR presence + charger
+ *  STATE + a removal watchdog), so prefer it — it flips to not-worn the moment the ring is off the finger
+ *  or on the charger, unlike the WHOOP wrist boolean which lingers. WHOOP has no such signal ([ouraWear]
+ *  stays null) so it keeps the wrist-event read. "—" off a live link; because an Oura ring streams WITHOUT
+ *  bonding, a live stream counts as a link too (not just [activeConnection]). Mirrors iOS LiveView.wornNow
+ *  (#628 / #218). */
+private fun wornLabel(live: LiveState, activeConnection: Boolean, ouraWear: OuraWearState?): String {
+    val liveLink = activeConnection || ringStreaming(live)
+    return when {
+        !liveLink -> "—"
+        ouraWear != null -> if (ouraWear == OuraWearState.WORN) "Yes" else "No"
+        else -> if (live.worn) "Yes" else "No"
+    }
+}
 
 private fun connectionModeBadge(live: LiveState, activeConnection: Boolean): String = when {
     activeConnection && live.encryptedBond -> "FULL BOND"

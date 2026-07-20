@@ -10,13 +10,11 @@ import Foundation
 enum OuraOAuth {
     static let authorizeEndpoint = URL(string: "https://cloud.ouraring.com/oauth/authorize")!
     static let tokenEndpoint = URL(string: "https://api.ouraring.com/oauth/token")!
-    // No hardcoded scope list. Oura's own docs: the `scope` param is OPTIONAL and "if left blank, the
-    // application will request ALL available scopes" — which is exactly the goal, and sidesteps two
-    // documentation traps hit live: the SpO2 scope's name differs between the OpenAPI spec ("spo2Daily")
-    // and the auth docs ("spo2"), and the dev portal grants scopes the public docs don't list at all
-    // (Stress, Heart Health, Ring Configuration — the docs still say "8 scopes", the portal shows 11).
-    // Omitting `scope` requests everything the app registration is configured for; the user still picks
-    // on Oura's consent screen.
+    // Explicit data-minimizing scope list. Do not omit `scope`: Oura treats a blank scope as "all
+    // scopes configured on the app", which can silently grow when the developer portal adds new lanes.
+    // Endpoints with newer portal-only scopes may be skipped by the coordinator until they get a
+    // deliberate opt-in + scope addition.
+    static let scopes = ["email", "personal", "daily", "heartrate", "workout", "tag", "session", "spo2"]
 
     /// The consent URL to open in ASWebAuthenticationSession. `state` is a caller-generated nonce echoed
     /// back on redirect and verified, to defeat CSRF / stray callbacks.
@@ -26,7 +24,7 @@ enum OuraOAuth {
             .init(name: "response_type", value: "code"),
             .init(name: "client_id", value: credentials.clientId),
             .init(name: "redirect_uri", value: credentials.redirectURI),
-            // `scope` deliberately omitted — see the note above: blank = all available scopes.
+            .init(name: "scope", value: scopes.joined(separator: " ")),
             .init(name: "state", value: state),
         ]
         return comps.url!

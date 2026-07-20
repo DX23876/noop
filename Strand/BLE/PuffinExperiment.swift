@@ -113,6 +113,17 @@ enum PuffinExperiment {
 
     static var autoDetectWorkoutsEnabled: Bool { UserDefaults.standard.bool(forKey: autoDetectWorkoutsKey) }
 
+    /// "Journal reminder" (#627). When ON, Today shows a persistent journal widget (a last-7-days
+    /// completion strip that taps through to the journal) and nudges when today isn't logged yet.
+    /// Default ON — gates both the widget and (on Android) the morning sleep sheet. Mirrors the Android
+    /// `NoopPrefs.KEY_JOURNAL_REMINDER_ENABLED`. Default-true, so a bare `bool(forKey:)` can't be used to
+    /// read it (that defaults false); read it through @AppStorage(...) = true or `object(forKey:)`.
+    static let journalReminderKey = "noopJournalReminder"
+
+    static var journalReminderEnabled: Bool {
+        UserDefaults.standard.object(forKey: journalReminderKey) as? Bool ?? true
+    }
+
     /// Opt-in "Motion-aware wake refinement" (default OFF, #364 "Proposal 2" follow-up): a post-pass
     /// (`WakeMotionRefinement`) over the already-staged hypnogram that reclassifies a scored WAKE segment
     /// to `light` when its per-minute step-tick cadence shows no locomotion AND its per-minute gravity

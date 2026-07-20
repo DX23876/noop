@@ -248,13 +248,13 @@
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ejercicios %1$lld"
+            "value": "%lld ejercicios"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%1$lld séances d'entraînement"
+            "value": "%lld entraînements"
           }
         }
       }
@@ -727,6 +727,18 @@
             "value": "Dark"
           }
         },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Oscuro"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noir"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "needs_review",
@@ -739,16 +751,10 @@
             "value": "Тёмная"
           }
         },
-        "es": {
+        "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Oscuro"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Noir"
+            "value": "深色"
           }
         }
       }
@@ -2022,6 +2028,12 @@
             "state": "translated",
             "value": "Ajouter"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加"
+          }
         }
       }
     },
@@ -2197,6 +2209,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Terminé"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完成"
           }
         }
       }
@@ -2682,6 +2700,12 @@
             "state": "translated",
             "value": "Supprimer"
           }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除"
+          }
         }
       }
     },
@@ -2725,6 +2749,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "FC au repos"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "静息心率"
           }
         }
       }
@@ -2857,6 +2887,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Enregistrer"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存"
           }
         }
       }

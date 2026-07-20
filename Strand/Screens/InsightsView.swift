@@ -263,7 +263,17 @@ struct InsightsView: View {
         .onChangeCompat(of: outcome) { _ in recomputeRanked() }
         // Refresh the day anchor on appear and whenever the app returns to the foreground; if the date has
         // advanced this bumps the `.task(id:)` key and the journal reloads for the new logical day (#860).
-        .onAppear { refreshCurrentDayKey() }
+        .onAppear {
+            refreshCurrentDayKey()
+            // #656: honour a day the Today journal widget deep-linked to (tapping a bar opens the journal
+            // at THAT day). Consumed once on arrival, then cleared. Reload explicitly — setting the offset
+            // here doesn't run the pill's onChanged, and the `.task` keys on the day-key, not the offset.
+            if let day = router.pendingJournalDayOffset {
+                journalDayOffset = day
+                router.pendingJournalDayOffset = nil
+                Task { await load() }
+            }
+        }
         .onChangeCompat(of: scenePhase) { phase in
             if phase == .active { refreshCurrentDayKey() }
         }

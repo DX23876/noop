@@ -58,6 +58,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -71,6 +72,10 @@ import kotlin.math.roundToInt
  * daily metrics. Mirrors the macOS AppModel responsibilities (LiveState bridge,
  * `bpm` smoothing, health-alert string) without any networking.
  */
+/** Last Health Connect writeback outcome for the Data Sources UI (#660). [code] is a PII-safe
+ *  category (see [NoopPrefs.HC_WB_OK] etc.); "" = never attempted. */
+data class HcWritebackStatus(val code: String, val atMs: Long, val written: Int)
+
 class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Process-wide context for prefs + the background-connection service. */
@@ -244,6 +249,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      *  failure too. Mirrors Swift `AppModel.ouraNeedsPairing`. */
     val ouraNeedsPairing: StateFlow<String?> = noopApp.sourceCoordinator.ouraNeedsPairing
 
+    /** The active Oura ring's live wear/charge state (worn / charging / off), or null when no Oura source
+     *  is live. The Live screen prefers this for its On-wrist / Off-wrist read (#628). Mirrors iOS
+     *  `LiveState.ouraWearState`. */
+    val ouraWearState: StateFlow<com.noop.oura.OuraWearState?> =
+        noopApp.sourceCoordinator.ouraWearState
+
+    /** #656: a journal day-offset (daysBack; -1 = Tomorrow) the Today journal widget asks the journal
+     *  (Insights) to open at, so tapping a SPECIFIC day's bar lands on THAT day instead of always today.
+     *  InsightsScreen consumes it on open and clears it via [requestJournalDay]`(null)`. */
+    private val _pendingJournalDayOffset = kotlinx.coroutines.flow.MutableStateFlow<Long?>(null)
+    val pendingJournalDayOffset: StateFlow<Long?> = _pendingJournalDayOffset
+    fun requestJournalDay(offset: Long?) { _pendingJournalDayOffset.value = offset }
+
     /**
      * Point the WHOOP scan at a specific family, then present nearby straps WITHOUT auto-connecting (the
      * Add-a-device wizard's WHOOP path). [WhoopBleClient.prepareForPresentScan] KEEPS a live same-model
@@ -311,6 +329,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Live connection + biometric snapshot, surfaced straight from the BLE client. */
     val live: StateFlow<LiveState> = ble.state
+    /** Low-frequency projection for history consumers that need to refresh after an offload without
+     *  collecting the full live state (which republishes every heart-rate packet). */
+    val lastHistorySyncAt: StateFlow<Long?> = live
+        .map { it.lastSyncAt }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, live.value.lastSyncAt)
 
     /** Which strap the user is pairing — drives the scan filter in [connect]. Defaults to WHOOP 4.0. */
     private val _selectedModel = MutableStateFlow(WhoopModel.WHOOP4)
@@ -885,6 +908,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 // update) break the analysis loop.
                 if (_hcWriteback.value) {
                     runCatching { HealthConnectWriter.write(appContext, repository, deviceId) }
+                    refreshHcWritebackStatus()   // #660: reflect the outcome the writer just persisted
                 }
                 // 15-min backstop cadence, but wake EARLY on an app-resume kick (#386 self-heal) so a
                 // night the overnight tick was killed before scoring catches up the moment the user opens
@@ -1536,6 +1560,24 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return if (minutes.any { it > 0.0 }) minutes else null
     }
 
+    /** HRR for one workout (#516), derived from a narrow workout-end + post-workout HR read. The pure
+     *  engine owns the intensity and coverage gates, so a disconnect after exercise returns null rather
+     *  than an interpolated value. Mirrors macOS Repository.workoutHeartRateRecovery. */
+    suspend fun workoutHeartRateRecovery(from: Long, to: Long): com.noop.analytics.HeartRateRecovery.Result? {
+        if (to <= from) return null
+        val readFrom = maxOf(from, to - com.noop.analytics.HeartRateRecovery.eligibilityLookbackSeconds)
+        val readTo = to + 5 * 60 + com.noop.analytics.HeartRateRecovery.measurementToleranceSeconds
+        val samples = runCatching {
+            repository.hrSamplesUnion(activeStrapId, readFrom, readTo, limit = 2_000)
+        }.getOrDefault(emptyList())
+        return com.noop.analytics.HeartRateRecovery.calculate(
+            samples = samples,
+            workoutStart = from,
+            workoutEnd = to,
+            maxHr = profileStore.hrMax.toDouble(),
+        )
+    }
+
     /** Steps over a manual-workout window `[from, to]` from the strap's own `step_motion_counter@57`
      *  (#398): the shared wrap-aware `StepsCounter` delta-sum, then the per-user `stepTicksPerStep`
      *  calibration the daily total applies (#139, floor 0.5). null when no strap counter covers the window
@@ -1788,6 +1830,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _hcWriteback = MutableStateFlow(NoopPrefs.hcWriteback(appContext))
     val hcWriteback: StateFlow<Boolean> = _hcWriteback.asStateFlow()
 
+    // Last writeback outcome (#660). Read from prefs (the writer persists it — including on the
+    // background BLE path, which never touches this VM), so Data Sources shows a failing share
+    // instead of a healthy-looking toggle. [refreshHcWritebackStatus] re-reads after each attempt.
+    private val _hcWritebackStatus = MutableStateFlow(readHcWritebackStatus())
+    val hcWritebackStatus: StateFlow<HcWritebackStatus> = _hcWritebackStatus.asStateFlow()
+    private fun readHcWritebackStatus() = HcWritebackStatus(
+        code = NoopPrefs.hcWritebackStatus(appContext),
+        atMs = NoopPrefs.hcWritebackAt(appContext),
+        written = NoopPrefs.hcWritebackWritten(appContext),
+    )
+    /** Re-read the persisted writeback outcome (a background BLE-path write updates prefs, not this VM). */
+    fun refreshHcWritebackStatus() { _hcWritebackStatus.value = readHcWritebackStatus() }
+
     init {
         // On app open, catch up the Health Connect sync if it's overdue. This on-open import is the
         // ONLY auto-sync path: we deliberately skip a true-background worker — it needs a sensitive
@@ -1834,6 +1889,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             withContext(Dispatchers.IO) {
                 runCatching { HealthConnectWriter.write(appContext, repository, deviceId) }
             }
+            refreshHcWritebackStatus()   // #660: surface the just-recorded outcome in Data Sources
         }
     }
 

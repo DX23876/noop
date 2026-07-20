@@ -46,6 +46,11 @@ struct CoupledView: View {
     /// the cold-start threshold, which keeps the broad overnight-band bonus.
     @State private var habitualMidsleepSec: Int? = nil
 
+    /// #614: TODAY's workout count from the SAME deduped/dismissed-filtered list the Workouts screen shows
+    /// (`repo.workoutRows`), not `DailyMetric.exerciseCount` (strap-DETECTED only — a Health-Connect import
+    /// with auto-detect off read as 0 while the Workouts screen showed it). Loaded in `.task`.
+    @State private var workoutsToday: Int = 0
+
     /// The day the coupled read describes, today's resolved row (the same `resolveToday` #304/#144 boundary
     /// Today anchors on), never a second store read.
     private var day: DailyMetric? { repo.today }
@@ -143,6 +148,14 @@ struct CoupledView: View {
         // bed→wake span below resolves identically (#294). Re-runs on a sync/import refresh.
         .task(id: repo.refreshSeq) {
             habitualMidsleepSec = await repo.habitualMidsleepSec()
+            // #614: count TODAY's workouts by their START's logical day (the SAME 04:00-rollover key
+            // DailyMetric.day uses), so the Coupled stat equals the Workouts overview for today.
+            let key = todayKey
+            // A short window is enough to count today's rows (the cross-source dedup is local to the set),
+            // and avoids loading the full history just for one number.
+            workoutsToday = await repo.workoutRows(days: 2).filter {
+                Repository.logicalDayKey(Date(timeIntervalSince1970: TimeInterval($0.startTs))) == key
+            }.count
         }
     }
 
@@ -315,7 +328,7 @@ struct CoupledView: View {
                                  caloriesText,
                                  tint: StrandPalette.metricAmber)
                         heroStat(String(localized: "Workouts"),
-                                 (day?.exerciseCount).map { "\($0)" } ?? "0",
+                                 "\(workoutsToday)",   // #614: real workout count (all sources), not exerciseCount
                                  tint: StrandPalette.textPrimary)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)

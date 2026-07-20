@@ -29,6 +29,7 @@ final class NavRouter: ObservableObject {
         case activeWorkout
         case liveSession
         case breathe
+        case journal
 
         var id: String { rawValue }
 
@@ -89,4 +90,17 @@ final class NavRouter: ObservableObject {
     /// Open Breathe. Raised by the coach chat's action row (P6) so a reply that suggests calming down
     /// leads somewhere in one tap instead of "go find it in the menu yourself".
     func openBreathe() { requestedDestination = .breathe }
+
+    /// A journal day-offset (daysBack; -1 = Tomorrow) the Today journal widget deep-linked to, so tapping
+    /// a SPECIFIC day's bar opens the journal at THAT day instead of always today (#656). InsightsView
+    /// consumes it on appear and clears it back to nil. nil = open at today (the default).
+    @Published var pendingJournalDayOffset: Int?
+
+    /// Open the journal (hosted in the classic Insights screen). The #627 Today journal widget taps here;
+    /// iOS presents InsightsView (the journal quick-action sheet), macOS selects the Insights sidebar row.
+    /// `day` (#656): a specific day-offset to open at (nil = today) — a tapped strip bar passes its day.
+    func openJournal(day offset: Int? = nil) {
+        pendingJournalDayOffset = offset
+        requestedDestination = .journal
+    }
 }

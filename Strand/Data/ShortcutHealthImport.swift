@@ -49,6 +49,7 @@ enum ShortcutHealthImport {
     static let payloadParam = "payload"
     static let versionParam = "v"
     static let supportedVersion = 1
+    static let maxPayloadBytes = 1 << 20
 
     enum Outcome: Error, Equatable {
         case imported(days: Int, workouts: Int)
@@ -90,6 +91,15 @@ enum ShortcutHealthImport {
         var isEmpty: Bool { days.isEmpty && workouts.isEmpty }
     }
 
+    struct PendingImport: Identifiable, Equatable {
+        let id = UUID()
+        let text: String
+        let parsed: Parsed
+
+        var daysCount: Int { parsed.days.count }
+        var workoutsCount: Int { parsed.workouts.count }
+    }
+
     // MARK: - URL → outcome
 
     /// Validate + decode the `noop://import-health` URL into the raw text payload. Returns nil with a
@@ -109,8 +119,13 @@ enum ShortcutHealthImport {
         guard let b64 = params[payloadParam], !b64.isEmpty else {
             return .failure(.rejected("No import payload."))
         }
+        let maxBase64Length = ((maxPayloadBytes + 2) / 3) * 4 + 4
+        guard b64.utf8.count <= maxBase64Length else {
+            return .failure(.rejected("Import payload is too large."))
+        }
         // Tolerate URL-safe base64 (Shortcuts' "Base64 Encode" can emit either) + missing padding.
-        guard let data = decodeBase64(b64), let text = String(data: data, encoding: .utf8) else {
+        guard let data = decodeBase64(b64), data.count <= maxPayloadBytes,
+              let text = String(data: data, encoding: .utf8) else {
             return .failure(.rejected("Couldn't decode the import payload."))
         }
         return .success(text)
@@ -246,6 +261,19 @@ enum ShortcutHealthImport {
 
     // MARK: - Ingest
 
+    /// Decode + parse a Shortcut payload without writing anything. The app uses this to show a
+    /// confirmation sheet before accepting data from the custom URL scheme.
+    static func prepare(url: URL) -> Result<PendingImport, Outcome> {
+        let text: String
+        switch decodePayload(from: url) {
+        case .success(let t): text = t
+        case .failure(let outcome): return .failure(outcome)
+        }
+        let parsed = parse(text)
+        guard !parsed.isEmpty else { return .failure(.nothingToImport) }
+        return .success(PendingImport(text: text, parsed: parsed))
+    }
+
     /// Decode → parse → upsert into `store` under `targetSource`. Returns a typed outcome. Rejects any
     /// caller-supplied source that targets the strap (loop guard). Does NOT refresh the dashboard — the
     /// caller (AppModel) does, matching the file-import path.
@@ -256,13 +284,21 @@ enum ShortcutHealthImport {
         guard !forbiddenSources.contains(source), source == targetSource else {
             return .rejected("Import target must be the Apple Health source, not the strap.")
         }
-        let text: String
-        switch decodePayload(from: url) {
-        case .success(let t): text = t
+        let pending: PendingImport
+        switch prepare(url: url) {
+        case .success(let p): pending = p
         case .failure(let outcome): return outcome
         }
-        let parsed = parse(text)
-        guard !parsed.isEmpty else { return .nothingToImport }
+        return await ingest(prepared: pending, into: store, targetSource: source)
+    }
+
+    @discardableResult
+    static func ingest(prepared pending: PendingImport, into store: WhoopStore,
+                       targetSource source: String = ShortcutHealthImport.targetSource) async -> Outcome {
+        guard !forbiddenSources.contains(source), source == targetSource else {
+            return .rejected("Import target must be the Apple Health source, not the strap.")
+        }
+        let parsed = pending.parsed
         do {
             if !parsed.days.isEmpty {
                 try await store.upsertAppleDaily(appleDailyRows(parsed.days), deviceId: source)

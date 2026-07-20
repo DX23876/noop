@@ -7,6 +7,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -125,6 +129,21 @@ internal fun mergeJournalEntries(
 internal fun journalDayKey(daysBack: Long = 0L, today: LocalDate = LocalDate.now()): String =
     today.minusDays(daysBack).toString()
 
+/** How many days back the journal day picker can reach (#656): today (0) plus the 6 prior days = a
+ *  7-day backfill window, plus Tomorrow (-1). Bounded on purpose — journal answers feed the
+ *  correlation engine, so unbounded backfill of stale days would distort it (matches WHOOP's limited
+ *  retroactive window and the strip the Today widget shows). */
+internal const val JOURNAL_BACKFILL_DAYS = 6
+
+/** Short chip label for a journal day-picker [offset] (daysBack; -1 = Tomorrow). Hardcoded English to
+ *  match the sibling Yesterday/Today/Tomorrow chips. */
+internal fun journalDayChipLabel(offset: Long): String = when (offset) {
+    -1L -> "Tomorrow"
+    0L -> "Today"
+    1L -> "Yesterday"
+    else -> "$offset days ago"
+}
+
 // MARK: - Custom-question persistence
 //
 // Stored in the shared "noop_prefs" file under a "noop."-prefixed key, newline-joined (a string
@@ -204,13 +223,28 @@ fun JournalLogCard(
                 JournalChip("Done", selected = true) { editing = false }
             } else {
                 JournalChip("Edit", selected = false) { editing = true }
-                Spacer(Modifier.width(6.dp))
-                // Chronological left→right: Yesterday · Today · Tomorrow (#443).
-                JournalChip("Yesterday", selected = dayOffset == 1L) { onDayOffset(1L) }
-                Spacer(Modifier.width(6.dp))
-                JournalChip("Today", selected = dayOffset == 0L) { onDayOffset(0L) }
-                Spacer(Modifier.width(6.dp))
-                JournalChip("Tomorrow", selected = dayOffset == -1L) { onDayOffset(-1L) }
+            }
+        }
+        // Day picker (#656): a bounded, scrollable range — Tomorrow back through the last 7 days — so any
+        // recent day can be backfilled (was Yesterday/Today/Tomorrow only). Chronological left→right
+        // (oldest → Tomorrow, #443); auto-scrolls to the selected day, so a deep-link from the Today
+        // journal widget lands on that day's chip. Only when not editing.
+        if (!editing) {
+            val dayOffsets = remember { (JOURNAL_BACKFILL_DAYS.toLong() downTo -1L).toList() }
+            val dayListState = rememberLazyListState()
+            LaunchedEffect(dayOffset) {
+                // Snap (not animate) to the selected day: an animated scroll would visibly slide from the
+                // leftmost day to Today every time the journal opens.
+                dayOffsets.indexOf(dayOffset).takeIf { it >= 0 }?.let { dayListState.scrollToItem(it) }
+            }
+            LazyRow(
+                state = dayListState,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                items(dayOffsets) { off ->
+                    JournalChip(journalDayChipLabel(off), selected = dayOffset == off) { onDayOffset(off) }
+                }
             }
         }
         NoopCard {
