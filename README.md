@@ -8,7 +8,7 @@
 
 <p align="center">
   <img alt="Fork of ryanbr/noop" src="https://img.shields.io/badge/fork%20of-ryanbr%2Fnoop-6B737B?style=flat-square&logo=github&logoColor=white">
-  <img alt="Version" src="https://img.shields.io/badge/version-9.0.1-234F9E?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-9.0.2-234F9E?style=flat-square">
   <img alt="Platform" src="https://img.shields.io/badge/platform-iOS%20only-234F9E?style=flat-square">
   <img alt="AI coach" src="https://img.shields.io/badge/AI%20coach-19%20tools-C8902F?style=flat-square">
   <img alt="Apple Health" src="https://img.shields.io/badge/Apple%20Health-auto%20sync-60A0E0?style=flat-square">
@@ -76,6 +76,17 @@ It needs to iterate quickly, on one platform, for one person. So rather than pus
 The base app already had a chat-with-your-own-API-key coach that got one pre-baked block of text
 per message. This fork turns that into something with a goal, a plan, a memory, and hands to go
 fetch its own data instead of being handed a fixed summary and hoping for the best.
+
+### It has a name and a face
+
+The coach used to just be "Guardian" or "Friend" — a tone with no one behind it. Now **who it is**
+and **how it talks** are two separate things: pick **Svea** or **Marv** (each a name, a curated
+avatar, and a voice), or make your own — any name, a symbol from the design system, or your own
+photo, uploaded once and never leaving the device. The coaching *style* — Guardian (calm,
+protective), Friend (warm), Commander (direct) — still layers on top unchanged; only the tone
+shifts, never the methodology or the "I'm not a doctor" guardrails. The avatar follows the coach
+everywhere: the chat header, beside every reply in the now messenger-style chat, and — optionally —
+right on the Today entry card.
 
 ### It knows your goal, and says so honestly
 
@@ -169,13 +180,16 @@ caching, and here's probably why" — a number, not a hope.
 | Feature | What it does |
 |---|---|
 | **Settings hub** | A landing page and five focused subpages (Connection & model · Goal & Journey · Coaching · Memory · Privacy & data) instead of one long scroll. |
-| **A daily briefing that's actually daily** | Gated on the calendar day, not on "haven't opened this chat yet" — it can't go stale across a long-running conversation. |
-| **Personas** | **Guardian** (calm, protective), **Friend** (warm), **Commander** (direct). Tone only — the methodology and the "I'm not a doctor" guardrails never change. |
+| **A daily briefing that's actually daily** | Gated on the calendar day, not on "haven't opened this chat yet" — it can't go stale across a long-running conversation. Each day's brief gets its own thread now; one you never reply to quietly archives itself once its day passes — restorable any time, never deleted. |
+| **Coaching style** | **Guardian** (calm, protective), **Friend** (warm), **Commander** (direct) — HOW the coach talks. Separate from *identity* (WHO it is — Svea, Marv, or your own, [above](#it-has-a-name-and-a-face)). Methodology and the "I'm not a doctor" guardrails never change either way. |
 | **Streaming** | Replies land token-by-token, with tool calls running inline, instead of a silent wait. |
-| **Real chat UI** | Full-screen messenger: docked composer, time separators, copy + regenerate, stop mid-reply. |
-| **Conversation history** | Named, searchable threads. "New chat" no longer throws the old one away. |
+| **Real chat UI** | Full-screen messenger: docked composer, time separators, copy + regenerate, stop mid-reply — with the coach's own avatar beside its replies. |
+| **Conversation history** | Named, searchable threads. "New chat" no longer throws the old one away. Auto-archived brief threads live in their own section, one tap from restoring. |
 | **In-chat charts** | Native trend charts drawn in the conversation, tappable to enlarge, and they survive a relaunch. |
 | **Two ways in** | A card on Today, and/or a **draggable floating button** you can pin to any corner (clear of the tab bar) or lock in place. Your choice, in Settings. |
+| **A guided goal setup** | A short, step-by-step flow (what → details → why → confirm) instead of one dense form, offered on first run and re-startable any time from Goal & Journey. The quick one-page editor is still one tap away for anyone who'd rather fill it in all at once. |
+| **Goal & Journey, not five taps deep** | Its own entry in More, right alongside the coach itself — not buried in a settings subpage. |
+| **Turn the coach off, keep the intelligence** | One Settings switch hides the Today card and the floating button entirely. Per-metric "Ask coach" and the AI that writes your card summaries keep working regardless — it only hides the chat, never the on-device analysis. |
 | **Editable instructions** | Upstream's free-text system-prompt editor still works underneath any persona. |
 | **Bring almost any model** | Anthropic, OpenAI, Gemini, or any OpenAI-compatible endpoint — a local Ollama/LM Studio server, or a hosted gateway like OpenRouter (confirmed working today over the same Custom path). |
 | **Deutsch** | The coach's own UI — goal editor, plan book, Journey page, settings — is fully localised in German alongside English, on top of upstream's own translation coverage. |
@@ -255,7 +269,7 @@ Management*.
   generate` clears the Team field — reselect it, or pin `DEVELOPMENT_TEAM` in `project.yml`.)
 
 Then in the app: pair your strap → grant Apple Health access → open **Coach** → paste your API key
-→ pick a persona → optionally set a goal.
+→ pick a persona (and give your coach a name and a face, if you like) → optionally set a goal.
 
 ## Under the hood
 

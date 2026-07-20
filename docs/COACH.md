@@ -15,7 +15,10 @@ with zero conflicts touching a single file under `Strand/AI/`).
 Strand/AI/
 ├── AICoach.swift              The engine: state, context building, send/stream, tool loop
 ├── AIProvider.swift           Provider enum: endpoints, models, cheap models, client factory
-├── CoachPersona.swift         Guardian / Friend / Commander — voice only
+├── CoachIdentity.swift        Who the coach is: name, avatar (symbol or photo), voice — Svea/Marv
+│                                presets or fully custom
+├── CoachPersona.swift         Guardian / Friend / Commander — coaching STYLE only; the name lives
+│                                in CoachIdentity now
 ├── CoachTools.swift           The 19 tools: schemas + dispatch
 ├── CoachMemory.swift          Long-term memory: facts, categories, ranking, dedup
 ├── CoachTranscriptStore.swift Conversations: model + JSON persistence
@@ -30,19 +33,26 @@ Strand/AI/
 ├── JourneyMilestones.swift    Non-performance milestones — facts, never a streak counter
 ├── CoachUsageLog.swift        Per-turn token accounting (Anthropic): cache hit/write/miss
 └── Providers/
-    ├── Anthropic.swift             Base client (upstream file — kept untouched, see §5)
+    ├── Anthropic.swift             Base client (upstream file — kept untouched, see §9)
     ├── AnthropicTools.swift        Tool-use loop
     ├── AnthropicStreaming.swift    Token-by-token SSE
     └── AnthropicCaching.swift      Prompt-cache breakpoint + usage parsing
 
 Strand/Screens/
-├── CoachView.swift            The messenger chat + the shared `coachCover` presenter
-├── CoachSettingsView.swift    A hub (status pill + 5 rows) into grouped subpages
-├── CoachGoalView.swift        The goal editor + skippable first-run onboarding
-├── CoachPlanView.swift        The plan book: accept, schedule, swap-with-consequence, one-tap skip
-├── JourneyView.swift          Progress, milestones, plan history — no invented percentages
-├── CoachHistoryView.swift     Conversation list: switch / rename / delete
-└── CoachEntry.swift           Entry mode + the draggable floating button
+├── CoachView.swift              The messenger chat + the shared `coachCover` presenter
+├── CoachSettingsView.swift      A hub (status pill + 5 rows) into grouped subpages
+├── CoachAvatarView.swift        Renders the current identity's avatar at any size — chat header,
+│                                  beside each reply, the Today entry
+├── CoachIdentityEditor.swift    Name field, Svea/Marv presets, symbol grid, photo picker, voice picker
+├── CoachGoalView.swift          The one-page quick goal editor (`CoachGoalEditorView`)
+├── CoachGoalOnboardingFlow.swift Guided, step-by-step goal onboarding — sits alongside the quick editor
+├── CoachGoalJourneyView.swift   Goal + Journey UI, extracted so it's reachable from Coach settings
+│                                  AND as its own top-level "Goal & Journey" destination
+├── CoachPlanView.swift          The plan book: accept, schedule, swap-with-consequence, one-tap skip
+├── JourneyView.swift            Progress, milestones, plan history — no invented percentages
+├── CoachHistoryView.swift       Conversation list: switch / rename / delete / archive — stale,
+│                                  never-replied-to threads get their own Archived section
+└── CoachEntry.swift             Entry mode + the draggable floating button
 ```
 
 `AICoachEngine` is a `@MainActor ObservableObject`, constructed once in `AppModel` and injected via
@@ -54,7 +64,7 @@ state, and every setting.
 ```
 user types
    ↓
-systemPrompt          persona preamble + methodology + PINNED facts + goal
+systemPrompt          identity preamble + persona preamble + methodology + PINNED facts + goal
    ↓
 context               tool-mode note  ─OR─  buildFullContext() when consent is on:
                         • clock (date/weekday/time-of-day, days since last workout)
@@ -148,14 +158,42 @@ Real mutations to real app data — the same stores the UI writes.
 
 ---
 
-## 3. Goals & the two safety gates
+## 3. Coach identity
+
+WHO the coach is and HOW it talks are two independent axes, both editable in Settings → Coaching.
+
+- **Identity** (`CoachIdentity.swift`) — a name, an avatar, and a voice. Two presets: **Svea** (warm
+  voice) and **Marv** (grounded voice), each with its own name and curated avatar symbol — or fully
+  custom: any name, a symbol picked from a curated design-system-safe set, or your own photo via
+  `PhotosPicker`. A photo is stored in Application Support and never leaves the device. Back-compat
+  `Codable` decode means an install from before this existed just loads as `.svea`.
+- **Style** (`CoachPersona.swift`) — Guardian (calm, protective), Friend (warm), Commander (direct).
+  Unchanged from before identity existed, except the persona preambles no longer claim a name
+  themselves ("You are Guardian…") — the name now comes from identity, so the two never fight over
+  who the coach is.
+- **Assembly**: `systemPrompt` leads with the identity preamble ("You are {name}, the user's
+  coach. {voice nuance}"), then the persona's style preamble, then methodology/facts/goal — see
+  "The request path" above.
+- **`CoachAvatarView.swift`** is the single render path for the avatar — a tinted-disc symbol or the
+  clipped photo — used everywhere it shows: the chat header, beside every run of coach replies in
+  the messenger-style chat, and, optionally, on the Today entry card (its own toggle, independent of
+  whether the Today entry itself is shown at all).
+
+---
+
+## 4. Goals & the two safety gates
 
 `CoachGoal` (`CoachGoal.swift`) is deliberately **one active goal, not a portfolio**: `kind`
 (`run` / `consistency` / `sleep` / `strength` / `weight` / `custom`), a baseline, a target, a unit, an
 optional target date, a status (`active`/`paused`/`achieved`/`abandoned`/`archived`), local-only
 motivation text, and a history of adjustments. Setting one is entirely optional — NOOP works fully
-without a goal — and the onboarding sheet (`CoachGoalEditorView`, offered once, skippable) never nags
-twice.
+without a goal. First-run onboarding uses a guided, step-by-step flow
+(`CoachGoalOnboardingFlow.swift` — what → details → why → confirm), offered once and skippable,
+that never nags twice; the one-page quick editor (`CoachGoalEditorView`, in `CoachGoalView.swift`)
+stays reachable any time via the goal bar for anyone who'd rather fill it in all at once. Both save
+through the same `CoachGoalStore.commit(_:startsFresh:...)`, so neither path can diverge from the
+other on what actually gets persisted. A re-startable "Set up with a few questions" entry also
+appears in Goal & Journey (see §6) whenever there's no active goal.
 
 **The governing principle for both gates: warn, require a reason, then allow. Never block.** A
 20 kg cut in 8 weeks might be irresponsible for one person and medically supervised for another — the
@@ -191,7 +229,7 @@ than guessing.
 
 ---
 
-## 4. The plan book
+## 5. The plan book
 
 `CoachPlanStore.swift` is the participatory core: the model can *suggest*, the person *decides*.
 
@@ -229,9 +267,12 @@ forever (no filter-bubble collapse).
 
 ---
 
-## 5. The Journey page
+## 6. The Journey page
 
-`JourneyView.swift` + `JourneyMilestones.swift`, reachable from the goal card once a goal exists.
+`JourneyView.swift` + `JourneyMilestones.swift`, reachable from the goal card once a goal exists —
+and now also from its own top-level **"Goal & Journey"** entry in More (`CoachGoalJourneyView.swift`
+/ `CoachGoalJourneyScreen`), independent of whether a goal exists yet: with no goal, it shows the
+guided-setup entry (§4) instead of the journey itself.
 
 **No invented percentages.** Progress is only ever shown as a real measurement against the goal's
 baseline and target. Without both, there is no percentage at all — the page falls back to what's
@@ -246,7 +287,7 @@ get sick or travel, which is precisely when they need the app least judgmental.
 
 ---
 
-## 6. Memory
+## 7. Memory
 
 `CoachMemory` is a `@MainActor` singleton, JSON in `UserDefaults`, capped at **40 facts**.
 
@@ -309,9 +350,20 @@ paths get it back to the model:
 2. **`recentSummariesDigest()`** — one line per recent summarised chat, injected into
    `buildFullContext()`. Cheap, and it works on providers with no tool-calling.
 
+### Daily briefs get their own thread
+
+Each day's brief (`startBriefIfNeeded`) now opens its **own** conversation thread instead of
+appending to whatever was active — see `startBriefThread()` in `AICoach.swift`. A day-boundary sweep
+(`archiveStaleAutoThreads()`, run on launch and after every brief) then archives **auto-only**
+threads — a brief or nudge the user never replied to (`CoachConversation.isAutoOnly`) — once their
+day has passed, moving them into a new **Archived** section of `CoachHistoryView` rather than
+deleting them. A thread the user actually took a turn in is never swept, and archiving is additive:
+`archived: Bool` decodes `false` for any pre-existing conversation JSON. Manual archive/unarchive is
+available too, via `setArchived(_:_:)`.
+
 ---
 
-## 7. Cheap-model maintenance
+## 8. Cheap-model maintenance
 
 Summarising chats shouldn't cost coaching-model money. `AIProvider.cheapModel` picks a small model
 per provider:
@@ -347,7 +399,7 @@ memory upkeep must never interrupt a chat. A manual "Summarise this chat now" is
 
 ---
 
-## 8. Providers
+## 9. Providers
 
 | Provider | Chat | Streaming | Tool-calling | Prompt caching |
 |---|---|---|---|---|
@@ -385,7 +437,7 @@ and tool-calling for OpenAI/Gemini remain open — see "Contributing / hacking o
 
 ---
 
-## 9. The privacy model
+## 10. The privacy model
 
 The app is offline-first and stays that way; the coach is the *only* thing that ever opens a socket.
 
@@ -412,13 +464,14 @@ Everything stored — memory, conversations, goal, plan, chart snapshots — is 
 
 ---
 
-## 10. Entry points
+## 11. Entry points
 
 | Route | Where |
 |---|---|
-| **Today card** | "Ask your Coach" on Today → full-screen chat |
+| **Today card** | "Ask your Coach" on Today → full-screen chat, with the coach's avatar (toggleable) |
 | **Floating button** | Draggable, pinnable to any of 4 chrome-clear corners, lockable |
 | **More tab** | The original `MoreDestination.coach` row |
+| **Goal & Journey** | Its own `MoreDestination.goalJourney` row, right alongside Coach — no longer nested five taps deep in settings |
 | **Daily check-in** | Notification → deep-links to the Coach with a fresh brief (gated on the *logical* day, not per-conversation, so it can only fire once per real day) |
 
 The card and button are user-selectable via `CoachEntryMode` (card / button / both) in Settings.
@@ -430,7 +483,15 @@ All routes present through one shared `View.coachCover(isPresented:coach:)` help
 `RootTabView`'s floating tab bar via a measured (not guessed) environment value,
 `\.floatingTabBarInset` — see the fix's commit for why a guessed pixel constant would have been wrong.
 
-## 11. Settings
+**Turning the coach's UI off entirely** is a separate master switch, `CoachEntryMode.uiEnabledKey`
+(`coach.uiEnabled`, default on) — deliberately independent of `CoachEntryMode` itself. Off, it hides
+the Today card **and** the floating button regardless of the entry-mode choice above; the chosen
+entry style is remembered for when it's turned back on. It is also independent of `dataConsent` /
+`isConfigured` and of the card-/background-AI paths (`model(for:)`): per-metric "Ask coach" buttons
+and the AI that writes card summaries keep running — this switch hides only the coach's own chat
+entry points, never the on-device analysis.
+
+## 12. Settings
 
 `CoachSettingsView` is a landing page (status pill + five rows) drilling into grouped subpages —
 **Connection & model**, **Goal & Journey**, **Coaching**, **Memory**, **Privacy & data** — rather than
@@ -439,9 +500,12 @@ page it lives on changed. One genuine addition alongside the reshuffle: provider
 changed from **Connection & model** while already connected — previously the only path back to those
 controls was Disconnect first.
 
+**Coaching** leads with the coach-identity editor (§3) and now also carries the "Show Coach on
+Today" master switch and its avatar toggle — see §11 for what each actually does.
+
 ---
 
-## 12. Contributing / hacking on it
+## 13. Contributing / hacking on it
 
 The whole coach is app-target Swift, which means **no default CI validates it**
 (`swift-packages.yml` only builds `Packages/**`, and `app-build.yml` is disabled). So:
