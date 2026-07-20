@@ -143,7 +143,9 @@ struct CoachView: View {
             showGoalOnboarding = true
         }
         .sheet(isPresented: $showGoalOnboarding) {
-            CoachGoalEditorView(isOnboarding: true) {
+            // First-run onboarding now uses the GUIDED flow (#R12) — one question at a time — instead of
+            // the one-page editor. Skipping or finishing both mark it asked, so it never nags twice.
+            CoachGoalOnboardingFlow {
                 UserDefaults.standard.set(true, forKey: Self.goalOnboardingAskedKey)
             }
         }

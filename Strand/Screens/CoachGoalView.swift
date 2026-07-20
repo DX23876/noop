@@ -117,7 +117,9 @@ struct CoachGoalEditorView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Goal type").strandOverline()
             LazyVGrid(columns: twoColumns, spacing: 10) {
-                ForEach(CoachGoal.Kind.allCases) { k in kindTile(k) }
+                ForEach(CoachGoal.Kind.allCases) { k in
+                    GoalKindTile(kind: k, selected: kind == k) { kind = k }
+                }
             }
             if kind == .weight {
                 // Single literal — see the localization note above.
@@ -131,33 +133,6 @@ struct CoachGoalEditorView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-    }
-
-    private func kindTile(_ k: CoachGoal.Kind) -> some View {
-        let selected = kind == k
-        return Button { kind = k } label: {
-            VStack(alignment: .leading, spacing: 6) {
-                Image(systemName: k.icon)
-                    .font(.system(size: 20))
-                    .foregroundStyle(selected ? StrandPalette.accent : StrandPalette.textSecondary)
-                    .accessibilityHidden(true)
-                Text(LocalizedStringKey(k.label))
-                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                Text(LocalizedStringKey(k.blurb))
-                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
-            .padding(12)
-            .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(selected ? StrandPalette.accent.opacity(0.12) : StrandPalette.surfaceInset))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(selected ? StrandPalette.accent : StrandPalette.hairline,
-                              lineWidth: selected ? 1.5 : 1))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(Text(LocalizedStringKey(k.label)))
-        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
     }
 
     private var detailsCard: some View {
@@ -219,7 +194,12 @@ struct CoachGoalEditorView: View {
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
                     LazyVGrid(columns: twoColumns, spacing: 8) {
-                        ForEach(CoachGoal.MotivationTag.allCases) { tag in motivationChip(tag) }
+                        ForEach(CoachGoal.MotivationTag.allCases) { tag in
+                            GoalMotivationChip(tag: tag, selected: motivationTags.contains(tag)) {
+                                if motivationTags.contains(tag) { motivationTags.remove(tag) }
+                                else { motivationTags.insert(tag) }
+                            }
+                        }
                     }
                 }
                 Divider().overlay(StrandPalette.hairline)
@@ -240,35 +220,6 @@ struct CoachGoalEditorView: View {
                 .disabled(motivation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
-    }
-
-    private func motivationChip(_ tag: CoachGoal.MotivationTag) -> some View {
-        let selected = motivationTags.contains(tag)
-        return Button {
-            if selected { motivationTags.remove(tag) } else { motivationTags.insert(tag) }
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: tag.icon)
-                    .font(StrandFont.footnote)
-                    .foregroundStyle(selected ? StrandPalette.accent : StrandPalette.textSecondary)
-                    .accessibilityHidden(true)
-                Text(LocalizedStringKey(tag.label))
-                    .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textPrimary)
-                    .lineLimit(2).multilineTextAlignment(.leading)
-                Spacer(minLength: 0)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 10).padding(.vertical, 8)
-            .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(selected ? StrandPalette.accent.opacity(0.12) : StrandPalette.surfaceInset))
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(selected ? StrandPalette.accent : StrandPalette.hairline,
-                              lineWidth: selected ? 1.5 : 1))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(Text(LocalizedStringKey(tag.label)))
-        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
     }
 
     // MARK: - Pieces
@@ -337,32 +288,92 @@ struct CoachGoalEditorView: View {
     }
 
     private func save(acknowledging: Bool) {
-        var g = draft
-        g.status = .active
-        // Preserve identity + history across an edit so the change log stays continuous — unless this
-        // deliberately replaces a closed goal, which keeps its own story and makes way for a new one.
-        if !startsFresh, let existing = store.goal {
-            g = CoachGoal(id: existing.id, kind: g.kind, title: g.title,
-                          baseline: g.baseline, target: g.target, targetDate: g.targetDate,
-                          status: .active, motivation: g.motivation,
-                          motivationTags: g.motivationTags,
-                          shareMotivation: g.shareMotivation,
-                          acknowledgedRisk: existing.acknowledgedRisk,
-                          createdAt: existing.createdAt, history: existing.history)
-        }
-        if acknowledging {
-            let why = reason.trimmingCharacters(in: .whitespacesAndNewlines)
-            g.acknowledgedRisk = .init(verdict: safety.verdict.rawValue,
-                                       reason: why.isEmpty ? "No reason given" : why,
-                                       date: Date())
-        } else if safety.verdict == .ok || safety.verdict == .notApplicable {
-            // The pace is no longer flagged, so a stale acknowledgement shouldn't linger.
-            g.acknowledgedRisk = nil
-        }
-        g.history.append(.init(date: Date(), what: store.goal == nil ? "Goal set" : "Goal updated"))
-        if g.history.count > 20 { g.history.removeFirst(g.history.count - 20) }
-        store.goal = g
+        // The identity/history-preserving persistence now lives in `CoachGoalStore.commit` (#R12), shared
+        // with the guided onboarding flow so the two paths save identically.
+        let ack: CoachGoal.RiskAcknowledgement? = acknowledging
+            ? CoachGoalRisk.acknowledgement(verdict: safety.verdict.rawValue, reason: reason)
+            : nil
+        let clearStale = !acknowledging && (safety.verdict == .ok || safety.verdict == .notApplicable)
+        store.commit(draft, startsFresh: startsFresh, acknowledgedRisk: ack, clearStaleAck: clearStale)
         onClose()
         dismiss()
+    }
+}
+
+/// Small shared helper (#R12): builds a pace acknowledgement from a raw reason, so the one-page editor
+/// and the guided flow record it identically (a blank reason becomes an honest "No reason given").
+enum CoachGoalRisk {
+    static func acknowledgement(verdict: String, reason: String) -> CoachGoal.RiskAcknowledgement {
+        let why = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+        return CoachGoal.RiskAcknowledgement(verdict: verdict,
+                                             reason: why.isEmpty ? "No reason given" : why,
+                                             date: Date())
+    }
+}
+
+/// A tappable goal-type tile (#R12) — extracted so the one-page editor and the guided onboarding flow
+/// show the same visual directions instead of duplicating the layout. Pure over its inputs.
+struct GoalKindTile: View {
+    let kind: CoachGoal.Kind
+    let selected: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 6) {
+                Image(systemName: kind.icon)
+                    .font(.system(size: 20))
+                    .foregroundStyle(selected ? StrandPalette.accent : StrandPalette.textSecondary)
+                    .accessibilityHidden(true)
+                Text(LocalizedStringKey(kind.label))
+                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                Text(LocalizedStringKey(kind.blurb))
+                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(selected ? StrandPalette.accent.opacity(0.12) : StrandPalette.surfaceInset))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(selected ? StrandPalette.accent : StrandPalette.hairline,
+                              lineWidth: selected ? 1.5 : 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text(LocalizedStringKey(kind.label)))
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+    }
+}
+
+/// A tappable motivation chip (#R12) — extracted for the same reason as `GoalKindTile`.
+struct GoalMotivationChip: View {
+    let tag: CoachGoal.MotivationTag
+    let selected: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 6) {
+                Image(systemName: tag.icon)
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(selected ? StrandPalette.accent : StrandPalette.textSecondary)
+                    .accessibilityHidden(true)
+                Text(LocalizedStringKey(tag.label))
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                    .lineLimit(2).multilineTextAlignment(.leading)
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 10).padding(.vertical, 8)
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(selected ? StrandPalette.accent.opacity(0.12) : StrandPalette.surfaceInset))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(selected ? StrandPalette.accent : StrandPalette.hairline,
+                              lineWidth: selected ? 1.5 : 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text(LocalizedStringKey(tag.label)))
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
     }
 }

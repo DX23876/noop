@@ -315,6 +315,38 @@ final class CoachGoalStore: ObservableObject {
 
     func clear() { goal = nil }
 
+    /// Commit an edited or freshly-onboarded goal (#R12) — the identity-preserving, history-appending
+    /// save shared by the one-page editor and the guided onboarding flow, so the two paths can never
+    /// drift on how a goal is persisted.
+    ///
+    /// - `startsFresh` mints a brand-new goal (own id + history) instead of editing the current one — used
+    ///   when replacing a CLOSED goal so its story isn't overwritten.
+    /// - `acknowledgedRisk` non-nil records a pace acknowledgement; `clearStaleAck` drops an existing
+    ///   acknowledgement when the pace is no longer flagged. When both are nil/false, an edit keeps the
+    ///   existing acknowledgement (carried by the identity-preserving copy below).
+    func commit(_ draft: CoachGoal, startsFresh: Bool,
+                acknowledgedRisk: CoachGoal.RiskAcknowledgement? = nil, clearStaleAck: Bool = false) {
+        var g = draft
+        g.status = .active
+        if !startsFresh, let existing = goal {
+            g = CoachGoal(id: existing.id, kind: g.kind, title: g.title,
+                          baseline: g.baseline, target: g.target, targetDate: g.targetDate,
+                          status: .active, motivation: g.motivation,
+                          motivationTags: g.motivationTags,
+                          shareMotivation: g.shareMotivation,
+                          acknowledgedRisk: existing.acknowledgedRisk,
+                          createdAt: existing.createdAt, history: existing.history)
+        }
+        if let ack = acknowledgedRisk {
+            g.acknowledgedRisk = ack
+        } else if clearStaleAck {
+            g.acknowledgedRisk = nil
+        }
+        g.history.append(.init(date: Date(), what: goal == nil ? "Goal set" : "Goal updated"))
+        if g.history.count > 20 { g.history.removeFirst(g.history.count - 20) }
+        goal = g
+    }
+
     private func save() {
         guard let goal else { d.removeObject(forKey: Self.goalKey); return }
         if let data = try? JSONEncoder().encode(goal) { d.set(data, forKey: Self.goalKey) }

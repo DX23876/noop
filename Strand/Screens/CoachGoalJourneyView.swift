@@ -33,11 +33,15 @@ struct CoachGoalJourneyView: View {
         var id: Int { rawValue }
     }
     @State private var goalConfirmation: GoalConfirmation?
+    /// Re-startable guided onboarding (#R12): offered whenever there's no active goal, so the few-questions
+    /// flow isn't a one-time first-run thing.
+    @State private var showGuidedSetup = false
 
     var body: some View {
         VStack(spacing: 16) {
             expiredGoalCard
             goalBar
+            if goalStore.goal == nil { guidedSetupButton }
         }
         .sheet(item: $goalSheet) { which in
             switch which {
@@ -45,6 +49,9 @@ struct CoachGoalJourneyView: View {
             case .newGoal: CoachGoalEditorView(isOnboarding: false, startsFresh: true)
             case .journey: JourneyView().environmentObject(coach)
             }
+        }
+        .sheet(isPresented: $showGuidedSetup) {
+            CoachGoalOnboardingFlow()
         }
         .confirmationDialog(goalConfirmationTitle,
                             isPresented: goalConfirmationIsPresented,
@@ -96,6 +103,35 @@ struct CoachGoalJourneyView: View {
     }
 
     // MARK: - Cards
+
+    /// The guided-setup entry (#R12) — the recommended path when there's no goal yet. Tapping the goal
+    /// bar above still opens the one-page editor (the quick path stays), so both live side by side.
+    private var guidedSetupButton: some View {
+        Button { showGuidedSetup = true } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "sparkles").foregroundStyle(StrandPalette.accent).accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Set up with a few questions")
+                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                    Text("A short, guided setup — or tap above to fill it in all at once.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                    .accessibilityHidden(true)
+            }
+            .padding(14)
+            .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(StrandPalette.accent.opacity(0.08)))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(StrandPalette.accent.opacity(0.25), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Set up your goal with a few questions")
+    }
 
     private var goalIsClosed: Bool {
         goalStore.goal?.status == .achieved || goalStore.goal?.status == .abandoned
