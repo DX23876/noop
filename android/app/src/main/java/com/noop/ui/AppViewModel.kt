@@ -251,6 +251,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val ouraWearState: StateFlow<com.noop.oura.OuraWearState?> =
         noopApp.sourceCoordinator.ouraWearState
 
+    /** #656: a journal day-offset (daysBack; -1 = Tomorrow) the Today journal widget asks the journal
+     *  (Insights) to open at, so tapping a SPECIFIC day's bar lands on THAT day instead of always today.
+     *  InsightsScreen consumes it on open and clears it via [requestJournalDay]`(null)`. */
+    private val _pendingJournalDayOffset = kotlinx.coroutines.flow.MutableStateFlow<Long?>(null)
+    val pendingJournalDayOffset: StateFlow<Long?> = _pendingJournalDayOffset
+    fun requestJournalDay(offset: Long?) { _pendingJournalDayOffset.value = offset }
+
     /**
      * Point the WHOOP scan at a specific family, then present nearby straps WITHOUT auto-connecting (the
      * Add-a-device wizard's WHOOP path). [WhoopBleClient.prepareForPresentScan] KEEPS a live same-model

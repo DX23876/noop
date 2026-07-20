@@ -3,6 +3,9 @@ package com.noop.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -84,6 +87,10 @@ fun JournalReminderCard(
 
     NoopCard(
         tint = Palette.accent,
+        // Tapping anywhere but a specific bar opens the journal at TODAY (#656). Deliberately does NOT
+        // set a pending day: `pendingJournalDayOffset` is cleared on every Insights open, so "no pending"
+        // already means today — and NOT touching it here means a bar's tap (which sets its own day) still
+        // wins even in the edge case where a nested-click delivers both taps.
         modifier = Modifier.clickable(onClickLabel = openLabel) { onOpenJournal() },
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -109,24 +116,42 @@ fun JournalReminderCard(
                 )
             }
             // The last-N-days strip: one equal-width bar per day. Filled = logged; today is ringed so the
-            // orientation is unambiguous even when nothing is logged yet.
+            // orientation is unambiguous even when nothing is logged yet. Each bar is its own tap target
+            // (#656): tapping a day deep-links the journal to THAT day (requestJournalDay) instead of always
+            // today. The bar sits in a taller invisible Box so the tap target isn't a 10dp sliver.
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 val shape = RoundedCornerShape(3.dp)
-                for (key in dayKeys) {
+                dayKeys.forEachIndexed { i, key ->
+                    val off = (JOURNAL_STRIP_DAYS - 1 - i).toLong()   // dayKeys[0] = 6 days ago … [last] = today
                     val isLogged = key in logged
-                    val isToday = key == todayKey
-                    var cell = Modifier
-                        .weight(1f)
-                        .height(10.dp)
-                        .background(
-                            if (isLogged) Palette.accent else Palette.textTertiary.copy(alpha = 0.22f),
-                            shape,
-                        )
-                    if (isToday && !isLogged) cell = cell.border(1.dp, Palette.accent, shape)
-                    Spacer(cell)
+                    val isToday = off == 0L
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(22.dp)
+                            .clickable(onClickLabel = openLabel) {
+                                viewModel.requestJournalDay(off)
+                                onOpenJournal()
+                            }
+                            // Each bar is otherwise an identical sliver to a screen reader; name its day
+                            // (from the shared label helper — not a literal, so no i18n regression) so the
+                            // deep-link target is announced (#656). Logged state is conveyed visually.
+                            .semantics { contentDescription = journalDayChipLabel(off) },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        var bar = Modifier
+                            .fillMaxWidth()
+                            .height(10.dp)
+                            .background(
+                                if (isLogged) Palette.accent else Palette.textTertiary.copy(alpha = 0.22f),
+                                shape,
+                            )
+                        if (isToday && !isLogged) bar = bar.border(1.dp, Palette.accent, shape)
+                        Spacer(bar)
+                    }
                 }
             }
             Text(
