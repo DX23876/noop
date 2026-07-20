@@ -516,6 +516,36 @@ data class PpgWaveformSampleEntity(
 }
 
 /**
+ * One 1-second WHOOP 5/MG raw-IMU offload buffer (#423): 100 Hz 6-axis inertial data. [samples] is a
+ * packed little-endian i16 BLOB of the six columns in wire order — ax×100, ay×100, az×100, gx×100, gy×100,
+ * gz×100 (1200 bytes) — decoded by [com.noop.protocol.Whoop5RawImu] (scales 1/4096 g/LSB, 2000/32768 dps/
+ * LSB). The strap already delivers this in the connect-time offload burst; capturing it needs NO arming.
+ * Instrument-first + bounded: written only when raw capture is enabled, and pruned to a rolling recent
+ * window ([WhoopRepository.RAW_IMU_RETENTION_ROWS]). Twin of the GRDB `rawImuSample` table. Natural key
+ * (deviceId, ts) = one row per strap-second.
+ */
+@Entity(tableName = "rawImuSample", primaryKeys = ["deviceId", "ts"])
+data class RawImuSampleEntity(
+    val deviceId: String,
+    val ts: Long,
+    val samples: ByteArray,
+) {
+    // ByteArray needs structural equals/hashCode (the generated identity ones break round-trip asserts).
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is RawImuSampleEntity) return false
+        return deviceId == other.deviceId && ts == other.ts && samples.contentEquals(other.samples)
+    }
+
+    override fun hashCode(): Int {
+        var result = deviceId.hashCode()
+        result = 31 * result + ts.hashCode()
+        result = 31 * result + samples.contentHashCode()
+        return result
+    }
+}
+
+/**
  * One Live Session (silent guardian) record (v22 / MIGRATION_15_16). Natural key (deviceId, startTs).
  * `endTs` is null while the session is still in progress. Fields are declared in the SAME order as the
  * Swift WhoopStore `liveSession` schema so the migration SQL matches Room's generated shape. Twin of the

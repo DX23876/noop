@@ -95,6 +95,9 @@ public struct DeviceRegistryStore: Sendable {
         // "delete all of this device's data" leaves the raw waveform behind (the same privacy defect
         // this list exists to close).
         "ppgWaveformSample",
+        // v28-raw-imu (#423): the opt-in 5/MG raw-IMU offload capture is deviceId-keyed too — "delete all
+        // of this device's data" must clear it, or the raw inertial samples survive deletion (same defect).
+        "rawImuSample",
     ]
 
     /// Permanently delete every recorded sample/derived row belonging to one device, across all

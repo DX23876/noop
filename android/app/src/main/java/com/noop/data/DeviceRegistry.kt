@@ -96,6 +96,7 @@ class DeviceRegistry(
             dao.deleteStepsFor(id)
             dao.deletePpgHrFor(id)
             dao.deletePpgWaveformFor(id)
+            dao.deleteRawImuFor(id)   // #423
             dao.deleteEventsFor(id)
             dao.deleteBatteryFor(id)
             dao.deleteDailyMetricsFor(id)

@@ -70,6 +70,28 @@ object StreamPersistence {
         return out
     }
 
+    /** #423: pack the raw-IMU i16 columns to a little-endian BLOB (same wire encoding as [packPpgSamples],
+     *  just a [ShortArray] source — the 6×100 columns [ax…az,gx…gz]). Byte-identical to Swift's pack. */
+    fun packImuColumns(cols: ShortArray): ByteArray {
+        val buf = ByteArray(cols.size * 2)
+        for (i in cols.indices) {
+            val v = cols[i].toInt()
+            buf[i * 2] = (v and 0xFF).toByte()
+            buf[i * 2 + 1] = ((v shr 8) and 0xFF).toByte()
+        }
+        return buf
+    }
+
+    /** Inverse of [packImuColumns]; a trailing odd byte is dropped so a malformed row never crashes a read. */
+    fun unpackImuColumns(data: ByteArray): ShortArray {
+        val n = data.size / 2
+        val out = ShortArray(n)
+        for (i in 0 until n) {
+            out[i] = ((data[i * 2].toInt() and 0xFF) or ((data[i * 2 + 1].toInt() and 0xFF) shl 8)).toShort()
+        }
+        return out
+    }
+
     /**
      * Deterministic sorted-keys JSON for an event payload. Port of `WhoopStore.encodePayload`.
      *

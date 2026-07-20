@@ -12,6 +12,12 @@ protocol StoreWriting: AnyObject {
         -> (hr: Int, rr: Int, events: Int, battery: Int,
             spo2: Int, skinTemp: Int, resp: Int, gravity: Int)
     func enqueueRawBatch(_ meta: RawBatchMeta, frames: [[UInt8]]) async throws
+    func insertRawImu(deviceId: String, rows: [(ts: Int, cols: [Int16])], retentionRows: Int) async throws
+}
+extension StoreWriting {
+    /// #423: default no-op so a test SpyStore needn't implement the raw-IMU capture path. WhoopStore's
+    /// real impl (StreamStore.swift) satisfies the requirement and is used in production.
+    func insertRawImu(deviceId: String, rows: [(ts: Int, cols: [Int16])], retentionRows: Int) async throws {}
 }
 extension WhoopStore: StoreWriting {}
 
@@ -120,6 +126,21 @@ final class Collector {
     /// `ingest(frame:parsed:)` with the parse it already did.
     func ingest(_ frame: [UInt8]) {
         ingest(frame: frame, parsed: parseFrame(frame, family: family))
+    }
+
+    /// #423: persist the WHOOP 5/MG raw-IMU offload buffer NOOP already decodes for the deep-buffer log —
+    /// the queryable twin of that (table-less) diagnostics line. Same `noopPuffinCapture` gate; only the
+    /// 1244-B 6-axis buffer decodes (rawColumns nil otherwise). Fire-and-forget into the store, bounded by
+    /// a rolling retention prune. Raw i16, no downstream consumer yet. Twin of Android
+    /// `WhoopBleClient.storeWhoop5RawImuIfBuffer`.
+    func storeRawImu(frame: [UInt8]) {
+        guard UserDefaults.standard.bool(forKey: PuffinFrameRecorder.enabledKey) else { return }
+        guard let cols = Whoop5RawImu.rawColumns(frame), let baseTs = Whoop5RawImu.baseTs(frame) else { return }
+        let dev = deviceId
+        Task { [store] in
+            try? await store.insertRawImu(
+                deviceId: dev, rows: [(ts: baseTs, cols: cols)], retentionRows: WhoopStore.rawImuRetentionRows)
+        }
     }
 
     /// Buffer one complete frame + its pre-parsed decode (synchronous: preserves delegate arrival order).

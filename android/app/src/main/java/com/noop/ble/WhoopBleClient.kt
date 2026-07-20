@@ -27,7 +27,9 @@ import android.util.Log
 import com.noop.data.HrRow
 import com.noop.data.RrRow
 import com.noop.data.StreamBatch
+import com.noop.data.RawImuSampleEntity
 import com.noop.data.StreamPersistence
+import com.noop.protocol.Whoop5RawImu
 import com.noop.data.WhoopRepository
 import com.noop.protocol.AlarmPayload
 import com.noop.protocol.BackfillCaptureJsonl
@@ -4081,6 +4083,9 @@ class WhoopBleClient(
                         // reverse-engineering — its own file the bulk-capture eviction never churns.
                         // BEFORE the offload branch so it catches the burst; no-op unless capture is on.
                         writeWhoop5DeepBufferIfBig(uuid.toString(), frame, isOffloadFrame(frame, connectedFamily))
+                        // #423: the queryable twin of that diagnostics line — persist the decoded IMU
+                        // samples (100 Hz 6-axis) into the rawImuSample table when raw capture is on.
+                        storeWhoop5RawImuIfBuffer(frame)
                     }
                     if (backfilling) {
                         // Opt-in raw capture: record EVERY frame of the session (offload AND live
@@ -6234,6 +6239,33 @@ class WhoopBleClient(
      * one previous generation. Cheap for every other frame: a length + single-byte compare BEFORE the
      * pref read; no-op unless the capture toggle is on.
      */
+    /** #423: persist the WHOOP 5/MG raw-IMU offload buffer NOOP already decodes for the deep-buffer log —
+     *  the queryable twin of that (table-less) diagnostics line. Same `isCaptureEnabled` gate; only the
+     *  1244-B 6-axis buffer decodes (rawColumns null otherwise). IO-dispatched so it never blocks the GATT
+     *  thread; bounded by a rolling retention prune. Raw i16, no downstream consumer yet (instrument-first). */
+    private fun storeWhoop5RawImuIfBuffer(frame: ByteArray) {
+        if (!PuffinExperiment.from(context).isCaptureEnabled) return
+        val cols = Whoop5RawImu.rawColumns(frame) ?: return
+        val baseTs = PuffinDeepBufferLog.strapTs(frame)?.toLong() ?: return
+        val dev = deviceId
+        // #423 debug heartbeat: confirm the offload IMU is arriving + decoding on-device without pulling the
+        // JSONL. Throttled (first buffer, then every 500) so a large offload can't flood the strap log; the
+        // count is a per-connection running total. Off unless raw capture is enabled (gated above).
+        rawImuDecodedCount++
+        if (rawImuDecodedCount == 1 || rawImuDecodedCount % 500 == 0) {
+            log("RAW IMU capture: $rawImuDecodedCount buffer(s) decoded, latest ts=$baseTs " +
+                "(${cols.size / 6} samples/axis) — storing (retain ${WhoopRepository.RAW_IMU_RETENTION_ROWS})")
+        }
+        val row = RawImuSampleEntity(dev, baseTs, StreamPersistence.packImuColumns(cols))
+        ioScope.launch {
+            runCatching { repository.insertRawImu(dev, listOf(row)) }
+                .onFailure { log("RAW IMU capture: store failed (${it.message})") }
+        }
+    }
+
+    /** #423 debug: raw-IMU buffers decoded this connection (drives the throttled strap-log heartbeat). */
+    private var rawImuDecodedCount = 0
+
     private fun writeWhoop5DeepBufferIfBig(characteristic: String, frame: ByteArray, isOffload: Boolean) {
         if (deepBufferDisabled || !PuffinDeepBufferLog.isDeepBuffer(frame)) return
         if (!PuffinExperiment.from(context).isCaptureEnabled) return

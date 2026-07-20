@@ -48,8 +48,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         LabMarkerRow::class,
         LiveSessionRow::class,
         PpgWaveformSampleEntity::class,
+        RawImuSampleEntity::class,
     ],
-    version = 20,
+    version = 21,
     exportSchema = false,
 )
 abstract class WhoopDatabase : RoomDatabase() {
@@ -553,6 +554,20 @@ abstract class WhoopDatabase : RoomDatabase() {
             }
         }
 
+        /** #423: the WHOOP 5/MG raw-IMU offload-capture table. Additive; GRDB twin is `v28-raw-imu`
+         *  (Swift's next slot after v27-ppg-waveform), so the migration COUNTS stay aligned. Column order ==
+         *  [RawImuSampleEntity] field order, matching the GRDB schema's t.column(deviceId/ts/samples). */
+        internal val RAW_IMU_MIGRATION_SQL: List<String> = listOf(
+            "CREATE TABLE IF NOT EXISTS `rawImuSample` (`deviceId` TEXT NOT NULL, " +
+                "`ts` INTEGER NOT NULL, `samples` BLOB NOT NULL, PRIMARY KEY(`deviceId`, `ts`))",
+        )
+
+        internal val MIGRATION_20_21 = object : Migration(20, 21) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                for (stmt in RAW_IMU_MIGRATION_SQL) db.execSQL(stmt)
+            }
+        }
+
         private fun build(appContext: Context): WhoopDatabase =
             Room.databaseBuilder(appContext, WhoopDatabase::class.java, DB_NAME)
                 // #1014: replace ONLY the corruption handling of the default open-helper. The
@@ -568,7 +583,7 @@ abstract class WhoopDatabase : RoomDatabase() {
                     MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
                     MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
                     MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18,
-                    MIGRATION_18_19, MIGRATION_19_20,
+                    MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21,
                 )
                 // #1037: a FRESH install builds the schema straight at the current version and runs NO
                 // migrations, so the MIGRATION_7_8 "my-whoop" registry seed never fires and the WHOOP,
