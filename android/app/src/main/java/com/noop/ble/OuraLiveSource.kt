@@ -471,9 +471,9 @@ class OuraLiveSource(
     // MARK: - Sample buffer (flushed in batches off the per-notification hot loop)
 
     /**
-     * One buffered batch of decoded events, stamped with its own [ts] (unix seconds): live-push events
-     * (HR, IBI, battery) are stamped at wall-clock arrival time; history-fetched events (temp, SpO2, HRV,
-     * sleep-phase) are stamped with their REAL ring-time-anchored UTC (s5.5) when an anchor is available,
+     * One buffered batch of decoded events, stamped with its own [ts] (unix seconds): genuinely-live
+     * pushes (HR, battery) are stamped at wall-clock arrival time; ring-time-carrying events (IBI, temp,
+     * SpO2, HRV, sleep-phase) are stamped with their REAL ring-time-anchored UTC (s5.5) when an anchor is available,
      * so last night's data is never mis-recorded as happening right now. Mirrors the Swift buffer
      * `(events, ts)`. [flush] folds each batch through the unit-tested [OuraStreamMapping] so the SAME pure
      * mapping the tests pin is the production path.
@@ -1061,12 +1061,13 @@ class OuraLiveSource(
 
     /**
      * Fold decoded driver events into live-UI updates + the persist buffer (the production path, parity
-     * with Swift's `ingest`). Live-push events (HR/IBI/battery) are stamped at wall-clock arrival time,
-     * since they genuinely are "now"; HR is range-gated for the LIVE display (off-finger / garbage never
-     * shown) and battery surfaces immediately (a status, not a timestamped row). History-fetched events
-     * (temp, SpO2, HRV, sleep-phase - SLEEP-ONLY on this hardware, never a live readout) are stamped with
-     * their REAL ring-time-anchored UTC (s5.5) so last night's data is never mis-recorded as happening
-     * right now; when no anchor has arrived yet this session, the event is PARKED
+     * with Swift's `ingest`). Genuinely-live pushes (HR/battery) are stamped at wall-clock arrival time,
+     * since they really are "now"; HR is range-gated for the LIVE display (off-finger / garbage never
+     * shown) and battery surfaces immediately (a status, not a timestamped row). Ring-time-carrying events
+     * (IBI, temp, SpO2, HRV, sleep-phase) are stamped with their REAL ring-time-anchored UTC (s5.5) so last
+     * night's banked data is never mis-recorded as happening right now (IBI arrives both live and banked, so
+     * it anchors like history but never advances the resume cursor); when no anchor has arrived yet this
+     * session, the event is PARKED
      * ([pendingAnchorEvents]) until one does, rather than immediately guessing wall-clock. A 0x42
      * time-sync (the anchor) drains anything parked. Tier-B events (allowed for INVESTIGATION - see the
      * driver construction comment) are LOGGED only, never enqueued: OuraStreamMapping drops them anyway,

@@ -699,7 +699,12 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         for pending in pendingAnchorEvents {
             if let ts = driver.unixSeconds(forRingTimestamp: pending.ringTimestamp) {
                 enqueue([pending.event], ts: ts)
-                noteStoredHistoryRingTime(pending.ringTimestamp)   // parked sample placed → advance resume cursor
+                // A parked IBI can be a LIVE beat that arrived before the anchor (see .ibi in ingest());
+                // it must never advance the resume cursor either, or a live push could skip un-drained
+                // backlog on a force-stopped drain. Only the history-only siblings drive the cursor.
+                if case .ibi = pending.event {} else {
+                    noteStoredHistoryRingTime(pending.ringTimestamp)   // parked history sample placed → advance resume cursor
+                }
             } else {
                 enqueue([pending.event], ts: now)   // honest wall-clock fallback; NEVER advances the cursor
             }
@@ -710,12 +715,14 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     // MARK: - Live ingest
 
     /// Fold decoded events into live state (HR / R-R only - skin temp and SpO2 are SLEEP-ONLY on this
-    /// hardware, never a live readout) + the persist buffer. Live-push events (HR/IBI/battery) are stamped
-    /// at wall-clock arrival time, since they genuinely are "now". History-fetched events (temp, SpO2, HRV,
-    /// sleep-phase) are stamped with their REAL ring-time-anchored UTC (s5.5) so last night's data is never
-    /// mis-recorded as happening right now; when no anchor has arrived yet this session, we park the event
-    /// until one does (`pendingAnchorEvents`), rather than immediately guessing wall-clock. Out-of-range
-    /// HR/temp is dropped, never shown.
+    /// hardware, never a live readout) + the persist buffer. Genuinely-live pushes (HR/battery) are stamped
+    /// at wall-clock arrival time, since they really are "now". Ring-time-carrying events (IBI, temp, SpO2,
+    /// HRV, sleep-phase) are stamped with their REAL ring-time-anchored UTC (s5.5) so last night's banked
+    /// data is never mis-recorded as happening right now; when no anchor has arrived yet this session, we
+    /// park the event until one does (`pendingAnchorEvents`), rather than immediately guessing wall-clock.
+    /// (IBI is special: it arrives both live and banked, so it anchors like history but — unlike the
+    /// history-only streams — never advances the resume cursor; see the `.ibi` case.) Out-of-range HR/temp
+    /// is dropped, never shown.
     private func ingest(_ events: [OuraEvent]) {
         guard !events.isEmpty, let driver else { return }
         let now = Int(Date().timeIntervalSince1970)
@@ -754,7 +761,13 @@ public final class OuraLiveSource: NSObject, ObservableObject {
                 // so the sleep window ended up with zero R-R -> no restingHr/avgHrv for the night.
                 if let ts = driver.unixSeconds(forRingTimestamp: ibi.ringTimestamp) {
                     enqueue([e], ts: ts)
-                    noteStoredHistoryRingTime(ibi.ringTimestamp)
+                    // NOTE: unlike the history-only siblings, do NOT noteStoredHistoryRingTime here — IBI is
+                    // the one stream that arrives both LIVE (ring-time ~now) and banked, indistinguishable
+                    // at this call site except by ring-time. Letting a live beat advance the resume cursor
+                    // could leap `maxStoredRingTime` to ~now during a force-stopped drain (300s/stall guard,
+                    // bytes_left > 0) and permanently skip the un-drained backlog. The resume cursor is still
+                    // driven correctly by the history-only siblings (hrv/temp/spo2/sleepPhase) that share the
+                    // same night window; this also matches Kotlin, which notes no stream's ring-time.
                 } else {
                     pendingAnchorEvents.append((e, ibi.ringTimestamp))
                 }
