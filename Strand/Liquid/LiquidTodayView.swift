@@ -578,7 +578,7 @@ struct LiquidTodayView: View {
             // Activity (`Repository.widgetAnchor`) and Android. Effort deliberately does NOT carry — it is
             // today's own accumulation, so yesterday's number would be a false statement, not a stale one.
             HeroScoreCell(label: String(localized: "Charge"), score: chargeDisplay.pct, tint: StrandPalette.chargeColor,
-                          animated: dataLoaded, onGuide: { guideSection = .charge })
+                          animated: dataLoaded, onGuide: { guideSection = .charge }, coachContext: chargeCoachContext)
             // #45: the hero Effort must honour the user's Effort scale like every other Effort read-out.
             // Show the value on the chosen scale (0–100 or WHOOP 0–21) with the matching vessel max, and
             // one decimal on the compressed 0–21 axis to match the app-wide `effortDisplay` convention
@@ -588,9 +588,10 @@ struct LiquidTodayView: View {
                           tint: StrandPalette.effortColor, animated: dataLoaded,
                           onGuide: { guideSection = .effort },
                           maxValue: effortScale == .whoop ? 21 : 100,
-                          decimals: effortScale == .whoop ? 1 : 0)
+                          decimals: effortScale == .whoop ? 1 : 0,
+                          coachContext: effortCoachContext)
             HeroScoreCell(label: String(localized: "Rest"), score: restScore, tint: StrandPalette.restColor,
-                          animated: dataLoaded, onGuide: { guideSection = .rest })
+                          animated: dataLoaded, onGuide: { guideSection = .rest }, coachContext: restCoachContext)
                 .overlay(alignment: .top) {
                     if let sourceLabel = heroSourceLabel {
                         SourceBadge("\(sourceLabel)", tint: StrandPalette.onDarkSecondary)
@@ -617,6 +618,50 @@ struct LiquidTodayView: View {
                 .shadow(color: .black.opacity(0.6), radius: 30, y: 16)
                 .opacity(cardOpacity)
         )
+    }
+
+    // MARK: - Card-AI contexts (#R-explain): one small "ask coach" sparkle per hero circle and per
+    // "Your cards" row, built from data this screen already loaded — nothing new derived, same posture as
+    // `StressView.coachCardContext`. Nil (button hidden) until there's a real value to explain.
+
+    private var chargeCoachContext: CoachCardContext? {
+        guard let pct = chargeDisplay.pct else { return nil }
+        return CoachCardContext(
+            title: "Charge",
+            summary: "Charge: \(Int(pct.rounded()))% (\(chargeDisplay.stateLabel)).",
+            suggestions: [String(localized: "Why is my Charge what it is?"),
+                          String(localized: "What should I do today given this?")])
+    }
+
+    private var effortCoachContext: CoachCardContext? {
+        guard let strain = displayDay?.strain else { return nil }
+        let value = UnitFormatter.effortDisplay(strain, scale: effortScale)
+        return CoachCardContext(
+            title: "Effort",
+            summary: "Today's Effort so far: \(value).",
+            suggestions: [String(localized: "Is this a lot for me today?"),
+                          String(localized: "Should I push more or ease off?")])
+    }
+
+    private var restCoachContext: CoachCardContext? {
+        guard let score = restScore else { return nil }
+        return CoachCardContext(
+            title: "Rest",
+            summary: "Rest: \(Int(score.rounded()))%.",
+            suggestions: [String(localized: "How was my sleep quality?"),
+                          String(localized: "What would improve my Rest?")])
+    }
+
+    /// Generic "Your cards" row context (#R-explain): title + the row's own already-computed value and
+    /// subtitle line, stated plainly. No trend/baseline data invented beyond what the row itself shows.
+    /// Nil for a placeholder value ("–"), same as an empty card showing no button.
+    private func dashboardCoachContext(title: String, value: String, subtitle: String) -> CoachCardContext? {
+        guard value != "–", !value.isEmpty else { return nil }
+        return CoachCardContext(
+            title: title,
+            summary: "\(title): \(value). \(subtitle).",
+            suggestions: [String(localized: "What does this mean for me?"),
+                          String(localized: "Is this good, or something to watch?")])
     }
 
     // MARK: - Heart rate
@@ -730,40 +775,51 @@ struct LiquidTodayView: View {
             cardLink(.hydration, title: card.title, sub: card.subtitle,
                      value: "–", tint: StrandPalette.metricCyan, frac: nil)
         case .coupled:
-            // A tap-through to the full Coupled day screen. No value.
+            // A tap-through to the full Coupled day screen. No value, so no coach button either.
             cardLink(.coupled, title: card.title, sub: card.subtitle,
-                     value: "", tint: StrandPalette.chargeColor, frac: 0.6)
+                     value: "", tint: StrandPalette.chargeColor, frac: 0.6, showsCoachButton: false)
         }
     }
 
     /// One card row pushing its `TabRoute` by value — the first hop off the Today root must ride
     /// the tab's `NavigationPath` so a re-tap of the Today tab can pop it (#198; see TabRoute.swift).
+    /// `showsCoachButton` (#R-explain, default true): adds a small "ask coach" sparkle, built from this
+    /// row's OWN title/subtitle/value — nothing new derived — as a SIBLING of the NavigationLink, never
+    /// nested inside it, so the navigation tap and the coach tap stay two independent controls. Hidden for
+    /// a placeholder value ("–", not wired up yet) or when the caller passes false (`.coupled`, which has
+    /// no metric value to explain at all).
     private func cardLink(_ route: TabRoute, title: String, sub: String,
-                          value: String, tint: Color, frac: Double?) -> some View {
-        NavigationLink(value: route) {
-            HStack(spacing: 12) {
-                LiquidVessel(value: frac, tint: tint, animated: false).frame(width: 30, height: 30)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(title.uppercased()).font(StrandFont.overlineScaled(11)).tracking(1.0)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                    Text(sub).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                          value: String, tint: Color, frac: Double?,
+                          showsCoachButton: Bool = true) -> some View {
+        HStack(spacing: 8) {
+            NavigationLink(value: route) {
+                HStack(spacing: 12) {
+                    LiquidVessel(value: frac, tint: tint, animated: false).frame(width: 30, height: 30)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(title.uppercased()).font(StrandFont.overlineScaled(11)).tracking(1.0)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                        Text(sub).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                    }
+                    Spacer(minLength: 8)
+                    Text(value).font(StrandFont.number(17)).foregroundStyle(StrandPalette.textPrimary)
+                    Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(StrandPalette.textTertiary)
                 }
-                Spacer(minLength: 8)
-                Text(value).font(StrandFont.number(17)).foregroundStyle(StrandPalette.textPrimary)
-                Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(StrandPalette.textTertiary)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 11)
-            .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(StrandPalette.surfaceRaised)
-                    .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .strokeBorder(StrandPalette.hairline, lineWidth: 1))
-                    .opacity(cardOpacity)
-            )
+            .buttonStyle(LiquidPressStyle())
+            if showsCoachButton, let ctx = dashboardCoachContext(title: title, value: value, subtitle: sub) {
+                CoachCardIconButton(context: ctx)
+            }
         }
-        .buttonStyle(LiquidPressStyle())
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(StrandPalette.surfaceRaised)
+                .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .strokeBorder(StrandPalette.hairline, lineWidth: 1))
+                .opacity(cardOpacity)
+        )
     }
 
     // MARK: - Synthesis (greeting + readiness pills + one-liner)
@@ -1537,6 +1593,10 @@ private struct HeroScoreCell: View {
     // Decimal places for the displayed number. 0 keeps the whole-number scores; the WHOOP 0–21 Effort
     // scale passes 1 to match the app-wide one-decimal `effortDisplay` convention (#45).
     var decimals: Int = 0
+    /// The coach's own read of THIS score (#R-explain), when there's a real value to explain. A small
+    /// sparkle sits beside the CHARGE/EFFORT/REST label — a sibling of the `onGuide` button, never nested
+    /// inside it, so the two actions (open the scoring guide vs. ask the coach) stay independent taps.
+    var coachContext: CoachCardContext? = nil
 
     @State private var shown: Double = 0
 
@@ -1560,20 +1620,25 @@ private struct HeroScoreCell: View {
                 .minimumScaleFactor(0.6)
                 .allowsHitTesting(false)   // taps fall through to the vessel → splash
             }
-            Button(action: onGuide) {
-                HStack(spacing: 3) {
-                    // #74: one line, shrink-to-fit rather than wrap under large Dynamic Type (mirrors the
-                    // score number above) so CHARGE/EFFORT/REST never grow the hero card to two lines.
-                    Text(label.uppercased()).font(StrandFont.overline).tracking(1.6)
-                        .lineLimit(1).minimumScaleFactor(0.7)
-                    Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).opacity(0.6)
+            HStack(spacing: 4) {
+                Button(action: onGuide) {
+                    HStack(spacing: 3) {
+                        // #74: one line, shrink-to-fit rather than wrap under large Dynamic Type (mirrors the
+                        // score number above) so CHARGE/EFFORT/REST never grow the hero card to two lines.
+                        Text(label.uppercased()).font(StrandFont.overline).tracking(1.6)
+                            .lineLimit(1).minimumScaleFactor(0.7)
+                        Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).opacity(0.6)
+                    }
+                    // The hero card fill is pinned dark in BOTH themes, so the CHARGE/EFFORT/REST label must use
+                    // the scheme-invariant on-dark token — textSecondary flips to dark ink in Light mode and
+                    // went dark-on-near-black here (#1013).
+                    .foregroundStyle(StrandPalette.onDarkSecondary)
                 }
-                // The hero card fill is pinned dark in BOTH themes, so the CHARGE/EFFORT/REST label must use
-                // the scheme-invariant on-dark token — textSecondary flips to dark ink in Light mode and
-                // went dark-on-near-black here (#1013).
-                .foregroundStyle(StrandPalette.onDarkSecondary)
+                .buttonStyle(.plain)
+                if let coachContext {
+                    CoachCardIconButton(context: coachContext, diameter: 18)
+                }
             }
-            .buttonStyle(.plain)
             .accessibilityLabel(Text("\(label), \(score.map { decimals > 0 ? String(format: "%.\(decimals)f", $0) : String(Int($0.rounded())) } ?? String(localized: "no data yet")). See how it is scored."))
         }
         .frame(maxWidth: .infinity)

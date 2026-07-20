@@ -2165,9 +2165,10 @@ struct TodayView: View {
                           value: dashboardValue(card), route: .hydration)
         case .coupled:
             // The Coupled view row (#43) carries NO metric value, it is a tap-through to the full
-            // coupled day screen. An empty value renders just the icon + title + subtitle + chevron.
+            // coupled day screen. An empty value renders just the icon + title + subtitle + chevron, and
+            // no coach button either (there's nothing for it to explain).
             pinnedCardRow(icon: card.icon, tint: tint, title: card.title, subtitle: card.subtitle,
-                          value: dashboardValue(card), route: .coupled)
+                          value: dashboardValue(card), route: .coupled, showsCoachButton: false)
         }
     }
 
@@ -2268,41 +2269,48 @@ struct TodayView: View {
     /// baseline caption, the big white value, and a chevron, the whole row navigates to `route`. Flat
     /// WHOOP styling (FrostedCardSurface, no glow), tokens only. Pushed by VALUE — the first hop off the
     /// Today root must ride the tab's `NavigationPath` so a re-tap of the Today tab can pop it (#198;
-    /// see TabRoute.swift).
+    /// see TabRoute.swift). `showsCoachButton` (#R-explain, default true): a small "ask coach" sparkle,
+    /// built from this row's own title/subtitle/value, as a SIBLING of the NavigationLink — never nested
+    /// inside it — so the row's own navigation and the coach tap stay two independent controls. Hidden for
+    /// a placeholder value or when the caller passes false (`.coupled`, which has no value to explain).
     private func pinnedCardRow(icon: String, tint: Color, title: String, subtitle: String,
-                               value: String, route: TabRoute) -> some View {
-        NavigationLink(value: route) {
-            HStack(spacing: 12) {
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(tint.opacity(0.14))
-                    .frame(width: 34, height: 34)
-                    .overlay(Image(systemName: icon).font(.system(size: 15, weight: .semibold)).foregroundStyle(tint))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title.uppercased())
-                        .font(StrandFont.overline)
-                        .tracking(StrandFont.overlineTracking)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                        .lineLimit(1)
-                    Text(subtitle)
-                        .font(StrandFont.footnote)
+                               value: String, route: TabRoute, showsCoachButton: Bool = true) -> some View {
+        HStack(spacing: 6) {
+            NavigationLink(value: route) {
+                HStack(spacing: 12) {
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(tint.opacity(0.14))
+                        .frame(width: 34, height: 34)
+                        .overlay(Image(systemName: icon).font(.system(size: 15, weight: .semibold)).foregroundStyle(tint))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(title.uppercased())
+                            .font(StrandFont.overline)
+                            .tracking(StrandFont.overlineTracking)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                            .lineLimit(1)
+                        Text(subtitle)
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 8)
+                    // A real number reads white; a placeholder (, / Calibrating) reads dimmed so it doesn't
+                    // masquerade as a value.
+                    let isPlaceholder = (value == "—" || value == Self.calibratingPlaceholder)
+                    Text(value).font(StrandFont.rounded(18, weight: .semibold))
+                        .foregroundStyle(isPlaceholder ? StrandPalette.textTertiary : StrandPalette.textPrimary)
+                    Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(StrandPalette.textTertiary)
-                        .lineLimit(1)
                 }
-                Spacer(minLength: 8)
-                // A real number reads white; a placeholder (, / Calibrating) reads dimmed so it doesn't
-                // masquerade as a value.
-                let isPlaceholder = (value == "—" || value == Self.calibratingPlaceholder)
-                Text(value).font(StrandFont.rounded(18, weight: .semibold))
-                    .foregroundStyle(isPlaceholder ? StrandPalette.textTertiary : StrandPalette.textPrimary)
-                Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(StrandPalette.textTertiary)
             }
-            .padding(.horizontal, 13).padding(.vertical, 11)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(FrostedCardSurface(cornerRadius: NoopMetrics.cardRadius))
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+            if showsCoachButton, let ctx = dashboardCoachContext(title: title, value: value, subtitle: subtitle) {
+                CoachCardIconButton(context: ctx)
+            }
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 13).padding(.vertical, 11)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(FrostedCardSurface(cornerRadius: NoopMetrics.cardRadius))
     }
 
     // MARK: Component 2, explained score note (calibrating / carried / needs-strap)
@@ -2620,11 +2628,15 @@ struct TodayView: View {
             // untouched). It opens the Charge breakdown sheet (the existing ChargeBreakdownSection), built
             // lazily on tap. No new badge/dot/tier sits under the ring (that would re-load the #762 stack).
             heroRingColumn(section: .charge, domain: .charge, provenanceKey: "recovery",
-                           onRingTap: { showChargeBreakdown = true }) {
+                           onRingTap: { showChargeBreakdown = true }, coachContext: chargeCoachContext) {
                 chargeRing(score: score, d: d, diameter: ring)
             }
-            heroRingColumn(section: .effort, domain: .effort) { effortRing(d: d, diameter: ring) }
-            heroRingColumn(section: .rest, domain: .rest, provenanceKey: "sleep_performance") { restRing(diameter: ring) }
+            heroRingColumn(section: .effort, domain: .effort, coachContext: effortCoachContext) {
+                effortRing(d: d, diameter: ring)
+            }
+            heroRingColumn(section: .rest, domain: .rest, provenanceKey: "sleep_performance", coachContext: restCoachContext) {
+                restRing(diameter: ring)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .center)
         // Zero-impact width reader: a clear background that publishes the row's width up via preference. It
@@ -2637,6 +2649,51 @@ struct TodayView: View {
         .onPreferenceChange(HeroRingRowWidthKey.self) { w in
             if w > 1 && abs(w - heroRingRowWidth) > 0.5 { heroRingRowWidth = w }
         }
+    }
+
+    // MARK: - Card-AI contexts (#R-explain): one small "ask coach" sparkle per hero ring and per
+    // "Your cards" row, built from data this screen already loaded — nothing new derived, same posture as
+    // `StressView.coachCardContext`. Nil (button hidden) until there's a real value to explain.
+
+    private var chargeCoachContext: CoachCardContext? {
+        guard let recovery = displayDay?.recovery else { return nil }
+        return CoachCardContext(
+            title: "Charge",
+            summary: "Charge: \(Int(recovery.rounded()))%.",
+            suggestions: [String(localized: "Why is my Charge what it is?"),
+                          String(localized: "What should I do today given this?")])
+    }
+
+    private var effortCoachContext: CoachCardContext? {
+        guard let strain = displayDay?.strain else { return nil }
+        let value = UnitFormatter.effortDisplay(strain, scale: effortScale)
+        return CoachCardContext(
+            title: "Effort",
+            summary: "Today's Effort so far: \(value).",
+            suggestions: [String(localized: "Is this a lot for me today?"),
+                          String(localized: "Should I push more or ease off?")])
+    }
+
+    private var restCoachContext: CoachCardContext? {
+        guard let score = restScore else { return nil }
+        return CoachCardContext(
+            title: "Rest",
+            summary: "Rest: \(Int(score.rounded()))%.",
+            suggestions: [String(localized: "How was my sleep quality?"),
+                          String(localized: "What would improve my Rest?")])
+    }
+
+    /// Generic "Your cards" row context (#R-explain): title + the row's own already-computed value and
+    /// subtitle line, stated plainly. No trend/baseline data invented beyond what the row itself shows.
+    /// Nil for a placeholder value ("—" / "Calibrating" / empty — the classic Today's not-yet-available
+    /// markers) so no dead button shows.
+    private func dashboardCoachContext(title: String, value: String, subtitle: String) -> CoachCardContext? {
+        guard value != "—", value != Self.calibratingPlaceholder, !value.isEmpty else { return nil }
+        return CoachCardContext(
+            title: title,
+            summary: "\(title): \(value). \(subtitle).",
+            suggestions: [String(localized: "What does this mean for me?"),
+                          String(localized: "Is this good, or something to watch?")])
     }
 
     /// The localized natural-case display word for a score domain (Charge / Effort / Rest / Stress). The
@@ -2671,6 +2728,7 @@ struct TodayView: View {
     private func heroRingColumn<RingBody: View>(
         section: ScoreSection, domain: DomainTheme, provenanceKey: String? = nil,
         onRingTap: (() -> Void)? = nil,
+        coachContext: CoachCardContext? = nil,
         @ViewBuilder ring: () -> RingBody
     ) -> some View {
         VStack(spacing: 8) {
@@ -2722,6 +2780,11 @@ struct TodayView: View {
             .buttonStyle(.plain)
             .accessibilityLabel(onRingTap == nil ? Self.domainGuideAccessibilityLabel(domain)
                                                   : "See what shaped your Charge")
+            // #R-explain: a small "ask coach" sparkle, a SIBLING of the label button above (never nested
+            // inside it), so the scoring-guide tap and the coach tap stay two independent controls.
+            if let coachContext {
+                CoachCardIconButton(context: coachContext, diameter: 20)
+            }
             // Component 4, the real per-day source under the ring (only when this score has a value for
             // the day AND we resolved its winner; a calibrating / empty ring shows no provenance badge).
             // Apple Watch (M1): a watch-sourced score reads "Apple Watch" with its confidence bound to the

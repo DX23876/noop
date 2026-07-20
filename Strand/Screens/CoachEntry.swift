@@ -161,6 +161,40 @@ struct CoachCardButton: View {
     }
 }
 
+/// A compact, icon-only sibling of `CoachCardButton` (#R-explain) for dense list rows — Today's hero
+/// circles and "Your cards" dashboard rows — where the full sparkle + "Ask coach" capsule would crowd an
+/// already busy row. Same underlying action (hand the coach this card's context, open the chat), just a
+/// small tappable sparkle instead of a labelled pill. Meant to sit ALONGSIDE a row's own navigation link,
+/// never nested inside it — two sibling tap targets, not one control inside another.
+struct CoachCardIconButton: View {
+    let context: CoachCardContext
+    /// The tappable circle's diameter — 26 fits a dashboard list row; the Today hero circles (three
+    /// abreast, genuinely tight on width) pass a smaller value.
+    var diameter: CGFloat = 26
+
+    @EnvironmentObject private var coach: AICoachEngine
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        if coach.isConfigured {
+            Button {
+                coach.openedFromCard(context)
+                NotificationCenter.default.post(name: .noopOpenCoachCard, object: nil)
+                dismiss()
+            } label: {
+                Image(systemName: "sparkles")
+                    .font(.system(size: diameter * 0.46, weight: .semibold))
+                    .foregroundStyle(StrandPalette.accent)
+                    .frame(width: diameter, height: diameter)
+                    .background(StrandPalette.accent.opacity(0.12), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Ask coach about \(context.title)")
+            .accessibilityHint("Opens the AI coach with this metric's data.")
+        }
+    }
+}
+
 #if os(iOS)
 /// A circular button that opens the Coach, floating over the whole app. It can be pinned to one of four
 /// chrome-clear corners from Coach settings, or dragged anywhere (which switches it to `.custom` and
