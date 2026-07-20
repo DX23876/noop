@@ -34,6 +34,17 @@ struct CoachView: View {
     /// named constant instead of a magic number repeated at every call site, since the gutter spacer
     /// (`assistantGutter`) and the evidence/actionRow indent below a reply both have to match it exactly.
     private static let assistantAvatarSize: CGFloat = 36
+    /// Vertical gap before a NEW turn (a role switch, or the first message) — bigger, so a fresh reply or
+    /// question reads as its own moment (#R-chat-tidy). Also used before the typing indicator/error banner,
+    /// which are themselves always the start of a new turn.
+    private static let groupGap: CGFloat = 16
+    /// Vertical gap before a CONTINUATION bubble — the same sender following themselves, tight so a run of
+    /// coach turns still reads as one thought rather than several unrelated ones.
+    private static let continuationGap: CGFloat = 4
+    /// The ONE extra indent step for content nested a level deeper than a reply's side content (evidence
+    /// header, Regenerate, actionRow all sit flush with each other; the expanded evidence detail sits one
+    /// `sideContentIndent` in from that) — previously three uneven levels (#R-chat-tidy).
+    private static let sideContentIndent: CGFloat = 14
     /// Which messages' evidence chains (P6) are expanded — per-message, so opening one doesn't open
     /// every reply that has one.
     @State private var expandedEvidenceIds: Set<UUID> = []
@@ -263,7 +274,7 @@ struct CoachView: View {
     private var chatBody: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 10) {
+                LazyVStack(alignment: .leading, spacing: 0) {
                     if coach.messages.isEmpty {
                         emptyState
                     }
@@ -271,13 +282,15 @@ struct CoachView: View {
                         if shouldShowTimestamp(at: index) {
                             timeSeparator(message.date)
                         }
-                        bubble(message, groupStart: isAssistantGroupStart(at: index)).id(message.id)
+                        bubble(message, groupStart: isAssistantGroupStart(at: index))
+                            .id(message.id)
+                            .padding(.top, topGap(at: index))
                     }
                     if coach.sending {
-                        typingIndicator.id("typing")
+                        typingIndicator.id("typing").padding(.top, Self.groupGap)
                     }
                     if let error = coach.errorText, !error.isEmpty {
-                        errorBanner(error).id("error")
+                        errorBanner(error).id("error").padding(.top, Self.groupGap)
                     }
                     // Suggestion chips live at the bottom of an empty transcript, just above the composer.
                     if coach.messages.isEmpty {
@@ -353,6 +366,17 @@ struct CoachView: View {
         let msgs = coach.messages
         guard index >= 0, index < msgs.count, msgs[index].role == .assistant else { return false }
         return index == 0 || msgs[index - 1].role != .assistant
+    }
+
+    /// The vertical gap ABOVE the message at `index` (#R-chat-tidy): a bigger `groupGap` for a new turn
+    /// (the first message, a role switch, or two consecutive user sends — there's no "continuation" concept
+    /// for the user side), a tight `continuationGap` only when both this message and the one before it are
+    /// coach replies in the same run (mirrors `isAssistantGroupStart`'s own same-role check).
+    private func topGap(at index: Int) -> CGFloat {
+        guard index > 0, index < coach.messages.count else { return 0 }
+        let cur = coach.messages[index].role
+        let prev = coach.messages[index - 1].role
+        return (cur == .assistant && prev == .assistant) ? Self.continuationGap : Self.groupGap
     }
 
     /// The leading avatar (or an equal-width empty gutter for continuation turns), so coach bubbles line up
@@ -436,7 +460,6 @@ struct CoachView: View {
                             }
                             .buttonStyle(.plain)
                             .disabled(coach.sending)
-                            .padding(.leading, 14)
                             .accessibilityLabel("Regenerate this reply")
 
                             actionRow
@@ -564,10 +587,9 @@ struct CoachView: View {
                             .font(StrandFont.caption)
                         }
                     }
-                    .padding(.leading, 14)
+                    .padding(.leading, Self.sideContentIndent)
                 }
             }
-            .padding(.leading, 14)
         }
     }
 
@@ -589,7 +611,6 @@ struct CoachView: View {
             }
             actionChip(icon: "calendar.badge.plus", action: { activeSheet = .plan }) { Text("Schedule a session") }
         }
-        .padding(.leading, 14)
         .padding(.top, 2)
     }
 
