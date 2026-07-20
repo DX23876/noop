@@ -191,6 +191,12 @@ fun InsightsScreen(vm: AppViewModel, onOpenInsightsHub: () -> Unit = {}) {
     var journalLoaded by remember { mutableStateOf(false) }
     var journalSeq by remember { mutableStateOf(0) }
     var dayOffset by remember { mutableStateOf(0L) }
+    // #656: honour a day the Today journal widget deep-linked to (tapping a bar opens the journal at THAT
+    // day). Consumed once on arrival, then cleared so it doesn't re-apply on the next recomposition.
+    val pendingJournalDay by vm.pendingJournalDayOffset.collectAsStateWithLifecycle()
+    androidx.compose.runtime.LaunchedEffect(pendingJournalDay) {
+        pendingJournalDay?.let { dayOffset = it; vm.requestJournalDay(null) }
+    }
     var importedQuestions by remember { mutableStateOf<List<String>>(emptyList()) }
     var dayAnswers by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     // #322: the selected day's native numeric values (question -> value), drives the numeric fields.
