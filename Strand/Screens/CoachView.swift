@@ -267,7 +267,7 @@ struct CoachView: View {
                         if shouldShowTimestamp(at: index) {
                             timeSeparator(message.date)
                         }
-                        bubble(message).id(message.id)
+                        bubble(message, groupStart: isAssistantGroupStart(at: index)).id(message.id)
                     }
                     if coach.sending {
                         typingIndicator.id("typing")
@@ -343,8 +343,27 @@ struct CoachView: View {
 
     // MARK: - Bubbles
 
+    /// True when this assistant message opens a run of consecutive coach turns — messenger-style, the
+    /// avatar shows once at the top of a group and continuation bubbles reserve the gutter to stay aligned.
+    private func isAssistantGroupStart(at index: Int) -> Bool {
+        let msgs = coach.messages
+        guard index >= 0, index < msgs.count, msgs[index].role == .assistant else { return false }
+        return index == 0 || msgs[index - 1].role != .assistant
+    }
+
+    /// The leading avatar (or an equal-width empty gutter for continuation turns), so coach bubbles line up
+    /// under one avatar the way a messenger thread does (#R10). Sized to sit beside the bubble's first line.
     @ViewBuilder
-    private func bubble(_ message: ChatMessage) -> some View {
+    private func assistantGutter(groupStart: Bool) -> some View {
+        if groupStart {
+            CoachAvatarView(size: 28)
+        } else {
+            Color.clear.frame(width: 28, height: 1)
+        }
+    }
+
+    @ViewBuilder
+    private func bubble(_ message: ChatMessage, groupStart: Bool = false) -> some View {
         switch message.role {
         case .user:
             HStack {
@@ -367,10 +386,15 @@ struct CoachView: View {
             // other assistant message renders its Markdown reply. An empty assistant message with no chart
             // is a stale chart host from before persistence — skip it rather than show a blank bubble.
             if let chart = coach.chartsByMessage[message.id] {
-                CoachChartBubble(artifact: chart)
+                HStack(alignment: .top, spacing: 8) {
+                    assistantGutter(groupStart: groupStart)
+                    CoachChartBubble(artifact: chart)
+                    Spacer(minLength: 0)
+                }
             } else if !message.text.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
-                    HStack {
+                    HStack(alignment: .top, spacing: 8) {
+                        assistantGutter(groupStart: groupStart)
                         Markdown(message.text)
                             .markdownTheme(.strand)
                             .textSelection(.enabled)
@@ -393,22 +417,28 @@ struct CoachView: View {
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Coach said: \(message.text)")
 
-                    evidenceChain(for: message)
+                    // The evidence chain and action controls sit UNDER the bubble, so they carry the same
+                    // leading gutter (avatar width + spacing) the bubble does — they line up with the coach's
+                    // text, not with the avatar (#R10).
+                    VStack(alignment: .leading, spacing: 4) {
+                        evidenceChain(for: message)
 
-                    // Visible, not just a long-press away — the context menu above still works too.
-                    if isLastAssistant(message) {
-                        Button { coach.regenerate() } label: {
-                            Label("Regenerate", systemImage: "arrow.clockwise")
-                                .font(StrandFont.caption)
-                                .foregroundStyle(StrandPalette.textTertiary)
+                        // Visible, not just a long-press away — the context menu above still works too.
+                        if isLastAssistant(message) {
+                            Button { coach.regenerate() } label: {
+                                Label("Regenerate", systemImage: "arrow.clockwise")
+                                    .font(StrandFont.caption)
+                                    .foregroundStyle(StrandPalette.textTertiary)
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(coach.sending)
+                            .padding(.leading, 14)
+                            .accessibilityLabel("Regenerate this reply")
+
+                            actionRow
                         }
-                        .buttonStyle(.plain)
-                        .disabled(coach.sending)
-                        .padding(.leading, 14)
-                        .accessibilityLabel("Regenerate this reply")
-
-                        actionRow
                     }
+                    .padding(.leading, 36)
                 }
             }
         }
@@ -579,17 +609,20 @@ struct CoachView: View {
     }
 
     private var typingIndicator: some View {
-        HStack(spacing: 8) {
-            ProgressView().controlSize(.small).tint(StrandPalette.accent)
-            Text("Coach is thinking…")
-                .font(StrandFont.subhead)
-                .foregroundStyle(StrandPalette.textSecondary)
-            Spacer(minLength: 0)
+        HStack(alignment: .top, spacing: 8) {
+            CoachAvatarView(size: 28)
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small).tint(StrandPalette.accent)
+                Text("Coach is thinking…")
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .frostedCardSurface(tint: StrandPalette.chargeColor, cornerRadius: CoachRadius.card)
+            .frame(maxWidth: 320, alignment: .leading)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 11)
-        .frostedCardSurface(tint: StrandPalette.chargeColor, cornerRadius: CoachRadius.card)
-        .frame(maxWidth: 320, alignment: .leading)
         .accessibilityLabel("Coach is thinking")
     }
 
