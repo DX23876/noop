@@ -283,6 +283,13 @@ fun SleepScreen(
         val hoursAgo = (nowS - latestEnd) / 3600.0
         if (hoursAgo in 0.0..12.0) {
             val today = LocalDate.now().toString()
+            // #684: don't nudge when today's journal is already logged — e.g. via the Today card (#656),
+            // which never sets KEY_LAST_JOURNAL_PROMPT, so the once-per-day dedup alone would still pop
+            // this sheet. Reuse the SAME completion signal the Today card uses (repo.journal for today).
+            val loggedToday = runCatching {
+                vm.repo.journal(JOURNAL_DEVICE_ID, today, today).any { it.day == today }
+            }.getOrDefault(false)
+            if (loggedToday) return@LaunchedEffect
             val prefs = NoopPrefs.of(context)
             val lastPrompted = prefs.getString(NoopPrefs.KEY_LAST_JOURNAL_PROMPT, "")
             if (lastPrompted != today) {
