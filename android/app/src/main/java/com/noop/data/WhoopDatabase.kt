@@ -50,7 +50,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         PpgWaveformSampleEntity::class,
         RawImuSampleEntity::class,
     ],
-    version = 21,
+    version = 22,
     exportSchema = false,
 )
 abstract class WhoopDatabase : RoomDatabase() {
@@ -568,6 +568,19 @@ abstract class WhoopDatabase : RoomDatabase() {
             }
         }
 
+        /** #515 follow-up: keep deleted-sleep suppression independent from the Android Sleep screen's
+         *  recompute list. Existing markers remain visible after upgrade; hiding one only flips this
+         *  additive flag and never removes the tombstone that protects against re-detection. */
+        internal val DISMISSED_SLEEP_VISIBILITY_MIGRATION_SQL: List<String> = listOf(
+            "ALTER TABLE `dismissedSleep` ADD COLUMN `managementVisible` INTEGER NOT NULL DEFAULT 1",
+        )
+
+        internal val MIGRATION_21_22 = object : Migration(21, 22) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                for (stmt in DISMISSED_SLEEP_VISIBILITY_MIGRATION_SQL) db.execSQL(stmt)
+            }
+        }
+
         private fun build(appContext: Context): WhoopDatabase =
             Room.databaseBuilder(appContext, WhoopDatabase::class.java, DB_NAME)
                 // #1014: replace ONLY the corruption handling of the default open-helper. The
@@ -583,7 +596,7 @@ abstract class WhoopDatabase : RoomDatabase() {
                     MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
                     MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
                     MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18,
-                    MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21,
+                    MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22,
                 )
                 // #1037: a FRESH install builds the schema straight at the current version and runs NO
                 // migrations, so the MIGRATION_7_8 "my-whoop" registry seed never fires and the WHOOP,

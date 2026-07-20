@@ -1358,6 +1358,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return true
     }
 
+    /** Hide an unwanted deleted-sleep row from the persistent recompute card while preserving its
+     *  detector tombstone. This is deliberately separate from [recomputeDeletedSleep], which removes the
+     *  tombstone and can therefore allow that mistaken sleep to return (#515). */
+    suspend fun hideDeletedSleepWindow(marker: com.noop.data.DismissedSleep): Boolean =
+        runCatching {
+            repository.hideDeletedSleepWindow(marker.deviceId, marker.startTs)
+        }.getOrDefault(false)
+
     /** Manually add a missed nap as its OWN session (#508) — staged from raw, written under the computed
      *  source with userEdited=true so the recompute guard keeps it and it's never folded into main sleep —
      *  then re-score the affected day immediately so the day's aggregates pick up the new session, matching

@@ -372,6 +372,12 @@ class WhoopRepository(private val dao: WhoopDao) {
     suspend fun allowSleepReDetection(deviceId: String, startTs: Long) =
         dao.deleteDismissedSleep(deviceId, startTs)
 
+    /** Remove one deletion marker from the Sleep screen's management list without deleting the marker
+     *  itself. The detector-facing [dismissedSleeps] read intentionally still returns hidden markers, so
+     *  a mistaken sleep stays deleted after its now-irrelevant recompute row is dismissed (#515). */
+    suspend fun hideDeletedSleepWindow(deviceId: String, startTs: Long): Boolean =
+        dao.hideDismissedSleepFromManagement(deviceId, startTs) > 0
+
     /** #899 dedup heal: remove ONE sleep-session row WITHOUT the #33 dismissal tombstone. The heal
      *  deletes stale timebase-shifted duplicates of a night whose canonical copy is STAYING; a tombstone
      *  here would overlap the surviving night's window and permanently suppress its re-detection. Only
@@ -768,6 +774,7 @@ class WhoopRepository(private val dao: WhoopDao) {
     suspend fun dismissedSleepsUnion(activeDeviceId: String): List<DismissedSleep> =
         (importedSourceIds(activeDeviceId) + computedSourceIds(activeDeviceId))
             .flatMap { dao.dismissedSleeps(it) }
+            .filter { it.managementVisible }
             .distinctBy { it.deviceId to it.startTs }
             .sortedByDescending { it.endTs }
 

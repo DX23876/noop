@@ -452,13 +452,17 @@ data class DismissedWorkout(
  * re-derived by the recompute, mirroring [DismissedWorkout] (#107). PK (deviceId, startTs), keyed on
  * the deleted session's start; `endTs` is the span the recompute's overlap test uses (a re-detected
  * onset can drift second-to-second). iOS has the twin sleep-delete path since #68 (its tombstones live in
- * UserDefaults, not a table); the undo lifts a tombstone by (deviceId, startTs) (#65). Added by MIGRATION_9_10.
+ * UserDefaults, not a table); the undo lifts a tombstone by (deviceId, startTs) (#65).
+ * [managementVisible] controls only whether the Android Sleep screen offers this marker for
+ * recomputation. Hiding that row must never weaken the tombstone's suppression of re-detection (#515).
+ * Added by MIGRATION_9_10; managementVisible by MIGRATION_21_22.
  */
 @Entity(tableName = "dismissedSleep", primaryKeys = ["deviceId", "startTs"])
 data class DismissedSleep(
     val deviceId: String,
     val startTs: Long,
     val endTs: Long,
+    val managementVisible: Boolean = true,
 )
 
 /**

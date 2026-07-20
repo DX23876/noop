@@ -1493,7 +1493,11 @@
     <string name="l10n_sleep_screen_delete_this_sleep_session_c347b909">要删除这条睡眠记录吗？</string>
     <string name="l10n_sleep_screen_deleted_sleep_window_range_7bc5f027">%1$s – %2$s</string>
     <string name="l10n_sleep_screen_deleted_sleep_windows_46fea77a">已删除的睡眠时间段</string>
+    <string name="l10n_sleep_screen_deleted_sleep_window_hidden_5c848a32">已隐藏已删除的睡眠时段。它仍会保持删除状态。</string>
     <string name="l10n_sleep_screen_good_morning_33e88869">早上好！</string>
+    <string name="l10n_sleep_screen_couldn_t_hide_this_deleted_sleep_bbedac55">无法隐藏这个已删除的睡眠时段。请重试。</string>
+    <string name="l10n_sleep_screen_hide_7aee4b04">隐藏</string>
+    <string name="l10n_sleep_screen_hide_this_deleted_sleep_window_c349003f">隐藏这个已删除的睡眠时段</string>
     <string name="l10n_sleep_screen_couldn_t_reopen_this_night_try_88265690">无法恢复该晚的睡眠数据，请重试。</string>
     <string name="l10n_sleep_screen_if_this_sleep_came_only_from_d0892088">如果这段睡眠仅仅来源于外部导入，且手机内没有留存原始心率样本，它被删除后可能就无法恢复了。</string>
     <string name="l10n_sleep_screen_maybe_later_27ad1d83">以后再说</string>

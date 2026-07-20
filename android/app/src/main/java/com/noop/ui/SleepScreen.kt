@@ -426,6 +426,25 @@ fun SleepScreen(
                 DeletedSleepWindowsCard(
                     windows = dismissedSleeps,
                     recomputing = recomputingSleep,
+                    onHide = { marker ->
+                        scope.launch {
+                            val hidden = vm.hideDeletedSleepWindow(marker)
+                            if (hidden) {
+                                dismissedSleeps = dismissedSleeps.filterNot {
+                                    it.deviceId == marker.deviceId && it.startTs == marker.startTs
+                                }
+                            }
+                            Toast.makeText(
+                                context,
+                                if (hidden) {
+                                    uiString(R.string.l10n_sleep_screen_deleted_sleep_window_hidden_5c848a32)
+                                } else {
+                                    uiString(R.string.l10n_sleep_screen_couldn_t_hide_this_deleted_sleep_bbedac55)
+                                },
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                    },
                     onRecompute = { marker ->
                         val key = marker.deviceId to marker.startTs
                         recomputingSleep = key
@@ -720,6 +739,7 @@ private fun SleepUndoBanner(session: SleepSession, onUndo: () -> Unit) {
 private fun DeletedSleepWindowsCard(
     windows: List<DismissedSleep>,
     recomputing: Pair<String, Long>?,
+    onHide: (DismissedSleep) -> Unit,
     onRecompute: (DismissedSleep) -> Unit,
 ) {
     val dateFmt = remember { SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()) }
@@ -755,6 +775,21 @@ private fun DeletedSleepWindowsCard(
                         color = Palette.textSecondary,
                         modifier = Modifier.weight(1f),
                     )
+                    TextButton(
+                        enabled = recomputing == null,
+                        onClick = { onHide(marker) },
+                        modifier = Modifier.semantics {
+                            contentDescription = uiString(
+                                R.string.l10n_sleep_screen_hide_this_deleted_sleep_window_c349003f,
+                            )
+                        },
+                    ) {
+                        Text(
+                            uiString(R.string.l10n_sleep_screen_hide_7aee4b04),
+                            style = NoopType.subhead,
+                            color = if (recomputing == null) Palette.textSecondary else Palette.textTertiary,
+                        )
+                    }
                     TextButton(
                         enabled = recomputing == null,
                         onClick = { onRecompute(marker) },

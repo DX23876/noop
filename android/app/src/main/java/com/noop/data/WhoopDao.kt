@@ -661,6 +661,14 @@ interface WhoopDao : DeviceRegistryDao {
     @Query("SELECT * FROM dismissedSleep WHERE deviceId = :deviceId")
     suspend fun dismissedSleeps(deviceId: String): List<DismissedSleep>
 
+    /** Hide one tombstone from the Sleep screen's recompute list while leaving the row in place so the
+     *  detector continues to suppress the sleep the user deliberately deleted (#515). */
+    @Query(
+        "UPDATE dismissedSleep SET managementVisible = 0 " +
+            "WHERE deviceId = :deviceId AND startTs = :startTs",
+    )
+    suspend fun hideDismissedSleepFromManagement(deviceId: String, startTs: Long): Int
+
     /** Lift ONE deleted-sleep tombstone (#65 undo / "allow re-detection"): removes the marker so the
      *  night is re-detected from raw on the next analyze pass. Keyed by (deviceId, startTs): the same
      *  natural key the insert uses, so it removes exactly the tombstone [deleteSleepSession] wrote. */
