@@ -46,53 +46,79 @@ struct JournalReminderCard: View {
         let keys = Self.dayKeys()
         let todayKey = keys.last ?? ""
         let todayLogged = logged.contains(todayKey)
-        return Button {
-            router.openJournal()
-        } label: {
-            NoopCard(tint: StrandPalette.accent) {
-                VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-                    HStack(spacing: NoopMetrics.space2) {
-                        Image(systemName: "book.closed")
-                            .font(.system(size: 18))
-                            .foregroundStyle(StrandPalette.accent)
-                            .accessibilityHidden(true)
-                        Text(String(localized: "Journal"))
-                            .font(StrandFont.headline)
-                            .foregroundStyle(StrandPalette.textPrimary)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(StrandPalette.textTertiary)
-                            .accessibilityHidden(true)
-                    }
-                    // The last-N-days strip: one equal-width bar per day. Filled = logged; today is ringed
-                    // so the orientation is unambiguous even when nothing is logged yet.
-                    HStack(spacing: 6) {
-                        ForEach(keys, id: \.self) { key in
-                            let isLogged = logged.contains(key)
-                            RoundedRectangle(cornerRadius: 3)
-                                .fill(isLogged ? StrandPalette.accent : StrandPalette.textTertiary.opacity(0.22))
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 10)
-                                .overlay {
-                                    if key == todayKey, !isLogged {
-                                        RoundedRectangle(cornerRadius: 3)
-                                            .strokeBorder(StrandPalette.accent, lineWidth: 1)
-                                    }
-                                }
-                        }
-                    }
-                    Text(todayLogged
-                         ? String(localized: "Logged today")
-                         : String(localized: "Log today's journal"))
-                        .font(StrandFont.footnote)
-                        .foregroundStyle(todayLogged ? StrandPalette.textSecondary : StrandPalette.accent)
+        // No outer Button: each bar is its own tap target that deep-links the journal to THAT day (#656),
+        // and nested SwiftUI buttons don't work — so header + subtitle carry their own onTapGesture (→
+        // today) and the bars carry theirs. The regions are non-overlapping in the VStack, so a tap lands
+        // on exactly one. Tapping a bar does NOT set today, so a bar's day always wins.
+        return NoopCard(tint: StrandPalette.accent) {
+            VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                HStack(spacing: NoopMetrics.space2) {
+                    Image(systemName: "book.closed")
+                        .font(.system(size: 18))
+                        .foregroundStyle(StrandPalette.accent)
+                        .accessibilityHidden(true)
+                    Text(String(localized: "Journal"))
+                        .font(StrandFont.headline)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .accessibilityHidden(true)
                 }
+                .contentShape(Rectangle())
+                .onTapGesture { router.openJournal() }
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityLabel(Text(String(localized: "Journal")))
+                .accessibilityHint(Text(String(localized: "Open journal")))
+                // The last-N-days strip: one equal-width bar per day, each its own tap target. Filled =
+                // logged; today is ringed. Tapping a bar deep-links the journal to that day (#656).
+                HStack(spacing: 6) {
+                    ForEach(keys.indices, id: \.self) { i in
+                        let key = keys[i]
+                        let off = Self.stripDays - 1 - i          // keys[0] = 6 days ago … last = today
+                        let isLogged = logged.contains(key)
+                        Color.clear
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 22)                    // taller invisible tap target
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(isLogged ? StrandPalette.accent : StrandPalette.textTertiary.opacity(0.22))
+                                    .frame(height: 10)
+                                    .overlay {
+                                        if off == 0, !isLogged {
+                                            RoundedRectangle(cornerRadius: 3)
+                                                .strokeBorder(StrandPalette.accent, lineWidth: 1)
+                                        }
+                                    }
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture { router.openJournal(day: off) }
+                            .accessibilityAddTraits(.isButton)
+                            .accessibilityLabel(Self.barLabel(off))
+                    }
+                }
+                Text(todayLogged
+                     ? String(localized: "Logged today")
+                     : String(localized: "Log today's journal"))
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(todayLogged ? StrandPalette.textSecondary : StrandPalette.accent)
+                    .contentShape(Rectangle())
+                    .onTapGesture { router.openJournal() }
+                    .accessibilityAddTraits(.isButton)   // it opens the journal — announce it as one
             }
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(Text(String(localized: "Journal")))
-        .accessibilityHint(Text(String(localized: "Open journal")))
+    }
+
+    /// Screen-reader label for a strip bar (#656): the day it deep-links to. Twin of JournalLogCard's
+    /// day-picker labels; "%lld days ago" is a String Catalog key so it stays localized.
+    private static func barLabel(_ offset: Int) -> LocalizedStringKey {
+        switch offset {
+        case 0: return "Today"
+        case 1: return "Yesterday"
+        default: return "\(offset) days ago"
+        }
     }
 
     private func reload() async {

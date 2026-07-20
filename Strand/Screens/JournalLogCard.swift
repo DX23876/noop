@@ -86,9 +86,28 @@ struct JournalLogCard: View {
                     pillButton("Done", selected: true) { editing = false }
                 } else {
                     pillButton("Edit", selected: false) { editing = true }
-                    dayPill("Tomorrow", offset: -1)
-                    dayPill("Today", offset: 0)
-                    dayPill("Yesterday", offset: 1)
+                }
+            }
+            // Day picker (#656): a bounded, scrollable range — Tomorrow back through the last 7 days — so
+            // any recent day can be backfilled (was Yesterday/Today/Tomorrow only). Chronological
+            // left→right; snaps to the selected day, so a deep-link from the Today journal widget lands on
+            // that day's pill. Only when not editing.
+            if !editing {
+                ScrollViewReader { proxy in
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach(Self.journalDayOffsets, id: \.self) { off in
+                                dayPill(journalDayLabel(off), offset: off).id(off)
+                            }
+                        }
+                        .padding(.horizontal, 1)   // don't clip the selected pill's ring
+                    }
+                    // Defer the initial scroll a tick: scrollTo in onAppear can no-op before the pills lay
+                    // out, which would leave the picker on the oldest day instead of the selected one.
+                    .onAppear { DispatchQueue.main.async { proxy.scrollTo(dayOffset, anchor: .center) } }
+                    // onChangeCompat, not onChange: the zero/two-arg onChange is macOS 14+, and this card
+                    // is shared with the macOS 13 target.
+                    .onChangeCompat(of: dayOffset) { _ in proxy.scrollTo(dayOffset, anchor: .center) }
                 }
             }
             NoopCard(tint: StrandPalette.restColor) {
@@ -332,6 +351,22 @@ struct JournalLogCard: View {
         pillButton(label, selected: dayOffset == offset) {
             dayOffset = offset
             onChanged()   // reload the selected day's answers
+        }
+    }
+
+    /// The bounded day-picker range (#656): Tomorrow (-1) plus today and the 6 prior days, chronological
+    /// oldest → newest left-to-right. Bounded on purpose — journal answers feed the correlation engine, so
+    /// unbounded backfill of stale days would distort it (matches WHOOP's limited retroactive window).
+    private static let journalDayOffsets: [Int] = Array((-1...6).reversed())
+
+    /// Short pill label for a day-picker offset (daysBack; -1 = Tomorrow). "%lld days ago" is a String
+    /// Catalog key, so 2–6 stay localized just like the twin "%lld nights ago" (#527/#656).
+    private func journalDayLabel(_ offset: Int) -> LocalizedStringKey {
+        switch offset {
+        case -1: return "Tomorrow"
+        case 0: return "Today"
+        case 1: return "Yesterday"
+        default: return "\(offset) days ago"
         }
     }
 

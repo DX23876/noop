@@ -78,7 +78,16 @@ final class NavRouter: ObservableObject {
     /// directly today; this route exists for deep-link parity so a future shell/inbox item can raise it
     /// the same way as every other destination.
     func openLiveSession() { requestedDestination = .liveSession }
+    /// A journal day-offset (daysBack; -1 = Tomorrow) the Today journal widget deep-linked to, so tapping
+    /// a SPECIFIC day's bar opens the journal at THAT day instead of always today (#656). InsightsView
+    /// consumes it on appear and clears it back to nil. nil = open at today (the default).
+    @Published var pendingJournalDayOffset: Int?
+
     /// Open the journal (hosted in the classic Insights screen). The #627 Today journal widget taps here;
     /// iOS presents InsightsView (the journal quick-action sheet), macOS selects the Insights sidebar row.
-    func openJournal() { requestedDestination = .journal }
+    /// `day` (#656): a specific day-offset to open at (nil = today) — a tapped strip bar passes its day.
+    func openJournal(day offset: Int? = nil) {
+        pendingJournalDayOffset = offset
+        requestedDestination = .journal
+    }
 }
