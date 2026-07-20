@@ -193,6 +193,10 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     /// Assumed per-sample epoch for the estimate log (the ONE calibration knob; the cadence self-check
     /// above measures the real value). 60 s = Oura's common 1-minute MET resolution.
     private let activityEpochSeconds: Double = 60
+    /// Append-only JSONL research corpus for the raw 0x50 MET series (Tier-B, never scored/persisted to
+    /// SQLite). Created only on a live/persisting source (nil for the discovery-only scanner). Deduped by
+    /// ring-time so re-served records don't duplicate; logs its file path once when the first record lands.
+    private let activityDump: OuraActivityDump?
     /// Cached local-day formatter (the 0x50 stream is high-volume; avoid building one per record).
     private static let activityDayFormatter: DateFormatter = {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f   // local time zone by default
@@ -454,6 +458,8 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         self.onBattery = onBattery
         self.feedsLive = feedsLive
         self.adoptIntent = adoptIntent
+        // Tier-B MET research corpus: only on a live/persisting source, never the discovery-only scanner.
+        self.activityDump = feedsLive && !deviceId.isEmpty ? OuraActivityDump(deviceId: deviceId, log: log) : nil
         super.init()
         // Dedicated queue-less central -> callbacks arrive on the main queue, matching @MainActor.
         self.central = CBCentralManager(delegate: self, queue: nil)
@@ -848,6 +854,12 @@ public final class OuraLiveSource: NSObject, ObservableObject {
                 let utc = driver.unixSeconds(forRingTimestamp: info.ringTimestamp)
                 let when = utc.map { Self.cursorDateFormatter.string(from: Date(timeIntervalSince1970: TimeInterval($0))) } ?? "no anchor yet"
                 log("Oura: activity (Tier-B) [\(when)] state=\(info.state) met=\(info.met)")
+                // Append the raw record to the Tier-B research corpus (anchored records only; deduped by
+                // ring-time inside the writer). Diagnostic sidecar — never persisted to SQLite, never scored.
+                if let utc = utc {
+                    activityDump?.record(ringTs: info.ringTimestamp, utc: utc, state: info.state,
+                                         secPerSample: Int(activityEpochSeconds), met: info.met)
+                }
                 // Accumulate the MET series by local day for the drain-end estimate, and observe the
                 // per-sample cadence from consecutive record times (both investigation-only, never scored).
                 if let utc = utc {

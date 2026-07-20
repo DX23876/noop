@@ -220,6 +220,11 @@ class OuraLiveSource(
     private val bluetoothManager: BluetoothManager? =
         appContext.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
     private val adapter: BluetoothAdapter? = bluetoothManager?.adapter
+
+    /** Tier-B activity/MET research corpus writer (diagnostic JSONL sidecar; never scored, never a Streams
+     *  row). Null when there is no device id. The Kotlin twin of the Swift `OuraActivityDump`. */
+    private val activityDump: OuraActivityDump? =
+        if (deviceId.isNotEmpty()) OuraActivityDump(appContext, deviceId, log) else null
     private val scanner: BluetoothLeScanner? get() = adapter?.bluetoothLeScanner
 
     private var gatt: BluetoothGatt? = null
@@ -1179,13 +1184,22 @@ class OuraLiveSource(
                     log("Oura: Tier-B ${e.value.kind} seen (tag 0x${e.value.tag.toString(16)}) - raw: $hex")
                 }
             }
-            is OuraEvent.ActivityInfo ->
+            is OuraEvent.ActivityInfo -> {
                 // INVESTIGATION ONLY (0x50 activity/MET, Tier B - a plausible third-party formula, NOT
                 // ground-truth-validated; see OuraActivityInfo). Logged with the DECODED state/MET values
                 // every time (not once-per-kind): this is the tag under active plausibility evaluation, so
                 // every real capture is evidence. Never persisted, never scored, and NEVER converted into
                 // steps (MET is not a step count; OuraStreamMapping drops ActivityInfo unconditionally).
                 log("Oura: activity (Tier-B) state=${e.value.state} met=${e.value.met}")
+                // Append the raw record to the Tier-B research corpus (anchored records only; deduped by
+                // ring-time in the writer). Diagnostic sidecar - never persisted to the DB, never scored.
+                d.unixSeconds(forRingTimestamp = e.value.ringTimestamp)?.let { utc ->
+                    activityDump?.record(
+                        ringTs = e.value.ringTimestamp, utc = utc, state = e.value.state,
+                        secPerSample = 60, met = e.value.met, // 60 s = assumed MET cadence (s6.13)
+                    )
+                }
+            }
             // Motion / debugText / etc: not a durable Streams row (see OuraStreamMapping). StateEvent is
             // handled above (wear badge only, also not a Streams row).
             else -> Unit
