@@ -92,6 +92,24 @@ fun FullDayChartScreen(vm: AppViewModel, onBack: () -> Unit) {
 
     var metric by remember { mutableStateOf(TimelineMetric.Hr) }
     var ownedOnly by remember { mutableStateOf(true) }
+    // #623: is an empty SpO2 / respiration track "unsupported on this strap" or just "not this window"?
+    // A 5.0/MG never decodes either (4.0-only wire signals). But the canonical registry-model resolver
+    // (#171) maps legacy bare-"WHOOP" 4.0s to the 5.0 family too, and a 4.0-v24 DOES bank SpO2 — so gate
+    // the "not supported" copy on 5.0-family AND the strap having NEVER produced that metric, else a legacy
+    // 4.0-v24 with data on other days would contradict itself. `ever*` default true (assume produced) so a
+    // 4.0-v24 never flashes the wrong message before the async reads resolve.
+    var isWhoop5 by remember { mutableStateOf(false) }
+    var everSpo2 by remember { mutableStateOf(true) }
+    var everResp by remember { mutableStateOf(true) }
+    LaunchedEffect(deviceId) {
+        val model = runCatching { vm.pairedDevices() }.getOrDefault(emptyList())
+            .firstOrNull { it.id == deviceId }?.model
+        val whoop5 = DeviceFamily.forRegistryModel(model) == DeviceFamily.WHOOP5
+        isWhoop5 = whoop5
+        val now = System.currentTimeMillis() / 1000
+        everSpo2 = !whoop5 || runCatching { vm.repo.spo2Samples(deviceId, 0, now, 1) }.getOrDefault(emptyList()).isNotEmpty()
+        everResp = !whoop5 || runCatching { vm.repo.respSamples(deviceId, 0, now, 1) }.getOrDefault(emptyList()).isNotEmpty()
+    }
     // The visible window the gestures drive; null → the whole day.
     var window by remember { mutableStateOf<LongRange?>(null) }
     val visible = window ?: dayBounds
@@ -237,7 +255,16 @@ fun FullDayChartScreen(vm: AppViewModel, onBack: () -> Unit) {
                     when {
                         loading && points.isEmpty() ->
                             Text(stringResource(R.string.timeline_loading_day), style = NoopType.footnote, color = Palette.textTertiary)
-                        points.isEmpty() -> EmptyTimelineState(metric, ownedOnly)
+                        points.isEmpty() -> {
+                            // #623: the metric is genuinely UNSUPPORTED on this strap only when it's a
+                            // 5.0-family strap that has never produced it — not merely an empty window.
+                            val metricUnsupported = ownedOnly && isWhoop5 && when (metric) {
+                                TimelineMetric.Spo2 -> !everSpo2
+                                TimelineMetric.Respiration -> !everResp
+                                else -> false
+                            }
+                            EmptyTimelineState(metric, ownedOnly, metricUnsupported)
+                        }
                         else -> TimelineChart(
                             points = displayPoints,
                             windowStart = visible.first,
@@ -281,7 +308,7 @@ fun FullDayChartScreen(vm: AppViewModel, onBack: () -> Unit) {
 }
 
 @Composable
-private fun EmptyTimelineState(metric: TimelineMetric, ownedOnly: Boolean) {
+private fun EmptyTimelineState(metric: TimelineMetric, ownedOnly: Boolean, metricUnsupported: Boolean) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -289,11 +316,20 @@ private fun EmptyTimelineState(metric: TimelineMetric, ownedOnly: Boolean) {
     ) {
         Text(stringResource(R.string.timeline_empty_metric, metric.title.lowercase(Locale.US)),
             style = NoopType.body, color = Palette.textSecondary)
-        Text(
-            if (ownedOnly) stringResource(R.string.timeline_nothing_offloaded)
-            else stringResource(R.string.timeline_other_sources_no_offload),
-            style = NoopType.footnote, color = Palette.textTertiary, textAlign = TextAlign.Center,
-        )
+        // #623: when SpO2 / raw respiration is genuinely unsupported on this strap (a 5.0-family strap that
+        // has never produced it — those are 4.0-only wire signals), say so instead of a generic "nothing
+        // offloaded" that reads as broken, and point respiration at the Health screen where the R-R/RSA
+        // estimate surfaces. [metricUnsupported] already folds in the family + never-produced + ownedOnly
+        // gate, so a 4.0-v24 with data on other days keeps the generic message.
+        val reason = when {
+            metricUnsupported && metric == TimelineMetric.Spo2 ->
+                stringResource(R.string.timeline_spo2_not_on_whoop5)
+            metricUnsupported && metric == TimelineMetric.Respiration ->
+                stringResource(R.string.timeline_resp_not_on_whoop5)
+            ownedOnly -> stringResource(R.string.timeline_nothing_offloaded)
+            else -> stringResource(R.string.timeline_other_sources_no_offload)
+        }
+        Text(reason, style = NoopType.footnote, color = Palette.textTertiary, textAlign = TextAlign.Center)
     }
 }
 

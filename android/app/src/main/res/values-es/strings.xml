@@ -1682,6 +1682,8 @@
         <item quantity="one">%1$d entrenamiento</item>
         <item quantity="other">%1$d entrenamientos</item>
     </plurals>
+    <string name="timeline_spo2_not_on_whoop5">Esta correa no envía SpO₂ por Bluetooth. Importa una exportación de WHOOP o Health Connect para verlo.</string>
+    <string name="timeline_resp_not_on_whoop5">Esta correa no envía datos de respiración sin procesar. Tu frecuencia respiratoria estimada aparece en la pantalla Salud.</string>
     <string name="l10n_data_sources_screen_last_shared_6bf8389c">"Compartido por última vez "</string>
     <string name="l10n_data_sources_screen_sharing_paused_health_connect_permission_was_e8950315">Uso compartido en pausa: se revocó el permiso de Health Connect. Toca para volver a concederlo.</string>
     <string name="l10n_data_sources_screen_last_share_didn_t_finish_noop_0d6c27f0">El último uso compartido no se completó: NOOP lo reintentará automáticamente.</string>

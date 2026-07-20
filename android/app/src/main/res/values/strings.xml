@@ -1706,6 +1706,8 @@
         <item quantity="one">%1$d workout</item>
         <item quantity="other">%1$d workouts</item>
     </plurals>
+    <string name="timeline_spo2_not_on_whoop5">This strap doesn\'t send SpO₂ over Bluetooth. Import a WHOOP export or Health Connect to see it.</string>
+    <string name="timeline_resp_not_on_whoop5">This strap sends no raw respiration stream. Your estimated respiratory rate appears on the Health screen.</string>
     <string name="l10n_data_sources_screen_last_shared_6bf8389c">"Last shared "</string>
     <string name="l10n_data_sources_screen_sharing_paused_health_connect_permission_was_e8950315">Sharing paused — Health Connect permission was revoked. Tap to re-grant.</string>
     <string name="l10n_data_sources_screen_last_share_didn_t_finish_noop_0d6c27f0">Last share didn’t finish — NOOP will retry automatically.</string>

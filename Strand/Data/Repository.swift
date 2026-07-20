@@ -1536,6 +1536,32 @@ final class Repository: ObservableObject {
         return out
     }
 
+    /// Family of the ACTIVE strap (#623), for the deep timeline's family-specific empty-state copy. Reuses
+    /// the canonical `DeviceFamily.forRegistryModel` (#171) with its `.whoop5` fallback for nil/unknown/
+    /// ambiguous, matching Android's `FullDayChartScreen`. Best-effort: no store / unreadable registry → `.whoop5`.
+    func activeStrapFamily() -> DeviceFamily {
+        guard let store else { return .whoop5 }
+        let devices = (try? DeviceRegistryStore(dbQueue: store.registryWriter).all()) ?? []
+        return DeviceFamily.forRegistryModel(devices.first(where: { $0.id == deviceId })?.model)
+    }
+
+    /// Whether the active strap has EVER banked a sample of `metric` (#623) — distinguishes a strap that
+    /// never produces it (honest "not supported on this strap" copy) from one with just an unsynced window.
+    /// Only SpO₂/respiration are asked; any other metric returns true so the generic empty copy stands.
+    /// Twin of the Android `FullDayChartScreen` `everSpo2`/`everResp` reads. Best-effort.
+    func strapHasEverProduced(_ metric: TimelineMetric) async -> Bool {
+        guard let store else { return true }
+        let now = Int(Date().timeIntervalSince1970)
+        switch metric {
+        case .spo2:
+            return !(((try? await store.spo2Samples(deviceId: deviceId, from: 0, to: now, limit: 1)) ?? []).isEmpty)
+        case .respiration:
+            return !(((try? await store.respSamples(deviceId: deviceId, from: 0, to: now, limit: 1)) ?? []).isEmpty)
+        default:
+            return true
+        }
+    }
+
     /// Raw points for a non-HR timeline metric, mapped to display units (skin temp → °C DEVICE-FAMILY-AWARE
     /// via `skinTempCelsius`: 5/MG centidegrees (#156), WHOOP 4.0 v24 raw ADC (#938); HRV → per-RR
     /// instantaneous from RR ms; respiration/SpO₂/motion as the stored signal). Empty when the strap
