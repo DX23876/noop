@@ -52,30 +52,70 @@ struct CoachHistoryView: View {
         }
     }
 
+    /// Live threads, most-recent-first (the sweep and manual archiving keep these out of the way).
+    private var activeConversations: [CoachConversation] { coach.conversations.filter { !$0.archived } }
+    /// Auto-archived threads — past daily briefs the user never replied to, plus anything archived by hand.
+    private var archivedConversations: [CoachConversation] { coach.conversations.filter { $0.archived } }
+
     private var list: some View {
         List {
-            ForEach(coach.conversations) { convo in
-                Button { coach.switchTo(convo.id); onPick() } label: { row(convo) }
-                    .buttonStyle(.plain)
-                    .listRowBackground(StrandPalette.surfaceBase)
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button(role: .destructive) { coach.deleteConversation(convo.id) } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
-                        Button { beginRename(convo) } label: {
-                            Label("Rename", systemImage: "pencil")
-                        }
-                        .tint(StrandPalette.accent)
+            ForEach(activeConversations) { convo in
+                conversationRow(convo)
+            }
+            if !archivedConversations.isEmpty {
+                Section {
+                    ForEach(archivedConversations) { convo in
+                        conversationRow(convo)
                     }
-                    .contextMenu {
-                        Button { beginRename(convo) } label: { Label("Rename", systemImage: "pencil") }
-                        Button(role: .destructive) { coach.deleteConversation(convo.id) } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
-                    }
+                } header: {
+                    Text("Archived")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
             }
         }
         .listStyle(.plain)
+    }
+
+    private func conversationRow(_ convo: CoachConversation) -> some View {
+        Button { coach.switchTo(convo.id); onPick() } label: { row(convo) }
+            .buttonStyle(.plain)
+            .listRowBackground(StrandPalette.surfaceBase)
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                Button(role: .destructive) { coach.deleteConversation(convo.id) } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+                if convo.archived {
+                    Button { coach.setArchived(convo.id, false) } label: {
+                        Label("Unarchive", systemImage: "tray.and.arrow.up")
+                    }
+                    .tint(StrandPalette.accent)
+                } else {
+                    Button { coach.setArchived(convo.id, true) } label: {
+                        Label("Archive", systemImage: "archivebox")
+                    }
+                    .tint(StrandPalette.textSecondary)
+                }
+                Button { beginRename(convo) } label: {
+                    Label("Rename", systemImage: "pencil")
+                }
+                .tint(StrandPalette.accent)
+            }
+            .contextMenu {
+                Button { beginRename(convo) } label: { Label("Rename", systemImage: "pencil") }
+                if convo.archived {
+                    Button { coach.setArchived(convo.id, false) } label: {
+                        Label("Unarchive", systemImage: "tray.and.arrow.up")
+                    }
+                } else {
+                    Button { coach.setArchived(convo.id, true) } label: {
+                        Label("Archive", systemImage: "archivebox")
+                    }
+                }
+                Button(role: .destructive) { coach.deleteConversation(convo.id) } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
     }
 
     private func row(_ convo: CoachConversation) -> some View {

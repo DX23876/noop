@@ -637,6 +637,11 @@ final class AICoachEngine: ObservableObject {
 
         // Rebuild the in-memory chart artifacts for the active conversation from their snapshots.
         rebuildChartsForActive()
+
+        // Archive yesterday's untouched brief threads on launch (#R8) so they don't accumulate in the
+        // main list. The active thread is exempt; if it's itself a stale brief, the next brief opens a
+        // new thread and this sweep catches the old one then.
+        archiveStaleAutoThreads()
     }
 
     /// Debounced transcript persistence (see init).
@@ -671,6 +676,13 @@ final class AICoachEngine: ObservableObject {
         activeConversationID = id
         errorText = nil
         rebuildChartsForActive()
+    }
+
+    /// Move a conversation into (or out of) the history's Archived section (#R8). The manual companion to
+    /// the automatic sweep: the user can archive a thread themselves, or restore one the sweep tucked away.
+    func setArchived(_ id: UUID, _ archived: Bool) {
+        guard let idx = conversations.firstIndex(where: { $0.id == id }) else { return }
+        conversations[idx].archived = archived
     }
 
     /// Rename a conversation (user-set titles are kept; auto-titling won't overwrite them).
@@ -1550,7 +1562,40 @@ final class AICoachEngine: ObservableObject {
         let today = Repository.logicalDayKey(Date())
         guard UserDefaults.standard.string(forKey: Self.lastBriefDayKey) != today else { return }
         if let last = messages.last, Repository.logicalDayKey(last.date) == today { return }
+        // Each day's brief lands in its OWN thread (#R8) so yesterday's can be archived out of the main
+        // history list without disturbing the user's real chats. The gate above guarantees the active
+        // thread is stale or empty here, so switching away from it is never disruptive.
+        startBriefThread()
         await runBriefCancellable()
+        archiveStaleAutoThreads()
+    }
+
+    /// Give the day's brief its own thread (#R8). Reuse the active conversation only when it's already
+    /// empty — otherwise the brief would append onto the user's last chat and could never be archived
+    /// on its own. Mirrors `newConversation`'s summarise-on-leave and empty-reuse rules.
+    private func startBriefThread() {
+        if let cur = activeConversation, cur.messages.isEmpty { return }
+        if let leaving = activeConversationID { maybeSummarize(leaving) }
+        let fresh = CoachConversation(title: String(localized: "Today's brief"))
+        conversations.insert(fresh, at: 0)
+        activeConversationID = fresh.id
+        chartsByMessage = [:]
+        errorText = nil
+    }
+
+    /// Day-boundary sweep (#R8): archive auto-only threads — a brief or nudge the user never replied to —
+    /// whose last activity predates today, moving them into the history's Archived section. Never touches
+    /// the active thread, a thread the user actually took a turn in, or one already archived. Purely
+    /// additive: nothing is deleted, and an archived thread stays findable and restorable.
+    func archiveStaleAutoThreads() {
+        let today = Repository.logicalDayKey(Date())
+        for idx in conversations.indices {
+            let c = conversations[idx]
+            guard !c.archived, c.id != activeConversationID, c.isAutoOnly,
+                  let last = c.messages.last,
+                  Repository.logicalDayKey(last.date) != today else { continue }
+            conversations[idx].archived = true
+        }
     }
 
     /// Run the brief as `sendTask` so the composer's Stop button actually cancels it — previously the

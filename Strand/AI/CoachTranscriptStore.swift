@@ -25,6 +25,18 @@ struct CoachConversation: Identifiable, Codable, Equatable {
     /// How many messages had been summarised at the last run, so the maintainer only re-summarises when
     /// enough new turns have accrued (cost control).
     var summarizedCount: Int?
+    /// Whether this thread has been auto-archived out of the main history list (#R8). Set by the
+    /// day-boundary sweep on stale, auto-only threads — a "Today's brief" the user never replied to,
+    /// once its day has passed. Archived threads stay on disk and stay findable in the history's
+    /// "Archived" section; nothing is deleted. Additive, back-compat decode (old JSON lacks the key).
+    var archived: Bool
+
+    /// True when the user never took a turn here — the thread is purely auto-generated coach content
+    /// (a morning brief, a nudge, a weekly review). Those are what the sweep may archive; a thread the
+    /// user actually replied in is a real conversation and is left alone. Empty threads are neither.
+    var isAutoOnly: Bool {
+        !messages.isEmpty && !messages.contains { $0.role == .user }
+    }
 
     init(id: UUID = UUID(),
          title: String = "",
@@ -33,7 +45,8 @@ struct CoachConversation: Identifiable, Codable, Equatable {
          messages: [ChatMessage] = [],
          charts: [String: CoachChartSnapshot] = [:],
          summary: String? = nil,
-         summarizedCount: Int? = nil) {
+         summarizedCount: Int? = nil,
+         archived: Bool = false) {
         self.id = id
         self.title = title
         self.createdAt = createdAt
@@ -42,6 +55,24 @@ struct CoachConversation: Identifiable, Codable, Equatable {
         self.charts = charts
         self.summary = summary
         self.summarizedCount = summarizedCount
+        self.archived = archived
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, title, createdAt, updatedAt, messages, charts, summary, summarizedCount, archived
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        title = try c.decode(String.self, forKey: .title)
+        createdAt = try c.decode(Date.self, forKey: .createdAt)
+        updatedAt = try c.decode(Date.self, forKey: .updatedAt)
+        messages = try c.decode([ChatMessage].self, forKey: .messages)
+        charts = try c.decodeIfPresent([String: CoachChartSnapshot].self, forKey: .charts) ?? [:]
+        summary = try c.decodeIfPresent(String.self, forKey: .summary)
+        summarizedCount = try c.decodeIfPresent(Int.self, forKey: .summarizedCount)
+        archived = try c.decodeIfPresent(Bool.self, forKey: .archived) ?? false
     }
 
     /// A short title derived from the first user message, for a conversation the user hasn't renamed.
