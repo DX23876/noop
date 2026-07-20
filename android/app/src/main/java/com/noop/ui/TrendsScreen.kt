@@ -7,7 +7,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -777,19 +776,19 @@ private fun ChartWithAxes(
     // through ChartWithAxes); SharedPreferences isn't reactive, but returning from Settings recomposes the
     // Trends screen, which re-reads it — the same read-on-recompose the Effort scale toggle relies on.
     val chartStyle = UnitPrefs.trendChartStyle(LocalContext.current)
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(
-            modifier = Modifier.height(IntrinsicSize.Min),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(
+            modifier = Modifier.height(Metrics.chartHeight),
+            verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            Column(
-                modifier = Modifier.height(Metrics.chartHeight),
-                verticalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(formatY(maxV), style = NoopType.footnote, color = Palette.textTertiary, maxLines = 1)
-                Text(formatY(avgV), style = NoopType.footnote, color = Palette.textTertiary, maxLines = 1)
-                Text(formatY(minV), style = NoopType.footnote, color = Palette.textTertiary, maxLines = 1)
-            }
+            Text(formatY(maxV), style = NoopType.footnote, color = Palette.textTertiary, maxLines = 1)
+            Text(formatY(avgV), style = NoopType.footnote, color = Palette.textTertiary, maxLines = 1)
+            Text(formatY(minV), style = NoopType.footnote, color = Palette.textTertiary, maxLines = 1)
+        }
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
             // The shared LineChart with a glowing "now" end-cap drawn on top , the Bevel idiom from
             // Today's OverviewHRChart. The cap reproduces LineChart's own point geometry (same
             // strokePx/topPad/bottomPad) so the dot lands exactly on the line's final sample.
@@ -801,7 +800,7 @@ private fun ChartWithAxes(
             val plotHeight = Metrics.chartHeight * (1f - headroom.coerceIn(0f, 0.5f))
             Box(
                 modifier = Modifier
-                    .weight(1f)
+                    .fillMaxWidth()
                     .height(Metrics.chartHeight),
                 contentAlignment = Alignment.BottomCenter,
             ) {
@@ -833,22 +832,46 @@ private fun ChartWithAxes(
                     }
                 }
             }
-        }
-        if (dates.size >= 2) {
-            Row(modifier = Modifier.fillMaxWidth()) {
-                listOf(dates.first(), dates.getOrNull(dates.lastIndex / 2), dates.last()).forEach { d ->
-                    Text(
-                        prettyAxisDate(d),
-                        style = NoopType.footnote,
-                        color = Palette.textTertiary,
-                        modifier = Modifier.weight(1f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+            val axisLabels = trendAxisLabels(dates)
+            if (axisLabels.isNotEmpty()) {
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    axisLabels.forEach { label ->
+                        Text(
+                            prettyAxisDate(label.day),
+                            style = NoopType.footnote,
+                            color = Palette.textTertiary,
+                            modifier = Modifier.weight(1f),
+                            textAlign = when (label.anchor) {
+                                TrendAxisAnchor.START -> TextAlign.Start
+                                TrendAxisAnchor.CENTER -> TextAlign.Center
+                                TrendAxisAnchor.END -> TextAlign.End
+                            },
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             }
         }
     }
+}
+
+internal enum class TrendAxisAnchor { START, CENTER, END }
+
+internal data class TrendAxisLabel(val day: String, val anchor: TrendAxisAnchor)
+
+/** Selects date labels and pins them to the corresponding start, middle, and end of the plot. */
+internal fun trendAxisLabels(dates: List<String>): List<TrendAxisLabel> = when {
+    dates.size < 2 -> emptyList()
+    dates.size == 2 -> listOf(
+        TrendAxisLabel(dates.first(), TrendAxisAnchor.START),
+        TrendAxisLabel(dates.last(), TrendAxisAnchor.END),
+    )
+    else -> listOf(
+        TrendAxisLabel(dates.first(), TrendAxisAnchor.START),
+        TrendAxisLabel(dates[dates.lastIndex / 2], TrendAxisAnchor.CENTER),
+        TrendAxisLabel(dates.last(), TrendAxisAnchor.END),
+    )
 }
 
 /** ISO "yyyy-MM-dd" → "d MMM"; falls back to the raw string (or "" when null) if it doesn't parse. */
