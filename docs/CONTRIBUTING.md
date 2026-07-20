@@ -209,6 +209,30 @@ personal build. See [`BUILD.md`](BUILD.md) for the signed-bundle recipe and pair
 - No new third-party dependency unless it's discussed first. Today the only ones are **GRDB.swift**
   (SQLite) and **ZIPFoundation** (export unzip), both via SwiftPM.
 
+### What CI gates — and what it deliberately doesn't
+
+NOOP runs a **deliberately lean CI**: fast, no-hardware checks guard the point of merge, while heavier
+and hardware-dependent verification runs at release time or on demand. This is a choice for an
+anonymous, offline, sideloaded project — not a gap to fill with more gates.
+
+- **On every PR (required):** `swift-packages` runs `swift test` for `Packages/**`; `i18n-coverage`
+  runs the string audit. These catch the regressions that matter most (protocol/analytics math,
+  storage, i18n) without a device or an Xcode/Gradle app build.
+- **Disabled by design — you build the app yourself:** `app-build.yml` (app-target compile, iOS needs
+  `macos-26`) and `android.yml` (Android app build) are **off**. So a compile error in **app-target**
+  code (SwiftUI Views, `BLEManager`, `Repository`, a Compose screen) passes every default check.
+  Before you push app-layer changes, compile locally — `xcodebuild … build` /
+  `./gradlew compileFullDebugKotlin` — or dispatch `app-build.yml` on demand.
+- **Gated at release, not per PR:** Android release lint (`lintVitalFullRelease`) runs inside
+  `assembleFullRelease` in the staging/release builds, so lint-fatal issues (e.g. an
+  `ExtraTranslation` in a `values-<lang>` file) surface there. Run `./gradlew lintVitalFullRelease`
+  locally before a release if you touched `res/`.
+- **On demand:** `app-build.yml` also runs the `StrandTests` macOS integration suite; dispatch it when
+  you change app-target Swift that no package test covers.
+- **Absent on purpose:** dependency/vuln scanning and Android instrumentation/connected tests. The
+  dependency set is small and pinned, there is no server or telemetry, and BLE/offload behavior is
+  validated **on a real strap** — compile-success proves nothing about connection behavior.
+
 ---
 
 ## The design system is the law
