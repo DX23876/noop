@@ -466,9 +466,15 @@ fun SleepScreen(
             // the selected day's model failed to build (#940): real data over a zeroed gauge.
             item {
                 RestHero(
-                    score = (model ?: tilesModel)?.performance?.latest,
+                    // The DISPLAYED night's score (keyed by its wake-day), so the hero tracks the
+                    // ◀/▶-navigated night instead of freezing on the full-history latest. When no night
+                    // resolves but history exists (#940), keep the old "real data over a zeroed gauge"
+                    // fallback to the latest score.
+                    score = if (night != null) heroPerformanceScore(night, days, imported)
+                            else tilesModel?.performance?.latest,
                     asleepMin = model?.stages?.asleep,
-                    source = restHeroSource(imported, days),
+                    source = restHeroSource(imported, night?.dayKey ?: days.lastOrNull()?.day),
+                    overline = nightRelativeLabel(nightOffset),
                 )
             }
             item { Spacer(Modifier.height(Metrics.selectorTopUp)) }
@@ -798,9 +804,9 @@ private val LIQUID_HERO_RADIUS: Dp = 26.dp
 // figures, fraction math and Rest tint are UNCHANGED from the BevelGauge this replaced — presentation-only.
 
 @Composable
-private fun RestHero(score: Double?, asleepMin: Double?, source: String) {
+private fun RestHero(score: Double?, asleepMin: Double?, source: String, overline: String) {
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-        SectionHeader("Sleep performance", overline = "Last night", trailing = "Rest")
+        SectionHeader("Sleep performance", overline = overline, trailing = "Rest")
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -893,14 +899,41 @@ private fun sleepScoreWord(score: Double): String = when {
 }
 
 /**
- * Whether the night's sleep-performance score is WHOOP's own imported figure or NOOP's on-device
- * approximation — so the hero is honest about provenance, like Today's badges. Mirrors the macOS
- * SleepView.sleepScoreSource.
+ * Short night-relative label ("Last night" / "1 night ago" / "N nights ago") for the ◀/▶-navigated
+ * night. Shared by the Rest hero overline and the hypnogram nav header so both name the SAME night
+ * the hero's score is resolved for. Mirrors iOS SleepView.nightRelativeLabel.
  */
-private fun restHeroSource(imported: ImportedSleepSeries, days: List<DailyMetric>): String {
-    val lastDay = days.lastOrNull()?.day
-    return if (lastDay != null && imported.performance[lastDay] != null) "Whoop" else "On-device"
+internal fun nightRelativeLabel(offset: Int): String = when (offset) {
+    0 -> "Last night"
+    1 -> "1 night ago"
+    else -> "$offset nights ago"
 }
+
+/**
+ * The sleep-performance score (0–100) for a SPECIFIC navigated night: the imported WHOOP figure for
+ * that night's wake-day when the export carried one, else the resolved Rest composite for that day.
+ * Mirrors the per-day transform in [buildSleepModel]'s `performance` series (and iOS
+ * SleepView.performanceScore), keyed by [HeroNight.dayKey], so a navigated past night reads ITS OWN
+ * score rather than the full-history latest. Null when there is no navigated night or that day has
+ * no score.
+ */
+private fun heroPerformanceScore(
+    night: HeroNight?, days: List<DailyMetric>, imported: ImportedSleepSeries,
+): Double? {
+    val wakeDay = night?.dayKey ?: return null
+    imported.performance[wakeDay]?.let { return it }
+    val daily = days.lastOrNull { it.day == wakeDay } ?: return null
+    return com.noop.analytics.RestScorer.restFromDaily(daily)
+}
+
+/**
+ * Whether a SPECIFIC night's sleep-performance score is WHOOP's own imported figure or NOOP's
+ * on-device approximation — so the hero is honest about provenance, like Today's badges. Keyed by the
+ * night's wake-day (matching [heroPerformanceScore]) so a navigated night's badge tracks ITS OWN
+ * score's provenance, not last night's. Mirrors the macOS SleepView.heroSource.
+ */
+private fun restHeroSource(imported: ImportedSleepSeries, wakeDay: String?): String =
+    if (wakeDay != null && imported.performance[wakeDay] != null) "Whoop" else "On-device"
 
 // MARK: - 1. HERO — stage breakdown for the navigated night
 
@@ -2142,11 +2175,7 @@ private fun NightNavHeader(
         )
     }
 
-    val nightLabel = when (offset) {
-        0 -> "Last night"
-        1 -> "1 night ago"
-        else -> "$offset nights ago"
-    }
+    val nightLabel = nightRelativeLabel(offset)
     val blockShape = RoundedCornerShape(Metrics.cornerSm)
     val clockParts = clock?.split(" · ", limit = 2)
     val dateLabel = clockParts?.getOrNull(0)

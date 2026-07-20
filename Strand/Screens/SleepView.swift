@@ -328,11 +328,40 @@ struct SleepView: View {
         .accessibilityLabel(message)
     }
 
-    /// The fill fraction (0…1) the Rest hero gauge animates to — the night's sleep-performance
-    /// score over 100. 0 when no score exists (the headline-hours hero shows instead). Cheap, so
-    /// it's read every render to drive the draw-in animation.
+    /// A short night-relative label ("Last night" / "1 night ago" / "N nights ago") for the
+    /// ◀/▶-navigated night. Shared by the Rest hero overline and the hypnogram nav header so both
+    /// name the SAME night the hero's score is now resolved for.
+    private var nightRelativeLabel: LocalizedStringKey {
+        nightOffset == 0 ? "Last night"
+            : (nightOffset == 1 ? "1 night ago" : "\(nightOffset) nights ago")
+    }
+
+    /// The night the Rest hero reflects: the ◀/▶-navigated night while browsing (falling back to
+    /// last night only if that navigated night hasn't decoded yet), else last night. Keeps the
+    /// hero's score, vessel fill, state word, provenance badge and overline on the SAME night the
+    /// hypnogram shows — the fix for the score freezing on last night's value during navigation.
+    private func heroNight(_ model: SleepModel) -> Night {
+        (nightOffset == 0 ? model.night : navNight) ?? model.night
+    }
+
+    /// The sleep-performance score (0–100) for a SPECIFIC night: the imported WHOOP figure for that
+    /// night's LOCAL wake-day when the export carried one, else the resolved Rest composite for that
+    /// day. Mirrors `performanceSeries`'s per-day transform exactly (the same single source of truth
+    /// the Today Rest score reads), keyed by the wake-day (sleep is filed under the day you woke) so
+    /// a navigated past night reads ITS OWN score, never last night's. nil when that day has no score.
+    private func performanceScore(for night: Night) -> Double? {
+        let wakeDay = Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(night.session.endTs)))
+        if let p = repo.importedSleep[wakeDay]?.performancePct { return p }
+        guard let daily = repo.days.last(where: { $0.day == wakeDay }) else { return nil }
+        return AnalyticsEngine.Rest.composite(daily: daily)
+    }
+
+    /// The fill fraction (0…1) the Rest hero gauge animates to — the DISPLAYED night's sleep-
+    /// performance score over 100. 0 when no score exists (the headline-hours hero shows instead).
+    /// Cheap, so it's read every render to drive the draw-in animation; keyed off the navigated
+    /// night so the vessel re-animates as you browse ◀/▶.
     private func heroScoreFraction(_ model: SleepModel?) -> Double {
-        guard let p = model?.performance.latest else { return 0 }
+        guard let model, let p = performanceScore(for: heroNight(model)) else { return 0 }
         return min(max(p / 100.0, 0), 1)
     }
 
@@ -341,12 +370,14 @@ struct SleepView: View {
     /// counting up over it (the SAME hero language Today's score cells and the Trends headline use);
     /// otherwise a big SF-Rounded hours-slept headline over the same backdrop. A `SourceBadge` states
     /// whether the score is WHOOP's own imported figure or NOOP's on-device estimate. Presentation-only
-    /// — the number comes straight from the existing `model.performance.latest` / hours computation.
+    /// — the score is `performanceScore(for:)` on the ◀/▶-navigated `heroNight`, so the hero tracks the
+    /// same night the hypnogram shows (was pinned to `performance.latest` = last night regardless).
     @ViewBuilder
     private func restHero(_ model: SleepModel) -> some View {
-        let score = model.performance.latest
+        let night = heroNight(model)
+        let score = performanceScore(for: night)
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-            SectionHeader("Sleep performance", overline: "Last night", trailing: String(localized: "Rest"))
+            SectionHeader("Sleep performance", overline: nightRelativeLabel, trailing: String(localized: "Rest"))
             // A subtle night atmosphere sits behind the sleep hero ONLY (the Rest world's whisper:
             // faint indigo wash + crescent moon over the near-black canvas, no glow), clipped to the
             // card. Replaces the now-flat ScenicHeroBackground here.
@@ -386,7 +417,7 @@ struct SleepView: View {
                     // whose minutes tick up on appear (the same count-up the scored hero gets).
                     VStack(spacing: NoopMetrics.space1) {
                         CountUpText(
-                            value: model.night.stages.asleep,
+                            value: night.stages.asleep,
                             format: { durationText($0) },
                             font: StrandFont.number(46),
                             color: StrandPalette.restBright
@@ -398,7 +429,7 @@ struct SleepView: View {
                     .padding(.vertical, NoopMetrics.space5)
                     .accessibilityElement(children: .combine)
                 }
-                SourceBadge(score != nil ? sleepScoreSource(model) : "On-device", tint: StrandPalette.restColor)
+                SourceBadge(score != nil ? heroSource(for: night) : "On-device", tint: StrandPalette.restColor)
             }
             .padding(NoopMetrics.cardInnerPadding + NoopMetrics.space1)
             .frame(maxWidth: .infinity)
@@ -417,13 +448,13 @@ struct SleepView: View {
         }
     }
 
-    /// Whether the night's sleep-performance score is WHOOP's own imported figure or NOOP's
-    /// on-device approximation — so the hero is honest about provenance, like Today's badges.
-    private func sleepScoreSource(_ model: SleepModel) -> LocalizedStringKey {
-        if let lastDay = repo.days.last?.day, repo.importedSleep[lastDay]?.performancePct != nil {
-            return "Whoop"
-        }
-        return "On-device"
+    /// Whether a SPECIFIC night's sleep-performance score is WHOOP's own imported figure or NOOP's
+    /// on-device approximation — so the hero is honest about provenance, like Today's badges. Keyed
+    /// by the night's wake-day (matching `performanceScore(for:)`) so a navigated night's badge
+    /// tracks ITS OWN score's provenance, not last night's. LocalizedStringKey to match `SourceBadge`.
+    private func heroSource(for night: Night) -> LocalizedStringKey {
+        let wakeDay = Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(night.session.endTs)))
+        return repo.importedSleep[wakeDay]?.performancePct != nil ? "Whoop" : "On-device"
     }
 
     // MARK: - Provenance for the displayed night (COMPONENT 4, spec 2026-06-20)
@@ -2099,8 +2130,7 @@ struct SleepView: View {
     @ViewBuilder
     private func nightNavHeader(trailing: String) -> some View {
         let lastIndex = max(navDays.count - 1, 0)
-        let title: LocalizedStringKey = nightOffset == 0 ? "Last night"
-            : (nightOffset == 1 ? "1 night ago" : "\(nightOffset) nights ago")
+        let title = nightRelativeLabel
         VStack(alignment: .leading, spacing: NoopMetrics.cardInnerSpacing) {
             HStack(spacing: NoopMetrics.cardInnerSpacing) {
                 Button { if nightOffset < lastIndex { nightOffset += 1 } } label: {
