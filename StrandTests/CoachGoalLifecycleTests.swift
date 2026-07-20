@@ -18,56 +18,132 @@ final class CoachGoalLifecycleTests: XCTestCase {
 
     func testMarkAchievedClosesTheGoalAndLogsIt() {
         let store = freshStore()
-        store.goal = activeGoal()
+        let goal = activeGoal()
+        store.goals = [goal]
 
-        store.markAchieved()
+        store.markAchieved(goal.id)
 
-        XCTAssertEqual(store.goal?.status, .achieved)
-        XCTAssertEqual(store.goal?.history.last?.what, "Goal achieved")
+        XCTAssertEqual(store.goal(id: goal.id)?.status, .achieved)
+        XCTAssertEqual(store.goal(id: goal.id)?.history.last?.what, "Goal achieved")
     }
 
     func testSetAsideRecordsTheReasonInTheStory() {
         let store = freshStore()
-        store.goal = activeGoal()
+        let goal = activeGoal()
+        store.goals = [goal]
 
-        store.setAside(reason: "injury or health")
+        store.setAside(goal.id, reason: "injury or health")
 
-        XCTAssertEqual(store.goal?.status, .abandoned)
-        XCTAssertEqual(store.goal?.history.last?.what, "Goal set aside — injury or health")
+        XCTAssertEqual(store.goal(id: goal.id)?.status, .abandoned)
+        XCTAssertEqual(store.goal(id: goal.id)?.history.last?.what, "Goal set aside — injury or health")
     }
 
     func testSetAsideWithoutReasonStaysClean() {
         let store = freshStore()
-        store.goal = activeGoal()
+        let goal = activeGoal()
+        store.goals = [goal]
 
-        store.setAside(reason: "   ")
+        store.setAside(goal.id, reason: "   ")
 
-        XCTAssertEqual(store.goal?.history.last?.what, "Goal set aside",
+        XCTAssertEqual(store.goal(id: goal.id)?.history.last?.what, "Goal set aside",
                        "an empty reason must not leave a dangling dash")
     }
 
     func testAClosedGoalCannotBeClosedAgain() {
         let store = freshStore()
-        store.goal = activeGoal()
-        store.markAchieved()
-        let historyCount = store.goal?.history.count
+        let goal = activeGoal()
+        store.goals = [goal]
+        store.markAchieved(goal.id)
+        let historyCount = store.goal(id: goal.id)?.history.count
 
-        store.setAside(reason: "changed my mind")
-        XCTAssertEqual(store.goal?.status, .achieved, "achieved is final until a new goal replaces it")
-        XCTAssertEqual(store.goal?.history.count, historyCount, "no-op transitions must not spam the story")
+        store.setAside(goal.id, reason: "changed my mind")
+        XCTAssertEqual(store.goal(id: goal.id)?.status, .achieved, "achieved is final until a new goal replaces it")
+        XCTAssertEqual(store.goal(id: goal.id)?.history.count, historyCount, "no-op transitions must not spam the story")
 
-        store.markAchieved()
-        XCTAssertEqual(store.goal?.history.count, historyCount)
+        store.markAchieved(goal.id)
+        XCTAssertEqual(store.goal(id: goal.id)?.history.count, historyCount)
     }
 
     func testClosureSurvivesAStoreRoundTrip() {
         let suite = "goal-lifecycle-roundtrip-\(UUID().uuidString)"
         let d = UserDefaults(suiteName: suite)!
         let store = CoachGoalStore(defaults: d)
-        store.goal = activeGoal()
-        store.markAchieved()
+        let goal = activeGoal()
+        store.goals = [goal]
+        store.markAchieved(goal.id)
 
         let reloaded = CoachGoalStore(defaults: d)
-        XCTAssertEqual(reloaded.goal?.status, .achieved)
+        XCTAssertEqual(reloaded.goal(id: goal.id)?.status, .achieved)
+    }
+
+    // MARK: - Multiple simultaneous goals (#R-multi-goal)
+
+    func testTwoGoalsOfDifferentKindsStayIndependentlyActive() {
+        let store = freshStore()
+        let run = CoachGoal(kind: .run, title: "5k")
+        let sleep = CoachGoal(kind: .sleep, title: "7.5h a night")
+        store.goals = [run, sleep]
+
+        store.markAchieved(run.id)
+
+        XCTAssertEqual(store.goal(id: run.id)?.status, .achieved)
+        XCTAssertEqual(store.goal(id: sleep.id)?.status, .active, "closing one goal must not touch the other")
+    }
+
+    func testCanAddRejectsASecondGoalOfAnAlreadyActiveKind() {
+        let store = freshStore()
+        let run = CoachGoal(kind: .run, title: "5k")
+        store.goals = [run]
+
+        XCTAssertEqual(store.canAdd(kind: .run), .kindAlreadyActive(existingId: run.id))
+        XCTAssertNil(store.canAdd(kind: .sleep), "a different kind is never blocked by an unrelated active goal")
+    }
+
+    func testCanAddExcludesTheGoalBeingEditedOrReplaced() {
+        let store = freshStore()
+        let run = CoachGoal(kind: .run, title: "5k")
+        store.goals = [run]
+
+        XCTAssertNil(store.canAdd(kind: .run, replacing: run.id),
+                     "editing/replacing a goal must not collide with its own kind")
+    }
+
+    func testCanAddRejectsA6thGoalOnceTheCeilingIsReached() {
+        let store = freshStore()
+        store.goals = [
+            CoachGoal(kind: .run, title: "a"), CoachGoal(kind: .sleep, title: "b"),
+            CoachGoal(kind: .consistency, title: "c"), CoachGoal(kind: .strength, title: "d"),
+            CoachGoal(kind: .weight, title: "e"),
+        ]
+        XCTAssertEqual(store.activeGoals.count, CoachGoalStore.maxActiveGoals)
+        XCTAssertEqual(store.canAdd(kind: .stress), .tooManyActive)
+    }
+
+    func testMarkAchievedSetAsideAndRemoveOnlyTouchTheTargetedGoal() {
+        let store = freshStore()
+        let a = CoachGoal(kind: .run, title: "a")
+        let b = CoachGoal(kind: .sleep, title: "b")
+        let c = CoachGoal(kind: .strength, title: "c")
+        store.goals = [a, b, c]
+
+        store.markAchieved(a.id)
+        store.setAside(b.id, reason: "life got busy")
+        store.remove(c.id)
+
+        XCTAssertEqual(store.goal(id: a.id)?.status, .achieved)
+        XCTAssertEqual(store.goal(id: b.id)?.status, .abandoned)
+        XCTAssertNil(store.goal(id: c.id), "remove deletes the goal entirely, unlike setAside")
+    }
+
+    func testSingularLegacyGoalMigratesIntoTheArrayAsOneElement() {
+        let suite = "goal-lifecycle-migrate-singular-\(UUID().uuidString)"
+        let d = UserDefaults(suiteName: suite)!
+        d.removePersistentDomain(forName: suite)
+        let legacy = CoachGoal(kind: .run, title: "Legacy single goal")
+        d.set(try! JSONEncoder().encode(legacy), forKey: "ai.goal")
+
+        let store = CoachGoalStore(defaults: d)
+        XCTAssertEqual(store.goals.count, 1)
+        XCTAssertEqual(store.goals.first?.title, "Legacy single goal")
     }
 }

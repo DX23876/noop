@@ -16,9 +16,10 @@ struct CoachGoalEditorView: View {
     let isOnboarding: Bool
     /// Called when the sheet closes either way, so onboarding can mark itself as asked.
     var onClose: () -> Void = {}
-    /// True when replacing a CLOSED (achieved/abandoned) goal: the form starts blank and Save mints a
-    /// brand-new goal with its own id and history, instead of editing the finished one back to life.
-    var startsFresh: Bool = false
+    /// The goal being edited, or nil to ADD a new one (#R-multi-goal — replaces the old singular-goal
+    /// implicit "the goal"/`startsFresh` pair: nil always starts blank and mints a fresh id, non-nil
+    /// always edits that exact goal in place).
+    var editingGoalId: UUID? = nil
 
     @State private var kind: CoachGoal.Kind = .run
     @State private var title = ""
@@ -31,6 +32,11 @@ struct CoachGoalEditorView: View {
     @State private var shareMotivation = false
     @State private var reason = ""
     @State private var showReasonPrompt = false
+    /// The OTHER active goal of the same kind (#R-multi-goal), offered to replace rather than silently
+    /// overwritten or silently refused. Set right before showing `showReplaceConfirm`.
+    @State private var replaceCandidateId: UUID?
+    @State private var showReplaceConfirm = false
+    @State private var showLimitReached = false
 
     /// Two-column grid for the goal-type tiles and the motivation chips — no custom flow layout needed.
     private let twoColumns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
@@ -54,6 +60,13 @@ struct CoachGoalEditorView: View {
         GoalSafetyGate.assess(goal: draft, bodyWeightKg: bodyWeightKg)
     }
 
+    /// Combined training-volume plausibility (#R-multi-goal list item 2) across every active goal —
+    /// informational only, never blocking, so no separate confirm flow is needed (same posture as
+    /// `safety`'s non-veryAggressive tiers).
+    private var volume: GoalVolumeGate.Assessment {
+        GoalVolumeGate.assess(draft: draft, against: store.activeGoals, excludingId: editingGoalId)
+    }
+
     private var canSave: Bool {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
@@ -66,12 +79,13 @@ struct CoachGoalEditorView: View {
                     kindCard
                     detailsCard
                     if safety.warning != nil { paceCard }
+                    if volume.warning != nil { volumeCard }
                     motivationCard
                 }
                 .padding(16)
             }
             .background(StrandPalette.surfaceBase.ignoresSafeArea())
-            .navigationTitle(isOnboarding ? "Your goal" : "Edit goal")
+            .navigationTitle(isOnboarding ? "Your goal" : (editingGoalId != nil ? "Edit goal" : "Add a goal"))
             #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -91,6 +105,19 @@ struct CoachGoalEditorView: View {
                 // One single literal, not `+`-concatenation: a concatenated argument is a plain String,
                 // which hits Text's verbatim initialiser and silently skips localization.
                 Text("This is faster than usually recommended. It's your call — tell me why and I'll note it, so I coach you through it instead of arguing with you every week.")
+            }
+            // #R-multi-goal: only one active goal per kind. Offered as a choice, never a silent overwrite
+            // or a silent refusal.
+            .confirmationDialog("Replace your existing goal?", isPresented: $showReplaceConfirm, titleVisibility: .visible) {
+                Button("Replace it") { proceedPastLimitCheck() }
+                Button("Cancel", role: .cancel) { replaceCandidateId = nil }
+            } message: {
+                Text("You already have an active \(kind.label.localizedCatalogValue) goal. Replacing it closes that one out — its story stays in your history.")
+            }
+            .alert("You're at the limit", isPresented: $showLimitReached) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("You already have \(CoachGoalStore.maxActiveGoals) active goals — set one aside or close one out before adding another.")
             }
             .onAppear(perform: load)
         }
@@ -185,6 +212,25 @@ struct CoachGoalEditorView: View {
         }
     }
 
+    /// Combined-volume plausibility across every active goal (#R-multi-goal) — informational only, same
+    /// posture as `paceCard`, never a reason prompt (there is no override to record: the number simply
+    /// tells you what your week already adds up to).
+    private var volumeCard: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "calendar.badge.clock")
+                    .foregroundStyle(StrandPalette.accent)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("About your combined training load").strandOverline()
+                    Text(volume.warning ?? "")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
     private var motivationCard: some View {
         NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
             VStack(alignment: .leading, spacing: 12) {
@@ -265,7 +311,7 @@ struct CoachGoalEditorView: View {
     // MARK: - Load / save
 
     private func load() {
-        guard !startsFresh, let g = store.goal else { return }
+        guard let id = editingGoalId, let g = store.goal(id: id) else { return }
         kind = g.kind
         title = g.title
         baselineText = g.baseline.map { String(format: "%g", $0) } ?? ""
@@ -277,10 +323,29 @@ struct CoachGoalEditorView: View {
         shareMotivation = g.shareMotivation
     }
 
-    /// The very-aggressive tier asks for a reason first. It's a prompt, not a wall: "Save anyway" is
-    /// always available once they've said why.
+    /// The gate chain, in order (#R-multi-goal): a kind collision or the active-goal ceiling is checked
+    /// FIRST — both are about whether this goal can exist at all, not about its pace — then the
+    /// very-aggressive pace tier asks for a reason. Each gate either stops here (showing its own
+    /// alert/dialog, resumed by `proceedPastLimitCheck`/`save` once the user responds) or falls through.
     private func attemptSave() {
-        if safety.requiresReason && store.goal?.acknowledgedRisk == nil {
+        if let limit = store.canAdd(kind: draft.kind, replacing: editingGoalId) {
+            switch limit {
+            case .kindAlreadyActive(let existingId):
+                replaceCandidateId = existingId
+                showReplaceConfirm = true
+            case .tooManyActive:
+                showLimitReached = true
+            }
+            return
+        }
+        proceedPastLimitCheck()
+    }
+
+    /// The very-aggressive pace tier asks for a reason first. It's a prompt, not a wall: "Save anyway" is
+    /// always available once they've said why.
+    private func proceedPastLimitCheck() {
+        let existingAck = editingGoalId.flatMap { store.goal(id: $0)?.acknowledgedRisk }
+        if safety.requiresReason && existingAck == nil {
             showReasonPrompt = true
         } else {
             save(acknowledging: false)
@@ -294,7 +359,8 @@ struct CoachGoalEditorView: View {
             ? CoachGoalRisk.acknowledgement(verdict: safety.verdict.rawValue, reason: reason)
             : nil
         let clearStale = !acknowledging && (safety.verdict == .ok || safety.verdict == .notApplicable)
-        store.commit(draft, startsFresh: startsFresh, acknowledgedRisk: ack, clearStaleAck: clearStale)
+        store.commit(draft, editingId: editingGoalId, replacing: replaceCandidateId,
+                    acknowledgedRisk: ack, clearStaleAck: clearStale)
         onClose()
         dismiss()
     }

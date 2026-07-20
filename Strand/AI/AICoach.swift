@@ -1849,7 +1849,7 @@ final class AICoachEngine: ObservableObject {
         let today = Repository.logicalDayKey(Date())
         guard UserDefaults.standard.string(forKey: Self.lastProactiveDayKey) != today else { return }
         guard let signal = ProactiveCoach.detect(proposals: CoachPlanStore.shared.proposals,
-                                                  goal: CoachGoalStore.shared.goal,
+                                                  goals: CoachGoalStore.shared.goals,
                                                   level: proactiveLevel) else { return }
         let prefix = signal.category == .milestone ? "Nice work" : "A quick nudge"
         await runSeededTurnCancellable(
@@ -2159,14 +2159,38 @@ final class AICoachEngine: ObservableObject {
         return line
     }
 
-    /// The user's goal, with the arithmetic done: how long is left, how much change remains, roughly
-    /// where in the runway we are, and — crucially — the deterministic safety verdict on the rate it
-    /// demands, so the model narrates a judgement made in code rather than forming its own.
+    /// One block per active goal (#R-multi-goal), plus any goal closed within the last 14 days (long
+    /// enough for the coach to acknowledge a fresh "achieved"/"set aside", short enough that a year of
+    /// closed goals doesn't accumulate as context noise — `CoachGoal` has no dedicated `closedAt` field,
+    /// so the closing history event's own date stands in for it). When more than one goal is active, an
+    /// explicit instruction tells the model to weigh across all of them rather than address just one.
+    private func goalsBlock(profile: ProfileStore) -> String? {
+        let store = CoachGoalStore.shared
+        let recencyCutoff = Date().addingTimeInterval(-14 * 24 * 3600)
+        let recentlyClosed = store.goals.filter { g in
+            (g.status == .achieved || g.status == .abandoned)
+                && (g.history.last?.date ?? .distantPast) >= recencyCutoff
+        }
+        let blocks = (store.activeGoals + recentlyClosed).compactMap { goalBlock(for: $0, profile: profile) }
+        guard !blocks.isEmpty else { return nil }
+
+        var result = blocks.joined(separator: "\n\n")
+        if store.activeGoals.count > 1 {
+            result += "\n\nThe user has \(store.activeGoals.count) active goals above — weigh and "
+                    + "prioritise across ALL of them in your recommendations (e.g. don't suggest a hard "
+                    + "run day that conflicts with a strength day both goals need); do not address only "
+                    + "one and ignore the rest."
+        }
+        return result
+    }
+
+    /// One goal, with the arithmetic done: how long is left, how much change remains, roughly where in
+    /// the runway we are, and — crucially — the deterministic safety verdict on the rate it demands, so
+    /// the model narrates a judgement made in code rather than forming its own.
     ///
     /// `motivation` is included ONLY when the user explicitly opted in (`shareMotivation`). It is the
     /// most personal line in the app and it stays on the device by default.
-    private func goalBlock(profile: ProfileStore) -> String? {
-        guard let goal = CoachGoalStore.shared.goal else { return nil }
+    private func goalBlock(for goal: CoachGoal, profile: ProfileStore) -> String? {
         let title = goal.title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return nil }
 
@@ -2861,7 +2885,7 @@ final class AICoachEngine: ObservableObject {
         lines.append("Profile: " + profileParts.joined(separator: ", "))
         // The goal as a REAL goal: weeks remaining, required change, phase, and the safety verdict —
         // not the bare sentence the old free-text field could only offer.
-        if let goalBlock = goalBlock(profile: profile) { lines.append(goalBlock) }
+        if let goalsBlock = goalsBlock(profile: profile) { lines.append(goalsBlock) }
 
         guard !days.isEmpty else {
             // Keep the profile/goal line (already appended) so the coach can still personalise zones

@@ -245,8 +245,9 @@ struct CoachGoal: Codable, Identifiable, Equatable {
     }
 }
 
-/// The single active goal, persisted on-device. One goal for now: the roadmap deliberately defers
-/// multiple parallel goals (and the conflict resolution they'd need) until one goal works well.
+/// Multiple simultaneous goals (#R-multi-goal), persisted on-device: one active goal per `Kind`, up to
+/// `maxActiveGoals` active at once — enough for the common combinations (a run goal + a sleep goal + a
+/// consistency goal, say) without turning into an unmanageable list.
 ///
 /// Shared instance so the engine (reader) and the settings UI (editor) observe the same state, exactly
 /// like `CoachMemory.shared`.
@@ -255,22 +256,44 @@ final class CoachGoalStore: ObservableObject {
 
     static let shared = CoachGoalStore()
 
-    @Published var goal: CoachGoal? { didSet { save() } }
+    /// Upper bound on simultaneously ACTIVE (active/paused) goals. `CoachGoal.Kind` has 8 cases, so the
+    /// one-per-kind rule alone would allow more than this — the real ceiling is this ceiling, not the kind
+    /// count, so the limit message should say "N active goals", never imply "one of each kind".
+    static let maxActiveGoals = 5
+
+    @Published var goals: [CoachGoal] = [] { didSet { save() } }
 
     private let d: UserDefaults
-    private static let goalKey = "ai.goal"
-    /// The legacy free-text goal this replaces. Read once for migration, then left alone (never
+    private static let goalsKey = "ai.goals"
+    /// The OLD singular-goal key, from before multiple goals existed. Read once for migration into
+    /// `goals` as a one-element array, then left alone (never deleted, so downgrading to an older build
+    /// still finds its single goal).
+    private static let legacySingularGoalKey = "ai.goal"
+    /// The even OLDER free-text goal this replaces. Read once for migration, then left alone (never
     /// deleted, so downgrading to an older build doesn't lose the user's sentence).
     static let legacyGoalKey = "ai.trainingGoal"
 
     init(defaults: UserDefaults = .standard) {
         self.d = defaults
-        if let data = defaults.data(forKey: Self.goalKey),
-           let decoded = try? JSONDecoder().decode(CoachGoal.self, from: data) {
-            self.goal = decoded
+        if let data = defaults.data(forKey: Self.goalsKey),
+           let decoded = try? JSONDecoder().decode([CoachGoal].self, from: data) {
+            self.goals = decoded
+        } else if let seeded = Self.migrateSingular(defaults: defaults) {
+            self.goals = [seeded]
+        } else if let legacy = Self.migrateLegacy(defaults: defaults) {
+            self.goals = [legacy]
         } else {
-            self.goal = Self.migrateLegacy(defaults: defaults)
+            self.goals = []
         }
+    }
+
+    /// One-time migration: a user already on the single-goal model keeps their one goal, seeded as a
+    /// one-element array. Takes priority over `migrateLegacy` below — a real structured goal beats the
+    /// pre-structured free-text fallback.
+    private static func migrateSingular(defaults: UserDefaults) -> CoachGoal? {
+        guard let data = defaults.data(forKey: legacySingularGoalKey),
+              let decoded = try? JSONDecoder().decode(CoachGoal.self, from: data) else { return nil }
+        return decoded
     }
 
     /// One-time migration: a user who typed "Half marathon in October" into the old free-text field
@@ -284,51 +307,95 @@ final class CoachGoalStore: ObservableObject {
                          history: [.init(date: Date(), what: "Carried over from your previous goal note")])
     }
 
-    /// Record a change on the goal's log. Kept small (most recent 20) — this is a story, not an audit DB.
-    func note(_ what: String) {
-        guard var g = goal else { return }
-        g.history.append(.init(date: Date(), what: what))
-        if g.history.count > 20 { g.history.removeFirst(g.history.count - 20) }
-        goal = g
+    // MARK: Lookup
+
+    /// Goals actually in play right now — everything else (achieved/abandoned/archived) is history.
+    var activeGoals: [CoachGoal] { goals.filter { $0.status == .active || $0.status == .paused } }
+
+    func goal(id: UUID) -> CoachGoal? { goals.first(where: { $0.id == id }) }
+
+    /// The active goal of this `Kind`, if any — at most one can exist at a time (`canAdd` enforces it).
+    func activeGoal(for kind: CoachGoal.Kind) -> CoachGoal? {
+        activeGoals.first(where: { $0.kind == kind })
+    }
+
+    /// Why a new/edited goal of `kind` can't be added right now, or nil when it's fine. `replacing`
+    /// excludes that goal's own id from the checks (editing a goal in place, or deliberately replacing
+    /// it, is never blocked by itself).
+    enum GoalLimitError: Equatable {
+        /// An active goal of the same kind already exists (`existingId`) — the caller should offer to
+        /// replace it (see `commit(_:editingId:replacing:...)`) rather than silently stacking a second.
+        case kindAlreadyActive(existingId: UUID)
+        /// `maxActiveGoals` are already active; nothing more can be added until one closes or is removed.
+        case tooManyActive
+    }
+
+    func canAdd(kind: CoachGoal.Kind, replacing: UUID? = nil) -> GoalLimitError? {
+        let others = activeGoals.filter { $0.id != replacing }
+        if let existing = others.first(where: { $0.kind == kind }) {
+            return .kindAlreadyActive(existingId: existing.id)
+        }
+        if others.count >= Self.maxActiveGoals { return .tooManyActive }
+        return nil
+    }
+
+    /// Record a change on one goal's log. Kept small (most recent 20) — this is a story, not an audit DB.
+    func note(_ id: UUID, _ what: String) {
+        guard let idx = goals.firstIndex(where: { $0.id == id }) else { return }
+        goals[idx].history.append(.init(date: Date(), what: what))
+        if goals[idx].history.count > 20 { goals[idx].history.removeFirst(goals[idx].history.count - 20) }
     }
 
     // MARK: Lifecycle
 
-    /// Close the goal as reached. It STAYS in the store — the Journey page shows the closure and the
-    /// coach gets to congratulate — until a new goal replaces it. Only an open goal can be closed.
-    func markAchieved(on date: Date = Date()) {
-        guard var g = goal, g.status == .active || g.status == .paused else { return }
-        g.status = .achieved
-        g.history.append(.init(date: date, what: "Goal achieved"))
-        goal = g
+    /// Close a goal as reached. It STAYS in the store — the Journey page shows the closure and the coach
+    /// gets to congratulate — freeing up its `Kind` for a new goal. Only an open goal can be closed.
+    func markAchieved(_ id: UUID, on date: Date = Date()) {
+        guard let idx = goals.firstIndex(where: { $0.id == id }),
+              goals[idx].status == .active || goals[idx].status == .paused else { return }
+        goals[idx].status = .achieved
+        goals[idx].history.append(.init(date: date, what: "Goal achieved"))
     }
 
-    /// Set the goal aside without shame — injuries, life, changed priorities are all legitimate ends.
-    /// The one-tap reason lands in the history so the story stays honest, never as a debt to explain.
-    func setAside(reason: String, on date: Date = Date()) {
-        guard var g = goal, g.status == .active || g.status == .paused else { return }
-        g.status = .abandoned
+    /// Set a goal aside without shame — injuries, life, changed priorities are all legitimate ends. The
+    /// one-tap reason lands in the history so the story stays honest, never as a debt to explain.
+    func setAside(_ id: UUID, reason: String, on date: Date = Date()) {
+        guard let idx = goals.firstIndex(where: { $0.id == id }),
+              goals[idx].status == .active || goals[idx].status == .paused else { return }
+        goals[idx].status = .abandoned
         let why = reason.trimmingCharacters(in: .whitespacesAndNewlines)
-        g.history.append(.init(date: date, what: why.isEmpty ? "Goal set aside" : "Goal set aside — \(why)"))
-        goal = g
+        goals[idx].history.append(.init(date: date, what: why.isEmpty ? "Goal set aside" : "Goal set aside — \(why)"))
     }
 
-    func clear() { goal = nil }
+    /// Delete a goal and its history entirely — the only irreversible one. Unlike `setAside`, nothing of
+    /// it survives.
+    func remove(_ id: UUID) {
+        goals.removeAll { $0.id == id }
+    }
 
-    /// Commit an edited or freshly-onboarded goal (#R12) — the identity-preserving, history-appending
-    /// save shared by the one-page editor and the guided onboarding flow, so the two paths can never
-    /// drift on how a goal is persisted.
+    /// Commit an edited or freshly-added goal (#R12, extended #R-multi-goal) — the identity-preserving,
+    /// history-appending save shared by the one-page editor and the guided onboarding flow, so the two
+    /// paths can never drift on how a goal is persisted.
     ///
-    /// - `startsFresh` mints a brand-new goal (own id + history) instead of editing the current one — used
-    ///   when replacing a CLOSED goal so its story isn't overwritten.
+    /// - `editingId` nil = ADD a brand-new goal (own id + history). Non-nil = edit THAT goal in place,
+    ///   preserving its id/history/creation date.
+    /// - `replacing` = a DIFFERENT existing goal (of the same `Kind`, already active) that the user chose
+    ///   to replace rather than keep — closed out with its own history event ("Replaced by a new goal")
+    ///   before the new one is added. Distinct from `editingId`: replacing is conceptually a new pursuit,
+    ///   not a continuation, so it always mints a fresh id even though an old goal is being closed.
     /// - `acknowledgedRisk` non-nil records a pace acknowledgement; `clearStaleAck` drops an existing
     ///   acknowledgement when the pace is no longer flagged. When both are nil/false, an edit keeps the
     ///   existing acknowledgement (carried by the identity-preserving copy below).
-    func commit(_ draft: CoachGoal, startsFresh: Bool,
+    func commit(_ draft: CoachGoal, editingId: UUID? = nil, replacing: UUID? = nil,
                 acknowledgedRisk: CoachGoal.RiskAcknowledgement? = nil, clearStaleAck: Bool = false) {
+        if let replacing, let idx = goals.firstIndex(where: { $0.id == replacing }) {
+            goals[idx].status = .abandoned
+            goals[idx].history.append(.init(date: Date(), what: "Replaced by a new goal"))
+        }
+
         var g = draft
         g.status = .active
-        if !startsFresh, let existing = goal {
+        if let editingId, let existing = goal(id: editingId) {
             g = CoachGoal(id: existing.id, kind: g.kind, title: g.title,
                           baseline: g.baseline, target: g.target, targetDate: g.targetDate,
                           status: .active, motivation: g.motivation,
@@ -342,13 +409,18 @@ final class CoachGoalStore: ObservableObject {
         } else if clearStaleAck {
             g.acknowledgedRisk = nil
         }
-        g.history.append(.init(date: Date(), what: goal == nil ? "Goal set" : "Goal updated"))
+        g.history.append(.init(date: Date(), what: editingId == nil ? "Goal set" : "Goal updated"))
         if g.history.count > 20 { g.history.removeFirst(g.history.count - 20) }
-        goal = g
+
+        if let editingId, let idx = goals.firstIndex(where: { $0.id == editingId }) {
+            goals[idx] = g
+        } else {
+            goals.insert(g, at: 0)
+        }
     }
 
     private func save() {
-        guard let goal else { d.removeObject(forKey: Self.goalKey); return }
-        if let data = try? JSONEncoder().encode(goal) { d.set(data, forKey: Self.goalKey) }
+        guard let data = try? JSONEncoder().encode(goals) else { return }
+        d.set(data, forKey: Self.goalsKey)
     }
 }

@@ -51,10 +51,10 @@ final class CoachGoalMotivationTests: XCTestCase {
     // MARK: - 15.2: the structured WHY reaches the coach
 
     func testMotivationTagsAppearInTheGoalContextWithoutNeedingShareMotivation() {
-        CoachGoalStore.shared.goal = CoachGoal(kind: .sleep, title: "Sleep 7.5h",
-                                               motivationTags: [.moreEnergy, .feelHealthier],
-                                               shareMotivation: false)
-        defer { CoachGoalStore.shared.goal = nil }
+        CoachGoalStore.shared.goals = [CoachGoal(kind: .sleep, title: "Sleep 7.5h",
+                                                 motivationTags: [.moreEnergy, .feelHealthier],
+                                                 shareMotivation: false)]
+        defer { CoachGoalStore.shared.goals = [] }
 
         let engine = AICoachEngine(repo: Repository(deviceId: "test-goal-motivation-\(UUID().uuidString)"))
         let ctx = engine.buildContext()
@@ -66,10 +66,10 @@ final class CoachGoalMotivationTests: XCTestCase {
 
     /// The intimate free-text motivation still requires the explicit opt-in — unchanged by the tags.
     func testFreeTextMotivationStillRequiresShareOptIn() {
-        CoachGoalStore.shared.goal = CoachGoal(kind: .sleep, title: "Sleep 7.5h",
-                                               motivation: "So I can keep up with my kids",
-                                               shareMotivation: false)
-        defer { CoachGoalStore.shared.goal = nil }
+        CoachGoalStore.shared.goals = [CoachGoal(kind: .sleep, title: "Sleep 7.5h",
+                                                 motivation: "So I can keep up with my kids",
+                                                 shareMotivation: false)]
+        defer { CoachGoalStore.shared.goals = [] }
 
         let engine = AICoachEngine(repo: Repository(deviceId: "test-goal-freetext-\(UUID().uuidString)"))
         XCTAssertFalse(engine.buildContext().contains("keep up with my kids"),

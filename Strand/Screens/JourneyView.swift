@@ -15,6 +15,10 @@ struct JourneyView: View {
     @ObservedObject private var planStore = CoachPlanStore.shared
     @Environment(\.dismiss) private var dismiss
 
+    /// Which goal this journey is for (#R-multi-goal — there can be several active at once now, so the
+    /// page can no longer read a single implicit "the goal").
+    let goalId: UUID
+
     @State private var evidence = GoalFeasibility.Evidence()
     @State private var latestWeightKg: Double?
     @State private var loaded = false
@@ -24,7 +28,7 @@ struct JourneyView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                if let goal = goalStore.goal {
+                if let goal = goalStore.goal(id: goalId) {
                     VStack(spacing: 16) {
                         closureOrExpiryCard(goal)
                         headerCard(goal)
@@ -53,12 +57,12 @@ struct JourneyView: View {
                 evidence = await coach.goalEvidence()
                 latestWeightKg = await coach.latestLoggedWeightKg()
             }
-            .sheet(isPresented: $showEditor) { CoachGoalEditorView(isOnboarding: false) }
+            .sheet(isPresented: $showEditor) { CoachGoalEditorView(isOnboarding: false, editingGoalId: goalId) }
             .confirmationDialog("Set this goal aside?", isPresented: $showSetAsideDialog, titleVisibility: .visible) {
-                Button("Injury or health") { goalStore.setAside(reason: "injury or health") }
-                Button("Life got busy") { goalStore.setAside(reason: "life got busy") }
-                Button("Priorities changed") { goalStore.setAside(reason: "priorities changed") }
-                Button("No particular reason") { goalStore.setAside(reason: "") }
+                Button("Injury or health") { goalStore.setAside(goalId, reason: "injury or health") }
+                Button("Life got busy") { goalStore.setAside(goalId, reason: "life got busy") }
+                Button("Priorities changed") { goalStore.setAside(goalId, reason: "priorities changed") }
+                Button("No particular reason") { goalStore.setAside(goalId, reason: "") }
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("It stays in your history — nothing is lost, and there's nothing to justify.")
@@ -117,7 +121,7 @@ struct JourneyView: View {
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
                     HStack(spacing: 14) {
-                        Button("I reached it") { goalStore.markAchieved() }
+                        Button("I reached it") { goalStore.markAchieved(goalId) }
                             .foregroundStyle(StrandPalette.accent)
                         Button("Extend the date") { showEditor = true }
                             .foregroundStyle(StrandPalette.accent)

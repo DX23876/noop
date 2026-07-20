@@ -63,7 +63,14 @@ enum ProactiveCoach {
     /// The single most relevant reason to reach out right now, or nil when nothing crosses a threshold.
     /// Setbacks win over milestones (a body telling you something matters more than a pat on the back),
     /// and the caller's `level` decides whether a non-important signal is allowed through.
-    static func detect(proposals: [PlanProposal], goal: CoachGoal?,
+    ///
+    /// `goals` (#R-multi-goal, renamed from the old singular `goal`) is currently UNUSED in this
+    /// function's body — it was reserved plumbing for future goal-aware detection (e.g. a milestone tied
+    /// to a specific goal's `Kind`) that was never implemented. Kept as a parameter (renamed for
+    /// signature consistency with the rest of the multi-goal store) rather than silently dropped, so a
+    /// future goal-aware detector has it ready without another signature change — implementing that
+    /// detection itself is a separate, larger feature, out of scope here.
+    static func detect(proposals: [PlanProposal], goals: [CoachGoal],
                        level: ProactiveLevel, now: Date = Date()) -> ProactiveSignal? {
         guard level != .off else { return nil }
 

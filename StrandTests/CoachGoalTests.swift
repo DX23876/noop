@@ -22,35 +22,35 @@ final class CoachGoalTests: XCTestCase {
         d.set("Half marathon in October", forKey: CoachGoalStore.legacyGoalKey)
 
         let store = CoachGoalStore(defaults: d)
-        XCTAssertEqual(store.goal?.title, "Half marathon in October")
-        XCTAssertEqual(store.goal?.kind, .custom)
-        XCTAssertFalse(store.goal?.history.isEmpty ?? true, "the carry-over should be noted in the log")
+        XCTAssertEqual(store.goals.first?.title, "Half marathon in October")
+        XCTAssertEqual(store.goals.first?.kind, .custom)
+        XCTAssertFalse(store.goals.first?.history.isEmpty ?? true, "the carry-over should be noted in the log")
     }
 
     /// We deliberately don't parse a date out of the sentence — guessing wrong is worse than asking.
     func testMigrationDoesNotInventATargetDate() {
         let d = makeDefaults("test.goal.migrate.nodate")
         d.set("Half marathon in October", forKey: CoachGoalStore.legacyGoalKey)
-        XCTAssertNil(CoachGoalStore(defaults: d).goal?.targetDate)
+        XCTAssertNil(CoachGoalStore(defaults: d).goals.first?.targetDate)
     }
 
     func testNoLegacyGoalMeansNoGoal() {
-        XCTAssertNil(CoachGoalStore(defaults: makeDefaults("test.goal.none")).goal)
+        XCTAssertTrue(CoachGoalStore(defaults: makeDefaults("test.goal.none")).goals.isEmpty)
     }
 
     func testGoalRoundTripsThroughStorage() {
         let d = makeDefaults("test.goal.roundtrip")
         let store = CoachGoalStore(defaults: d)
-        store.goal = CoachGoal(kind: .run, title: "5k", baseline: 2, target: 5,
-                               targetDate: Date().addingTimeInterval(60 * 24 * 3600),
-                               motivation: "private", shareMotivation: false)
+        store.goals = [CoachGoal(kind: .run, title: "5k", baseline: 2, target: 5,
+                                 targetDate: Date().addingTimeInterval(60 * 24 * 3600),
+                                 motivation: "private", shareMotivation: false)]
 
         let reloaded = CoachGoalStore(defaults: d)
-        XCTAssertEqual(reloaded.goal?.title, "5k")
-        XCTAssertEqual(reloaded.goal?.kind, .run)
-        XCTAssertEqual(reloaded.goal?.target, 5)
-        XCTAssertEqual(reloaded.goal?.motivation, "private")
-        XCTAssertEqual(reloaded.goal?.shareMotivation, false)
+        XCTAssertEqual(reloaded.goals.first?.title, "5k")
+        XCTAssertEqual(reloaded.goals.first?.kind, .run)
+        XCTAssertEqual(reloaded.goals.first?.target, 5)
+        XCTAssertEqual(reloaded.goals.first?.motivation, "private")
+        XCTAssertEqual(reloaded.goals.first?.shareMotivation, false)
     }
 
     // MARK: - Derived

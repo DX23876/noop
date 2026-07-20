@@ -153,7 +153,7 @@ struct CoachView: View {
         .task {
             guard coach.isConfigured,
                   coachFirstUseAcknowledged,
-                  CoachGoalStore.shared.goal == nil,
+                  CoachGoalStore.shared.activeGoals.isEmpty,
                   !UserDefaults.standard.bool(forKey: Self.goalOnboardingAskedKey) else { return }
             showGoalOnboarding = true
         }

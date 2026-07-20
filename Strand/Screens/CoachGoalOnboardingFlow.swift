@@ -43,6 +43,15 @@ struct CoachGoalOnboardingFlow: View {
     @State private var shareMotivation = false
     @State private var reason = ""
     @State private var showReasonPrompt = false
+    /// The other active goal of the picked kind (#R-multi-goal), offered to replace rather than silently
+    /// overwritten or silently refused — same gate chain the quick editor uses.
+    @State private var replaceCandidateId: UUID?
+    @State private var showReplaceConfirm = false
+    @State private var showLimitReached = false
+
+    /// Kinds that already have an active goal — shown as a note under the type picker so the collision is
+    /// visible before confirming, not just at the end.
+    private var kindAlreadyActive: Bool { store.activeGoal(for: kind) != nil }
 
     private let twoColumns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
     private var bodyWeightKg: Double { ProfileStore().weightKg }
@@ -96,6 +105,17 @@ struct CoachGoalOnboardingFlow: View {
                 Button("Save anyway") { commit(acknowledging: true) }
             } message: {
                 Text("This is faster than usually recommended. It's your call — tell me why and I'll note it, so I coach you through it instead of arguing with you every week.")
+            }
+            .confirmationDialog("Replace your existing goal?", isPresented: $showReplaceConfirm, titleVisibility: .visible) {
+                Button("Replace it") { proceedPastLimitCheck() }
+                Button("Cancel", role: .cancel) { replaceCandidateId = nil }
+            } message: {
+                Text("You already have an active \(kind.label.localizedCatalogValue) goal. Replacing it closes that one out — its story stays in your history.")
+            }
+            .alert("You're at the limit", isPresented: $showLimitReached) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("You already have \(CoachGoalStore.maxActiveGoals) active goals — set one aside or close one out before adding another.")
             }
         }
     }
@@ -162,7 +182,9 @@ struct CoachGoalOnboardingFlow: View {
                     GoalKindTile(kind: k, selected: kind == k) { kind = k }
                 }
             }
-            if kind == .weight {
+            if kindAlreadyActive {
+                stepNote("You already have an active \(kind.label.localizedCatalogValue) goal — continuing will offer to replace it.")
+            } else if kind == .weight {
                 stepNote("I'll track your weight and plan your training around it — but I have no nutrition data, and that's where most of weight change is decided. I won't pretend otherwise.")
             } else if !kind.isQuantified {
                 stepNote("I can hold this goal and shape your training around it, but I can't measure it from your strap — so I won't invent progress numbers for it.")
@@ -320,7 +342,23 @@ struct CoachGoalOnboardingFlow: View {
         if let prev = Step(rawValue: step.rawValue - 1) { step = prev }
     }
 
+    /// The gate chain (#R-multi-goal), same order as the quick editor's `attemptSave`: a kind collision or
+    /// the active-goal ceiling first, then the pace-reason prompt.
     private func attemptCommit() {
+        if let limit = store.canAdd(kind: kind) {
+            switch limit {
+            case .kindAlreadyActive(let existingId):
+                replaceCandidateId = existingId
+                showReplaceConfirm = true
+            case .tooManyActive:
+                showLimitReached = true
+            }
+            return
+        }
+        proceedPastLimitCheck()
+    }
+
+    private func proceedPastLimitCheck() {
         if safety.requiresReason { showReasonPrompt = true } else { commit(acknowledging: false) }
     }
 
@@ -329,9 +367,9 @@ struct CoachGoalOnboardingFlow: View {
             ? CoachGoalRisk.acknowledgement(verdict: safety.verdict.rawValue, reason: reason)
             : nil
         let clearStale = !acknowledging && (safety.verdict == .ok || safety.verdict == .notApplicable)
-        // The guided flow always starts a fresh goal (it's the "set a goal" path); `commit` still preserves
-        // an existing goal's identity if one is open, matching the editor's edit behaviour.
-        store.commit(draft, startsFresh: false, acknowledgedRisk: ack, clearStaleAck: clearStale)
+        // The guided flow always ADDS a new goal (#R-multi-goal) — never edits one in place, that's the
+        // quick editor's job — replacing a same-kind collision when the user chose to at the gate above.
+        store.commit(draft, editingId: nil, replacing: replaceCandidateId, acknowledgedRisk: ack, clearStaleAck: clearStale)
         onClose()
         dismiss()
     }

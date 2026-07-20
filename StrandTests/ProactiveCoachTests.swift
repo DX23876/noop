@@ -19,13 +19,13 @@ final class ProactiveCoachTests: XCTestCase {
     // MARK: - Nothing fires on an empty or quiet history
 
     func testNoSignalWhenNothingHasHappened() {
-        XCTAssertNil(ProactiveCoach.detect(proposals: [], goal: nil, level: .normal))
+        XCTAssertNil(ProactiveCoach.detect(proposals: [], goals: [], level: .normal))
     }
 
     func testOffLevelNeverFires() {
         let now = Date()
         let streak = (0..<6).map { p(day: "2026-07-0\($0+1)", status: .completed, decidedAt: daysAgo($0, now: now)) }
-        XCTAssertNil(ProactiveCoach.detect(proposals: streak, goal: nil, level: .off),
+        XCTAssertNil(ProactiveCoach.detect(proposals: streak, goals: [], level: .off),
                      "off must silence even a genuine milestone")
     }
 
@@ -34,7 +34,7 @@ final class ProactiveCoachTests: XCTestCase {
     func testACompletionStreakIsAMilestone() {
         let now = Date()
         let streak = (0..<3).map { p(day: "d\($0)", status: .completed, decidedAt: daysAgo($0, now: now)) }
-        let signal = ProactiveCoach.detect(proposals: streak, goal: nil, level: .normal)
+        let signal = ProactiveCoach.detect(proposals: streak, goals: [], level: .normal)
         XCTAssertEqual(signal?.category, .milestone)
     }
 
@@ -42,14 +42,14 @@ final class ProactiveCoachTests: XCTestCase {
         let now = Date()
         // A 3-streak is a milestone but NOT a big one → hidden at .important, shown at .normal.
         let streak = (0..<3).map { p(day: "d\($0)", status: .completed, decidedAt: daysAgo($0, now: now)) }
-        XCTAssertNil(ProactiveCoach.detect(proposals: streak, goal: nil, level: .important))
-        XCTAssertEqual(ProactiveCoach.detect(proposals: streak, goal: nil, level: .normal)?.category, .milestone)
+        XCTAssertNil(ProactiveCoach.detect(proposals: streak, goals: [], level: .important))
+        XCTAssertEqual(ProactiveCoach.detect(proposals: streak, goals: [], level: .normal)?.category, .milestone)
     }
 
     func testABigStreakSurvivesImportantOnly() {
         let now = Date()
         let streak = (0..<5).map { p(day: "d\($0)", status: .completed, decidedAt: daysAgo($0, now: now)) }
-        let signal = ProactiveCoach.detect(proposals: streak, goal: nil, level: .important)
+        let signal = ProactiveCoach.detect(proposals: streak, goals: [], level: .important)
         XCTAssertEqual(signal?.category, .milestone)
         XCTAssertTrue(signal?.important ?? false)
     }
@@ -59,14 +59,14 @@ final class ProactiveCoachTests: XCTestCase {
     func testARunOfSkipsIsASetback() {
         let now = Date()
         let skips = (0..<3).map { p(day: "d\($0)", status: .skipped, skipReason: .noTime, decidedAt: daysAgo($0, now: now)) }
-        let signal = ProactiveCoach.detect(proposals: skips, goal: nil, level: .important)
+        let signal = ProactiveCoach.detect(proposals: skips, goals: [], level: .important)
         XCTAssertEqual(signal?.category, .setback, "a setback must reach even the important-only level")
     }
 
     func testARunOfDeclinesIsASetback() {
         let now = Date()
         let declines = (0..<3).map { p(day: "d\($0)", status: .declined, decidedAt: daysAgo($0, now: now)) }
-        XCTAssertEqual(ProactiveCoach.detect(proposals: declines, goal: nil, level: .important)?.category, .setback)
+        XCTAssertEqual(ProactiveCoach.detect(proposals: declines, goals: [], level: .important)?.category, .setback)
     }
 
     /// A setback outweighs a milestone — the body telling you something matters more than a pat on the back.
@@ -75,7 +75,7 @@ final class ProactiveCoachTests: XCTestCase {
         // A completion streak from a week ago, but three fresh skips this week.
         var proposals = (0..<5).map { p(day: "old\($0)", status: .completed, decidedAt: daysAgo(20 + $0, now: now)) }
         proposals += (0..<3).map { p(day: "new\($0)", status: .skipped, skipReason: .tired, decidedAt: daysAgo($0, now: now)) }
-        XCTAssertEqual(ProactiveCoach.detect(proposals: proposals, goal: nil, level: .normal)?.category, .setback)
+        XCTAssertEqual(ProactiveCoach.detect(proposals: proposals, goals: [], level: .normal)?.category, .setback)
     }
 
     // MARK: - Windowing

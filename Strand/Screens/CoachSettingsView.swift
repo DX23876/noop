@@ -57,11 +57,11 @@ struct CoachSettingsView: View {
         coach.model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    /// An active goal whose date has passed — the same condition `expiredGoalCard` acts on — is exactly
-    /// the state B2 gave a decision UI to; the badge is what tells you it's waiting.
+    /// Any active goal whose date has passed (#R-multi-goal: there can be several now) — the same
+    /// condition `expiredGoalCard` acts on — is exactly the state B2 gave a decision UI to; the badge is
+    /// what tells you one is waiting.
     private var goalNeedsAttention: Bool {
-        guard let g = goalStore.goal, g.status == .active, let weeks = g.weeksRemaining() else { return false }
-        return weeks < 0
+        goalStore.activeGoals.contains { $0.status == .active && ($0.weeksRemaining() ?? 0) < 0 }
     }
 
     /// The daily check-in LOOKS on but silently never fires once notification authorization is revoked
