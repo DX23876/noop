@@ -21,9 +21,18 @@ final class MorningSuggestionStateTests: XCTestCase {
 
     // MARK: - Hidden gates
 
-    func testHiddenWhenTheOptInIsOff() {
-        // Even with a proposal waiting: no opt-in, no card.
-        XCTAssertEqual(resolve(morningOn: false, pending: [pending(day: today)]), .hidden)
+    /// The opt-in only gates the PROACTIVE morning nudge (`maybeGenerate()`'s own guard) — it must never
+    /// hide a proposal that already exists, e.g. one the coach recorded because the user stated a plain-
+    /// language training intent in an ordinary chat message (#R-auto-session). Regression test for the
+    /// bug this package fixes: a fresh chat-recorded proposal used to be invisible on Today unless the
+    /// separate auto-suggestion toggle was also on.
+    func testAPendingProposalShowsRegardlessOfTheOptIn() {
+        let p = pending(day: today)
+        XCTAssertEqual(resolve(morningOn: false, pending: [p]), .waiting(p))
+    }
+
+    func testHiddenWithTheOptInOffAndNothingPending() {
+        XCTAssertEqual(resolve(morningOn: false, pending: []), .hidden)
     }
 
     func testHiddenWithoutAKeyOrConsent() {

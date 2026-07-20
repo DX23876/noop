@@ -426,8 +426,11 @@ final class AICoachEngine: ObservableObject {
     static let planToolClause = """
     When you recommend a session, record it with propose_plan - that creates a proposal the user \
     accepts, changes or declines in the app. It is NOT scheduled until they say yes, so never describe \
-    it as booked. If they want to swap a session, use get_session_outlook to tell them what their own \
-    history says it costs, then let them choose: inform, never overrule.
+    it as booked. Also use propose_plan when the USER states their own plain-language training intent \
+    for a specific day (e.g. "I'm going for a run today", "let's do legs tomorrow") - record what they \
+    said they're doing, even though you didn't suggest it yourself, so it shows up for them to confirm. \
+    If they want to swap a session, use get_session_outlook to tell them what their own history says it \
+    costs, then let them choose: inform, never overrule.
     """
 
     /// Sent when no tools are offered. The last sentence is the whole point of this clause.

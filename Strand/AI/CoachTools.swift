@@ -132,8 +132,10 @@ enum CoachTool: String, CaseIterable {
         case .proposePlan:
             return "SUGGEST a training session for a day. This creates a PROPOSAL the user must accept, "
                 + "decline or change in the app — it does NOT schedule anything, and you must never "
-                + "describe it as settled. Use it when you recommend a specific session, then tell them "
-                + "it's waiting for their yes. Give a short rationale; they'll read it again next week."
+                + "describe it as settled. Use it when you recommend a specific session, AND when the "
+                + "user tells you their own plan for a specific day (e.g. \"I'm training legs today\") — "
+                + "either way it becomes a proposal they confirm, never assume it's already scheduled "
+                + "just because they said it. Give a short rationale; they'll read it again next week."
         case .sessionOutlook:
             return "Find out what a session would cost this user, from THEIR OWN history: typical Charge "
                 + "cost the next morning, bounce-back days, and a projection for tomorrow. Pass "
