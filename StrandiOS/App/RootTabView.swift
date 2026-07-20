@@ -16,6 +16,8 @@ struct RootTabView: View {
 
     /// Coach entry preference (Today card / floating button / both) and the floating-button presentation.
     @AppStorage(CoachEntryMode.storageKey) private var coachEntryModeRaw = CoachEntryMode.both.rawValue
+    /// Master switch (#R7): hides the floating Coach button when the coach UI is turned off.
+    @AppStorage(CoachEntryMode.uiEnabledKey) private var coachUIEnabled = true
     @State private var showCoach = false
     private var coachEntryMode: CoachEntryMode { CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both }
 
@@ -144,7 +146,7 @@ struct RootTabView: View {
 
             // Draggable floating Coach button — an alternative entry to the Today card, honouring the
             // user's Coach-entry preference. Floats over every tab; a tap opens the chat.
-            if coachEntryMode.showsButton {
+            if coachUIEnabled, coachEntryMode.showsButton {
                 CoachFloatingButton(isPresented: $showCoach)
             }
         }

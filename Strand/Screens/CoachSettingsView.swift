@@ -86,6 +86,9 @@ struct CoachSettingsView: View {
     @State private var memoryExpanded: Bool = false
     /// How the user reaches Coach from Today: the card, the draggable floating button, or both.
     @AppStorage(CoachEntryMode.storageKey) private var coachEntryModeRaw = CoachEntryMode.both.rawValue
+    /// Master switch for the Coach's home-surface UI (#R7). Off hides the Today card and floating button;
+    /// card- and background-AI, and the coach settings themselves, are untouched.
+    @AppStorage(CoachEntryMode.uiEnabledKey) private var coachUIEnabled = true
     /// Opt-in: opening Today on a new day generates a workout suggestion. Same key MorningSuggestionCard
     /// reads. Default OFF — a Today-triggered generation is the one thing that talks to the network on
     /// open, so it must be chosen.
@@ -502,6 +505,7 @@ struct CoachSettingsView: View {
 
     private var coachingSubpage: some View {
         subpageScaffold {
+            coachVisibilityBar
             identityBar
             personaBar
             emojiBar
@@ -663,10 +667,30 @@ struct CoachSettingsView: View {
         .accessibilityElement(children: .combine)
     }
 
+    // MARK: - Coach UI master switch (#R7) — hides the home-surface entry points, keeps card/background AI
+
+    private var coachVisibilityBar: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            VStack(alignment: .leading, spacing: 8) {
+                Toggle(isOn: $coachUIEnabled) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Show Coach on Today")
+                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                        Text("Turn off to hide the Coach card and floating button. Per-metric “Ask coach” and the AI that writes your card summaries keep working.")
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .tint(StrandPalette.accent)
+            }
+        }
+    }
+
     // MARK: - Coach entry preference (iOS: card vs. draggable floating button vs. both)
 
     @ViewBuilder private var coachEntryBar: some View {
         #if os(iOS)
+        if coachUIEnabled {
         NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
@@ -696,6 +720,7 @@ struct CoachSettingsView: View {
                     buttonPlacementControls
                 }
             }
+        }
         }
         #else
         EmptyView()

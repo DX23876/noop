@@ -23,6 +23,21 @@ enum CoachEntryMode: String, CaseIterable, Identifiable {
     /// The shared UserDefaults key both the setting and the surfaces read.
     static let storageKey = "coach.entryMode"
 
+    /// Master switch for the Coach's home-surface UI (#R7 / list 14): when off, the Today card AND the
+    /// floating button are hidden regardless of `self`, while the chosen entry style is remembered for
+    /// when it's turned back on. Deliberately independent of `dataConsent` / `isConfigured` and of the
+    /// card- and background-AI paths (`model(for:)`), which keep running — this hides only the coach's
+    /// own entry points, not the AI features that don't depend on the chat.
+    static let uiEnabledKey = "coach.uiEnabled"
+
+    /// Whether the Coach's home-surface UI is enabled. Absent key ⇒ true, so existing installs are
+    /// unaffected. Surfaces use `@AppStorage(uiEnabledKey)` for reactivity; this is for plain call sites.
+    static var uiEnabled: Bool {
+        UserDefaults.standard.object(forKey: uiEnabledKey) == nil
+            ? true
+            : UserDefaults.standard.bool(forKey: uiEnabledKey)
+    }
+
     /// Current mode from UserDefaults (defaults to `.both`). A tiny helper so call sites don't repeat the
     /// `@AppStorage` raw-string dance.
     static var current: CoachEntryMode {

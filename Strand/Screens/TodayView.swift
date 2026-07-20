@@ -204,6 +204,8 @@ struct TodayView: View {
     @State private var showCoach = false
     @State private var showPlan = false
     @AppStorage(CoachEntryMode.storageKey) private var coachEntryModeRaw = CoachEntryMode.both.rawValue
+    /// Master switch (#R7): hides the Coach's Today card when the coach UI is turned off.
+    @AppStorage(CoachEntryMode.uiEnabledKey) private var coachUIEnabled = true
 
     // Imperial/Metric display preference (D#103). Only the Weight tile carries a convertible unit here.
     @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
@@ -1259,7 +1261,7 @@ struct TodayView: View {
                 // and opens the in-exercise screen. Its own leaf owns the AppModel observation + per-second
                 // clock, so the live tick never re-renders TodayView.body.
                 ActiveWorkoutIndicatorSection()
-                if (CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both).showsCard { coachCard }
+                if coachUIEnabled, (CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both).showsCard { coachCard }
                 MorningSuggestionCard(showPlan: $showPlan)
                 PlanTodayCard(showPlan: $showPlan)
                 // The "still building" and "new here?" prompts are about getting today's scores going,

@@ -57,6 +57,8 @@ struct LiquidTodayView: View {
     @State private var showCoach = false
     @State private var showPlan = false
     @AppStorage(CoachEntryMode.storageKey) private var coachEntryModeRaw = CoachEntryMode.both.rawValue
+    /// Master switch (#R7): hides the Coach's Today card when the coach UI is turned off.
+    @AppStorage(CoachEntryMode.uiEnabledKey) private var coachUIEnabled = true
 
     /// Live Sessions (silent guardian) beta gate — the SAME key the Settings toggle writes. Default ON
     /// (the entry is BETA-labelled in-UI); off removes the Start-session control entirely.
@@ -246,7 +248,7 @@ struct LiquidTodayView: View {
                     // pinned above the reorderable block so an active manual workout is immediately visible
                     // and taps straight through to Live. Renders nothing when no workout is active.
                     ActiveWorkoutIndicatorSection()
-                    if (CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both).showsCard { coachCard }
+                    if coachUIEnabled, (CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both).showsCard { coachCard }
                     MorningSuggestionCard(showPlan: $showPlan)
                     PlanTodayCard(showPlan: $showPlan)
                     // #today-layout (parity with Android): every Today section — the Charge/Effort/Rest hero
