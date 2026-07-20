@@ -28,7 +28,7 @@ struct CoachView: View {
     @FocusState private var composerFocused: Bool
     /// Presented sheet: all configuration, or the conversation history. One enum-driven sheet rather
     /// than two stacked `.sheet` modifiers (which don't compose reliably).
-    private enum ActiveSheet: Int, Identifiable { case settings, history, plan; var id: Int { rawValue } }
+    private enum ActiveSheet: Int, Identifiable { case settings, history, plan, goal; var id: Int { rawValue } }
     @State private var activeSheet: ActiveSheet?
     /// Which messages' evidence chains (P6) are expanded — per-message, so opening one doesn't open
     /// every reply that has one.
@@ -81,6 +81,16 @@ struct CoachView: View {
             case .settings: CoachSettingsView().environmentObject(coach)
             case .history:  CoachHistoryView(onPick: { activeSheet = nil }).environmentObject(coach)
             case .plan:     CoachPlanView().environmentObject(coach)
+            case .goal:
+                // The chat's goal shortcut (#R6): the same Goal & Journey surface reachable from the
+                // top-level menu, presented over the chat with its own Done control.
+                NavigationStack {
+                    CoachGoalJourneyScreen()
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) { Button("Done") { activeSheet = nil } }
+                        }
+                }
+                .environmentObject(coach)
             }
         }
         .task(id: coach.dataConsent) {
@@ -192,6 +202,16 @@ struct CoachView: View {
             HStack(spacing: 14) {
                 // The plan book. The dot means something is waiting for YOUR answer — the coach can
                 // propose, but only you can turn a suggestion into a plan.
+                // Goal & Journey shortcut (#R6) — one tap to the goal surface from the chat, alongside
+                // the plan book, instead of digging through settings.
+                Button { activeSheet = .goal } label: {
+                    Image(systemName: "target")
+                        .font(StrandFont.headline)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Goal and journey")
+
                 Button { activeSheet = .plan } label: {
                     Image(systemName: "calendar")
                         .font(StrandFont.headline)

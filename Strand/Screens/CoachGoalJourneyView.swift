@@ -1,0 +1,236 @@
+import SwiftUI
+import StrandDesign
+
+/// The standalone screen behind the top-level "Goal & Journey" menu entry (#R6) — the same content as
+/// the settings subpage, in the app's standard titled scaffold. Pushed from More (iOS) / the sidebar
+/// (macOS), and presented from the coach chat's shortcut.
+struct CoachGoalJourneyScreen: View {
+    var body: some View {
+        ScreenScaffold(title: "Goal & Journey",
+                       subtitle: "Your target, your pace, your progress.") {
+            CoachGoalJourneyView()
+        }
+    }
+}
+
+/// The goal + journey surface (#R6), extracted from `CoachSettingsView` so it can live in TWO places at
+/// once: still inside the settings hub, and now as its own top-level entry (More on iOS, the sidebar on
+/// macOS) so a goal is one or two taps from anywhere instead of five behind the chat's gear. Self-
+/// contained — it owns its goal editor / journey sheets and its lifecycle confirmation dialogs (the same
+/// enum-driven presentation R2 gave the settings version, so nothing here can regress into the stacked-
+/// sheet bug). The embedder supplies the scroll scaffold and the title.
+struct CoachGoalJourneyView: View {
+    @EnvironmentObject private var coach: AICoachEngine
+    @ObservedObject private var goalStore = CoachGoalStore.shared
+
+    private enum GoalSheet: Int, Identifiable {
+        case edit, newGoal, journey
+        var id: Int { rawValue }
+    }
+    @State private var goalSheet: GoalSheet?
+    private enum GoalConfirmation: Int, Identifiable {
+        case setAside, delete
+        var id: Int { rawValue }
+    }
+    @State private var goalConfirmation: GoalConfirmation?
+
+    var body: some View {
+        VStack(spacing: 16) {
+            expiredGoalCard
+            goalBar
+        }
+        .sheet(item: $goalSheet) { which in
+            switch which {
+            case .edit:    CoachGoalEditorView(isOnboarding: false)
+            case .newGoal: CoachGoalEditorView(isOnboarding: false, startsFresh: true)
+            case .journey: JourneyView().environmentObject(coach)
+            }
+        }
+        .confirmationDialog(goalConfirmationTitle,
+                            isPresented: goalConfirmationIsPresented,
+                            titleVisibility: .visible) {
+            goalConfirmationActions
+        } message: {
+            goalConfirmationMessage
+        }
+    }
+
+    // MARK: - Confirmation dialog (one enum-driven dialog — see R2)
+
+    private var goalConfirmationIsPresented: Binding<Bool> {
+        Binding(get: { goalConfirmation != nil }, set: { if !$0 { goalConfirmation = nil } })
+    }
+
+    private var goalConfirmationTitle: LocalizedStringKey {
+        switch goalConfirmation {
+        case .setAside: return "Set this goal aside?"
+        case .delete:   return "Delete this goal?"
+        case nil:       return ""
+        }
+    }
+
+    @ViewBuilder
+    private var goalConfirmationActions: some View {
+        switch goalConfirmation {
+        case .setAside:
+            Button("Injury or health") { goalStore.setAside(reason: "injury or health") }
+            Button("Life got busy") { goalStore.setAside(reason: "life got busy") }
+            Button("Priorities changed") { goalStore.setAside(reason: "priorities changed") }
+            Button("No particular reason") { goalStore.setAside(reason: "") }
+            Button("Cancel", role: .cancel) {}
+        case .delete:
+            Button("Delete goal", role: .destructive) { goalStore.clear() }
+            Button("Cancel", role: .cancel) {}
+        case nil:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private var goalConfirmationMessage: some View {
+        switch goalConfirmation {
+        case .setAside: Text("It stays in your history — nothing is lost, and there's nothing to justify.")
+        case .delete:   Text("This removes the goal and its history from the device. There is no undo.")
+        case nil:       EmptyView()
+        }
+    }
+
+    // MARK: - Cards
+
+    private var goalIsClosed: Bool {
+        goalStore.goal?.status == .achieved || goalStore.goal?.status == .abandoned
+    }
+
+    private var goalBar: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            VStack(alignment: .leading, spacing: 10) {
+                Button {
+                    goalSheet = goalIsClosed ? .newGoal : .edit
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: goalStore.goal?.status == .achieved ? "checkmark.seal.fill" : "target")
+                            .foregroundStyle(goalStore.goal == nil ? StrandPalette.textTertiary : StrandPalette.accent)
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(goalStore.goal?.title.isEmpty == false
+                                 ? goalStore.goal!.title
+                                 : String(localized: "Set a goal"))
+                                .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                                .lineLimit(1)
+                            Text(goalSubtitle)
+                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 8)
+                        Image(systemName: "chevron.right")
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .accessibilityHidden(true)
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(goalStore.goal == nil ? "Set a goal"
+                                    : (goalIsClosed ? "Set a new goal" : "Edit your goal"))
+
+                if goalStore.goal != nil {
+                    Divider().overlay(StrandPalette.hairline)
+                    Button { goalSheet = .journey } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "chart.line.uptrend.xyaxis")
+                                .foregroundStyle(StrandPalette.accent)
+                                .accessibilityHidden(true)
+                            Text("View your journey")
+                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
+                            Spacer(minLength: 8)
+                            Image(systemName: "chevron.right")
+                                .font(StrandFont.footnote)
+                                .foregroundStyle(StrandPalette.textTertiary)
+                                .accessibilityHidden(true)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("View your goal journey — progress, milestones and plan history")
+
+                    Divider().overlay(StrandPalette.hairline)
+                    goalLifecycleRow
+                }
+            }
+        }
+    }
+
+    /// A goal must be able to END: close it as reached, set it aside, or delete it entirely.
+    private var goalLifecycleRow: some View {
+        HStack(spacing: 16) {
+            if goalStore.goal?.status == .active || goalStore.goal?.status == .paused {
+                Button("Mark as achieved") { goalStore.markAchieved() }
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
+                Button("Set aside") { goalConfirmation = .setAside }
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+            } else {
+                Button("Set a new goal") { goalSheet = .newGoal }
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
+            }
+            Spacer(minLength: 8)
+            Button { goalConfirmation = .delete } label: {
+                Image(systemName: "trash")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.statusWarning)
+            }
+            .accessibilityLabel("Delete goal")
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// The passed-date decision card: reached, more time, or set aside — a fork, not a dead end.
+    @ViewBuilder
+    private var expiredGoalCard: some View {
+        if let g = goalStore.goal, g.status == .active, let weeks = g.weeksRemaining(), weeks < 0 {
+            NoopCard(padding: 14, tint: StrandPalette.statusWarning) {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "calendar.badge.exclamationmark")
+                            .foregroundStyle(StrandPalette.statusWarning)
+                            .accessibilityHidden(true)
+                        Text("Your target date has passed")
+                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                    }
+                    Text("How did it go? Close it out, give it more time, or set it aside — your call.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    HStack(spacing: 14) {
+                        Button("I reached it") { goalStore.markAchieved() }
+                            .foregroundStyle(StrandPalette.accent)
+                        Button("Extend the date") { goalSheet = .edit }
+                            .foregroundStyle(StrandPalette.accent)
+                        Button("Set aside") { goalConfirmation = .setAside }
+                            .foregroundStyle(StrandPalette.textSecondary)
+                    }
+                    .font(StrandFont.footnote)
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    /// One honest line: how long is left, whether the pace was flagged — or how the goal ended.
+    private var goalSubtitle: String {
+        guard let goal = goalStore.goal else {
+            return "A target and a date let the coach tell you where you stand. Optional."
+        }
+        switch goal.status {
+        case .achieved:  return "Achieved — nicely done."
+        case .abandoned: return "Set aside. A new goal is one tap away."
+        case .active, .paused, .archived: break
+        }
+        var parts: [String] = []
+        if let weeks = goal.weeksRemaining() {
+            parts.append(weeks < 0 ? "target date passed"
+                                   : String(format: "%.0f weeks to go", weeks.rounded()))
+        }
+        let gate = GoalSafetyGate.assess(goal: goal, bodyWeightKg: ProfileStore().weightKg)
+        if gate.verdict == .aggressive || gate.verdict == .veryAggressive {
+            parts.append(goal.acknowledgedRisk != nil ? "brisk pace, acknowledged" : "brisk pace")
+        }
+        return parts.isEmpty ? "No target date set" : parts.joined(separator: " · ")
+    }
+}

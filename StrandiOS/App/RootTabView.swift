@@ -381,6 +381,7 @@ struct RootTabView: View {
                     MoreRow("What Moves You", "wand.and.sparkles", .insightsHub)
                     MoreRow("Intelligence", "brain.head.profile", .intelligence)
                     MoreRow("Coach", "sparkles", .coach)
+                    MoreRow("Goal & Journey", "target", .goalJourney)
                     MoreRow("Insights", "lightbulb.fill", .insights)
                     MoreRow("Explore", "square.grid.2x2.fill", .explore)
                     MoreRow("Compare", "rectangle.split.2x1.fill", .compare)
@@ -506,7 +507,7 @@ struct RootTabView: View {
 /// per-screen chrome the old inline links applied lives at the single `navigationDestination(for:)`
 /// registration in `moreTab`.
 private enum MoreDestination: Hashable {
-    case insightsHub, intelligence, coach, insights, explore, compare
+    case insightsHub, intelligence, coach, goalJourney, insights, explore, compare
     case live, workouts, health, labBook, stress, breathe, intervals, rhythm
     case fusedRecord, appleHealth, miBand, dataSources, backupSync, shortcutsExport
     case alarms, automations, testCentre, siriShortcuts, settings
@@ -516,6 +517,7 @@ private enum MoreDestination: Hashable {
         case .insightsHub:     InsightsHubView()
         case .intelligence:    IntelligenceView()
         case .coach:           CoachView()
+        case .goalJourney:     CoachGoalJourneyScreen()
         case .insights:        InsightsView()
         case .explore:         MetricExplorerView()
         case .compare:         CompareView()

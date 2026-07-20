@@ -6,6 +6,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
     case intelligence = "Intelligence"
     case insightsHub = "What Moves You"
     case coach = "Coach"
+    case goalJourney = "Goal & Journey"
     case live = "Live"
     case breathe = "Breathe"
     case intervals = "Intervals"
@@ -41,6 +42,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         case .intelligence: return "Intelligence"
         case .insightsHub: return "What Moves You"
         case .coach: return "Coach"
+        case .goalJourney: return "Goal & Journey"
         case .live: return "Live"
         case .breathe: return "Breathe"
         case .intervals: return "Intervals"
@@ -83,6 +85,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         case .intelligence: return String(localized: "Intelligence")
         case .insightsHub: return String(localized: "What Moves You")
         case .coach: return String(localized: "Coach")
+        case .goalJourney: return String(localized: "Goal & Journey")
         case .live: return String(localized: "Live")
         case .breathe: return String(localized: "Breathe")
         case .intervals: return String(localized: "Intervals")
@@ -117,6 +120,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         case .intelligence: return "brain.head.profile"
         case .insightsHub: return "wand.and.sparkles"
         case .coach: return "sparkles"
+        case .goalJourney: return "target"
         case .live: return "waveform.path.ecg"
         case .breathe: return "lungs.fill"
         case .intervals: return "timer"
@@ -169,7 +173,7 @@ struct NavGroup: Identifiable {
         // S6: the overlapping insight surfaces (Intelligence / What Moves You / Insights / Insights Hub)
         // all collapse under this single Insights group rather than scattering across the flat list.
         NavGroup(title: "Insights", id: "insights", items: [
-            .intelligence, .insightsHub, .coach, .explore, .compare, .insights,
+            .intelligence, .insightsHub, .coach, .goalJourney, .explore, .compare, .insights,
             .labBook, .rhythm, .trends,
         ]),
         NavGroup(title: "Data & App", id: "data_app", items: [
@@ -420,6 +424,7 @@ struct RootView: View {
         case .intelligence: IntelligenceView()
         case .insightsHub: InsightsHubView()
         case .coach: CoachView()
+        case .goalJourney: CoachGoalJourneyScreen()
         case .live: liveDetail
         case .breathe: BreathingView()
         case .intervals: IntervalTimerView()
