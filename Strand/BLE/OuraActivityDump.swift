@@ -20,6 +20,10 @@ final class OuraActivityDump {
     private var resolveFailed = false
     private var announced = false
 
+    /// #676 follow-up: rotate the sidecar past this size (keeping one previous ".1"), so an always-on
+    /// research corpus is bounded to ~2× this on disk instead of growing forever. Matches Kotlin `MAX_BYTES`.
+    private static let maxBytes = 25 * 1024 * 1024
+
     private static let iso: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
         f.timeZone = TimeZone(identifier: "UTC")
@@ -40,7 +44,21 @@ final class OuraActivityDump {
     /// anchored on the next drain).
     func record(ringTs: UInt32, utc: Int, state: Int, secPerSample: Int, met: [Double]) {
         guard ringTs > highWater else { return }
-        guard let url = resolveURL() else { return }
+        guard var url = resolveURL() else { return }
+        // #676 follow-up: bound the corpus (rotate to a single ".1", dropping the prior one) so an
+        // always-on research sidecar can't grow unbounded — the same rotation the WHOOP5 deep-buffer log
+        // uses. Twin of Kotlin OuraActivityDump. Best-effort: a rotation error falls through to the append.
+        // Read the size via FileManager (a fresh stat) rather than URL.resourceValues, whose cache on the
+        // reused URL object can return a stale small size and skip rotation entirely.
+        let size = ((try? FileManager.default.attributesOfItem(atPath: url.path))?[.size] as? Int) ?? 0
+        if size > Self.maxBytes {
+            let old = url.deletingLastPathComponent().appendingPathComponent(url.lastPathComponent + ".1")
+            try? FileManager.default.removeItem(at: old)
+            try? FileManager.default.moveItem(at: url, to: old)
+            fileURL = nil
+            guard let fresh = resolveURL() else { return }
+            url = fresh
+        }
 
         let line = OuraActivityDumpLine.encode(
             deviceId: deviceId, ringTs: ringTs, utc: utc,

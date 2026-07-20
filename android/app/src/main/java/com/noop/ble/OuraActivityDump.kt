@@ -40,7 +40,20 @@ class OuraActivityDump(
      */
     fun record(ringTs: Long, utc: Long, state: Int, secPerSample: Int, met: List<Double>) {
         if (ringTs <= highWater) return
-        val f = resolveFile() ?: return
+        var f = resolveFile() ?: return
+        // #676 follow-up: bound the corpus so it can't grow unbounded on a long-lived Oura (this is
+        // always-on for every paired ring). At the cap, rotate to a single ".1" (dropping the prior one)
+        // and continue in a fresh file — the same rotation the WHOOP5 deep-buffer log uses. Best-effort:
+        // a rotation error just falls through to the append below.
+        if (f.length() > MAX_BYTES) {
+            runCatching {
+                val old = File(f.parentFile, "${f.name}.1")
+                old.delete()
+                f.renameTo(old)
+            }
+            file = null
+            f = resolveFile() ?: return
+        }
 
         val line = OuraActivityDumpLine.encode(
             deviceId = deviceId, ringTs = ringTs, utc = utc,
@@ -83,5 +96,10 @@ class OuraActivityDump(
 
     private companion object {
         const val PREFS_NAME = "oura_activity_dump"
+
+        /** #676 follow-up: rotate the sidecar past this size (keeping one previous ".1"), so an always-on
+         *  research corpus is bounded to ~2× this on disk instead of growing forever. Generous enough to
+         *  retain a long MET series for offline RE. */
+        const val MAX_BYTES = 25L * 1024 * 1024
     }
 }
