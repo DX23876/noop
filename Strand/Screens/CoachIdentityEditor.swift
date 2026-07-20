@@ -2,10 +2,11 @@ import SwiftUI
 import StrandDesign
 import PhotosUI
 
-/// The coach-identity editor (#R9): name, avatar (a curated symbol OR the user's own photo), and the
-/// phrasing-lean voice — plus one-tap Svea / Marv presets. Pushed from the Coaching settings subpage.
-/// Everything is on-device: the photo is written to Application Support by `CoachIdentityStore`, and only
-/// the NAME and voice lean ever reach the model (never the picture). Design tokens only; shared macOS+iOS.
+/// The coach-identity editor (#R9): name, avatar (a curated symbol, a bundled Svea/Marv photo, or the
+/// user's own photo), and the phrasing-lean voice — plus one-tap Svea / Marv presets. Pushed from the
+/// Coaching settings subpage. Everything is on-device: a user-supplied photo is written to Application
+/// Support by `CoachIdentityStore`, and only the NAME and voice lean ever reach the model (never the
+/// picture). Design tokens only; shared macOS+iOS.
 struct CoachIdentityEditor: View {
     @ObservedObject private var store = CoachIdentityStore.shared
 
@@ -126,7 +127,10 @@ struct CoachIdentityEditor: View {
                     Spacer(minLength: 8)
                     if case .photo = store.identity.avatar {
                         Button {
-                            store.setPreset(symbol: CoachIdentity.default.avatar.presetSymbolOrDefault)
+                            // Falls back to a plain, neutral symbol — not Svea/Marv's own bundled photo,
+                            // which would be an odd substitute for whatever identity/name the user is
+                            // actually editing here.
+                            store.setPreset(symbol: "person.crop.circle.fill")
                         } label: {
                             Text("Remove photo").font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                         }
@@ -176,15 +180,5 @@ struct CoachIdentityEditor: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-    }
-}
-
-private extension CoachAvatar {
-    /// The symbol name if this is a preset, else the default identity's preset symbol — used when
-    /// "remove photo" needs a symbol to fall back to.
-    var presetSymbolOrDefault: String {
-        if case .preset(let s) = self { return s }
-        if case .preset(let s) = CoachIdentity.default.avatar { return s }
-        return "person.crop.circle.fill"
     }
 }

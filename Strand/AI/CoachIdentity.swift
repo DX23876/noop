@@ -11,9 +11,10 @@ import AppKit
 /// coaching in the demanding style, or Marv in the protective one. The identity never touches behaviour
 /// or the safety rails — only the name shown, the picture, and a small phrasing lean.
 ///
-/// **Svea** and **Marv** are the two supplied presets (name + avatar + voice), fully editable — the
-/// avatars are DELIBERATELY abstract/dezent design-system marks, and the user can swap in their own photo
-/// (stored on-device only, like everything else in NOOP). Nothing here leaves the device.
+/// **Svea** and **Marv** are the two supplied presets (name + avatar + voice), fully editable — each with
+/// a bundled preset photo (#R-avatar-photos), or the user can pick an abstract design-system symbol
+/// instead, or swap in their own photo (stored on-device only, like everything else in NOOP). Nothing
+/// here ever leaves the device.
 struct CoachIdentity: Codable, Equatable {
     /// The coach's display name, shown in the chat header and on the Today entry. Never empty in practice
     /// (the store clamps a blank name back to the current preset's name).
@@ -51,11 +52,11 @@ struct CoachIdentity: Codable, Equatable {
 
     // MARK: - Supplied presets
 
-    /// The female-presented default coach. A warm phrasing lean, an abstract mark — a starting point, not
-    /// a fixed character; every field is editable.
-    static let svea = CoachIdentity(name: "Svea", avatar: .preset("figure.mind.and.body"), voice: .warm)
+    /// The female-presented default coach. A warm phrasing lean, a bundled photo (#R-avatar-photos) — a
+    /// starting point, not a fixed character; every field, including the avatar itself, is editable.
+    static let svea = CoachIdentity(name: "Svea", avatar: .bundled("svea-avatar"), voice: .warm)
     /// The male-presented default coach. A grounded phrasing lean.
-    static let marv = CoachIdentity(name: "Marv", avatar: .preset("figure.strengthtraining.traditional"), voice: .grounded)
+    static let marv = CoachIdentity(name: "Marv", avatar: .bundled("marv-avatar"), voice: .grounded)
 
     /// What a brand-new install starts on. Svea (warm) matches the app's existing supportive default tone
     /// (the persona also defaults to `friend`), and is one tap from Marv or a fully custom identity.
@@ -72,15 +73,17 @@ struct CoachIdentity: Codable, Equatable {
     }
 }
 
-/// The coach's picture: a curated design-system symbol, or a photo the user supplied (referenced by a
-/// filename in Application Support — the bytes never leave the device, and never ride the prompt).
+/// The coach's picture: a curated design-system symbol, a bundled preset photo shipped with the app, or
+/// a photo the user supplied themselves (referenced by a filename in Application Support — the bytes
+/// never leave the device, and never ride the prompt).
 enum CoachAvatar: Codable, Equatable {
     case preset(String)   // an SF Symbol name from `presetSymbols`
+    case bundled(String)  // an app-bundle image asset name (#R-avatar-photos) — e.g. the Svea/Marv presets
     case photo(String)    // a filename under the app's Application Support directory
 
     /// A small, tasteful set of abstract marks offered as standard avatars (#R9) — figures, not faces, in
-    /// keeping with the design system. NOT a likeness of the presets' described appearance, which is a
-    /// content line the project doesn't cross; the user supplies any real picture via photo upload.
+    /// keeping with the design system. Offered alongside the bundled Svea/Marv photos and a user's own
+    /// upload as alternative choices for a fully custom identity.
     static let presetSymbols: [String] = [
         "figure.mind.and.body",
         "figure.strengthtraining.traditional",
@@ -95,23 +98,25 @@ enum CoachAvatar: Codable, Equatable {
 
     // Codable as a tagged union so a future case can't silently corrupt an old blob.
     private enum CodingKeys: String, CodingKey { case kind, value }
-    private enum Kind: String, Codable { case preset, photo }
+    private enum Kind: String, Codable { case preset, bundled, photo }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let kind = try c.decode(Kind.self, forKey: .kind)
         let value = try c.decode(String.self, forKey: .value)
         switch kind {
-        case .preset: self = .preset(value)
-        case .photo:  self = .photo(value)
+        case .preset:  self = .preset(value)
+        case .bundled: self = .bundled(value)
+        case .photo:   self = .photo(value)
         }
     }
 
     func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         switch self {
-        case .preset(let s): try c.encode(Kind.preset, forKey: .kind); try c.encode(s, forKey: .value)
-        case .photo(let s):  try c.encode(Kind.photo, forKey: .kind); try c.encode(s, forKey: .value)
+        case .preset(let s):  try c.encode(Kind.preset, forKey: .kind); try c.encode(s, forKey: .value)
+        case .bundled(let s): try c.encode(Kind.bundled, forKey: .kind); try c.encode(s, forKey: .value)
+        case .photo(let s):   try c.encode(Kind.photo, forKey: .kind); try c.encode(s, forKey: .value)
         }
     }
 }

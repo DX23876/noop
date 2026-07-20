@@ -14,9 +14,9 @@ final class CoachIdentityTests: XCTestCase {
         XCTAssertEqual(CoachIdentity.svea.voice, .warm)
         XCTAssertEqual(CoachIdentity.marv.name, "Marv")
         XCTAssertEqual(CoachIdentity.marv.voice, .grounded)
-        // Both default avatars are curated preset symbols (not photos).
-        if case .preset = CoachIdentity.svea.avatar {} else { XCTFail("Svea should default to a preset symbol") }
-        if case .preset = CoachIdentity.marv.avatar {} else { XCTFail("Marv should default to a preset symbol") }
+        // Both default avatars are bundled preset photos (#R-avatar-photos), not user-supplied photos.
+        if case .bundled = CoachIdentity.svea.avatar {} else { XCTFail("Svea should default to a bundled photo") }
+        if case .bundled = CoachIdentity.marv.avatar {} else { XCTFail("Marv should default to a bundled photo") }
     }
 
     func testDefaultIsSvea() {
@@ -54,11 +54,21 @@ final class CoachIdentityTests: XCTestCase {
         }
     }
 
-    func testAvatarRoundTripsBothCases() throws {
-        for avatar in [CoachAvatar.preset("figure.run"), CoachAvatar.photo("f.img")] {
+    func testAvatarRoundTripsAllThreeCases() throws {
+        for avatar in [CoachAvatar.preset("figure.run"), CoachAvatar.bundled("svea-avatar"), CoachAvatar.photo("f.img")] {
             let data = try JSONEncoder().encode(avatar)
             XCTAssertEqual(try JSONDecoder().decode(CoachAvatar.self, from: data), avatar)
         }
+    }
+
+    /// A `.bundled` avatar saved before the case existed would never occur in practice (this fork always
+    /// controls both read and write), but the tagged-union decode must still reject an UNKNOWN kind rather
+    /// than silently defaulting — confirmed by `CoachIdentity.init(from:)`'s own fallback to `.svea`'s
+    /// avatar one level up, not a crash.
+    func testBundledAvatarDecodesFromItsTaggedUnionShape() throws {
+        let json = #"{"kind":"bundled","value":"marv-avatar"}"#
+        let decoded = try JSONDecoder().decode(CoachAvatar.self, from: Data(json.utf8))
+        XCTAssertEqual(decoded, .bundled("marv-avatar"))
     }
 
     /// A partial blob (missing `voice`) still decodes, filling the gap from the default — the additive
