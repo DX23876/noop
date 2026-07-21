@@ -31,7 +31,7 @@ struct CoachSettingsView: View {
     /// same Connection & model subpage. Only reachable once a provider's list exceeds
     /// `searchableModelThreshold` (today just OpenRouter).
     private enum ModelSearchTarget: Int, Identifiable {
-        case chat, summary, cardAnalysis
+        case chat, summary, cardAnalysis, deepAnalysis
         var id: Int { rawValue }
     }
     @State private var modelSearchTarget: ModelSearchTarget?
@@ -42,6 +42,8 @@ struct CoachSettingsView: View {
     @State private var memoryModelCustomDraft: String = ""
     @State private var cardModelCustom: Bool = false
     @State private var cardModelCustomDraft: String = ""
+    @State private var deepModelCustom: Bool = false
+    @State private var deepModelCustomDraft: String = ""
     @State private var checkInOn: Bool = CoachCheckIn.isEnabled
     @State private var checkInTime: Date = CoachCheckIn.timeAsDate
     @State private var checkInDenied: Bool = false
@@ -333,6 +335,7 @@ struct CoachSettingsView: View {
             case .chat:         ModelSearchSheet(models: coach.availableModels, selection: $coach.model)
             case .summary:      ModelSearchSheet(models: coach.availableModels, selection: $coach.memoryModel)
             case .cardAnalysis: ModelSearchSheet(models: coach.availableModels, selection: $coach.cardModel)
+            case .deepAnalysis: ModelSearchSheet(models: coach.availableModels, selection: $coach.deepModel)
             }
         }
     }
@@ -384,6 +387,14 @@ struct CoachSettingsView: View {
                     searchTarget: .cardAnalysis,
                     accessibility: "Card-analysis model"
                 )
+                roleModelField(
+                    title: "Closer look",
+                    caption: "An optional heavier model for \"Look at this more closely\" on a reply. Leave unset to hide that option.",
+                    model: $coach.deepModel, custom: $deepModelCustom, customDraft: $deepModelCustomDraft,
+                    searchTarget: .deepAnalysis,
+                    accessibility: "Closer-look model",
+                    emptyLabel: "Off — no closer-look option"
+                )
             }
         }
     }
@@ -393,16 +404,21 @@ struct CoachSettingsView: View {
     /// actually offers is selectable, not just typeable-and-hope. Empty ("") is its own real option,
     /// "Same as coaching model" — the role's default — kept distinct from "Custom…" (typing an id outside
     /// the fetched list).
+    /// `emptyLabel` names what an unset field MEANS, which differs per role: for the background roles
+    /// empty is "fall back to the coaching model", but for Closer look empty means the feature is off and
+    /// its action stays hidden. Showing "Same as coaching model" there would promise a fallback that
+    /// deliberately doesn't happen.
     private func roleModelField(title: LocalizedStringKey, caption: LocalizedStringKey,
                                 model: Binding<String>, custom: Binding<Bool>, customDraft: Binding<String>,
-                                searchTarget: ModelSearchTarget, accessibility: String) -> some View {
+                                searchTarget: ModelSearchTarget, accessibility: String,
+                                emptyLabel: LocalizedStringKey = "Same as coaching model") -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title).strandOverline()
 
             if coach.availableModels.count > Self.searchableModelThreshold {
                 Button { modelSearchTarget = searchTarget } label: {
                     HStack {
-                        Text(model.wrappedValue.isEmpty ? "Same as coaching model" : model.wrappedValue)
+                        Text(model.wrappedValue.isEmpty ? emptyLabel : LocalizedStringKey(model.wrappedValue))
                             .font(StrandFont.body)
                             .foregroundStyle(model.wrappedValue.isEmpty
                                              ? StrandPalette.textTertiary : StrandPalette.textPrimary)
@@ -422,7 +438,7 @@ struct CoachSettingsView: View {
                 .accessibilityLabel(accessibility)
             } else {
                 Picker(title, selection: roleModelPickerSelection(model: model, custom: custom, draft: customDraft)) {
-                    Text("Same as coaching model").tag("")
+                    Text(emptyLabel).tag("")
                     ForEach(coach.availableModels, id: \.self) { m in
                         Text(m).tag(m)
                     }

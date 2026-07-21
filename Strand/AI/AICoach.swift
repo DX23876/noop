@@ -300,6 +300,19 @@ final class AICoachEngine: ObservableObject {
     /// The cheap/fast model used for short one-off CARD analyses (the `.cardAnalysis` role). Empty →
     /// falls back to `provider.cheapModel`, then the coaching model. Configured in settings; consumed by
     /// the card-AI feature. Separate from `memoryModel` so the two background jobs can be tuned apart.
+    /// The optional heavier model for a "go deeper on this one" re-run. Empty by default — see
+    /// `CoachModelRole.deepAnalysis` for why depth is a model rather than a reasoning flag.
+    @Published var deepModel: String {
+        didSet { UserDefaults.standard.set(deepModel, forKey: Self.deepModelKey) }
+    }
+
+    /// Whether the deep re-run is available at all. The UI hides the action entirely when it isn't,
+    /// rather than offering something that would quietly resolve back to the ordinary chat model and
+    /// return an identical answer the user just paid twice for.
+    var hasDeepAnalysisModel: Bool {
+        !deepModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     @Published var cardModel: String {
         didSet { UserDefaults.standard.set(cardModel, forKey: Self.cardModelKey) }
     }
@@ -354,6 +367,7 @@ final class AICoachEngine: ObservableObject {
     /// `didSet` writes above. `memoryModelKey` pre-dates the role system, hence the name.
     private static let memoryModelKey = CoachModelRole.summary.overrideDefaultsKey!
     private static let cardModelKey = CoachModelRole.cardAnalysis.overrideDefaultsKey!
+    private static let deepModelKey = CoachModelRole.deepAnalysis.overrideDefaultsKey!
     private static let autoSummarizeKey = "ai.autoSummarize"
     /// Emoji in coach replies (#P14 7.3) — off by default, matching the careful/human register the P13
     /// voice clause already asks for; a user who wants a lighter touch can opt in.
@@ -618,6 +632,7 @@ final class AICoachEngine: ObservableObject {
         // went stale across a provider switch). auto-summarise defaults ON.
         self.memoryModel = UserDefaults.standard.string(forKey: Self.memoryModelKey) ?? ""
         self.cardModel = UserDefaults.standard.string(forKey: Self.cardModelKey) ?? ""
+        self.deepModel = UserDefaults.standard.string(forKey: Self.deepModelKey) ?? ""
         self.autoSummarize = (UserDefaults.standard.object(forKey: Self.autoSummarizeKey) as? Bool) ?? true
         self.proactiveLevel = UserDefaults.standard.string(forKey: ProactiveLevel.storageKey)
             .flatMap(ProactiveLevel.init(rawValue:)) ?? .important
@@ -729,7 +744,12 @@ final class AICoachEngine: ObservableObject {
     /// directly, so `stop()` can cancel it.
     func startSend(_ text: String) {
         sendTask?.cancel()
-        sendTask = Task { [weak self] in await self?.send(text) }
+        sendTask = Task { [weak self] in
+            await self?.send(text)
+            // Always clears — including on error, cancellation and Stop. A deep turn that failed must
+            // not leave the next ordinary question silently routed to the expensive model.
+            self?.deepTurn = false
+        }
     }
 
     /// Stop an in-flight reply. Whatever streamed so far stays in the transcript; no error is shown.
@@ -737,12 +757,40 @@ final class AICoachEngine: ObservableObject {
         sendTask?.cancel()
         sendTask = nil
         sending = false
+        // Disarm here as well as in `startSend`'s continuation: a stopped deep run must not leave the
+        // next ordinary question routed to the expensive model, and Stop is the one path where the user
+        // has explicitly said they don't want this request finished.
+        deepTurn = false
+    }
+
+    /// Whether the CURRENT request should go to the deep-analysis model. Scoped to one turn and cleared
+    /// as soon as it finishes: depth is something the user asks for per question, never a mode the app
+    /// silently stays in — a sticky "deep" state is how a chat quietly becomes ten times dearer.
+    @Published private(set) var deepTurn = false
+
+    /// The model this request actually goes to. Every send path reads this rather than `model`, so the
+    /// deep re-run needs no parallel plumbing.
+    var requestModel: String { deepTurn ? model(for: .deepAnalysis) : model }
+
+    /// Re-run the last question on the deep-analysis model. Deliberately an action on an ANSWER the user
+    /// has already read — not a switch in the composer — so the extra cost is only ever spent when the
+    /// quick answer turned out to be too thin, and the user always knows why this one took longer.
+    ///
+    /// No-op without a configured deep model: re-running the same model would return the same answer
+    /// and bill for it twice.
+    func regenerateDeeply() {
+        guard hasDeepAnalysisModel else { return }
+        deepTurn = true
+        regenerate()
     }
 
     /// Regenerate the last reply: drop everything back to (and including) the last user turn, purge any
     /// charts those dropped messages hosted, then resend that same question.
     func regenerate() {
-        guard !sending, let lastUserIdx = messages.lastIndex(where: { $0.role == .user }) else { return }
+        guard !sending, let lastUserIdx = messages.lastIndex(where: { $0.role == .user }) else {
+            deepTurn = false   // nothing to resend; don't leave the flag armed for the next question
+            return
+        }
         let question = messages[lastUserIdx].text
         var msgs = messages
         for m in msgs[lastUserIdx...] where m.role == .assistant {
@@ -1048,7 +1096,7 @@ final class AICoachEngine: ObservableObject {
             do {
                 let reply = try await streamer.streamWithTools(
                     key: key,
-                    model: model,
+                    model: requestModel,
                     systemPrompt: systemPrompt,
                     messages: wire,
                     tools: toolCallingActive ? coachTools : [],
@@ -2780,6 +2828,11 @@ final class AICoachEngine: ObservableObject {
             return firstNonEmpty(memoryModel, provider.cheapModel, model, provider.defaultModel)
         case .cardAnalysis:
             return firstNonEmpty(cardModel, provider.cheapModel, model, provider.defaultModel)
+        case .deepAnalysis:
+            // Falls back to the chat model so a caller can never end up with an empty id, but callers
+            // are expected to check `hasDeepAnalysisModel` first — a "deep" run on the ordinary model
+            // is just the same answer at twice the cost.
+            return firstNonEmpty(deepModel, model, provider.defaultModel)
         }
     }
 
@@ -2957,7 +3010,7 @@ final class AICoachEngine: ObservableObject {
         if toolCallingActive, let toolClient = provider.client as? ToolCallingClient {
             return try await toolClient.sendWithTools(
                 key: key,
-                model: model,
+                model: requestModel,
                 systemPrompt: systemPrompt,
                 messages: messages,
                 tools: coachTools,
@@ -2969,7 +3022,7 @@ final class AICoachEngine: ObservableObject {
         }
         let text = try await provider.client.send(
             key: key,
-            model: model,
+            model: requestModel,
             systemPrompt: systemPrompt,
             messages: messages,
             session: session
@@ -2988,8 +3041,11 @@ final class AICoachEngine: ObservableObject {
     /// a large model simply gets more when the turns are short. (Android still uses the flat count; this
     /// is a fork-side divergence, and the floor keeps the two agreeing on the small-model case.)
     private func windowedMessages() -> [ChatMessage] {
-        Self.windowedMessages(messages,
-                              budgetTokens: CoachHistoryBudget.tokens(provider: provider, model: model))
+        // `requestModel`, not `model`: a deep re-run may go to a model with a different context window,
+        // and the window has to match the model the request is actually sent to.
+        Self.windowedMessages(
+            messages,
+            budgetTokens: CoachHistoryBudget.tokens(provider: provider, model: requestModel))
     }
 
     /// Static and pure so the windowing is unit-testable without an engine or a provider.

@@ -438,6 +438,13 @@ struct CoachView: View {
                                         Label("Regenerate", systemImage: "arrow.clockwise")
                                     }
                                     .disabled(coach.sending)
+                                    if coach.hasDeepAnalysisModel {
+                                        Button { coach.regenerateDeeply() } label: {
+                                            Label("Look at this more closely",
+                                                  systemImage: "text.magnifyingglass")
+                                        }
+                                        .disabled(coach.sending)
+                                    }
                                 }
                             }
                         Spacer(minLength: 48)
@@ -461,6 +468,22 @@ struct CoachView: View {
                             .buttonStyle(.plain)
                             .disabled(coach.sending)
                             .accessibilityLabel("Regenerate this reply")
+
+                            // Offered only once a heavier model is configured, and only on an answer the
+                            // user has already read: the extra cost is spent when the quick answer turned
+                            // out too thin, never by default and never invisibly. Named for what it does,
+                            // not for the machinery — "reasoning" and "thinking" mean nothing to someone
+                            // who just wants a better answer about their sleep.
+                            if coach.hasDeepAnalysisModel {
+                                Button { coach.regenerateDeeply() } label: {
+                                    Label("Look at this more closely", systemImage: "text.magnifyingglass")
+                                        .font(StrandFont.caption)
+                                        .foregroundStyle(StrandPalette.textTertiary)
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(coach.sending)
+                                .accessibilityLabel("Answer again using the deeper analysis model")
+                            }
 
                             actionRow
                         }

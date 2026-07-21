@@ -52,15 +52,92 @@ final class OpenAICompatibleStreamingTests: XCTestCase {
         XCTAssertEqual(parsed.finishReason, "stop")
     }
 
-    /// Usage-only and keep-alive chunks carry no choices at all. Returning nils rather than throwing is
-    /// what keeps a stream alive across them.
+    /// Keep-alive chunks carry no choices at all. Returning nils rather than throwing is what keeps a
+    /// stream alive across them.
     func testChunkWithoutChoicesIsInert() {
         let parsed = OpenAIClient.parseChunk(chunk("""
-        {"usage":{"total_tokens":42}}
+        {"id":"x","object":"chat.completion.chunk"}
         """))
         XCTAssertNil(parsed.text)
         XCTAssertNil(parsed.finishReason)
         XCTAssertTrue(parsed.toolCallDeltas.isEmpty)
+    }
+
+    // MARK: - Usage: the token counts were Anthropic-only, so model choice had no visible price
+
+    /// The usage chunk carries NO choices. Guarding on choices first — as the parser originally did —
+    /// discards every token count, which is exactly how this would have shipped broken.
+    func testUsageIsReadFromTheChoicelessFinalChunk() {
+        let parsed = OpenAIClient.parseChunk(chunk("""
+        {"choices":[],"usage":{"prompt_tokens":1200,"completion_tokens":300,
+         "prompt_tokens_details":{"cached_tokens":1000}}}
+        """))
+        XCTAssertEqual(parsed.usage?.outputTokens, 300)
+        XCTAssertEqual(parsed.usage?.cacheReadTokens, 1000)
+    }
+
+    /// `prompt_tokens` INCLUDES cached tokens here, while Anthropic's `input_tokens` excludes them.
+    /// Without the subtraction the same turn would report a different total per provider.
+    func testCachedTokensAreSubtractedFromTheInputCount() {
+        let round = OpenAIClient.parseOpenAIUsage([
+            "prompt_tokens": 1200, "completion_tokens": 300,
+            "prompt_tokens_details": ["cached_tokens": 1000]
+        ])
+        XCTAssertEqual(round.inputTokens, 200, "1200 total − 1000 cached")
+        XCTAssertEqual(round.cacheReadTokens, 1000)
+        XCTAssertEqual(round.cacheWriteTokens, 0,
+                       "no OpenAI-shaped provider reports a separate cache-write count")
+    }
+
+    func testUsageWithoutCacheDetailsStillCounts() {
+        let round = OpenAIClient.parseOpenAIUsage(["prompt_tokens": 500, "completion_tokens": 120])
+        XCTAssertEqual(round.inputTokens, 500)
+        XCTAssertEqual(round.cacheReadTokens, 0)
+        XCTAssertEqual(round.outputTokens, 120)
+    }
+
+    // MARK: - Reasoning: tracked, never rendered as the answer
+
+    func testReasoningDeltaIsNotedButNotTreatedAsAnswerText() {
+        let parsed = OpenAIClient.parseChunk(chunk("""
+        {"choices":[{"delta":{"reasoning":"Let me weigh the HRV trend…"}}]}
+        """))
+        XCTAssertTrue(parsed.sawReasoning)
+        XCTAssertNil(parsed.text,
+                     "scratch work must never reach the transcript — it would read as coaching")
+    }
+
+    /// OpenRouter normalises to `reasoning`; gateways fronting DeepSeek-style models emit
+    /// `reasoning_content`. Both have to count, or the empty-answer explanation misfires on half of them.
+    func testReasoningContentSpellingAlsoCounts() {
+        let parsed = OpenAIClient.parseChunk(chunk("""
+        {"choices":[{"delta":{"reasoning_content":"…"}}]}
+        """))
+        XCTAssertTrue(parsed.sawReasoning)
+    }
+
+    func testEmptyReasoningStringDoesNotCountAsThinking() {
+        let parsed = OpenAIClient.parseChunk(chunk("""
+        {"choices":[{"delta":{"reasoning":""}}]}
+        """))
+        XCTAssertFalse(parsed.sawReasoning)
+    }
+
+    func testOrdinaryTextChunkIsNotMistakenForReasoning() {
+        let parsed = OpenAIClient.parseChunk(chunk("""
+        {"choices":[{"delta":{"content":"Deine HRV liegt unter Baseline."}}]}
+        """))
+        XCTAssertFalse(parsed.sawReasoning)
+        XCTAssertEqual(parsed.text, "Deine HRV liegt unter Baseline.")
+    }
+
+    /// A model that spends its entire budget thinking returns no text. "(no reply)" for a request the
+    /// user paid for is the wrong outcome; the note says what happened and what to do.
+    func testReasoningWithoutAnswerNoteExplainsItself() {
+        let note = OpenAIClient.reasoningWithoutAnswerNote
+        XCTAssertTrue(note.lowercased().contains("reasoning"))
+        XCTAssertTrue(note.lowercased().contains("narrower") || note.lowercased().contains("model"),
+                      "a dead end must come with a way out")
     }
 
     // MARK: - Tool-call reassembly (the part that's easy to get wrong)

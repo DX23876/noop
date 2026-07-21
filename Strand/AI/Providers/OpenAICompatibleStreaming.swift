@@ -33,6 +33,12 @@ struct StreamedRound {
     var text: String = ""
     var toolCalls: [StreamedToolCall] = []
     var finishReason: String?
+    /// Whether the model emitted REASONING tokens this round (OpenRouter's `delta.reasoning`, some
+    /// gateways' `delta.reasoning_content`). Not the reasoning text — that is deliberately never shown as
+    /// the answer — only that thinking happened, which is what makes an empty reply explicable.
+    var sawReasoning = false
+    /// Token counts, when the provider sent a usage chunk.
+    var usage: CoachUsageLog.Round?
 }
 
 protocol OpenAICompatibleStreamingClient: StreamingToolClient {
@@ -102,6 +108,9 @@ extension OpenAICompatibleStreamingClient {
         // Decided at most once per conversation: if round 1 needs the modern param shape, so will every
         // later round (same model, same server) — mirrors the non-streaming tool loop.
         var modernParams = false
+        // Token accounting was Anthropic-only, so OpenRouter and OpenAI users had no idea what a turn
+        // cost. That gap matters most exactly here, where the user picks the model (and its price).
+        await CoachUsageLog.beginTurnFromProvider()
 
         for _ in 0..<Self.maxStreamToolRounds {
             let round = try await streamRound(
@@ -111,11 +120,21 @@ extension OpenAICompatibleStreamingClient {
                 fullText += delta
                 await onDelta(delta)
             }
+            if let usage = round.usage { await CoachUsageLog.recordFromProvider(usage) }
 
             guard !round.toolCalls.isEmpty else {
                 // A length cutoff must not pass as a finished answer (Custom's non-streaming path warns
                 // about this too; streaming would otherwise silently lose that warning).
                 if round.finishReason == "length", let note = lengthCutoffNote() {
+                    await onDelta(note)
+                    fullText += note
+                }
+                // Thought, but never spoke: a reasoning model can burn the entire output budget on
+                // thinking before the first visible word (the documented Gemini 2.5 Pro incident behind
+                // `CoachOutputBudget`). The user would otherwise see "(no reply)" for a request they
+                // paid for, with nothing to act on. Say what happened instead.
+                if fullText.isEmpty, round.sawReasoning {
+                    let note = Self.reasoningWithoutAnswerNote
                     await onDelta(note)
                     fullText += note
                 }
@@ -177,6 +196,9 @@ extension OpenAICompatibleStreamingClient {
         onDelta: (String) async -> Void
     ) async throws -> StreamedRound {
         var body: [String: Any] = ["model": model, "messages": wire, "stream": true]
+        // Without this a streamed response reports no token counts at all — the usage arrives only in a
+        // final extra chunk, and only when asked for. A server that doesn't know the option ignores it.
+        body["stream_options"] = ["include_usage": true]
         if !tools.isEmpty { body["tools"] = tools }
         if modernParams {
             body["max_completion_tokens"] = CoachOutputBudget.maxTokens
@@ -223,9 +245,14 @@ extension OpenAICompatibleStreamingClient {
                 round.text += text
                 await onDelta(text)
             }
+            // Reasoning is tracked but NOT streamed into the answer: it is the model's scratch work, it
+            // is often long, and presenting it as coaching would be misleading. The transcript stays the
+            // answer; the running "Coach is thinking…" indicator already covers the wait.
+            if chunk.sawReasoning { round.sawReasoning = true }
             for delta in chunk.toolCallDeltas {
                 Self.merge(delta, into: &partial)
             }
+            if let usage = chunk.usage { round.usage = usage }
             if let reason = chunk.finishReason {
                 round.finishReason = reason
                 sawTerminator = true
@@ -255,16 +282,47 @@ extension OpenAICompatibleStreamingClient {
     }
 
     /// One streamed chunk decomposed into what the loop needs. Everything is optional: a chunk may carry
-    /// text, tool-call fragments, a finish reason, or nothing at all (keep-alives and usage-only chunks).
+    /// text, tool-call fragments, a finish reason, usage, or nothing at all (keep-alives).
+    ///
+    /// `usage` arrives in its OWN final chunk that carries no choices — which is why the choices guard
+    /// can't come first, as it did before: it would have discarded every token count.
     static func parseChunk(_ obj: [String: Any])
-        -> (text: String?, toolCallDeltas: [[String: Any]], finishReason: String?) {
+        -> (text: String?, toolCallDeltas: [[String: Any]], finishReason: String?,
+            sawReasoning: Bool, usage: CoachUsageLog.Round?) {
+        let usage = (obj["usage"] as? [String: Any]).map(parseOpenAIUsage)
         guard let choices = obj["choices"] as? [[String: Any]], let first = choices.first else {
-            return (nil, [], nil)
+            return (nil, [], nil, false, usage)
         }
         let delta = first["delta"] as? [String: Any] ?? [:]
+        // Two spellings in the wild: OpenRouter normalises to `reasoning`, several gateways passing
+        // through DeepSeek-style models emit `reasoning_content`. Either counts as "it thought".
+        let reasoning = (delta["reasoning"] as? String) ?? (delta["reasoning_content"] as? String)
         return (delta["content"] as? String,
                 delta["tool_calls"] as? [[String: Any]] ?? [],
-                first["finish_reason"] as? String)
+                first["finish_reason"] as? String,
+                !(reasoning ?? "").isEmpty,
+                usage)
+    }
+
+    /// Token counts from an OpenAI-shaped `usage` object. `prompt_tokens` INCLUDES cached tokens, so the
+    /// cached part is subtracted out to match Anthropic's split, where `input_tokens` excludes them —
+    /// otherwise the same turn would report a different total depending on the provider.
+    static func parseOpenAIUsage(_ usage: [String: Any]) -> CoachUsageLog.Round {
+        let prompt = usage["prompt_tokens"] as? Int ?? 0
+        let cached = ((usage["prompt_tokens_details"] as? [String: Any])?["cached_tokens"] as? Int) ?? 0
+        return CoachUsageLog.Round(
+            inputTokens: max(0, prompt - cached),
+            cacheReadTokens: cached,
+            cacheWriteTokens: 0,   // no OpenAI-shaped provider reports a separate cache-WRITE count
+            outputTokens: usage["completion_tokens"] as? Int ?? 0
+        )
+    }
+
+    /// Shown when a round produced reasoning but no visible answer — see the call site for why a bare
+    /// "(no reply)" is the wrong outcome there.
+    static var reasoningWithoutAnswerNote: String {
+        "*The model spent its whole reply budget on internal reasoning and never got to an answer. "
+            + "Ask something narrower, or pick a model that reasons less.*"
     }
 
     /// Fold one `tool_calls` delta into the accumulator. Only the FIRST chunk of a call carries `id` and

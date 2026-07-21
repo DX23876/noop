@@ -55,6 +55,12 @@ enum AIProvider: String, CaseIterable, Identifiable {
         switch role {
         case .chat:                     return defaultModel
         case .summary, .cardAnalysis:   return cheapModel
+        // No built-in default ON PURPOSE. Every other role can be defaulted because the app knows what
+        // it wants — strong for chat, cheap for background work. "Deeper" has no such answer: which
+        // model is worth its price is the user's call, and picking one for them would silently move a
+        // question onto a model they never chose. Empty ⇒ `hasDeepAnalysisModel` is false ⇒ the UI
+        // never offers it.
+        case .deepAnalysis:             return ""
         }
     }
 
@@ -229,6 +235,17 @@ enum CoachModelRole: String, CaseIterable, Identifiable {
     case chat
     case summary
     case cardAnalysis
+    /// A deliberately heavier model for one question the user wants gone into properly — a training
+    /// plan, a months-long trend, a plan rework.
+    ///
+    /// Depth is expressed as a MODEL, not as a "thinking" flag, and that is the whole design. With free
+    /// model choice (OpenRouter fronts 300+), a reasoning parameter is silently ignored by roughly half
+    /// of them, so the same switch would deepen one model and do nothing at all for the next — behaviour
+    /// nobody can explain to a user. A second model always differs, on every provider, including ones
+    /// with no reasoning support whatsoever. It also keeps the cost honest: the user picked the
+    /// expensive model themselves and asked for it per question, so nothing silently multiplies a price
+    /// they chose. Unset ⇒ the affordance doesn't appear at all.
+    case deepAnalysis
 
     var id: String { rawValue }
 
@@ -240,6 +257,7 @@ enum CoachModelRole: String, CaseIterable, Identifiable {
         case .chat:         return nil
         case .summary:      return "ai.memoryModel"
         case .cardAnalysis: return "ai.cardModel"
+        case .deepAnalysis: return "ai.deepModel"
         }
     }
 }
