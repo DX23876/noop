@@ -454,6 +454,26 @@ struct AppleHealthView: View {
                     .buttonStyle(.bordered)
                     .tint(StrandPalette.metricCyan)
                     .disabled(health.syncing)
+
+                    // Re-request permission so newly-added data types (e.g. weight and body composition,
+                    // which older grants never included) surface their Health prompt. HealthKit only shows
+                    // types you haven't decided yet, so this is a no-op once everything is granted.
+                    Button {
+                        Task {
+                            await health.requestAuthorization()
+                            await health.sync()
+                            await load()
+                        }
+                    } label: {
+                        Label("Refresh permissions", systemImage: "checkmark.shield")
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(StrandPalette.metricCyan)
+                    .disabled(health.syncing)
+                    Text("Missing a metric like weight? Tap Refresh permissions to grant data types added in a later update. To fully disconnect, use Settings › Health › Data Access & Devices › NOOP.")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 if let err = health.lastError {

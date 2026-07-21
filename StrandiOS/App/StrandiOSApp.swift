@@ -82,6 +82,12 @@ struct StrandiOSApp: App {
                 // fixed-geometry tiles/gauges stay legible at the largest accessibility sizes rather than
                 // clipping; the common Larger-Text range still scales fully.
                 .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+                // One-time seed of an unset profile weight from Apple Health: when a sync surfaces a
+                // realistic weigh-in and the user has never entered a weight, adopt it. The seed itself
+                // guards the "never set" condition, so this never clobbers a manual / restored value.
+                .onReceive(health.$latestImportedWeightKg) { kg in
+                    if let kg { model.profile.seedWeightFromHealthIfUnset(kg: kg) }
+                }
                 .onReceive(model.live.$heartRate) { _ in
                     // #911: anchor the Live Activity on the SAME shared `Repository.widgetAnchor` the
                     // Home/Lock widget and the watch snapshot use, so this fourth surface can't drift to a

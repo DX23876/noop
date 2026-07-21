@@ -31,6 +31,10 @@ final class HealthKitBridge: ObservableObject {
     /// The most recent failure surfaced by `sync` / `writeBack`. Cleared on a successful run. UI binds
     /// here so an Apple Health auth revoke, quota hit, or invalid sample is visible instead of silent.
     @Published private(set) var lastError: String?
+    /// The newest realistic body-weight (kg) seen in the last successful sync, or nil when Health carried
+    /// none. Published so the app can one-time seed an unset profile weight (see
+    /// `ProfileStore.seedWeightFromHealthIfUnset`); the profile field itself stays the source of truth.
+    @Published private(set) var latestImportedWeightKg: Double?
 
     private let store = HKHealthStore()
     private let repo: Repository
@@ -67,6 +71,19 @@ final class HealthKitBridge: ObservableObject {
         if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { s.insert(sleep) }
         s.insert(HKObjectType.workoutType())
         return s
+    }
+
+    /// UserDefaults key recording the read scopes the last successful `requestAuthorization` asked for.
+    private static let readAuthSignatureKey = "health.readAuthSignature"
+
+    /// A deterministic fingerprint of the read scopes surfaced in the consent dialog — the sorted
+    /// quantity read ids plus stable markers for the sleep + workout reads. When a later version ADDS a
+    /// read-only type (e.g. body composition, #20), this string changes, and `refreshAuthIfPreviouslyGranted`
+    /// uses the mismatch to re-request once so a returning user is actually asked for the new type. Purely
+    /// local (never crosses the `.noopbak` boundary), so the raw joined string is fine — no neutral hash needed.
+    private var currentReadSignature: String {
+        (HealthKitBridge.quantityReadIds.map(\.rawValue).sorted() + ["category:sleepAnalysis", "workout"])
+            .joined(separator: "|")
     }
 
     private var writeTypes: Set<HKSampleType> {
@@ -135,6 +152,9 @@ final class HealthKitBridge: ObservableObject {
             // the authoritative signal; the `.notDetermined` fallback only matters when that check can't
             // run, which on iOS means an App Store build that by definition has the entitlement.
             auth = .authorized
+            // Record the read scopes just asked for, so a later read-only addition (which changes the
+            // signature) triggers exactly one top-up re-request on resume — and a fresh grant does not.
+            UserDefaults.standard.set(currentReadSignature, forKey: HealthKitBridge.readAuthSignatureKey)
         } catch {
             // A thrown error here is on a build that carries the entitlement (guarded above), so it's a
             // genuine denial / request failure — keep the normal `.denied` "enable in Settings" path,
@@ -167,11 +187,27 @@ final class HealthKitBridge: ObservableObject {
             // pre-update grant has as `.notDetermined`. Re-request once: HealthKit shows a single sheet
             // listing ONLY the new types, and each write feature independently guards on its own type's
             // share status, so declining any checkbox just skips that feature.
+            //
+            // Read-only additions need the SAME top-up but can't be seen via `authorizationStatus`
+            // (HealthKit never reveals read status), so `newTypesPending` — a WRITE-only probe — misses
+            // them: body composition (#20) is read-only, so a returning user whose writes were already
+            // determined was never asked for weight/BMI/lean/body-fat and HealthKit silently returned
+            // nothing. Compare the persisted read-scope signature to detect a grown read set and re-request.
+            //
             // Raw request, NOT requestAuthorization(): that method reclassifies a thrown error as
             // `.denied`, which must never demote a bridge that just resumed a valid legacy grant.
             let newTypesPending = writeTypes.contains { store.authorizationStatus(for: $0) == .notDetermined }
-            if newTypesPending {
-                Task { try? await store.requestAuthorization(toShare: writeTypes, read: readTypes) }
+            let readGrew = UserDefaults.standard.string(forKey: HealthKitBridge.readAuthSignatureKey) != currentReadSignature
+            if newTypesPending || readGrew {
+                let signature = currentReadSignature
+                Task {
+                    do {
+                        try await store.requestAuthorization(toShare: writeTypes, read: readTypes)
+                        // Only record the signature on success, so a dismissed/failed request retries next
+                        // resume instead of being marked satisfied.
+                        UserDefaults.standard.set(signature, forKey: HealthKitBridge.readAuthSignatureKey)
+                    } catch { /* keep the old signature; try again on the next resume */ }
+                }
             }
         }
     }
@@ -436,6 +472,12 @@ final class HealthKitBridge: ObservableObject {
             try await writeBack(whoopStore: store)
             lastSync = Date()
             lastError = nil
+            // Newest realistic weigh-in from this sync, for the one-time profile seed. Latest = the
+            // highest day key carrying a >10 kg reading; nil when Health held none.
+            latestImportedWeightKg = appleRows
+                .filter { ($0.weightKg ?? 0) > 10 }
+                .max { $0.day < $1.day }?
+                .weightKg
         } catch {
             lastError = String(localized: "Apple Health sync failed: \(error.localizedDescription)")
         }
