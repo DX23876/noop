@@ -19,7 +19,7 @@ Strand/AI/
 │                                presets or fully custom
 ├── CoachPersona.swift         Guardian / Friend / Commander — coaching STYLE only; the name lives
 │                                in CoachIdentity now
-├── CoachTools.swift           The 19 tools: schemas + dispatch
+├── CoachTools.swift           The 22 tools: schemas + dispatch
 ├── CoachMemory.swift          Long-term memory: facts, categories, ranking, dedup
 ├── CoachTranscriptStore.swift Conversations: model + JSON persistence
 ├── MemoryMaintainer.swift     Cheap-model summarisation + fact distillation
@@ -31,12 +31,18 @@ Strand/AI/
 ├── CoachPlanStore.swift       The plan book: propose → accept/decline/swap, one active week
 ├── PlanConsequence.swift      What a session or a swap actually costs, from your own history
 ├── JourneyMilestones.swift    Non-performance milestones — facts, never a streak counter
-├── CoachUsageLog.swift        Per-turn token accounting (Anthropic): cache hit/write/miss
+├── CoachUsageLog.swift        Per-turn token accounting (all providers): cache hit/write/miss
+├── CoachHistoryBudget.swift  Per-model token budget for the history window
 └── Providers/
     ├── Anthropic.swift             Base client (upstream file — kept untouched, see §9)
     ├── AnthropicTools.swift        Tool-use loop
     ├── AnthropicStreaming.swift    Token-by-token SSE
-    └── AnthropicCaching.swift      Prompt-cache breakpoint + usage parsing
+    ├── AnthropicCaching.swift      Prompt-cache breakpoint + usage parsing
+    ├── OpenAI/OpenRouter/Custom/Gemini.swift   The other base clients
+    ├── OpenAICompatibleTools.swift             Tool loop for OpenAI + OpenRouter
+    ├── OpenAICompatibleStreaming.swift         SSE for OpenAI + OpenRouter + Custom
+    ├── GeminiTools.swift                       Gemini function calling + streaming
+    └── CoachOutputBudget.swift                 Output ceiling, OpenAI-shaped providers
 
 Strand/Screens/
 ├── CoachView.swift              The messenger chat + the shared `coachCover` presenter
@@ -88,26 +94,38 @@ Three deliberate choices in there:
 - **Pinned vs. relevant facts are split.** Pinned facts ride the *system prompt* (always true, always
   relevant). Query-relevant facts are folded into the *turn's context* in `wireMessages()`, where the
   question is actually known. A large memory therefore doesn't inflate every request.
-- **The history window is a message count, not a token budget** (`maxHistoryMessages = 10`). Blunt,
-  but it keeps small local models (Ollama defaults to a 2048-token window) from having the reply
-  crowded out. Parity with the Android implementation upstream.
+- **The history window is a per-model TOKEN BUDGET** (`CoachHistoryBudget`), not the flat
+  `maxHistoryMessages = 10` it used to be — one number can't serve both a 2 048-token local Ollama
+  model and a 200 000-token Claude. The old count survives as a FLOOR, so no provider gets less
+  context than before, and an unknown Custom/OpenRouter model id stays conservative: guessing large
+  risks a hard context overflow, guessing small only costs scrollback. (Android still uses the flat
+  count; the floor keeps the two agreeing on the small-model case.)
 - **Readiness and Charge drivers are read from the SAME engines Today uses**
   (`ReadinessEngine.evaluate`, `ChargeDrivers.chargeDrivers`) — never re-derived or eyeballed by the
   model. The coach cannot contradict what the Today screen already told you.
 
 ---
 
-## 2. The 19 tools
+## 2. The 22 tools
 
 Declared in `CoachTools.swift` as `CoachTool`, offered to the model as JSON Schema, dispatched in
 `runCoachTool(_:input:)`. **All of them are gated behind `dataConsent`** — without it the dispatcher
-returns a polite "no data access" string and the model coaches generally. A 20th, `get_personal_patterns`,
-needs the *second* opt-in (`includeOnDeviceSignals`) on top.
+returns a polite "no data access" string and the model coaches generally. One of them,
+`get_personal_patterns`, needs the *second* opt-in (`includeOnDeviceSignals`) on top.
 
-Tool-calling only engages for providers that conform to `ToolCallingClient` (Anthropic today);
-everything else falls back to the pre-baked-context path, which is why Readiness, Charge drivers,
-the active plan and its adherence are *also* folded into `buildFullContext()` directly — a
-non-tool-calling provider still sees the same verdicts, just pre-baked instead of fetched on demand.
+Tool-calling engages for every provider that conforms to `ToolCallingClient` — Anthropic, OpenAI,
+OpenRouter (per selected model, gated on `supported_parameters`) and Gemini. **Custom is the only one
+left out, deliberately**: tool support on a local server depends on both the server and the model, and
+many local models fail silently or return malformed JSON instead of a clean error. That path still
+falls back to the pre-baked context, which is why Readiness, Charge drivers, the active plan and its
+adherence are *also* folded into `buildFullContext()` directly — it sees the same verdicts, just
+pre-baked instead of fetched on demand.
+
+The tool path additionally carries the **clock** and a **titles-only index of recent threads**
+(`toolModeContext`). Without them the model had no date to resolve "yesterday" against and no reason
+to believe past conversations existed — which is what made *"what did I ask you yesterday?"*
+unanswerable. Neither belongs in the system prompt: that block carries Anthropic's `cache_control`
+breakpoint, and a per-request clock would invalidate the prefix cache every turn.
 
 ### Read
 
@@ -124,7 +142,9 @@ non-tool-calling provider still sees the same verdicts, just pre-baked instead o
 | `simulate_day` | `effort`, `sleep_hours` | Projects tomorrow-morning Charge for a hypothetical ("hard session + 7h sleep tonight → how do I look tomorrow?"). Returns nothing rather than a guess when there's too little history to project honestly. |
 | `get_plan_adherence` | `days` | What was agreed vs. what actually happened, including *why* a session was skipped when the user told the coach. Days still calibrating carry no verdict at all — never treated as adherence data. |
 | `get_personal_patterns` | — | Top n-of-1 correlations (`EffectRanker`, significant only) + Lab Book roll-up. **Second opt-in required** (`includeOnDeviceSignals`) |
-| `search_past_conversations` | `query` | Top-3 matching past chats as titled, dated snippets |
+| `get_my_logs` | `kind` (caffeine/journal/lab/hydration/mood), `days` 1–90 | Reads back what the user LOGGED, so "is my coffee hurting my sleep?" is answered from their real entries rather than a guess. The write tools below are how these get there. |
+| `get_zone_minutes` | `days` | Minutes per HR zone, so a prescribed intensity can be checked against what was actually hit instead of assumed from a "done" status |
+| `search_past_conversations` | `query`, `on_days_ago`, `since_days` — **all optional** | Past chats as dated snippets **quoting the user's own questions**. Either axis works alone: a purely temporal question ("what did I ask you yesterday?") carries no keywords, so requiring `query` made it structurally unanswerable. Filtering is per MESSAGE date, so a thread reopened today doesn't hide what was asked in it yesterday. |
 
 ### Propose (never commits anything by itself)
 
@@ -240,7 +260,10 @@ enum Status { case proposed, accepted, declined, modifiedByUser, completed, skip
 `propose_plan` is the **only** model-reachable entry point, and it force-resets status to
 `.proposed` no matter what — there is no tool that accepts, schedules, or commits a plan on the
 model's behalf. Turning a proposal into a `ScheduledSession` (day **and time** — "10:00 CrossFit", not
-just "CrossFit sometime") is a UI action the person takes in `CoachPlanView`.
+just "CrossFit sometime") is a UI action the person takes in `CoachPlanView`. **Accept opens the time
+sheet** rather than committing untimed: `accept(_:at:)` always took a time, but the button didn't pass
+one, so agreeing and saying *when* were two steps and the second was easy never to take — leaving
+commitments no reminder can fire for. "Accept without a time" remains the escape hatch.
 
 ### Swapping — with the consequence shown before you decide
 
@@ -261,7 +284,11 @@ computation `CoachPlanView`'s swap sheet shows before you tap.
 One tap, on demand, never a daily ritual: `noTime` / `tired` / `pain` / `notFeelingIt` / `ill` /
 `travel`. `pain` and `ill` trigger the same soft safety framing as the goal gate — informing, not
 blocking. `get_plan_adherence` reads these back so a review is never "you failed", it's "here's what
-happened and why". A **decline-streak floor** (`declineStreakFloor = 3`) stops the coach from
+happened and why". The **everyday** reasons (`noTime` / `tired` / `notFeelingIt`) used to be recorded
+and then read by nobody, so the coach kept proposing into the same wall; `skipPatternLine` now states
+a dominant one as a fact in the plan context. It explicitly instructs the model to *ask what would
+actually fit* and **not** to stop suggesting that kind of session — that would be the filter bubble
+`declineStreakFloor` exists to prevent. A **decline-streak floor** (`declineStreakFloor = 3`) stops the coach from
 permanently going quiet on a sport after a few no's — it's offered again after a few days, not shelved
 forever (no filter-bubble collapse).
 
@@ -273,6 +300,13 @@ forever (no filter-bubble collapse).
 and now also from its own top-level **"Goal & Journey"** entry in More (`CoachGoalJourneyView.swift`
 / `CoachGoalJourneyScreen`), independent of whether a goal exists yet: with no goal, it shows the
 guided-setup entry (§4) instead of the journey itself.
+
+**A goal whose target date passes gets one look-back, once per goal ever**
+(`ProactiveCoach.expiredGoalNeedingReview`, with a day of grace — a target date is a target, not a
+stopwatch). Before this, a date simply went by and nothing was said, which reads as not having
+noticed. The instruction forbids congratulating or commiserating on a number the coach hasn't
+verified, and allows "can't be judged from the data" as an answer: a missed date can mean illness,
+travel, or a target that was never realistic, and the app cannot tell which.
 
 **No invented percentages.** Progress is only ever shown as a real measurement against the goal's
 baseline and target. Without both, there is no percentage at all — the page falls back to what's
@@ -361,6 +395,78 @@ deleting them. A thread the user actually took a turn in is never swept, and arc
 `archived: Bool` decodes `false` for any pre-existing conversation JSON. Manual archive/unarchive is
 available too, via `setArchived(_:_:)`.
 
+### Finding a thread again
+
+Two searches, deliberately different:
+
+- **`search_past_conversations`** (the model's) matches whole TOKENS — it searches by topic — and can
+  also filter by time alone.
+- **`CoachConversation.matches(search:)`** (the history field's) matches SUBSTRINGS, case- and
+  diacritic-insensitively, because a person typing expects "schl" to find "Schlaf" mid-word and
+  "grosse" to find "größe".
+
+Threads can be **pinned** to the top, and a pinned thread is exempt from the 50-conversation cap
+(`CoachConversationStore.applyCap`). That exemption is the point: the cap drops the *oldest* threads,
+which is exactly what people pin — the plan they keep returning to. Pinning something and having the
+app silently bin it later would defeat the feature. A conversation can also be shared as Markdown
+(`markdownExport`), rendered from the model so the export can't disagree with what was stored.
+
+---
+
+## 7a. Two models, and only when asked
+
+`CoachModelRole` is how the app has always chosen a model per kind of work — `chat` (strong),
+`summary` and `cardAnalysis` (cheap). A fourth role, **`deepAnalysis`**, answers "can I get a more
+thorough look at this one?" without inventing a second mechanism.
+
+**Depth is a MODEL, not a "thinking" flag, and that is the whole design.** With free model choice —
+OpenRouter fronts 300+ — a reasoning parameter is silently ignored by roughly half of them, so one
+switch would deepen one model and do nothing for the next: behaviour nobody can explain to a user. A
+second model always differs, on every provider, including those with no reasoning support at all.
+
+Two things were considered and rejected:
+
+- **Automatic escalation by question type** ("this looks like a trend analysis, use the big model").
+  It multiplies cost invisibly, and the classification is unreliable — *"Wie war meine Woche?"* is five
+  words and a trend analysis. A question answered quickly one day and slowly the next, with no visible
+  reason, reads as broken rather than clever.
+- **A per-message toggle in the composer**, which asks the user to predict how hard their own question
+  is before they've seen an answer.
+
+What ships instead: **"Look at this more closely"** on a reply the user has already read. There is no
+built-in default model for the role on any provider — which model is worth its price is the user's
+call — so unset means the action never appears at all. `deepTurn` is armed for one question and cleared
+on completion, error, Stop and cancellation; a sticky depth mode is how a chat quietly becomes ten
+times dearer. Every send path and the history budget read `requestModel`, so a deep model with a
+different context window gets the matching window.
+
+Its prerequisite shipped with it: `CoachUsageLog` now records the OpenAI-shaped providers too. Their
+`prompt_tokens` *includes* cached tokens where Anthropic's `input_tokens` excludes them, so
+`parseOpenAIUsage` subtracts — a `Round` means the same thing whatever produced it.
+
+---
+
+## 7b. When something goes wrong
+
+Every network failure used to become `AICoachError.network(localizedDescription)` and land in the chat
+as raw CFNetwork prose under a single Retry — including cases where retrying cannot possibly work.
+
+`AICoachError.recovery` now decides what the error row offers, derived from the TYPED error rather than
+its message (matching a localized sentence works in English and nowhere else):
+
+| Failure | Offered |
+|---|---|
+| `badKey` (401/403) | **Enter your key again** → straight to Connection & model. Retrying a rejected key fails identically. |
+| `rateLimited` (429) | **Retry in Ns**, counting down from the provider's own `Retry-After` (seconds *or* an HTTP date; a past date clamps rather than counting from negative). |
+| `offline` | Its own case, with a message that also says the rest of NOOP keeps working — the coach is the only feature needing a connection. |
+| `server(5xx)` | Retry — the provider's problem, usually transient. |
+| `server(4xx)`, setup problems | Nothing. Offering a Retry that will fail the same way is a lie. |
+
+**"Test connection"** (Connection & model) answers "did that work?" where the key is pasted rather than
+at the user's first real question. It goes through the ORDINARY send path, not `/models`: a key can
+list models and still be refused by the chat endpoint, and a model list says nothing about whether
+*this* model is servable to this account. The verdict resets on any provider or model change.
+
 ---
 
 ## 8. Cheap-model maintenance
@@ -401,12 +507,30 @@ memory upkeep must never interrupt a chat. A manual "Summarise this chat now" is
 
 ## 9. Providers
 
-| Provider | Chat | Streaming | Tool-calling | Prompt caching |
-|---|---|---|---|---|
-| Anthropic | ✅ | ✅ SSE | ✅ | ✅ |
-| OpenAI | ✅ | — | — | — |
-| Gemini | ✅ | — | — | — |
-| Custom (OpenAI-compatible) | ✅ | — | — | — |
+| Provider | Chat | Streaming | Tool-calling | Prompt caching | Token counts |
+|---|---|---|---|---|---|
+| Anthropic | ✅ | ✅ SSE | ✅ | ✅ explicit breakpoint | ✅ |
+| OpenAI | ✅ | ✅ SSE | ✅ | automatic (provider-side) | ✅ |
+| OpenRouter | ✅ | ✅ SSE | ✅ per model | passthrough | ✅ |
+| Gemini | ✅ | ✅ SSE | ✅ | — | — |
+| Custom (OpenAI-compatible) | ✅ | ✅ SSE | **deliberately not** | — | ✅ |
+
+**Custom streams but gets no tools, on purpose.** Streaming is where it benefits most — a local
+server generating at a few tokens a second showed nothing at all until the whole reply was done — while
+tool support there depends on both the server *and* the model, and many local models fail silently or
+emit malformed JSON rather than a clean error. The two therefore live in separate protocols
+(`OpenAICompatibleStreamingClient` vs `OpenAICompatibleToolClient`); binding them would have forced
+tools on Custom just to get streaming.
+
+**Gemini's schema is a subset.** `CoachTool.geminiSchema` strips every JSON-Schema keyword Gemini's
+own `Schema` type doesn't model (`minimum`/`maximum` appear in several of ours). This is not tidiness:
+an unsupported keyword rejects the **entire request**, so one stray bound costs all 22 tools at once
+rather than degrading one. A test reduces every real schema and asserts nothing unsupported survives.
+
+**Reasoning tokens are tracked, never rendered.** OpenRouter's `delta.reasoning` (and the
+`reasoning_content` spelling some gateways use) is the model's scratch work; showing it as coaching
+would be misleading. But a model that spends its whole output budget thinking and never reaches an
+answer now says so, instead of an unexplained "(no reply)" for a request the user paid for.
 
 **Custom** points at any OpenAI-compatible base URL — Ollama (`http://localhost:11434/v1`), LM
 Studio, llama.cpp, or a hosted gateway. Keyless for a local server, so a fully local coach means
@@ -472,7 +596,19 @@ Everything stored — memory, conversations, goal, plan, chart snapshots — is 
 | **Floating button** | Draggable, pinnable to any of 4 chrome-clear corners, lockable |
 | **More tab** | The original `MoreDestination.coach` row |
 | **Goal & Journey** | Its own `MoreDestination.goalJourney` row, right alongside Coach — no longer nested five taps deep in settings |
-| **Daily check-in** | Notification → deep-links to the Coach with a fresh brief (gated on the *logical* day, not per-conversation, so it can only fire once per real day) |
+| **Daily check-in** | Notification → deep-links to the Coach with a fresh brief (gated on the *logical* day, not per-conversation, so it can only fire once per real day). Carries **Remind me in 2 hours** / **Not today** actions; snoozing adds a one-off request beside the untouched daily trigger. |
+
+**When the coach speaks first, it says so.** `ChatMessage.Origin`
+(`reply` / `brief` / `checkIn` / `nudge` / `weeklyReview`) tags each turn at its append site, and the
+chat labels the unprompted ones — otherwise a brief reads as an answer to a question the user has
+forgotten asking. The floating button carries a dot while something unseen is waiting; "unseen" is
+DERIVED from message dates against a last-opened stamp rather than tracked separately, so there is no
+second read-state store to keep in sync with the transcript.
+
+**The check-in notification text is deliberately generic.** It is a *repeating* calendar trigger: its
+content is fixed when scheduled and reused every day without the app running, so naming today's
+readiness would quote whatever was true the last time NOOP was opened — possibly days ago. A stale
+number is worse than none. The brief itself is generated on open, where the data is current.
 
 The card and button are user-selectable via `CoachEntryMode` (card / button / both) in Settings.
 Corners are resolved against the safe area with clearances (bottom `+96`, top `+64`) so a pinned
@@ -499,6 +635,12 @@ one long scroll of every card at once. Every card is the same view property it a
 page it lives on changed. One genuine addition alongside the reshuffle: provider/key/model can now be
 changed from **Connection & model** while already connected — previously the only path back to those
 controls was Disconnect first.
+
+**Accessibility.** Reduce Motion is honoured throughout the chat — the transcript still scrolls
+itself (not scrolling would strand the reader above a reply that has already arrived), it simply jumps
+rather than animating. The composer grows to 12 lines at the accessibility text sizes, where five lines
+holds a few words. The proactive-level picker states its active option in words rather than carrying it
+on a highlight colour alone.
 
 **Coaching** leads with the coach-identity editor (§3) and now also carries the "Show Coach on
 Today" master switch and its avatar toggle — see §11 for what each actually does.
@@ -536,9 +678,14 @@ literal call sites over a DRY-but-invisible-to-the-scanner helper.
 
 Good first contributions:
 
-- **Streaming + tool-calling for OpenAI/Gemini.** Only Anthropic has a `ToolCallingClient` today —
-  everyone else falls back to the pre-baked-context path.
-- **A first-class OpenRouter provider** with a searchable model picker (its catalogue is 300+ models;
-  a flat `Picker` doesn't scale) and per-model tool-capability gating, replacing today's
-  point-Custom-at-it workaround.
-- **A token-budgeted history window**, replacing the flat 10-message cap.
+- **Verification against live providers.** Streaming, tool rounds, the token counts, the 429 countdown
+  and the offline path are unit-tested and compile-clean, but several have never run against a real
+  API. Each needs one real turn per provider.
+- **Prompt caching beyond Anthropic.** OpenAI caches automatically and reports `cached_tokens` (already
+  read); OpenRouter can pass `cache_control` through to Anthropic models. Neither is exploited.
+- **Cost, not just tokens.** `CoachUsageLog` counts tokens on every provider now, but OpenRouter's
+  `/models` also reports per-model price — which `OpenRouterModel` already parses. Turning a turn into
+  an actual figure is a small step from there, and matters most where the user picks the model.
+
+Three earlier entries are done and gone: streaming + tool-calling beyond Anthropic, a first-class
+OpenRouter provider, and the token-budgeted history window.
