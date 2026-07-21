@@ -265,6 +265,11 @@ enum DebugDataDiagnostics {
                 let mag = abs(skew) >= 86400 ? "\(skew / 86400)d" : "\(skew / 3600)h"
                 line += " · strap clock at arm \(skew > 0 ? "+" : "")\(mag)"
             }
+            // #34: live HR at arm, logged only to test whether the strap's own sleep/rest detection (not
+            // anything NOOP sends) gates the physical haptic — see the doc comment on recordAlarmArm.
+            if let hr = d.object(forKey: "alarm.lastArmHeartRate") as? Int {
+                line += " · HR \(hr) bpm at arm"
+            }
             lines.append(line)
             if let reported = d.object(forKey: "alarm.lastReportedEpoch") as? Int {
                 let mismatch = abs(reported - sent) > 120

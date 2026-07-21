@@ -213,6 +213,9 @@ object AndroidDiagnostics {
                 var line = "Last arm: sent ${alarmStamp(sent)}"
                 if (at > 0L) line += " · ${relTime(System.currentTimeMillis() - at)}"
                 if (!p.getBoolean("alarm.lastArmConnected", false)) line += " · strap NOT connected (queued)"
+                // #34: live HR at arm, logged only to test whether the strap's own sleep/rest detection
+                // (not anything NOOP sends) gates the physical haptic — see recordAlarmArm's doc comment.
+                if (p.contains("alarm.lastArmHeartRate")) line += " · HR ${p.getInt("alarm.lastArmHeartRate", 0)} bpm at arm"
                 add(line)
                 val reported = p.getLong("alarm.lastReportedEpoch", 0L)
                 if (reported > 0L) {

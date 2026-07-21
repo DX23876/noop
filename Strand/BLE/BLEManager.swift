@@ -2874,6 +2874,16 @@ public final class BLEManager: NSObject, ObservableObject {
         // now — tells whether the arm even had a chance (skew ~0 but the strap still rejects ⇒ a corrupted
         // alarm register, not a clock problem).
         d.set(strapClockNow - Int(Date().timeIntervalSince1970), forKey: "alarm.lastArmClockSkew")
+        // #34: live HR at the moment of the arm, purely to test a hypothesis raised on a reporter's log —
+        // morning wake-up and morning short-horizon arms have fired reliably since v9.0.0, but an identical
+        // evening short-horizon arm (same code path, same commands, no day/night branch anywhere in this
+        // function) did not. One firmware-side explanation that would fit every reported case: the
+        // physical alarm haptic might only fire while the strap's OWN sleep/rest detection considers the
+        // wearer sleep-adjacent, independent of anything NOOP sends. This doesn't prove or fix that — it's
+        // a free read of state already tracked live, logged so the next reported failure (ideally an
+        // evening one) can be compared against the resting HR of the successful arms already on file. `nil`
+        // (no key written) means no HR had streamed yet at arm time, not zero.
+        d.set(state.heartRate, forKey: "alarm.lastArmHeartRate")
     }
 
     /// Disarm the currently-armed firmware alarm.
