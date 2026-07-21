@@ -4176,6 +4176,11 @@ class WhoopBleClient(
                         // dataRangeNewestUnix straight from a normal strap-log export. Mirrors the Swift line.
                         val hex = frame.joinToString("") { "%02x".format(it) }
                         log("Get Data Range raw frame (#451 — for offset analysis): $hex")
+                        // #689: ring-buffer page backlog, DIAGNOSTIC ONLY (RE'd, unconfirmed — never gates
+                        // sync/backfill). Logged only when it decodes plausibly; a short/garbage frame → null.
+                        com.noop.protocol.DataRange.pagesBehind(frame, cmdOff)?.let {
+                            log("Strap backlog pages behind: $it (#689 — GET_DATA_RANGE ring backlog, diagnostic only)")
+                        }
                         dataRangeNewestUnix(frame)?.let {
                             strapNewestTs = it
                             // #34: persist the strap's newest banked record so the debug export can flag a reset clock.

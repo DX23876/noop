@@ -342,7 +342,7 @@ public func frame(seq: UInt8, payload: [UInt8] = [0x00]) -> [UInt8] {
 | 22 | `SEND_HISTORICAL_DATA` | `[0x00]` | begin offload of the type-47 store |
 | 23 | `HISTORICAL_DATA_RESULT` | `[0x01] + end_data(8)` | ack a `HISTORY_END` chunk / advance trim |
 | 26 | `GET_BATTERY_LEVEL` | `[0x00]` | battery percent; also the **bond** write |
-| 34 | `GET_DATA_RANGE` | `[0x00]` | strap's stored oldest/newest record range |
+| 34 | `GET_DATA_RANGE` | `[0x00]` | strap's stored oldest/newest record range; #689 also logs a diagnostic ring-buffer page backlog — see below |
 | 35 | `GET_HELLO_HARVARD` | `[0x00]` | identity/version hello |
 | 39 / 40 | `SET_LED_DRIVE` / `GET_LED_DRIVE` | — | optical LED drive (research) |
 | 41 / 42 | `SET_TIA_GAIN` / `GET_TIA_GAIN` | — | optical front-end gain (research) |
@@ -444,6 +444,17 @@ Driven by `BLEManager.probeBodyLocationAndStatus()` / `WhoopBleClient.probeBodyL
 formatted by the pure `BodyLocationProbe` twin (Swift↔Kotlin byte-parity locked by a golden test). The
 layout + enum facts are reverse-engineered from the WHOOP app and reimplemented in NOOP's own code
 (facts, not copied expression — see [`ATTRIBUTION.md`](../ATTRIBUTION.md)).
+
+**GET_DATA_RANGE ring backlog (#689, diagnostic only).** Beyond the oldest/newest timestamps NOOP already
+scans from a `GET_DATA_RANGE` reply, the app computes a ring-buffer page backlog from three u32s in the
+command-response inner payload (whose byte 0 is a subtype): write page `W = V(2)`, read pointer `U = V(3)`,
+ring capacity `T = V(5)`, where `V(i)` is the u32 at inner offset `i·4 + 1` (frame offsets `cmdOff + 10/14/22`
+here). Backlog with wraparound: `W < U ? W + (T − U) : W − U`. `DataRange.pagesBehind` (Swift + Kotlin twins,
+byte-parity, unit-tested for normal / wraparound / too-short / implausible) logs `Strap backlog pages behind:
+N` when it decodes plausibly — read u32 LE, guarded on frame length + a capacity sanity ceiling. **Never**
+gates sync or backfill: the layout is RE'd from the WHOOP app (facts, reimplemented in NOOP's own code, see
+[`ATTRIBUTION.md`](../ATTRIBUTION.md)) but **not yet confirmed against real 4.0 / 5-MG captures**, so it stays
+a log-only diagnostic until a fixture pins the offsets + endianness.
 
 **Payload forms** (decoded from the official app's command builders — recorded so the wire format is
 *known*: for the destructive commands, known-and-avoidable; for the one guarded exception,

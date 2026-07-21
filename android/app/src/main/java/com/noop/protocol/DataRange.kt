@@ -64,4 +64,32 @@ object DataRange {
         }
         return oldest
     }
+
+    /**
+     * #689: the ring-buffer page backlog ("pages behind") the strap reports in a GET_DATA_RANGE response —
+     * DIAGNOSTIC ONLY. RE'd from the WHOOP app (facts, not copied code; see ATTRIBUTION.md), NOT yet
+     * confirmed against real 4.0 / 5-MG captures, so it NEVER gates sync or backfill — only logged.
+     * Mirrors Swift `DataRange.pagesBehind`.
+     *
+     * Reads three u32s from the command-response INNER payload (byte 0 a subtype), `V(i) = @ (i*4 + 1)`:
+     * write page W=V(2), read pointer U=V(3), ring capacity T=V(5) — at frame offsets cmdOff + 10/14/22
+     * (inner payload starts at cmdOff + 1). u32 LITTLE-endian to match the frame's other words. Backlog
+     * with wraparound: W<U ? W+(T-U) : W-U. Returns null for a too-short frame or implausible values
+     * (capacity 0 or over a sane ceiling, a pointer at/beyond capacity, or a backlog past capacity).
+     */
+    fun pagesBehind(frame: ByteArray, cmdOff: Int): Long? {
+        if (cmdOff < 0) return null
+        val wOff = cmdOff + 10; val uOff = cmdOff + 14; val tOff = cmdOff + 22
+        if (tOff + 4 > frame.size) return null
+        fun u32(o: Int): Long =
+            (frame[o].toLong() and 0xFFL) or
+                ((frame[o + 1].toLong() and 0xFFL) shl 8) or
+                ((frame[o + 2].toLong() and 0xFFL) shl 16) or
+                ((frame[o + 3].toLong() and 0xFFL) shl 24)
+        val w = u32(wOff); val u = u32(uOff); val t = u32(tOff)
+        if (t <= 0L || t > 0x00FFFFFFL || w >= t || u >= t) return null
+        val behind = if (w < u) w + (t - u) else w - u
+        if (behind < 0L || behind > t) return null
+        return behind
+    }
 }

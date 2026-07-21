@@ -4032,6 +4032,11 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                     // offsets are inspectable straight from a normal strap-log export. Short frame.
                     let hex = frame.map { String(format: "%02x", $0) }.joined()
                     log("Get Data Range raw frame (#451 — for offset analysis): \(hex)")
+                    // #689: ring-buffer page backlog, DIAGNOSTIC ONLY (RE'd, unconfirmed — never gates
+                    // sync/backfill). Logged only when it decodes plausibly; a short/garbage frame → nil.
+                    if let pages = DataRange.pagesBehind(from: frame, cmdOff: 6) {
+                        log("Strap backlog pages behind: \(pages) (#689 — GET_DATA_RANGE ring backlog, diagnostic only)")
+                    }
                     if let newest = BLEManager.dataRangeNewestUnix(from: frame) {
                         strapNewestTs = newest                    // feeds the liveness watchdog
                         // #928: flag an implausibly FUTURE "newest" (strap clock set ahead) right where it

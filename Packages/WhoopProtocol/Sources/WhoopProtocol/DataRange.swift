@@ -56,4 +56,32 @@ public enum DataRange {
         }
         return oldest
     }
+
+    /// #689: the ring-buffer page backlog ("pages behind") the strap reports in a GET_DATA_RANGE response —
+    /// DIAGNOSTIC ONLY. RE'd from the WHOOP app (facts, not copied code; see ATTRIBUTION.md) and NOT yet
+    /// confirmed against real 4.0 / 5-MG captures, so it NEVER gates sync or backfill — it only logs.
+    ///
+    /// The app reads three u32s from the command-response INNER payload (whose byte 0 is a subtype), at
+    /// `V(i) = word @ (i*4 + 1)`: write page `W = V(2)`, read pointer `U = V(3)`, ring capacity `T = V(5)`.
+    /// The inner payload starts at `cmdOff + 1`, so those words sit at frame offsets `cmdOff + 10/14/22`
+    /// here. Read u32 LITTLE-endian to match the frame's other words (the app's ByteBuffer default is
+    /// big-endian, but this frame carries its unix words LE — a fixture will settle it; a flip is one line).
+    /// Backlog with wraparound: `W < U ? W + (T - U) : W - U`.
+    ///
+    /// Returns nil for a too-short frame or implausible values — a capacity that is 0 or above a sane
+    /// ceiling (a misaligned read hitting a timestamp / `0xFFFFFFFF`), a pointer at/beyond capacity, or a
+    /// backlog past capacity — so a garbage frame can never log a nonsense number.
+    public static func pagesBehind(from frame: [UInt8], cmdOff: Int) -> Int? {
+        guard cmdOff >= 0 else { return nil }
+        let wOff = cmdOff + 10, uOff = cmdOff + 14, tOff = cmdOff + 22
+        guard tOff + 4 <= frame.count else { return nil }
+        func u32(_ o: Int) -> Int {
+            Int(frame[o]) | Int(frame[o + 1]) << 8 | Int(frame[o + 2]) << 16 | Int(frame[o + 3]) << 24
+        }
+        let w = u32(wOff), u = u32(uOff), t = u32(tOff)
+        guard t > 0, t <= 0x00FF_FFFF, w < t, u < t else { return nil }
+        let behind = w < u ? w + (t - u) : w - u
+        guard behind >= 0, behind <= t else { return nil }
+        return behind
+    }
 }
