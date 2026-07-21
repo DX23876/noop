@@ -25,7 +25,7 @@ CoreBluetooth-free for tests and CLI tools).
 This work builds on two community reverse-engineering efforts:
 
 - **`johnmiddleton12/my-whoop`** — WHOOP 4.0 protocol.
-- **`b-nnett/goose`** — WHOOP 5.0 ("puffin") protocol.
+- **`b-nnett/goose`** — WHOOP 5.0 fd4b ("puffin" packet framing) protocol.
 
 The canonical decode tables are bundled as a JSON resource:
 `Packages/WhoopProtocol/Sources/WhoopProtocol/Resources/whoop_protocol.json`, loaded by
@@ -63,6 +63,24 @@ The 5.0 transport ("puffin") adds a fifth characteristic (`…0007`). UUID strin
 | Custom service | `fd4b0001-cce1-4033-93ce-002d5875f58a` |
 | Command write | `fd4b0002-cce1-4033-93ce-002d5875f58a` |
 | Notify channels | `fd4b0003`, `fd4b0004`, `fd4b0005`, `fd4b0007` (`…-cce1-4033-93ce-002d5875f58a`) |
+
+NOOP's historical "puffin" label refers to this fd4b Maverick/Goose framing. Decompiled WHOOP app
+taxonomy also names a separate `PUFFIN` service family at
+`11500001-6215-11ee-8c99-0242ac120002`; NOOP names that metadata `puffin1150` to avoid confusing it
+with the implemented fd4b path.
+
+### Diagnostic-only WHOOP service families
+
+The official app also models additional WHOOP service families with the same `0001` service plus
+`0002`/`0003`/`0004`/`0005`/`0007` characteristic pattern. NOOP lists these as protocol metadata and
+logs them when advertised, but does not connect, discover characteristics, or send commands for them
+until the correct framing is mapped and hardware-tested.
+
+| Family label in NOOP | Service UUID | Current status |
+|----------------------|--------------|----------------|
+| `puffin1150` | `11500001-6215-11ee-8c99-0242ac120002` | detected but unsupported |
+| `monument` | `8a580001-2fe8-4796-9267-b87a2b0c8234` | detected but unsupported; likely Castle/Rev2 framing |
+| `symphony` | `59830001-5955-419b-bb8d-c8262926af23` | detected but unsupported; likely Castle/Rev2 framing |
 
 ### Standard SIG services (both generations)
 

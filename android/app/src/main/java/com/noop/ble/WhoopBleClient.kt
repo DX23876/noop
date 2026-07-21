@@ -44,6 +44,8 @@ import com.noop.protocol.RebootProbeVariant
 import com.noop.protocol.Streams
 import com.noop.protocol.Whoop5Config
 import com.noop.protocol.extractStreams
+import com.noop.protocol.WhoopGattServiceFamily
+import com.noop.protocol.whoopGattScanDecision
 import com.noop.analytics.Baselines
 import com.noop.analytics.BatterySocLine
 import com.noop.analytics.IntelligenceEngine
@@ -2236,11 +2238,14 @@ class WhoopBleClient(
             _state.update { it.copy(scanning = false, statusNote = "Bluetooth isn't ready yet. Try again in a moment.") }
             return
         }
-        // Filter to the strap we're targeting — a single service, so a WHOOP 4.0
-        // scan never lingers on a WHOOP 5/MG wrist (or the reverse).
-        val filters = listOf(
-            ScanFilter.Builder().setServiceUuid(ParcelUuid(model.service)).build(),
-        )
+        // Filter to the strap we're targeting plus diagnostic-only WHOOP service families. The callback
+        // explicitly refuses unsupported families before any persist/connect path, so this broadens
+        // visibility without routing unknown framing into GATT.
+        val filters = (listOf(model.service.toString()) + WhoopGattServiceFamily.unsupportedServiceUuidStrings)
+            .distinct()
+            .map { uuid ->
+                ScanFilter.Builder().setServiceUuid(ParcelUuid(UUID.fromString(uuid))).build()
+            }
         // LOW_LATENCY for a snappy first connect, mirroring the desktop app's eager scan — but PR #588:
         // a SUSTAINED involuntary-reconnect streak ([failedReconnectAttempts] past the threshold) drops to
         // the lower-power BALANCED mode so an out-of-range strap stops pinning the radio at full power. A
@@ -3254,6 +3259,19 @@ class WhoopBleClient(
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             val device: BluetoothDevice = result.device
             val name = result.scanRecord?.deviceName ?: device.name ?: "unknown"
+            val advertisedServiceUuids = result.scanRecord?.serviceUuids
+                ?.map { it.uuid.toString().lowercase() }
+                .orEmpty()
+            val scanDecision = whoopGattScanDecision(selectedModel.service.toString(), advertisedServiceUuids)
+            if (!scanDecision.shouldConnect) {
+                scanDecision.unsupportedFamily?.let { family ->
+                    log("Discovered $name (rssi ${result.rssi}) — ${family.diagnosticUnsupportedMessage}")
+                    _state.update { it.copy(statusNote = family.diagnosticUnsupportedMessage) }
+                    return
+                }
+                log("Discovered $name (rssi ${result.rssi}) without ${selectedModel.displayName} service — ignoring")
+                return
+            }
             // Multi-WHOOP present-scan (Add-a-device wizard, MW-4): accumulate the strap, do NOT
             // auto-connect, and return before touching the connect flow. Only reachable when the wizard
             // turned on [scanningForList] via scanForWhoops(); on the default path this branch is skipped

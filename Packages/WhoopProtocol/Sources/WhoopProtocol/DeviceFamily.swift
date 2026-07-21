@@ -20,6 +20,120 @@ public enum HeaderCRCKind: String, Sendable, CaseIterable {
     case crc16Modbus
 }
 
+/// WHOOP custom GATT service families visible in advertisements.
+///
+/// Only `.whoop4` and `.maverickGooseFD4B` are connectable in NOOP today. The other services are
+/// protocol facts from reverse engineering and are diagnostic-only until their connection framing is
+/// mapped and hardware-tested. `.puffin1150` is intentionally qualified because NOOP already uses
+/// "puffin" for the fd4b/Maverick-Goose packet framing.
+public enum WhoopGattServiceFamily: String, Sendable, CaseIterable {
+    case whoop4
+    case maverickGooseFD4B
+    case puffin1150
+    case monument
+    case symphony
+
+    public var displayName: String {
+        switch self {
+        case .whoop4: return "WHOOP 4.0"
+        case .maverickGooseFD4B: return "WHOOP 5.0 / MG fd4b (Maverick/Goose)"
+        case .puffin1150: return "WHOOP PUFFIN service 1150"
+        case .monument: return "WHOOP MONUMENT"
+        case .symphony: return "WHOOP SYMPHONY"
+        }
+    }
+
+    public var serviceUUIDString: String {
+        switch self {
+        case .whoop4: return "61080001-8d6d-82b8-614a-1c8cb0f8dcc6"
+        case .maverickGooseFD4B: return "fd4b0001-cce1-4033-93ce-002d5875f58a"
+        case .puffin1150: return "11500001-6215-11ee-8c99-0242ac120002"
+        case .monument: return "8a580001-2fe8-4796-9267-b87a2b0c8234"
+        case .symphony: return "59830001-5955-419b-bb8d-c8262926af23"
+        }
+    }
+
+    public var characteristicUUIDStrings: [String] {
+        switch self {
+        case .whoop4: return DeviceFamily.whoop4.characteristicUUIDStrings
+        case .maverickGooseFD4B: return DeviceFamily.whoop5.characteristicUUIDStrings
+        case .puffin1150:
+            return Self.unsupportedCharacteristicUUIDStrings(
+                prefix: "1150", suffix: "6215-11ee-8c99-0242ac120002")
+        case .monument:
+            return Self.unsupportedCharacteristicUUIDStrings(
+                prefix: "8a58", suffix: "2fe8-4796-9267-b87a2b0c8234")
+        case .symphony:
+            return Self.unsupportedCharacteristicUUIDStrings(
+                prefix: "5983", suffix: "5955-419b-bb8d-c8262926af23")
+        }
+    }
+
+    public var connectableDeviceFamily: DeviceFamily? {
+        switch self {
+        case .whoop4: return .whoop4
+        case .maverickGooseFD4B: return .whoop5
+        case .puffin1150, .monument, .symphony: return nil
+        }
+    }
+
+    public var isConnectable: Bool { connectableDeviceFamily != nil }
+
+    public var diagnosticUnsupportedMessage: String {
+        "\(displayName) detected but unsupported; NOOP will not connect or send commands."
+    }
+
+    public static var unsupportedFamilies: [WhoopGattServiceFamily] {
+        allCases.filter { !$0.isConnectable }
+    }
+
+    public static var unsupportedServiceUUIDStrings: [String] {
+        unsupportedFamilies.map(\.serviceUUIDString)
+    }
+
+    public static func forServiceUUIDString(_ uuid: String?) -> WhoopGattServiceFamily? {
+        guard let normalized = uuid?.lowercased() else { return nil }
+        return allCases.first { $0.serviceUUIDString == normalized }
+    }
+
+    public static func firstUnsupported(in serviceUUIDStrings: [String]) -> WhoopGattServiceFamily? {
+        serviceUUIDStrings.compactMap { forServiceUUIDString($0) }.first { !$0.isConnectable }
+    }
+
+    private static func unsupportedCharacteristicUUIDStrings(prefix: String, suffix: String) -> [String] {
+        ["0002", "0003", "0004", "0005", "0007"].map { "\(prefix)\($0)-\(suffix)" }
+    }
+}
+
+public struct WhoopGattScanDecision: Equatable, Sendable {
+    public var shouldConnect: Bool
+    public var unsupportedFamily: WhoopGattServiceFamily?
+
+    public init(shouldConnect: Bool, unsupportedFamily: WhoopGattServiceFamily? = nil) {
+        self.shouldConnect = shouldConnect
+        self.unsupportedFamily = unsupportedFamily
+    }
+}
+
+/// Decide whether an advertisement found by the broadened diagnostic scan should enter GATT.
+///
+/// Empty service lists preserve the pre-diagnostic behaviour because some platform callbacks omit the
+/// advertised service UUIDs even though the service-filtered scan matched. When services are present,
+/// only the selected connectable service may connect; unsupported families are reported for logging.
+public func whoopGattScanDecision(
+    selectedServiceUUIDString: String,
+    advertisedServiceUUIDStrings: [String]
+) -> WhoopGattScanDecision {
+    let advertised = Set(advertisedServiceUUIDStrings.map { $0.lowercased() })
+    if advertised.isEmpty || advertised.contains(selectedServiceUUIDString.lowercased()) {
+        return WhoopGattScanDecision(shouldConnect: true)
+    }
+    return WhoopGattScanDecision(
+        shouldConnect: false,
+        unsupportedFamily: WhoopGattServiceFamily.firstUnsupported(in: Array(advertised))
+    )
+}
+
 public extension DeviceFamily {
     /// Resolve a device-registry `model` label to the strap family that wrote its rows (#171).
     ///
