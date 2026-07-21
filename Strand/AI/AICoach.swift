@@ -26,6 +26,25 @@ public let aiCoachPrivacyNote =
 /// One turn in the coaching conversation.
 struct ChatMessage: Identifiable, Equatable, Codable {
     enum Role: String, Codable { case user, assistant }
+
+    /// Why this message exists. Everything the coach says looks identical in the transcript, so a
+    /// message the user never asked for — a morning brief, an unprompted nudge, the weekly review —
+    /// reads exactly like an answer to a question they've forgotten asking. Naming the origin lets the
+    /// UI say "the coach got in touch" instead, which is the honest framing for something that arrived
+    /// on its own.
+    enum Origin: String, Codable {
+        /// A reply to something the user asked. The default, and the case for every stored message
+        /// written before this field existed.
+        case reply
+        case brief
+        case checkIn
+        case nudge
+        case weeklyReview
+
+        /// Whether this arrived unprompted. `reply` is the only one that didn't.
+        var isCoachInitiated: Bool { self != .reply }
+    }
+
     let id: UUID
     let role: Role
     let text: String
@@ -37,16 +56,21 @@ struct ChatMessage: Identifiable, Equatable, Codable {
     /// user turns, for a plain-context-path reply (no tool-calling provider), and for turns predating
     /// this field (back-compat decode).
     let toolsUsed: [String]
+    /// Why this message exists — see `Origin`. Defaulted on decode, so every stored transcript keeps
+    /// loading and simply reads as ordinary replies.
+    let origin: Origin
 
-    init(id: UUID = UUID(), role: Role, text: String, date: Date = Date(), toolsUsed: [String] = []) {
+    init(id: UUID = UUID(), role: Role, text: String, date: Date = Date(),
+         toolsUsed: [String] = [], origin: Origin = .reply) {
         self.id = id
         self.role = role
         self.text = text
         self.date = date
         self.toolsUsed = toolsUsed
+        self.origin = origin
     }
 
-    private enum CodingKeys: String, CodingKey { case id, role, text, date, toolsUsed }
+    private enum CodingKeys: String, CodingKey { case id, role, text, date, toolsUsed, origin }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -55,6 +79,7 @@ struct ChatMessage: Identifiable, Equatable, Codable {
         text = try c.decode(String.self, forKey: .text)
         date = try c.decodeIfPresent(Date.self, forKey: .date) ?? Date()
         toolsUsed = try c.decodeIfPresent([String].self, forKey: .toolsUsed) ?? []
+        origin = try c.decodeIfPresent(Origin.self, forKey: .origin) ?? .reply
     }
 
     /// Pure: unique tool names from `toolsUsed`, in FIRST-call order — a tool called twice across rounds
@@ -143,17 +168,51 @@ enum AIKeyStore {
 // MARK: - Errors
 
 /// User-facing failure reasons mapped to clear, non-crashing messages.
-enum AICoachError: LocalizedError {
+/// `Equatable` is synthesized (every associated value is): the UI compares the current failure to decide
+/// whether a countdown should restart, and the tests assert on the CASE rather than its rendered
+/// sentence — matching a localized string would pass in English and fail in German.
+enum AICoachError: LocalizedError, Equatable {
     case noKey
     case emptyQuestion
     case badKey
-    case rateLimited
+    /// `retryAfter`: seconds from the provider's `Retry-After` header, when it sent one. Carrying it
+    /// turns "wait a moment" into a countdown the user can act on instead of guess at.
+    case rateLimited(retryAfter: Int?)
     case server(Int, String)
     case network(String)
+    /// No usable connection. Split out of `.network` because the two need opposite responses: an
+    /// offline device needs "you're offline", not a CFNetwork string, and retrying immediately is
+    /// pointless rather than worth a button.
+    case offline
     case decode
     case keySaveFailed
     case badCustomURL(String)
     case noModel
+
+    /// The user-actionable follow-up this failure deserves, if any. The UI reads this instead of
+    /// pattern-matching the error itself, so a new case can't quietly ship with no way forward.
+    enum Recovery: Equatable {
+        /// The key was rejected — send the user to where they can paste a new one.
+        case reauthenticate
+        /// Worth retrying, optionally only after `seconds`.
+        case retry(after: Int?)
+        /// Nothing the app can do; the text explains it.
+        case none
+    }
+
+    var recovery: Recovery {
+        switch self {
+        case .badKey:                    return .reauthenticate
+        case .rateLimited(let after):    return .retry(after: after)
+        case .offline, .network, .decode: return .retry(after: nil)
+        case .server(let code, _):
+            // 5xx is the provider's problem and usually transient; a 4xx is ours and retrying it
+            // unchanged just fails again.
+            return (500...599).contains(code) ? .retry(after: nil) : .none
+        case .noKey, .noModel, .emptyQuestion, .keySaveFailed, .badCustomURL:
+            return .none
+        }
+    }
 
     var errorDescription: String? {
         switch self {
@@ -173,8 +232,15 @@ enum AICoachError: LocalizedError {
             return "Type a question for the coach."
         case .badKey:
             return "That API key was rejected. Check the key and the provider you selected."
-        case .rateLimited:
+        case .rateLimited(let after):
+            if let after {
+                return "The provider is rate-limiting requests. It asked to wait \(after) seconds."
+            }
             return "The provider is rate-limiting requests right now. Wait a moment and try again."
+        case .offline:
+            // No CFNetwork prose: the cause is plain, and the coach is the only part of NOOP that needs
+            // a connection at all — worth saying, so an offline user doesn't think the app is broken.
+            return "You're offline. The coach needs a connection; everything else in NOOP keeps working."
         case .server(let code, let detail):
             let extra = detail.isEmpty ? "" : " - \(detail)"
             return "The provider returned an error (\(code))\(extra)."
@@ -202,6 +268,26 @@ final class AICoachEngine: ObservableObject {
     @Published var activeConversationID: UUID?
     @Published var sending = false
     @Published var errorText: String?
+    /// The same failure as `errorText`, but TYPED, so the error row can offer the right way forward
+    /// (re-authenticate / retry / nothing) instead of pattern-matching a localized sentence — which
+    /// would break in every language but English.
+    @Published private(set) var lastError: AICoachError?
+
+    /// Record a failure for the UI. Classifies anything that isn't already an `AICoachError` through
+    /// `coachTransportError`, so an offline device reads as offline wherever it surfaced — the
+    /// providers' own streaming paths throw raw `URLError`s that used to arrive here as CFNetwork prose.
+    func setError(_ error: Error) {
+        let coachError = (error as? AICoachError) ?? coachTransportError(error)
+        lastError = coachError
+        errorText = coachError.errorDescription
+    }
+
+    /// Clear both halves together: a lingering `lastError` would leave a stale "Retry" under a chat
+    /// that has since succeeded.
+    func clearError() {
+        errorText = nil
+        lastError = nil
+    }
 
     /// The active conversation, if any.
     var activeConversation: CoachConversation? {
@@ -239,10 +325,16 @@ final class AICoachEngine: ObservableObject {
             if !provider.modelOptions.contains(model) {
                 model = provider.defaultModel
             }
+            resetConnectionTest()   // the previous verdict described a different provider
         }
     }
     @Published var model: String {
-        didSet { UserDefaults.standard.set(model, forKey: Self.modelKey) }
+        didSet {
+            UserDefaults.standard.set(model, forKey: Self.modelKey)
+            // A tick earned by another model says nothing about this one — the endpoint can accept the
+            // key and still refuse the model.
+            if model != oldValue { resetConnectionTest() }
+        }
     }
     /// The model ids offered in the picker. Seeded from `provider.modelOptions`, reset when the
     /// provider changes, and optionally extended by `refreshModels()` with the provider's live list.
@@ -300,6 +392,19 @@ final class AICoachEngine: ObservableObject {
     /// The cheap/fast model used for short one-off CARD analyses (the `.cardAnalysis` role). Empty →
     /// falls back to `provider.cheapModel`, then the coaching model. Configured in settings; consumed by
     /// the card-AI feature. Separate from `memoryModel` so the two background jobs can be tuned apart.
+    /// The optional heavier model for a "go deeper on this one" re-run. Empty by default — see
+    /// `CoachModelRole.deepAnalysis` for why depth is a model rather than a reasoning flag.
+    @Published var deepModel: String {
+        didSet { UserDefaults.standard.set(deepModel, forKey: Self.deepModelKey) }
+    }
+
+    /// Whether the deep re-run is available at all. The UI hides the action entirely when it isn't,
+    /// rather than offering something that would quietly resolve back to the ordinary chat model and
+    /// return an identical answer the user just paid twice for.
+    var hasDeepAnalysisModel: Bool {
+        !deepModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     @Published var cardModel: String {
         didSet { UserDefaults.standard.set(cardModel, forKey: Self.cardModelKey) }
     }
@@ -354,6 +459,7 @@ final class AICoachEngine: ObservableObject {
     /// `didSet` writes above. `memoryModelKey` pre-dates the role system, hence the name.
     private static let memoryModelKey = CoachModelRole.summary.overrideDefaultsKey!
     private static let cardModelKey = CoachModelRole.cardAnalysis.overrideDefaultsKey!
+    private static let deepModelKey = CoachModelRole.deepAnalysis.overrideDefaultsKey!
     private static let autoSummarizeKey = "ai.autoSummarize"
     /// Emoji in coach replies (#P14 7.3) — off by default, matching the careful/human register the P13
     /// voice clause already asks for; a user who wants a lighter touch can opt in.
@@ -618,6 +724,7 @@ final class AICoachEngine: ObservableObject {
         // went stale across a provider switch). auto-summarise defaults ON.
         self.memoryModel = UserDefaults.standard.string(forKey: Self.memoryModelKey) ?? ""
         self.cardModel = UserDefaults.standard.string(forKey: Self.cardModelKey) ?? ""
+        self.deepModel = UserDefaults.standard.string(forKey: Self.deepModelKey) ?? ""
         self.autoSummarize = (UserDefaults.standard.object(forKey: Self.autoSummarizeKey) as? Bool) ?? true
         self.proactiveLevel = UserDefaults.standard.string(forKey: ProactiveLevel.storageKey)
             .flatMap(ProactiveLevel.init(rawValue:)) ?? .important
@@ -657,7 +764,7 @@ final class AICoachEngine: ObservableObject {
     func newConversation() {
         if let cur = activeConversation, cur.messages.isEmpty {
             chartsByMessage = [:]
-            errorText = nil
+            clearError()
             return
         }
         if let leaving = activeConversationID { maybeSummarize(leaving) }
@@ -665,7 +772,7 @@ final class AICoachEngine: ObservableObject {
         conversations.insert(fresh, at: 0)
         activeConversationID = fresh.id
         chartsByMessage = [:]
-        errorText = nil
+        clearError()
     }
 
     /// Back-compat alias for the old "New chat" button.
@@ -677,7 +784,7 @@ final class AICoachEngine: ObservableObject {
         guard conversations.contains(where: { $0.id == id }) else { return }
         if let leaving = activeConversationID, leaving != id { maybeSummarize(leaving) }
         activeConversationID = id
-        errorText = nil
+        clearError()
         rebuildChartsForActive()
     }
 
@@ -686,6 +793,40 @@ final class AICoachEngine: ObservableObject {
     func setArchived(_ id: UUID, _ archived: Bool) {
         guard let idx = conversations.firstIndex(where: { $0.id == id }) else { return }
         conversations[idx].archived = archived
+    }
+
+    /// Whether an unprompted coach message is waiting to be seen — the badge on the Today entry and the
+    /// floating button.
+    ///
+    /// "Unread" is derived, not tracked: a coach-initiated message counts until the user takes a turn
+    /// after it or opens the thread it landed in (`markCoachMessagesSeen`). A separate read-state store
+    /// would be a second source of truth to keep in sync with the transcript for no gain.
+    var hasUnseenCoachMessage: Bool {
+        guard let seen = UserDefaults.standard.object(forKey: Self.lastSeenCoachMessageKey) as? Double
+        else {
+            return conversations.contains { $0.messages.contains { $0.origin.isCoachInitiated } }
+        }
+        let seenAt = Date(timeIntervalSince1970: seen)
+        return conversations.contains { convo in
+            convo.messages.contains { $0.origin.isCoachInitiated && $0.date > seenAt }
+        }
+    }
+
+    /// Mark everything the coach said on its own as seen. Called when the chat is opened — the point at
+    /// which the user has actually been shown it.
+    func markCoachMessagesSeen() {
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Self.lastSeenCoachMessageKey)
+        objectWillChange.send()   // `hasUnseenCoachMessage` is computed
+    }
+
+    private static let lastSeenCoachMessageKey = "coach.lastSeenCoachMessageAt"
+
+    /// Pin or unpin a conversation. A pinned thread sorts to the top of the history AND is exempt from
+    /// the 50-conversation cap (`CoachConversationStore.applyCap`) — pinning something and having it
+    /// silently deleted later would defeat the point of pinning it.
+    func setPinned(_ id: UUID, _ pinned: Bool) {
+        guard let idx = conversations.firstIndex(where: { $0.id == id }) else { return }
+        conversations[idx].pinned = pinned
     }
 
     /// Rename a conversation (user-set titles are kept; auto-titling won't overwrite them).
@@ -729,7 +870,12 @@ final class AICoachEngine: ObservableObject {
     /// directly, so `stop()` can cancel it.
     func startSend(_ text: String) {
         sendTask?.cancel()
-        sendTask = Task { [weak self] in await self?.send(text) }
+        sendTask = Task { [weak self] in
+            await self?.send(text)
+            // Always clears — including on error, cancellation and Stop. A deep turn that failed must
+            // not leave the next ordinary question silently routed to the expensive model.
+            self?.deepTurn = false
+        }
     }
 
     /// Stop an in-flight reply. Whatever streamed so far stays in the transcript; no error is shown.
@@ -737,12 +883,64 @@ final class AICoachEngine: ObservableObject {
         sendTask?.cancel()
         sendTask = nil
         sending = false
+        // Disarm here as well as in `startSend`'s continuation: a stopped deep run must not leave the
+        // next ordinary question routed to the expensive model, and Stop is the one path where the user
+        // has explicitly said they don't want this request finished.
+        deepTurn = false
+    }
+
+    /// Whether the CURRENT request should go to the deep-analysis model. Scoped to one turn and cleared
+    /// as soon as it finishes: depth is something the user asks for per question, never a mode the app
+    /// silently stays in — a sticky "deep" state is how a chat quietly becomes ten times dearer.
+    @Published private(set) var deepTurn = false
+
+    /// The model this request actually goes to. Every send path reads this rather than `model`, so the
+    /// deep re-run needs no parallel plumbing.
+    var requestModel: String { deepTurn ? model(for: .deepAnalysis) : model }
+
+    /// Re-run the last question on the deep-analysis model. Deliberately an action on an ANSWER the user
+    /// has already read — not a switch in the composer — so the extra cost is only ever spent when the
+    /// quick answer turned out to be too thin, and the user always knows why this one took longer.
+    ///
+    /// No-op without a configured deep model: re-running the same model would return the same answer
+    /// and bill for it twice.
+    func regenerateDeeply() {
+        guard hasDeepAnalysisModel else { return }
+        deepTurn = true
+        regenerate()
+    }
+
+    /// Take the last question back for editing: drop it and everything after it, and return its text so
+    /// the composer can be refilled with it.
+    ///
+    /// Regenerate answers "same question, try again"; this answers "I asked the wrong thing". Without it
+    /// the only way to fix a typo or a badly-phrased question was to retype it and leave the mistake
+    /// sitting in the transcript, where it also keeps feeding the history window on every later turn.
+    /// Returns nil while a reply is in flight, or when there is no question to reclaim.
+    func reclaimLastQuestion() -> String? {
+        guard !sending, let lastUserIdx = messages.lastIndex(where: { $0.role == .user }) else {
+            return nil
+        }
+        let question = messages[lastUserIdx].text
+        var msgs = messages
+        // Same chart cleanup regenerate does: the dropped replies may have hosted chart snapshots, and
+        // leaving those behind would strand images with no message to hang on.
+        for m in msgs[lastUserIdx...] where m.role == .assistant {
+            chartsByMessage[m.id] = nil
+            removeChartSnapshot(m.id)
+        }
+        msgs.removeSubrange(lastUserIdx...)
+        messages = msgs
+        return question
     }
 
     /// Regenerate the last reply: drop everything back to (and including) the last user turn, purge any
     /// charts those dropped messages hosted, then resend that same question.
     func regenerate() {
-        guard !sending, let lastUserIdx = messages.lastIndex(where: { $0.role == .user }) else { return }
+        guard !sending, let lastUserIdx = messages.lastIndex(where: { $0.role == .user }) else {
+            deepTurn = false   // nothing to resend; don't leave the flag armed for the next question
+            return
+        }
         let question = messages[lastUserIdx].text
         var msgs = messages
         for m in msgs[lastUserIdx...] where m.role == .assistant {
@@ -811,7 +1009,7 @@ final class AICoachEngine: ObservableObject {
     func connectCustom() {
         let url = customBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !url.isEmpty else { return }
-        errorText = nil
+        clearError()
         customConnected = true
         // Pull the server's model list; if the user hasn't picked one yet, default to the first.
         Task {
@@ -856,7 +1054,7 @@ final class AICoachEngine: ObservableObject {
         // Saving a (possibly new) key is an implicit reconnect — a user who disconnected, then pastes a
         // fresh key, obviously wants to use it rather than stay marked disconnected underneath (#P4 4.3).
         explicitlyDisconnected = false
-        errorText = nil
+        clearError()
         objectWillChange.send() // `hasKey` is computed; nudge SwiftUI to re-read it.
         // #288: do NOT auto-fetch the provider's model list on key-save. For a cloud provider that GET
         // egresses to the provider the MOMENT a key is saved (IP + request timing + key-validity) — before
@@ -937,7 +1135,7 @@ final class AICoachEngine: ObservableObject {
             errorText = AICoachError.noKey.errorDescription
             return
         }
-        errorText = nil
+        clearError()
 
         // Snapshot the provider BEFORE the await. The Picker isn't disabled during a refresh, so the
         // user can switch providers mid-flight (#873). We fetch this provider's ids, then re-check on
@@ -997,7 +1195,7 @@ final class AICoachEngine: ObservableObject {
         } catch {
             // A switch mid-flight makes any error moot for the old provider, so don't surface it.
             guard provider == capturedProvider else { return }
-            errorText = AICoachError.network(error.localizedDescription).errorDescription
+            setError(error)
             return
         }
     }
@@ -1017,7 +1215,7 @@ final class AICoachEngine: ObservableObject {
             errorText = AICoachError.noModel.errorDescription; return
         }
 
-        errorText = nil
+        clearError()
         messages.append(ChatMessage(role: .user, text: trimmed))
         cardSuggestions = []   // the card's follow-up chips belong to the moment after its read (#P11)
         sending = true
@@ -1048,7 +1246,7 @@ final class AICoachEngine: ObservableObject {
             do {
                 let reply = try await streamer.streamWithTools(
                     key: key,
-                    model: model,
+                    model: requestModel,
                     systemPrompt: systemPrompt,
                     messages: wire,
                     tools: toolCallingActive ? coachTools : [],
@@ -1075,14 +1273,14 @@ final class AICoachEngine: ObservableObject {
                 }
                 flushPendingCharts()
             } catch let e as AICoachError {
-                removeAssistantIfEmpty(replyId); discardPendingCharts(); errorText = e.errorDescription
+                removeAssistantIfEmpty(replyId); discardPendingCharts(); setError(e)
             } catch {
                 // A user-initiated Stop cancels the task; keep whatever streamed so far, show no error.
                 if Self.isCancellation(error) {
                     flushPendingCharts()
                 } else {
                     removeAssistantIfEmpty(replyId); discardPendingCharts()
-                    errorText = AICoachError.network(error.localizedDescription).errorDescription
+                    setError(error)
                 }
             }
             return
@@ -1095,11 +1293,11 @@ final class AICoachEngine: ObservableObject {
                                         toolsUsed: reply.toolsUsed))
             flushPendingCharts()
         } catch let e as AICoachError {
-            discardPendingCharts(); errorText = e.errorDescription
+            discardPendingCharts(); setError(e)
         } catch {
             discardPendingCharts()
             if !Self.isCancellation(error) {
-                errorText = AICoachError.network(error.localizedDescription).errorDescription
+                setError(error)
             }
         }
     }
@@ -1583,7 +1781,7 @@ final class AICoachEngine: ObservableObject {
         conversations.insert(fresh, at: 0)
         activeConversationID = fresh.id
         chartsByMessage = [:]
-        errorText = nil
+        clearError()
     }
 
     /// Day-boundary sweep (#R8): archive auto-only threads — a brief or nudge the user never replied to —
@@ -1691,7 +1889,7 @@ final class AICoachEngine: ObservableObject {
     private func generateBrief() async {
         guard isConfigured, dataConsent, !sending else { return }
         guard let key = resolvedKey else { return }
-        errorText = nil
+        clearError()
         sending = true
         defer { sending = false }
 
@@ -1711,18 +1909,18 @@ final class AICoachEngine: ObservableObject {
             let clean = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
             if !clean.isEmpty {
                 messages.append(ChatMessage(role: .assistant, text: "Today's brief\n\n" + clean,
-                                            toolsUsed: reply.toolsUsed))
+                                            toolsUsed: reply.toolsUsed, origin: .brief))
                 // Stamp only on genuine success, so a network failure doesn't burn the day's slot — a
                 // retry (reopening the conversation after a day boundary) can still land one.
                 UserDefaults.standard.set(Repository.logicalDayKey(Date()), forKey: Self.lastBriefDayKey)
             }
         } catch let e as AICoachError {
-            errorText = e.errorDescription
+            setError(e)
         } catch {
             // A user-initiated Stop is not an error — and must not stamp the day (see above), so the
             // brief comes back on the next open instead of silently vanishing until tomorrow.
             if !Self.isCancellation(error) {
-                errorText = AICoachError.network(error.localizedDescription).errorDescription
+                setError(error)
             }
         }
     }
@@ -1756,7 +1954,7 @@ final class AICoachEngine: ObservableObject {
     private func generateCheckIn() async {
         guard isConfigured, dataConsent, !sending else { return }
         guard let key = resolvedKey else { return }
-        errorText = nil
+        clearError()
         sending = true
         defer { sending = false }
 
@@ -1778,14 +1976,14 @@ final class AICoachEngine: ObservableObject {
             let clean = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
             if !clean.isEmpty {
                 messages.append(ChatMessage(role: .assistant, text: "Check-in\n\n" + clean,
-                                            toolsUsed: reply.toolsUsed))
+                                            toolsUsed: reply.toolsUsed, origin: .checkIn))
                 UserDefaults.standard.set(Repository.logicalDayKey(Date()), forKey: Self.lastCheckInDayKey)
             }
         } catch let e as AICoachError {
-            errorText = e.errorDescription
+            setError(e)
         } catch {
             if !Self.isCancellation(error) {
-                errorText = AICoachError.network(error.localizedDescription).errorDescription
+                setError(error)
             }
         }
     }
@@ -1854,7 +2052,36 @@ final class AICoachEngine: ObservableObject {
         let prefix = signal.category == .milestone ? "Nice work" : "A quick nudge"
         await runSeededTurnCancellable(
             instruction: Self.proactiveNudgeInstruction(for: signal),
-            prefix: prefix, stampKey: Self.lastProactiveDayKey)
+            prefix: prefix, stampKey: Self.lastProactiveDayKey, origin: .nudge)
+    }
+
+    /// The instruction for a goal-expiry look-back. Deliberately not a verdict template: the coach is
+    /// told to state what the data shows and ASK what the person wants to do next, because "you failed"
+    /// is both unhelpful and often wrong — a missed date can mean illness, travel or a goal that was
+    /// never realistic, and the app can't tell which.
+    static func goalReviewInstruction(for goal: CoachGoal) -> String {
+        """
+        The user's goal "\(goal.title)" reached its target date and neither of you has closed it out. \
+        Look back on it now, unprompted. Use the tools to check what actually happened over that period \
+        rather than guessing. Say plainly whether it was reached, missed, or can't be judged from the \
+        data — "can't be judged" is an honest answer and often the right one. Do NOT congratulate or \
+        commiserate on a number you haven't verified. Close by asking what they want to do with it: \
+        extend it, adjust the target, mark it done, or let it go. Keep it short.
+        """
+    }
+
+    /// Offer a look-back on a goal whose target date has passed. Once per goal, ever — the review is a
+    /// moment, not a recurring reminder, and repeating it would turn a missed target into nagging.
+    func runGoalReviewIfNeeded() async {
+        guard proactiveLevel != .off, isConfigured, dataConsent, !sending else { return }
+        guard let goal = ProactiveCoach.expiredGoalNeedingReview(CoachGoalStore.shared.goals) else {
+            return
+        }
+        let stampKey = "coach.goalReviewed.\(goal.id.uuidString)"
+        guard UserDefaults.standard.string(forKey: stampKey) == nil else { return }
+        await runSeededTurnCancellable(
+            instruction: Self.goalReviewInstruction(for: goal),
+            prefix: "Your goal", stampKey: stampKey, origin: .nudge)
     }
 
     /// Fire a weekly review at most once every 7 logical days, only at the `normal` level and only when
@@ -1867,7 +2094,7 @@ final class AICoachEngine: ObservableObject {
         guard CoachPlanStore.shared.proposals.contains(where: { $0.status.isDecided }) else { return }
         await runSeededTurnCancellable(
             instruction: Self.weeklyReviewInstruction(toolsActive: toolCallingActive),
-            prefix: "Weekly review", stampKey: Self.lastWeeklyReviewDayKey)
+            prefix: "Weekly review", stampKey: Self.lastWeeklyReviewDayKey, origin: .weeklyReview)
     }
 
     /// Whole-day distance between two "yyyy-MM-dd" keys, or nil if either doesn't parse.
@@ -1880,10 +2107,12 @@ final class AICoachEngine: ObservableObject {
     /// Cancellable runner for the proactive/weekly generated turns — mirrors `runCheckInCancellable` so
     /// the composer's Stop button cancels them too. Stamps its day key (via the generator) only on a
     /// non-empty success.
-    private func runSeededTurnCancellable(instruction: String, prefix: String, stampKey: String) async {
+    private func runSeededTurnCancellable(instruction: String, prefix: String, stampKey: String,
+                                          origin: ChatMessage.Origin) async {
         guard !sending else { return }
         let task = Task<Void, Never> { [weak self] in
-            await self?.generateSeededTurn(instruction: instruction, prefix: prefix, stampKey: stampKey)
+            await self?.generateSeededTurn(instruction: instruction, prefix: prefix,
+                                           stampKey: stampKey, origin: origin)
         }
         sendTask = task
         await task.value
@@ -1893,10 +2122,11 @@ final class AICoachEngine: ObservableObject {
     /// Shared generation for an unprompted, seeded coach turn (proactive nudge / weekly review): the same
     /// history-carrying wire `generateCheckIn` builds, with the seed instruction as the trailing turn.
     /// Stamps `stampKey` with today's logical day only on a genuine, non-empty reply.
-    private func generateSeededTurn(instruction: String, prefix: String, stampKey: String) async {
+    private func generateSeededTurn(instruction: String, prefix: String, stampKey: String,
+                                    origin: ChatMessage.Origin) async {
         guard isConfigured, dataConsent, !sending else { return }
         guard let key = resolvedKey else { return }
-        errorText = nil
+        clearError()
         sending = true
         defer { sending = false }
 
@@ -1915,14 +2145,14 @@ final class AICoachEngine: ObservableObject {
             let clean = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
             if !clean.isEmpty {
                 messages.append(ChatMessage(role: .assistant, text: prefix + "\n\n" + clean,
-                                            toolsUsed: reply.toolsUsed))
+                                            toolsUsed: reply.toolsUsed, origin: origin))
                 UserDefaults.standard.set(Repository.logicalDayKey(Date()), forKey: stampKey)
             }
         } catch let e as AICoachError {
-            errorText = e.errorDescription
+            setError(e)
         } catch {
             if !Self.isCancellation(error) {
-                errorText = AICoachError.network(error.localizedDescription).errorDescription
+                setError(error)
             }
         }
     }
@@ -1968,7 +2198,7 @@ final class AICoachEngine: ObservableObject {
         guard let context = pendingCardContext else { return }
         pendingCardContext = nil
         guard isConfigured, dataConsent, !sending else { return }
-        errorText = nil
+        clearError()
         sending = true
         defer { sending = false }
 
@@ -2031,6 +2261,12 @@ final class AICoachEngine: ObservableObject {
         // with dataConsent on).
         let digest = recentSummariesDigest()
         if !digest.isEmpty { ctx += "\n\n" + digest }
+        // The thread INDEX on top of the digest: a summary only exists once the memory maintainer has
+        // run, so a thread from yesterday the user never left cleanly has none. Its title does exist —
+        // and `CoachConversation.autoTitle` derives it from the user's FIRST question, so even on a
+        // provider with no tool-calling this alone can answer "what did I ask you yesterday" in outline.
+        let threads = recentThreadsIndex()
+        if !threads.isEmpty { ctx += "\n\n" + threads }
         return ctx
     }
 
@@ -2100,17 +2336,39 @@ final class AICoachEngine: ObservableObject {
         return (nights, skinState.usable)
     }
 
+    /// The rest-quality term the Charge score was actually computed with: the Rest COMPOSITE ÷ 100,
+    /// falling back to raw efficiency. Verbatim the derivation `IntelligenceEngine.recomputeRecovery` and
+    /// `recomputeChargeDrivers` use, which is what wrote the stored number — so the coach's breakdown and
+    /// the Today sheet's cannot describe different terms.
+    ///
+    /// This term used to be passed as `nil` here, on the documented assumption that it needed the app's
+    /// merged/carried sleep-performance resolution and was therefore out of reach without an `AppModel`.
+    /// It isn't: `Rest.composite(daily:)` is pure and row-local. Passing nil silently DROPPED the rest
+    /// row from the coach's breakdown, so the coach explained a Charge the Today screen explained
+    /// differently — the one thing the "never contradict Today" rule exists to prevent.
+    static func restQualityTerm(_ daily: DailyMetric) -> Double? {
+        AnalyticsEngine.Rest.composite(daily: daily).map { $0 / 100.0 } ?? daily.efficiency
+    }
+
+    /// The row the breakdown describes, mirroring `TodayView.chargeBreakdownRow`: today's own row once
+    /// it's scored, otherwise the most recent row that HAS a Charge score. Without the carry, the coach
+    /// would answer "not enough data yet" on a rollover morning while the Today ring still displays the
+    /// carried night's number — a second way for the two to disagree.
+    static func chargeBreakdownRow(days: [DailyMetric], todayKey: String) -> DailyMetric? {
+        let today = days.last { $0.day == todayKey }
+        if let today, today.recovery != nil { return today }
+        return days.last { $0.recovery != nil } ?? today ?? days.last
+    }
+
     /// The ordered "why is my Charge what it is" breakdown (`ChargeDrivers`), computed from the SAME
     /// per-term inputs `RecoveryScorer.recovery` uses, so the coach explains the REAL contributing terms
     /// instead of inventing a plausible-sounding story. A term whose input is missing produces no row,
-    /// never a fabricated one. NOTE: the rest-quality (sleep performance) term isn't threaded through here
-    /// — it needs the app's merged/carried sleep-performance resolution (see `TodayView.chargeBreakdown`),
-    /// out of scope for this pass — so that one term may be absent even on nights the Today screen's
-    /// breakdown shows it.
+    /// never a fabricated one. The rest-quality (sleep performance) term IS threaded through now, via
+    /// `restQualityTerm` — see there for why the earlier "out of scope" note was wrong and what it cost.
     func chargeDriversBlock() -> String {
         let days = repo.days
         let todayKey = Repository.logicalDayKey(Date())
-        guard let today = days.last(where: { $0.day == todayKey }) ?? days.last,
+        guard let today = Self.chargeBreakdownRow(days: days, todayKey: todayKey),
               let hrv = today.avgHrv, let rhr = today.restingHr else {
             return "Not enough data yet to break down today's Charge."
         }
@@ -2124,7 +2382,7 @@ final class AICoachEngine: ObservableObject {
             hrvBaseline: hrvBase,
             rhrBaseline: rhrBase.usable ? rhrBase : nil,
             respBaseline: respBase.usable ? respBase : nil,
-            sleepPerf: nil, skinTempDev: today.skinTempDevC)
+            sleepPerf: Self.restQualityTerm(today), skinTempDev: today.skinTempDevC)
         guard !drivers.isEmpty else { return "No Charge breakdown available yet." }
         var lines = ["WHY TODAY'S CHARGE IS WHAT IT IS (signed points, biggest mover first):"]
         for d in drivers {
@@ -2405,7 +2663,33 @@ final class AICoachEngine: ObservableObject {
                 lines.append(line)
             }
         }
+        if let pattern = Self.skipPatternLine(store.proposals) { lines.append(pattern) }
         return lines.isEmpty ? nil : lines.joined(separator: "\n")
+    }
+
+    /// A factual line about WHY sessions have recently been skipped, when one reason clearly dominates.
+    ///
+    /// `pain` and `ill` already reached the coach through the CAUTION line in `planAdherenceBlock`,
+    /// because those carry a safety implication. The everyday reasons — no time, too tired, not feeling
+    /// it — were recorded by the UI and then read by nobody, so the coach kept proposing into the same
+    /// wall. This is deliberately a STATEMENT OF FACT, not an instruction: the model is told what
+    /// happened, and decides what to do about it. Nothing here hides a sport or shrinks a plan on its
+    /// own — `declineStreakFloor` remains the guard against a filter bubble.
+    static func skipPatternLine(_ proposals: [PlanProposal], minimum: Int = 3) -> String? {
+        let skipped = proposals.filter { $0.status == .skipped }
+        var counts: [PlanProposal.SkipReason: Int] = [:]
+        for p in skipped {
+            // Excludes pain/ill on purpose: those are a safety signal, already surfaced with the weight
+            // they deserve. Folding them in here would restate a health concern as a scheduling habit.
+            guard let reason = p.skipReason, !reason.triggersCaution else { continue }
+            counts[reason, default: 0] += 1
+        }
+        guard let (reason, count) = counts.max(by: { $0.value < $1.value }), count >= minimum else {
+            return nil
+        }
+        return "PATTERN: the user's last \(count) skipped sessions were \"\(reason.label)\". State this "
+            + "plainly if you propose something similar, and ask what would actually fit — do not "
+            + "quietly stop suggesting that kind of session."
     }
 
     // MARK: - Plan tools
@@ -2528,7 +2812,13 @@ final class AICoachEngine: ObservableObject {
 
     /// Today's date, weekday and rough time of day, so the coach is never guessing what "today" means —
     /// the historical gap that let it not know a workout was 5 days ago or that it's a rest day of the week.
-    private func clockLine() -> String {
+    ///
+    /// Internal rather than private because `toolModeContext` (`CoachTools.swift`) needs it too: the tool
+    /// path used to carry NO clock at all, so a relative question ("what did I ask you yesterday?") had
+    /// nothing to resolve "yesterday" against. Deliberately NOT in the system prompt — that block carries
+    /// Anthropic's `cache_control` breakpoint, and a time-of-day string that changes every request would
+    /// invalidate the prefix cache on every single turn.
+    func clockLine() -> String {
         let now = Date()
         let df = DateFormatter()
         df.dateFormat = "EEEE, yyyy-MM-dd"
@@ -2547,10 +2837,17 @@ final class AICoachEngine: ObservableObject {
     /// Whole days between `ts` (unix seconds) and now, using calendar day boundaries (not a raw 24h
     /// division), so "yesterday evening" reads as 1 day ago rather than 0.
     private func daysAgo(_ ts: Int) -> Int {
+        Self.daysAgo(Date(timeIntervalSince1970: TimeInterval(ts)))
+    }
+
+    /// The same calendar-day arithmetic for a `Date`. Static and pure so the recall tests can pin the
+    /// "yesterday means 1, not 24 hours" behaviour without an engine. `now` is injectable for the same
+    /// reason — a test that builds "yesterday" relative to a fixed clock can't flake at midnight.
+    static func daysAgo(_ date: Date, now: Date = Date()) -> Int {
         let cal = Calendar.current
-        let then = cal.startOfDay(for: Date(timeIntervalSince1970: TimeInterval(ts)))
-        let today = cal.startOfDay(for: Date())
-        return cal.dateComponents([.day], from: then, to: today).day ?? 0
+        return cal.dateComponents([.day],
+                                  from: cal.startOfDay(for: date),
+                                  to: cal.startOfDay(for: now)).day ?? 0
     }
 
     // MARK: - Cross-conversation recall
@@ -2570,34 +2867,154 @@ final class AICoachEngine: ObservableObject {
         return lines.joined(separator: "\n")
     }
 
-    /// Keyword-search the user's PAST conversations (title + summary + messages), returning the top few
-    /// matches as titled, dated snippets. Deterministic and on-device — the `search_past_conversations`
-    /// tool so the model can pull relevant history on demand without every prompt carrying it.
-    func searchPastConversations(query: String, limit: Int = 3) -> String {
-        let qTokens = CoachMemory.tokens(query)
-        guard !qTokens.isEmpty else { return "Provide a more specific search query." }
-        let scored = conversations
-            .filter { $0.id != activeConversationID }
-            .map { convo -> (CoachConversation, Int) in
-                let hay = ([convo.title, convo.summary ?? ""] + convo.messages.map(\.text))
-                    .joined(separator: " ")
-                return (convo, CoachMemory.tokens(hay).intersection(qTokens).count)
-            }
-            .filter { $0.1 > 0 }
-            .sorted { $0.1 > $1.1 }
+    /// A cheap index of the user's recent threads: title + date only, no summaries, no message bodies.
+    /// Rides the tool-path context so the model KNOWS past conversations exist and can decide to search
+    /// them. `recentSummariesDigest()` can't do this job alone — it needs a `summary`, which the memory
+    /// maintainer only writes when the user leaves a chat with enough new turns, so a thread from
+    /// yesterday that was never summarised is invisible to it. A title exists from the first user turn.
+    func recentThreadsIndex(limit: Int = 5) -> String {
+        Self.threadsIndex(conversations, activeID: activeConversationID, limit: limit)
+    }
+
+    /// Static and pure so it's unit-testable without an engine — `conversations` is `private(set)`, so a
+    /// test can't seed the instance. Same reason `now` is injectable.
+    static func threadsIndex(_ conversations: [CoachConversation],
+                             activeID: UUID?,
+                             limit: Int = 5,
+                             now: Date = Date()) -> String {
+        let recent = conversations
+            .filter { $0.id != activeID && !$0.messages.isEmpty }
             .prefix(limit)
-        guard !scored.isEmpty else { return "No past conversations match \"\(query)\"." }
-        var lines = ["Relevant past conversations:"]
-        for (convo, _) in scored {
-            let date = convo.updatedAt.formatted(date: .abbreviated, time: .omitted)
-            let snippet = convo.summary
-                ?? convo.messages.last(where: { !$0.text.isEmpty })?.text
-                ?? ""
-            let snip = snippet.count > 240 ? String(snippet.prefix(240)) + "…" : snippet
-            let title = convo.title.isEmpty ? "Untitled" : convo.title
-            lines.append("• [\(title), \(date)] \(snip)")
+        guard !recent.isEmpty else { return "" }
+        var lines = ["THE USER'S RECENT THREADS WITH YOU (titles only — use search_past_conversations "
+                     + "to read one):"]
+        for c in recent {
+            lines.append("• \(relativeStamp(c.updatedAt, now: now)) — "
+                         + (c.title.isEmpty ? "Untitled" : c.title))
         }
         return lines.joined(separator: "\n")
+    }
+
+    /// Recall over the user's PAST conversations, on two INDEPENDENT axes:
+    ///   • **keyword** — token overlap against `query` (the original behaviour), and/or
+    ///   • **time** — `onDaysAgo` (one calendar day: 0 = today, 1 = yesterday) or `sinceDays` (a window).
+    ///
+    /// Either axis works alone, and that's the whole point of the time one: "what did I ask you
+    /// yesterday?" carries no content keywords, so a keyword-only search scored every thread at zero and
+    /// the coach answered "I don't have that". Requiring `query` made a purely temporal question
+    /// structurally unanswerable.
+    ///
+    /// The snippet returns the user's OWN turns, not the coach's. The previous version emitted the
+    /// summary or the LAST message — usually the coach's own reply — which cannot answer "what did *I*
+    /// ask". Deterministic and on-device; no embeddings, no extra API call.
+    func searchPastConversations(query: String = "",
+                                 sinceDays: Int? = nil,
+                                 onDaysAgo: Int? = nil,
+                                 limit: Int = 3) -> String {
+        Self.recallText(conversations, activeID: activeConversationID, query: query,
+                        sinceDays: sinceDays, onDaysAgo: onDaysAgo, limit: limit)
+    }
+
+    /// The recall itself, static and pure — `conversations` is `private(set)`, so the tests drive this
+    /// entry point with a seeded list and a fixed `now` instead of an engine.
+    static func recallText(_ conversations: [CoachConversation],
+                           activeID: UUID?,
+                           query: String = "",
+                           sinceDays: Int? = nil,
+                           onDaysAgo: Int? = nil,
+                           limit: Int = 3,
+                           now: Date = Date()) -> String {
+        let qTokens = CoachMemory.tokens(query)
+        let hasTimeFilter = sinceDays != nil || onDaysAgo != nil
+        let candidates = conversations.filter { $0.id != activeID }
+
+        // Match on MESSAGE dates, not the conversation's `updatedAt`: a thread the user reopened today
+        // would otherwise hide everything they actually asked in it yesterday.
+        func messagesInWindow(_ convo: CoachConversation) -> [ChatMessage] {
+            guard hasTimeFilter else { return convo.messages }
+            return convo.messages.filter { msg in
+                let age = daysAgo(msg.date, now: now)
+                if let exact = onDaysAgo { return age == exact }
+                if let since = sinceDays { return age <= since && age >= 0 }
+                return true
+            }
+        }
+
+        var hits: [(convo: CoachConversation, window: [ChatMessage], score: Int)] = []
+        for convo in candidates {
+            let window = messagesInWindow(convo)
+            if hasTimeFilter && window.isEmpty { continue }
+            let hay = ([convo.title, convo.summary ?? ""] + window.map(\.text)).joined(separator: " ")
+            let score = qTokens.isEmpty ? 0 : CoachMemory.tokens(hay).intersection(qTokens).count
+            // A keyword-only search still requires a hit. With a time filter the window IS the match, so
+            // a zero score just means "no keywords given" or "keywords didn't help rank" — keep it.
+            if !hasTimeFilter && score == 0 { continue }
+            hits.append((convo, window, score))
+        }
+
+        guard !hits.isEmpty else {
+            return noRecallMatch(query: query, sinceDays: sinceDays, onDaysAgo: onDaysAgo)
+        }
+
+        // With keywords, rank by overlap; without, the newest thread is the most relevant one.
+        if qTokens.isEmpty {
+            hits.sort { $0.convo.updatedAt > $1.convo.updatedAt }
+        } else {
+            hits.sort { $0.score > $1.score }
+        }
+
+        var lines = ["Relevant past conversations:"]
+        for hit in hits.prefix(limit) {
+            let title = hit.convo.title.isEmpty ? "Untitled" : hit.convo.title
+            lines.append("• [\(title), \(relativeStamp(hit.convo.updatedAt, now: now))]")
+            let asked = hit.window.filter { $0.role == .user && !$0.text.isEmpty }
+            for msg in asked.prefix(recallUserTurnsPerThread) {
+                lines.append("    the user asked: \"\(trimmed(msg.text, to: 160))\"")
+            }
+            if asked.isEmpty {
+                // An auto-only thread (a brief or nudge the user never replied to) — say so rather than
+                // silently returning a bare title.
+                lines.append("    (no questions from the user in this thread — coach-initiated)")
+            }
+            if let summary = hit.convo.summary, !summary.isEmpty {
+                lines.append("    summary: \(trimmed(summary, to: 240))")
+            }
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    /// How many of the user's own turns to quote per matched thread. Enough to answer "what did I ask
+    /// you yesterday" for a normal chat, small enough that three threads can't blow up the tool result.
+    private static let recallUserTurnsPerThread = 3
+
+    /// The "nothing found" text, phrased against whichever axis the caller actually used — so the model
+    /// can tell "you have no chats from yesterday" apart from "your keywords didn't match".
+    private static func noRecallMatch(query: String, sinceDays: Int?, onDaysAgo: Int?) -> String {
+        if let exact = onDaysAgo {
+            let when = exact == 0 ? "today" : (exact == 1 ? "yesterday" : "\(exact) days ago")
+            return "No conversations from \(when)."
+        }
+        if let since = sinceDays { return "No conversations in the last \(since) days." }
+        if query.isEmpty { return "No past conversations stored yet." }
+        return "No past conversations match \"\(query)\"."
+    }
+
+    /// A date the model can reason about: "yesterday (Mon 20 Jul, 18:42)" rather than a bare date. Recent
+    /// threads carry the time too, because "what did I ask this morning" needs it.
+    private static func relativeStamp(_ date: Date, now: Date = Date()) -> String {
+        let age = daysAgo(date, now: now)
+        let withTime = date.formatted(date: .abbreviated, time: .shortened)
+        switch age {
+        case 0: return "today (\(withTime))"
+        case 1: return "yesterday (\(withTime))"
+        default: return date.formatted(date: .abbreviated, time: .omitted)
+        }
+    }
+
+    private static func trimmed(_ text: String, to limit: Int) -> String {
+        let oneLine = text.replacingOccurrences(of: "\n", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return oneLine.count > limit ? String(oneLine.prefix(limit)) + "…" : oneLine
     }
 
     // MARK: - Model roles
@@ -2619,10 +3036,69 @@ final class AICoachEngine: ObservableObject {
             return firstNonEmpty(memoryModel, provider.cheapModel, model, provider.defaultModel)
         case .cardAnalysis:
             return firstNonEmpty(cardModel, provider.cheapModel, model, provider.defaultModel)
+        case .deepAnalysis:
+            // Falls back to the chat model so a caller can never end up with an empty id, but callers
+            // are expected to check `hasDeepAnalysisModel` first — a "deep" run on the ordinary model
+            // is just the same answer at twice the cost.
+            return firstNonEmpty(deepModel, model, provider.defaultModel)
         }
     }
 
     // MARK: - Memory maintenance support (cheap-model one-off calls)
+
+    /// The outcome of a connection test, as something the UI can render without re-deriving anything.
+    enum ConnectionTestResult: Equatable {
+        case untested
+        case testing
+        case ok(model: String)
+        case failed(String)
+    }
+
+    @Published private(set) var connectionTest: ConnectionTestResult = .untested
+
+    /// Send the smallest possible real request and report what came back.
+    ///
+    /// Until now a wrong key, a typo'd Custom URL or a model id the provider doesn't serve was only
+    /// discovered by asking the coach a real question and getting an error instead of an answer — after
+    /// the user had already left settings and composed something. This answers "did that work?" at the
+    /// moment the key is pasted, which is when the user still has the context to fix it.
+    ///
+    /// Deliberately goes through the ORDINARY send path (`provider.client.send`) rather than pinging
+    /// `/models`: fetching a model list can succeed with a key that the chat endpoint then rejects, and
+    /// it says nothing about whether the SELECTED model is actually servable to this account.
+    func testConnection() async {
+        // `resolvedKey` already yields "" for Custom (a local server usually needs none), so nil here
+        // genuinely means "no key for a provider that requires one".
+        guard let key = resolvedKey else {
+            connectionTest = .failed(AICoachError.noKey.errorDescription ?? "")
+            return
+        }
+        guard !model.trimmingCharacters(in: .whitespaces).isEmpty else {
+            connectionTest = .failed(AICoachError.noModel.errorDescription ?? "")
+            return
+        }
+
+        connectionTest = .testing
+        do {
+            _ = try await provider.client.send(
+                key: key,
+                model: model,
+                systemPrompt: "Reply with the single word: ok",
+                messages: [(role: .user, content: "ok")],
+                session: session
+            )
+            connectionTest = .ok(model: model)
+        } catch {
+            // Same classification the chat uses, so "you're offline" reads identically in both places
+            // rather than being a second, subtly different vocabulary for the same failures.
+            let coachError = (error as? AICoachError) ?? coachTransportError(error)
+            connectionTest = .failed(coachError.errorDescription ?? "")
+        }
+    }
+
+    /// Drop a stale verdict — on provider/key/model change, the previous result no longer describes
+    /// what would happen now, and a lingering green tick is worse than none.
+    func resetConnectionTest() { connectionTest = .untested }
 
     /// A one-off completion via the CHEAP model for a background role (summary upkeep or a card analysis).
     /// Internal so `MemoryMaintainer` (and the card-AI feature) can drive short calls without touching the
@@ -2796,7 +3272,7 @@ final class AICoachEngine: ObservableObject {
         if toolCallingActive, let toolClient = provider.client as? ToolCallingClient {
             return try await toolClient.sendWithTools(
                 key: key,
-                model: model,
+                model: requestModel,
                 systemPrompt: systemPrompt,
                 messages: messages,
                 tools: coachTools,
@@ -2808,7 +3284,7 @@ final class AICoachEngine: ObservableObject {
         }
         let text = try await provider.client.send(
             key: key,
-            model: model,
+            model: requestModel,
             systemPrompt: systemPrompt,
             messages: messages,
             session: session
@@ -2817,16 +3293,45 @@ final class AICoachEngine: ObservableObject {
     }
 
     /// Sliding window over the chat: the FIRST user turn (it carries the metrics context) plus the most
-    /// recent `maxHistoryMessages`, dropping the middle. Sending the whole growing history crowds out the
-    /// reply on small-context local servers (Ollama defaults to a 2048-token window, the Custom
-    /// provider's main use case) and balloons token cost/latency on cloud providers. (parity with Android)
-    private static let maxHistoryMessages = 10
+    /// recent history that fits the model's token budget, dropping the middle. Sending the whole growing
+    /// history crowds out the reply on small-context local servers (Ollama defaults to a 2048-token
+    /// window, the Custom provider's main use case) and balloons token cost/latency on cloud providers.
+    ///
+    /// The size is a TOKEN BUDGET (`CoachHistoryBudget`), not the flat 10-message count it used to be —
+    /// that one number treated a 2 048-token local model and a 200 000-token Claude identically. The old
+    /// count survives as a floor (`minMessages`), so no provider ends up with less context than before;
+    /// a large model simply gets more when the turns are short. (Android still uses the flat count; this
+    /// is a fork-side divergence, and the floor keeps the two agreeing on the small-model case.)
     private func windowedMessages() -> [ChatMessage] {
-        guard messages.count > Self.maxHistoryMessages + 1,
+        // `requestModel`, not `model`: a deep re-run may go to a model with a different context window,
+        // and the window has to match the model the request is actually sent to.
+        Self.windowedMessages(
+            messages,
+            budgetTokens: CoachHistoryBudget.tokens(provider: provider, model: requestModel))
+    }
+
+    /// Static and pure so the windowing is unit-testable without an engine or a provider.
+    static func windowedMessages(_ messages: [ChatMessage], budgetTokens: Int) -> [ChatMessage] {
+        guard messages.count > CoachHistoryBudget.minMessages + 1,
               let firstUser = messages.firstIndex(where: { $0.role == .user }) else { return messages }
-        let recentStart = messages.count - Self.maxHistoryMessages
+
+        // Walk backwards from the newest turn, taking messages while the budget holds. The floor is
+        // applied afterwards, so a budget too small to fit even that many still sends them — being
+        // stricter than the previous build would be a regression, not a fix.
+        var used = 0
+        var keep = 0
+        for message in messages.reversed() {
+            let cost = CoachHistoryBudget.estimateTokens(message.text)
+            if keep > 0 && used + cost > budgetTokens { break }
+            used += cost
+            keep += 1
+        }
+        keep = min(messages.count, max(keep, CoachHistoryBudget.minMessages))
+        if keep == messages.count { return messages }
+
+        let recentStart = messages.count - keep
         // If the first user turn already falls inside the recent window, that window covers it.
-        if firstUser >= recentStart { return Array(messages.suffix(Self.maxHistoryMessages)) }
+        if firstUser >= recentStart { return Array(messages.suffix(keep)) }
         return [messages[firstUser]] + Array(messages[recentStart...])
     }
 

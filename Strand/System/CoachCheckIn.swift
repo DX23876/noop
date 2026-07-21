@@ -117,14 +117,66 @@ enum CoachCheckIn {
 
     // MARK: - Scheduling
 
+    /// Actions offered on the check-in notification, so it can be dealt with from the banner instead of
+    /// only by opening the app (or being swiped away and forgotten).
+    ///
+    /// Deliberately NOT "accept": there is nothing to accept here — the brief doesn't exist yet, it is
+    /// generated when the app opens. Offering an accept would be accepting something unseen.
+    enum Action {
+        static let category = "coach-checkin"
+        static let snooze = "coach-checkin-snooze"
+        static let skipToday = "coach-checkin-skip"
+        /// How long Snooze defers the reminder.
+        static let snoozeMinutes = 120
+    }
+
+    /// Register the notification category. Called once at launch, before any notification can arrive —
+    /// a category referenced by a notification but never registered simply shows no buttons.
+    static func registerCategory() {
+        let snooze = UNNotificationAction(identifier: Action.snooze,
+                                          title: String(localized: "Remind me in 2 hours"),
+                                          options: [])
+        let skip = UNNotificationAction(identifier: Action.skipToday,
+                                        title: String(localized: "Not today"),
+                                        options: [])
+        UNUserNotificationCenter.current().setNotificationCategories([
+            UNNotificationCategory(identifier: Action.category,
+                                   actions: [snooze, skip],
+                                   intentIdentifiers: [],
+                                   options: [])
+        ])
+    }
+
+    /// Defer today's reminder by `snoozeMinutes`, as a ONE-OFF request beside the repeating daily one.
+    /// The daily trigger is left untouched, so snoozing today never quietly cancels tomorrow.
+    static func snooze() {
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "Your coach has today's brief")
+        content.body = String(localized: "Open NOOP for your readiness and today's plan.")
+        content.sound = .default
+        content.categoryIdentifier = Action.category
+
+        let trigger = UNTimeIntervalNotificationTrigger(
+            timeInterval: TimeInterval(Action.snoozeMinutes * 60), repeats: false)
+        UNUserNotificationCenter.current().add(
+            UNNotificationRequest(identifier: "\(requestId)-snoozed", content: content, trigger: trigger))
+    }
+
     private static func schedule() {
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: [requestId])
 
         let content = UNMutableNotificationContent()
+        // Deliberately GENERIC, and it has to be. This is a REPEATING calendar trigger: its content is
+        // fixed when scheduled and reused every day thereafter, without the app running. Naming today's
+        // actual readiness would therefore quote whatever was true the last time NOOP was opened —
+        // possibly days ago. A stale number in a notification is worse than no number, and this project
+        // does not state figures it can't stand behind. The brief itself is generated on open, where the
+        // data is current.
         content.title = String(localized: "Your coach has today's brief")
         content.body = String(localized: "Open NOOP for your readiness and today's plan.")
         content.sound = .default
+        content.categoryIdentifier = Action.category
 
         let minute = timeMinutes
         var comps = DateComponents()

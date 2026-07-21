@@ -31,7 +31,7 @@ struct CoachSettingsView: View {
     /// same Connection & model subpage. Only reachable once a provider's list exceeds
     /// `searchableModelThreshold` (today just OpenRouter).
     private enum ModelSearchTarget: Int, Identifiable {
-        case chat, summary, cardAnalysis
+        case chat, summary, cardAnalysis, deepAnalysis
         var id: Int { rawValue }
     }
     @State private var modelSearchTarget: ModelSearchTarget?
@@ -42,6 +42,8 @@ struct CoachSettingsView: View {
     @State private var memoryModelCustomDraft: String = ""
     @State private var cardModelCustom: Bool = false
     @State private var cardModelCustomDraft: String = ""
+    @State private var deepModelCustom: Bool = false
+    @State private var deepModelCustomDraft: String = ""
     @State private var checkInOn: Bool = CoachCheckIn.isEnabled
     @State private var checkInTime: Date = CoachCheckIn.timeAsDate
     @State private var checkInDenied: Bool = false
@@ -323,6 +325,7 @@ struct CoachSettingsView: View {
     private var connectionSubpage: some View {
         subpageScaffold {
             providerConfigFields
+            connectionTestRow
             backgroundModelsSection
             tokenUsageBar
             disconnectRow
@@ -333,6 +336,7 @@ struct CoachSettingsView: View {
             case .chat:         ModelSearchSheet(models: coach.availableModels, selection: $coach.model)
             case .summary:      ModelSearchSheet(models: coach.availableModels, selection: $coach.memoryModel)
             case .cardAnalysis: ModelSearchSheet(models: coach.availableModels, selection: $coach.cardModel)
+            case .deepAnalysis: ModelSearchSheet(models: coach.availableModels, selection: $coach.deepModel)
             }
         }
     }
@@ -384,6 +388,14 @@ struct CoachSettingsView: View {
                     searchTarget: .cardAnalysis,
                     accessibility: "Card-analysis model"
                 )
+                roleModelField(
+                    title: "Closer look",
+                    caption: "An optional heavier model for \"Look at this more closely\" on a reply. Leave unset to hide that option.",
+                    model: $coach.deepModel, custom: $deepModelCustom, customDraft: $deepModelCustomDraft,
+                    searchTarget: .deepAnalysis,
+                    accessibility: "Closer-look model",
+                    emptyLabel: "Off — no closer-look option"
+                )
             }
         }
     }
@@ -393,16 +405,21 @@ struct CoachSettingsView: View {
     /// actually offers is selectable, not just typeable-and-hope. Empty ("") is its own real option,
     /// "Same as coaching model" — the role's default — kept distinct from "Custom…" (typing an id outside
     /// the fetched list).
+    /// `emptyLabel` names what an unset field MEANS, which differs per role: for the background roles
+    /// empty is "fall back to the coaching model", but for Closer look empty means the feature is off and
+    /// its action stays hidden. Showing "Same as coaching model" there would promise a fallback that
+    /// deliberately doesn't happen.
     private func roleModelField(title: LocalizedStringKey, caption: LocalizedStringKey,
                                 model: Binding<String>, custom: Binding<Bool>, customDraft: Binding<String>,
-                                searchTarget: ModelSearchTarget, accessibility: String) -> some View {
+                                searchTarget: ModelSearchTarget, accessibility: String,
+                                emptyLabel: LocalizedStringKey = "Same as coaching model") -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title).strandOverline()
 
             if coach.availableModels.count > Self.searchableModelThreshold {
                 Button { modelSearchTarget = searchTarget } label: {
                     HStack {
-                        Text(model.wrappedValue.isEmpty ? "Same as coaching model" : model.wrappedValue)
+                        Text(model.wrappedValue.isEmpty ? emptyLabel : LocalizedStringKey(model.wrappedValue))
                             .font(StrandFont.body)
                             .foregroundStyle(model.wrappedValue.isEmpty
                                              ? StrandPalette.textTertiary : StrandPalette.textPrimary)
@@ -422,7 +439,7 @@ struct CoachSettingsView: View {
                 .accessibilityLabel(accessibility)
             } else {
                 Picker(title, selection: roleModelPickerSelection(model: model, custom: custom, draft: customDraft)) {
-                    Text("Same as coaching model").tag("")
+                    Text(emptyLabel).tag("")
                     ForEach(coach.availableModels, id: \.self) { m in
                         Text(m).tag(m)
                     }
@@ -595,6 +612,14 @@ struct CoachSettingsView: View {
                 }
                 .pickerStyle(.segmented)
                 .accessibilityLabel("How often the coach messages you first")
+                // A segmented picker marks its selection with a highlight and nothing else, so which
+                // option is active is carried by colour alone. Restating it in words costs one line and
+                // makes the current setting readable without seeing that highlight at all.
+                Text(LocalizedStringKey(coach.proactiveLevel.blurb))
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityLabel("Currently: \(coach.proactiveLevel.label). \(coach.proactiveLevel.blurb)")
                 Text("The coach only reaches out on a real milestone or a run of missed sessions — never chatter. Each message uses your provider (and your tokens).")
                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -898,6 +923,49 @@ struct CoachSettingsView: View {
         HStack(spacing: 10) {
             StatePill("\(coach.provider.displayName) · \(coach.model)", tone: .accent, showsDot: true)
             Spacer()
+        }
+    }
+
+    /// "Did that actually work?", answered here rather than by the user's first real question.
+    ///
+    /// A wrong key, a typo'd Custom URL or a model this account can't serve was previously only
+    /// discovered by asking the coach something and getting an error back — after leaving settings. The
+    /// test sends one minimal real request through the ordinary chat path, so it exercises exactly what
+    /// a question would.
+    @ViewBuilder
+    private var connectionTestRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button {
+                Task { await coach.testConnection() }
+            } label: {
+                Label("Test connection", systemImage: "bolt.horizontal.circle")
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.accent)
+            }
+            .buttonStyle(.plain)
+            .disabled(coach.connectionTest == .testing)
+            .accessibilityHint("Sends one small request to check the key and model actually work.")
+
+            switch coach.connectionTest {
+            case .untested:
+                EmptyView()
+            case .testing:
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("Checking…").font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
+            case .ok(let model):
+                Label("Works — \(model) replied.", systemImage: "checkmark.circle.fill")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.statusPositive)
+                    .fixedSize(horizontal: false, vertical: true)
+            case .failed(let message):
+                Label(message, systemImage: "exclamationmark.triangle.fill")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.statusCritical)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 

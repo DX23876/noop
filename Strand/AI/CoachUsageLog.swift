@@ -8,6 +8,13 @@ import Foundation
 /// saving. Without the counters there is no way to tell "caching works" from "caching never engaged", so
 /// the numbers ship alongside the feature rather than as an afterthought.
 ///
+/// It is no longer Anthropic-only. The OpenAI-shaped providers report `usage` too, and the counters
+/// matter MORE there: on OpenRouter the user picks the model and therefore its price, across a catalogue
+/// spanning three orders of magnitude in cost. Shipping model choice without any way to see what a turn
+/// cost leaves the one decision the user actually makes unmeasurable. Their `prompt_tokens` includes
+/// cached tokens where Anthropic's `input_tokens` excludes them — `parseOpenAIUsage` subtracts, so a
+/// `Round` means the same thing whatever produced it.
+///
 /// A *turn* is one user question, which the tool loop may spread across several requests (see
 /// `AnthropicClient.maxToolRounds`); each request is one `Round`.
 @MainActor
@@ -46,6 +53,19 @@ final class CoachUsageLog: ObservableObject {
     func record(_ round: Round) {
         current.rounds.append(round)
         lastTurn = current
+    }
+
+    // MARK: - Provider-neutral entry points
+
+    /// Reset the counters at the start of a question, from any actor. Anthropic reaches the log through
+    /// its own `AnthropicClient.beginUsageTurn`; these exist so the OpenAI-shaped providers don't have to
+    /// call a helper named after a provider they aren't.
+    nonisolated static func beginTurnFromProvider() async {
+        await MainActor.run { shared.beginTurn() }
+    }
+
+    nonisolated static func recordFromProvider(_ round: Round) async {
+        await MainActor.run { shared.record(round) }
     }
 
     // MARK: - Diagnostic text

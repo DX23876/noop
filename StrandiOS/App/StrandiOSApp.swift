@@ -50,6 +50,9 @@ struct StrandiOSApp: App {
         // is open, so a user testing the wind-down reminder with NOOP foregrounded sees nothing. Register
         // before the first scene so any early-fired notification is presented.
         UNUserNotificationCenter.current().delegate = NotificationPresenter.shared
+        // Register the check-in's action buttons before any notification can arrive — a category a
+        // notification names but nobody registered simply shows no buttons, silently.
+        CoachCheckIn.registerCategory()
         let model = AppModel()
         _model = StateObject(wrappedValue: model)
         _health = StateObject(wrappedValue: HealthKitBridge(

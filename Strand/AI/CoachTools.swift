@@ -92,9 +92,12 @@ enum CoachTool: String, CaseIterable {
             return "Remove a fact from your memory that is no longer true (give its gist in fact). Use "
                 + "when the user says something you remembered no longer applies."
         case .searchPastConversations:
-            return "Search the user's PAST conversations with you for relevant history when the current "
-                + "chat references something discussed before ('like we talked about', 'my usual plan', a "
-                + "past event). Returns titled, dated snippets from earlier chats."
+            return "Look up the user's PAST conversations with you. Use it two ways, together or alone: "
+                + "by KEYWORD (query) when the chat references something discussed before ('like we "
+                + "talked about', 'my usual plan'), and by TIME (on_days_ago / since_days) when they ask "
+                + "what was said on a particular day — 'what did I ask you yesterday?' takes "
+                + "on_days_ago: 1 with NO query, because such a question contains no keywords to match. "
+                + "Returns the user's own questions from each matching thread, dated."
         case .logCaffeine:
             return "Log a caffeine intake for the user (e.g. they say they just had a coffee). "
                 + "mg is optional — a single espresso is ~63 mg, a double ~125 mg, filter coffee ~95 mg, "
@@ -245,15 +248,32 @@ enum CoachTool: String, CaseIterable {
                 "required": ["fact"]
             ]
         case .searchPastConversations:
+            // NOTHING is required: a purely temporal question ("what did I ask you yesterday?") has no
+            // keywords, and a purely topical one needs no date. Requiring `query` is what made the
+            // temporal case unanswerable.
             return [
                 "type": "object",
                 "properties": [
                     "query": [
                         "type": "string",
-                        "description": "Keywords describing what to find in past conversations."
+                        "description": "Keywords describing what to find. Omit for a purely "
+                            + "time-based lookup."
+                    ],
+                    "on_days_ago": [
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 365,
+                        "description": "Limit to ONE calendar day: 0 = today, 1 = yesterday, 2 = the "
+                            + "day before. Use this for 'what did I ask you yesterday'."
+                    ],
+                    "since_days": [
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 365,
+                        "description": "Limit to the last N days (a window, not a single day). Use for "
+                            + "'earlier this week'."
                     ]
-                ],
-                "required": ["query"]
+                ]
             ]
         case .logCaffeine:
             return [
@@ -452,6 +472,43 @@ enum CoachTool: String, CaseIterable {
     var openAIFunctionSpec: [String: Any] {
         ["type": "function", "function": ["name": rawValue, "description": description, "parameters": inputSchema]]
     }
+    /// Gemini's `functionDeclarations` entry. Same name/description/schema as the other two, but the
+    /// schema is passed through `CoachTool.geminiSchema` first: Gemini validates against its own `Schema`
+    /// type, a SUBSET of JSON Schema, and rejects the whole request when it meets a keyword it doesn't
+    /// model — `minimum`/`maximum` appear in several of our schemas. A rejected request means no tools at
+    /// all, so the reduction is what makes tool-calling work here rather than a nicety.
+    var geminiFunctionSpec: [String: Any] {
+        ["name": rawValue, "description": description, "parameters": Self.geminiSchema(inputSchema)]
+    }
+
+    /// Recursively keep only the JSON-Schema keywords Gemini's `Schema` models. Everything else is
+    /// dropped rather than translated: a bound like `minimum` is advisory here — the tool's own dispatch
+    /// clamps its inputs anyway (`intArg`, the `limit`/`days` defaults), so losing it costs nothing,
+    /// whereas sending it costs the entire tool list.
+    static func geminiSchema(_ schema: [String: Any]) -> [String: Any] {
+        let supported: Set<String> = ["type", "description", "properties", "required", "items",
+                                      "enum", "format", "nullable"]
+        var out: [String: Any] = [:]
+        for (key, value) in schema where supported.contains(key) {
+            switch value {
+            case let nested as [String: Any]:
+                // `properties` is a map of name → schema; `items` is a schema. Both recurse, and for
+                // `properties` each VALUE is itself a schema, so the recursion has to go one level in.
+                if key == "properties" {
+                    var props: [String: Any] = [:]
+                    for (name, sub) in nested {
+                        props[name] = (sub as? [String: Any]).map { geminiSchema($0) } ?? sub
+                    }
+                    out[key] = props
+                } else {
+                    out[key] = geminiSchema(nested)
+                }
+            default:
+                out[key] = value
+            }
+        }
+        return out
+    }
 }
 
 // MARK: - Provider capability
@@ -524,8 +581,33 @@ extension AICoachEngine {
     /// them; `buildFullContext()` carries `planContextBlock()` on the non-tool path, so the tool path
     /// carries it here. Empty when nothing is pending — `wirePairs` then sends the question alone rather
     /// than wrapping a "Question:" scaffold around nothing.
+    ///
+    /// Two things ride alongside the plan block, both fixing the same reported failure ("what did I ask
+    /// you yesterday?" → "I don't have that"):
+    ///   • the CLOCK, because the tool path carried no date at all, so the model had nothing to resolve
+    ///     a relative day against — `buildFullContext()` gets it via `buildContext()`, this path got
+    ///     nothing;
+    ///   • a THREAD INDEX (titles + dates), because the model otherwise has no reason to believe past
+    ///     conversations exist and never calls `search_past_conversations`. Titles-only keeps it cheap;
+    ///     the tool fetches the content on demand.
+    /// Neither belongs in the system prompt: that block carries Anthropic's `cache_control` breakpoint,
+    /// and a per-request clock would invalidate the prefix cache on every turn.
     var toolModeContext: String {
-        planContextBlock() ?? ""
+        [clockLine(), recentThreadsIndex(), planContextBlock() ?? ""]
+            .filter { !$0.isEmpty }
+            .joined(separator: "\n\n")
+    }
+
+    /// An OPTIONAL integer argument, nil when the model omitted it. The inline
+    /// `(x as? Int) ?? Int(x as? Double ?? default)` pattern used elsewhere in this dispatcher can't
+    /// express "absent" — it has to invent a default — and here absent is meaningful: no `on_days_ago`
+    /// means "don't filter by day at all", not "day 0". Providers also vary on whether a JSON integer
+    /// arrives as `Int`, `Double` or a numeric `String`, so all three are accepted.
+    static func intArg(_ raw: Any?) -> Int? {
+        if let i = raw as? Int { return i }
+        if let d = raw as? Double { return Int(d) }
+        if let s = raw as? String { return Int(s.trimmingCharacters(in: .whitespaces)) }
+        return nil
     }
 
     /// Execute one tool call and return a compact text result. Routes to the same consent-gated summaries
@@ -586,7 +668,9 @@ extension AICoachEngine {
             CoachMemory.shared.remove(match.id)
             return "Forgotten: \(match.text)"
         case .searchPastConversations:
-            return searchPastConversations(query: (input["query"] as? String) ?? "")
+            return searchPastConversations(query: (input["query"] as? String) ?? "",
+                                           sinceDays: Self.intArg(input["since_days"]),
+                                           onDaysAgo: Self.intArg(input["on_days_ago"]))
         case .logCaffeine:
             let mg = (input["mg"] as? Double) ?? (input["mg"] as? Int).map(Double.init)
             let minsAgo = (input["minutes_ago"] as? Int) ?? Int(input["minutes_ago"] as? Double ?? 0)

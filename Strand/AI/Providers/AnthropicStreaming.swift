@@ -104,7 +104,7 @@ extension AnthropicClient: StreamingToolClient {
         guard (200...299).contains(http.statusCode) else {
             switch http.statusCode {
             case 401, 403: throw AICoachError.badKey
-            case 429: throw AICoachError.rateLimited
+            case 429: throw AICoachError.rateLimited(retryAfter: retryAfterSeconds(http))
             default: throw AICoachError.server(http.statusCode, "")
             }
         }

@@ -104,8 +104,12 @@ struct CoachPlanView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 HStack(spacing: 8) {
+                    // Opens the time sheet rather than accepting untimed. `accept(_:at:)` always took a
+                    // time; only this call site didn't pass one, so agreeing to a session and saying WHEN
+                    // were two separate steps and the second was easy to never take — leaving a plan full
+                    // of commitments with no time, which no reminder can fire for.
                     action("Accept", icon: "checkmark", prominent: true) {
-                        store.accept(p.id)
+                        scheduling = p
                     }
                     action("Change", icon: "arrow.triangle.2.circlepath") { swapping = p }
                     action("Not this one", icon: "xmark") { store.decline(p.id) }
@@ -386,6 +390,16 @@ struct PlanTimeSheet: View {
                         dismiss()
                     }
                     .font(StrandFont.footnote)
+                }
+                // The escape hatch, so routing Accept through here can't trap someone who genuinely
+                // doesn't know when yet. Accepting still commits — only the time is left open.
+                if proposal.status == .proposed {
+                    Button("Accept without a time") {
+                        store.accept(proposal.id)
+                        dismiss()
+                    }
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textSecondary)
                 }
                 Spacer()
             }

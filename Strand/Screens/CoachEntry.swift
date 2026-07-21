@@ -206,6 +206,8 @@ struct CoachCardIconButton: View {
 struct CoachFloatingButton: View {
     /// Flipped true to present the Coach (the host owns the actual `.coachCover`).
     @Binding var isPresented: Bool
+    /// Drives the unseen-message dot. Same engine the other entry points already observe.
+    @EnvironmentObject private var coach: AICoachEngine
 
     /// Which corner it's pinned to; `.custom` = wherever the user dragged it.
     @AppStorage(CoachButtonCorner.storageKey) private var cornerRaw = CoachButtonCorner.bottomTrailing.rawValue
@@ -248,6 +250,20 @@ struct CoachFloatingButton: View {
                 .frame(width: size, height: size)
                 .background(Circle().fill(StrandPalette.accent))
                 .overlay(Circle().strokeBorder(.white.opacity(0.18), lineWidth: 1))
+                // A brief or nudge the user hasn't seen. Without it the coach reaches out into an
+                // interface that gives no sign anything arrived, so proactive messages are only ever
+                // found by chance. Not a count: one dot says "there's something", which is all the
+                // user needs to decide whether to look.
+                .overlay(alignment: .topTrailing) {
+                    if coach.hasUnseenCoachMessage {
+                        Circle()
+                            .fill(StrandPalette.statusCritical)
+                            .frame(width: 11, height: 11)
+                            .overlay(Circle().strokeBorder(StrandPalette.surfaceBase, lineWidth: 2))
+                            .offset(x: 1, y: -1)
+                            .accessibilityHidden(true)
+                    }
+                }
                 .shadow(color: .black.opacity(0.28), radius: 10, x: 0, y: 4)
                 .contentShape(Circle())
                 .position(x: x, y: y)
