@@ -79,6 +79,9 @@ public enum WhoopCommand: UInt8, CaseIterable {
     /// payloads. If probing (#592): send THIS curated number first and capture the response — do NOT lead
     /// with the decompile's 87, an opcode unknown to this table (the curated-safe-subset rule).
     case getExtendedBatteryInfo = 98
+    /// #690: read-only body-location/status probe. Documented in the WHOOP protocol; driven only by the
+    /// user-triggered, Test-Centre-gated probeBodyLocationAndStatus(). Decoded to a diagnostic report only.
+    case getBodyLocationAndStatus = 84
     case toggleIMUMode         = 106
     case enableOpticalData     = 107
     /// SET_CONFIG / SET_FF_VALUE (0x78) — write one persistent device feature-flag. Used by the
@@ -145,6 +148,7 @@ public enum WhoopCommand: UInt8, CaseIterable {
         case .enterHighFreqSync:     return "Enter High-Freq Sync"
         case .exitHighFreqSync:      return "Exit High-Freq Sync"
         case .getExtendedBatteryInfo:return "Get Extended Battery Info"
+        case .getBodyLocationAndStatus:return "Get Body Location And Status"
         case .toggleIMUMode:         return "Toggle IMU Mode"
         case .enableOpticalData:     return "Enable Optical Data"
         case .setConfig:             return "Set Config (R22 feature flag)"

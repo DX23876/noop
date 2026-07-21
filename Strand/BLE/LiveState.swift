@@ -240,6 +240,10 @@ public final class LiveState: ObservableObject {
     /// a capture is readable/copyable without a full log export. BLEManager writes it; cleared on disconnect
     /// and on dialog dismiss. Twin of the Android StateFlow LiveState/WhoopBleClient.extendedBatteryProbe.
     @Published public var extendedBatteryProbe: String? = nil
+
+    /// #690: the body-location probe result (or the waiting sentinel), shown + copied in the Devices dialog.
+    /// Cleared on disconnect and on dialog dismiss. Twin of the Android WhoopBleClient.bodyLocationProbe flow.
+    @Published public var bodyLocationProbe: String? = nil
     /// Wrist-wear state from WRIST_ON/WRIST_OFF events. Defaults true so wear-gated features work
     /// before the first event arrives; flipped by FrameRouter on a real event.
     @Published public var worn: Bool = true

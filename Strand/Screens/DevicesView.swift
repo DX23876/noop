@@ -61,6 +61,8 @@ private struct DevicesContent: View {
     @State private var probeTarget: PairedDevice?
     /// #592 extended-battery probe (Test Centre → Connection) — the device whose confirm dialog is open.
     @State private var batteryProbeTarget: PairedDevice?
+    /// #690 body-location probe (Test Centre → Connection) — the device whose confirm dialog is open.
+    @State private var bodyLocationProbeTarget: PairedDevice?
     /// After removing the ACTIVE device with other devices still paired, prompt to pick a new active one.
     @State private var pickNewActive = false
 
@@ -97,6 +99,11 @@ private struct DevicesContent: View {
                         ? String(localized: "1 paired")
                         : String(localized: "\(activeDevices.count) paired"))
             ForEach(Array(activeDevices.enumerated()), id: \.element.id) { idx, device in
+                // Shared read-only probe gate (Test Centre → Connection + a live WHOOP), hoisted so the two
+                // probe closures below don't each re-inline a 4-term && chain — which tips the iOS Swift
+                // type-checker over its budget ("unable to type-check this expression in reasonable time").
+                let probeGate = device.status == .active && live.connected
+                    && SourceCoordinator.isWhoop(device) && TestCentre.active(.connection)
                 DeviceCard(
                     device: device,
                     isActive: device.status == .active,
@@ -144,9 +151,9 @@ private struct DevicesContent: View {
                                     && TestCentre.active(.connection)) ? { probeTarget = device } : nil,
                     // #592 extended-battery probe: read-only, BOTH families (the 4.0 is discriminating).
                     // Same Test Centre → Connection gate as the reboot probe, minus the 4.0-only clause.
-                    onExtendedBatteryProbe: (device.status == .active && live.connected
-                                             && SourceCoordinator.isWhoop(device)
-                                             && TestCentre.active(.connection)) ? { batteryProbeTarget = device } : nil)
+                    onExtendedBatteryProbe: probeGate ? { batteryProbeTarget = device } : nil,
+                    // #690 body-location probe: read-only, both families. Same Test Centre → Connection gate.
+                    onBodyLocationProbe: probeGate ? { bodyLocationProbeTarget = device } : nil)
                     .staggeredAppear(index: idx)
             }
 
@@ -244,6 +251,11 @@ private struct DevicesContent: View {
                 text: live.extendedBatteryProbe ?? "",
                 onClose: { model.clearExtendedBatteryProbe() })
         }
+        // #690 body-location probe (confirm + result), isolated into a ViewModifier so its two heavy
+        // dialog modifiers type-check in their OWN scope — the DevicesView dialog chain is already near the
+        // iOS Swift type-checker's budget, and inlining a 6th/7th modifier here tips it over ("unable to
+        // type-check in reasonable time"). macOS tolerates the inline form; iOS's type-inference is stricter.
+        .modifier(BodyLocationProbeSheets(target: $bodyLocationProbeTarget))
         // Second, strongly-worded delete-data confirm (reached from the Remove card's secondary control)
         .alert("Delete all of this device's data?",
                isPresented: Binding(get: { deleteDataTarget != nil },
@@ -429,6 +441,7 @@ private struct DeviceCard: View {
     var onRebootProbe: (() -> Void)? = nil
     /// #592 extended-battery opcode probe (Test Centre → Connection, both WHOOP families). Read-only.
     var onExtendedBatteryProbe: (() -> Void)? = nil
+    var onBodyLocationProbe: (() -> Void)? = nil
     /// Removed-section affordances (re-add as active / delete its data).
     var onReAdd: (() -> Void)? = nil
     var onDeleteData: (() -> Void)? = nil
@@ -676,6 +689,10 @@ private struct DeviceCard: View {
                 if let onExtendedBatteryProbe {
                     Button { onExtendedBatteryProbe() } label: { Label("Battery-info probe (#592 RE)…", systemImage: "ladybug") }
                 }
+                // #690 body-location opcode probe (RE): read-only, both families. Test Centre → Connection.
+                if let onBodyLocationProbe {
+                    Button { onBodyLocationProbe() } label: { Label("Body-location probe (#690 RE)…", systemImage: "ladybug") }
+                }
                 if let onRemove {
                     Divider()
                     Button(role: .destructive) { onRemove() } label: {
@@ -917,6 +934,75 @@ private struct ExtendedBatteryProbeResultView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Battery-info probe result (#592)")
+                .font(StrandFont.title2)
+                .foregroundStyle(StrandPalette.textPrimary)
+            if waiting {
+                Text("Waiting for the strap's reply…")
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.textSecondary)
+            } else {
+                ScrollView {
+                    Text(text)
+                        .font(StrandFont.mono)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            HStack {
+                if !waiting {
+                    Button("Copy") { PlatformPasteboard.copy(text) }
+                }
+                Spacer()
+                Button("Close") { onClose() }
+            }
+        }
+        .padding(20)
+        .frame(minWidth: 340, minHeight: 260)
+        .background(StrandPalette.surfaceOverlay)
+    }
+}
+
+/// #690: the body-location probe's confirm + result dialogs as one ViewModifier, so they're type-checked
+/// in isolation instead of extending the DevicesView `.confirmationDialog`/`.sheet` chain (which is already
+/// near the iOS Swift type-checker's budget). `model`/`live` auto-inject from the parent's environment.
+private struct BodyLocationProbeSheets: ViewModifier {
+    @EnvironmentObject var model: AppModel
+    @EnvironmentObject var live: LiveState
+    @Binding var target: PairedDevice?
+
+    func body(content: Content) -> some View {
+        content
+            .confirmationDialog("Body-location probe (#690 RE)",
+                                isPresented: Binding(get: { target != nil },
+                                                     set: { if !$0 { target = nil } }),
+                                titleVisibility: .visible,
+                                presenting: target) { _ in
+                Button("Send probe (read-only)") { model.probeBodyLocationAndStatus(); target = nil }
+                Button("Cancel", role: .cancel) { target = nil }
+            } message: { _ in
+                Text("Sends the read-only GET_BODY_LOCATION_AND_STATUS (0x54) and shows the strap's full raw reply, decoding the body-location record (revision / location / confidence / status) on WHOOP 4.0. Nothing is written to the strap, and it never changes wear detection or scoring.")
+            }
+            .sheet(isPresented: Binding(get: { live.bodyLocationProbe != nil },
+                                        set: { if !$0 { model.clearBodyLocationProbe() } })) {
+                BodyLocationProbeResultView(
+                    text: live.bodyLocationProbe ?? "",
+                    onClose: { model.clearBodyLocationProbe() })
+            }
+    }
+}
+
+/// The #690 body-location probe reply (raw hex + decoded record + capture diff), or a "waiting…" state
+/// while in flight. Read-only; selectable text + a Copy button. Twin of the Android BodyLocationProbe
+/// result dialog and structurally identical to ExtendedBatteryProbeResultView.
+private struct BodyLocationProbeResultView: View {
+    let text: String
+    let onClose: () -> Void
+    private var waiting: Bool { text == BLEManager.bodyLocationProbeWaiting }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Body-location probe result (#690)")
                 .font(StrandFont.title2)
                 .foregroundStyle(StrandPalette.textPrimary)
             if waiting {

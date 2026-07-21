@@ -808,6 +808,10 @@ final class AppModel: ObservableObject {
     func probeExtendedBatteryInfo() { ble.probeExtendedBatteryInfo() }
     func clearExtendedBatteryProbe() { ble.clearExtendedBatteryProbe() }
 
+    // #690: read-only body-location/status probe (0x54). User-initiated, Test-Centre-gated in DevicesView.
+    func probeBodyLocationAndStatus() { ble.probeBodyLocationAndStatus() }
+    func clearBodyLocationProbe() { ble.clearBodyLocationProbe() }
+
     /// Drop the current strap and clear bond state so a newly-picked strap model connects fresh
     /// (lets a user with both a WHOOP 4 and a 5/MG switch between them).
     func prepareStrapSwitch() { ble.prepareForModelSwitch() }

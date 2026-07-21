@@ -387,6 +387,9 @@
     <string name="l10n_devices_screen_battery_clamped_2494c8c9">Batterie %1$s%%</string>
     <string name="l10n_devices_screen_battery_info_probe_592_re_1dbd4c0f">Akku-Info-Test (#592 RE)…</string>
     <string name="l10n_devices_screen_battery_info_probe_result_592_b97c0bb8">Ergebnis des Akku-Info-Tests (#592)</string>
+    <string name="l10n_devices_screen_body_location_probe_690_re_7def8c39">Körperpositions-Test (#690 RE)…</string>
+    <string name="l10n_devices_screen_body_location_probe_result_690_60c5ee79">Ergebnis des Körperpositions-Tests (#690)</string>
+    <string name="l10n_devices_screen_body_location_probe_explainer_a9363239">Sendet den nur lesenden Körperpositions-Befehl (0x54) und schreibt die vollständige Rohantwort des Bands ins Strap-Log, wobei der Datensatz (Revision / Position / Konfidenz / Status) auf der WHOOP 4.0 dekodiert wird. Es wird nichts auf das Band geschrieben, und Trageerkennung oder Bewertung werden nie verändert.</string>
     <string name="l10n_devices_screen_battery_probe_explainer_2858bb6a">Zwei unabhängige Protokolltabellen widersprechen sich beim Extended-Battery-Opcode (98 vs. 87). Dies sendet das kuratierte, nur lesende 98 und schreibt die vollständige Rohantwort des Bands ins Strap-Log. Eine batterieartige Nutzlast bestätigt 98 auf deiner Firmware; ein kurzer Stub bleibt mehrdeutig. Es wird nichts auf das Band geschrieben. Bitte exportiere und teile danach das Strap-Log.</string>
     <string name="l10n_devices_screen_cancel_77dfd213">Abbrechen</string>
     <string name="l10n_devices_screen_clamped_1f39cebb">%1$s%%</string>

@@ -1451,6 +1451,10 @@ public final class BLEManager: NSObject, ObservableObject {
                 // GET_EXTENDED_BATTERY_INFO (98) over puffin: read-only opcode probe (#592) — a real WHOOP 5
                 // (fw 50.38.1.0) already answered this number. Driven only by probeExtendedBatteryInfo().
                 || command == .getExtendedBatteryInfo
+                // GET_BODY_LOCATION_AND_STATUS (84) over puffin: read-only opcode probe (#690). Driven only by
+                // probeBodyLocationAndStatus() (user-initiated, Test Centre gated); decoded to a diagnostic
+                // report only, never gates wear/scoring. Whether 5/MG answers is a hardware check.
+                || command == .getBodyLocationAndStatus
                 || command == .sendHistoricalData || command == .historicalDataResult
                 || command == .setClock || command == .getClock
                 // SET_CONFIG (the R22 deep-stream unlock) is allowed ONLY while the deep-data
@@ -2392,6 +2396,11 @@ public final class BLEManager: NSObject, ObservableObject {
     private static let extendedBatteryProbeTimeout: TimeInterval = 8
     private static let extendedBatteryPrevPayloadKey = "noop.592.prevPayload"
 
+    // #690 body-location probe (twins of the #592 constants above).
+    public static let bodyLocationProbeWaiting = "__waiting__"
+    private static let bodyLocationProbeTimeout: TimeInterval = 8
+    private static let bodyLocationPrevPayloadKey = "noop.690.prevPayload"
+
     /// #592 opcode probe: send the read-only GET_EXTENDED_BATTERY_INFO(98) and surface the strap's reply
     /// (raw hex + payload triage + capture diff) on `LiveState.extendedBatteryProbe` for the Devices dialog.
     /// The number is disputed (an APK decompile reads 87); a battery-shaped payload confirms 98 on this
@@ -2428,6 +2437,46 @@ public final class BLEManager: NSObject, ObservableObject {
         log("Extended-battery probe (#592):\n\(text)")
         state.extendedBatteryProbe = text
         if let payHex { UserDefaults.standard.set(payHex, forKey: BLEManager.extendedBatteryPrevPayloadKey) }
+    }
+
+    /// #690 opcode probe: send the read-only GET_BODY_LOCATION_AND_STATUS(84) and surface the strap's reply
+    /// (raw hex + payload triage + capture diff) on `LiveState.bodyLocationProbe` for the Devices dialog.
+    /// READ-ONLY: never changes wear detection, sleep gating, or scoring. User-initiated only. Twin of
+    /// Android WhoopBleClient.probeBodyLocationAndStatus().
+    public func probeBodyLocationAndStatus() {
+        guard state.connected else {
+            log("Body-location probe (#690) ignored — not connected")
+            return
+        }
+        state.bodyLocationProbe = BLEManager.bodyLocationProbeWaiting
+        log("Body-location probe (#690): sending GET_BODY_LOCATION_AND_STATUS(84, read-only) on family=\(selectedModel.deviceFamily); the raw COMMAND_RESPONSE is surfaced when it lands")
+        send(.getBodyLocationAndStatus)
+        // No-reply timeout: silence is itself the verdict (the strap doesn't serve 0x54 on this firmware).
+        // BLE callbacks + this timer both run on the main queue, so the guard-then-set is race-free.
+        DispatchQueue.main.asyncAfter(deadline: .now() + BLEManager.bodyLocationProbeTimeout) { [weak self] in
+            guard let self, self.state.bodyLocationProbe == BLEManager.bodyLocationProbeWaiting else { return }
+            let secs = Int(BLEManager.bodyLocationProbeTimeout)
+            let msg = "Body-location probe (#690): no COMMAND_RESPONSE for opcode 84 within \(secs)s — the strap served no reply (it may not implement 0x54 on this firmware). Retry idle if a sync/offload was mid-flight."
+            self.log(msg)
+            self.state.bodyLocationProbe = msg
+        }
+    }
+
+    /// Clear the #690 probe result (Devices dialog dismissed). Twin of Android clearBodyLocationProbe().
+    public func clearBodyLocationProbe() { state.bodyLocationProbe = nil }
+
+    /// #690: format a GET_BODY_LOCATION_AND_STATUS COMMAND_RESPONSE and publish it, diffing against the
+    /// persisted previous payload. Called from the inbound frame handler for both families. Guarded on a
+    /// probe being IN-FLIGHT (parity with Android): 0x54 could coincide with a data frame's cmd-offset byte,
+    /// and this is a strictly user-triggered diagnostic, so a stray match must never surface a result.
+    private func handleBodyLocationProbeResponse(_ frame: [UInt8], isWhoop5: Bool) {
+        guard state.bodyLocationProbe == BLEManager.bodyLocationProbeWaiting else { return }
+        let prev = UserDefaults.standard.string(forKey: BLEManager.bodyLocationPrevPayloadKey)
+        let (text, payHex) = BodyLocationProbe.format(
+            frame: frame, cmdOff: isWhoop5 ? 10 : 6, isWhoop5: isWhoop5, prevPayloadHex: prev)
+        log("Body-location probe (#690):\n\(text)")
+        state.bodyLocationProbe = text
+        if let payHex { UserDefaults.standard.set(payHex, forKey: BLEManager.bodyLocationPrevPayloadKey) }
     }
 
     /// Shared reboot send + debug trail + watchdog, used by both the production `rebootStrap()` and the
@@ -3293,6 +3342,7 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         state.batteryMv = nil         // #592: a stale pack voltage must not outlive the link
         state.strapFirmware = nil     // a stale firmware version must not outlive the link
         state.extendedBatteryProbe = nil  // #592: drop a stale probe result on disconnect
+        state.bodyLocationProbe = nil     // #690: drop a stale probe result on disconnect
         state.clearBiometrics()       // and a stale HR / R-R must not outlive the link either
         state.liveFeedActive = false  // a drop while Live is open must not leave a stale "Stop live feed"
         didBond = false
@@ -3970,6 +4020,10 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                 if frame.count > 6, frame[6] == WhoopCommand.getExtendedBatteryInfo.rawValue {
                     handleExtendedBatteryProbeResponse(frame, isWhoop5: false)
                 }
+                // #690: the read-only body-location probe's COMMAND_RESPONSE (in-flight-guarded inside).
+                if frame.count > 6, frame[6] == WhoopCommand.getBodyLocationAndStatus.rawValue {
+                    handleBodyLocationProbeResponse(frame, isWhoop5: false)
+                }
                 if frame.count > 6, frame[6] == WhoopCommand.getDataRange.rawValue {
                     // #451: the decoded "newest" can latch a stale/wrong-epoch field (claypilat saw 2024 when
                     // the real newest was 2026). To tell a genuinely-stale strap apart from a frame-alignment
@@ -4090,6 +4144,10 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                     // @10). Format + publish it for the Devices dialog, exactly like the 4.0 path above.
                     if frame.count > 10, frame[8] == 0x24, frame[10] == WhoopCommand.getExtendedBatteryInfo.rawValue {
                         handleExtendedBatteryProbeResponse(frame, isWhoop5: true)
+                    }
+                    // #690: a 5/MG body-location probe COMMAND_RESPONSE (puffin envelope: type @8, cmd @10).
+                    if frame.count > 10, frame[8] == 0x24, frame[10] == WhoopCommand.getBodyLocationAndStatus.rawValue {
+                        handleBodyLocationProbeResponse(frame, isWhoop5: true)
                     }
                     // NOTE: we deliberately do NOT ingest live 5/MG REALTIME_DATA into the Collector
                     // here. For a 5/MG the standard 0x2A37 Heart-Rate profile is already the RELIABLE,

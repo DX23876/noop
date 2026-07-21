@@ -113,6 +113,8 @@ fun DevicesScreen(
     val live by viewModel.live.collectAsStateWithLifecycle()
     // #592 extended-battery probe result — non-null (incl. the " waiting" sentinel) shows the result dialog.
     val batteryProbeResult by viewModel.extendedBatteryProbe.collectAsStateWithLifecycle()
+    // #690 body-location probe result — same non-null-shows-the-dialog contract.
+    val bodyLocationProbeResult by viewModel.bodyLocationProbe.collectAsStateWithLifecycle()
 
     // Liquid sky backdrop gate — the SAME "Day-cycle background" preference the liquid Today honours (#698,
     // default ON). Off falls back to the flat dark canvas, so the setting governs every liquid screen alike.
@@ -137,6 +139,7 @@ fun DevicesScreen(
     // WHOOP 4.0 reboot probe (Test Centre → Connection, 4.0 only) — the device whose probe sheet is open.
     var probeTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
     var batteryProbeTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
+    var bodyLocationProbeTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
     // After removing the ACTIVE device with other devices still paired, prompt to pick a new active one.
     var pickNewActive by remember { mutableStateOf(false) }
 
@@ -233,6 +236,11 @@ fun DevicesScreen(
                     SourceCoordinator.isWhoop(device) &&
                     TestCentre.from(context).active(TestDomain.CONNECTION)
                 ) { { batteryProbeTarget = device } } else null,
+                // #690 body-location opcode probe: read-only, both families. Same Test Centre gate.
+                onBodyLocationProbe = if (device.status == DeviceStatus.active.name && live.connected &&
+                    SourceCoordinator.isWhoop(device) &&
+                    TestCentre.from(context).active(TestDomain.CONNECTION)
+                ) { { bodyLocationProbeTarget = device } } else null,
             )
         }
 
@@ -361,6 +369,19 @@ fun DevicesScreen(
             onDismiss = { viewModel.clearExtendedBatteryProbe() },
         )
     }
+    // #690 body-location opcode probe: read-only send + full raw-response dump + decoded record.
+    bodyLocationProbeTarget?.let {
+        BodyLocationProbeDialog(
+            onSend = { viewModel.probeBodyLocationAndStatus(); bodyLocationProbeTarget = null },
+            onDismiss = { bodyLocationProbeTarget = null },
+        )
+    }
+    bodyLocationProbeResult?.let { result ->
+        BodyLocationProbeResultDialog(
+            text = result,
+            onDismiss = { viewModel.clearBodyLocationProbe() },
+        )
+    }
 
     // --- Second, strongly-worded delete-data confirm (from the Removed card's secondary control) ---
     deleteDataTarget?.let { device ->
@@ -434,6 +455,8 @@ private fun DeviceCard(
     onRebootProbe: (() -> Unit)? = null,
     // #592 extended-battery opcode probe (Test Centre → Connection, both WHOOP families). Read-only.
     onBatteryProbe: (() -> Unit)? = null,
+    // #690 body-location opcode probe (Test Centre → Connection, both WHOOP families). Read-only.
+    onBodyLocationProbe: (() -> Unit)? = null,
 ) {
     val profile = deviceProfile(device)
     // The per-device actions menu's open state is hoisted here so the WHOLE card is a tap target that opens
@@ -549,6 +572,7 @@ private fun DeviceCard(
                     onReboot = onReboot,
                     onRebootProbe = onRebootProbe,
                     onBatteryProbe = onBatteryProbe,
+                    onBodyLocationProbe = onBodyLocationProbe,
                 )
             }
         }
@@ -668,6 +692,7 @@ private fun DeviceActionsMenu(
     onReboot: (() -> Unit)? = null,
     onRebootProbe: (() -> Unit)? = null,
     onBatteryProbe: (() -> Unit)? = null,
+    onBodyLocationProbe: (() -> Unit)? = null,
 ) {
     Box {
         IconButton(
@@ -720,6 +745,10 @@ private fun DeviceActionsMenu(
                 // BATTERY_INFO number (98 vs an APK decompile's 87) from a strap-log export.
                 if (onBatteryProbe != null) {
                     MenuItem(uiString(R.string.l10n_devices_screen_battery_info_probe_592_re_1dbd4c0f), Icons.Filled.BugReport) { onOpenChange(false); onBatteryProbe() }
+                }
+                // #690: read-only body-location opcode probe — decodes revision/location/confidence/status.
+                if (onBodyLocationProbe != null) {
+                    MenuItem(uiString(R.string.l10n_devices_screen_body_location_probe_690_re_7def8c39), Icons.Filled.BugReport) { onOpenChange(false); onBodyLocationProbe() }
                 }
                 if (onRemove != null) {
                     HorizontalDivider(color = Palette.hairline)
@@ -913,6 +942,73 @@ private fun BatteryInfoProbeResultDialog(
         onDismissRequest = onDismiss,
         containerColor = Palette.surfaceOverlay,
         title = { Text(uiString(R.string.l10n_devices_screen_battery_info_probe_result_592_b97c0bb8), style = NoopType.title2, color = Palette.textPrimary) },
+        text = {
+            Column(modifier = Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
+                SelectionContainer {
+                    Text(shown, style = if (waiting) NoopType.subhead else NoopType.mono, color = Palette.textSecondary)
+                }
+            }
+        },
+        confirmButton = {
+            if (!waiting) {
+                TextButton(onClick = { clipboard.setText(AnnotatedString(text)) }) {
+                    Text(uiString(R.string.l10n_devices_screen_copy_af74f7c5), style = NoopType.body, color = Palette.accent)
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(uiString(R.string.l10n_devices_screen_close_bbfa773e), style = NoopType.body, color = Palette.textSecondary)
+            }
+        },
+    )
+}
+
+/** #690 body-location opcode probe: a single read-only send + a full raw-response dump + decoded record.
+ *  Gated to Test Centre → Connection + a live WHOOP at the call site. */
+@Composable
+private fun BodyLocationProbeDialog(
+    onSend: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Palette.surfaceOverlay,
+        title = { Text(uiString(R.string.l10n_devices_screen_body_location_probe_690_re_7def8c39), style = NoopType.title2, color = Palette.textPrimary) },
+        text = {
+            Text(
+                uiString(R.string.l10n_devices_screen_body_location_probe_explainer_a9363239),
+                style = NoopType.subhead,
+                color = Palette.textSecondary,
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onSend) {
+                Text(uiString(R.string.l10n_devices_screen_send_probe_read_only_36b318bc), style = NoopType.body, color = Palette.accent)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(uiString(R.string.l10n_devices_screen_cancel_77dfd213), style = NoopType.body, color = Palette.textSecondary)
+            }
+        },
+    )
+}
+
+/** #690 probe result: raw hex + decoded body-location record (or a "waiting…" state), with a Copy button.
+ *  Read-only; dismiss clears the result. Twin of the Swift BodyLocationProbeResultView. */
+@Composable
+private fun BodyLocationProbeResultDialog(
+    text: String,
+    onDismiss: () -> Unit,
+) {
+    val clipboard = LocalClipboardManager.current
+    val waiting = text == WhoopBleClient.WAITING_BODY_LOCATION_PROBE
+    val shown = if (waiting) uiString(R.string.l10n_devices_screen_waiting_for_the_straps_reply_5a06e7ac) else text
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Palette.surfaceOverlay,
+        title = { Text(uiString(R.string.l10n_devices_screen_body_location_probe_result_690_60c5ee79), style = NoopType.title2, color = Palette.textPrimary) },
         text = {
             Column(modifier = Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
                 SelectionContainer {

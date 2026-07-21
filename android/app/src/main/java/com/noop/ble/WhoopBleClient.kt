@@ -1085,6 +1085,111 @@ class WhoopBleClient(
             return sb.toString()
         }
 
+        /** #690: sentinel value of [bodyLocationProbe] between sending the probe and its reply landing. */
+        const val WAITING_BODY_LOCATION_PROBE = "__waiting__"
+
+        /** #690: how long to wait for a body-location COMMAND_RESPONSE before treating silence as "no reply". */
+        const val BODY_LOCATION_PROBE_TIMEOUT_MS = 8_000L
+
+        /** #690: persisted previous body-location payload hex, so a new capture can diff against it. */
+        private const val KEY_690_PREV_PAYLOAD = "noop.690.prevPayload"
+
+        /**
+         * #690: format a GET_BODY_LOCATION_AND_STATUS (0x54) COMMAND_RESPONSE into a clean, readable,
+         * copyable report — verdict, full raw hex, an offset-labelled payload grid, the four decoded fields
+         * (revision / location + enum label / confidence / status), and a per-byte diff vs [prevPayloadHex].
+         * READ-ONLY: never changes wear detection, sleep gating, or scoring. Pure + deterministic so it's
+         * unit-tested without a strap. Byte-identical to the Swift [BodyLocationProbe.format]. [cmdOff] is the
+         * response-command byte offset (6 on WHOOP4, 10 on 5/MG); the 4-byte CRC32 trailer is excluded.
+         *
+         * Protocol facts (0x54, the 4-byte layout, the location enum) are RE'd from the WHOOP app and
+         * reimplemented here in NOOP's own code — facts, not copied expression (see ATTRIBUTION.md).
+         */
+        internal fun formatBodyLocationProbe(
+            frame: ByteArray,
+            cmdOff: Int,
+            isWhoop5: Boolean,
+            prevPayloadHex: String?,
+        ): Pair<String, String?> {
+            val fam = if (isWhoop5) "WHOOP 5/MG" else "WHOOP 4.0"
+            val payStart = cmdOff + 1
+            val payEnd = frame.size - 4
+            val hasPayload = payEnd > payStart
+            val pay = if (hasPayload) frame.copyOfRange(payStart, payEnd) else ByteArray(0)
+
+            val resultCode = if (isWhoop5 && frame.size > 12) frame[12].toInt() and 0xFF else null
+            val resultLabel = when (resultCode) {
+                0 -> "FAILURE"; 1 -> "SUCCESS"; 2 -> "PENDING"; 3 -> "UNSUPPORTED"
+                null -> null; else -> "result$resultCode"
+            }
+            val verdict = when {
+                resultCode == 3 -> "opcode 84 REJECTED by firmware (UNSUPPORTED)"
+                hasPayload -> "opcode 84 ACCEPTED — ${pay.size}-byte payload"
+                else -> "opcode 84 answered with a bare stub — ambiguous"
+            }
+
+            val sb = StringBuilder()
+            sb.append("#690 BODY-LOCATION PROBE — ").append(fam).append('\n')
+            sb.append("Verdict: ").append(verdict).append('\n')
+            if (resultLabel != null) sb.append("Result code @12: ").append(resultLabel).append('(').append(resultCode).append(")\n")
+            sb.append("\nRaw frame (").append(frame.size).append(" B):\n")
+            sb.append(frame.joinToString("") { "%02x".format(it) }).append('\n')
+
+            var payloadHex: String? = null
+            if (hasPayload) {
+                payloadHex = pay.joinToString("") { "%02x".format(it) }
+                sb.append("\nPayload (").append(pay.size).append(" B, CRC excluded):\n")
+                sb.append(hexGrid(pay))
+                // 4-byte revision/location/confidence/status record — decoded only on WHOOP4, where the
+                // inner payload starts at cmdOff+1. On 5/MG the puffin envelope inserts a result code @12
+                // (= pay[1]), so decoding here would mislabel the RESULT CODE as the location; until a real
+                // 5/MG capture maps the offset, 5/MG shows the raw grid only. Twin of Swift BodyLocationProbe.
+                if (!isWhoop5 && pay.size >= 4) {
+                    val revision = pay[0].toInt() and 0xFF
+                    val location = pay[1].toInt() and 0xFF
+                    val confidence = pay[2].toInt() and 0xFF
+                    val status = pay[3].toInt() and 0xFF
+                    sb.append("\nDecoded:\n")
+                    sb.append("  revision:   ").append(revision).append('\n')
+                    sb.append("  location:   ").append(location).append("  (").append(bodyLocationLabel(location)).append(")\n")
+                    sb.append("  confidence: ").append(confidence).append("  (raw)\n")
+                    sb.append("  status:     ").append(status).append("  (raw)\n")
+                } else if (!isWhoop5) {
+                    sb.append("\nPayload shorter than the 4-byte body-location record — fields kept raw only\n")
+                } else {
+                    sb.append("\n5/MG: the record's offset inside the puffin envelope is unconfirmed — NOT decoded (the raw grid above stands); a real capture is needed to map the fields\n")
+                }
+                sb.append('\n')
+                if (prevPayloadHex != null && prevPayloadHex.length == payloadHex.length) {
+                    val prev = prevPayloadHex.chunked(2).map { it.toInt(16) }
+                    val deltas = StringBuilder()
+                    for (i in pay.indices) {
+                        val a = prev[i]
+                        val b = pay[i].toInt() and 0xFF
+                        if (a != b) deltas.append(" @%02d:%02x→%02x".format(i, a, b))
+                    }
+                    if (deltas.isEmpty()) {
+                        sb.append("Δ vs previous capture: identical — re-probe after moving/re-seating the strap to expose the fields")
+                    } else {
+                        sb.append("Δ vs previous capture:").append(deltas)
+                    }
+                } else {
+                    sb.append("Δ vs previous capture: first capture — probe again in another position to diff")
+                }
+            } else {
+                sb.append("\nNo payload beyond the command byte (bare stub) — no body-location data on this firmware")
+            }
+            return sb.toString() to payloadHex
+        }
+
+        /** #690: 0x54 location enum. Unknown/gap values (e.g. 6) fall through to a raw label so a reading is
+         *  preserved, never crashes, and is never coerced to a known position. Twin of Swift's locationLabel. */
+        private fun bodyLocationLabel(v: Int): String = when (v) {
+            0 -> "UNKNOWN"; 1 -> "WRIST"; 2 -> "BICEP"; 3 -> "CALF"; 4 -> "SIDE_TORSO"
+            5 -> "GLUTE"; 7 -> "ANKLE"; 128 -> "NOT_CONCLUSIVE"; 160 -> "UNKNOWN_GARMENT"
+            else -> "raw$v"
+        }
+
         const val MAX_AUTO_CONTINUES = 24
 
         /** #364 "more backlog remains" margin (seconds): how far ahead the strap must be of our persisted
@@ -1291,6 +1396,10 @@ class WhoopBleClient(
     // Drives the Devices result dialog so a capture is readable/copyable without a full log export.
     private val _extendedBatteryProbe = MutableStateFlow<String?>(null)
     val extendedBatteryProbe: StateFlow<String?> = _extendedBatteryProbe.asStateFlow()
+
+    // #690: the body-location probe result (or the waiting sentinel), shown + copied in the Devices dialog.
+    private val _bodyLocationProbe = MutableStateFlow<String?>(null)
+    val bodyLocationProbe: StateFlow<String?> = _bodyLocationProbe.asStateFlow()
 
     private val _connectedPeripheralAddress = MutableStateFlow<String?>(null)
     /** The BLE address of the strap currently connected, or null when disconnected. Twin of macOS
@@ -2513,6 +2622,10 @@ class WhoopBleClient(
                 // WHOOP 5 (fw 50.38.1.0) already answered this number, proving the frame is at least
                 // accepted. Driven only by probeExtendedBatteryInfo() (user-initiated, Test Centre gated).
                 cmd != CommandNumber.GET_EXTENDED_BATTERY_INFO &&
+                // GET_BODY_LOCATION_AND_STATUS (84) over puffin: read-only opcode probe (#690). Driven only by
+                // probeBodyLocationAndStatus() (user-initiated, Test Centre gated); response decoded to a
+                // diagnostic report only, never gates wear/scoring. Whether 5/MG answers is a hardware check.
+                cmd != CommandNumber.GET_BODY_LOCATION_AND_STATUS &&
                 // SET_CONFIG (the R22 deep-stream unlock) is allowed ONLY while the deep-data experiment
                 // is opted in — it writes a persistent feature flag to the strap, so it must never fire
                 // on a default install. Reversible; driven only by enableWhoop5DeepData(). (#174)
@@ -2919,6 +3032,30 @@ class WhoopBleClient(
 
     /** Clear the #592 probe result (Devices dialog dismissed). */
     fun clearExtendedBatteryProbe() { _extendedBatteryProbe.value = null }
+
+    /** #690 opcode probe: send the read-only GET_BODY_LOCATION_AND_STATUS(84) and let the COMMAND_RESPONSE
+     *  hook decode + surface it. User-initiated (Test Centre gated). Never changes wear/scoring. */
+    fun probeBodyLocationAndStatus() {
+        if (!_state.value.connected) {
+            log("Body-location probe (#690) ignored — not connected")
+            return
+        }
+        _bodyLocationProbe.value = WAITING_BODY_LOCATION_PROBE
+        log("Body-location probe (#690): sending GET_BODY_LOCATION_AND_STATUS(84, read-only) on family=$connectedFamily; the raw COMMAND_RESPONSE is dumped below when it lands")
+        send(CommandNumber.GET_BODY_LOCATION_AND_STATUS)
+        // If NO COMMAND_RESPONSE for 84 arrives in the window, the silence is itself the verdict (the strap
+        // served no reply / doesn't implement it on this firmware). ATOMIC compare-and-set so a real reply
+        // landing microseconds before the timeout is never clobbered.
+        handler.postDelayed({
+            val msg = "Body-location probe (#690): no COMMAND_RESPONSE for opcode 84 within " +
+                "${BODY_LOCATION_PROBE_TIMEOUT_MS / 1000}s — the strap served no reply (it may not implement " +
+                "0x54 on this firmware). Retry idle if a sync/offload was mid-flight."
+            if (_bodyLocationProbe.compareAndSet(WAITING_BODY_LOCATION_PROBE, msg)) log(msg)
+        }, BODY_LOCATION_PROBE_TIMEOUT_MS)
+    }
+
+    /** Clear the #690 probe result (Devices dialog dismissed). */
+    fun clearBodyLocationProbe() { _bodyLocationProbe.value = null }
 
     /** Shared reboot send + debug trail + watchdog, used by both the production [rebootStrap] and the
      *  4.0 [rebootProbe]. `probe == null` is the normal restart; a non-null variant is a probe attempt
@@ -4015,6 +4152,23 @@ class WhoopBleClient(
                         log("Extended-battery probe (#592):\n$text")
                         _extendedBatteryProbe.value = text
                         if (payHex != null) NoopPrefs.of(context).edit().putString(KEY_592_PREV_PAYLOAD, payHex).apply()
+                    }
+                    // #690 opcode probe: dump the raw GET_BODY_LOCATION_AND_STATUS(84) response in FULL,
+                    // decode the 4-byte revision/location/confidence/status record, log it (rides the
+                    // strap-log bundle) AND publish to the StateFlow the Devices dialog shows + copies.
+                    // Gated on a probe being IN-FLIGHT (the waiting sentinel) — stricter than the #592
+                    // probe on purpose: 0x54 could coincidentally be a data/event frame's cmd-offset byte,
+                    // and this is a strictly user-triggered diagnostic, so a stray match must never pop the
+                    // result dialog. (A reply arriving after the 8s timeout is dropped — acceptable.)
+                    if (frame.size > cmdOff && (frame[cmdOff].toInt() and 0xFF) == CommandNumber.GET_BODY_LOCATION_AND_STATUS.rawValue &&
+                        _bodyLocationProbe.value == WAITING_BODY_LOCATION_PROBE) {
+                        val prevHex = NoopPrefs.of(context).getString(KEY_690_PREV_PAYLOAD, null)
+                        val (text, payHex) = formatBodyLocationProbe(
+                            frame, cmdOff, connectedFamily == DeviceFamily.WHOOP5, prevHex,
+                        )
+                        log("Body-location probe (#690):\n$text")
+                        _bodyLocationProbe.value = text
+                        if (payHex != null) NoopPrefs.of(context).edit().putString(KEY_690_PREV_PAYLOAD, payHex).apply()
                     }
                     if (frame.size > cmdOff && (frame[cmdOff].toInt() and 0xFF) == CommandNumber.GET_DATA_RANGE.rawValue) {
                         // #451: dump raw GET_DATA_RANGE response bytes unconditionally (even if decode returns

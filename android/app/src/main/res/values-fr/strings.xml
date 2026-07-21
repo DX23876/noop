@@ -227,6 +227,9 @@
     <string name="l10n_devices_screen_battery_clamped_2494c8c9">Batterie %1$s%%</string>
     <string name="l10n_devices_screen_battery_info_probe_592_re_1dbd4c0f">Sonde d\'info batterie (#592 RE)…</string>
     <string name="l10n_devices_screen_battery_info_probe_result_592_b97c0bb8">Résultat de la sonde d\'info batterie (#592)</string>
+    <string name="l10n_devices_screen_body_location_probe_690_re_7def8c39">Sonde de position corporelle (#690 RE)…</string>
+    <string name="l10n_devices_screen_body_location_probe_result_690_60c5ee79">Résultat de la sonde de position corporelle (#690)</string>
+    <string name="l10n_devices_screen_body_location_probe_explainer_a9363239">Envoie la commande de position corporelle en lecture seule (0x54) et consigne la réponse brute complète du bracelet dans le journal, en décodant l\'enregistrement (révision / position / confiance / état) sur la WHOOP 4.0. Rien n\'est écrit sur le bracelet, et la détection de port ou la notation ne sont jamais modifiées.</string>
     <string name="l10n_devices_screen_battery_probe_explainer_2858bb6a">Deux tables de protocole indépendantes divergent sur l\'opcode de batterie étendue (98 contre 87). Ceci envoie le 98 curé en lecture seule et consigne la réponse brute complète du bracelet dans le journal. Une charge de type batterie confirme 98 sur votre firmware ; un stub court le laisse ambigu. Rien n\'est écrit sur le bracelet. Exportez et partagez le journal ensuite.</string>
     <string name="l10n_devices_screen_cancel_77dfd213">Annuler</string>
     <string name="l10n_devices_screen_clamped_1f39cebb">%1$s%%</string>

@@ -1729,6 +1729,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun clearExtendedBatteryProbe() = ble.clearExtendedBatteryProbe()
 
+    /** #690: read-only body-location/status probe (0x54). User-initiated, Test-Centre-gated in
+     *  DevicesScreen; decodes revision/location/confidence/status to a diagnostic report + strap log.
+     *  Never changes wear detection, sleep gating, or scoring. */
+    fun probeBodyLocationAndStatus() = ble.probeBodyLocationAndStatus()
+
+    /** #690 probe result text (null until a reply lands; waiting sentinel while in flight). */
+    val bodyLocationProbe = ble.bodyLocationProbe
+
+    fun clearBodyLocationProbe() = ble.clearBodyLocationProbe()
+
     /**
      * Flip the "keep connected in the background" preference (driven by Settings). Turning it on
      * while a strap is live promotes to the foreground immediately; turning it off drops the
