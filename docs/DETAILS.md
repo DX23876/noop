@@ -2,7 +2,7 @@
 
 👈 Looking for the friendly tour? **[Back to the README](../README.md)**
 
-This is the technical deep-dive: the fork rationale, the full 19-tool table, token-cost mechanics,
+This is the technical deep-dive: the fork rationale, the full 22-tool table, token-cost mechanics,
 the architecture, build/signing minutiae, and the upstream-sync mechanics. If you just want to know
 what the app does and how to get it running, the README has everything you need — this page is for
 when you want to know *why*, or you're about to touch the code yourself.
@@ -10,7 +10,7 @@ when you want to know *why*, or you're about to touch the code yourself.
 ## Contents
 
 - [Why a fork, not a contribution upstream?](#why-a-fork-not-a-contribution-upstream)
-- [The coach's 19 tools, in full](#the-coachs-19-tools-in-full)
+- [The coach's 22 tools, in full](#the-coachs-22-tools-in-full)
 - [Token cost and prompt caching](#token-cost-and-prompt-caching)
 - [Under the hood: the architecture](#under-the-hood-the-architecture)
 - [Quickstart: the signing fine print](#quickstart-the-signing-fine-print)
@@ -25,24 +25,26 @@ when you want to know *why*, or you're about to touch the code yourself.
 NOOP AI is a **personal fork** of [ryanbr/noop](https://github.com/ryanbr/noop). Not a competitor,
 not a rebrand that hides where it came from. Every protocol decoder, every analytics formula, every
 pixel of the design system comes from upstream NOOP and its own credited sources (see
-[Attribution](#attribution-in-full)). This fork carries exactly two deliberate changes on top:
-**iOS only**, and **a much bigger coach**.
+[Attribution](#attribution-in-full)). What this fork adds on top is **a much bigger coach** — and
+that addition is Apple-only.
 
 Upstream NOOP runs on a hard rule: **analytics and stored data must be byte-identical between the
 Swift and Kotlin implementations.** That's exactly the right rule for a dependable cross-platform
 WHOOP client — but it means every feature has to earn its place on macOS, iOS *and* Android at
 once, kept in lockstep, forever.
 
-A fast-moving, opinionated, iPhone-only AI coach is precisely the kind of thing that rule *should*
-keep out of the core project. It doesn't need an Android twin. It doesn't need macOS to make sense.
-It needs to iterate quickly, on one platform, for one person. So rather than push upstream toward a
+A fast-moving, opinionated AI coach is precisely the kind of thing that rule *should* keep out of
+the core project. It doesn't need an Android twin, and it doesn't need to be re-derived in Kotlin to
+be worth having. It needs to iterate quickly, for one person. So rather than push upstream toward a
 "no" it would be right to give, it lives here.
 
 **What that means in practice:**
 
-- **iOS only.** This fork builds the `NOOPiOS` target. The macOS (`Strand`) and Android trees are
-  **kept but untouched** — purely so `git merge upstream` keeps working. They're not built, not
-  tested, not supported here.
+- **Apple platforms, both of them.** This fork builds and tests `NOOPiOS` (iOS 17+) *and* `Strand`
+  (macOS 13+) — the coach's shared files have to compile for both, and `StrandTests` runs under the
+  macOS scheme, so macOS isn't merely carried along: it is where the test suite executes. The
+  **Android** tree is the one kept untouched, purely so `git merge upstream/main` keeps working; it
+  is not built or tested here.
 - **Additive only.** Everything this fork adds lives in its own new files under `Strand/AI/`. No
   upstream logic is rewritten in place. Nothing touches BLE, protocol decoding, or the analytics
   math — the parts that genuinely benefit from cross-platform parity are left completely alone.
@@ -51,7 +53,7 @@ It needs to iterate quickly, on one platform, for one person. So rather than pus
   landing in the same spot, not overlapping content. Not one coach file has ever needed a manual
   merge. That's the additive-files design paying off, not luck.
 
-## The coach's 19 tools, in full
+## The coach's 22 tools, in full
 
 The README covers the idea (the coach fetches its own data instead of being handed a fixed
 summary); here's every tool it can reach for, mid-sentence, while answering you. `get_readiness`
@@ -73,7 +75,9 @@ so the coach's verdict can never contradict what you already see there.
 | 🔍 | `get_personal_patterns` | Your own n-of-1 correlations ("late meals cost you 8 % recovery") |
 | 📈 | `plot_metric` | Draws a real chart, inline in the chat |
 | 🧠 | `remember_fact` · `update_fact` · `forget_fact` | Its own long-term memory |
-| 🕰️ | `search_past_conversations` | Finds what you discussed weeks ago |
+| 🕰️ | `search_past_conversations` | Finds what you discussed weeks ago — by keyword, by day, or both ("what did I ask you yesterday?") |
+| 📓 | `get_my_logs` | Reads back what you logged: caffeine, journal, lab markers, hydration, mood |
+| 💓 | `get_zone_minutes` | Minutes per heart-rate zone, so a prescribed intensity can be checked rather than assumed |
 | ☕ | `log_caffeine` · `log_journal` · `log_lab_marker` | **Writes** to your real app data |
 
 That last row is the fun one: **"just had a double espresso"** becomes a genuine entry in the
@@ -86,11 +90,18 @@ book's state machine, the memory ranking algorithm — lives in **[`COACH.md`](C
 
 ## Token cost and prompt caching
 
-Anthropic conversations get real **prompt caching**: the tool loop's largest recurring cost — the
-tool-definition list and system prompt, re-sent on every round of a multi-round answer — is cached
-after the first hit. Because a cache can silently fail to engage below a length threshold rather
-than erroring, Settings shows a **plain-language card** after every question: cached, just written,
-or "no caching, and here's probably why" — a number, not a hope.
+Anthropic conversations get an explicit **prompt cache breakpoint**: the tool loop's largest
+recurring cost — the tool-definition list and system prompt, re-sent on every round of a multi-round
+answer — is cached after the first hit. Because a cache can silently fail to engage below a length
+threshold rather than erroring, Settings shows a **plain-language card** after every question:
+cached, just written, or "no caching, and here's probably why" — a number, not a hope.
+
+**Token counts are no longer Anthropic-only.** The OpenAI-shaped providers report usage too, and it
+matters more there: on OpenRouter *you* pick the model, from a catalogue spanning three orders of
+magnitude in price. Shipping model choice without any way to see what a turn cost would leave the
+one decision you actually make unmeasurable. Their `prompt_tokens` includes cached tokens where
+Anthropic's `input_tokens` excludes them, so the parser subtracts — a turn means the same thing
+whatever produced it.
 
 ## Under the hood: the architecture
 
