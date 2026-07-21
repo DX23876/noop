@@ -73,10 +73,25 @@ final class PlanContextBlockTests: XCTestCase {
         XCTAssertTrue(ctx.contains("Tempo run"))
     }
 
-    /// T4: the stable prose moved to the cached system block, so with nothing pending the tool-path
-    /// context is EMPTY — `wirePairs` then sends the question alone, no scaffold around nothing.
-    func testToolModeContextIsEmptyWhenNothingIsPending() {
-        XCTAssertTrue(makeEngine().toolModeContext.isEmpty,
-                      "with an empty plan store the tool-path context carries no living data at all")
+    /// T4: the stable prose stays in the CACHED system block, so with nothing pending the tool-path
+    /// context carries no plan scaffold — `wirePairs` doesn't wrap a "Question:" frame around nothing.
+    ///
+    /// It is no longer empty, and deliberately so: the clock and the recent-thread index live here now.
+    /// Both are per-request LIVING data — exactly what this path is for — and both were absent, which is
+    /// what made "what did I ask you yesterday?" unanswerable (see `CoachConversationRecallTests`). The
+    /// invariant being pinned is "no stable prose, no empty scaffold", not "empty".
+    func testToolModeContextCarriesNoPlanScaffoldWhenNothingIsPending() {
+        let ctx = makeEngine().toolModeContext
+        XCTAssertFalse(ctx.contains("AWAITING THE USER'S DECISION"),
+                       "no pending proposal means no plan block")
+        XCTAssertFalse(ctx.contains("do NOT propose any of these again"))
+    }
+
+    /// The stable "you have tools, fetch before advising" prose must stay in the cached system block. If
+    /// it leaked back into the per-turn context it would be re-sent uncached on every tool round.
+    func testStableToolProseStaysInTheCachedSystemBlock() {
+        let engine = makeEngine()
+        XCTAssertFalse(engine.toolModeContext.contains(AICoachEngine.toolModeClause),
+                       "re-sending the tool-awareness map per round is what caching exists to avoid")
     }
 }

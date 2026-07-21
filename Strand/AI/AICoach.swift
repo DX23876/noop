@@ -2031,6 +2031,12 @@ final class AICoachEngine: ObservableObject {
         // with dataConsent on).
         let digest = recentSummariesDigest()
         if !digest.isEmpty { ctx += "\n\n" + digest }
+        // The thread INDEX on top of the digest: a summary only exists once the memory maintainer has
+        // run, so a thread from yesterday the user never left cleanly has none. Its title does exist —
+        // and `CoachConversation.autoTitle` derives it from the user's FIRST question, so even on a
+        // provider with no tool-calling this alone can answer "what did I ask you yesterday" in outline.
+        let threads = recentThreadsIndex()
+        if !threads.isEmpty { ctx += "\n\n" + threads }
         return ctx
     }
 
@@ -2100,17 +2106,39 @@ final class AICoachEngine: ObservableObject {
         return (nights, skinState.usable)
     }
 
+    /// The rest-quality term the Charge score was actually computed with: the Rest COMPOSITE ÷ 100,
+    /// falling back to raw efficiency. Verbatim the derivation `IntelligenceEngine.recomputeRecovery` and
+    /// `recomputeChargeDrivers` use, which is what wrote the stored number — so the coach's breakdown and
+    /// the Today sheet's cannot describe different terms.
+    ///
+    /// This term used to be passed as `nil` here, on the documented assumption that it needed the app's
+    /// merged/carried sleep-performance resolution and was therefore out of reach without an `AppModel`.
+    /// It isn't: `Rest.composite(daily:)` is pure and row-local. Passing nil silently DROPPED the rest
+    /// row from the coach's breakdown, so the coach explained a Charge the Today screen explained
+    /// differently — the one thing the "never contradict Today" rule exists to prevent.
+    static func restQualityTerm(_ daily: DailyMetric) -> Double? {
+        AnalyticsEngine.Rest.composite(daily: daily).map { $0 / 100.0 } ?? daily.efficiency
+    }
+
+    /// The row the breakdown describes, mirroring `TodayView.chargeBreakdownRow`: today's own row once
+    /// it's scored, otherwise the most recent row that HAS a Charge score. Without the carry, the coach
+    /// would answer "not enough data yet" on a rollover morning while the Today ring still displays the
+    /// carried night's number — a second way for the two to disagree.
+    static func chargeBreakdownRow(days: [DailyMetric], todayKey: String) -> DailyMetric? {
+        let today = days.last { $0.day == todayKey }
+        if let today, today.recovery != nil { return today }
+        return days.last { $0.recovery != nil } ?? today ?? days.last
+    }
+
     /// The ordered "why is my Charge what it is" breakdown (`ChargeDrivers`), computed from the SAME
     /// per-term inputs `RecoveryScorer.recovery` uses, so the coach explains the REAL contributing terms
     /// instead of inventing a plausible-sounding story. A term whose input is missing produces no row,
-    /// never a fabricated one. NOTE: the rest-quality (sleep performance) term isn't threaded through here
-    /// — it needs the app's merged/carried sleep-performance resolution (see `TodayView.chargeBreakdown`),
-    /// out of scope for this pass — so that one term may be absent even on nights the Today screen's
-    /// breakdown shows it.
+    /// never a fabricated one. The rest-quality (sleep performance) term IS threaded through now, via
+    /// `restQualityTerm` — see there for why the earlier "out of scope" note was wrong and what it cost.
     func chargeDriversBlock() -> String {
         let days = repo.days
         let todayKey = Repository.logicalDayKey(Date())
-        guard let today = days.last(where: { $0.day == todayKey }) ?? days.last,
+        guard let today = Self.chargeBreakdownRow(days: days, todayKey: todayKey),
               let hrv = today.avgHrv, let rhr = today.restingHr else {
             return "Not enough data yet to break down today's Charge."
         }
@@ -2124,7 +2152,7 @@ final class AICoachEngine: ObservableObject {
             hrvBaseline: hrvBase,
             rhrBaseline: rhrBase.usable ? rhrBase : nil,
             respBaseline: respBase.usable ? respBase : nil,
-            sleepPerf: nil, skinTempDev: today.skinTempDevC)
+            sleepPerf: Self.restQualityTerm(today), skinTempDev: today.skinTempDevC)
         guard !drivers.isEmpty else { return "No Charge breakdown available yet." }
         var lines = ["WHY TODAY'S CHARGE IS WHAT IT IS (signed points, biggest mover first):"]
         for d in drivers {
@@ -2528,7 +2556,13 @@ final class AICoachEngine: ObservableObject {
 
     /// Today's date, weekday and rough time of day, so the coach is never guessing what "today" means —
     /// the historical gap that let it not know a workout was 5 days ago or that it's a rest day of the week.
-    private func clockLine() -> String {
+    ///
+    /// Internal rather than private because `toolModeContext` (`CoachTools.swift`) needs it too: the tool
+    /// path used to carry NO clock at all, so a relative question ("what did I ask you yesterday?") had
+    /// nothing to resolve "yesterday" against. Deliberately NOT in the system prompt — that block carries
+    /// Anthropic's `cache_control` breakpoint, and a time-of-day string that changes every request would
+    /// invalidate the prefix cache on every single turn.
+    func clockLine() -> String {
         let now = Date()
         let df = DateFormatter()
         df.dateFormat = "EEEE, yyyy-MM-dd"
@@ -2547,10 +2581,17 @@ final class AICoachEngine: ObservableObject {
     /// Whole days between `ts` (unix seconds) and now, using calendar day boundaries (not a raw 24h
     /// division), so "yesterday evening" reads as 1 day ago rather than 0.
     private func daysAgo(_ ts: Int) -> Int {
+        Self.daysAgo(Date(timeIntervalSince1970: TimeInterval(ts)))
+    }
+
+    /// The same calendar-day arithmetic for a `Date`. Static and pure so the recall tests can pin the
+    /// "yesterday means 1, not 24 hours" behaviour without an engine. `now` is injectable for the same
+    /// reason — a test that builds "yesterday" relative to a fixed clock can't flake at midnight.
+    static func daysAgo(_ date: Date, now: Date = Date()) -> Int {
         let cal = Calendar.current
-        let then = cal.startOfDay(for: Date(timeIntervalSince1970: TimeInterval(ts)))
-        let today = cal.startOfDay(for: Date())
-        return cal.dateComponents([.day], from: then, to: today).day ?? 0
+        return cal.dateComponents([.day],
+                                  from: cal.startOfDay(for: date),
+                                  to: cal.startOfDay(for: now)).day ?? 0
     }
 
     // MARK: - Cross-conversation recall
@@ -2570,34 +2611,154 @@ final class AICoachEngine: ObservableObject {
         return lines.joined(separator: "\n")
     }
 
-    /// Keyword-search the user's PAST conversations (title + summary + messages), returning the top few
-    /// matches as titled, dated snippets. Deterministic and on-device — the `search_past_conversations`
-    /// tool so the model can pull relevant history on demand without every prompt carrying it.
-    func searchPastConversations(query: String, limit: Int = 3) -> String {
-        let qTokens = CoachMemory.tokens(query)
-        guard !qTokens.isEmpty else { return "Provide a more specific search query." }
-        let scored = conversations
-            .filter { $0.id != activeConversationID }
-            .map { convo -> (CoachConversation, Int) in
-                let hay = ([convo.title, convo.summary ?? ""] + convo.messages.map(\.text))
-                    .joined(separator: " ")
-                return (convo, CoachMemory.tokens(hay).intersection(qTokens).count)
-            }
-            .filter { $0.1 > 0 }
-            .sorted { $0.1 > $1.1 }
+    /// A cheap index of the user's recent threads: title + date only, no summaries, no message bodies.
+    /// Rides the tool-path context so the model KNOWS past conversations exist and can decide to search
+    /// them. `recentSummariesDigest()` can't do this job alone — it needs a `summary`, which the memory
+    /// maintainer only writes when the user leaves a chat with enough new turns, so a thread from
+    /// yesterday that was never summarised is invisible to it. A title exists from the first user turn.
+    func recentThreadsIndex(limit: Int = 5) -> String {
+        Self.threadsIndex(conversations, activeID: activeConversationID, limit: limit)
+    }
+
+    /// Static and pure so it's unit-testable without an engine — `conversations` is `private(set)`, so a
+    /// test can't seed the instance. Same reason `now` is injectable.
+    static func threadsIndex(_ conversations: [CoachConversation],
+                             activeID: UUID?,
+                             limit: Int = 5,
+                             now: Date = Date()) -> String {
+        let recent = conversations
+            .filter { $0.id != activeID && !$0.messages.isEmpty }
             .prefix(limit)
-        guard !scored.isEmpty else { return "No past conversations match \"\(query)\"." }
-        var lines = ["Relevant past conversations:"]
-        for (convo, _) in scored {
-            let date = convo.updatedAt.formatted(date: .abbreviated, time: .omitted)
-            let snippet = convo.summary
-                ?? convo.messages.last(where: { !$0.text.isEmpty })?.text
-                ?? ""
-            let snip = snippet.count > 240 ? String(snippet.prefix(240)) + "…" : snippet
-            let title = convo.title.isEmpty ? "Untitled" : convo.title
-            lines.append("• [\(title), \(date)] \(snip)")
+        guard !recent.isEmpty else { return "" }
+        var lines = ["THE USER'S RECENT THREADS WITH YOU (titles only — use search_past_conversations "
+                     + "to read one):"]
+        for c in recent {
+            lines.append("• \(relativeStamp(c.updatedAt, now: now)) — "
+                         + (c.title.isEmpty ? "Untitled" : c.title))
         }
         return lines.joined(separator: "\n")
+    }
+
+    /// Recall over the user's PAST conversations, on two INDEPENDENT axes:
+    ///   • **keyword** — token overlap against `query` (the original behaviour), and/or
+    ///   • **time** — `onDaysAgo` (one calendar day: 0 = today, 1 = yesterday) or `sinceDays` (a window).
+    ///
+    /// Either axis works alone, and that's the whole point of the time one: "what did I ask you
+    /// yesterday?" carries no content keywords, so a keyword-only search scored every thread at zero and
+    /// the coach answered "I don't have that". Requiring `query` made a purely temporal question
+    /// structurally unanswerable.
+    ///
+    /// The snippet returns the user's OWN turns, not the coach's. The previous version emitted the
+    /// summary or the LAST message — usually the coach's own reply — which cannot answer "what did *I*
+    /// ask". Deterministic and on-device; no embeddings, no extra API call.
+    func searchPastConversations(query: String = "",
+                                 sinceDays: Int? = nil,
+                                 onDaysAgo: Int? = nil,
+                                 limit: Int = 3) -> String {
+        Self.recallText(conversations, activeID: activeConversationID, query: query,
+                        sinceDays: sinceDays, onDaysAgo: onDaysAgo, limit: limit)
+    }
+
+    /// The recall itself, static and pure — `conversations` is `private(set)`, so the tests drive this
+    /// entry point with a seeded list and a fixed `now` instead of an engine.
+    static func recallText(_ conversations: [CoachConversation],
+                           activeID: UUID?,
+                           query: String = "",
+                           sinceDays: Int? = nil,
+                           onDaysAgo: Int? = nil,
+                           limit: Int = 3,
+                           now: Date = Date()) -> String {
+        let qTokens = CoachMemory.tokens(query)
+        let hasTimeFilter = sinceDays != nil || onDaysAgo != nil
+        let candidates = conversations.filter { $0.id != activeID }
+
+        // Match on MESSAGE dates, not the conversation's `updatedAt`: a thread the user reopened today
+        // would otherwise hide everything they actually asked in it yesterday.
+        func messagesInWindow(_ convo: CoachConversation) -> [ChatMessage] {
+            guard hasTimeFilter else { return convo.messages }
+            return convo.messages.filter { msg in
+                let age = daysAgo(msg.date, now: now)
+                if let exact = onDaysAgo { return age == exact }
+                if let since = sinceDays { return age <= since && age >= 0 }
+                return true
+            }
+        }
+
+        var hits: [(convo: CoachConversation, window: [ChatMessage], score: Int)] = []
+        for convo in candidates {
+            let window = messagesInWindow(convo)
+            if hasTimeFilter && window.isEmpty { continue }
+            let hay = ([convo.title, convo.summary ?? ""] + window.map(\.text)).joined(separator: " ")
+            let score = qTokens.isEmpty ? 0 : CoachMemory.tokens(hay).intersection(qTokens).count
+            // A keyword-only search still requires a hit. With a time filter the window IS the match, so
+            // a zero score just means "no keywords given" or "keywords didn't help rank" — keep it.
+            if !hasTimeFilter && score == 0 { continue }
+            hits.append((convo, window, score))
+        }
+
+        guard !hits.isEmpty else {
+            return noRecallMatch(query: query, sinceDays: sinceDays, onDaysAgo: onDaysAgo)
+        }
+
+        // With keywords, rank by overlap; without, the newest thread is the most relevant one.
+        if qTokens.isEmpty {
+            hits.sort { $0.convo.updatedAt > $1.convo.updatedAt }
+        } else {
+            hits.sort { $0.score > $1.score }
+        }
+
+        var lines = ["Relevant past conversations:"]
+        for hit in hits.prefix(limit) {
+            let title = hit.convo.title.isEmpty ? "Untitled" : hit.convo.title
+            lines.append("• [\(title), \(relativeStamp(hit.convo.updatedAt, now: now))]")
+            let asked = hit.window.filter { $0.role == .user && !$0.text.isEmpty }
+            for msg in asked.prefix(recallUserTurnsPerThread) {
+                lines.append("    the user asked: \"\(trimmed(msg.text, to: 160))\"")
+            }
+            if asked.isEmpty {
+                // An auto-only thread (a brief or nudge the user never replied to) — say so rather than
+                // silently returning a bare title.
+                lines.append("    (no questions from the user in this thread — coach-initiated)")
+            }
+            if let summary = hit.convo.summary, !summary.isEmpty {
+                lines.append("    summary: \(trimmed(summary, to: 240))")
+            }
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    /// How many of the user's own turns to quote per matched thread. Enough to answer "what did I ask
+    /// you yesterday" for a normal chat, small enough that three threads can't blow up the tool result.
+    private static let recallUserTurnsPerThread = 3
+
+    /// The "nothing found" text, phrased against whichever axis the caller actually used — so the model
+    /// can tell "you have no chats from yesterday" apart from "your keywords didn't match".
+    private static func noRecallMatch(query: String, sinceDays: Int?, onDaysAgo: Int?) -> String {
+        if let exact = onDaysAgo {
+            let when = exact == 0 ? "today" : (exact == 1 ? "yesterday" : "\(exact) days ago")
+            return "No conversations from \(when)."
+        }
+        if let since = sinceDays { return "No conversations in the last \(since) days." }
+        if query.isEmpty { return "No past conversations stored yet." }
+        return "No past conversations match \"\(query)\"."
+    }
+
+    /// A date the model can reason about: "yesterday (Mon 20 Jul, 18:42)" rather than a bare date. Recent
+    /// threads carry the time too, because "what did I ask this morning" needs it.
+    private static func relativeStamp(_ date: Date, now: Date = Date()) -> String {
+        let age = daysAgo(date, now: now)
+        let withTime = date.formatted(date: .abbreviated, time: .shortened)
+        switch age {
+        case 0: return "today (\(withTime))"
+        case 1: return "yesterday (\(withTime))"
+        default: return date.formatted(date: .abbreviated, time: .omitted)
+        }
+    }
+
+    private static func trimmed(_ text: String, to limit: Int) -> String {
+        let oneLine = text.replacingOccurrences(of: "\n", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return oneLine.count > limit ? String(oneLine.prefix(limit)) + "…" : oneLine
     }
 
     // MARK: - Model roles
@@ -2817,16 +2978,42 @@ final class AICoachEngine: ObservableObject {
     }
 
     /// Sliding window over the chat: the FIRST user turn (it carries the metrics context) plus the most
-    /// recent `maxHistoryMessages`, dropping the middle. Sending the whole growing history crowds out the
-    /// reply on small-context local servers (Ollama defaults to a 2048-token window, the Custom
-    /// provider's main use case) and balloons token cost/latency on cloud providers. (parity with Android)
-    private static let maxHistoryMessages = 10
+    /// recent history that fits the model's token budget, dropping the middle. Sending the whole growing
+    /// history crowds out the reply on small-context local servers (Ollama defaults to a 2048-token
+    /// window, the Custom provider's main use case) and balloons token cost/latency on cloud providers.
+    ///
+    /// The size is a TOKEN BUDGET (`CoachHistoryBudget`), not the flat 10-message count it used to be —
+    /// that one number treated a 2 048-token local model and a 200 000-token Claude identically. The old
+    /// count survives as a floor (`minMessages`), so no provider ends up with less context than before;
+    /// a large model simply gets more when the turns are short. (Android still uses the flat count; this
+    /// is a fork-side divergence, and the floor keeps the two agreeing on the small-model case.)
     private func windowedMessages() -> [ChatMessage] {
-        guard messages.count > Self.maxHistoryMessages + 1,
+        Self.windowedMessages(messages,
+                              budgetTokens: CoachHistoryBudget.tokens(provider: provider, model: model))
+    }
+
+    /// Static and pure so the windowing is unit-testable without an engine or a provider.
+    static func windowedMessages(_ messages: [ChatMessage], budgetTokens: Int) -> [ChatMessage] {
+        guard messages.count > CoachHistoryBudget.minMessages + 1,
               let firstUser = messages.firstIndex(where: { $0.role == .user }) else { return messages }
-        let recentStart = messages.count - Self.maxHistoryMessages
+
+        // Walk backwards from the newest turn, taking messages while the budget holds. The floor is
+        // applied afterwards, so a budget too small to fit even that many still sends them — being
+        // stricter than the previous build would be a regression, not a fix.
+        var used = 0
+        var keep = 0
+        for message in messages.reversed() {
+            let cost = CoachHistoryBudget.estimateTokens(message.text)
+            if keep > 0 && used + cost > budgetTokens { break }
+            used += cost
+            keep += 1
+        }
+        keep = min(messages.count, max(keep, CoachHistoryBudget.minMessages))
+        if keep == messages.count { return messages }
+
+        let recentStart = messages.count - keep
         // If the first user turn already falls inside the recent window, that window covers it.
-        if firstUser >= recentStart { return Array(messages.suffix(Self.maxHistoryMessages)) }
+        if firstUser >= recentStart { return Array(messages.suffix(keep)) }
         return [messages[firstUser]] + Array(messages[recentStart...])
     }
 
