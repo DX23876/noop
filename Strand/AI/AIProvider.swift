@@ -288,7 +288,7 @@ func performRequest(_ req: URLRequest, session: URLSession) async throws -> [Str
     do {
         (data, response) = try await session.data(for: req)
     } catch {
-        throw AICoachError.network(error.localizedDescription)
+        throw coachTransportError(error)
     }
 
     guard let http = response as? HTTPURLResponse else {
@@ -305,10 +305,44 @@ func performRequest(_ req: URLRequest, session: URLSession) async throws -> [Str
     case 401, 403:
         throw AICoachError.badKey
     case 429:
-        throw AICoachError.rateLimited
+        throw AICoachError.rateLimited(retryAfter: retryAfterSeconds(http))
     default:
         throw AICoachError.server(http.statusCode, providerErrorMessage(from: data))
     }
+}
+
+/// Classify a transport failure. Being offline is its own case: forwarding `localizedDescription`
+/// showed the user CFNetwork prose ("The Internet connection appears to be offline.") wrapped in a
+/// "Network problem:" prefix, when the honest answer is one sentence and a different next step —
+/// retrying immediately cannot work. Cancellation is left as-is for callers to detect (a user Stop).
+func coachTransportError(_ error: Error) -> AICoachError {
+    guard let urlError = error as? URLError else {
+        return AICoachError.network(error.localizedDescription)
+    }
+    switch urlError.code {
+    case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed,
+         .internationalRoamingOff, .cannotConnectToHost, .cannotFindHost:
+        return .offline
+    default:
+        return .network(urlError.localizedDescription)
+    }
+}
+
+/// Seconds from a 429's `Retry-After`. The header is either a delay in seconds or an HTTP date;
+/// both are accepted, and a date in the past clamps to nil rather than a negative countdown.
+func retryAfterSeconds(_ response: HTTPURLResponse) -> Int? {
+    guard let raw = (response.value(forHTTPHeaderField: "Retry-After")
+                        ?? response.value(forHTTPHeaderField: "retry-after"))?
+        .trimmingCharacters(in: .whitespaces), !raw.isEmpty else { return nil }
+    if let seconds = Int(raw) { return seconds > 0 ? seconds : nil }
+
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.timeZone = TimeZone(identifier: "GMT")
+    formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+    guard let date = formatter.date(from: raw) else { return nil }
+    let delta = Int(date.timeIntervalSinceNow.rounded())
+    return delta > 0 ? delta : nil
 }
 
 /// Best-effort extraction of a human-readable message from a provider error body.

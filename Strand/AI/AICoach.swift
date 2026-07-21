@@ -143,17 +143,51 @@ enum AIKeyStore {
 // MARK: - Errors
 
 /// User-facing failure reasons mapped to clear, non-crashing messages.
-enum AICoachError: LocalizedError {
+/// `Equatable` is synthesized (every associated value is): the UI compares the current failure to decide
+/// whether a countdown should restart, and the tests assert on the CASE rather than its rendered
+/// sentence — matching a localized string would pass in English and fail in German.
+enum AICoachError: LocalizedError, Equatable {
     case noKey
     case emptyQuestion
     case badKey
-    case rateLimited
+    /// `retryAfter`: seconds from the provider's `Retry-After` header, when it sent one. Carrying it
+    /// turns "wait a moment" into a countdown the user can act on instead of guess at.
+    case rateLimited(retryAfter: Int?)
     case server(Int, String)
     case network(String)
+    /// No usable connection. Split out of `.network` because the two need opposite responses: an
+    /// offline device needs "you're offline", not a CFNetwork string, and retrying immediately is
+    /// pointless rather than worth a button.
+    case offline
     case decode
     case keySaveFailed
     case badCustomURL(String)
     case noModel
+
+    /// The user-actionable follow-up this failure deserves, if any. The UI reads this instead of
+    /// pattern-matching the error itself, so a new case can't quietly ship with no way forward.
+    enum Recovery: Equatable {
+        /// The key was rejected — send the user to where they can paste a new one.
+        case reauthenticate
+        /// Worth retrying, optionally only after `seconds`.
+        case retry(after: Int?)
+        /// Nothing the app can do; the text explains it.
+        case none
+    }
+
+    var recovery: Recovery {
+        switch self {
+        case .badKey:                    return .reauthenticate
+        case .rateLimited(let after):    return .retry(after: after)
+        case .offline, .network, .decode: return .retry(after: nil)
+        case .server(let code, _):
+            // 5xx is the provider's problem and usually transient; a 4xx is ours and retrying it
+            // unchanged just fails again.
+            return (500...599).contains(code) ? .retry(after: nil) : .none
+        case .noKey, .noModel, .emptyQuestion, .keySaveFailed, .badCustomURL:
+            return .none
+        }
+    }
 
     var errorDescription: String? {
         switch self {
@@ -173,8 +207,15 @@ enum AICoachError: LocalizedError {
             return "Type a question for the coach."
         case .badKey:
             return "That API key was rejected. Check the key and the provider you selected."
-        case .rateLimited:
+        case .rateLimited(let after):
+            if let after {
+                return "The provider is rate-limiting requests. It asked to wait \(after) seconds."
+            }
             return "The provider is rate-limiting requests right now. Wait a moment and try again."
+        case .offline:
+            // No CFNetwork prose: the cause is plain, and the coach is the only part of NOOP that needs
+            // a connection at all — worth saying, so an offline user doesn't think the app is broken.
+            return "You're offline. The coach needs a connection; everything else in NOOP keeps working."
         case .server(let code, let detail):
             let extra = detail.isEmpty ? "" : " - \(detail)"
             return "The provider returned an error (\(code))\(extra)."
@@ -202,6 +243,26 @@ final class AICoachEngine: ObservableObject {
     @Published var activeConversationID: UUID?
     @Published var sending = false
     @Published var errorText: String?
+    /// The same failure as `errorText`, but TYPED, so the error row can offer the right way forward
+    /// (re-authenticate / retry / nothing) instead of pattern-matching a localized sentence — which
+    /// would break in every language but English.
+    @Published private(set) var lastError: AICoachError?
+
+    /// Record a failure for the UI. Classifies anything that isn't already an `AICoachError` through
+    /// `coachTransportError`, so an offline device reads as offline wherever it surfaced — the
+    /// providers' own streaming paths throw raw `URLError`s that used to arrive here as CFNetwork prose.
+    func setError(_ error: Error) {
+        let coachError = (error as? AICoachError) ?? coachTransportError(error)
+        lastError = coachError
+        errorText = coachError.errorDescription
+    }
+
+    /// Clear both halves together: a lingering `lastError` would leave a stale "Retry" under a chat
+    /// that has since succeeded.
+    func clearError() {
+        errorText = nil
+        lastError = nil
+    }
 
     /// The active conversation, if any.
     var activeConversation: CoachConversation? {
@@ -239,10 +300,16 @@ final class AICoachEngine: ObservableObject {
             if !provider.modelOptions.contains(model) {
                 model = provider.defaultModel
             }
+            resetConnectionTest()   // the previous verdict described a different provider
         }
     }
     @Published var model: String {
-        didSet { UserDefaults.standard.set(model, forKey: Self.modelKey) }
+        didSet {
+            UserDefaults.standard.set(model, forKey: Self.modelKey)
+            // A tick earned by another model says nothing about this one — the endpoint can accept the
+            // key and still refuse the model.
+            if model != oldValue { resetConnectionTest() }
+        }
     }
     /// The model ids offered in the picker. Seeded from `provider.modelOptions`, reset when the
     /// provider changes, and optionally extended by `refreshModels()` with the provider's live list.
@@ -672,7 +739,7 @@ final class AICoachEngine: ObservableObject {
     func newConversation() {
         if let cur = activeConversation, cur.messages.isEmpty {
             chartsByMessage = [:]
-            errorText = nil
+            clearError()
             return
         }
         if let leaving = activeConversationID { maybeSummarize(leaving) }
@@ -680,7 +747,7 @@ final class AICoachEngine: ObservableObject {
         conversations.insert(fresh, at: 0)
         activeConversationID = fresh.id
         chartsByMessage = [:]
-        errorText = nil
+        clearError()
     }
 
     /// Back-compat alias for the old "New chat" button.
@@ -692,7 +759,7 @@ final class AICoachEngine: ObservableObject {
         guard conversations.contains(where: { $0.id == id }) else { return }
         if let leaving = activeConversationID, leaving != id { maybeSummarize(leaving) }
         activeConversationID = id
-        errorText = nil
+        clearError()
         rebuildChartsForActive()
     }
 
@@ -701,6 +768,14 @@ final class AICoachEngine: ObservableObject {
     func setArchived(_ id: UUID, _ archived: Bool) {
         guard let idx = conversations.firstIndex(where: { $0.id == id }) else { return }
         conversations[idx].archived = archived
+    }
+
+    /// Pin or unpin a conversation. A pinned thread sorts to the top of the history AND is exempt from
+    /// the 50-conversation cap (`CoachConversationStore.applyCap`) — pinning something and having it
+    /// silently deleted later would defeat the point of pinning it.
+    func setPinned(_ id: UUID, _ pinned: Bool) {
+        guard let idx = conversations.firstIndex(where: { $0.id == id }) else { return }
+        conversations[idx].pinned = pinned
     }
 
     /// Rename a conversation (user-set titles are kept; auto-titling won't overwrite them).
@@ -784,6 +859,30 @@ final class AICoachEngine: ObservableObject {
         regenerate()
     }
 
+    /// Take the last question back for editing: drop it and everything after it, and return its text so
+    /// the composer can be refilled with it.
+    ///
+    /// Regenerate answers "same question, try again"; this answers "I asked the wrong thing". Without it
+    /// the only way to fix a typo or a badly-phrased question was to retype it and leave the mistake
+    /// sitting in the transcript, where it also keeps feeding the history window on every later turn.
+    /// Returns nil while a reply is in flight, or when there is no question to reclaim.
+    func reclaimLastQuestion() -> String? {
+        guard !sending, let lastUserIdx = messages.lastIndex(where: { $0.role == .user }) else {
+            return nil
+        }
+        let question = messages[lastUserIdx].text
+        var msgs = messages
+        // Same chart cleanup regenerate does: the dropped replies may have hosted chart snapshots, and
+        // leaving those behind would strand images with no message to hang on.
+        for m in msgs[lastUserIdx...] where m.role == .assistant {
+            chartsByMessage[m.id] = nil
+            removeChartSnapshot(m.id)
+        }
+        msgs.removeSubrange(lastUserIdx...)
+        messages = msgs
+        return question
+    }
+
     /// Regenerate the last reply: drop everything back to (and including) the last user turn, purge any
     /// charts those dropped messages hosted, then resend that same question.
     func regenerate() {
@@ -859,7 +958,7 @@ final class AICoachEngine: ObservableObject {
     func connectCustom() {
         let url = customBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !url.isEmpty else { return }
-        errorText = nil
+        clearError()
         customConnected = true
         // Pull the server's model list; if the user hasn't picked one yet, default to the first.
         Task {
@@ -904,7 +1003,7 @@ final class AICoachEngine: ObservableObject {
         // Saving a (possibly new) key is an implicit reconnect — a user who disconnected, then pastes a
         // fresh key, obviously wants to use it rather than stay marked disconnected underneath (#P4 4.3).
         explicitlyDisconnected = false
-        errorText = nil
+        clearError()
         objectWillChange.send() // `hasKey` is computed; nudge SwiftUI to re-read it.
         // #288: do NOT auto-fetch the provider's model list on key-save. For a cloud provider that GET
         // egresses to the provider the MOMENT a key is saved (IP + request timing + key-validity) — before
@@ -985,7 +1084,7 @@ final class AICoachEngine: ObservableObject {
             errorText = AICoachError.noKey.errorDescription
             return
         }
-        errorText = nil
+        clearError()
 
         // Snapshot the provider BEFORE the await. The Picker isn't disabled during a refresh, so the
         // user can switch providers mid-flight (#873). We fetch this provider's ids, then re-check on
@@ -1045,7 +1144,7 @@ final class AICoachEngine: ObservableObject {
         } catch {
             // A switch mid-flight makes any error moot for the old provider, so don't surface it.
             guard provider == capturedProvider else { return }
-            errorText = AICoachError.network(error.localizedDescription).errorDescription
+            setError(error)
             return
         }
     }
@@ -1065,7 +1164,7 @@ final class AICoachEngine: ObservableObject {
             errorText = AICoachError.noModel.errorDescription; return
         }
 
-        errorText = nil
+        clearError()
         messages.append(ChatMessage(role: .user, text: trimmed))
         cardSuggestions = []   // the card's follow-up chips belong to the moment after its read (#P11)
         sending = true
@@ -1123,14 +1222,14 @@ final class AICoachEngine: ObservableObject {
                 }
                 flushPendingCharts()
             } catch let e as AICoachError {
-                removeAssistantIfEmpty(replyId); discardPendingCharts(); errorText = e.errorDescription
+                removeAssistantIfEmpty(replyId); discardPendingCharts(); setError(e)
             } catch {
                 // A user-initiated Stop cancels the task; keep whatever streamed so far, show no error.
                 if Self.isCancellation(error) {
                     flushPendingCharts()
                 } else {
                     removeAssistantIfEmpty(replyId); discardPendingCharts()
-                    errorText = AICoachError.network(error.localizedDescription).errorDescription
+                    setError(error)
                 }
             }
             return
@@ -1143,11 +1242,11 @@ final class AICoachEngine: ObservableObject {
                                         toolsUsed: reply.toolsUsed))
             flushPendingCharts()
         } catch let e as AICoachError {
-            discardPendingCharts(); errorText = e.errorDescription
+            discardPendingCharts(); setError(e)
         } catch {
             discardPendingCharts()
             if !Self.isCancellation(error) {
-                errorText = AICoachError.network(error.localizedDescription).errorDescription
+                setError(error)
             }
         }
     }
@@ -1631,7 +1730,7 @@ final class AICoachEngine: ObservableObject {
         conversations.insert(fresh, at: 0)
         activeConversationID = fresh.id
         chartsByMessage = [:]
-        errorText = nil
+        clearError()
     }
 
     /// Day-boundary sweep (#R8): archive auto-only threads — a brief or nudge the user never replied to —
@@ -1739,7 +1838,7 @@ final class AICoachEngine: ObservableObject {
     private func generateBrief() async {
         guard isConfigured, dataConsent, !sending else { return }
         guard let key = resolvedKey else { return }
-        errorText = nil
+        clearError()
         sending = true
         defer { sending = false }
 
@@ -1765,12 +1864,12 @@ final class AICoachEngine: ObservableObject {
                 UserDefaults.standard.set(Repository.logicalDayKey(Date()), forKey: Self.lastBriefDayKey)
             }
         } catch let e as AICoachError {
-            errorText = e.errorDescription
+            setError(e)
         } catch {
             // A user-initiated Stop is not an error — and must not stamp the day (see above), so the
             // brief comes back on the next open instead of silently vanishing until tomorrow.
             if !Self.isCancellation(error) {
-                errorText = AICoachError.network(error.localizedDescription).errorDescription
+                setError(error)
             }
         }
     }
@@ -1804,7 +1903,7 @@ final class AICoachEngine: ObservableObject {
     private func generateCheckIn() async {
         guard isConfigured, dataConsent, !sending else { return }
         guard let key = resolvedKey else { return }
-        errorText = nil
+        clearError()
         sending = true
         defer { sending = false }
 
@@ -1830,10 +1929,10 @@ final class AICoachEngine: ObservableObject {
                 UserDefaults.standard.set(Repository.logicalDayKey(Date()), forKey: Self.lastCheckInDayKey)
             }
         } catch let e as AICoachError {
-            errorText = e.errorDescription
+            setError(e)
         } catch {
             if !Self.isCancellation(error) {
-                errorText = AICoachError.network(error.localizedDescription).errorDescription
+                setError(error)
             }
         }
     }
@@ -1944,7 +2043,7 @@ final class AICoachEngine: ObservableObject {
     private func generateSeededTurn(instruction: String, prefix: String, stampKey: String) async {
         guard isConfigured, dataConsent, !sending else { return }
         guard let key = resolvedKey else { return }
-        errorText = nil
+        clearError()
         sending = true
         defer { sending = false }
 
@@ -1967,10 +2066,10 @@ final class AICoachEngine: ObservableObject {
                 UserDefaults.standard.set(Repository.logicalDayKey(Date()), forKey: stampKey)
             }
         } catch let e as AICoachError {
-            errorText = e.errorDescription
+            setError(e)
         } catch {
             if !Self.isCancellation(error) {
-                errorText = AICoachError.network(error.localizedDescription).errorDescription
+                setError(error)
             }
         }
     }
@@ -2016,7 +2115,7 @@ final class AICoachEngine: ObservableObject {
         guard let context = pendingCardContext else { return }
         pendingCardContext = nil
         guard isConfigured, dataConsent, !sending else { return }
-        errorText = nil
+        clearError()
         sending = true
         defer { sending = false }
 
@@ -2837,6 +2936,60 @@ final class AICoachEngine: ObservableObject {
     }
 
     // MARK: - Memory maintenance support (cheap-model one-off calls)
+
+    /// The outcome of a connection test, as something the UI can render without re-deriving anything.
+    enum ConnectionTestResult: Equatable {
+        case untested
+        case testing
+        case ok(model: String)
+        case failed(String)
+    }
+
+    @Published private(set) var connectionTest: ConnectionTestResult = .untested
+
+    /// Send the smallest possible real request and report what came back.
+    ///
+    /// Until now a wrong key, a typo'd Custom URL or a model id the provider doesn't serve was only
+    /// discovered by asking the coach a real question and getting an error instead of an answer — after
+    /// the user had already left settings and composed something. This answers "did that work?" at the
+    /// moment the key is pasted, which is when the user still has the context to fix it.
+    ///
+    /// Deliberately goes through the ORDINARY send path (`provider.client.send`) rather than pinging
+    /// `/models`: fetching a model list can succeed with a key that the chat endpoint then rejects, and
+    /// it says nothing about whether the SELECTED model is actually servable to this account.
+    func testConnection() async {
+        // `resolvedKey` already yields "" for Custom (a local server usually needs none), so nil here
+        // genuinely means "no key for a provider that requires one".
+        guard let key = resolvedKey else {
+            connectionTest = .failed(AICoachError.noKey.errorDescription ?? "")
+            return
+        }
+        guard !model.trimmingCharacters(in: .whitespaces).isEmpty else {
+            connectionTest = .failed(AICoachError.noModel.errorDescription ?? "")
+            return
+        }
+
+        connectionTest = .testing
+        do {
+            _ = try await provider.client.send(
+                key: key,
+                model: model,
+                systemPrompt: "Reply with the single word: ok",
+                messages: [(role: .user, content: "ok")],
+                session: session
+            )
+            connectionTest = .ok(model: model)
+        } catch {
+            // Same classification the chat uses, so "you're offline" reads identically in both places
+            // rather than being a second, subtly different vocabulary for the same failures.
+            let coachError = (error as? AICoachError) ?? coachTransportError(error)
+            connectionTest = .failed(coachError.errorDescription ?? "")
+        }
+    }
+
+    /// Drop a stale verdict — on provider/key/model change, the previous result no longer describes
+    /// what would happen now, and a lingering green tick is worse than none.
+    func resetConnectionTest() { connectionTest = .untested }
 
     /// A one-off completion via the CHEAP model for a background role (summary upkeep or a card analysis).
     /// Internal so `MemoryMaintainer` (and the card-AI feature) can drive short calls without touching the

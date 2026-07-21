@@ -325,6 +325,7 @@ struct CoachSettingsView: View {
     private var connectionSubpage: some View {
         subpageScaffold {
             providerConfigFields
+            connectionTestRow
             backgroundModelsSection
             tokenUsageBar
             disconnectRow
@@ -914,6 +915,49 @@ struct CoachSettingsView: View {
         HStack(spacing: 10) {
             StatePill("\(coach.provider.displayName) · \(coach.model)", tone: .accent, showsDot: true)
             Spacer()
+        }
+    }
+
+    /// "Did that actually work?", answered here rather than by the user's first real question.
+    ///
+    /// A wrong key, a typo'd Custom URL or a model this account can't serve was previously only
+    /// discovered by asking the coach something and getting an error back — after leaving settings. The
+    /// test sends one minimal real request through the ordinary chat path, so it exercises exactly what
+    /// a question would.
+    @ViewBuilder
+    private var connectionTestRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button {
+                Task { await coach.testConnection() }
+            } label: {
+                Label("Test connection", systemImage: "bolt.horizontal.circle")
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.accent)
+            }
+            .buttonStyle(.plain)
+            .disabled(coach.connectionTest == .testing)
+            .accessibilityHint("Sends one small request to check the key and model actually work.")
+
+            switch coach.connectionTest {
+            case .untested:
+                EmptyView()
+            case .testing:
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("Checking…").font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
+            case .ok(let model):
+                Label("Works — \(model) replied.", systemImage: "checkmark.circle.fill")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.statusPositive)
+                    .fixedSize(horizontal: false, vertical: true)
+            case .failed(let message):
+                Label(message, systemImage: "exclamationmark.triangle.fill")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.statusCritical)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 

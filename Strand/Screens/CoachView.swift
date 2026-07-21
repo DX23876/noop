@@ -30,6 +30,8 @@ struct CoachView: View {
     /// than two stacked `.sheet` modifiers (which don't compose reliably).
     private enum ActiveSheet: Int, Identifiable { case settings, history, plan, goal; var id: Int { rawValue } }
     @State private var activeSheet: ActiveSheet?
+    /// Seconds left before Retry re-enables, from the provider's `Retry-After` on a 429. 0 = ready.
+    @State private var retryCountdown = 0
     /// The coach's avatar diameter beside its bubbles and in the typing indicator (#R-bigger-avatar) — one
     /// named constant instead of a magic number repeated at every call site, since the gutter spacer
     /// (`assistantGutter`) and the evidence/actionRow indent below a reply both have to match it exactly.
@@ -405,7 +407,20 @@ struct CoachView: View {
                     .padding(.vertical, 10)
                     .background(StrandPalette.accent, in: RoundedRectangle(cornerRadius: CoachRadius.bubble, style: .continuous))
                     .frame(maxWidth: 520, alignment: .trailing)
-                    .contextMenu { copyButton(message.text) }
+                    .contextMenu {
+                        copyButton(message.text)
+                        // Only the LAST question can be reclaimed: editing one from the middle would
+                        // silently discard every exchange after it, which is a bigger thing than the
+                        // menu item implies.
+                        if isLastUserTurn(message) {
+                            Button {
+                                if let question = coach.reclaimLastQuestion() { draft = question }
+                            } label: {
+                                Label("Edit and ask again", systemImage: "pencil")
+                            }
+                            .disabled(coach.sending)
+                        }
+                    }
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel("You said: \(message.text)")
@@ -674,6 +689,31 @@ struct CoachView: View {
         .accessibilityLabel("Coach is thinking")
     }
 
+    /// Retry, optionally gated behind the provider's own `Retry-After`. When a 429 says "wait 30
+    /// seconds", an immediately-tappable Retry just earns a second 429 — so the button counts down and
+    /// enables itself, instead of leaving the user to guess how long "a moment" is.
+    @ViewBuilder
+    private func retryButton(waitSeconds: Int?) -> some View {
+        let ready = retryCountdown <= 0
+        Button { coach.regenerate() } label: {
+            Label(ready ? "Retry" : "Retry in \(retryCountdown)s", systemImage: "arrow.clockwise")
+                .font(StrandFont.footnote)
+                .foregroundStyle(StrandPalette.statusCritical)
+                .opacity(ready ? 1 : 0.6)
+        }
+        .buttonStyle(.plain)
+        .disabled(coach.sending || !ready)
+        .accessibilityLabel(ready ? "Retry sending your last message"
+                                  : "Retry available in \(retryCountdown) seconds")
+        .onAppear { retryCountdown = waitSeconds ?? 0 }
+        .onChangeCompat(of: coach.lastError.map { "\($0)" } ?? "") { _ in
+            retryCountdown = waitSeconds ?? 0   // a fresh failure restarts the wait
+        }
+        .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
+            if retryCountdown > 0 { retryCountdown -= 1 }
+        }
+    }
+
     /// A failure used to strand the user with the question still typed and no one-tap way back. `Retry`
     /// reuses `regenerate()`: after a failed send there's a user turn with no assistant reply after it
     /// (the empty placeholder was already removed on error), so dropping from that turn and resending
@@ -693,14 +733,26 @@ struct CoachView: View {
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Error: \(message)")
 
-            Button { coach.regenerate() } label: {
-                Label("Retry", systemImage: "arrow.clockwise")
-                    .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.statusCritical)
+            // The follow-up comes from the TYPED error (`AICoachError.recovery`), not from the message
+            // text: a rejected key needs the key screen, not a Retry that will fail identically, and a
+            // 4xx from the provider needs neither. Matching on the sentence would break in every
+            // language but English.
+            switch coach.lastError?.recovery ?? .retry(after: nil) {
+            case .reauthenticate:
+                Button { activeSheet = .settings } label: {
+                    Label("Enter your key again", systemImage: "key")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.statusCritical)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Open settings to enter your API key again")
+
+            case .retry(let after):
+                retryButton(waitSeconds: after)
+
+            case .none:
+                EmptyView()
             }
-            .buttonStyle(.plain)
-            .disabled(coach.sending)
-            .accessibilityLabel("Retry sending your last message")
         }
         .padding(14)
         .background(StrandPalette.surfaceOverlay, in: RoundedRectangle(cornerRadius: CoachRadius.card, style: .continuous))
@@ -837,6 +889,10 @@ struct CoachView: View {
 
     private func isLastAssistant(_ message: ChatMessage) -> Bool {
         coach.messages.last(where: { $0.role == .assistant })?.id == message.id
+    }
+
+    private func isLastUserTurn(_ message: ChatMessage) -> Bool {
+        coach.messages.last(where: { $0.role == .user })?.id == message.id
     }
 
     private func send(_ text: String) {

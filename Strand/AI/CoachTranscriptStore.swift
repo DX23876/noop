@@ -30,6 +30,10 @@ struct CoachConversation: Identifiable, Codable, Equatable {
     /// once its day has passed. Archived threads stay on disk and stay findable in the history's
     /// "Archived" section; nothing is deleted. Additive, back-compat decode (old JSON lacks the key).
     var archived: Bool
+    /// Kept at the top of the history, by the user's own choice — the plan they keep coming back to, the
+    /// explanation worth re-reading. Additive and back-compat like `archived`: JSON written before this
+    /// field existed decodes as `false`.
+    var pinned: Bool
 
     /// True when the user never took a turn here — the thread is purely auto-generated coach content
     /// (a morning brief, a nudge, a weekly review). Those are what the sweep may archive; a thread the
@@ -46,7 +50,8 @@ struct CoachConversation: Identifiable, Codable, Equatable {
          charts: [String: CoachChartSnapshot] = [:],
          summary: String? = nil,
          summarizedCount: Int? = nil,
-         archived: Bool = false) {
+         archived: Bool = false,
+         pinned: Bool = false) {
         self.id = id
         self.title = title
         self.createdAt = createdAt
@@ -56,10 +61,12 @@ struct CoachConversation: Identifiable, Codable, Equatable {
         self.summary = summary
         self.summarizedCount = summarizedCount
         self.archived = archived
+        self.pinned = pinned
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, title, createdAt, updatedAt, messages, charts, summary, summarizedCount, archived
+        case pinned
     }
 
     init(from decoder: Decoder) throws {
@@ -73,6 +80,41 @@ struct CoachConversation: Identifiable, Codable, Equatable {
         summary = try c.decodeIfPresent(String.self, forKey: .summary)
         summarizedCount = try c.decodeIfPresent(Int.self, forKey: .summarizedCount)
         archived = try c.decodeIfPresent(Bool.self, forKey: .archived) ?? false
+        pinned = try c.decodeIfPresent(Bool.self, forKey: .pinned) ?? false
+    }
+
+    /// Whether this thread matches a history search. Deliberately SUBSTRING matching over title,
+    /// summary and every message — not the whole-word token overlap `search_past_conversations` uses.
+    /// The two answer different questions: the model searches by topic, a person typing into a field
+    /// expects "schl" to find "Schlaf" while they are still typing. Case- and diacritic-insensitive so
+    /// "grosse" finds "größe".
+    func matches(search query: String) -> Bool {
+        let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !needle.isEmpty else { return true }
+        let haystack = ([title, summary ?? ""] + messages.map(\.text)).joined(separator: "\n")
+        return haystack.range(of: needle, options: [.caseInsensitive, .diacriticInsensitive]) != nil
+    }
+
+    /// The conversation as Markdown, for sharing or keeping a copy.
+    ///
+    /// Built here rather than in the view so it is testable and so the export can never disagree with
+    /// what was stored. Charts are named, not embedded: their snapshots are images that belong to the
+    /// app, and a link to a file the recipient doesn't have would be worse than an honest placeholder.
+    func markdownExport(coachName: String) -> String {
+        let stamp = updatedAt.formatted(date: .abbreviated, time: .shortened)
+        var out = ["# \(title.isEmpty ? "Coach conversation" : title)", "*\(stamp)*", ""]
+        for message in messages {
+            let who = message.role == .user ? "**You**" : "**\(coachName)**"
+            let text = message.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if text.isEmpty {
+                // An empty assistant turn is a chart host (see `charts`), not a blank reply.
+                if charts[message.id.uuidString] != nil { out.append("\(who): *[chart]*") }
+                continue
+            }
+            out.append("\(who): \(text)")
+            out.append("")
+        }
+        return out.joined(separator: "\n")
     }
 
     /// A short title derived from the first user message, for a conversation the user hasn't renamed.
@@ -120,13 +162,31 @@ enum CoachConversationStore {
     /// Best-effort: a failed write just means the newest turns aren't on disk yet — never a crash.
     /// Callers keep `conversations` ordered most-recent-first, so the cap drops the oldest.
     static func save(_ conversations: [CoachConversation]) {
-        let capped = conversations.prefix(maxConversations).map { convo -> CoachConversation in
+        let capped = applyCap(conversations).map { convo -> CoachConversation in
             var c = convo
             c.messages = Array(c.messages.suffix(maxMessagesPerConversation))
             return c
         }
-        guard let data = try? JSONEncoder().encode(Array(capped)) else { return }
+        guard let data = try? JSONEncoder().encode(capped) else { return }
         try? data.write(to: fileURL, options: .atomic)
+    }
+
+    /// Apply the conversation cap, keeping every PINNED thread regardless of age.
+    ///
+    /// A plain `prefix(maxConversations)` over a most-recent-first list silently deletes the oldest —
+    /// which is exactly the thread someone pins: the plan they keep returning to, months old and rarely
+    /// reopened. Pinning something and having the app quietly bin it would be the worst possible
+    /// outcome, so pinned threads are exempt and the cap falls on unpinned ones instead. Pure and
+    /// order-preserving, so the caller's most-recent-first ordering survives.
+    static func applyCap(_ conversations: [CoachConversation]) -> [CoachConversation] {
+        guard conversations.count > maxConversations else { return conversations }
+        var unpinnedBudget = max(0, maxConversations - conversations.filter(\.pinned).count)
+        return conversations.filter { convo in
+            if convo.pinned { return true }
+            guard unpinnedBudget > 0 else { return false }
+            unpinnedBudget -= 1
+            return true
+        }
     }
 
     /// Delete all stored conversations (used only for a full reset; normal "new chat" just adds one).

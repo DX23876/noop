@@ -12,6 +12,8 @@ struct CoachHistoryView: View {
 
     @State private var renamingID: UUID?
     @State private var renameText: String = ""
+    /// Full-text filter over every stored thread. Empty = show everything.
+    @State private var search: String = ""
 
     var body: some View {
         NavigationStack {
@@ -24,6 +26,7 @@ struct CoachHistoryView: View {
             }
             .background(StrandPalette.surfaceBase.ignoresSafeArea())
             .navigationTitle("Conversations")
+            .searchable(text: $search, prompt: Text("Search conversations"))
             #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -52,13 +55,45 @@ struct CoachHistoryView: View {
         }
     }
 
+    /// Everything matching the current search. One filter for every section, so a search can never show
+    /// a thread in one place and hide it in another.
+    private var matching: [CoachConversation] {
+        coach.conversations.filter { $0.matches(search: search) }
+    }
+    /// Threads the user pinned — above everything else, and exempt from the conversation cap.
+    private var pinnedConversations: [CoachConversation] { matching.filter { $0.pinned && !$0.archived } }
     /// Live threads, most-recent-first (the sweep and manual archiving keep these out of the way).
-    private var activeConversations: [CoachConversation] { coach.conversations.filter { !$0.archived } }
+    private var activeConversations: [CoachConversation] {
+        matching.filter { !$0.archived && !$0.pinned }
+    }
     /// Auto-archived threads — past daily briefs the user never replied to, plus anything archived by hand.
-    private var archivedConversations: [CoachConversation] { coach.conversations.filter { $0.archived } }
+    private var archivedConversations: [CoachConversation] { matching.filter { $0.archived } }
+
+    /// True when a search is active and matched nothing — distinct from "you have no conversations",
+    /// which the empty state already covers and which would read as data loss here.
+    private var searchFoundNothing: Bool {
+        !search.trimmingCharacters(in: .whitespaces).isEmpty && matching.isEmpty
+    }
 
     private var list: some View {
         List {
+            if searchFoundNothing {
+                Text("No conversation contains \"\(search)\".")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .listRowBackground(StrandPalette.surfaceBase)
+            }
+            if !pinnedConversations.isEmpty {
+                Section {
+                    ForEach(pinnedConversations) { convo in
+                        conversationRow(convo)
+                    }
+                } header: {
+                    Text("Pinned")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
+            }
             ForEach(activeConversations) { convo in
                 conversationRow(convo)
             }
@@ -103,6 +138,16 @@ struct CoachHistoryView: View {
             }
             .contextMenu {
                 Button { beginRename(convo) } label: { Label("Rename", systemImage: "pencil") }
+                Button { coach.setPinned(convo.id, !convo.pinned) } label: {
+                    convo.pinned
+                        ? Label("Unpin", systemImage: "pin.slash")
+                        : Label("Pin to top", systemImage: "pin")
+                }
+                // Local only: rendering to Markdown and handing it to the share sheet keeps the export
+                // on-device until the user themselves picks a destination.
+                ShareLink(item: convo.markdownExport(coachName: CoachIdentityStore.shared.identity.name)) {
+                    Label("Share as text", systemImage: "square.and.arrow.up")
+                }
                 if convo.archived {
                     Button { coach.setArchived(convo.id, false) } label: {
                         Label("Unarchive", systemImage: "tray.and.arrow.up")
