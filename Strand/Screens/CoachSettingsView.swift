@@ -400,6 +400,19 @@ struct CoachSettingsView: View {
         }
     }
 
+    /// The spoken version of the proactive-level setting.
+    ///
+    /// Built from LOCALIZED pieces on purpose. `ProactiveLevel.label` / `.blurb` are English constants
+    /// that the visible UI runs through `LocalizedStringKey`; interpolating them straight into an
+    /// accessibility string — as this did — produced a label VoiceOver read in English no matter the
+    /// device language. An accessibility affordance that only works for English readers is worse than
+    /// none, because it looks handled.
+    private static func proactiveLevelReadout(_ level: ProactiveLevel) -> String {
+        let name = String(localized: String.LocalizationValue(level.label))
+        let blurb = String(localized: String.LocalizationValue(level.blurb))
+        return String(localized: "Currently: \(name). \(blurb)")
+    }
+
     /// One model field for a background role (#R5) — the SAME picker/searchable-sheet/"Custom…" pattern
     /// `modelSelector` uses for the coaching model, not a bare `TextField`: every model the provider
     /// actually offers is selectable, not just typeable-and-hope. Empty ("") is its own real option,
@@ -619,7 +632,7 @@ struct CoachSettingsView: View {
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityLabel("Currently: \(coach.proactiveLevel.label). \(coach.proactiveLevel.blurb)")
+                    .accessibilityLabel(Self.proactiveLevelReadout(coach.proactiveLevel))
                 Text("The coach only reaches out on a real milestone or a run of missed sessions — never chatter. Each message uses your provider (and your tokens).")
                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
