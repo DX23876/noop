@@ -2671,6 +2671,9 @@ private fun DurationTrend(m: SleepModel) {
                             .semantics { contentDescription = uiString(R.string.l10n_sleep_screen_sleep_hours_trend_chart_a6fbc46d) },
                         color = Palette.restColor,
                         selectionEnabled = true,
+                        // #691: on tap, show the DATE alongside the value (the shared chart's tooltip),
+                        // matching the other trend graphs. trendDates is index-aligned with the values.
+                        selectionLabels = m.trendDates.map(::shortDayLabel),
                     )
                     DateAxisRow(m.trendDates)
                 }
@@ -2681,14 +2684,16 @@ private fun DurationTrend(m: SleepModel) {
 
         ChartCard(
             title = uiString(R.string.l10n_sleep_screen_sleep_debt_3aec7d9c),
-            subtitle = "Hours of sleep debt per day",
-            trailing = m.trendDebtHours.lastOrNull()?.let { String.format(Locale.US, "%.1f h", it) },
+            subtitle = "Sleep debt per day",
+            // #691: sleep debt is usually well under an hour, so decimal hours ("0.6h") reads badly —
+            // show hours+minutes. trendDebtHours is in hours; durationText takes minutes.
+            trailing = m.trendDebtHours.lastOrNull()?.let { durationText(it * 60.0) },
             tint = Palette.restColor,
             footer = {
                 ChartFooter(
                     listOf(
-                        "Avg" to (m.trendDebtHours.averageOrNull()?.let { String.format(Locale.US, "%.1f h", it) } ?: "â€”"),
-                        "Max" to (m.trendDebtHours.maxOrNull()?.let { String.format(Locale.US, "%.1f h", it) } ?: "â€”"),
+                        "Avg" to (m.trendDebtHours.averageOrNull()?.let { durationText(it * 60.0) } ?: "â€”"),
+                        "Max" to (m.trendDebtHours.maxOrNull()?.let { durationText(it * 60.0) } ?: "â€”"),
                         "Days" to "${m.trendDebtHours.size}",
                     ),
                 )
@@ -2702,6 +2707,7 @@ private fun DurationTrend(m: SleepModel) {
                             .semantics { contentDescription = uiString(R.string.l10n_sleep_screen_sleep_debt_trend_chart_9e178776) },
                         color = Palette.metricRose,
                         selectionEnabled = true,
+                        selectionLabels = m.trendDates.map(::shortDayLabel),   // #691: hover shows date + value
                     )
                     DateAxisRow(m.trendDates)
                 }
@@ -3004,7 +3010,10 @@ internal fun HoursVsNeededCard(m: SleepModel) {
     val sleptH = m.trendHours.lastOrNull() ?: (m.stages.asleep / 60.0)
     val neededH = (m.trendNeedHours.lastOrNull() ?: 8.0)
     val debtH = m.trendDebtHours.lastOrNull() ?: 0.0
-    val score = (sleptH / neededH * 100.0).coerceIn(0.0, 100.0)
+    // #691: show the TRUE percentage (e.g. 104% when you slept past your need) instead of a capped
+    // "100%" that's indistinguishable from exactly meeting it. The progress-bar fill below stays
+    // clamped to 1.0 (it can't overfill); only the displayed number is uncapped.
+    val score = (sleptH / neededH * 100.0).coerceAtLeast(0.0)
     val trendArrow = if (m.trendHours.size >= 2) {
         val delta = m.trendHours.last() - m.trendHours[m.trendHours.lastIndex - 1]
         when {
@@ -3070,7 +3079,7 @@ internal fun HoursVsNeededCard(m: SleepModel) {
                 listOf(
                     "Slept" to String.format(Locale.US, "%.1f h", sleptH),
                     "Needed" to String.format(Locale.US, "%.1f h", neededH),
-                    "Debt" to if (debtH > 0.05) String.format(Locale.US, "%.1f h", debtH) else "None",
+                    "Debt" to if (debtH > 0.05) durationText(debtH * 60.0) else "None",   // #691: h+m, not "0.6 h"
                 ).forEach { (lbl, v) ->
                     Column(modifier = Modifier.weight(1f)) {
                         Overline(lbl, color = Palette.textTertiary)
@@ -3288,7 +3297,7 @@ private fun sleepMetricSpec(key: String): SleepMetricSpec = when (key) {
     "hours_vs_needed" -> SleepMetricSpec("Hours vs Needed", "%", Palette.restColor) { "${it.roundToInt()}" }
     "restorative"     -> SleepMetricSpec("Restorative", "%", Palette.sleepREM) { "${it.roundToInt()}" }
     "respiratory"     -> SleepMetricSpec("Respiratory Rate", "rpm", Palette.metricPurple) { String.format(Locale.US, "%.1f", it) }
-    "sleep_debt"      -> SleepMetricSpec("Sleep Debt", "h", Palette.metricRose) { String.format(Locale.US, "%.1f", it) }
+    "sleep_debt"      -> SleepMetricSpec("Sleep Debt", "min", Palette.metricRose) { "${it.roundToInt()}" }   // #691: minutes, not decimal hours
     else              -> SleepMetricSpec(key, "", Palette.accent) { "${it.roundToInt()}" }
 }
 
@@ -3320,7 +3329,7 @@ private fun buildSleepMetricPoints(days: List<DailyMetric>, key: String): List<P
                 if (sl > 0.0) (dp + rm) / sl * 100.0 else null
             }
             "respiratory" -> d.respRateBpm
-            "sleep_debt"  -> d.totalSleepMin?.let { max(0.0, needMin - it) / 60.0 }
+            "sleep_debt"  -> d.totalSleepMin?.let { max(0.0, needMin - it) }   // #691: minutes (spec unit "min")
             else          -> null
         }
         v?.takeIf { it.isFinite() }?.let { d.day to it }
@@ -3420,6 +3429,7 @@ private fun SleepMetricDetailSheetContent(vm: AppViewModel, key: String) {
                     color = spec.color,
                     fill = true,
                     selectionEnabled = true,
+                    selectionLabels = filteredPoints.map { shortDayLabel(it.first) },   // #691: hover shows date + value
                 )
             }
             Row(modifier = Modifier.fillMaxWidth()) {

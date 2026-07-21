@@ -510,8 +510,16 @@ fun BarChart(
     modifier: Modifier,
     color: Color = Palette.accent,
     selectionEnabled: Boolean = false,
+    // Optional per-point display labels index-aligned with [values]; when supplied, a tap shows
+    // "<label> · <value>" (e.g. "16 Jul · 87") instead of the bare value — parity with LineChart (#691).
+    selectionLabels: List<String>? = null,
 ) {
     val cleanValues = remember(values) { values.map { if (it.isFinite() && it > 0.0) it else 0.0 } }
+    // cleanValues ZEROES (never drops) non-finite bars, so indices stay aligned with [values] and the
+    // labels only need a size match — null when absent/mismatched so selection falls back to value-only.
+    val cleanSelectionLabels = remember(values, selectionLabels) {
+        if (selectionLabels == null || selectionLabels.size != values.size) null else selectionLabels
+    }
     var selectedIndex by remember(cleanValues) { mutableIntStateOf(-1) }
     // Pre-laid value-label Paint, remembered rather than allocated inside the draw block (the old code
     // built a fresh android.graphics.Paint every draw). Keyed on color so it tracks a tint change.
@@ -609,7 +617,14 @@ fun BarChart(
                         }
                         if (selectionEnabled && selectedIndex in clean.indices) {
                             drawContext.canvas.nativeCanvas.apply {
-                                drawText(formatLineValue(clean[selectedIndex]), 8f, 32f, barLabelPaint)
+                                drawText(
+                                    lineChartSelectionLabel(
+                                        value = clean[selectedIndex],
+                                        formatValue = null,
+                                        pointLabel = cleanSelectionLabels?.getOrNull(selectedIndex),
+                                    ),
+                                    8f, 32f, barLabelPaint,
+                                )
                             }
                         }
                     }
