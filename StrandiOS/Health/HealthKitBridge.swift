@@ -76,6 +76,11 @@ final class HealthKitBridge: ObservableObject {
     /// UserDefaults key recording the read scopes the last successful `requestAuthorization` asked for.
     private static let readAuthSignatureKey = "health.readAuthSignature"
 
+    /// Lookback (days) for the sparse body-composition reads (weight/body-fat/lean/BMI), decoupled from
+    /// the 30-day daily-vitals window. ~10 years so a monthly-or-rarer weigh-in still lands, and the
+    /// history matches the all-history file importer. Cheap: sparse discrete reads yield only real days.
+    private static let bodyCompositionLookbackDays = 3650
+
     /// A deterministic fingerprint of the read scopes surfaced in the consent dialog — the sorted
     /// quantity read ids plus stable markers for the sleep + workout reads. When a later version ADDS a
     /// read-only type (e.g. body composition, #20), this string changes, and `refreshAuthIfPreviouslyGranted`
@@ -347,6 +352,14 @@ final class HealthKitBridge: ObservableObject {
         let cal = Calendar.current
         let end = Date()
         guard let start = cal.date(byAdding: .day, value: -days, to: cal.startOfDay(for: end)) else { return }
+        // Body composition (weight/body-fat/lean/BMI) is SPARSE and slow-moving — a weigh-in can be weeks
+        // or months apart — so the 30-day vitals window frequently holds no sample at all and the metric
+        // silently never imports (the daily HR/steps/sleep reads are unaffected). Give these four types a
+        // long lookback so the latest value AND the full history land, matching the all-history file
+        // importer. Cheap despite the span: they're sparse discrete reads, so enumeration only yields the
+        // handful of days that actually carry a sample.
+        let bodyStart = cal.date(byAdding: .day, value: -HealthKitBridge.bodyCompositionLookbackDays,
+                                 to: cal.startOfDay(for: end)) ?? start
 
         var byDay: [String: DayAgg] = [:]
         func agg(_ day: String) -> DayAgg { byDay[day] ?? DayAgg() }
@@ -386,16 +399,17 @@ final class HealthKitBridge: ObservableObject {
         // Body composition — READ-ONLY import under the apple-health source (#20). Weight, lean mass
         // and BMI are point-in-time readings, so take the latest-of-day; body-fat reads fine as a
         // daily average. Body-fat HealthKit gives a 0…1 fraction, scaled to percent like spo2 above.
-        await collect(.bodyMass, unit: .gramUnit(with: .kilo), start: start, end: end, op: .discreteMostRecent) { day, v in
+        // These use `bodyStart` (long lookback), NOT the 30-day vitals `start`, because they're sparse.
+        await collect(.bodyMass, unit: .gramUnit(with: .kilo), start: bodyStart, end: end, op: .discreteMostRecent) { day, v in
             var a = agg(day); a.weightKg = v; byDay[day] = a
         }
-        await collect(.bodyFatPercentage, unit: .percent(), start: start, end: end, op: .discreteAverage) { day, v in
+        await collect(.bodyFatPercentage, unit: .percent(), start: bodyStart, end: end, op: .discreteAverage) { day, v in
             var a = agg(day); a.bodyFatPct = v * 100; byDay[day] = a   // 0…1 → percent
         }
-        await collect(.leanBodyMass, unit: .gramUnit(with: .kilo), start: start, end: end, op: .discreteMostRecent) { day, v in
+        await collect(.leanBodyMass, unit: .gramUnit(with: .kilo), start: bodyStart, end: end, op: .discreteMostRecent) { day, v in
             var a = agg(day); a.leanMassKg = v; byDay[day] = a
         }
-        await collect(.bodyMassIndex, unit: .count(), start: start, end: end, op: .discreteMostRecent) { day, v in
+        await collect(.bodyMassIndex, unit: .count(), start: bodyStart, end: end, op: .discreteMostRecent) { day, v in
             var a = agg(day); a.bmi = v; byDay[day] = a
         }
 
