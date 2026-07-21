@@ -174,6 +174,27 @@ internal fun mainSleepSpan(blocks: List<SleepSession>, habitualMidsleepSec: Long
     return first.effectiveStartTs to last.endTs
 }
 
+/**
+ * The trailing [limit] nights' bridged bed→wake SPANS — one per local calendar day of wake, grouped the
+ * SAME way [navDays] groups the browsable day list (`localDayString(it.endTs)`), then resolved through
+ * the SAME bridged selector ([mainSleepSpan]) the hero uses. Before this, [SleepConsistencyCard] iterated
+ * raw sessions directly: a briefly-interrupted / biphasic night's night-tail fragment (bridged into the
+ * hero's ONE night) still drew as its OWN low bar, got counted as an extra "night", and skewed the bed/wake
+ * SD and consistency score (#699). A day whose only blocks are naps (no bridgeable main sleep) drops out via
+ * `mapNotNull`, matching [mainSleepSpan]'s null. Ascending by day, oldest first (matches the prior
+ * `sleeps.takeLast(limit)` ordering assumption).
+ */
+internal fun consistencyNightSpans(
+    sleeps: List<SleepSession>,
+    habitualMidsleepSec: Long? = null,
+    limit: Int = 14,
+): List<Pair<Long, Long>> =
+    sleeps.groupBy { localDayString(it.endTs) }
+        .toSortedMap()
+        .values
+        .mapNotNull { blocks -> mainSleepSpan(blocks.sortedBy { it.effectiveStartTs }, habitualMidsleepSec) }
+        .takeLast(limit)
+
 /** Longest a leading block can be and still be treated as a spurious pre-sleep awake stub (lying in bed
  *  before sleep). Generous (a few hours) because the reporter's stub ran 21:41 → 00:27 — ~2h45m of pre-sleep
  *  awake — so a tight cap missed it (#736). The real guard against swallowing a genuine first sleep fragment

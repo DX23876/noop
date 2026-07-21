@@ -638,7 +638,7 @@ fun SleepScreen(
                 item { Spacer(Modifier.height(Metrics.selectorTopUp)) }
                 item { HoursVsNeededCard(m) }
                 item { Spacer(Modifier.height(Metrics.selectorTopUp)) }
-                item { SleepConsistencyCard(sleeps) }
+                item { SleepConsistencyCard(sleeps, habitualMidsleep) }
             }
         }
     }
@@ -3111,21 +3111,22 @@ private data class SleepNightTiming(val label: String, val bedHour: Float, val w
  * of the personal typical. (PR #260)
  */
 @Composable
-internal fun SleepConsistencyCard(sleeps: List<SleepSession>) {
+internal fun SleepConsistencyCard(sleeps: List<SleepSession>, habitualMidsleepSec: Long? = null) {
     // #perf: building the per-night fold allocates 2 Calendars + a SimpleDateFormat per session (~28
     // objects for 14 nights). It's a pure derivation of `sleeps` (no wall-clock input), so memoize it on
     // `sleeps` — scrolling the Sleep screen then reuses it instead of rebuilding it every recompose frame.
-    val timings = remember(sleeps) {
-        val recent = sleeps.takeLast(14)
+    val timings = remember(sleeps, habitualMidsleepSec) {
         val sdf = SimpleDateFormat("EEE", Locale.US)
-        recent.map { s ->
-            val bedCal = Calendar.getInstance().apply { timeInMillis = s.effectiveStartTs * 1000L } // edited bedtime (PR #395)
-            val wakeCal = Calendar.getInstance().apply { timeInMillis = s.endTs * 1000L }
+        // #699: bridged bed→wake spans (one per day, night-tail fragments folded in), not raw sessions —
+        // see consistencyNightSpans.
+        consistencyNightSpans(sleeps, habitualMidsleepSec).map { (onsetTs, wakeTs) ->
+            val bedCal = Calendar.getInstance().apply { timeInMillis = onsetTs * 1000L } // edited bedtime (PR #395)
+            val wakeCal = Calendar.getInstance().apply { timeInMillis = wakeTs * 1000L }
             val bedH = bedCal.get(Calendar.HOUR_OF_DAY) + bedCal.get(Calendar.MINUTE) / 60f
             // Fold an evening bedtime to a negative hour so it sorts ABOVE the next-day wake on the axis.
             val bedNorm = if (bedH > 12f) bedH - 24f else bedH
             val wakeH = wakeCal.get(Calendar.HOUR_OF_DAY) + wakeCal.get(Calendar.MINUTE) / 60f
-            SleepNightTiming(sdf.format(Date(s.endTs * 1000L)), bedNorm, wakeH)
+            SleepNightTiming(sdf.format(Date(wakeTs * 1000L)), bedNorm, wakeH)
         }
     }
     if (timings.size < 3) return
