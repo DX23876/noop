@@ -612,6 +612,14 @@ struct CoachSettingsView: View {
                 }
                 .pickerStyle(.segmented)
                 .accessibilityLabel("How often the coach messages you first")
+                // A segmented picker marks its selection with a highlight and nothing else, so which
+                // option is active is carried by colour alone. Restating it in words costs one line and
+                // makes the current setting readable without seeing that highlight at all.
+                Text(LocalizedStringKey(coach.proactiveLevel.blurb))
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityLabel("Currently: \(coach.proactiveLevel.label). \(coach.proactiveLevel.blurb)")
                 Text("The coach only reaches out on a real milestone or a run of missed sessions — never chatter. Each message uses your provider (and your tokens).")
                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)

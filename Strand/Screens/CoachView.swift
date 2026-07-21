@@ -32,6 +32,14 @@ struct CoachView: View {
     @State private var activeSheet: ActiveSheet?
     /// Seconds left before Retry re-enables, from the provider's `Retry-After` on a 429. 0 = ready.
     @State private var retryCountdown = 0
+    /// Honour the system's Reduce Motion setting. The chat animates on every reply — the transcript
+    /// scrolls itself and the evidence chain expands — which is exactly the repeated, self-starting
+    /// movement that setting exists to stop. Nothing here is load-bearing: without the animation the
+    /// same state change simply happens at once.
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// At the accessibility text sizes, five lines of composer is a couple of words — long enough to
+    /// type into, far too short to read back what you wrote before sending it.
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     /// The coach's avatar diameter beside its bubbles and in the typing indicator (#R-bigger-avatar) — one
     /// named constant instead of a magic number repeated at every call site, since the gutter spacer
     /// (`assistantGutter`) and the evidence/actionRow indent below a reply both have to match it exactly.
@@ -117,6 +125,9 @@ struct CoachView: View {
             // skips, or once a week. Sequential so two auto-messages never race the `sending` flag.
             await coach.startBriefIfNeeded()
             await coach.runProactiveNudgeIfNeeded()
+            // A goal whose date has passed: once per goal, ever. Before the weekly review, because a
+            // finished goal is the more specific thing to talk about on the day it comes up.
+            await coach.runGoalReviewIfNeeded()
             await coach.runWeeklyReviewIfNeeded()
         }
         // Tapping the daily check-in notification (routed here by RootTabView) runs a real check-in —
@@ -467,6 +478,14 @@ struct CoachView: View {
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("Coach said: \(message.text)")
 
+                    // "The coach got in touch" — a brief, a nudge or the weekly review looks exactly like
+                    // an answer otherwise, so an unprompted message reads as a reply to a question the
+                    // user can't remember asking. Above the bubble, because it frames what follows.
+                    if message.origin.isCoachInitiated {
+                        coachInitiatedLabel(message.origin)
+                            .padding(.leading, Self.assistantAvatarSize + 8)
+                    }
+
                     // The evidence chain and action controls sit UNDER the bubble, so they carry the same
                     // leading gutter (avatar width + spacing) the bubble does — they line up with the coach's
                     // text, not with the avatar (#R10).
@@ -507,6 +526,30 @@ struct CoachView: View {
                 }
             }
         }
+    }
+
+    /// The "this arrived on its own" marker. Names WHICH kind, because a daily brief, a one-off nudge
+    /// and the weekly review are different promises about how often this happens — and the second
+    /// question after "why is the coach talking to me" is always "how often will it".
+    @ViewBuilder
+    private func coachInitiatedLabel(_ origin: ChatMessage.Origin) -> some View {
+        let (text, symbol): (LocalizedStringKey, String) = {
+            switch origin {
+            case .brief:        return ("Your daily brief — the coach got in touch", "sun.horizon")
+            case .checkIn:      return ("Check-in — the coach got in touch", "hand.wave")
+            case .nudge:        return ("The coach got in touch", "bell")
+            case .weeklyReview: return ("Your weekly review — the coach got in touch", "calendar")
+            case .reply:        return ("", "")
+            }
+        }()
+        HStack(spacing: 5) {
+            Image(systemName: symbol)
+                .font(StrandFont.caption)
+                .accessibilityHidden(true)
+            Text(text).font(StrandFont.caption)
+        }
+        .foregroundStyle(StrandPalette.textTertiary)
+        .padding(.bottom, 2)
     }
 
     private func copyButton(_ text: String) -> some View {
@@ -586,7 +629,7 @@ struct CoachView: View {
             let isExpanded = expandedEvidenceIds.contains(message.id)
             VStack(alignment: .leading, spacing: 4) {
                 Button {
-                    withAnimation(StrandMotion.fade) {
+                    withAnimation(reduceMotion ? nil : StrandMotion.fade) {
                         if isExpanded { expandedEvidenceIds.remove(message.id) }
                         else { expandedEvidenceIds.insert(message.id) }
                     }
@@ -812,7 +855,11 @@ struct CoachView: View {
                 .textFieldStyle(.plain)
                 .font(StrandFont.body)
                 .foregroundStyle(StrandPalette.textPrimary)
-                .lineLimit(1...5)
+                // Grows with the text size rather than staying at a flat five lines: at
+                // `.accessibility1` and above a line holds only a few words, so five of them is a
+                // keyhole. The upper bound still exists — an unbounded field would push the send button
+                // off-screen.
+                .lineLimit(1...(dynamicTypeSize >= .accessibility1 ? 12 : 5))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 9)
                 .background(StrandPalette.surfaceInset, in: RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
@@ -904,7 +951,9 @@ struct CoachView: View {
     }
 
     private func scrollToEnd(_ proxy: ScrollViewProxy) {
-        withAnimation(StrandMotion.fade) {
+        // Still scrolls with Reduce Motion on — it just jumps. Not scrolling at all would strand the
+        // user above a reply that has already arrived.
+        withAnimation(reduceMotion ? nil : StrandMotion.fade) {
             if coach.sending {
                 proxy.scrollTo("typing", anchor: .bottom)
             } else if let error = coach.errorText, !error.isEmpty {
@@ -938,6 +987,10 @@ extension View {
         let content = NavigationStack {
             CoachView()
                 .environmentObject(coach)
+                // Opening the chat IS having seen it — that's what clears the badge. Doing it here
+                // rather than per-entry-point means every route (Today card, floating button, More tab,
+                // notification deep link) clears it identically.
+                .onAppear { coach.markCoachMessagesSeen() }
                 #if os(iOS)
                 // This is always a true full-screen presentation — no floating tab bar is ever drawn
                 // over it. Reset explicitly rather than relying on the caller not having one: the

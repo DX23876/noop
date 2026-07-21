@@ -58,6 +58,28 @@ enum ProactiveCoach {
     /// The rolling window (days) the week-level counts look back over.
     static let windowDays = 7
 
+    /// A goal whose target date has passed and that nobody has closed out.
+    ///
+    /// Until now a goal's date simply went by and nothing happened: no verdict, no acknowledgement, and
+    /// the goal sat "active" forever against a deadline that was history. That is the one moment a
+    /// coach obviously ought to say something — whether it went well or not — and staying silent reads
+    /// as not having noticed.
+    ///
+    /// Pure, so it can be tested without a clock or a network. Returns the goal to review, or nil.
+    /// `graceDays` avoids pouncing the morning after: a target date is a target, not a stopwatch.
+    static func expiredGoalNeedingReview(_ goals: [CoachGoal],
+                                         now: Date = Date(),
+                                         graceDays: Int = 1) -> CoachGoal? {
+        let cal = Calendar.current
+        return goals.first { goal in
+            guard goal.status == .active, let target = goal.targetDate else { return false }
+            let daysPast = cal.dateComponents([.day],
+                                              from: cal.startOfDay(for: target),
+                                              to: cal.startOfDay(for: now)).day ?? 0
+            return daysPast >= graceDays
+        }
+    }
+
     // MARK: - Detection
 
     /// The single most relevant reason to reach out right now, or nil when nothing crosses a threshold.

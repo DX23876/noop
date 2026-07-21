@@ -26,6 +26,25 @@ public let aiCoachPrivacyNote =
 /// One turn in the coaching conversation.
 struct ChatMessage: Identifiable, Equatable, Codable {
     enum Role: String, Codable { case user, assistant }
+
+    /// Why this message exists. Everything the coach says looks identical in the transcript, so a
+    /// message the user never asked for — a morning brief, an unprompted nudge, the weekly review —
+    /// reads exactly like an answer to a question they've forgotten asking. Naming the origin lets the
+    /// UI say "the coach got in touch" instead, which is the honest framing for something that arrived
+    /// on its own.
+    enum Origin: String, Codable {
+        /// A reply to something the user asked. The default, and the case for every stored message
+        /// written before this field existed.
+        case reply
+        case brief
+        case checkIn
+        case nudge
+        case weeklyReview
+
+        /// Whether this arrived unprompted. `reply` is the only one that didn't.
+        var isCoachInitiated: Bool { self != .reply }
+    }
+
     let id: UUID
     let role: Role
     let text: String
@@ -37,16 +56,21 @@ struct ChatMessage: Identifiable, Equatable, Codable {
     /// user turns, for a plain-context-path reply (no tool-calling provider), and for turns predating
     /// this field (back-compat decode).
     let toolsUsed: [String]
+    /// Why this message exists — see `Origin`. Defaulted on decode, so every stored transcript keeps
+    /// loading and simply reads as ordinary replies.
+    let origin: Origin
 
-    init(id: UUID = UUID(), role: Role, text: String, date: Date = Date(), toolsUsed: [String] = []) {
+    init(id: UUID = UUID(), role: Role, text: String, date: Date = Date(),
+         toolsUsed: [String] = [], origin: Origin = .reply) {
         self.id = id
         self.role = role
         self.text = text
         self.date = date
         self.toolsUsed = toolsUsed
+        self.origin = origin
     }
 
-    private enum CodingKeys: String, CodingKey { case id, role, text, date, toolsUsed }
+    private enum CodingKeys: String, CodingKey { case id, role, text, date, toolsUsed, origin }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -55,6 +79,7 @@ struct ChatMessage: Identifiable, Equatable, Codable {
         text = try c.decode(String.self, forKey: .text)
         date = try c.decodeIfPresent(Date.self, forKey: .date) ?? Date()
         toolsUsed = try c.decodeIfPresent([String].self, forKey: .toolsUsed) ?? []
+        origin = try c.decodeIfPresent(Origin.self, forKey: .origin) ?? .reply
     }
 
     /// Pure: unique tool names from `toolsUsed`, in FIRST-call order — a tool called twice across rounds
@@ -769,6 +794,32 @@ final class AICoachEngine: ObservableObject {
         guard let idx = conversations.firstIndex(where: { $0.id == id }) else { return }
         conversations[idx].archived = archived
     }
+
+    /// Whether an unprompted coach message is waiting to be seen — the badge on the Today entry and the
+    /// floating button.
+    ///
+    /// "Unread" is derived, not tracked: a coach-initiated message counts until the user takes a turn
+    /// after it or opens the thread it landed in (`markCoachMessagesSeen`). A separate read-state store
+    /// would be a second source of truth to keep in sync with the transcript for no gain.
+    var hasUnseenCoachMessage: Bool {
+        guard let seen = UserDefaults.standard.object(forKey: Self.lastSeenCoachMessageKey) as? Double
+        else {
+            return conversations.contains { $0.messages.contains { $0.origin.isCoachInitiated } }
+        }
+        let seenAt = Date(timeIntervalSince1970: seen)
+        return conversations.contains { convo in
+            convo.messages.contains { $0.origin.isCoachInitiated && $0.date > seenAt }
+        }
+    }
+
+    /// Mark everything the coach said on its own as seen. Called when the chat is opened — the point at
+    /// which the user has actually been shown it.
+    func markCoachMessagesSeen() {
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Self.lastSeenCoachMessageKey)
+        objectWillChange.send()   // `hasUnseenCoachMessage` is computed
+    }
+
+    private static let lastSeenCoachMessageKey = "coach.lastSeenCoachMessageAt"
 
     /// Pin or unpin a conversation. A pinned thread sorts to the top of the history AND is exempt from
     /// the 50-conversation cap (`CoachConversationStore.applyCap`) — pinning something and having it
@@ -1858,7 +1909,7 @@ final class AICoachEngine: ObservableObject {
             let clean = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
             if !clean.isEmpty {
                 messages.append(ChatMessage(role: .assistant, text: "Today's brief\n\n" + clean,
-                                            toolsUsed: reply.toolsUsed))
+                                            toolsUsed: reply.toolsUsed, origin: .brief))
                 // Stamp only on genuine success, so a network failure doesn't burn the day's slot — a
                 // retry (reopening the conversation after a day boundary) can still land one.
                 UserDefaults.standard.set(Repository.logicalDayKey(Date()), forKey: Self.lastBriefDayKey)
@@ -1925,7 +1976,7 @@ final class AICoachEngine: ObservableObject {
             let clean = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
             if !clean.isEmpty {
                 messages.append(ChatMessage(role: .assistant, text: "Check-in\n\n" + clean,
-                                            toolsUsed: reply.toolsUsed))
+                                            toolsUsed: reply.toolsUsed, origin: .checkIn))
                 UserDefaults.standard.set(Repository.logicalDayKey(Date()), forKey: Self.lastCheckInDayKey)
             }
         } catch let e as AICoachError {
@@ -2001,7 +2052,36 @@ final class AICoachEngine: ObservableObject {
         let prefix = signal.category == .milestone ? "Nice work" : "A quick nudge"
         await runSeededTurnCancellable(
             instruction: Self.proactiveNudgeInstruction(for: signal),
-            prefix: prefix, stampKey: Self.lastProactiveDayKey)
+            prefix: prefix, stampKey: Self.lastProactiveDayKey, origin: .nudge)
+    }
+
+    /// The instruction for a goal-expiry look-back. Deliberately not a verdict template: the coach is
+    /// told to state what the data shows and ASK what the person wants to do next, because "you failed"
+    /// is both unhelpful and often wrong — a missed date can mean illness, travel or a goal that was
+    /// never realistic, and the app can't tell which.
+    static func goalReviewInstruction(for goal: CoachGoal) -> String {
+        """
+        The user's goal "\(goal.title)" reached its target date and neither of you has closed it out. \
+        Look back on it now, unprompted. Use the tools to check what actually happened over that period \
+        rather than guessing. Say plainly whether it was reached, missed, or can't be judged from the \
+        data — "can't be judged" is an honest answer and often the right one. Do NOT congratulate or \
+        commiserate on a number you haven't verified. Close by asking what they want to do with it: \
+        extend it, adjust the target, mark it done, or let it go. Keep it short.
+        """
+    }
+
+    /// Offer a look-back on a goal whose target date has passed. Once per goal, ever — the review is a
+    /// moment, not a recurring reminder, and repeating it would turn a missed target into nagging.
+    func runGoalReviewIfNeeded() async {
+        guard proactiveLevel != .off, isConfigured, dataConsent, !sending else { return }
+        guard let goal = ProactiveCoach.expiredGoalNeedingReview(CoachGoalStore.shared.goals) else {
+            return
+        }
+        let stampKey = "coach.goalReviewed.\(goal.id.uuidString)"
+        guard UserDefaults.standard.string(forKey: stampKey) == nil else { return }
+        await runSeededTurnCancellable(
+            instruction: Self.goalReviewInstruction(for: goal),
+            prefix: "Your goal", stampKey: stampKey, origin: .nudge)
     }
 
     /// Fire a weekly review at most once every 7 logical days, only at the `normal` level and only when
@@ -2014,7 +2094,7 @@ final class AICoachEngine: ObservableObject {
         guard CoachPlanStore.shared.proposals.contains(where: { $0.status.isDecided }) else { return }
         await runSeededTurnCancellable(
             instruction: Self.weeklyReviewInstruction(toolsActive: toolCallingActive),
-            prefix: "Weekly review", stampKey: Self.lastWeeklyReviewDayKey)
+            prefix: "Weekly review", stampKey: Self.lastWeeklyReviewDayKey, origin: .weeklyReview)
     }
 
     /// Whole-day distance between two "yyyy-MM-dd" keys, or nil if either doesn't parse.
@@ -2027,10 +2107,12 @@ final class AICoachEngine: ObservableObject {
     /// Cancellable runner for the proactive/weekly generated turns — mirrors `runCheckInCancellable` so
     /// the composer's Stop button cancels them too. Stamps its day key (via the generator) only on a
     /// non-empty success.
-    private func runSeededTurnCancellable(instruction: String, prefix: String, stampKey: String) async {
+    private func runSeededTurnCancellable(instruction: String, prefix: String, stampKey: String,
+                                          origin: ChatMessage.Origin) async {
         guard !sending else { return }
         let task = Task<Void, Never> { [weak self] in
-            await self?.generateSeededTurn(instruction: instruction, prefix: prefix, stampKey: stampKey)
+            await self?.generateSeededTurn(instruction: instruction, prefix: prefix,
+                                           stampKey: stampKey, origin: origin)
         }
         sendTask = task
         await task.value
@@ -2040,7 +2122,8 @@ final class AICoachEngine: ObservableObject {
     /// Shared generation for an unprompted, seeded coach turn (proactive nudge / weekly review): the same
     /// history-carrying wire `generateCheckIn` builds, with the seed instruction as the trailing turn.
     /// Stamps `stampKey` with today's logical day only on a genuine, non-empty reply.
-    private func generateSeededTurn(instruction: String, prefix: String, stampKey: String) async {
+    private func generateSeededTurn(instruction: String, prefix: String, stampKey: String,
+                                    origin: ChatMessage.Origin) async {
         guard isConfigured, dataConsent, !sending else { return }
         guard let key = resolvedKey else { return }
         clearError()
@@ -2062,7 +2145,7 @@ final class AICoachEngine: ObservableObject {
             let clean = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
             if !clean.isEmpty {
                 messages.append(ChatMessage(role: .assistant, text: prefix + "\n\n" + clean,
-                                            toolsUsed: reply.toolsUsed))
+                                            toolsUsed: reply.toolsUsed, origin: origin))
                 UserDefaults.standard.set(Repository.logicalDayKey(Date()), forKey: stampKey)
             }
         } catch let e as AICoachError {
@@ -2580,7 +2663,33 @@ final class AICoachEngine: ObservableObject {
                 lines.append(line)
             }
         }
+        if let pattern = Self.skipPatternLine(store.proposals) { lines.append(pattern) }
         return lines.isEmpty ? nil : lines.joined(separator: "\n")
+    }
+
+    /// A factual line about WHY sessions have recently been skipped, when one reason clearly dominates.
+    ///
+    /// `pain` and `ill` already reached the coach through the CAUTION line in `planAdherenceBlock`,
+    /// because those carry a safety implication. The everyday reasons — no time, too tired, not feeling
+    /// it — were recorded by the UI and then read by nobody, so the coach kept proposing into the same
+    /// wall. This is deliberately a STATEMENT OF FACT, not an instruction: the model is told what
+    /// happened, and decides what to do about it. Nothing here hides a sport or shrinks a plan on its
+    /// own — `declineStreakFloor` remains the guard against a filter bubble.
+    static func skipPatternLine(_ proposals: [PlanProposal], minimum: Int = 3) -> String? {
+        let skipped = proposals.filter { $0.status == .skipped }
+        var counts: [PlanProposal.SkipReason: Int] = [:]
+        for p in skipped {
+            // Excludes pain/ill on purpose: those are a safety signal, already surfaced with the weight
+            // they deserve. Folding them in here would restate a health concern as a scheduling habit.
+            guard let reason = p.skipReason, !reason.triggersCaution else { continue }
+            counts[reason, default: 0] += 1
+        }
+        guard let (reason, count) = counts.max(by: { $0.value < $1.value }), count >= minimum else {
+            return nil
+        }
+        return "PATTERN: the user's last \(count) skipped sessions were \"\(reason.label)\". State this "
+            + "plainly if you propose something similar, and ask what would actually fit — do not "
+            + "quietly stop suggesting that kind of session."
     }
 
     // MARK: - Plan tools
