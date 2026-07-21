@@ -83,11 +83,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.noop.analytics.AnalyticsEngine
-import com.noop.analytics.SleepDebt
 import com.noop.analytics.SleepDebtLedger
 import com.noop.analytics.SleepEditGuard
 import com.noop.analytics.SleepStageTotals
-import com.noop.data.DailyMetric
 import com.noop.data.DismissedSleep
 import com.noop.data.SleepSession
 import com.noop.data.WhoopRepository
@@ -928,51 +926,6 @@ private fun SleepHeroVessel(fraction: Double, value: Double, tint: Color, diamet
         )
     }
 }
-
-/** A short Rest state word for the hero gauge — same banding the synthesis hero uses. */
-private fun sleepScoreWord(score: Double): String = when {
-    score < 50.0 -> "Poor"
-    score < 70.0 -> "Fair"
-    score < 85.0 -> "Good"
-    else -> "Optimal"
-}
-
-/**
- * Short night-relative label ("Last night" / "1 night ago" / "N nights ago") for the ◀/▶-navigated
- * night. Shared by the Rest hero overline and the hypnogram nav header so both name the SAME night
- * the hero's score is resolved for. Mirrors iOS SleepView.nightRelativeLabel.
- */
-internal fun nightRelativeLabel(offset: Int): String = when (offset) {
-    0 -> "Last night"
-    1 -> "1 night ago"
-    else -> "$offset nights ago"
-}
-
-/**
- * The sleep-performance score (0–100) for a SPECIFIC navigated night: the imported WHOOP figure for
- * that night's wake-day when the export carried one, else the resolved Rest composite for that day.
- * Mirrors the per-day transform in [buildSleepModel]'s `performance` series (and iOS
- * SleepView.performanceScore), keyed by [HeroNight.dayKey], so a navigated past night reads ITS OWN
- * score rather than the full-history latest. Null when there is no navigated night or that day has
- * no score.
- */
-private fun heroPerformanceScore(
-    night: HeroNight?, days: List<DailyMetric>, imported: ImportedSleepSeries,
-): Double? {
-    val wakeDay = night?.dayKey ?: return null
-    imported.performance[wakeDay]?.let { return it }
-    val daily = days.lastOrNull { it.day == wakeDay } ?: return null
-    return com.noop.analytics.RestScorer.restFromDaily(daily)
-}
-
-/**
- * Whether a SPECIFIC night's sleep-performance score is WHOOP's own imported figure or NOOP's
- * on-device approximation — so the hero is honest about provenance, like Today's badges. Keyed by the
- * night's wake-day (matching [heroPerformanceScore]) so a navigated night's badge tracks ITS OWN
- * score's provenance, not last night's. Mirrors the macOS SleepView.heroSource.
- */
-private fun restHeroSource(imported: ImportedSleepSeries, wakeDay: String?): String =
-    if (wakeDay != null && imported.performance[wakeDay] != null) "Whoop" else "On-device"
 
 // MARK: - 1. HERO — stage breakdown for the navigated night
 
@@ -2641,7 +2594,7 @@ private fun DrawScope.drawRoundRectFill(color: Color, frac: Float) {
 @Composable
 private fun DurationTrend(m: SleepModel) {
     val pts = m.trendHours
-    val avg = pts.averageOrNull()
+    val avg = pts.sleepAverageOrNull()
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
         SectionHeader("Trend", overline = "Sleep", trailing = "Last 14 days")
         ChartCard(
@@ -2692,7 +2645,7 @@ private fun DurationTrend(m: SleepModel) {
             footer = {
                 ChartFooter(
                     listOf(
-                        "Avg" to (m.trendDebtHours.averageOrNull()?.let { durationText(it * 60.0) } ?: "â€”"),
+                        "Avg" to (m.trendDebtHours.sleepAverageOrNull()?.let { durationText(it * 60.0) } ?: "â€”"),
                         "Max" to (m.trendDebtHours.maxOrNull()?.let { durationText(it * 60.0) } ?: "â€”"),
                         "Days" to "${m.trendDebtHours.size}",
                     ),
@@ -2908,92 +2861,6 @@ private fun SleepEmptyState() {
 // MARK: - Model + derivation (faithful to SleepView.swift)
 
 // MARK: - Model + derivation lives in SleepModels.kt, SleepNightSelection.kt, SleepModelLogic.kt, and SleepStageTimelineLogic.kt
-
-// MARK: - Formatting helpers (mirror SleepView.swift)
-
-private fun pct(minutes: Double, total: Double): Int =
-    if (total > 0.0) (minutes / total * 100.0).roundToInt() else 0
-
-private fun pctValue(v: Double?): String = v?.let { "${it.roundToInt()}%" } ?: "—"
-
-/** "+12% vs typical" / "−0.4 rpm vs typical" — the latest-vs-mean caption every tile carries. */
-private fun vsTypical(latest: Double?, typical: Double?, suffix: String, decimals: Int = 0): String {
-    if (latest == null || typical == null || typical == 0.0) return "vs typical - "
-    val diff = latest - typical
-    val sign = if (diff >= 0) "+" else "−"
-    val mag = abs(diff)
-    val num = if (decimals == 0) "${mag.roundToInt()}" else String.format(Locale.US, "%.${decimals}f", mag)
-    return "$sign$num$suffix vs typical"
-}
-
-private fun debtCaption(debt: Double?): String {
-    if (debt == null) return "vs need"
-    return if (debt < 15.0) "On target" else "Below need"
-}
-
-private fun debtColor(debt: Double?): Color = when {
-    debt == null -> Palette.textPrimary
-    debt < 15.0 -> Palette.statusPositive
-    debt < 60.0 -> Palette.statusWarning
-    else -> Palette.statusCritical
-}
-
-// MARK: - Sleep-debt ledger formatting (mirror SleepView.swift)
-
-/**
- * "≈2h 10m" magnitude headline — leading "≈" because it's an accumulated estimate. Reads
- * "On target" inside the deadband so a few stray minutes don't show as debt.
- */
-private fun debtHeadline(ledger: SleepDebtLedger): String =
-    if (ledger.magnitudeMin < SleepDebt.ON_TARGET_BAND_MIN) "On target"
-    else "≈${durationText(ledger.magnitudeMin)}"
-
-/** Short tag beside the headline: sleep debt / surplus / balanced. */
-private fun debtTag(ledger: SleepDebtLedger): String = when {
-    ledger.magnitudeMin < SleepDebt.ON_TARGET_BAND_MIN -> "balanced"
-    ledger.isDebt -> "sleep debt"
-    else -> "surplus"
-}
-
-/** Plain-English read of the running balance over the window. */
-private fun debtRead(ledger: SleepDebtLedger): String {
-    val nights = ledger.nightCount
-    val span = "the last $nights night${if (nights == 1) "" else "s"}"
-    if (ledger.magnitudeMin < SleepDebt.ON_TARGET_BAND_MIN) {
-        return "You're roughly on top of your sleep across $span. Slept minutes balance out against your need."
-    }
-    val mag = durationText(ledger.magnitudeMin)
-    return if (ledger.isDebt) {
-        "You've banked about $mag of sleep debt over $span. Surplus nights count back against it. An earlier night or two would clear it."
-    } else {
-        "You're carrying about $mag of surplus over $span. You've slept past your need on balance. Nicely ahead."
-    }
-}
-
-/**
- * Color the balance by sign + size: surplus/within-band → positive green, modest debt →
- * warning, heavier debt → critical.
- */
-private fun debtBalanceColor(ledger: SleepDebtLedger): Color = when {
-    ledger.magnitudeMin < SleepDebt.ON_TARGET_BAND_MIN || !ledger.isDebt -> Palette.statusPositive
-    ledger.magnitudeMin < 180.0 -> Palette.statusWarning
-    else -> Palette.statusCritical
-}
-
-/** Signed "+1h 20m" / "−2h 10m" / "0m" balance string. */
-private fun debtSigned(minutes: Double): String {
-    if (abs(minutes) < 1.0) return "0m"
-    val sign = if (minutes >= 0.0) "+" else "−"
-    return "$sign${durationText(abs(minutes))}"
-}
-
-private fun durationText(minutes: Double): String {
-    val m = max(0, minutes.roundToInt())
-    return if (m < 60) "${m}m" else "${m / 60}h ${m % 60}m"
-}
-
-private fun List<Double>.averageOrNull(): Double? =
-    if (isEmpty()) null else sum() / size
 
 // MARK: - Hours vs Needed card
 
@@ -3277,78 +3144,6 @@ internal fun SleepConsistencyCard(sleeps: List<SleepSession>) {
 }
 
 // MARK: - Sleep metric detail sheet
-
-private enum class SleepMetricRange(val label: String, val days: Long?) {
-    WEEK("W", 7), MONTH("M", 30), THREE_MONTH("3M", 90),
-    SIX_MONTH("6M", 180), YEAR("1Y", 365), ALL("ALL", null),
-}
-
-private data class SleepMetricSpec(
-    val title: String,
-    val unit: String,
-    val color: Color,
-    val format: (Double) -> String,
-)
-
-private fun sleepMetricSpec(key: String): SleepMetricSpec = when (key) {
-    "performance"     -> SleepMetricSpec("Rest", "%", Palette.restColor) { "${it.roundToInt()}" }
-    "efficiency"      -> SleepMetricSpec("Sleep Efficiency", "%", Palette.statusPositive) { "${it.roundToInt()}" }
-    "consistency"     -> SleepMetricSpec("Consistency", "%", Palette.metricCyan) { "${it.roundToInt()}" }
-    "hours_vs_needed" -> SleepMetricSpec("Hours vs Needed", "%", Palette.restColor) { "${it.roundToInt()}" }
-    "restorative"     -> SleepMetricSpec("Restorative", "%", Palette.sleepREM) { "${it.roundToInt()}" }
-    "respiratory"     -> SleepMetricSpec("Respiratory Rate", "rpm", Palette.metricPurple) { String.format(Locale.US, "%.1f", it) }
-    "sleep_debt"      -> SleepMetricSpec("Sleep Debt", "min", Palette.metricRose) { "${it.roundToInt()}" }   // #691: minutes, not decimal hours
-    else              -> SleepMetricSpec(key, "", Palette.accent) { "${it.roundToInt()}" }
-}
-
-private fun buildSleepMetricPoints(days: List<DailyMetric>, key: String): List<Pair<String, Double>> {
-    val needMin = max(450.0, days.mapNotNull { it.totalSleepMin?.takeIf { m -> m > 0.0 } }.average().let { if (it.isNaN()) 480.0 else it })
-    return days.mapNotNull { d ->
-        val v: Double? = when (key) {
-            // The Rest detail graph reads the REAL resolved Rest composite per day — the same single
-            // source of truth the Today Rest score uses (RestScorer.restFromDaily, the composite the
-            // sleep_performance series carries) — not a local hours-vs-need approximation. Keeps the
-            // graph and the score in agreement. (#614 follow-up)
-            "performance" -> com.noop.analytics.RestScorer.restFromDaily(d)?.takeIf { it in 0.0..100.0 }
-            "efficiency"  -> d.efficiency?.let { if (it <= 1.0) it * 100.0 else it }
-            "consistency" -> {
-                val idx = days.indexOf(d)
-                val lo = max(0, idx - 13)
-                val window = days.subList(lo, idx + 1).mapNotNull { it.totalSleepMin?.takeIf { m -> m > 0.0 } }
-                if (window.size < 3) null else {
-                    val m = window.average()
-                    val sd = kotlin.math.sqrt(window.sumOf { (it - m) * (it - m) } / window.size)
-                    (100.0 * (1.0 - sd / 90.0)).coerceIn(0.0, 100.0)
-                }
-            }
-            "hours_vs_needed" -> d.totalSleepMin?.takeIf { it > 0.0 }?.let { minOf(100.0, it / needMin * 100.0) }
-            "restorative" -> {
-                val dp = d.deepMin ?: return@mapNotNull null
-                val rm = d.remMin ?: return@mapNotNull null
-                val sl = d.totalSleepMin ?: return@mapNotNull null
-                if (sl > 0.0) (dp + rm) / sl * 100.0 else null
-            }
-            "respiratory" -> d.respRateBpm
-            "sleep_debt"  -> d.totalSleepMin?.let { max(0.0, needMin - it) }   // #691: minutes (spec unit "min")
-            else          -> null
-        }
-        v?.takeIf { it.isFinite() }?.let { d.day to it }
-    }
-}
-
-private fun filterSleepMetricPoints(
-    points: List<Pair<String, Double>>,
-    range: SleepMetricRange,
-): List<Pair<String, Double>> {
-    val windowDays = range.days ?: return points
-    val latestDate = points.lastOrNull()?.first?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
-        ?: return points.takeLast(windowDays.toInt())
-    val cutoff = latestDate.minusDays(windowDays - 1)
-    val filtered = points.filter { (day, _) ->
-        runCatching { LocalDate.parse(day) }.getOrNull()?.let { !it.isBefore(cutoff) } ?: false
-    }
-    return filtered.ifEmpty { points.takeLast(windowDays.toInt()) }
-}
 
 @Composable
 private fun SleepMetricDetailSheetContent(vm: AppViewModel, key: String) {
