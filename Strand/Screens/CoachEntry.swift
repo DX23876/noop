@@ -2,8 +2,9 @@ import SwiftUI
 import StrandDesign
 
 /// How the user reaches the Coach from the home surface. The user picks in Coach settings; the Today
-/// card and the floating button honour it. Shared (not iOS-only) because the Today views that read it
-/// compile for macOS too — the floating button itself is only mounted on iOS (see `CoachFloatingButton`).
+/// header avatar (`.card`) and the floating button honour it. Shared (not iOS-only) because the Today
+/// views that read it compile for macOS too — the floating button itself is only mounted on iOS (see
+/// `CoachFloatingButton`).
 enum CoachEntryMode: String, CaseIterable, Identifiable {
     case card, button, both
 
@@ -11,20 +12,22 @@ enum CoachEntryMode: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .card:   return "Today card"
+        case .card:   return "Header"
         case .button: return "Floating button"
         case .both:   return "Both"
         }
     }
 
+    /// Named `showsCard` for history; since #R-header-coach the `.card` style is the Today **header
+    /// avatar**, not a full-width content card. The gate is unchanged — surfaces read this the same way.
     var showsCard: Bool { self == .card || self == .both }
     var showsButton: Bool { self == .button || self == .both }
 
     /// The shared UserDefaults key both the setting and the surfaces read.
     static let storageKey = "coach.entryMode"
 
-    /// Master switch for the Coach's home-surface UI (#R7 / list 14): when off, the Today card AND the
-    /// floating button are hidden regardless of `self`, while the chosen entry style is remembered for
+    /// Master switch for the Coach's home-surface UI (#R7 / list 14): when off, the Today header avatar AND
+    /// the floating button are hidden regardless of `self`, while the chosen entry style is remembered for
     /// when it's turned back on. Deliberately independent of `dataConsent` / `isConfigured` and of the
     /// card- and background-AI paths (`model(for:)`), which keep running — this hides only the coach's
     /// own entry points, not the AI features that don't depend on the chat.
@@ -38,7 +41,7 @@ enum CoachEntryMode: String, CaseIterable, Identifiable {
             : UserDefaults.standard.bool(forKey: uiEnabledKey)
     }
 
-    /// Show the current coach's avatar (rather than a generic sparkle) on the Today entry card (#R11).
+    /// Show the current coach's avatar (rather than a generic sparkle) on the Today header entry (#R11).
     /// Default on; turning it off restores the previous plain-icon look. Independent of `uiEnabled`.
     static let todayAvatarKey = "coach.todayAvatar"
 

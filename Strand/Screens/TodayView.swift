@@ -1111,8 +1111,32 @@ struct TodayView: View {
             // nothing only on a cold start. Owns its LiveState observation so a tick refreshes only it.
             SyncStatusChip()
 
-            // Uniform 36pt circular icon set: recording-status light, updates bell, quick-add (+), menu.
+            // Uniform 36pt circular icon set: coach avatar, recording-status light, updates bell, quick-add (+), menu.
             HStack(spacing: 8) {
+                // Coach entry (#R-header-coach): the standalone Today card was replaced by this header
+                // avatar so it stops claiming a full content row. Same gate as the old card
+                // (`coachUIEnabled && showsCard`) so the Coach-entry picker keeps governing it, and the
+                // same `todayAvatar` fallback to a plain sparkle. Leads the cluster, clearly apart from the
+                // profile avatar at the trailing end (which opens Settings, not Coach).
+                if coachUIEnabled, (CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both).showsCard {
+                    Button { showCoach = true } label: {
+                        Group {
+                            if todayAvatar {
+                                CoachAvatarView(size: 36)
+                            } else {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundStyle(StrandPalette.accent)
+                                    .frame(width: 36, height: 36)
+                                    .background(Circle().fill(StrandPalette.surfaceInset))
+                            }
+                        }
+                        .contentShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Ask your Coach")
+                    .accessibilityHint("Opens the AI coach chat, grounded in your own numbers.")
+                }
                 // Recording status, a colour-coded light (green recording / amber synced / red not
                 // recording), replacing the old full-width banner. Taps to Devices to connect. Its OWN
                 // subview observes LiveState so a ~1 Hz HR tick re-renders just this 36pt dot, not all of
@@ -1272,7 +1296,6 @@ struct TodayView: View {
                 // and opens the in-exercise screen. Its own leaf owns the AppModel observation + per-second
                 // clock, so the live tick never re-renders TodayView.body.
                 ActiveWorkoutIndicatorSection()
-                if coachUIEnabled, (CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both).showsCard { coachCard }
                 MorningSuggestionCard(showPlan: $showPlan)
                 PlanTodayCard(showPlan: $showPlan)
                 // The "still building" and "new here?" prompts are about getting today's scores going,
@@ -1447,37 +1470,6 @@ struct TodayView: View {
             withAnimation(StrandMotion.interactive) { restoreTodayCard(payload) }
             updateStore.restoreRequest = nil
         }
-    }
-
-    /// Prominent Coach entry on the classic Today, matching the liquid one: opens the full-screen chat
-    /// directly rather than leaving Coach buried under More.
-    private var coachCard: some View {
-        Button { showCoach = true } label: {
-            NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
-                HStack(spacing: 10) {
-                    if todayAvatar {
-                        CoachAvatarView(size: 68)
-                    } else {
-                        Image(systemName: "sparkles")
-                            .foregroundStyle(StrandPalette.accent)
-                            .accessibilityHidden(true)
-                    }
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("Ask your Coach")
-                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                        Text("Your data, in plain language")
-                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
-                    }
-                    Spacer(minLength: 8)
-                    Image(systemName: "chevron.right")
-                        .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.textTertiary)
-                        .accessibilityHidden(true)
-                }
-            }
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Ask your Coach. Opens the AI coach chat, grounded in your own numbers.")
     }
 
     /// Flip a Today info-card's dismissed flag back to false so it reappears (driven by the inbox's

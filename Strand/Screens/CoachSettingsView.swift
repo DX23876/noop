@@ -86,8 +86,8 @@ struct CoachSettingsView: View {
     @State private var memoryExpanded: Bool = false
     /// How the user reaches Coach from Today: the card, the draggable floating button, or both.
     @AppStorage(CoachEntryMode.storageKey) private var coachEntryModeRaw = CoachEntryMode.both.rawValue
-    /// Master switch for the Coach's home-surface UI (#R7). Off hides the Today card and floating button;
-    /// card- and background-AI, and the coach settings themselves, are untouched.
+    /// Master switch for the Coach's home-surface UI (#R7). Off hides the Today header avatar and floating
+    /// button; card- and background-AI, and the coach settings themselves, are untouched.
     @AppStorage(CoachEntryMode.uiEnabledKey) private var coachUIEnabled = true
     /// Show the coach's avatar on the Today entry (#R11); off restores the plain sparkle icon.
     @AppStorage(CoachEntryMode.todayAvatarKey) private var todayAvatar = true
@@ -719,7 +719,7 @@ struct CoachSettingsView: View {
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Coach entry")
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                        Text("How you open Coach from Today — a card, a draggable floating button, or both.")
+                        Text("How you open Coach from Today — a header avatar, a draggable floating button, or both.")
                             .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                             .fixedSize(horizontal: false, vertical: true)
                     }

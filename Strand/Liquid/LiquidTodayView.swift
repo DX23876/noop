@@ -256,7 +256,6 @@ struct LiquidTodayView: View {
                     // pinned above the reorderable block so an active manual workout is immediately visible
                     // and taps straight through to Live. Renders nothing when no workout is active.
                     ActiveWorkoutIndicatorSection()
-                    if coachUIEnabled, (CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both).showsCard { coachCard }
                     MorningSuggestionCard(showPlan: $showPlan)
                     PlanTodayCard(showPlan: $showPlan)
                     // #today-layout (parity with Android): every Today section — the Charge/Effort/Rest hero
@@ -451,6 +450,27 @@ struct LiquidTodayView: View {
                 }
                 Spacer(minLength: 8)
                 HStack(spacing: 8) {
+                    // Coach entry (#R-header-coach): replaces the old full-width Today card. Same gate as the
+                    // card (`coachUIEnabled && showsCard`) and the same `todayAvatar` sparkle fallback; leads
+                    // the cluster, apart from the profile avatar (which opens Settings, not Coach).
+                    if coachUIEnabled, (CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both).showsCard {
+                        Button { showCoach = true } label: {
+                            Group {
+                                if todayAvatar {
+                                    CoachAvatarView(size: 34).frame(width: 34, height: 34)
+                                } else {
+                                    Image(systemName: "sparkles")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundStyle(.white)
+                                        .frame(width: 34, height: 34)
+                                        .background(Circle().fill(.white.opacity(0.16)))
+                                }
+                            }
+                        }
+                        .buttonStyle(LiquidPressStyle())
+                        .accessibilityLabel("Ask your Coach")
+                        .accessibilityHint("Opens the AI coach chat.")
+                    }
                     // Profile pic (the one set in Settings) → opens Settings, matching the classic Today.
                     Button { showSettings = true } label: {
                         ProfileAvatarView(imageData: profile.avatarImageData, size: 34)
@@ -481,44 +501,6 @@ struct LiquidTodayView: View {
                 .padding(.top, 30)
                 .padding(.bottom, 10)
         }
-    }
-
-    /// Prominent Coach entry: opens the redesigned full-screen chat directly (no longer buried two levels
-    /// deep under More). Shares the hero card's translucent chrome so it reads as part of the sky scene.
-    private var coachCard: some View {
-        Button { showCoach = true } label: {
-            HStack(spacing: 10) {
-                if todayAvatar {
-                    CoachAvatarView(size: 68)
-                } else {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(StrandPalette.accent)
-                }
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Ask your Coach")
-                        .font(StrandFont.subhead)
-                        .foregroundStyle(StrandPalette.onDarkPrimary)
-                    Text("Your data, in plain language")
-                        .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.onDarkSecondary)
-                }
-                Spacer(minLength: 8)
-                Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(StrandPalette.onDarkTertiary)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 11)
-            .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(heroFill)
-                    .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .strokeBorder(.white.opacity(0.11), lineWidth: 1))
-                    .opacity(cardOpacity)
-            )
-        }
-        .buttonStyle(LiquidPressStyle())
-        .accessibilityLabel("Ask your Coach. Opens the AI coach chat, grounded in your own numbers.")
     }
 
     /// Consume `router.presentLiveSession`: opens the SAME cover the manual Start-session row does.
