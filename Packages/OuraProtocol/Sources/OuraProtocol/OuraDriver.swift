@@ -420,7 +420,17 @@ public final class OuraDriver {
         // Live-HR enable ACKs advance the triplet (s5.6): 0x21 is the dhr_read feature-read ACK from
         // step 1 (`2f 06 21 02 01 11 02 00`), 0x23 acks the enable write (step 2), 0x27 acks the
         // subscribe write (step 3). All three must be recognised or the sequencer stalls at step 0.
-        if frame.subop == 0x21 || frame.subop == 0x23 || frame.subop == 0x27 {
+        if frame.subop == 0x21 {
+            // A 0x21 is a feature-status read reply. The daytime-HR read (feature 0x02) is step 1 of the
+            // live-HR triplet and MUST advance it; a diagnostic read (SpO2 0x04 / real_steps 0x0b) instead
+            // surfaces the ring's own feature report so a capture can confirm the server-flag gate.
+            if let st = OuraDecoders.decodeFeatureStatus(frame.subBody),
+               st.feature != Int(OuraCommands.featureDaytimeHR) {
+                return .featureStatus(st)
+            }
+            return .enableAck
+        }
+        if frame.subop == 0x23 || frame.subop == 0x27 {
             return .enableAck
         }
         return .unhandled
@@ -432,6 +442,7 @@ public final class OuraDriver {
         case authStatus(OuraAuthStatus)
         case liveHRPush([UInt8])
         case enableAck
+        case featureStatus(OuraFeatureStatus)
         case unhandled
     }
 }

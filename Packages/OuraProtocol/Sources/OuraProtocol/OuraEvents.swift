@@ -119,6 +119,22 @@ public struct OuraState: Equatable, Sendable, Codable {
     }
 }
 
+/// A decoded feature-status read reply (the `0x2F` sub-op `0x21` response): the ring's own report of a
+/// feature's mode / status / state / subscription. Read-only diagnostic — used to confirm the server-flag
+/// gate on SpO2 (`0x04`) / real_steps (`0x0b`): a `subscription == 0` with no emitted records is the ring
+/// saying "the cloud has not enabled this", which NOOP cannot override offline. Never scored, never stored.
+public struct OuraFeatureStatus: Equatable, Sendable, Codable {
+    public let feature: Int
+    public let mode: Int
+    public let status: Int
+    public let state: Int
+    public let subscription: Int
+    public init(feature: Int, mode: Int, status: Int, state: Int, subscription: Int) {
+        self.feature = feature; self.mode = mode; self.status = status
+        self.state = state; self.subscription = subscription
+    }
+}
+
 /// A UTC anchor / time-sync event (OURA_PROTOCOL.md s6.11): epoch ms + timezone offset seconds.
 public struct OuraTimeSync: Equatable, Sendable, Codable {
     public let ringTimestamp: UInt32
