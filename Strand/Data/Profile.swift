@@ -142,6 +142,16 @@ final class ProfileStore: ObservableObject {
     /// Remove the profile photo (reverts the header / Settings to the default icon).
     func clearAvatar() { avatarImageData = nil }
 
+    /// One-time seed of the profile weight from an Apple Health reading, ONLY when the user has never set
+    /// a weight themselves. `weightKg`'s in-`init` default of 75 does NOT persist (a plain init assignment
+    /// skips `didSet`), so an absent `profile.weightKg` key is the clean "never set" signal — a manual edit
+    /// or a `.noopbak` restore both write it. Ignores unrealistic readings (<10 kg). The assignment persists
+    /// via `weightKg.didSet`, so the key then exists and this never overwrites the value again.
+    func seedWeightFromHealthIfUnset(kg: Double) {
+        guard kg > 10, d.object(forKey: K.weight) == nil else { return }
+        weightKg = kg
+    }
+
     /// The manual override to feed into `StepsEstimateEngine.calibrate(_:manualOverride:)`:
     /// nil when 0 (auto-fit), the positive value otherwise.
     var stepsManualOverride: Double? { stepsManualCoefficient > 0 ? stepsManualCoefficient : nil }
