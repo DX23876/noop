@@ -472,6 +472,43 @@ enum CoachTool: String, CaseIterable {
     var openAIFunctionSpec: [String: Any] {
         ["type": "function", "function": ["name": rawValue, "description": description, "parameters": inputSchema]]
     }
+    /// Gemini's `functionDeclarations` entry. Same name/description/schema as the other two, but the
+    /// schema is passed through `CoachTool.geminiSchema` first: Gemini validates against its own `Schema`
+    /// type, a SUBSET of JSON Schema, and rejects the whole request when it meets a keyword it doesn't
+    /// model — `minimum`/`maximum` appear in several of our schemas. A rejected request means no tools at
+    /// all, so the reduction is what makes tool-calling work here rather than a nicety.
+    var geminiFunctionSpec: [String: Any] {
+        ["name": rawValue, "description": description, "parameters": Self.geminiSchema(inputSchema)]
+    }
+
+    /// Recursively keep only the JSON-Schema keywords Gemini's `Schema` models. Everything else is
+    /// dropped rather than translated: a bound like `minimum` is advisory here — the tool's own dispatch
+    /// clamps its inputs anyway (`intArg`, the `limit`/`days` defaults), so losing it costs nothing,
+    /// whereas sending it costs the entire tool list.
+    static func geminiSchema(_ schema: [String: Any]) -> [String: Any] {
+        let supported: Set<String> = ["type", "description", "properties", "required", "items",
+                                      "enum", "format", "nullable"]
+        var out: [String: Any] = [:]
+        for (key, value) in schema where supported.contains(key) {
+            switch value {
+            case let nested as [String: Any]:
+                // `properties` is a map of name → schema; `items` is a schema. Both recurse, and for
+                // `properties` each VALUE is itself a schema, so the recursion has to go one level in.
+                if key == "properties" {
+                    var props: [String: Any] = [:]
+                    for (name, sub) in nested {
+                        props[name] = (sub as? [String: Any]).map { geminiSchema($0) } ?? sub
+                    }
+                    out[key] = props
+                } else {
+                    out[key] = geminiSchema(nested)
+                }
+            default:
+                out[key] = value
+            }
+        }
+        return out
+    }
 }
 
 // MARK: - Provider capability

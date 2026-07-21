@@ -83,14 +83,35 @@ final class ToolCallingActiveGatingTests: XCTestCase {
         XCTAssertFalse(engine.toolCallingActive, "a stale capability set must not cover a model it never named")
     }
 
-    func testGeminiAndCustomNeverGoThroughTheToolPathAtAll() {
+    /// Custom is now the ONLY provider that never reaches the tool path. That exclusion is deliberate
+    /// and stays: tool support on a local server depends on both the server and the model, and many
+    /// local models fail silently or return malformed JSON instead of a clean error.
+    func testCustomNeverGoesThroughTheToolPathAtAll() {
         let engine = makeEngine()
         engine.dataConsent = true
-
-        engine.provider = .gemini
-        XCTAssertFalse(engine.toolCallingActive, "Gemini deliberately has no ToolCallingClient conformance")
-
         engine.provider = .custom
-        XCTAssertFalse(engine.toolCallingActive, "Custom deliberately has no ToolCallingClient conformance")
+
+        XCTAssertFalse(engine.toolCallingActive,
+                       "Custom deliberately has no ToolCallingClient conformance")
+    }
+
+    /// Gemini used to be excluded alongside Custom — for cost of implementation ("own wire format, a
+    /// second test surface"), not because its models can't call functions. Now that `GeminiTools.swift`
+    /// exists it takes the tool path like any other capable provider.
+    func testGeminiNowReachesTheToolPath() {
+        let engine = makeEngine()
+        engine.dataConsent = true
+        engine.provider = .gemini
+
+        XCTAssertTrue(engine.toolCallingActive)
+    }
+
+    /// …but consent still gates it, exactly as for every other provider.
+    func testGeminiStillNeedsDataConsent() {
+        let engine = makeEngine()
+        engine.provider = .gemini
+        engine.dataConsent = false
+
+        XCTAssertFalse(engine.toolCallingActive)
     }
 }

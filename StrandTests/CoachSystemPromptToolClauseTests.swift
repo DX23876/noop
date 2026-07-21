@@ -28,12 +28,15 @@ final class CoachSystemPromptToolClauseTests: XCTestCase {
 
     // MARK: - No tools → no promise
 
-    /// Gemini deliberately has no ToolCallingClient conformance, so `tools:` is always `[]` for it.
+    /// Custom deliberately has no ToolCallingClient conformance, so `tools:` is always `[]` for it —
+    /// tool support on a local server depends on both the server and the model, and many local models
+    /// fail silently or emit malformed JSON rather than a clean error. (Gemini filled this role until
+    /// it gained tools; Custom is now the only provider that genuinely cannot run them.)
     func testProposePlanIsNeverPromisedWhenToolCallingIsOff() {
         let engine = makeEngine()
-        engine.provider = .gemini
+        engine.provider = .custom
         engine.dataConsent = true
-        XCTAssertFalse(engine.toolCallingActive, "premise: Gemini cannot run tools")
+        XCTAssertFalse(engine.toolCallingActive, "premise: Custom cannot run tools")
         XCTAssertFalse(engine.systemPrompt.contains("propose_plan"),
                        "the model must not be told to call a tool it was never handed")
     }
@@ -41,7 +44,7 @@ final class CoachSystemPromptToolClauseTests: XCTestCase {
     /// The sentence that actually stops the reported bug: the coach claiming it noted something.
     func testTheNoToolClauseForbidsClaimingSomethingWasRecorded() {
         let engine = makeEngine()
-        engine.provider = .gemini
+        engine.provider = .custom
         engine.dataConsent = true
         XCTAssertTrue(engine.systemPrompt.contains("Never claim you've noted"))
     }
@@ -85,7 +88,7 @@ final class CoachSystemPromptToolClauseTests: XCTestCase {
 
     func testACustomSystemPromptCannotAcquireThePromiseWithoutTools() {
         let engine = makeEngine()
-        engine.provider = .gemini
+        engine.provider = .custom
         engine.dataConsent = true
         engine.customSystemPrompt = "Be brief."
         XCTAssertFalse(engine.systemPrompt.contains("propose_plan"))
@@ -119,7 +122,7 @@ final class CoachSystemPromptToolClauseTests: XCTestCase {
 
     func testToolModeClauseIsAbsentWhenToolCallingIsOff() {
         let engine = makeEngine()
-        engine.provider = .gemini
+        engine.provider = .custom
         engine.dataConsent = true
         XCTAssertFalse(engine.toolCallingActive)
         XCTAssertFalse(engine.systemPrompt.contains(AICoachEngine.toolModeClause))
@@ -155,7 +158,7 @@ final class CoachSystemPromptToolClauseTests: XCTestCase {
 
     func testCitationClauseIsPresentWithoutTools() {
         let engine = makeEngine()
-        engine.provider = .gemini
+        engine.provider = .custom
         engine.dataConsent = true
         XCTAssertFalse(engine.toolCallingActive)
         XCTAssertTrue(engine.systemPrompt.contains(AICoachEngine.citationClause),
@@ -182,7 +185,7 @@ final class CoachSystemPromptToolClauseTests: XCTestCase {
         XCTAssertTrue(withTools.systemPrompt.contains(AICoachEngine.voiceClause))
 
         let withoutTools = makeEngine()
-        withoutTools.provider = .gemini; withoutTools.dataConsent = true
+        withoutTools.provider = .custom; withoutTools.dataConsent = true
         XCTAssertFalse(withoutTools.toolCallingActive)
         XCTAssertTrue(withoutTools.systemPrompt.contains(AICoachEngine.voiceClause))
     }
@@ -218,7 +221,7 @@ final class CoachSystemPromptToolClauseTests: XCTestCase {
         XCTAssertTrue(withTools.systemPrompt.contains(AICoachEngine.emojiOffClause))
 
         let withoutTools = makeEngine()
-        withoutTools.provider = .gemini; withoutTools.dataConsent = true
+        withoutTools.provider = .custom; withoutTools.dataConsent = true
         XCTAssertTrue(withoutTools.systemPrompt.contains(AICoachEngine.emojiOffClause))
     }
 
