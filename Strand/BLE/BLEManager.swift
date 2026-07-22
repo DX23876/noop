@@ -473,6 +473,10 @@ public final class BLEManager: NSObject, ObservableObject {
     public let state: LiveState
     private let router: FrameRouter
     private var collector: Collector?
+    /// #716: stored on bootstrap so the scan callback can fix the seeded "WHOOP" model label.
+    private var registryStore: DeviceRegistryStore?
+    /// #716: true once the seeded "WHOOP" model has been stamped to the correct family.
+    private var modelStamped = false
 
     // MARK: Upload / server sync — REMOVED for Strand (standalone, fully on-device).
 
@@ -885,7 +889,9 @@ public final class BLEManager: NSObject, ObservableObject {
         // Guarded + best-effort: if the registry is empty/unreadable, deviceId stays as it was, so no
         // crash and no behaviour change. registryWriter is nonisolated/Sendable (the Pool manages
         // its own concurrency).
-        if let activeId = try? DeviceRegistryStore(dbQueue: store.registryWriter).activeDeviceId(),
+        let registry = DeviceRegistryStore(dbQueue: store.registryWriter)
+        self.registryStore = registry
+        if let activeId = try? registry.activeDeviceId(),
            !activeId.isEmpty {
             self.deviceId = activeId
         }
@@ -3178,6 +3184,16 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
                                advertisementData: [String: Any],
                                rssi RSSI: NSNumber) {
         let name = (advertisementData[CBAdvertisementDataLocalNameKey] as? String) ?? peripheral.name ?? "unknown"
+        // #716: the seeded "my-whoop" device has model "WHOOP" (no generation). Once a live scan
+        // confirms which service family the strap advertises, stamp the correct model so
+        // forRegistryModel returns the right DeviceFamily (fixes skin-temp ADC scale + display).
+        if !modelStamped, let rs = registryStore,
+           let stale = try? rs.all().first(where: { $0.status == .active && $0.model == "WHOOP" }) {
+            let correct = selectedModel == .whoop4 ? "WHOOP 4.0" : "WHOOP 5.0 / MG"
+            try? rs.setModel(stale.id, model: correct)
+            log("Updated device model from \"WHOOP\" to \"\(correct)\" (#716)")
+            modelStamped = true
+        }
         let advertisedServiceUUIDs = (advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID] ?? [])
             .map { $0.uuidString.lowercased() }
         let scanDecision = whoopGattScanDecision(

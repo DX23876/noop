@@ -102,4 +102,10 @@ final class DeviceRegistry: ObservableObject {
     func device(forPeripheralId peripheralId: String) -> PairedDevice? {
         (try? store.device(forPeripheralId: peripheralId)) ?? nil
     }
+
+    /// Update the model label for a device and refresh the published list. Best-effort.
+    func setModel(_ id: String, model: String) {
+        try? store.setModel(id, model: model)
+        reload()
+    }
 }

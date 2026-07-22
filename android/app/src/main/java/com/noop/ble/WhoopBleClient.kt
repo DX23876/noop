@@ -1684,6 +1684,8 @@ class WhoopBleClient(
     /// The strap family the user chose to pair, remembered so an auto-reconnect after a
     /// dropout re-scans for the same model instead of falling back to WHOOP 4.0.
     private var selectedModel = WhoopModel.WHOOP4
+    /** #716: true once the seeded "WHOOP" model has been stamped to the correct family. */
+    private var modelStamped = false
     /// The last device we connected to, kept so an auto-reconnect after a dropout can connect
     /// DIRECTLY to it (autoConnect=true) instead of scanning. A bonded strap the OS still holds (or
     /// that simply isn't advertising) won't appear in a scan — so the old scan-only reconnect looped
@@ -3259,6 +3261,22 @@ class WhoopBleClient(
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             val device: BluetoothDevice = result.device
             val name = result.scanRecord?.deviceName ?: device.name ?: "unknown"
+            // #716: the seeded "my-whoop" device has model "WHOOP" (no generation). Once a live
+            // scan confirms which service family the strap advertises, stamp the correct model so
+            // forRegistryModel returns the right DeviceFamily (fixes skin-temp ADC scale + display).
+            if (!modelStamped) {
+                modelStamped = true
+                ioScope.launch {
+                    val stale = repository.pairedDevices().firstOrNull {
+                        it.status == "active" && it.model == "WHOOP"
+                    }
+                    if (stale != null) {
+                        val correct = if (selectedModel == WhoopModel.WHOOP4) "WHOOP 4.0" else "WHOOP 5.0 / MG"
+                        repository.setDeviceModel(stale.id, correct)
+                        log("Updated device model from \"WHOOP\" to \"$correct\" (#716)")
+                    }
+                }
+            }
             val advertisedServiceUuids = result.scanRecord?.serviceUuids
                 ?.map { it.uuid.toString().lowercase() }
                 .orEmpty()
