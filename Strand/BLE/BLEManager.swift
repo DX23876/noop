@@ -2719,8 +2719,10 @@ public final class BLEManager: NSObject, ObservableObject {
         configureCollectorFamily()
         central.stopScan()
         log("Scanning for \(model.displayName)…")
+        let diagnosticServices = [model.scanService] + WhoopGattServiceFamily.unsupportedServiceUUIDStrings
+            .map { CBUUID(string: $0) }
         central.scanForPeripherals(
-            withServices: [model.scanService],
+            withServices: diagnosticServices,
             options: [CBCentralManagerScanOptionAllowDuplicatesKey: false]
         )
         guard allowFallback else { return }
@@ -3176,6 +3178,20 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
                                advertisementData: [String: Any],
                                rssi RSSI: NSNumber) {
         let name = (advertisementData[CBAdvertisementDataLocalNameKey] as? String) ?? peripheral.name ?? "unknown"
+        let advertisedServiceUUIDs = (advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID] ?? [])
+            .map { $0.uuidString.lowercased() }
+        let scanDecision = whoopGattScanDecision(
+            selectedServiceUUIDString: selectedModel.scanService.uuidString,
+            advertisedServiceUUIDStrings: advertisedServiceUUIDs
+        )
+        if !scanDecision.shouldConnect {
+            if let family = scanDecision.unsupportedFamily {
+                log("Discovered \(name) (rssi \(RSSI)) — \(family.diagnosticUnsupportedMessage)")
+                return
+            }
+            log("Discovered \(name) (rssi \(RSSI)) without \(selectedModel.displayName) service — ignoring")
+            return
+        }
         // Multi-WHOOP present-scan (Add-a-WHOOP wizard): collect the strap, do NOT auto-connect, and
         // return before touching the connect flow. Only reachable when the wizard explicitly turned on
         // `isPresentingScan` via scanForWhoops(); on the default path (false) this branch is skipped
