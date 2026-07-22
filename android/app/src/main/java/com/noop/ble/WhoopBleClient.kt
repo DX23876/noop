@@ -3265,6 +3265,7 @@ class WhoopBleClient(
             // scan confirms which service family the strap advertises, stamp the correct model so
             // forRegistryModel returns the right DeviceFamily (fixes skin-temp ADC scale + display).
             if (!modelStamped) {
+                modelStamped = true
                 ioScope.launch {
                     val stale = repository.pairedDevices().firstOrNull {
                         it.status == "active" && it.model == "WHOOP"
@@ -3274,7 +3275,6 @@ class WhoopBleClient(
                         repository.setDeviceModel(stale.id, correct)
                         log("Updated device model from \"WHOOP\" to \"$correct\" (#716)")
                     }
-                    modelStamped = true
                 }
             }
             val advertisedServiceUuids = result.scanRecord?.serviceUuids
