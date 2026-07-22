@@ -33,6 +33,9 @@ struct CoachChartArtifact {
 struct CoachChartBubble: View {
     let artifact: CoachChartArtifact
     @State private var showDetail = false
+    /// Ties the inline chart to its full-screen version so the detail grows out of the bubble the user
+    /// tapped (iOS 18+), instead of a sheet sliding up from an unrelated edge.
+    @Namespace private var zoom
 
     var body: some View {
         HStack {
@@ -60,11 +63,15 @@ struct CoachChartBubble: View {
                 .frame(maxWidth: 560, alignment: .leading)
             }
             .buttonStyle(.plain)
+            .coachZoomSource(id: "coach.chart.\(artifact.title)", namespace: zoom)
             Spacer(minLength: 48)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Coach chart: \(artifact.title). Tap to enlarge.")
-        .sheet(isPresented: $showDetail) { CoachChartDetail(artifact: artifact) }
+        .sheet(isPresented: $showDetail) {
+            CoachChartDetail(artifact: artifact)
+                .coachZoomDestination(id: "coach.chart.\(artifact.title)", namespace: zoom)
+        }
     }
 }
 

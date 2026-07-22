@@ -417,3 +417,154 @@ extension View {
         #endif
     }
 }
+
+// MARK: - Availability shims for the expressive SwiftUI effects
+//
+// The app ships iOS 17.0 / macOS 13.0, so every "modern" effect below needs a gate — and on macOS the
+// bar is one release HIGHER than the iOS equivalent (scrollTransition et al are iOS 17 / macOS 14).
+// Wrapping each one here keeps the call sites (the coach chat, mainly) readable instead of drowning them
+// in `if #available` ladders, and puts the fallback decision in ONE place per effect.
+//
+// Every one of these is a no-op when the effect isn't available: the view renders, it just doesn't move.
+
+extension View {
+    /// Fade + settle a row as it scrolls into view. `active: false` (Reduce Motion) skips it entirely —
+    /// this is self-starting movement tied to scrolling, exactly what that setting turns off.
+    @ViewBuilder func liquidScrollFade(active: Bool = true) -> some View {
+        if #available(iOS 17.0, macOS 14.0, *), active {
+            self.scrollTransition { content, phase in
+                content
+                    .opacity(phase.isIdentity ? 1 : 0)
+                    .scaleEffect(phase.isIdentity ? 1 : 0.96)
+                    .offset(y: phase.isIdentity ? 0 : 8)
+            }
+        } else {
+            self
+        }
+    }
+
+    /// Keep a scroll view pinned to its bottom edge — the natural resting place for a transcript.
+    @ViewBuilder func liquidBottomAnchored() -> some View {
+        if #available(iOS 17.0, macOS 14.0, *) {
+            self.defaultScrollAnchor(.bottom)
+        } else {
+            self
+        }
+    }
+
+    /// Let a downward drag dismiss the keyboard, the way every messenger does. iOS-only: macOS has no
+    /// software keyboard to dismiss.
+    @ViewBuilder func liquidInteractiveKeyboardDismiss() -> some View {
+        #if os(iOS)
+        self.scrollDismissesKeyboard(.interactively)
+        #else
+        self
+        #endif
+    }
+
+    /// Apple Intelligence Writing Tools in a text field (iOS 18+). Free capability once declared; a no-op
+    /// everywhere else.
+    @ViewBuilder func liquidWritingTools() -> some View {
+        #if os(iOS)
+        if #available(iOS 18.0, *) {
+            self.writingToolsBehavior(.complete)
+        } else {
+            self
+        }
+        #else
+        self
+        #endif
+    }
+
+    /// Soften the top scroll edge under a floating glass bar (iOS 26), so content dissolves beneath the bar
+    /// instead of colliding with it. Below 26 the bar's own material is the separator.
+    @ViewBuilder func liquidSoftTopEdge() -> some View {
+        #if os(iOS)
+        if #available(iOS 26.0, *) {
+            self.scrollEdgeEffectStyle(.soft, for: .top)
+        } else {
+            self
+        }
+        #else
+        self
+        #endif
+    }
+}
+
+// MARK: - Zoom transitions (iOS 18+)
+
+extension View {
+    /// Mark this view as the visual SOURCE of a zoom presentation — the presented sheet appears to grow out
+    /// of it rather than sliding up from nowhere. Paired with `coachZoomDestination`. A no-op below iOS 18
+    /// and on macOS, where the standard presentation is already the platform-correct one.
+    @ViewBuilder func coachZoomSource(id: String, namespace: Namespace.ID) -> some View {
+        #if os(iOS)
+        if #available(iOS 18.0, *) {
+            self.matchedTransitionSource(id: id, in: namespace)
+        } else {
+            self
+        }
+        #else
+        self
+        #endif
+    }
+
+    /// Present this sheet as a zoom out of the matching source.
+    @ViewBuilder func coachZoomDestination(id: String, namespace: Namespace.ID) -> some View {
+        #if os(iOS)
+        if #available(iOS 18.0, *) {
+            self.navigationTransition(.zoom(sourceID: id, in: namespace))
+        } else {
+            self
+        }
+        #else
+        self
+        #endif
+    }
+}
+
+// MARK: - Flow layout
+
+/// Lays subviews out in rows, wrapping to the next line when the current one runs out of width — the
+/// "chip cloud" a horizontal `ScrollView` can only fake by hiding half its contents off-screen. Plain
+/// `Layout` (iOS 16 / macOS 13), so it needs no availability gate and sizes correctly under Dynamic Type,
+/// which is exactly where a fixed-column grid of variable-length chips falls apart.
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var rowWidth: CGFloat = 0, rowHeight: CGFloat = 0
+        var total = CGSize(width: 0, height: 0)
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if rowWidth > 0, rowWidth + spacing + size.width > maxWidth {
+                total.width = max(total.width, rowWidth)
+                total.height += rowHeight + spacing
+                rowWidth = size.width
+                rowHeight = size.height
+            } else {
+                rowWidth += (rowWidth > 0 ? spacing : 0) + size.width
+                rowHeight = max(rowHeight, size.height)
+            }
+        }
+        total.width = max(total.width, rowWidth)
+        total.height += rowHeight
+        return total
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX, y = bounds.minY, rowHeight: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > bounds.minX, x + size.width > bounds.maxX {
+                x = bounds.minX
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            subview.place(at: CGPoint(x: x, y: y), anchor: .topLeading, proposal: ProposedViewSize(size))
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+    }
+}

@@ -50,10 +50,13 @@ struct CoachView: View {
     /// named constant instead of a magic number repeated at every call site, since the gutter spacer
     /// (`assistantGutter`) and the evidence/actionRow indent below a reply both have to match it exactly.
     private static let assistantAvatarSize: CGFloat = 36
-    /// The coach's avatar diameter in the chat header — much bigger than the in-bubble avatar and
-    /// centered, so the coach has a clear face at the top of the screen rather than a small disc
-    /// squeezed between two button clusters.
-    private static let headerAvatarSize: CGFloat = 64
+    /// The coach's avatar diameter in the chat header. Conversation-scale, beside the title: the previous
+    /// 64pt centred portrait cost roughly 90pt of transcript before the first message could show.
+    private static let headerAvatarSize: CGFloat = 34
+    /// Drives the header avatar's breathing while a reply streams (see `header`).
+    @State private var breathing = false
+    /// Source/target namespace for the zoom transitions (avatar → settings).
+    @Namespace private var zoomNamespace
     /// Vertical gap before a NEW turn (a role switch, or the first message) — bigger, so a fresh reply or
     /// question reads as its own moment (#R-chat-tidy). Also used before the typing indicator/error banner,
     /// which are themselves always the start of a new turn.
@@ -96,8 +99,9 @@ struct CoachView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // No divider under the header any more: it floats as a glass bar, and its own material is the
+            // separation (plus the soft scroll edge on iOS 26).
             header
-            Divider().overlay(StrandPalette.hairline)
             if coach.isConfigured {
                 chatBody
             } else {
@@ -111,7 +115,11 @@ struct CoachView: View {
         }
         .sheet(item: $activeSheet) { which in
             switch which {
-            case .settings: CoachSettingsView().environmentObject(coach)
+            case .settings:
+                CoachSettingsView()
+                    .environmentObject(coach)
+                    // Grows out of the header avatar that opened it (iOS 18+).
+                    .coachZoomDestination(id: "coach.avatar", namespace: zoomNamespace)
             case .history:  CoachHistoryView(onPick: { activeSheet = nil }).environmentObject(coach)
             case .plan:     CoachPlanView().environmentObject(coach)
             case .goal:
@@ -205,97 +213,112 @@ struct CoachView: View {
 
     // MARK: - Header
 
+    /// The chat's title: a named conversation wins, else the coach's own name.
+    private var headerTitle: String {
+        coach.activeConversation?.title.isEmpty == false
+            ? coach.activeConversation!.title
+            : identityStore.identity.name
+    }
+
+    /// One compact glass row instead of a button bar stacked over a 64pt centred avatar. The old header
+    /// spent ~90pt of a phone screen before the first message; the coach still has a face here, just at
+    /// conversation scale. Five icons plus a title don't fit a 375pt row, so only the two LIVE controls
+    /// (the plan book with its pending dot, and New chat) stay inline — history, goal and settings move
+    /// into the overflow menu, which is where iOS users look for them anyway.
     private var header: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 12) {
-                Button { activeSheet = .history } label: {
-                    Image(systemName: "clock.arrow.circlepath")
-                        .font(StrandFont.headline)
-                        .foregroundStyle(StrandPalette.textSecondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Conversation history")
-
-                Spacer(minLength: 0)
-
-                HStack(spacing: 14) {
-                    // The plan book. The dot means something is waiting for YOUR answer — the coach can
-                    // propose, but only you can turn a suggestion into a plan.
-                    // Goal & Journey shortcut (#R6) — one tap to the goal surface from the chat, alongside
-                    // the plan book, instead of digging through settings.
-                    Button { activeSheet = .goal } label: {
-                        Image(systemName: "target")
-                            .font(StrandFont.headline)
-                            .foregroundStyle(StrandPalette.textSecondary)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Goal and journey")
-
-                    Button { activeSheet = .plan } label: {
-                        Image(systemName: "calendar")
-                            .font(StrandFont.headline)
-                            .foregroundStyle(planStore.pending.isEmpty
-                                             ? StrandPalette.textSecondary : StrandPalette.accent)
-                            .overlay(alignment: .topTrailing) {
-                                if !planStore.pending.isEmpty {
-                                    Circle().fill(StrandPalette.accent)
-                                        .frame(width: 6, height: 6)
-                                        .offset(x: 3, y: -2)
-                                }
-                            }
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(planStore.pending.isEmpty
-                                        ? "Your plan"
-                                        : "Your plan, \(planStore.pending.count) waiting for your decision")
-
-                    Button { coach.newConversation() } label: {
-                        Image(systemName: "square.and.pencil")
-                            .font(StrandFont.headline)
-                            .foregroundStyle(StrandPalette.textSecondary)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(coach.sending || coach.messages.isEmpty)
-                    .accessibilityLabel("New chat")
-
-                    Button { activeSheet = .settings } label: {
-                        Image(systemName: "gearshape")
-                            .font(StrandFont.headline)
-                            .foregroundStyle(StrandPalette.textSecondary)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Coach settings")
-                }
-            }
-
-            // The coach's IDENTITY (#R9): its chosen avatar (a design-system mark or the user's photo) +
-            // its name, centered and large so the chat has a clear face and self — Svea, Marv, or a
-            // custom coach — not a small disc squeezed between the button clusters above. A named
-            // conversation takes the title slot; the avatar stays either way. (The behavioural STYLE
-            // lives on `coach.persona`, a separate axis.)
-            VStack(spacing: 6) {
+        HStack(spacing: 10) {
+            Button { activeSheet = .settings } label: {
                 CoachAvatarView(size: Self.headerAvatarSize)
-                Text(coach.activeConversation?.title.isEmpty == false
-                     ? coach.activeConversation!.title
-                     : identityStore.identity.name)
+                    // Presence while a reply is being written: the avatar breathes instead of the header
+                    // growing a "Thinking…" line that shifts the whole transcript down. Reduce Motion holds
+                    // it still — this is self-starting, repeating movement.
+                    .scaleEffect(breathing && !reduceMotion ? 1.06 : 1)
+                    .animation(reduceMotion ? nil
+                               : .easeInOut(duration: 1.1).repeatForever(autoreverses: true),
+                               value: breathing)
+                    .coachZoomSource(id: "coach.avatar", namespace: zoomNamespace)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Coach settings")
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(headerTitle)
                     .font(StrandFont.headline)
                     .foregroundStyle(StrandPalette.textPrimary)
                     .lineLimit(1)
-                if coach.sending {
-                    Text("Thinking…")
-                        .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.accent)
-                }
+                    .minimumScaleFactor(0.8)
+                // Fixed-height subtitle slot: "Thinking…" swaps in for the persona line rather than
+                // appearing, so the header never changes height mid-reply.
+                Text(coach.sending ? String(localized: "Thinking…") : identityStore.identity.name)
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(coach.sending ? StrandPalette.accent : StrandPalette.textTertiary)
+                    .lineLimit(1)
+                    .contentTransition(.opacity)
             }
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityElement(children: .combine)
             .accessibilityLabel(coach.activeConversation?.title.isEmpty == false
                                  ? coach.activeConversation!.title
                                  : String(localized: "\(identityStore.identity.name), your coach"))
+
+            // The plan book. The dot means something is waiting for YOUR answer — the coach can propose,
+            // but only you can turn a suggestion into a plan.
+            Button { activeSheet = .plan } label: {
+                Image(systemName: "calendar")
+                    .font(StrandFont.headline)
+                    .foregroundStyle(planStore.pending.isEmpty
+                                     ? StrandPalette.textSecondary : StrandPalette.accent)
+                    .overlay(alignment: .topTrailing) {
+                        if !planStore.pending.isEmpty {
+                            Circle().fill(StrandPalette.accent)
+                                .frame(width: 6, height: 6)
+                                .offset(x: 3, y: -2)
+                        }
+                    }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(planStore.pending.isEmpty
+                                ? "Your plan"
+                                : "Your plan, \(planStore.pending.count) waiting for your decision")
+
+            Button { coach.newConversation() } label: {
+                Image(systemName: "square.and.pencil")
+                    .font(StrandFont.headline)
+                    .foregroundStyle(StrandPalette.textSecondary)
+            }
+            .buttonStyle(.plain)
+            .disabled(coach.sending || coach.messages.isEmpty)
+            .accessibilityLabel("New chat")
+
+            Menu {
+                Button { activeSheet = .history } label: {
+                    Label("Conversation history", systemImage: "clock.arrow.circlepath")
+                }
+                Button { activeSheet = .goal } label: {
+                    Label("Goal and journey", systemImage: "target")
+                }
+                Button { activeSheet = .settings } label: {
+                    Label("Coach settings", systemImage: "gearshape")
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .font(StrandFont.headline)
+                    .foregroundStyle(StrandPalette.textSecondary)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .accessibilityLabel("More")
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
-        .padding(.bottom, 8)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .liquidGlass(in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous)
+            .strokeBorder(StrandPalette.hairline, lineWidth: 1))
+        .padding(.horizontal, 12)
+        .padding(.top, 6)
+        .padding(.bottom, 6)
+        // Drive the breathing avatar off the send state, once per state change (not per token).
+        .onChangeCompat(of: coach.sending) { sending in breathing = sending }
     }
 
     // MARK: - Chat body (connected)
@@ -314,9 +337,16 @@ struct CoachView: View {
                         bubble(message, groupStart: isAssistantGroupStart(at: index))
                             .id(message.id)
                             .padding(.top, topGap(at: index))
+                            // Settle into place on scroll, and arrive from below when sent/received —
+                            // both skipped under Reduce Motion.
+                            .liquidScrollFade(active: !reduceMotion)
+                            .transition(reduceMotion
+                                        ? .opacity
+                                        : .move(edge: .bottom).combined(with: .opacity))
                     }
                     if coach.sending {
                         typingIndicator.id("typing").padding(.top, Self.groupGap)
+                            .transition(.opacity)
                     }
                     if let error = coach.errorText, !error.isEmpty {
                         errorBanner(error).id("error").padding(.top, Self.groupGap)
@@ -332,35 +362,60 @@ struct CoachView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                // The insert/remove transitions above only play if the COUNT change itself is animated —
+                // the engine publishes `messages` outside any `withAnimation`, so the animation has to be
+                // declared here rather than wrapped around the scroll call.
+                .animation(reduceMotion ? nil : .spring(response: 0.42, dampingFraction: 0.84),
+                           value: coach.messages.count)
             }
+            // A transcript belongs at its bottom edge, and a downward drag should put the keyboard away —
+            // both are what every messenger does, and both were missing.
+            .liquidBottomAnchored()
+            .liquidInteractiveKeyboardDismiss()
+            .liquidSoftTopEdge()
             .onChangeCompat(of: coach.messages.count) { _ in scrollToEnd(proxy) }
             .onChangeCompat(of: coach.sending) { sending in
                 scrollToEnd(proxy)
                 // Announce completion (not every token) so a VoiceOver user knows a reply landed —
                 // a streamed reply otherwise gives no signal beyond the initial "Coach is thinking".
-                if !sending, coach.errorText == nil { announceReplyComplete() }
+                if !sending, coach.errorText == nil {
+                    announceReplyComplete()
+                    // The reply is the moment worth feeling: one tap when the coach finishes writing.
+                    StrandHaptic.commit.play()
+                }
             }
             // Keep pinned to the bottom as a streamed reply grows token-by-token.
             .onChangeCompat(of: coach.messages.last?.text.count ?? 0) { _ in scrollToEnd(proxy) }
             // A failed send must scroll into view even if the transcript's message COUNT didn't change
             // (the failed turn's placeholder is removed, not appended) — otherwise the error can sit
             // scrolled off-screen after a long prior reply.
-            .onChangeCompat(of: coach.errorText) { _ in scrollToEnd(proxy) }
+            .onChangeCompat(of: coach.errorText) { text in
+                scrollToEnd(proxy)
+                if let text, !text.isEmpty { StrandHaptic.warning.play() }
+            }
         }
     }
 
+    /// A new chat introduces the coach instead of opening on a bare heading — the big avatar is the one
+    /// place the identity still gets a proper portrait now that the header runs compact.
     private var emptyState: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Ask your first question")
-                .font(StrandFont.headline)
+        VStack(spacing: 10) {
+            CoachAvatarView(size: 76)
+                .padding(.bottom, 2)
+            Text("Hi, I'm \(identityStore.identity.name)")
+                .font(StrandFont.title2)
                 .foregroundStyle(StrandPalette.textPrimary)
             Text("Coach reads a summary of your last two weeks plus 30-day averages and recent workouts, then answers in plain language. Try a suggestion below.")
                 .font(StrandFont.subhead)
                 .foregroundStyle(StrandPalette.textSecondary)
+                .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 8)
         }
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-        .padding(.bottom, 4)
+        .frame(maxWidth: .infinity)
+        .padding(.top, 24)
+        .padding(.bottom, 10)
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Not connected (no key yet)
@@ -432,10 +487,18 @@ struct CoachView: View {
                     .multilineTextAlignment(.leading)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
-                    .background(StrandPalette.accent, in: RoundedRectangle(cornerRadius: CoachRadius.bubble, style: .continuous))
+                    // A tail-side corner pulled tight (and a soft gradient instead of a flat fill) is what
+                    // makes a rectangle read as a spoken turn rather than as a table cell.
+                    .background(
+                        LinearGradient(colors: [StrandPalette.accent,
+                                                StrandPalette.accent.opacity(0.86)],
+                                       startPoint: .top, endPoint: .bottom),
+                        in: CoachBubbleShape(side: .user)
+                    )
                     .frame(maxWidth: 520, alignment: .trailing)
                     .contextMenu {
                         copyButton(message.text)
+                        shareButton(message.text)
                         // Only the LAST question can be reclaimed: editing one from the middle would
                         // silently discard every exchange after it, which is a bigger thing than the
                         // menu item implies.
@@ -465,16 +528,31 @@ struct CoachView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .top, spacing: 8) {
                         assistantGutter(groupStart: groupStart)
-                        Markdown(message.text)
-                            .markdownTheme(.strand)
-                            .textSelection(.enabled)
+                        Group {
+                            // While the reply is still arriving it renders as plain `Text` so the
+                            // word-by-word settle can run (a TextRenderer can't attach to MarkdownUI).
+                            // The finished reply swaps to real Markdown — same font, same insets, so the
+                            // swap isn't visible. See CoachStreamingText.swift.
+                            if isStreaming(message) {
+                                HStack(alignment: .bottom, spacing: 3) {
+                                    CoachStreamingText(text: message.text, animated: !reduceMotion)
+                                    CoachStreamCaret(animated: !reduceMotion)
+                                }
+                            } else {
+                                Markdown(message.text)
+                                    .markdownTheme(.strand)
+                                    .textSelection(.enabled)
+                            }
+                        }
                             .fixedSize(horizontal: false, vertical: true)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 11)
                             .frostedCardSurface(tint: StrandPalette.chargeColor, cornerRadius: CoachRadius.card)
+                            .clipShape(CoachBubbleShape(side: .coach))
                             .frame(maxWidth: 560, alignment: .leading)
                             .contextMenu {
                                 copyButton(message.text)
+                                shareButton(message.text)
                                 if isLastAssistant(message) {
                                     Button { coach.regenerate() } label: {
                                         Label("Regenerate", systemImage: "arrow.clockwise")
@@ -570,6 +648,25 @@ struct CoachView: View {
 
     private func copyButton(_ text: String) -> some View {
         Button { CoachClipboard.copy(text) } label: { Label("Copy", systemImage: "doc.on.doc") }
+    }
+
+    /// Share a single turn out of the chat — the system share sheet, so it reaches Notes, Messages or a
+    /// file without a copy-paste detour. The text is the user's own; nothing else travels with it.
+    private func shareButton(_ text: String) -> some View {
+        ShareLink(item: text) { Label("Share", systemImage: "square.and.arrow.up") }
+    }
+
+    /// True while THIS message is the reply currently being written. Drives the plain-text + caret
+    /// rendering; everything else in the transcript is finished text and renders as Markdown.
+    ///
+    /// Deliberately keyed on the LAST message in the transcript, not on the last ASSISTANT message: the
+    /// engine appends the streaming placeholder only after its async setup, and providers without a
+    /// streaming client append nothing until the whole reply lands (`AICoach.send`). Keying on the last
+    /// assistant would therefore re-render the PREVIOUS, finished reply as plain text with a caret for the
+    /// duration of the request — losing its Markdown formatting and claiming it was being rewritten.
+    /// Once the user's question is appended, a finished older reply can never be the last message.
+    private func isStreaming(_ message: ChatMessage) -> Bool {
+        coach.sending && message.role == .assistant && coach.messages.last?.id == message.id
     }
 
     // MARK: - Evidence chain (P6): what actually grounded this reply
@@ -730,22 +827,33 @@ struct CoachView: View {
         .accessibilityElement(children: .combine)
     }
 
+    /// An empty coach bubble carrying three pulsing dots, rather than a system spinner with a label: the
+    /// point is "a message is being written", and a `ProgressView` says "the app is busy". The dots animate
+    /// through `.symbolEffect` where available (iOS 17 / macOS 14) and sit still otherwise — and always sit
+    /// still under Reduce Motion.
     private var typingIndicator: some View {
         HStack(alignment: .top, spacing: 8) {
             CoachAvatarView(size: Self.assistantAvatarSize)
-            HStack(spacing: 8) {
-                ProgressView().controlSize(.small).tint(StrandPalette.accent)
-                Text("Coach is thinking…")
-                    .font(StrandFont.subhead)
-                    .foregroundStyle(StrandPalette.textSecondary)
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 11)
-            .frostedCardSurface(tint: StrandPalette.chargeColor, cornerRadius: CoachRadius.card)
-            .frame(maxWidth: 320, alignment: .leading)
+            typingDots
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                .frostedCardSurface(tint: StrandPalette.chargeColor, cornerRadius: CoachRadius.card)
+                .clipShape(CoachBubbleShape(side: .coach))
+            Spacer(minLength: 0)
         }
         .accessibilityLabel("Coach is thinking")
+    }
+
+    @ViewBuilder
+    private var typingDots: some View {
+        let dots = Image(systemName: "ellipsis")
+            .font(.system(size: 20, weight: .semibold))
+            .foregroundStyle(StrandPalette.accent)
+        if #available(iOS 17.0, macOS 14.0, *), !reduceMotion {
+            dots.symbolEffect(.variableColor.iterative.dimInactiveLayers)
+        } else {
+            dots
+        }
     }
 
     /// Retry, optionally gated behind the provider's own `Retry-After`. When a 429 says "wait 30
@@ -817,50 +925,37 @@ struct CoachView: View {
         .background(StrandPalette.surfaceOverlay, in: RoundedRectangle(cornerRadius: CoachRadius.card, style: .continuous))
     }
 
+    /// The starter prompts. WRAPPED, not a horizontal scroller: on a first run the scroller hid half the
+    /// suggestions off the right edge, which is exactly when the user most needs to see all of them.
     private var suggestionChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(suggestions, id: \.self) { prompt in
-                    Button { send(prompt) } label: {
-                        Text(prompt)
-                            .font(StrandFont.captionNumber)
-                            .foregroundStyle(StrandPalette.textSecondary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 7)
-                            .background(StrandPalette.surfaceInset, in: Capsule(style: .continuous))
-                            .overlay(Capsule(style: .continuous).strokeBorder(StrandPalette.hairline, lineWidth: 1))
-                    }
-                    .buttonStyle(LiquidPressStyle())
-                    .disabled(coach.sending)
-                    .accessibilityLabel("Suggested prompt: \(prompt)")
+        chipCloud(suggestions)
+    }
+
+    /// One chip row-set shared by the starter prompts and the post-card follow-ups.
+    private func chipCloud(_ prompts: [String]) -> some View {
+        FlowLayout(spacing: 8) {
+            ForEach(prompts, id: \.self) { prompt in
+                Button { send(prompt) } label: {
+                    Text(prompt)
+                        .font(StrandFont.captionNumber)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .padding(.horizontal, 13)
+                        .padding(.vertical, 8)
+                        .liquidGlass(in: Capsule(style: .continuous))
+                        .overlay(Capsule(style: .continuous).strokeBorder(StrandPalette.hairline, lineWidth: 1))
                 }
+                .buttonStyle(LiquidPressStyle())
+                .disabled(coach.sending)
+                .accessibilityLabel("Suggested prompt: \(prompt)")
             }
-            .padding(.vertical, 1)
         }
+        .padding(.vertical, 1)
     }
 
     /// Follow-up chips offered right after a card read (#P11 11.3), styled like `suggestionChips` but fed
     /// from the engine's `cardSuggestions` (metric-specific) rather than the fixed starter set.
     private var cardSuggestionChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(coach.cardSuggestions, id: \.self) { prompt in
-                    Button { send(prompt) } label: {
-                        Text(prompt)
-                            .font(StrandFont.captionNumber)
-                            .foregroundStyle(StrandPalette.textSecondary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 7)
-                            .background(StrandPalette.surfaceInset, in: Capsule(style: .continuous))
-                            .overlay(Capsule(style: .continuous).strokeBorder(StrandPalette.hairline, lineWidth: 1))
-                    }
-                    .buttonStyle(LiquidPressStyle())
-                    .disabled(coach.sending)
-                    .accessibilityLabel("Suggested prompt: \(prompt)")
-                }
-            }
-            .padding(.vertical, 1)
-        }
+        chipCloud(coach.cardSuggestions)
     }
 
     // MARK: - Composer (docked)
@@ -888,14 +983,19 @@ struct CoachView: View {
                 .contentShape(RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
                 .focused($composerFocused)
                 .onSubmit { send(draft) }
+                // Apple Intelligence rewriting of a question before it is sent (iOS 18+); inert elsewhere.
+                .liquidWritingTools()
                 .accessibilityLabel("Question")
 
             sendOrStopButton
         }
         .padding(10)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: CoachRadius.card, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: CoachRadius.card, style: .continuous)
-            .strokeBorder(StrandPalette.hairline, lineWidth: 1))
+        // A floating glass capsule instead of a bordered box: on iOS 26 this is real Liquid Glass, below
+        // it the same `.ultraThinMaterial` the composer always had.
+        .liquidGlass(in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous)
+            .strokeBorder(composerFocused ? StrandPalette.focusRing : StrandPalette.hairline, lineWidth: 1))
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: composerFocused)
         .padding(.horizontal, 12)
         // Base breathing room above the safe area, unconditionally. On top of it, ADD whatever the
         // floating tab bar needs (0 outside the tab shell — see the property above) rather than
@@ -919,15 +1019,27 @@ struct CoachView: View {
         Button {
             if coach.sending { coach.stop() } else { send(draft) }
         } label: {
-            Image(systemName: coach.sending ? "stop.fill" : "arrow.up")
+            sendGlyph
                 .font(StrandFont.headline)
-                .frame(width: 44, height: 38)
+                .frame(width: 40, height: 40)
                 .foregroundStyle(StrandPalette.goldDeepText)
-                .background(StrandPalette.accent, in: RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
+                .background(StrandPalette.accent, in: Circle())
         }
         .buttonStyle(.plain)
         .disabled(!coach.sending && draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         .accessibilityLabel(coach.sending ? "Stop" : "Send")
+    }
+
+    /// Send ↔ Stop as a MORPH rather than a hard swap: the symbol-replace transition (iOS 17 / macOS 14)
+    /// keeps the button feeling like one control that changed its mind, which is what it is.
+    @ViewBuilder
+    private var sendGlyph: some View {
+        let glyph = Image(systemName: coach.sending ? "stop.fill" : "arrow.up")
+        if #available(iOS 17.0, macOS 14.0, *), !reduceMotion {
+            glyph.contentTransition(.symbolEffect(.replace))
+        } else {
+            glyph
+        }
     }
 
     // MARK: - Helpers
@@ -942,12 +1054,17 @@ struct CoachView: View {
         return cur.timeIntervalSince(prev) > 30 * 60
     }
 
+    /// A small glass pill rather than bare centred text, so a break in the conversation reads as a marker
+    /// on the thread instead of as a stray line of copy.
     private func timeSeparator(_ date: Date) -> some View {
         Text(date.formatted(.relative(presentation: .named)))
             .font(StrandFont.footnote)
             .foregroundStyle(StrandPalette.textTertiary)
+            .padding(.horizontal, 11)
+            .padding(.vertical, 5)
+            .liquidGlass(in: Capsule(style: .continuous))
             .frame(maxWidth: .infinity, alignment: .center)
-            .padding(.vertical, 2)
+            .padding(.vertical, 6)
     }
 
     private func isLastAssistant(_ message: ChatMessage) -> Bool {
@@ -963,6 +1080,9 @@ struct CoachView: View {
         guard !trimmed.isEmpty, !coach.sending else { return }
         draft = ""
         composerFocused = false
+        // The house haptic vocabulary, not SwiftUI's `.sensoryFeedback` — that one is macOS 14+ and this
+        // screen ships to macOS 13, where `StrandHaptic` is simply a no-op.
+        StrandHaptic.light.play()
         coach.startSend(trimmed)
     }
 
@@ -1032,9 +1152,32 @@ extension View {
 /// One source of truth for the Coach UI's corner radii, so the chat's bubbles / composer / cards don't
 /// scatter magic numbers. Kept local to Coach rather than added to the shared design system.
 enum CoachRadius {
-    static let bubble: CGFloat = 14
-    static let card: CGFloat = 16
-    static let field: CGFloat = 12
+    static let bubble: CGFloat = 18
+    static let card: CGFloat = 18
+    static let field: CGFloat = 20
+    /// The ONE tight corner on the speaker's side. Small enough to read as a tail, large enough not to
+    /// look like a clipping bug at the accessibility text sizes.
+    static let tail: CGFloat = 5
+}
+
+/// A chat bubble with three round corners and one tight one on the speaker's side — the shape that makes a
+/// rounded rectangle read as a spoken turn. `UnevenRoundedRectangle` is plain SwiftUI (iOS 16+), so this
+/// needs no availability ladder and behaves identically on macOS.
+struct CoachBubbleShape: Shape {
+    enum Side { case user, coach }
+    var side: Side
+
+    func path(in rect: CGRect) -> Path {
+        let r = CoachRadius.bubble
+        let tail = CoachRadius.tail
+        let radii = RectangleCornerRadii(
+            topLeading: r,
+            bottomLeading: side == .coach ? tail : r,
+            bottomTrailing: side == .user ? tail : r,
+            topTrailing: r
+        )
+        return UnevenRoundedRectangle(cornerRadii: radii, style: .continuous).path(in: rect)
+    }
 }
 
 /// Cross-platform clipboard write for the Copy affordance (this screen compiles for iOS and macOS).
