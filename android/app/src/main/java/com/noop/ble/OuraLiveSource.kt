@@ -259,6 +259,9 @@ class OuraLiveSource(
      *  ONLY (see the `allowTierB = true` comment at driver construction) - the log is how we collect raw
      *  captures to validate these layouts; nothing here ever persists or scores. Reset on stop/disconnect. */
     private val loggedTierBKinds = mutableSetOf<String>()
+    /** Feature ids whose status we have already logged this session (SpO2 0x04 / real_steps 0x0b), so the
+     *  read-only feature-status diagnostic prints once per feature, not on every reconnect. */
+    private val loggedFeatureStatuses = mutableSetOf<Int>()
 
     // MARK: - Auto-reconnect (#912)
 
@@ -568,6 +571,7 @@ class OuraLiveSource(
         loggedFirstSpo2 = false
         loggedAnchor = false
         loggedTierBKinds.clear()
+        loggedFeatureStatuses.clear()
         pendingAnchorEvents.clear()
         // Resume the GetEvents cursor from where the LAST connection to this ring left off (s5.1/5.3), so a
         // routine reconnect doesn't re-fetch the ring's entire banked history every time.
@@ -617,6 +621,7 @@ class OuraLiveSource(
         loggedFirstSpo2 = false
         loggedAnchor = false
         loggedTierBKinds.clear()
+        loggedFeatureStatuses.clear()
         reachedStreaming = false
         // A stop MID-install is an honest failure (no ack will come); a stop after streaming leaves the
         // completed Streaming outcome intact so the wizard's success transition is not undone.
@@ -747,6 +752,7 @@ class OuraLiveSource(
                     loggedFirstSpo2 = false
                     loggedAnchor = false
                     loggedTierBKinds.clear()
+        loggedFeatureStatuses.clear()
                     reachedStreaming = false
                     // A disconnect MID-install is an honest failure (no 0x25 ack will arrive); a disconnect
                     // after streaming leaves the completed Streaming outcome intact. Drop any in-flight key
@@ -899,6 +905,11 @@ class OuraLiveSource(
                     scheduleHistoryFetch()
                     fetchHistoryIfIdle()
                     write(OuraCommands.getBattery())
+                    // Read-only diagnostic: ask the ring its SpO2 / real-steps feature status once, so a
+                    // capture confirms (from the ring itself) that these server-flag features are
+                    // subscription-gated OFF for an offline ring. NEVER an enable/set-mode write.
+                    write(OuraCommands.spo2ReadStatus())
+                    write(OuraCommands.realStepsReadStatus())
                 }
             }
             OuraDriverPhase.NeedsKeyInstall -> {
@@ -1059,9 +1070,32 @@ class OuraLiveSource(
                 advance(OuraTransition.AuthCompleted(routing.status))
             }
             OuraDriver.SecureRouting.EnableAck -> advance(OuraTransition.EnableAckReceived)
+            is OuraDriver.SecureRouting.FeatureStatus -> logFeatureStatus(routing.value)   // read-only; no advance
             is OuraDriver.SecureRouting.LiveHRPush -> emit(d.ingestLiveHRPush(routing.body))
             OuraDriver.SecureRouting.Unhandled -> Unit
         }
+    }
+
+    /**
+     * Log a feature-status read reply once per feature (read-only diagnostic). Confirms, from the ring
+     * itself, whether a server-flag feature (SpO2 0x04 / real_steps 0x0b) is subscribed/emitting — NOOP
+     * cannot enable these offline (server ClientConfiguration gate), so a `subscription == 0` here is the
+     * honest "not a bug, it's a gate" reading. Never scored, never stored.
+     */
+    private fun logFeatureStatus(st: com.noop.oura.OuraFeatureStatus) {
+        if (!loggedFeatureStatuses.add(st.feature)) return
+        val name = when (st.feature) {
+            OuraCommands.featureSpO2 -> "SpO2 (0x04)"
+            OuraCommands.featureRealSteps -> "real_steps (0x0b)"
+            OuraCommands.featureDaytimeHR -> "daytime-HR (0x02)"
+            else -> "0x${st.feature.toString(16)}"
+        }
+        // A gated/unavailable feature reports ALL-ZERO (mode/status/state); the streaming daytime-HR, by
+        // contrast, reads mode=1 status=0x11 state=2. Flag the all-zero case as the honest "cloud never
+        // enabled it" — NOT `subscription==0` alone, since daytime-HR is subscription=0 yet active.
+        val off = st.mode == 0 && st.status == 0 && st.state == 0
+        val gate = if (off) " - INACTIVE (server-gated off; the cloud never enabled it, not emitted offline)" else ""
+        log("Oura: feature status $name mode=${st.mode} status=${st.status} state=${st.state} subscription=${st.subscription}$gate")
     }
 
     /**

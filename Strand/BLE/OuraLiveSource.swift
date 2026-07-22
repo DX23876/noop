@@ -176,6 +176,9 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     /// ONLY (see the `allowTierB: true` comment at driver construction) - the log is how we collect raw
     /// captures to validate these layouts; nothing here ever persists or scores. Reset on stop/disconnect.
     private var loggedTierBKinds: Set<String> = []
+    /// Feature ids whose status we have already logged this session (SpO2 0x04 / real_steps 0x0b), so the
+    /// read-only feature-status diagnostic prints once per feature, not on every reconnect.
+    private var loggedFeatureStatuses: Set<Int> = []
 
     // MARK: - Activity (0x50 MET) estimate accumulation — INVESTIGATION ONLY
     // Aggregate the decoded 0x50 MET stream into an honest, clearly-labeled per-day estimate
@@ -546,6 +549,7 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         loggedFirstSpo2 = false
         loggedAnchor = false
         loggedTierBKinds.removeAll()
+        loggedFeatureStatuses.removeAll()
         activityMETByDay.removeAll()
         activityCadenceObs.removeAll()
         lastActivityUtc = nil
@@ -607,6 +611,10 @@ public final class OuraLiveSource: NSObject, ObservableObject {
                 startHistoryFetchTimer()
                 fetchHistoryIfIdle()   // pull last night's banked temp/SpO2/HRV/sleep-phase right away
                 write([OuraCommands.getBattery()])   // ask once HR streams; the 0x0D reply routes to onBattery
+                // Read-only diagnostic: ask the ring its SpO2 / real-steps feature status once, so a capture
+                // confirms (from the ring itself) that these server-flag features are subscription-gated OFF
+                // for an offline ring. NEVER an enable/set-mode write - purely the 0x20 read verb.
+                write([OuraCommands.spo2ReadStatus(), OuraCommands.realStepsReadStatus()])
             }
         default:
             break
@@ -905,6 +913,27 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         }
     }
 
+    /// Log a feature-status read reply once per feature (read-only diagnostic). Confirms, from the ring
+    /// itself, whether a server-flag feature (SpO2 0x04 / real_steps 0x0b) is subscribed/emitting — NOOP
+    /// cannot enable these offline (server ClientConfiguration gate), so a `subscription == 0` here is the
+    /// honest "not a bug, it's a gate" reading. Never scored, never stored.
+    private func logFeatureStatus(_ st: OuraFeatureStatus) {
+        guard loggedFeatureStatuses.insert(st.feature).inserted else { return }
+        let name: String
+        switch UInt8(truncatingIfNeeded: st.feature) {
+        case OuraCommands.featureSpO2:      name = "SpO2 (0x04)"
+        case OuraCommands.featureRealSteps: name = "real_steps (0x0b)"
+        case OuraCommands.featureDaytimeHR: name = "daytime-HR (0x02)"
+        default:                            name = "0x\(String(st.feature, radix: 16))"
+        }
+        // A gated/unavailable feature reports ALL-ZERO (mode/status/state); the streaming daytime-HR, by
+        // contrast, reads mode=1 status=0x11 state=2. Flag the all-zero case as the honest "cloud never
+        // enabled it" — NOT `subscription==0` alone, since daytime-HR is subscription=0 yet active.
+        let off = st.mode == 0 && st.status == 0 && st.state == 0
+        let gate = off ? " - INACTIVE (server-gated off; the cloud never enabled it, not emitted offline)" : ""
+        log("Oura: feature status \(name) mode=\(st.mode) status=\(st.status) state=\(st.state) subscription=\(st.subscription)\(gate)")
+    }
+
     // MARK: - Re-engagement timer (daytime-HR auto-reverts ~20s)
 
     private func startReengageTimer() {
@@ -1058,6 +1087,7 @@ extension OuraLiveSource: @preconcurrency CBCentralManagerDelegate {
         loggedFirstSpo2 = false
         loggedAnchor = false
         loggedTierBKinds.removeAll()
+        loggedFeatureStatuses.removeAll()
         pendingAnchorEvents.removeAll()   // a fresh session must never replay a stale-anchor guess
         pendingInstallKey = nil
         adoptPhase = .idle
@@ -1119,6 +1149,7 @@ extension OuraLiveSource: @preconcurrency CBCentralManagerDelegate {
         loggedFirstSpo2 = false
         loggedAnchor = false
         loggedTierBKinds.removeAll()
+        loggedFeatureStatuses.removeAll()
         activityMETByDay.removeAll()
         activityCadenceObs.removeAll()
         lastActivityUtc = nil
@@ -1273,6 +1304,8 @@ extension OuraLiveSource: @preconcurrency CBPeripheralDelegate {
             advance(.authCompleted(status))
         case .enableAck:
             advance(.enableAckReceived)
+        case .featureStatus(let st):
+            logFeatureStatus(st)   // read-only diagnostic; never advances the state machine
         case .liveHRPush(let body):
             guard let driver else { return }
             ingest(driver.ingestLiveHRPush(body: body))
