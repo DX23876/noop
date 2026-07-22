@@ -119,4 +119,31 @@ final class OpenRouterModelParsingTests: XCTestCase {
     func testChatContentMissingMessageIsADecodeError() {
         XCTAssertThrowsError(try client.parseChatContent(["choices": [[:]]]))
     }
+
+    // MARK: - parseKeyInfo (this key's own balance, straight from OpenRouter)
+
+    func testKeyInfoParsesUsageAndLimit() throws {
+        let info = try OpenRouterClient.parseKeyInfo([
+            "data": ["usage": 4.5, "limit": 10.0, "is_free_tier": false]
+        ])
+        XCTAssertEqual(info.usageUSD, 4.5)
+        XCTAssertEqual(info.limitUSD, 10.0)
+        XCTAssertFalse(info.isFreeTier)
+    }
+
+    /// An uncapped key (billed as spent) reports `limit` as null — that must read as "no limit", not as
+    /// zero, which would misreport an unlimited key as already exhausted.
+    func testKeyInfoNilLimitMeansUncappedNotZero() throws {
+        let info = try OpenRouterClient.parseKeyInfo(["data": ["usage": 1.2, "is_free_tier": false]])
+        XCTAssertEqual(info.usageUSD, 1.2)
+        XCTAssertNil(info.limitUSD)
+    }
+
+    func testKeyInfoMissingUsageIsADecodeError() {
+        XCTAssertThrowsError(try OpenRouterClient.parseKeyInfo(["data": ["limit": 10.0]]))
+    }
+
+    func testKeyInfoMissingDataKeyIsADecodeError() {
+        XCTAssertThrowsError(try OpenRouterClient.parseKeyInfo([:]))
+    }
 }

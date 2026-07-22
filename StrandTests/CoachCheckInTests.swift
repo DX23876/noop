@@ -74,4 +74,40 @@ final class CoachCheckInTests: XCTestCase {
         XCTAssertEqual(wire[0].role, .user)
         XCTAssertEqual(wire[0].content, "CHECKIN")
     }
+
+    // MARK: - habitualWakeMinutes (the .afterWake wake-time learner)
+
+    /// Below the minimum nights there is no habit to rely on yet — must be nil so `.afterWake` keeps
+    /// falling back to the fixed time rather than firing off one or two nights.
+    func testWakeTimeIsNilBelowMinimumNights() {
+        XCTAssertNil(CoachCheckIn.habitualWakeMinutes(fromLocalMinutes: []))
+        XCTAssertNil(CoachCheckIn.habitualWakeMinutes(fromLocalMinutes: [7 * 60, 7 * 60]))
+    }
+
+    /// Odd count → the middle value. Three ordinary mornings around 07:00 resolve to 07:00.
+    func testWakeTimeIsMedianForOddCount() {
+        let minutes = [6 * 60 + 45, 7 * 60, 7 * 60 + 15]
+        XCTAssertEqual(CoachCheckIn.habitualWakeMinutes(fromLocalMinutes: minutes), 7 * 60)
+    }
+
+    /// Even count → the mean of the two middle values.
+    func testWakeTimeAveragesTheTwoMiddleValuesForEvenCount() {
+        let minutes = [6 * 60 + 40, 7 * 60, 7 * 60 + 20, 8 * 60]
+        // sorted middles are 07:00 (420) and 07:20 (440) → 430 = 07:10
+        XCTAssertEqual(CoachCheckIn.habitualWakeMinutes(fromLocalMinutes: minutes), 430)
+    }
+
+    /// The median must shrug off a single outlier — one 04:00 alarm among steady 07:00 mornings must not
+    /// drag the learned time earlier the way a mean would.
+    func testWakeTimeMedianIgnoresASingleOutlier() {
+        let minutes = [4 * 60, 7 * 60, 7 * 60 + 5, 7 * 60 + 10, 6 * 60 + 55]
+        XCTAssertEqual(CoachCheckIn.habitualWakeMinutes(fromLocalMinutes: minutes), 7 * 60)
+    }
+
+    /// Garbage minute-of-day values (out of the 0..<1440 range) are dropped before the median, and if too
+    /// few valid nights remain the result is nil rather than a number computed off nonsense.
+    func testWakeTimeDropsOutOfRangeValuesAndReNilsIfTooFewRemain() {
+        let minutes = [-5, 5000, 7 * 60]   // only one valid value survives
+        XCTAssertNil(CoachCheckIn.habitualWakeMinutes(fromLocalMinutes: minutes))
+    }
 }

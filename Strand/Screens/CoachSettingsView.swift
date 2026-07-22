@@ -46,6 +46,10 @@ struct CoachSettingsView: View {
     @State private var deepModelCustomDraft: String = ""
     @State private var checkInOn: Bool = CoachCheckIn.isEnabled
     @State private var checkInTime: Date = CoachCheckIn.timeAsDate
+    @State private var checkInMode: CoachCheckIn.Mode = CoachCheckIn.mode
+    /// The learned habitual wake minute mirrored into view state, so the `.afterWake` readout updates
+    /// after the async refresh writes it (reading UserDefaults directly wouldn't re-render).
+    @State private var checkInResolvedWake: Int? = CoachCheckIn.resolvedWakeMinutes
     @State private var checkInDenied: Bool = false
     @State private var planReminderOn: Bool = PlanReminder.isEnabled
     @State private var planReminderDenied: Bool = false
@@ -328,6 +332,8 @@ struct CoachSettingsView: View {
             connectionTestRow
             backgroundModelsSection
             tokenUsageBar
+            cumulativeUsageBar
+            openRouterBalanceBar
             disconnectRow
         }
         .navigationTitle("Connection & model")
@@ -410,6 +416,14 @@ struct CoachSettingsView: View {
     private static func proactiveLevelReadout(_ level: ProactiveLevel) -> String {
         let name = String(localized: String.LocalizationValue(level.label))
         let blurb = String(localized: String.LocalizationValue(level.blurb))
+        return String(localized: "Currently: \(name). \(blurb)")
+    }
+
+    /// The spoken version of the verbosity setting — same localized-pieces reasoning as
+    /// `proactiveLevelReadout` above.
+    private static func verbosityReadout(_ verbosity: CoachVerbosity) -> String {
+        let name = String(localized: String.LocalizationValue(verbosity.label))
+        let blurb = String(localized: String.LocalizationValue(verbosity.blurb))
         return String(localized: "Currently: \(name). \(blurb)")
     }
 
@@ -538,9 +552,11 @@ struct CoachSettingsView: View {
     private var coachingSubpage: some View {
         subpageScaffold {
             coachVisibilityBar
+            presetBar
             identityBar
             personaBar
             emojiBar
+            verbosityBar
             coachEntryBar
             morningSuggestionBar
             proactiveBar
@@ -549,6 +565,53 @@ struct CoachSettingsView: View {
         }
         .navigationTitle("Coaching")
         .task { await refreshCheckInAuthorization() }
+    }
+
+    /// One-tap bundles over persona + voice + emoji + proactive level + reply length (`CoachPreset`) — a
+    /// faster starting point than setting each of those five controls individually. Applying one only
+    /// writes into the stores those controls already read from, so every row below still shows the result
+    /// and stays individually editable afterward.
+    private var presetBar: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
+                    Image(systemName: "wand.and.stars")
+                        .foregroundStyle(StrandPalette.accent)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Quick presets")
+                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                        Text("Sets persona, voice, emoji, proactive messages, and reply length together — tweak any of them below afterward.")
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                ForEach(CoachPreset.allCases) { preset in
+                    Button {
+                        preset.apply(to: coach, identity: identityStore)
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: preset.symbol)
+                                .foregroundStyle(StrandPalette.accent)
+                                .frame(width: 20)
+                                .accessibilityHidden(true)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(LocalizedStringKey(preset.title))
+                                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                                Text(LocalizedStringKey(preset.subtitle))
+                                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            Spacer(minLength: 8)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Apply preset: \(preset.title)")
+                    .accessibilityHint(preset.subtitle)
+                }
+            }
+        }
     }
 
     /// Entry into the coach-identity editor (#R9): the coach's name + picture + tone (the "who"), distinct
@@ -598,6 +661,38 @@ struct CoachSettingsView: View {
                 Toggle("", isOn: $coach.allowEmoji)
                     .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
                     .accessibilityLabel("Emoji in replies")
+            }
+        }
+    }
+
+    /// Reply length — concise / normal / detailed. Same segmented-picker shape as `proactiveBar`; `normal`
+    /// leaves today's replies unchanged, the other two steer via a prompt clause (`CoachVerbosity`).
+    private var verbosityBar: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
+                    Image(systemName: "text.alignleft")
+                        .foregroundStyle(StrandPalette.accent)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Reply length")
+                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                        Text(LocalizedStringKey(coach.verbosity.blurb))
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 8)
+                }
+                Picker("Reply length", selection: $coach.verbosity) {
+                    ForEach(CoachVerbosity.allCases) { level in Text(LocalizedStringKey(level.label)).tag(level) }
+                }
+                .pickerStyle(.segmented)
+                .accessibilityLabel("How long the coach's replies run")
+                Text(LocalizedStringKey(coach.verbosity.blurb))
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityLabel(Self.verbosityReadout(coach.verbosity))
             }
         }
     }
@@ -930,6 +1025,101 @@ struct CoachSettingsView: View {
         }
     }
 
+    /// Cumulative token counters — today (rolls at 04:00, persisted) and this app session (resets on
+    /// relaunch). Same on-device counting as `tokenUsageBar`, just totalled instead of last-question-only,
+    /// so the one choice OpenRouter users actually make (which model) has a running answer instead of only
+    /// a single-question snapshot. Hidden until at least one question has been counted, same as above.
+    @ViewBuilder
+    private var cumulativeUsageBar: some View {
+        if usage.dayQuestionCount > 0 {
+            NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "chart.bar.fill")
+                            .foregroundStyle(StrandPalette.accent)
+                            .accessibilityHidden(true)
+                        Text("Usage so far")
+                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                        Spacer(minLength: 8)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Today")
+                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                        Text(CoachUsageLog.cumulativeSummaryLine(for: usage.dayTotal, questionCount: usage.dayQuestionCount))
+                            .font(StrandFont.footnote.monospacedDigit())
+                            .foregroundStyle(StrandPalette.textSecondary)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("This session")
+                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                        Text(CoachUsageLog.cumulativeSummaryLine(for: usage.sessionTotal, questionCount: usage.sessionQuestionCount))
+                            .font(StrandFont.footnote.monospacedDigit())
+                            .foregroundStyle(StrandPalette.textSecondary)
+                    }
+                    Text("Counted on-device from what your provider reports back — not every request format reports usage, so this may undercount rather than overcount.")
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .accessibilityElement(children: .combine)
+            }
+        }
+    }
+
+    /// OpenRouter's OWN account balance for this key — the one provider among the five whose usage/cost
+    /// API works with a normal chat key (the others need an admin-scoped key this app never asks for; see
+    /// `OpenRouterClient.fetchKeyInfo`). A manual pull, not an auto-refresh, so opening this screen never
+    /// spends an extra request on its own.
+    @ViewBuilder
+    private var openRouterBalanceBar: some View {
+        if coach.provider == .openRouter && coach.hasKey {
+            NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Button {
+                        Task { await coach.checkOpenRouterBalance() }
+                    } label: {
+                        Label("Check OpenRouter balance", systemImage: "creditcard")
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.accent)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(coach.openRouterBalance == .checking)
+                    .accessibilityHint("Asks OpenRouter directly for this key's own spend and limit.")
+
+                    switch coach.openRouterBalance {
+                    case .untested:
+                        EmptyView()
+                    case .checking:
+                        HStack(spacing: 8) {
+                            ProgressView().controlSize(.small)
+                            Text("Checking…").font(StrandFont.footnote)
+                                .foregroundStyle(StrandPalette.textSecondary)
+                        }
+                    case .ok(let info):
+                        VStack(alignment: .leading, spacing: 2) {
+                            if let limit = info.limitUSD {
+                                Text(String(format: "$%.2f of $%.2f used", info.usageUSD, limit))
+                                    .font(StrandFont.footnote.monospacedDigit())
+                                    .foregroundStyle(StrandPalette.textSecondary)
+                            } else {
+                                Text(String(format: "$%.2f used — no limit set on this key", info.usageUSD))
+                                    .font(StrandFont.footnote.monospacedDigit())
+                                    .foregroundStyle(StrandPalette.textSecondary)
+                            }
+                            Text("Lifetime for this key, straight from OpenRouter — not a weekly or monthly figure.")
+                                .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    case .failed(let message):
+                        Label(message, systemImage: "exclamationmark.triangle.fill")
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.statusCritical)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - Connected summary + disconnect
 
     private var connectedHeader: some View {
@@ -1180,15 +1370,40 @@ struct CoachSettingsView: View {
                         }
                 }
                 if checkInOn {
-                    HStack {
-                        Text("Time").font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
-                        Spacer(minLength: 8)
-                        DatePicker("Check-in time", selection: $checkInTime, displayedComponents: .hourAndMinute)
-                            .labelsHidden()
-                            .onChangeCompat(of: checkInTime) { newValue in
-                                CoachCheckIn.setTime(from: newValue)
+                    Picker("When", selection: $checkInMode) {
+                        Text("Fixed time").tag(CoachCheckIn.Mode.fixed)
+                        Text("When I wake up").tag(CoachCheckIn.Mode.afterWake)
+                    }
+                    .pickerStyle(.segmented)
+                    .accessibilityLabel("Check-in timing")
+                    .onChangeCompat(of: checkInMode) { newValue in
+                        CoachCheckIn.setMode(newValue)
+                        // Learn the wake time now rather than waiting for the next foreground, so the
+                        // readout below fills in immediately when there's enough sleep history.
+                        if newValue == .afterWake {
+                            Task {
+                                await coach.refreshCoachCheckInSchedule()
+                                checkInResolvedWake = CoachCheckIn.resolvedWakeMinutes
                             }
-                            .accessibilityLabel("Check-in time")
+                        }
+                    }
+
+                    switch checkInMode {
+                    case .fixed:
+                        HStack {
+                            Text("Time").font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            Spacer(minLength: 8)
+                            DatePicker("Check-in time", selection: $checkInTime, displayedComponents: .hourAndMinute)
+                                .labelsHidden()
+                                .onChangeCompat(of: checkInTime) { newValue in
+                                    CoachCheckIn.setTime(from: newValue)
+                                }
+                                .accessibilityLabel("Check-in time")
+                        }
+                    case .afterWake:
+                        Text(checkInWakeReadout)
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 if checkInDenied {
@@ -1198,6 +1413,18 @@ struct CoachSettingsView: View {
                 }
             }
         }
+    }
+
+    /// The `.afterWake` explanation line: the learned wake time once there's enough sleep history, or a
+    /// plain "still learning, using your fixed time meanwhile" while there isn't — so the mode never looks
+    /// broken on a fresh install with no nights recorded yet.
+    private var checkInWakeReadout: String {
+        if let minutes = checkInResolvedWake {
+            let clock = String(format: "%02d:%02d", minutes / 60, minutes % 60)
+            return String(localized: "Tracks your wake time — around \(clock) lately. Refreshes each time you open NOOP.")
+        }
+        let fallback = String(format: "%02d:%02d", CoachCheckIn.timeMinutes / 60, CoachCheckIn.timeMinutes % 60)
+        return String(localized: "Learning your wake time from your sleep. Until there's enough, it uses your fixed time (\(fallback)).")
     }
 
     /// Opt-in local reminder for a committed, timed plan session — a plan with a time is a plan you

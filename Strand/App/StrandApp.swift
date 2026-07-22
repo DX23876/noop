@@ -62,7 +62,13 @@ struct StrandApp: App {
                 // Single-param form (not the two-param `{ _, phase in }`) — that overload needs macOS 14,
                 // this target is macOS 13.
                 .onChange(of: scenePhase) { phase in
-                    if phase == .active { model.ble.requestSync(.foreground) }
+                    if phase == .active {
+                        model.ble.requestSync(.foreground)
+                        // Re-learn the wake-time-tracking check-in from fresh sleep. No-op unless the
+                        // check-in is on and set to .afterWake; keeps the repeating trigger in step with
+                        // the user's actual wake time rather than a clock time that drifts.
+                        Task { await CoachCheckIn.refreshDynamicScheduleIfNeeded(repo: model.repo) }
+                    }
                 }
         }
         .windowStyle(.hiddenTitleBar)

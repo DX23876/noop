@@ -289,6 +289,13 @@ final class AICoachEngine: ObservableObject {
         lastError = nil
     }
 
+    /// Recompute the wake-time-tracking check-in from recent sleep and reschedule. A thin passthrough so
+    /// the settings UI can trigger a refresh the moment the user switches to `.afterWake`, without holding
+    /// a `Repository` of its own — the engine already has one.
+    func refreshCoachCheckInSchedule() async {
+        await CoachCheckIn.refreshDynamicSchedule(repo: repo)
+    }
+
     /// The active conversation, if any.
     var activeConversation: CoachConversation? {
         guard let id = activeConversationID else { return nil }
@@ -424,6 +431,12 @@ final class AICoachEngine: ObservableObject {
     /// Emoji in coach replies (#P14 7.3) — off by default; read fresh into `emojiClause` on every prompt.
     @Published var allowEmoji: Bool {
         didSet { UserDefaults.standard.set(allowEmoji, forKey: Self.allowEmojiKey) }
+    }
+
+    /// How long coach replies run — concise / normal / detailed. Defaults to `normal` (no prompt change
+    /// from today's behaviour); read fresh into the prompt via `CoachVerbosity.promptClause`.
+    @Published var verbosity: CoachVerbosity {
+        didSet { UserDefaults.standard.set(verbosity.rawValue, forKey: CoachVerbosity.storageKey) }
     }
 
     /// Card-AI (#P11): the metric card the user tapped "Ask coach" on, consumed once when the Coach opens
@@ -656,6 +669,9 @@ final class AICoachEngine: ObservableObject {
         prompt += "\n\n" + languageClause
         // Emoji (#P14 7.3): a user-set dial, read fresh so a settings change applies next message.
         prompt += "\n\n" + emojiClause
+        // Verbosity: a user-set dial on reply length. `normal` has no clause at all — it's the coach's
+        // existing register, unchanged from before this setting existed.
+        if let clause = verbosity.promptClause { prompt += "\n\n" + clause }
         return prompt
     }
 
@@ -749,6 +765,8 @@ final class AICoachEngine: ObservableObject {
         self.proactiveLevel = UserDefaults.standard.string(forKey: ProactiveLevel.storageKey)
             .flatMap(ProactiveLevel.init(rawValue:)) ?? .important
         self.allowEmoji = UserDefaults.standard.bool(forKey: Self.allowEmojiKey)
+        self.verbosity = UserDefaults.standard.string(forKey: CoachVerbosity.storageKey)
+            .flatMap(CoachVerbosity.init(rawValue:)) ?? .normal
 
         // Restore saved conversations (migrating a legacy single transcript on first run) so history
         // survives a relaunch. Start on the most-recent one, or a fresh empty conversation.
@@ -3075,6 +3093,36 @@ final class AICoachEngine: ObservableObject {
     }
 
     @Published private(set) var connectionTest: ConnectionTestResult = .untested
+
+    /// The outcome of an OpenRouter balance check (`checkOpenRouterBalance`) — same untested/checking/
+    /// ok/failed shape as `ConnectionTestResult`, kept as its own type since it carries a different
+    /// payload (the account balance, not a model-works verdict).
+    enum OpenRouterBalanceResult: Equatable {
+        case untested
+        case checking
+        case ok(OpenRouterKeyInfo)
+        case failed(String)
+    }
+
+    @Published private(set) var openRouterBalance: OpenRouterBalanceResult = .untested
+
+    /// Ask OpenRouter for this key's own balance (#A: cost transparency). Only meaningful for OpenRouter —
+    /// the other providers' usage/cost APIs need an admin-scoped key this app never asks for, so there is
+    /// nothing equivalent to call for them (see `OpenRouterClient.fetchKeyInfo`).
+    func checkOpenRouterBalance() async {
+        guard provider == .openRouter, let key = resolvedKey else {
+            openRouterBalance = .failed(AICoachError.noKey.errorDescription ?? "")
+            return
+        }
+        openRouterBalance = .checking
+        do {
+            let info = try await OpenRouterClient().fetchKeyInfo(key: key, session: session)
+            openRouterBalance = .ok(info)
+        } catch {
+            let coachError = (error as? AICoachError) ?? coachTransportError(error)
+            openRouterBalance = .failed(coachError.errorDescription ?? "")
+        }
+    }
 
     /// Send the smallest possible real request and report what came back.
     ///

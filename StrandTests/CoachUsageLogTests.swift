@@ -129,4 +129,49 @@ final class CoachUsageLogTests: XCTestCase {
         XCTAssertEqual(log.lastTurn?.rounds.count, 1, "a new question must not inherit the last one's rounds")
         XCTAssertEqual(log.lastTurn?.inputTokens, 5)
     }
+
+    // MARK: - Cumulative summary line
+
+    func testCumulativeSummaryLineUsesQuestionsNotRequests() {
+        let turn = CoachUsageLog.Turn(rounds: [
+            .init(inputTokens: 10, cacheReadTokens: 100, outputTokens: 5),
+            .init(inputTokens: 20, cacheReadTokens: 100, outputTokens: 7)
+        ])
+        // Two rounds, but ONE question spread across a tool loop — the cumulative line must report the
+        // question count it's given, not `turn.rounds.count` (that's what distinguishes it from
+        // `summaryLine`, which is a single-question diagnostic).
+        let line = CoachUsageLog.cumulativeSummaryLine(for: turn, questionCount: 1)
+        XCTAssertTrue(line.contains("1 question ·"))
+        XCTAssertFalse(line.contains("2 questions"))
+        XCTAssertTrue(line.contains("30 in"))
+        XCTAssertTrue(line.contains("200 cached"))
+        XCTAssertTrue(line.contains("12 out"))
+    }
+
+    func testCumulativeSummaryLinePluralizesQuestions() {
+        let line = CoachUsageLog.cumulativeSummaryLine(for: CoachUsageLog.Turn(), questionCount: 3)
+        XCTAssertTrue(line.contains("3 questions ·"))
+    }
+
+    // MARK: - Session accumulation
+
+    /// The session total must accumulate ACROSS questions rather than reset like `lastTurn` does. Asserts
+    /// on the DELTA between two snapshots rather than an absolute value, since `CoachUsageLog.shared` is a
+    /// real singleton other tests in this process also record into.
+    @MainActor
+    func testSessionTotalAccumulatesAcrossQuestions() {
+        let log = CoachUsageLog.shared
+        let before = (log.sessionTotal.inputTokens, log.sessionQuestionCount)
+
+        log.beginTurn()
+        log.record(.init(inputTokens: 111, outputTokens: 22))
+        log.beginTurn()
+        log.record(.init(inputTokens: 333, outputTokens: 44))
+
+        XCTAssertEqual(log.sessionTotal.inputTokens, before.0 + 444,
+                       "unlike lastTurn, the session total must not be reset by beginTurn")
+        XCTAssertEqual(log.sessionQuestionCount, before.1 + 2,
+                       "beginTurn is once per QUESTION, so two questions must add exactly two, " +
+                       "regardless of how many rounds record() was called with")
+    }
 }

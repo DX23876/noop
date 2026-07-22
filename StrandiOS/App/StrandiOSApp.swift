@@ -213,6 +213,10 @@ struct StrandiOSApp: App {
                 // timer or an incidental reconnect. Floored at 90s and never clock/empty-streak-suppressed
                 // (BackfillPolicy.shouldRun's .foreground case), so this is a safe no-op on rapid re-opens.
                 model.ble.requestSync(.foreground)
+                // Re-learn the wake-time-tracking check-in from fresh sleep on foreground. No-op unless
+                // the check-in is on and set to .afterWake; keeps the repeating trigger in step with the
+                // user's actual wake time rather than a clock time that drifts out of sync.
+                Task { await CoachCheckIn.refreshDynamicScheduleIfNeeded(repo: model.repo) }
                 Task {
                     health.refreshAuthIfPreviouslyGranted()
                     await health.sync()

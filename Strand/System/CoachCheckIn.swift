@@ -26,6 +26,21 @@ enum CoachCheckIn {
     private enum K {
         static let enabled = "coachCheckIn.enabled"
         static let time = "coachCheckIn.timeMinutes"   // minutes since midnight; default 08:00
+        static let mode = "coachCheckIn.mode"          // Mode.rawValue; default .fixed
+        /// The most recently RESOLVED habitual wake time (minutes since midnight) under `.afterWake`,
+        /// cached so the synchronous `schedule()` has a value without an async DB read. Absent until a
+        /// refresh has learned one; while absent, `.afterWake` falls back to the fixed `timeMinutes`.
+        static let resolvedWake = "coachCheckIn.resolvedWakeMinutes"
+    }
+
+    /// How the daily fire time is chosen. `.fixed` is the user's set clock time (the original, and still
+    /// the default). `.afterWake` tracks the user's own habitual wake time, learned from recent sleep
+    /// sessions and refreshed when the app is foregrounded — so the nudge lands when they actually wake
+    /// rather than at a clock time that drifts out of step with their sleep.
+    enum Mode: String { case fixed, afterWake }
+
+    static var mode: Mode {
+        (UserDefaults.standard.string(forKey: K.mode)).flatMap(Mode.init(rawValue:)) ?? .fixed
     }
 
     static var isEnabled: Bool { UserDefaults.standard.bool(forKey: K.enabled) }
@@ -100,6 +115,29 @@ enum CoachCheckIn {
     static func setTimeMinutes(_ minutes: Int) {
         UserDefaults.standard.set(min(max(minutes, 0), 24 * 60 - 1), forKey: K.time)
         if isEnabled { schedule() }
+    }
+
+    /// Switch between a fixed clock time and wake-time tracking. Rescheduling immediately keeps the
+    /// pending notification honest; the caller should also kick `refreshDynamicSchedule` so `.afterWake`
+    /// picks up a freshly-learned wake time rather than waiting for the next foreground.
+    static func setMode(_ newMode: Mode) {
+        UserDefaults.standard.set(newMode.rawValue, forKey: K.mode)
+        if isEnabled { schedule() }
+    }
+
+    /// The clock minute the reminder actually fires at. `.fixed` uses the user's set time; `.afterWake`
+    /// uses the last resolved habitual wake time, falling back to the fixed time until one has been
+    /// learned — so switching modes can never silently leave the reminder with no time to fire at.
+    static var effectiveMinutes: Int {
+        switch mode {
+        case .fixed:
+            return timeMinutes
+        case .afterWake:
+            if let resolved = UserDefaults.standard.object(forKey: K.resolvedWake) as? Int {
+                return min(max(resolved, 0), 24 * 60 - 1)
+            }
+            return timeMinutes
+        }
     }
 
     /// The fire time as a `Date` (today, hour/minute only) for a SwiftUI `.hourAndMinute` DatePicker.
@@ -178,7 +216,7 @@ enum CoachCheckIn {
         content.sound = .default
         content.categoryIdentifier = Action.category
 
-        let minute = timeMinutes
+        let minute = effectiveMinutes
         var comps = DateComponents()
         comps.hour = minute / 60
         comps.minute = minute % 60
@@ -186,5 +224,71 @@ enum CoachCheckIn {
         // centre, not the process), so the check-in keeps firing each day without the app running.
         let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: true)
         center.add(UNNotificationRequest(identifier: requestId, content: content, trigger: trigger))
+    }
+
+    // MARK: - Wake-time tracking (.afterWake)
+
+    /// How many recent nights to learn the habitual wake time from. A fortnight smooths a single odd
+    /// night (one very early or very late wake) without letting a wake time from a month ago, before a
+    /// schedule change, still count.
+    private static let wakeWindowNights = 14
+
+    /// The minimum learned resolved wake minute, exposed for the UI's readout. Nil until a refresh has
+    /// learned one from enough nights.
+    static var resolvedWakeMinutes: Int? {
+        UserDefaults.standard.object(forKey: K.resolvedWake) as? Int
+    }
+
+    /// Recompute the habitual wake time from recent sleep and reschedule — but only when it would change
+    /// anything (enabled AND in `.afterWake`). Safe to call on every foreground: it's one bounded read
+    /// and a reschedule, and a no-op in fixed mode or when the check-in is off.
+    static func refreshDynamicScheduleIfNeeded(repo: Repository) async {
+        guard isEnabled, mode == .afterWake else { return }
+        await refreshDynamicSchedule(repo: repo)
+    }
+
+    /// Learn the habitual wake minute from the last `wakeWindowNights` nights' wake times and cache it,
+    /// then reschedule so the change takes effect. When there isn't enough history yet the cache is left
+    /// untouched and `effectiveMinutes` keeps falling back to the fixed time, so the reminder never stops.
+    static func refreshDynamicSchedule(repo: Repository) async {
+        let now = Int(Date().timeIntervalSince1970)
+        let from = now - (wakeWindowNights + 2) * 86_400
+        let sessions = await repo.sleepSessions(from: from, to: now + 86_400, limit: wakeWindowNights + 5)
+
+        // Convert each night's wake instant to a local minute-of-day, using that instant's own UTC offset
+        // (so a night across a DST change still maps to the wall-clock minute the user saw), exactly as
+        // `AICoachEngine.formatSleepDetail` keys its bed/wake times.
+        let localWakeMinutes: [Int] = sessions.map { s in
+            let offsetSec = TimeZone.current.secondsFromGMT(for: Date(timeIntervalSince1970: TimeInterval(s.endTs)))
+            let secondsPerDay = 86_400
+            let localSec = (((s.endTs + offsetSec) % secondsPerDay) + secondsPerDay) % secondsPerDay
+            return localSec / 60
+        }
+
+        guard let resolved = habitualWakeMinutes(fromLocalMinutes: localWakeMinutes) else {
+            // Not enough nights yet — leave the fallback in place, don't clear a previously-good value.
+            if isEnabled, mode == .afterWake { schedule() }
+            return
+        }
+        UserDefaults.standard.set(resolved, forKey: K.resolvedWake)
+        if isEnabled, mode == .afterWake { schedule() }
+    }
+
+    /// The habitual wake time (minutes since midnight) as the MEDIAN of recent nights' local wake minutes,
+    /// or nil below `minimumNights` — a habit the reminder can rely on, not a guess off one or two nights.
+    ///
+    /// Median rather than mean on purpose: it shrugs off the odd 04:00 alarm or 11:00 lie-in that would
+    /// drag an average away from the time the user actually wakes on a normal day. Pure and database-free
+    /// so it unit-tests without a strap or store. Wake times realistically cluster in the morning and
+    /// don't straddle midnight, so a plain minute-of-day median needs no circular-statistics handling.
+    nonisolated static func habitualWakeMinutes(fromLocalMinutes minutes: [Int],
+                                                minimumNights: Int = 3) -> Int? {
+        let valid = minutes.filter { (0..<24 * 60).contains($0) }.sorted()
+        guard valid.count >= minimumNights else { return nil }
+        let mid = valid.count / 2
+        if valid.count % 2 == 1 {
+            return valid[mid]
+        }
+        return (valid[mid - 1] + valid[mid]) / 2
     }
 }

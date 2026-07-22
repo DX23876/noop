@@ -3,6 +3,15 @@ import Foundation
 /// A single entry from OpenRouter's `/models` catalogue — richer than a bare id, so the searchable
 /// picker can show context length and price, and so a later tool-calling gate (P9) can read whether a
 /// model supports tools without a second request. Parsed once in `parseModelDetails`, never invented.
+/// This key's balance, straight from OpenRouter's `/auth/key` endpoint — see `fetchKeyInfo`.
+struct OpenRouterKeyInfo: Equatable {
+    /// USD spent on this key since it was created — lifetime, not a rolling window.
+    let usageUSD: Double
+    /// USD credit limit on this key, or nil when it's uncapped (billed as spent).
+    let limitUSD: Double?
+    let isFreeTier: Bool
+}
+
 struct OpenRouterModel: Identifiable, Equatable {
     let id: String
     let name: String
@@ -75,6 +84,33 @@ struct OpenRouterClient: AIProviderClient {
 
     func fetchModels(key: String, session: URLSession) async throws -> [String] {
         try await fetchModelDetails(key: key, session: session).map { $0.id }
+    }
+
+    /// This key's OWN account balance, straight from OpenRouter — not a NOOP estimate. Unlike OpenAI,
+    /// Anthropic, and Gemini (whose usage/cost APIs need an admin-scoped key the normal chat key this app
+    /// stores can't provide), OpenRouter's `/auth/key` endpoint reports spend and limit for the SAME key
+    /// already used to chat, so this is the one provider where an authoritative number is reachable at all.
+    /// It is lifetime-since-key-creation, not a weekly/monthly window — OpenRouter's key endpoint doesn't
+    /// break usage down by period, so this reports what it actually has rather than a manufactured split.
+    func fetchKeyInfo(key: String, session: URLSession) async throws -> OpenRouterKeyInfo {
+        var req = URLRequest(url: URL(string: "https://openrouter.ai/api/v1/auth/key")!)
+        req.httpMethod = "GET"
+        req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+        let json = try await performRequest(req, session: session)
+        return try Self.parseKeyInfo(json)
+    }
+
+    /// Pure: unwrap the `/auth/key` body. No network — unit-tested.
+    static func parseKeyInfo(_ json: [String: Any]) throws -> OpenRouterKeyInfo {
+        guard let data = json["data"] as? [String: Any],
+              let usage = data["usage"] as? Double else {
+            throw AICoachError.decode
+        }
+        return OpenRouterKeyInfo(
+            usageUSD: usage,
+            limitUSD: data["limit"] as? Double,
+            isFreeTier: data["is_free_tier"] as? Bool ?? false
+        )
     }
 
     /// The richer fetch the searchable model picker uses. OpenRouter's `/models` needs no key to list

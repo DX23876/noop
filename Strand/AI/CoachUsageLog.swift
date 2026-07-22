@@ -45,14 +45,84 @@ final class CoachUsageLog: ObservableObject {
 
     @Published private(set) var lastTurn: Turn?
 
+    /// Running total for THIS app session (in-memory only — resets on relaunch). Gives a sense of "what
+    /// has this conversation cost so far" without persisting anything new to disk.
+    @Published private(set) var sessionTotal = Turn()
+    @Published private(set) var sessionQuestionCount = 0
+
+    /// Running total for the current LOGICAL day (rolls 04:00, same as the rest of the app — see
+    /// `Repository.logicalDayKey`), persisted so it survives a relaunch. Only four running integers, a
+    /// question count, and the day key are stored — no per-turn history, no request content.
+    @Published private(set) var dayTotal = Turn()
+    @Published private(set) var dayQuestionCount = 0
+
     private var current = Turn()
 
-    /// Start counting a new question. Called by the provider at the top of its tool loop.
-    func beginTurn() { current = Turn() }
+    private static let dayTotalKey = "ai.usage.dayTotal"
+    private static let dayTotalDayKey = "ai.usage.dayTotalDay"
+
+    init() {
+        restoreDayTotalIfCurrent()
+    }
+
+    /// Start counting a new question. Called by the provider at the top of its tool loop — once per
+    /// question, however many rounds the tool loop spends answering it.
+    func beginTurn() {
+        current = Turn()
+        sessionQuestionCount += 1
+        rollDayTotalIfNeeded()
+        dayQuestionCount += 1
+        persistDayTotal()
+    }
 
     func record(_ round: Round) {
         current.rounds.append(round)
         lastTurn = current
+        sessionTotal.rounds.append(round)
+        dayTotal.rounds.append(round)
+        persistDayTotal()
+    }
+
+    // MARK: - Day-total persistence
+
+    /// Reset the day total to empty if the stored day key is stale (a new logical day started since the
+    /// last write) — checked once per question, at `beginTurn`, so a question that starts right after the
+    /// 04:00 rollover starts counting into the new day rather than tacking onto the old one.
+    private func rollDayTotalIfNeeded() {
+        let today = Repository.logicalDayKey(Date())
+        guard UserDefaults.standard.string(forKey: Self.dayTotalDayKey) != today else { return }
+        dayTotal = Turn()
+        dayQuestionCount = 0
+    }
+
+    private func restoreDayTotalIfCurrent() {
+        let today = Repository.logicalDayKey(Date())
+        guard UserDefaults.standard.string(forKey: Self.dayTotalDayKey) == today,
+              let data = UserDefaults.standard.data(forKey: Self.dayTotalKey),
+              let stored = try? JSONDecoder().decode(StoredTotals.self, from: data) else { return }
+        dayTotal = Turn(rounds: [Round(inputTokens: stored.inputTokens, cacheReadTokens: stored.cacheReadTokens,
+                                        cacheWriteTokens: stored.cacheWriteTokens, outputTokens: stored.outputTokens)])
+        dayQuestionCount = stored.questionCount
+    }
+
+    private func persistDayTotal() {
+        UserDefaults.standard.set(Repository.logicalDayKey(Date()), forKey: Self.dayTotalDayKey)
+        let stored = StoredTotals(inputTokens: dayTotal.inputTokens, cacheReadTokens: dayTotal.cacheReadTokens,
+                                   cacheWriteTokens: dayTotal.cacheWriteTokens, outputTokens: dayTotal.outputTokens,
+                                   questionCount: dayQuestionCount)
+        if let data = try? JSONEncoder().encode(stored) {
+            UserDefaults.standard.set(data, forKey: Self.dayTotalKey)
+        }
+    }
+
+    /// Collapsed token counts for the day total — one `Round` folds into the same four integers a whole
+    /// day's worth of rounds would, so persistence doesn't need to store an ever-growing round list.
+    private struct StoredTotals: Codable {
+        var inputTokens = 0
+        var cacheReadTokens = 0
+        var cacheWriteTokens = 0
+        var outputTokens = 0
+        var questionCount = 0
     }
 
     // MARK: - Provider-neutral entry points
@@ -92,6 +162,14 @@ final class CoachUsageLog: ObservableObject {
     nonisolated static func summaryLine(for turn: Turn) -> String {
         let n = turn.rounds.count
         return "\(n) request\(n == 1 ? "" : "s") · \(turn.inputTokens) in · "
+            + "\(turn.cacheReadTokens) cached · \(turn.outputTokens) out"
+    }
+
+    /// One-line token summary for a CUMULATIVE total (session or day) — same shape as `summaryLine` but
+    /// counts questions rather than requests, since a cumulative total spans many turns and the
+    /// request-vs-turn distinction that matters for a single question stops being the interesting number.
+    nonisolated static func cumulativeSummaryLine(for turn: Turn, questionCount: Int) -> String {
+        "\(questionCount) question\(questionCount == 1 ? "" : "s") · \(turn.inputTokens) in · "
             + "\(turn.cacheReadTokens) cached · \(turn.outputTokens) out"
     }
 }
