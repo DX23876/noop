@@ -384,7 +384,11 @@ public struct WhoopExportImporter {
             r.tzOffsetMin = tz
             r.cycleStart = WhoopTime.parse(row.cell("cycle_start_time"), offsetMinutes: tz)
             r.question = row.cell("question_text", "question")
-            r.answer   = row.cell("answered_yes_no", "answer", "answer_text")
+            // #631: the REAL WHOOP export header is "Answered yes" (-> answered_yes), not the
+            // "Answered yes/no" NOOP's own exporter writes (-> answered_yes_no). Every real WHOOP
+            // journal import silently zeroed out to "without" because neither of the old keys ever
+            // matched, regardless of the account's actual answers.
+            r.answer   = row.cell("answered_yes", "answered_yes_no", "answer", "answer_text")
             r.notes    = row.cell("notes")
 
             // A journal row is only meaningful if it has a question.
