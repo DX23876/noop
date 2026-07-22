@@ -3205,11 +3205,22 @@ class WhoopBleClient(
      *  strap was connected when we sent it), so a "didn't buzz" report shows sent-vs-strap-reports. */
     private fun recordAlarmArm(sentEpoch: Long) {
         runCatching {
-            NoopPrefs.of(context).edit()
+            val editor = NoopPrefs.of(context).edit()
                 .putLong("alarm.lastArmSentEpoch", sentEpoch)
                 .putLong("alarm.lastArmAt", System.currentTimeMillis())
                 .putBoolean("alarm.lastArmConnected", _state.value.connected)
-                .apply()
+            // #34: live HR at the moment of the arm, purely to test a hypothesis raised on a reporter's
+            // log — morning wake-up and morning short-horizon arms have fired reliably since v9.0.0, but
+            // an identical evening short-horizon arm (same code path, same commands, no day/night branch
+            // anywhere in armStrapAlarm) did not. One firmware-side explanation that would fit every
+            // reported case: the physical alarm haptic might only fire while the strap's OWN sleep/rest
+            // detection considers the wearer sleep-adjacent, independent of anything NOOP sends. This
+            // doesn't prove or fix that — it's a free read of state already tracked live, logged so the
+            // next reported failure (ideally an evening one) can be compared against the resting HR of
+            // the successful arms already on file. Absent key means no HR had streamed yet at arm time.
+            val hr = _state.value.heartRate
+            if (hr != null) editor.putInt("alarm.lastArmHeartRate", hr) else editor.remove("alarm.lastArmHeartRate")
+            editor.apply()
         }
     }
 
