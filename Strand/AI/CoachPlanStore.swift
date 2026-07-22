@@ -104,6 +104,13 @@ struct PlanProposal: Codable, Identifiable, Equatable {
     /// The day this session was originally on, when the user rescheduled it to another day.
     var rescheduledFrom: String?
     var skipReason: SkipReason?
+    /// The goal this session serves, when it was created in service of one.
+    ///
+    /// Optional on purpose and forever: sessions long predate goals, a session can legitimately belong to
+    /// no goal, and with several active goals a coach proposal often can't honestly claim one. What it
+    /// buys is that the Journey page can count what actually belongs to THIS goal instead of everything
+    /// that happened to fall after its start date.
+    var goalId: UUID?
     let createdAt: Date
     var decidedAt: Date?
 
@@ -119,6 +126,7 @@ struct PlanProposal: Codable, Identifiable, Equatable {
          swappedFrom: String? = nil,
          rescheduledFrom: String? = nil,
          skipReason: SkipReason? = nil,
+         goalId: UUID? = nil,
          createdAt: Date = Date(),
          decidedAt: Date? = nil) {
         self.id = id
@@ -133,6 +141,7 @@ struct PlanProposal: Codable, Identifiable, Equatable {
         self.swappedFrom = swappedFrom
         self.rescheduledFrom = rescheduledFrom
         self.skipReason = skipReason
+        self.goalId = goalId
         self.createdAt = createdAt
         self.decidedAt = decidedAt
     }
@@ -140,7 +149,7 @@ struct PlanProposal: Codable, Identifiable, Equatable {
     // Back-compat: fields added later decode with defaults so a stored plan never fails to load.
     private enum CodingKeys: String, CodingKey {
         case id, day, time, sport, intent, targetEffort, rationale, status
-        case source, swappedFrom, rescheduledFrom, skipReason, createdAt, decidedAt
+        case source, swappedFrom, rescheduledFrom, skipReason, goalId, createdAt, decidedAt
     }
 
     init(from decoder: Decoder) throws {
@@ -157,6 +166,7 @@ struct PlanProposal: Codable, Identifiable, Equatable {
         swappedFrom = try c.decodeIfPresent(String.self, forKey: .swappedFrom)
         rescheduledFrom = try c.decodeIfPresent(String.self, forKey: .rescheduledFrom)
         skipReason = try c.decodeIfPresent(SkipReason.self, forKey: .skipReason)
+        goalId = try c.decodeIfPresent(UUID.self, forKey: .goalId)
         createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
         decidedAt = try c.decodeIfPresent(Date.self, forKey: .decidedAt)
     }
@@ -280,7 +290,8 @@ final class CoachPlanStore: ObservableObject {
             proposals[idx] = PlanProposal(
                 id: existing.id, day: p.day, time: p.time, sport: p.sport, intent: p.intent,
                 targetEffort: p.targetEffort, rationale: p.rationale, status: .proposed,
-                source: .coachProposed, createdAt: existing.createdAt)
+                source: .coachProposed, goalId: p.goalId ?? existing.goalId,
+                createdAt: existing.createdAt)
             return true
         }
         proposals.insert(p, at: 0)
@@ -369,13 +380,29 @@ final class CoachPlanStore: ObservableObject {
     }
 
     /// A session the USER planned themselves, already accepted (they don't need to approve their own idea).
-    func addUserSession(day: String, time: Date?, sport: String, intent: PlanProposal.Intent) {
+    /// `goalId` links it to the goal it serves when the user logged it from that goal's journey.
+    func addUserSession(day: String, time: Date?, sport: String, intent: PlanProposal.Intent,
+                        goalId: UUID? = nil) {
         var p = PlanProposal(day: day, time: time, sport: sport, intent: intent,
-                             status: .accepted, source: .userCreated)
+                             status: .accepted, source: .userCreated, goalId: goalId)
         p.decidedAt = Date()
         proposals.insert(p, at: 0)
         trim()
         PlanReminder.schedule(for: p)
+    }
+
+    /// Sessions the user actually COMPLETED for a given goal, from `since` onward.
+    ///
+    /// A session explicitly linked to ANOTHER goal is excluded — that's the whole point of `goalId`. An
+    /// unlinked session still counts (every session predating the link, plus any the coach couldn't
+    /// honestly attribute), so this can only ever be more accurate than the date filter it replaces,
+    /// never less complete.
+    func completedSessions(forGoal goalId: UUID, since dayKey: String) -> [PlanProposal] {
+        proposals.filter { p in
+            guard p.status == .completed else { return false }
+            if p.goalId == goalId { return true }
+            return p.goalId == nil && p.day >= dayKey
+        }
     }
 
     func remove(_ id: UUID) {

@@ -2754,10 +2754,16 @@ final class AICoachEngine: ObservableObject {
             when = df.date(from: "\(dayKey) \(time)")
         }
 
+        // Link the session to the goal it serves, but ONLY when there is exactly one active goal. With
+        // several, the model didn't say which this is for and guessing would put a real session under the
+        // wrong goal's progress — an unlinked session still counts on the journey page, a misfiled one
+        // silently corrupts two goals at once.
+        let activeGoals = CoachGoalStore.shared.activeGoals
         let proposal = PlanProposal(day: dayKey, time: when, sport: trimmedSport,
                                     intent: parsedIntent,
                                     targetEffort: targetEffort.map { max(0, min($0, 100)) },
-                                    rationale: rationale)
+                                    rationale: rationale,
+                                    goalId: activeGoals.count == 1 ? activeGoals[0].id : nil)
         guard CoachPlanStore.shared.propose(proposal) else {
             // The user already has this exact session committed for that day (their own routine, or a
             // proposal they accepted) — the store refused the duplicate (#P7 9.8/10.5). Tell the model so
