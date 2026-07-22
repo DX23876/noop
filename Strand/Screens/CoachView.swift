@@ -26,9 +26,15 @@ struct CoachView: View {
     /// Draft text in the composer (the question being typed).
     @State private var draft: String = ""
     @FocusState private var composerFocused: Bool
-    /// Presented sheet: all configuration, or the conversation history. One enum-driven sheet rather
-    /// than two stacked `.sheet` modifiers (which don't compose reliably).
-    private enum ActiveSheet: Int, Identifiable { case settings, history, plan, goal; var id: Int { rawValue } }
+    /// Presented sheet: settings, history, the plan book, goal & journey, the first-use note, and goal
+    /// onboarding — ONE enum-driven sheet. `firstUse` and `goalOnboarding` used to be their own stacked
+    /// `.sheet(isPresented:)` modifiers alongside this one; three sheet hosts on one view is the classic
+    /// SwiftUI glitch where dismissing one can intermittently re-present or bounce back to whatever's
+    /// underneath — reported as "Something else" (a custom goal) looping back to the goal picker.
+    private enum ActiveSheet: Int, Identifiable {
+        case settings, history, plan, goal, firstUse, goalOnboarding
+        var id: Int { rawValue }
+    }
     @State private var activeSheet: ActiveSheet?
     /// Seconds left before Retry re-enables, from the provider's `Retry-After` on a 429. 0 = ready.
     @State private var retryCountdown = 0
@@ -44,6 +50,10 @@ struct CoachView: View {
     /// named constant instead of a magic number repeated at every call site, since the gutter spacer
     /// (`assistantGutter`) and the evidence/actionRow indent below a reply both have to match it exactly.
     private static let assistantAvatarSize: CGFloat = 36
+    /// The coach's avatar diameter in the chat header — much bigger than the in-bubble avatar and
+    /// centered, so the coach has a clear face at the top of the screen rather than a small disc
+    /// squeezed between two button clusters.
+    private static let headerAvatarSize: CGFloat = 64
     /// Vertical gap before a NEW turn (a role switch, or the first message) — bigger, so a fresh reply or
     /// question reads as its own moment (#R-chat-tidy). Also used before the typing indicator/error banner,
     /// which are themselves always the start of a new turn.
@@ -58,11 +68,9 @@ struct CoachView: View {
     /// Which messages' evidence chains (P6) are expanded — per-message, so opening one doesn't open
     /// every reply that has one.
     @State private var expandedEvidenceIds: Set<UUID> = []
-    /// First-run goal onboarding (offered once, skippable — see the `.task` that arms it).
-    @State private var showGoalOnboarding = false
-    /// First-use trust/expectations note (#P6 6.3): shown once before the first conversation.
+    /// First-use trust/expectations note (#P6 6.3): shown once before the first conversation, via
+    /// `activeSheet == .firstUse`.
     @AppStorage(CoachFirstUse.acknowledgedKey) private var coachFirstUseAcknowledged = false
-    @State private var showFirstUse = false
     /// Drives the header's pending-proposal dot.
     @ObservedObject private var planStore = CoachPlanStore.shared
     /// The coach's identity (#R9) — avatar + name shown in the header, updated live from settings.
@@ -116,6 +124,18 @@ struct CoachView: View {
                         }
                 }
                 .environmentObject(coach)
+            case .firstUse:
+                CoachFirstUseSheet(onAcknowledge: {
+                    coachFirstUseAcknowledged = true
+                    activeSheet = nil
+                })
+                .environmentObject(coach)
+            case .goalOnboarding:
+                // First-run onboarding uses the GUIDED flow (#R12) — one question at a time — instead of
+                // the one-page editor. Skipping or finishing both mark it asked, so it never nags twice.
+                CoachGoalOnboardingFlow {
+                    UserDefaults.standard.set(true, forKey: Self.goalOnboardingAskedKey)
+                }
             }
         }
         .task(id: coach.dataConsent) {
@@ -148,16 +168,12 @@ struct CoachView: View {
         }
         // First-use note (#P6 6.3): once the coach is connected, show the trust/expectations dialog
         // before the first conversation. Keyed on `isConfigured` so it also arms right after the user
-        // connects from the setup screen (not just on a fresh, already-connected open).
+        // connects from the setup screen (not just on a fresh, already-connected open). Guarded on
+        // `activeSheet == nil` so it never steals a sheet the user (or another trigger) already opened.
         .task(id: coach.isConfigured) {
-            if coach.isConfigured && !coachFirstUseAcknowledged { showFirstUse = true }
-        }
-        .sheet(isPresented: $showFirstUse) {
-            CoachFirstUseSheet(onAcknowledge: {
-                coachFirstUseAcknowledged = true
-                showFirstUse = false
-            })
-            .environmentObject(coach)
+            if coach.isConfigured && !coachFirstUseAcknowledged && activeSheet == nil {
+                activeSheet = .firstUse
+            }
         }
         // Goal onboarding: offered ONCE, only to a configured coach with no goal yet, and skippable.
         // Gated behind the first-use ack too, so the two one-time sheets never stack — goal onboarding
@@ -166,16 +182,10 @@ struct CoachView: View {
         .task {
             guard coach.isConfigured,
                   coachFirstUseAcknowledged,
+                  activeSheet == nil,
                   CoachGoalStore.shared.activeGoals.isEmpty,
                   !UserDefaults.standard.bool(forKey: Self.goalOnboardingAskedKey) else { return }
-            showGoalOnboarding = true
-        }
-        .sheet(isPresented: $showGoalOnboarding) {
-            // First-run onboarding now uses the GUIDED flow (#R12) — one question at a time — instead of
-            // the one-page editor. Skipping or finishing both mark it asked, so it never nags twice.
-            CoachGoalOnboardingFlow {
-                UserDefaults.standard.set(true, forKey: Self.goalOnboardingAskedKey)
-            }
+            activeSheet = .goalOnboarding
         }
     }
 
@@ -192,35 +202,85 @@ struct CoachView: View {
     // MARK: - Header
 
     private var header: some View {
-        HStack(spacing: 12) {
-            Button { activeSheet = .history } label: {
-                Image(systemName: "clock.arrow.circlepath")
-                    .font(StrandFont.headline)
-                    .foregroundStyle(StrandPalette.textSecondary)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Conversation history")
-
-            HStack(spacing: 8) {
-                // The coach's IDENTITY (#R9): its chosen avatar (a design-system mark or the user's photo)
-                // + its name, so the chat has a consistent face and self — Svea, Marv, or a custom coach —
-                // not a generic "Coach". A named conversation takes the title slot; the avatar stays either
-                // way. (The behavioural STYLE lives on `coach.persona`, a separate axis.)
-                CoachAvatarView(size: 26)
-                VStack(spacing: 1) {
-                    // The identity name is the user's own free text (like the conversation title) — shown
-                    // as-is, no catalog lookup needed.
-                    Text(coach.activeConversation?.title.isEmpty == false
-                         ? coach.activeConversation!.title
-                         : identityStore.identity.name)
+        VStack(spacing: 8) {
+            HStack(spacing: 12) {
+                Button { activeSheet = .history } label: {
+                    Image(systemName: "clock.arrow.circlepath")
                         .font(StrandFont.headline)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                        .lineLimit(1)
-                    if coach.sending {
-                        Text("Thinking…")
-                            .font(StrandFont.footnote)
-                            .foregroundStyle(StrandPalette.accent)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Conversation history")
+
+                Spacer(minLength: 0)
+
+                HStack(spacing: 14) {
+                    // The plan book. The dot means something is waiting for YOUR answer — the coach can
+                    // propose, but only you can turn a suggestion into a plan.
+                    // Goal & Journey shortcut (#R6) — one tap to the goal surface from the chat, alongside
+                    // the plan book, instead of digging through settings.
+                    Button { activeSheet = .goal } label: {
+                        Image(systemName: "target")
+                            .font(StrandFont.headline)
+                            .foregroundStyle(StrandPalette.textSecondary)
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Goal and journey")
+
+                    Button { activeSheet = .plan } label: {
+                        Image(systemName: "calendar")
+                            .font(StrandFont.headline)
+                            .foregroundStyle(planStore.pending.isEmpty
+                                             ? StrandPalette.textSecondary : StrandPalette.accent)
+                            .overlay(alignment: .topTrailing) {
+                                if !planStore.pending.isEmpty {
+                                    Circle().fill(StrandPalette.accent)
+                                        .frame(width: 6, height: 6)
+                                        .offset(x: 3, y: -2)
+                                }
+                            }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(planStore.pending.isEmpty
+                                        ? "Your plan"
+                                        : "Your plan, \(planStore.pending.count) waiting for your decision")
+
+                    Button { coach.newConversation() } label: {
+                        Image(systemName: "square.and.pencil")
+                            .font(StrandFont.headline)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(coach.sending || coach.messages.isEmpty)
+                    .accessibilityLabel("New chat")
+
+                    Button { activeSheet = .settings } label: {
+                        Image(systemName: "gearshape")
+                            .font(StrandFont.headline)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Coach settings")
+                }
+            }
+
+            // The coach's IDENTITY (#R9): its chosen avatar (a design-system mark or the user's photo) +
+            // its name, centered and large so the chat has a clear face and self — Svea, Marv, or a
+            // custom coach — not a small disc squeezed between the button clusters above. A named
+            // conversation takes the title slot; the avatar stays either way. (The behavioural STYLE
+            // lives on `coach.persona`, a separate axis.)
+            VStack(spacing: 6) {
+                CoachAvatarView(size: Self.headerAvatarSize)
+                Text(coach.activeConversation?.title.isEmpty == false
+                     ? coach.activeConversation!.title
+                     : identityStore.identity.name)
+                    .font(StrandFont.headline)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                    .lineLimit(1)
+                if coach.sending {
+                    Text("Thinking…")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.accent)
                 }
             }
             .frame(maxWidth: .infinity)
@@ -228,58 +288,10 @@ struct CoachView: View {
             .accessibilityLabel(coach.activeConversation?.title.isEmpty == false
                                  ? coach.activeConversation!.title
                                  : String(localized: "\(identityStore.identity.name), your coach"))
-
-            HStack(spacing: 14) {
-                // The plan book. The dot means something is waiting for YOUR answer — the coach can
-                // propose, but only you can turn a suggestion into a plan.
-                // Goal & Journey shortcut (#R6) — one tap to the goal surface from the chat, alongside
-                // the plan book, instead of digging through settings.
-                Button { activeSheet = .goal } label: {
-                    Image(systemName: "target")
-                        .font(StrandFont.headline)
-                        .foregroundStyle(StrandPalette.textSecondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Goal and journey")
-
-                Button { activeSheet = .plan } label: {
-                    Image(systemName: "calendar")
-                        .font(StrandFont.headline)
-                        .foregroundStyle(planStore.pending.isEmpty
-                                         ? StrandPalette.textSecondary : StrandPalette.accent)
-                        .overlay(alignment: .topTrailing) {
-                            if !planStore.pending.isEmpty {
-                                Circle().fill(StrandPalette.accent)
-                                    .frame(width: 6, height: 6)
-                                    .offset(x: 3, y: -2)
-                            }
-                        }
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(planStore.pending.isEmpty
-                                    ? "Your plan"
-                                    : "Your plan, \(planStore.pending.count) waiting for your decision")
-
-                Button { coach.newConversation() } label: {
-                    Image(systemName: "square.and.pencil")
-                        .font(StrandFont.headline)
-                        .foregroundStyle(StrandPalette.textSecondary)
-                }
-                .buttonStyle(.plain)
-                .disabled(coach.sending || coach.messages.isEmpty)
-                .accessibilityLabel("New chat")
-
-                Button { activeSheet = .settings } label: {
-                    Image(systemName: "gearshape")
-                        .font(StrandFont.headline)
-                        .foregroundStyle(StrandPalette.textSecondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Coach settings")
-            }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.top, 10)
+        .padding(.bottom, 8)
     }
 
     // MARK: - Chat body (connected)

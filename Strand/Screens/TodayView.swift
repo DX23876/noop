@@ -206,8 +206,6 @@ struct TodayView: View {
     @AppStorage(CoachEntryMode.storageKey) private var coachEntryModeRaw = CoachEntryMode.both.rawValue
     /// Master switch (#R7): hides the Coach's Today card when the coach UI is turned off.
     @AppStorage(CoachEntryMode.uiEnabledKey) private var coachUIEnabled = true
-    /// Show the coach's avatar on the Today entry (#R11); off restores the plain sparkle.
-    @AppStorage(CoachEntryMode.todayAvatarKey) private var todayAvatar = true
 
     // Imperial/Metric display preference (D#103). Only the Weight tile carries a convertible unit here.
     @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
@@ -1111,32 +1109,11 @@ struct TodayView: View {
             // nothing only on a cold start. Owns its LiveState observation so a tick refreshes only it.
             SyncStatusChip()
 
-            // Uniform 36pt circular icon set: coach avatar, recording-status light, updates bell, quick-add (+), menu.
+            // Uniform 36pt circular icon set: recording-status light, updates bell, quick-add (+), menu.
+            // Coach entry (#R-header-coach) moved OUT of this cluster into its own row lower on Today
+            // (`CoachTodayRow`) — it used to lead this cluster right next to the profile avatar at the
+            // trailing end, which read as cluttered.
             HStack(spacing: 8) {
-                // Coach entry (#R-header-coach): the standalone Today card was replaced by this header
-                // avatar so it stops claiming a full content row. Same gate as the old card
-                // (`coachUIEnabled && showsCard`) so the Coach-entry picker keeps governing it, and the
-                // same `todayAvatar` fallback to a plain sparkle. Leads the cluster, clearly apart from the
-                // profile avatar at the trailing end (which opens Settings, not Coach).
-                if coachUIEnabled, (CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both).showsCard {
-                    Button { showCoach = true } label: {
-                        Group {
-                            if todayAvatar {
-                                CoachAvatarView(size: 36)
-                            } else {
-                                Image(systemName: "sparkles")
-                                    .font(.system(size: 15, weight: .semibold))
-                                    .foregroundStyle(StrandPalette.accent)
-                                    .frame(width: 36, height: 36)
-                                    .background(Circle().fill(StrandPalette.surfaceInset))
-                            }
-                        }
-                        .contentShape(Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Ask your Coach")
-                    .accessibilityHint("Opens the AI coach chat, grounded in your own numbers.")
-                }
                 // Recording status, a colour-coded light (green recording / amber synced / red not
                 // recording), replacing the old full-width banner. Taps to Devices to connect. Its OWN
                 // subview observes LiveState so a ~1 Hz HR tick re-renders just this 36pt dot, not all of
@@ -1292,6 +1269,12 @@ struct TodayView: View {
                 DayNavBar(selectedOffset: selectedDayOffset,
                           today: Repository.logicalDay(Date())) { selectedDayOffset = $0 }
                 #endif
+                // Coach entry (#R-header-coach): its own row, right under the top bar — pulled out of the
+                // header icon cluster (see `todayTopBar`) so it's never adjacent to the profile picture.
+                // Same gate the header icon used.
+                if coachUIEnabled, (CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both).showsCard {
+                    CoachTodayRow(isPresented: $showCoach)
+                }
                 // A "workout in progress" indicator whenever a manual workout is active. A tap routes to Live
                 // and opens the in-exercise screen. Its own leaf owns the AppModel observation + per-second
                 // clock, so the live tick never re-renders TodayView.body.

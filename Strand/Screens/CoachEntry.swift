@@ -2,9 +2,9 @@ import SwiftUI
 import StrandDesign
 
 /// How the user reaches the Coach from the home surface. The user picks in Coach settings; the Today
-/// header avatar (`.card`) and the floating button honour it. Shared (not iOS-only) because the Today
-/// views that read it compile for macOS too — the floating button itself is only mounted on iOS (see
-/// `CoachFloatingButton`).
+/// list row (`.card` — `CoachTodayRow`) and the floating button honour it. Shared (not iOS-only)
+/// because the Today views that read it compile for macOS too — the floating button itself is only
+/// mounted on iOS (see `CoachFloatingButton`).
 enum CoachEntryMode: String, CaseIterable, Identifiable {
     case card, button, both
 
@@ -12,14 +12,15 @@ enum CoachEntryMode: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .card:   return "Header"
+        case .card:   return "List row"
         case .button: return "Floating button"
         case .both:   return "Both"
         }
     }
 
-    /// Named `showsCard` for history; since #R-header-coach the `.card` style is the Today **header
-    /// avatar**, not a full-width content card. The gate is unchanged — surfaces read this the same way.
+    /// Named `showsCard` for history; the `.card` style is the Today **list row** (`CoachTodayRow`) —
+    /// it was briefly a header avatar squeezed next to the profile picture, now split back out into its
+    /// own row. The gate is unchanged — surfaces read this the same way.
     var showsCard: Bool { self == .card || self == .both }
     var showsButton: Bool { self == .button || self == .both }
 
@@ -195,6 +196,66 @@ struct CoachCardIconButton: View {
             .accessibilityLabel("Ask coach about \(context.title)")
             .accessibilityHint("Opens the AI coach with this metric's data.")
         }
+    }
+}
+
+/// The Coach's Today entry as its own full-width list row, instead of an icon squeezed into the top-bar
+/// cluster next to the user's own profile picture (the two used to sit flush against each other with
+/// nothing between them). Same gate the old header entry used — `coachUIEnabled && showsCard` — and
+/// tapping it opens the chat the same way the floating button and the old header avatar did. Design
+/// tokens only; shared (macOS + iOS) so both Today variants render an identical row.
+struct CoachTodayRow: View {
+    /// Flipped true to present the Coach; the host owns the actual presentation (`.coachCover` on iOS,
+    /// a sheet on macOS), same pattern as `CoachFloatingButton`.
+    @Binding var isPresented: Bool
+
+    @EnvironmentObject private var coach: AICoachEngine
+    @ObservedObject private var identityStore = CoachIdentityStore.shared
+    /// Show the coach's avatar (rather than a generic sparkle) on the row — the same toggle the old
+    /// header entry read, so turning it off keeps behaving the same way it always did.
+    @AppStorage(CoachEntryMode.todayAvatarKey) private var todayAvatar = true
+
+    private let avatarSize: CGFloat = 40
+
+    var body: some View {
+        Button { isPresented = true } label: {
+            NoopCard(padding: 14) {
+                HStack(spacing: 12) {
+                    if todayAvatar {
+                        CoachAvatarView(size: avatarSize)
+                    } else {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: avatarSize * 0.42, weight: .semibold))
+                            .foregroundStyle(StrandPalette.accent)
+                            .frame(width: avatarSize, height: avatarSize)
+                            .background(StrandPalette.accent.opacity(0.14), in: Circle())
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(identityStore.identity.name)
+                            .font(StrandFont.headline)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                        Text("Ask your coach")
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                    }
+                    Spacer(minLength: 0)
+                    // Same unseen-message signal the floating button shows (#R-header-coach) — a brief
+                    // or nudge the user hasn't opened yet.
+                    if coach.hasUnseenCoachMessage {
+                        Circle()
+                            .fill(StrandPalette.statusCritical)
+                            .frame(width: 9, height: 9)
+                            .accessibilityHidden(true)
+                    }
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text("\(identityStore.identity.name), your coach"))
+        .accessibilityHint("Opens the AI coach chat.")
     }
 }
 

@@ -125,7 +125,8 @@ permanently written off.
 | **A name and a face** | **Svea** or **Marv**, or your own name, symbol or photo — never leaving the device. Coaching *style* (Guardian / Friend / Commander) layers on top, changing tone only, never the methodology or the "I'm not a doctor" guardrails. |
 | **Honest about cost** | Token counts and cache behaviour after every question, on every provider. |
 | **Bring almost any model** | Anthropic, OpenAI, Google Gemini, OpenRouter, or any OpenAI-compatible endpoint — including a local Ollama or LM Studio server. |
-| **English, Deutsch, Español, Français** | The coach's own UI is fully translated, on top of upstream's coverage. |
+| **Replies in your language** | The coach is told the app's current language and answers in it — chat, check-ins and briefs alike, not just the UI chrome. |
+| **8 languages in the UI** | English, Deutsch, Español, Français, Italiano, Português, Русский, 中文(简/繁). German/Spanish/French are reviewed; the rest are machine-translated and would benefit from a native pass — see [docs/COACH.md](docs/COACH.md). |
 
 📖 **The deep version** → **[docs/COACH.md](docs/COACH.md)**: every tool's schema, the safety gates,
 the plan book's state machine, the memory ranking, provider support, and the file map.

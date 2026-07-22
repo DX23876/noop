@@ -59,8 +59,6 @@ struct LiquidTodayView: View {
     @AppStorage(CoachEntryMode.storageKey) private var coachEntryModeRaw = CoachEntryMode.both.rawValue
     /// Master switch (#R7): hides the Coach's Today card when the coach UI is turned off.
     @AppStorage(CoachEntryMode.uiEnabledKey) private var coachUIEnabled = true
-    /// Show the coach's avatar on the Today entry (#R11); off restores the plain sparkle.
-    @AppStorage(CoachEntryMode.todayAvatarKey) private var todayAvatar = true
 
     /// Live Sessions (silent guardian) beta gate — the SAME key the Settings toggle writes. Default ON
     /// (the entry is BETA-labelled in-UI); off removes the Start-session control entirely.
@@ -251,6 +249,12 @@ struct LiquidTodayView: View {
 
                 VStack(alignment: .leading, spacing: 12) {
                     scene
+                    // Coach entry (#R-header-coach): its own row, right under the top bar — pulled out of
+                    // the header icon cluster (see `scene`) so it's never adjacent to the profile picture.
+                    // Same gate the header icon used.
+                    if coachUIEnabled, (CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both).showsCard {
+                        CoachTodayRow(isPresented: $showCoach)
+                    }
                     // #105: the live "workout in progress" card, dropped in the liquid Home rewrite. Restored
                     // here as the SAME leaf the classic TodayView renders (and Android's WorkoutInProgressCard),
                     // pinned above the reorderable block so an active manual workout is immediately visible
@@ -450,28 +454,10 @@ struct LiquidTodayView: View {
                 }
                 Spacer(minLength: 8)
                 HStack(spacing: 8) {
-                    // Coach entry (#R-header-coach): replaces the old full-width Today card. Same gate as the
-                    // card (`coachUIEnabled && showsCard`) and the same `todayAvatar` sparkle fallback; leads
-                    // the cluster, apart from the profile avatar (which opens Settings, not Coach).
-                    if coachUIEnabled, (CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both).showsCard {
-                        Button { showCoach = true } label: {
-                            Group {
-                                if todayAvatar {
-                                    CoachAvatarView(size: 34).frame(width: 34, height: 34)
-                                } else {
-                                    Image(systemName: "sparkles")
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundStyle(.white)
-                                        .frame(width: 34, height: 34)
-                                        .background(Circle().fill(.white.opacity(0.16)))
-                                }
-                            }
-                        }
-                        .buttonStyle(LiquidPressStyle())
-                        .accessibilityLabel("Ask your Coach")
-                        .accessibilityHint("Opens the AI coach chat.")
-                    }
                     // Profile pic (the one set in Settings) → opens Settings, matching the classic Today.
+                    // Coach entry (#R-header-coach) moved OUT of this cluster into its own row
+                    // (`CoachTodayRow`, in the content below) — it used to sit flush against this button
+                    // with nothing between them, which read as cluttered.
                     Button { showSettings = true } label: {
                         ProfileAvatarView(imageData: profile.avatarImageData, size: 34)
                             .frame(width: 34, height: 34)

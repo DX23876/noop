@@ -25,12 +25,13 @@ struct CoachGoalJourneyView: View {
     @ObservedObject private var goalStore = CoachGoalStore.shared
 
     private enum GoalSheet: Identifiable {
-        case edit(UUID), newGoal, journey(UUID)
+        case edit(UUID), newGoal, journey(UUID), guidedSetup
         var id: String {
             switch self {
             case .edit(let id):    return "edit-\(id)"
             case .newGoal:         return "newGoal"
             case .journey(let id): return "journey-\(id)"
+            case .guidedSetup:     return "guidedSetup"
             }
         }
     }
@@ -45,9 +46,6 @@ struct CoachGoalJourneyView: View {
         }
     }
     @State private var goalConfirmation: GoalConfirmation?
-    /// Re-startable guided onboarding (#R12): offered whenever a goal slot is free, so the few-questions
-    /// flow isn't a one-time first-run thing.
-    @State private var showGuidedSetup = false
 
     private var activeGoals: [CoachGoal] { goalStore.activeGoals }
     private var canAddMore: Bool { activeGoals.count < CoachGoalStore.maxActiveGoals }
@@ -62,15 +60,16 @@ struct CoachGoalJourneyView: View {
                 maxReachedNote
             }
         }
+        // ONE enum-driven sheet (#R2) — a second `.sheet(isPresented:)` alongside this used to stack two
+        // sheet hosts on the same view, the classic SwiftUI glitch where dismissing one can intermittently
+        // re-present or bounce back to whatever's underneath. Guided setup is now just another case.
         .sheet(item: $goalSheet) { which in
             switch which {
             case .edit(let id): CoachGoalEditorView(isOnboarding: false, editingGoalId: id)
             case .newGoal:      CoachGoalEditorView(isOnboarding: false)
             case .journey(let id): JourneyView(goalId: id).environmentObject(coach)
+            case .guidedSetup:  CoachGoalOnboardingFlow()
             }
-        }
-        .sheet(isPresented: $showGuidedSetup) {
-            CoachGoalOnboardingFlow()
         }
         .confirmationDialog(goalConfirmationTitle,
                             isPresented: goalConfirmationIsPresented,
@@ -138,7 +137,7 @@ struct CoachGoalJourneyView: View {
     }
 
     private var guidedSetupButton: some View {
-        Button { showGuidedSetup = true } label: {
+        Button { goalSheet = .guidedSetup } label: {
             HStack(spacing: 8) {
                 Image(systemName: "sparkles").foregroundStyle(StrandPalette.accent).accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 1) {

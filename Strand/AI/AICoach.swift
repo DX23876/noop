@@ -579,6 +579,23 @@ final class AICoachEngine: ObservableObject {
     /// The emoji clause matching `allowEmoji`'s current value.
     var emojiClause: String { allowEmoji ? Self.emojiOnClause : Self.emojiOffClause }
 
+    /// Reply language: nothing else in this prompt ever states one, so without this the model tends to
+    /// default to English regardless of the app's own language (the app UI is fully localized via the
+    /// string catalog, but that says nothing about what language the MODEL writes in). Read fresh from
+    /// `Locale.current` — the system/app language, same source every other formatter in the app already
+    /// reads (`SleepMark`, `TodayView`, …) — so a language change takes effect on the next message with
+    /// no engine rebuild, same posture as the rest of `systemPrompt`. Named in English on purpose: this
+    /// is an instruction TO the model, not text it should echo back.
+    var languageClause: String {
+        let code = Locale.current.language.languageCode?.identifier ?? "en"
+        let name = Locale(identifier: "en_US").localizedString(forLanguageCode: code) ?? "English"
+        return """
+        Reply in \(name) (\(code)) - that's the app's current language. Keep numbers, units, and proper \
+        nouns as they are; translate everything else. If the user writes to you in a different language, \
+        follow their lead for that reply instead.
+        """
+    }
+
     /// The tool-awareness map, appended to the CACHED system block when tools are live (same
     /// `toolCallingActive` gate as `planToolClause`). It lands in the system block — cached by Anthropic
     /// after round 1 — rather than in a per-round user message, where its predecessor
@@ -634,6 +651,9 @@ final class AICoachEngine: ObservableObject {
         prompt += "\n\n" + Self.citationClause
         // Coach voice (#P13): the human/careful register, under whichever persona leads the prompt.
         prompt += "\n\n" + Self.voiceClause
+        // Reply language: read fresh so a system/app language change applies on the next message, same
+        // as everything else in this property.
+        prompt += "\n\n" + languageClause
         // Emoji (#P14 7.3): a user-set dial, read fresh so a settings change applies next message.
         prompt += "\n\n" + emojiClause
         return prompt

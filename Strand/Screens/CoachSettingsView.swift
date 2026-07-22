@@ -757,7 +757,7 @@ struct CoachSettingsView: View {
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Coach entry")
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                        Text("How you open Coach from Today — a header avatar, a draggable floating button, or both.")
+                        Text("How you open Coach from Today — a list row, a draggable floating button, or both.")
                             .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                             .fixedSize(horizontal: false, vertical: true)
                     }

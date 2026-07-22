@@ -676,8 +676,19 @@ helper parameter first and the audit can't see it at all, which is exactly how 2
 shipped English-only for months before `9.0.1` closed the fork-wide backlog. Prefer a few repeated
 literal call sites over a DRY-but-invisible-to-the-scanner helper.
 
+⚠️ **The `it` / `pt-PT` / `ru` / `zh-Hans` / `zh-Hant` coach strings are machine-translated, unreviewed.**
+`de` / `es` / `fr` are the CI-gated set (`Tools/i18n_audit.py`'s `LANGS`) and have had eyes on them; the
+other five were filled in wholesale to close a translation gap, by an LLM with no native speaker
+checking idiom, register or the more culturally loaded phrasing (the coach's tone, health disclaimers).
+They're a correct-shaped starting point, not a shipped-quality bar — a native pass on any of the five is
+a welcome, low-risk PR (string-only, no code). The coach's *replies* are separately covered:
+`AICoachEngine.languageClause` (`Strand/AI/AICoach.swift`) tells the model the app's language and asks
+it to answer in that language, independent of how polished the static catalog strings are.
+
 Good first contributions:
 
+- **Native review of the `it` / `pt-PT` / `ru` / `zh-Hans` / `zh-Hant` coach strings.** Currently
+  machine-translated (see the warning above) — string-only, no code, no strap needed.
 - **Verification against live providers.** Streaming, tool rounds, the token counts, the 429 countdown
   and the offline path are unit-tested and compile-clean, but several have never run against a real
   API. Each needs one real turn per provider.

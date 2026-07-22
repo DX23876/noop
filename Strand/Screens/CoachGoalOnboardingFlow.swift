@@ -195,6 +195,12 @@ struct CoachGoalOnboardingFlow: View {
     private var detailsStep: some View {
         VStack(alignment: .leading, spacing: 12) {
             field("Goal", placeholder: placeholderTitle, text: $title)
+            // "Next" stays disabled until this has a name (`canAdvance`) — on `.custom` it's the ONLY
+            // field on this step, so an empty title otherwise reads as the flow silently refusing to
+            // move, not as something the user needs to do. Say it plainly instead.
+            if trimmedTitle.isEmpty {
+                stepNote("Give it a name to continue.")
+            }
             if kind.isQuantified {
                 HStack(spacing: 10) {
                     field("From (\(kind.unit))", placeholder: "now", text: $baselineText, numeric: true)
