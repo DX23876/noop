@@ -645,13 +645,11 @@
     <string name="l10n_smart_alarm_screen_window_length_46179fcb">Longueur de la fenêtre</string>
     <string name="l10n_smart_alarm_screen_windowminutes_min_bd89fd82">%1$s min</string>
     <string name="l10n_smart_alarm_screen_your_whoop_5_mg_won_t_75029bae">Votre WHOOP 5/MG n\'armera pas cela jusqu\'à ce que le mode expérimental soit activé (Paramètres →</string>
-    <string name="l10n_steps_calibration_screen_auto_c614ba7c">Auto</string>
     <string name="l10n_steps_calibration_screen_calibrate_your_steps_38b4e814">Calibrez vos pas</string>
     <string name="l10n_steps_calibration_screen_close_bbfa773e">Fermer</string>
     <string name="l10n_steps_calibration_screen_day_987b9ced">Jour</string>
     <string name="l10n_steps_calibration_screen_done_e9b450d1">Terminé</string>
     <string name="l10n_steps_calibration_screen_est_18b405fb">Est.</string>
-    <string name="l10n_steps_calibration_screen_high_b1a5954a">Élevé</string>
     <string name="l10n_steps_calibration_screen_how_this_works_b895a8c3">Comment ça fonctionne</string>
     <string name="l10n_steps_calibration_screen_no_days_yet_where_both_noop_71d6005b">Pas encore de jours où NOOP et votre téléphone ont compté les étapes. Une fois que votre téléphone enregistre un</string>
     <string name="l10n_steps_calibration_screen_no_motion_synced_yet_65106670">Aucun mouvement synchronisé pour l\'instant</string>
