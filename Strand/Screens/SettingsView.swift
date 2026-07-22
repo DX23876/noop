@@ -269,27 +269,46 @@ struct SettingsView: View {
         // confused SwiftUI's text-measurement pass — the blurb rendered with zero trailing margin and
         // clipped to the card edge instead of wrapping inside the card padding. The localization key is
         // unchanged (`…Stored only on %@…`), so the existing translations still apply.
-        let blurbText = String(localized: "Optional. Add a photo for the avatar in the top-left. Stored only on \(Platform.deviceNounPhrase). NOOP is offline, so it's never uploaded.")
+        let blurbText = String(localized: "Optional. Add a photo and a name for the header on Today. Stored only on \(Platform.deviceNounPhrase). NOOP is offline, so it's never uploaded.")
         return SettingsSection(
             icon: "person.crop.circle",
-            title: "Profile photo",
+            title: "Photo and name",
             blurb: LocalizedStringKey(blurbText)
         ) {
-            HStack(spacing: 16) {
-                ProfileAvatarView(imageData: profile.avatarImageData, size: 64)
-                    .accessibilityLabel(profile.hasAvatar ? "Your profile photo" : "No profile photo set")
+            VStack(spacing: 0) {
+                HStack(spacing: 16) {
+                    ProfileAvatarView(imageData: profile.avatarImageData, size: 64)
+                        .accessibilityLabel(profile.hasAvatar ? "Your profile photo" : "No profile photo set")
 
-                VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-                    PhotosPicker(selection: $avatarPickerItem, matching: .images) {
-                        Text(profile.hasAvatar ? "Change photo" : "Choose photo")
-                    }
-                    .buttonStyle(NoopButtonStyle(.secondary, fullWidth: true))
+                    VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                        PhotosPicker(selection: $avatarPickerItem, matching: .images) {
+                            Text(profile.hasAvatar ? "Change photo" : "Choose photo")
+                        }
+                        .buttonStyle(NoopButtonStyle(.secondary, fullWidth: true))
 
-                    if profile.hasAvatar {
-                        Button("Remove photo") { profile.clearAvatar() }
-                            .buttonStyle(NoopButtonStyle(.tertiary, fullWidth: true))
-                            .accessibilityHint("Reverts to the default profile icon")
+                        if profile.hasAvatar {
+                            Button("Remove photo") { profile.clearAvatar() }
+                                .buttonStyle(NoopButtonStyle(.tertiary, fullWidth: true))
+                                .accessibilityHint("Reverts to the default profile icon")
+                        }
                     }
+                }
+                rowDivider
+                // Greeting name (optional). Purely cosmetic — it personalises Today's header greeting and
+                // nothing else, so it stays out of the `.noopbak` whitelist (see `ProfileStore.name`).
+                FormRow(label: "Name") {
+                    TextField("Optional", text: $profile.name)
+                        .textFieldStyle(.plain)
+                        .multilineTextAlignment(.trailing)
+                        .font(StrandFont.body)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                        .tint(StrandPalette.accent)
+                        #if os(iOS)
+                        .textInputAutocapitalization(.words)
+                        .autocorrectionDisabled()
+                        .submitLabel(.done)
+                        #endif
+                        .accessibilityLabel("Your name, used in the Today greeting")
                 }
             }
         }

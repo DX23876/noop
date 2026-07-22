@@ -84,6 +84,10 @@ struct LiquidTodayView: View {
     // day navigation (0 = today, 1 = yesterday, …)
     @State private var selectedDayOffset = 0
     @State private var showDayPicker = false
+    /// The rotating one-word "this is tappable / swipeable" hint under the headline; nil shows the date.
+    /// Same two words and cadence the classic Today uses, so the affordance is learned once.
+    @State private var dayNavHint: String? = nil
+    private static let dayNavHints = ["Swipe", "Tap"]
 
     // PERF: the body was rescanning repo.days (599 days) ~23× per pass for displayDay and ~3× for
     // readiness on EVERY re-render (every HR notify, every canvas frame that invalidates, every scroll).
@@ -269,7 +273,19 @@ struct LiquidTodayView: View {
                     ForEach(sectionOrder) { section in
                         switch section {
                         case .hero: heroCard
-                        case .liveSession: if liveSessionsBeta { liveSessionStartRow }
+                        // Live Sessions (silent guardian) is an OPTIONAL, strap-dependent beta, so it no
+                        // longer holds a prominent card between the scores and Synthesis. On iOS it lives in
+                        // the "+" quick-action sheet (`QuickActionSheet`, RootTabView); macOS has no such
+                        // sheet — its "+" sets `router.requestQuickActions()`, which only the iOS tab shell
+                        // consumes — so the row stays there rather than stranding the feature. The enum case
+                        // is deliberately KEPT: `today.sectionOrder` is a byte-identical cross-platform
+                        // string and Android still ships the section.
+                        case .liveSession:
+                            #if os(macOS)
+                            if liveSessionsBeta { liveSessionStartRow }
+                            #else
+                            EmptyView()
+                            #endif
                         case .synthesis: synthesisSection
                         case .keyMetrics: keyMetricsSection
                         case .workouts: lastWorkoutsSection
@@ -433,19 +449,45 @@ struct LiquidTodayView: View {
             HStack(alignment: .top) {
                 Button { showDayPicker = true } label: {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(dayTitle)
-                            .font(StrandFont.rounded(28))
+                        // On TODAY the headline greets the user; a navigated past day falls back to the
+                        // "Yesterday"/weekday title. A greeting over last Tuesday would be a false statement,
+                        // and the relative word is the day-swipe's most visible signal — it has to come back
+                        // the moment the shown day isn't today.
+                        Text(headlineLine)
+                            .font(StrandFont.rounded(26))
                             .foregroundStyle(.white)
+                            .lineLimit(1)
+                            // A long name ("Good afternoon, Konstantin") must scale, not shove the icon
+                            // cluster off the trailing edge on a 375pt phone.
+                            .minimumScaleFactor(0.7)
                             .shadow(color: .black.opacity(0.4), radius: 10, y: 1)
-                        Text(dateLine)
+                        // The date is the day-picker's trigger, so it needs to READ as tappable without a
+                        // second control. Same affordance the classic Today uses (TodayView.dayNavHint): every
+                        // ~10s it swaps for ~1.5s to a one-word accent hint, then returns to the date.
+                        Text(dayNavHint ?? dateLine)
                             .font(StrandFont.caption)
-                            .foregroundStyle(.white.opacity(0.78))
+                            .foregroundStyle(dayNavHint != nil ? StrandPalette.accent : .white.opacity(0.78))
+                            .contentTransition(.opacity)
                             .shadow(color: .black.opacity(0.35), radius: 8, y: 1)
                     }
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("\(dayTitle). Tap to pick a day, swipe to change day.")
+                // One async loop, cancelled with the view — no leaked timer. Mirrors the classic Today's.
+                .task {
+                    var i = 0
+                    while !Task.isCancelled {
+                        try? await Task.sleep(nanoseconds: 10_000_000_000)
+                        if Task.isCancelled { break }
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            dayNavHint = Self.dayNavHints[i % Self.dayNavHints.count]
+                        }
+                        i += 1
+                        try? await Task.sleep(nanoseconds: 1_500_000_000)
+                        withAnimation(.easeInOut(duration: 0.3)) { dayNavHint = nil }
+                    }
+                }
                 .popover(isPresented: $showDayPicker) {
                     DatePicker("", selection: dayPickerBinding, in: ...Repository.logicalDay(Date()),
                                displayedComponents: [.date])
@@ -456,17 +498,13 @@ struct LiquidTodayView: View {
                         .liquidPopoverAdaptation()
                 }
                 Spacer(minLength: 8)
+                // The utility icons stay a tight group; the profile picture sits AFTER a deliberate gap and
+                // one size up with a ring, so it reads as the greeting's counterpart (the way into profile /
+                // account / settings) rather than as a fourth interchangeable round icon.
+                // Coach entry (#R-header-coach) moved OUT of this cluster into its own row
+                // (`CoachTodayRow`, in the content below) — it used to sit flush against the profile button
+                // with nothing between them, which read as cluttered.
                 HStack(spacing: 8) {
-                    // Profile pic (the one set in Settings) → opens Settings, matching the classic Today.
-                    // Coach entry (#R-header-coach) moved OUT of this cluster into its own row
-                    // (`CoachTodayRow`, in the content below) — it used to sit flush against this button
-                    // with nothing between them, which read as cluttered.
-                    Button { showSettings = true } label: {
-                        ProfileAvatarView(imageData: profile.avatarImageData, size: 34)
-                            .frame(width: 34, height: 34)
-                    }
-                    .buttonStyle(LiquidPressStyle())
-                    .accessibilityLabel("Profile and settings")
                     LiquidAddButton()
                     LiquidBatteryButton()
                     // #today-layout: opens the Arrange sheet (drag rows to reorder the Today sections).
@@ -479,6 +517,16 @@ struct LiquidTodayView: View {
                     }
                     .buttonStyle(LiquidPressStyle())
                     .accessibilityLabel("Arrange Today sections")
+
+                    // Profile pic (the one set in Settings) → opens Settings, matching the classic Today.
+                    Button { showSettings = true } label: {
+                        ProfileAvatarView(imageData: profile.avatarImageData, size: 38)
+                            .frame(width: 38, height: 38)
+                            .overlay(Circle().strokeBorder(.white.opacity(0.18), lineWidth: 1))
+                    }
+                    .buttonStyle(LiquidPressStyle())
+                    .accessibilityLabel("Profile and settings")
+                    .padding(.leading, 6)   // the gap that separates "you" from the utilities
                 }
             }
             // Subtle NOOP wordmark in the sky between header and hero. Perfectly centred (a letter row has
@@ -806,8 +854,10 @@ struct LiquidTodayView: View {
     private var synthesisSection: some View {
         VStack(spacing: 8) {
             HStack {
-                Text(greeting).font(StrandFont.rounded(19)).foregroundStyle(StrandPalette.textPrimary)
-                    .lineLimit(1).minimumScaleFactor(0.6)   // yield to the pills rather than push them to wrap
+                // The greeting moved UP into the header (it replaced the "Today" title), so this row no
+                // longer repeats it — one greeting per screen. The pills keep the row and simply sit at the
+                // trailing edge, where they already were. Classic `TodayView` and Android `TodayScreen` keep
+                // their own Synthesis greeting: neither has a header greeting, so nothing to mirror there.
                 Spacer(minLength: 8)
                 HStack(spacing: 8) {
                     if let word = readinessWord {
@@ -1373,6 +1423,17 @@ struct LiquidTodayView: View {
             : String(localized: "Good evening")
     }
 
+    /// The greeting with the user's name when they set one in Settings ("Good morning, Marc"), the bare
+    /// greeting when they didn't. `displayName` already trims and nils an empty name, so this can never
+    /// render a dangling comma.
+    private var greetingLine: String {
+        guard let name = profile.displayName else { return greeting }
+        return "\(greeting), \(name)"
+    }
+
+    /// The header's first line: the greeting on today, the relative day title on a navigated past day.
+    private var headlineLine: String { selectedDayOffset == 0 ? greetingLine : dayTitle }
+
     // Measured strap count ?: imported Apple Health count ?: motion estimate — the same precedence the
     // detail routing follows below, so the tapped-through source always matches the number shown (#377).
     private var stepCount: Double? {
@@ -1705,7 +1766,17 @@ private struct TodayArrangeSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        let order = TodayLayoutPrefs.decodeOrder(orderRaw)
+        // On iOS the Start-session section renders nothing (the entry moved into the "+" quick-action
+        // sheet), so listing it here would offer to arrange something the user can't see. Dropping it from
+        // the written order is safe in both directions: `decodeOrder` re-inserts a known-but-missing section
+        // at its default spot, and an Android-saved order containing it still decodes fine.
+        let order = TodayLayoutPrefs.decodeOrder(orderRaw).filter { section in
+            #if os(macOS)
+            return true
+            #else
+            return section != .liveSession
+            #endif
+        }
         NavigationStack {
             List {
                 ForEach(order) { section in
@@ -2148,6 +2219,12 @@ private extension View {
         #endif
     }
 
+}
+
+// Not fileprivate like the chrome helpers above: the iOS tab shell (`RootTabView`) presents the guardian
+// now that its entry lives in the quick-action menu, and the macOS Today row presents it from here — one
+// helper, one presentation style per platform, two call sites.
+extension View {
     /// Present the Live Session screen: fullScreenCover on iOS (the guardian owns the display mid-
     /// workout), a plain sheet on macOS where fullScreenCover doesn't exist. The session view calls
     /// `onClose` itself once the summary is dismissed.

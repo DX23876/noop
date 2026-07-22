@@ -61,8 +61,22 @@ final class ProfileStore: ObservableObject {
         }
     }
 
+    // ── Name (optional, on-device only) ─────────────────────────────────────────────────────────
+    /// What the user wants to be called — used ONLY to personalise the Today greeting
+    /// ("Good morning, Marc"). Empty = no name set, and every surface falls back to the bare greeting.
+    /// LOCAL-ONLY and deliberately NOT part of the `.noopbak` whitelist: the backup contract is
+    /// byte-identical across Swift and Kotlin, and a cosmetic greeting isn't worth widening it (a
+    /// restore simply starts again with no name). NOOP is offline, so this never leaves the device.
+    @Published var name: String {
+        didSet {
+            let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty { d.removeObject(forKey: K.name) } else { d.set(trimmed, forKey: K.name) }
+        }
+    }
+
     private let d = UserDefaults.standard
     private enum K {
+        static let name = "profile.name"
         static let dateOfBirth = "profile.dateOfBirth"
         /// Pre-#146 age key. No longer the source of truth; kept mirrored from `dateOfBirth` so the
         /// cross-platform `.noopbak` whitelist keeps round-tripping an Int age unchanged.
@@ -113,6 +127,14 @@ final class ProfileStore: ObservableObject {
         stepsCalibrationManual = d.object(forKey: K.stepsManualFlag) as? Bool ?? false
         stepsManualCoefficient = max(0, d.object(forKey: K.stepsManualCoeff) as? Double ?? 0)
         avatarImageData = d.data(forKey: K.avatar)
+        name = d.string(forKey: K.name) ?? ""
+    }
+
+    /// The trimmed name, or nil when none is set — what greeting surfaces read so they never have to
+    /// repeat the trim-and-check dance (and can never render "Good morning, ").
+    var displayName: String? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     // MARK: - Profile picture
