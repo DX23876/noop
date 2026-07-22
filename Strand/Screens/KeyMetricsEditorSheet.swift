@@ -21,6 +21,10 @@ struct KeyMetricsEditorSheet: View {
     /// The detailed graphs' trailing window — 2 days / 1 week / 2 weeks (shared key with Android).
     @AppStorage("today.keyMetricsWindowDays") private var windowDays = 14
 
+    /// Tiles per row on the liquid Today grid. 3 is the long-standing layout; 2 is the calmer option for
+    /// anyone who finds ten tiles three abreast overwhelming. iOS/macOS display-only — no Android twin.
+    @AppStorage(KeyMetricPrefs.columnsKey) private var columns = 3
+
     @Environment(\.dismiss) private var dismiss
 
     /// Working copy: the full ordered list with an enabled flag per tile. Enabled tiles come first in
@@ -66,6 +70,21 @@ struct KeyMetricsEditorSheet: View {
     private var editorContent: some View {
         VStack(alignment: .leading, spacing: 18) {
             header
+            // Tiles per row: the density control. Two columns give each tile ~50pt more width, which the
+            // grid spends on a bigger number and a taller trend graph.
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Tiles per row")
+                    .font(StrandFont.body)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                Picker("Tiles per row", selection: $columns) {
+                    ForEach(KeyMetricPrefs.columnChoices, id: \.self) { count in
+                        Text("\(count)").tag(count)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .accessibilityLabel("Tiles per row")
+            }
             // Detailed tiles: the tile-style option (compact ktile vs squarer tile + trend graph). Twin
             // of the Android editor's switch; applies live via the shared @AppStorage key.
             Toggle(isOn: $detailed) {

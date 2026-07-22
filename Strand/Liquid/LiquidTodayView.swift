@@ -16,6 +16,17 @@ import StrandDesign
 import WhoopStore
 import StrandAnalytics
 
+/// Sizes for the Today header's round controls, in one place because the buttons live in three separate
+/// views (`LiquidAddButton`, `LiquidBatteryButton`, the inline Arrange button) and drifted apart otherwise.
+/// The utilities are deliberately one step smaller than the profile picture: the header read as a cramped
+/// row of four equal discs, and shrinking the utilities is what gives the greeting its room back.
+enum LiquidHeaderMetrics {
+    /// The +, battery and arrange discs.
+    static let control: CGFloat = 30
+    /// The profile picture — the row's one "you" element, so it stays larger.
+    static let profile: CGFloat = 34
+}
+
 struct LiquidTodayView: View {
     @EnvironmentObject var repo: Repository
     @EnvironmentObject var router: NavRouter
@@ -77,6 +88,9 @@ struct LiquidTodayView: View {
     /// The detailed graphs' trailing window — 2 days / 1 week / 2 weeks (shared key with Android). The
     /// loader banks a day-keyed 14-day superset; render filters down, so a window change applies instantly.
     @AppStorage("today.keyMetricsWindowDays") private var keyMetricsWindowDays = 14
+    /// Tiles per row (2 or 3; 3 = the original layout). Set in the Key-Metrics editor.
+    @AppStorage(KeyMetricPrefs.columnsKey) private var keyMetricsColumnsRaw = 3
+    private var keyMetricsColumns: Int { KeyMetricPrefs.columns(keyMetricsColumnsRaw) }
     @State private var showKeyMetricsEditor = false
     @State private var kSparks: [String: [(String, Double)]] = [:]
     private var enabledKeyMetrics: [KeyMetric] { KeyMetricPrefs.decodeEnabled(keyMetricsRaw) }
@@ -251,14 +265,12 @@ struct LiquidTodayView: View {
 
                 liquidRefreshIndicator   // grows in the revealed space; a vessel filling with the pull
 
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 14) {
                     scene
-                    // Coach entry (#R-header-coach): its own row, right under the top bar — pulled out of
-                    // the header icon cluster (see `scene`) so it's never adjacent to the profile picture.
-                    // Same gate the header icon used.
-                    if coachUIEnabled, (CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both).showsCard {
-                        CoachTodayRow(isPresented: $showCoach)
-                    }
+                    // The coach entry is NOT here any more: a full-width row between the wordmark and the
+                    // scores both dominated the screen and pushed Charge/Effort/Rest down the page. It is now
+                    // a narrow tile beside the Synthesis card (`synthesisSection`), so the hero is the first
+                    // thing under the wordmark — the two cards below self-hide in the normal case.
                     // #105: the live "workout in progress" card, dropped in the liquid Home rewrite. Restored
                     // here as the SAME leaf the classic TodayView renders (and Android's WorkoutInProgressCard),
                     // pinned above the reorderable block so an active manual workout is immediately visible
@@ -454,7 +466,7 @@ struct LiquidTodayView: View {
                         // and the relative word is the day-swipe's most visible signal — it has to come back
                         // the moment the shown day isn't today.
                         Text(headlineLine)
-                            .font(StrandFont.rounded(26))
+                            .font(StrandFont.rounded(24))
                             .foregroundStyle(.white)
                             .lineLimit(1)
                             // A long name ("Good afternoon, Konstantin") must scale, not shove the icon
@@ -504,15 +516,15 @@ struct LiquidTodayView: View {
                 // Coach entry (#R-header-coach) moved OUT of this cluster into its own row
                 // (`CoachTodayRow`, in the content below) — it used to sit flush against the profile button
                 // with nothing between them, which read as cluttered.
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
                     LiquidAddButton()
                     LiquidBatteryButton()
                     // #today-layout: opens the Arrange sheet (drag rows to reorder the Today sections).
                     Button { showArrangeSheet = true } label: {
                         Image(systemName: "arrow.up.arrow.down")
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.system(size: 13, weight: .bold))
                             .foregroundStyle(.white)
-                            .frame(width: 34, height: 34)
+                            .frame(width: LiquidHeaderMetrics.control, height: LiquidHeaderMetrics.control)
                             .background(Circle().fill(.white.opacity(0.16)))
                     }
                     .buttonStyle(LiquidPressStyle())
@@ -520,8 +532,9 @@ struct LiquidTodayView: View {
 
                     // Profile pic (the one set in Settings) → opens Settings, matching the classic Today.
                     Button { showSettings = true } label: {
-                        ProfileAvatarView(imageData: profile.avatarImageData, size: 38)
-                            .frame(width: 38, height: 38)
+                        ProfileAvatarView(imageData: profile.avatarImageData,
+                                          size: LiquidHeaderMetrics.profile)
+                            .frame(width: LiquidHeaderMetrics.profile, height: LiquidHeaderMetrics.profile)
                             .overlay(Circle().strokeBorder(.white.opacity(0.18), lineWidth: 1))
                     }
                     .buttonStyle(LiquidPressStyle())
@@ -535,7 +548,7 @@ struct LiquidTodayView: View {
             // section block below. The wordmark's bottom pad (10) + the section VStack's 12 spacing keeps
             // the default hero-under-wordmark gap at the original 22.
             LiquidWordmark()
-                .padding(.top, 30)
+                .padding(.top, 22)
                 .padding(.bottom, 10)
         }
     }
@@ -629,11 +642,16 @@ struct LiquidTodayView: View {
         }
         .padding(.vertical, NoopMetrics.space4)
         .padding(.horizontal, NoopMetrics.space3)
+        // The ONE content surface that gets real iOS 26 glass (material below 26): it is the screen's
+        // headline card and there is exactly one of it, so the blur pass is affordable — unlike the ten
+        // metric tiles, which take a lighter fill instead. `heroFill` stays under the glass so the vessels
+        // keep the dark backing their on-dark text and colours were tuned against.
         .background(
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .fill(heroFill)
-                .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous)
-                    .strokeBorder(.white.opacity(0.11), lineWidth: 1))
+                .liquidGlass(in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous)
+                    .strokeBorder(.white.opacity(0.14), lineWidth: 1))
                 .shadow(color: .black.opacity(0.6), radius: 30, y: 16)
                 .opacity(cardOpacity)
         )
@@ -884,6 +902,20 @@ struct LiquidTodayView: View {
             .padding(.horizontal, 2)
             .padding(.top, 4)
 
+            // Synthesis and the coach entry share ONE row as two blocks: "what today means" beside "ask about
+            // it". The coach used to be a full-width bar above the scores; here it costs a fixed 104pt and
+            // the Synthesis card takes the rest, which keeps its one-line read from wrapping into a column.
+            // With the coach UI off the card simply spans the whole width.
+            HStack(alignment: .top, spacing: 8) {
+                synthesisCard
+                if coachUIEnabled, (CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both).showsCard {
+                    CoachTodayTile(isPresented: $showCoach)
+                }
+            }
+        }
+    }
+
+    private var synthesisCard: some View {
             Button { withAnimation(.easeInOut(duration: 0.2)) { synthesisExpanded.toggle() } } label: {
                 card {
                     VStack(alignment: .leading, spacing: 8) {
@@ -924,7 +956,6 @@ struct LiquidTodayView: View {
                 }
             }
             .buttonStyle(LiquidPressStyle())
-        }
     }
 
     // MARK: - Recovery vitals
@@ -1012,7 +1043,8 @@ struct LiquidTodayView: View {
             // #430 parity: the grid honours the Key-Metrics editor (selection + order, all ten metrics)
             // instead of a hard-coded six — the bespoke Sleep-hours ktile gives way to the shared REST
             // score tile, aligning the liquid grid with the classic macOS grid and Android.
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10),
+                                     count: keyMetricsColumns), spacing: 10) {
                 ForEach(enabledKeyMetrics) { metric in
                     ktileFor(metric, hrv: hrv, rhr: rhr)
                 }
@@ -1067,10 +1099,13 @@ struct LiquidTodayView: View {
 
     private func ktile(_ label: String, _ value: String, _ unit: String, _ tint: Color, _ frac: Double?,
                        key: String? = nil, detailMetric: MetricDescriptor? = nil) -> some View {
+        // Two columns means ~50pt more width per tile — spend it on legibility (a bigger number, a taller
+        // trend) instead of leaving it as empty card.
+        let wide = keyMetricsColumns == 2
         let tile = VStack(alignment: .leading, spacing: 6) {
-            Text(label.uppercased()).font(StrandFont.overlineScaled(9)).tracking(1.2)
+            Text(label.uppercased()).font(StrandFont.overlineScaled(wide ? 10 : 9)).tracking(1.2)
                 .foregroundStyle(StrandPalette.textTertiary)
-            (Text(value).font(StrandFont.number(17))
+            (Text(value).font(StrandFont.number(wide ? 20 : 17))
                 + Text(unit.isEmpty ? "" : " \(unit)").font(StrandFont.caption))
                 .foregroundStyle(StrandPalette.textPrimary)
                 .lineLimit(1)
@@ -1081,25 +1116,29 @@ struct LiquidTodayView: View {
             // windowed series keeps a clear placeholder of the same height so every tile in a detailed row
             // stays equal-height with its bars aligned.
             if keyMetricsDetailed {
+                let sparkHeight: CGFloat = wide ? 28 : 22
                 let spark = key.map { windowedSpark($0) } ?? []
                 if spark.count >= 2 {
                     Sparkline(values: spark,
                               gradient: Gradient(colors: [tint.opacity(0.5), tint]))
-                        .frame(height: 22)
+                        .frame(height: sparkHeight)
                         .padding(.top, 6)
                         .accessibilityHidden(true)
                 } else {
-                    Color.clear.frame(height: 22).padding(.top, 6)
+                    Color.clear.frame(height: sparkHeight).padding(.top, 6)
                 }
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 11)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 13)
         .frame(maxWidth: .infinity, alignment: .leading)
+        // Softer, rounder, and a lighter fill than the old solid surfaceRaised, so the sky reads through the
+        // grid and the screen breathes. Deliberately NOT glassEffect per tile: ten blur passes over a live
+        // animated sky is exactly the scroll-stutter this file spends its PERF comments avoiding.
         .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(StrandPalette.surfaceRaised)
-                .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(StrandPalette.surfaceRaised.opacity(0.72))
+                .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous)
                     .strokeBorder(StrandPalette.hairline, lineWidth: 1))
                 .opacity(cardOpacity)
         )
@@ -1195,12 +1234,12 @@ struct LiquidTodayView: View {
 
     private func card<V: View>(@ViewBuilder _ content: () -> V) -> some View {
         content()
-            .padding(16)
+            .padding(18)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(StrandPalette.surfaceRaised)
-                    .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous)
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .fill(StrandPalette.surfaceRaised.opacity(0.72))
+                    .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous)
                         .strokeBorder(StrandPalette.hairline, lineWidth: 1))
                     .opacity(cardOpacity)
             )
@@ -1817,9 +1856,9 @@ private struct LiquidAddButton: View {
     var body: some View {
         Button { router.requestQuickActions() } label: {
             Image(systemName: "plus")
-                .font(.system(size: 16, weight: .bold))
+                .font(.system(size: 15, weight: .bold))
                 .foregroundStyle(.white)
-                .frame(width: 34, height: 34)
+                .frame(width: LiquidHeaderMetrics.control, height: LiquidHeaderMetrics.control)
                 .background(Circle().fill(.white.opacity(0.16)))
         }
         .buttonStyle(LiquidPressStyle())
@@ -2075,7 +2114,7 @@ private struct LiquidBatteryButton: View {
                         .foregroundStyle(.white.opacity(0.5))
                 }
             }
-            .frame(width: 34, height: 34)
+            .frame(width: LiquidHeaderMetrics.control, height: LiquidHeaderMetrics.control)
         }
         .buttonStyle(LiquidPressStyle())
         .accessibilityLabel(batteryAccessibility)

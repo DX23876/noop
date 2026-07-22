@@ -396,3 +396,24 @@ struct CountUpNumber: View, Animatable {
             .font(font).monospacedDigit()
     }
 }
+
+// MARK: - Liquid Glass (iOS 26) with a Material fallback
+
+extension View {
+    /// Real iOS 26 Liquid Glass where available; `.ultraThinMaterial` on iOS 17–25 (and on macOS, which has
+    /// no `glassEffect`) — a clean blended degrade so a surface stays modern on new OSes without breaking
+    /// older ones. Deliberately used SPARINGLY: each glass surface is its own blur pass, and Today draws a
+    /// live animated sky underneath, so this belongs on the floating chrome and the one hero surface, not on
+    /// every card and tile (those take a lighter fill instead).
+    @ViewBuilder func liquidGlass(in shape: some Shape) -> some View {
+        #if os(iOS)
+        if #available(iOS 26.0, *) {
+            self.glassEffect(.regular, in: shape)
+        } else {
+            self.background(.ultraThinMaterial, in: shape)
+        }
+        #else
+        self.background(.ultraThinMaterial, in: shape)
+        #endif
+    }
+}

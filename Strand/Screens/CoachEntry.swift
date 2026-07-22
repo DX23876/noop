@@ -199,6 +199,38 @@ struct CoachCardIconButton: View {
     }
 }
 
+/// The coach's avatar as it appears on a Today entry: the identity's picture with a small accent sparkles
+/// badge, or a plain sparkle disc when the user turned the avatar off. The badge is the whole point — even
+/// with a photo it marks the circle unmistakably as the COACH rather than the user's own profile picture.
+/// Shared by the full-width row (classic Today) and the compact tile (liquid Today) so the two can never
+/// drift apart.
+struct CoachEntryAvatar: View {
+    var size: CGFloat = 40
+    /// False renders the generic sparkle disc — the `CoachEntryMode.todayAvatarKey` opt-out.
+    var showsAvatar: Bool = true
+
+    var body: some View {
+        if showsAvatar {
+            CoachAvatarView(size: size)
+                .overlay(alignment: .bottomTrailing) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: size * 0.30, weight: .bold))
+                        .foregroundStyle(StrandPalette.goldDeepText)
+                        .frame(width: size * 0.5, height: size * 0.5)
+                        .background(StrandPalette.accent, in: Circle())
+                        .overlay(Circle().strokeBorder(StrandPalette.surfaceBase, lineWidth: 1.5))
+                        .accessibilityHidden(true)
+                }
+        } else {
+            Image(systemName: "sparkles")
+                .font(.system(size: size * 0.42, weight: .semibold))
+                .foregroundStyle(StrandPalette.accent)
+                .frame(width: size, height: size)
+                .background(StrandPalette.accent.opacity(0.14), in: Circle())
+        }
+    }
+}
+
 /// The Coach's Today entry as its own full-width list row, instead of an icon squeezed into the top-bar
 /// cluster next to the user's own profile picture (the two used to sit flush against each other with
 /// nothing between them). Same gate the old header entry used — `coachUIEnabled && showsCard` — and
@@ -224,26 +256,7 @@ struct CoachTodayRow: View {
             // each other). The tint does the separating; the sparkles badge below removes any last ambiguity.
             NoopCard(padding: 14, tint: StrandPalette.accent) {
                 HStack(spacing: 12) {
-                    if todayAvatar {
-                        // A small accent sparkles badge over the coach's avatar: even with a photo, this
-                        // marks it unmistakably as the COACH, not the user's own profile picture.
-                        CoachAvatarView(size: avatarSize)
-                            .overlay(alignment: .bottomTrailing) {
-                                Image(systemName: "sparkles")
-                                    .font(.system(size: avatarSize * 0.30, weight: .bold))
-                                    .foregroundStyle(StrandPalette.goldDeepText)
-                                    .frame(width: avatarSize * 0.5, height: avatarSize * 0.5)
-                                    .background(StrandPalette.accent, in: Circle())
-                                    .overlay(Circle().strokeBorder(StrandPalette.surfaceBase, lineWidth: 1.5))
-                                    .accessibilityHidden(true)
-                            }
-                    } else {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: avatarSize * 0.42, weight: .semibold))
-                            .foregroundStyle(StrandPalette.accent)
-                            .frame(width: avatarSize, height: avatarSize)
-                            .background(StrandPalette.accent.opacity(0.14), in: Circle())
-                    }
+                    CoachEntryAvatar(size: avatarSize, showsAvatar: todayAvatar)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(identityStore.identity.name)
                             .font(StrandFont.headline)
@@ -268,6 +281,61 @@ struct CoachTodayRow: View {
             }
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(Text("\(identityStore.identity.name), your coach"))
+        .accessibilityHint("Opens the AI coach chat.")
+    }
+}
+
+/// The Coach's entry on the LIQUID Today, as a narrow tile that sits beside the Synthesis card rather than
+/// as its own full-width bar. Same content the row carries — badged avatar, the coach's name, the unseen
+/// dot — stacked instead of laid out in a line, so "what today means" and "ask about it" read as one pair of
+/// blocks and the scores keep the top of the screen. The row (`CoachTodayRow`) stays for the classic Today.
+/// Design tokens only; shared (macOS + iOS).
+struct CoachTodayTile: View {
+    /// Flipped true to present the Coach; the host owns the actual presentation, as with `CoachTodayRow`.
+    @Binding var isPresented: Bool
+    /// Matched to the Synthesis card beside it so the pair reads as one row of equal blocks.
+    var minHeight: CGFloat = 0
+
+    @EnvironmentObject private var coach: AICoachEngine
+    @ObservedObject private var identityStore = CoachIdentityStore.shared
+    @AppStorage(CoachEntryMode.todayAvatarKey) private var todayAvatar = true
+
+    /// Fixed width: the Synthesis card takes the rest, which keeps its one-line read from wrapping into a
+    /// column on a 375pt phone.
+    static let width: CGFloat = 104
+
+    var body: some View {
+        Button { isPresented = true } label: {
+            NoopCard(padding: 12, tint: StrandPalette.accent) {
+                VStack(spacing: 8) {
+                    CoachEntryAvatar(size: 40, showsAvatar: todayAvatar)
+                        // The unseen-message dot rides the avatar here — the tile has no trailing edge to
+                        // park it on the way the full-width row does.
+                        .overlay(alignment: .topTrailing) {
+                            if coach.hasUnseenCoachMessage {
+                                Circle()
+                                    .fill(StrandPalette.statusCritical)
+                                    .frame(width: 10, height: 10)
+                                    .overlay(Circle().strokeBorder(StrandPalette.surfaceBase, lineWidth: 1.5))
+                                    .accessibilityHidden(true)
+                            }
+                        }
+                    Text(identityStore.identity.name)
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    Text("Ask")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: minHeight, alignment: .center)
+            }
+        }
+        .buttonStyle(.plain)
+        .frame(width: Self.width)
         .accessibilityLabel(Text("\(identityStore.identity.name), your coach"))
         .accessibilityHint("Opens the AI coach chat.")
     }
