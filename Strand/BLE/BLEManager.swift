@@ -475,6 +475,8 @@ public final class BLEManager: NSObject, ObservableObject {
     private var collector: Collector?
     /// #716: stored on bootstrap so the scan callback can fix the seeded "WHOOP" model label.
     private var registryStore: DeviceRegistryStore?
+    /// #716: true once the seeded "WHOOP" model has been stamped to the correct family.
+    private var modelStamped = false
 
     // MARK: Upload / server sync — REMOVED for Strand (standalone, fully on-device).
 
@@ -3185,11 +3187,12 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         // #716: the seeded "my-whoop" device has model "WHOOP" (no generation). Once a live scan
         // confirms which service family the strap advertises, stamp the correct model so
         // forRegistryModel returns the right DeviceFamily (fixes skin-temp ADC scale + display).
-        if let rs = registryStore,
+        if !modelStamped, let rs = registryStore,
            let stale = try? rs.all().first(where: { $0.status == .active && $0.model == "WHOOP" }) {
             let correct = selectedModel == .whoop4 ? "WHOOP 4.0" : "WHOOP 5.0 / MG"
             try? rs.setModel(stale.id, model: correct)
             log("Updated device model from \"WHOOP\" to \"\(correct)\" (#716)")
+            modelStamped = true
         }
         let advertisedServiceUUIDs = (advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID] ?? [])
             .map { $0.uuidString.lowercased() }
