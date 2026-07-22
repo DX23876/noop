@@ -8,6 +8,9 @@ import StrandDesign
 struct CoachPlanView: View {
     @EnvironmentObject private var coach: AICoachEngine
     @ObservedObject private var store = CoachPlanStore.shared
+    /// The active goals this plan serves — the same store Goal & Journey reads, so the two surfaces show
+    /// the same targets rather than looking unsynchronised.
+    @ObservedObject private var goalStore = CoachGoalStore.shared
     @Environment(\.dismiss) private var dismiss
 
     /// Assembled once for the swap sheet's consequence maths (async — it reads the workout history).
@@ -28,6 +31,7 @@ struct CoachPlanView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
+                    goalContextCard
                     if !store.pending.isEmpty {
                         section("Waiting for your call") {
                             ForEach(store.pending) { p in pendingCard(p) }
@@ -193,6 +197,56 @@ struct CoachPlanView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+    }
+
+    // MARK: - Goal context
+
+    /// What you're working towards, at the top of the plan book.
+    ///
+    /// A plan and a goal are two different things in NOOP — `PlanProposal`s are single sessions, a
+    /// `CoachGoal` is the target they serve — and this screen showing no trace of an active goal read as
+    /// the two being out of sync. They aren't; the connection just wasn't drawn anywhere. This states it,
+    /// from the SAME `CoachGoalStore.activeGoals` the Goal & Journey surface renders, so the two can't
+    /// disagree, and says plainly when there's no goal at all.
+    @ViewBuilder
+    private var goalContextCard: some View {
+        let goals = goalStore.activeGoals
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Image(systemName: "target").foregroundStyle(goals.isEmpty
+                                                                ? StrandPalette.textTertiary
+                                                                : StrandPalette.accent)
+                        .accessibilityHidden(true)
+                    Text(goals.isEmpty ? "No goal set" : "Working towards")
+                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                }
+                if goals.isEmpty {
+                    Text("These sessions aren't tied to a target yet. Set a goal under Goal & Journey and the coach plans towards it.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    ForEach(goals) { goal in
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(goal.title.isEmpty ? goal.kind.label.localizedCatalogValue : goal.title)
+                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                            Text(goalTimeLine(goal))
+                                .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+            }
+        }
+    }
+
+    /// The one honest time line per goal — the same wording `CoachGoalJourneyView.goalSubtitle` uses for
+    /// the countdown, so the two surfaces never state the runway differently.
+    private func goalTimeLine(_ goal: CoachGoal) -> String {
+        guard let weeks = goal.weeksRemaining() else { return String(localized: "No target date set") }
+        return weeks < 0 ? String(localized: "target date passed")
+                         : String(localized: "\(Int(weeks.rounded())) weeks to go")
     }
 
     // MARK: - Pieces

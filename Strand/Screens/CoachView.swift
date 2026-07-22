@@ -184,6 +184,10 @@ struct CoachView: View {
                   coachFirstUseAcknowledged,
                   activeSheet == nil,
                   CoachGoalStore.shared.activeGoals.isEmpty,
+                  // A setup already in progress (started from Goal & Journey) has no goal saved yet, so
+                  // every other condition here is true while the user is mid-wizard — offering a second
+                  // copy of the same flow on top is exactly how it looked like the wizard "restarted".
+                  !GoalOnboardingDraft.shared.isActive,
                   !UserDefaults.standard.bool(forKey: Self.goalOnboardingAskedKey) else { return }
             activeSheet = .goalOnboarding
         }

@@ -107,6 +107,10 @@ struct CoachSettingsView: View {
     /// In-place fact editing: the fact being edited + its working text.
     @State private var editingFactID: UUID?
     @State private var editingFactText: String = ""
+    /// What the last "Summarise this chat now" tap actually did. Repeat taps on an already-processed
+    /// chat are a no-op by design (they'd otherwise re-distil the same facts into duplicate memory
+    /// entries), and a button that silently does nothing reads as a broken button — so it says so.
+    @State private var summarizeOutcome: AICoachEngine.SummarizeOutcome?
 
     private let customModelTag = "__custom__"
 
@@ -421,6 +425,22 @@ struct CoachSettingsView: View {
 
     /// The spoken version of the verbosity setting — same localized-pieces reasoning as
     /// `proactiveLevelReadout` above.
+    /// What to say after a "Summarise this chat now" tap. `alreadyUpToDate` is the important one: it is
+    /// the correct, deliberate no-op that stops a repeat tap from re-distilling the same chat into
+    /// duplicate memory facts, so it has to read as a result rather than as nothing happening.
+    private static func summarizeOutcomeLine(_ outcome: AICoachEngine.SummarizeOutcome) -> String {
+        switch outcome {
+        case .started:
+            return String(localized: "Summarising in the background — new facts appear above.")
+        case .alreadyUpToDate:
+            return String(localized: "Already summarised — nothing new in this chat since last time.")
+        case .nothingToSummarize:
+            return String(localized: "Nothing to summarise in this chat yet.")
+        case .noConsent:
+            return String(localized: "Turn on data sharing under Privacy & data to use this.")
+        }
+    }
+
     private static func verbosityReadout(_ verbosity: CoachVerbosity) -> String {
         let name = String(localized: String.LocalizationValue(verbosity.label))
         let blurb = String(localized: String.LocalizationValue(verbosity.blurb))
@@ -967,7 +987,8 @@ struct CoachSettingsView: View {
                 HStack {
                     Spacer()
                     Button {
-                        if let id = coach.activeConversationID { coach.summarizeNow(id) }
+                        summarizeOutcome = coach.activeConversationID.map { coach.summarizeNow($0) }
+                                        ?? .nothingToSummarize
                     } label: {
                         Label("Summarise this chat now", systemImage: "sparkles")
                             .font(StrandFont.footnote).labelStyle(.titleAndIcon)
@@ -975,6 +996,14 @@ struct CoachSettingsView: View {
                     .buttonStyle(.plain)
                     .foregroundStyle(StrandPalette.accent)
                     .accessibilityLabel("Summarise the current chat now")
+                }
+
+                if let outcome = summarizeOutcome {
+                    Text(Self.summarizeOutcomeLine(outcome))
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .accessibilityLabel(Self.summarizeOutcomeLine(outcome))
                 }
             }
         }
@@ -1560,6 +1589,18 @@ struct CoachSettingsView: View {
                                 .accessibilityLabel("Forget all remembered facts")
                             }
                         }
+                    } else {
+                        // Expanding onto nothing at all reads as a broken control (#coach-bugs): an empty
+                        // memory is a normal state and has to SAY it's empty, and say how it fills.
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Memory is empty").strandOverline()
+                            Text("The coach hasn't saved anything about you yet. It adds a fact when you tell it something durable — an injury, a constraint, how you like to train — and \"Summarise past chats\" below distils older conversations into facts too.")
+                                .font(StrandFont.footnote)
+                                .foregroundStyle(StrandPalette.textTertiary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityElement(children: .combine)
                     }
                 }
             }

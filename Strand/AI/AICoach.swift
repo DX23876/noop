@@ -3183,9 +3183,14 @@ final class AICoachEngine: ObservableObject {
 
     /// Write a generated summary back onto a conversation (called by `MemoryMaintainer`). `conversations`
     /// has a private setter, so the maintainer routes writes through here.
+    ///
+    /// The watermark (`summarizedCount`) advances UNCONDITIONALLY — those turns have been processed
+    /// whether or not the cheap model managed a summary line, and a watermark left behind is what made
+    /// the next run re-distil them into duplicate memory facts. An EMPTY summary line, by contrast, never
+    /// overwrites a good one: a small model returning only FACT lines shouldn't erase what it wrote last time.
     func applySummary(conversationID id: UUID, summary: String, summarizedCount: Int) {
         guard let idx = conversations.firstIndex(where: { $0.id == id }) else { return }
-        conversations[idx].summary = summary
+        if !summary.isEmpty { conversations[idx].summary = summary }
         conversations[idx].summarizedCount = summarizedCount
     }
 
