@@ -203,6 +203,27 @@ final class Whoop5HistoricalTests: XCTestCase {
         XCTAssertEqual(parseFrame(f, family: .whoop5).parsed["aux_byte_82"]?.intValue, 0x5A)
     }
 
+    func testHistoricalV18Spo2Candidate82TriMode() {
+        // #103: the @82 SpO2 candidate surfaces ONLY the tri-mode in-band values (70–100). The raw byte
+        // stays under aux_byte_82 in every mode; sentinels (bit-7: 0x80/0xA0), diagnostic codes (<70
+        // nonzero) and the awake 0 must NOT produce a candidate — mirroring gen5.rs's filter(70..=100).
+        // Instrumentation only: this key must never be wired into spo2Pct or any score.
+        let base = parseFrame(bytes(historicalHex), family: .whoop5).parsed
+        XCTAssertNil(base["spo2_candidate_82"], "awake 0 must not read as a candidate")
+        for (raw, want) in [(0x5A, 90), (70, 70), (100, 100)] {   // in-band values pass through
+            var f = bytes(historicalHex)
+            f[82] = UInt8(raw)
+            XCTAssertEqual(parseFrame(f, family: .whoop5).parsed["spo2_candidate_82"]?.intValue, want)
+        }
+        for raw in [0x80, 0xA0, 0x20, 69, 101] {                  // sentinels / diagnostics / out-of-band
+            var f = bytes(historicalHex)
+            f[82] = UInt8(raw)
+            let p = parseFrame(f, family: .whoop5).parsed
+            XCTAssertNil(p["spo2_candidate_82"], "raw 0x\(String(raw, radix: 16)) must not read as a candidate")
+            XCTAssertEqual(p["aux_byte_82"]?.intValue, raw, "raw byte must stay visible in every mode")
+        }
+    }
+
     func testHistoricalV18SleepStateMapping() {
         // @81's high nibble (bits 4-5) is the band's sleep state; the low nibble is sub-flags. Exercise
         // the mapping by overriding just that byte on the existing real fixture — no extra captures.

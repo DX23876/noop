@@ -127,6 +127,27 @@ class Whoop5HistoricalDecodeTest {
     }
 
     @Test
+    fun spo2Candidate82SurfacesOnlyInBandValues() {
+        // #103: the @82 SpO2 candidate surfaces ONLY the tri-mode in-band values (70–100). The raw byte
+        // stays under aux_byte_82 in every mode; sentinels (bit-7: 0x80/0xA0), diagnostic codes (<70
+        // nonzero) and the awake 0 must NOT produce a candidate — mirroring gen5.rs's filter(70..=100).
+        // Instrumentation only: this key must never be wired into spo2Pct or any score. Twin of the Swift
+        // testHistoricalV18Spo2Candidate82TriMode.
+        val base = decodeHistorical(bytes(wornV18), DeviceFamily.WHOOP5)!!
+        assertEquals(0, base["aux_byte_82"])
+        assertEquals(null, base["spo2_candidate_82"])           // awake 0 is not a candidate
+        for ((raw, want) in listOf(0x5A to 90, 70 to 70, 100 to 100)) {
+            val p = decodeHistorical(mutateAndReCrc(82, raw), DeviceFamily.WHOOP5)!!
+            assertEquals(want, p["spo2_candidate_82"])
+        }
+        for (raw in listOf(0x80, 0xA0, 0x20, 69, 101)) {        // sentinels / diagnostics / out-of-band
+            val p = decodeHistorical(mutateAndReCrc(82, raw), DeviceFamily.WHOOP5)!!
+            assertEquals(null, p["spo2_candidate_82"])
+            assertEquals(raw, p["aux_byte_82"])                 // raw byte stays visible in every mode
+        }
+    }
+
+    @Test
     fun band81NibblesSplitIndependently() {
         // @81 packs sleep_state (bits 4-5), wake_quality (bits 2-3) and onwrist (bits 0-1). Override the
         // byte on the real fixture and re-stamp the CRC32 (over frame[8..len-4], per Framing) so it passes

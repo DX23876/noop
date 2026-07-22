@@ -336,8 +336,22 @@ private fun decodeWhoop5Historical(frame: ByteArray): Map<String, Any?>? {
         out["wake_quality"] = (it shr 2) and 3
         out["onwrist"] = it and 3
     }
-    // @82 a single raw byte adjacent to the flag byte; carried raw, meaning not pinned.
-    frame.histU8(82)?.let { out["aux_byte_82"] = it }
+    // @82 a single raw byte adjacent to the flag byte; nonzero only while sleep_state = asleep.
+    // #103 SpO2 candidate: a decompile-sourced decode (gen5.rs `spo2_pct`, reimplemented here as a
+    // protocol fact with attribution, like the other RE work) reads @82 (= inner 74) as a strap-computed
+    // SpO2 % scalar, tri-mode: 70–100 = a real %, bit-7 values (0x80/0xA0…) = saturation sentinels,
+    // other sub-70 nonzero = diagnostic codes, populated only during sleep. Evidence is SPLIT: an
+    // 8-night independent validation with real spread (corr +0.99, ~0.4 %/night) meets the cross-night
+    // bar, but the two capture nights checked on the original #103 device moved OPPOSITE to the app
+    // value — unresolved. So this ships as an INSTRUMENTATION CANDIDATE only: the in-band value is
+    // decoded and surfaced raw for multi-device correlation against the app's own nightly SpO2. It must
+    // never back a shipped SpO2 metric, never write spo2Pct/spo2_red/spo2_ir, and never feed a
+    // downstream gate (recovery/illness) until the cross-device contradiction is resolved. Mirror of
+    // Swift Interpreter (@82 block).
+    frame.histU8(82)?.let {
+        out["aux_byte_82"] = it
+        if (it in 70..100) out["spo2_candidate_82"] = it
+    }
     // ── The @82–119 "optical/tail" span, reverse-engineered over 18,602 real v18 records (a third strap's
     // overnight R22 stream) + cross-checked on two fixture devices: it is ~85% ZERO PADDING (83–103,
     // 110–112, 117–119 constant 0x00; @104 a constant 0x01 marker). Only @106 (u16), @108/@109 (a paired
