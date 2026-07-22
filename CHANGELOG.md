@@ -17,6 +17,40 @@ approximate; downloads are on the [Releases](https://github.com/NoopApp/noop/rel
 
 ---
 
+## 9.1.0: Workout backfill, strap model fix, supply chain hardening, and Oura improvements (all platforms)
+
+A reliability-and-accuracy release on top of 9.0.2.
+
+**New**
+
+- **Diagnostic WHOOP GATT family detection (#688, #713).** NOOP now scans for and logs the additional WHOOP service families (Puffin, Monument, Symphony) seen in the decompiled app. Detected-but-unsupported straps get a clear log message instead of being silently missed.
+- **WHOOP 5.0 SpO2 candidate instrumentation (#103, #709).** The v18 byte @82 is now decoded as an instrumentation-only SpO2 candidate for multi-device correlation — not a shipped metric, per the derived-biosignal rule.
+- **Oura feature-status probe (#710).** A read-only diagnostic confirms from the ring itself that SpO2 and real-steps are server-flag-gated off for offline rings.
+- **Configurable bundle ID and team for iOS builds (#701, #722).** A single gitignored xcconfig file now drives every target's bundle ID, App Group, and development team — no more hand-editing project.yml in six places after every xcodegen run.
+
+**Fixed**
+
+- **Seeded WHOOP device showed wrong model and broken skin temp (#716, #719).** The default "my-whoop" device had model "WHOOP" (no generation), causing `forRegistryModel` to return the wrong family. Skin temp used the wrong ADC scale and the Devices screen showed "Exact model unknown." Now stamped to the correct family on first BLE scan.
+- **Manual workouts showed no HR or calories (#510, #708).** When the auto-workout detector found the same activity a user manually logged, it discarded its computed HR/calories instead of backfilling the manual entry. Fixed — missing fields are now filled from the detector's own values without overriding anything the user typed.
+- **Journal import zeroed out every answer from a real WHOOP export (#631, #706).** The real WHOOP export column is "Answered yes", not "Answered yes/no" — every imported journal entry silently read as "Without."
+- **Sleep Schedule card drew phantom bars from night-tail fragments (#699, #703).** The card now bridges split/biphasic nights the same way the hero does.
+- **Steps calibration slider was unusable (#698, #704).** Replaced with a stepper (0.1 increments), matching the Profile card pattern.
+- **Backfill clock retry (#700, #721).** If the strap silently drops the GET_CLOCK response, NOOP now retries up to 3 times, then falls back to a rough correlation from the Data Range timestamp — preventing all rows from landing on the wrong day.
+- **Oura IBI timestamps were wrong (#677).** Banked overnight beats were stamped at the drain-arrival time instead of their real ring-time, leaving the sleep window with zero R-R data.
+
+**Diagnostics**
+
+- **Log why a day is skipped for sleep (#714, #720).** When a day has fewer than 200 HR samples, the strap log now says so — immediately answers "no data" vs "data but no sleep found."
+- **Alarm HR diagnostic (#34, #707).** Live HR at alarm arm time is now logged to help investigate the evening-alarm hypothesis.
+
+**Infrastructure**
+
+- **Android Gradle supply chain hardened (#658, #683).** Dependency locking, SHA-256 verification for all artifacts, and a checked-in Gradle 8.7 wrapper with pinned distribution checksum.
+- **Code quality refactors (#665, #686, #711, #712).** Today, Sleep, and Health screens' pure helper logic extracted into sibling files — no behavior change.
+- **Oura protocol docs updated (#678).** IBI decode, wear/charge signal, observed tags, and feature-status probe documented.
+
+---
+
 ## 9.0.2: Optimal-strain alerts, faster history sync, and a wave of accuracy fixes (all platforms)
 
 A feature-and-accuracy release on top of 9.0.1.

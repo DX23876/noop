@@ -537,8 +537,12 @@ final class IntelligenceEngine: ObservableObject {
         // the 5/MG cumulative @57 series + wrap-aware deltas + dropped deltas, replayed below tagged `.steps`.
         // The trace recomputes the SAME wrap-aware sum analyzeDay already did, so the steps total is unchanged.
         let stepsTraceActive = TestCentre.active(.steps)
-        let scanned: [DayScan] = await Task.detached(priority: .utility) {
+        let (scanned, skippedDayLines): ([DayScan], [String]) = await Task.detached(priority: .utility) {
             var out: [DayScan] = []
+            // Days skipped below (too few HR samples) never get a DayScan, so this diagnostic can't ride
+            // along on one; carried out alongside `out` and replayed through `diagnosticSink` on the main
+            // actor below, same as `rhrLine`/the trace arrays. Mirrors the Kotlin `diag` sink.
+            var skippedDayLines: [String] = []
             // #938: the WHOOP 4.0 ADC offset is per-device, not per-night. Learn one anchor per owner
             // from the whole scan window and reuse it for every night so cross-night deviations survive.
             let skinAnchorScanFrom = nowLocalMidnight - (maxDays - 1) * 86_400 - 30 * 3_600
@@ -568,7 +572,13 @@ final class IntelligenceEngine: ObservableObject {
                                                        registry: registry, fallbackDeviceId: ownerFallbackId)
 
                 let hr = (try? await store.hrSamples(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
-                guard hr.count >= 200 else { continue }   // need real raw data, not a stray sample
+                guard hr.count >= 200 else {
+                    // Need real raw data, not a stray sample. The skipped day gets no DayScan, so its
+                    // diagnostic is carried in `skippedDayLines` and replayed through `diagnosticSink`
+                    // on the main actor below (upstream #714 fix — a bare `diag()` doesn't exist in Swift).
+                    skippedDayLines.append("sleep day=\(day) SKIPPED hrSamples=\(hr.count) (need ≥200)")
+                    continue
+                }
                 let rr = (try? await store.rrIntervals(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
                 let resp = (try? await store.respSamples(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
                 let grav = (try? await store.gravitySamples(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
@@ -801,8 +811,12 @@ final class IntelligenceEngine: ObservableObject {
                                    sleepTrace: sleepTrace, stepsTrace: stepsTrace, hrvTrace: hrvTrace,
                                    hrvDiag: hrvDiag))
             }
-            return out
+            return (out, skippedDayLines)
         }.value
+
+        // #714: replay each skipped day's diagnostic now that we're back on the main actor (diagnosticSink
+        // is MainActor-bound). Always-on , not gated behind a test mode, mirroring the Kotlin `diag` sink.
+        for line in skippedDayLines { diagnosticSink?(line, nil) }
 
         // CAPTURE-B (#814/#799): per-day resolved READ owner + that owner's HR-row count, keyed by day, so
         // the second pass (which has the provenance sets) can emit the universal `dayOwner …` line. The

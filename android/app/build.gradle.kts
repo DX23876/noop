@@ -26,8 +26,8 @@ android {
         applicationId = "com.noop.whoop"
         minSdk = 26
         targetSdk = 34
-        versionCode = 297
-        versionName = "9.0.3"
+        versionCode = 298
+        versionName = "9.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -142,6 +142,14 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+}
+
+// Resolve every external module to the exact version recorded in app/gradle.lockfile. Direct
+// dependencies are already pinned below; this also freezes the transitive graph selected through
+// AndroidX POMs and the Compose BOM. Update intentionally with `./gradlew :app:dependencies
+// --write-locks` and review the lockfile diff alongside the dependency declaration change (#658).
+dependencyLocking {
+    lockAllConfigurations()
 }
 
 dependencies {
