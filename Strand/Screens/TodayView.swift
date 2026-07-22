@@ -1280,7 +1280,6 @@ struct TodayView: View {
                 // clock, so the live tick never re-renders TodayView.body.
                 ActiveWorkoutIndicatorSection()
                 MorningSuggestionCard(showPlan: $showPlan)
-                PlanTodayCard(showPlan: $showPlan)
                 // The "still building" and "new here?" prompts are about getting today's scores going,
                 // so they stay anchored to today rather than reappearing on every navigated past day.
                 if selectedDayOffset == 0 && repo.today?.recovery == nil {
@@ -1354,6 +1353,10 @@ struct TodayView: View {
                 // #627: the persistent journal widget (last-7-days strip + tap-through to the journal).
                 // Today only; self-hides when the reminder toggle is off. Twin of Android JournalReminderCard.
                 if selectedDayOffset == 0 { JournalReminderCard() }
+                // The committed "next up" session sits BELOW the metric sections on purpose: once accepted
+                // it's an ambient reminder, not a demand for the top of the screen. It draws attention on
+                // its own terms as its time nears (colour + breathe, see PlanTodayCard).
+                PlanTodayCard(showPlan: $showPlan)
                 sourcesSection
             }
             #if os(iOS)

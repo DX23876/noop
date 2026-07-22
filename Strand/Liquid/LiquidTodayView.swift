@@ -261,7 +261,6 @@ struct LiquidTodayView: View {
                     // and taps straight through to Live. Renders nothing when no workout is active.
                     ActiveWorkoutIndicatorSection()
                     MorningSuggestionCard(showPlan: $showPlan)
-                    PlanTodayCard(showPlan: $showPlan)
                     // #today-layout (parity with Android): every Today section — the Charge/Effort/Rest hero
                     // and Start-session included — renders in the user's saved order. Reorder via the Arrange
                     // sheet (the header's up/down button; native drag rows); the order persists under the
@@ -284,6 +283,10 @@ struct LiquidTodayView: View {
                         case .journal: if selectedDayOffset == 0 { JournalReminderCard() }
                         }
                     }
+                    // The committed "next up" session sits BELOW the metric sections on purpose: once
+                    // accepted it's an ambient reminder, not a demand for the top of the screen. It draws
+                    // attention on its own terms as its time nears (colour + breathe, see PlanTodayCard).
+                    PlanTodayCard(showPlan: $showPlan)
                     dataSourcesSection
                     Color.clear.frame(height: 90) // floating tab-bar clearance
                 }

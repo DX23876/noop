@@ -219,10 +219,24 @@ struct CoachTodayRow: View {
 
     var body: some View {
         Button { isPresented = true } label: {
-            NoopCard(padding: 14) {
+            // Accent-tinted card so the coach entry reads as a distinct action, never as a second profile
+            // avatar sitting under the header's (#R-header-coach follow-up: the two used to be confused for
+            // each other). The tint does the separating; the sparkles badge below removes any last ambiguity.
+            NoopCard(padding: 14, tint: StrandPalette.accent) {
                 HStack(spacing: 12) {
                     if todayAvatar {
+                        // A small accent sparkles badge over the coach's avatar: even with a photo, this
+                        // marks it unmistakably as the COACH, not the user's own profile picture.
                         CoachAvatarView(size: avatarSize)
+                            .overlay(alignment: .bottomTrailing) {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: avatarSize * 0.30, weight: .bold))
+                                    .foregroundStyle(StrandPalette.goldDeepText)
+                                    .frame(width: avatarSize * 0.5, height: avatarSize * 0.5)
+                                    .background(StrandPalette.accent, in: Circle())
+                                    .overlay(Circle().strokeBorder(StrandPalette.surfaceBase, lineWidth: 1.5))
+                                    .accessibilityHidden(true)
+                            }
                     } else {
                         Image(systemName: "sparkles")
                             .font(.system(size: avatarSize * 0.42, weight: .semibold))

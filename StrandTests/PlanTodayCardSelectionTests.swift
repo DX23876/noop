@@ -53,11 +53,25 @@ final class PlanTodayCardSelectionTests: XCTestCase {
         XCTAssertEqual(PlanTodayCard.next(from: [untimed, timed], today: today, now: now)?.id, timed.id)
     }
 
-    func testATimedSessionWhoseTimeHasPassedIsNotShown() {
-        // Behaviour deliberately preserved from before W4: a past time drops out (the adjacent "can't
-        // tick off this morning's session" bug is out of scope, flagged in the plan).
-        let p = commitment(day: today, time: at("06:00", day: today))
+    func testATimedSessionJustPastItsTimeStaysWithinTheGraceWindow() {
+        // Changed from the old "past time drops out": a session stays visible for `graceAfter` past its
+        // time so the exact moment you're due/late isn't the moment the card vanishes. 07:30 is 30 min
+        // before the 08:00 `now`, well inside the 120-min grace.
+        let p = commitment(day: today, time: at("07:30", day: today))
+        XCTAssertEqual(PlanTodayCard.next(from: [p], today: today, now: now)?.id, p.id)
+    }
+
+    func testATimedSessionBeyondTheGraceWindowIsNotShown() {
+        // 05:30 is 150 min before 08:00 `now` — past the 120-min grace, so it finally drops out.
+        let p = commitment(day: today, time: at("05:30", day: today))
         XCTAssertNil(PlanTodayCard.next(from: [p], today: today, now: now))
+    }
+
+    func testACompletedSessionIsNeverNextUp() {
+        var p = commitment(day: today, time: at("18:00", day: today))
+        p.status = .completed
+        XCTAssertNil(PlanTodayCard.next(from: [p], today: today, now: now),
+                     "a done session must not surface as 'next up'")
     }
 
     // MARK: - Consent nail: the answer card must not render the question
@@ -80,5 +94,37 @@ final class PlanTodayCardSelectionTests: XCTestCase {
 
     func testNothingCommittedShowsNothing() {
         XCTAssertNil(PlanTodayCard.next(from: [], today: today, now: now))
+    }
+
+    // MARK: - Emphasis windows (colour + pulse near the session time)
+
+    func testEmphasisIsNoneWellBeforeTheSession() {
+        // 18:00 session, 08:00 now → 10h out, far outside the 30-min approach lead.
+        let p = commitment(day: today, time: at("18:00", day: today))
+        XCTAssertEqual(PlanTodayCard.emphasis(for: p, now: now), .none)
+    }
+
+    func testEmphasisIsApproachingInsideTheLeadWindow() {
+        // Session at 08:20, now 08:00 → 20 min out, inside the 30-min lead.
+        let p = commitment(day: today, time: at("08:20", day: today))
+        XCTAssertEqual(PlanTodayCard.emphasis(for: p, now: now), .approaching)
+    }
+
+    func testEmphasisIsDueFromTheTimeUntilGraceEnds() {
+        // Session at 07:00, now 08:00 → 60 min past, inside the 120-min grace.
+        let p = commitment(day: today, time: at("07:00", day: today))
+        XCTAssertEqual(PlanTodayCard.emphasis(for: p, now: now), .due)
+    }
+
+    func testEmphasisReturnsToNoneAfterTheGraceWindow() {
+        // Session at 05:30, now 08:00 → 150 min past, beyond the 120-min grace.
+        let p = commitment(day: today, time: at("05:30", day: today))
+        XCTAssertEqual(PlanTodayCard.emphasis(for: p, now: now), .none)
+    }
+
+    func testAnUntimedCommitmentIsNeverEmphasised() {
+        // No time → nothing to count to, so no colour/pulse even though the card shows.
+        let p = commitment(day: today, time: nil)
+        XCTAssertEqual(PlanTodayCard.emphasis(for: p, now: now), .none)
     }
 }
