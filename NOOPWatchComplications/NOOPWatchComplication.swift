@@ -21,19 +21,17 @@ import StrandDesign
 //
 // We read the app group directly here rather than depending on a loader symbol from the bridge
 // lane, so this extension only needs the shared `WatchScoreSnapshot` type from StrandDesign. The
-// suite + key match the cross-lane contract: the phone-side bridge writes the latest snapshot to
-// `group.com.noopapp.noop` under `latestWatchSnapshot`, and the watch app + this complication read
-// it. The suite name is read from the extension's own Info.plist (AppGroupIdentifier) so it lives
-// in one place, with the canonical group as a fallback.
+// suite + key match the cross-lane contract: the phone-side bridge writes the latest snapshot under
+// `latestWatchSnapshot` to whatever app group `WatchScoreSnapshot.appGroupId` resolves to (the
+// extension's own AppGroupIdentifier Info.plist key, injected from $(APP_GROUP_ID)/$(BUNDLE_ID_PREFIX)
+// in project.yml, falling back to the canonical upstream group), and the watch app + this
+// complication read the same value.
 
 enum WatchSnapshotAccess {
-    // The app group is read from the extension's own Info.plist (AppGroupIdentifier) so the entitled
-    // value wins, then falls back to the canonical group the contract pins. The storage KEY is the
-    // shared one from StrandDesign so the writer and every reader can never desync on it.
-    static let suiteName: String = {
-        Bundle.main.object(forInfoDictionaryKey: "AppGroupIdentifier") as? String
-            ?? WatchScoreSnapshot.appGroupId
-    }()
+    /// `Bundle.main` is process-global, so this is exactly the lookup `WatchScoreSnapshot.appGroupId`
+    /// itself performs — deferring to it directly keeps the resolution in ONE place so the writer and
+    /// every reader can never desync on it.
+    static let suiteName: String = WatchScoreSnapshot.appGroupId
 
     static let storageKey = WatchScoreSnapshot.storageKey
 

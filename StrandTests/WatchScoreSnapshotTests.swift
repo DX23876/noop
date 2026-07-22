@@ -100,7 +100,10 @@ final class WatchScoreSnapshotTests: XCTestCase {
     }
 
     func testStorageContractMatchesWatchSideExpectation() {
-        // The cross-lane contract: app group + key are fixed strings both sides hard-agree on.
+        // storageKey is a fixed string all sides hard-agree on. appGroupId is dynamic (resolved from
+        // the running bundle's AppGroupIdentifier Info.plist key — see WatchScoreSnapshot.swift); this
+        // test process carries no such key (StrandTests hosts inside the macOS Strand target, which
+        // has none), so this only pins the canonical UPSTREAM fallback, not the real cross-target value.
         XCTAssertEqual(WatchScoreSnapshot.appGroupId, "group.com.noopapp.noop")
         XCTAssertEqual(WatchScoreSnapshot.storageKey, "latestWatchSnapshot")
     }

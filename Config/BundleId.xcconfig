@@ -1,0 +1,14 @@
+// Tracked wrapper so a clean checkout (no local prefix) still generates and builds under the
+// upstream identifiers. Referenced from project.yml's top-level (project-wide) configFiles, so
+// every target picks it up automatically — including targets that also carry their own separate
+// xcconfig (e.g. Strand/Oura/OuraConfig.xcconfig), since Xcode layers project-level xcconfig
+// beneath target-level xcconfig rather than one replacing the other. Feeds
+// PRODUCT_BUNDLE_IDENTIFIER, APP_GROUP_ID, and WKCompanionAppBundleIdentifier across all six
+// targets (see project.yml's use of $(BUNDLE_ID_PREFIX)).
+//
+// BundleIdSecrets.xcconfig is gitignored and user-created (template:
+// BundleIdSecrets.example.xcconfig). Set BUNDLE_ID_PREFIX there when building under your own
+// Apple ID / device so this build's bundle id, App Group, and watch companion pairing don't
+// collide with an installed copy of the official com.noopapp build.
+BUNDLE_ID_PREFIX = com.noopapp
+#include? "BundleIdSecrets.xcconfig"

@@ -67,20 +67,20 @@ Prefer to build it yourself (which also grants HealthKit/widgets under your own 
 [PR #42](../../../pull/42) port onto current `main` is summarised in **"Lessons from the fold-in"**
 below.
 
-> 🛠️ **Signing it under your own Apple ID** (thanks @gingerbeardman for the recipe). Apple requires a
-> bundle id and an app group that are unique to *your* developer account, so for each target that has
-> them (the `NOOPiOS` app **and** the `NOOPiOSWidgets` extension):
-> 1. **Select your Team** (Signing & Capabilities).
-> 2. **Change the bundle id** to your own reverse-domain prefix (e.g. `com.yourdomain.noop`).
-> 3. **Change the App Group** to match (e.g. `group.com.yourdomain.noop`) — the app and the widget
->    extension must share the *same* group.
+> 🛠️ **Signing it under your own Apple ID** (thanks @gingerbeardman for the original recipe). Apple
+> requires a bundle id and app group unique to *your* developer account — otherwise the build collides
+> with any other NOOP install already on your device (an AltStore/SideStore sideload, or someone
+> else's build). Two steps:
+> 1. `cp Config/BundleIdSecrets.example.xcconfig Config/BundleIdSecrets.xcconfig` and set
+>    `BUNDLE_ID_PREFIX` to your own reverse-domain prefix (e.g. `com.yourdomain`), then re-run
+>    `xcodegen generate`. This one gitignored file drives **every** target's bundle id *and* the shared
+>    App Group together (`$(BUNDLE_ID_PREFIX).noop`, `group.$(BUNDLE_ID_PREFIX).noop.staging`) — nothing
+>    hard-coded in Swift, nothing else to edit, and it survives future regenerates.
+> 2. In Xcode, **select your Team** (Signing & Capabilities) for the `NOOPiOS` **and** `NOOPiOSWidgets`
+>    targets — the one step Apple still requires you to do by hand.
 >
-> Set the team + bundle prefix in **`project.yml`**, and set the App Group **once** via the
-> **`APP_GROUP_ID`** build setting there — both targets' entitlements/Info.plist reference
-> `$(APP_GROUP_ID)`, and the runtime `WidgetSnapshot.suiteName` reads it back from the Info.plist, so
-> there's a single value to change and nothing hard-coded in Swift. Then re-run `xcodegen` so the
-> change survives regeneration instead of being overwritten. The App Group is only needed for the
-> **widgets / Live Activity** — if you don't need those, you can skip wiring it and the core app still builds.
+> Skip step 1 and the build still works under the default `com.noopapp` identifiers — fine if this is
+> the only NOOP install on your device.
 
 > ℹ️ **Cross-platform engineering lives in [`CROSS_PLATFORM.md`](CROSS_PLATFORM.md)** — the shared-code
 > boundary across the macOS / iOS / Android clients, the `Platform.swift` shim convention, the
