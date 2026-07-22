@@ -7,10 +7,12 @@ final class TestModeRegistryTests: XCTestCase {
         // Phase 1 shipped sleep + battery; Phase 2 appended the 5 high-pain domains plus recovery + hrv.
         // Screen priority order: sleep, connection, workouts, display, import, steps, battery, recovery, hrv.
         XCTAssertEqual(TestModeRegistry.all.map(\.domain),
-                       [.sleep, .connection, .workouts, .display, .dataImport, .steps, .battery, .recovery, .hrv])
+                       [.sleep, .connection, .workouts, .display, .dataImport, .steps, .battery, .recovery,
+                        .hrv, .circadian])
         XCTAssertEqual(TestModeRegistry.all.map(\.id),
-                       ["sleep", "connection", "workouts", "display", "import", "steps", "battery", "recovery", "hrv"])
-        XCTAssertEqual(TestModeRegistry.all.count, 9)
+                       ["sleep", "connection", "workouts", "display", "import", "steps", "battery",
+                        "recovery", "hrv", "circadian"])
+        XCTAssertEqual(TestModeRegistry.all.count, 10)
     }
 
     func testLookupByDomain() {
@@ -23,6 +25,7 @@ final class TestModeRegistryTests: XCTestCase {
         XCTAssertEqual(TestModeRegistry.mode(.battery)?.title, "Battery & Charging")
         XCTAssertEqual(TestModeRegistry.mode(.recovery)?.title, "Recovery (Charge)")
         XCTAssertEqual(TestModeRegistry.mode(.hrv)?.title, "HRV & Autonomic")
+        XCTAssertEqual(TestModeRegistry.mode(.circadian)?.title, "Circadian & Body Clock")
         XCTAssertNil(TestModeRegistry.mode(.notifications))
     }
 
@@ -171,5 +174,51 @@ final class TestModeRegistrySleepTests: XCTestCase {
     func testSleepLiveReadoutIds() {
         let sleep = TestModeRegistry.mode(.sleep)!
         XCTAssertEqual(sleep.liveReadout, ["hrDensityNow", "gravityCoverageNow", "lastNightGateFired"])
+    }
+}
+
+// MARK: - Circadian & Body Clock: the registry contract for the cosinor capture.
+
+final class TestModeRegistryCircadianTests: XCTestCase {
+
+    func testCircadianCaptureSet() {
+        XCTAssertEqual(TestModeRegistry.mode(.circadian)?.captures, [
+            "circadianInput", "activityBins", "cosinorFit", "phaseEstimate", "fitRejected",
+        ])
+    }
+
+    func testCircadianQuestionnaireIdsAndKinds() {
+        let mode = TestModeRegistry.mode(.circadian)!
+        XCTAssertEqual(mode.questionnaire.map(\.id), ["usualSchedule", "shiftOrTravel", "wornContinuously"])
+        XCTAssertEqual(mode.questionnaire.first { $0.id == "usualSchedule" }?.kind, .text)
+        XCTAssertEqual(mode.questionnaire.first { $0.id == "shiftOrTravel" }?.kind, .yesNo)
+        XCTAssertEqual(mode.questionnaire.first { $0.id == "wornContinuously" }?.kind, .yesNo)
+    }
+
+    func testCircadianLiveReadoutIds() {
+        XCTAssertEqual(TestModeRegistry.mode(.circadian)?.liveReadout, ["lastCircadianFit"])
+    }
+
+    /// Guided over the engine's OWN minimum, not a hand-picked number: a shorter run is one the engine
+    /// itself refuses to call readable, so the counter would be promising a result that cannot arrive.
+    func testCircadianIsGuidedOverTheEnginesMinimumDays() {
+        guard case .guided(let unit, let count)? = TestModeRegistry.mode(.circadian)?.capture else {
+            return XCTFail("circadian should be a guided capture")
+        }
+        XCTAssertEqual(unit, .days)
+        XCTAssertEqual(count, CircadianEngine.minDaysForFit)
+        XCTAssertEqual(count, 7)
+    }
+
+    func testCircadianPriorityAndFlags() {
+        let mode = TestModeRegistry.mode(.circadian)!
+        XCTAssertEqual(mode.priority, .med)
+        XCTAssertFalse(mode.includesScreenshot)
+        XCTAssertFalse(mode.requires5MG)
+    }
+
+    func testCircadianDomainIdAndLabel() {
+        XCTAssertEqual(TestDomain.circadian.id, "circadian")
+        XCTAssertEqual(TestDomain.circadian.githubLabel, "test:circadian")
     }
 }

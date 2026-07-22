@@ -13,7 +13,8 @@ class TestCentreLayoutTest {
         val rows = TestCentreLayout.visibleModes(is5MG = false)
         assertEquals(
             listOf(TestDomain.SLEEP, TestDomain.CONNECTION, TestDomain.WORKOUTS, TestDomain.DISPLAY,
-                TestDomain.IMPORT, TestDomain.STEPS, TestDomain.BATTERY, TestDomain.RECOVERY, TestDomain.HRV),
+                TestDomain.IMPORT, TestDomain.STEPS, TestDomain.BATTERY, TestDomain.RECOVERY, TestDomain.HRV,
+                TestDomain.CIRCADIAN),
             rows.map { it.domain },
         )
     }
@@ -23,7 +24,8 @@ class TestCentreLayoutTest {
         val rows = TestCentreLayout.visibleModes(is5MG = true)
         assertEquals(
             listOf(TestDomain.SLEEP, TestDomain.CONNECTION, TestDomain.WORKOUTS, TestDomain.DISPLAY,
-                TestDomain.IMPORT, TestDomain.STEPS, TestDomain.BATTERY, TestDomain.RECOVERY, TestDomain.HRV),
+                TestDomain.IMPORT, TestDomain.STEPS, TestDomain.BATTERY, TestDomain.RECOVERY, TestDomain.HRV,
+                TestDomain.CIRCADIAN),
             rows.map { it.domain },
         )
     }

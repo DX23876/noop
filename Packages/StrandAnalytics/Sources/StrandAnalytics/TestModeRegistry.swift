@@ -58,7 +58,7 @@ public enum TestModeRegistry {
     /// Phase 1 shipped sleep + battery; Phase 2 appends the 🔴 high-pain domains plus the scoring chain
     /// (connection, workouts, display, import, steps, recovery, hrv). Order is screen priority order.
     public static let all: [TestMode] = [
-        sleep, connection, workouts, display, dataImport, steps, battery, recovery, hrv,
+        sleep, connection, workouts, display, dataImport, steps, battery, recovery, hrv, circadian,
     ]
 
     public static func mode(_ d: TestDomain) -> TestMode? { all.first { $0.domain == d } }
@@ -199,5 +199,26 @@ public enum TestModeRegistry {
         ],
         liveReadout: ["lastHrvComputation"],
         capture: .toggle,
+        includesScreenshot: false, requires5MG: false)
+
+    static let circadian = TestMode(
+        domain: .circadian, title: "Circadian & Body Clock",
+        blurb: "Wear it a week so we can see the activity profile, the cosinor fit and which gate kept or dropped it.",
+        icon: "clock.arrow.circlepath", priority: .med,
+        // Only what the circadian emitter actually writes: the fit INPUT (bins/days/coverage), the pooled
+        // hour-of-day profile, the fitted cosinor with its relative amplitude, the accepted phase estimate,
+        // and the rejection/degradation reason. Same rule the other modes follow - nothing advertised here
+        // has no emitter behind it.
+        captures: ["circadianInput", "activityBins", "cosinorFit", "phaseEstimate", "fitRejected"],
+        questionnaire: [
+            Question(id: "usualSchedule", prompt: "Your usual sleep and wake times during the capture?", kind: .text),
+            Question(id: "shiftOrTravel", prompt: "Any shift work, night shifts or time-zone travel in this window?", kind: .yesNo),
+            Question(id: "wornContinuously", prompt: "Did you wear it through the day as well as at night?", kind: .yesNo),
+        ],
+        liveReadout: ["lastCircadianFit"],
+        // Guided over days, not a plain toggle: a cosinor over a single day is meaningless, and the engine
+        // itself refuses to call a fit readable under `CircadianEngine.minDaysForFit` days. The counter
+        // therefore says out loud how much of the run is actually in the bag.
+        capture: .guided(unit: .days, defaultCount: CircadianEngine.minDaysForFit),
         includesScreenshot: false, requires5MG: false)
 }

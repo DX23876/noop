@@ -10,14 +10,16 @@ final class TestCentreLayoutTests: XCTestCase {
     func testPhase1OrderHighThenMed() {
         let rows = TestCentreLayout.visibleModes(is5MG: false)
         XCTAssertEqual(rows.map { $0.domain },
-                       [.sleep, .connection, .workouts, .display, .dataImport, .steps, .battery, .recovery, .hrv])
+                       [.sleep, .connection, .workouts, .display, .dataImport, .steps, .battery,
+                        .recovery, .hrv, .circadian])
     }
 
     /// A 5/MG owner sees the same modes (none is gated), same order.
     func testFiveMGOwnerSeesSame() {
         let rows = TestCentreLayout.visibleModes(is5MG: true)
         XCTAssertEqual(rows.map { $0.domain },
-                       [.sleep, .connection, .workouts, .display, .dataImport, .steps, .battery, .recovery, .hrv])
+                       [.sleep, .connection, .workouts, .display, .dataImport, .steps, .battery,
+                        .recovery, .hrv, .circadian])
     }
 
     /// The filter drops a requires5MG mode for a 4.0 owner. Synthesised input proves the rule
