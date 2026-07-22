@@ -366,6 +366,19 @@ object OuraDecoders {
         return OuraState(ringTimestamp = rec.ringTimestamp, stateCode = code, text = text)
     }
 
+    // Feature-status read reply (0x2F sub-op 0x21; s5.6 / s7.1)
+
+    /**
+     * Decode a feature-status read reply's SUB-BODY (the bytes AFTER the `0x21` sub-op) into
+     * feature/mode/status/state/subscription, the ring's own feature report [open_oura-feat]. The observed
+     * daytime-HR reply is `2f 06 21 02 01 11 02 00` → sub-body `02 01 11 02 00`. Returns null on a short body
+     * (< 5) so a truncated reply never fabricates a status. READ-ONLY diagnostic. Kotlin twin of Swift.
+     */
+    fun decodeFeatureStatus(subBody: IntArray): OuraFeatureStatus? {
+        if (subBody.size < 5) return null
+        return OuraFeatureStatus(subBody[0], subBody[1], subBody[2], subBody[3], subBody[4])
+    }
+
     // MARK: - Debug text (0x43; s6.15)
 
     /**

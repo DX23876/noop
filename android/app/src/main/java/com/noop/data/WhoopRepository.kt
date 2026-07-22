@@ -211,6 +211,12 @@ class WhoopRepository(private val dao: WhoopDao) {
         )
     }
 
+    /** #716: update the model label for the seeded device once the BLE family is known. */
+    suspend fun setDeviceModel(id: String, model: String) = dao.setModel(id, model)
+
+    /** #716: read all paired devices (thin pass-through for the BLE scan fix). */
+    suspend fun pairedDevices(): List<PairedDeviceRow> = dao.pairedDevices()
+
     // MARK: - Insert decoded streams (idempotent by natural key)
 
     /**
@@ -371,6 +377,12 @@ class WhoopRepository(private val dao: WhoopDao) {
      *  re-created (no raw to re-derive); the caller shows that honest caption. */
     suspend fun allowSleepReDetection(deviceId: String, startTs: Long) =
         dao.deleteDismissedSleep(deviceId, startTs)
+
+    /** Remove one deletion marker from the Sleep screen's management list without deleting the marker
+     *  itself. The detector-facing [dismissedSleeps] read intentionally still returns hidden markers, so
+     *  a mistaken sleep stays deleted after its now-irrelevant recompute row is dismissed (#515). */
+    suspend fun hideDeletedSleepWindow(deviceId: String, startTs: Long): Boolean =
+        dao.hideDismissedSleepFromManagement(deviceId, startTs) > 0
 
     /** #899 dedup heal: remove ONE sleep-session row WITHOUT the #33 dismissal tombstone. The heal
      *  deletes stale timebase-shifted duplicates of a night whose canonical copy is STAYING; a tombstone
@@ -590,6 +602,21 @@ class WhoopRepository(private val dao: WhoopDao) {
         dao.ppgWaveformSamples(deviceId, from, to, limit)
             .map { PpgWaveformRow(it.ts, StreamPersistence.unpackPpgSamples(it.samples)) }
 
+    /** #423: persist a batch of decoded 5/MG raw-IMU offload buffers (one row per strap-second, packed i16
+     *  BLOB), then bound the table to the newest [RAW_IMU_RETENTION_ROWS] for the device. Comes from the
+     *  deep-buffer capture seam, not the normal stream path, so it inserts directly (idempotent by ts). */
+    suspend fun insertRawImu(deviceId: String, rows: List<RawImuSampleEntity>) {
+        if (rows.isEmpty()) return
+        dao.insertRawImu(rows)
+        dao.pruneRawImu(deviceId, RAW_IMU_RETENTION_ROWS)
+    }
+
+    /** #423: raw 5/MG IMU buffers in [from, to] as the decoded i16 columns [ax…az,gx…gz] (100/axis). */
+    suspend fun rawImuSamples(deviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT):
+        List<Pair<Long, ShortArray>> =
+        dao.rawImuSamples(deviceId, from, to, limit)
+            .map { it.ts to StreamPersistence.unpackImuColumns(it.samples) }
+
     /** Downsampled HR (mean bpm per [bucketSeconds]) for the strap, for the Today 24h trend chart. */
     suspend fun hrBuckets(deviceId: String, from: Long, to: Long, bucketSeconds: Long = 300L) =
         dao.hrBuckets(deviceId, from, to, bucketSeconds)
@@ -753,6 +780,7 @@ class WhoopRepository(private val dao: WhoopDao) {
     suspend fun dismissedSleepsUnion(activeDeviceId: String): List<DismissedSleep> =
         (importedSourceIds(activeDeviceId) + computedSourceIds(activeDeviceId))
             .flatMap { dao.dismissedSleeps(it) }
+            .filter { it.managementVisible }
             .distinctBy { it.deviceId to it.startTs }
             .sortedByDescending { it.endTs }
 
@@ -1444,6 +1472,11 @@ class WhoopRepository(private val dao: WhoopDao) {
 
         /** Default row cap on range reads. Matches the Swift call sites' bounded scans. */
         const val DEFAULT_LIMIT = 100_000
+
+        /** #423: rolling retention for the raw-IMU capture table (1 row/strap-second, ~1.2 KB each). One
+         *  hour ≈ 3600 rows ≈ 4 MB caps the table hard, so an enabled capture can never balloon the DB
+         *  during a multi-day offload replay. Instrument-first bounded window; nothing consumes it yet. */
+        const val RAW_IMU_RETENTION_ROWS = 3600
 
         /** #797: dashboard merge window cap (days). The bounded [recentDaysMergedFlow] keeps at most this
          *  many most-recent days per source, so a years-deep import stops re-merging the whole history on

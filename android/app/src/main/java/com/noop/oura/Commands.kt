@@ -27,6 +27,9 @@ object OuraCommands {
 
     // The SpO2 feature id. Per OURA_PROTOCOL.md s7.1.
     const val featureSpO2 = 0x04
+    // The real-steps feature id. Server-flag-gated (activity/real_steps, default off), so it is never
+    // emitted for an offline NOOP-only ring. Per OURA_PROTOCOL.md s7.1 / s7.3 [open_oura-feat].
+    const val featureRealSteps = 0x0b
 
     // MARK: - Pre-auth / identity (unauthenticated OK)
 
@@ -130,6 +133,25 @@ object OuraCommands {
      */
     fun liveHRDisable(): OuraCommand =
         OuraCommand("dhr_disable", intArrayOf(0x2F, 0x03, 0x22, featureDaytimeHR, 0x01))
+
+    // Feature-status diagnostics (READ-ONLY; s5.6 / s7.1)
+
+    /**
+     * Read the SpO2 feature status, `2f 02 20 04` — the SAME `0x20` READ verb as `dhr_read`, NOT the `0x22`
+     * set-mode enable. The `0x21` reply carries feature/mode/status/state/subscription; SpO2 is server-flag-
+     * gated (`health/spo2`), so the reply is the ring's own report of whether it will emit SpO2. Read-only
+     * diagnostic — never enables anything, never writes a mode. [open_oura-feat]
+     */
+    fun spo2ReadStatus(): OuraCommand =
+        OuraCommand("spo2_status", intArrayOf(0x2F, 0x02, 0x20, featureSpO2))
+
+    /**
+     * Read the real-steps feature status, `2f 02 20 0b` (READ verb, not enable). The `0x21` reply confirms
+     * the server-flag gate (`activity/real_steps`, default off) from the ring itself. Read-only diagnostic.
+     * [open_oura-feat]
+     */
+    fun realStepsReadStatus(): OuraCommand =
+        OuraCommand("realsteps_status", intArrayOf(0x2F, 0x02, 0x20, featureRealSteps))
 
     /**
      * The ordered live-HR enable triplet (read, enable, subscribe). The driver gates each on its ACK.

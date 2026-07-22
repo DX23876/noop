@@ -129,6 +129,60 @@ final class DeviceFamilyFramingTests: XCTestCase {
         XCTAssertEqual(DeviceFamily.allCases, [.whoop4, .whoop5])
     }
 
+    func testDiagnosticGattFamiliesAreMetadataOnly() {
+        XCTAssertEqual(WhoopGattServiceFamily.unsupportedServiceUUIDStrings, [
+            "11500001-6215-11ee-8c99-0242ac120002",
+            "8a580001-2fe8-4796-9267-b87a2b0c8234",
+            "59830001-5955-419b-bb8d-c8262926af23",
+        ])
+
+        for family in WhoopGattServiceFamily.unsupportedFamilies {
+            XCTAssertFalse(family.isConnectable)
+            XCTAssertNil(family.connectableDeviceFamily)
+            XCTAssertTrue(family.diagnosticUnsupportedMessage.contains("will not connect or send commands"))
+            XCTAssertEqual(family.characteristicUUIDStrings.count, 5)
+        }
+    }
+
+    func testSupportedGattFamiliesRemainTheOnlyConnectableFamilies() {
+        XCTAssertEqual(WhoopGattServiceFamily.whoop4.connectableDeviceFamily, .whoop4)
+        XCTAssertEqual(WhoopGattServiceFamily.maverickGooseFD4B.connectableDeviceFamily, .whoop5)
+        XCTAssertEqual(
+            WhoopGattServiceFamily.maverickGooseFD4B.serviceUUIDString,
+            "fd4b0001-cce1-4033-93ce-002d5875f58a"
+        )
+    }
+
+    func testUnsupportedAdvertisementsDoNotConnect() {
+        let decision = whoopGattScanDecision(
+            selectedServiceUUIDString: DeviceFamily.whoop5.serviceUUIDString,
+            advertisedServiceUUIDStrings: ["8A580001-2FE8-4796-9267-B87A2B0C8234"]
+        )
+
+        XCTAssertFalse(decision.shouldConnect)
+        XCTAssertEqual(decision.unsupportedFamily, .monument)
+    }
+
+    func testSelectedServiceAdvertisementsStillConnect() {
+        let decision = whoopGattScanDecision(
+            selectedServiceUUIDString: DeviceFamily.whoop4.serviceUUIDString,
+            advertisedServiceUUIDStrings: [DeviceFamily.whoop4.serviceUUIDString]
+        )
+
+        XCTAssertTrue(decision.shouldConnect)
+        XCTAssertNil(decision.unsupportedFamily)
+    }
+
+    func testEmptyAdvertisementServiceListPreservesLegacyConnectPath() {
+        let decision = whoopGattScanDecision(
+            selectedServiceUUIDString: DeviceFamily.whoop4.serviceUUIDString,
+            advertisedServiceUUIDStrings: []
+        )
+
+        XCTAssertTrue(decision.shouldConnect)
+        XCTAssertNil(decision.unsupportedFamily)
+    }
+
     // MARK: - Puffin packet type names
 
     func testPuffinTypeNamesAliased() {

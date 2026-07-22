@@ -1,6 +1,8 @@
 package com.noop.ble
 
+import com.noop.protocol.DataRange
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
@@ -91,5 +93,32 @@ class DataRangeScanTest {
         val frame = frameWithU32(16, 7, 1_800_000_000L)                 // grid offset 7
         for (k in 0..3) frame[11 + k] = ((1_750_000_000L shr (8 * k)) and 0xFF).toByte() // grid offset 11
         assertEquals(1_750_000_000L, WhoopBleClient.dataRangeOldestUnix(frame))
+    }
+
+    // #689 pagesBehind (ring backlog): byte-parity twin of the Swift DataRangeTests cases.
+
+    private fun pagesFrame(cmdOff: Int, w: Long, u: Long, t: Long, size: Int = 40): ByteArray {
+        val b = ByteArray(size)
+        fun put(off: Int, v: Long) { for (k in 0..3) b[off + k] = ((v shr (8 * k)) and 0xFF).toByte() }
+        put(cmdOff + 10, w); put(cmdOff + 14, u); put(cmdOff + 22, t)
+        return b
+    }
+
+    @Test fun `pagesBehind normal no wrap`() =
+        assertEquals(300L, DataRange.pagesBehind(pagesFrame(6, 500, 200, 1024), 6))
+
+    @Test fun `pagesBehind wraparound`() =
+        assertEquals(300L, DataRange.pagesBehind(pagesFrame(6, 100, 800, 1000), 6))
+
+    @Test fun `pagesBehind whoop5 cmdOff 10`() =
+        assertEquals(300L, DataRange.pagesBehind(pagesFrame(10, 500, 200, 1024), 10))
+
+    @Test fun `pagesBehind too short is null`() =
+        assertNull(DataRange.pagesBehind(ByteArray(20), 6))
+
+    @Test fun `pagesBehind implausible is null`() {
+        assertNull(DataRange.pagesBehind(pagesFrame(6, 1, 1, 0), 6))                // capacity 0
+        assertNull(DataRange.pagesBehind(pagesFrame(6, 1, 1, 1_783_785_625L), 6))  // T is a timestamp
+        assertNull(DataRange.pagesBehind(pagesFrame(6, 5, 2000, 1000), 6))         // U >= T
     }
 }

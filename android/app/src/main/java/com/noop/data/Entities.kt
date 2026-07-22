@@ -452,13 +452,17 @@ data class DismissedWorkout(
  * re-derived by the recompute, mirroring [DismissedWorkout] (#107). PK (deviceId, startTs), keyed on
  * the deleted session's start; `endTs` is the span the recompute's overlap test uses (a re-detected
  * onset can drift second-to-second). iOS has the twin sleep-delete path since #68 (its tombstones live in
- * UserDefaults, not a table); the undo lifts a tombstone by (deviceId, startTs) (#65). Added by MIGRATION_9_10.
+ * UserDefaults, not a table); the undo lifts a tombstone by (deviceId, startTs) (#65).
+ * [managementVisible] controls only whether the Android Sleep screen offers this marker for
+ * recomputation. Hiding that row must never weaken the tombstone's suppression of re-detection (#515).
+ * Added by MIGRATION_9_10; managementVisible by MIGRATION_21_22.
  */
 @Entity(tableName = "dismissedSleep", primaryKeys = ["deviceId", "startTs"])
 data class DismissedSleep(
     val deviceId: String,
     val startTs: Long,
     val endTs: Long,
+    val managementVisible: Boolean = true,
 )
 
 /**
@@ -504,6 +508,36 @@ data class PpgWaveformSampleEntity(
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is PpgWaveformSampleEntity) return false
+        return deviceId == other.deviceId && ts == other.ts && samples.contentEquals(other.samples)
+    }
+
+    override fun hashCode(): Int {
+        var result = deviceId.hashCode()
+        result = 31 * result + ts.hashCode()
+        result = 31 * result + samples.contentHashCode()
+        return result
+    }
+}
+
+/**
+ * One 1-second WHOOP 5/MG raw-IMU offload buffer (#423): 100 Hz 6-axis inertial data. [samples] is a
+ * packed little-endian i16 BLOB of the six columns in wire order — ax×100, ay×100, az×100, gx×100, gy×100,
+ * gz×100 (1200 bytes) — decoded by [com.noop.protocol.Whoop5RawImu] (scales 1/4096 g/LSB, 2000/32768 dps/
+ * LSB). The strap already delivers this in the connect-time offload burst; capturing it needs NO arming.
+ * Instrument-first + bounded: written only when raw capture is enabled, and pruned to a rolling recent
+ * window ([WhoopRepository.RAW_IMU_RETENTION_ROWS]). Twin of the GRDB `rawImuSample` table. Natural key
+ * (deviceId, ts) = one row per strap-second.
+ */
+@Entity(tableName = "rawImuSample", primaryKeys = ["deviceId", "ts"])
+data class RawImuSampleEntity(
+    val deviceId: String,
+    val ts: Long,
+    val samples: ByteArray,
+) {
+    // ByteArray needs structural equals/hashCode (the generated identity ones break round-trip asserts).
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is RawImuSampleEntity) return false
         return deviceId == other.deviceId && ts == other.ts && samples.contentEquals(other.samples)
     }
 

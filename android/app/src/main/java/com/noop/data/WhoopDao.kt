@@ -87,6 +87,24 @@ interface WhoopDao : DeviceRegistryDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertPpgWaveform(rows: List<PpgWaveformSampleEntity>): List<Long>
 
+    /** RAW 5/MG IMU offload buffers (packed i16 BLOB). Idempotent by (deviceId, ts). (#423) */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertRawImu(rows: List<RawImuSampleEntity>): List<Long>
+
+    /** Bound the raw-IMU table to the newest [keep] rows for [deviceId] (rolling retention, #423). */
+    @Query(
+        "DELETE FROM rawImuSample WHERE deviceId = :deviceId AND ts < " +
+            "(SELECT MIN(ts) FROM (SELECT ts FROM rawImuSample WHERE deviceId = :deviceId ORDER BY ts DESC LIMIT :keep))"
+    )
+    suspend fun pruneRawImu(deviceId: String, keep: Int)
+
+    /** RAW 5/MG IMU buffers in [from, to] (ascending), packed i16 BLOB. (#423) */
+    @Query(
+        "SELECT * FROM rawImuSample WHERE deviceId = :deviceId AND ts >= :from AND ts <= :to " +
+            "ORDER BY ts ASC LIMIT :limit"
+    )
+    suspend fun rawImuSamples(deviceId: String, from: Long, to: Long, limit: Int): List<RawImuSampleEntity>
+
     // MARK: - Server-derived caches (latest value wins)
 
     @Upsert
@@ -642,6 +660,14 @@ interface WhoopDao : DeviceRegistryDao {
      *  under whichever namespace owned the deleted row. */
     @Query("SELECT * FROM dismissedSleep WHERE deviceId = :deviceId")
     suspend fun dismissedSleeps(deviceId: String): List<DismissedSleep>
+
+    /** Hide one tombstone from the Sleep screen's recompute list while leaving the row in place so the
+     *  detector continues to suppress the sleep the user deliberately deleted (#515). */
+    @Query(
+        "UPDATE dismissedSleep SET managementVisible = 0 " +
+            "WHERE deviceId = :deviceId AND startTs = :startTs",
+    )
+    suspend fun hideDismissedSleepFromManagement(deviceId: String, startTs: Long): Int
 
     /** Lift ONE deleted-sleep tombstone (#65 undo / "allow re-detection"): removes the marker so the
      *  night is re-detected from raw on the next analyze pass. Keyed by (deviceId, startTs): the same

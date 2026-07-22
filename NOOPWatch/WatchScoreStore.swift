@@ -20,14 +20,11 @@ final class WatchScoreStore: NSObject, ObservableObject, WCSessionDelegate {
     /// The latest snapshot the watch knows about. nil = nothing has ever synced (fresh install).
     @Published private(set) var snapshot: WatchScoreSnapshot?
 
-    /// The shared App Group suite the watch app + its complication both read/write. The watch reads its
-    /// own bundle's AppGroupIdentifier Info.plist key (injected from $(APP_GROUP_ID) in project.yml) so
-    /// the value is never hard-coded in Swift, then falls back to the canonical group defined ONCE in
-    /// the shared contract (StrandDesign) so the writer and readers can't desync on it.
-    static let suiteName: String = {
-        Bundle.main.object(forInfoDictionaryKey: "AppGroupIdentifier") as? String
-            ?? WatchScoreSnapshot.appGroupId
-    }()
+    /// The shared App Group suite the watch app + its complication both read/write. `Bundle.main` is
+    /// process-global, so this is exactly the lookup `WatchScoreSnapshot.appGroupId` itself performs —
+    /// deferring to it directly (rather than repeating the lookup here) keeps the resolution in ONE
+    /// place so the writer and readers can't desync on it.
+    static let suiteName: String = WatchScoreSnapshot.appGroupId
 
     /// The key the complication also reads. The single source of truth lives in the shared contract.
     static let storageKey = WatchScoreSnapshot.storageKey

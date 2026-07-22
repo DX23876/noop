@@ -109,6 +109,110 @@ enum class DeviceFamily {
 }
 
 /**
+ * WHOOP custom GATT service families visible in advertisements.
+ *
+ * Only `WHOOP4` and `MAVERICK_GOOSE_FD4B` are connectable in NOOP today. The other services are
+ * protocol facts from reverse engineering and are diagnostic-only until their connection framing is
+ * mapped and hardware-tested. In particular, [PUFFIN_1150] is intentionally named with its UUID
+ * prefix because NOOP already uses "puffin" for the fd4b/Maverick-Goose packet framing.
+ */
+private fun unsupportedWhoopCharacteristicUuidStrings(prefix: String, suffix: String): List<String> =
+    listOf("0002", "0003", "0004", "0005", "0007").map { "$prefix$it-$suffix" }
+
+enum class WhoopGattServiceFamily(
+    val displayName: String,
+    val serviceUuidString: String,
+    val characteristicUuidStrings: List<String>,
+    val connectableDeviceFamily: DeviceFamily?,
+) {
+    WHOOP4(
+        displayName = "WHOOP 4.0",
+        serviceUuidString = "61080001-8d6d-82b8-614a-1c8cb0f8dcc6",
+        characteristicUuidStrings = DeviceFamily.WHOOP4.characteristicUuidStrings,
+        connectableDeviceFamily = DeviceFamily.WHOOP4,
+    ),
+    MAVERICK_GOOSE_FD4B(
+        displayName = "WHOOP 5.0 / MG fd4b (Maverick/Goose)",
+        serviceUuidString = "fd4b0001-cce1-4033-93ce-002d5875f58a",
+        characteristicUuidStrings = DeviceFamily.WHOOP5.characteristicUuidStrings,
+        connectableDeviceFamily = DeviceFamily.WHOOP5,
+    ),
+    PUFFIN_1150(
+        displayName = "WHOOP PUFFIN service 1150",
+        serviceUuidString = "11500001-6215-11ee-8c99-0242ac120002",
+        characteristicUuidStrings = unsupportedWhoopCharacteristicUuidStrings(
+            "1150",
+            "6215-11ee-8c99-0242ac120002",
+        ),
+        connectableDeviceFamily = null,
+    ),
+    MONUMENT(
+        displayName = "WHOOP MONUMENT",
+        serviceUuidString = "8a580001-2fe8-4796-9267-b87a2b0c8234",
+        characteristicUuidStrings = unsupportedWhoopCharacteristicUuidStrings(
+            "8a58",
+            "2fe8-4796-9267-b87a2b0c8234",
+        ),
+        connectableDeviceFamily = null,
+    ),
+    SYMPHONY(
+        displayName = "WHOOP SYMPHONY",
+        serviceUuidString = "59830001-5955-419b-bb8d-c8262926af23",
+        characteristicUuidStrings = unsupportedWhoopCharacteristicUuidStrings(
+            "5983",
+            "5955-419b-bb8d-c8262926af23",
+        ),
+        connectableDeviceFamily = null,
+    );
+
+    val isConnectable: Boolean get() = connectableDeviceFamily != null
+
+    val diagnosticUnsupportedMessage: String
+        get() = "$displayName detected but unsupported; NOOP will not connect or send commands."
+
+    companion object {
+        val unsupportedFamilies: List<WhoopGattServiceFamily> =
+            entries.filter { !it.isConnectable }
+
+        val unsupportedServiceUuidStrings: List<String> =
+            unsupportedFamilies.map { it.serviceUuidString }
+
+        fun forServiceUuidString(uuid: String?): WhoopGattServiceFamily? {
+            val normalized = uuid?.lowercase() ?: return null
+            return entries.firstOrNull { it.serviceUuidString == normalized }
+        }
+
+        fun firstUnsupportedIn(serviceUuidStrings: Iterable<String>): WhoopGattServiceFamily? =
+            serviceUuidStrings.mapNotNull { forServiceUuidString(it) }
+                .firstOrNull { !it.isConnectable }
+    }
+}
+
+data class WhoopGattScanDecision(
+    val shouldConnect: Boolean,
+    val unsupportedFamily: WhoopGattServiceFamily? = null,
+)
+
+/**
+ * Decide whether an advertisement found by the broadened diagnostic scan should enter GATT.
+ *
+ * Empty service lists preserve the pre-diagnostic behaviour because some platform callbacks omit the
+ * advertised service UUIDs even though the service-filtered scan matched. When services are present,
+ * only the selected connectable service may connect; unsupported families are reported for logging.
+ */
+fun whoopGattScanDecision(
+    selectedServiceUuidString: String,
+    advertisedServiceUuidStrings: Iterable<String>,
+): WhoopGattScanDecision {
+    val advertised = advertisedServiceUuidStrings.map { it.lowercase() }.toSet()
+    if (advertised.isEmpty() || selectedServiceUuidString.lowercase() in advertised) {
+        return WhoopGattScanDecision(shouldConnect = true)
+    }
+    val unsupported = WhoopGattServiceFamily.firstUnsupportedIn(advertised)
+    return WhoopGattScanDecision(shouldConnect = false, unsupportedFamily = unsupported)
+}
+
+/**
  * Whoop 5.0 "puffin" packet types mirror existing 4.0 types on the new transport. These map onto
  * the canonical base type names so they decode like their 4.0 counterparts instead of falling
  * through to an "unknown" label.

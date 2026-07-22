@@ -99,11 +99,19 @@ so the reasoning in one place:
 sleep, and the whole optical tail. Nothing on the wire is hidden behind a cipher NOOP would need a key
 for. The barrier is that the SpO₂ data simply isn't *in* the stream in a usable form:
 
-- **No SpO₂ field on the 5.0 wire.** The v18 historical layout carries no blood-oxygen value. The raw
-  optical tail (`@106` baseline, `@108/@109` amplitude pair, `@113` float) was checked against WHOOP-app
-  SpO₂ across 18,602 real records — it does not match; those channels track HR/motion, and there is no
-  identifiable red/IR pair. Pulse oximetry fundamentally needs two wavelengths; the 5.0's decodable
-  stream doesn't expose them (the v26 PPG waveform is single-channel, HR only).
+- **No *confirmed* SpO₂ field on the 5.0 wire — but there is now a candidate.** The raw optical tail
+  (`@106` baseline, `@108/@109` amplitude pair, `@113` float) was checked against WHOOP-app SpO₂ across
+  18,602 real records — it does not match; those channels track HR/motion, and there is no identifiable
+  red/IR pair. Pulse oximetry fundamentally needs two wavelengths; the 5.0's decodable stream doesn't
+  expose them (the v26 PPG waveform is single-channel, HR only). However, a decompile-sourced decode
+  ([#103](https://github.com/ryanbr/noop/issues/103)) reads v18 byte `@82` as a **strap-computed SpO₂ %
+  scalar** (tri-mode: 70–100 = real %, bit-7 = saturation sentinel, other sub-70 = diagnostic code;
+  sleep-only). The evidence is currently **split**: an 8-night independent validation with real spread
+  (corr +0.99, ~0.4 %/night) clears the cross-night bar, but the two nights checked on the original #103
+  capture device moved *opposite* to the app value — unresolved device/firmware variance or an extraction
+  error on one side. NOOP therefore decodes `@82` as `spo2_candidate_82` (deep-timeline instrumentation
+  only, in-band values only) so more devices can correlate it against the app's nightly SpO₂; it does
+  **not** populate `spo2Pct` or any card/score until the contradiction is resolved.
 - **A calibrated % needs WHOOP's proprietary curve.** Even where raw optical exists, turning a red/IR
   ratio into a real SpO₂ % requires a device-specific calibration NOOP does not have — and NOOP will not
   fabricate one from unvalidated optical (the withdrawn #194 PPG→HR estimate is the cautionary
@@ -122,8 +130,10 @@ the R-R interval stream (RSA) and shown on the Health screen when enough overnig
 **To see SpO₂ in NOOP on a 5.0:** import it. A WHOOP data export carries `blood_oxygen_pct`, and Health
 Connect import works too — both populate the Blood Oxygen card with WHOOP's own computed values.
 
-**Could it ever change?** Only via research, not decryption: capture the 5.0's raw optical alongside a
-reference oximeter and prove a channel tracks true SpO₂ (a varying signal, not one coincidental match).
+**Could it ever change?** Only via research, not decryption — and the `@82` candidate above is exactly
+that research in progress. What would flip it to a real reading: the `spo2_candidate_82` nightly values
+tracking the WHOOP app's own SpO₂ across many nights on **multiple devices** (a varying signal, not one
+coincidental match), including on the device where the two checked nights currently move opposite.
 Until that clears the bar, SpO₂ stays import-only on the 5.0.
 
 ## Mapping the layout — ground-truth correlation

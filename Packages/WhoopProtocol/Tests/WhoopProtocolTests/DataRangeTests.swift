@@ -77,4 +77,36 @@ final class DataRangeTests: XCTestCase {
         for k in 0..<4 { frame[11 + k] = UInt8((1_750_000_000 >> (8 * k)) & 0xFF) } // grid offset 11
         XCTAssertEqual(DataRange.oldestUnix(from: frame), 1_750_000_000)
     }
+
+    // MARK: - #689 pagesBehind (ring backlog). Byte-parity twin of the Kotlin DataRangeScanTest cases.
+
+    /// Frame (zero-filled) with W/U/T u32 LE at the pagesBehind offsets (cmdOff+10/14/22).
+    private func pagesFrame(cmdOff: Int, w: Int, u: Int, t: Int, size: Int = 40) -> [UInt8] {
+        var b = [UInt8](repeating: 0, count: size)
+        func put(_ off: Int, _ v: Int) { for k in 0..<4 { b[off + k] = UInt8((v >> (8 * k)) & 0xFF) } }
+        put(cmdOff + 10, w); put(cmdOff + 14, u); put(cmdOff + 22, t)
+        return b
+    }
+
+    func testPagesBehind_normalNoWrap() {   // W > U ⇒ W − U
+        XCTAssertEqual(DataRange.pagesBehind(from: pagesFrame(cmdOff: 6, w: 500, u: 200, t: 1024), cmdOff: 6), 300)
+    }
+
+    func testPagesBehind_wraparound() {     // W < U ⇒ W + (T − U)
+        XCTAssertEqual(DataRange.pagesBehind(from: pagesFrame(cmdOff: 6, w: 100, u: 800, t: 1000), cmdOff: 6), 300)
+    }
+
+    func testPagesBehind_whoop5CmdOff10() { // offsets shift with cmdOff; same math
+        XCTAssertEqual(DataRange.pagesBehind(from: pagesFrame(cmdOff: 10, w: 500, u: 200, t: 1024), cmdOff: 10), 300)
+    }
+
+    func testPagesBehind_tooShortIsNil() {
+        XCTAssertNil(DataRange.pagesBehind(from: [UInt8](repeating: 0, count: 20), cmdOff: 6))
+    }
+
+    func testPagesBehind_implausibleIsNil() {
+        XCTAssertNil(DataRange.pagesBehind(from: pagesFrame(cmdOff: 6, w: 1, u: 1, t: 0), cmdOff: 6))               // capacity 0
+        XCTAssertNil(DataRange.pagesBehind(from: pagesFrame(cmdOff: 6, w: 1, u: 1, t: 1_783_785_625), cmdOff: 6))  // T is a timestamp → over ceiling
+        XCTAssertNil(DataRange.pagesBehind(from: pagesFrame(cmdOff: 6, w: 5, u: 2000, t: 1000), cmdOff: 6))        // U ≥ T
+    }
 }

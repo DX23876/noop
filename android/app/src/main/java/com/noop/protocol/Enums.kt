@@ -141,6 +141,9 @@ enum class CommandNumber(val rawValue: Int) {
     // dumped in full to the strap log so a normal export settles which number this firmware serves.
     // Mirrors Swift WhoopCommand.getExtendedBatteryInfo.
     GET_EXTENDED_BATTERY_INFO(98),
+    // #690: read-only body-location/status probe. Documented in the WHOOP protocol; driven only by the
+    // user-triggered, Test-Centre-gated probeBodyLocationAndStatus(). Decoded to a diagnostic report only.
+    GET_BODY_LOCATION_AND_STATUS(84),
     STOP_HAPTICS(122),
     SELECT_WRIST(123);
 

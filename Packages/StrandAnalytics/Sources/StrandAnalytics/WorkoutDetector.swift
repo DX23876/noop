@@ -1,5 +1,6 @@
 import Foundation
 import WhoopProtocol
+import WhoopStore
 
 // WorkoutDetector.swift — retroactive workout detection from the 1 Hz store.
 //
@@ -367,6 +368,22 @@ public enum WorkoutDetector {
                 hrmax: effMaxHR, hrmaxSource: hrmaxSource, caloriesKcal: kcal, caloriesKJ: kj))
         }
         return sessions
+    }
+
+    /// #510: backfill ONLY the avgHr/maxHr/energyKcal/strain fields `real` doesn't already have, from a
+    /// detected bout's own computed values — never touching a field that's already present, whether
+    /// typed by the user, imported, or filled by an earlier pass. `real` unchanged (`==`) means it
+    /// already had everything, so the caller can tell whether a write is actually needed. Kotlin twin
+    /// IntelligenceEngine.backfillWorkoutFromDetectedBout.
+    public static func backfillWorkout(_ real: WorkoutRow, avgBpm: Int, peakHR: Int, caloriesKcal: Double?, strain: Double?) -> WorkoutRow {
+        WorkoutRow(
+            startTs: real.startTs, endTs: real.endTs, sport: real.sport, source: real.source,
+            durationS: real.durationS,
+            energyKcal: real.energyKcal ?? caloriesKcal,
+            avgHr: real.avgHr ?? avgBpm,
+            maxHr: real.maxHr ?? peakHR,
+            strain: real.strain ?? strain,
+            distanceM: real.distanceM, zonesJSON: real.zonesJSON, notes: real.notes)
     }
 }
 

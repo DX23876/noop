@@ -43,6 +43,11 @@ interface DeviceRegistryDao {
     @Query("UPDATE pairedDevice SET nickname = :nickname WHERE id = :id")
     suspend fun renameDevice(id: String, nickname: String?)
 
+    /** Update the model label for an existing device (e.g. seeded "WHOOP" → "WHOOP 4.0" once the
+     *  strap's service family is known from a live BLE connect). Twin of the Swift store's `setModel`. */
+    @Query("UPDATE pairedDevice SET model = :model WHERE id = :id")
+    suspend fun setModel(id: String, model: String)
+
     /** Persist (or clear) a device's stable BLE peripheral identifier (the MAC address on Android). Lets
      *  the seeded "my-whoop" adopt its strap's address on first connect and a specific WHOOP confirm its
      *  identity. Twin of the Swift store's `setPeripheralId`. */
@@ -71,6 +76,7 @@ interface DeviceRegistryDao {
     @Query("DELETE FROM stepSample WHERE deviceId = :deviceId") suspend fun deleteStepsFor(deviceId: String)
     @Query("DELETE FROM ppgHrSample WHERE deviceId = :deviceId") suspend fun deletePpgHrFor(deviceId: String)
     @Query("DELETE FROM ppgWaveformSample WHERE deviceId = :deviceId") suspend fun deletePpgWaveformFor(deviceId: String)
+    @Query("DELETE FROM rawImuSample WHERE deviceId = :deviceId") suspend fun deleteRawImuFor(deviceId: String)   // #423
     @Query("DELETE FROM event WHERE deviceId = :deviceId") suspend fun deleteEventsFor(deviceId: String)
     @Query("DELETE FROM battery WHERE deviceId = :deviceId") suspend fun deleteBatteryFor(deviceId: String)
     @Query("DELETE FROM dailyMetric WHERE deviceId = :deviceId") suspend fun deleteDailyMetricsFor(deviceId: String)

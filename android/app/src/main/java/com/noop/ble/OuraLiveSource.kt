@@ -220,6 +220,11 @@ class OuraLiveSource(
     private val bluetoothManager: BluetoothManager? =
         appContext.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
     private val adapter: BluetoothAdapter? = bluetoothManager?.adapter
+
+    /** Tier-B activity/MET research corpus writer (diagnostic JSONL sidecar; never scored, never a Streams
+     *  row). Null when there is no device id. The Kotlin twin of the Swift `OuraActivityDump`. */
+    private val activityDump: OuraActivityDump? =
+        if (deviceId.isNotEmpty()) OuraActivityDump(appContext, deviceId, log) else null
     private val scanner: BluetoothLeScanner? get() = adapter?.bluetoothLeScanner
 
     private var gatt: BluetoothGatt? = null
@@ -254,6 +259,9 @@ class OuraLiveSource(
      *  ONLY (see the `allowTierB = true` comment at driver construction) - the log is how we collect raw
      *  captures to validate these layouts; nothing here ever persists or scores. Reset on stop/disconnect. */
     private val loggedTierBKinds = mutableSetOf<String>()
+    /** Feature ids whose status we have already logged this session (SpO2 0x04 / real_steps 0x0b), so the
+     *  read-only feature-status diagnostic prints once per feature, not on every reconnect. */
+    private val loggedFeatureStatuses = mutableSetOf<Int>()
 
     // MARK: - Auto-reconnect (#912)
 
@@ -563,6 +571,7 @@ class OuraLiveSource(
         loggedFirstSpo2 = false
         loggedAnchor = false
         loggedTierBKinds.clear()
+        loggedFeatureStatuses.clear()
         pendingAnchorEvents.clear()
         // Resume the GetEvents cursor from where the LAST connection to this ring left off (s5.1/5.3), so a
         // routine reconnect doesn't re-fetch the ring's entire banked history every time.
@@ -612,6 +621,7 @@ class OuraLiveSource(
         loggedFirstSpo2 = false
         loggedAnchor = false
         loggedTierBKinds.clear()
+        loggedFeatureStatuses.clear()
         reachedStreaming = false
         // A stop MID-install is an honest failure (no ack will come); a stop after streaming leaves the
         // completed Streaming outcome intact so the wizard's success transition is not undone.
@@ -742,6 +752,7 @@ class OuraLiveSource(
                     loggedFirstSpo2 = false
                     loggedAnchor = false
                     loggedTierBKinds.clear()
+        loggedFeatureStatuses.clear()
                     reachedStreaming = false
                     // A disconnect MID-install is an honest failure (no 0x25 ack will arrive); a disconnect
                     // after streaming leaves the completed Streaming outcome intact. Drop any in-flight key
@@ -894,6 +905,11 @@ class OuraLiveSource(
                     scheduleHistoryFetch()
                     fetchHistoryIfIdle()
                     write(OuraCommands.getBattery())
+                    // Read-only diagnostic: ask the ring its SpO2 / real-steps feature status once, so a
+                    // capture confirms (from the ring itself) that these server-flag features are
+                    // subscription-gated OFF for an offline ring. NEVER an enable/set-mode write.
+                    write(OuraCommands.spo2ReadStatus())
+                    write(OuraCommands.realStepsReadStatus())
                 }
             }
             OuraDriverPhase.NeedsKeyInstall -> {
@@ -1054,9 +1070,32 @@ class OuraLiveSource(
                 advance(OuraTransition.AuthCompleted(routing.status))
             }
             OuraDriver.SecureRouting.EnableAck -> advance(OuraTransition.EnableAckReceived)
+            is OuraDriver.SecureRouting.FeatureStatus -> logFeatureStatus(routing.value)   // read-only; no advance
             is OuraDriver.SecureRouting.LiveHRPush -> emit(d.ingestLiveHRPush(routing.body))
             OuraDriver.SecureRouting.Unhandled -> Unit
         }
+    }
+
+    /**
+     * Log a feature-status read reply once per feature (read-only diagnostic). Confirms, from the ring
+     * itself, whether a server-flag feature (SpO2 0x04 / real_steps 0x0b) is subscribed/emitting — NOOP
+     * cannot enable these offline (server ClientConfiguration gate), so a `subscription == 0` here is the
+     * honest "not a bug, it's a gate" reading. Never scored, never stored.
+     */
+    private fun logFeatureStatus(st: com.noop.oura.OuraFeatureStatus) {
+        if (!loggedFeatureStatuses.add(st.feature)) return
+        val name = when (st.feature) {
+            OuraCommands.featureSpO2 -> "SpO2 (0x04)"
+            OuraCommands.featureRealSteps -> "real_steps (0x0b)"
+            OuraCommands.featureDaytimeHR -> "daytime-HR (0x02)"
+            else -> "0x${st.feature.toString(16)}"
+        }
+        // A gated/unavailable feature reports ALL-ZERO (mode/status/state); the streaming daytime-HR, by
+        // contrast, reads mode=1 status=0x11 state=2. Flag the all-zero case as the honest "cloud never
+        // enabled it" — NOT `subscription==0` alone, since daytime-HR is subscription=0 yet active.
+        val off = st.mode == 0 && st.status == 0 && st.state == 0
+        val gate = if (off) " - INACTIVE (server-gated off; the cloud never enabled it, not emitted offline)" else ""
+        log("Oura: feature status $name mode=${st.mode} status=${st.status} state=${st.state} subscription=${st.subscription}$gate")
     }
 
     /**
@@ -1179,13 +1218,22 @@ class OuraLiveSource(
                     log("Oura: Tier-B ${e.value.kind} seen (tag 0x${e.value.tag.toString(16)}) - raw: $hex")
                 }
             }
-            is OuraEvent.ActivityInfo ->
+            is OuraEvent.ActivityInfo -> {
                 // INVESTIGATION ONLY (0x50 activity/MET, Tier B - a plausible third-party formula, NOT
                 // ground-truth-validated; see OuraActivityInfo). Logged with the DECODED state/MET values
                 // every time (not once-per-kind): this is the tag under active plausibility evaluation, so
                 // every real capture is evidence. Never persisted, never scored, and NEVER converted into
                 // steps (MET is not a step count; OuraStreamMapping drops ActivityInfo unconditionally).
                 log("Oura: activity (Tier-B) state=${e.value.state} met=${e.value.met}")
+                // Append the raw record to the Tier-B research corpus (anchored records only; deduped by
+                // ring-time in the writer). Diagnostic sidecar - never persisted to the DB, never scored.
+                d.unixSeconds(forRingTimestamp = e.value.ringTimestamp)?.let { utc ->
+                    activityDump?.record(
+                        ringTs = e.value.ringTimestamp, utc = utc, state = e.value.state,
+                        secPerSample = 60, met = e.value.met, // 60 s = assumed MET cadence (s6.13)
+                    )
+                }
+            }
             // Motion / debugText / etc: not a durable Streams row (see OuraStreamMapping). StateEvent is
             // handled above (wear badge only, also not a Streams row).
             else -> Unit

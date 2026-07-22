@@ -77,6 +77,29 @@ public enum Whoop5RawImu {
         return Whoop5ImuFrame(baseTs: baseTs, sampleRateHz: sampleCount, samples: samples)
     }
 
+    /// The raw i16 columns exactly as they sit on the wire — [ax×100, ay×100, az×100, gx×100, gy×100,
+    /// gz×100] — for faithful, compact storage (#423). Same length + sample-count gate and offsets as
+    /// `decode`; nil if `f` isn't a valid IMU buffer. Scales stay documented constants applied at read
+    /// time, so nothing lossy is baked into the stored bytes. Twin of Kotlin `Whoop5RawImu.rawColumns`.
+    public static func rawColumns(_ f: [UInt8]) -> [Int16]? {
+        guard f.count == bufferLength,
+              u16(f, countAOff) == sampleCount, u16(f, countBOff) == sampleCount,
+              gzOff + 2 * sampleCount <= f.count else { return nil }
+        let cols = [axOff, ayOff, azOff, gxOff, gyOff, gzOff]
+        var out = [Int16](repeating: 0, count: 6 * sampleCount)
+        for c in 0..<6 {
+            for i in 0..<sampleCount { out[c * sampleCount + i] = Int16(truncatingIfNeeded: i16(f, cols[c] + 2 * i)) }
+        }
+        return out
+    }
+
+    /// The strap unix-second stamp of this 1-second buffer (frame offset 15), or nil if too short. Public
+    /// so the capture seam can key a stored row without re-reading internal offsets (#423).
+    public static func baseTs(_ f: [UInt8]) -> Int? {
+        guard f.count > tsOff + 3 else { return nil }
+        return Int(u32(f, tsOff))
+    }
+
     // MARK: - Little-endian readers (frame-absolute)
     static func u16(_ f: [UInt8], _ o: Int) -> Int { Int(f[o]) | (Int(f[o + 1]) << 8) }
     static func u32(_ f: [UInt8], _ o: Int) -> UInt32 {

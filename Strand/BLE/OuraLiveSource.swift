@@ -176,6 +176,9 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     /// ONLY (see the `allowTierB: true` comment at driver construction) - the log is how we collect raw
     /// captures to validate these layouts; nothing here ever persists or scores. Reset on stop/disconnect.
     private var loggedTierBKinds: Set<String> = []
+    /// Feature ids whose status we have already logged this session (SpO2 0x04 / real_steps 0x0b), so the
+    /// read-only feature-status diagnostic prints once per feature, not on every reconnect.
+    private var loggedFeatureStatuses: Set<Int> = []
 
     // MARK: - Activity (0x50 MET) estimate accumulation — INVESTIGATION ONLY
     // Aggregate the decoded 0x50 MET stream into an honest, clearly-labeled per-day estimate
@@ -193,6 +196,10 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     /// Assumed per-sample epoch for the estimate log (the ONE calibration knob; the cadence self-check
     /// above measures the real value). 60 s = Oura's common 1-minute MET resolution.
     private let activityEpochSeconds: Double = 60
+    /// Append-only JSONL research corpus for the raw 0x50 MET series (Tier-B, never scored/persisted to
+    /// SQLite). Created only on a live/persisting source (nil for the discovery-only scanner). Deduped by
+    /// ring-time so re-served records don't duplicate; logs its file path once when the first record lands.
+    private let activityDump: OuraActivityDump?
     /// Cached local-day formatter (the 0x50 stream is high-volume; avoid building one per record).
     private static let activityDayFormatter: DateFormatter = {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f   // local time zone by default
@@ -454,6 +461,8 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         self.onBattery = onBattery
         self.feedsLive = feedsLive
         self.adoptIntent = adoptIntent
+        // Tier-B MET research corpus: only on a live/persisting source, never the discovery-only scanner.
+        self.activityDump = feedsLive && !deviceId.isEmpty ? OuraActivityDump(deviceId: deviceId, log: log) : nil
         super.init()
         // Dedicated queue-less central -> callbacks arrive on the main queue, matching @MainActor.
         self.central = CBCentralManager(delegate: self, queue: nil)
@@ -540,6 +549,7 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         loggedFirstSpo2 = false
         loggedAnchor = false
         loggedTierBKinds.removeAll()
+        loggedFeatureStatuses.removeAll()
         activityMETByDay.removeAll()
         activityCadenceObs.removeAll()
         lastActivityUtc = nil
@@ -601,6 +611,10 @@ public final class OuraLiveSource: NSObject, ObservableObject {
                 startHistoryFetchTimer()
                 fetchHistoryIfIdle()   // pull last night's banked temp/SpO2/HRV/sleep-phase right away
                 write([OuraCommands.getBattery()])   // ask once HR streams; the 0x0D reply routes to onBattery
+                // Read-only diagnostic: ask the ring its SpO2 / real-steps feature status once, so a capture
+                // confirms (from the ring itself) that these server-flag features are subscription-gated OFF
+                // for an offline ring. NEVER an enable/set-mode write - purely the 0x20 read verb.
+                write([OuraCommands.spo2ReadStatus(), OuraCommands.realStepsReadStatus()])
             }
         default:
             break
@@ -848,6 +862,12 @@ public final class OuraLiveSource: NSObject, ObservableObject {
                 let utc = driver.unixSeconds(forRingTimestamp: info.ringTimestamp)
                 let when = utc.map { Self.cursorDateFormatter.string(from: Date(timeIntervalSince1970: TimeInterval($0))) } ?? "no anchor yet"
                 log("Oura: activity (Tier-B) [\(when)] state=\(info.state) met=\(info.met)")
+                // Append the raw record to the Tier-B research corpus (anchored records only; deduped by
+                // ring-time inside the writer). Diagnostic sidecar — never persisted to SQLite, never scored.
+                if let utc = utc {
+                    activityDump?.record(ringTs: info.ringTimestamp, utc: utc, state: info.state,
+                                         secPerSample: Int(activityEpochSeconds), met: info.met)
+                }
                 // Accumulate the MET series by local day for the drain-end estimate, and observe the
                 // per-sample cadence from consecutive record times (both investigation-only, never scored).
                 if let utc = utc {
@@ -891,6 +911,27 @@ public final class OuraLiveSource: NSObject, ObservableObject {
             case .unknown:  break
             }
         }
+    }
+
+    /// Log a feature-status read reply once per feature (read-only diagnostic). Confirms, from the ring
+    /// itself, whether a server-flag feature (SpO2 0x04 / real_steps 0x0b) is subscribed/emitting — NOOP
+    /// cannot enable these offline (server ClientConfiguration gate), so a `subscription == 0` here is the
+    /// honest "not a bug, it's a gate" reading. Never scored, never stored.
+    private func logFeatureStatus(_ st: OuraFeatureStatus) {
+        guard loggedFeatureStatuses.insert(st.feature).inserted else { return }
+        let name: String
+        switch UInt8(truncatingIfNeeded: st.feature) {
+        case OuraCommands.featureSpO2:      name = "SpO2 (0x04)"
+        case OuraCommands.featureRealSteps: name = "real_steps (0x0b)"
+        case OuraCommands.featureDaytimeHR: name = "daytime-HR (0x02)"
+        default:                            name = "0x\(String(st.feature, radix: 16))"
+        }
+        // A gated/unavailable feature reports ALL-ZERO (mode/status/state); the streaming daytime-HR, by
+        // contrast, reads mode=1 status=0x11 state=2. Flag the all-zero case as the honest "cloud never
+        // enabled it" — NOT `subscription==0` alone, since daytime-HR is subscription=0 yet active.
+        let off = st.mode == 0 && st.status == 0 && st.state == 0
+        let gate = off ? " - INACTIVE (server-gated off; the cloud never enabled it, not emitted offline)" : ""
+        log("Oura: feature status \(name) mode=\(st.mode) status=\(st.status) state=\(st.state) subscription=\(st.subscription)\(gate)")
     }
 
     // MARK: - Re-engagement timer (daytime-HR auto-reverts ~20s)
@@ -1046,6 +1087,7 @@ extension OuraLiveSource: @preconcurrency CBCentralManagerDelegate {
         loggedFirstSpo2 = false
         loggedAnchor = false
         loggedTierBKinds.removeAll()
+        loggedFeatureStatuses.removeAll()
         pendingAnchorEvents.removeAll()   // a fresh session must never replay a stale-anchor guess
         pendingInstallKey = nil
         adoptPhase = .idle
@@ -1107,6 +1149,7 @@ extension OuraLiveSource: @preconcurrency CBCentralManagerDelegate {
         loggedFirstSpo2 = false
         loggedAnchor = false
         loggedTierBKinds.removeAll()
+        loggedFeatureStatuses.removeAll()
         activityMETByDay.removeAll()
         activityCadenceObs.removeAll()
         lastActivityUtc = nil
@@ -1261,6 +1304,8 @@ extension OuraLiveSource: @preconcurrency CBPeripheralDelegate {
             advance(.authCompleted(status))
         case .enableAck:
             advance(.enableAckReceived)
+        case .featureStatus(let st):
+            logFeatureStatus(st)   // read-only diagnostic; never advances the state machine
         case .liveHRPush(let body):
             guard let driver else { return }
             ingest(driver.ingestLiveHRPush(body: body))

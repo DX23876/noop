@@ -333,6 +333,19 @@ public enum OuraDecoders {
         return OuraState(ringTimestamp: rec.ringTimestamp, stateCode: Int(code), text: text)
     }
 
+    // MARK: - Feature-status read reply (0x2F sub-op 0x21; s5.6 / s7.1)
+
+    /// Decode a feature-status read reply's SUB-BODY (the bytes AFTER the `0x21` sub-op) into
+    /// `feature, mode, status, state, subscription`, the ring's own feature report [open_oura-feat]. The
+    /// observed daytime-HR reply is `2f 06 21 02 01 11 02 00` → sub-body `02 01 11 02 00`. Returns nil on a
+    /// short body (< 5) so a truncated reply never fabricates a status. READ-ONLY diagnostic.
+    public static func decodeFeatureStatus(_ subBody: [UInt8]) -> OuraFeatureStatus? {
+        guard subBody.count >= 5 else { return nil }
+        return OuraFeatureStatus(feature: Int(subBody[0]), mode: Int(subBody[1]),
+                                 status: Int(subBody[2]), state: Int(subBody[3]),
+                                 subscription: Int(subBody[4]))
+    }
+
     // MARK: - Debug text (0x43; s6.15)
 
     /// Decode the 0x43 debug_event: ASCII state strings. Per OURA_PROTOCOL.md s6.15. Returns nil when

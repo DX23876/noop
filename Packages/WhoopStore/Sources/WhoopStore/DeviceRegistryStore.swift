@@ -54,6 +54,14 @@ public struct DeviceRegistryStore: Sendable {
         }
     }
 
+    /// Update the model label for an existing device (e.g. seeded "WHOOP" → "WHOOP 4.0" once the
+    /// strap's service family is known from a live BLE connect).
+    public func setModel(_ id: String, model: String) throws {
+        try dbQueue.write { db in
+            try db.execute(sql: "UPDATE pairedDevice SET model = ? WHERE id = ?", arguments: [model, id])
+        }
+    }
+
     /// Adopt (or clear) the stable BLE identity for a registry row. `peripheralId` is the
     /// CBPeripheral.identifier.uuidString on iOS/Mac; passing nil un-adopts it.
     public func setPeripheralId(_ id: String, peripheralId: String?) throws {
@@ -95,6 +103,9 @@ public struct DeviceRegistryStore: Sendable {
         // "delete all of this device's data" leaves the raw waveform behind (the same privacy defect
         // this list exists to close).
         "ppgWaveformSample",
+        // v28-raw-imu (#423): the opt-in 5/MG raw-IMU offload capture is deviceId-keyed too — "delete all
+        // of this device's data" must clear it, or the raw inertial samples survive deletion (same defect).
+        "rawImuSample",
     ]
 
     /// Permanently delete every recorded sample/derived row belonging to one device, across all

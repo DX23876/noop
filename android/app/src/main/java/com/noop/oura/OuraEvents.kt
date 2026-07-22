@@ -74,6 +74,21 @@ data class OuraMotion(val ringTimestamp: Long, val index: Int, val state: OuraMo
 /** Device lifecycle state (OURA_PROTOCOL.md s6.15) decoded from a 0x45/0x53 record. */
 data class OuraState(val ringTimestamp: Long, val stateCode: Int, val text: String? = null)
 
+/**
+ * A decoded feature-status read reply (the `0x2F` sub-op `0x21` response): the ring's own report of a
+ * feature's mode / status / state / subscription. Kotlin twin of the Swift `OuraFeatureStatus`. Read-only
+ * diagnostic — used to confirm the server-flag gate on SpO2 (`0x04`) / real_steps (`0x0b`): a
+ * `subscription == 0` with no emitted records is the ring saying "the cloud has not enabled this", which
+ * NOOP cannot override offline. Never scored, never stored.
+ */
+data class OuraFeatureStatus(
+    val feature: Int,
+    val mode: Int,
+    val status: Int,
+    val state: Int,
+    val subscription: Int,
+)
+
 /** A UTC anchor / time-sync event (OURA_PROTOCOL.md s6.11): epoch ms + timezone offset seconds. */
 data class OuraTimeSync(val ringTimestamp: Long, val epochMs: Long, val tzOffsetSeconds: Int)
 

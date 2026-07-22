@@ -1358,6 +1358,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return true
     }
 
+    /** Hide an unwanted deleted-sleep row from the persistent recompute card while preserving its
+     *  detector tombstone. This is deliberately separate from [recomputeDeletedSleep], which removes the
+     *  tombstone and can therefore allow that mistaken sleep to return (#515). */
+    suspend fun hideDeletedSleepWindow(marker: com.noop.data.DismissedSleep): Boolean =
+        runCatching {
+            repository.hideDeletedSleepWindow(marker.deviceId, marker.startTs)
+        }.getOrDefault(false)
+
     /** Manually add a missed nap as its OWN session (#508) — staged from raw, written under the computed
      *  source with userEdited=true so the recompute guard keeps it and it's never folded into main sleep —
      *  then re-score the affected day immediately so the day's aggregates pick up the new session, matching
@@ -1720,6 +1728,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val extendedBatteryProbe = ble.extendedBatteryProbe
 
     fun clearExtendedBatteryProbe() = ble.clearExtendedBatteryProbe()
+
+    /** #690: read-only body-location/status probe (0x54). User-initiated, Test-Centre-gated in
+     *  DevicesScreen; decodes revision/location/confidence/status to a diagnostic report + strap log.
+     *  Never changes wear detection, sleep gating, or scoring. */
+    fun probeBodyLocationAndStatus() = ble.probeBodyLocationAndStatus()
+
+    /** #690 probe result text (null until a reply lands; waiting sentinel while in flight). */
+    val bodyLocationProbe = ble.bodyLocationProbe
+
+    fun clearBodyLocationProbe() = ble.clearBodyLocationProbe()
 
     /**
      * Flip the "keep connected in the background" preference (driven by Settings). Turning it on

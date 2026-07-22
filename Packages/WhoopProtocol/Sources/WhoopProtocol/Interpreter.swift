@@ -484,7 +484,25 @@ private func decodeWhoop5Historical(_ frame: [UInt8], fb: FieldBuilder, payloadE
     }
     if let v = readDType(frame, 82, "u8") {
         fb.add(82, 1, "aux_byte_82", "status", value: .int(v),
-               note: "raw; observed nonzero only while sleep_state = asleep (meaning not pinned)")
+               note: "raw; nonzero only while sleep_state = asleep; tri-mode, see spo2_candidate_82")
+        // #103 SpO2 candidate: a decompile-sourced decode (gen5.rs `spo2_pct`, reimplemented here as a
+        // protocol fact with attribution, like the other RE work) reads @82 (= inner 74) as a
+        // strap-computed SpO2 % scalar, tri-mode: 70–100 = a real %, bit-7 values (0x80/0xA0…) =
+        // saturation sentinels, other sub-70 nonzero = diagnostic codes, populated only during sleep.
+        // Evidence is SPLIT: an 8-night independent validation with real spread (corr +0.99, ~0.4 %/night,
+        // tracks a 92 % desat AND a 98 % high; offset-specific — only @82 tracks in a 74–92 scan) meets
+        // the cross-night bar, but the two capture nights checked on the original #103 device moved
+        // OPPOSITE to the app value (95.50→92.83 app vs 93.62→93.80 gated mean) — device/firmware
+        // variance or an extraction error on one side, unresolved. So this ships as an INSTRUMENTATION
+        // CANDIDATE only: the in-band value is decoded and surfaced raw for multi-device correlation
+        // against the app's own nightly SpO2. It must never back a shipped SpO2 metric, never write
+        // `spo2Pct`/`spo2_red`/`spo2_ir` (the testHistoricalV18OpticalFieldsAreNotNamedPhysiologically
+        // guard), and never
+        // feed a downstream gate (recovery/illness) until the cross-device contradiction is resolved.
+        if (70...100).contains(v) {
+            fb.add(82, 1, "spo2_candidate_82", "spo2", value: .int(v),
+                   note: "in-band (70–100) @82 reading; candidate strap-computed SpO2 % (#103) — instrumentation only, cross-device evidence still split, not a shipped metric")
+        }
     }
     // ── The @82–119 "optical/perfusion + tail" span, characterised over 18,602 real v18 records from a
     // third strap (overnight R22 live stream) + cross-checked on the two fixture devices above. The span

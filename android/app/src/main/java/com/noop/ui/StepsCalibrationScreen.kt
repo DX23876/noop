@@ -25,8 +25,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -87,8 +85,6 @@ fun StepsCalibrationScreen(
 ) {
     val scroll = rememberScrollState()
 
-    // The draft manual coefficient the slider edits, committed to ProfileStore on release. 0 = auto-fit.
-    var draftManual by remember { mutableStateOf(profile.stepsManualCoefficient.toFloat()) }
     // Recent days that have BOTH an estimate (reconstructed) and a phone count — the accuracy table.
     var comparison by remember { mutableStateOf<List<StepsComparisonRow>>(emptyList()) }
     // A representative recent motion volume (median of the days we measured), seeding the live preview.
@@ -96,9 +92,9 @@ fun StepsCalibrationScreen(
     // Flips true once the load pass has run, so the "no motion synced" note (#37) doesn't flash on first frame.
     var loaded by remember { mutableStateOf(false) }
 
-    // The slider's max anchors to whatever's in force with generous headroom, so a nudge either way is
-    // reachable; a floor keeps it usable before any fit. Mirrors the macOS sliderMax.
-    val sliderMax = (maxOf(profile.stepsCalibrationCoefficient, profile.stepsManualCoefficient, 50.0) * 2).toFloat()
+    // The stepper's ceiling anchors to whatever's in force with generous headroom, so a nudge either way
+    // stays reachable; a floor keeps it usable before any fit. Mirrors the macOS sliderMax.
+    val stepperMax = maxOf(profile.stepsCalibrationCoefficient, profile.stepsManualCoefficient, 50.0) * 2
 
     // Build the comparison table + a typical-day motion, once. The engine stores `steps_est` ONLY for
     // strap-only days (a phone-covered day uses the phone's real count), so an estimate and a phone
@@ -173,18 +169,9 @@ fun StepsCalibrationScreen(
                 ComparisonCard(comparison)
                 ManualAdjustCard(
                     profile = profile,
-                    draftManual = draftManual,
-                    sliderMax = sliderMax,
+                    stepperMax = stepperMax,
                     sampleMotion = sampleMotion,
-                    onDraftChange = { draftManual = it },
-                    onCommit = {
-                        // Commit on release — snap a tiny drag back to 0 (auto) so "auto" is reachable,
-                        // and round to a 0.5 grid (the slider itself is continuous to bound tick count).
-                        val snapped = if (draftManual < 0.5f) 0.0 else (Math.round(draftManual / 0.5f) * 0.5).toDouble()
-                        draftManual = snapped.toFloat()
-                        profile.stepsManualCoefficient = snapped
-                        onProfileChanged()
-                    },
+                    onProfileChanged = onProfileChanged,
                 )
             }
             Hairline()
@@ -396,78 +383,77 @@ private fun ComparisonCard(rows: List<StepsComparisonRow>) {
     }
 }
 
-/** Manual override: a slider bound to a draft, committed on release, with a live preview of what a
- *  typical recent day would estimate at the chosen coefficient. 0 returns to auto-fit. */
+/** One step of the manual coefficient stepper (#698): a slider spanning the full 0..[stepperMax] range
+ *  made a specific one-decimal value (e.g. nudging an auto 1.4 down to 1.2) practically undraggable —
+ *  the whole usable precision was compressed into a handful of drag pixels. A fixed 0.1 tick, like the
+ *  Profile card's age/weight steppers, makes that exact. */
+private const val STEPS_COEFFICIENT_STEP = 0.1
+
+/** Manual override: a stepper (mirrors the Profile card's age/weight [StepperField]s) bound directly to
+ *  [ProfileStore.stepsManualCoefficient], with a live preview of what a typical recent day would
+ *  estimate at the current setting. 0 means auto-fit; stepping down to 0 returns to it. Nudges start
+ *  from whichever value is currently EFFECTIVE (the auto fit, until first overridden), so reaching a
+ *  nearby value like 1.2 from an auto-fitted 1.4 is two taps, not a drag from zero (#698). */
 @Composable
 private fun ManualAdjustCard(
     profile: ProfileStore,
-    draftManual: Float,
-    sliderMax: Float,
+    stepperMax: Double,
     sampleMotion: Double?,
-    onDraftChange: (Float) -> Unit,
-    onCommit: () -> Unit,
+    onProfileChanged: () -> Unit,
 ) {
+    val manual = profile.stepsManualCoefficient
+    val effective = if (manual > 0) manual else profile.stepsCalibrationCoefficient
+
+    fun step(delta: Double) {
+        val next = (Math.round((effective + delta) * 10) / 10.0).coerceIn(0.0, stepperMax)
+        profile.stepsManualCoefficient = next
+        onProfileChanged()
+    }
+
     NoopCard(padding = 20.dp) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Overline("Adjust manually")
             Text(
                 uiString(R.string.l10n_steps_calibration_screen_override_the_automatic_fit_with_your_36a7b6fa) +
                     "has no step history to learn from, or the estimate runs consistently high or low. " +
-                    "Set it back to auto by dragging to the far left.",
+                    "Step all the way down to return to auto.",
                 style = NoopType.footnote,
                 color = Palette.textTertiary,
             )
             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    if (draftManual > 0) String.format(Locale.US, "%.1f", draftManual) else "Auto",
+                    if (manual > 0) String.format(Locale.US, "%.1f", manual) else "Auto",
                     style = NoopType.number(24f),
-                    color = if (draftManual > 0) Palette.accent else Palette.textSecondary,
+                    color = if (manual > 0) Palette.accent else Palette.textSecondary,
                 )
                 Text(
-                    if (draftManual > 0) "steps / motion unit" else "fit from your phone",
+                    if (manual > 0) "steps / motion unit" else "fit from your phone",
                     style = NoopType.footnote,
                     color = Palette.textTertiary,
                     modifier = Modifier.padding(bottom = 4.dp),
                 )
             }
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(uiString(R.string.l10n_steps_calibration_screen_auto_c614ba7c), style = NoopType.caption, color = Palette.textTertiary)
-                Slider(
-                    // Continuous (no discrete `steps`): the coefficient range can be large, so a 0.5-tick
-                    // grid would mean thousands of ticks. The commit rounds to 0.5 instead (see onCommit).
-                    value = draftManual,
-                    onValueChange = onDraftChange,
-                    onValueChangeFinished = onCommit,
-                    valueRange = 0f..sliderMax,
-                    colors = SliderDefaults.colors(
-                        thumbColor = Palette.accent,
-                        activeTrackColor = Palette.accent,
-                        inactiveTrackColor = Palette.surfaceInset,
-                    ),
-                    modifier = Modifier
-                        .weight(1f)
-                        .semantics {
-                            contentDescription = if (draftManual > 0) {
-                                String.format(Locale.US, "Manual steps coefficient, %.1f steps per motion unit", draftManual)
-                            } else {
-                                "Manual steps coefficient, automatic"
-                            }
-                        },
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                StepperField(
+                    value = if (manual > 0) String.format(Locale.US, "%.1f", manual) else "Auto",
+                    accessibility = if (manual > 0) {
+                        String.format(Locale.US, "Manual steps coefficient, %.1f steps per motion unit", manual)
+                    } else {
+                        "Manual steps coefficient, automatic"
+                    },
+                    onMinus = { step(-STEPS_COEFFICIENT_STEP) },
+                    onPlus = { step(STEPS_COEFFICIENT_STEP) },
                 )
-                Text(uiString(R.string.l10n_steps_calibration_screen_high_b1a5954a), style = NoopType.caption, color = Palette.textTertiary)
             }
-            // Live preview: a typical recent day re-estimated at the draft (or auto) coefficient.
-            if (sampleMotion != null) {
-                val effective = if (draftManual > 0) draftManual.toDouble() else profile.stepsCalibrationCoefficient
-                if (effective > 0) {
-                    val preview = (sampleMotion * effective).roundToInt()
-                    StatLine(
-                        "A typical recent day",
-                        "≈ ${grouped(preview)} steps${if (draftManual > 0) " at this setting" else " (auto)"}",
-                    )
-                }
+            // Live preview: a typical recent day re-estimated at the effective (manual or auto) coefficient.
+            if (sampleMotion != null && effective > 0) {
+                val preview = (sampleMotion * effective).roundToInt()
+                StatLine(
+                    "A typical recent day",
+                    "≈ ${grouped(preview)} steps${if (manual > 0) " at this setting" else " (auto)"}",
+                )
             }
-            if (draftManual > 0) {
+            if (manual > 0) {
                 Text(
                     uiString(R.string.l10n_steps_calibration_screen_takes_effect_on_the_next_analytics_13205327),
                     style = NoopType.caption,

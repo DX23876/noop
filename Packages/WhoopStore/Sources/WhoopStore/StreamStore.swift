@@ -41,6 +41,27 @@ extension WhoopStore {
         return out
     }
 
+    /// #423: pack the raw-IMU i16 columns to a little-endian BLOB (same wire encoding as `packPpgSamples`,
+    /// an `[Int16]` source — the 6×100 columns ax…az,gx…gz). Byte-identical to Kotlin `packImuColumns`.
+    static func packImuColumns(_ cols: [Int16]) -> Data {
+        var buf = Data(capacity: cols.count * 2)
+        for v in cols { buf.append(UInt8(truncatingIfNeeded: v)); buf.append(UInt8(truncatingIfNeeded: v >> 8)) }
+        return buf
+    }
+
+    /// Inverse of `packImuColumns`; a trailing odd byte is dropped so a malformed row never crashes a read.
+    static func unpackImuColumns(_ data: Data) -> [Int16] {
+        let bytes = [UInt8](data)
+        var out = [Int16](); out.reserveCapacity(bytes.count / 2)
+        var i = 0
+        while i + 1 < bytes.count { out.append(Int16(bitPattern: UInt16(bytes[i]) | (UInt16(bytes[i + 1]) << 8))); i += 2 }
+        return out
+    }
+
+    /// #423 rolling retention for the raw-IMU capture table (twin of Kotlin `RAW_IMU_RETENTION_ROWS`):
+    /// ~1 h at 1 row/strap-second (~4 MB) hard-caps the table during a multi-day offload replay.
+    public static let rawImuRetentionRows = 3600
+
     /// Insert or update a device row (natural key = id).
     public func upsertDevice(id: String, mac: String?, name: String?) async throws {
         let now = Int(Date().timeIntervalSince1970)
@@ -53,6 +74,27 @@ extension WhoopStore {
                     name = excluded.name,
                     lastSeen = excluded.lastSeen
                 """, arguments: [id, mac, name, now, now])
+        }
+    }
+
+    /// #423: persist decoded 5/MG raw-IMU offload buffers (one row per strap-second, packed i16 BLOB),
+    /// then bound the table to the newest `retentionRows` for the device (rolling retention). Written from
+    /// the deep-buffer capture seam, not the normal stream path, so it inserts directly (idempotent by ts).
+    /// Twin of Kotlin `WhoopRepository.insertRawImu`.
+    public func insertRawImu(deviceId: String, rows: [(ts: Int, cols: [Int16])], retentionRows: Int) async throws {
+        guard !rows.isEmpty else { return }
+        try syncWrite { db in
+            let ins = try db.cachedStatement(sql: """
+                INSERT INTO rawImuSample (deviceId, ts, samples) VALUES (?, ?, ?)
+                ON CONFLICT(deviceId, ts) DO NOTHING
+                """)
+            // Pack the raw i16 columns to the LE BLOB HERE (packImuColumns is module-internal), so the
+            // caller passes plain [Int16] and never needs the packer. Mirrors how `insert` packs ppgWaveform.
+            for r in rows { try ins.execute(arguments: [deviceId, r.ts, WhoopStore.packImuColumns(r.cols)]) }
+            try db.execute(sql: """
+                DELETE FROM rawImuSample WHERE deviceId = ? AND ts < (
+                    SELECT MIN(ts) FROM (SELECT ts FROM rawImuSample WHERE deviceId = ? ORDER BY ts DESC LIMIT ?))
+                """, arguments: [deviceId, deviceId, retentionRows])
         }
     }
 
