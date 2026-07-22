@@ -54,6 +54,14 @@ public struct DeviceRegistryStore: Sendable {
         }
     }
 
+    /// Update the model label for an existing device (e.g. seeded "WHOOP" → "WHOOP 4.0" once the
+    /// strap's service family is known from a live BLE connect).
+    public func setModel(_ id: String, model: String) throws {
+        try dbQueue.write { db in
+            try db.execute(sql: "UPDATE pairedDevice SET model = ? WHERE id = ?", arguments: [model, id])
+        }
+    }
+
     /// Adopt (or clear) the stable BLE identity for a registry row. `peripheralId` is the
     /// CBPeripheral.identifier.uuidString on iOS/Mac; passing nil un-adopts it.
     public func setPeripheralId(_ id: String, peripheralId: String?) throws {
