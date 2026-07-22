@@ -25,17 +25,21 @@ struct CoachGoalJourneyView: View {
     @ObservedObject private var goalStore = CoachGoalStore.shared
 
     private enum GoalSheet: Identifiable {
-        case edit(UUID), newGoal, journey(UUID), guidedSetup
+        case edit(UUID), newGoal, journey(UUID)
         var id: String {
             switch self {
             case .edit(let id):    return "edit-\(id)"
             case .newGoal:         return "newGoal"
             case .journey(let id): return "journey-\(id)"
-            case .guidedSetup:     return "guidedSetup"
             }
         }
     }
     @State private var goalSheet: GoalSheet?
+    /// The guided setup is PUSHED, not presented (#coach-bugs): this view is reachable from inside a
+    /// sheet (the chat's goal shortcut), and a sheet opened from a sheet is the stacked-host glitch this
+    /// file already carries a scar from — here it showed up as the wizard resetting to its first step
+    /// mid-setup. A push keeps one presentation host and one view identity.
+    @State private var showGuidedSetup = false
     private enum GoalConfirmation: Identifiable {
         case setAside(UUID), delete(UUID)
         var id: String {
@@ -62,13 +66,20 @@ struct CoachGoalJourneyView: View {
         }
         // ONE enum-driven sheet (#R2) — a second `.sheet(isPresented:)` alongside this used to stack two
         // sheet hosts on the same view, the classic SwiftUI glitch where dismissing one can intermittently
-        // re-present or bounce back to whatever's underneath. Guided setup is now just another case.
+        // re-present or bounce back to whatever's underneath.
         .sheet(item: $goalSheet) { which in
             switch which {
             case .edit(let id): CoachGoalEditorView(isOnboarding: false, editingGoalId: id)
             case .newGoal:      CoachGoalEditorView(isOnboarding: false)
             case .journey(let id): JourneyView(goalId: id).environmentObject(coach)
-            case .guidedSetup:  CoachGoalOnboardingFlow()
+            }
+        }
+        .navigationDestination(isPresented: $showGuidedSetup) {
+            // `pushed: true` so the flow doesn't wrap itself in a second NavigationStack, and the same
+            // `onClose` every other path passes, so finishing here also disarms the one-time offer in
+            // CoachView — otherwise that offer stayed armed and could re-present the wizard mid-setup.
+            CoachGoalOnboardingFlow(pushed: true) {
+                UserDefaults.standard.set(true, forKey: CoachView.goalOnboardingAskedKey)
             }
         }
         .confirmationDialog(goalConfirmationTitle,
@@ -137,7 +148,7 @@ struct CoachGoalJourneyView: View {
     }
 
     private var guidedSetupButton: some View {
-        Button { goalSheet = .guidedSetup } label: {
+        Button { showGuidedSetup = true } label: {
             HStack(spacing: 8) {
                 Image(systemName: "sparkles").foregroundStyle(StrandPalette.accent).accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 1) {

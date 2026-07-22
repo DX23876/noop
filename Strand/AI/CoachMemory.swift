@@ -208,16 +208,40 @@ final class CoachMemory: ObservableObject {
         return String(kept).split(separator: " ").joined(separator: " ")
     }
 
-    /// Two normalised strings are near-duplicates when equal, or one contains the other and they're
-    /// close in length (a rephrasing/extension of the same fact), not two unrelated facts.
+    /// How much of the smaller fact's meaningful vocabulary must appear in the other before the two are
+    /// treated as the same fact reworded. High on purpose: memory losing a genuinely new fact is worse
+    /// than carrying one rephrasing, so this only fires on near-total overlap.
+    static let duplicateTokenOverlap: Double = 0.8
+    /// Below this many meaningful tokens, overlap is meaningless ("knee pain" vs "knee sore" would
+    /// collapse), so short facts fall back to the string tests alone.
+    static let minTokensForOverlapMatch = 3
+
+    /// Two normalised strings are near-duplicates when equal, when one contains the other and they're
+    /// close in length (a rephrasing/extension of the same fact), or when their meaningful words almost
+    /// entirely overlap.
+    ///
+    /// That last test is why re-summarising a chat no longer stacks memory: a cheap model asked twice
+    /// about the same conversation says the same thing in different words ("Runs three times a week" vs
+    /// "The user runs 3x per week"), which the string tests miss entirely and which used to land as a
+    /// second fact against the 40-slot cap.
     static func isNearDuplicate(_ a: String, _ b: String) -> Bool {
         guard !a.isEmpty, !b.isEmpty else { return false }
         if a == b { return true }
         let (shorter, longer) = a.count <= b.count ? (a, b) : (b, a)
-        guard longer.contains(shorter) else { return false }
         // Only treat containment as duplicate when the shorter is a substantial part of the longer, so
         // "knee" doesn't collapse an unrelated longer fact that merely contains the word.
-        return Double(shorter.count) / Double(longer.count) >= 0.6
+        if longer.contains(shorter), Double(shorter.count) / Double(longer.count) >= 0.6 { return true }
+        return hasDuplicateTokenOverlap(a, b)
+    }
+
+    /// The token-overlap arm of `isNearDuplicate`: near-total shared vocabulary, measured against the
+    /// SMALLER set so a fact that merely adds detail to a known one still collapses onto it.
+    static func hasDuplicateTokenOverlap(_ a: String, _ b: String) -> Bool {
+        let ta = tokens(a), tb = tokens(b)
+        guard ta.count >= minTokensForOverlapMatch, tb.count >= minTokensForOverlapMatch else { return false }
+        let shared = ta.intersection(tb).count
+        let smaller = min(ta.count, tb.count)
+        return Double(shared) / Double(smaller) >= duplicateTokenOverlap
     }
 
     private func saveFacts() {

@@ -2754,10 +2754,16 @@ final class AICoachEngine: ObservableObject {
             when = df.date(from: "\(dayKey) \(time)")
         }
 
+        // Link the session to the goal it serves, but ONLY when there is exactly one active goal. With
+        // several, the model didn't say which this is for and guessing would put a real session under the
+        // wrong goal's progress — an unlinked session still counts on the journey page, a misfiled one
+        // silently corrupts two goals at once.
+        let activeGoals = CoachGoalStore.shared.activeGoals
         let proposal = PlanProposal(day: dayKey, time: when, sport: trimmedSport,
                                     intent: parsedIntent,
                                     targetEffort: targetEffort.map { max(0, min($0, 100)) },
-                                    rationale: rationale)
+                                    rationale: rationale,
+                                    goalId: activeGoals.count == 1 ? activeGoals[0].id : nil)
         guard CoachPlanStore.shared.propose(proposal) else {
             // The user already has this exact session committed for that day (their own routine, or a
             // proposal they accepted) — the store refused the duplicate (#P7 9.8/10.5). Tell the model so
@@ -3183,9 +3189,14 @@ final class AICoachEngine: ObservableObject {
 
     /// Write a generated summary back onto a conversation (called by `MemoryMaintainer`). `conversations`
     /// has a private setter, so the maintainer routes writes through here.
+    ///
+    /// The watermark (`summarizedCount`) advances UNCONDITIONALLY — those turns have been processed
+    /// whether or not the cheap model managed a summary line, and a watermark left behind is what made
+    /// the next run re-distil them into duplicate memory facts. An EMPTY summary line, by contrast, never
+    /// overwrites a good one: a small model returning only FACT lines shouldn't erase what it wrote last time.
     func applySummary(conversationID id: UUID, summary: String, summarizedCount: Int) {
         guard let idx = conversations.firstIndex(where: { $0.id == id }) else { return }
-        conversations[idx].summary = summary
+        if !summary.isEmpty { conversations[idx].summary = summary }
         conversations[idx].summarizedCount = summarizedCount
     }
 

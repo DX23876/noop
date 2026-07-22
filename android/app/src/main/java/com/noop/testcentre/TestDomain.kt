@@ -13,7 +13,7 @@ enum class TestDomain(val id: String) {
     UNIVERSAL("universal"), SLEEP("sleep"), CONNECTION("connection"), WORKOUTS("workouts"),
     DISPLAY("display"), IMPORT("import"), STEPS("steps"), NOTIFICATIONS("notifications"),
     BATTERY("battery"), RECOVERY("recovery"), HRV("hrv"), SOURCES("sources"),
-    STRESS("stress"), LONGEVITY("longevity"), MASTER("master");
+    STRESS("stress"), LONGEVITY("longevity"), CIRCADIAN("circadian"), MASTER("master");
 
     /** GitHub label the deep-link self-applies, e.g. "test:sleep". MASTER becomes "test:all". */
     val githubLabel: String get() = if (this == MASTER) "test:all" else "test:$id"

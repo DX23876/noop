@@ -1,5 +1,6 @@
 package com.noop.testcentre
 
+import com.noop.analytics.CircadianEngine
 import com.noop.analytics.GuidedCaptureProgress
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -15,14 +16,16 @@ class TestModeRegistryParityTest {
         // Mirror of the Swift testRegistryOrderAndIds. Screen priority order across both phases.
         assertEquals(
             listOf(TestDomain.SLEEP, TestDomain.CONNECTION, TestDomain.WORKOUTS, TestDomain.DISPLAY,
-                TestDomain.IMPORT, TestDomain.STEPS, TestDomain.BATTERY, TestDomain.RECOVERY, TestDomain.HRV),
+                TestDomain.IMPORT, TestDomain.STEPS, TestDomain.BATTERY, TestDomain.RECOVERY, TestDomain.HRV,
+                TestDomain.CIRCADIAN),
             TestModeRegistry.all.map { it.domain },
         )
         assertEquals(
-            listOf("sleep", "connection", "workouts", "display", "import", "steps", "battery", "recovery", "hrv"),
+            listOf("sleep", "connection", "workouts", "display", "import", "steps", "battery", "recovery",
+                "hrv", "circadian"),
             TestModeRegistry.all.map { it.id },
         )
-        assertEquals(9, TestModeRegistry.all.size)
+        assertEquals(10, TestModeRegistry.all.size)
     }
 
     @Test fun lookupByDomain() {
@@ -35,6 +38,7 @@ class TestModeRegistryParityTest {
         assertEquals("Battery & Charging", TestModeRegistry.mode(TestDomain.BATTERY)?.title)
         assertEquals("Recovery (Charge)", TestModeRegistry.mode(TestDomain.RECOVERY)?.title)
         assertEquals("HRV & Autonomic", TestModeRegistry.mode(TestDomain.HRV)?.title)
+        assertEquals("Circadian & Body Clock", TestModeRegistry.mode(TestDomain.CIRCADIAN)?.title)
         assertNull(TestModeRegistry.mode(TestDomain.NOTIFICATIONS))
     }
 
@@ -215,5 +219,36 @@ class TestModeRegistryParityTest {
         val names = listOf("minSleepMin", "maxMainSleepSpanS", "hrConfirm", "offWrist",
             "daytimeGuard", "morningStillness", "sparseBridge", "accepted")
         names.forEach { assertTrue(it.isNotEmpty()) }
+    }
+
+    // MARK: Circadian & Body Clock - mirror of the Swift TestModeRegistryCircadianTests.
+
+    @Test fun circadianCaptureSet() {
+        assertEquals(
+            listOf("circadianInput", "activityBins", "cosinorFit", "phaseEstimate", "fitRejected"),
+            TestModeRegistry.mode(TestDomain.CIRCADIAN)?.captures,
+        )
+    }
+
+    @Test fun circadianQuestionnaireAndReadout() {
+        assertEquals(
+            listOf("usualSchedule", "shiftOrTravel", "wornContinuously"),
+            TestModeRegistry.mode(TestDomain.CIRCADIAN)?.questionnaire?.map { it.id },
+        )
+        assertEquals(listOf("lastCircadianFit"), TestModeRegistry.mode(TestDomain.CIRCADIAN)?.liveReadout)
+    }
+
+    @Test fun circadianGuidedOverTheEnginesMinimumDays() {
+        val cap = TestModeRegistry.mode(TestDomain.CIRCADIAN)?.capture
+        assertTrue(cap is CaptureKind.Guided)
+        cap as CaptureKind.Guided
+        assertEquals(CaptureUnit.DAYS, cap.unit)
+        assertEquals(CircadianEngine.minDaysForFit, cap.defaultCount)
+        assertEquals(7, cap.defaultCount)
+    }
+
+    @Test fun circadianDomainIdAndLabel() {
+        assertEquals("circadian", TestDomain.CIRCADIAN.id)
+        assertEquals("test:circadian", TestDomain.CIRCADIAN.githubLabel)
     }
 }

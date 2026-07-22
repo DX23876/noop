@@ -29,7 +29,7 @@ final class TestDomainTests: XCTestCase {
         XCTAssertEqual(TestDomain.allCases.map(\.id), [
             "universal", "sleep", "connection", "workouts", "display", "import",
             "steps", "notifications", "battery", "recovery", "hrv", "sources",
-            "stress", "longevity", "master",
+            "stress", "longevity", "circadian", "master",
         ])
     }
 }
