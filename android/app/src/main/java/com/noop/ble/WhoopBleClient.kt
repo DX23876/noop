@@ -5438,6 +5438,16 @@ class WhoopBleClient(
             return
         }
         if (backfilling) return
+        // #700: if GET_CLOCK never responded (Android has no explicit clockRef on the client — the
+        // Backfiller defaults to identity), seed a rough correlation from the Data Range's newest-banked
+        // timestamp. The offset is approximate but vastly better than identity (offset 0), which can
+        // mis-date nights when the strap's RTC has drifted. No-op when strapNewestTs is null (no Data
+        // Range received yet) — the Backfiller keeps its identity default, same as today.
+        strapNewestTs?.let { newest ->
+            val wall = (System.currentTimeMillis() / 1000L).toInt()
+            backfiller.clockRef = ClockRef(device = newest.toInt(), wall = wall)
+            log("Clock: seeded backfiller correlation from Data Range (device=$newest wall=$wall, offset ${wall - newest}s)")
+        }
         // #42/#364: consecutiveAutoContinues > 0 means this offload is re-kicked after an EARLIER session
         // in the same burst banked rows — tell the backfiller so its no-cursor END reads as "caught up",
         // not "no banked history / charge to 100%". A fresh offload (count 0) keeps the honest guidance.

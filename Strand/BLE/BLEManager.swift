@@ -1584,6 +1584,17 @@ public final class BLEManager: NSObject, ObservableObject {
             log("Clock: no correlation yet — re-sending GET_CLOCK (retry \(clockRetries)/3)")
             send(.getClock, payload: [])
             send(.getClock, payload: [0x00])
+        } else if clockRef == nil, let newest = strapNewestTs {
+            // #700 fallback: GET_CLOCK never responded even after retries. Derive a rough correlation
+            // from the Data Range's newest-banked timestamp (already parsed, always answered). The
+            // offset is approximate (the newest record could be minutes old) but vastly better than
+            // identity (offset 0), which mis-dates entire nights.
+            let wall = Int(Date().timeIntervalSince1970)
+            let ref = ClockRef(device: newest, wall: wall)
+            clockRef = ref
+            collector?.clockRef = ref
+            backfiller?.clockRef = ref
+            log("Clock: GET_CLOCK unresponsive — derived rough correlation from Data Range (device=\(newest) wall=\(wall), offset \(wall - newest)s)")
         }
         // Never offload before the connect handshake has run: a racing foreground/restore trigger
         // firing SEND_HISTORICAL ahead of hello/SET_CLOCK was part of the storm that stopped serving.
