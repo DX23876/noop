@@ -124,6 +124,16 @@ public enum SkyBehindCardsPrefs {
     public static let enabledKey = "noop.skyBehindCards"
 }
 
+/// "Breathing coach tile" (default ON): the Today coach entry pulses very slightly — ~3% over a ~4s cycle,
+/// with its accent glow swelling in step — so the one element on the home screen that speaks back has a
+/// pulse. It is the only continuously animating thing on Today, and a permanently moving element in
+/// peripheral vision genuinely bothers some people, hence the switch (Settings → Appearance). Read in
+/// `CoachTodayTile` via `@AppStorage(CoachTilePrefs.breathingKey)`. Independent of Reduce Motion, which
+/// suppresses the animation regardless of this setting.
+public enum CoachTilePrefs {
+    public static let breathingKey = "noop.coachTileBreathing"
+}
+
 // MARK: - Light-idiom helpers
 
 /// An additive glow (ring blooms, sparkline heads, hero halos) only reads on a DARK canvas —

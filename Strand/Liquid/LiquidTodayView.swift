@@ -43,9 +43,6 @@ struct LiquidTodayView: View {
 
     // async-loaded via the confirmed Repository accessors
     @State private var restScore: Double?          // sleep_performance, day-keyed
-    /// Raw resolver source ids for the three scores, keyed by recovery / strain / sleep_performance.
-    /// Presentation uses Today's shared mapper so Liquid and Classic name a source consistently.
-    @State private var heroProvenanceByMetric: [String: String] = [:]
     @State private var stress: Double?             // StressModel(...).score, 0–3
     @State private var fitnessAge: Double?         // exploreSeries("fitness_age").last
     @State private var vitality: Double?           // exploreSeries("vitality").last
@@ -548,7 +545,7 @@ struct LiquidTodayView: View {
             // section block below. The wordmark's bottom pad (10) + the section VStack's 12 spacing keeps
             // the default hero-under-wordmark gap at the original 22.
             LiquidWordmark()
-                .padding(.top, 22)
+                .padding(.top, 16)
                 .padding(.bottom, 10)
         }
     }
@@ -622,23 +619,13 @@ struct LiquidTodayView: View {
                           maxValue: effortScale == .whoop ? 21 : 100,
                           decimals: effortScale == .whoop ? 1 : 0,
                           coachContext: effortCoachContext)
+            // The hero's provenance badge ("ON-DEVICE", tucked into the top-right corner) is gone: it sat
+            // apart from everything it described and cost the card's cleanest corner. The FACT is still
+            // reachable — the Data Sources card at the bottom of Today and every metric's detail name their
+            // source — and `heroSourceLabel` below stays, since Data Sources shares that vocabulary and its
+            // pure aggregation seam is unit-tested. Android's TodayScreen keeps its own badge.
             HeroScoreCell(label: String(localized: "Rest"), score: restScore, tint: StrandPalette.restColor,
                           animated: dataLoaded, onGuide: { guideSection = .rest }, coachContext: restCoachContext)
-                .overlay(alignment: .top) {
-                    if let sourceLabel = heroSourceLabel {
-                        SourceBadge("\(sourceLabel)", tint: StrandPalette.onDarkSecondary)
-                            // Match the badge's trailing edge to the fixed-width Rest vessel on every card
-                            // width, then lift by the space4 gap above the cells so the badge's TOP sits on
-                            // the card's top edge — tucked into the top-right corner. (#486: the old
-                            // "+ half the badge height" centred it ON the border, reading as a pill floating
-                            // detached above the card; two users flagged it. Twin of Android TodayScreen.)
-                            .fixedSize()
-                            .frame(width: HeroScoreCell.vesselDiameter, alignment: .trailing)
-                            .offset(y: -NoopMetrics.space4)
-                            .allowsHitTesting(false)
-                            .accessibilityLabel(Text("Source: \(sourceLabel)"))
-                    }
-                }
         }
         .padding(.vertical, NoopMetrics.space4)
         .padding(.horizontal, NoopMetrics.space3)
@@ -869,49 +856,50 @@ struct LiquidTodayView: View {
         return String(localized: "No cardio load yet. Effort builds once your heart rate climbs into your effort zone (around 50% of your heart-rate reserve). A calm day honestly reads near zero.")
     }
 
+    /// Readiness and data-confidence as ONE pill ("Maintain · Solid"). They used to be two capsules in a row
+    /// of their own between the hero and the cards — after the greeting moved into the screen header that row
+    /// held nothing else, so two labels floated in open space belonging to nothing. Merged and moved into the
+    /// Synthesis card's header, where they annotate the sentence they were always about.
+    @ViewBuilder
+    private var synthesisStatePill: some View {
+        HStack(spacing: 5) {
+            Circle().fill(StrandPalette.chargeColor).frame(width: 6, height: 6)
+            // No dangling separator while the baseline calibrates: with no readiness word yet, the state
+            // label stands alone.
+            Text(readinessWord.map { "\($0) · \(chargeDisplay.stateLabel)" } ?? chargeDisplay.stateLabel)
+                .font(StrandFont.caption.weight(.bold))
+                .foregroundStyle(StrandPalette.chargeColor)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(Capsule().fill(StrandPalette.chargeColor.opacity(0.14))
+            .overlay(Capsule().strokeBorder(StrandPalette.chargeColor.opacity(0.3), lineWidth: 1)))
+        .fixedSize(horizontal: true, vertical: false)   // keeps its natural width — no "Calibrating" wrap
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(readinessWord.map {
+            Text("Readiness: \($0), data: \(chargeDisplay.stateLabel)")
+        } ?? Text("Data: \(chargeDisplay.stateLabel)"))
+    }
+
     private var synthesisSection: some View {
         VStack(spacing: 8) {
-            HStack {
-                // The greeting moved UP into the header (it replaced the "Today" title), so this row no
-                // longer repeats it — one greeting per screen. The pills keep the row and simply sit at the
-                // trailing edge, where they already were. Classic `TodayView` and Android `TodayScreen` keep
-                // their own Synthesis greeting: neither has a header greeting, so nothing to mirror there.
-                Spacer(minLength: 8)
-                HStack(spacing: 8) {
-                    if let word = readinessWord {
-                        Text(word)
-                            .font(StrandFont.caption.weight(.bold))
-                            .foregroundStyle(StrandPalette.chargeColor)
-                            .padding(.horizontal, 13)
-                            .padding(.vertical, 6)
-                            .background(Capsule().fill(StrandPalette.chargeColor.opacity(0.14))
-                                .overlay(Capsule().strokeBorder(StrandPalette.chargeColor.opacity(0.3), lineWidth: 1)))
-                    }
-                    HStack(spacing: 5) {
-                        Circle().fill(StrandPalette.chargeColor).frame(width: 6, height: 6)
-                        Text(chargeDisplay.stateLabel)
-                            .font(StrandFont.caption.weight(.bold))
-                            .foregroundStyle(StrandPalette.chargeColor)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Capsule().strokeBorder(StrandPalette.chargeColor.opacity(0.3), lineWidth: 1))
-                }
-                .fixedSize(horizontal: true, vertical: false)   // pills keep their natural width — no "Calibrating" wrap
-            }
-            .padding(.horizontal, 2)
-            .padding(.top, 4)
-
             // Synthesis and the coach entry share ONE row as two blocks: "what today means" beside "ask about
             // it". The coach used to be a full-width bar above the scores; here it costs a fixed 104pt and
             // the Synthesis card takes the rest, which keeps its one-line read from wrapping into a column.
-            // With the coach UI off the card simply spans the whole width.
+            // With the coach UI off the card simply spans the whole width. Both stretch to the taller of the
+            // two, so the row can't sit lopsided.
             HStack(alignment: .top, spacing: 8) {
                 synthesisCard
+                    .frame(maxHeight: .infinity)
                 if coachUIEnabled, (CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both).showsCard {
                     CoachTodayTile(isPresented: $showCoach)
+                        .frame(maxHeight: .infinity)
                 }
             }
+            // Without this the `maxHeight: .infinity` pair would claim the whole remaining screen height
+            // instead of just matching each other.
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -919,12 +907,20 @@ struct LiquidTodayView: View {
             Button { withAnimation(.easeInOut(duration: 0.2)) { synthesisExpanded.toggle() } } label: {
                 card {
                     VStack(alignment: .leading, spacing: 8) {
-                        HStack {
+                        HStack(spacing: 6) {
                             Text("SYNTHESIS").font(StrandFont.overline).tracking(1.6)
                                 .foregroundStyle(StrandPalette.textSecondary)
-                            Spacer()
-                            Text(synthesisExpanded ? "hide" : "show").font(StrandFont.caption)
+                                .layoutPriority(-1)   // the pill keeps its width; the overline yields first
+                            Spacer(minLength: 4)
+                            synthesisStatePill
+                            // A rotating chevron rather than the words "show"/"hide": at ~230pt of card
+                            // width this row now also carries the state pill, and the word cost ~34pt that
+                            // a 10pt disclosure glyph says just as clearly.
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 11, weight: .bold))
                                 .foregroundStyle(StrandPalette.textTertiary)
+                                .rotationEffect(.degrees(synthesisExpanded ? 180 : 0))
+                                .accessibilityHidden(true)
                         }
                         // While the baseline calibrates, the honest "N of 4 nights" progress replaces the
                         // readiness one-liner here — the same swap classic makes (`calibrationDetail ??
@@ -1043,9 +1039,14 @@ struct LiquidTodayView: View {
             // #430 parity: the grid honours the Key-Metrics editor (selection + order, all ten metrics)
             // instead of a hard-coded six — the bespoke Sleep-hours ktile gives way to the shared REST
             // score tile, aligning the liquid grid with the classic macOS grid and Android.
+            // Tiles WITH a value first, valueless ones after — each group keeping the user's own saved
+            // order (a stable partition, not a sort). A "—" tile holds a full slot either way; it just
+            // shouldn't hold a PRIME slot and push real numbers below the fold.
+            let ordered = enabledKeyMetrics.filter { keyMetricHasValue($0, hrv: hrv, rhr: rhr) }
+                + enabledKeyMetrics.filter { !keyMetricHasValue($0, hrv: hrv, rhr: rhr) }
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10),
                                      count: keyMetricsColumns), spacing: 10) {
-                ForEach(enabledKeyMetrics) { metric in
+                ForEach(ordered) { metric in
                     ktileFor(metric, hrv: hrv, rhr: rhr)
                 }
             }
@@ -1054,6 +1055,27 @@ struct LiquidTodayView: View {
                     .frame(maxWidth: .infinity).padding(.top, 2)
             }
             .buttonStyle(.plain)
+        }
+    }
+
+    /// Whether this metric has a real number for the selected day. Drives the "empty tiles last" ordering in
+    /// `keyMetricsSection`.
+    ///
+    /// This switch MIRRORS `ktileFor` below case-for-case and must be edited with it — a metric added to one
+    /// and not the other sorts wrong (silently, since both still render). `.weight` is deliberately always
+    /// false: its tile is hardcoded to "—", so it has no value to show at all.
+    private func keyMetricHasValue(_ metric: KeyMetric, hrv: Double?, rhr: Double?) -> Bool {
+        switch metric {
+        case .charge:       return chargeDisplay.pct != nil
+        case .effort:       return displayDay?.strain != nil
+        case .rest:         return restScore != nil
+        case .hrv:          return hrv != nil
+        case .restingHr:    return rhr != nil
+        case .bloodOxygen:  return (displayDay?.spo2Pct ?? vitalsDay?.spo2Pct) != nil
+        case .respiratory:  return (displayDay?.respRateBpm ?? vitalsDay?.respRateBpm) != nil
+        case .steps:        return stepCount != nil
+        case .weight:       return false
+        case .calories:     return caloriesCount != nil
         }
     }
 
@@ -1291,16 +1313,6 @@ struct LiquidTodayView: View {
         async let appleA = repo.appleDailyRows()
         async let hrA = repo.hrBuckets(from: from, to: to, bucketSeconds: 300)
         async let wkA = repo.workoutRows()
-        // Ask the same cross-source resolver the Classic Today view uses which source actually won each
-        // displayed score. Limit the read to the selected-day window instead of scanning full history.
-        let sourceDayKey = selectedDayKey
-        let sourceLookback = max(2, selectedDayOffset + 2)
-        async let chargeSourceA = repo.resolvedSeries(key: "recovery", source: Repository.whoopSource,
-                                                      days: sourceLookback)
-        async let effortSourceA = repo.resolvedSeries(key: "strain", source: Repository.whoopSource,
-                                                      days: sourceLookback)
-        async let restSourceA = repo.resolvedSeries(key: "sleep_performance", source: Repository.whoopSource,
-                                                    days: sourceLookback)
 
         let restSeries = await restA
         let stepsSeries = await stepsA
@@ -1377,19 +1389,11 @@ struct LiquidTodayView: View {
         hrValues = (await hrA).map { $0.bpm }
         workouts = await wkA
 
-        let (chargeSource, effortSource, restSource) = await (chargeSourceA, effortSourceA, restSourceA)
-        let sourceResolutions = [
-            ("recovery", chargeSource),
-            ("strain", effortSource),
-            ("sleep_performance", restSource),
-        ]
-        var provenance: [String: String] = [:]
-        for (metric, resolution) in sourceResolutions {
-            if let winner = resolution.points.last(where: { $0.day == sourceDayKey })?.source {
-                provenance[metric] = winner
-            }
-        }
-        heroProvenanceByMetric = provenance
+        // The three cross-source resolver reads that fed the hero's provenance badge are gone with it: the
+        // badge was their only consumer, so keeping them would be three per-load resolver scans whose result
+        // nothing displays. The Data Sources card below is independent and unaffected, and the pure
+        // `heroSourceLabel(rawSources:deviceId:)` seam stays for its tests and for whoever wants the label
+        // back on another surface.
 
         // First load done — bring the hero gauges + sky to life now the launch churn has settled.
         if !dataLoaded { withAnimation(.easeIn(duration: 0.4)) { dataLoaded = true } }
@@ -1402,14 +1406,6 @@ struct LiquidTodayView: View {
     /// before the first load() populates the cache.
     private var readiness: ReadinessEngine.Readiness {
         cachedReadiness ?? ReadinessEngine.evaluate(days: repo.days, today: cachedDisplayDay?.day)
-    }
-
-    /// One card-level provenance label. Identical winners collapse to one name; mixed scores show at most
-    /// two distinct winners in Charge / Effort / Rest order so the compact badge stays readable.
-    private var heroSourceLabel: String? {
-        Self.heroSourceLabel(
-            rawSources: ["recovery", "strain", "sleep_performance"].compactMap { heroProvenanceByMetric[$0] },
-            deviceId: repo.deviceId)
     }
 
     /// Pure aggregation seam for the Liquid hero. The existing Today mapper turns computed siblings into
@@ -1600,11 +1596,13 @@ private struct LiquidWordmark: View {
     @State private var token = 0      // drives the tap haptic
 
     var body: some View {
-        HStack(spacing: 14) {
+        // Smaller AND brighter: the wordmark should cost less height between the header and the scores while
+        // reading more like a mark and less like a watermark.
+        HStack(spacing: 10) {
             ForEach(Array("NOOP".enumerated()), id: \.offset) { _, ch in
                 Text(String(ch))
-                    .font(StrandFont.rounded(16, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.5))
+                    .font(StrandFont.rounded(13, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.9))
             }
         }
         .shadow(color: .black.opacity(0.25), radius: 6, y: 1)

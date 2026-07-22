@@ -300,44 +300,76 @@ struct CoachTodayTile: View {
     @EnvironmentObject private var coach: AICoachEngine
     @ObservedObject private var identityStore = CoachIdentityStore.shared
     @AppStorage(CoachEntryMode.todayAvatarKey) private var todayAvatar = true
+    /// The user's switch for the pulse (Settings → Appearance). See `CoachTilePrefs`.
+    @AppStorage(CoachTilePrefs.breathingKey) private var breathingEnabled = true
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Flipped once on appear to start the endless breath.
+    @State private var breathing = false
 
     /// Fixed width: the Synthesis card takes the rest, which keeps its one-line read from wrapping into a
     /// column on a 375pt phone.
     static let width: CGFloat = 104
 
+    /// Two independent conditions, both of which must hold: the user's own preference, and Reduce Motion.
+    /// A system-level "less movement please" outranks a per-feature default.
+    private var breathes: Bool { breathingEnabled && !reduceMotion }
+
     var body: some View {
         Button { isPresented = true } label: {
-            NoopCard(padding: 12, tint: StrandPalette.accent) {
-                VStack(spacing: 8) {
-                    CoachEntryAvatar(size: 40, showsAvatar: todayAvatar)
-                        // The unseen-message dot rides the avatar here — the tile has no trailing edge to
-                        // park it on the way the full-width row does.
-                        .overlay(alignment: .topTrailing) {
-                            if coach.hasUnseenCoachMessage {
-                                Circle()
-                                    .fill(StrandPalette.statusCritical)
-                                    .frame(width: 10, height: 10)
-                                    .overlay(Circle().strokeBorder(StrandPalette.surfaceBase, lineWidth: 1.5))
-                                    .accessibilityHidden(true)
-                            }
-                        }
-                    Text(identityStore.identity.name)
-                        .font(StrandFont.subhead)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                    Text("Ask")
-                        .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.textSecondary)
-                }
-                .frame(maxWidth: .infinity)
-                .frame(minHeight: minHeight, alignment: .center)
-            }
+            tileBody
+                // ~3% over a ~4s round trip (2s each way), with the accent glow swelling in step. Small
+                // enough to read as a pulse rather than as something sliding around the screen.
+                .scaleEffect(breathes && breathing ? 1.03 : 1)
+                .shadow(color: StrandPalette.accent.opacity(breathes && breathing ? 0.30 : 0.10),
+                        radius: breathes && breathing ? 16 : 8)
+                .animation(breathes ? .easeInOut(duration: 2).repeatForever(autoreverses: true) : nil,
+                           value: breathing)
+                .onAppear { if breathes { breathing = true } }
+                // Turning the setting off mid-session must settle the tile immediately, not at the end of
+                // an endless animation that never ends.
+                .onChangeCompat(of: breathes) { on in breathing = on }
         }
         .buttonStyle(.plain)
         .frame(width: Self.width)
         .accessibilityLabel(Text("\(identityStore.identity.name), your coach"))
         .accessibilityHint("Opens the AI coach chat.")
+    }
+
+    /// Round and accent-tinted, so it shares the corner language of the cards beside it instead of reading
+    /// as a plain rectangle bolted to the row.
+    private var tileBody: some View {
+        VStack(spacing: 8) {
+            CoachEntryAvatar(size: 40, showsAvatar: todayAvatar)
+                // The unseen-message dot rides the avatar here — the tile has no trailing edge to park it
+                // on the way the full-width row does.
+                .overlay(alignment: .topTrailing) {
+                    if coach.hasUnseenCoachMessage {
+                        Circle()
+                            .fill(StrandPalette.statusCritical)
+                            .frame(width: 10, height: 10)
+                            .overlay(Circle().strokeBorder(StrandPalette.surfaceBase, lineWidth: 1.5))
+                            .accessibilityHidden(true)
+                    }
+                }
+            Text(identityStore.identity.name)
+                .font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text("Ask")
+                .font(StrandFont.footnote)
+                .foregroundStyle(StrandPalette.textSecondary)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity)
+        .frame(minHeight: minHeight, alignment: .center)
+        .frame(maxHeight: .infinity)   // stretch to the Synthesis card beside it, never overhang it
+        .background(
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .fill(StrandPalette.accent.opacity(0.10))
+                .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .strokeBorder(StrandPalette.accent.opacity(0.28), lineWidth: 1))
+        )
     }
 }
 

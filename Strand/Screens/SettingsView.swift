@@ -96,6 +96,8 @@ struct SettingsView: View {
     // "Sky behind cards" (default ON): extend the day-cycle sky behind the whole Today scroll so
     // Card transparency reveals it under every card. User-toggleable below. Mirrors Kotlin NoopPrefs.skyBehindCards.
     @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = true
+    // "Breathing coach tile" (default ON): the Today coach entry's gentle pulse. See CoachTilePrefs.
+    @AppStorage(CoachTilePrefs.breathingKey) private var coachTileBreathing = true
     // Card-surface opacity percent (100 = solid). Reactive — moving the slider live-updates every card.
     @AppStorage(CardAppearancePrefs.opacityKey) private var cardOpacityPercent = CardAppearancePrefs.defaultPercent
     // Hydration tracker (opt-in, MVP). Default OFF — when off the hydration dashboard card + detail are
@@ -775,6 +777,22 @@ struct SettingsView: View {
                 .tint(StrandPalette.accent)
                 .disabled(!showDayCycleBackground)
                 Text("Extends the sky behind the whole Today screen, so lowering Card transparency lets it show through every card. Needs the day-cycle background on.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                // MARK: Breathing coach tile — the one continuously animating element on Today. Subtle by
+                // design, but a permanently moving thing in peripheral vision genuinely bothers some
+                // people, so it gets its own switch (Reduce Motion suppresses it either way).
+                Toggle(isOn: $coachTileBreathing) {
+                    Text("Breathing coach tile")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                }
+                .toggleStyle(.switch)
+                .tint(StrandPalette.accent)
+                Text("Lets the coach tile on Today pulse gently, so the one thing that talks back has a pulse. Turn it off to keep it perfectly still.")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
