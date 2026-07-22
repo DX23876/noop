@@ -81,14 +81,68 @@ final class PaletteChartStyleTests: XCTestCase {
                        StrandPalette.zone5.rgbaComponents.r, accuracy: 0.001)
     }
 
-    /// Switching between all three styles must never crash or produce an empty gradient — the
-    /// smoke test the whole 3-way switch conversion exists to guard.
-    func testAllThreeChartStylesProduceNonEmptyGradients() {
+    /// Switching between every style must never crash or produce an empty gradient — the smoke test the
+    /// whole multi-way switch conversion exists to guard.
+    func testAllChartStylesProduceNonEmptyGradients() {
         for style in ChartStyle.allCases {
             StrandPalette.chartStyle = style
             XCTAssertFalse(StrandPalette.recoveryStops.isEmpty)
             XCTAssertFalse(StrandPalette.strainStops.isEmpty)
             XCTAssertNotNil(StrandPalette.stressGradient)
+        }
+    }
+
+    // MARK: - Aurora / Sunset / Forest (the three new data-viz styles)
+
+    /// The three new styles are cases, round-trip through storage, and carry a non-empty label.
+    func testNewStylesAreCasesAndRoundTrip() {
+        for (raw, style) in [("aurora", ChartStyle.aurora), ("sunset", .sunset), ("forest", .forest)] {
+            XCTAssertTrue(ChartStyle.allCases.contains(style))
+            XCTAssertEqual(ChartStyle.resolve(raw), style)
+            XCTAssertEqual(ChartStyle.resolve(style.rawValue), style)
+            XCTAssertFalse(style.label.isEmpty)
+        }
+    }
+
+    /// Recovery (5 stops, 0→1) and strain (4 stops) ramps are well-formed under each new style.
+    func testRecoveryAndStrainStopsAreValidUnderNewStyles() {
+        for style in [ChartStyle.aurora, .sunset, .forest] {
+            StrandPalette.chartStyle = style
+            XCTAssertEqual(StrandPalette.recoveryStops.count, 5, "\(style)")
+            XCTAssertEqual(StrandPalette.recoveryStops.first?.location, 0.0, "\(style)")
+            XCTAssertEqual(StrandPalette.recoveryStops.last?.location, 1.0, "\(style)")
+            XCTAssertEqual(StrandPalette.strainStops.count, 4, "\(style)")
+        }
+    }
+
+    /// The four domain-world accents (charge/effort/rest/stress) must stay visually distinct under each
+    /// new style — no two collapsing onto (near-)identical RGB.
+    func testDomainWorldColorsAreDistinctUnderNewStyles() {
+        func closeEnoughToCollide(_ a: (r: Double, g: Double, b: Double, a: Double),
+                                  _ b: (r: Double, g: Double, b: Double, a: Double)) -> Bool {
+            abs(a.r - b.r) < 0.02 && abs(a.g - b.g) < 0.02 && abs(a.b - b.b) < 0.02
+        }
+        for style in [ChartStyle.aurora, .sunset, .forest] {
+            StrandPalette.chartStyle = style
+            let worlds = [StrandPalette.chargeColor.rgbaComponents, StrandPalette.effortColor.rgbaComponents,
+                          StrandPalette.restColor.rgbaComponents, StrandPalette.stressColor.rgbaComponents]
+            for i in 0..<worlds.count {
+                for j in (i + 1)..<worlds.count {
+                    XCTAssertFalse(closeEnoughToCollide(worlds[i], worlds[j]), "\(style): worlds \(i)/\(j) collide")
+                }
+            }
+        }
+    }
+
+    /// Status colours (positive/warning/critical) stay distinct under each new style.
+    func testStatusColorsAreDistinctUnderNewStyles() {
+        for style in [ChartStyle.aurora, .sunset, .forest] {
+            StrandPalette.chartStyle = style
+            let positive = StrandPalette.statusPositive.rgbaComponents
+            let warning = StrandPalette.statusWarning.rgbaComponents
+            let critical = StrandPalette.statusCritical.rgbaComponents
+            XCTAssertNotEqual(positive.g, critical.g, accuracy: 0.001, "\(style)")
+            XCTAssertNotEqual(warning.r, positive.r, accuracy: 0.001, "\(style)")
         }
     }
 }

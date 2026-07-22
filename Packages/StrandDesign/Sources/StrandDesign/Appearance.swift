@@ -14,6 +14,9 @@ public enum ChartStyle: String, CaseIterable, Identifiable, Sendable {
     case titanium   // brand: gold recovery, amber strain, blue rest
     case classic    // throwback: red→green recovery, cool→hot zones, green→red stress
     case health     // Apple system colours: systemRed→...→systemGreen recovery, indigo sleep, pink stress
+    case aurora     // Nord: frosty arctic blues, aurora green/purple accents
+    case sunset     // Ember: dusk ramp violet→coral→gold, violet rest
+    case forest     // Earth: mossy forest greens, terracotta, amber
 
     public var id: String { rawValue }
     public static let storageKey = "chart.style"
@@ -23,6 +26,9 @@ public enum ChartStyle: String, CaseIterable, Identifiable, Sendable {
         case .titanium: return String(localized: "Default", bundle: .module)
         case .classic:  return String(localized: "Classic", bundle: .module)
         case .health:   return String(localized: "Apple Health", bundle: .module)
+        case .aurora:   return String(localized: "Aurora", bundle: .module)
+        case .sunset:   return String(localized: "Sunset", bundle: .module)
+        case .forest:   return String(localized: "Forest", bundle: .module)
         }
     }
 

@@ -194,6 +194,92 @@ public enum StrandPalette {
         .init(color: Color(light: "#FF2D55", dark: "#FF375F"), location: 1.0),
     ]
 
+    // MARK: Aurora (Nord) data ramps — a frosty arctic palette after the Nord scheme: polar-night
+    // neutrals, Frost blues/teals, and the Aurora accent hues (red/orange/yellow/green/purple).
+    // Recovery: aurora red → orange → yellow → green → frost teal.
+    static let auRecovery000 = Color(light: "#A54650", dark: "#BF616A")
+    static let auRecovery030 = Color(light: "#B56A54", dark: "#D08770")
+    static let auRecovery055 = Color(light: "#C9A860", dark: "#EBCB8B")
+    static let auRecovery078 = Color(light: "#7E9E68", dark: "#A3BE8C")
+    static let auRecovery100 = Color(light: "#6C9C9A", dark: "#8FBCBB")
+    static let auRecoveryStops: [Gradient.Stop] = [
+        .init(color: auRecovery000, location: 0.00), .init(color: auRecovery030, location: 0.30),
+        .init(color: auRecovery055, location: 0.55), .init(color: auRecovery078, location: 0.78),
+        .init(color: auRecovery100, location: 1.00),
+    ]
+    // Strain: the cool Frost ramp (light frost → deep polar blue).
+    static let auStrain000 = Color(light: "#5F9FB2", dark: "#88C0D0")
+    static let auStrain033 = Color(light: "#5C82A6", dark: "#81A1C1")
+    static let auStrain066 = Color(light: "#456691", dark: "#5E81AC")
+    static let auStrain100 = Color(light: "#33507A", dark: "#3E5F8A")
+    static let auStrainStops: [Gradient.Stop] = [
+        .init(color: auStrain000, location: 0.00), .init(color: auStrain033, location: 0.33),
+        .init(color: auStrain066, location: 0.66), .init(color: auStrain100, location: 1.00),
+    ]
+    // Stress: calm aurora green → yellow → red.
+    static let auStressStops: [Gradient.Stop] = [
+        .init(color: Color(light: "#6E9460", dark: "#A3BE8C"), location: 0.0),
+        .init(color: Color(light: "#C9A860", dark: "#EBCB8B"), location: 0.5),
+        .init(color: Color(light: "#A54650", dark: "#BF616A"), location: 1.0),
+    ]
+
+    // MARK: Sunset (Ember) data ramps — a warm dusk gradient: deep plum through rose and coral into
+    // gold, with a violet rest world. Recovery: plum → rose → coral-red → orange → gold.
+    static let suRecovery000 = Color(light: "#6B2551", dark: "#7A2E5D")
+    static let suRecovery030 = Color(light: "#A83A5C", dark: "#C34A6E")
+    static let suRecovery055 = Color(light: "#E04E56", dark: "#FF6B6B")
+    static let suRecovery078 = Color(light: "#E37E3C", dark: "#FF9E5E")
+    static let suRecovery100 = Color(light: "#E0AE3E", dark: "#FFD166")
+    static let suRecoveryStops: [Gradient.Stop] = [
+        .init(color: suRecovery000, location: 0.00), .init(color: suRecovery030, location: 0.30),
+        .init(color: suRecovery055, location: 0.55), .init(color: suRecovery078, location: 0.78),
+        .init(color: suRecovery100, location: 1.00),
+    ]
+    // Strain: heat ramp — deep magenta → coral → amber.
+    static let suStrain000 = Color(light: "#79305A", dark: "#8E3B6B")
+    static let suStrain033 = Color(light: "#AC3C4A", dark: "#C74E5B")
+    static let suStrain066 = Color(light: "#E85F42", dark: "#FF7E5F")
+    static let suStrain100 = Color(light: "#E38F3C", dark: "#FFB25E")
+    static let suStrainStops: [Gradient.Stop] = [
+        .init(color: suStrain000, location: 0.00), .init(color: suStrain033, location: 0.33),
+        .init(color: suStrain066, location: 0.66), .init(color: suStrain100, location: 1.00),
+    ]
+    // Stress: calm sage → amber → rose-red.
+    static let suStressStops: [Gradient.Stop] = [
+        .init(color: Color(light: "#5F9456", dark: "#86B87A"), location: 0.0),
+        .init(color: Color(light: "#E0952E", dark: "#FFB74D"), location: 0.5),
+        .init(color: Color(light: "#E03656", dark: "#FF4D6D"), location: 1.0),
+    ]
+
+    // MARK: Forest (Earth) data ramps — earthy naturals: terracotta, wheat amber, sage and forest
+    // green. Classic red→green magnitude, but in muted earth tones. Recovery: terracotta → clay →
+    // wheat → sage → forest green.
+    static let foRecovery000 = Color(light: "#9C4330", dark: "#B5533A")
+    static let foRecovery030 = Color(light: "#AC583B", dark: "#C56B4A")
+    static let foRecovery055 = Color(light: "#BC8A3E", dark: "#D8A657")
+    static let foRecovery078 = Color(light: "#7F9068", dark: "#A3B18A")
+    static let foRecovery100 = Color(light: "#3B7345", dark: "#4E8C57")
+    static let foRecoveryStops: [Gradient.Stop] = [
+        .init(color: foRecovery000, location: 0.00), .init(color: foRecovery030, location: 0.30),
+        .init(color: foRecovery055, location: 0.55), .init(color: foRecovery078, location: 0.78),
+        .init(color: foRecovery100, location: 1.00),
+    ]
+    // Strain: warm earth ramp — olive → amber-brown → terracotta.
+    static let foStrain000 = Color(light: "#596233", dark: "#6E7A3E")
+    static let foStrain033 = Color(light: "#7E7038", dark: "#9A8B45")
+    static let foStrain066 = Color(light: "#AC7239", dark: "#C58A47")
+    static let foStrain100 = Color(light: "#AC583B", dark: "#C56B4A")
+    static let foStrainStops: [Gradient.Stop] = [
+        .init(color: foStrain000, location: 0.00), .init(color: foStrain033, location: 0.33),
+        .init(color: foStrain066, location: 0.66), .init(color: foStrain100, location: 1.00),
+    ]
+    // Stress: calm forest green → wheat → clay red.
+    static let foStressStops: [Gradient.Stop] = [
+        .init(color: Color(light: "#437E4C", dark: "#5A9C63"), location: 0.0),
+        .init(color: Color(light: "#BC8A3E", dark: "#D8A657"), location: 0.5),
+        .init(color: Color(light: "#8C3324", dark: "#A6412E"), location: 1.0),
+    ]
+
     // MARK: Recovery / Charge gradient — the gold "Charge" colour world.
     // A single warm metal ramp: a deep bronze floor climbs through brand gold into a
     // bright champagne peak — no green anywhere; depleted reads as dim gold, not coral.
@@ -210,6 +296,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return cRecoveryStops
         case .health:  return hRecoveryStops
+        case .aurora:  return auRecoveryStops
+        case .sunset:  return suRecoveryStops
+        case .forest:  return foRecoveryStops
         case .titanium: return [
             .init(color: recovery000, location: 0.00),
             .init(color: recovery030, location: 0.30),
@@ -235,6 +324,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return cStrainStops
         case .health:  return hStrainStops
+        case .aurora:  return auStrainStops
+        case .sunset:  return suStrainStops
+        case .forest:  return foStrainStops
         case .titanium: return [
             .init(color: strain000, location: 0.00),
             .init(color: strain033, location: 0.33),
@@ -256,6 +348,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return cSleepAwake
         case .health:  return hSleepAwake
+        case .aurora:  return Color(light: "#6E7686", dark: "#CAD1DE")
+        case .sunset:  return Color(light: "#7C6E86", dark: "#B0A0B8")
+        case .forest:  return Color(light: "#7E7060", dark: "#A89A86")
         case .titanium: return Color(light: "#8E949E", dark: "#CAC8CB")
         }
     }
@@ -263,6 +358,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return cSleepLight
         case .health:  return hSleepLight
+        case .aurora:  return Color(light: "#4E8FA6", dark: "#88C0D0")
+        case .sunset:  return Color(light: "#9E6EB0", dark: "#C89FD6")
+        case .forest:  return Color(light: "#7F9068", dark: "#A3B18A")
         case .titanium: return Color(light: "#7B78E0", dark: "#A7A4F4")
         }
     }
@@ -270,6 +368,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return cSleepDeep
         case .health:  return hSleepDeep
+        case .aurora:  return Color(light: "#3E608F", dark: "#5E81AC")
+        case .sunset:  return Color(light: "#4A3A70", dark: "#5E4B8B")
+        case .forest:  return Color(light: "#305840", dark: "#3E6B4F")
         case .titanium: return Color(light: "#C13EC1", dark: "#FD96FD")
         }
     }
@@ -277,6 +378,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return cSleepREM
         case .health:  return hSleepREM
+        case .aurora:  return Color(light: "#8E5E88", dark: "#B48EAD")
+        case .sunset:  return Color(light: "#A83C82", dark: "#C74E9B")
+        case .forest:  return Color(light: "#82567C", dark: "#A0729A")
         case .titanium: return Color(light: "#8E3BD6", dark: "#AE5BEF")
         }
     }
@@ -287,6 +391,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return cZone1
         case .health:  return hZone1
+        case .aurora:  return Color(light: "#5A6376", dark: "#6B7488")
+        case .sunset:  return Color(light: "#5A4A6E", dark: "#6E5A82")
+        case .forest:  return Color(light: "#6C7260", dark: "#8A9078")
         case .titanium: return Color(light: "#3A80D6", dark: "#4A90E2")
         }
     }
@@ -294,6 +401,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return cZone2
         case .health:  return hZone2
+        case .aurora:  return Color(light: "#5E8E8C", dark: "#8FBCBB")
+        case .sunset:  return Color(light: "#945685", dark: "#B06A9C")
+        case .forest:  return Color(light: "#547045", dark: "#6B8E5A")
         case .titanium: return Color(light: "#2E92B4", dark: "#3FA9C9")
         }
     }
@@ -301,6 +411,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return cZone3
         case .health:  return hZone3
+        case .aurora:  return Color(light: "#C9A860", dark: "#EBCB8B")
+        case .sunset:  return Color(light: "#C43F64", dark: "#E5567A")
+        case .forest:  return Color(light: "#BC8A3E", dark: "#D8A657")
         case .titanium: return Color(light: "#C28E26", dark: "#E8B84B")
         }
     }
@@ -308,6 +421,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return cZone4
         case .health:  return hZone4
+        case .aurora:  return Color(light: "#B56A54", dark: "#D08770")
+        case .sunset:  return Color(light: "#E85F42", dark: "#FF7E5F")
+        case .forest:  return Color(light: "#AC583B", dark: "#C56B4A")
         case .titanium: return Color(light: "#C2792E", dark: "#D98A3D")
         }
     }
@@ -315,6 +431,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return cZone5
         case .health:  return hZone5
+        case .aurora:  return Color(light: "#A54650", dark: "#BF616A")
+        case .sunset:  return Color(light: "#E0384A", dark: "#FF4D5E")
+        case .forest:  return Color(light: "#8C3324", dark: "#A6412E")
         case .titanium: return Color(light: "#C84E1E", dark: "#E0662F")
         }
     }
@@ -328,6 +447,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return Color(light: "#2E9E4F", dark: "#46B45A")
         case .health:  return Color(light: "#34C759", dark: "#30D158")
+        case .aurora:  return Color(light: "#6E9460", dark: "#A3BE8C")
+        case .sunset:  return Color(light: "#5F9456", dark: "#86B87A")
+        case .forest:  return Color(light: "#3B7345", dark: "#4E8C57")
         case .titanium: return Color(light: "#1F8A5B", dark: "#03E095")
         }
     }
@@ -335,6 +457,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return Color(light: "#CFA528", dark: "#F2C53D")
         case .health:  return Color(light: "#FFCC00", dark: "#FFD60A")
+        case .aurora:  return Color(light: "#C9A860", dark: "#EBCB8B")
+        case .sunset:  return Color(light: "#E0952E", dark: "#FFB74D")
+        case .forest:  return Color(light: "#BC8A3E", dark: "#D8A657")
         case .titanium: return Color(light: "#C2792E", dark: "#F0A020")
         }
     }
@@ -342,6 +467,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return Color(light: "#CB3A2F", dark: "#E5483B")
         case .health:  return Color(light: "#FF3B30", dark: "#FF453A")
+        case .aurora:  return Color(light: "#A54650", dark: "#BF616A")
+        case .sunset:  return Color(light: "#E03656", dark: "#FF4D6D")
+        case .forest:  return Color(light: "#9C3524", dark: "#B5432E")
         case .titanium: return Color(light: "#C84E1E", dark: "#E0662F")
         }
     }
@@ -352,6 +480,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return Color(light: "#2E92B4", dark: "#3FA9C9")
         case .health:  return Color(light: "#30B0C7", dark: "#40C8E0")
+        case .aurora:  return Color(light: "#4E8FA6", dark: "#88C0D0")
+        case .sunset:  return Color(light: "#3C9E9E", dark: "#5CC0C0")
+        case .forest:  return Color(light: "#3A7E6C", dark: "#4E9A86")
         case .titanium: return Color(light: "#2E92B4", dark: "#3FA9C9")
         }
     }
@@ -359,6 +490,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return Color(light: "#6A4FC0", dark: "#8E6FD6")
         case .health:  return Color(light: "#5856D6", dark: "#5E5CE6")
+        case .aurora:  return Color(light: "#8E5E88", dark: "#B48EAD")
+        case .sunset:  return Color(light: "#8A3A82", dark: "#A64D9C")
+        case .forest:  return Color(light: "#7E5474", dark: "#9A6B8E")
         case .titanium: return Color(light: "#3A80D6", dark: "#4A90E2")
         }
     }
@@ -366,6 +500,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return Color(light: "#CFA528", dark: "#F2C53D")
         case .health:  return Color(light: "#FF9500", dark: "#FF9F0A")
+        case .aurora:  return Color(light: "#C9A860", dark: "#EBCB8B")
+        case .sunset:  return Color(light: "#E0952E", dark: "#FFB74D")
+        case .forest:  return Color(light: "#BC8A3E", dark: "#D8A657")
         case .titanium: return Color(light: "#C2792E", dark: "#D98A3D")
         }
     }
@@ -373,6 +510,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return Color(light: "#CB3A2F", dark: "#E5483B")
         case .health:  return Color(light: "#FF2D55", dark: "#FF375F")
+        case .aurora:  return Color(light: "#A54650", dark: "#BF616A")
+        case .sunset:  return Color(light: "#E04E6E", dark: "#FF6B8A")
+        case .forest:  return Color(light: "#AC583B", dark: "#C56B4A")
         case .titanium: return Color(light: "#C84E1E", dark: "#E0662F")
         }
     }
@@ -393,6 +533,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return Color(light: "#2E9E4F", dark: "#46B45A")
         case .health:  return Color(light: "#34C759", dark: "#30D158")
+        case .aurora:  return Color(light: "#6E9460", dark: "#A3BE8C")
+        case .sunset:  return Color(light: "#E08E2E", dark: "#FFB24D")
+        case .forest:  return Color(light: "#437E4C", dark: "#5A9C63")
         case .titanium: return Color(light: "#0F9D62", dark: "#03E095")
         }
     }
@@ -400,6 +543,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return Color(light: "#207A3C", dark: "#2E9E4F")
         case .health:  return Color(light: "#238A45", dark: "#1F7A3D")
+        case .aurora:  return Color(light: "#5C7E50", dark: "#7A9F6A")
+        case .sunset:  return Color(light: "#BC6630", dark: "#D97E3C")
+        case .forest:  return Color(light: "#305840", dark: "#3E6B4F")
         case .titanium: return Color(light: "#0B7A4A", dark: "#0B9D62")
         }
     }
@@ -407,6 +553,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return Color(light: "#5FBE6E", dark: "#86D98E")
         case .health:  return Color(light: "#6FDB8E", dark: "#7BE89E")
+        case .aurora:  return Color(light: "#86B074", dark: "#BBD49F")
+        case .sunset:  return Color(light: "#E0B85E", dark: "#FFD98A")
+        case .forest:  return Color(light: "#6BA868", dark: "#8FC88A")
         case .titanium: return Color(light: "#5FD89A", dark: "#6BF0B4")
         }
     }
@@ -419,6 +568,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return Color(light: "#3A74C4", dark: "#4A90E2")
         case .health:  return Color(light: "#FF9500", dark: "#FF9F0A")
+        case .aurora:  return Color(light: "#5C82A6", dark: "#81A1C1")
+        case .sunset:  return Color(light: "#E04E50", dark: "#FF6B6B")
+        case .forest:  return Color(light: "#AC7239", dark: "#C58A47")
         case .titanium: return Color(light: "#2A78C8", dark: "#4090E0")
         }
     }
@@ -426,6 +578,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return Color(light: "#284F9C", dark: "#2F6FCB")
         case .health:  return Color(light: "#C97400", dark: "#D68200")
+        case .aurora:  return Color(light: "#456691", dark: "#5E81AC")
+        case .sunset:  return Color(light: "#AC3049", dark: "#C7405B")
+        case .forest:  return Color(light: "#7E552D", dark: "#9A6B3A")
         case .titanium: return Color(light: "#1E5B96", dark: "#2A6FB0")
         }
     }
@@ -433,6 +588,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return Color(light: "#5E92D6", dark: "#7FB2E8")
         case .health:  return Color(light: "#FFB454", dark: "#FFC670")
+        case .aurora:  return Color(light: "#6E9FB6", dark: "#A6C6D8")
+        case .sunset:  return Color(light: "#E87E68", dark: "#FF9E8A")
+        case .forest:  return Color(light: "#C29A5A", dark: "#E0B478")
         case .titanium: return Color(light: "#5AA0E0", dark: "#74B6F0")
         }
     }
@@ -444,6 +602,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return Color(light: "#3A80D6", dark: "#6FA8E8")
         case .health:  return Color(light: "#5856D6", dark: "#5E5CE6")
+        case .aurora:  return Color(light: "#3E608F", dark: "#5E81AC")
+        case .sunset:  return Color(light: "#624788", dark: "#7C5EA8")
+        case .forest:  return Color(light: "#3A6058", dark: "#4E7A70")
         case .titanium: return Color(light: "#5E7896", dark: "#83A0B8")
         }
     }
@@ -451,6 +612,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return Color(light: "#203E73", dark: "#2A4C8F")
         case .health:  return Color(light: "#403DB0", dark: "#4644B8")
+        case .aurora:  return Color(light: "#333A56", dark: "#434C6E")
+        case .sunset:  return Color(light: "#3E2E62", dark: "#4E3A7A")
+        case .forest:  return Color(light: "#253A37", dark: "#2F4A46")
         case .titanium: return Color(light: "#234F9E", dark: "#2F6FCB")
         }
     }
@@ -458,6 +622,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return Color(light: "#6A4FC0", dark: "#8E6FD6")
         case .health:  return Color(light: "#8987E8", dark: "#9492F0")
+        case .aurora:  return Color(light: "#4E8FA6", dark: "#88C0D0")
+        case .sunset:  return Color(light: "#8E6EB6", dark: "#B08FD6")
+        case .forest:  return Color(light: "#5E9484", dark: "#7FB0A0")
         case .titanium: return Color(light: "#5790DA", dark: "#6FA8E8")
         }
     }
@@ -465,6 +632,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return Color(light: "#3A80D6", dark: "#6FA8E8")
         case .health:  return restColor
+        case .aurora:  return Color(light: "#4E8FA6", dark: "#88C0D0")
+        case .sunset:  return Color(light: "#8E6EB6", dark: "#B08FD6")
+        case .forest:  return Color(light: "#5E9484", dark: "#7FB0A0")
         case .titanium: return Color(light: "#3A80D6", dark: "#4A90E2")
         }
     }
@@ -476,6 +646,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return Color(light: "#CFA528", dark: "#F2C53D")
         case .health:  return Color(light: "#FFCC00", dark: "#FFD60A")
+        case .aurora:  return Color(light: "#C9A860", dark: "#EBCB8B")
+        case .sunset:  return Color(light: "#E0952E", dark: "#FFB74D")
+        case .forest:  return Color(light: "#BC8A3E", dark: "#D8A657")
         case .titanium: return Color(light: "#C7891A", dark: "#F0A020")
         }
     }
@@ -483,6 +656,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return Color(light: "#2E9E4F", dark: "#46B45A")
         case .health:  return Color(light: "#34C759", dark: "#30D158")
+        case .aurora:  return Color(light: "#6E9460", dark: "#A3BE8C")
+        case .sunset:  return Color(light: "#5F9456", dark: "#86B87A")
+        case .forest:  return Color(light: "#437E4C", dark: "#5A9C63")
         case .titanium: return Color(light: "#3A80D6", dark: "#4A90E2")
         }
     }
@@ -490,6 +666,9 @@ public enum StrandPalette {
         switch chartStyle {
         case .classic: return Color(light: "#CB3A2F", dark: "#E5483B")
         case .health:  return Color(light: "#FF2D55", dark: "#FF375F")
+        case .aurora:  return Color(light: "#A54650", dark: "#BF616A")
+        case .sunset:  return Color(light: "#E03656", dark: "#FF4D6D")
+        case .forest:  return Color(light: "#8C3324", dark: "#A6412E")
         case .titanium: return Color(light: "#C84E1E", dark: "#E0662F")
         }
     }
