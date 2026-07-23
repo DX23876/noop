@@ -119,7 +119,7 @@ struct CoachView: View {
                 CoachSettingsView()
                     .environmentObject(coach)
                     // Grows out of the header avatar that opened it (iOS 18+).
-                    .coachZoomDestination(id: "coach.avatar", namespace: zoomNamespace)
+                    .zoomDestination(id: "coach.avatar", namespace: zoomNamespace)
             case .history:  CoachHistoryView(onPick: { activeSheet = nil }).environmentObject(coach)
             case .plan:     CoachPlanView().environmentObject(coach)
             case .goal:
@@ -236,7 +236,7 @@ struct CoachView: View {
                     .animation(reduceMotion ? nil
                                : .easeInOut(duration: 1.1).repeatForever(autoreverses: true),
                                value: breathing)
-                    .coachZoomSource(id: "coach.avatar", namespace: zoomNamespace)
+                    .zoomSource(id: "coach.avatar", namespace: zoomNamespace)
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Coach settings")

@@ -21,7 +21,7 @@ enum MoreSectionPrefs {
 
     /// Groups open by default at first run; Data + App collapse to just their header so the list reads
     /// shorter at rest without dropping a single row. Mirrors the Android `defaultExpanded` flags.
-    static let defaultExpanded: Set<String> = ["Insights", "Body"]
+    static let defaultExpanded: Set<String> = ["Analysis", "Body"]
 
     /// The default expressed as the stored CSV (sorted, so the seed string is deterministic and testable).
     static var defaultCSV: String { encode(defaultExpanded) }

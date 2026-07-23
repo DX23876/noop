@@ -28,6 +28,7 @@ enum TodaySection: String, CaseIterable, Identifiable {
     case recoveryVitals
     case yourCards
     case journal
+    case dataSources
 
     var id: String { rawValue }
 
@@ -43,15 +44,23 @@ enum TodaySection: String, CaseIterable, Identifiable {
         case .recoveryVitals: return String(localized: "Recovery Vitals")
         case .yourCards:      return String(localized: "Your Cards")
         case .journal:        return String(localized: "Journal")
+        case .dataSources:    return String(localized: "Data Sources")
         }
     }
 
     /// The original, hard-coded section order — the default when the layout isn't customised. The journal
-    /// widget (#656) is last by default, where it was first added, above the data-sources card.
+    /// widget (#656) sits above the data-sources card, which is last.
     static let defaultOrder: [TodaySection] = [
         .hero, .liveSession, .synthesis, .keyMetrics, .workouts, .heartRate, .recoveryVitals, .yourCards,
-        .journal,
+        .journal, .dataSources,
     ]
+
+    /// Sections HIDDEN by default on the redesigned Today (§4): the live-pulse graph, the Recovery Vitals
+    /// card, Your Cards and the Data Sources card are decluttered off the home screen. They're not deleted —
+    /// the Arrange sheet re-adds any of them, and everything they show is still reachable elsewhere (Trends,
+    /// More → Data). New/never-customised installs get this set hidden; once the user toggles visibility, the
+    /// stored `today.hiddenSections` string is authoritative (an empty string = nothing hidden).
+    static let defaultHidden: Set<TodaySection> = [.heartRate, .recoveryVitals, .yourCards, .dataSources]
 }
 
 /// Display-only persistence for the Today section order. Holds the sections in display order; every known
@@ -60,6 +69,23 @@ enum TodaySection: String, CaseIterable, Identifiable {
 enum TodayLayoutPrefs {
     /// UserDefaults key — a comma-joined list of `TodaySection` rawValues in display order.
     static let orderKey = "today.sectionOrder"
+
+    /// UserDefaults key — a comma-joined list of `TodaySection` rawValues that are HIDDEN (§4). Its
+    /// @AppStorage default is `encodeHidden(TodaySection.defaultHidden)`, so an unset install hides the
+    /// redesign's decluttered set; an explicit empty string means "show everything".
+    static let hiddenKey = "today.hiddenSections"
+
+    /// Encode a hidden set into the stored string, in `allCases` order so it's deterministic.
+    static func encodeHidden(_ hidden: Set<TodaySection>) -> String {
+        TodaySection.allCases.filter(hidden.contains).map(\.rawValue).joined(separator: ",")
+    }
+
+    /// Decode the stored hidden string into a set (unknown tokens dropped). An empty string = nothing hidden.
+    static func decodeHidden(_ raw: String) -> Set<TodaySection> {
+        Set(raw.split(separator: ",").compactMap {
+            TodaySection(rawValue: $0.trimmingCharacters(in: .whitespaces))
+        })
+    }
 
     /// Encode an ordered section list into the stored comma-joined string.
     static func encode(_ sections: [TodaySection]) -> String {

@@ -63,14 +63,14 @@ struct CoachChartBubble: View {
                 .frame(maxWidth: 560, alignment: .leading)
             }
             .buttonStyle(.plain)
-            .coachZoomSource(id: "coach.chart.\(artifact.title)", namespace: zoom)
+            .zoomSource(id: "coach.chart.\(artifact.title)", namespace: zoom)
             Spacer(minLength: 48)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Coach chart: \(artifact.title). Tap to enlarge.")
         .sheet(isPresented: $showDetail) {
             CoachChartDetail(artifact: artifact)
-                .coachZoomDestination(id: "coach.chart.\(artifact.title)", namespace: zoom)
+                .zoomDestination(id: "coach.chart.\(artifact.title)", namespace: zoom)
         }
     }
 }

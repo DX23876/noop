@@ -494,10 +494,11 @@ extension View {
 // MARK: - Zoom transitions (iOS 18+)
 
 extension View {
-    /// Mark this view as the visual SOURCE of a zoom presentation — the presented sheet appears to grow out
-    /// of it rather than sliding up from nowhere. Paired with `coachZoomDestination`. A no-op below iOS 18
-    /// and on macOS, where the standard presentation is already the platform-correct one.
-    @ViewBuilder func coachZoomSource(id: String, namespace: Namespace.ID) -> some View {
+    /// Mark this view as the visual SOURCE of a zoom presentation — the presented sheet/detail appears to
+    /// grow out of it rather than sliding up from nowhere. Paired with `zoomDestination`. A no-op below
+    /// iOS 18 and on macOS, where the standard presentation is already the platform-correct one. Generic —
+    /// used by the coach avatar/chart zoom and by tile→detail pushes (metric tiles, Trends/Sleep heroes).
+    @ViewBuilder func zoomSource(id: String, namespace: Namespace.ID) -> some View {
         #if os(iOS)
         if #available(iOS 18.0, *) {
             self.matchedTransitionSource(id: id, in: namespace)
@@ -509,8 +510,8 @@ extension View {
         #endif
     }
 
-    /// Present this sheet as a zoom out of the matching source.
-    @ViewBuilder func coachZoomDestination(id: String, namespace: Namespace.ID) -> some View {
+    /// Present this destination (sheet or pushed detail) as a zoom out of the matching source.
+    @ViewBuilder func zoomDestination(id: String, namespace: Namespace.ID) -> some View {
         #if os(iOS)
         if #available(iOS 18.0, *) {
             self.navigationTransition(.zoom(sourceID: id, in: namespace))

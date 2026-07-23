@@ -89,7 +89,7 @@ struct SettingsView: View {
     // Light/Dark/System theme. Read by both app roots' .preferredColorScheme; default follows the OS.
     @AppStorage(AppearanceMode.storageKey) private var appearanceRaw = AppearanceMode.system.rawValue
     // Chart colour style: Titanium (brand) or Classic (throwback red→green). Re-colours gauges + charts.
-    @AppStorage(ChartStyle.storageKey) private var chartStyleRaw = ChartStyle.titanium.rawValue
+    @AppStorage(ChartStyle.storageKey) private var chartStyleRaw = ChartStyle.signature.rawValue
     // Day-cycle scene backdrop behind Today (#698). Default ON. Off swaps the scene for a plain dark
     // canvas. TodayView reads the same key to gate its SceneScreenBackground.
     @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = true

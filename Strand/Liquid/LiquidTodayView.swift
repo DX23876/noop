@@ -77,6 +77,12 @@ struct LiquidTodayView: View {
     @AppStorage(TodayLayoutPrefs.orderKey) private var sectionOrderRaw = ""
     @State private var showArrangeSheet = false
     private var sectionOrder: [TodaySection] { TodayLayoutPrefs.decodeOrder(sectionOrderRaw) }
+    // §4 declutter: the redesign hides the live-pulse / recovery-vitals / your-cards / data-sources sections
+    // by default. Not deleted — the Arrange sheet re-adds them. The @AppStorage default is the decluttered
+    // set, so an unset install starts tidy; an explicit empty string shows everything.
+    @AppStorage(TodayLayoutPrefs.hiddenKey) private var hiddenSectionsRaw =
+        TodayLayoutPrefs.encodeHidden(TodaySection.defaultHidden)
+    private var hiddenSections: Set<TodaySection> { TodayLayoutPrefs.decodeHidden(hiddenSectionsRaw) }
     // #430 parity: the Key-Metrics grid honours the SAME editor selection/order + Detailed-tiles switch as
     // Android (byte-identical @AppStorage keys). `kSparks` holds the trailing-14-day series the detailed
     // tiles graph (keyed by metric-catalog key), filled by the loader alongside everything else.
@@ -280,6 +286,11 @@ struct LiquidTodayView: View {
                     // byte-identical "today.sectionOrder" key Android uses. A gated-off Start-session renders
                     // nothing and keeps its slot in the saved order.
                     ForEach(sectionOrder) { section in
+                        if hiddenSections.contains(section) {
+                            // §4: hidden by default, re-addable in the Arrange sheet. Keeps its slot in the
+                            // saved order so unhiding restores its position.
+                            EmptyView()
+                        } else {
                         switch section {
                         case .hero: heroCard
                         // Live Sessions (silent guardian) is an OPTIONAL, strap-dependent beta, so it no
@@ -306,13 +317,16 @@ struct LiquidTodayView: View {
                         // the card self-hides when the reminder toggle is off (an empty branch renders
                         // nothing yet keeps its slot). Twin of Android TodayScreen's JOURNAL arm.
                         case .journal: if selectedDayOffset == 0 { JournalReminderCard() }
+                        // Data Sources is now a reorderable, hideable section (hidden by default, §4) rather
+                        // than a fixed card pinned to the bottom.
+                        case .dataSources: dataSourcesSection
+                        }
                         }
                     }
                     // The committed "next up" session sits BELOW the metric sections on purpose: once
                     // accepted it's an ambient reminder, not a demand for the top of the screen. It draws
                     // attention on its own terms as its time nears (colour + breathe, see PlanTodayCard).
                     PlanTodayCard(showPlan: $showPlan)
-                    dataSourcesSection
                     Color.clear.frame(height: 90) // floating tab-bar clearance
                 }
                 .padding(.horizontal, 16)
@@ -391,7 +405,7 @@ struct LiquidTodayView: View {
         .sheet(isPresented: $showPlan) { CoachPlanView().environmentObject(coach) }
         // #today-layout: the Arrange sheet — native drag-to-reorder rows over the same persisted order.
         .sheet(isPresented: $showArrangeSheet) {
-            TodayArrangeSheet(orderRaw: $sectionOrderRaw)
+            TodayArrangeSheet(orderRaw: $sectionOrderRaw, hiddenRaw: $hiddenSectionsRaw)
         }
         // #430 parity: the Key-Metrics editor (selection + order + the Detailed-tiles switch), the same
         // sheet the classic macOS grid uses, bound to the same persisted layout string.
@@ -1800,7 +1814,17 @@ private struct LiquidRefreshIndicator: View {
 /// default order. Twin of the Android TodayLayoutEditorDialog over the byte-identical "today.sectionOrder".
 private struct TodayArrangeSheet: View {
     @Binding var orderRaw: String
+    /// The persisted hidden set (§4): each row carries an eye toggle that shows/hides its section.
+    @Binding var hiddenRaw: String
     @Environment(\.dismiss) private var dismiss
+
+    private var hidden: Set<TodaySection> { TodayLayoutPrefs.decodeHidden(hiddenRaw) }
+
+    private func toggleHidden(_ section: TodaySection) {
+        var next = hidden
+        if next.contains(section) { next.remove(section) } else { next.insert(section) }
+        hiddenRaw = TodayLayoutPrefs.encodeHidden(next)
+    }
 
     var body: some View {
         // On iOS the Start-session section renders nothing (the entry moved into the "+" quick-action
@@ -1817,9 +1841,25 @@ private struct TodayArrangeSheet: View {
         NavigationStack {
             List {
                 ForEach(order) { section in
-                    Text(section.title)
-                        .font(StrandFont.body)
-                        .foregroundStyle(StrandPalette.textPrimary)
+                    let isHidden = hidden.contains(section)
+                    HStack {
+                        Text(section.title)
+                            .font(StrandFont.body)
+                            .foregroundStyle(isHidden ? StrandPalette.textTertiary : StrandPalette.textPrimary)
+                        Spacer()
+                        // Eye toggle: show/hide this section on Today (§4). A hidden section keeps its slot
+                        // in the order, so unhiding restores its position.
+                        Button {
+                            toggleHidden(section)
+                        } label: {
+                            Image(systemName: isHidden ? "eye.slash" : "eye")
+                                .foregroundStyle(isHidden ? StrandPalette.textTertiary : StrandPalette.accent)
+                        }
+                        // .borderless keeps the eye independently tappable while the row is in the always-on
+                        // edit mode used for drag-reorder (a .plain button would hand taps to the whole row).
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel(isHidden ? "Show \(section.title)" : "Hide \(section.title)")
+                    }
                 }
                 .onMove { from, to in
                     var next = order
@@ -1836,7 +1876,11 @@ private struct TodayArrangeSheet: View {
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Reset") { orderRaw = "" }
+                    // Reset restores BOTH the default order and the default hidden set (§4 declutter).
+                    Button("Reset") {
+                        orderRaw = ""
+                        hiddenRaw = TodayLayoutPrefs.encodeHidden(TodaySection.defaultHidden)
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }

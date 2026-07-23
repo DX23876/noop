@@ -537,7 +537,7 @@ struct StressView: View {
                 // The one segmented control — full width, right-aligned.
                 HStack {
                     Spacer()
-                    SegmentedPillControl(ExploreRange.allCases, selection: $range) { $0.label }
+                    SegmentedPillControl(ExploreRange.displayCases, selection: $range) { $0.label }
                 }
             } else {
                 NoopCard(tint: StressRamp.calm) {
@@ -1213,7 +1213,7 @@ private struct StressPreviewHarness: View {
                 } footer: {
                     ChartFooter([("Today", String(format: "%.1f", score)), ("Average", "1.5"), ("Days", "30")])
                 }
-                HStack { Spacer(); SegmentedPillControl(ExploreRange.allCases, selection: $range) { $0.label } }
+                HStack { Spacer(); SegmentedPillControl(ExploreRange.displayCases, selection: $range) { $0.label } }
             }
             .padding(NoopMetrics.screenPadding)
         }
