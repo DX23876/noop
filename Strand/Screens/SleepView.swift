@@ -133,15 +133,19 @@ struct SleepView: View {
             Group {
                 if let resolved {
                     // Each top-level section fades + rises in sequence on first appear (Reduce-Motion safe).
+                    // Order (redesign §6): score hero, then the sleep balance directly under it (the most
+                    // important number), the stage breakdown, night-detail tiles, stage comparison and the
+                    // 30-night trend. Sleep marks / naps are an INPUT, not a read-out, so they sink to the
+                    // bottom (they were second from the top).
                     VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
                         if let sleepUndo { sleepUndoBanner(sleepUndo) }
                         restHero(resolved).staggeredAppear(index: 0)
-                        SleepMarkCard().staggeredAppear(index: 1)
+                        sleepDebtLedger(resolved).staggeredAppear(index: 1)
                         hero(resolved).staggeredAppear(index: 2)
                         metricGrid(resolved).staggeredAppear(index: 3)
-                        sleepDebtLedger(resolved).staggeredAppear(index: 4)
-                        stagesVsTypical(resolved).staggeredAppear(index: 5)
-                        durationTrend(resolved).staggeredAppear(index: 6)
+                        stagesVsTypical(resolved).staggeredAppear(index: 4)
+                        durationTrend(resolved).staggeredAppear(index: 5)
+                        SleepMarkCard().staggeredAppear(index: 6)
                     }
                 } else {
                     emptyState
@@ -1499,6 +1503,12 @@ struct SleepView: View {
                     sparkline: spark(debt.series),
                     sparkColor: StrandPalette.metricRose)
             }
+            // A low Consistency shows red without saying why (redesign bug §1) — one line explains it, so
+            // a 0 % reads as "irregular bedtimes", not a broken number.
+            Text("Consistency compares your recent bedtimes — a wide spread scores low, even after a good night.")
+                .font(StrandFont.footnote)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
