@@ -234,6 +234,9 @@ struct MetricExplorerView: View {
     /// hint in the header, never gating the rows: the catalog is static, so every row's label/icon/unit
     /// must paint immediately even before any series read returns (#199).
     @State private var probing = true
+    /// Shared zoom namespace (iOS 18+, no-op elsewhere) so a tapped metric row visually grows into its
+    /// detail instead of sliding up from nowhere — the Liquid Glass tile→detail language.
+    @Namespace private var zoom
 
     var body: some View {
         #if os(macOS)
@@ -303,6 +306,7 @@ struct MetricExplorerView: View {
                                     // flashed then popped straight back (#38).
                                     NavigationLink {
                                         MetricDetailView(metric: metric)
+                                            .zoomDestination(id: "metric.zoom.\(metric.id)", namespace: zoom)
                                     } label: {
                                         MetricRow(metric: metric,
                                                   isEmpty: emptyByID[metric.id] ?? false)
@@ -311,6 +315,8 @@ struct MetricExplorerView: View {
                                     // LiquidPressStyle (a transform, so it works edge-to-edge with dividers
                                     // between, no corner radius to match). Matches Today's tappable rows.
                                     .buttonStyle(LiquidPressStyle())
+                                    // The row visually grows into the detail (Liquid Glass tile→detail).
+                                    .zoomSource(id: "metric.zoom.\(metric.id)", namespace: zoom)
                                     #if os(iOS)
                                     // Light selection tick on tap; the simultaneousGesture leaves the
                                     // NavigationLink push intact.
