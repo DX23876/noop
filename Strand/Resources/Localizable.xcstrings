@@ -24114,6 +24114,28 @@
         }
       }
     },
+    "Analysis": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Analyse"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Análisis"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Analyse"
+          }
+        }
+      }
+    },
     "And make sure it's charged.": {
       "localizations": {
         "de": {
@@ -29780,6 +29802,28 @@
         }
       }
     },
+    "Beat Rhythm": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Herzschlag-Rhythmus"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ritmo cardíaco"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rythme cardiaque"
+          }
+        }
+      }
+    },
     "Beat-to-beat timing varies for many ordinary reasons: breathing, movement, an imperfect optical reading, or the occasional extra or skipped beat that most healthy people have.": {
       "localizations": {
         "de": {
@@ -30746,6 +30790,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Beta。請先閱讀此內容。"
+          }
+        }
+      }
+    },
+    "Biomarkers": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Biomarker"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Biomarcadores"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Biomarqueurs"
           }
         }
       }
@@ -39021,6 +39087,28 @@
         }
       }
     },
+    "Charge, Effort and Rest as three rings, just like Today.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charge, Effort und Rest als drei Ringe, genau wie unter Heute."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charge, Effort y Rest como tres anillos, igual que en Hoy."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charge, Effort et Repos sous forme de trois anneaux, comme dans Aujourd'hui."
+          }
+        }
+      }
+    },
     "Charge, Effort and Rest become personal after a few nights of wear.": {
       "localizations": {
         "de": {
@@ -45309,6 +45397,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "規律性"
+          }
+        }
+      }
+    },
+    "Consistency compares your recent bedtimes — a wide spread scores low, even after a good night.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konsistenz vergleicht deine letzten Einschlafzeiten — eine große Streuung ergibt einen niedrigen Wert, auch nach einer guten Nacht."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La constancia compara tus horas de acostarte recientes: una dispersión amplia da una puntuación baja, incluso después de una buena noche."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La régularité compare vos heures de coucher récentes — un grand écart donne un score bas, même après une bonne nuit."
           }
         }
       }
@@ -67572,6 +67682,28 @@
         }
       }
     },
+    "Hear today's Charge (recovery) score.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Höre deinen heutigen Charge-Wert (Erholung)."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escucha tu puntuación de Charge (recuperación) de hoy."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Écoutez votre score Charge (récupération) du jour."
+          }
+        }
+      }
+    },
     "Heart & Vitals": {
       "localizations": {
         "de": {
@@ -70462,6 +70594,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "休息如何計算"
+          }
+        }
+      }
+    },
+    "How Scoring Works": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wie die Bewertung funktioniert"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cómo funciona la puntuación"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comment fonctionne le score"
           }
         }
       }
@@ -78853,6 +79007,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "昨晚 · %@"
+          }
+        }
+      }
+    },
+    "Last night's deficit": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Defizit letzte Nacht"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Déficit de anoche"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Déficit de la nuit dernière"
           }
         }
       }
@@ -90457,6 +90633,28 @@
         }
       }
     },
+    "NOOP Rings": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP-Ringe"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anillos NOOP"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anneaux NOOP"
+          }
+        }
+      }
+    },
     "NOOP can read a coarse menstrual-cycle phase from your nightly skin temperature, entirely on your device. It is awareness only: not contraception, not a fertility predictor, not a medical service.": {
       "localizations": {
         "de": {
@@ -95506,6 +95704,28 @@
         }
       }
     },
+    "No data · %@–%@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Daten · %@–%@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sin datos · %@–%@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune donnée · %@–%@"
+          }
+        }
+      }
+    },
     "No days yet where both NOOP and your phone counted steps. Once your phone logs a few days alongside the strap, they'll appear here so you can see how close the estimate is.": {
       "localizations": {
         "de": {
@@ -97282,6 +97502,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "本週暫無讀數"
+          }
+        }
+      }
+    },
+    "No recovery score yet today.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heute noch kein Erholungswert."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todavía no hay puntuación de recuperación hoy."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pas encore de score de récupération aujourd'hui."
           }
         }
       }
@@ -116821,6 +117063,28 @@
         }
       }
     },
+    "Recovery Status": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erholungsstatus"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estado de recuperación"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "État de récupération"
+          }
+        }
+      }
+    },
     "Recovery Trend": {
       "localizations": {
         "de": {
@@ -131990,6 +132254,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "平均睡眠"
+          }
+        }
+      }
+    },
+    "Sleep balance": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schlafkonto"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Balance de sueño"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solde de sommeil"
           }
         }
       }
@@ -163274,6 +163560,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "錶面上顯示你的能量（恢復），矩形卡片中則是消耗與休息。"
+          }
+        }
+      }
+    },
+    "Your Charge is %lld percent.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dein Charge-Wert liegt bei %lld Prozent."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu Charge es del %lld por ciento."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Votre Charge est de %lld pour cent."
           }
         }
       }
