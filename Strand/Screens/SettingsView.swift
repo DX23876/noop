@@ -823,6 +823,9 @@ struct SettingsView: View {
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
+
+                rowDivider
+                appearanceExperimentalSection
             }
         }
     }
@@ -1274,8 +1277,11 @@ struct SettingsView: View {
     /// Entry point used by `body`. The 5/MG probe card only renders for a 5/MG (see `showFiveMGControls`,
     /// #22); the raw-sensor CSV diagnostic is split into its own card so it stays available on every
     /// model — a 4.0 owner still needs the export to share decoded streams.
+    // NOTE: the two Today-variant toggles (Liquid Today / Heute Redesign) used to live here as their
+    // own cards. Moved into `appearanceCard`'s own "Experimental" subsection (on-device feedback) so
+    // both Today-variant switches sit together with the rest of the look-and-feel controls instead of
+    // being buried in the collapsed Advanced group — see `appearanceExperimentalSection` below.
     @ViewBuilder private var experimentalCard: some View {
-        liquidTodayCard
         liveSessionsCard
         if showFiveMGControls { fiveMGCard }
         sleepStagingCard
@@ -1285,25 +1291,52 @@ struct SettingsView: View {
     /// Opt-in liquid Today redesign (default ON in this build). Off falls back to the
     /// classic dashboard immediately, no rebuild. Same data either way.
     @AppStorage("noop.liquidTodayEnabled") private var liquidTodayEnabled = true
-    private var liquidTodayCard: some View {
-        SettingsSection(
-            icon: "drop.fill",
-            title: "Experimental · Liquid Today",
-            blurb: "A redesigned Today screen in the new liquid language: the scores as living liquid, a time-of-day sky, and a calmer layout. Same numbers, new look."
-        ) {
-            VStack(alignment: .leading, spacing: NoopMetrics.rowSpacing) {
-                Toggle(isOn: $liquidTodayEnabled) {
-                    Text("Liquid Today (prototype)")
-                        .font(StrandFont.subhead)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                }
-                .toggleStyle(.switch)
-                .tint(StrandPalette.accent)
-                Text("Replaces the Today tab with the prototype redesign. Turn it off any time to return to the classic dashboard. Reads the same live data from your strap.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
+
+    #if os(iOS)
+    /// The Heute-screen redesign (StrandiOS/Redesign/) — a further-along rework of Today with its own
+    /// header chips, ring layout, status-reactive base card, and an editable vitals grid. iOS-only (it's
+    /// only wired into `RootTabView`), off by default: new, not yet exercised on a real strap/HealthKit.
+    @AppStorage("noop.heuteRedesignEnabled") private var heuteRedesignEnabled = false
+    #endif
+
+    /// The two Today-variant toggles, appended to the bottom of `appearanceCard`'s own section (on-device
+    /// feedback: these belong with Appearance, not buried in the collapsed Advanced → Experimental
+    /// group). Kept as a private helper rather than inline in `appearanceCard` so the toggle bodies stay
+    /// readable next to their `@AppStorage` declarations above.
+    private var appearanceExperimentalSection: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.rowSpacing) {
+            Text("EXPERIMENTAL")
+                .font(StrandFont.overline)
+                .tracking(StrandFont.overlineTracking)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .padding(.top, 4)
+
+            Toggle(isOn: $liquidTodayEnabled) {
+                Text("Liquid Today (prototype)")
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.textPrimary)
             }
+            .toggleStyle(.switch)
+            .tint(StrandPalette.accent)
+            Text("Replaces the Today tab with the prototype redesign. Turn it off any time to return to the classic dashboard. Reads the same live data from your strap.")
+                .font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            #if os(iOS)
+            rowDivider
+            Toggle(isOn: $heuteRedesignEnabled) {
+                Text("Heute redesign (prototype)")
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.textPrimary)
+            }
+            .toggleStyle(.switch)
+            .tint(StrandPalette.accent)
+            Text("An even newer Today rework: activity-status chip, a status-reactive base card with swipeable suggestion cards, and an editable vitals grid. Takes priority over Liquid Today when on. Turn it off any time to return to Liquid Today or the classic dashboard.")
+                .font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+            #endif
         }
     }
 

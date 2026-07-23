@@ -13,10 +13,13 @@ import Foundation
 // Composition (top → bottom):
 //   (a) HERO, full-width HStack that fills the width EQUALLY: RecoveryRing (left card)
 //               + InsightCard "Today's Synthesis" (right card). No lone card, no gap.
-//   (b) METRICS, one adaptive LazyVGrid of fixed-104pt StatTiles (Recovery, Strain,
-//               Sleep, HRV, RHR, SpO2, Respiratory, Steps, Weight, Calories) each with
-//               a 14-day sparkline so the grid tiles perfectly with no empty cells.
-//   (c) LAST WORKOUTS, the SAME adaptive grid of fixed-104pt workout StatTiles.
+//   (b) METRICS, one LazyVGrid of fixed-104pt StatTiles (Recovery, Strain, Sleep, HRV,
+//               RHR, SpO2, Respiratory, Steps, Weight, Calories) each with a 14-day
+//               sparkline so the grid tiles perfectly with no empty cells. Adaptive
+//               (auto-fitting columns) on macOS; a fixed column count honouring the
+//               #251 editor's "Tiles per row" choice on iOS — see `grid` below.
+//   (c) LAST WORKOUTS, the SAME grid (adaptive on macOS, fixed-count on iOS) of
+//               fixed-104pt workout StatTiles.
 //   (d) DATA SOURCES, one full-width NoopCard footer of SourceBadges + counts.
 //
 // Sparse series (weight) fall back to ALL history so a tile never shows an empty
@@ -227,6 +230,10 @@ struct TodayView: View {
     @AppStorage(KeyMetricPrefs.layoutKey) private var keyMetricsRaw = ""
     @State private var showingMetricsEditor = false
     private var enabledKeyMetrics: [KeyMetric] { KeyMetricPrefs.decodeEnabled(keyMetricsRaw) }
+    // The editor's "Tiles per row" picker (KeyMetricsEditorSheet) wrote this key but the classic grid
+    // never read it — only LiquidTodayView did, so the picker silently did nothing here. Read the SAME
+    // key/default LiquidTodayView reads (see `grid` below for how it's applied).
+    @AppStorage(KeyMetricPrefs.columnsKey) private var keyMetricsColumnsRaw = 3
 
     // "Your cards" customisable dashboard (WHOOP "My Dashboard"), a persisted, reorderable selection of
     // metric cards. Empty/unset shows the sensible default set (Stress / Fitness age / Vitality + HRV +
@@ -436,8 +443,9 @@ struct TodayView: View {
     // expander, collapsing OVERFLOW only (never dropping or reordering a user-selected tile, #251). @State
     // (not persisted) so the home screen reopens compact.
     @State private var metricsExpanded = false
-    /// The number of Key-Metric tiles shown before the "Show all metrics" expander (S5). Two columns, so
-    /// six fills three clean rows; the rest fold behind the expander. Static so the cap is unit-testable.
+    /// The number of Key-Metric tiles shown before the "Show all metrics" expander (S5). At the default
+    /// 2-column layout six fills three clean rows (two on the #251 3-column choice); the rest fold behind
+    /// the expander either way. Static so the cap is unit-testable.
     static let metricsCollapsedCap = 6
 
     // S5: the Data Sources footer collapses to a single "Synced from: …" summary line that expands inline
@@ -445,10 +453,25 @@ struct TodayView: View {
     // tight; nothing is removed, only folded behind a tap. @State (not persisted) so it reopens collapsed.
     @State private var sourcesExpanded = false
 
-    // THE single grid definition, every tile group reuses it so margins line up. minimum 150 (not
-    // 168) so two tiles reliably fit a phone's ~345pt content width; at 168 the grid sat on the
-    // single-vs-two-column boundary and could collapse to one full-width column on a narrow phone.
-    private let grid = [GridItem(.adaptive(minimum: 150), spacing: NoopMetrics.gap)]
+    // THE single grid definition, every tile group reuses it so margins line up.
+    //
+    // iOS: honours the editor's "Tiles per row" picker (`KeyMetricPrefs.columnsKey`) with a fixed column
+    // count, the same way LiquidTodayView's grid does — the picker previously had no effect here because
+    // nothing read the key on this screen.
+    //
+    // macOS: stays the original ADAPTIVE layout (minimum 150, not 168, so two tiles reliably fit a phone-
+    // width ~345pt content column; at 168 the grid sat on the single-vs-two-column boundary and could
+    // collapse to one full-width column on a narrow window). The columns picker was designed iOS-side only
+    // (see `KeyMetricPrefs.columnsKey`'s doc comment) — the reference implementation keeps auto-fitting
+    // more columns into a wide macOS window instead of being capped at the phone-sized 2/3 choice.
+    private var grid: [GridItem] {
+        #if os(iOS)
+        Array(repeating: GridItem(.flexible(), spacing: NoopMetrics.gap),
+              count: KeyMetricPrefs.columns(keyMetricsColumnsRaw))
+        #else
+        [GridItem(.adaptive(minimum: 150), spacing: NoopMetrics.gap)]
+        #endif
+    }
 
     /// #817 - the furthest-back offset the day-nav (swipe + chevrons + date jump) may reach: today's
     /// logical day back to the earliest banked day across all sources. 0 when there's no data yet, so
@@ -2216,7 +2239,9 @@ struct TodayView: View {
             let est = stepsEstByDay[selectedDayKey].map { intString(Double($0)) }
             return real ?? est ?? "—"
         case .calories:
-            return withUnit(caloriesValue(appleDays.last))
+            // #843/#813 parity with the Steps card just above: scope to the SELECTED day, not the latest
+            // imported row, so a navigated past day shows that day's calories, not today's.
+            return withUnit(caloriesValue(appleDays.last(where: { $0.day == selectedDayKey })))
         case .stress:
             #if DEBUG
             // DEBUG promo harness: pin the Stress card (0–3) to the active frame's value. No-op otherwise.
@@ -3280,7 +3305,10 @@ struct TodayView: View {
     @ViewBuilder
     private func keyMetricTile(_ metric: KeyMetric) -> some View {
         let d = displayDay
-        let aLatest = appleDays.last
+        // #843/#813: scope to the SELECTED day (like the Steps tile just below), not the latest imported
+        // AppleDaily row — the tail can be days stale, or from a day the user has since navigated away
+        // from, and would otherwise show today's (or an old import's) calories on a past day.
+        let aLatest = appleDays.last(where: { $0.day == selectedDayKey })
         // Weight is logged sparsely, so the newest AppleDaily often carries none — the tile would then
         // read blank even though a recent weigh-in exists. Pick the most recent day that actually has a
         // weight (mirrors Android's latestWeightKg); weightTile falls back to the sparkline / profile
@@ -3403,16 +3431,14 @@ struct TodayView: View {
                 sparkColor: StrandPalette.accent
             )
         case .steps:
-            // Prefer a REAL step count: the strap's own @57 counter (DailyMetric.steps, WHOOP 5/MG),
-            // then Apple Health FOR THE SELECTED DAY (#589, when the user imported phone steps for this
-            // day, show THAT number directly, not the strap estimate), then the loaded Apple-Health steps
-            // sparkline tail as a last-resort recent value. Only when a day has NONE of those real sources
+            // Prefer a REAL step count: the strap's own @57 counter (DailyMetric.steps, WHOOP 5/MG), then
+            // Apple Health FOR THE SELECTED DAY (#589, when the user imported phone steps for this day,
+            // show THAT number directly, not the strap estimate). #843/#813: a day shows a REAL count only
+            // from those two SAME-DAY sources — never the latest imported Apple-Health row (it can be days
+            // stale) or the loaded sparkline tail (that's the most-recent value, not this day's); both
+            // froze the tile on an old import on a navigated day. Only when a day has NEITHER real source
             // do we fall back to the on-device ESTIMATE (steps_est) a WHOOP 4.0 user gets, flagged "est."
-            // so it's never mistaken for a measured count. Mirrors Android (#276/#150).
-            // #843/#813, a day shows a REAL count only from the strap (@57) or a SAME-DAY phone import.
-            // Never the latest imported Apple-Health row (it can be days stale) or the sparkline tail (that
-            // is the most-recent value, not this day's): both froze the tile on an old import. Otherwise
-            // fall through to the on-device estimate ("est."). Mirrors Android stepsForDay (#276/#150).
+            // so it's never mistaken for a measured count. Mirrors Android stepsForDay (#276/#150).
             let appleStepsForDay = appleDays.last(where: { $0.day == selectedDayKey })?.steps
             let realSteps: String? = (d?.steps).map { intString(Double($0)) }
                 ?? appleStepsForDay.map { intString(Double($0)) }
@@ -4398,9 +4424,14 @@ struct TodayView: View {
         }
     }
 
-    /// Active calories (Apple) for the latest day, falling back to the sparkline tail.
+    /// Active calories (Apple) for the SELECTED day. `a` is already day-scoped by the caller
+    /// (`appleDays.last(where: { $0.day == selectedDayKey })`); a real reading for that day wins. The
+    /// sparkline-tail fallback only applies on TODAY (a same-day value that hasn't landed in `appleDays`
+    /// yet) — a navigated PAST day with no row for that day shows "—" rather than the tail, which is the
+    /// most recent value overall, not this day's. Mirrors the Steps tile's day-scoping (#843/#813).
     private func caloriesValue(_ a: AppleDaily?) -> String {
         if let kcal = a?.activeKcal { return intString(kcal) }
+        guard selectedDayOffset == 0 else { return "—" }
         return latestString("active_kcal", decimals: 0)
     }
 

@@ -175,15 +175,20 @@ enum LiquidRender {
     }
 
     /// The live heart-rate curve as a glowing liquid thread with a travelling glint.
-    static func thread(_ base: GraphicsContext, _ size: CGSize, values: [Double], now: Double, tint: Color) {
+    ///
+    /// `scrubIndex` (nil = not scrubbing) pins a crosshair + dot on that sample, so a finger dragged
+    /// across the thread has something to point at while the caller's readout follows it.
+    static func thread(_ base: GraphicsContext, _ size: CGSize, values: [Double], now: Double,
+                       tint: Color, scrubIndex: Int? = nil) {
         guard values.count >= 2 else { return }
-        let w = size.width, h = size.height, pad: Double = 10
-        var mn = Double.greatestFiniteMagnitude, mx = -Double.greatestFiniteMagnitude
-        for v in values { mn = min(mn, v); mx = max(mx, v) }
-        let span = max(10, mx - mn)
+        let w = size.width, h = size.height, pad = LiquidThreadGeometry.pad
+        // Plot geometry lives in ONE place (LiquidThreadGeometry) so the drawn curve and a scrub
+        // readout mapped back from a touch x can't drift apart. Bounds are resolved once per frame:
+        // re-deriving min/max per point would be O(n²) at 60fps over a ~288-bucket day.
+        let bounds = LiquidThreadGeometry.bounds(values)
         let n = values.count
-        func px(_ i: Int) -> Double { pad + Double(i) * (w - 2 * pad) / Double(n - 1) }
-        func py(_ v: Double) -> Double { h - pad - (v - mn) / span * (h - 2 * pad) }
+        func px(_ i: Int) -> Double { LiquidThreadGeometry.x(index: i, count: n, width: w) }
+        func py(_ v: Double) -> Double { LiquidThreadGeometry.y(value: v, bounds: bounds, height: h) }
         func curve() -> Path {
             var p = Path()
             p.move(to: CGPoint(x: px(0), y: py(values[0])))
@@ -205,6 +210,54 @@ enum LiquidRender {
         let pr = 3 + sin(now * 6) * 1.1
         ctx.fill(Path(ellipseIn: CGRect(x: ex - pr - 4, y: ey - pr - 4, width: (pr + 4) * 2, height: (pr + 4) * 2)), with: .color(tint.opacity(0.15)))
         ctx.fill(Path(ellipseIn: CGRect(x: ex - pr, y: ey - pr, width: pr * 2, height: pr * 2)), with: .color(tint))
+
+        // scrub crosshair: a hairline down the plot plus a ringed dot on the sample under the finger.
+        if let si = scrubIndex, si >= 0, si < n {
+            let sx = px(si), sy = py(values[si])
+            var hair = Path()
+            hair.move(to: CGPoint(x: sx, y: pad * 0.2))
+            hair.addLine(to: CGPoint(x: sx, y: h - pad * 0.2))
+            ctx.stroke(hair, with: .color(.white.opacity(0.28)),
+                       style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+            ctx.fill(Path(ellipseIn: CGRect(x: sx - 9, y: sy - 9, width: 18, height: 18)), with: .color(tint.opacity(0.18)))
+            ctx.fill(Path(ellipseIn: CGRect(x: sx - 4, y: sy - 4, width: 8, height: 8)), with: .color(.white))
+            ctx.stroke(Path(ellipseIn: CGRect(x: sx - 4.5, y: sy - 4.5, width: 9, height: 9)), with: .color(tint), lineWidth: 2)
+        }
+    }
+}
+
+/// The heart-rate thread's plot geometry, stated ONCE: the renderer draws through it and a scrub
+/// gesture maps a touch position back through it, so the dot under the finger is always the value the
+/// readout shows. Pure math — no SwiftUI state, testable, and shared by every `LiquidThread`.
+enum LiquidThreadGeometry {
+    /// The inset the curve is drawn with, on all four sides.
+    static let pad: Double = 10
+
+    /// Value range for the vertical scale: the series' own min, with a 10 bpm floor on the span so a
+    /// flat resting trace doesn't get amplified into noise.
+    static func bounds(_ values: [Double]) -> (min: Double, span: Double) {
+        guard !values.isEmpty else { return (0, 10) }
+        var mn = Double.greatestFiniteMagnitude, mx = -Double.greatestFiniteMagnitude
+        for v in values { mn = min(mn, v); mx = max(mx, v) }
+        return (mn, max(10, mx - mn))
+    }
+
+    static func x(index: Int, count: Int, width: Double) -> Double {
+        guard count > 1 else { return width / 2 }
+        return pad + Double(index) * (width - 2 * pad) / Double(count - 1)
+    }
+
+    static func y(value: Double, bounds: (min: Double, span: Double), height: Double) -> Double {
+        height - pad - (value - bounds.min) / bounds.span * (height - 2 * pad)
+    }
+
+    /// The sample nearest a horizontal position, clamped to the series — so dragging past either end
+    /// of the plot rests on the first/last value instead of dropping the readout.
+    static func index(atX x: Double, count: Int, width: Double) -> Int {
+        guard count > 1 else { return 0 }
+        let usable = max(1, width - 2 * pad)
+        let t = min(1, max(0, (x - pad) / usable))
+        return min(count - 1, max(0, Int((t * Double(count - 1)).rounded())))
     }
 }
 
@@ -304,11 +357,16 @@ struct LiquidTube: View {
 }
 
 /// The live heart-rate thread. `bpm` is the recent series (any length ≥ 2).
+///
+/// `scrubIndex` is purely presentational: the OWNER runs the gesture (it knows what the series means
+/// and what to put in the readout) and hands the resolved sample index down. Defaults to nil, so the
+/// call sites that don't scrub are unchanged.
 struct LiquidThread: View {
     let bpm: [Double]
     var tint: Color = Color(.sRGB, red: 1, green: 107/255, blue: 129/255, opacity: 1)
     var height: CGFloat = 96
     var animated: Bool = true
+    var scrubIndex: Int? = nil
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -320,7 +378,7 @@ struct LiquidThread: View {
         TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { tl in   // 60fps to flow smoothly on ProMotion
             let now = liquidSeconds(tl.date)
             Canvas { context, size in
-                LiquidRender.thread(context, size, values: bpm, now: now, tint: tint)
+                LiquidRender.thread(context, size, values: bpm, now: now, tint: tint, scrubIndex: scrubIndex)
             }
         }
         .frame(height: height)
@@ -329,7 +387,7 @@ struct LiquidThread: View {
     /// One-shot render (no travelling glint / pulse) — used until first data load settles.
     private var staticThread: some View {
         Canvas { context, size in
-            LiquidRender.thread(context, size, values: bpm, now: 0, tint: tint)
+            LiquidRender.thread(context, size, values: bpm, now: 0, tint: tint, scrubIndex: scrubIndex)
         }
         .frame(height: height)
     }

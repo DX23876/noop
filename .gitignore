@@ -66,6 +66,12 @@ android/app/release/
 .vscode/
 *.iml
 
+# ── Claude Code session state (local, ephemeral — never commit) ──
+# Tracked here (not .git/info/exclude) so the ignore behaves the same for every
+# account/clone. See CLAUDE.md § Documentation & session workflow.
+.claude/worktrees/
+.claude/handoff/
+
 # ── Misc / secrets (never commit) ───────────────────────────────
 *.log
 .env

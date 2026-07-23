@@ -61,10 +61,17 @@ struct RootTabView: View {
     /// V8 liquid redesign is the default Today; the Settings toggle lets a user fall back to the classic
     /// Today if they prefer it (keyed identically to the SettingsView toggle). Default ON.
     @AppStorage("noop.liquidTodayEnabled") private var liquidTodayEnabled = true
+    /// The Heute-screen redesign (StrandiOS/Redesign/), opt-in and OFF by default — it's new and hasn't
+    /// been tested on a real strap/HealthKit yet. Takes priority over the liquid/classic choice when on;
+    /// turning it off falls straight back to whichever of Liquid/Classic was already selected, so both
+    /// existing Today screens stay reachable unchanged (keyed identically to the SettingsView toggle).
+    @AppStorage("noop.heuteRedesignEnabled") private var heuteRedesignEnabled = false
 
-    /// The Today tab root, honouring the liquid/classic preference.
+    /// The Today tab root, honouring the redesign/liquid/classic preference.
     @ViewBuilder private var todayTabRoot: some View {
-        if liquidTodayEnabled { LiquidTodayView() } else { TodayView() }
+        if heuteRedesignEnabled { HeuteRedesignView() }
+        else if liquidTodayEnabled { LiquidTodayView() }
+        else { TodayView() }
     }
 
     init() {

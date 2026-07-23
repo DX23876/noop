@@ -50,6 +50,10 @@ struct LiquidTodayView: View {
     @State private var importedStepsDay: Int?      // Apple Health steps for the selected day (middle tier)
     @State private var importedActiveKcalDay: Double?  // #616: Apple Health active energy for the day (calorie fallback)
     @State private var hrValues: [Double] = []     // hrBuckets since midnight → 5-min means
+    /// The bucket START time for each `hrValues` entry, index-aligned. Kept as its own array rather
+    /// than derived (midnight + i·5min) because `hrBuckets` returns only buckets that HAVE data —
+    /// a strap-off gap shifts every later index, so a derived clock would misdate the scrub readout.
+    @State private var hrTimes: [Date] = []
     @State private var workouts: [WorkoutRow] = [] // newest-first
 
     // sheets / expanders
@@ -77,9 +81,10 @@ struct LiquidTodayView: View {
     @AppStorage(TodayLayoutPrefs.orderKey) private var sectionOrderRaw = ""
     @State private var showArrangeSheet = false
     private var sectionOrder: [TodaySection] { TodayLayoutPrefs.decodeOrder(sectionOrderRaw) }
-    // §4 declutter: the redesign hides the live-pulse / recovery-vitals / your-cards / data-sources sections
-    // by default. Not deleted — the Arrange sheet re-adds them. The @AppStorage default is the decluttered
-    // set, so an unset install starts tidy; an explicit empty string shows everything.
+    // §4 declutter (reverted — product decision, see TodaySection.defaultHidden): a new/never-customised
+    // install now shows every section, same as classic Today. The Arrange sheet still lets a user hide any
+    // of them; once `hiddenSectionsRaw` holds an explicit value (including an explicit empty string) it's
+    // authoritative and this default is never consulted again for that install.
     @AppStorage(TodayLayoutPrefs.hiddenKey) private var hiddenSectionsRaw =
         TodayLayoutPrefs.encodeHidden(TodaySection.defaultHidden)
     private var hiddenSections: Set<TodaySection> { TodayLayoutPrefs.decodeHidden(hiddenSectionsRaw) }
@@ -210,9 +215,18 @@ struct LiquidTodayView: View {
         )
     }
     /// Horizontal swipe between days (left = older, right = newer), clamped to [today, earliest].
+    ///
+    /// The HR thread scrubs horizontally too, and this gesture is attached with `simultaneousGesture`
+    /// on the scroll view — so both recognisers see the same finger and a scrub would otherwise also
+    /// flip the day. `hrScrubbing` / `hrScrubEndedAt` give the thread horizontal dominance while it
+    /// owns the touch: whichever `onEnded` runs first, the other is suppressed (the flag is still set
+    /// if this one wins the race, the timestamp catches it if the thread's does). Both are written
+    /// SYNCHRONOUSLY from the thread's gesture callback, not via `onChange`, so there is no render
+    /// pass in between where the guard could read stale state. Swipes anywhere else are untouched.
     private var daySwipeGesture: some Gesture {
         DragGesture(minimumDistance: 24)
             .onEnded { value in
+                guard !hrScrubbing, Date().timeIntervalSince(hrScrubEndedAt) > 0.4 else { return }
                 let dx = value.translation.width, dy = value.translation.height
                 guard abs(dx) > abs(dy) * 1.5, abs(dx) > 50 else { return }
                 let delta = dx < 0 ? 1 : -1
@@ -222,6 +236,12 @@ struct LiquidTodayView: View {
                 withAnimation(StrandMotion.interactive) { selectedDayOffset = next }
             }
     }
+
+    /// True while a finger (or the pointer) is scrubbing the HR thread — see `daySwipeGesture`.
+    @State private var hrScrubbing = false
+    /// When the last scrub let go. Guards the tail of the same gesture, since the day-swipe's `onEnded`
+    /// and the thread's fire in an unspecified order on lift.
+    @State private var hrScrubEndedAt = Date.distantPast
 
     static func clampedDayOffset(current: Int, delta: Int, maxOffset: Int) -> Int {
         min(max(0, maxOffset), max(0, current + delta))
@@ -663,7 +683,7 @@ struct LiquidTodayView: View {
     // `StressView.coachCardContext`. Nil (button hidden) until there's a real value to explain.
 
     private var chargeCoachContext: CoachCardContext? {
-        guard let pct = chargeDisplay.pct else { return nil }
+        guard coachUIEnabled, let pct = chargeDisplay.pct else { return nil }
         return CoachCardContext(
             title: "Charge",
             summary: "Charge: \(Int(pct.rounded()))% (\(chargeDisplay.stateLabel)).",
@@ -672,7 +692,7 @@ struct LiquidTodayView: View {
     }
 
     private var effortCoachContext: CoachCardContext? {
-        guard let strain = displayDay?.strain else { return nil }
+        guard coachUIEnabled, let strain = displayDay?.strain else { return nil }
         let value = UnitFormatter.effortDisplay(strain, scale: effortScale)
         return CoachCardContext(
             title: "Effort",
@@ -682,7 +702,7 @@ struct LiquidTodayView: View {
     }
 
     private var restCoachContext: CoachCardContext? {
-        guard let score = restScore else { return nil }
+        guard coachUIEnabled, let score = restScore else { return nil }
         return CoachCardContext(
             title: "Rest",
             summary: "Rest: \(Int(score.rounded()))%.",
@@ -694,7 +714,7 @@ struct LiquidTodayView: View {
     /// subtitle line, stated plainly. No trend/baseline data invented beyond what the row itself shows.
     /// Nil for a placeholder value ("–"), same as an empty card showing no button.
     private func dashboardCoachContext(title: String, value: String, subtitle: String) -> CoachCardContext? {
-        guard value != "–", !value.isEmpty else { return nil }
+        guard coachUIEnabled, value != "–", !value.isEmpty else { return nil }
         return CoachCardContext(
             title: title,
             summary: "\(title): \(value). \(subtitle).",
@@ -712,24 +732,37 @@ struct LiquidTodayView: View {
             // "Full day" affordance so it's discoverable again. (This comment used to claim the Deep
             // Timeline already drew sleep + activity bands — it didn't at the time; the #979 spin-off
             // added that parity in FullDayChartView.)
-            NavigationLink(value: TabRoute.fullDayChart) {
-                card {
-                    VStack(spacing: 10) {
-                        // Isolated leaf: it observes LiveState so the ~1 Hz HR notifies re-render ONLY
-                        // this card, never the whole Today. Shows the current bpm live with a rolling
-                        // beat-by-beat trace; falls back to today's banked 5-minute trace when idle.
-                        LiquidLiveHR(tint: liquidHeart, fallback: hrValues, animated: dataLoaded)
+            // The card itself is NO LONGER the navigation link: the thread is scrubbable (drag along
+            // the curve, the readout follows the finger) and a whole-card link swallowed that drag as
+            // a tap. Full day now hangs on its own control in the card's footer — the same discrete
+            // "Show all metrics" posture `keyMetricsSection` uses — so scrub and tap can't collide and
+            // VoiceOver still gets a real link (a drag-only affordance would be unreachable).
+            card {
+                VStack(spacing: 10) {
+                    // Isolated leaf: it observes LiveState so the ~1 Hz HR notifies re-render ONLY
+                    // this card, never the whole Today. Shows the current bpm live with a rolling
+                    // beat-by-beat trace; falls back to today's banked 5-minute trace when idle.
+                    LiquidLiveHR(tint: liquidHeart, fallback: hrValues, fallbackTimes: hrTimes,
+                                 animated: dataLoaded,
+                                 onScrubChange: { active in
+                                     hrScrubbing = active
+                                     if !active { hrScrubEndedAt = Date() }
+                                 })
+                    NavigationLink(value: TabRoute.fullDayChart) {
                         HStack(spacing: 4) {
                             Spacer()
                             Text("Full day").font(StrandFont.caption).foregroundStyle(StrandPalette.accent)
                             Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold))
                                 .foregroundStyle(StrandPalette.accent)
                         }
+                        // The row spans the card width, so the whole footer strip is the hit target
+                        // even though only the label and chevron are drawn.
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Opens the full-day heart rate timeline")
                 }
             }
-            .buttonStyle(LiquidPressStyle())
-            .accessibilityHint("Opens the full-day heart rate timeline")
         }
     }
 
@@ -829,7 +862,8 @@ struct LiquidTodayView: View {
     private func cardLink(_ route: TabRoute, title: String, sub: String,
                           value: String, tint: Color, frac: Double?,
                           showsCoachButton: Bool = true) -> some View {
-        HStack(spacing: 8) {
+        let ctx = showsCoachButton ? dashboardCoachContext(title: title, value: value, subtitle: sub) : nil
+        return HStack(spacing: 8) {
             NavigationLink(value: route) {
                 HStack(spacing: 12) {
                     LiquidVessel(value: frac, tint: tint, animated: false).frame(width: 30, height: 30)
@@ -843,14 +877,22 @@ struct LiquidTodayView: View {
                     Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(StrandPalette.textTertiary)
                 }
+                // The card's padding used to live OUTSIDE this label (on the parent HStack below), so the
+                // margin around the row read as part of the tappable card but silently ate taps. Pulling
+                // the padding into the label — plus contentShape — makes the label's hit area match what
+                // it visually looks like; the trailing edge only gets its own padding here when there's no
+                // coach button riding along (that button gets its own trailing padding instead).
+                .padding(.leading, 14)
+                .padding(.vertical, 11)
+                .padding(.trailing, ctx == nil ? 14 : 0)
+                .contentShape(Rectangle())
             }
             .buttonStyle(LiquidPressStyle())
-            if showsCoachButton, let ctx = dashboardCoachContext(title: title, value: value, subtitle: sub) {
+            if let ctx {
                 CoachCardIconButton(context: ctx)
+                    .padding(.trailing, 14)
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 11)
         .background(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(StrandPalette.surfaceRaised)
@@ -1107,7 +1149,11 @@ struct LiquidTodayView: View {
             // stays raw, matching the Effort hero, which correctly does not carry.
             ktile(String(localized: "Recovery"), intText(chargeDisplay.pct), "%", StrandPalette.chargeColor, frac(chargeDisplay.pct), key: "recovery")
         case .effort:
-            ktile(String(localized: "Strain"), intText(displayDay?.strain), "%", StrandPalette.effortColor, frac(displayDay?.strain), key: "strain")
+            // #45 parity with the hero: route through effortDisplay so this tile shows the SAME number on
+            // the SAME scale as the Effort hero (0–21 WHOOP vs 0–100), instead of always the raw 0–100
+            // stored value — the two used to disagree whenever the user picked the WHOOP scale.
+            let effortText = displayDay?.strain.map { UnitFormatter.effortDisplay($0, scale: effortScale) } ?? "–"
+            ktile(String(localized: "Strain"), effortText, "%", StrandPalette.effortColor, frac(displayDay?.strain), key: "strain")
         case .rest:
             ktile(String(localized: "Rest"), intText(restScore), "%", StrandPalette.restColor, frac(restScore), key: "sleep_performance")
         case .hrv:
@@ -1400,7 +1446,9 @@ struct LiquidTodayView: View {
         // #616: same-day imported active energy — the calorie fallback when the strap banked no on-device
         // HR estimate for the day, so the tile/card/detail agree (imported-first, mirrors steps).
         importedActiveKcalDay = (await appleA).filter { $0.day == selectedDayKey }.compactMap { $0.activeKcal }.max()
-        hrValues = (await hrA).map { $0.bpm }
+        let hrBuckets = await hrA
+        hrValues = hrBuckets.map { $0.bpm }
+        hrTimes = hrBuckets.map { Date(timeIntervalSince1970: TimeInterval($0.ts)) }
         workouts = await wkA
 
         // The three cross-source resolver reads that fed the hero's provenance badge are gone with it: the
@@ -1548,6 +1596,11 @@ struct LiquidTodayView: View {
     @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
     private var effortScale: EffortScale { UnitPrefs.resolveEffortScale(effortScaleRaw) }
 
+    // The user's Metric/Imperial preference, same key + resolution as TodayView/WorkoutsView, so a workout's
+    // distance reads the same number everywhere instead of this card alone staying hardcoded metric.
+    @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
+    private var unitSystem: UnitSystem { UnitSystem(rawValue: unitSystemRaw) ?? .metric }
+
     private func effortText(_ s: Double?) -> String {
         guard let s else { return "–" }
         // Route through the shared formatter instead of hardcoding *21: a default (0–100) user was shown the
@@ -1559,7 +1612,7 @@ struct LiquidTodayView: View {
         var parts: [String] = []
         let secs = w.durationS ?? Double(max(w.endTs - w.startTs, 0))
         parts.append("\(Int(secs / 60)) min")
-        if let dm = w.distanceM, dm > 0 { parts.append(String(format: "%.1f km", dm / 1000)) }
+        if let dm = w.distanceM, dm > 0 { parts.append(UnitFormatter.distanceFromMeters(dm, system: unitSystem)) }
         if let k = w.energyKcal { parts.append("\(Int(k.rounded())) kcal") }
         return parts.joined(separator: " · ")
     }
@@ -1915,24 +1968,62 @@ private struct LiquidAddButton: View {
 private struct LiquidLiveHR: View {
     var tint: Color
     var fallback: [Double]        // today's banked 5-minute buckets — shown when there's no live stream
+    var fallbackTimes: [Date]     // parallel to `fallback` — lets a scrub name the time it landed on
     var animated: Bool
+    /// Fires the moment the thread takes the touch and again when it lets go, so `LiquidTodayView`
+    /// can suppress the day-swipe for the life of the scrub (see `daySwipeGesture`).
+    var onScrubChange: (Bool) -> Void = { _ in }
 
     @EnvironmentObject private var live: LiveState
     @State private var samples: [Double] = []
     @State private var beat = false
+    /// Which sample the finger is over (nil = not scrubbing). The OWNER of the gesture, per
+    /// `LiquidThread`'s contract — the thread only draws the crosshair we resolve here.
+    @State private var scrubIndex: Int?
+    /// Measured width of the thread, needed to map a touch x back onto a sample index.
+    @State private var threadWidth: CGFloat = 0
     private let maxSamples = 90   // ~1.5 min of 1 Hz live HR, enough to read the shape
 
     private var isLive: Bool { live.connected && samples.count >= 2 }
     private var series: [Double] { isLive ? samples : fallback }
+    /// The sample under the finger, if any — this is what the readout shows while scrubbing.
+    private var scrubbedBpm: Int? {
+        guard let i = scrubIndex, series.indices.contains(i) else { return nil }
+        return Int(series[i].rounded())
+    }
     private var bigBpm: Int? {
+        if let scrubbed = scrubbedBpm { return scrubbed }
         if let hr = live.heartRate, hr > 0, live.connected { return hr }
         if let last = fallback.last { return Int(last.rounded()) }
         return nil
     }
     private var subtitle: String {
+        // While scrubbing the banked trace we can say exactly WHEN the sample is from; the live
+        // beat-by-beat buffer carries no timestamps, so there it stays the plain live label.
+        if let i = scrubIndex, !isLive, fallbackTimes.indices.contains(i) {
+            return fallbackTimes[i].formatted(date: .omitted, time: .shortened)
+        }
         if isLive { return String(localized: "Live · beat by beat") }
         if fallback.count >= 2 { return String(localized: "5-minute average · since midnight") }
         return live.connected ? String(localized: "Waiting for the strap") : String(localized: "Strap not connected")
+    }
+
+    /// Scrub along the thread. `minimumDistance` is deliberately well under the day-swipe's 24pt so
+    /// this recogniser engages FIRST and gets `onScrubChange(true)` written before the swipe could
+    /// ever end — that ordering is what gives the thread horizontal dominance.
+    private var scrubGesture: some Gesture {
+        DragGesture(minimumDistance: 2)
+            .onChanged { value in
+                guard series.count >= 2, threadWidth > 0 else { return }
+                if scrubIndex == nil { onScrubChange(true) }
+                let frac = min(max(0, value.location.x / threadWidth), 1)
+                scrubIndex = Int((frac * CGFloat(series.count - 1)).rounded())
+            }
+            .onEnded { _ in
+                guard scrubIndex != nil else { return }
+                scrubIndex = nil
+                onScrubChange(false)
+            }
     }
 
     var body: some View {
@@ -1957,11 +2048,23 @@ private struct LiquidLiveHR: View {
                         + Text(" bpm").font(StrandFont.caption))
                         .foregroundStyle(tint)
                         .contentTransition(.numericText())
-                        .animation(.easeOut(duration: 0.25), value: hr)
+                        // No easing while scrubbing — a 0.25s ramp per sample would visibly trail
+                        // the finger instead of reading out the value under it.
+                        .animation(scrubIndex == nil ? .easeOut(duration: 0.25) : nil, value: hr)
                 }
             }
             if series.count >= 2 {
-                LiquidThread(bpm: series, tint: tint, height: 92, animated: animated)
+                LiquidThread(bpm: series, tint: tint, height: 92, animated: animated,
+                             scrubIndex: scrubIndex)
+                    .background(GeometryReader { geo in
+                        Color.clear
+                            .onAppear { threadWidth = geo.size.width }
+                            .onChangeCompat(of: geo.size.width) { threadWidth = $0 }
+                    })
+                    // The canvas paints only the curve, so without this the gaps between strokes
+                    // would fall through to the scroll view and drop the scrub mid-drag.
+                    .contentShape(Rectangle())
+                    .gesture(scrubGesture)
                 HStack {
                     stat(String(localized: "Min"), series.min())
                     Spacer()

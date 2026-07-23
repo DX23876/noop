@@ -4,6 +4,9 @@ Guidance for anyone (human or AI agent) submitting a pull request. This is the h
 [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) is the full guide (BLE safety contract, design-system
 rules, add-a-metric/screen/command recipes), [`docs/BUILD.md`](docs/BUILD.md) covers signing/pairing,
 and [`docs/IOS.md`](docs/IOS.md) covers the iOS target. Read this first; follow the links for depth.
+The rest of `docs/` is a much larger set than those three links — see
+[Documentation & session workflow](#documentation--session-workflow) below for the map, how to use
+it, and how to hand off a session without losing context.
 
 ## What NOOP is (and the hard scope limits)
 
@@ -91,19 +94,25 @@ xcodegen generate && xcodebuild -project Strand.xcodeproj -scheme Strand \
 ```
 
 ### What each CI job covers — and the gaps
-| Workflow | Covers | Runner | Default state |
+| Workflow | Covers | Runner | Trigger |
 |---|---|---|---|
-| `swift-packages.yml` | `swift test` for **`Packages/**` only** (WhoopProtocol, WhoopStore, StrandAnalytics, StrandImport, StrandDesign, NoopLocalAccess) | macos-15 | **active** |
-| `app-build.yml` | **Compile-only** of the **app targets** (`Strand` macOS + `NOOPiOS` iOS). iOS leg needs **macos-26** (iOS 26 SDK / `glassEffect`). | macos-15 / macos-26 | **disabled** (on-demand) |
-| `android.yml` | `assembleFullDebug` + `testFullDebugUnitTest` | ubuntu | **disabled** (compile Android locally) |
-| `fork-testing-build.yml` / `fork-release.yml` | Staging / release builds (apk + mac + ios) | — | on dispatch |
+| `swift-packages.yml` | `swift test` for **`Packages/**` only** (WhoopProtocol, WhoopStore, StrandAnalytics, StrandImport, StrandDesign, NoopLocalAccess) | macos-15 | **automatic** — PR + push touching `Packages/**` |
+| `app-build.yml` | **Compile-only** of the **app targets** (`Strand` macOS + `NOOPiOS` iOS). iOS leg needs **macos-26** (iOS 26 SDK / `glassEffect`). | macos-15 / macos-26 | **automatic** — PR + push touching `Strand/**`, `StrandiOS*/**`, `Packages/**`, or `project.yml`; also `workflow_dispatch` |
+| `android.yml` | `assembleFullDebug` + `testFullDebugUnitTest` | ubuntu | **automatic** — PR + push touching `android/**`; also `workflow_dispatch` |
+| `i18n-coverage.yml` | String/localization audit (EN/DE/FR/ES completeness) | — | **automatic** — every PR, and every push to `main` (so a release pushed straight to `main` is still audited, not just PRs) |
+| `sync-upstream.yml` | Pulls upstream `ryanbr/noop` and opens a sync PR | — | weekly cron (Monday 06:00 UTC) + `workflow_dispatch` |
+| `fork-testing-build.yml` / `fork-release.yml` | Staging / release builds (apk + mac + ios) | — | `workflow_dispatch` only |
 
-**The trap:** `swift-packages` does **NOT** compile the app targets. So if you touch **app-target
-Swift** — anything under `Strand/`, `StrandiOS/`, `StrandiOSShared/`, `StrandiOSWidgets/` (Views,
-`AppModel`, `BLEManager`, `Repository`, `RootTabView`, widget publish, …) — **no default CI validates
-it**, because `app-build.yml` is disabled. A compile error there (e.g. `'self' used before all stored
-properties are initialized`) will pass every green check and still be broken. If you change app-target
-Swift, you MUST build the app yourself: `xcodebuild … build` locally, or run `app-build.yml` on demand.
+**Both `app-build.yml` and `android.yml` are live, path-filtered CI**, not on-demand-only — they run
+automatically on any PR/push that touches their respective paths. (`docs/CONTRIBUTING.md` currently
+still describes both as "disabled by design, build the app yourself" — that's stale; this table is
+the current state.) The real gap is narrower than "no CI at all": a compile error in app-target Swift
+outside those path filters, or a change your local (likely newer) Xcode tolerates but CI's pinned
+runner doesn't, can still slip through — see "Lessons from the fold-in" in
+[`docs/IOS.md`](docs/IOS.md) for a concrete case (a `String?` interpolated into a `LocalizedStringKey`
+that a bleeding-edge local Xcode silently accepted and the CI runner correctly rejected). Build the
+app yourself for anything non-trivial in `Strand/`/`StrandiOS*/` rather than relying on the git-push
+color alone.
 
 ### Local walls (things that will *not* build where you expect)
 - **On Linux:** only `WhoopProtocol` / `OuraProtocol` (pure) build & test. Every GRDB-linked package —
@@ -149,6 +158,146 @@ Swift, you MUST build the app yourself: `xcodebuild … build` locally, or run `
   SharedPreferences; the DB is Room. UI state uses a `mutate {}` recomposition-counter idiom in places.
 - iOS/macOS deployment targets: macOS 13.0, iOS 17.0 (see `project.yml`).
 
+## Documentation & session workflow
+
+Read this before touching docs, proposing an architecture/feature change, or ending a session
+mid-task.
+
+### Source-of-truth precedence
+
+When two sources disagree, higher wins:
+
+1. **Source code** — the current implementation; ground truth for what the system actually does.
+2. **`docs/decisions.md`** — architectural intent and rationale (the "why").
+3. **Topic documentation** — `docs/FEATURES.md`, `docs/ARCHITECTURE.md`, and the rest of the map below.
+4. **This file** — the working guide.
+5. **Session handoff** — `.claude/handoff/<branch>.md`.
+6. **Chat context** — anything that exists only in the current conversation.
+
+A doc's claim about current behavior that conflicts with the source is wrong until proven otherwise
+— trust the code and fix the doc; don't silently prefer one without flagging the conflict (the CI
+table above is a real example: it claimed two workflows were disabled when the workflow files show
+otherwise).
+
+### Documentation map
+
+`docs/` holds NOOP's full documentation set — far more than the three links at the top of this file.
+Core docs, worth reading whenever your change touches their area:
+
+| Doc | Covers |
+|---|---|
+| `docs/ARCHITECTURE.md` | Module map — how the packages and app layers fit together |
+| `docs/FEATURES.md` | User-facing behavior — what the app does today |
+| `docs/COACH.md` | The AI coach's design and tools |
+| `docs/DATA_MODEL.md` | On-device SQLite schema, migrations |
+| `docs/PROTOCOL.md` | WHOOP BLE wire protocol |
+| `docs/ANALYTICS.md` | Recovery / strain / sleep scoring math |
+| `docs/CROSS_PLATFORM.md` | Shared-code boundary across clients — predates the 2026-07-23 parity-retirement decision, see `docs/decisions.md` |
+| `docs/decisions.md` | Project memory — see below |
+
+Everything else, grouped by topic (read the specific file when your change touches it — no per-file
+blurb here, that's what goes stale):
+- **Protocol/BLE detail:** `BLE_REVERSE_ENGINEERING.md`, `OURA_PROTOCOL.md`, `WHOOP5_DEEP_DATA.md`
+- **Scoring detail:** `FITNESS_AGE.md`, `RR-OPTIMIZATION.md`
+- **Device support:** `DEVICE_SUPPORT_ROADMAP.md`, `DEVICE_DRIVER_ARCHITECTURE.md`
+- **Platform:** `ANDROID.md` — predates the Android-retirement decision, see `docs/decisions.md`
+- **Ops/trust:** `PRIVACY_SECURITY.md`, `SAFEGUARDS.md`, `HOMEBREW.md`
+- **Reference:** `LIBRARY.md`, `DETAILS.md`
+- **In-flight design:** `redesign-briefing.md`, `superpowers/{plans,specs}`
+
+When you add a new doc under `docs/`, file it into the matching group above (or add a new group) in
+the same change — this map stays current because whoever adds a doc updates it, not because of a
+separate maintenance pass.
+
+### Working with docs
+
+1. **Read before proposing.** Before proposing an architecture or feature change, read the relevant
+   doc(s) above — at minimum `docs/ARCHITECTURE.md` and/or `docs/FEATURES.md` for anything touching
+   app structure or user-facing behavior.
+2. **Classify a new feature before building it.** Determine whether it extends an existing feature,
+   replaces one, or is genuinely new, and update `docs/FEATURES.md` accordingly before writing any
+   other documentation — this is what keeps `FEATURES.md` permanently current instead of drifting
+   behind what's shipped.
+3. **Infer from code when docs are silent, and say so.** State the inference explicitly as an
+   assumption (e.g. "Assumption: X, inferred from `Y.swift:Z`, not documented") rather than
+   presenting a guess as documented fact.
+4. **Never fork a second source of truth.** Before creating a new doc file, search for one that
+   already covers the topic (the map above, or a repo-wide grep) and extend/refactor it instead.
+   This is why NOOP has no separate `PROJECT_MEMORY.md` — see below.
+5. **Clean up while you're in there.** When editing a doc, remove or clearly mark deprecated
+   anything the change makes obsolete or duplicated — don't just add the new and leave the old
+   standing.
+6. **Optimize for token efficiency.** Read only the docs relevant to the task; expand into source
+   only when a doc is missing, outdated, or ambiguous. Avoid repo-wide scans unless the task
+   actually needs one.
+7. **Promote durable decisions out of ephemeral spaces.** A handoff file or a chat is never the
+   permanent record — once a decision is settled, it belongs in `docs/decisions.md` or the relevant
+   topic doc.
+8. **Check cross-doc consistency after a merge.** Verify `FEATURES.md`, `ARCHITECTURE.md`,
+   `decisions.md`, and this file stayed consistent with what just merged, and fix whichever drifted,
+   in the same PR when practical.
+
+### Project memory vs. session handoff
+
+Two different lifetimes, two different places — don't mix them:
+
+| | `docs/decisions.md` (project memory) | `.claude/handoff/<branch>.md` (session handoff) |
+|---|---|---|
+| Lifetime | Forever | One branch |
+| Holds | Architecture choices and why, ideas deliberately rejected, known tech debt, planned future stages | In-progress state for resuming *this specific* branch |
+| Tracked in git | Yes | No — git-ignored |
+| Read when | Asking "why is X built this way" or "what's worth improving" | Resuming work on this branch |
+
+`docs/decisions.md` already exists as a dated decision log — its stated purpose ("so a question
+settled once isn't re-litigated later") is project-wide, not redesign-only; its current all-redesign
+entries are a starting point, not a boundary. There is deliberately no separate `PROJECT_MEMORY.md`
+or `ENGINEERING_HISTORY.md` file — see rule 4 above.
+
+### Session handoff — branch-scoped, git-ignored
+
+Location: `.claude/handoff/<branch-slug>.md` (sanitize `/` → `-` from
+`git rev-parse --abbrev-ref HEAD`), one file per branch. Per-branch rather than a single shared file
+because this repo runs many parallel worktrees (`.claude/worktrees/*`) and branches at once — a
+shared file would overwrite itself the moment two are in flight. Both `.claude/worktrees/` and
+`.claude/handoff/` are in the tracked `.gitignore` (not local excludes), so the ignore behaves the
+same for every account and every clone.
+
+**Write or update one before switching Claude Code accounts or sessions mid-task**, using this
+template:
+
+```markdown
+# Handoff — <branch>
+
+**Branch:** <branch-slug>
+**Goal:** <what this branch is trying to accomplish>
+**Current status:** <where things stand, one or two lines>
+
+## Done
+- <completed step>
+
+## Open TODOs
+- <remaining step>
+
+## Architecture decisions (this session, not yet in docs/decisions.md)
+- <decision + why>
+
+## Known risks
+- <anything risky, untested, or fragile introduced this session>
+
+## Next step
+<the single concrete next action>
+
+## Doc references
+- <docs/*.md files this branch depends on or should reconcile with>
+```
+
+- **Read it first** when resuming a branch that has one — it's the fastest way back to full context.
+- **It's temporary.** Scoped to the branch's lifetime, never a substitute for `docs/decisions.md` or
+  a topic doc.
+- **Promote and discard on merge.** When the branch merges, move anything in "Architecture decisions"
+  / "Known risks" into `docs/decisions.md` or the relevant topic doc, in the same PR if practical;
+  the handoff file itself is git-ignored and simply dies with the branch.
+
 ## PR & commit conventions
 
 - **One concern per PR.** Keep a protocol change, a schema migration, and a UI change separate.
@@ -169,7 +318,9 @@ covered by a test that runs without a strap.
 
 An iOS/macOS-focused redesign is underway. Full specs: [`docs/redesign-briefing.md`](docs/redesign-briefing.md);
 visual reference (binding when text and image disagree): [`docs/design/mockup-today.html`](docs/design/mockup-today.html);
-durable decision log: [`docs/decisions.md`](docs/decisions.md).
+durable decision log: [`docs/decisions.md`](docs/decisions.md), which supersedes
+[`docs/redesign-prompts.md`](docs/redesign-prompts.md) (the original handoff doc, kept only for its
+screen specs) wherever the two conflict.
 
 **Strategy — evolve in place, do NOT fork parallel screens.** The screens are shared `Strand/` code and
 `StrandDesign` is already fork-owned, so the redesign edits the existing screens and Palette rather than
@@ -188,3 +339,17 @@ adding parallel files under `StrandiOS/Redesign/`. Re-theming is done by changin
 8. iOS 26 Liquid Glass (`glassEffect`, `.navigationTransition(.zoom)`, Material) is the design language.
 
 **Localization:** EN is the source locale; DE, FR, ES are kept complete. New strings ship with all four.
+## Heute-Screen-Redesign
+
+Additiv, siehe Fork-Regel oben: neue Screens unter StrandiOS/Redesign/,
+Upstream-Dateien bleiben unangetastet.
+
+Zwei getrennte Spezifikationen:
+- docs/feature-spec.md   — was der Screen tut (Zustände, Daten, Persistenz)
+- docs/design/design-spec.md — wie er aussieht (Farben, Abstände, Animation)
+- docs/design/mockup-heute.html — verbindliche visuelle Referenz bei Widerspruch
+
+Bei jeder Änderung: erst klären, ob es sich um Verhalten oder Optik handelt,
+und in der jeweils richtigen Spec-Datei nachschlagen bzw. sie aktualisieren.
+Vermischt euch beides nicht in derselben Swift-Datei, wo es sich vermeiden lässt.
+```

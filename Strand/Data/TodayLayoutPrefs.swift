@@ -55,12 +55,13 @@ enum TodaySection: String, CaseIterable, Identifiable {
         .journal, .dataSources,
     ]
 
-    /// Sections HIDDEN by default on the redesigned Today (§4): the live-pulse graph, the Recovery Vitals
-    /// card, Your Cards and the Data Sources card are decluttered off the home screen. They're not deleted —
-    /// the Arrange sheet re-adds any of them, and everything they show is still reachable elsewhere (Trends,
-    /// More → Data). New/never-customised installs get this set hidden; once the user toggles visibility, the
-    /// stored `today.hiddenSections` string is authoritative (an empty string = nothing hidden).
-    static let defaultHidden: Set<TodaySection> = [.heartRate, .recoveryVitals, .yourCards, .dataSources]
+    /// Sections hidden by default on a new/never-customised install: none. The redesign originally
+    /// decluttered Heart Rate, Recovery Vitals, Your Cards and Data Sources off the home screen by default;
+    /// that default was reverted (product decision) so a fresh install shows every section, matching the
+    /// classic Today. Not a removal of the feature — the Arrange sheet still lets a user hide any section,
+    /// and the stored `today.hiddenSections` string remains authoritative once set (an empty string = nothing
+    /// hidden, same as this default), so existing users who already hid sections keep that choice untouched.
+    static let defaultHidden: Set<TodaySection> = []
 }
 
 /// Display-only persistence for the Today section order. Holds the sections in display order; every known
