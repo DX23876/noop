@@ -11,6 +11,8 @@ import SwiftUI
 /// app root); the data-ramp accessors in `StrandPalette` branch on it. The app root keys its content on
 /// the raw value so a flip re-renders the visible charts live.
 public enum ChartStyle: String, CaseIterable, Identifiable, Sendable {
+    case signature  // NOOP redesign: family-coded accents (green Charge, blue Effort, violet Rest) over
+                    // the readable red→green score ramps. The shipped default.
     case titanium   // brand: gold recovery, amber strain, blue rest
     case classic    // throwback: red→green recovery, cool→hot zones, green→red stress
     case health     // Apple system colours: systemRed→...→systemGreen recovery, indigo sleep, pink stress
@@ -23,7 +25,8 @@ public enum ChartStyle: String, CaseIterable, Identifiable, Sendable {
 
     public var label: String {
         switch self {
-        case .titanium: return String(localized: "Default", bundle: .module)
+        case .signature: return String(localized: "Signature", bundle: .module)
+        case .titanium: return String(localized: "Titanium", bundle: .module)
         case .classic:  return String(localized: "Classic", bundle: .module)
         case .health:   return String(localized: "Apple Health", bundle: .module)
         case .aurora:   return String(localized: "Aurora", bundle: .module)
@@ -32,7 +35,7 @@ public enum ChartStyle: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    public static func resolve(_ raw: String) -> ChartStyle { ChartStyle(rawValue: raw) ?? .titanium }
+    public static func resolve(_ raw: String) -> ChartStyle { ChartStyle(rawValue: raw) ?? .signature }
 }
 
 /// Applies the chart style: sets the global `StrandPalette.chartStyle` (read by the data-ramp

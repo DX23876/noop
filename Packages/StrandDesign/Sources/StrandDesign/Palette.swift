@@ -110,7 +110,7 @@ public enum StrandPalette {
     // (recoveryStops, strainStops, hrZones, sleepStageColor, stress gradient, status, metric, and the
     // DomainTheme worlds) branch on this — so flipping it re-colours every gauge/chart/scale, in BOTH
     // light and dark, with NO call-site changes. Chrome (surfaces, text, accent) is never touched.
-    public static var chartStyle: ChartStyle = .titanium
+    public static var chartStyle: ChartStyle = .signature
     /// Convenience for any spot that only ever cared about the titanium/classic split. Everything that
     /// also needs to know about `.health` branches on `chartStyle` directly (a 3-way switch).
     @inline(__always) static var isClassic: Bool { chartStyle == .classic }
@@ -299,7 +299,9 @@ public enum StrandPalette {
         case .aurora:  return auRecoveryStops
         case .sunset:  return suRecoveryStops
         case .forest:  return foRecoveryStops
-        case .titanium: return [
+        // Signature keeps the readable red→green recovery scale (user decision 2026-07-23); its family
+        // green shows in the Charge accent/chrome, not the score arc.
+        case .titanium, .signature: return [
             .init(color: recovery000, location: 0.00),
             .init(color: recovery030, location: 0.30),
             .init(color: recovery055, location: 0.55),
@@ -327,7 +329,7 @@ public enum StrandPalette {
         case .aurora:  return auStrainStops
         case .sunset:  return suStrainStops
         case .forest:  return foStrainStops
-        case .titanium: return [
+        case .titanium, .signature: return [
             .init(color: strain000, location: 0.00),
             .init(color: strain033, location: 0.33),
             .init(color: strain066, location: 0.66),
@@ -351,7 +353,7 @@ public enum StrandPalette {
         case .aurora:  return Color(light: "#6E7686", dark: "#CAD1DE")
         case .sunset:  return Color(light: "#7C6E86", dark: "#B0A0B8")
         case .forest:  return Color(light: "#7E7060", dark: "#A89A86")
-        case .titanium: return Color(light: "#8E949E", dark: "#CAC8CB")
+        case .titanium, .signature: return Color(light: "#8E949E", dark: "#CAC8CB")
         }
     }
     public static var sleepLight: Color {
@@ -361,7 +363,7 @@ public enum StrandPalette {
         case .aurora:  return Color(light: "#4E8FA6", dark: "#88C0D0")
         case .sunset:  return Color(light: "#9E6EB0", dark: "#C89FD6")
         case .forest:  return Color(light: "#7F9068", dark: "#A3B18A")
-        case .titanium: return Color(light: "#7B78E0", dark: "#A7A4F4")
+        case .titanium, .signature: return Color(light: "#7B78E0", dark: "#A7A4F4")
         }
     }
     public static var sleepDeep: Color {
@@ -371,7 +373,7 @@ public enum StrandPalette {
         case .aurora:  return Color(light: "#3E608F", dark: "#5E81AC")
         case .sunset:  return Color(light: "#4A3A70", dark: "#5E4B8B")
         case .forest:  return Color(light: "#305840", dark: "#3E6B4F")
-        case .titanium: return Color(light: "#C13EC1", dark: "#FD96FD")
+        case .titanium, .signature: return Color(light: "#C13EC1", dark: "#FD96FD")
         }
     }
     public static var sleepREM: Color {
@@ -381,7 +383,7 @@ public enum StrandPalette {
         case .aurora:  return Color(light: "#8E5E88", dark: "#B48EAD")
         case .sunset:  return Color(light: "#A83C82", dark: "#C74E9B")
         case .forest:  return Color(light: "#82567C", dark: "#A0729A")
-        case .titanium: return Color(light: "#8E3BD6", dark: "#AE5BEF")
+        case .titanium, .signature: return Color(light: "#8E3BD6", dark: "#AE5BEF")
         }
     }
 
@@ -394,7 +396,7 @@ public enum StrandPalette {
         case .aurora:  return Color(light: "#5A6376", dark: "#6B7488")
         case .sunset:  return Color(light: "#5A4A6E", dark: "#6E5A82")
         case .forest:  return Color(light: "#6C7260", dark: "#8A9078")
-        case .titanium: return Color(light: "#3A80D6", dark: "#4A90E2")
+        case .titanium, .signature: return Color(light: "#3A80D6", dark: "#4A90E2")
         }
     }
     public static var zone2: Color {
@@ -404,7 +406,7 @@ public enum StrandPalette {
         case .aurora:  return Color(light: "#5E8E8C", dark: "#8FBCBB")
         case .sunset:  return Color(light: "#945685", dark: "#B06A9C")
         case .forest:  return Color(light: "#547045", dark: "#6B8E5A")
-        case .titanium: return Color(light: "#2E92B4", dark: "#3FA9C9")
+        case .titanium, .signature: return Color(light: "#2E92B4", dark: "#3FA9C9")
         }
     }
     public static var zone3: Color {
@@ -414,7 +416,7 @@ public enum StrandPalette {
         case .aurora:  return Color(light: "#C9A860", dark: "#EBCB8B")
         case .sunset:  return Color(light: "#C43F64", dark: "#E5567A")
         case .forest:  return Color(light: "#BC8A3E", dark: "#D8A657")
-        case .titanium: return Color(light: "#C28E26", dark: "#E8B84B")
+        case .titanium, .signature: return Color(light: "#C28E26", dark: "#E8B84B")
         }
     }
     public static var zone4: Color {
@@ -424,7 +426,7 @@ public enum StrandPalette {
         case .aurora:  return Color(light: "#B56A54", dark: "#D08770")
         case .sunset:  return Color(light: "#E85F42", dark: "#FF7E5F")
         case .forest:  return Color(light: "#AC583B", dark: "#C56B4A")
-        case .titanium: return Color(light: "#C2792E", dark: "#D98A3D")
+        case .titanium, .signature: return Color(light: "#C2792E", dark: "#D98A3D")
         }
     }
     public static var zone5: Color {
@@ -434,7 +436,7 @@ public enum StrandPalette {
         case .aurora:  return Color(light: "#A54650", dark: "#BF616A")
         case .sunset:  return Color(light: "#E0384A", dark: "#FF4D5E")
         case .forest:  return Color(light: "#8C3324", dark: "#A6412E")
-        case .titanium: return Color(light: "#C84E1E", dark: "#E0662F")
+        case .titanium, .signature: return Color(light: "#C84E1E", dark: "#E0662F")
         }
     }
 
@@ -450,7 +452,7 @@ public enum StrandPalette {
         case .aurora:  return Color(light: "#6E9460", dark: "#A3BE8C")
         case .sunset:  return Color(light: "#5F9456", dark: "#86B87A")
         case .forest:  return Color(light: "#3B7345", dark: "#4E8C57")
-        case .titanium: return Color(light: "#1F8A5B", dark: "#03E095")
+        case .titanium, .signature: return Color(light: "#1F8A5B", dark: "#03E095")
         }
     }
     public static var statusWarning: Color {
@@ -460,7 +462,7 @@ public enum StrandPalette {
         case .aurora:  return Color(light: "#C9A860", dark: "#EBCB8B")
         case .sunset:  return Color(light: "#E0952E", dark: "#FFB74D")
         case .forest:  return Color(light: "#BC8A3E", dark: "#D8A657")
-        case .titanium: return Color(light: "#C2792E", dark: "#F0A020")
+        case .titanium, .signature: return Color(light: "#C2792E", dark: "#F0A020")
         }
     }
     public static var statusCritical: Color {
@@ -470,7 +472,7 @@ public enum StrandPalette {
         case .aurora:  return Color(light: "#A54650", dark: "#BF616A")
         case .sunset:  return Color(light: "#E03656", dark: "#FF4D6D")
         case .forest:  return Color(light: "#9C3524", dark: "#B5432E")
-        case .titanium: return Color(light: "#C84E1E", dark: "#E0662F")
+        case .titanium, .signature: return Color(light: "#C84E1E", dark: "#E0662F")
         }
     }
 
@@ -483,7 +485,7 @@ public enum StrandPalette {
         case .aurora:  return Color(light: "#4E8FA6", dark: "#88C0D0")
         case .sunset:  return Color(light: "#3C9E9E", dark: "#5CC0C0")
         case .forest:  return Color(light: "#3A7E6C", dark: "#4E9A86")
-        case .titanium: return Color(light: "#2E92B4", dark: "#3FA9C9")
+        case .titanium, .signature: return Color(light: "#2E92B4", dark: "#3FA9C9")
         }
     }
     public static var metricPurple: Color {
@@ -493,7 +495,7 @@ public enum StrandPalette {
         case .aurora:  return Color(light: "#8E5E88", dark: "#B48EAD")
         case .sunset:  return Color(light: "#8A3A82", dark: "#A64D9C")
         case .forest:  return Color(light: "#7E5474", dark: "#9A6B8E")
-        case .titanium: return Color(light: "#3A80D6", dark: "#4A90E2")
+        case .titanium, .signature: return Color(light: "#3A80D6", dark: "#4A90E2")
         }
     }
     public static var metricAmber: Color {
@@ -503,7 +505,7 @@ public enum StrandPalette {
         case .aurora:  return Color(light: "#C9A860", dark: "#EBCB8B")
         case .sunset:  return Color(light: "#E0952E", dark: "#FFB74D")
         case .forest:  return Color(light: "#BC8A3E", dark: "#D8A657")
-        case .titanium: return Color(light: "#C2792E", dark: "#D98A3D")
+        case .titanium, .signature: return Color(light: "#C2792E", dark: "#D98A3D")
         }
     }
     public static var metricRose: Color {
@@ -513,7 +515,7 @@ public enum StrandPalette {
         case .aurora:  return Color(light: "#A54650", dark: "#BF616A")
         case .sunset:  return Color(light: "#E04E6E", dark: "#FF6B8A")
         case .forest:  return Color(light: "#AC583B", dark: "#C56B4A")
-        case .titanium: return Color(light: "#C84E1E", dark: "#E0662F")
+        case .titanium, .signature: return Color(light: "#C84E1E", dark: "#E0662F")
         }
     }
 
@@ -536,6 +538,7 @@ public enum StrandPalette {
         case .aurora:  return Color(light: "#6E9460", dark: "#A3BE8C")
         case .sunset:  return Color(light: "#E08E2E", dark: "#FFB24D")
         case .forest:  return Color(light: "#437E4C", dark: "#5A9C63")
+        case .signature: return Color(light: "#0C8F62", dark: "#31E39C") // redesign Charge green
         case .titanium: return Color(light: "#0F9D62", dark: "#03E095")
         }
     }
@@ -546,6 +549,7 @@ public enum StrandPalette {
         case .aurora:  return Color(light: "#5C7E50", dark: "#7A9F6A")
         case .sunset:  return Color(light: "#BC6630", dark: "#D97E3C")
         case .forest:  return Color(light: "#305840", dark: "#3E6B4F")
+        case .signature: return Color(light: "#0A6E4C", dark: "#1FB87E") // redesign Charge green (deep)
         case .titanium: return Color(light: "#0B7A4A", dark: "#0B9D62")
         }
     }
@@ -556,6 +560,7 @@ public enum StrandPalette {
         case .aurora:  return Color(light: "#86B074", dark: "#BBD49F")
         case .sunset:  return Color(light: "#E0B85E", dark: "#FFD98A")
         case .forest:  return Color(light: "#6BA868", dark: "#8FC88A")
+        case .signature: return Color(light: "#3FB483", dark: "#6BF7C0") // redesign Charge green (bright)
         case .titanium: return Color(light: "#5FD89A", dark: "#6BF0B4")
         }
     }
@@ -571,6 +576,7 @@ public enum StrandPalette {
         case .aurora:  return Color(light: "#5C82A6", dark: "#81A1C1")
         case .sunset:  return Color(light: "#E04E50", dark: "#FF6B6B")
         case .forest:  return Color(light: "#AC7239", dark: "#C58A47")
+        case .signature: return Color(light: "#0A63B8", dark: "#3AA0FF") // redesign Effort blue
         case .titanium: return Color(light: "#2A78C8", dark: "#4090E0")
         }
     }
@@ -581,6 +587,7 @@ public enum StrandPalette {
         case .aurora:  return Color(light: "#456691", dark: "#5E81AC")
         case .sunset:  return Color(light: "#AC3049", dark: "#C7405B")
         case .forest:  return Color(light: "#7E552D", dark: "#9A6B3A")
+        case .signature: return Color(light: "#084C8E", dark: "#2A7FD0") // redesign Effort blue (deep)
         case .titanium: return Color(light: "#1E5B96", dark: "#2A6FB0")
         }
     }
@@ -591,6 +598,7 @@ public enum StrandPalette {
         case .aurora:  return Color(light: "#6E9FB6", dark: "#A6C6D8")
         case .sunset:  return Color(light: "#E87E68", dark: "#FF9E8A")
         case .forest:  return Color(light: "#C29A5A", dark: "#E0B478")
+        case .signature: return Color(light: "#3A88D6", dark: "#6BB8FF") // redesign Effort blue (bright)
         case .titanium: return Color(light: "#5AA0E0", dark: "#74B6F0")
         }
     }
@@ -605,6 +613,7 @@ public enum StrandPalette {
         case .aurora:  return Color(light: "#3E608F", dark: "#5E81AC")
         case .sunset:  return Color(light: "#624788", dark: "#7C5EA8")
         case .forest:  return Color(light: "#3A6058", dark: "#4E7A70")
+        case .signature: return Color(light: "#5546C4", dark: "#8C7BFF") // redesign Rest violet
         case .titanium: return Color(light: "#5E7896", dark: "#83A0B8")
         }
     }
@@ -615,6 +624,7 @@ public enum StrandPalette {
         case .aurora:  return Color(light: "#333A56", dark: "#434C6E")
         case .sunset:  return Color(light: "#3E2E62", dark: "#4E3A7A")
         case .forest:  return Color(light: "#253A37", dark: "#2F4A46")
+        case .signature: return Color(light: "#3E3299", dark: "#6B5BE0") // redesign Rest violet (deep)
         case .titanium: return Color(light: "#234F9E", dark: "#2F6FCB")
         }
     }
@@ -625,6 +635,7 @@ public enum StrandPalette {
         case .aurora:  return Color(light: "#4E8FA6", dark: "#88C0D0")
         case .sunset:  return Color(light: "#8E6EB6", dark: "#B08FD6")
         case .forest:  return Color(light: "#5E9484", dark: "#7FB0A0")
+        case .signature: return Color(light: "#6E5FD6", dark: "#A99CFF") // redesign Rest violet (bright)
         case .titanium: return Color(light: "#5790DA", dark: "#6FA8E8")
         }
     }
@@ -635,6 +646,7 @@ public enum StrandPalette {
         case .aurora:  return Color(light: "#4E8FA6", dark: "#88C0D0")
         case .sunset:  return Color(light: "#8E6EB6", dark: "#B08FD6")
         case .forest:  return Color(light: "#5E9484", dark: "#7FB0A0")
+        case .signature: return Color(light: "#5546C4", dark: "#8C7BFF") // redesign Rest violet (glow)
         case .titanium: return Color(light: "#3A80D6", dark: "#4A90E2")
         }
     }
@@ -649,7 +661,7 @@ public enum StrandPalette {
         case .aurora:  return Color(light: "#C9A860", dark: "#EBCB8B")
         case .sunset:  return Color(light: "#E0952E", dark: "#FFB74D")
         case .forest:  return Color(light: "#BC8A3E", dark: "#D8A657")
-        case .titanium: return Color(light: "#C7891A", dark: "#F0A020")
+        case .titanium, .signature: return Color(light: "#C7891A", dark: "#F0A020")
         }
     }
     public static var stressDeep: Color {
@@ -659,7 +671,7 @@ public enum StrandPalette {
         case .aurora:  return Color(light: "#6E9460", dark: "#A3BE8C")
         case .sunset:  return Color(light: "#5F9456", dark: "#86B87A")
         case .forest:  return Color(light: "#437E4C", dark: "#5A9C63")
-        case .titanium: return Color(light: "#3A80D6", dark: "#4A90E2")
+        case .titanium, .signature: return Color(light: "#3A80D6", dark: "#4A90E2")
         }
     }
     public static var stressBright: Color {
@@ -669,7 +681,7 @@ public enum StrandPalette {
         case .aurora:  return Color(light: "#A54650", dark: "#BF616A")
         case .sunset:  return Color(light: "#E03656", dark: "#FF4D6D")
         case .forest:  return Color(light: "#8C3324", dark: "#A6412E")
-        case .titanium: return Color(light: "#C84E1E", dark: "#E0662F")
+        case .titanium, .signature: return Color(light: "#C84E1E", dark: "#E0662F")
         }
     }
     public static var stressGlow: Color { stressColor }
