@@ -406,8 +406,12 @@ struct RootTabView: View {
                 // here: it's an action, reachable from the floating button, the Today tile and deep links,
                 // not a place (its .coach destination stays registered so those entry points still push it).
                 moreSection("Analysis") {
-                    MoreRow("What Moves You", "wand.and.sparkles", .insightsHub)
-                    MoreRow("Intelligence", "brain.head.profile", .intelligence)
+                    // Renamed to match InsightsHubView's own ScreenScaffold title ("Insights") — the word
+                    // freed up once the section became "Analysis" and the old "Insights" row became "Journal".
+                    MoreRow("Insights", "wand.and.sparkles", .insightsHub)
+                    // Renamed from "Intelligence": names what the screen actually explains (its own subtitle
+                    // is "NOOP scores your charge, effort and rest itself: on-device, no cloud.").
+                    MoreRow("How Scoring Works", "brain.head.profile", .intelligence)
                     MoreRow("Goal & Journey", "target", .goalJourney)
                     // Named "Journal" (was "Insights", colliding with this section's name — redesign bug §1):
                     // this row opens the behaviour-logging + personal-experiments screen, the same view the
@@ -420,12 +424,15 @@ struct RootTabView: View {
                     MoreRow("Live", "waveform.path.ecg", .live)
                     MoreRow("Workouts", "figure.run", .workouts)
                     MoreRow("Health", "heart.text.square.fill", .health)
-                    MoreRow("Lab Book", "books.vertical.fill", .labBook)
+                    // Renamed from "Lab Book": names the content directly (blood/BP/body numbers), not the
+                    // record-keeping metaphor.
+                    MoreRow("Biomarkers", "books.vertical.fill", .labBook)
                     MoreRow("Stress", "bolt.heart.fill", .stress)
                     MoreRow("Breathe", "wind", .breathe)
                     MoreRow("Intervals", "timer", .intervals)
                     // Experimental beat-to-beat regularity visualization — self-gates on its own consent.
-                    MoreRow("Rhythm", "waveform.path", .rhythm)
+                    // Renamed from "Rhythm": explicit that this is about heartbeat, not daily/circadian rhythm.
+                    MoreRow("Beat Rhythm", "waveform.path", .rhythm)
                 }
                 moreSection("Data") {
                     MoreRow("Your Data, Fused", "square.stack.3d.up.fill", .fusedRecord)
