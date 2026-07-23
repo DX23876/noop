@@ -407,7 +407,10 @@ struct RootTabView: View {
                     MoreRow("Intelligence", "brain.head.profile", .intelligence)
                     MoreRow("Coach", "sparkles", .coach)
                     MoreRow("Goal & Journey", "target", .goalJourney)
-                    MoreRow("Insights", "lightbulb.fill", .insights)
+                    // Named "Journal" (was "Insights", colliding with this section's name — redesign bug §1):
+                    // this row opens the behaviour-logging + personal-experiments screen, the same view the
+                    // "Log journal" quick action opens.
+                    MoreRow("Journal", "book.closed.fill", .insights)
                     MoreRow("Explore", "square.grid.2x2.fill", .explore)
                     MoreRow("Compare", "rectangle.split.2x1.fill", .compare)
                 }
