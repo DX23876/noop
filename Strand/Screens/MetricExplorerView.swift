@@ -128,6 +128,12 @@ enum ExploreRange: Int, CaseIterable, Identifiable, Hashable {
     /// Trailing days the window spans (nil = everything).
     var days: Int? { self == .all ? nil : rawValue }
 
+    /// The windows OFFERED in the segmented control. Eight pills (W/2W/3W/M/3M/6M/1Y/ALL) are too tight
+    /// on a 390 pt phone (redesign bug §1), so the control shows four — W / M / 6M / ALL. The full set of
+    /// cases stays intact for the gating/widening math (`widening`, `ExploreRangeGating`); this only
+    /// curates what's drawn. A stored selection outside this set still resolves — it just highlights no pill.
+    static let displayCases: [ExploreRange] = [.week, .month, .half, .all]
+
     /// This range plus every LARGER range, ascending — the auto-expand search order
     /// when the selected window holds zero points. ALW always terminates the chain.
     var widening: [ExploreRange] {
@@ -494,6 +500,12 @@ struct MetricDetailView: View {
     private func fmt(_ v: Double) -> String {
         metric.format(v, system: unitSystem, temperature: temperatureUnit, effortScale: effortScale)
     }
+    /// True when the category overline would just echo the title (e.g. metric "Charge" in category
+    /// "Charge") — the header suppresses the overline in that case so the same word isn't shown twice.
+    private var categoryEchoesTitle: Bool {
+        MetricCatalog.categoryDisplayName(metric.category).compare(
+            metric.title, options: .caseInsensitive) == .orderedSame
+    }
 
     @State private var range: ExploreRange = .month
     /// Draw-in fraction for the hero ring gauge (0–100 scores). Set to the real fraction
@@ -766,14 +778,18 @@ struct MetricDetailView: View {
                 // Category + title on their OWN full-width row so a long title ("Heart Rate Variability")
                 // is never crushed into a letter-per-line column by the range pill (2026-07-02).
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(MetricCatalog.categoryDisplayName(metric.category).uppercased()).strandOverline()
+                    // Suppress the category overline when it would just repeat the title (e.g. the Charge
+                    // metric in the Charge category) — that's the "CHARGE / Charge" doubling (redesign bug §1).
+                    if !categoryEchoesTitle {
+                        Text(MetricCatalog.categoryDisplayName(metric.category).uppercased()).strandOverline()
+                    }
                     Text(metric.title)
                         .font(StrandFont.title2)
                         .foregroundStyle(StrandPalette.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 // Range control on its own row beneath the title.
-                SegmentedPillControl(ExploreRange.allCases, selection: selectionBinding,
+                SegmentedPillControl(ExploreRange.displayCases, selection: selectionBinding,
                                      isEnabled: isUnlocked) { $0.label }
 
                 // The headline read-out in the liquid language: for a 0–100 score, the signature
@@ -879,13 +895,15 @@ struct MetricDetailView: View {
         return VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(MetricCatalog.categoryDisplayName(metric.category).uppercased()).strandOverline()
+                    if !categoryEchoesTitle {
+                        Text(MetricCatalog.categoryDisplayName(metric.category).uppercased()).strandOverline()
+                    }
                     Text(metric.title)
                         .font(StrandFont.title2)
                         .foregroundStyle(StrandPalette.textPrimary)
                 }
                 Spacer()
-                SegmentedPillControl(ExploreRange.allCases, selection: selectionBinding,
+                SegmentedPillControl(ExploreRange.displayCases, selection: selectionBinding,
                                      isEnabled: isUnlocked) { $0.label }
             }
             Text(caption)
@@ -1012,7 +1030,10 @@ struct MetricDetailView: View {
         let readings = windowed.map {
             VitalReading(day: $0.day, value: $0.value, source: sourceByDay[$0.day] ?? metric.source)
         }
-        let rows = vitalReadingRows(readings: readings, unit: metric.unit,
+        // `fmt` already yields the fully-formatted, unit-included (and unit-converted, e.g. kg→lb,
+        // 0–100→0–21 Effort) display string, so the row must NOT append `metric.unit` again — doing so
+        // produced "85 % %" for Charge and "3.5 /21 /100" for Effort (redesign bug §1). Pass an empty unit.
+        let rows = vitalReadingRows(readings: readings, unit: "",
                                     strapDeviceId: repo.deviceId, format: fmt)
         if !rows.isEmpty {
             NoopCard {
