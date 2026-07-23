@@ -377,7 +377,9 @@ struct SleepView: View {
         let night = heroNight(model)
         let score = performanceScore(for: night)
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-            SectionHeader("Sleep performance", overline: nightRelativeLabel, trailing: String(localized: "Rest"))
+            // The sleep score is named ONCE here ("Sleep performance"); the old trailing "Rest" chip and the
+            // duplicate "Rest" night-detail tile showed the same number under a second name (redesign bug §1).
+            SectionHeader("Sleep performance", overline: nightRelativeLabel)
             // A subtle night atmosphere sits behind the sleep hero ONLY (the Rest world's whisper:
             // faint indigo wash + crescent moon over the near-black canvas, no glow), clipped to the
             // card. Replaces the now-flat ScenicHeroBackground here.
@@ -1430,9 +1432,9 @@ struct SleepView: View {
     @ViewBuilder
     private func metricGrid(_ model: SleepModel) -> some View {
         // Per-tile latest value + history series (for the sparkline) + typical mean.
-        // All seven series are computed ONCE in the model build (each is a full pass over
-        // repo.days/repo.sleeps) — here we only read the memoized results.
-        let perf  = model.performance
+        // All series are computed ONCE in the model build (each is a full pass over
+        // repo.days/repo.sleeps) — here we only read the memoized results. (Sleep performance is NOT a
+        // tile here — it's the hero; see redesign bug §1.)
         let eff   = model.efficiency
         let cons  = model.consistency
         let need  = model.hoursVsNeeded
@@ -1444,13 +1446,8 @@ struct SleepView: View {
             SectionHeader("Night detail", overline: "Metrics", trailing: String(localized: "vs typical"))
             LazyVGrid(columns: tileColumns, alignment: .leading, spacing: NoopMetrics.gap) {
 
-                StatTile(
-                    label: "Rest",
-                    value: pctValue(perf.latest),
-                    caption: vsTypical(perf.latest, perf.typical, suffix: "%"),
-                    accent: perf.latest.map { StrandPalette.recoveryColor($0) } ?? StrandPalette.textPrimary,
-                    sparkline: spark(perf.series),
-                    sparkColor: StrandPalette.restColor)
+                // No "Rest" tile here — that repeated the hero's Sleep-performance score (redesign bug §1,
+                // "one value, one place"). The score lives in the hero above; the tiles are its components.
 
                 StatTile(
                     label: "Efficiency",
@@ -1492,8 +1489,10 @@ struct SleepView: View {
                     sparkline: spark(resp.series),
                     sparkColor: StrandPalette.metricPurple)
 
+                // Last night's shortfall vs need — named distinctly from the 14-night running "Sleep
+                // balance" ledger below, which both used to be called "sleep debt" (redesign bug §1).
                 StatTile(
-                    label: "Sleep Debt",
+                    label: "Last night's deficit",
                     value: debt.latest.map { durationText($0) } ?? "—",
                     caption: debtCaption(debt.latest),
                     accent: debtColor(debt.latest),
@@ -1514,7 +1513,7 @@ struct SleepView: View {
     private func sleepDebtLedger(_ model: SleepModel) -> some View {
         let ledger = model.sleepDebtLedger
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-            SectionHeader("Sleep-debt ledger", overline: "Last 14 nights",
+            SectionHeader("Sleep balance", overline: "Last 14 nights",
                           trailing: String(localized: "running balance"))
             NoopCard(tint: StrandPalette.restColor) {
                 if ledger.nightCount == 0 {
