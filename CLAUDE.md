@@ -47,7 +47,14 @@ or commit it. Re-run `xcodegen generate` after adding/removing files or editing 
 strap, no CoreBluetooth. Never add `import AppKit` / `import UIKit` / `import CoreBluetooth` under
 `Packages/`; guard framework code with `#if canImport(AppKit)` / `#elseif canImport(UIKit)`.
 
-## The cross-platform parity contract (the #1 rule)
+## The cross-platform parity contract (RETIRED — iOS/macOS-only as of 2026-07-23)
+
+> **This contract no longer binds.** The project is now iOS/macOS-only; the Android target is dropped and
+> is no longer kept in sync. Byte-identical analytics, platform-neutral FNV-1a hashing, the `.noopbak`
+> byte-identical whitelist, and Room/GRDB schema agreement are **no longer gates** on a change. The
+> Android tree may remain in the repo but is not a parity obligation. **Separate and still binding:** the
+> app stays fully offline, on-device, no server, no account, no cloud sync, no telemetry, anonymous — see
+> "What NOOP is". The historical contract is preserved below for context.
 
 Android is an independent reimplementation of the same logic, **not** a port that shares code with
 Swift. So:
@@ -157,3 +164,27 @@ Swift, you MUST build the app yourself: `xcodebuild … build` locally, or run `
 
 When in doubt, open an issue to coordinate first, and prefer the smallest change that's correct and
 covered by a test that runs without a strap.
+
+## Redesign (in progress)
+
+An iOS/macOS-focused redesign is underway. Full specs: [`docs/redesign-briefing.md`](docs/redesign-briefing.md);
+visual reference (binding when text and image disagree): [`docs/design/mockup-today.html`](docs/design/mockup-today.html);
+durable decision log: [`docs/decisions.md`](docs/decisions.md).
+
+**Strategy — evolve in place, do NOT fork parallel screens.** The screens are shared `Strand/` code and
+`StrandDesign` is already fork-owned, so the redesign edits the existing screens and Palette rather than
+adding parallel files under `StrandiOS/Redesign/`. Re-theming is done by changing values behind the frozen
+`StrandPalette` token API (≈3,170 call sites update for free) — never hardcode hex at a call site.
+
+**Design rules:**
+1. One value, one place. Each metric appears once per screen. If it's in a ring on top, it's not also a tile.
+2. No empty tiles. Without data, render nothing — no "—", no placeholder.
+3. Colour codes family via the "Signature" `ChartStyle` (green Charge, blue Effort, violet Rest, gold
+   long-term). Colour only re-skins data encodings (rings/charts/scales), never chrome/surfaces.
+4. Size codes importance. Exactly one element per screen is clearly the largest.
+5. Tabs are places, not actions. The coach hangs on content (tile/detail), not a tab.
+6. Units are small, in a secondary colour, exactly once per value. All numbers use `.monospacedDigit()`.
+7. All trend charts go through Swift Charts.
+8. iOS 26 Liquid Glass (`glassEffect`, `.navigationTransition(.zoom)`, Material) is the design language.
+
+**Localization:** EN is the source locale; DE, FR, ES are kept complete. New strings ship with all four.
