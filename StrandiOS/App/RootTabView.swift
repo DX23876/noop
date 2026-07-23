@@ -402,10 +402,12 @@ struct RootTabView: View {
             ScreenScaffold(title: "More", subtitle: "Everything else, one tap away",
                            onRefresh: { await repo.refresh() },
                            topBackground: liquidScaffoldSky()) {
-                moreSection("Insights") {
+                // "Analysis" (was "Insights", §7) — clearer group name. Coach is intentionally NOT listed
+                // here: it's an action, reachable from the floating button, the Today tile and deep links,
+                // not a place (its .coach destination stays registered so those entry points still push it).
+                moreSection("Analysis") {
                     MoreRow("What Moves You", "wand.and.sparkles", .insightsHub)
                     MoreRow("Intelligence", "brain.head.profile", .intelligence)
-                    MoreRow("Coach", "sparkles", .coach)
                     MoreRow("Goal & Journey", "target", .goalJourney)
                     // Named "Journal" (was "Insights", colliding with this section's name — redesign bug §1):
                     // this row opens the behaviour-logging + personal-experiments screen, the same view the
