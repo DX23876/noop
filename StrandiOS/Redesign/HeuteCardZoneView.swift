@@ -24,6 +24,12 @@ struct HeuteCardZoneView: View {
     /// today's exception-state override, since `ActivityStatus` is a current state, not a per-day record.
     let status: ActivityStatus
     let readiness: ReadinessEngine.Readiness
+    /// While the recovery baseline is still forming, the honest "Learning your baseline, N of 4 nights"
+    /// line (from `LiquidTodayView.ChargeDisplay.calibrationDetail`, the same copy the other two screens
+    /// show) REPLACES the readiness statement — mid-calibration there is no trustworthy verdict to state.
+    /// nil once a score or a carry exists. Ignored when an ActivityStatus override is active (a set status
+    /// is an explicit user statement that wins regardless).
+    var calibrationNote: String? = nil
     /// Owned by the screen root: a `@State` copy here silently resurrected every dismissed card whenever
     /// the parent re-created this view (e.g. on a day change or any reload).
     @Binding var cards: [NotificationCardItem]
@@ -34,7 +40,7 @@ struct HeuteCardZoneView: View {
         VStack(spacing: 10) {
             GeometryReader { geo in
                 ZStack {
-                    HeuteBaseCard(status: status, readiness: readiness)
+                    HeuteBaseCard(status: status, readiness: readiness, calibrationNote: calibrationNote)
                     ForEach(Array(cards.enumerated()).reversed(), id: \.element.id) { index, card in
                         HeuteNotificationCard(
                             item: card,
@@ -67,8 +73,20 @@ struct HeuteCardZoneView: View {
 private struct HeuteBaseCard: View {
     let status: ActivityStatus
     let readiness: ReadinessEngine.Readiness
+    var calibrationNote: String? = nil
 
-    private var statement: BaseCardStatement { .current(status: status, readiness: readiness) }
+    /// Priority: an ActivityStatus override (a set status is an explicit user statement) beats everything;
+    /// otherwise, while calibrating, the honest "N of 4 nights" progress replaces the readiness verdict
+    /// (there is none yet); otherwise the computed readiness statement. Mirrors the `calibrationDetail ??`
+    /// swap the other two Today screens make.
+    private var statement: BaseCardStatement {
+        let base = BaseCardStatement.current(status: status, readiness: readiness)
+        if base.isOverride { return base }
+        if let note = calibrationNote {
+            return BaseCardStatement(headline: String(localized: "Calibrating"), summary: note, isOverride: false)
+        }
+        return base
+    }
     private var tint: Color { statement.isOverride ? HeuteRedesignPalette.attn : HeuteRedesignPalette.charge }
     /// mockup `baseTag.textContent = isActive ? 'Push' : chosenStatus` — the active state's tag is a
     /// generic placeholder text, not derived from any real suggestion category (that categorisation is

@@ -9,7 +9,12 @@ import StrandDesign
 // any style other than `.signature` (see HeuteRedesignPalette's doc comment).
 
 struct HeuteRingsView: View {
-    let charge: Double   // 0...100
+    /// 0...100, or nil for the honest empty state (no scored night, no prior to carry). A nil Charge
+    /// draws NO number — `chargeEmptyLabel` names why — rather than a fabricated 0%, matching how the
+    /// other two Today screens render `.calibrating` / `.noData`.
+    let charge: Double?
+    /// The short word shown in place of the Charge number when `charge` is nil ("Calibrating" / "No data").
+    var chargeEmptyLabel: String? = nil
     /// Always the stored NOOP 0...100 axis (`DailyMetric.strain`) — never pre-converted. `effortScale`
     /// decides only how it's DISPLAYED (the fraction filled is scale-invariant: it's always effort/100).
     let effort: Double
@@ -22,7 +27,7 @@ struct HeuteRingsView: View {
     var body: some View {
         HStack(spacing: 0) {
             Spacer(minLength: 0)
-            ring(fraction: charge / 100, value: charge, suffix: "%", color: HeuteRedesignPalette.charge, label: "Charge")
+            chargeRing
             Spacer(minLength: 0)
             // Was hardcoded to `effort / 21` (the WHOOP display scale) while being fed the stored NOOP
             // 0-100 value — a real strain of e.g. 65 rendered as 65/21 ≈ 310%, clamped to a full ring.
@@ -52,6 +57,35 @@ struct HeuteRingsView: View {
                         center: .center, startRadius: 0, endRadius: diameter * 1.6)
             .padding(-18)
             .allowsHitTesting(false)
+    }
+
+    /// The Charge ring, which unlike Effort/Rest has an honest EMPTY state (a night either scored or it
+    /// didn't). A value fills the ring as usual; nil draws no arc and no number, only the empty-state word
+    /// ("Calibrating" / "No data") in the same house numeral size as a filled ring, so the trio stays
+    /// visually level regardless of state.
+    @ViewBuilder private var chargeRing: some View {
+        if let charge {
+            ring(fraction: charge / 100, value: charge, suffix: "%",
+                 color: HeuteRedesignPalette.charge, label: "Charge")
+        } else {
+            VStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .stroke(HeuteRedesignPalette.line, lineWidth: lineWidth)
+                        .frame(width: diameter, height: diameter)
+                    Text(chargeEmptyLabel ?? "")
+                        .font(.system(size: 12, weight: .semibold))
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(HeuteRedesignPalette.ink3)
+                        .frame(width: diameter - lineWidth * 2)
+                }
+                Text("Charge")
+                    .font(.system(size: 10, weight: .bold))
+                    .tracking(0.9)
+                    .textCase(.uppercase)
+                    .foregroundStyle(HeuteRedesignPalette.ink3)
+            }
+        }
     }
 
     private func ring(fraction: Double, value: Double, suffix: String?, color: Color, label: LocalizedStringKey) -> some View {

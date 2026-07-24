@@ -106,6 +106,9 @@ struct LiquidTodayView: View {
     // day navigation (0 = today, 1 = yesterday, …)
     @State private var selectedDayOffset = 0
     @State private var showDayPicker = false
+    /// Manual activity status (sick/injured/onBreak/active), owned here and threaded to the Synthesis
+    /// card's header chip — same pattern as `HeuteRedesignView.status`.
+    @State private var status = ActivityStatusStore.load()
     /// The rotating one-word "this is tappable / swipeable" hint under the headline; nil shows the date.
     /// Same two words and cadence the classic Today uses, so the affordance is learned once.
     @State private var dayNavHint: String? = nil
@@ -960,14 +963,24 @@ struct LiquidTodayView: View {
     }
 
     private var synthesisCard: some View {
-            Button { withAnimation(.easeInOut(duration: 0.2)) { synthesisExpanded.toggle() } } label: {
-                card {
+            // Expand-on-tap is an `.onTapGesture` on the card, NOT an outer `Button` wrapping the whole
+            // label: the status chip below is itself a Button, and a Button nested inside another Button's
+            // hit-testing tree doesn't reliably receive taps in SwiftUI (the same pitfall documented at
+            // `HeuteVitalsGridView`). A tap gesture on a plain container composes correctly with a child
+            // Button — the chip gets its own taps, the rest of the card toggles expand. The card's former
+            // `LiquidPressStyle` press-scale is intentionally dropped: reproducing it needs a 0-distance
+            // drag recognizer that would compete with the page's day-swipe and vertical scroll, a worse
+            // trade than losing a subtle press animation on a minor expand affordance.
+            card {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 6) {
                             Text("SYNTHESIS").font(StrandFont.overline).tracking(1.6)
                                 .foregroundStyle(StrandPalette.textSecondary)
                                 .layoutPriority(-1)   // the pill keeps its width; the overline yields first
                             Spacer(minLength: 4)
+                            // Own tap target with its own `.sheet` — sits left of the readiness pill so it
+                            // doesn't collide with the chevron's disclosure tap area at the row's trailing edge.
+                            ActivityStatusChipCompact(status: $status)
                             synthesisStatePill
                             // A rotating chevron rather than the words "show"/"hide": at ~230pt of card
                             // width this row now also carries the state pill, and the word cost ~34pt that
@@ -978,11 +991,16 @@ struct LiquidTodayView: View {
                                 .rotationEffect(.degrees(synthesisExpanded ? 180 : 0))
                                 .accessibilityHidden(true)
                         }
-                        // While the baseline calibrates, the honest "N of 4 nights" progress replaces the
-                        // readiness one-liner here — the same swap classic makes (`calibrationDetail ??
-                        // synthesisCardDetail`), so the count the short greeting pill can't carry lands in
-                        // the card and both Today screens read identically.
-                        Text(chargeDisplay.calibrationDetail ?? synthLine)
+                        // A set exception status is an explicit user statement, so it wins even against
+                        // the calibration-progress line — the same priority Heute's Basiskarte gives it.
+                        // While the baseline calibrates (and no status override applies), the honest
+                        // "N of 4 nights" progress replaces the readiness one-liner here — the same swap
+                        // classic makes (`calibrationDetail ?? synthesisCardDetail`), so the count the
+                        // short greeting pill can't carry lands in the card and both Today screens read
+                        // identically.
+                        Text(status.state != .active
+                             ? BaseCardStatement.current(status: status, readiness: readiness).summary
+                             : (chargeDisplay.calibrationDetail ?? synthLine))
                             .font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
                             .fixedSize(horizontal: false, vertical: true)
                         // #530 follow-up: the classic hero's "no cardio load yet" note (effortZeroNote),
@@ -1006,8 +1024,8 @@ struct LiquidTodayView: View {
                         }
                     }
                 }
-            }
-            .buttonStyle(LiquidPressStyle())
+                .contentShape(Rectangle())
+                .onTapGesture { withAnimation(.easeInOut(duration: 0.2)) { synthesisExpanded.toggle() } }
     }
 
     // MARK: - Recovery vitals
@@ -1330,6 +1348,11 @@ struct LiquidTodayView: View {
     // MARK: - Data
 
     private func load() async {
+        // Re-resolve the silent `validUntil` fallback on every (re)load, not just once at view creation —
+        // a screen left open across the expiry would otherwise keep showing the stale exception state.
+        let resolvedStatus = ActivityStatusStore.load()
+        if resolvedStatus != status { status = resolvedStatus }
+
         // Resolve the O(days) lookups ONCE here (not on every body re-render): the selected day and the
         // readiness verdict. Both scan repo.days (up to 599 rows); doing it per-render was the stutter.
         let day = resolveDisplayDay()

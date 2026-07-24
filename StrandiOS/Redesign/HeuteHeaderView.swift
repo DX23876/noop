@@ -19,6 +19,11 @@ struct HeuteHeaderView: View {
     /// ("keine Tagewechsel-Funktion"). Tapping the date line reveals `DayNavBar` (StrandDesign, already
     /// built for exactly this on the classic Today screen) rather than a new control.
     @Binding var selectedDayOffset: Int
+    /// The oldest reachable offset (whole days back to the earliest banked day), computed by the host.
+    /// `DayNavBar`'s "older" chevron is otherwise unbounded — it would step past the earliest data day
+    /// onto empty days — so the selection is clamped to `0 ... earliestDayOffset` here, mirroring the
+    /// day-swipe on the host and the classic Today's chevron bounds.
+    var earliestDayOffset: Int = 0
     /// The host owns `.coachCover`'s presentation (same idiom as `CoachTodayRow`/`CoachFloatingButton` —
     /// the chip only flips this true, it never presents the chat itself).
     @State private var showCoach = false
@@ -52,7 +57,9 @@ struct HeuteHeaderView: View {
                 // Anchored to the LOGICAL day, exactly like `TodayView`'s own `DayNavBar` — with a raw
                 // `Date()` anchor the 00:00–04:00 window labelled offset 0 and 1 as the same date.
                 DayNavBar(selectedOffset: selectedDayOffset, today: Repository.logicalDay(Date())) { newOffset in
-                    selectedDayOffset = newOffset
+                    // Clamp to real data: the "older" chevron is unbounded in DayNavBar, so without this a
+                    // tap could strand the screen on a day with nothing banked. Same bound as the host's swipe.
+                    selectedDayOffset = min(max(0, newOffset), earliestDayOffset)
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }

@@ -267,6 +267,10 @@ struct TodayView: View {
     // safely defer them during an active backfill.
     @State private var loadedHistoryWideOnce = false
 
+    // Paket 4: manual, user-set day-level activity status (Active/Sick/Injured/On break). Re-resolved
+    // on every loadAll() pass (see there) so the silent `validUntil` fallback never shows stale.
+    @State private var status = ActivityStatusStore.load()
+
     // 14-day sparkline series, keyed by metric key. Loaded once in .task.
     @State private var sparks: [String: [Double]] = [:]
     @State private var workouts: [WorkoutRow] = []
@@ -1967,6 +1971,9 @@ struct TodayView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                 Spacer(minLength: 8)
+                // Paket 4: manual status chip. Mirrors LiquidTodayView.synthesisCard's placement — left of
+                // the readiness/recovery pills so it doesn't collide with anything at the row's trailing edge.
+                ActivityStatusChipCompact(status: $status)
                 // S4 (#205): the one-word readiness read kept on the hero now the full Readiness card folded
                 // into the Charge-ring tap. Push / Maintain / Rest, derived from the existing Readiness
                 // level; hidden when there isn't enough history (nil word). Sits beside the confidence pill.
@@ -2016,6 +2023,12 @@ struct TodayView: View {
             return ("\(f.synthHeadline)", "\(f.synthBody)")
         }
         #endif
+        // Paket 4: a set exception status is an explicit user statement, so it outranks even the
+        // calibration/normal copy chain — it wins during calibration too, not just once readiness is live.
+        if status.state != .active {
+            let s = BaseCardStatement.current(status: status, readiness: readiness)
+            return (LocalizedStringKey(s.headline), LocalizedStringKey(s.summary))
+        }
         return (calibrationStatus ?? "\(synthesisCardStatus(d, score: score))",
                 calibrationDetail ?? "\(synthesisCardDetail(d, score: score))")
     }
@@ -3754,6 +3767,12 @@ struct TodayView: View {
     /// `refreshSeq`, which re-fires this task with `live.backfilling` false, and the deferred set runs then.
     /// Values + provenance are byte-identical to the old single-pass `loadAll` whenever each part runs.
     private func loadAll() async {
+        // Paket 4: re-resolve the silent `validUntil` fallback on every (re)load, not just once at view
+        // creation — a screen left open across the expiry would otherwise keep showing the stale
+        // exception state. Mirrors HeuteRedesignView.load().
+        let resolvedStatus = ActivityStatusStore.load()
+        if resolvedStatus != status { status = resolvedStatus }
+
         // Always refresh the selected day (cheap, and it's what a day-switch / return-to-tab needs). Since
         // #860 retired the launch auto-land, this pass no longer changes `selectedDayOffset`, so there's no
         // re-fire to bail for: the history-wide set + the new-day announce run straight through below.

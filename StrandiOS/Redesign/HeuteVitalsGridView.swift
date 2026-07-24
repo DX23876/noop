@@ -1,6 +1,7 @@
 import SwiftUI
 import Charts
 import StrandDesign
+import WhoopStore
 
 // MARK: - Vitalwerte-Raster + Bearbeitungsmodus (docs/feature-spec.md §4; docs/design/design-spec.md §4)
 //
@@ -22,8 +23,15 @@ struct HeuteVitalsGridView: View {
     /// Keyed by MetricCatalog id (`"source:key"`, e.g. `"my-whoop:hrv"`). A visible tile with no entry
     /// here renders nothing (design-spec §0.2: "keine leeren Kacheln").
     let readings: [String: HeuteVitalReading]
-    /// nil hides the wide Activity row entirely (same "no data, no tile" rule).
-    var activitySummary: String?
+    /// The selected day's latest workout, or nil to hide the wide Activity row (same "no data, no tile"
+    /// rule). Rendered as a tappable card — sport, duration/calories, effort — matching the last-workout
+    /// affordance the other two Today screens show.
+    var workout: WorkoutRow?
+
+    /// The user's Effort scale (0–21 vs 0–100), so the workout card's effort read-out matches the hero
+    /// rings and every other Effort surface in the app.
+    @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
+    private var effortScale: EffortScale { EffortScale(rawValue: effortScaleRaw) ?? .hundred }
 
     @State private var configs = VitalTileConfigStore.load()
     @State private var density = VitalTileConfigStore.density(UserDefaults.standard.integer(forKey: VitalTileConfigStore.densityKey))
@@ -119,8 +127,8 @@ struct HeuteVitalsGridView: View {
                 }
             }
 
-            if let activitySummary {
-                HeuteActivityTile(summary: activitySummary)
+            if let workout {
+                HeuteActivityTile(workout: workout, effortScale: effortScale)
                     .gridCellColumns(density)
             }
         }
@@ -450,22 +458,48 @@ private struct HeuteVitalTile: View {
 }
 
 /// The always-present, non-configurable wide Activity row (design-spec §4 "Wide-Kachel"). Not part of
-/// `VitalTileConfig` — the mockup exempts it from the edit system entirely.
+/// `VitalTileConfig` — the mockup exempts it from the edit system entirely. Shows the day's latest
+/// workout as sport + duration/calories + effort, tapping into the Workouts screen — parity with the
+/// last-workout card the other two Today screens show, in Heute's own token set.
 private struct HeuteActivityTile: View {
-    let summary: String
+    let workout: WorkoutRow
+    var effortScale: EffortScale = .hundred
+
+    private var sport: String { WorkoutSource.displaySport(workout.sport) }
+
+    /// "42 min · 380 kcal" — duration always, calories only when the file carried them.
+    private var subline: String {
+        let secs = workout.durationS ?? Double(max(workout.endTs - workout.startTs, 0))
+        var parts = [String(localized: "\(Int(secs / 60)) min")]
+        if let kcal = workout.energyKcal { parts.append(String(localized: "\(Int(kcal.rounded())) kcal")) }
+        return parts.joined(separator: " · ")
+    }
 
     var body: some View {
         NavigationLink(value: TabRoute.workouts) {
-            HStack {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Activity")
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(sport)
                         .font(.system(size: 14.5, weight: .semibold))
                         .foregroundStyle(HeuteRedesignPalette.ink)
-                    Text(summary)
+                    Text(subline)
                         .font(.system(size: 12))
                         .foregroundStyle(HeuteRedesignPalette.ink3)
                 }
                 Spacer()
+                if let strain = workout.strain {
+                    VStack(alignment: .trailing, spacing: 1) {
+                        Text(UnitFormatter.effortDisplay(strain, scale: effortScale))
+                            .font(.system(size: 15, weight: .semibold))
+                            .monospacedDigit()
+                            .foregroundStyle(HeuteRedesignPalette.effort)
+                        Text("Effort")
+                            .font(.system(size: 9, weight: .bold))
+                            .tracking(0.7)
+                            .textCase(.uppercase)
+                            .foregroundStyle(HeuteRedesignPalette.ink3)
+                    }
+                }
                 Image(systemName: "chevron.right")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(HeuteRedesignPalette.ink3)
