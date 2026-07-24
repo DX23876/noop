@@ -265,7 +265,29 @@ struct HeuteRedesignView: View {
 
         let fitnessSeries = await repo.exploreSeries(key: "fitness_age", source: "my-whoop")
         let fitnessAge = fitnessSeries.last(where: { $0.day <= key })?.value
-        vitalReadings = buildReadings(day: day, tkey: tkey, isToday: isToday, fitnessAge: fitnessAge)
+
+        // Liquid Today parity (on-device feedback): Vitality is a simple last-value series read, same
+        // shape as fitness_age above.
+        let vitalitySeries = await repo.exploreSeries(key: "vitality", source: "my-whoop")
+        let vitality = vitalitySeries.last(where: { $0.day <= key })?.value
+
+        // Stress reuses StressModel verbatim (Strand/Screens/StressView.swift) rather than re-deriving the
+        // z-score math — off the main actor, mirroring LiquidTodayView.load(), so a long history doesn't
+        // stutter this screen's load.
+        let storedStress = await repo.series(key: "stress", source: "my-whoop")
+        let daysSnapshot = repo.days
+        let stress = await Task.detached(priority: .utility) {
+            StressModel(days: daysSnapshot, stored: storedStress)?.score
+        }.value
+
+        // Calories: the same imported-first resolution LiquidTodayView.caloriesCount uses, scoped to the
+        // selected day only (never carried — a daily accumulator, like Steps).
+        let appleRows = await repo.appleDailyRows()
+        let importedActiveKcalDay = appleRows.filter { $0.day == key }.compactMap { $0.activeKcal }.max()
+
+        vitalReadings = buildReadings(day: day, tkey: tkey, isToday: isToday, fitnessAge: fitnessAge,
+                                      vitality: vitality, stress: stress,
+                                      importedActiveKcalDay: importedActiveKcalDay)
 
         // Logical-day window, not a raw midnight-to-midnight one: a 01:00 workout belongs to the logical
         // day that is still running, exactly as `CoupledView` buckets workouts.
@@ -296,10 +318,12 @@ struct HeuteRedesignView: View {
     /// SpO₂, whose predicate the whole-row carry does not check). The carry is bounded by today's own key
     /// and applies only to today — a navigated past day shows its own row verbatim, or nothing.
     private func buildReadings(day: DailyMetric?, tkey: String, isToday: Bool,
-                               fitnessAge: Double?) -> [String: HeuteVitalReading] {
+                               fitnessAge: Double?, vitality: Double?, stress: Double?,
+                               importedActiveKcalDay: Double?) -> [String: HeuteVitalReading] {
         var out: [String: HeuteVitalReading] = [:]
         let vitalsDay = isToday ? Repository.lastVitalsDay(days: repo.days, todayKey: tkey) : nil
         let spo2Day = isToday ? Repository.lastSpo2Day(days: repo.days, todayKey: tkey) : nil
+        let skinTempDay = isToday ? Repository.lastSkinTempDay(days: repo.days, todayKey: tkey) : nil
 
         // Resolves one vital today-first, else from the given carry row, and stamps the caption with the
         // day the value actually came from. Returns nil when neither has it (→ no tile, the "no empty
@@ -328,6 +352,23 @@ struct HeuteRedesignView: View {
         if let steps = day?.steps.map(Double.init) {
             out["apple-health:steps"] = HeuteVitalReading(value: steps, asOf: asOfLabel(tkey),
                                                             sparkline: sparkline({ $0.steps.map(Double.init) }))
+        }
+        // Liquid Today parity (on-device feedback): Vitality/Stress are weekly/daily composites, not
+        // per-night overnight vitals, so no carry — same "Weekly"/today-scoped shape as fitness_age above.
+        if let vitality {
+            out["my-whoop:vitality"] = HeuteVitalReading(value: vitality, asOf: asOfLabel(tkey))
+        }
+        if let stress {
+            out["my-whoop:stress"] = HeuteVitalReading(value: stress, asOf: asOfLabel(tkey))
+        }
+        // Skin temp is a per-night vital like HRV/RHR/SpO2 — same today-first, per-field carry (the
+        // dedicated `lastSkinTempDay` selector, mirroring `lastSpo2Day`'s reasoning).
+        out["my-whoop:skin_temp"] = reading(day?.skinTempDevC, carry: skinTempDay, { $0.skinTempDevC })
+        // Calories: imported-first (Apple Health active energy for the day) falling back to the on-device
+        // estimate, matching LiquidTodayView.caloriesCount — never carried across days, like Steps.
+        if let kcal = importedActiveKcalDay ?? day?.activeKcalEst {
+            out["my-whoop:energy_kcal"] = HeuteVitalReading(value: kcal, asOf: asOfLabel(tkey),
+                                                             sparkline: sparkline({ $0.activeKcalEst }))
         }
         return out
     }

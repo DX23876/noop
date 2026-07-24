@@ -16,6 +16,12 @@ enum VitalGridMetric {
         "apple-health:steps",
         "apple-health:weight",
         "my-whoop:energy_kcal",
+        // Liquid Today parity (on-device feedback): the "Your Cards" trio the redesign was missing.
+        // Charge/Effort/Rest stay excluded (already the three rings); Sleep/Hydration/Coupled view don't
+        // fit this value+sparkline shape and are handled as their own special tiles, not here.
+        "my-whoop:vitality",
+        "my-whoop:stress",
+        "my-whoop:skin_temp",
     ]
 }
 
