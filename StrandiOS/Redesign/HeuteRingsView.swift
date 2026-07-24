@@ -20,6 +20,11 @@ struct HeuteRingsView: View {
     let effort: Double
     let rest: Double     // 0...100
     var effortScale: EffortScale = .hundred
+    /// Tapping the Charge ring opens its breakdown sheet (why the value is what it is). Only Charge is
+    /// tappable — Effort/Rest stay pure display, matching the chosen scope (the other two Today screens'
+    /// Charge-ring tap). Fires for BOTH the filled and the empty ring: a calibrating/no-data ring should
+    /// still explain why it has no number.
+    var onChargeTap: (() -> Void)? = nil
 
     private let diameter: CGFloat = 92
     private let lineWidth: CGFloat = 8
@@ -28,6 +33,10 @@ struct HeuteRingsView: View {
         HStack(spacing: 0) {
             Spacer(minLength: 0)
             chargeRing
+                // The canvas/labels leave gaps; `contentShape` makes the whole ring column a tap target so
+                // a tap between the arc strokes still opens the breakdown instead of falling through.
+                .contentShape(Rectangle())
+                .onTapGesture { onChargeTap?() }
             Spacer(minLength: 0)
             // Was hardcoded to `effort / 21` (the WHOOP display scale) while being fed the stored NOOP
             // 0-100 value — a real strain of e.g. 65 rendered as 65/21 ≈ 310%, clamped to a full ring.

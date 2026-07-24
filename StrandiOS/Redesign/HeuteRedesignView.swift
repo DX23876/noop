@@ -41,6 +41,14 @@ struct HeuteRedesignView: View {
     @State private var chargeDisplay: LiquidTodayView.ChargeDisplay = .noData
     @State private var effort: Double = 0
     @State private var rest: Double = 0
+    /// Presents the Charge breakdown (why the value is what it is) when the Charge ring is tapped —
+    /// parity with the other two Today screens, where tapping the Charge ring opens the same drivers.
+    @State private var showChargeBreakdown = false
+    /// The row the breakdown reads, mirroring the ring: today's own scored row, else the carried
+    /// last-scored day, so the sheet matches the carried ring instead of being empty at the rollover.
+    /// Set in `load()` from the same `priorScored`/`displayDay` the ring resolves — same rule as
+    /// `TodayView.chargeBreakdownRow`, so classic and Heute describe the same day.
+    @State private var chargeBreakdownRow: DailyMetric?
     @State private var vitalReadings: [String: HeuteVitalReading] = [:]
     /// The selected day's most recent workout, or nil. The grid renders it as a tappable card (sport +
     /// duration/calories + effort), matching the other two Today screens' last-workout affordance.
@@ -82,7 +90,8 @@ struct HeuteRedesignView: View {
                 HeuteHeaderView(status: $status, selectedDayOffset: $selectedDayOffset,
                                 earliestDayOffset: earliestDayOffset)
                 HeuteRingsView(charge: chargeDisplay.pct, chargeEmptyLabel: chargeEmptyLabel,
-                               effort: effort, rest: rest, effortScale: effortScale)
+                               effort: effort, rest: rest, effortScale: effortScale,
+                               onChargeTap: { showChargeBreakdown = true })
                     .padding(.top, 2)
                 HeuteCardZoneView(status: dayStatus, readiness: readiness,
                                   calibrationNote: chargeDisplay.calibrationDetail,
@@ -123,6 +132,10 @@ struct HeuteRedesignView: View {
         }
         .background(HeuteRedesignPalette.bg.ignoresSafeArea())
         .sheet(isPresented: $showPlan) { CoachPlanView().environmentObject(coach) }
+        .sheet(isPresented: $showChargeBreakdown) {
+            HeuteChargeBreakdownSheet(row: chargeBreakdownRow, days: repo.days,
+                                      restScore: rest > 0 ? rest : nil, chargeDisplay: chargeDisplay)
+        }
         .simultaneousGesture(daySwipeGesture)
         .task(id: selectedDayOffset) { await load() }
     }
@@ -233,6 +246,9 @@ struct HeuteRedesignView: View {
                                                               priorScored: priorScored,
                                                               calibrationNights: calNights,
                                                               todayKey: tkey)
+        // The breakdown reads the same row the ring shows: today's own scored row, else the carried
+        // last-scored day (`TodayView.chargeBreakdownRow`'s rule), so the sheet never disagrees with the ring.
+        chargeBreakdownRow = priorScored ?? day
 
         // Readiness anchors on the day whose row carries today's vitals (#543): normally today, but while
         // carrying, the last SCORED day — otherwise `evaluate` reads `.insufficient` right after the
