@@ -3,9 +3,9 @@
 👈 Looking for the friendly tour? **[Back to the README](../README.md)**
 
 This is the technical deep-dive: the fork rationale, the full 22-tool table, token-cost mechanics,
-the architecture, build/signing minutiae, and the upstream-sync mechanics. If you just want to know
-what the app does and how to get it running, the README has everything you need — this page is for
-when you want to know *why*, or you're about to touch the code yourself.
+the architecture, build/signing minutiae, and where this fork stands relative to upstream today. If
+you just want to know what the app does and how to get it running, the README has everything you
+need — this page is for when you want to know *why*, or you're about to touch the code yourself.
 
 ## Contents
 
@@ -14,7 +14,7 @@ when you want to know *why*, or you're about to touch the code yourself.
 - [Token cost and prompt caching](#token-cost-and-prompt-caching)
 - [Under the hood: the architecture](#under-the-hood-the-architecture)
 - [Quickstart: the signing fine print](#quickstart-the-signing-fine-print)
-- [Staying in sync with upstream](#staying-in-sync-with-upstream)
+- [Relationship to upstream today](#relationship-to-upstream-today)
 - [Full docs index](#full-docs-index)
 - [Attribution, in full](#attribution-in-full)
 
@@ -42,16 +42,19 @@ be worth having. It needs to iterate quickly, for one person. So rather than pus
 
 - **Apple platforms, both of them.** This fork builds and tests `NOOPiOS` (iOS 17+) *and* `Strand`
   (macOS 13+) — the coach's shared files have to compile for both, and `StrandTests` runs under the
-  macOS scheme, so macOS isn't merely carried along: it is where the test suite executes. The
-  **Android** tree is the one kept untouched, purely so `git merge upstream/main` keeps working; it
-  is not built or tested here.
+  macOS scheme, so macOS isn't merely carried along: it is where the test suite executes. **As of
+  2026-07-23, Android is dropped as a target entirely** — not merely carried along for merge
+  convenience — and the cross-platform parity contract that drove the byte-identical rule above is
+  formally retired for this fork. Dropping Android parity is also what unblocked iOS-only system
+  surface this fork wouldn't otherwise have bothered with — a home-screen widget and a Siri
+  "How's my recovery?" intent, for instance, that would have needed an Android twin before.
 - **Additive only.** Everything this fork adds lives in its own new files under `Strand/AI/`. No
   upstream logic is rewritten in place. Nothing touches BLE, protocol decoding, or the analytics
   math — the parts that genuinely benefit from cross-platform parity are left completely alone.
-- **It works.** Upstream `9.0.0` and `9.0.1` have both merged into this fork. Between them they've
-  produced exactly one merge conflict, ever — two purely additive edits to the translation catalog
-  landing in the same spot, not overlapping content. Not one coach file has ever needed a manual
-  merge. That's the additive-files design paying off, not luck.
+- **It worked, while merging was the practice.** Upstream `9.0.0` and `9.0.1` both merged cleanly
+  into this fork before the 2026-07-23 pivot — between them exactly one merge conflict, ever, and not
+  one coach file ever needed a manual merge. The additive-files design is *why* that was painless; see
+  [Relationship to upstream today](#relationship-to-upstream-today) for where things stand now.
 
 ## The coach's 22 tools, in full
 
@@ -84,6 +87,12 @@ That last row is the fun one: **"just had a double espresso"** becomes a genuine
 Caffeine card. **"drank last night"** becomes a journal entry. **"my Vitamin D came back at 38"**
 becomes a Lab Book marker. Same data the app always had — just logged by talking instead of tapping
 through a form.
+
+**Access to all 22 is gated per purpose, not by one switch.** Every tool belongs to exactly one of
+seven `CoachPurpose` groups — `coreBiometrics`, `workouts`, `planning`, `stress`, `logs`, `memory`,
+`patterns` — via an exhaustive `switch`, so a new tool literally can't ship without being assigned a
+group. Each is granted independently in Settings → Privacy & data → Data access; a tool whose group
+isn't granted is left out of what's offered to the model entirely, not merely told not to use it.
 
 📖 The full schema for every one of these — parameters, gating, the two safety gates, the plan
 book's state machine, the memory ranking algorithm — lives in **[`COACH.md`](COACH.md)**.
@@ -122,6 +131,12 @@ into `Packages/` it belongs — and the more it must be covered by tests that ru
 strap, and no Bluetooth.** The coach sits at the very top of that stack and pulls from it through
 the same consent-gated summaries the UI uses.
 
+One piece worth naming inside `Strand/AI/`: **`CoachNotifier`** is what decides category, priority
+and relevance-window for anything that reaches the user outside the chat itself — a proposed session
+versus a proactive hint versus a status reminder, each rendered and actioned differently in the
+bell. It's the mechanism behind what the README sells as "the coach decides what reaches you, and
+how"; see `docs/COACH.md` §11a for the full mapping.
+
 Deeper: [`ARCHITECTURE.md`](ARCHITECTURE.md) · [`ANALYTICS.md`](ANALYTICS.md) ·
 [`PROTOCOL.md`](PROTOCOL.md)
 
@@ -137,10 +152,19 @@ and the two trade-offs it carries — both already handled in `project.yml`:
 - **Free-signed apps expire after 7 days.** Reconnect and ⌘R to renew. (Note that `xcodegen
   generate` clears the Team field — reselect it, or pin `DEVELOPMENT_TEAM` in `project.yml`.)
 
-## Staying in sync with upstream
+## Relationship to upstream today
 
-This fork tracks [ryanbr/noop](https://github.com/ryanbr/noop) so upstream's protocol work,
-analytics fixes and features keep flowing in:
+**As of 2026-07-23, this fork is Apple-only and no longer necessarily tracks upstream — it diverges
+freely.** Android is dropped as a target, and the cross-platform parity contract that used to
+require every feature to land on macOS, iOS *and* Android in lockstep is formally retired. What's
+still binding, and unrelated to that retirement: the app stays fully offline, on-device, no server,
+no account, no cloud sync, no telemetry, anonymous — see `CLAUDE.md`. Currently **815 commits ahead,
+0 behind** upstream/main (re-check with `git rev-list --left-right --count upstream/main...HEAD`;
+this number moves and isn't maintained here).
+
+That doesn't make upstream irrelevant — a protocol fix or analytics correction landing there might
+still be worth pulling in on purpose. The mechanism that used to be standing practice still works
+fine for that, on demand:
 
 ```bash
 git remote add upstream https://github.com/ryanbr/noop.git   # once
@@ -149,11 +173,12 @@ git merge upstream/main    # keep this fork's README/branding + project.yml sign
 ```
 
 Because every fork-specific change lives in its own file rather than editing upstream code in
-place, this stays remarkably clean — two merges in, `Strand/AI/` has needed **zero** manual
-conflict resolutions. Watch for one thing after any merge: `Tools/i18n_audit.py` gates German,
-Spanish and French coverage as a *standing invariant* (upstream tightened this in `9.0.1`), so a
-merge that adds upstream UI text needs upstream's own translations to already cover it — which they
-do; it's new **fork** strings that need adding by hand.
+place, a merge stays clean when you do reach for one — historically (before the pivot) `Strand/AI/`
+never needed a manual conflict resolution across two upstream merges. If you do pull a later
+upstream release, watch for one thing: `Tools/i18n_audit.py` gates German, Spanish and French
+coverage as a *standing invariant*, so a merge that adds upstream UI text needs upstream's own
+translations to already cover it — which they historically have; it's new **fork** strings that
+need adding by hand.
 
 ## Full docs index
 
@@ -163,7 +188,8 @@ do; it's new **fork** strings that need adding by hand.
 - [`IOS.md`](IOS.md) — iOS build + HealthKit details.
 - [`DETAILS.md`](DETAILS.md) — this page.
 
-**Upstream (all still accurate)**
+**Inherited from upstream** (still accurate, except `FEATURES.md`, which now also documents this
+fork's own additions — Heute, App icon colors — alongside the inherited content)
 - [`FEATURES.md`](FEATURES.md) — the full feature guide for NOOP itself.
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — how the whole thing fits together.
 - [`ANALYTICS.md`](ANALYTICS.md) — the recovery/strain/sleep maths, with citations.

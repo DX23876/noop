@@ -29,8 +29,9 @@
 | 📱 **iPhone and Mac** | Runs on **iOS 17+** and **macOS 13+**, from the same codebase. |
 | 🤖 **A coach with a memory** | 22 tools it uses to look things up mid-answer, a goal, a plan you agreed to, and facts it remembers across months — not a chatbot bolted onto a dashboard. |
 | 📈 **Deep health analysis** | Recovery, strain, sleep, HRV, readiness, training load and n-of-1 correlations — all computed **on your device**, from published methods. |
+| 🔘 **A home-screen widget, and Siri** | The NOOP Rings widget (Charge alone, or Charge + Effort + Rest) at a glance, plus a "How's my recovery?" Siri/Shortcuts intent that answers without opening the app. |
 | 🔒 **No server, no account** | Everything lives in a database on your machine. The coach is the one thing that opens a socket, only with your own API key, only when you ask it something. |
-| 🔄 **Close to upstream** | Tracks [ryanbr/noop](https://github.com/ryanbr/noop) directly, so protocol and analytics work lands here quickly. |
+| 🍎 **Apple-only, diverging freely** | Forked from [ryanbr/noop](https://github.com/ryanbr/noop) — every protocol decoder and analytics formula started there — but this fork dropped Android and no longer tracks upstream commit-for-commit. |
 
 > **New here?** The coach is what makes this fork different — jump to **[The coach](#the-coach-)**.
 > Everything else is upstream NOOP, which is excellent and deserves the credit.
@@ -128,6 +129,14 @@ one "Today's session" card:
 The bell — previously Classic Today only — is now in **both** Today screens, reading the same inbox, so
 switching between them never hides what's waiting for you.
 
+### 🎭 It has a face and a name
+
+**Svea** or **Marv** — two ready-made identities, each with its own name and avatar — or make your
+own: any name, a symbol, or a real photo via the system picker. A photo never leaves the device or
+gets sent to your provider; it's rendered locally everywhere the coach shows up. Identity is who's
+talking — separate from coaching *style* (Guardian / Friend / Commander), which only changes tone,
+never the methodology or the "I'm not a doctor" guardrails.
+
 ### 💬 The chat itself
 
 | | |
@@ -139,7 +148,7 @@ switching between them never hides what's waiting for you.
 | **A closer look on demand** | Optionally set a heavier model for one question at a time — *"Look at this more closely"* on a reply you've already read. Off unless you configure it. |
 | **In-chat charts** | Native trend charts drawn in the conversation, and they survive a relaunch. |
 | **"Ask coach" on any card** | A sparkle on Today's rings and every card — a short, careful read of one number without leaving Today. |
-| **A name and a face** | **Svea** or **Marv**, or your own name, symbol or photo — never leaving the device. Coaching *style* (Guardian / Friend / Commander) layers on top, changing tone only, never the methodology or the "I'm not a doctor" guardrails. |
+| **A name and a face** | See [🎭 It has a face and a name](#-it-has-a-face-and-a-name) above. |
 | **Honest about cost** | Token counts and cache behaviour after every question, on every provider. |
 | **Bring almost any model** | Anthropic, OpenAI, Google Gemini, OpenRouter, or any OpenAI-compatible endpoint — including a local Ollama or LM Studio server. |
 | **Replies in your language** | The coach is told the app's current language and answers in it — chat, check-ins and briefs alike, not just the UI chrome. |
@@ -175,6 +184,10 @@ Worth being precise about, because "AI" and "private" rarely share a sentence:
 - **Only the coach opens a socket** — only when you send a message, only to **your own provider with
   your own key**, and only if you've turned data access on. Turn it off and the coach still works;
   it just doesn't see your numbers.
+- **Data access isn't one switch — it's seven.** Core biometrics, workouts, planning, stress,
+  logging, memory and personal patterns are each granted independently (Settings → Privacy & data →
+  Data access), so you can hand the coach your workouts without your sleep, say, rather than
+  all-or-nothing.
 - **Summaries, never raw signal.** Derived daily numbers and short text — never raw R-R streams or
   sensor buffers.
 - **You can go fully local.** Point the Custom provider at Ollama or LM Studio and nothing leaves
@@ -241,21 +254,21 @@ give your coach a name, a face and a goal.
 NOOP AI is a **personal fork** of [ryanbr/noop](https://github.com/ryanbr/noop) — not a competitor,
 and not a rebrand that hides where it came from. Every protocol decoder, analytics formula and pixel
 of the design system comes from upstream; this fork adds **a much bigger coach** on top, in its own
-files, without rewriting upstream logic. Apple platforms (iOS + macOS) are what it builds and tests;
-the Android tree is carried untouched so `git merge upstream/main` keeps working.
+files, without rewriting upstream logic. Apple platforms (iOS + macOS) are what it builds and tests —
+Android is dropped as a target, and this fork no longer necessarily tracks upstream; it diverges
+freely now.
 
 **Just want a great WHOOP app?** Use [ryanbr/noop](https://github.com/ryanbr/noop) — macOS, Android
 and iOS, actively maintained, and the right answer for most people. This fork is for the narrow case
 where you want the coach pushed further than a cross-platform project could reasonably justify.
 
-👉 The full rationale, and the upstream-sync mechanics:
-**[docs/DETAILS.md](docs/DETAILS.md#why-a-fork-not-a-contribution-upstream)**.
+👉 The full rationale: **[docs/DETAILS.md](docs/DETAILS.md#why-a-fork-not-a-contribution-upstream)**.
 
 ## Docs 📚
 
 - **[docs/COACH.md](docs/COACH.md)** — the coach in full: tools, goal gates, plan book, memory, providers.
 - **[docs/DETAILS.md](docs/DETAILS.md)** — fork rationale, the complete tool table, architecture,
-  signing fine print, upstream sync, and the docs index.
+  signing fine print, where things stand with upstream, and the docs index.
 - **[docs/PRIVACY_SECURITY.md](docs/PRIVACY_SECURITY.md)** — the data posture in detail.
 
 ---
