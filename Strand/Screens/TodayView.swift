@@ -273,6 +273,16 @@ struct TodayView: View {
 
     // 14-day sparkline series, keyed by metric key. Loaded once in .task.
     @State private var sparks: [String: [Double]] = [:]
+    /// "Detailed tiles" — same key `KeyMetricsEditorSheet`/Liquid Today read, so the Key-Metrics editor's
+    /// toggle applies here too (was written by the sheet but had no reader on this screen — the tiles
+    /// always drew a sparkline whenever `sparks[key]` had data, regardless of this setting). Off by
+    /// default, matching Liquid.
+    @AppStorage("today.keyMetricsDetailed") private var keyMetricsDetailed = false
+    /// The detailed graphs' trailing window — 2 days / 1 week / 2 weeks (shared key with Liquid/Android).
+    /// `sparks` already banks a 14-day superset; `windowedSpark(_:)` filters it down at render, so a
+    /// picker change in the editor applies instantly with no reload (mirrors `LiquidTodayView`'s
+    /// `windowedSpark`).
+    @AppStorage("today.keyMetricsWindowDays") private var keyMetricsWindowDays = 14
     @State private var workouts: [WorkoutRow] = []
     @State private var appleDays: [AppleDaily] = []
     // Design Reset / #582, the pinned "Your cards" values (Stress / Fitness age / Vitality), surfaced
@@ -3298,10 +3308,41 @@ struct TodayView: View {
     }
 
     /// One Key-Metric tile, keyed so the grid can be filtered + reordered per the saved layout (#251).
+    /// Wraps `keyMetricTileContent` in a value-based push so every tile opens the same metric-detail
+    /// screen the Liquid Today grid and Trends' small-multiples already share — the tile itself was
+    /// visually complete but structurally inert (on-device feedback: tapping did nothing). `TabRoute`
+    /// rides the tab's own `NavigationPath` (see `TabRoute.swift`'s doc comment), already registered on
+    /// both hosting `NavigationStack`s (`RootTabView.swift:285/393`, `RootView.swift:471`), so no new
+    /// wiring is needed beyond the link itself.
+    private func keyMetricTile(_ metric: KeyMetric) -> some View {
+        NavigationLink(value: keyMetricRoute(metric)) {
+            keyMetricTileContent(metric)
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// The `TabRoute` a Key-Metric tile opens, keyed by the SAME (key, source) pair `loadHistoryWide()`
+    /// already fetches that tile's sparkline from (`sparkValues` call sites below) — so the tap-through
+    /// destination and the graph it shows are always the same signal, never a mismatch.
+    private func keyMetricRoute(_ metric: KeyMetric) -> TabRoute {
+        switch metric {
+        case .charge:      return .metricSourced(key: "recovery", source: "my-whoop")
+        case .effort:      return .metricSourced(key: "strain", source: "my-whoop")
+        case .rest:        return .metricSourced(key: "sleep_performance", source: "my-whoop")
+        case .hrv:         return .metricSourced(key: "hrv", source: "my-whoop")
+        case .restingHr:   return .metricSourced(key: "rhr", source: "my-whoop")
+        case .bloodOxygen: return .metricSourced(key: "spo2", source: "my-whoop")
+        case .respiratory: return .metricSourced(key: "resp_rate", source: "apple-health")
+        case .steps:       return .metricSourced(key: "steps", source: "apple-health")
+        case .weight:      return .metricSourced(key: "weight", source: "apple-health")
+        case .calories:    return .metricSourced(key: "active_kcal", source: "apple-health")
+        }
+    }
+
     /// Each case is byte-for-byte the tile that used to be hard-coded in the grid, the refactor only
     /// changes WHICH tiles render and in WHAT order, never how an individual tile looks.
     @ViewBuilder
-    private func keyMetricTile(_ metric: KeyMetric) -> some View {
+    private func keyMetricTileContent(_ metric: KeyMetric) -> some View {
         let d = displayDay
         // #843/#813: scope to the SELECTED day (like the Steps tile just below), not the latest imported
         // AppleDaily row — the tail can be days stale, or from a day the user has since navigated away
@@ -3336,7 +3377,7 @@ struct TodayView: View {
                     ?? Self.needsStrapCaption,
                 accent: d?.recovery.map { StrandPalette.recoveryColor($0) }
                     ?? carried.map { StrandPalette.recoveryColor($0.value) } ?? StrandPalette.textPrimary,
-                sparkline: sparks["recovery"],
+                sparkline: keyMetricsDetailed ? windowedSpark("recovery") : nil,
                 sparkColor: StrandPalette.accent
             )
         case .effort:
@@ -3348,7 +3389,7 @@ struct TodayView: View {
                 caption: d?.strain != nil ? String(localized: "of \(UnitFormatter.effortScaleMax(effortScale))")
                                           : (buildingHint(.effort) ?? String(localized: "of \(UnitFormatter.effortScaleMax(effortScale))")),
                 accent: d?.strain.map { StrandPalette.effortTint(fraction: $0 / StrainScorer.maxStrain) } ?? StrandPalette.textPrimary,
-                sparkline: sparks["strain"],
+                sparkline: keyMetricsDetailed ? windowedSpark("strain") : nil,
                 sparkColor: StrandPalette.strain066,
                 // Inline ⓘ in the tile header (not a corner overlay) so it never sits over the value (#495).
                 accessory: { scoreInfoButton(.effort) }
@@ -3366,7 +3407,7 @@ struct TodayView: View {
                     : (buildingHint(.rest) ?? restCaption(d) ?? Self.needsStrapCaption),
                 accent: restScore.map { StrandPalette.recoveryColor($0) } ?? StrandPalette.textPrimary,
                 // The Rest composite (0–100) trend, not raw sleep minutes, tracks the score above (#614).
-                sparkline: sparks["sleep_performance"],
+                sparkline: keyMetricsDetailed ? windowedSpark("sleep_performance") : nil,
                 sparkColor: StrandPalette.metricPurple,
                 // Inline ⓘ in the tile header (not a corner overlay) so it never sits over the value (#495).
                 accessory: { scoreInfoButton(.rest) }
@@ -3381,7 +3422,7 @@ struct TodayView: View {
                 value: hrv.value,
                 caption: hrv.caption,
                 accent: hrv.value == "—" ? StrandPalette.textPrimary : StrandPalette.metricPurple,
-                sparkline: sparks["hrv"],
+                sparkline: keyMetricsDetailed ? windowedSpark("hrv") : nil,
                 sparkColor: StrandPalette.metricPurple
             )
         case .restingHr:
@@ -3392,7 +3433,7 @@ struct TodayView: View {
                 value: rhr.value,
                 caption: rhr.caption,
                 accent: rhr.value == "—" ? StrandPalette.textPrimary : StrandPalette.metricRose,
-                sparkline: sparks["rhr"],
+                sparkline: keyMetricsDetailed ? windowedSpark("rhr") : nil,
                 sparkColor: StrandPalette.metricRose
             )
         case .bloodOxygen:
@@ -3407,7 +3448,7 @@ struct TodayView: View {
                 value: spo2.value,
                 caption: spo2.caption,
                 accent: spo2.value == "—" ? StrandPalette.textPrimary : StrandPalette.metricCyan,
-                sparkline: sparks["spo2"],
+                sparkline: keyMetricsDetailed ? windowedSpark("spo2") : nil,
                 sparkColor: StrandPalette.metricCyan
             )
         case .respiratory:
@@ -3425,7 +3466,7 @@ struct TodayView: View {
                 // state, so the caption matches the shown number (H10 mustn't mislabel a real value).
                 caption: (respValue != "—" && respCarry.value == "—") ? "rpm" : respCarry.caption,
                 accent: respValue == "—" ? StrandPalette.textPrimary : StrandPalette.accent,
-                sparkline: sparks["resp_rate"],
+                sparkline: keyMetricsDetailed ? windowedSpark("resp_rate") : nil,
                 sparkColor: StrandPalette.accent
             )
         case .steps:
@@ -3458,7 +3499,7 @@ struct TodayView: View {
                     : (estSteps != nil ? stepsEstimateCaption
                        : (needsCalibration ? stepsCalibrationCaption : String(localized: "today"))),
                 accent: (realSteps != nil || estSteps != nil) ? StrandPalette.metricCyan : StrandPalette.textPrimary,
-                sparkline: sparks["steps"],
+                sparkline: keyMetricsDetailed ? windowedSpark("steps") : nil,
                 sparkColor: StrandPalette.metricCyan,
                 // H6, an estimated (or awaiting-calibration) steps tile carries a small ⚙︎ that opens the
                 // steps-calibration sheet (the SAME one Settings hosts), so a WHOOP 4.0 user can tune or
@@ -3481,7 +3522,7 @@ struct TodayView: View {
                 value: weightTile(latestWeightKg).value,
                 caption: weightTile(latestWeightKg).caption,
                 accent: StrandPalette.accent,
-                sparkline: sparks["weight"],
+                sparkline: keyMetricsDetailed ? windowedSpark("weight") : nil,
                 sparkColor: StrandPalette.accent
             )
         case .calories:
@@ -3490,7 +3531,7 @@ struct TodayView: View {
                 value: caloriesValue(aLatest),
                 caption: String(localized: "active"),
                 accent: StrandPalette.metricAmber,
-                sparkline: sparks["active_kcal"],
+                sparkline: keyMetricsDetailed ? windowedSpark("active_kcal") : nil,
                 sparkColor: StrandPalette.metricAmber
             )
         }
@@ -3506,14 +3547,21 @@ struct TodayView: View {
                               trailing: String(localized: "\(workouts.count) total"))
                 LazyVGrid(columns: grid, alignment: .leading, spacing: NoopMetrics.gap) {
                     ForEach(Array(workouts.prefix(6).enumerated()), id: \.offset) { _, w in
-                        StatTile(
-                            label: "\(WorkoutSource.displaySport(w.sport))",
-                            value: workoutDuration(w),
-                            caption: workoutCaption(w),
-                            accent: StrandPalette.effortTint(fraction: (w.strain ?? 0) / StrainScorer.maxStrain),
-                            delta: w.energyKcal.map { "\(Int($0.rounded())) kcal" },
-                            deltaColor: StrandPalette.metricAmber
-                        )
+                        // Value-based push to the workouts list (not a single-workout detail) — same
+                        // destination Liquid Today's own Last Workouts card opens
+                        // (`LiquidTodayView.swift:1265`), so tapping any tile here is consistent with the
+                        // other Today screen (was structurally inert before, on-device feedback).
+                        NavigationLink(value: TabRoute.workouts) {
+                            StatTile(
+                                label: "\(WorkoutSource.displaySport(w.sport))",
+                                value: workoutDuration(w),
+                                caption: workoutCaption(w),
+                                accent: StrandPalette.effortTint(fraction: (w.strain ?? 0) / StrainScorer.maxStrain),
+                                delta: w.energyKcal.map { "\(Int($0.rounded())) kcal" },
+                                deltaColor: StrandPalette.metricAmber
+                            )
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -4216,10 +4264,26 @@ struct TodayView: View {
         // now − days·86400 while `trailingWindow` clamps at local-today − (window−1) calendar days, so
         // `window + 1` reads a strict superset of the displayed window across any TZ/DST edge and
         // `trailingWindow` below still applies the exact same calendar clamp as before — the rendered
-        // points are byte-identical to the full-history read.
-        let all = await repo.series(key: key, source: source, days: window + 1)   // windowed, asc
+        // points are byte-identical to the full-history read. `resolvedSeries` (not the plain `series`)
+        // so a my-whoop-sourced key (recovery/strain/hrv/rhr/spo2) still renders for a live-BLE-only user:
+        // `series` reads ONLY the long-format `metricSeries` table, which those keys populate solely via
+        // CSV import — a live sync writes them exclusively into `DailyMetric`'s daily columns. Apple-
+        // Health-sourced keys (weight/steps/resp_rate/active_kcal) already land in `metricSeries` on every
+        // import, so they were unaffected; this fix is a superset (falls back to the SAME daily-column
+        // read `resolvedSeries` already merges in) rather than a behavior change for those.
+        let all = await repo.resolvedSeries(key: key, source: source, days: window + 1).values   // windowed, asc
         guard !all.isEmpty else { return [] }
         return trailingWindow(all, days: window).map { $0.value }
+    }
+
+    /// The "Detailed tiles" trend-window picker (2 days / 1 week / 2 weeks) applied to an already-loaded
+    /// 14-day superset, mirroring `LiquidTodayView.windowedSpark`. Unlike Liquid's `kSparks` (which keeps
+    /// each point's day key so it can re-filter by calendar date), `sparks` here is already reduced to
+    /// plain ascending values with no gaps in its 14-point superset (`sparkValues`/`trailingWindow`
+    /// fetch exactly a calendar window), so taking the trailing `keyMetricsWindowDays` points is
+    /// equivalent without needing to widen `sparks`'s stored shape.
+    private func windowedSpark(_ key: String) -> [Double] {
+        Array((sparks[key] ?? []).suffix(keyMetricsWindowDays))
     }
 
     /// Keep only points within the trailing `days` CALENDAR days ending TODAY (the phone's local date).
