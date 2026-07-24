@@ -161,6 +161,28 @@ never changes what number you see for the same day.
 
 ---
 
+## Updates inbox
+
+**The bell, top of Today (Classic and Liquid alike) · `UpdateStore.swift` / `UpdatesInboxView.swift`.**
+
+A calm, newest-first log of what's new — tap the bell (badged with the unread count) to open it. Three
+kinds of row, each behaving differently rather than all looking like the same generic notification:
+
+- **Needs a decision** — a session the coach proposed (see [docs/COACH.md](COACH.md) §11a), with
+  **Accept / Change / Decline** right there. Once it's decided elsewhere (e.g. from the Today card
+  first), the row shows the outcome instead of stale buttons.
+- **A hint, nothing to decide** — release notes, "new data arrived" readings, and the coach's proactive
+  nudges (a body signal worth knowing about, a small win) — tap to mark read, nothing else expected of
+  you. Proactive hints used to be chat-only; they now show up here too, without needing to open Coach.
+- **Status & reminders** — a Today info-card you swiped away, restorable with one tap ("Restore to
+  Today"); everything else in this bucket is read-only history.
+
+Old rows are deduped and capped so a background recompute loop can't spam the same "new data" row; items
+still awaiting a decision sort to the top of their unread/read section. Everything here is local —
+nothing about the bell's contents leaves the device.
+
+---
+
 ## Live
 
 **Sidebar: Live · needs a bonded strap for HR; the hardware-test surface.**
@@ -539,6 +561,11 @@ of history. On-device and approximate — informational only, **not** a diagnosi
 - **Step calibration** — tune the stride/step estimate to your own walking so step and distance
   figures read closer to reality.
 - **Units** — choose your preferred measurement units (metric / imperial) across the app.
+- **Appearance** — card transparency, whether the coach tile pulses on Today, and **App icon
+  colors** (off by default): recolors the leading icons in the More tab, Chat and Chat's submenus
+  (Coach Settings, Coach Info, Goal & Journey) to an Apple Health-style palette instead of plain blue.
+  Purely cosmetic — chevrons, checkmarks and state icons (e.g. bell vs. bell with a badge) are
+  unaffected either way.
 - **Strap** — connection status, battery, and Re-scan / Disconnect controls.
 - **Export for Shortcuts (iOS)** — a **HealthKit-free** path that hands your NOOP metrics to Apple
   Health via the Shortcuts app, so an anonymous build (with no HealthKit entitlement) can still get

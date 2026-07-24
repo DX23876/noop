@@ -30,6 +30,8 @@ Strand/AI/
 ├── GoalFeasibility.swift      "Is this realistic?" — evidence-based, from VO₂max, not a guess
 ├── CoachPlanStore.swift       The plan book: propose → accept/decline/swap, one active week
 ├── PlanConsequence.swift      What a session or a swap actually costs, from your own history
+├── CoachNotifier.swift        Bridges ProactiveSignal + PlanProposal into the bell (§11a) — never a
+│                                CoachTool, always additive to the existing chat-nudge path
 ├── JourneyMilestones.swift    Non-performance milestones — facts, never a streak counter
 ├── CoachUsageLog.swift        Per-turn token accounting (all providers): cache hit/write/miss
 ├── CoachHistoryBudget.swift  Per-model token budget for the history window
@@ -110,8 +112,14 @@ Three deliberate choices in there:
 
 Declared in `CoachTools.swift` as `CoachTool`, offered to the model as JSON Schema, dispatched in
 `runCoachTool(_:input:)`. **All of them are gated behind `dataConsent`** — without it the dispatcher
-returns a polite "no data access" string and the model coaches generally. One of them,
-`get_personal_patterns`, needs the *second* opt-in (`includeOnDeviceSignals`) on top.
+returns a polite "no data access" string and the model coaches generally. Underneath that master switch,
+each tool ALSO belongs to one of seven `CoachPurpose` groups (`ToolConsent.swift`) — core biometrics,
+workouts, planning, stress, logging, memory, patterns — that the user grants independently in Settings →
+Privacy & data → Data access. A tool whose purpose isn't granted is left out of the list offered to the
+model entirely (`coachTools`), with a defensive re-check in `runCoachTool` for a stale in-flight round.
+`get_personal_patterns` is the sole tool in the `patterns` group, which doubles as the pre-existing
+*second* opt-in (`includeOnDeviceSignals` is now a computed passthrough onto it) — nothing changed about
+what enabling it means.
 
 Tool-calling engages for every provider that conforms to `ToolCallingClient` — Anthropic, OpenAI,
 OpenRouter (per selected model, gated on `supported_parameters`) and Gemini. **Custom is the only one
@@ -626,6 +634,86 @@ entry style is remembered for when it's turned back on. It is also independent o
 `isConfigured` and of the card-/background-AI paths (`model(for:)`): per-metric "Ask coach" buttons
 and the AI that writes card summaries keep running — this switch hides only the coach's own chat
 entry points, never the on-device analysis.
+
+## 11a. Notifications & the bell
+
+Before this, the bell (`UpdateStore`/`UpdatesInboxView.swift`) and the coach's proposals
+(`CoachPlanStore`/`PlanProposal`) were two disconnected shapes: the bell only ever carried release
+notes, "new data arrived" readings, and restorable dismissed cards, and a proposed session always
+titled itself "Today's session" regardless of what it actually was — a rest day read exactly like a
+hard one. Proactive hints (`ProactiveSignal`, §"Proactive coaching" logic in `ProactiveCoach.swift`)
+existed only as chat text: a body-concern signal or a small win was invisible unless you happened to
+open Coach.
+
+**`UpdateItem` (`Strand/Data/UpdateStore.swift`) now carries what the coach decided about a
+notification**, not just its content:
+
+```swift
+enum Category { case actionable, informative, statusReminder }
+enum Priority { case low, normal, high }
+
+var category: Category            // does this need a decision, a read, or nothing?
+var priority: Priority             // sort/badge weight within the inbox
+var expiresAt: Date?               // when this stops being relevant (never for .actionable)
+var actionRequired: Bool           // true only while an .actionable item awaits a decision
+var planProposalId: UUID?          // .actionable items point at a PlanProposal, never copy it
+var showOnToday: Bool              // prominent on Today, or bell/inbox-only
+```
+
+All six are additive — a row persisted before this existed decodes via `Kind.defaultCategory`
+(`.dismissedCard`/`.strapAlert` → `.statusReminder`, `.whatsNew`/`.reading` → `.informative`), so an
+existing on-device inbox never drops a row on upgrade (`UpdateItemCategoryDecodeTests`).
+
+**`Strand/AI/CoachNotifier.swift`** is the bridge from the coach's two structured outputs into the
+bell — a plain Swift enum, not a `CoachTool`, because `ProactiveSignal` detection is deterministic
+Swift that runs unconditionally, before any model call:
+
+- `postProactiveSignal(_:level:)` — called from `runProactiveNudgeIfNeeded()` the moment a signal is
+  detected, independent of whether the chat generation that follows succeeds. Maps
+  `ProactiveSignal.Category` to a bell category/priority/relevance window:
+
+  | Signal | Bell category | Priority | Relevance |
+  |---|---|---|---|
+  | `.milestone` | `.informative` | high if important else normal | 7 days |
+  | `.setback` | `.informative` | high | 3 days |
+  | `.bodyConcern` | `.informative` | high | 2 days |
+  | `.bodyPositive` | `.informative` | normal | 5 days |
+  | `.goalDeadline` | `.statusReminder` | high if important else normal | the goal's own target date |
+
+  No signal ever produces `.actionable` — only a `PlanProposal` asks for a decision. Gated by
+  `ProactiveLevel` exactly like the chat nudge (`.off` posts nothing; `.important` drops non-important
+  signals) — a user who turned proactive coaching down doesn't get a bell full of hints their chat pane
+  would never have shown either. A same-day guard (a synthetic `"proactive:<category>"` deep link,
+  checked against the logical day) stops a retried nudge attempt — `runProactiveNudgeIfNeeded()` only
+  stamps its once-per-day guard on a *successful* reply, so a failed network call deliberately retries
+  the same signal later — from duplicating the bell row.
+- `postPlanProposal(_:)` — called from `proposePlanTool` right after `CoachPlanStore.shared.propose(_:)`
+  succeeds. Posts an `.actionable`, `actionRequired: true`, `showOnToday: true` item pointing at the
+  proposal's id. A re-proposal that `CoachPlanStore` collapses onto the same id (the existing
+  same-`(day, sport)` dedup) refreshes the existing bell row in place rather than duplicating it.
+
+**`UpdatesInboxView.swift` now varies its ROW, not just its icon**, by category: `.actionable` resolves
+the live `PlanProposal` and shows Accept / Change / Decline while it's still `.proposed`, or a read-only
+status line once decided elsewhere (e.g. accepted from the Today card first) — never stale buttons.
+`.informative` is read-only: mark read or leave it. `.statusReminder` keeps the existing "Restore to
+Today" affordance for `.dismissedCard` rows, otherwise read-only. Items still awaiting a decision sort
+first within the unread/read split, so a pending session never buries under hints.
+
+**`MorningSuggestionCard`'s title is no longer hardcoded.** `.rest` reads "Rest day suggested",
+`.mobility` reads "Mobility suggested"; everything else keeps "Today's session", which already read
+fine for easy/moderate/hard.
+
+**Liquid Today gained the bell** (`LiquidUpdatesBellButton`, inline in the header's existing utility-icon
+cluster, same `UpdateStore.shared` Classic Today reads) — both Today screens now share one inbox instead
+of Liquid having none.
+
+**Deliberately out of scope, so far:** the six independent OS-level local-notification producers
+(`CoachCheckIn`, `WindDownNudge`, `StrainTargetNotifier`, `BatteryNotifier`, `IllnessNotifier`,
+`PlanReminder`) are untouched — this is an in-app system. `runGoalReviewIfNeeded()` and
+`runWeeklyReviewIfNeeded()` don't post a `.statusReminder` item yet (`// TODO(notifications)` at both
+call sites in `AICoach.swift`) — same shape as the goal-deadline signal, just not wired up yet.
+
+---
 
 ## 12. Settings
 

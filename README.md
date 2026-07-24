@@ -111,6 +111,23 @@ of 6 and one. Tomorrow's projection drops from ~62 to ~45."* Skipping is one tap
 pain and illness are read back with context, not judgment, and a few skips never get a sport
 permanently written off.
 
+### 📬 It decides what reaches you, and how
+
+Not every message from the coach deserves the same treatment — a suggested session needs a decision;
+"your recovery is low" doesn't. The coach now picks a **category**, a **priority**, and how long
+something stays relevant, and the app renders each one differently instead of stuffing everything into
+one "Today's session" card:
+
+- **Needs a decision** — a proposed session, with Accept / Change / Decline right there.
+- **Just a hint** — a proactive nudge (a body signal worth knowing, a small win) that used to live only
+  in chat, now also lands in the bell so it's visible without opening a conversation. Dismiss it or
+  leave it for later; there's nothing to accept.
+- **Status & reminders** — read-only history: what a decided proposal turned into, a goal deadline, a
+  restorable card.
+
+The bell — previously Classic Today only — is now in **both** Today screens, reading the same inbox, so
+switching between them never hides what's waiting for you.
+
 ### 💬 The chat itself
 
 | | |
