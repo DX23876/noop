@@ -37,6 +37,7 @@ struct HeuteRingsView: View {
                 // a tap between the arc strokes still opens the breakdown instead of falling through.
                 .contentShape(Rectangle())
                 .onTapGesture { onChargeTap?() }
+                .accessibilityHint("Double tap for details")
             Spacer(minLength: 0)
             // Was hardcoded to `effort / 21` (the WHOOP display scale) while being fed the stored NOOP
             // 0-100 value — a real strain of e.g. 65 rendered as 65/21 ≈ 310%, clamped to a full ring.
@@ -94,6 +95,11 @@ struct HeuteRingsView: View {
                     .textCase(.uppercase)
                     .foregroundStyle(HeuteRedesignPalette.ink3)
             }
+            // One VoiceOver stop ("Charge, Calibrating") instead of the ring outline + two separate
+            // Text nodes reading as fragments.
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Charge")
+            .accessibilityValue(chargeEmptyLabel ?? "")
         }
     }
 
@@ -116,5 +122,10 @@ struct HeuteRingsView: View {
                 .textCase(.uppercase)
                 .foregroundStyle(HeuteRedesignPalette.ink3)
         }
+        // One VoiceOver stop ("Charge, 72 percent") instead of the ring's own drawn number plus the
+        // suffix and label Text nodes reading as separate fragments.
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(label)
+        .accessibilityValue("\(suffix == nil ? String(format: "%.1f", value) : "\(Int(value.rounded()))")\(suffix ?? "")")
     }
 }

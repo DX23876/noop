@@ -300,6 +300,7 @@ struct HeuteVitalsGridView: View {
                             .overlay(Capsule().strokeBorder(HeuteRedesignPalette.line, lineWidth: 1))
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel(Text("Show \(descriptor.title)"))
                     }
                 }
             }
@@ -541,6 +542,9 @@ private struct HeuteVitalTile: View {
         .background(HeuteRedesignPalette.tile, in: RoundedRectangle(cornerRadius: 22))
         .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(HeuteRedesignPalette.line, lineWidth: 1))
         .clipShape(RoundedRectangle(cornerRadius: 22))
+        // One VoiceOver stop (title + value + unit + "as of") instead of each Text reading as a
+        // separate fragment — the badge icon and sparkline are hidden below so they don't add noise.
+        .accessibilityElement(children: .combine)
     }
 
     /// The standard number tile: badge, title, value(+unit), optional sparkline, and the "as of" caption.
@@ -578,6 +582,7 @@ private struct HeuteVitalTile: View {
                 .chartYAxis(.hidden)
                 .frame(height: sparklineHeight)
                 .padding(.top, 6)
+                .accessibilityHidden(true)
             }
             Spacer(minLength: 6)
             Text(reading.asOf)
@@ -604,6 +609,7 @@ private struct HeuteVitalTile: View {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(HeuteRedesignPalette.ink3)
+                    .accessibilityHidden(true)
             }
         }
         .padding(innerPadding)
@@ -625,6 +631,9 @@ private struct HeuteVitalTile: View {
                 .font(.system(size: badgeSize * 0.42, weight: .semibold))
                 .foregroundStyle(.white)
         }
+        // Decorative — the tile's own title Text already names the metric; VoiceOver shouldn't stop on
+        // the icon separately.
+        .accessibilityHidden(true)
     }
 }
 
@@ -647,7 +656,9 @@ private struct HeuteActivityTile: View {
     }
 
     var body: some View {
-        NavigationLink(value: TabRoute.workouts) {
+        // Value-based push straight to THIS workout's detail (matches Workouts → All Sessions, which
+        // opens the tapped row directly, not the bare list).
+        NavigationLink(value: TabRoute.workoutDetail(startTs: workout.startTs, sport: workout.sport)) {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(sport)
@@ -674,12 +685,16 @@ private struct HeuteActivityTile: View {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(HeuteRedesignPalette.ink3)
+                    .accessibilityHidden(true)
             }
             .padding(.horizontal, 18).padding(.vertical, 16)
         }
         .buttonStyle(.plain)
         .background(HeuteRedesignPalette.tile, in: RoundedRectangle(cornerRadius: 22))
         .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(HeuteRedesignPalette.line, lineWidth: 1))
+        // One VoiceOver stop (sport + duration/calories + effort) instead of four separate Text
+        // fragments.
+        .accessibilityElement(children: .combine)
     }
 }
 

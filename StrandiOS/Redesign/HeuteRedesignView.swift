@@ -100,6 +100,11 @@ struct HeuteRedesignView: View {
                                effort: effort, rest: rest, effortScale: effortScale,
                                onChargeTap: { showChargeBreakdown = true })
                     .padding(.top, 18)
+                // Pinned above the suggestion cards so an active manual workout is immediately visible —
+                // same placement rationale as LiquidTodayView's ActiveWorkoutIndicatorSection. Renders
+                // nothing when no workout is active.
+                HeuteActiveWorkoutIndicatorSection()
+                    .padding(.top, 18)
                 HeuteCardZoneView(status: dayStatus, readiness: readiness,
                                   calibrationNote: chargeDisplay.calibrationDetail,
                                   cards: suggestionCards,
@@ -137,6 +142,10 @@ struct HeuteRedesignView: View {
             .padding(.top, 30)
             .padding(.bottom, NoopMetrics.tabBarClearance)
         }
+        // Pull-to-refresh / manual strap sync — the other two Today screens have this via
+        // ScreenScaffold's onRefresh (which is exactly this under the hood); Heute doesn't use
+        // ScreenScaffold, so it needs its own .refreshable.
+        .refreshable { await repo.refresh() }
         .background(HeuteRedesignPalette.bg.ignoresSafeArea())
         .sheet(isPresented: $showPlan) { CoachPlanView().environmentObject(coach) }
         .sheet(isPresented: $showChargeBreakdown) {
@@ -144,7 +153,9 @@ struct HeuteRedesignView: View {
                                       restScore: rest > 0 ? rest : nil, chargeDisplay: chargeDisplay)
         }
         .simultaneousGesture(daySwipeGesture)
-        .task(id: selectedDayOffset) { await load() }
+        // repo.refreshSeq in the id (mirrors LiquidTodayView.swift/TodayView.swift): without it, a strap
+        // sync or backfill completing while Heute is open never triggers a reload.
+        .task(id: "\(repo.refreshSeq)-\(selectedDayOffset)") { await load() }
     }
 
     /// Whole days from today's logical day back to the earliest banked day — the lower bound the day-swipe

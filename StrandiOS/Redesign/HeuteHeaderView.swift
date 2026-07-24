@@ -90,14 +90,15 @@ struct HeuteHeaderView: View {
 
 // MARK: - Status chip
 
-/// Tap once → widens from a 30pt disc to a 118pt-wide capsule revealing the state label (and, for the
-/// three exception states, a warning-colour ring). Tap again while expanded → opens the status sheet.
-/// docs/design/mockup-heute.html `.statuschip`: `width .22s ease` / label `opacity .18s ease .05s` /
-/// `.ring` border only on `.expanded.tone-attn`. NOTE: the mockup also collapses on a tap anywhere
-/// outside the chip (a document-wide click listener) — not implemented here, since that needs a
-/// screen-wide tap catcher this chip alone can't own; flagging so it isn't mistaken for an oversight.
+/// One tap opens the status sheet directly (on-device feedback: the mockup's original two-stage "tap to
+/// reveal the label, tap again to open the sheet" read as needing two taps to do one thing — deliberately
+/// diverges from `docs/design/mockup-heute.html` `.statuschip` here). `expanded` still drives the
+/// 30pt-disc → 118pt-capsule widen + label reveal + warning-colour ring, now set alongside `showSheet`
+/// rather than gating it, so the chip still widens (matching the mockup's visual) at the same moment the
+/// sheet comes up, and collapses back on dismiss.
 struct ActivityStatusChip: View {
     @Binding var status: ActivityStatus
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var expanded = false
     @State private var showSheet = false
 
@@ -131,7 +132,7 @@ struct ActivityStatusChip: View {
             .overlay(Capsule().strokeBorder(ringColor, lineWidth: 1.5).padding(-1))
         }
         .buttonStyle(.plain)
-        .animation(.easeInOut(duration: 0.22), value: expanded)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: expanded)
         // Collapse back to the 30pt disc once the sheet closes — otherwise the chip stayed expanded and
         // the very next tap re-opened the sheet instead of reading as "expand" (the mockup's outside-tap
         // collapse doesn't exist here, see the note above).
@@ -140,7 +141,7 @@ struct ActivityStatusChip: View {
                 .noopSheetPresentation(largeFirst: false)
         }
         .accessibilityLabel(Text("Activity status: \(status.state.displayName)"))
-        .accessibilityHint(Text(expanded ? "Double tap to change" : "Double tap to expand"))
+        .accessibilityHint(Text("Double tap to change"))
     }
 
     private var ringColor: Color {
@@ -148,11 +149,8 @@ struct ActivityStatusChip: View {
     }
 
     private func handleTap() {
-        if expanded {
-            showSheet = true
-        } else {
-            expanded = true
-        }
+        expanded = true
+        showSheet = true
     }
 }
 
@@ -363,7 +361,7 @@ struct HeuteBatteryChip: View {
             .background(HeuteRedesignPalette.tile, in: Capsule())
             .overlay(Capsule().strokeBorder(HeuteRedesignPalette.line, lineWidth: 1))
         }
-        .animation(.easeInOut(duration: 0.4), value: displayPct)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.4), value: displayPct)
         .buttonStyle(.plain)
         .accessibilityLabel(Text(accessibilityText))
         .onAppear { startBlinkIfNeeded() }
