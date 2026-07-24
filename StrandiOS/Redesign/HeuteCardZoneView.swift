@@ -6,7 +6,7 @@ import StrandAnalytics
 //
 // A fixed, never-dismissable base card sits behind a stack of ephemeral, individually-swipeable
 // notification cards. No existing swipe-to-dismiss precedent exists anywhere in the repo (checked) —
-// the drag physics below are transcribed from noop-heute-ausgebaut.html's vanilla-JS implementation,
+// the drag physics below are transcribed from docs/design/mockup-heute.html's vanilla-JS implementation,
 // which is more precise than design-spec §3's prose.
 //
 // `NotificationCardItem` + the real-source mapping (`HeuteSuggestionCards`) live in `Strand/Data/` so

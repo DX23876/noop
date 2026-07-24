@@ -1,7 +1,7 @@
 import Foundation
 import StrandAnalytics
 
-/// What the Basiskarte (docs/noop-feature-spec.md §2) shows: either the real computed readiness
+/// What the Basiskarte (docs/feature-spec.md §2) shows: either the real computed readiness
 /// statement, or — for the three ActivityStatus exception states — a fixed override. Basiskarte and
 /// coach must never disagree, so the `.active` case passes `ReadinessEngine.Readiness` through verbatim
 /// rather than recomputing anything.

@@ -1,7 +1,7 @@
 import XCTest
 @testable import Strand
 
-/// Pins docs/noop-feature-spec.md §1 (`ActivityStatus`): the four-state manual override, the
+/// Pins docs/feature-spec.md §1 (`ActivityStatus`): the four-state manual override, the
 /// duration→validUntil mapping, and the silent auto-fallback to `.active` once `validUntil` passes. Pure
 /// value-type logic + a UserDefaults-backed store, both database-free.
 final class ActivityStatusTests: XCTestCase {

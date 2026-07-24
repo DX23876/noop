@@ -1,7 +1,7 @@
 import Foundation
 
 /// The metrics eligible for the Heute-screen Vitals grid, as MetricCatalog ids (`MetricDescriptor.id`,
-/// `"<source>:<key>"`). docs/noop-feature-spec.md §4: adding a metric is appending one id here — nothing
+/// `"<source>:<key>"`). docs/feature-spec.md §4: adding a metric is appending one id here — nothing
 /// else in the grid/edit logic changes. The first six match the design-spec's tile accent-color table
 /// (HRV, Ruhepuls, Atmung, Blutsauerstoff, Fitness-Alter, Schritte); `weight`/`energy_kcal` were added
 /// for parity with the old Today grid's `KeyMetric` set (on-device feedback) — Charge/Effort/Rest stay
@@ -35,7 +35,7 @@ enum VitalGridMetric {
     ]
 }
 
-/// One Vitals-grid tile's persisted state. docs/noop-feature-spec.md §4.
+/// One Vitals-grid tile's persisted state. docs/feature-spec.md §4.
 struct VitalTileConfig: Codable, Equatable {
     var metricId: String
     var visible: Bool

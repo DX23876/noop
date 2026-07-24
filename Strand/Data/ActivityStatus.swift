@@ -1,7 +1,7 @@
 import Foundation
 
 /// Manual, user-set day-level activity status — independent of the computed Charge/Effort/Rest scores.
-/// docs/noop-feature-spec.md §1.
+/// docs/feature-spec.md §1.
 struct ActivityStatus: Codable, Equatable {
     enum State: String, Codable, CaseIterable {
         case active, sick, injured, onBreak

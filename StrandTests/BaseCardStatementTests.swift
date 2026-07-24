@@ -2,7 +2,7 @@ import XCTest
 import StrandAnalytics
 @testable import Strand
 
-/// Pins docs/noop-feature-spec.md §2: the Basiskarte shows the real `ReadinessEngine` statement while
+/// Pins docs/feature-spec.md §2: the Basiskarte shows the real `ReadinessEngine` statement while
 /// `ActivityStatus` is `.active`, and a fixed statement for the three exception states — Basiskarte and
 /// coach must never disagree, so `.active` must pass the readiness text through unmodified.
 final class BaseCardStatementTests: XCTestCase {

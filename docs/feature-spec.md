@@ -1,6 +1,6 @@
 # NOOP AI · Feature-Spezifikation, Heute-Screen
 
-Beschreibt **Verhalten und Daten**, nicht Aussehen. Für Optik siehe `design-spec.md`.
+Beschreibt **Verhalten und Daten**, nicht Aussehen. Für Optik siehe `design/design-spec.md`.
 
 ---
 

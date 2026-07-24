@@ -1,7 +1,7 @@
 # NOOP AI · Design-Spezifikation, Heute-Screen
 
-Beschreibt **Aussehen und Bewegung**, nicht Verhalten/Daten. Für Funktion siehe `feature-spec.md`.
-Visuelle Referenz: `noop-heute-ausgebaut.html` (verbindlich bei Widerspruch zum Text).
+Beschreibt **Aussehen und Bewegung**, nicht Verhalten/Daten. Für Funktion siehe `../feature-spec.md`.
+Visuelle Referenz: `mockup-heute.html` (verbindlich bei Widerspruch zum Text).
 
 ---
 

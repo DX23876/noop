@@ -1,7 +1,7 @@
 import XCTest
 @testable import Strand
 
-/// Pins docs/noop-feature-spec.md §4: per-metric visible/sortOrder persisted config, extensible (a new
+/// Pins docs/feature-spec.md §4: per-metric visible/sortOrder persisted config, extensible (a new
 /// metric id needs no change to the merge/edit logic), plus the global 2-vs-3 `gridDensity` setting.
 final class VitalTileConfigTests: XCTestCase {
 
