@@ -543,19 +543,11 @@ protocol ToolCallingClient {
 
 extension AICoachEngine {
 
-    /// The tools offered to the model, honouring consent: the patterns/Lab Book tool only appears when
-    /// the second opt-in is on, mirroring `buildFullContext`'s gating.
+    /// The tools offered to the model, honouring per-purpose consent (`toolConsent`, #coach-tool-consent):
+    /// a tool whose `CoachPurpose` group isn't enabled is left OUT of the offered list entirely, rather
+    /// than offered and then refused — the model never spends a round discovering it can't call something.
     var coachTools: [CoachTool] {
-        var tools: [CoachTool] = [
-            .biometricSummary, .recentWorkouts, .stressIndex, .plotMetric,
-            .sleepDetail, .rangeReport, .readiness, .chargeDrivers,
-            .proposePlan, .sessionOutlook, .simulateDay, .planAdherence,
-            .myLogs, .zoneMinutes,
-            .rememberFact, .updateFact, .forgetFact, .searchPastConversations,
-            .logCaffeine, .logJournal, .logLabMarker
-        ]
-        if includeOnDeviceSignals { tools.append(.personalPatterns) }
-        return tools
+        CoachTool.allCases.filter { toolConsent.allows($0) }
     }
 
     /// True when the current turn should use the tool-use path: the user has granted data access, tools
@@ -611,14 +603,25 @@ extension AICoachEngine {
     }
 
     /// Execute one tool call and return a compact text result. Routes to the same consent-gated summaries
-    /// the text-context path uses, so the no-raw-egress posture holds. Unknown names and missing-consent
-    /// are reported as plain text so the model can recover gracefully.
+    /// the text-context path uses, so the no-raw-egress posture holds. Unknown names, missing overall data
+    /// access, and a purpose the user hasn't granted are all reported as plain text so the model can
+    /// recover gracefully rather than erroring out.
     func runCoachTool(_ name: String, input: [String: Any]) async -> String {
         guard dataConsent else {
             return "The user has not granted data access, so their metrics are unavailable. "
                 + "Coach generally and invite them to enable data access."
         }
-        switch CoachTool(rawValue: name) {
+        guard let tool = CoachTool(rawValue: name) else {
+            return "Unknown tool \"\(name)\"."
+        }
+        // Belt-and-suspenders: `coachTools` already excludes anything ungranted from the offered list, so
+        // this should rarely trip — but a stale wire (a round begun before a setting changed mid-chat)
+        // could still name a tool the model was offered a moment ago.
+        guard toolConsent.allows(tool) else {
+            return "The user hasn't enabled that kind of access in Privacy & data → Data access, so this "
+                + "isn't available."
+        }
+        switch tool {
         case .biometricSummary:
             var block = buildContext()
             if let confidence = chargeConfidenceLine() { block += "\n\n" + confidence }
@@ -631,9 +634,7 @@ extension AICoachEngine {
             return await stressIndexLine()
                 ?? "Not enough clean R-R data today to compute a stress index yet."
         case .personalPatterns:
-            guard includeOnDeviceSignals else {
-                return "The user hasn't shared their patterns or Lab Book, so this isn't available."
-            }
+            // The `.patterns` purpose guard above already covers this — no separate check needed here.
             let raw = (input["limit"] as? Int) ?? Int(input["limit"] as? Double ?? 3)
             let limit = max(1, min(raw, 10))
             let block = await onDeviceSignalsBlock(limit: limit)
@@ -734,8 +735,6 @@ extension AICoachEngine {
         case .zoneMinutes:
             let raw = (input["days"] as? Int) ?? Int(input["days"] as? Double ?? 7)
             return await zoneMinutesTool(days: max(1, min(raw, 90)))
-        case .none:
-            return "Unknown tool \"\(name)\"."
         }
     }
 }

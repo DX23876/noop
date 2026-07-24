@@ -107,4 +107,64 @@ final class CoachMemoryDedupTests: XCTestCase {
         XCTAssertEqual(memory.facts.count, 1)
         XCTAssertEqual(memory.facts.first?.text, "Trains for a half marathon in October in Berlin")
     }
+
+    // MARK: - Category-aware dedup
+
+    /// Two facts sharing the SAME words but in DIFFERENT categories must never collapse — category is
+    /// checked before any text comparison at all.
+    func testDifferentCategoriesNeverCollapseEvenWithIdenticalText() {
+        let memory = freshMemory()
+        memory.add("Left knee pain", category: .injury)
+        memory.add("Left knee pain", category: .preference)
+        XCTAssertEqual(memory.facts.count, 2)
+    }
+
+    /// Two DIFFERENT injuries that share a lot of vocabulary ("left knee ... tear") must stay separate —
+    /// the audit's exact example. 75% token overlap clears the old blanket 0.8 threshold's neighbourhood
+    /// but must NOT clear `.injury`'s stricter 0.85.
+    func testTwoDistinctInjuriesWithHighOverlapStaySeparate() {
+        let memory = freshMemory()
+        memory.add("Left knee ACL tear from skiing", category: .injury)
+        memory.add("Left knee meniscus tear from skiing", category: .injury)
+        XCTAssertEqual(memory.facts.count, 2, "ACL and meniscus are different injuries, not a rewording")
+    }
+
+    /// A casual preference restatement at 2/3 (~0.67) token overlap collapses under `.preference`'s
+    /// looser 0.65 threshold, where it would NOT have cleared the old blanket 0.8.
+    func testLooserPreferenceRestatementCollapses() {
+        XCTAssertFalse(CoachMemory.hasDuplicateTokenOverlap("Prefers night runs", "Likes night runs usually"),
+                       "sanity check: 2/3 overlap must NOT clear the old flat 0.8 threshold")
+        let memory = freshMemory()
+        memory.add("Prefers night runs", category: .preference)
+        memory.add("Likes night runs usually", category: .preference)
+        XCTAssertEqual(memory.facts.count, 1)
+    }
+
+    /// Superseding a fact must never DOWNGRADE its importance — a rephrasing saved with the default
+    /// `.normal` importance must not knock a `.pinned` fact out of `pinnedBlock`.
+    func testSupersedingNeverDowngradesPinnedImportance() {
+        let memory = freshMemory()
+        memory.add("Left knee pain when running downhill", category: .injury, importance: .pinned)
+        memory.add("Left knee pain when running downhill and after", category: .injury, importance: .normal)
+        XCTAssertEqual(memory.facts.count, 1)
+        XCTAssertEqual(memory.facts.first?.importance, .pinned)
+        XCTAssertTrue(memory.pinnedBlock.contains("downhill and after"))
+    }
+
+    /// At the 40-fact cap, a NEW unrelated fact must evict the oldest NON-pinned fact, never a pinned one.
+    func testEvictionAtCapNeverDropsAPinnedFact() {
+        let memory = freshMemory()
+        memory.add("The user's one durable pinned fact", category: .injury, importance: .pinned)
+        // Each filler's tokens embed its own index, so no two fillers share enough vocabulary to
+        // near-duplicate each other (which would collapse them instead of filling the cap).
+        for i in 0..<(CoachMemory.maxFacts - 1) {
+            memory.add("Unrelatedtopic\(i) detailitem\(i) notepoint\(i)", category: .other)
+        }
+        XCTAssertEqual(memory.facts.count, CoachMemory.maxFacts)
+        // One more push over the cap.
+        memory.add("Freshtopic999 detailitem999 notepoint999", category: .other)
+        XCTAssertEqual(memory.facts.count, CoachMemory.maxFacts)
+        XCTAssertTrue(memory.facts.contains { $0.text == "The user's one durable pinned fact" },
+                     "the pinned fact must survive eviction even though it's the oldest")
+    }
 }
