@@ -260,6 +260,12 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
 
     // MARK: - Send
 
+    /** Append [msg] to the transcript, trimming to the newest [MAX_STORED_MESSAGES] so the in-memory list
+     *  (and the Compose transcript) stays bounded over a long-lived session. (parity with Swift) */
+    private fun appendMessage(msg: ChatMsg) {
+        _messages.value = (_messages.value + msg).takeLast(MAX_STORED_MESSAGES)
+    }
+
     /**
      * Send [text] as the next user turn: append it, call the coach, then append the reply.
      * No-ops on blank input or while a send is already in flight. All failures land in [error].
@@ -270,7 +276,7 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
 
         val appCtx = ctx.applicationContext
         _error.value = null
-        _messages.value = _messages.value + ChatMsg(role = "user", text = question)
+        appendMessage(ChatMsg(role = "user", text = question))
         _sending.value = true
 
         viewModelScope.launch {
@@ -286,7 +292,7 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
                     // the second opt-in is set (summary-only, no raw egress, see AiCoach.buildSignalsContext).
                     includeSignals = _consent.value && NoopPrefs.coachSignals(appCtx),
                 )
-                _messages.value = _messages.value + ChatMsg(role = "assistant", text = reply)
+                appendMessage(ChatMsg(role = "assistant", text = reply))
             } catch (e: Exception) {
                 _error.value = e.message ?: "Something went wrong. Please try again."
             } finally {
@@ -301,6 +307,16 @@ class CoachViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     companion object {
+        /**
+         * Hard rolling cap on the STORED transcript. The network payload is separately windowed inside
+         * [AiCoach]; this bounds the in-memory [_messages] list — and the Compose transcript rendered from
+         * it — so a long-lived session can't grow it without bound. The ViewModel survives tab-switching,
+         * so before this an active chat grew until the process was killed: the "gets laggy the longer the
+         * app runs, reopening fixes it, feels like RAM" report. Cap >> the wire window, so it never changes
+         * what's sent. (parity with Swift `maxStoredMessages`)
+         */
+        private const val MAX_STORED_MESSAGES = 40
+
         /**
          * Initial model list for [provider]: its curated ids, plus [selected] appended if it's a
          * custom id not already in that list (so a previously-saved custom model still shows).

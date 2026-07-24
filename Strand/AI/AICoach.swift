@@ -1240,6 +1240,20 @@ final class AICoachEngine: ObservableObject {
 
     // MARK: Sending
 
+    /// Hard rolling cap on the STORED transcript. The network payload is separately windowed by
+    /// `windowedMessages()` (`maxHistoryMessages`); this bounds the in-memory `messages` array — and the
+    /// SwiftUI transcript rendered from it — so a long-lived session can't grow it without bound. `coach`
+    /// is a single app-lifetime instance on `AppModel`, so before this an active chat grew `messages`
+    /// until the process was killed: the "gets laggy the longer the app runs, reopening fixes it, feels
+    /// like RAM" report. Cap >> the wire window, so it never changes what's sent. (parity with Android)
+    private static let maxStoredMessages = 40
+    private func appendMessage(_ message: ChatMessage) {
+        messages.append(message)
+        if messages.count > Self.maxStoredMessages {
+            messages.removeFirst(messages.count - Self.maxStoredMessages)
+        }
+    }
+
     /// Send a question: append it, build the metrics context, call the chosen provider with the
     /// system prompt + context + running history, parse the reply, append it. Never throws/crashes;
     /// failures land in `errorText`.
@@ -1254,7 +1268,9 @@ final class AICoachEngine: ObservableObject {
         }
 
         clearError()
-        messages.append(ChatMessage(role: .user, text: trimmed))
+        // Route through `appendMessage` for upstream's `maxStoredMessages` cap (unbounded-RAM fix, #741)
+        // while keeping the fork's richer clear-error + card-suggestion reset.
+        appendMessage(ChatMessage(role: .user, text: trimmed))
         cardSuggestions = []   // the card's follow-up chips belong to the moment after its read (#P11)
         sending = true
         defer { sending = false }
@@ -1327,8 +1343,8 @@ final class AICoachEngine: ObservableObject {
         do {
             let reply = try await callProvider(key: key, messages: wire)
             let clean = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
-            messages.append(ChatMessage(role: .assistant, text: clean.isEmpty ? "(no reply)" : clean,
-                                        toolsUsed: reply.toolsUsed))
+            appendMessage(ChatMessage(role: .assistant, text: clean.isEmpty ? "(no reply)" : clean,
+                                      toolsUsed: reply.toolsUsed))
             flushPendingCharts()
         } catch let e as AICoachError {
             discardPendingCharts(); setError(e)
@@ -1946,8 +1962,8 @@ final class AICoachEngine: ObservableObject {
             let reply = try await callProvider(key: key, messages: wire)
             let clean = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
             if !clean.isEmpty {
-                messages.append(ChatMessage(role: .assistant, text: "Today's brief\n\n" + clean,
-                                            toolsUsed: reply.toolsUsed, origin: .brief))
+                appendMessage(ChatMessage(role: .assistant, text: "Today's brief\n\n" + clean,
+                                          toolsUsed: reply.toolsUsed, origin: .brief))
                 // Stamp only on genuine success, so a network failure doesn't burn the day's slot — a
                 // retry (reopening the conversation after a day boundary) can still land one.
                 UserDefaults.standard.set(Repository.logicalDayKey(Date()), forKey: Self.lastBriefDayKey)

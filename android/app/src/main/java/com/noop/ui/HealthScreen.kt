@@ -1802,6 +1802,7 @@ fun VitalDetailScreen(vm: AppViewModel, key: String) {
                     selection = effectiveRange,
                     label = { it.label },
                     onSelect = { range = it },
+                    adaptsToAvailableWidth = true,
                     enabled = { it in unlockedRanges },
                 )
                 if (unlockedRanges.size < VitalDetailRange.entries.size) {

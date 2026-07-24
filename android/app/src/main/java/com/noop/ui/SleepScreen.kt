@@ -2361,20 +2361,22 @@ private fun MetricGrid(m: SleepModel, onMetricClick: (String) -> Unit = {}) {
                 onClick = { onMetricClick("respiratory") },
             )
         },
-        { mod ->
-            SparkTile(
-                mod, "Sleep Debt",
-                value = m.sleepDebt.latest?.let { durationText(it) } ?: "—",
-                caption = debtCaption(m.sleepDebt.latest),
-                accent = debtColor(m.sleepDebt.latest),
-                spark = m.sleepDebt.series, sparkColor = Palette.metricRose,
-                onClick = { onMetricClick("sleep_debt") },
-            )
-        },
     )
 
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
         SectionHeader("Night detail", overline = "Metrics", trailing = "vs typical")
+
+        // Sleep Debt is the actionable summary for the section, so it leads at the full
+        // two-column width. The remaining six peer metrics keep the established 2 × 3 grid.
+        SparkTile(
+            Modifier.fillMaxWidth(), "Sleep Debt",
+            value = m.sleepDebt.latest?.let { durationText(it) } ?: "—",
+            caption = debtCaption(m.sleepDebt.latest),
+            accent = debtColor(m.sleepDebt.latest),
+            spark = m.sleepDebt.series, sparkColor = Palette.metricRose,
+            onClick = { onMetricClick("sleep_debt") },
+        )
+
         // Two-up rows; IntrinsicSize.Max + fillMaxHeight keep row neighbors equal height even when
         // large font scales grow one tile past the tileHeight floor. No empty cells.
         tiles.chunked(2).forEach { rowTiles ->
@@ -2383,7 +2385,6 @@ private fun MetricGrid(m: SleepModel, onMetricClick: (String) -> Unit = {}) {
                 horizontalArrangement = Arrangement.spacedBy(Metrics.gap),
             ) {
                 rowTiles.forEach { it(Modifier.weight(1f).fillMaxHeight()) }
-                if (rowTiles.size == 1) Spacer(Modifier.weight(1f))
             }
         }
     }

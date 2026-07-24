@@ -798,14 +798,15 @@ private fun StatRow(
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
         SectionHeader(stringResource(R.string.explore_summary), overline = stringResource(R.string.explore_over_visible_window), trailing = stringResource(R.string.explore_n_pts, s.n))
 
+        // Average summarizes the selected range, so it leads at the full two-column width.
+        StatTile(
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(R.string.explore_average),
+            value = if (s.n > 0) metric.format(s.mean) else ",",
+            caption = pluralStringResource(R.plurals.explore_n_days, s.n, s.n),
+            accent = metric.accent,
+        )
         Row(horizontalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-            StatTile(
-                modifier = Modifier.weight(1f),
-                label = stringResource(R.string.explore_average),
-                value = if (s.n > 0) metric.format(s.mean) else ",",
-                caption = pluralStringResource(R.plurals.explore_n_days, s.n, s.n),
-                accent = metric.accent,
-            )
             StatTile(
                 modifier = Modifier.weight(1f),
                 label = stringResource(R.string.explore_min),
@@ -819,18 +820,8 @@ private fun StatRow(
                 accent = Palette.textPrimary,
             )
         }
-        // Two-up (not three-up + a pad cell): the prev-window comparison tile carries a value, a
-        // delta chip AND a "vs prev <window>" caption, which all clipped at a third of the width ,
-        // "vs prev 6 months" truncated to "vs prev 6 m…" and the delta chip ran off the tile (#443).
-        // Half-width gives every part room; mirrors the 2-up tile rows used on Sleep/Compare.
+        // Half-width gives the comparison tile room for its value, delta chip and window caption.
         Row(horizontalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-            StatTile(
-                modifier = Modifier.weight(1f),
-                label = stringResource(R.string.explore_latest),
-                value = latest?.let { metric.format(it.value) } ?: ",",
-                caption = latest?.day,
-                accent = metric.accent,
-            )
             StatTile(
                 modifier = Modifier.weight(1f),
                 label = stringResource(R.string.explore_delta_vs_prev),
@@ -839,6 +830,13 @@ private fun StatRow(
                 accent = Palette.textPrimary,
                 delta = pctChange?.let { "${if (it >= 0) "+" else ""}${String.format(Locale.US, "%.1f", it)}%" },
                 deltaColor = deltaColor,
+            )
+            StatTile(
+                modifier = Modifier.weight(1f),
+                label = stringResource(R.string.explore_latest),
+                value = latest?.let { metric.format(it.value) } ?: ",",
+                caption = latest?.day,
+                accent = metric.accent,
             )
         }
     }

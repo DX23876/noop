@@ -17,7 +17,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "%@ %lld"
           }
         },
@@ -57,7 +57,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "%@ a calibrar"
           }
         },
@@ -97,7 +97,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "%@ indisponível"
           }
         },
@@ -155,7 +155,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "Carga"
           }
         },
@@ -195,8 +195,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Carga %lld de 100"
+            "state": "translated",
+            "value": "Carregue %lld de 100"
           }
         },
         "ru": {
@@ -235,8 +235,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Carga %lld · %lld bpm%@"
+            "state": "translated",
+            "value": "Carregar %lld · %lld bpm%@"
           }
         },
         "ru": {
@@ -275,8 +275,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Carga %lld%@"
+            "state": "translated",
+            "value": "Carregar %lld%@"
           }
         },
         "ru": {
@@ -315,8 +315,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Carga a calibrar"
+            "state": "translated",
+            "value": "Calibração de carga"
           }
         },
         "ru": {
@@ -355,8 +355,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Carga a calibrar, precisa de mais dados"
+            "state": "translated",
+            "value": "Calibração de carga, necessita de mais dados"
           }
         },
         "ru": {
@@ -395,8 +395,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Carga desatualizada, última sincronização %@. Abre o NOOP no iPhone."
+            "state": "translated",
+            "value": "Carga desatualizada, última sincronização %@. Abra o NOOP no iPhone."
           }
         },
         "ru": {
@@ -435,8 +435,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Carga desatualizada · %@"
+            "state": "translated",
+            "value": "Carga obsoleta · %@"
           }
         },
         "ru": {
@@ -475,7 +475,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "Carga indisponível"
           }
         },
@@ -515,8 +515,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Carga · %@"
+            "state": "translated",
+            "value": "Cobrar · %@"
           }
         },
         "ru": {
@@ -555,8 +555,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Carga · cal"
+            "state": "translated",
+            "value": "Carregar · cal"
           }
         },
         "ru": {
@@ -595,8 +595,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Carga –"
+            "state": "translated",
+            "value": "Cobrar -"
           }
         },
         "ru": {
@@ -653,7 +653,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "Esforço"
           }
         },
@@ -705,7 +705,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "Carga NOOP"
           }
         },
@@ -751,8 +751,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "NOOP · abre no iPhone"
+            "state": "translated",
+            "value": "NOOP · abrir no iPhone"
           }
         },
         "ru": {
@@ -791,8 +791,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "NOOP. %@, %@, %@."
+            "state": "translated",
+            "value": "NÃO. %@, %@, %@."
           }
         },
         "ru": {
@@ -831,8 +831,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "NOOP. Sem dados ainda, abre o NOOP no iPhone para sincronizar."
+            "state": "translated",
+            "value": "NÃO. Ainda não há dados, abra o NOOP no teu iPhone para tincronizar."
           }
         },
         "ru": {
@@ -871,8 +871,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "NOOP. Pontuações desatualizadas, última sincronização %@. Abre o NOOP no iPhone para atualizar."
+            "state": "translated",
+            "value": "NÃO. Pontuações desatualizadas, última sincronização %@. Abra o NOOP no iPhone para atualizar."
           }
         },
         "ru": {
@@ -911,8 +911,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Sem dados, abre o NOOP no iPhone"
+            "state": "translated",
+            "value": "Sem dados, abra o NOOP no iPhone"
           }
         },
         "ru": {
@@ -951,7 +951,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "Abrir NOOP"
           }
         },
@@ -1009,7 +1009,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "Descanso"
           }
         },
@@ -1061,8 +1061,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "A tua Carga (recuperação) no mostrador, com Esforço e Descanso no cartão retangular."
+            "state": "translated",
+            "value": "A tua Carga (recuperação) no mostrador do relógio, com Esforço e Descanso no cartão rectangular."
           }
         },
         "ru": {
@@ -1107,8 +1107,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "há algum tempo"
+            "state": "translated",
+            "value": "há um tempo atrás"
           }
         },
         "ru": {
@@ -1147,7 +1147,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "cal"
           }
         },
@@ -1187,8 +1187,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "desatualizado"
+            "state": "translated",
+            "value": "old"
           }
         },
         "ru": {
@@ -1227,8 +1227,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "abrir iPhone"
+            "state": "translated",
+            "value": "abra o iPhone"
           }
         },
         "ru": {
@@ -1267,8 +1267,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "desatualizado"
+            "state": "translated",
+            "value": "stale"
           }
         },
         "ru": {

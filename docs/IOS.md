@@ -52,8 +52,10 @@ hunting for the `.ipa` each time.
 >   widgets may not work** on a free-signed sideload. The core app — pairing your strap, live HR,
 >   recovery/strain/sleep, history, the AI Coach, everything on-device — works regardless. This is an
 >   Apple signing constraint, not a NOOP limitation, and it's why a HealthKit toggle can appear to do
->   nothing on a sideloaded build. (Building from source with your own Apple ID in Xcode grants these
->   entitlements normally.)
+>   nothing on a sideloaded build. The release IPA retains `NOOPWidgets.appex`, so AltStore/Sideloadly
+>   must provision one additional app extension for widgets and Live Activities; removing app extensions
+>   while signing disables those surfaces. Building from source with your own Apple ID in Xcode and
+>   selecting your Team for both targets grants these entitlements normally.
 
 iOS shares the cross-platform Swift packages with macOS, so the number-crunching (recovery, strain,
 HRV, sleep) is the **same code** and produces the same results. iOS is newer and less battle-tested

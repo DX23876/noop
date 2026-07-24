@@ -74,13 +74,14 @@ object HealthExportPlan {
         return HrPlan(chunks, fresh.last().tsSec)
     }
 
-    // ---- Sleep sessions: AWAKE vs SLEEPING only (fine stages deferred until stager validated) ----
+    // ---- Sleep sessions: preserve detailed stages for Health Connect writeback ----
 
     /** One stored fragment as the export sees it: [keyStartTs] is the immutable detected onset (the
      *  dedup identity — a user edit must never change it), [startTs] the EFFECTIVE onset that drives
      *  the exported span (`startTsAdjusted ?: startTs`, iOS parity #318). */
     data class SleepInput(val keyStartTs: Long, val startTs: Long, val endTs: Long, val stagesJSON: String?)
-    data class StagePlan(val startSec: Long, val endSec: Long, val asleep: Boolean)
+    enum class StageKind { AWAKE, SLEEPING, LIGHT, DEEP, REM }
+    data class StagePlan(val startSec: Long, val endSec: Long, val kind: StageKind)
     data class SleepPlan(
         val clientId: String,
         val startSec: Long,
@@ -113,7 +114,7 @@ object HealthExportPlan {
                 val p = prevEnd
                 // The inter-fragment seam is time the user was demonstrably awake — export it as an
                 // explicit AWAKE stage so the merged night carries the wake instead of a silent hole.
-                if (p != null && f.startTs > p) stages.add(StagePlan(p, f.startTs, asleep = false))
+                if (p != null && f.startTs > p) stages.add(StagePlan(p, f.startTs, StageKind.AWAKE))
                 stages.addAll(parseStages(f.stagesJSON))
                 prevEnd = maxOf(prevEnd ?: f.endTs, f.endTs)
             }
@@ -130,12 +131,9 @@ object HealthExportPlan {
         return out
     }
 
-    /** Parse the `{start,end,stage}` segment array; classify `wake`/`awake` as awake, else asleep;
-     *  coalesce consecutive same-class segments. Returns empty on null/malformed JSON.
-     *
-     *  The asleep test mirrors [HealthConnectImporter] / `WhoopRepository.sleepEfficiency`, which
-     *  treat any stage that is not `wake`/`awake` as asleep — so the exported AWAKE/SLEEPING split
-     *  matches what the rest of NOOP already considers asleep. */
+    /** Parse the `{start,end,stage}` segment array and preserve stages Health Connect can represent.
+     * `wake` and `awake` normalize to [StageKind.AWAKE]; unknown asleep labels degrade honestly to
+     * [StageKind.SLEEPING]. Consecutive segments coalesce only when their detailed kind matches. */
     private fun parseStages(json: String?): List<StagePlan> {
         json ?: return emptyList()
         val arr = runCatching { org.json.JSONArray(json) }.getOrNull() ?: return emptyList()
@@ -147,12 +145,19 @@ object HealthExportPlan {
             if (st < 0 || en <= st) continue
             val name = o.optString("stage")
             if (name.isEmpty()) continue // no stage label: leave a gap rather than fabricate asleep
-            raw.add(StagePlan(st, en, asleep = name != "wake" && name != "awake"))
+            val kind = when (name) {
+                "wake", "awake" -> StageKind.AWAKE
+                "light" -> StageKind.LIGHT
+                "deep" -> StageKind.DEEP
+                "rem" -> StageKind.REM
+                else -> StageKind.SLEEPING
+            }
+            raw.add(StagePlan(st, en, kind))
         }
         val merged = ArrayList<StagePlan>()
         for (seg in raw.sortedBy { it.startSec }) {
             val last = merged.lastOrNull()
-            if (last != null && last.asleep == seg.asleep && seg.startSec <= last.endSec) {
+            if (last != null && last.kind == seg.kind && seg.startSec <= last.endSec) {
                 merged[merged.size - 1] = last.copy(endSec = maxOf(last.endSec, seg.endSec))
             } else {
                 merged.add(seg)

@@ -77,6 +77,26 @@
       "No caffeine logged. Log an intake to see an estimate."
     ],
     [
+      "android/app/src/main/java/com/noop/ui/Charts.kt",
+      "Bars"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/Charts.kt",
+      "Breakdown, ${segments.size} segments"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/Charts.kt",
+      "Breakdown, no data"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/Charts.kt",
+      "Timeline"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/Charts.kt",
+      "Trend"
+    ],
+    [
       "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
       "Bring your own API key. It is stored encrypted on this device and only used to "
     ],
@@ -153,6 +173,18 @@
       "A classic one-glance read of NOOP's own scores. Same data, different lens."
     ],
     [
+      "android/app/src/main/java/com/noop/ui/CoupledScreen.kt",
+      "Recovery ${recovery.roundToInt()} percent. See what shaped your Charge"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/CoupledScreen.kt",
+      "Recovery calibrating, $calibrationNights of ${Baselines.minNightsSeed} nights"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/CoupledScreen.kt",
+      "Recovery, no data yet"
+    ],
+    [
       "android/app/src/main/java/com/noop/ui/DataSourcesScreen.kt",
       "Imported"
     ],
@@ -183,6 +215,14 @@
     [
       "android/app/src/main/java/com/noop/ui/FusedRecordScreen.kt",
       ", in use"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/FusedRecordScreen.kt",
+      "Scores still calibrating, no single day-owner yet"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/FusedRecordScreen.kt",
+      "Today's scores owned by ${owner.displayName}"
     ],
     [
       "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
@@ -259,6 +299,14 @@
     [
       "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
       "about your age"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/HrvSnapshotScreen.kt",
+      "$value $unit"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/HrvSnapshotScreen.kt",
+      "Capturing. $value milliseconds RMSSD so far. $sub."
     ],
     [
       "android/app/src/main/java/com/noop/ui/HrvSnapshotScreen.kt",
@@ -418,6 +466,10 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/MindSection.kt",
+      "${face.word}, mood ${face.value.toInt()} of 5"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/MindSection.kt",
       "r = %+.2f"
     ],
     [
@@ -553,6 +605,14 @@
       "Removes this sleep and recomputes the day without it. You can undo for a few seconds after."
     ],
     [
+      "android/app/src/main/java/com/noop/ui/SleepScreen.kt",
+      "Sleep deleted."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SleepScreen.kt",
+      "Sleep deleted. NOOP won't detect sleep between $startText and $endText again."
+    ],
+    [
       "android/app/src/main/java/com/noop/ui/SmartAlarmScreen.kt",
       "Armed on the strap itself with the experimental 5/MG command. A strap-driven wake is still unconfirmed on 5/MG on our side (confirmed only on WHOOP 4.0), so keep a backup alarm for anything you truly can't miss."
     ],
@@ -571,14 +631,6 @@
     [
       "android/app/src/main/java/com/noop/ui/StepsCalibrationScreen.kt",
       "Auto"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/StepsCalibrationScreen.kt",
-      "Manual steps coefficient, %.1f steps per motion unit"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/StepsCalibrationScreen.kt",
-      "Manual steps coefficient, automatic"
     ],
     [
       "android/app/src/main/java/com/noop/ui/StepsCalibrationScreen.kt",
@@ -603,6 +655,14 @@
     [
       "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
       "Calibrating , no heart rate banked yet today. Your curve fills in as the strap offloads."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
+      "How ${it.label} is calculated"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
+      "How this score is calculated"
     ],
     [
       "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
@@ -634,6 +694,14 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
+      "Strap battery"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
+      "Strap battery ${it.roundToInt()} percent"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/TodayScreen.kt",
       "Zoomed in · drag to pan"
     ],
     [
@@ -651,6 +719,22 @@
     [
       "android/app/src/main/java/com/noop/ui/WorkoutStart.kt",
       "%d:%02d"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      "${WorkoutEditing.displaySport(row.sport)}, ${dateLabel(row.startTs)}"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      ". Imported, can't be merged."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      ". Not selected."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
+      ". Selected."
     ],
     [
       "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",

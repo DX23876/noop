@@ -12,6 +12,8 @@
 - **[open_oura-feat]** - Th0rgal/open_oura `docs/ring-features.md` (feature gating).
 - **[relue]** - relue/oura_ring_reverse `docs/.../heartbeat_replication_guide.md` and `heartbeat_complete_flow.md` (no-license; Ring 3 live-HR).
 - **[oura-rs]** - Th0rgal/open_oura `crates/oura-protocol/src/events.rs` (no-license Rust clean-room decoder; facts cited only, no code copied). Its event tags marked `"_status": "unvalidated"` are treated the same as our Tier B - plausible, not ground-truth-confirmed.
+- **[open_oura-act]** - Th0rgal/open_oura `crates/oura-cli/src/activity_model.rs` (no-license; facts cited only). The activity classifier's input assembly reads four SEPARATE event tags — `met`←`0x50`, motion←`0x47`, temp←`0x46`, `hr_bpm`←`0x80` — establishing which tag each signal comes from (notably HR from the `0x80` IBI record, not `0x50`).
+- **[ring4-ble]** - Defying/oura-ring4-ble `docs/apk-findings.md` + `docs/protocol-notes.md` (no-license; APK static-analysis + Ring-4 BLE captures, facts cited only). Confirms the framing/auth/tag set is generation-invariant (Ring 4 == Ring 3) and pins the full feature-ID table + the feature mode / subscription enums; also confirms the app derives BPM as `round(60000 / ibi_ms)`.
 
 > **CONFLICT NOTE (resolution rule):** The relue archive file `event_data_definition.md` describes events as **protobuf varint** records (e.g. `0x55` SLEEP_HR with field tags). This contradicts the **byte-for-byte verified TLV framing** in [open_ring] and [ringverse]. The TLV/bit-packed model from [open_ring]/[ringverse] is authoritative for our decoders; the protobuf description is treated as unverified/likely AI-fabricated and is NOT used. Where a layout is only attested by a single no-license, AI-generated doc, it is marked **(UNVERIFIED)** and our decoder must gate it behind a fixture test before trusting it.
 
@@ -395,8 +397,8 @@ good beats. Matches `open_oura`'s `parse_api_green_ibi_quality_event`.
 | `0x00` | Background DFU | - |
 | `0x01` | Research Data (RData) | often server-blocked; returns idle status 3 [open_oura-r3] |
 | `0x02` | Daytime HR | Gen3+; **live-HR path (§5.6)** |
-| `0x03` | Exercise HR (AWHR) | Gen3+; cap version ≥ 2 |
-| `0x04` | SpO2 | Gen3+; server-gated. **Confirmed OFF on a real Gen 3 ring:** a `2f 02 20 04` feature-status read returns `04 00 00 00 00` (mode `0x00` = off, status `0x00` = off per §7.2) - SpO2 is switched off for that ring/account, not a NOOP decode issue. SpO2 also never arrives as a live push (unlike HR's feature `0x02`); it only ever arrives via history fetch (§5), same as skin temp. NOOP sends the diagnostic read only; it does NOT try to enable/subscribe SpO2 (a live enable produces nothing during the day regardless). |
+| `0x03` | Exercise HR (AWHR) | Gen3+; cap version ≥ 2; data arrives as `0x73` `ehr_trace_event` / `0x74` `ehr_acm_intensity_event` [ring4-ble] — never observed in a NOOP capture (server-gated, like SpO2/steps) |
+| `0x04` | SpO2 | Gen3+; server-gated. **Confirmed OFF on a real Gen 3 ring** (2026-07-20 capture): the read-only `2f 02 20 04` feature-status probe NOOP ships (`spo2_status`, §7.4) decoded to `mode=0 status=0 state=0 subscription=0` - all-zero, i.e. the cloud never enabled SpO2 for that ring/account; it is not a NOOP decode issue. SpO2 also never arrives as a live push (unlike HR's feature `0x02`); it only ever arrives via history fetch (§5), same as skin temp. NOOP sends the diagnostic READ only; it does NOT enable/subscribe SpO2 (a live enable produces nothing during the day regardless). |
 | `0x05` | Bundling | - |
 | `0x06` | Encrypted API | (Oura's encrypted channel - NOOP does NOT use) |
 | `0x07` | Tap-to-tag | - |
@@ -406,10 +408,19 @@ good beats. Matches `open_oura`'s `parse_api_green_ibi_quality_event`.
 | `0x0B` | Real steps | Gen3+; server-flag-gated |
 | `0x0C` | Experimental | server-flag-gated |
 | `0x0D` | CVA PPG sampler | Gen3+; server-flag-gated; feeds `0x81` |
-| `0x10` | Ambient light | capability-dependent |
+| `0x0E` | Charging control | [ring4-ble] |
+| `0x0F` | Ambient light | capability-dependent [ring4-ble] |
+| `0x10` | Special feature | [ring4-ble] |
+| `0x11` | Raw-data sampler | [ring4-ble] |
+| `0x12` | Atlas | [ring4-ble] |
+| `0x16` | Long events | [ring4-ble] |
 
-**Feature modes:** `0x00` off, `0x01` automatic, `0x02` requested, `0x03` requested-subscription. [ringverse]
-**Feature status values:** `0x00` off, `0x01` on, `0x02` searching, `0x03` no-PPG, `0x04` cold, `0x05` movement, `0x06` identifying. [ringverse]
+> **CORRECTION** [ring4-ble]: an earlier draft placed **Ambient light** at `0x10`; the APK enumerates `0x0F` = ambient_light and `0x10` = special_feature. The `0x0E`–`0x16` rows above are the APK's full feature list (22 features `0x00`–`0x12` + `0x16`).
+
+**Feature modes** (write byte of `2f 03 22 <id> <mode>`): `0x00` off, `0x01` automatic, `0x02` requested, `0x03` connected_live. [ring4-ble] — an earlier draft read `0x03` as "requested-subscription" [ringverse]; the APK's `connected_live` is authoritative (it is the mode NOOP writes to enable the live-HR push, §5.6).
+**Subscription modes** (write byte of `2f 03 26 <id> <sub>`): `0x00` off, `0x01` state, `0x02` latest, `0x04` feature_specific_data. [ring4-ble] — NOOP subscribes live HR with `0x02` = latest.
+**Feature request-status** (result code of a `setFeatureMode` command): `0x00` success, `0x01` not_supported, `0x02` not_available, `0x03` not_in_finger, `0x04` message_too_short, `0x05` low_battery. [ring4-ble]
+**Feature status/state values** (the `status`/`state` bytes of the `0x21` read reply, §7.4): `0x00` off, `0x01` on, `0x02` searching, `0x03` no-PPG, `0x04` cold, `0x05` movement, `0x06` identifying. [ringverse]
 **Master gate:** `setFeatureMode` requires ring generation **> 2** (Gen 3+); Gen ≤2 reject all feature-mode changes. [open_oura-feat]
 
 ### 7.2 Generation differences
@@ -441,3 +452,35 @@ good beats. Matches `open_oura`'s `parse_api_green_ibi_quality_event`.
 - Resolve the `0x0D` battery percent-vs-voltage offset per generation via captured fixtures (§6.10).
 - Validate all Tier-B sleep/activity/step layouts against real captures before enabling in scoring.
 - Confirm live-HR `0x02` path on actual Gen-4/Gen-5 hardware (only Gen-3 is verified in the corpus).
+- `0x68` and `0x86` are NOT emitted in the NOOP capture (0 of ~131k records) — do not hunt for them; wear inference uses `0x45/0x53` + live-HR (§6.15) and the `0x86` aohr never appears (§6.15).
+
+---
+
+## 9. Observed-but-undecoded tags (raw examples, NOOP Gen-3 corpus, 2026-07)
+
+Tags that appear in the banked stream but NOOP does not decode. Payloads are the bytes AFTER the 6-byte
+`type/len/rt` header, recorded verbatim for future RE — these are OBSERVATIONS, not confirmed layouts.
+
+| tag | count | len (B) | example payload | shape hint (UNCONFIRMED) |
+|---|---|---|---|---|
+| `0x61` | 28760 | 3–8 | `1a18009c3700007c150000cb` | highest-rate tag; **NOT battery** — the `[open_oura-act]`-adjacent "`0x61` battery" label does not match here (non-percent, high-frequency) |
+| `0x4a` | 8416 | 10 | `00000000000000000000` | payload observed all-zero — likely a keepalive / placeholder |
+| `0x72` | 5723 | 12 | `120027000100150018000200` | six int16-LE small values — a vector (motion / accel?) |
+| `0x6a` | 5689 | 10 | `7e00230b90140001f8b0` | mixed; a `0001f8b0` / `0001feb8` trailer recurs |
+| `0x6d` | 3042 | 13 | `00c4ffffb5ffffd2ffffeaffff` | **`measurement_quality`** (24-bit signed) per [ring4-ble] — supersedes the earlier gravity/accel guess; our capture reads `00` + int16-LE-looking negatives |
+| `0x6c` | 1750 | 4 | `02020400` | `02 NN 04 00` — small state / counter |
+| `0x5b` | 416 | 10–13 | `030093dd10dbc7c00000` | variable, leading sub-type byte |
+| `0x79` | 100 | 4–14 | `02000000` | `02` + an incrementing index (`00, 01, 02…`) |
+| `0x76` | 8 | 8 | `4c876b00c0667000` | two u32-LE that look like ring-times — a window (start / end)? |
+| `0x5c` | 6 | 4 | `284b02b0` | **constant** across every occurrence — a fixed marker / config |
+| `0x56` | 1 | 1 | `01` | singleton |
+
+Full-notification hex including the `type/len/rt` header is in the capture. For the highest-rate tags,
+several full records are reproduced below (`type len rt(u32LE) | payload`) so a future RE pass sees the
+record framing and cross-sample variation directly — a single stripped example once hid a truncated
+prefix and tail fields. Note `0x61`'s payload length is **not fixed** (the `len` byte moves 0x10/0x11/0x12).
+
+- `0x61` (highest-rate): `6110 ff756600 | 1a18009c3700007c150000cb` · `6111 00766600 | 23230000090000fd02003a0000` · `6112 f9766600 | 095b914700e9e00000fe81010005`
+- `0x72` (`len` 0x10, 6×int16-LE): `7210 499b6b00 | 120027000100150018000200` · `7210 729c6b00 | 130029000100150018000200` · `7210 9c9d6b00 | 05000e000200160019000500`
+- `0x6d` (`len` 0x11, leading `00` + 4×int16-LE negatives): `6d11 ec856600 | 00c4ffffb5ffffd2ffffeaffff` · `6d11 98976600 | 00b2fffffaffffeeffffd9ffff` · `6d11 419d6600 | 00a1fffffaffffd9fffff5ffff`
+- `0x76`: `760c c2cf7100 | 4c876b00c0667000`

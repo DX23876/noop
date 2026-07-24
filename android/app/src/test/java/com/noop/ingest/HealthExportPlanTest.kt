@@ -6,8 +6,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Pure planning logic for the Health Connect export (HR decimation/windowing/chunking, sleep
- * AWAKE/SLEEPING mapping). All offline-on-JVM; the SDK glue in [HealthConnectWriter] is the thin
+ * Pure planning logic for the Health Connect export (HR decimation/windowing/chunking, detailed
+ * sleep-stage mapping). All offline-on-JVM; the SDK glue in [HealthConnectWriter] is the thin
  * untestable layer. (Daily steps/active-energy aggregates were removed with the steps/kcal
  * write-back — see HealthConnectWriter.)
  */
@@ -104,7 +104,7 @@ class HealthExportPlanTest {
         assertTrue(out[0].absorbedClientIds.isEmpty())
     }
 
-    @Test fun sleep_mapsWakeVsAsleepAndCoalesces() {
+    @Test fun sleep_preservesDetailedStagesAndCoalescesAwakeAliases() {
         val json = """
             [{"start":100,"end":200,"stage":"light"},
              {"start":200,"end":300,"stage":"deep"},
@@ -115,11 +115,20 @@ class HealthExportPlanTest {
         val out = HealthExportPlan.sleepSessions(
             listOf(input(100, 600, json)), nowSec = 1000L, offsetSec = 0L)
         val stages = out[0].stages
-        // light+deep coalesce -> asleep[100,300); wake+awake coalesce -> awake[300,500); rem -> asleep[500,600)
-        assertEquals(3, stages.size)
-        assertEquals(true, stages[0].asleep); assertEquals(100L, stages[0].startSec); assertEquals(300L, stages[0].endSec)
-        assertEquals(false, stages[1].asleep); assertEquals(300L, stages[1].startSec); assertEquals(500L, stages[1].endSec)
-        assertEquals(true, stages[2].asleep); assertEquals(500L, stages[2].startSec); assertEquals(600L, stages[2].endSec)
+        // Only adjacent segments of the same detailed stage coalesce; wake/awake normalize to AWAKE.
+        assertEquals(4, stages.size)
+        assertEquals(HealthExportPlan.StageKind.LIGHT, stages[0].kind)
+        assertEquals(HealthExportPlan.StageKind.DEEP, stages[1].kind)
+        assertEquals(HealthExportPlan.StageKind.AWAKE, stages[2].kind)
+        assertEquals(300L, stages[2].startSec); assertEquals(500L, stages[2].endSec)
+        assertEquals(HealthExportPlan.StageKind.REM, stages[3].kind)
+    }
+
+    @Test fun sleep_preservesGenericSleepingStage() {
+        val json = """[{"start":100,"end":200,"stage":"sleeping"}]"""
+        val stages = HealthExportPlan.sleepSessions(
+            listOf(input(100, 200, json)), nowSec = 1000L, offsetSec = 0L).single().stages
+        assertEquals(HealthExportPlan.StageKind.SLEEPING, stages.single().kind)
     }
 
     @Test fun sleep_malformedJsonYieldsNoStagesButKeepsSession() {
@@ -183,7 +192,8 @@ class HealthExportPlanTest {
         assertEquals(t + 6 * 3_600, p.endSec)
         assertEquals(listOf("noop-sleep-${t + 2 * 3_600 + 960}"), p.absorbedClientIds)
         assertTrue(p.stages.contains(
-            HealthExportPlan.StagePlan(t + 2 * 3_600, t + 2 * 3_600 + 960, asleep = false)))
+            HealthExportPlan.StagePlan(t + 2 * 3_600, t + 2 * 3_600 + 960,
+                HealthExportPlan.StageKind.AWAKE)))
     }
 
     @Test fun sleep_napStaysItsOwnPlanWithNoAbsorbedIds() {

@@ -1095,7 +1095,19 @@ class OuraLiveSource(
         // enabled it" — NOT `subscription==0` alone, since daytime-HR is subscription=0 yet active.
         val off = st.mode == 0 && st.status == 0 && st.state == 0
         val gate = if (off) " - INACTIVE (server-gated off; the cloud never enabled it, not emitted offline)" else ""
-        log("Oura: feature status $name mode=${st.mode} status=${st.status} state=${st.state} subscription=${st.subscription}$gate")
+        // Name the enum fields so the log reads plainly (OURA_PROTOCOL.md s7.1 [ring4-ble]) — e.g. a gated
+        // feature prints `mode=0 (off) … subscription=0 (off)`, the active daytime-HR `mode=1 (automatic)`.
+        log("Oura: feature status $name mode=${st.mode} (${featureModeName(st.mode)}) status=${st.status} " +
+            "state=${st.state} subscription=${st.subscription} (${subscriptionName(st.subscription)})$gate")
+    }
+
+    /** The ring's feature-MODE enum (`2f 03 22` write byte), per OURA_PROTOCOL.md s7.1 [ring4-ble]. */
+    private fun featureModeName(m: Int) = when (m) {
+        0 -> "off"; 1 -> "automatic"; 2 -> "requested"; 3 -> "connected_live"; else -> "?"
+    }
+    /** The ring's SUBSCRIPTION enum (`2f 03 26` write byte), per OURA_PROTOCOL.md s7.1 [ring4-ble]. */
+    private fun subscriptionName(s: Int) = when (s) {
+        0 -> "off"; 1 -> "state"; 2 -> "latest"; 4 -> "feature_data"; else -> "?"
     }
 
     /**

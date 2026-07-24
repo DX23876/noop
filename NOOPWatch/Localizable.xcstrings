@@ -29,8 +29,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "%@ resp/min"
+            "state": "translated",
+            "value": "%@ br/min"
           }
         },
         "ru": {
@@ -87,8 +87,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Ritmo %@"
+            "state": "translated",
+            "value": "%@ ritmo"
           }
         },
         "ru": {
@@ -145,8 +145,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "%@ · %@s inspira / %@s expira"
+            "state": "translated",
+            "value": "%@ · %@ entra / %@ sai"
           }
         },
         "ru": {
@@ -203,7 +203,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "%@ · %lld kcal"
           }
         },
@@ -261,7 +261,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "%lld respirações · %@"
           }
         },
@@ -319,7 +319,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "%1$lld segundos restantes em %2$@"
           }
         },
@@ -377,8 +377,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Permitir acesso"
+            "state": "translated",
+            "value": "Permitir o acesso"
           }
         },
         "ru": {
@@ -435,7 +435,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "Caixa"
           }
         },
@@ -499,7 +499,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "Respirar"
           }
         },
@@ -551,8 +551,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Inspira"
+            "state": "translated",
+            "value": "Inspire"
           }
         },
         "ru": {
@@ -609,8 +609,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Inspira durante %lld segundos"
+            "state": "translated",
+            "value": "Inspire durante %lld segundos"
           }
         },
         "ru": {
@@ -667,8 +667,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Expira"
+            "state": "translated",
+            "value": "Expire"
           }
         },
         "ru": {
@@ -725,8 +725,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Expira durante %lld segundos"
+            "state": "translated",
+            "value": "Expire durante %lld segundos"
           }
         },
         "ru": {
@@ -789,7 +789,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "Carga"
           }
         },
@@ -841,7 +841,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "Coerência"
           }
         },
@@ -899,7 +899,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "CONCLUÍDO"
           }
         },
@@ -957,7 +957,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "Concluído"
           }
         },
@@ -1021,7 +1021,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "Esforço"
           }
         },
@@ -1073,8 +1073,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Terminar"
+            "state": "translated",
+            "value": "Fim"
           }
         },
         "ru": {
@@ -1131,7 +1131,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "Terminar treino"
           }
         },
@@ -1189,7 +1189,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "Força funcional"
           }
         },
@@ -1247,8 +1247,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Conceder acesso à Saúde"
+            "state": "translated",
+            "value": "Conceder acesso à saúde"
           }
         },
         "ru": {
@@ -1311,7 +1311,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "FREQUÊNCIA CARDÍACA"
           }
         },
@@ -1363,8 +1363,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "FC indisponível"
+            "state": "translated",
+            "value": "RH indisponível"
           }
         },
         "ru": {
@@ -1421,8 +1421,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Frequência cardíaca e energia em tempo real, registadas no pulso. Ficam no dispositivo."
+            "state": "translated",
+            "value": "Frequência cardíaca e energia em direto, registadas no teu pulso. Permanece no dispositivo."
           }
         },
         "ru": {
@@ -1479,8 +1479,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Abre o NOOP no iPhone para sincronizar"
+            "state": "translated",
+            "value": "Abra o NOOP no teu iPhone para tincronizar"
           }
         },
         "ru": {
@@ -1537,8 +1537,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "EM PAUSA"
+            "state": "translated",
+            "value": "PAUSADO"
           }
         },
         "ru": {
@@ -1601,8 +1601,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Pausar"
+            "state": "translated",
+            "value": "Pausa"
           }
         },
         "ru": {
@@ -1653,8 +1653,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "A GRAVAR"
+            "state": "translated",
+            "value": "GRAVAÇÃO"
           }
         },
         "ru": {
@@ -1711,7 +1711,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "DESCANSO"
           }
         },
@@ -1769,7 +1769,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "Pronto para respirar"
           }
         },
@@ -1827,8 +1827,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Relaxa"
+            "state": "translated",
+            "value": "Descontrair"
           }
         },
         "ru": {
@@ -1891,7 +1891,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "Repor"
           }
         },
@@ -1949,7 +1949,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "Descanso"
           }
         },
@@ -2007,7 +2007,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "Reiniciar"
           }
         },
@@ -2059,7 +2059,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "Retomar"
           }
         },
@@ -2117,7 +2117,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "Ronda %lld de %lld"
           }
         },
@@ -2175,8 +2175,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "SEG"
+            "state": "translated",
+            "value": "SEC"
           }
         },
         "ru": {
@@ -2233,7 +2233,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "Sessão concluída"
           }
         },
@@ -2297,7 +2297,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "Iniciar"
           }
         },
@@ -2355,7 +2355,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "Iniciar sessão"
           }
         },
@@ -2407,7 +2407,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "Parar"
           }
         },
@@ -2471,7 +2471,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "Parar sessão"
           }
         },
@@ -2523,7 +2523,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "TRABALHO"
           }
         },
@@ -2581,8 +2581,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Treino"
+            "state": "translated",
+            "value": "Treinar"
           }
         },
         "ru": {
@@ -2639,8 +2639,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "Treino guardado"
+            "state": "translated",
+            "value": "Treino salvo"
           }
         },
         "ru": {
@@ -2697,8 +2697,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "em %@"
+            "state": "translated",
+            "value": "a partir de %@"
           }
         },
         "ru": {
@@ -2761,7 +2761,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "bpm"
           }
         },
@@ -2801,7 +2801,7 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
+            "state": "translated",
             "value": "cal"
           }
         },
@@ -2853,8 +2853,8 @@
         },
         "pt-PT": {
           "stringUnit": {
-            "state": "needs_review",
-            "value": "desatualizado · %@"
+            "state": "translated",
+            "value": "obsoleto · %@"
           }
         },
         "ru": {
@@ -2902,6 +2902,12 @@
             "state": "translated",
             "value": "%lld"
           }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld"
+          }
         }
       }
     },
@@ -2923,6 +2929,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "/ %lld"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "/%lld"
           }
         }
       }

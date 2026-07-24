@@ -243,9 +243,8 @@ object HealthConnectWriter {
     }
 
     /**
-     * #528 — export finalized sleep sessions as a session + AWAKE/SLEEPING stages (no deep/REM/light
-     * split yet — only the validated asleep-vs-awake distinction is shared so we don't over-claim the
-     * stager's precision). Uses the MERGED view (imported wins, on-device-computed gap-fills) so a
+     * #528 — export finalized sleep sessions with the detailed stage timeline NOOP computed. Uses the
+     * MERGED view (imported wins, on-device-computed gap-fills) so a
      * strap-only user's locally-computed nights (stored under the "-noop" computed id) are included.
      * #364 — fragments are grouped into BRIDGED NIGHTS (the same #561 bridge the daily totals score
      * with), so a night split by a brief mid-night wake exports as ONE record whose gap is an AWAKE
@@ -274,8 +273,13 @@ object HealthConnectWriter {
                     SleepSessionRecord.Stage(
                         startTime = Instant.ofEpochSecond(s.startSec),
                         endTime = Instant.ofEpochSecond(s.endSec),
-                        stage = if (s.asleep) SleepSessionRecord.STAGE_TYPE_SLEEPING
-                                else SleepSessionRecord.STAGE_TYPE_AWAKE,
+                        stage = when (s.kind) {
+                            HealthExportPlan.StageKind.AWAKE -> SleepSessionRecord.STAGE_TYPE_AWAKE
+                            HealthExportPlan.StageKind.SLEEPING -> SleepSessionRecord.STAGE_TYPE_SLEEPING
+                            HealthExportPlan.StageKind.LIGHT -> SleepSessionRecord.STAGE_TYPE_LIGHT
+                            HealthExportPlan.StageKind.DEEP -> SleepSessionRecord.STAGE_TYPE_DEEP
+                            HealthExportPlan.StageKind.REM -> SleepSessionRecord.STAGE_TYPE_REM
+                        },
                     )
                 },
                 metadata = Metadata(clientRecordId = p.clientId, clientRecordVersion = p.endSec),

@@ -1448,6 +1448,20 @@ struct SleepView: View {
 
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
             SectionHeader("Night detail", overline: "Metrics", trailing: String(localized: "vs typical"))
+
+            #if os(iOS)
+            // On iOS, Sleep Debt is the actionable summary for the section, so it leads at the
+            // full two-column width. The remaining six peer metrics keep the established 2 × 3 grid.
+            StatTile(
+                label: "Sleep Debt",
+                value: debt.latest.map { durationText($0) } ?? "—",
+                caption: debtCaption(debt.latest),
+                accent: debtColor(debt.latest),
+                sparkline: spark(debt.series),
+                sparkColor: StrandPalette.metricRose)
+                .frame(maxWidth: .infinity)
+            #endif
+
             LazyVGrid(columns: tileColumns, alignment: .leading, spacing: NoopMetrics.gap) {
 
                 // No "Rest" tile here — that repeated the hero's Sleep-performance score (redesign bug §1,
@@ -1495,6 +1509,8 @@ struct SleepView: View {
 
                 // Last night's shortfall vs need — named distinctly from the 14-night running "Sleep
                 // balance" ledger below, which both used to be called "sleep debt" (redesign bug §1).
+                // Kept on ALL platforms (the fork's redesigned iOS layout uses it); upstream's #743
+                // wrapped this in `#if !os(iOS)` for its own compact layout, which this fork doesn't adopt.
                 StatTile(
                     label: "Last night's deficit",
                     value: debt.latest.map { durationText($0) } ?? "—",

@@ -12,8 +12,8 @@ Two independent problems, both covered here:
    language's translation is missing from the String Catalog / strings.xml.
    Reported as MISSING_<LANG>.
 
-Target languages: de, es, fr (the focus set). English is the source language
-and is not checked for itself.
+Target languages: de, es, fr, pt-PT (the focus set). English is the source
+language and is not checked for itself.
 
 Read-only. Prints a report; does not modify any file. Re-runnable, and the
 same logic is meant to be wired into a CI check later (see i18n-coverage.yml)
@@ -31,7 +31,13 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-LANGS = ["de", "es", "fr"]
+LANGS = ["de", "es", "fr", "pt-PT"]
+ANDROID_LOCALE_DIRS = {
+    "de": "values-de",
+    "es": "values-es",
+    "fr": "values-fr",
+    "pt-PT": "values-pt-rPT",
+}
 
 # Strings that are legitimately identical across all languages (symbols,
 # format-only placeholders, brand name, units) — mirrors the exclude
@@ -267,6 +273,8 @@ ANDROID_KWARG_PATTERN = re.compile(r"\b(?:title|label|text|contentDescription|pl
 # `_argument_span_end`, which stops at the enclosing `}`), so unrelated lambda content is never swept in.
 ANDROID_A11Y_ASSIGN_PATTERN = re.compile(r"(?<![.\w])contentDescription\s*=(?!=)\s*")
 _LOCAL_DECL_BEFORE = re.compile(r"\b(?:val|var)\s+\Z")
+_SIMPLE_IDENTIFIER = re.compile(r"[A-Za-z_]\w*\Z")
+_LOCAL_VAL_PATTERN = re.compile(r"\bval\s+([A-Za-z_]\w*)\s*=\s*")
 
 
 def _mask_comments(text: str) -> str:
@@ -304,6 +312,101 @@ def _mask_comments(text: str) -> str:
             continue
         i += 1
     return "".join(out)
+
+
+def _brace_stack_at(text: str, end: int) -> tuple[int, ...]:
+    """Opening `{` offsets whose scopes contain `end`, ignoring string
+    contents. Used for the deliberately small bit of Kotlin name resolution
+    below: a local `val` is visible only while its declaring brace is still
+    open at the use site."""
+    stack: list[int] = []
+    i = 0
+    while i < end:
+        ch = text[i]
+        if ch == '"':
+            i = _skip_string_literal(text, i)
+            continue
+        if ch == "{":
+            stack.append(i)
+        elif ch == "}" and stack:
+            stack.pop()
+        i += 1
+    return tuple(stack)
+
+
+def _statement_span_end(text: str, start: int) -> int:
+    """End of a Kotlin `val` initializer.
+
+    Newlines before the expression are allowed; once the expression starts, a
+    newline or semicolon at top level ends it unless Kotlin syntax clearly
+    continues on the next line (for example `"prefix" +` followed by an
+    `if`). Balanced calls and `when { }` / `if { }` expressions can span lines
+    without exposing the following statements to literal extraction.
+    """
+    depth = 0
+    saw_expression = False
+    i = start
+    while i < len(text):
+        ch = text[i]
+        if ch == '"':
+            saw_expression = True
+            i = _skip_string_literal(text, i)
+            continue
+        if ch in "({[":
+            depth += 1
+            saw_expression = True
+        elif ch in ")}]":
+            if depth == 0:
+                return i
+            depth -= 1
+        elif depth == 0 and ch == ";":
+            return i
+        elif depth == 0 and ch == "\n" and saw_expression:
+            previous = i - 1
+            while previous >= start and text[previous].isspace():
+                previous -= 1
+            following = i + 1
+            while following < len(text) and text[following].isspace():
+                following += 1
+            trails_operator = (
+                previous >= start and text[previous] in "+-*/%&|?:,.="
+            )
+            starts_continuation = (
+                text.startswith(".", following)
+                or text.startswith("?:", following)
+                or re.match(r"else\b", text[following:]) is not None
+            )
+            if not trails_operator and not starts_continuation:
+                return i
+        elif not ch.isspace():
+            saw_expression = True
+        i += 1
+    return i
+
+
+def _visible_val_initializer(
+    text: str, name: str, use_offset: int
+) -> tuple[int, int] | None:
+    """Initializer span for the nearest preceding `val name = ...` visible at
+    `use_offset`.
+
+    This is intentionally lexical rather than general Kotlin dataflow. It
+    covers the common Compose shape `val a11y = when { ... }; semantics {
+    contentDescription = a11y }`, while declining parameters, properties
+    outside a braced scope, computed references, and declarations in sibling
+    blocks. The nearest visible declaration wins, matching local shadowing.
+    """
+    use_scopes = set(_brace_stack_at(text, use_offset))
+    declarations = list(_LOCAL_VAL_PATTERN.finditer(text, 0, use_offset))
+    for declaration in reversed(declarations):
+        if declaration.group(1) != name:
+            continue
+        declaration_scopes = _brace_stack_at(text, declaration.start())
+        if not declaration_scopes or declaration_scopes[-1] not in use_scopes:
+            continue
+        start = declaration.end()
+        return start, _statement_span_end(text, start)
+    return None
 
 
 # Only an argument in actual call-argument position (right after `(` or `,`,
@@ -351,14 +454,26 @@ def scan_android() -> list[tuple[str, int, str]]:
             for m in ANDROID_A11Y_ASSIGN_PATTERN.finditer(text):
                 if _LOCAL_DECL_BEFORE.search(text, 0, m.start()):
                     continue
-                record(m.end(), _argument_span_end(text, m.end()))
+                span_end = _argument_span_end(text, m.end())
+                record(m.end(), span_end)
+
+                # The remaining #571 case: the assignment contains no literal
+                # because a local `val` launders it. Follow only a bare
+                # identifier to the nearest lexically-visible declaration;
+                # pass-through parameters and arbitrary expressions remain
+                # outside this targeted audit rule.
+                reference = text[m.end():span_end].strip()
+                if _SIMPLE_IDENTIFIER.fullmatch(reference):
+                    initializer = _visible_val_initializer(text, reference, m.start())
+                    if initializer is not None:
+                        record(*initializer)
 
     return findings
 
 
 def android_strings_xml_gaps() -> dict[str, set[str]]:
     """Keys present in the base values/strings.xml but missing from an
-    existing values-<lang>/strings.xml. (Doesn't invent missing locale dirs —
+    existing values-<locale>/strings.xml. (Doesn't invent missing locale dirs —
     see the audit summary for languages with NO directory at all.)"""
     base_path = ROOT / "android/app/src/main/res/values/strings.xml"
     # <plurals> count too: converting a hand-rolled singular/plural PAIR into one <plurals> would
@@ -368,9 +483,10 @@ def android_strings_xml_gaps() -> dict[str, set[str]]:
     exempt = {"app_name"}  # brand name, deliberately identical everywhere
     gaps: dict[str, set[str]] = {}
     for lang in LANGS:
-        lang_path = ROOT / f"android/app/src/main/res/values-{lang}/strings.xml"
+        locale_dir = ANDROID_LOCALE_DIRS[lang]
+        lang_path = ROOT / f"android/app/src/main/res/{locale_dir}/strings.xml"
         if not lang_path.exists():
-            gaps[lang] = {"<entire values-%s/ directory is missing>" % lang}
+            gaps[lang] = {"<entire %s/ directory is missing>" % locale_dir}
             continue
         lang_keys = set(re.findall(r'<(?:string|plurals) name="([^"]+)"', lang_path.read_text(encoding="utf-8")))
         missing = (base_keys - exempt) - lang_keys
@@ -386,7 +502,10 @@ def android_format_gaps() -> dict[str, list[str]]:
     """Resource keys whose translated Formatter arguments differ from English."""
     paths = {
         "en": ROOT / "android/app/src/main/res/values/strings.xml",
-        **{lang: ROOT / f"android/app/src/main/res/values-{lang}/strings.xml" for lang in LANGS},
+        **{
+            lang: ROOT / f"android/app/src/main/res/{ANDROID_LOCALE_DIRS[lang]}/strings.xml"
+            for lang in LANGS
+        },
     }
     def signature(value: str) -> list[str]:
         return sorted(ANDROID_FORMAT_PATTERN.findall(value))
@@ -809,13 +928,16 @@ def ci_check(base_ref: str) -> int:
         gaps = android_gaps.get(lang)
         if gaps:
             failed = True
-            print(f"FAIL values-{lang}/strings.xml missing {len(gaps)} key(s): {sorted(gaps)[:30]}")
+            locale_dir = ANDROID_LOCALE_DIRS[lang]
+            print(f"FAIL {locale_dir}/strings.xml missing {len(gaps)} key(s): {sorted(gaps)[:30]}")
         else:
-            print(f"  OK values-{lang}/strings.xml")
+            locale_dir = ANDROID_LOCALE_DIRS[lang]
+            print(f"  OK {locale_dir}/strings.xml")
         format_gaps = android_formats.get(lang)
         if format_gaps:
             failed = True
-            print(f"FAIL values-{lang}/strings.xml has {len(format_gaps)} format mismatch(es): {format_gaps[:30]}")
+            locale_dir = ANDROID_LOCALE_DIRS[lang]
+            print(f"FAIL {locale_dir}/strings.xml has {len(format_gaps)} format mismatch(es): {format_gaps[:30]}")
 
     print("\n--- Apple: no NEW un-extracted UI copy, and complete focus locales ---")
     ios_literals, _source_gaps = scan_ios()
@@ -898,10 +1020,10 @@ def main() -> int:
             if len(findings) > 25:
                 print(f"  ... and {len(findings) - 25} more (use --full)")
 
-        print("\n=== Android: values-<lang>/strings.xml key gaps ===")
+        print("\n=== Android: values-<locale>/strings.xml key gaps ===")
         gaps = android_strings_xml_gaps()
         if not gaps:
-            print("  none (de/es/fr all present and complete, or no locale dir exists)")
+            print("  none (focus locales all present and complete, or no locale dir exists)")
         for lang, keys in gaps.items():
             print(f"  {lang}: {len(keys)} gap(s)")
             if args.full:

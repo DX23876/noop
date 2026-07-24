@@ -986,13 +986,23 @@ struct InsightsView: View {
         // `ranked` is memoized in @State (see recomputeRanked()); reading it
         // here does no expensive work per render.
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-            // Header + the ONE segmented pill control for choosing the outcome.
-            HStack(alignment: .center) {
-                SectionHeader("Behaviour Effects",
-                              overline: "What moves your \(outcome.outcomeName.lowercased())")
-                Spacer()
-                SegmentedPillControl(Outcome.allCases, selection: $outcome) { $0.label }
-                    .accessibilityLabel("Outcome metric")
+            // Keep the outcome labels intrinsic while they fit beside the header. When either
+            // localization or Dynamic Type needs more room, move the control to its own row.
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center) {
+                    SectionHeader("Behaviour Effects",
+                                  overline: "What moves your \(outcome.outcomeName.lowercased())")
+                    Spacer(minLength: NoopMetrics.space2)
+                    behaviourOutcomeControl
+                        .fixedSize(horizontal: true, vertical: false)
+                }
+
+                VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                    SectionHeader("Behaviour Effects",
+                                  overline: "What moves your \(outcome.outcomeName.lowercased())")
+                    behaviourOutcomeControl
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
             }
 
             if ranked.isEmpty {
@@ -1004,6 +1014,12 @@ struct InsightsView: View {
                 }
             }
         }
+    }
+
+    private var behaviourOutcomeControl: some View {
+        SegmentedPillControl(Outcome.allCases, selection: $outcome,
+                             adaptsToAvailableWidth: true) { $0.label }
+            .accessibilityLabel("Outcome metric")
     }
 
     private var noEffects: some View {

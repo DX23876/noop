@@ -931,7 +931,24 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         // enabled it" — NOT `subscription==0` alone, since daytime-HR is subscription=0 yet active.
         let off = st.mode == 0 && st.status == 0 && st.state == 0
         let gate = off ? " - INACTIVE (server-gated off; the cloud never enabled it, not emitted offline)" : ""
-        log("Oura: feature status \(name) mode=\(st.mode) status=\(st.status) state=\(st.state) subscription=\(st.subscription)\(gate)")
+        // Name the enum fields so the log reads plainly (OURA_PROTOCOL.md s7.1 [ring4-ble]) — e.g. a gated
+        // feature prints `mode=0 (off) … subscription=0 (off)`, the active daytime-HR `mode=1 (automatic)`.
+        log("Oura: feature status \(name) mode=\(st.mode) (\(Self.featureModeName(st.mode))) status=\(st.status) state=\(st.state) subscription=\(st.subscription) (\(Self.subscriptionName(st.subscription)))\(gate)")
+    }
+
+    /// The ring's feature-MODE enum (`2f 03 22` write byte), per OURA_PROTOCOL.md s7.1 [ring4-ble].
+    private static func featureModeName(_ m: Int) -> String {
+        switch m {
+        case 0: return "off"; case 1: return "automatic"; case 2: return "requested"; case 3: return "connected_live"
+        default: return "?"
+        }
+    }
+    /// The ring's SUBSCRIPTION enum (`2f 03 26` write byte), per OURA_PROTOCOL.md s7.1 [ring4-ble].
+    private static func subscriptionName(_ s: Int) -> String {
+        switch s {
+        case 0: return "off"; case 1: return "state"; case 2: return "latest"; case 4: return "feature_data"
+        default: return "?"
+        }
     }
 
     // MARK: - Re-engagement timer (daytime-HR auto-reverts ~20s)
