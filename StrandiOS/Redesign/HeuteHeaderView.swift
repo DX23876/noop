@@ -77,16 +77,14 @@ struct HeuteHeaderView: View {
     }
 
     /// The line that opens day-nav; reflects whichever day is currently selected, not always "today"
-    /// — so after navigating back, this row itself shows where you are (e.g. "Yesterday").
+    /// — so after navigating back, this row itself shows where you are. Always the full weekday+date
+    /// ("Friday, July 24"), matching design-spec §1's own worked example — a literal "Today"/"Yesterday"
+    /// label was an implementation drift from that spec, not an intentional alternative (on-device
+    /// feedback flagged it as feeling unnatural).
     private var dateLine: String {
-        switch selectedDayOffset {
-        case 0:  return String(localized: "Today")
-        case 1:  return String(localized: "Yesterday")
-        default:
-            let base = Repository.logicalDay(Date())
-            let date = Calendar.current.date(byAdding: .day, value: -selectedDayOffset, to: base) ?? base
-            return date.formatted(.dateTime.weekday(.wide).month(.wide).day())
-        }
+        let base = Repository.logicalDay(Date())
+        let date = Calendar.current.date(byAdding: .day, value: -selectedDayOffset, to: base) ?? base
+        return date.formatted(.dateTime.weekday(.wide).month(.wide).day())
     }
 }
 

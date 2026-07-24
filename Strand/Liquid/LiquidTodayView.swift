@@ -49,6 +49,9 @@ struct LiquidTodayView: View {
     @State private var stepsEst: Double?           // steps_est, day-keyed to the selected day (fallback)
     @State private var importedStepsDay: Int?      // Apple Health steps for the selected day (middle tier)
     @State private var importedActiveKcalDay: Double?  // #616: Apple Health active energy for the day (calorie fallback)
+    /// The Weight tile's resolved value, or nil before the first `load()`. Was a permanent hardcoded "—"
+    /// placeholder before — `Repository.resolveWeightKg` gives the same 3-tier fallback classic/Heute use.
+    @State private var resolvedWeightKg: (kg: Double, isFromProfile: Bool)?
     @State private var hrValues: [Double] = []     // hrBuckets since midnight → 5-min means
     /// The bucket START time for each `hrValues` entry, index-aligned. Kept as its own array rather
     /// than derived (midnight + i·5min) because `hrBuckets` returns only buckets that HAVE data —
@@ -1136,8 +1139,7 @@ struct LiquidTodayView: View {
     /// `keyMetricsSection`.
     ///
     /// This switch MIRRORS `ktileFor` below case-for-case and must be edited with it — a metric added to one
-    /// and not the other sorts wrong (silently, since both still render). `.weight` is deliberately always
-    /// false: its tile is hardcoded to "—", so it has no value to show at all.
+    /// and not the other sorts wrong (silently, since both still render).
     private func keyMetricHasValue(_ metric: KeyMetric, hrv: Double?, rhr: Double?) -> Bool {
         switch metric {
         case .charge:       return chargeDisplay.pct != nil
@@ -1145,18 +1147,18 @@ struct LiquidTodayView: View {
         case .rest:         return restScore != nil
         case .hrv:          return hrv != nil
         case .restingHr:    return rhr != nil
+        case .weight:       return resolvedWeightKg != nil
         case .bloodOxygen:  return (displayDay?.spo2Pct ?? vitalsDay?.spo2Pct) != nil
         case .respiratory:  return (displayDay?.respRateBpm ?? vitalsDay?.respRateBpm) != nil
         case .steps:        return stepCount != nil
-        case .weight:       return false
         case .calories:     return caloriesCount != nil
         }
     }
 
     /// One editor-selected Key-Metric tile: the metric's value/tint/fill exactly as the old hard-coded
     /// tiles read them (Android's descriptor map is the twin), plus the metric-catalog `key` that names
-    /// both its 14-day spark series and its tap-through detail. Weight has no liquid value source yet —
-    /// its tile reads "—" but still taps through to the weight trend detail (which has its own series).
+    /// both its 14-day spark series and its tap-through detail. Weight now resolves through the same
+    /// 3-tier fallback classic/Heute use (`resolvedWeightKg`), no longer a permanent "—" placeholder.
     @ViewBuilder
     private func ktileFor(_ metric: KeyMetric, hrv: Double?, rhr: Double?) -> some View {
         switch metric {
@@ -1188,7 +1190,8 @@ struct LiquidTodayView: View {
             ktile(String(localized: "Steps"), stepsText, "", StrandPalette.chargeColor,
                   fracOver(stepCount, 10000), key: stepsDetailKey, detailMetric: stepsDetailMetric)
         case .weight:
-            ktile(String(localized: "Weight"), "—", "", StrandPalette.metricAmber, nil, key: "weight")
+            let weightText = resolvedWeightKg.map { UnitFormatter.massFromKilograms($0.kg, system: unitSystem) } ?? "—"
+            ktile(String(localized: "Weight"), weightText, "", StrandPalette.metricAmber, nil, key: "weight")
         case .calories:
             // #616: imported-first value (imported ?: activeKcalEst) + route the tap to the matching
             // detail source, so the number, its sparkline and the chart it opens all agree.
@@ -1396,6 +1399,10 @@ struct LiquidTodayView: View {
         async let appleA = repo.appleDailyRows()
         async let hrA = repo.hrBuckets(from: from, to: to, bucketSeconds: 300)
         async let wkA = repo.workoutRows()
+        // Weight: a wider 91-day fetch (not the 14-day sparkCutoff window every sibling series uses below)
+        // — weight is logged sparsely enough that a 14-day window would frequently be empty, defeating the
+        // point of the series fallback. `windowedSpark` trims it at render time like every other entry.
+        async let weightSeriesA = repo.series(key: "weight", source: "apple-health", days: 91)
 
         let restSeries = await restA
         let stepsSeries = await stepsA
@@ -1427,6 +1434,13 @@ struct LiquidTodayView: View {
         // matching the imported-first VALUE. Union of imported days + strap-row days. Mirrors Android's
         // caloriesSpark (windowed caloriesByDay).
         let appleRowsForSpark = await appleA
+        // Weight: same 3-tier resolution as classic/Heute (`Repository.resolveWeightKg`) — this tile was
+        // permanently hardcoded to "—" before (never wired), unlike every other Key Metric here.
+        let latestAppleWeightKg = appleRowsForSpark.filter { ($0.weightKg ?? 0) > 10 }.max { $0.day < $1.day }?.weightKg
+        let weightSeries = await weightSeriesA
+        resolvedWeightKg = Repository.resolveWeightKg(latestAppleWeightKg: latestAppleWeightKg,
+                                                       seriesFallbackKg: weightSeries.last?.value,
+                                                       profileWeightKg: profile.weightKg)
         var winImportedKcal: [String: Double] = [:]
         for r in appleRowsForSpark where r.day >= sparkCutoff && r.day <= selectedDayKey {
             if let k = r.activeKcal { winImportedKcal[r.day] = max(winImportedKcal[r.day] ?? 0, k) }
@@ -1451,6 +1465,7 @@ struct LiquidTodayView: View {
                 .map { ($0.day, $0.value) },
             "sleep_performance": restSeries.filter { $0.day >= sparkCutoff && $0.day <= selectedDayKey }
                 .map { ($0.day, $0.value) },
+            "weight": weightSeries.map { ($0.day, $0.value) },
         ]
         stress = await Task.detached(priority: .utility) {
             StressModel(days: daysSnapshot, stored: storedStress)?.score

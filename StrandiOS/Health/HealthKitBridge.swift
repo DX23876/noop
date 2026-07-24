@@ -93,7 +93,7 @@ final class HealthKitBridge: ObservableObject {
 
     private var writeTypes: Set<HKSampleType> {
         var s = Set<HKSampleType>()
-        for id in HealthKitBridge.quantityWriteIds + HealthKitBridge.highResQuantityWriteIds {
+        for id in HealthKitBridge.quantityWriteIds + HealthKitBridge.highResQuantityWriteIds + HealthKitBridge.bodyMassWriteIds {
             if let t = HKObjectType.quantityType(forIdentifier: id) { s.insert(t) }
         }
         if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { s.insert(sleep) }
@@ -119,8 +119,10 @@ final class HealthKitBridge: ObservableObject {
         .heartRate, .restingHeartRate, .heartRateVariabilitySDNN, .oxygenSaturation,
         .respiratoryRate, .bodyTemperature, .stepCount, .activeEnergyBurned,
         .basalEnergyBurned, .vo2Max,
-        // Body composition — READ-ONLY (#20). Imported under the apple-health source like the file
-        // importer already ingests; deliberately NOT in quantityWriteIds (we never write these back).
+        // Body composition — READ-ONLY (#20) for body-fat/lean-mass/BMI (no reliable NOOP-computed
+        // source for them). Weight is the one exception: see `bodyMassWriteIds`/`writeWeight` below —
+        // a later, user-requested reversal of this file's original "never write these back" stance,
+        // scoped to weight only. All four still import under the apple-health source as before.
         .bodyMass, .bodyFatPercentage, .leanBodyMass, .bodyMassIndex
     ]
     private static let quantityWriteIds: [HKQuantityTypeIdentifier] = [
@@ -132,6 +134,10 @@ final class HealthKitBridge: ObservableObject {
     private static let highResQuantityWriteIds: [HKQuantityTypeIdentifier] = [
         .heartRate, .activeEnergyBurned, .distanceWalkingRunning, .distanceCycling
     ]
+    // Weight write-back: the user's own PROFILE edit, not strap-derived data — see `writeWeight` below.
+    // Kept as its own array for the same reason as `highResQuantityWriteIds`: `legacyCoreWriteTypes`
+    // must stay exactly what pre-update users granted, or a returning user regresses to unauthorized.
+    private static let bodyMassWriteIds: [HKQuantityTypeIdentifier] = [.bodyMass]
 
     // MARK: - Authorization
 
@@ -617,6 +623,33 @@ final class HealthKitBridge: ObservableObject {
             _ = try? await self.store.deleteObjects(of: type, predicate: pred)
         }
         try await self.store.save(candidates.map { $0.sample })
+    }
+
+    /// Writes the user's current PROFILE weight into Apple Health — the one write-back whose source is a
+    /// user edit, not strap-derived `WhoopStore` data, so it is deliberately NOT called from the periodic
+    /// `writeBack(whoopStore:days:)` sync loop like `writeVitals`/`writeSleep`/`writeHeartRate`/
+    /// `writeWorkouts` above. Triggered from `ProfileStore.weightKg` changing, wired in `StrandiOSApp.swift`.
+    /// Same dedup model as `writeVitals`: one sample per day, keyed `noop:<noopDeviceId>:bodyMass:<day>`,
+    /// delete-then-save so repeated edits the same day replace rather than duplicate.
+    func writeWeight(kg: Double, day: String = HealthKitBridge.dayString(Date())) async throws {
+        guard kg > 10,
+              let type = HKQuantityType.quantityType(forIdentifier: .bodyMass),
+              store.authorizationStatus(for: type) == .sharingAuthorized,
+              let date = HealthKitBridge.date(from: day) else { return }
+        let cal = Calendar.current
+        let at = cal.date(bySettingHour: 12, minute: 0, second: 0, of: date) ?? date
+        let key = "noop:\(noopDeviceId):bodyMass:\(day)"
+        let sample = HKQuantitySample(
+            type: type,
+            quantity: .init(unit: .gramUnit(with: .kilo), doubleValue: kg),
+            start: at, end: at,
+            metadata: [HKMetadataKeyExternalUUID: key]
+        )
+        let bySource = HKQuery.predicateForObjects(from: HKSource.default())
+        let byKey = HKQuery.predicateForObjects(withMetadataKey: HKMetadataKeyExternalUUID, allowedValues: [key])
+        let pred = NSCompoundPredicate(andPredicateWithSubpredicates: [bySource, byKey])
+        _ = try? await store.deleteObjects(of: type, predicate: pred)
+        try await store.save(sample)
     }
 
     /// Write each BRIDGED NIGHT (#364) as one `.inBed` sample plus one category sample per stage

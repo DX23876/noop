@@ -439,6 +439,21 @@ final class Repository: ObservableObject {
     nonisolated static func lastSkinTempDay(days: [DailyMetric], todayKey: String) -> DailyMetric? {
         DailyMetric.lastSkinTempDay(days: days, todayKey: todayKey)
     }
+
+    /// The weight shown across all three Today screens: a real Apple Health reading wins (today's/most-
+    /// recent daily row `> 10 kg` — guards against a stray 0/garbage sample), else the newest point in a
+    /// widened "weight"/apple-health series (weight is logged sparsely; a reading from weeks ago is still
+    /// real data, unlike a fabricated number), else the user's self-reported profile weight. Never nil —
+    /// the profile field always has SOME value — so callers never need their own "—" case for weight.
+    /// `isFromProfile` lets a caller show an honest "from profile" caption on the fallback tier, mirroring
+    /// classic Today's original `weightTile`. Pure/nonisolated: any Today screen can call it synchronously
+    /// once it has already fetched its own inputs, without re-deriving the three-tier fallback itself.
+    nonisolated static func resolveWeightKg(latestAppleWeightKg: Double?, seriesFallbackKg: Double?,
+                                            profileWeightKg: Double) -> (kg: Double, isFromProfile: Bool) {
+        if let kg = latestAppleWeightKg, kg > 10 { return (kg, false) }
+        if let kg = seriesFallbackKg, kg > 10 { return (kg, false) }
+        return (profileWeightKg, true)
+    }
     /// The trailing 7 CALENDAR days ending today (for the week strip), oldest→newest , not the last 7
     /// stored rows, which on a stale import were old data. ISO yyyy-MM-dd compares chronologically.
     var week: [DailyMetric] {

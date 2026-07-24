@@ -164,13 +164,13 @@ final class ProfileStore: ObservableObject {
     /// Remove the profile photo (reverts the header / Settings to the default icon).
     func clearAvatar() { avatarImageData = nil }
 
-    /// One-time seed of the profile weight from an Apple Health reading, ONLY when the user has never set
-    /// a weight themselves. `weightKg`'s in-`init` default of 75 does NOT persist (a plain init assignment
-    /// skips `didSet`), so an absent `profile.weightKg` key is the clean "never set" signal — a manual edit
-    /// or a `.noopbak` restore both write it. Ignores unrealistic readings (<10 kg). The assignment persists
-    /// via `weightKg.didSet`, so the key then exists and this never overwrites the value again.
-    func seedWeightFromHealthIfUnset(kg: Double) {
-        guard kg > 10, d.object(forKey: K.weight) == nil else { return }
+    /// "Health always wins" (user decision, supersedes the old one-time seed-if-unset behavior): every
+    /// successful HealthKit sync overwrites the profile weight with the freshest Health reading, not just
+    /// once when the field was never set. Still ignores unrealistic readings (<10 kg). Known tradeoff: a
+    /// manual edit not yet written back to Health (e.g. app killed mid-write) can be reverted by the next
+    /// sync — accepted explicitly per the user's choice, not engineered around (see docs/decisions.md).
+    func applyHealthWeight(kg: Double) {
+        guard kg > 10 else { return }
         weightKg = kg
     }
 

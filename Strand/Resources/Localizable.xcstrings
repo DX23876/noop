@@ -95535,7 +95535,6 @@
         }
       }
     },
-    "Missing a metric like weight? Tap Refresh permissions to grant data types added in a later update. To fully disconnect, use Settings › Health › Data Access & Devices › NOOP.": {},
     "ml/kg/min": {
       "localizations": {
         "de": {
@@ -123308,30 +123307,30 @@
         }
       }
     },
-    "Read your heart rate, HRV, blood oxygen, respiratory rate, sleep, steps and energy straight from Apple Health, and write NOOP's strap data back: sleep with full stages, continuous heart rate, workouts, and nightly vitals. Everything stays on %@.": {
+    "Read your heart rate, HRV, blood oxygen, respiratory rate, sleep, steps and energy straight from Apple Health, and write NOOP's strap data back: sleep with full stages, continuous heart rate, workouts, nightly vitals, and your profile weight. Everything stays on %@.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lesen Sie Ihre Herzfrequenz, HRV, Blutsauerstoff, Atemfrequenz, Schlaf, Schritte und Energie direkt von Apple Health und schreiben Sie NOOP's Banddaten zurück: Schlafen Sie mit vollen Stadien, kontinuierlicher Herzfrequenz, Workouts und nächtlichen Vitalen. Alles bleibt auf %1$@."
+            "value": "Lesen Sie Ihre Herzfrequenz, HRV, Blutsauerstoff, Atemfrequenz, Schlaf, Schritte und Energie direkt von Apple Health und schreiben Sie NOOP's Banddaten zurück: Schlafen Sie mit vollen Stadien, kontinuierlicher Herzfrequenz, Workouts, nächtlichen Vitalen und Ihrem Profilgewicht. Alles bleibt auf %1$@."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lea su frecuencia cardíaca, HRV, oxígeno sanguíneo, frecuencia respiratoria, sueño, pasos y energía directamente desde Apple Health, y escriba los datos de correa de NOOP: sueño con etapas completas, frecuencia cardíaca continua, ejercicios y vitales nocturnos. Todo permanece en %1$@."
+            "value": "Lea su frecuencia cardíaca, HRV, oxígeno sanguíneo, frecuencia respiratoria, sueño, pasos y energía directamente desde Apple Health, y escriba los datos de correa de NOOP: sueño con etapas completas, frecuencia cardíaca continua, ejercicios, vitales nocturnos y su peso de perfil. Todo permanece en %1$@."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lisez votre fréquence cardiaque, le VHR, l'oxygène sanguin, la fréquence respiratoire, le sommeil, les étapes et l'énergie directement depuis Apple Health, et écrivez les données de la sangle de NOOP: dormir avec des étapes complètes, la fréquence cardiaque continue, les séances d'entraînement et les éléments vitaux nocturnes. Tout reste sur %1$@."
+            "value": "Lisez votre fréquence cardiaque, le VHR, l'oxygène sanguin, la fréquence respiratoire, le sommeil, les étapes et l'énergie directement depuis Apple Health, et écrivez les données de la sangle de NOOP: dormir avec des étapes complètes, la fréquence cardiaque continue, les séances d'entraînement, les éléments vitaux nocturnes et votre poids de profil. Tout reste sur %1$@."
           }
         },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "Leia a tua frequência cardíaca, VFC, oxigénio no sangue, frequência respiratória, sono, passos e energia diretamente do Apple Health e anote os dados da bracelete do NOOP: sono com estágios completos, frequência cardíaca contínua, treinos e sinais vitais noturnos. Tudo permanece em %@."
+            "value": "Leia a tua frequência cardíaca, VFC, oxigénio no sangue, frequência respiratória, sono, passos e energia diretamente do Apple Health e anote os dados da bracelete do NOOP: sono com estágios completos, frequência cardíaca contínua, treinos, sinais vitais noturnos e o teu peso de perfil. Tudo permanece em %@."
           }
         }
       }
@@ -181256,6 +181255,50 @@
           "stringUnit": {
             "state": "translated",
             "value": "Δ 較上次"
+          }
+        }
+      }
+    },
+    "Missing a metric like weight? Tap Refresh permissions to grant data types added in a later update. Weight and body composition sync up to 10 years of history. To fully disconnect, use Settings › Health › Data Access & Devices › NOOP.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fehlt eine Kennzahl wie Gewicht? Tippe auf „Berechtigungen aktualisieren“, um Datentypen zu gewähren, die in einem späteren Update hinzugekommen sind. Gewicht und Körperzusammensetzung werden bis zu 10 Jahre rückwirkend synchronisiert. Um die Verbindung vollständig zu trennen, verwende Einstellungen › Health › Datenzugriff & Geräte › NOOP."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Falta una métrica como el peso? Toca «Actualizar permisos» para conceder los tipos de datos añadidos en una actualización posterior. El peso y la composición corporal se sincronizan hasta 10 años de historial. Para desconectar por completo, usa Ajustes › Salud › Acceso a datos y dispositivos › NOOP."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il manque une métrique comme le poids ? Appuyez sur « Actualiser les autorisations » pour accorder les types de données ajoutés dans une mise à jour ultérieure. Le poids et la composition corporelle se synchronisent jusqu'à 10 ans d'historique. Pour vous déconnecter complètement, utilisez Réglages › Santé › Accès aux données et appareils › NOOP."
+          }
+        }
+      }
+    },
+    "From profile": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aus Profil"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Del perfil"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Depuis le profil"
           }
         }
       }

@@ -85,11 +85,19 @@ struct StrandiOSApp: App {
                 // fixed-geometry tiles/gauges stay legible at the largest accessibility sizes rather than
                 // clipping; the common Larger-Text range still scales fully.
                 .dynamicTypeSize(...DynamicTypeSize.accessibility1)
-                // One-time seed of an unset profile weight from Apple Health: when a sync surfaces a
-                // realistic weigh-in and the user has never entered a weight, adopt it. The seed itself
-                // guards the "never set" condition, so this never clobbers a manual / restored value.
+                // "Health always wins" (user decision): every successful sync overwrites the profile
+                // weight with the freshest Health reading, not just once when unset.
                 .onReceive(health.$latestImportedWeightKg) { kg in
-                    if let kg { model.profile.seedWeightFromHealthIfUnset(kg: kg) }
+                    if let kg { model.profile.applyHealthWeight(kg: kg) }
+                }
+                // The reverse direction: a genuine user edit to the profile weight writes back to Health.
+                // Ping-pong guard — skip when the new value is (near-)identical to what Health itself last
+                // reported, since that means this change is the "Health always wins" overwrite above
+                // echoing back through this same publisher, not a fresh user edit (a real edit almost
+                // never lands within 0.05 kg of the last Health-imported value by coincidence).
+                .onReceive(model.profile.$weightKg.dropFirst()) { kg in
+                    guard abs(kg - (health.latestImportedWeightKg ?? -.greatestFiniteMagnitude)) > 0.05 else { return }
+                    Task { try? await health.writeWeight(kg: kg) }
                 }
                 .onReceive(model.live.$heartRate) { _ in
                     // #911: anchor the Live Activity on the SAME shared `Repository.widgetAnchor` the

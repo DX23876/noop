@@ -413,7 +413,11 @@ private struct HeuteVitalTile: View {
     private var innerPadding: CGFloat { density == 3 ? 13 : 18 }
     /// One fixed height every tile snaps to regardless of content (sparkline vs. none) — same rationale
     /// as `NoopMetrics.keyMetricTileHeight`: a row of tiles must read as ONE row, not a jagged one.
-    private var tileHeight: CGFloat { density == 3 ? 128 : 150 }
+    /// Density 2's 150 was too tight once "Detailed tiles" sparklines shipped (badge+title+number+
+    /// sparkline+caption sums to ~173pt against the old fixed 150, causing real clipping at default
+    /// Dynamic Type, not just accessibility sizes) — 178 leaves headroom. Density 3 never shows a
+    /// sparkline (`showSparkline` requires `density == 2`), so its 128 is unaffected.
+    private var tileHeight: CGFloat { density == 3 ? 128 : 178 }
     /// The tile's sparkline, trimmed to the shared trend window (2 / 7 / 14 days). Same "suffix, not a
     /// calendar-day filter" approximation classic Today uses — the source array is already ≤ the selected
     /// day, so trailing-N is the last N banked days.

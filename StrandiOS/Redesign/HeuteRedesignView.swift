@@ -24,11 +24,18 @@ import WhoopStore
 // NOT re-implemented here … so Liquid and Classic cannot drift." Heute now participates in that.
 struct HeuteRedesignView: View {
     @EnvironmentObject private var repo: Repository
+    /// Needed for the Weight tile's profile fallback (`Repository.resolveWeightKg`) — every other vital
+    /// on this screen comes from `repo`, but weight is the one metric with a user-editable last resort.
+    @EnvironmentObject private var profile: ProfileStore
 
     /// Same key every other screen reads (`Strand/Data/Units.swift`) — the Effort ring must respect
     /// whichever scale the user picked in Settings, not assume one fixed axis (on-device feedback).
     @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
     private var effortScale: EffortScale { EffortScale(rawValue: effortScaleRaw) ?? .hundred }
+    /// Same key every other screen reads — the Weight tile must respect Imperial/Metric like every other
+    /// mass value in the app, not hardcode kg (`MetricCatalog`'s `weight` entry's unit is fixed "kg").
+    @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
+    private var unitSystem: UnitSystem { UnitSystem(rawValue: unitSystemRaw) ?? .metric }
 
     @State private var status = ActivityStatusStore.load()
     /// Days back from today (0 = today) — feature-spec/design-spec don't cover day navigation at all;
@@ -92,7 +99,7 @@ struct HeuteRedesignView: View {
                 HeuteRingsView(charge: chargeDisplay.pct, chargeEmptyLabel: chargeEmptyLabel,
                                effort: effort, rest: rest, effortScale: effortScale,
                                onChargeTap: { showChargeBreakdown = true })
-                    .padding(.top, 2)
+                    .padding(.top, 18)
                 HeuteCardZoneView(status: dayStatus, readiness: readiness,
                                   calibrationNote: chargeDisplay.calibrationDetail,
                                   cards: suggestionCards,
@@ -101,7 +108,7 @@ struct HeuteRedesignView: View {
                                       DismissedSuggestionsStore.save(dismissedSuggestions)
                                   },
                                   onTap: { showPlan = true })
-                    .padding(.top, 24)
+                    .padding(.top, 30)
                 HeuteVitalsGridView(readings: vitalReadings, workout: dayWorkout)
                     .padding(.top, 26)
                 // Heart rate — parity with the other two Today screens (Heute was the only one without it).
@@ -273,27 +280,49 @@ struct HeuteRedesignView: View {
 
         // Stress reuses StressModel verbatim (Strand/Screens/StressView.swift) rather than re-deriving the
         // z-score math — off the main actor, mirroring LiquidTodayView.load(), so a long history doesn't
-        // stutter this screen's load.
+        // stutter this screen's load. Keeping the whole model (not just `.score`) also gives the tile's
+        // sparkline for free via `StressModel.sparkValues`.
         let storedStress = await repo.series(key: "stress", source: "my-whoop")
         let daysSnapshot = repo.days
-        let stress = await Task.detached(priority: .utility) {
-            StressModel(days: daysSnapshot, stored: storedStress)?.score
+        let stressModel = await Task.detached(priority: .utility) {
+            StressModel(days: daysSnapshot, stored: storedStress)
         }.value
+        let stress = stressModel?.score
+        let stressSpark = stressModel?.sparkValues ?? []
 
         // Calories: the same imported-first resolution LiquidTodayView.caloriesCount uses, scoped to the
         // selected day only (never carried — a daily accumulator, like Steps).
         let appleRows = await repo.appleDailyRows()
         let importedActiveKcalDay = appleRows.filter { $0.day == key }.compactMap { $0.activeKcal }.max()
 
+        // Weight: same 3-tier resolution as classic/Liquid Today (`Repository.resolveWeightKg`) — a real
+        // Apple Health reading (whole-history scan, weight is sparse, not day-scoped like calories/steps),
+        // else the newest point in a 90-day "weight" series, else the profile's self-reported value. Never
+        // carried per-day; weight doesn't have a "today's own value" concept the way strain/steps do.
+        let latestAppleWeightKg = appleRows.filter { ($0.weightKg ?? 0) > 10 }.max { $0.day < $1.day }?.weightKg
+        let weightSeries = await repo.series(key: "weight", source: "apple-health", days: 91)
+        let resolvedWeight = Repository.resolveWeightKg(latestAppleWeightKg: latestAppleWeightKg,
+                                                         seriesFallbackKg: weightSeries.last?.value,
+                                                         profileWeightKg: profile.weightKg)
+        let weightSpark = weightSeries.map(\.value)
+
         // Hydration: the day's logged fluid total (ml), or nil when nothing was logged — a real `0` is
         // indistinguishable from "never logged" (HydrationStore), so an unlogged day shows no tile rather
         // than a confusing "0 ml". Heute is the first Today screen to actually wire this (Liquid shows "–").
+        // The sparkline is separate from the headline rule: `hydrationHistory` 0-fills unlogged days
+        // (mirroring the app's existing 7-day mini-bar precedent), which is fine for a trend line even
+        // though a single 0 day must not become the headline value.
         let hydrationTotal = await repo.hydrationTotal(day: key)
         let hydrationMl = hydrationTotal > 0 ? hydrationTotal : nil
+        let hydrationSpark = await repo.hydrationHistory(days: 14).map(\.value)
 
         vitalReadings = buildReadings(day: day, tkey: tkey, isToday: isToday, fitnessAge: fitnessAge,
-                                      vitality: vitality, stress: stress,
-                                      importedActiveKcalDay: importedActiveKcalDay, hydrationMl: hydrationMl)
+                                      fitnessAgeSpark: Array(fitnessSeries.suffix(14)).map(\.value),
+                                      vitality: vitality, vitalitySpark: Array(vitalitySeries.suffix(14)).map(\.value),
+                                      stress: stress, stressSpark: stressSpark,
+                                      importedActiveKcalDay: importedActiveKcalDay,
+                                      hydrationMl: hydrationMl, hydrationSpark: hydrationSpark,
+                                      resolvedWeight: resolvedWeight, weightSpark: weightSpark)
 
         // Logical-day window, not a raw midnight-to-midnight one: a 01:00 workout belongs to the logical
         // day that is still running, exactly as `CoupledView` buckets workouts.
@@ -324,8 +353,13 @@ struct HeuteRedesignView: View {
     /// SpO₂, whose predicate the whole-row carry does not check). The carry is bounded by today's own key
     /// and applies only to today — a navigated past day shows its own row verbatim, or nothing.
     private func buildReadings(day: DailyMetric?, tkey: String, isToday: Bool,
-                               fitnessAge: Double?, vitality: Double?, stress: Double?,
-                               importedActiveKcalDay: Double?, hydrationMl: Double?) -> [String: HeuteVitalReading] {
+                               fitnessAge: Double?, fitnessAgeSpark: [Double],
+                               vitality: Double?, vitalitySpark: [Double],
+                               stress: Double?, stressSpark: [Double],
+                               importedActiveKcalDay: Double?,
+                               hydrationMl: Double?, hydrationSpark: [Double],
+                               resolvedWeight: (kg: Double, isFromProfile: Bool),
+                               weightSpark: [Double]) -> [String: HeuteVitalReading] {
         var out: [String: HeuteVitalReading] = [:]
         let vitalsDay = isToday ? Repository.lastVitalsDay(days: repo.days, todayKey: tkey) : nil
         let spo2Day = isToday ? Repository.lastSpo2Day(days: repo.days, todayKey: tkey) : nil
@@ -351,7 +385,8 @@ struct HeuteRedesignView: View {
         out["my-whoop:resp_rate"] = reading(day?.respRateBpm, carry: vitalsDay, { $0.respRateBpm })
         out["my-whoop:spo2"] = reading(day?.spo2Pct, carry: spo2Day, { $0.spo2Pct })
         if let fitnessAge {
-            out["my-whoop:fitness_age"] = HeuteVitalReading(value: fitnessAge, asOf: String(localized: "Weekly"))
+            out["my-whoop:fitness_age"] = HeuteVitalReading(value: fitnessAge, asOf: String(localized: "Weekly"),
+                                                             sparkline: fitnessAgeSpark)
         }
         // Steps are a daily accumulator like strain, not an overnight vital — yesterday's total is not a
         // stand-in for today, so this reads the selected day's OWN value and never carries.
@@ -362,14 +397,25 @@ struct HeuteRedesignView: View {
         // Liquid Today parity (on-device feedback): Vitality/Stress are weekly/daily composites, not
         // per-night overnight vitals, so no carry — same "Weekly"/today-scoped shape as fitness_age above.
         if let vitality {
-            out["my-whoop:vitality"] = HeuteVitalReading(value: vitality, asOf: asOfLabel(tkey))
+            out["my-whoop:vitality"] = HeuteVitalReading(value: vitality, asOf: asOfLabel(tkey),
+                                                          sparkline: vitalitySpark)
         }
         if let stress {
-            out["my-whoop:stress"] = HeuteVitalReading(value: stress, asOf: asOfLabel(tkey))
+            out["my-whoop:stress"] = HeuteVitalReading(value: stress, asOf: asOfLabel(tkey),
+                                                        sparkline: stressSpark)
         }
         // Skin temp is a per-night vital like HRV/RHR/SpO2 — same today-first, per-field carry (the
         // dedicated `lastSkinTempDay` selector, mirroring `lastSpo2Day`'s reasoning).
         out["my-whoop:skin_temp"] = reading(day?.skinTempDevC, carry: skinTempDay, { $0.skinTempDevC })
+        // Weight: was permanently dead here (registered but never populated, same shape Calories had
+        // before D-package 4a). `valueText` overrides the catalog's hardcoded "kg" unit formatting so the
+        // Imperial/Metric setting reaches this tile, matching classic Today's `weightTile`. The "From
+        // profile" caption on the fallback tier is an honest admission the value isn't a real reading.
+        out["apple-health:weight"] = HeuteVitalReading(
+            value: resolvedWeight.kg,
+            asOf: resolvedWeight.isFromProfile ? String(localized: "From profile") : asOfLabel(tkey),
+            sparkline: weightSpark,
+            valueText: UnitFormatter.massFromKilograms(resolvedWeight.kg, system: unitSystem))
         // Calories: imported-first (Apple Health active energy for the day) falling back to the on-device
         // estimate, matching LiquidTodayView.caloriesCount — never carried across days, like Steps.
         if let kcal = importedActiveKcalDay ?? day?.activeKcalEst {
@@ -387,7 +433,8 @@ struct HeuteRedesignView: View {
                                                    valueText: "\(Int(sleepMin) / 60)h \(Int(sleepMin) % 60)m")
         }
         if let hydrationMl {
-            out["heute:hydration"] = HeuteVitalReading(value: hydrationMl, asOf: asOfLabel(tkey))
+            out["heute:hydration"] = HeuteVitalReading(value: hydrationMl, asOf: asOfLabel(tkey),
+                                                        sparkline: hydrationSpark)
         }
         return out
     }

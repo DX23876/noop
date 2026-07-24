@@ -4309,16 +4309,11 @@ struct TodayView: View {
     /// `UnitFormatter` so the Imperial/Metric toggle reaches this tile. Mirrors Android's `weightTile`.
     /// Updated to ignore unrealistic weight values (< 10 kg) and use profile weight instead.
     private func weightTile(_ appleWeightKg: Double?) -> (value: String, caption: String) {
-        // Check for realistic weight values (> 10 kg)
-        if let kg = appleWeightKg, kg > 10 {
-            return (UnitFormatter.massFromKilograms(kg, system: unitSystem), String(localized: "latest"))
-        }
-        // Check sparkline weight
-        if let kg = sparks["weight"]?.last, kg > 10 {
-            return (UnitFormatter.massFromKilograms(kg, system: unitSystem), String(localized: "latest"))
-        }
-        // Fallback to profile weight
-        return (UnitFormatter.massFromKilograms(profile.weightKg, system: unitSystem), String(localized: "from profile"))
+        let resolved = Repository.resolveWeightKg(latestAppleWeightKg: appleWeightKg,
+                                                  seriesFallbackKg: sparks["weight"]?.last,
+                                                  profileWeightKg: profile.weightKg)
+        let caption = resolved.isFromProfile ? String(localized: "from profile") : String(localized: "latest")
+        return (UnitFormatter.massFromKilograms(resolved.kg, system: unitSystem), caption)
     }
 
     // MARK: - Derived text

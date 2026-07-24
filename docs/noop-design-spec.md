@@ -99,8 +99,8 @@ Neue Metriken (siehe Feature-Spec 4, Erweiterbarkeit) brauchen jeweils eine eige
 | Zwischen | Abstand |
 |---|---|
 | Statusleiste → Kopfzeile | Standard-Padding |
-| Kopfzeile → Ringe | 2pt (bewusst eng, gehören optisch zusammen) |
-| Ringe → Kartenzone | 24pt |
+| Kopfzeile → Ringe | 18pt (war 2pt — Geräte-Feedback empfand das als beengt, nicht "zusammengehörig"; siehe docs/decisions.md) |
+| Ringe → Kartenzone | 30pt (war 24pt, mit angehoben für stimmigen Rhythmus) |
 | Kartenzone → "Vitalwerte"-Überschrift | 26pt |
 | Kacheln untereinander/nebeneinander | 16pt (war 10pt in früheren Entwürfen) |
 | Innenabstand Kachel | 18pt (war 14pt) |
