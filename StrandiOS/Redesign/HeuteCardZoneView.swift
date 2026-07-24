@@ -8,16 +8,9 @@ import StrandAnalytics
 // notification cards. No existing swipe-to-dismiss precedent exists anywhere in the repo (checked) —
 // the drag physics below are transcribed from noop-heute-ausgebaut.html's vanilla-JS implementation,
 // which is more precise than design-spec §3's prose.
-
-/// One ephemeral notification card (feature-spec §3: generic "title + text", not coupled to any
-/// specific source — propose_plan / vitals-anomaly / future sources all produce the same shape).
-struct NotificationCardItem: Identifiable, Equatable {
-    var id: String = UUID().uuidString
-    /// Small overline tag, e.g. "Suggestion" / "Anomaly".
-    var category: String
-    /// The one-line body sentence.
-    var text: String
-}
+//
+// `NotificationCardItem` + the real-source mapping (`HeuteSuggestionCards`) live in `Strand/Data/` so
+// they compile into the macOS target and can be unit-tested there (like `ActivityStatus` etc.).
 
 struct HeuteCardZoneView: View {
     /// Already day-scoped by the host (`HeuteRedesignView.dayStatus`) — a past day is never shown with
@@ -30,9 +23,14 @@ struct HeuteCardZoneView: View {
     /// nil once a score or a carry exists. Ignored when an ActivityStatus override is active (a set status
     /// is an explicit user statement that wins regardless).
     var calibrationNote: String? = nil
-    /// Owned by the screen root: a `@State` copy here silently resurrected every dismissed card whenever
-    /// the parent re-created this view (e.g. on a day change or any reload).
-    @Binding var cards: [NotificationCardItem]
+    /// Derived by the host from `CoachPlanStore.pending` (minus locally-dismissed, minus activity-status
+    /// suppression) — NOT owned here. A `@State`/`@Binding` copy would fight the store as the source of
+    /// truth; dismissal flows OUT via `onDismiss` and the host recomputes.
+    let cards: [NotificationCardItem]
+    /// A card was swiped away — the host persists the dismissal (by proposal id) so it stays gone.
+    var onDismiss: (NotificationCardItem) -> Void
+    /// A card was tapped — the host opens the coach plan (accept / modify / decline).
+    var onTap: () -> Void
 
     private let zoneHeight: CGFloat = 150
 
@@ -46,7 +44,8 @@ struct HeuteCardZoneView: View {
                             item: card,
                             isTop: index == 0,
                             screenWidth: geo.size.width,
-                            onDismiss: { dismiss(card) }
+                            onDismiss: { onDismiss(card) },
+                            onTap: onTap
                         )
                     }
                 }
@@ -57,10 +56,6 @@ struct HeuteCardZoneView: View {
                 HeuteCardDots(count: cards.count)
             }
         }
-    }
-
-    private func dismiss(_ card: NotificationCardItem) {
-        cards.removeAll { $0.id == card.id }
     }
 }
 
@@ -139,6 +134,7 @@ private struct HeuteNotificationCard: View {
     let isTop: Bool
     let screenWidth: CGFloat
     let onDismiss: () -> Void
+    var onTap: () -> Void = {}
 
     @State private var offsetX: CGFloat = 0
     @State private var rotation: Double = 0
@@ -173,7 +169,12 @@ private struct HeuteNotificationCard: View {
         .opacity(isTop ? opacity : 0.55)
         .allowsHitTesting(isTop)
         .gesture(isTop ? drag : nil)
+        // A plain tap opens the coach plan. It composes with `drag` (a tap meets no drag threshold, a
+        // swipe never fires the tap) — deliberately NOT a Button wrapper, which as a Button-in-drag-context
+        // would hit-test unreliably (the pitfall documented at `HeuteVitalsGridView` / P5).
+        .onTapGesture { if isTop { onTap() } }
         .accessibilityElement(children: .combine)
+        .accessibilityAction { onTap() }
         .accessibilityAction(named: Text("Dismiss")) { fling(direction: 1) }
     }
 

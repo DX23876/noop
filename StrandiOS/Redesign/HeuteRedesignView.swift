@@ -56,7 +56,25 @@ struct HeuteRedesignView: View {
     /// unspecified order). Same mechanism as `LiquidTodayView`'s day-swipe suppression.
     @State private var hrScrubbing = false
     @State private var hrScrubEndedAt = Date.distantPast
-    @State private var cards: [NotificationCardItem] = HeuteRedesignView.sampleCards
+
+    /// The coach's pending training proposals — the REAL source for the suggestion cards (was a stubbed
+    /// placeholder). Observed so a freshly-proposed session appears without a manual reload. Generation
+    /// stays in the coach / `MorningSuggestionCard` flow; Heute only surfaces what's already pending.
+    @ObservedObject private var planStore = CoachPlanStore.shared
+    @EnvironmentObject private var coach: AICoachEngine
+    /// Locally-dismissed proposal ids (swipe hides a card for good WITHOUT declining the proposal). Pruned
+    /// to still-pending ids on load so it can't grow without bound.
+    @State private var dismissedSuggestions = DismissedSuggestionsStore.load()
+    /// Presents the coach plan (accept / modify / decline) when a suggestion card is tapped.
+    @State private var showPlan = false
+
+    /// The suggestion cards for the shown day — pure mapping over the pending proposals, gated by activity
+    /// status and local dismissals (`HeuteSuggestionCards`). Only today ever yields cards (a pending
+    /// proposal carries today's `day`), which also matches the forward-looking nature of a suggestion.
+    private var suggestionCards: [NotificationCardItem] {
+        HeuteSuggestionCards.cards(pending: planStore.pending, dayKey: selectedDayKey,
+                                   status: dayStatus, dismissed: dismissedSuggestions)
+    }
 
     var body: some View {
         ScrollView {
@@ -67,7 +85,13 @@ struct HeuteRedesignView: View {
                                effort: effort, rest: rest, effortScale: effortScale)
                     .padding(.top, 2)
                 HeuteCardZoneView(status: dayStatus, readiness: readiness,
-                                  calibrationNote: chargeDisplay.calibrationDetail, cards: $cards)
+                                  calibrationNote: chargeDisplay.calibrationDetail,
+                                  cards: suggestionCards,
+                                  onDismiss: { item in
+                                      dismissedSuggestions.insert(item.id)
+                                      DismissedSuggestionsStore.save(dismissedSuggestions)
+                                  },
+                                  onTap: { showPlan = true })
                     .padding(.top, 24)
                 HeuteVitalsGridView(readings: vitalReadings, workout: dayWorkout)
                     .padding(.top, 26)
@@ -98,6 +122,7 @@ struct HeuteRedesignView: View {
             .padding(.bottom, NoopMetrics.tabBarClearance)
         }
         .background(HeuteRedesignPalette.bg.ignoresSafeArea())
+        .sheet(isPresented: $showPlan) { CoachPlanView().environmentObject(coach) }
         .simultaneousGesture(daySwipeGesture)
         .task(id: selectedDayOffset) { await load() }
     }
@@ -129,14 +154,6 @@ struct HeuteRedesignView: View {
                 withAnimation(StrandMotion.interactive) { selectedDayOffset = next }
             }
     }
-
-    /// Placeholder content so the drag-to-dismiss gesture has something to test on-device — real
-    /// sourcing (propose_plan / vitals-anomaly detection) is out of scope here (feature-spec §3's
-    /// generic-mechanic requirement is satisfied by `NotificationCardItem`; only the SOURCE is stubbed).
-    private static let sampleCards: [NotificationCardItem] = [
-        NotificationCardItem(category: String(localized: "Suggestion"),
-                              text: String(localized: "Placeholder card — real training suggestions land here once propose_plan is wired in.")),
-    ]
 
     /// The manual activity status AS IT APPLIES TO THE SELECTED DAY. `ActivityStatus` is a *current*
     /// state (`validUntil`, silent reset — feature-spec §1); it is not recorded per day, so it can only
@@ -188,6 +205,11 @@ struct HeuteRedesignView: View {
         // a screen left open across the expiry would otherwise keep showing the stale exception state.
         let resolvedStatus = ActivityStatusStore.load()
         if resolvedStatus != status { status = resolvedStatus }
+
+        // Prune locally-dismissed suggestion ids to the still-pending set, so the store can't accumulate
+        // ids for proposals that were long since decided or aged out.
+        let pruned = DismissedSuggestionsStore.load(keepingOnly: Set(planStore.pending.map { $0.id.uuidString }))
+        if pruned != dismissedSuggestions { dismissedSuggestions = pruned }
 
         let key = selectedDayKey
         let day = displayDay
