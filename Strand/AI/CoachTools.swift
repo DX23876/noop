@@ -138,7 +138,9 @@ enum CoachTool: String, CaseIterable {
                 + "describe it as settled. Use it when you recommend a specific session, AND when the "
                 + "user tells you their own plan for a specific day (e.g. \"I'm training legs today\") — "
                 + "either way it becomes a proposal they confirm, never assume it's already scheduled "
-                + "just because they said it. Give a short rationale; they'll read it again next week."
+                + "just because they said it. Give a short rationale; they'll read it again next week. "
+                + "Only for an actual training session — never for sleep, nutrition, hydration or other "
+                + "lifestyle advice; those are simply an answer in chat, not a proposal."
         case .sessionOutlook:
             return "Find out what a session would cost this user, from THEIR OWN history: typical Charge "
                 + "cost the next morning, bounce-back days, and a projection for tomorrow. Pass "
