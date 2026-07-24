@@ -62,7 +62,7 @@ Donnerstag, 23. Juli
 - Radius 22pt, 1pt Rahmen in `line`-Farbe, Innenabstand 18pt (16pt bei 3er-Dichte).
 - Icon-Badge oben links: 30pt Kreis (24pt bei 3er-Dichte), Farbverlauf aus der jeweiligen Metrik-Akzentfarbe (siehe Palette unten), zweifarbig (heller Ton → 15% abgedunkelter Ton, 135°-Winkel) für etwas Tiefe statt Flat-Color.
 - Label darunter (Caps, 10pt), dann große Zahl (30pt bei 2er-, 20pt bei 3er-Dichte), immer in `ink`.
-- Sparkline optional darunter (nur bei 2er-Dichte, bei 3er ausgeblendet — zu wenig Platz), dünne Linie in der Metrik-Akzentfarbe bei ~70% Deckkraft.
+- Sparkline optional darunter (nur bei aktivem "Detailed tiles"-Schalter und ≥2 Datenpunkten), dünne Linie in der Metrik-Akzentfarbe bei ~70% Deckkraft. In beiden Rasterdichten sichtbar (war früher 2er-only — Geräte-Feedback: 3er hat genug Platz für eine kleinere Grafik, siehe docs/decisions.md), bei 3er-Dichte kleiner (16pt statt 22pt Höhe).
 - "as of [Zeitpunkt]"-Zeile unten, Sekundärfarbe, 11pt.
 - Hauchdünner Hintergrundschimmer: ganze Kachelfläche, Metrik-Akzentfarbe bei ~10% Deckkraft.
 

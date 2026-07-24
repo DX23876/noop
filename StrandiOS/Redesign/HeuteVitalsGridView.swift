@@ -175,7 +175,13 @@ struct HeuteVitalsGridView: View {
                     })
                     .offset(isDragging ? dragTranslation : .zero)
                     .zIndex(isDragging ? 1 : 0)
-                    .gesture(editing ? dragGesture(for: config.metricId) : nil)
+                    // High-priority: this grid lives inside `HeuteRedesignView`'s ScrollView, and a plain
+                    // `.gesture()` here routinely loses the arbitration against the ScrollView's own pan
+                    // gesture (on-device bug report: dragging a tile produced no visible movement — the
+                    // touch was being consumed by scrolling instead). High-priority wins that race while
+                    // editing, matching the same pattern the remove badge below already uses for the same
+                    // reason.
+                    .highPriorityGesture(editing ? dragGesture(for: config.metricId) : nil)
                 }
             }
 
@@ -389,8 +395,6 @@ private struct HeuteVitalTile: View {
     /// only the "Edit" label worked before.
     let onEnterEdit: () -> Void
 
-    @State private var wigglePhase = false
-
     private var isNeutral: Bool { descriptor.key == "steps" }
     private var accent: Color {
         switch descriptor.key {
@@ -411,21 +415,29 @@ private struct HeuteVitalTile: View {
     private var badgeSize: CGFloat { density == 3 ? 24 : 30 }
     private var numberSize: CGFloat { density == 3 ? 20 : 30 }
     private var innerPadding: CGFloat { density == 3 ? 13 : 18 }
-    /// One fixed height every tile snaps to regardless of content (sparkline vs. none) — same rationale
-    /// as `NoopMetrics.keyMetricTileHeight`: a row of tiles must read as ONE row, not a jagged one.
-    /// Density 2's 150 was too tight once "Detailed tiles" sparklines shipped (badge+title+number+
-    /// sparkline+caption sums to ~173pt against the old fixed 150, causing real clipping at default
-    /// Dynamic Type, not just accessibility sizes) — 178 leaves headroom. Density 3 never shows a
-    /// sparkline (`showSparkline` requires `density == 2`), so its 128 is unaffected.
-    private var tileHeight: CGFloat { density == 3 ? 128 : 178 }
+    /// One fixed height every tile snaps to regardless of content (sparkline vs. none, or a tile that
+    /// individually has <2 spark points while its row-mates do) — same rationale as
+    /// `NoopMetrics.keyMetricTileHeight`: a row of tiles must read as ONE row, not a jagged one. Keyed off
+    /// `detailed` (the screen-wide toggle), not per-tile `showSparkline`, for exactly that reason. Density
+    /// 2's 178 already has sparkline headroom baked in unconditionally (was 150, too tight once "Detailed
+    /// tiles" shipped — badge+title+number+sparkline+caption summed to ~173pt, real clipping at default
+    /// Dynamic Type). Density 3 only grows to 150 while Detailed is on — on-device feedback: sparklines
+    /// were 2-column-only, but 3-column has room for a slightly smaller graph too; 128 stays the default
+    /// when Detailed is off, unchanged from before.
+    private var tileHeight: CGFloat {
+        density == 3 ? (detailed ? 150 : 128) : 178
+    }
+    /// The sparkline's own height — a touch smaller at 3-column density, where there's less vertical room.
+    private var sparklineHeight: CGFloat { density == 3 ? 16 : 22 }
     /// The tile's sparkline, trimmed to the shared trend window (2 / 7 / 14 days). Same "suffix, not a
     /// calendar-day filter" approximation classic Today uses — the source array is already ≤ the selected
     /// day, so trailing-N is the last N banked days.
     private var windowedSparkline: [Double] { Array(reading.sparkline.suffix(windowDays)) }
-    /// Sparklines are gated on the shared "Detailed tiles" switch (parity with classic/Liquid), the
-    /// 2-column density (a 3-col tile is too narrow for a graph), and ≥2 points after windowing (a single
-    /// point draws an empty plot area — the "keine leeren Kacheln" rule).
-    private var showSparkline: Bool { detailed && density == 2 && windowedSparkline.count >= 2 }
+    /// Sparklines are gated on the shared "Detailed tiles" switch (parity with classic/Liquid) and ≥2
+    /// points after windowing (a single point draws an empty plot area — the "keine leeren Kacheln" rule).
+    /// No longer density-gated (on-device feedback: 3-column had room for a smaller graph too, just not
+    /// the same 22pt-tall one 2-column uses — see `sparklineHeight`/`tileHeight`).
+    private var showSparkline: Bool { detailed && windowedSparkline.count >= 2 }
     /// The value line: a caller-supplied override (Sleep's "7h 32m") wins; otherwise the descriptor's
     /// numeric formatting.
     private var numberText: String {
@@ -445,6 +457,38 @@ private struct HeuteVitalTile: View {
     // `.tabRouteDestinations()` on the ambient NavigationStack `RootTabView`'s `tab(...)` helper already
     // wraps this whole screen in, so no extra wiring is needed here beyond the link itself.
     var body: some View {
+        // Wiggle is driven by wall-clock time (`TimelineView`), not a `repeatForever` `Animation` object —
+        // on-device bug report: tiles kept wiggling after tapping "Done" even with the previous declarative
+        // `.animation(value:)` binding (a known SwiftUI limitation: a running `repeatForever` is notoriously
+        // unreliable to interrupt cleanly, regardless of how the animation-curve switch is expressed). A
+        // pure function of time sidesteps the whole class of bug: there is nothing long-lived to cancel —
+        // the instant `editing` (or `isDragging`) flips, this branch stops rendering the TimelineView
+        // entirely and the rotation simply stops being computed, snapping back with a short, ordinary,
+        // non-repeating animation.
+        Group {
+            if editing && !isDragging {
+                TimelineView(.animation) { context in
+                    tileStack.rotationEffect(.degrees(wiggleAngle(at: context.date)))
+                }
+            } else {
+                tileStack
+                    .rotationEffect(.degrees(0))
+                    .animation(.easeOut(duration: 0.12), value: editing)
+            }
+        }
+    }
+
+    /// The wiggle angle at a given moment: a plain sine wave (no `Animation` object involved), period
+    /// matched to the old `easeInOut(duration: 0.28)` autoreversing pair (0.28s out + 0.28s back = 0.56s
+    /// full cycle), `wiggleDelay` offsetting each tile's phase for the organic "not perfectly in sync" look.
+    private func wiggleAngle(at date: Date) -> Double {
+        let period = 0.56
+        let t = date.timeIntervalSinceReferenceDate + wiggleDelay
+        let phase = t.truncatingRemainder(dividingBy: period) / period
+        return sin(phase * 2 * .pi) * 0.7
+    }
+
+    private var tileStack: some View {
         ZStack(alignment: .topLeading) {
             NavigationLink(value: route) {
                 tileContent
@@ -478,22 +522,6 @@ private struct HeuteVitalTile: View {
                 .offset(x: -7, y: -7)
                 .accessibilityLabel(Text("Hide \(descriptor.title)"))
             }
-        }
-        // Declarative animation binding (the animation depends on `editing`, not two competing imperative
-        // `withAnimation` calls racing on the same state) — was the actual cause of the wiggle not
-        // stopping cleanly on-device: a `repeatForever` started by one `withAnimation` isn't reliably
-        // cancelled by a second, independent `withAnimation` targeting the same property afterwards. This
-        // way SwiftUI owns starting/stopping the loop itself whenever `editing` (and so the animation
-        // descriptor below) changes.
-        .rotationEffect(.degrees(editing && !isDragging ? (wigglePhase ? 0.7 : -0.7) : 0))
-        .animation(
-            editing
-                ? Animation.easeInOut(duration: 0.28).repeatForever(autoreverses: true).delay(wiggleDelay)
-                : .easeInOut(duration: 0.12),
-            value: wigglePhase
-        )
-        .onChange(of: editing) { _, isEditing in
-            wigglePhase = isEditing
         }
     }
 
@@ -548,7 +576,7 @@ private struct HeuteVitalTile: View {
                 }
                 .chartXAxis(.hidden)
                 .chartYAxis(.hidden)
-                .frame(height: 22)
+                .frame(height: sparklineHeight)
                 .padding(.top, 6)
             }
             Spacer(minLength: 6)
