@@ -21,7 +21,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
     case labBook = "Lab Book"
     case rhythm = "Rhythm"
     case appleHealth = "Apple Health"
-    case xiaomi = "Mi Band"
+    case miBand = "Mi Band"
     case dataSources = "Data Sources"
     case backupSync = "Backup & Sync"
     case fusedRecord = "Your Data, Fused"
@@ -57,7 +57,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         case .labBook: return "Lab Book"
         case .rhythm: return "Rhythm"
         case .appleHealth: return "Apple Health"
-        case .xiaomi: return "Mi Band"
+        case .miBand: return "Mi Band"
         case .dataSources: return "Data Sources"
         case .backupSync: return "Backup & Sync"
         case .fusedRecord: return "Your Data, Fused"
@@ -100,7 +100,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         case .labBook: return String(localized: "Lab Book")
         case .rhythm: return String(localized: "Rhythm")
         case .appleHealth: return String(localized: "Apple Health")
-        case .xiaomi: return String(localized: "Mi Band")
+        case .miBand: return String(localized: "Mi Band")
         case .dataSources: return String(localized: "Data Sources")
         case .backupSync: return String(localized: "Backup & Sync")
         case .fusedRecord: return String(localized: "Your Data, Fused")
@@ -135,7 +135,7 @@ enum NavItem: String, CaseIterable, Identifiable, Hashable {
         case .labBook: return "books.vertical.fill"
         case .rhythm: return "waveform.path"
         case .appleHealth: return "heart.fill"
-        case .xiaomi: return "figure.walk.motion"
+        case .miBand: return "figure.walk.motion"
         case .dataSources: return "square.and.arrow.down.fill"
         case .backupSync: return "externaldrive.fill.badge.icloud"
         case .fusedRecord: return "square.stack.3d.up.fill"
@@ -177,7 +177,7 @@ struct NavGroup: Identifiable {
             .labBook, .rhythm, .trends,
         ]),
         NavGroup(title: "Data & App", id: "data_app", items: [
-            .devices, .dataSources, .appleHealth, .xiaomi, .backupSync, .fusedRecord,
+            .devices, .dataSources, .appleHealth, .miBand, .backupSync, .fusedRecord,
             .notifications, .automation, .smartAlarm, .settings, .testCentre,
         ]),
     ]
@@ -335,6 +335,13 @@ struct RootView: View {
         .onReceive(NotificationCenter.default.publisher(for: .noopOpenCoachCard)) { _ in
             selection = .coach
         }
+        // Daily coach check-in tapped (NOOP AI): select the Coach pane, mirroring the iOS
+        // RootTabView.swift handler — without this the notification was silent whenever the sidebar
+        // wasn't already on Coach (CoachView's own .onReceive never fires because it isn't in the
+        // hierarchy until selected).
+        .onReceive(NotificationCenter.default.publisher(for: .noopOpenCoachCheckIn)) { _ in
+            selection = .coach
+        }
         // Whenever the selection moves (a cross-screen route, or restoring a deep destination), make sure
         // the group that owns it is expanded so the selected row is actually visible, not hidden inside a
         // collapsed section (S1). User-driven collapses of OTHER groups are preserved.
@@ -441,7 +448,7 @@ struct RootView: View {
         case .labBook: LabBookView()
         case .rhythm: RhythmHost()
         case .appleHealth: AppleHealthView()
-        case .xiaomi: XiaomiBandView()
+        case .miBand: XiaomiBandView()
         case .dataSources: DataSourcesView()
         case .backupSync: BackupSyncView()
         case .fusedRecord: FusedRecordHost()

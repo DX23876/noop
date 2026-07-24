@@ -1,5 +1,7 @@
 import Foundation
 import UserNotifications
+import StrandAnalytics
+import WhoopStore
 
 extension Notification.Name {
     /// Posted when the user taps the daily coach check-in notification, so the UI can jump to the Coach
@@ -250,20 +252,18 @@ enum CoachCheckIn {
     /// Learn the habitual wake minute from the last `wakeWindowNights` nights' wake times and cache it,
     /// then reschedule so the change takes effect. When there isn't enough history yet the cache is left
     /// untouched and `effectiveMinutes` keeps falling back to the fixed time, so the reminder never stops.
+    ///
+    /// Reads via `Repository.allSleepSessions`, the same union `habitualMidsleepSec()` uses — NOT
+    /// `sleepSessions(from:to:limit:)`, which only unions the IMPORTED source ids (a Bluetooth-only user
+    /// with no WHOOP/Health import would never see a learned wake time, #coach-checkin-wake-fix) and whose
+    /// `ORDER BY startTs ASC LIMIT ?` drops the NEWEST nights once a window holds more rows than `limit`
+    /// (the opposite of "the last N nights"). `mainNightWakeMinutes` then does the actual night selection.
     static func refreshDynamicSchedule(repo: Repository) async {
-        let now = Int(Date().timeIntervalSince1970)
-        let from = now - (wakeWindowNights + 2) * 86_400
-        let sessions = await repo.sleepSessions(from: from, to: now + 86_400, limit: wakeWindowNights + 5)
-
-        // Convert each night's wake instant to a local minute-of-day, using that instant's own UTC offset
-        // (so a night across a DST change still maps to the wall-clock minute the user saw), exactly as
-        // `AICoachEngine.formatSleepDetail` keys its bed/wake times.
-        let localWakeMinutes: [Int] = sessions.map { s in
-            let offsetSec = TimeZone.current.secondsFromGMT(for: Date(timeIntervalSince1970: TimeInterval(s.endTs)))
-            let secondsPerDay = 86_400
-            let localSec = (((s.endTs + offsetSec) % secondsPerDay) + secondsPerDay) % secondsPerDay
-            return localSec / 60
-        }
+        let sessions = await repo.allSleepSessions(days: wakeWindowNights + 5)
+        let blocks = sessions.map { (start: $0.effectiveStartTs, end: $0.endTs) }
+        let habitualMidsleep = await repo.habitualMidsleepSec()
+        let localWakeMinutes = mainNightWakeMinutes(blocks: blocks, nights: wakeWindowNights,
+                                                     habitualMidsleepSec: habitualMidsleep)
 
         guard let resolved = habitualWakeMinutes(fromLocalMinutes: localWakeMinutes) else {
             // Not enough nights yet — leave the fallback in place, don't clear a previously-good value.
@@ -272,6 +272,48 @@ enum CoachCheckIn {
         }
         UserDefaults.standard.set(resolved, forKey: K.resolvedWake)
         if isEnabled, mode == .afterWake { schedule() }
+    }
+
+    /// The day's MAIN-NIGHT wake minute-of-day, for each of the most recent `nights` distinct local days
+    /// that have one — mirroring the exact selector `AnalyticsEngine.analyzeDay` and the Sleep tab hero use
+    /// so a nap sharing a day with the real night never contributes its own wake time, and a night split by
+    /// a short wake still resolves to ONE wake time (the winning bridged group's latest `end`). Blocks are
+    /// bucketed by the LOCAL day their `end` falls on — the SAME attribution `analyzeDay` uses
+    /// (`tsInDay($0.end)`), so a night ending just after midnight buckets with its wake, not its bedtime
+    /// (day keys sort lexicographically = chronologically, so no `Calendar` arithmetic is needed to pick
+    /// "the most recent N"). Each timestamp uses ITS OWN UTC offset (so a window spanning a DST change
+    /// still maps every wake to the wall-clock minute the user saw). Pure and database-free; the caller
+    /// supplies already-fetched blocks. `offsetSec` defaults to the real `TimeZone.current` but is
+    /// injectable so tests can pin a deterministic (or DST-transitioning) offset without depending on the
+    /// machine's system timezone.
+    nonisolated static func mainNightWakeMinutes(
+        blocks: [(start: Int, end: Int)], nights: Int, habitualMidsleepSec: Int?,
+        offsetSec: (Int) -> Int = { ts in
+            TimeZone.current.secondsFromGMT(for: Date(timeIntervalSince1970: TimeInterval(ts)))
+        }
+    ) -> [Int] {
+        guard !blocks.isEmpty else { return [] }
+        var byDay: [String: [(start: Int, end: Int)]] = [:]
+        for b in blocks {
+            guard b.end > b.start else { continue }
+            byDay[AnalyticsEngine.dayString(b.end, offsetSec: offsetSec(b.end)), default: []].append(b)
+        }
+        let recentDays = byDay.keys.sorted().suffix(nights)
+
+        var wakeMinutes: [Int] = []
+        for day in recentDays {
+            guard let dayBlocks = byDay[day] else { continue }
+            let dayOffset = offsetSec(dayBlocks.map(\.end).max() ?? 0)
+            let nightBlocks = dayBlocks.map { SleepStageTotals.NightBlock(start: $0.start, end: $0.end) }
+            guard let groupIdx = SleepStageTotals.mainNightGroupIndices(
+                nightBlocks, offsetSec: dayOffset, habitualMidsleepSec: habitualMidsleepSec) else { continue }
+            let wakeEnd = groupIdx.map { dayBlocks[$0].end }.max() ?? 0
+            let secondsPerDay = 86_400
+            let wakeOffset = offsetSec(wakeEnd)
+            let localSec = (((wakeEnd + wakeOffset) % secondsPerDay) + secondsPerDay) % secondsPerDay
+            wakeMinutes.append(localSec / 60)
+        }
+        return wakeMinutes
     }
 
     /// The habitual wake time (minutes since midnight) as the MEDIAN of recent nights' local wake minutes,

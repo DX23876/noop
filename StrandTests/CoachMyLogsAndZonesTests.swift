@@ -33,11 +33,11 @@ final class CoachMyLogsAndZonesTests: XCTestCase {
         XCTAssertTrue(result.contains("caffeine, journal, lab, hydration, mood"))
     }
 
-    /// `lab` refuses without the second on-device-signals opt-in, mirroring `get_personal_patterns`, and
-    /// short-circuits BEFORE any store read.
-    func testLabRefusesWithoutOnDeviceSignalsConsent() async {
+    /// `lab` refuses without the `.logs` purpose granted (#coach-tool-consent), and short-circuits BEFORE
+    /// any store read.
+    func testLabRefusesWithoutLogsConsent() async {
         let engine = makeEngine()
-        engine.includeOnDeviceSignals = false
+        engine.toolConsent = ToolConsent(enabled: [])
         let result = await engine.myLogsTool(kind: "lab", days: 14)
         XCTAssertTrue(result.contains("hasn't shared their Lab Book"))
     }
@@ -64,13 +64,13 @@ final class CoachMyLogsAndZonesTests: XCTestCase {
     /// addition is a deliberately reviewed cost bump rather than drift.
     func testToolCensusIncludesTheTwoNewToolsAndIsPinned() {
         let engine = makeEngine()
-        engine.includeOnDeviceSignals = false
+        engine.toolConsent = ToolConsent(enabled: Set(CoachPurpose.allCases.filter { $0 != .patterns }))
         XCTAssertTrue(engine.coachTools.contains(.myLogs))
         XCTAssertTrue(engine.coachTools.contains(.zoneMinutes))
         XCTAssertEqual(engine.coachTools.count, 21,
                        "tool count changed — confirm the added per-round cost is intended")
 
-        engine.includeOnDeviceSignals = true
+        engine.toolConsent.enabled.insert(.patterns)
         XCTAssertEqual(engine.coachTools.count, 22, "the second opt-in adds get_personal_patterns")
     }
 

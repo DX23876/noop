@@ -3547,11 +3547,9 @@ struct TodayView: View {
                               trailing: String(localized: "\(workouts.count) total"))
                 LazyVGrid(columns: grid, alignment: .leading, spacing: NoopMetrics.gap) {
                     ForEach(Array(workouts.prefix(6).enumerated()), id: \.offset) { _, w in
-                        // Value-based push to the workouts list (not a single-workout detail) — same
-                        // destination Liquid Today's own Last Workouts card opens
-                        // (`LiquidTodayView.swift:1265`), so tapping any tile here is consistent with the
-                        // other Today screen (was structurally inert before, on-device feedback).
-                        NavigationLink(value: TabRoute.workouts) {
+                        // Value-based push straight to THIS workout's detail (matches Workouts → All
+                        // Sessions, which opens the tapped row directly, not the bare list).
+                        NavigationLink(value: TabRoute.workoutDetail(startTs: w.startTs, sport: w.sport)) {
                             StatTile(
                                 label: "\(WorkoutSource.displaySport(w.sport))",
                                 value: workoutDuration(w),
@@ -4688,7 +4686,7 @@ private struct RecordingStatusLight: View {
         switch state {
         case .recording:           return StrandPalette.statusPositive
         case .lastSynced:          return StrandPalette.statusWarning
-        case .notRecording:        return Color(red: 0.98, green: 0.27, blue: 0.23)
+        case .notRecording:        return StrandPalette.statusCritical
         case .historyExperimental: return StrandPalette.accent
         }
     }

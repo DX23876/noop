@@ -29,6 +29,10 @@ enum TabRoute: Hashable {
     case metricSourced(key: String, source: String)
     case metricExplorer
     case workouts
+    /// One workout's own detail, by natural key (`startTs`, `sport` — mirrors `WorkoutsView.selectionKey`).
+    /// Today's "Latest Workouts" tiles push this instead of the bare `workouts` list so a tap opens the
+    /// exact session, the way Workouts → All Sessions already does.
+    case workoutDetail(startTs: Int, sport: String)
     case dataSources
     case stress
     case sleep
@@ -65,6 +69,7 @@ extension View {
                 }
             case .metricExplorer: MetricExplorerView()
             case .workouts: WorkoutsView()
+            case .workoutDetail(let startTs, let sport): WorkoutsView(openDetailKey: "\(startTs)|\(sport)")
             case .dataSources: DataSourcesView()
             case .stress: StressView()
             case .sleep: SleepView()
