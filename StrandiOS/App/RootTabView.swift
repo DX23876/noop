@@ -597,8 +597,19 @@ private struct MoreRow: View {
     let icon: String
     let route: MoreDestination
 
+    /// Single global switch (Settings → Appearance), OFF by default so every row stays the plain
+    /// `StrandPalette.accent` blue exactly as before. ON recolors every row at once to
+    /// `MoreRowAppleHealthColors`' Apple Health-style palette — never per-row, never persisted per icon.
+    /// Read directly here (rather than threaded through `init`) so all 25 `MoreRow(...)` call sites in
+    /// `moreTab` stay untouched.
+    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = false
+
     init(_ title: LocalizedStringKey, _ icon: String, _ route: MoreDestination) {
         self.title = title; self.icon = icon; self.route = route
+    }
+
+    private var tint: Color {
+        appleHealthColors ? MoreRowAppleHealthColors.color(for: String(describing: route)) : StrandPalette.accent
     }
 
     var body: some View {
@@ -609,7 +620,7 @@ private struct MoreRow: View {
                 // explicit foregroundStyle on the image overrides that; the title keeps the primary colour.
                 Image(systemName: icon)
                     .font(.system(size: 17, weight: .regular))
-                    .foregroundStyle(StrandPalette.accent)
+                    .foregroundStyle(tint)
                     .frame(width: 26, alignment: .center)
                 Text(title)
                     .font(StrandFont.body)

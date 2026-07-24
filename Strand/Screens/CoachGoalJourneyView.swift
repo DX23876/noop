@@ -23,6 +23,9 @@ struct CoachGoalJourneyScreen: View {
 struct CoachGoalJourneyView: View {
     @EnvironmentObject private var coach: AICoachEngine
     @ObservedObject private var goalStore = CoachGoalStore.shared
+    /// Apple Health-style leading-icon coloring (SettingsView's "App icon colors") — same switch that
+    /// recolors the More tab and the rest of Coach's screens. See `CoachIconColors`.
+    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = false
 
     private enum GoalSheet: Identifiable {
         case edit(UUID), newGoal, journey(UUID)
@@ -150,7 +153,11 @@ struct CoachGoalJourneyView: View {
     private var guidedSetupButton: some View {
         Button { showGuidedSetup = true } label: {
             HStack(spacing: 8) {
-                Image(systemName: "sparkles").foregroundStyle(StrandPalette.accent).accessibilityHidden(true)
+                Image(systemName: "sparkles")
+                    .foregroundStyle(appleHealthColors
+                                     ? CoachIconColors.color(for: "coach.goalJourney.newGoal")
+                                     : StrandPalette.accent)
+                    .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(activeGoals.isEmpty ? "Set up with a few questions" : "Add another goal")
                         .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
@@ -213,7 +220,9 @@ struct CoachGoalJourneyView: View {
                 Button { goalSheet = .journey(goal.id) } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "chart.line.uptrend.xyaxis")
-                            .foregroundStyle(StrandPalette.accent)
+                            .foregroundStyle(appleHealthColors
+                                             ? CoachIconColors.color(for: "coach.goalJourney.progress")
+                                             : StrandPalette.accent)
                             .accessibilityHidden(true)
                         Text("View your journey")
                             .font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
@@ -251,9 +260,11 @@ struct CoachGoalJourneyView: View {
         .buttonStyle(.plain)
     }
 
-    /// Active goals whose target date has passed — a decision card per goal, not a dead end.
+    /// Active goals whose target date has passed — a decision card per goal, not a dead end. Same
+    /// day-based, 1-day-grace threshold as `ProactiveCoach.expiredGoalNeedingReview`, so this card and the
+    /// chat's unprompted goal review never disagree about whether a goal counts as overdue yet.
     private var expiredGoals: [CoachGoal] {
-        activeGoals.filter { $0.status == .active && ($0.weeksRemaining() ?? 0) < 0 }
+        activeGoals.filter { $0.status == .active && (ProactiveCoach.daysPastTarget($0) ?? 0) >= 1 }
     }
 
     private func expiredGoalCard(_ goal: CoachGoal) -> some View {

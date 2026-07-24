@@ -534,12 +534,18 @@ extension View {
         #endif
     }
 
-    /// Soften the top scroll edge under a floating glass bar (iOS 26), so content dissolves beneath the bar
-    /// instead of colliding with it. Below 26 the bar's own material is the separator.
-    @ViewBuilder func liquidSoftTopEdge() -> some View {
+    /// Crisp (non-fading) top AND bottom scroll edges (iOS 26) for the chat transcript. Used to be a
+    /// `.soft` fade at the top only, matching a floating glass bar's "content dissolves beneath it"
+    /// look — but a message long enough to span most/all of the screen spends a large fraction of its
+    /// text under that fade (top, under the header; bottom, under the docked composer's automatic
+    /// system fade) at any given scroll position, which reads as lost legibility rather than polish.
+    /// `.hard` keeps the glass bars but cuts content cleanly at their edge instead of dimming it. Below
+    /// iOS 26 or on macOS this stays a no-op, same as before.
+    @ViewBuilder func liquidCrispChatEdges() -> some View {
         #if os(iOS)
         if #available(iOS 26.0, *) {
-            self.scrollEdgeEffectStyle(.soft, for: .top)
+            self.scrollEdgeEffectStyle(.hard, for: .top)
+                .scrollEdgeEffectStyle(.hard, for: .bottom)
         } else {
             self
         }

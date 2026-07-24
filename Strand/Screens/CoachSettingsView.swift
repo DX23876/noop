@@ -11,6 +11,10 @@ struct CoachSettingsView: View {
     @EnvironmentObject var coach: AICoachEngine
     @Environment(\.dismiss) private var dismiss
 
+    /// Apple Health-style leading-icon coloring (SettingsView's "App icon colors") — same switch that
+    /// recolors the More tab and the rest of Coach's screens. See `CoachIconColors`.
+    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = false
+
     /// Pending key text (never persisted here, handed to `setKey`).
     @State private var keyDraft: String = ""
     /// Whether `keyDraft` renders as plaintext (show/hide toggle, #P4 5.1) — while TYPING a new key
@@ -67,7 +71,7 @@ struct CoachSettingsView: View {
     /// condition `expiredGoalCard` acts on — is exactly the state B2 gave a decision UI to; the badge is
     /// what tells you one is waiting.
     private var goalNeedsAttention: Bool {
-        goalStore.activeGoals.contains { $0.status == .active && ($0.weeksRemaining() ?? 0) < 0 }
+        goalStore.activeGoals.contains { $0.status == .active && (ProactiveCoach.daysPastTarget($0) ?? 0) >= 1 }
     }
 
     /// The daily check-in LOOKS on but silently never fires once notification authorization is revoked
@@ -182,7 +186,9 @@ struct CoachSettingsView: View {
                     NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
                         HStack(spacing: 10) {
                             Image(systemName: "key.fill")
-                                .foregroundStyle(StrandPalette.accent)
+                                .foregroundStyle(appleHealthColors
+                                                 ? CoachIconColors.color(for: "coach.settings.connection")
+                                                 : StrandPalette.accent)
                                 .accessibilityHidden(true)
                             VStack(alignment: .leading, spacing: 1) {
                                 Text("Connection & model")
@@ -206,7 +212,9 @@ struct CoachSettingsView: View {
                     NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
                         HStack(spacing: 10) {
                             Image(systemName: "target")
-                                .foregroundStyle(StrandPalette.accent)
+                                .foregroundStyle(appleHealthColors
+                                                 ? CoachIconColors.color(for: "coach.settings.goalJourney")
+                                                 : StrandPalette.accent)
                                 .accessibilityHidden(true)
                             VStack(alignment: .leading, spacing: 1) {
                                 Text("Goal & Journey")
@@ -230,7 +238,9 @@ struct CoachSettingsView: View {
                     NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
                         HStack(spacing: 10) {
                             Image(systemName: "bubble.left.and.bubble.right")
-                                .foregroundStyle(StrandPalette.accent)
+                                .foregroundStyle(appleHealthColors
+                                                 ? CoachIconColors.color(for: "coach.settings.coaching")
+                                                 : StrandPalette.accent)
                                 .accessibilityHidden(true)
                             VStack(alignment: .leading, spacing: 1) {
                                 Text("Coaching")
@@ -254,7 +264,9 @@ struct CoachSettingsView: View {
                     NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
                         HStack(spacing: 10) {
                             Image(systemName: "brain")
-                                .foregroundStyle(StrandPalette.accent)
+                                .foregroundStyle(appleHealthColors
+                                                 ? CoachIconColors.color(for: "coach.settings.memory")
+                                                 : StrandPalette.accent)
                                 .accessibilityHidden(true)
                             VStack(alignment: .leading, spacing: 1) {
                                 Text("Memory")
@@ -276,7 +288,9 @@ struct CoachSettingsView: View {
                     NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
                         HStack(spacing: 10) {
                             Image(systemName: "lock.shield")
-                                .foregroundStyle(StrandPalette.accent)
+                                .foregroundStyle(appleHealthColors
+                                                 ? CoachIconColors.color(for: "coach.settings.privacy")
+                                                 : StrandPalette.accent)
                                 .accessibilityHidden(true)
                             VStack(alignment: .leading, spacing: 1) {
                                 Text("Privacy & data")
@@ -767,13 +781,200 @@ struct CoachSettingsView: View {
         subpageScaffold {
             howItWorksRow
             consentBar
-            if coach.dataConsent { onDeviceSignalsBar }
+            if coach.dataConsent { dataAccessRow }
             // Coach Instructions (the actual editable setting) before the explanatory note (#R4) — the
             // settings lead, the rationale follows.
             systemPromptBar
             dataTransparencyNote
         }
         .navigationTitle("Privacy & data")
+    }
+
+    /// Entry into `dataAccessSubpage` — per-purpose tool consent (#coach-tool-consent), one level under
+    /// the master `dataConsent` switch, so it only shows once there's something to narrow.
+    private var dataAccessRow: some View {
+        NavigationLink { dataAccessSubpage } label: {
+            NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+                HStack(spacing: 10) {
+                    Image(systemName: "switch.2")
+                        .foregroundStyle(StrandPalette.accent)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Data access")
+                            .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                        Text("Choose what the coach can fetch, log and remember.")
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .accessibilityHidden(true)
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    /// Per-purpose tool consent (#coach-tool-consent): seven groups narrowing what `dataConsent` already
+    /// allows overall. `onDeviceSignalsBar` (the pre-existing second opt-in) folds in here as the
+    /// `.patterns` row rather than being duplicated — it already reads/writes the same underlying
+    /// `toolConsent` via `coach.includeOnDeviceSignals`.
+    private var dataAccessSubpage: some View {
+        subpageScaffold {
+            coreBiometricsAccessBar
+            workoutsAccessBar
+            planningAccessBar
+            stressAccessBar
+            logsAccessBar
+            memoryToolsAccessBar
+            onDeviceSignalsBar
+        }
+        .navigationTitle("Data access")
+    }
+
+    /// A `Binding` onto one `CoachPurpose`'s membership in `toolConsent.enabled` — thin projection, no
+    /// new state; the persisted source of truth stays `coach.toolConsent`.
+    private func purposeBinding(_ purpose: CoachPurpose) -> Binding<Bool> {
+        Binding(
+            get: { coach.toolConsent.enabled.contains(purpose) },
+            set: { on in
+                if on { coach.toolConsent.enabled.insert(purpose) } else { coach.toolConsent.enabled.remove(purpose) }
+            }
+        )
+    }
+
+    private var coreBiometricsAccessBar: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            HStack(spacing: 10) {
+                Image(systemName: "heart.text.square")
+                    .foregroundStyle(coach.toolConsent.enabled.contains(.coreBiometrics)
+                                     ? StrandPalette.accent : StrandPalette.textTertiary)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Core biometrics")
+                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                    Text("Charge, sleep detail, readiness and charge drivers.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Toggle("", isOn: purposeBinding(.coreBiometrics))
+                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                    .accessibilityLabel("Let the coach fetch core biometrics")
+            }
+        }
+    }
+
+    private var workoutsAccessBar: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            HStack(spacing: 10) {
+                Image(systemName: "figure.run")
+                    .foregroundStyle(coach.toolConsent.enabled.contains(.workouts)
+                                     ? StrandPalette.accent : StrandPalette.textTertiary)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Workouts")
+                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                    Text("Recent workouts, zone minutes and session outlook.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Toggle("", isOn: purposeBinding(.workouts))
+                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                    .accessibilityLabel("Let the coach fetch workouts")
+            }
+        }
+    }
+
+    private var planningAccessBar: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            HStack(spacing: 10) {
+                Image(systemName: coach.toolConsent.enabled.contains(.planning)
+                     ? "calendar.badge.clock" : "calendar")
+                    .foregroundStyle(coach.toolConsent.enabled.contains(.planning)
+                                     ? StrandPalette.accent : StrandPalette.textTertiary)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Planning")
+                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                    Text("Suggesting sessions and checking what you actually did.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Toggle("", isOn: purposeBinding(.planning))
+                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                    .accessibilityLabel("Let the coach suggest and review sessions")
+            }
+        }
+    }
+
+    private var stressAccessBar: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            HStack(spacing: 10) {
+                Image(systemName: "bolt.heart")
+                    .foregroundStyle(coach.toolConsent.enabled.contains(.stress)
+                                     ? StrandPalette.accent : StrandPalette.textTertiary)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Stress")
+                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                    Text("Today's derived stress index.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Toggle("", isOn: purposeBinding(.stress))
+                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                    .accessibilityLabel("Let the coach fetch the stress index")
+            }
+        }
+    }
+
+    private var logsAccessBar: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            HStack(spacing: 10) {
+                Image(systemName: "list.bullet.clipboard")
+                    .foregroundStyle(coach.toolConsent.enabled.contains(.logs)
+                                     ? StrandPalette.accent : StrandPalette.textTertiary)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Logging")
+                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                    Text("Reading and logging caffeine, journal entries and Lab Book markers.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Toggle("", isOn: purposeBinding(.logs))
+                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                    .accessibilityLabel("Let the coach read and log your entries")
+            }
+        }
+    }
+
+    private var memoryToolsAccessBar: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            HStack(spacing: 10) {
+                Image(systemName: "brain.head.profile")
+                    .foregroundStyle(coach.toolConsent.enabled.contains(.memory)
+                                     ? StrandPalette.accent : StrandPalette.textTertiary)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Memory tools")
+                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                    Text("Saving, correcting and forgetting facts, and searching past chats.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Toggle("", isOn: purposeBinding(.memory))
+                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                    .accessibilityLabel("Let the coach save and search memory")
+            }
+        }
     }
 
     /// Entry into the full how-the-coach-works / what's-shared page (#P6 6.2). A row, not buried text,
@@ -1977,8 +2178,8 @@ struct CoachSettingsView: View {
     private var privacyFootnote: some View {
         Label {
             Text(coach.provider == .custom
-                 ? "Coach talks only to the server URL you set. Point it at a local model (Ollama, LM Studio, llama.cpp) to keep everything on your own machine. Nothing is sent until you ask."
-                 : "This is the only feature that leaves \(Platform.deviceNounPhrase). It sends a summary of your metrics to \(coach.provider.displayName) using your own key. Nothing is sent until you ask.")
+                 ? "Coach talks only to the server URL you set. Point it at a local model (Ollama, LM Studio, llama.cpp) to keep everything on your own machine. Data sharing is a separate, off-by-default choice you make after connecting, under Privacy & data."
+                 : "This is the only feature that leaves \(Platform.deviceNounPhrase), and only once you turn it on. Sending a summary of your metrics to \(coach.provider.displayName) using your own key is a separate, off-by-default choice under Privacy & data, once you're connected.")
                 .font(StrandFont.footnote)
                 .foregroundStyle(StrandPalette.textTertiary)
                 .fixedSize(horizontal: false, vertical: true)

@@ -82,6 +82,9 @@ struct CoachView: View {
     /// the action row's "Live Session" chip when the user has turned the feature off, so the chip never
     /// looks tappable for something it can't actually open (#P3).
     @AppStorage(LiveSessionPrefs.betaKey) private var liveSessionsBeta = true
+    /// Apple Health-style leading-icon coloring (SettingsView's "App icon colors") — same switch that
+    /// recolors the More tab and Coach's submenus. See `CoachIconColors`.
+    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = false
     #if os(iOS)
     /// Extra clearance the composer needs to clear RootTabView's floating tab bar, which is drawn on
     /// top of pushed content and isn't part of this screen's own safe area. Zero everywhere else: a
@@ -284,7 +287,9 @@ struct CoachView: View {
             Button { coach.newConversation() } label: {
                 Image(systemName: "square.and.pencil")
                     .font(StrandFont.headline)
-                    .foregroundStyle(StrandPalette.textSecondary)
+                    .foregroundStyle(appleHealthColors
+                                     ? CoachIconColors.color(for: "chat.header.newChat")
+                                     : StrandPalette.textSecondary)
             }
             .buttonStyle(.plain)
             .disabled(coach.sending || coach.messages.isEmpty)
@@ -303,7 +308,9 @@ struct CoachView: View {
             } label: {
                 Image(systemName: "ellipsis.circle")
                     .font(StrandFont.headline)
-                    .foregroundStyle(StrandPalette.textSecondary)
+                    .foregroundStyle(appleHealthColors
+                                     ? CoachIconColors.color(for: "chat.header.menu")
+                                     : StrandPalette.textSecondary)
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
@@ -351,6 +358,13 @@ struct CoachView: View {
                     if let error = coach.errorText, !error.isEmpty {
                         errorBanner(error).id("error").padding(.top, Self.groupGap)
                     }
+                    // Persistent reminder that answers are generic right now — not just at the empty
+                    // state, so it stays visible through an active conversation too (on-device feedback:
+                    // consent being off with no in-chat hint reads as "the coach is bad", not "it can't
+                    // see my data"). Bottom-anchored scroll keeps this near the latest content.
+                    if !coach.dataConsent {
+                        consentOffBanner.id("consentOff").padding(.top, Self.groupGap)
+                    }
                     // Suggestion chips live at the bottom of an empty transcript, just above the composer.
                     if coach.messages.isEmpty {
                         suggestionChips.padding(.top, 4)
@@ -372,7 +386,7 @@ struct CoachView: View {
             // both are what every messenger does, and both were missing.
             .liquidBottomAnchored()
             .liquidInteractiveKeyboardDismiss()
-            .liquidSoftTopEdge()
+            .liquidCrispChatEdges()
             .onChangeCompat(of: coach.messages.count) { _ in scrollToEnd(proxy) }
             .onChangeCompat(of: coach.sending) { sending in
                 scrollToEnd(proxy)
@@ -405,7 +419,9 @@ struct CoachView: View {
             Text("Hi, I'm \(identityStore.identity.name)")
                 .font(StrandFont.title2)
                 .foregroundStyle(StrandPalette.textPrimary)
-            Text("Coach reads a summary of your last two weeks plus 30-day averages and recent workouts, then answers in plain language. Try a suggestion below.")
+            Text(coach.dataConsent
+                 ? "Coach reads a summary of your last two weeks plus 30-day averages and recent workouts, then answers in plain language. Try a suggestion below."
+                 : "Data access is off, so answers stay generic. Turn it on in Settings → Privacy & data to get answers based on your real numbers.")
                 .font(StrandFont.subhead)
                 .foregroundStyle(StrandPalette.textSecondary)
                 .multilineTextAlignment(.center)
@@ -425,7 +441,9 @@ struct CoachView: View {
             Spacer()
             Image(systemName: "sparkles")
                 .font(.system(size: 40))
-                .foregroundStyle(StrandPalette.accent)
+                .foregroundStyle(appleHealthColors
+                                 ? CoachIconColors.color(for: "chat.notConnected")
+                                 : StrandPalette.accent)
             Text("Connect a provider to start")
                 .font(StrandFont.headline)
                 .foregroundStyle(StrandPalette.textPrimary)
@@ -925,6 +943,33 @@ struct CoachView: View {
         .background(StrandPalette.surfaceOverlay, in: RoundedRectangle(cornerRadius: CoachRadius.card, style: .continuous))
     }
 
+    /// Same shape as `errorBanner`, informational tone (not `.statusCritical`) — nothing is wrong, the
+    /// user just hasn't opted in yet. The one persistent, always-visible signal that answers are generic
+    /// because data sharing is off, instead of the coach silently reading as "bad" (on-device feedback).
+    private var consentOffBanner: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "lock.fill")
+                .foregroundStyle(StrandPalette.accent)
+                .accessibilityHidden(true)
+            Text("Data access is off — Coach can't see your numbers.")
+                .font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+            Button { activeSheet = .settings } label: {
+                Text("Turn on")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.accent)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Open settings to turn on data access")
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Data access is off. Coach can't see your numbers.")
+        .padding(14)
+        .background(StrandPalette.surfaceOverlay, in: RoundedRectangle(cornerRadius: CoachRadius.card, style: .continuous))
+    }
+
     /// The starter prompts. WRAPPED, not a horizontal scroller: on a first run the scroller hid half the
     /// suggestions off the right edge, which is exactly when the user most needs to see all of them.
     private var suggestionChips: some View {
@@ -962,7 +1007,7 @@ struct CoachView: View {
 
     private var composer: some View {
         HStack(alignment: .bottom, spacing: 10) {
-            TextField("Ask Coach about your data…", text: $draft, axis: .vertical)
+            TextField(coach.dataConsent ? "Ask Coach about your data…" : "Ask Coach…", text: $draft, axis: .vertical)
                 .textFieldStyle(.plain)
                 .font(StrandFont.body)
                 .foregroundStyle(StrandPalette.textPrimary)

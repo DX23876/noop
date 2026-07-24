@@ -825,8 +825,36 @@ struct SettingsView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 rowDivider
+                appIconColorSection
+                rowDivider
                 appearanceExperimentalSection
             }
+        }
+    }
+
+    /// Single global switch for leading row/section icons across the app: the iOS "More" tab
+    /// (`RootTabView.MoreRow`), the Coach chat header, and Coach's submenus (Settings, Info, Goal
+    /// Journey). OFF (default) keeps every one of those icons the current plain `StrandPalette.accent`
+    /// blue; ON recolors all of them at once to an Apple Health-style palette
+    /// (`MoreRowAppleHealthColors` / `CoachIconColors`). Purely functional icons (chevrons, checkmarks,
+    /// state icons like `bell`/`bell.badge.fill`) are unaffected either way. Same key every consumer
+    /// reads via its own `@AppStorage`, so flipping this here updates all of them live — no per-icon
+    /// choice, on-device feedback was explicit that one switch for all icons is what's wanted.
+    @AppStorage("noop.moreRowAppleHealthColors") private var moreRowAppleHealthColors = false
+
+    private var appIconColorSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle(isOn: $moreRowAppleHealthColors) {
+                Text("App icon colors")
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.textPrimary)
+            }
+            .toggleStyle(.switch)
+            .tint(StrandPalette.accent)
+            Text("Recolors the leading icons in the More tab, Chat, and Chat's submenus to match Apple Health's palette. Off keeps today's plain blue.")
+                .font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 

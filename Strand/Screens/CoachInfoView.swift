@@ -55,8 +55,10 @@ struct CoachFirstUseSheet: View {
                               "It's not a doctor, therapist or trainer",
                               "For anything medical, or anything that really matters, talk to a qualified professional. The coach can be wrong and can miss context you didn't share.")
                         point("arrow.up.forward.app",
-                              "It works with your data",
-                              "To answer well, it sends a short summary of your relevant metrics to the provider you chose — using your own key, and only when you ask. Nothing is sent otherwise.")
+                              coach.dataConsent ? "It works with your data" : "It needs your data, off by default",
+                              coach.dataConsent
+                              ? "To answer well, it sends a short summary of your relevant metrics to the provider you chose — using your own key, and only when you ask. Nothing is sent otherwise."
+                              : "Data sharing is OFF right now, so answers stay generic. Turn on \"Let the coach use my data\" in Settings → Privacy & data to have it answer from your real metrics — using your own key, and only when you ask.")
                     }
 
                     Button { showInfo = true } label: {
@@ -117,31 +119,35 @@ struct CoachInfoView: View {
     @EnvironmentObject var coach: AICoachEngine
     @Environment(\.dismiss) private var dismiss
 
+    /// Apple Health-style leading-icon coloring (SettingsView's "App icon colors") — same switch that
+    /// recolors the More tab and the rest of Coach's screens. See `CoachIconColors`.
+    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = false
+
     private var providerName: String { coach.provider.displayName }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    section("How it works", icon: "sparkles") {
+                    section("How it works", icon: "sparkles", colorID: "coach.info.howItWorks") {
                         para("The coach reads a compact summary of your recent data — roughly your last two weeks plus 30-day averages and recent workouts — and can call small tools to fetch specific numbers on demand. Then it answers in plain language, grounded in those numbers rather than generic advice.")
                     }
 
-                    section("What stays here, what's sent", icon: "lock.shield") {
+                    section("What stays here, what's sent", icon: "lock.shield", colorID: "coach.info.whatIsShared") {
                         para("Everything is computed on \(Platform.deviceNounPhrase). The coach is the ONE feature in NOOP that talks to the internet.")
                         para("When you ask a question with data-sharing on, it sends a short TEXT summary of the relevant metrics — never your raw sensor streams — to your chosen provider, using your own key. With data-sharing off, it sends only your question. Either way, nothing leaves until you ask.")
                     }
 
-                    section("Provider & model", icon: "server.rack") {
+                    section("Provider & model", icon: "server.rack", colorID: "coach.info.providerModel") {
                         para("You bring your own API key. The provider — right now \(providerName) — is who actually receives your data, so it's the real privacy choice: pick one you trust, and check how they handle it.")
                         para("The coaching model runs the conversation; cheaper background models handle chat summaries and quick card reads (Settings → Connection & model). NOOP never sends more personal data than a request needs.")
                     }
 
-                    section("Why the model matters", icon: "cpu") {
+                    section("Why the model matters", icon: "cpu", colorID: "coach.info.whyModelMatters") {
                         para("The coach is only as sharp as the model behind it. A stronger model reasons better over your data and gives advice worth acting on; a weak or very cheap one tends to be shallow or generic. That's why the default coaching model is a capable one, not a mini one — a bad first answer is a bad first impression for no reason you chose.")
                     }
 
-                    section("Its limits", icon: "exclamationmark.triangle") {
+                    section("Its limits", icon: "exclamationmark.triangle", colorID: "coach.info.limits") {
                         para("It's a support tool, not a medical or clinical authority. It can be wrong, it can miss context you didn't tell it, and it never replaces professional advice. Use it to think — not to obey.")
                     }
                 }
@@ -159,13 +165,15 @@ struct CoachInfoView: View {
         }
     }
 
-    private func section<Content: View>(_ title: LocalizedStringKey, icon: String,
+    private func section<Content: View>(_ title: LocalizedStringKey, icon: String, colorID: String,
                                         @ViewBuilder _ content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Image(systemName: icon)
                     .font(StrandFont.headline)
-                    .foregroundStyle(StrandPalette.accent)
+                    .foregroundStyle(appleHealthColors
+                                     ? CoachIconColors.color(for: colorID)
+                                     : StrandPalette.accent)
                     .accessibilityHidden(true)
                 Text(title)
                     .font(StrandFont.headline)
