@@ -45,6 +45,17 @@ struct HeuteRedesignView: View {
     /// The selected day's most recent workout, or nil. The grid renders it as a tappable card (sport +
     /// duration/calories + effort), matching the other two Today screens' last-workout affordance.
     @State private var dayWorkout: WorkoutRow?
+    /// The selected day's banked HR trace (5-minute buckets) and each bucket's start time, index-aligned.
+    /// Kept as its own array rather than derived (midnight + i·5min) because `hrBuckets` returns only
+    /// buckets that HAVE data. Feeds the scrubbable HR thread; the live beat-by-beat stream is layered on
+    /// top inside `HeuteHeartRateSection`. Mirrors `LiquidTodayView.hrValues`/`hrTimes`.
+    @State private var hrValues: [Double] = []
+    @State private var hrTimes: [Date] = []
+    /// True while a finger is scrubbing the HR thread — gates `daySwipeGesture` so a scrub can't also flip
+    /// the day. `hrScrubEndedAt` guards the tail of the same lift (the two gestures' `onEnded` fire in an
+    /// unspecified order). Same mechanism as `LiquidTodayView`'s day-swipe suppression.
+    @State private var hrScrubbing = false
+    @State private var hrScrubEndedAt = Date.distantPast
     @State private var cards: [NotificationCardItem] = HeuteRedesignView.sampleCards
 
     var body: some View {
@@ -59,6 +70,15 @@ struct HeuteRedesignView: View {
                                   calibrationNote: chargeDisplay.calibrationDetail, cards: $cards)
                     .padding(.top, 24)
                 HeuteVitalsGridView(readings: vitalReadings, workout: dayWorkout)
+                    .padding(.top, 26)
+                // Heart rate — parity with the other two Today screens (Heute was the only one without it).
+                // Shown on any day: a past day scrubs its banked trace, only the live layer is inactive.
+                // `onScrubChange` gives the thread horizontal dominance over `daySwipeGesture`.
+                HeuteHeartRateSection(values: hrValues, times: hrTimes, animated: true,
+                                      onScrubChange: { active in
+                                          hrScrubbing = active
+                                          if !active { hrScrubEndedAt = Date() }
+                                      })
                     .padding(.top, 26)
                 // Journal reminder + provenance footer, parity with the other two Today screens. Only on
                 // today — a navigated past day has no live strap state and no "log today" prompt to make.
@@ -91,11 +111,15 @@ struct HeuteRedesignView: View {
     }
 
     /// The day-nav swipe: a clearly-horizontal drag flips the day (left → older, right → newer), clamped
-    /// to `0 ... earliestDayOffset`. Same thresholds and pure clamp as `TodayView.daySwipeGesture`; Heute
-    /// has no HR-chart pan to mask against, so the gesture is unconditional over the scroll view.
+    /// to `0 ... earliestDayOffset`. Same thresholds and pure clamp as `TodayView.daySwipeGesture`. The
+    /// HR thread scrubs horizontally too, so — like Liquid — the swipe stands down while the thread owns
+    /// the touch: `hrScrubbing` if this `onEnded` loses the race to the thread's, `hrScrubEndedAt` if it
+    /// wins it (the two fire in an unspecified order on lift). The thread's lower `minimumDistance` (2 vs
+    /// 24) means it engages first and sets the flag before this can end.
     private var daySwipeGesture: some Gesture {
         DragGesture(minimumDistance: 24)
             .onEnded { value in
+                guard !hrScrubbing, Date().timeIntervalSince(hrScrubEndedAt) > 0.4 else { return }
                 let dx = value.translation.width, dy = value.translation.height
                 guard abs(dx) > abs(dy) * 1.5, abs(dx) > 50 else { return }
                 let delta = dx < 0 ? 1 : -1
@@ -213,6 +237,19 @@ struct HeuteRedesignView: View {
             Repository.logicalDayKey(Date(timeIntervalSince1970: TimeInterval(w.startTs))) == workoutDayKey
         }
         dayWorkout = dayWorkouts.max(by: { $0.startTs < $1.startTs })
+
+        // Banked HR trace for the selected day (5-minute buckets). Window mirrors `LiquidTodayView.load()`:
+        // today → midnight..now; a past day → its full 24h (a missing morning reads as empty space, not a
+        // fabricated flat line).
+        let cal = Calendar.current
+        let dayStart = cal.startOfDay(for: selectedLogicalDay)
+        let from = Int(dayStart.timeIntervalSince1970)
+        let to = isToday
+            ? Int(Date().timeIntervalSince1970)
+            : Int((cal.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart).timeIntervalSince1970)
+        let hr = await repo.hrBuckets(from: from, to: to, bucketSeconds: 300)
+        hrValues = hr.map(\.bpm)
+        hrTimes = hr.map { Date(timeIntervalSince1970: TimeInterval($0.ts)) }
     }
 
     /// Builds the vitals grid using the SAME recovery-independent carry the other two Today screens read:

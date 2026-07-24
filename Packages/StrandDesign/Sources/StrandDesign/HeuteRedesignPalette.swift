@@ -38,6 +38,11 @@ public enum HeuteRedesignPalette {
     public static let effort   = Color(light: "#0A63B8", dark: "#3AA0FF")
     public static let rest     = Color(light: "#5546C4", dark: "#8C7BFF")
 
+    /// Live heart-rate thread tint — a fixed HR red, deliberately its OWN token rather than reusing
+    /// `icHrv` (the HRV vital badge) so two different signals don't share a colour on one screen, and not
+    /// `StrandPalette` (chart-style-dependent). Same hue as `icHrv` but semantically distinct.
+    public static let heart    = Color(light: "#E23A57", dark: "#FF4D6D")
+
     // MARK: Per-metric icon-badge accents (design-spec §4 table) — own mini-palette, deliberately
     // separate from the ring family colours above to avoid collisions. Steps/Activity has no accent
     // here on purpose (neutral `ink3`, design-spec §4: "kein Akzent").
