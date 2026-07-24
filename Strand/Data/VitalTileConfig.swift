@@ -6,6 +6,13 @@ import Foundation
 /// (HRV, Ruhepuls, Atmung, Blutsauerstoff, Fitness-Alter, Schritte); `weight`/`energy_kcal` were added
 /// for parity with the old Today grid's `KeyMetric` set (on-device feedback) — Charge/Effort/Rest stay
 /// excluded on purpose, they're already the three rings ("ein Wert erscheint genau einmal").
+///
+/// The `heute:…` trio (Sleep/Hydration/Coupled view) are Liquid Today's remaining "Your Cards" that don't
+/// resolve through `MetricCatalog` (Sleep shows a duration and routes to the Sleep screen; Hydration
+/// routes to its logging screen; Coupled view carries no value at all). They flow through the SAME
+/// visibility / reorder / hidden-tray machinery as every other tile — the synthetic `heute:` source keeps
+/// the persisted `"source:key"` string format unchanged — but `HeuteVitalsGridView` resolves their
+/// title/icon/route locally instead of from the catalog. See `HeuteVitalsGridView.specialDescriptors`.
 enum VitalGridMetric {
     static let available: [String] = [
         "my-whoop:hrv",
@@ -17,11 +24,14 @@ enum VitalGridMetric {
         "apple-health:weight",
         "my-whoop:energy_kcal",
         // Liquid Today parity (on-device feedback): the "Your Cards" trio the redesign was missing.
-        // Charge/Effort/Rest stay excluded (already the three rings); Sleep/Hydration/Coupled view don't
-        // fit this value+sparkline shape and are handled as their own special tiles, not here.
+        // Charge/Effort/Rest stay excluded (already the three rings).
         "my-whoop:vitality",
         "my-whoop:stress",
         "my-whoop:skin_temp",
+        // Special tiles — value+sparkline shape doesn't fit, resolved locally (see doc above).
+        "heute:sleep",
+        "heute:hydration",
+        "heute:coupled",
     ]
 }
 

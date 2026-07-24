@@ -285,9 +285,15 @@ struct HeuteRedesignView: View {
         let appleRows = await repo.appleDailyRows()
         let importedActiveKcalDay = appleRows.filter { $0.day == key }.compactMap { $0.activeKcal }.max()
 
+        // Hydration: the day's logged fluid total (ml), or nil when nothing was logged — a real `0` is
+        // indistinguishable from "never logged" (HydrationStore), so an unlogged day shows no tile rather
+        // than a confusing "0 ml". Heute is the first Today screen to actually wire this (Liquid shows "–").
+        let hydrationTotal = await repo.hydrationTotal(day: key)
+        let hydrationMl = hydrationTotal > 0 ? hydrationTotal : nil
+
         vitalReadings = buildReadings(day: day, tkey: tkey, isToday: isToday, fitnessAge: fitnessAge,
                                       vitality: vitality, stress: stress,
-                                      importedActiveKcalDay: importedActiveKcalDay)
+                                      importedActiveKcalDay: importedActiveKcalDay, hydrationMl: hydrationMl)
 
         // Logical-day window, not a raw midnight-to-midnight one: a 01:00 workout belongs to the logical
         // day that is still running, exactly as `CoupledView` buckets workouts.
@@ -319,7 +325,7 @@ struct HeuteRedesignView: View {
     /// and applies only to today — a navigated past day shows its own row verbatim, or nothing.
     private func buildReadings(day: DailyMetric?, tkey: String, isToday: Bool,
                                fitnessAge: Double?, vitality: Double?, stress: Double?,
-                               importedActiveKcalDay: Double?) -> [String: HeuteVitalReading] {
+                               importedActiveKcalDay: Double?, hydrationMl: Double?) -> [String: HeuteVitalReading] {
         var out: [String: HeuteVitalReading] = [:]
         let vitalsDay = isToday ? Repository.lastVitalsDay(days: repo.days, todayKey: tkey) : nil
         let spo2Day = isToday ? Repository.lastSpo2Day(days: repo.days, todayKey: tkey) : nil
@@ -370,12 +376,28 @@ struct HeuteRedesignView: View {
             out["my-whoop:energy_kcal"] = HeuteVitalReading(value: kcal, asOf: asOfLabel(tkey),
                                                              sparkline: sparkline({ $0.activeKcalEst }))
         }
+        // Special tiles (Liquid Today parity). Sleep: the night's asleep duration (not the Rest SCORE,
+        // already a ring) as "7h 32m" — per-night, no carry, matching `LiquidTodayView.sleepText`. Its
+        // route is the full Sleep screen (`HeuteVitalsGridView.route`). Hydration: the logged fluid total,
+        // routing to the logging screen. Coupled view is a pure nav tile with no value — it needs no
+        // reading (rendered by `navOnly`), so it is deliberately absent from `out`.
+        if let sleepMin = day?.totalSleepMin {
+            out["heute:sleep"] = HeuteVitalReading(value: sleepMin, asOf: asOfLabel(tkey),
+                                                   sparkline: sparkline({ $0.totalSleepMin }),
+                                                   valueText: "\(Int(sleepMin) / 60)h \(Int(sleepMin) % 60)m")
+        }
+        if let hydrationMl {
+            out["heute:hydration"] = HeuteVitalReading(value: hydrationMl, asOf: asOfLabel(tkey))
+        }
         return out
     }
 
+    /// The trailing history ≤ the selected day, capped at the widest trend window (14 days). The tile
+    /// trims this to the user's chosen window (`HeuteVitalTile.windowedSparkline`) — loading the 14-day
+    /// superset once lets a window change take effect without a reload, matching classic/Liquid Today.
     private func sparkline(_ extract: (DailyMetric) -> Double?) -> [Double] {
         let key = selectedDayKey
-        return Array(repo.days.filter { $0.day <= key }.compactMap(extract).suffix(8))
+        return Array(repo.days.filter { $0.day <= key }.compactMap(extract).suffix(14))
     }
 
     /// Both "Today" spellings: the logical-day key and, pre-04:00, the local-calendar row the resolver

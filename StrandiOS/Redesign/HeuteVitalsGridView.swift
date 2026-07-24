@@ -17,6 +17,10 @@ struct HeuteVitalReading {
     var value: Double
     var asOf: String
     var sparkline: [Double] = []
+    /// A pre-formatted value string that overrides the generic `number + unit` rendering — e.g. Sleep's
+    /// "7h 32m", where the raw `452 min` would be meaningless. When set, the tile shows this verbatim and
+    /// draws no separate unit label. nil → the normal numeric formatting from the descriptor.
+    var valueText: String? = nil
 }
 
 struct HeuteVitalsGridView: View {
@@ -32,6 +36,13 @@ struct HeuteVitalsGridView: View {
     /// rings and every other Effort surface in the app.
     @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
     private var effortScale: EffortScale { EffortScale(rawValue: effortScaleRaw) ?? .hundred }
+
+    /// Detailed tiles + trend window — the SAME `@AppStorage` keys classic Today and Liquid Today read
+    /// (`KeyMetricsEditorSheet`), not Heute-private ones, so a toggle on any screen applies to all three
+    /// ("keine Unterschiede zwischen den Screens", on-device feedback). Sparklines only draw while
+    /// Detailed is on; the window trims each tile's trailing history to 2 days / 1 week / 2 weeks.
+    @AppStorage("today.keyMetricsDetailed") private var keyMetricsDetailed = false
+    @AppStorage("today.keyMetricsWindowDays") private var keyMetricsWindowDays = 14
 
     @State private var configs = VitalTileConfigStore.load()
     @State private var density = VitalTileConfigStore.density(UserDefaults.standard.integer(forKey: VitalTileConfigStore.densityKey))
@@ -50,7 +61,11 @@ struct HeuteVitalsGridView: View {
     private let gridSpace = "heuteVitalsGrid"
 
     private var visibleConfigs: [VitalTileConfig] {
-        VitalTileConfigStore.visibleTiles(configs).filter { readings[$0.metricId] != nil }
+        // "Keine leeren Kacheln": a visible metric with no reading is dropped — EXCEPT the nav-only
+        // special tiles (Coupled view), which never carry a value yet must still show once un-hidden.
+        VitalTileConfigStore.visibleTiles(configs).filter {
+            readings[$0.metricId] != nil || Self.navOnlyTiles.contains($0.metricId)
+        }
     }
     private var hiddenConfigs: [VitalTileConfig] {
         configs.filter { !$0.visible }
@@ -73,6 +88,8 @@ struct HeuteVitalsGridView: View {
 
     // MARK: Header / edit bar
 
+    // No "Edit" affordance here any more (on-device feedback: the separate button was redundant). The
+    // only way into edit mode is a long-press on a tile (`onEnterEdit`); the exit is the edit bar's "Done".
     private var header: some View {
         HStack {
             Text("Vitals")
@@ -81,27 +98,56 @@ struct HeuteVitalsGridView: View {
                 .textCase(.uppercase)
                 .foregroundStyle(HeuteRedesignPalette.ink3)
             Spacer()
-            Button(editing ? "Done" : "Edit") { editing.toggle() }
-                .font(.system(size: 10, weight: .bold))
-                .tracking(1.1)
-                .textCase(.uppercase)
-                .foregroundStyle(HeuteRedesignPalette.ink3)
-                .buttonStyle(.plain)
         }
     }
 
+    /// The in-place edit controls, shown while `editing`. Beyond the column-density switch it now carries
+    /// the two options the classic "Edit Key Metrics" sheet has — Detailed tiles + trend window — bound to
+    /// the shared `@AppStorage` keys so all three Today screens stay in step.
     private var editBar: some View {
-        HStack {
-            SegmentedPillControl([2, 3], selection: $density) { "\($0)" }
-            Spacer()
-            Button("Done") { editing = false }
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(HeuteRedesignPalette.charge)
-                .buttonStyle(.plain)
+        VStack(spacing: 12) {
+            HStack {
+                SegmentedPillControl([2, 3], selection: $density) { "\($0)" }
+                Spacer()
+                Button("Done") { editing = false }
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(HeuteRedesignPalette.charge)
+                    .buttonStyle(.plain)
+            }
+            Divider().overlay(HeuteRedesignPalette.line)
+            HStack {
+                Text("Detailed tiles")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(HeuteRedesignPalette.ink2)
+                Spacer()
+                Toggle("", isOn: $keyMetricsDetailed)
+                    .labelsHidden()
+                    .tint(HeuteRedesignPalette.charge)
+            }
+            if keyMetricsDetailed {
+                HStack {
+                    Text("Trend window")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(HeuteRedesignPalette.ink2)
+                    Spacer()
+                    SegmentedPillControl([2, 7, 14], selection: $keyMetricsWindowDays,
+                                         adaptsToAvailableWidth: true) { windowLabel($0) }
+                }
+            }
         }
-        .padding(9)
+        .padding(12)
         .background(HeuteRedesignPalette.tile, in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(HeuteRedesignPalette.line, lineWidth: 1))
+    }
+
+    /// The trend-window pill labels — reusing the classic editor's exact strings ("2 days" / "1 week" /
+    /// "2 weeks", `KeyMetricsEditorSheet`), so no new localization is introduced.
+    private func windowLabel(_ days: Int) -> String {
+        switch days {
+        case 2:  return String(localized: "2 days")
+        case 7:  return String(localized: "1 week")
+        default: return String(localized: "2 weeks")
+        }
     }
 
     // MARK: Grid
@@ -109,10 +155,16 @@ struct HeuteVitalsGridView: View {
     private var grid: some View {
         LazyVGrid(columns: columns, spacing: NoopMetrics.space4) {
             ForEach(Array(visibleConfigs.enumerated()), id: \.element.metricId) { index, config in
-                if let descriptor = metricDescriptor(config.metricId), let reading = readings[config.metricId] {
+                if let descriptor = metricDescriptor(config.metricId) {
                     let isDragging = draggingId == config.metricId
+                    let navOnly = Self.navOnlyTiles.contains(config.metricId)
+                    // Non-nav tiles are guaranteed a reading by `visibleConfigs`; a nav-only tile (Coupled)
+                    // gets a placeholder its layout ignores.
+                    let reading = readings[config.metricId] ?? HeuteVitalReading(value: 0, asOf: "")
                     HeuteVitalTile(
-                        descriptor: descriptor, reading: reading, density: density,
+                        descriptor: descriptor, reading: reading,
+                        route: route(for: config.metricId, descriptor: descriptor), navOnly: navOnly,
+                        density: density, detailed: keyMetricsDetailed, windowDays: keyMetricsWindowDays,
                         editing: editing, isDragging: isDragging, wiggleDelay: index.isMultiple(of: 2) ? 0 : 0.06,
                         onRemove: { setVisible(config.metricId, false) },
                         onEnterEdit: { editing = true }
@@ -253,11 +305,45 @@ struct HeuteVitalsGridView: View {
     // MARK: Helpers
 
     private func metricDescriptor(_ metricId: String) -> MetricDescriptor? {
+        // The `heute:…` special tiles don't resolve through the catalog — they carry their own
+        // title/icon (matching `DashboardCard` so the wording stays app-wide consistent).
+        if let special = Self.specialDescriptors[metricId] { return special }
         guard let colonIndex = metricId.firstIndex(of: ":") else { return nil }
         let source = String(metricId[metricId.startIndex..<colonIndex])
         let key = String(metricId[metricId.index(after: colonIndex)...])
         return MetricCatalog.metric(key: key, source: source)
     }
+
+    /// The tap destination for a tile. The special tiles route to their own full screen (matching Liquid
+    /// Today's `cardLink` choices) instead of the generic metric-detail page; everything else opens its
+    /// `MetricCatalog` detail, exactly as before.
+    private func route(for metricId: String, descriptor: MetricDescriptor) -> TabRoute {
+        switch metricId {
+        case "heute:sleep":     return .sleep
+        case "heute:hydration": return .hydration
+        case "heute:coupled":   return .coupled
+        default:                return .metricSourced(key: descriptor.key, source: descriptor.source)
+        }
+    }
+
+    /// Special tiles that carry no value at all (pure navigation): shown even without a `reading`, and
+    /// rendered as icon + title + chevron rather than a number.
+    static let navOnlyTiles: Set<String> = ["heute:coupled"]
+
+    /// Locally-built descriptors for the `heute:…` tiles — title/icon lifted verbatim from `DashboardCard`
+    /// (`Strand/Screens/DashboardCards.swift`) so Sleep/Hydration/Coupled read identically wherever they
+    /// appear. `source` is the synthetic `"heute"` partition; these never touch `MetricCatalog`.
+    static let specialDescriptors: [String: MetricDescriptor] = [
+        "heute:sleep": MetricDescriptor(key: "sleep", title: String(localized: "Sleep"), category: "Rest",
+                                        unit: "", source: "heute", icon: "bed.double.fill",
+                                        decimals: 0, higherIsBetter: true),
+        "heute:hydration": MetricDescriptor(key: "hydration", title: String(localized: "Hydration"),
+                                            category: "Health", unit: "ml", source: "heute",
+                                            icon: "waterbottle.fill", decimals: 0, higherIsBetter: true),
+        "heute:coupled": MetricDescriptor(key: "coupled", title: String(localized: "Coupled view"),
+                                          category: "Health", unit: "", source: "heute",
+                                          icon: "circle.hexagongrid.fill", decimals: 0, higherIsBetter: nil),
+    ]
 
     private func setVisible(_ metricId: String, _ visible: Bool) {
         guard let index = configs.firstIndex(where: { $0.metricId == metricId }) else { return }
@@ -283,7 +369,15 @@ private struct TileFramePreferenceKey: PreferenceKey {
 private struct HeuteVitalTile: View {
     let descriptor: MetricDescriptor
     let reading: HeuteVitalReading
+    /// Where a tap goes — `.metricSourced` for a normal metric, or a special tile's own screen.
+    let route: TabRoute
+    /// True for a pure-navigation tile (Coupled view): renders icon + title + chevron, no number/sparkline.
+    var navOnly: Bool = false
     let density: Int
+    /// The shared "Detailed tiles" switch — sparklines only draw while it's on (matches classic/Liquid).
+    var detailed: Bool = false
+    /// The shared trend window (days) — trims the tile's trailing sparkline history.
+    var windowDays: Int = 14
     let editing: Bool
     /// True while THIS tile is the one currently being dragged — freezes its own wiggle so it reads as
     /// "picked up" rather than still trembling under the finger (on-device bug report: dragging felt
@@ -307,6 +401,10 @@ private struct HeuteVitalTile: View {
         case "fitness_age": return HeuteRedesignPalette.icFitage
         case "weight": return HeuteRedesignPalette.icWeight
         case "energy_kcal": return HeuteRedesignPalette.icCalories
+        // Special tiles: Rest violet for Sleep, cyan for Hydration, Charge green for the Coupled overview.
+        case "sleep": return HeuteRedesignPalette.rest
+        case "hydration": return HeuteRedesignPalette.icSpo2
+        case "coupled": return HeuteRedesignPalette.charge
         default: return HeuteRedesignPalette.ink3
         }
     }
@@ -316,11 +414,19 @@ private struct HeuteVitalTile: View {
     /// One fixed height every tile snaps to regardless of content (sparkline vs. none) — same rationale
     /// as `NoopMetrics.keyMetricTileHeight`: a row of tiles must read as ONE row, not a jagged one.
     private var tileHeight: CGFloat { density == 3 ? 128 : 150 }
-    /// A single point draws no line (Swift Charts renders an empty plot area) — that's an empty box, which
-    /// design-spec §0.2's "keine leeren Kacheln" rule rejects, so two points are the minimum.
-    private var showSparkline: Bool { density == 2 && reading.sparkline.count >= 2 }
+    /// The tile's sparkline, trimmed to the shared trend window (2 / 7 / 14 days). Same "suffix, not a
+    /// calendar-day filter" approximation classic Today uses — the source array is already ≤ the selected
+    /// day, so trailing-N is the last N banked days.
+    private var windowedSparkline: [Double] { Array(reading.sparkline.suffix(windowDays)) }
+    /// Sparklines are gated on the shared "Detailed tiles" switch (parity with classic/Liquid), the
+    /// 2-column density (a 3-col tile is too narrow for a graph), and ≥2 points after windowing (a single
+    /// point draws an empty plot area — the "keine leeren Kacheln" rule).
+    private var showSparkline: Bool { detailed && density == 2 && windowedSparkline.count >= 2 }
+    /// The value line: a caller-supplied override (Sleep's "7h 32m") wins; otherwise the descriptor's
+    /// numeric formatting.
     private var numberText: String {
-        descriptor.decimals == 0 ? "\(Int(reading.value.rounded()))" : String(format: "%.\(descriptor.decimals)f", reading.value)
+        if let t = reading.valueText { return t }
+        return descriptor.decimals == 0 ? "\(Int(reading.value.rounded()))" : String(format: "%.\(descriptor.decimals)f", reading.value)
     }
 
     // NOTE: the remove badge is a SIBLING overlay, not nested inside a tap-gesture-bearing container —
@@ -336,7 +442,7 @@ private struct HeuteVitalTile: View {
     // wraps this whole screen in, so no extra wiring is needed here beyond the link itself.
     var body: some View {
         ZStack(alignment: .topLeading) {
-            NavigationLink(value: TabRoute.metricSourced(key: descriptor.key, source: descriptor.source)) {
+            NavigationLink(value: route) {
                 tileContent
                     .contentShape(Rectangle())
             }
@@ -392,50 +498,83 @@ private struct HeuteVitalTile: View {
             if !isNeutral {
                 accent.opacity(0.10)
             }
-            VStack(alignment: .leading, spacing: 0) {
-                badge
-                Text(descriptor.title)
-                    .font(.system(size: 10, weight: .bold))
-                    .tracking(1.1)
-                    .textCase(.uppercase)
-                    .foregroundStyle(HeuteRedesignPalette.ink3)
-                    .padding(.top, 10)
-                HStack(alignment: .lastTextBaseline, spacing: 2) {
-                    Text(numberText)
-                        .font(.system(size: numberSize, weight: .bold))
-                        .foregroundStyle(HeuteRedesignPalette.ink)
-                    if !descriptor.unit.isEmpty {
-                        Text(descriptor.unit)
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(HeuteRedesignPalette.ink3)
-                    }
-                }
-                .padding(.top, 2)
-                if showSparkline {
-                    Chart {
-                        ForEach(Array(reading.sparkline.enumerated()), id: \.offset) { point in
-                            LineMark(x: .value("i", point.offset), y: .value("v", point.element))
-                                .foregroundStyle(accent.opacity(0.7))
-                                .interpolationMethod(.monotone)
-                        }
-                    }
-                    .chartXAxis(.hidden)
-                    .chartYAxis(.hidden)
-                    .frame(height: 22)
-                    .padding(.top, 6)
-                }
-                Spacer(minLength: 6)
-                Text(reading.asOf)
-                    .font(.system(size: 11))
-                    .foregroundStyle(HeuteRedesignPalette.ink3)
+            if navOnly {
+                navContent
+            } else {
+                valueContent
             }
-            .padding(innerPadding)
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .frame(height: tileHeight, alignment: .topLeading)
         .background(HeuteRedesignPalette.tile, in: RoundedRectangle(cornerRadius: 22))
         .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(HeuteRedesignPalette.line, lineWidth: 1))
         .clipShape(RoundedRectangle(cornerRadius: 22))
+    }
+
+    /// The standard number tile: badge, title, value(+unit), optional sparkline, and the "as of" caption.
+    private var valueContent: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            badge
+            Text(descriptor.title)
+                .font(.system(size: 10, weight: .bold))
+                .tracking(1.1)
+                .textCase(.uppercase)
+                .foregroundStyle(HeuteRedesignPalette.ink3)
+                .padding(.top, 10)
+            HStack(alignment: .lastTextBaseline, spacing: 2) {
+                Text(numberText)
+                    .font(.system(size: numberSize, weight: .bold))
+                    .foregroundStyle(HeuteRedesignPalette.ink)
+                // No separate unit chip when the value line is a pre-formatted override (it already
+                // carries its own unit, e.g. Sleep's "7h 32m").
+                if reading.valueText == nil, !descriptor.unit.isEmpty {
+                    Text(descriptor.unit)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(HeuteRedesignPalette.ink3)
+                }
+            }
+            .padding(.top, 2)
+            if showSparkline {
+                Chart {
+                    ForEach(Array(windowedSparkline.enumerated()), id: \.offset) { point in
+                        LineMark(x: .value("i", point.offset), y: .value("v", point.element))
+                            .foregroundStyle(accent.opacity(0.7))
+                            .interpolationMethod(.monotone)
+                    }
+                }
+                .chartXAxis(.hidden)
+                .chartYAxis(.hidden)
+                .frame(height: 22)
+                .padding(.top, 6)
+            }
+            Spacer(minLength: 6)
+            Text(reading.asOf)
+                .font(.system(size: 11))
+                .foregroundStyle(HeuteRedesignPalette.ink3)
+        }
+        .padding(innerPadding)
+    }
+
+    /// A pure-navigation tile (Coupled view): badge, title, and a trailing chevron — no value, no
+    /// sparkline. The whole tile is the tap target (set in `body`'s NavigationLink).
+    private var navContent: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            badge
+            Text(descriptor.title)
+                .font(.system(size: 10, weight: .bold))
+                .tracking(1.1)
+                .textCase(.uppercase)
+                .foregroundStyle(HeuteRedesignPalette.ink3)
+                .padding(.top, 10)
+            Spacer(minLength: 6)
+            HStack {
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(HeuteRedesignPalette.ink3)
+            }
+        }
+        .padding(innerPadding)
     }
 
     private var badge: some View {

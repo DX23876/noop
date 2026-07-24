@@ -84,6 +84,12 @@ Ephemere, einzeln wegwischbare Hinweise, die über der Basiskarte liegen.
 - Jede Metrik einzeln ein-/ausblendbar.
 - Ausgeblendete Metriken werden nirgends im Raster gerendert (keine leeren Kacheln — bestehende Regel aus dem allgemeinen Redesign-Briefing gilt hier weiter).
 
+### Bearbeitungsmodus
+
+- **Einstieg ausschließlich per Long-Press** auf eine beliebige Kachel — es gibt keinen separaten "Edit"-Text-Button mehr (er war redundant, Geräte-Feedback). Ausstieg über "Done" in der Bearbeitungsleiste.
+- Die Bearbeitungsleiste trägt drei Optionen: **Spaltenzahl** (2/3), **Detailkacheln** (Sparklines an/aus) und — wenn Detailkacheln an sind — das **Trend-Fenster** (2 Tage / 1 Woche / 2 Wochen).
+- Detailkacheln + Trend-Fenster lesen/schreiben **dieselben `@AppStorage`-Keys** (`today.keyMetricsDetailed`, `today.keyMetricsWindowDays`) wie klassisch Today und Liquid Today — ein Umschalten wirkt auf allen drei Screens (bewusste Entscheidung, "keine Unterschiede zwischen den Screens"). Die Spaltenzahl bleibt Heute-eigen (reine Layout-Präferenz).
+
 ### Rasterdichte
 
 - Global zwei Optionen: 2 oder 3 Kacheln pro Reihe. Kein Vierer-Raster.
@@ -91,7 +97,8 @@ Ephemere, einzeln wegwischbare Hinweise, die über der Basiskarte liegen.
 
 ### Erweiterbarkeit (wichtig für die Datenmodellierung)
 
-- Die Menge der verfügbaren Vitalwerte ist **größer** als die ursprünglich gezeigten sechs — aktuell sind es elf registrierte IDs (`VitalGridMetric.available`, `Strand/Data/VitalTileConfig.swift`): HRV, Ruhepuls, Atmung, Blutsauerstoff, Fitness-Alter, Schritte, Gewicht, Kalorien, Vitality, Stress, Skin Temp. Charge/Effort/Rest sind bewusst NICHT Teil dieser Liste — sie stehen schon als die drei Ringe da ("ein Wert, ein Ort"). Gewicht bleibt aktuell unverdrahtet (wie auf Liquid Today auch — kein Datenweg vorhanden), erscheint also nie als Kachel, obwohl registriert. Das Raster muss so gebaut sein, dass neue Metriken hinzukommen können, ohne die Bearbeitungslogik zu ändern — d. h. Kacheln werden aus einer Liste verfügbarer Metriken gerendert, nicht hartkodiert.
+- Die Menge der verfügbaren Vitalwerte ist **größer** als die ursprünglich gezeigten sechs — aktuell sind es vierzehn registrierte IDs (`VitalGridMetric.available`, `Strand/Data/VitalTileConfig.swift`): HRV, Ruhepuls, Atmung, Blutsauerstoff, Fitness-Alter, Schritte, Gewicht, Kalorien, Vitality, Stress, Skin Temp sowie die drei Sonderkacheln Sleep, Hydration und Coupled view (`heute:`-IDs). Charge/Effort/Rest sind bewusst NICHT Teil dieser Liste — sie stehen schon als die drei Ringe da ("ein Wert, ein Ort"). Gewicht bleibt aktuell unverdrahtet (wie auf Liquid Today auch — kein Datenweg vorhanden), erscheint also nie als Kachel, obwohl registriert. Das Raster muss so gebaut sein, dass neue Metriken hinzukommen können, ohne die Bearbeitungslogik zu ändern — d. h. Kacheln werden aus einer Liste verfügbarer Metriken gerendert, nicht hartkodiert.
+- **Sonderkacheln** (Sleep/Hydration/Coupled view) sind Liquid Todays "Your Cards", die nicht ins generische Zahl+Sparkline-Schema passen: Sleep zeigt eine Dauer ("7h 32m") und öffnet den Sleep-Screen, Hydration die Logging-Ansicht, Coupled view trägt gar keinen Wert (reine Navigationskachel, Icon + Titel + Chevron). Sie durchlaufen dieselbe Sichtbarkeits-/Reorder-/Hidden-Tray-Mechanik wie jede andere Kachel; ihre Titel/Icons/Routen werden lokal aufgelöst (`HeuteVitalsGridView.specialDescriptors`), nicht über `MetricCatalog`.
 - Diese Erweiterbarkeit muss in beiden Rasterdichten (2 und 3) funktionieren.
 
 ```
