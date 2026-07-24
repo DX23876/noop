@@ -114,7 +114,7 @@ struct JourneyView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-        case .active where (goal.weeksRemaining() ?? 0) < 0:
+        case .active where (ProactiveCoach.daysPastTarget(goal) ?? 0) >= 1:
             NoopCard(padding: 14, tint: StrandPalette.statusWarning) {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 8) {

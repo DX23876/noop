@@ -36,6 +36,9 @@ struct LiquidTodayView: View {
     // would re-render all of Today every second (the exact churn the LiveState leaves isolate). BLEManager
     // only publishes connect/discovery state, never HR. Injected at the app roots beside .environmentObject(model).
     @EnvironmentObject var ble: BLEManager
+    /// The bell's backing store — already injected as an `@EnvironmentObject` at both app roots
+    /// alongside the other stores; this view just wasn't declaring it yet.
+    @EnvironmentObject var updateStore: UpdateStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Shared with the real Today's card-customise editor so the two stay in sync.
@@ -65,6 +68,7 @@ struct LiquidTodayView: View {
     @State private var showSettings = false
     @State private var synthesisExpanded = false
     @State private var showLiveSession = false
+    @State private var showUpdatesInbox = false
     /// Coach: the AI coach engine (injected at the app root) and the full-screen chat presentation. The
     /// prominent Today entry opens the redesigned Coach chat directly, so it isn't buried under More.
     /// The card only shows when the user's Coach-entry preference includes it (card / both).
@@ -429,6 +433,10 @@ struct LiquidTodayView: View {
         .coachCover(isPresented: $showCoach, coach: coach)
         // The plan book, opened from PlanTodayCard when a committed session has a time coming up.
         .sheet(isPresented: $showPlan) { CoachPlanView().environmentObject(coach) }
+        // The bell — same store, same inbox, as the classic Today's (TodayView.swift).
+        .sheet(isPresented: $showUpdatesInbox) {
+            UpdatesInboxView(onClose: { showUpdatesInbox = false })
+        }
         // #today-layout: the Arrange sheet — native drag-to-reorder rows over the same persisted order.
         .sheet(isPresented: $showArrangeSheet) {
             TodayArrangeSheet(orderRaw: $sectionOrderRaw, hiddenRaw: $hiddenSectionsRaw)
@@ -556,6 +564,7 @@ struct LiquidTodayView: View {
                 HStack(spacing: 10) {
                     LiquidAddButton()
                     LiquidBatteryButton()
+                    LiquidUpdatesBellButton(showUpdatesInbox: $showUpdatesInbox)
                     // #today-layout: opens the Arrange sheet (drag rows to reorder the Today sections).
                     Button { showArrangeSheet = true } label: {
                         Image(systemName: "arrow.up.arrow.down")
@@ -1265,7 +1274,9 @@ struct LiquidTodayView: View {
         VStack(spacing: 8) {
             sectionHead("LAST WORKOUTS", trailing: "\(workouts.count) total")
             if let w = workouts.first {
-                NavigationLink(value: TabRoute.workouts) { workoutCard(w) }
+                // Value-based push straight to THIS workout's detail (matches Workouts → All Sessions,
+                // which opens the tapped row directly, not the bare list).
+                NavigationLink(value: TabRoute.workoutDetail(startTs: w.startTs, sport: w.sport)) { workoutCard(w) }
                     .buttonStyle(LiquidPressStyle())
             } else {
                 card {
@@ -1360,7 +1371,6 @@ struct LiquidTodayView: View {
         // readiness verdict. Both scan repo.days (up to 599 rows); doing it per-render was the stutter.
         let day = resolveDisplayDay()
         cachedDisplayDay = day
-        cachedReadiness = ReadinessEngine.evaluate(days: repo.days, today: day?.day)
         // Prior-day vitals carry, resolved ONCE here (never in body). Bound to today's own key so it can't
         // echo today's still-forming row; only on today (a past day's own row is the whole story).
         let tkey = cachedDisplayDay?.day ?? selectedDayKey
@@ -1374,12 +1384,20 @@ struct LiquidTodayView: View {
                                                dayKeys: repo.days.map(\.day),
                                                hasRecovery: day?.recovery != nil)
             : nil
+        let priorScored = TodayView.lastScoredRecoveryDay(days: repo.days, selectedDayKey: tkey,
+                                                           isToday: selectedDayOffset == 0,
+                                                           todayScored: day?.recovery != nil,
+                                                           isCalibrating: calNights != nil)
+        // Readiness anchors on the day whose row carries today's vitals (#543): normally today, but while
+        // carrying, the last SCORED day — otherwise `evaluate` reads `.insufficient` right after the
+        // rollover and the readiness word would vanish/blank instead of carrying forward. Same anchor as
+        // `TodayView.computeReadiness` / `HeuteRedesignView.load` — was previously anchored on `day?.day`
+        // here only, which is what let this screen disagree with the other two (on-device feedback).
+        cachedReadiness = ReadinessEngine.evaluate(days: repo.days,
+                                                   today: priorScored?.day ?? Repository.logicalDayKey(Date()))
         cachedChargeDisplay = ChargeDisplay.resolve(
             todayRecovery: day?.recovery,
-            priorScored: TodayView.lastScoredRecoveryDay(days: repo.days, selectedDayKey: tkey,
-                                                         isToday: selectedDayOffset == 0,
-                                                         todayScored: day?.recovery != nil,
-                                                         isCalibrating: calNights != nil),
+            priorScored: priorScored,
             calibrationNights: calNights,
             todayKey: tkey)
 
@@ -1996,6 +2014,38 @@ private struct LiquidAddButton: View {
         }
         .buttonStyle(LiquidPressStyle())
         .accessibilityLabel("Quick actions")
+    }
+}
+
+/// The Updates-inbox bell — brings the classic Today's bell (`TodayView.swift`'s `updateBell`) to Liquid
+/// Today, same store, same inbox, matching this row's existing icon pattern rather than the classic
+/// bell's larger 36pt one.
+private struct LiquidUpdatesBellButton: View {
+    @EnvironmentObject var updateStore: UpdateStore
+    @Binding var showUpdatesInbox: Bool
+    var body: some View {
+        Button { showUpdatesInbox = true } label: {
+            Image(systemName: updateStore.unreadCount > 0 ? "bell.badge" : "bell")
+                .font(.system(size: 13, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(.white)
+                .frame(width: LiquidHeaderMetrics.control, height: LiquidHeaderMetrics.control)
+                .background(Circle().fill(.white.opacity(0.16)))
+                .overlay(alignment: .topTrailing) {
+                    if updateStore.unreadCount > 0 {
+                        Text("\(min(updateStore.unreadCount, 99))")
+                            .font(.system(size: 8, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(.white)
+                            .frame(minWidth: 12, minHeight: 12)
+                            .background(Circle().fill(StrandPalette.statusCritical))
+                            .offset(x: 3, y: -3)
+                    }
+                }
+                .contentShape(Circle())
+        }
+        .buttonStyle(LiquidPressStyle())
+        .accessibilityLabel("Updates")
     }
 }
 

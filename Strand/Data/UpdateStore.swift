@@ -9,12 +9,37 @@ import Combine
 // is medical, identifying, or a verdict — just a calm log of what's new in the app and the data.
 
 struct UpdateItem: Identifiable, Codable, Equatable {
-    /// The flavour of update — drives the row's tinted SF Symbol and behaviour.
+    /// The flavour of update — the fine-grained icon within a `Category` (e.g. `.whatsNew` vs `.reading`
+    /// are both `.informative` but want different symbols). `Category` is what now drives the row's
+    /// actions/layout/eviction; `Kind` stays purely cosmetic disambiguation within it.
     enum Kind: String, Codable {
         case dismissedCard   // a Today info-card the user swiped into the inbox (restorable)
         case whatsNew        // a release note (seeded from AppChangelog on first run after an update)
         case reading         // new data arrived (e.g. "N days backfilled") — links to Trends
         case strapAlert      // a strap-side heads-up (low battery, sync) — informational
+
+        /// The `Category` a row written before that field existed falls back to on decode, chosen to
+        /// match each kind's pre-existing behaviour (e.g. `.dismissedCard`/`.strapAlert` were already
+        /// exempt from auto-eviction, so both map to `.statusReminder`, which keeps that exemption).
+        var defaultCategory: Category {
+            switch self {
+            case .dismissedCard: return .statusReminder
+            case .whatsNew:      return .informative
+            case .reading:       return .informative
+            case .strapAlert:    return .statusReminder
+            }
+        }
+    }
+
+    /// What kind of attention an item wants — drives the inbox row's actions, not just its icon.
+    enum Category: String, Codable {
+        case actionable      // needs a decision (Accept/Change/Decline) — wraps a PlanProposal
+        case informative      // a hint/observation; dismiss or mark read, no decision expected
+        case statusReminder   // reminders/status; read-only history
+    }
+
+    enum Priority: String, Codable {
+        case low, normal, high
     }
 
     let id: UUID
@@ -29,10 +54,29 @@ struct UpdateItem: Identifiable, Codable, Equatable {
     /// For `.dismissedCard` only: the Today card id to restore (the `@AppStorage` dismissed-flag key's
     /// stable suffix). Tapping "Restore to Today" in the inbox flips that flag back so the card reappears.
     var restorePayload: String?
+    /// What kind of attention this wants (§Category above). Defaults on decode via `Kind.defaultCategory`
+    /// for rows persisted before this field existed.
+    var category: Category
+    /// Sort/badge weight within a category — does not gate whether an item posts at all (that's
+    /// `ProactiveLevel`, upstream in `CoachNotifier`).
+    var priority: Priority
+    /// When this stops being relevant (nil = never). Only enforced for non-`.actionable` items — an
+    /// undecided actionable item's decision window must never vanish silently. See `pruneExpired()`.
+    var expiresAt: Date?
+    /// True only for `.actionable` items still awaiting a decision.
+    var actionRequired: Bool
+    /// Set only when `category == .actionable` and this wraps a `PlanProposal` — a pointer, not a copy;
+    /// the inbox resolves the live proposal via `CoachPlanStore.shared.proposals` at render time.
+    var planProposalId: UUID?
+    /// True = also shown prominently on the Today screen, not just the bell/inbox.
+    var showOnToday: Bool
 
     init(id: UUID = UUID(), kind: Kind, title: String, message: String,
          date: Date = Date(), read: Bool = false,
-         deepLink: String? = nil, restorePayload: String? = nil) {
+         deepLink: String? = nil, restorePayload: String? = nil,
+         category: Category? = nil, priority: Priority = .normal,
+         expiresAt: Date? = nil, actionRequired: Bool = false,
+         planProposalId: UUID? = nil, showOnToday: Bool = false) {
         self.id = id
         self.kind = kind
         self.title = title
@@ -41,6 +85,33 @@ struct UpdateItem: Identifiable, Codable, Equatable {
         self.read = read
         self.deepLink = deepLink
         self.restorePayload = restorePayload
+        self.category = category ?? kind.defaultCategory
+        self.priority = priority
+        self.expiresAt = expiresAt
+        self.actionRequired = actionRequired
+        self.planProposalId = planProposalId
+        self.showOnToday = showOnToday
+    }
+
+    /// Lenient decode: rows persisted before `category`/`priority`/etc. existed have none of those keys.
+    /// `encode(to:)` stays compiler-synthesized (writes every field going forward) — only decode needs to
+    /// tolerate the old, narrower shape.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        kind = try c.decode(Kind.self, forKey: .kind)
+        title = try c.decode(String.self, forKey: .title)
+        message = try c.decode(String.self, forKey: .message)
+        date = try c.decode(Date.self, forKey: .date)
+        read = try c.decode(Bool.self, forKey: .read)
+        deepLink = try c.decodeIfPresent(String.self, forKey: .deepLink)
+        restorePayload = try c.decodeIfPresent(String.self, forKey: .restorePayload)
+        category = try c.decodeIfPresent(Category.self, forKey: .category) ?? kind.defaultCategory
+        priority = try c.decodeIfPresent(Priority.self, forKey: .priority) ?? .normal
+        expiresAt = try c.decodeIfPresent(Date.self, forKey: .expiresAt)
+        actionRequired = try c.decodeIfPresent(Bool.self, forKey: .actionRequired) ?? false
+        planProposalId = try c.decodeIfPresent(UUID.self, forKey: .planProposalId)
+        showOnToday = try c.decodeIfPresent(Bool.self, forKey: .showOnToday) ?? false
     }
 }
 
@@ -95,6 +166,7 @@ final class UpdateStore: ObservableObject {
         } else {
             items = []
         }
+        pruneExpired()
     }
 
     // MARK: Derived
@@ -113,7 +185,7 @@ final class UpdateStore: ObservableObject {
     /// duplicate, and the informational backlog is trimmed to `maxItems` newest. Actionable rows
     /// (`.dismissedCard`, `.strapAlert`) always append and are never auto-evicted.
     func post(_ item: UpdateItem) {
-        if Self.isInformational(item.kind),
+        if Self.isEvictable(item),
            let i = items.firstIndex(where: {
                $0.kind == item.kind && $0.deepLink == item.deepLink
                    && item.date.timeIntervalSince($0.date) < Self.dedupWindow
@@ -128,28 +200,55 @@ final class UpdateStore: ObservableObject {
             items.append(item)
         }
         evictOverflow()
+        pruneExpired()
     }
 
-    private static func isInformational(_ kind: UpdateItem.Kind) -> Bool {
-        kind == .reading || kind == .whatsNew
+    /// Rows the cap/dedup logic is allowed to collapse or evict — `.informative` items only. `.actionable`
+    /// and `.statusReminder` rows (incl. legacy `.dismissedCard`/`.strapAlert`, via `Kind.defaultCategory`)
+    /// are exempt: the user owns those.
+    private static func isEvictable(_ item: UpdateItem) -> Bool {
+        item.category == .informative
     }
 
-    /// Trim the informational backlog to the newest `maxItems`. Actionable rows (`.dismissedCard`,
-    /// `.strapAlert`) are exempt — only `.reading`/`.whatsNew` are auto-evicted, oldest first.
+    /// Trim the evictable (`.informative`) backlog to the newest `maxItems`, oldest first. `.actionable`/
+    /// `.statusReminder` rows are exempt.
     private func evictOverflow() {
-        let informationalCount = items.lazy.filter { Self.isInformational($0.kind) }.count
-        guard informationalCount > Self.maxItems else { return }
-        var toRemove = informationalCount - Self.maxItems
-        // Oldest first: ascending by date, drop the leading informational rows.
+        let evictableCount = items.lazy.filter { Self.isEvictable($0) }.count
+        guard evictableCount > Self.maxItems else { return }
+        var toRemove = evictableCount - Self.maxItems
+        // Oldest first: ascending by date, drop the leading evictable rows.
         let orderedOldest = items.enumerated().sorted { $0.element.date < $1.element.date }
         var removeIDs = Set<UUID>()
         for (_, item) in orderedOldest where toRemove > 0 {
-            if Self.isInformational(item.kind) {
+            if Self.isEvictable(item) {
                 removeIDs.insert(item.id)
                 toRemove -= 1
             }
         }
         if !removeIDs.isEmpty { items.removeAll { removeIDs.contains($0.id) } }
+    }
+
+    /// Drop non-`.actionable` items past their `expiresAt` — an undecided actionable item's decision
+    /// window must never vanish silently, so `.actionable` rows are never auto-pruned here.
+    private func pruneExpired() {
+        let now = Date()
+        let expired = items.filter { item in
+            guard item.category != .actionable, let expiresAt = item.expiresAt else { return false }
+            return expiresAt < now
+        }
+        guard !expired.isEmpty else { return }
+        let expiredIDs = Set(expired.map(\.id))
+        items.removeAll { expiredIDs.contains($0.id) }
+    }
+
+    /// Update an existing item's message/date in place and re-arm its unread badge, without creating a
+    /// second row — used when the same underlying thing is posted again (e.g. a re-proposed
+    /// `PlanProposal` that `CoachPlanStore` collapsed onto its existing id).
+    func refresh(_ id: UUID, message: String) {
+        guard let i = items.firstIndex(where: { $0.id == id }) else { return }
+        items[i].message = message
+        items[i].date = Date()
+        items[i].read = false
     }
 
     /// Mark one item read (no-op if already read / not found).

@@ -364,7 +364,16 @@ final class AICoachEngine: ObservableObject {
     /// Explicit permission for the coach to read & transmit the user's biometric data. OFF by
     /// default, until this is true, NO metrics are included in any request (only the question).
     @Published var dataConsent: Bool {
-        didSet { UserDefaults.standard.set(dataConsent, forKey: Self.consentKey) }
+        didSet {
+            UserDefaults.standard.set(dataConsent, forKey: Self.consentKey)
+            // Turning data access on for the FIRST TIME this install (no per-purpose consent saved yet,
+            // e.g. a brand-new user flipping this mid-session rather than already having it on at
+            // launch) — re-derive `toolConsent` now, rather than leaving it at its empty init-time
+            // snapshot until the next relaunch re-runs the migration. Never touches an explicit choice.
+            if dataConsent, !ToolConsent.hasBeenExplicitlySaved() {
+                toolConsent = ToolConsent.load()
+            }
+        }
     }
     /// Base URL for the Custom (OpenAI-compatible) provider, e.g. `http://localhost:11434/v1` for a
     /// local LLM server. Only used when `provider == .custom`. Persisted so it survives relaunch.
@@ -382,12 +391,25 @@ final class AICoachEngine: ObservableObject {
     @Published var explicitlyDisconnected: Bool {
         didSet { UserDefaults.standard.set(explicitlyDisconnected, forKey: Self.explicitlyDisconnectedKey) }
     }
+    /// Per-purpose tool access (#coach-tool-consent), layered UNDER `dataConsent`: which groups of tools
+    /// (core biometrics, workouts, planning, stress, logging, memory, patterns) the coach may actually
+    /// call once data access is on. See `ToolConsent`/`CoachPurpose`.
+    @Published var toolConsent: ToolConsent {
+        didSet { toolConsent.save() }
+    }
     /// SECOND opt-in (v5): also fold a SUMMARY of the new on-device signals, your strongest n-of-1
     /// correlations and your Lab Book markers, into the coach context. OFF by default and gated behind
     /// `dataConsent` too, so it never adds anything without both consents. Summary-only: a few one-line
     /// sentences, NEVER raw readings, the anonymity / no-raw-egress posture is preserved.
-    @Published var includeOnDeviceSignals: Bool {
-        didSet { UserDefaults.standard.set(includeOnDeviceSignals, forKey: Self.onDeviceSignalsKey) }
+    ///
+    /// A computed passthrough onto `toolConsent`'s `.patterns` purpose (#coach-tool-consent) rather than
+    /// its own stored bool — `.patterns` IS what this opt-in has always meant, so the ~10 existing read
+    /// sites and the settings Toggle keep working unchanged against one underlying source of truth.
+    var includeOnDeviceSignals: Bool {
+        get { toolConsent.enabled.contains(.patterns) }
+        set {
+            if newValue { toolConsent.enabled.insert(.patterns) } else { toolConsent.enabled.remove(.patterns) }
+        }
     }
     /// The cheap/fast model used for background memory maintenance (summarising chats + distilling
     /// facts), kept separate from the coaching `model` so that work never burns the pricier model.
@@ -466,7 +488,6 @@ final class AICoachEngine: ObservableObject {
     /// Defaults false (not disconnected), so an existing user who already has a key saved from before
     /// this flag existed reads as still connected — no migration step needed.
     private static let explicitlyDisconnectedKey = "ai.explicitlyDisconnected"
-    private static let onDeviceSignalsKey = "ai.includeOnDeviceSignals"
     /// `.summary` and `.cardAnalysis` role override keys — kept in sync with `CoachModelRole`'s own
     /// `overrideDefaultsKey` (the single source of truth), used here only for the `init` restore + the
     /// `didSet` writes above. `memoryModelKey` pre-dates the role system, hence the name.
@@ -716,7 +737,7 @@ final class AICoachEngine: ObservableObject {
 
     /// Used in place of the metrics context when the user has NOT granted data access.
     private let noConsentNote = """
-    NOTE: The user has not granted access to their biometric data. Coach generally and encourage \
+    NOTE: The user has not granted access to their biometric data. Coach generally. Encourage \
     them to enable "Let the coach use my data" for guidance tailored to their real numbers.
     """
 
@@ -753,7 +774,7 @@ final class AICoachEngine: ObservableObject {
         self.customBaseURL = UserDefaults.standard.string(forKey: AIProvider.customBaseURLKey) ?? ""
         self.customConnected = UserDefaults.standard.bool(forKey: Self.customConnectedKey)
         self.explicitlyDisconnected = UserDefaults.standard.bool(forKey: Self.explicitlyDisconnectedKey)
-        self.includeOnDeviceSignals = UserDefaults.standard.bool(forKey: Self.onDeviceSignalsKey)
+        self.toolConsent = ToolConsent.load()
         // Role model OVERRIDES: restore the user's explicit choice, or empty. Empty is the honest
         // default — `model(for:)` then resolves it to the provider's cheap model DYNAMICALLY, so it
         // always matches the current provider (an earlier version baked the cheap model in at init, which
@@ -1620,7 +1641,7 @@ final class AICoachEngine: ObservableObject {
             return lines.joined(separator: "\n")
 
         case "lab":
-            guard includeOnDeviceSignals else {
+            guard toolConsent.enabled.contains(.logs) else {
                 return "The user hasn't shared their Lab Book, so this isn't available."
             }
             guard let store = await repo.storeHandle() else { return "Couldn't open the local store." }
@@ -1990,7 +2011,17 @@ final class AICoachEngine: ObservableObject {
 
     /// Cancellable check-in runner, mirroring `runBriefCancellable` so the composer's Stop button
     /// actually cancels it.
+    ///
+    /// `checkInIfNeeded()` is triggered independently of the sequential brief/nudge/goalReview/
+    /// weeklyReview chain in `CoachView`'s `.task(id:)` — it fires from `.onReceive(.noopOpenCoachCheckIn)`
+    /// instead, the same notification `RootView` uses to switch to the Coach tab. A cold launch via
+    /// tapping the check-in notification can therefore start both around the same moment. Wait out
+    /// whatever auto-turn is already in flight instead of silently dropping the check-in for the day
+    /// when it loses that race — `sendTask` keeps getting reassigned as the chain moves from one call to
+    /// the next, so looping on it (rather than a single await) waits for the whole chain to clear, not
+    /// just whichever step happened to be running first.
     private func runCheckInCancellable() async {
+        while let inFlight = sendTask { await inFlight.value }
         guard !sending else { return }
         let task = Task<Void, Never> { [weak self] in
             guard let self else { return }
@@ -2062,6 +2093,28 @@ final class AICoachEngine: ObservableObject {
             way, and offer ONE concrete way to make the plan more realistic (smaller, less often, or a \
             different form). Keep it to a few sentences.
             """
+        case .bodyConcern:
+            return """
+            The user's own biometrics show a real signal, unprompted: \(signal.seed). This is NOT a plan- \
+            adherence issue — do not mention sessions, skips or the plan. Send ONE short, matter-of-fact \
+            message: state the trend plainly, ask how they're feeling (illness, stress, poor sleep, and \
+            hard training are all plausible causes and you cannot tell which from this alone), and suggest \
+            easing off if it fits. No alarm, no diagnosis — you are not a doctor.
+            """
+        case .bodyPositive:
+            return """
+            The user's own biometrics show a real positive signal, unprompted: \(signal.seed). Send ONE \
+            short, warm message noting it — this is not a plan milestone, so don't credit "sessions" or \
+            "the plan," just the trend itself. Keep it light: a sentence or two, no bullet lists.
+            """
+        case .goalDeadline:
+            return """
+            A goal's target date is coming up, unprompted: \(signal.seed). Send ONE short message — name \
+            the goal and how close the date is, then ask about the concrete next step (not "are you ready" \
+            but something actionable, like what's planned before then). No success prediction, no \
+            pressure, and do NOT imply the date is a hard deadline they must hit — it's their own target, \
+            not a test.
+            """
         }
     }
 
@@ -2093,20 +2146,49 @@ final class AICoachEngine: ObservableObject {
         """
     }
 
+    /// The per-goal, per-band repeat-guard key for a `.goalDeadline` nudge — so a goal gets at most TWO
+    /// deadline nudges ever (once entering the 8-14 day band, once entering the ≤7 day band), never one
+    /// per day for two straight weeks. Distinct from `lastProactiveDayKey`, which only ever gates "one
+    /// nudge of ANY kind per day".
+    private static func goalDeadlineStampKey(goalId: UUID, important: Bool) -> String {
+        "coach.goalDeadlineNudged.\(goalId.uuidString).\(important ? "7" : "14")"
+    }
+
     /// Fire a proactive nudge at most once per logical day, only when the level allows AND the detector
-    /// finds a real signal in the plan history (10.2/10.3/10.4). Wired to Coach opening, alongside the
-    /// brief — but signals are rare (a streak, or a run of skips), so this stays quiet on ordinary days.
+    /// finds a real signal — either in the plan history (10.2/10.3/10.4), the raw biometrics (HRV/resting
+    /// HR/recovery/sleep trend), or an upcoming goal deadline. Wired to Coach opening, alongside the brief
+    /// — but signals are rare (a streak, a run of skips, a real multi-night trend, or a goal's own target
+    /// date), so this stays quiet on ordinary days.
     func runProactiveNudgeIfNeeded() async {
         guard proactiveLevel != .off, isConfigured, dataConsent, !sending else { return }
         let today = Repository.logicalDayKey(Date())
         guard UserDefaults.standard.string(forKey: Self.lastProactiveDayKey) != today else { return }
         guard let signal = ProactiveCoach.detect(proposals: CoachPlanStore.shared.proposals,
                                                   goals: CoachGoalStore.shared.goals,
+                                                  days: repo.days,
                                                   level: proactiveLevel) else { return }
-        let prefix = signal.category == .milestone ? "Nice work" : "A quick nudge"
+        // Post to the bell independent of whether the chat generation below succeeds — the structured
+        // detection already happened locally, and a network failure shouldn't also hide it from the bell.
+        CoachNotifier.postProactiveSignal(signal, level: proactiveLevel)
+        // A goal deadline gets its OWN once-per-band guard on top of the daily one — otherwise the same
+        // goal would nudge every single day for up to two weeks straight.
+        if signal.category == .goalDeadline, let goalId = signal.goalId {
+            let goalStampKey = Self.goalDeadlineStampKey(goalId: goalId, important: signal.important)
+            guard UserDefaults.standard.string(forKey: goalStampKey) == nil else { return }
+        }
+        let goodNews = signal.category == .milestone || signal.category == .bodyPositive
+        let prefix = goodNews ? "Nice work" : "A quick nudge"
         await runSeededTurnCancellable(
             instruction: Self.proactiveNudgeInstruction(for: signal),
             prefix: prefix, stampKey: Self.lastProactiveDayKey, origin: .nudge)
+        // The daily stamp is only ever set on a genuine, non-empty reply (`generateSeededTurn`), so its
+        // freshly matching `today` here IS the success signal — used to also mark the per-goal band,
+        // without threading a second stamp key through the shared seeded-turn plumbing.
+        if signal.category == .goalDeadline, let goalId = signal.goalId,
+           UserDefaults.standard.string(forKey: Self.lastProactiveDayKey) == today {
+            UserDefaults.standard.set(today, forKey: Self.goalDeadlineStampKey(goalId: goalId,
+                                                                               important: signal.important))
+        }
     }
 
     /// The instruction for a goal-expiry look-back. Deliberately not a verdict template: the coach is
@@ -2133,6 +2215,8 @@ final class AICoachEngine: ObservableObject {
         }
         let stampKey = "coach.goalReviewed.\(goal.id.uuidString)"
         guard UserDefaults.standard.string(forKey: stampKey) == nil else { return }
+        // TODO(notifications): also post a `.statusReminder` CoachNotifier item here — a passed goal
+        // deadline is exactly the spec's "status message" bucket, just not built in this first pass.
         await runSeededTurnCancellable(
             instruction: Self.goalReviewInstruction(for: goal),
             prefix: "Your goal", stampKey: stampKey, origin: .nudge)
@@ -2146,6 +2230,8 @@ final class AICoachEngine: ObservableObject {
         if let last = UserDefaults.standard.string(forKey: Self.lastWeeklyReviewDayKey),
            let days = Self.dayKeyDistance(from: last, to: today), days < 7 { return }
         guard CoachPlanStore.shared.proposals.contains(where: { $0.status.isDecided }) else { return }
+        // TODO(notifications): also post a `.statusReminder` CoachNotifier item here — same reasoning as
+        // the goal-review TODO above, not built in this first pass.
         await runSeededTurnCancellable(
             instruction: Self.weeklyReviewInstruction(toolsActive: toolCallingActive),
             prefix: "Weekly review", stampKey: Self.lastWeeklyReviewDayKey, origin: .weeklyReview)
@@ -2787,6 +2873,7 @@ final class AICoachEngine: ObservableObject {
             return "Not proposed: the user already has \(trimmedSport) committed for \(dayKey). "
                 + "Acknowledge their existing plan rather than suggesting it again as if it were new."
         }
+        CoachNotifier.postPlanProposal(proposal)
         return "Proposed (NOT scheduled): \(proposal.summary()) on \(dayKey). It's waiting for the user "
             + "to accept, change or decline it in the app — tell them it's there for their yes, and "
             + "don't refer to it as booked."

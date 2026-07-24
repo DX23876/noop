@@ -70,7 +70,7 @@ struct MorningSuggestionCard: View {
                 HStack(spacing: 8) {
                     Image(systemName: "sparkles").foregroundStyle(StrandPalette.accent)
                         .accessibilityHidden(true)
-                    Text("Today's session")
+                    title(for: p)
                         .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                     Spacer(minLength: 4)
                 }
@@ -99,6 +99,20 @@ struct MorningSuggestionCard: View {
                     }
                 }
             }
+        }
+    }
+
+    /// "Today's session" reads oddest for the two intents that aren't really a session at all — a rest
+    /// day or mobility work. `@ViewBuilder` + a literal `Text(...)` per branch (not a `String` returned
+    /// through the function) keeps every title visible to `Tools/i18n_audit.py`'s literal-argument scan.
+    /// Conservative on purpose: `p.rationale` is already shown as its own line right below, so a longer
+    /// generated title would just duplicate it.
+    @ViewBuilder
+    private func title(for p: PlanProposal) -> some View {
+        switch p.intent {
+        case .rest:     Text("Rest day suggested")
+        case .mobility: Text("Mobility suggested")
+        default:        Text("Today's session")
         }
     }
 

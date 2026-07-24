@@ -93,12 +93,17 @@ struct UpdatesInboxView: View {
     }
 
     private func section(_ label: LocalizedStringKey, items: [UpdateItem]) -> some View {
-        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+        // Items still awaiting a decision (`actionRequired`) lead the section — a pending session
+        // suggestion shouldn't bury under a pile of informative hints. Stable sort preserves the existing
+        // newest-first order within each half.
+        let ordered = items.sorted { $0.actionRequired && !$1.actionRequired }
+        return VStack(alignment: .leading, spacing: NoopMetrics.gap) {
             Text(label).font(StrandFont.overline)
                 .tracking(StrandFont.overlineTracking)
                 .foregroundStyle(StrandPalette.textTertiary)
-            ForEach(items) { item in
-                UpdateRow(item: item, onTap: { handleTap(item) }, onRestore: { restore(item) })
+            ForEach(ordered) { item in
+                UpdateRow(item: item, onTap: { handleTap(item) }, onRestore: { restore(item) },
+                          onCloseForChange: onClose)
             }
         }
     }
@@ -186,6 +191,12 @@ private struct UpdateRow: View {
     let item: UpdateItem
     let onTap: () -> Void
     let onRestore: () -> Void
+    /// Closes the inbox sheet — used by `.actionable`'s "Change", which hands off to
+    /// `MorningSuggestionCard`'s own full Change flow on Today rather than opening a second sheet
+    /// (`CoachPlanView`) on top of this one, the stacked-sheet pattern this codebase already has scars
+    /// from elsewhere. The proposal stays `.proposed`, so the Today card is still there once this closes.
+    let onCloseForChange: () -> Void
+    @ObservedObject private var planStore = CoachPlanStore.shared
 
     var body: some View {
         NoopCard(tint: item.read ? nil : tint) {
@@ -220,14 +231,7 @@ private struct UpdateRow: View {
                             .accessibilityHidden(true)
                     }
                 }
-                if item.kind == .dismissedCard {
-                    Button(action: onRestore) {
-                        Label("Restore to Today", systemImage: "arrow.uturn.up")
-                            .font(StrandFont.subhead)
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(StrandPalette.accent)
-                }
+                actions
             }
         }
         .contentShape(Rectangle())
@@ -239,22 +243,91 @@ private struct UpdateRow: View {
                                        : "Unread. \(item.title). \(item.message)")
     }
 
-    private var symbol: String {
-        switch item.kind {
-        case .dismissedCard: return "rectangle.on.rectangle"
-        case .whatsNew:      return "sparkles"
-        case .reading:       return "waveform.path.ecg"
-        case .strapAlert:    return "exclamationmark.triangle"
+    /// Per-category actions — the behavioural fix: an informative hint gets no Accept/Change/Decline,
+    /// only `.actionable` does.
+    @ViewBuilder private var actions: some View {
+        switch item.category {
+        case .actionable:
+            if let proposal = planStore.proposals.first(where: { $0.id == item.planProposalId }) {
+                if proposal.status == .proposed {
+                    HStack(spacing: 8) {
+                        rowActionButton(icon: "checkmark", prominent: true) { planStore.accept(proposal.id) } label: {
+                            Text("Accept")
+                        }
+                        rowActionButton(icon: "arrow.triangle.2.circlepath", run: onCloseForChange) {
+                            Text("Change")
+                        }
+                        rowActionButton(icon: "xmark") { planStore.decline(proposal.id) } label: {
+                            Text("Not this one")
+                        }
+                    }
+                } else {
+                    Text(decidedStatusLine(proposal.status))
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
+            }
+        case .statusReminder:
+            if item.kind == .dismissedCard {
+                Button(action: onRestore) {
+                    Label("Restore to Today", systemImage: "arrow.uturn.up")
+                        .font(StrandFont.subhead)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(StrandPalette.accent)
+            }
+        case .informative:
+            EmptyView()
         }
     }
 
-    /// A per-kind tint drawn from the domain palette so each row reads in its own colour world.
+    private func rowActionButton<L: View>(
+        icon: String, prominent: Bool = false, run: @escaping () -> Void, @ViewBuilder label: () -> L
+    ) -> some View {
+        Button(action: run) {
+            HStack(spacing: 5) {
+                Image(systemName: icon).accessibilityHidden(true)
+                label()
+            }
+            .font(StrandFont.footnote)
+            .foregroundStyle(prominent ? .white : StrandPalette.textSecondary)
+            .padding(.horizontal, 10).padding(.vertical, 7)
+            .background(prominent ? StrandPalette.accent : StrandPalette.surfaceInset,
+                        in: RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func decidedStatusLine(_ status: PlanProposal.Status) -> String {
+        switch status {
+        case .proposed:       return String(localized: "Waiting for your decision")
+        case .accepted:       return String(localized: "Accepted")
+        case .declined:       return String(localized: "Declined")
+        case .modifiedByUser: return String(localized: "Changed")
+        case .completed:      return String(localized: "Completed")
+        case .skipped:        return String(localized: "Skipped")
+        case .paused:         return String(localized: "Paused")
+        case .rescheduled:    return String(localized: "Rescheduled")
+        }
+    }
+
+    private var symbol: String {
+        switch item.category {
+        case .actionable:     return "sparkles"
+        case .informative:    return item.kind == .whatsNew ? "sparkles" : "waveform.path.ecg"
+        case .statusReminder: return item.kind == .dismissedCard ? "rectangle.on.rectangle" : "bell.badge"
+        }
+    }
+
+    /// A per-category tint so each row reads in its own colour world; `.informative` additionally leans
+    /// on `priority` since a high-priority hint (e.g. a body-concern signal) should read differently from
+    /// a release note.
     private var tint: Color {
-        switch item.kind {
-        case .dismissedCard: return StrandPalette.textSecondary
-        case .whatsNew:      return StrandPalette.accent
-        case .reading:       return StrandPalette.restColor
-        case .strapAlert:    return StrandPalette.statusWarning
+        switch item.category {
+        case .actionable:     return StrandPalette.chargeColor
+        case .informative:    return item.priority == .high ? StrandPalette.statusWarning : StrandPalette.accent
+        case .statusReminder: return StrandPalette.textSecondary
         }
     }
 
