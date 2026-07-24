@@ -115,6 +115,52 @@ The home dashboard (`TodayView.swift`, titled "Control Center"). A tight, gaples
 
 ---
 
+## Today (iOS)
+
+**Tab bar: Today (first tab) · works from imported data; live status/battery in the header.**
+
+iOS uses a bottom tab bar (`RootTabView.swift`: Today, Trends, Sleep, More) instead of macOS's
+sidebar. The Today tab hosts one of three interchangeable home-screen presentations, picked under
+**Settings → Appearance → Experimental**:
+
+- **Liquid Today** (default, `LiquidTodayView.swift`) — a sky-gradient hero with three fluid,
+  count-up "vessel" circles for Charge / Effort / Rest, a synthesis line ("Charge is strong and
+  sleep was consistent") with day-scoped readiness pills, a scrubbable live/banked heart-rate
+  thread, "Your Cards" (swipeable coach training suggestions), Key Metrics, Recovery Vitals, Last
+  Workouts and Data Sources — the same content as Control Center, restyled.
+- **Classic Today** (`TodayView.swift`) — the same screen macOS shows as Control Center (tight
+  tile grid, no hero animation), reused verbatim as an iOS fallback.
+- **Heute** ("Heute redesign (prototype)", iOS-only, opt-in, off by default — not yet validated on
+  a real strap/HealthKit history — `StrandiOS/Redesign/HeuteRedesignView.swift` and friends) — a
+  from-scratch redesign on its own fixed green/blue/violet token set (`HeuteRedesignPalette`,
+  independent of the selected chart style):
+  - **Header** — a greeting + tappable date (opens day navigation; swiping the screen
+    left/right also changes the day) and three status chips: **Activity status** (Active / Sick /
+    Injured / On break, each with a duration — Today / 3 days / This week / Custom date / Until
+    changed), strap **battery**, and **coach** entry.
+  - **Rings** — Charge / Effort / Rest as three glow rings. **Charge is tappable** — even while
+    calibrating or empty — and opens a breakdown sheet naming which drivers (HRV, resting HR,
+    respiration, sleep quality, skin temperature) pulled the score up or down versus your personal
+    baseline, with the same confidence tier (Calibrating / Est. / Reliable) the ring itself shows.
+    Effort and Rest stay display-only.
+  - **Card zone** — a fixed base card (today's readiness statement, or the current activity-status
+    exception) behind a swipeable stack of the coach's real pending training-plan proposals; a
+    swipe hides a card locally without declining the proposal, tapping one opens the full
+    accept/modify/decline sheet.
+  - **Vitals grid** — HRV, resting heart rate, blood oxygen, respiratory rate, Fitness Age, steps,
+    and the day's workout as a tappable tile.
+  - **Heart rate** — a live beat-by-beat trace (when connected) over the day's banked 5-minute
+    trace, scrubbable by dragging along it.
+  - **Journal reminder + Data Sources footer** — shown only on today, not on a navigated past day.
+
+All three presentations read the SAME carry-over rules: an unscored today shows the last scored
+night's Charge (labelled whose it is), a mid-calibration baseline shows "Learning your baseline,
+N of 4 nights" instead of a stale number, and each vital falls back per-field to the freshest
+prior reading independent of whether that night scored a Charge — so switching between the three
+never changes what number you see for the same day.
+
+---
+
 ## Live
 
 **Sidebar: Live · needs a bonded strap for HR; the hardware-test surface.**
