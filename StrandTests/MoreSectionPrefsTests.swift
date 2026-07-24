@@ -5,13 +5,14 @@ import XCTest
 /// the user's expanded/collapsed choice SURVIVES leaving + re-entering the More tab (and relaunch) instead
 /// of resetting to the seed every visit. These exercise the pure encode/decode/default model that the
 /// `@AppStorage`-backed `RootTabView` reads and writes through, and lock it in lockstep with the Android
-/// `MoreSectionPrefs` twin (same key suffix, same CSV encoding, same Insights+Body default).
+/// `MoreSectionPrefs` twin (same key suffix, same CSV encoding, same Analysis+Body default).
 final class MoreSectionPrefsTests: XCTestCase {
 
-    func testFreshInstallDefaultsToInsightsAndBody() {
-        // The seed: Insights + Body open at rest, Data + App collapsed.
-        XCTAssertEqual(MoreSectionPrefs.defaultExpanded, ["Insights", "Body"])
-        XCTAssertEqual(MoreSectionPrefs.decode(MoreSectionPrefs.defaultCSV), ["Insights", "Body"])
+    func testFreshInstallDefaultsToAnalysisAndBody() {
+        // The seed: Analysis + Body open at rest, Data + App collapsed. ("Analysis" was "Insights" until
+        // the More-tab §7 rename — the group name is the persisted identity, so this tracks it.)
+        XCTAssertEqual(MoreSectionPrefs.defaultExpanded, ["Analysis", "Body"])
+        XCTAssertEqual(MoreSectionPrefs.decode(MoreSectionPrefs.defaultCSV), ["Analysis", "Body"])
     }
 
     func testKeyMatchesAndroidSuffix() {
