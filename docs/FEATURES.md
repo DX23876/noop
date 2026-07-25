@@ -129,7 +129,11 @@ sidebar. The Today tab hosts one of three interchangeable home-screen presentati
   thread, "Your Cards" (swipeable coach training suggestions), Key Metrics, Recovery Vitals, Last
   Workouts and Data Sources — the same content as Control Center, restyled.
 - **Classic Today** (`TodayView.swift`) — the same screen macOS shows as Control Center (tight
-  tile grid, no hero animation), reused verbatim as an iOS fallback.
+  tile grid, no hero animation), reused verbatim as an iOS fallback. As of 2026-07-25 it has full
+  functional parity with Liquid Today (design stays its own): reorderable/hideable sections via the
+  same **Arrange Today** sheet and shared saved order, a live heart-rate badge over the HR trend
+  chart with a one-tap **Full day** link into the Deep Timeline, and Recovery Vitals as its own
+  movable section instead of being fixed inside Synthesis.
 - **Heute** (`StrandiOS/Redesign/HeuteRedesignView.swift` and friends) — a from-scratch redesign on
   its own fixed green/blue/violet token set (`HeuteRedesignPalette`, independent of the selected
   chart style). **Its Settings toggle was removed (2026-07-25)** — the prototype never got past

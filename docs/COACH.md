@@ -600,7 +600,8 @@ Everything stored — memory, conversations, goal, plan, chart snapshots — is 
 
 | Route | Where |
 |---|---|
-| **Today card** | "Ask your Coach" on Today → full-screen chat, with the coach's avatar (toggleable) |
+| **Banner** | "Ask your Coach" — a reorderable `TodaySection.coach` card on both Today screens (classic's `CoachTodayRow`; Liquid's own banner, styled in its own chrome), movable via the same Arrange sheet as every other section |
+| **Header icon** | Liquid Today only — a compact avatar/sparkle button in the header's icon cluster |
 | **Floating button** | Draggable, pinnable to any of 4 chrome-clear corners, lockable |
 | **More tab** | The original `MoreDestination.coach` row |
 | **Goal & Journey** | Its own `MoreDestination.goalJourney` row, right alongside Coach — no longer nested five taps deep in settings |
@@ -618,19 +619,26 @@ content is fixed when scheduled and reused every day without the app running, so
 readiness would quote whatever was true the last time NOOP was opened — possibly days ago. A stale
 number is worse than none. The brief itself is generated on open, where the data is current.
 
-The card and button are user-selectable via `CoachEntryMode` (card / button / both) in Settings.
-Corners are resolved against the safe area with clearances (bottom `+96`, top `+64`) so a pinned
-button never covers the tab bar or the Today header.
+The banner, header icon and floating button are each an independent on/off switch —
+`CoachEntryPrefs.bannerKey` / `.headerIconKey` / `.floatingButtonKey` (`Strand/Screens/CoachEntry.swift`)
+— not a single either/or choice, so a user can combine any of them (e.g. banner + floating button, or
+header icon alone). This replaced a three-way `CoachEntryMode` (card / button / both) picker
+(2026-07-25): that shape couldn't express "more than one, but not all three" once the header icon
+became a real third option, and it also couldn't give the banner a POSITION — it was always pinned
+above everything else on classic Today. A one-time migration off the old `coach.entryMode` key
+preserves an existing install's header-icon/floating-button choice; the banner defaults on for
+everyone. Corners are resolved against the safe area with clearances (bottom `+96`, top `+64`) so a
+pinned floating button never covers the tab bar or the Today header.
 
 All routes present through one shared `View.coachCover(isPresented:coach:)` helper in
 `CoachView.swift` — `fullScreenCover` on iOS, `sheet` on macOS. The composer inside it clears
 `RootTabView`'s floating tab bar via a measured (not guessed) environment value,
 `\.floatingTabBarInset` — see the fix's commit for why a guessed pixel constant would have been wrong.
 
-**Turning the coach's UI off entirely** is a separate master switch, `CoachEntryMode.uiEnabledKey`
-(`coach.uiEnabled`, default on) — deliberately independent of `CoachEntryMode` itself. Off, it hides
-the Today card **and** the floating button regardless of the entry-mode choice above; the chosen
-entry style is remembered for when it's turned back on. It is also independent of `dataConsent` /
+**Turning the coach's UI off entirely** is a separate master switch, `CoachEntryPrefs.uiEnabledKey`
+(`coach.uiEnabled`, default on) — deliberately independent of the three entry toggles. Off, it hides
+the banner, the header icon **and** the floating button regardless of their individual settings; each
+one's own choice is remembered for when it's turned back on. It is also independent of `dataConsent` /
 `isConfigured` and of the card-/background-AI paths (`model(for:)`): per-metric "Ask coach" buttons
 and the AI that writes card summaries keep running — this switch hides only the coach's own chat
 entry points, never the on-device analysis.
