@@ -46,6 +46,35 @@ jobs:
         run: |
           xcodegen generate
 
+      - name: Find iOS scheme
+        run: |
+          set -euo pipefail
+
+          echo "Available schemes:"
+          xcodebuild -list -project Strand.xcodeproj
+
+          if xcodebuild -list -project Strand.xcodeproj | grep -q "NOOPiOS"; then
+            echo "IOS_SCHEME=NOOPiOS" >> "$GITHUB_ENV"
+          elif xcodebuild -list -project Strand.xcodeproj | grep -q "StrandiOS"; then
+            echo "IOS_SCHEME=StrandiOS" >> "$GITHUB_ENV"
+          else
+            echo "Trying to detect iOS scheme..."
+
+            SCHEME=$(xcodebuild -list -project Strand.xcodeproj \
+              | awk '/Schemes:/ {found=1; next} found && NF {print $1}' \
+              | head -n 1)
+
+            if [ -z "$SCHEME" ]; then
+              echo "No scheme found"
+              exit 1
+            fi
+
+            echo "IOS_SCHEME=$SCHEME" >> "$GITHUB_ENV"
+          fi
+
+          echo "Using scheme:"
+          cat "$GITHUB_ENV"
+
       - name: Archive unsigned iOS app
         run: |
           set -euo pipefail
@@ -57,7 +86,7 @@ jobs:
 
           xcodebuild \
             -project Strand.xcodeproj \
-            -scheme Strand \
+            -scheme "$IOS_SCHEME" \
             -configuration Release \
             -destination "generic/platform=iOS" \
             -archivePath "$ARCHIVE_PATH" \
@@ -80,7 +109,7 @@ jobs:
           APP_PATH="$ARCHIVE_PATH/Products/Applications"
 
           if [ ! -d "$APP_PATH" ]; then
-            echo "No app found in archive"
+            echo "No .app found in archive"
             exit 1
           fi
 
