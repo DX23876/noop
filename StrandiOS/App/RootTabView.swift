@@ -61,16 +61,15 @@ struct RootTabView: View {
     /// V8 liquid redesign is the default Today; the Settings toggle lets a user fall back to the classic
     /// Today if they prefer it (keyed identically to the SettingsView toggle). Default ON.
     @AppStorage("noop.liquidTodayEnabled") private var liquidTodayEnabled = true
-    /// The Heute-screen redesign (StrandiOS/Redesign/), opt-in and OFF by default — it's new and hasn't
-    /// been tested on a real strap/HealthKit yet. Takes priority over the liquid/classic choice when on;
-    /// turning it off falls straight back to whichever of Liquid/Classic was already selected, so both
-    /// existing Today screens stay reachable unchanged (keyed identically to the SettingsView toggle).
-    @AppStorage("noop.heuteRedesignEnabled") private var heuteRedesignEnabled = false
 
-    /// The Today tab root, honouring the redesign/liquid/classic preference.
+    /// The Today tab root, honouring the liquid/classic preference.
+    ///
+    /// The Heute-screen redesign (StrandiOS/Redesign/) used to take priority here when its own
+    /// `noop.heuteRedesignEnabled` flag was on — removed along with its Settings toggle, since the
+    /// prototype never got past off-by-default/untested-on-a-real-strap. Its code is left in place,
+    /// just unreached from here, so no persisted `true` from an earlier build can resurrect it.
     @ViewBuilder private var todayTabRoot: some View {
-        if heuteRedesignEnabled { HeuteRedesignView() }
-        else if liquidTodayEnabled { LiquidTodayView() }
+        if liquidTodayEnabled { LiquidTodayView() }
         else { TodayView() }
     }
 
@@ -602,7 +601,7 @@ private struct MoreRow: View {
     /// `MoreRowAppleHealthColors`' Apple Health-style palette — never per-row, never persisted per icon.
     /// Read directly here (rather than threaded through `init`) so all 25 `MoreRow(...)` call sites in
     /// `moreTab` stay untouched.
-    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = false
+    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = true
 
     init(_ title: LocalizedStringKey, _ icon: String, _ route: MoreDestination) {
         self.title = title; self.icon = icon; self.route = route

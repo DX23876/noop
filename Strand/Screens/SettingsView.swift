@@ -89,13 +89,14 @@ struct SettingsView: View {
     // Light/Dark/System theme. Read by both app roots' .preferredColorScheme; default follows the OS.
     @AppStorage(AppearanceMode.storageKey) private var appearanceRaw = AppearanceMode.system.rawValue
     // Chart colour style: Titanium (brand) or Classic (throwback red→green). Re-colours gauges + charts.
-    @AppStorage(ChartStyle.storageKey) private var chartStyleRaw = ChartStyle.signature.rawValue
-    // Day-cycle scene backdrop behind Today (#698). Default ON. Off swaps the scene for a plain dark
-    // canvas. TodayView reads the same key to gate its SceneScreenBackground.
-    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = true
-    // "Sky behind cards" (default ON): extend the day-cycle sky behind the whole Today scroll so
+    @AppStorage(ChartStyle.storageKey) private var chartStyleRaw = ChartStyle.health.rawValue
+    // Day-cycle scene backdrop behind Today (#698). Default OFF. On adds the moving time-of-day scene;
+    // off (the default) keeps the plain dark canvas. TodayView reads the same key to gate its
+    // SceneScreenBackground.
+    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = false
+    // "Sky behind cards" (default OFF): extend the day-cycle sky behind the whole Today scroll so
     // Card transparency reveals it under every card. User-toggleable below. Mirrors Kotlin NoopPrefs.skyBehindCards.
-    @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = true
+    @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = false
     // "Breathing coach tile" (default ON): the Today coach entry's gentle pulse. See CoachTilePrefs.
     @AppStorage(CoachTilePrefs.breathingKey) private var coachTileBreathing = true
     // Card-surface opacity percent (100 = solid). Reactive — moving the slider live-updates every card.
@@ -749,8 +750,8 @@ struct SettingsView: View {
                 #endif
 
                 Divider().overlay(StrandPalette.hairline).padding(.vertical, 4)
-                // MARK: Day-cycle background — the time-of-day scene behind Today (#698). On by default.
-                // Off swaps it for the plain dark canvas for people who find the moving scene distracting.
+                // MARK: Day-cycle background — the time-of-day scene behind Today (#698). Off by default.
+                // On adds the moving scene; off keeps the plain dark canvas.
                 Toggle(isOn: $showDayCycleBackground) {
                     Text("Day-cycle background")
                         .font(StrandFont.subhead)
@@ -833,14 +834,14 @@ struct SettingsView: View {
     }
 
     /// Single global switch for leading row/section icons across the app: the iOS "More" tab
-    /// (`RootTabView.MoreRow`), the Coach chat header, and Coach's submenus (Settings, Info, Goal
-    /// Journey). OFF (default) keeps every one of those icons the current plain `StrandPalette.accent`
-    /// blue; ON recolors all of them at once to an Apple Health-style palette
-    /// (`MoreRowAppleHealthColors` / `CoachIconColors`). Purely functional icons (chevrons, checkmarks,
-    /// state icons like `bell`/`bell.badge.fill`) are unaffected either way. Same key every consumer
-    /// reads via its own `@AppStorage`, so flipping this here updates all of them live — no per-icon
-    /// choice, on-device feedback was explicit that one switch for all icons is what's wanted.
-    @AppStorage("noop.moreRowAppleHealthColors") private var moreRowAppleHealthColors = false
+    /// (`RootTabView.MoreRow`), Coach's chat header and every one of its submenus, JourneyView, and
+    /// SettingsView's own section headers. ON (default) recolors all of them to an Apple Health-style
+    /// palette (`MoreRowAppleHealthColors` / `CoachIconColors` / `SettingsIconColors`); OFF keeps every
+    /// one of those icons plain `StrandPalette.accent` blue. Purely functional icons (chevrons,
+    /// checkmarks, state icons like `bell`/`bell.badge.fill`) are unaffected either way. Same key every
+    /// consumer reads via its own `@AppStorage`, so flipping this here updates all of them live — no
+    /// per-icon choice, on-device feedback was explicit that one switch for all icons is what's wanted.
+    @AppStorage("noop.moreRowAppleHealthColors") private var moreRowAppleHealthColors = true
 
     private var appIconColorSection: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -851,7 +852,7 @@ struct SettingsView: View {
             }
             .toggleStyle(.switch)
             .tint(StrandPalette.accent)
-            Text("Recolors the leading icons in the More tab, Chat, and Chat's submenus to match Apple Health's palette. Off keeps today's plain blue.")
+            Text("Recolors the leading icons across the app — the More tab, Chat and its submenus, Journey, and Settings — to match Apple Health's palette. Off keeps them plain blue.")
                 .font(StrandFont.caption)
                 .foregroundStyle(StrandPalette.textTertiary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -1320,17 +1321,14 @@ struct SettingsView: View {
     /// classic dashboard immediately, no rebuild. Same data either way.
     @AppStorage("noop.liquidTodayEnabled") private var liquidTodayEnabled = true
 
-    #if os(iOS)
-    /// The Heute-screen redesign (StrandiOS/Redesign/) — a further-along rework of Today with its own
-    /// header chips, ring layout, status-reactive base card, and an editable vitals grid. iOS-only (it's
-    /// only wired into `RootTabView`), off by default: new, not yet exercised on a real strap/HealthKit.
-    @AppStorage("noop.heuteRedesignEnabled") private var heuteRedesignEnabled = false
-    #endif
-
-    /// The two Today-variant toggles, appended to the bottom of `appearanceCard`'s own section (on-device
-    /// feedback: these belong with Appearance, not buried in the collapsed Advanced → Experimental
-    /// group). Kept as a private helper rather than inline in `appearanceCard` so the toggle bodies stay
-    /// readable next to their `@AppStorage` declarations above.
+    /// The Today-variant toggle, appended to the bottom of `appearanceCard`'s own section (on-device
+    /// feedback: this belongs with Appearance, not buried in the collapsed Advanced → Experimental
+    /// group). Kept as a private helper rather than inline in `appearanceCard` so the toggle body stays
+    /// readable next to its `@AppStorage` declaration above.
+    ///
+    /// The Heute-screen redesign toggle (StrandiOS/Redesign/) used to live here too — removed, since the
+    /// prototype never got past off-by-default/untested-on-a-real-strap. `RootTabView` no longer reads
+    /// its flag at all, so the fork's code is unreachable but left in place rather than deleted.
     private var appearanceExperimentalSection: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.rowSpacing) {
             Text("EXPERIMENTAL")
@@ -1350,21 +1348,6 @@ struct SettingsView: View {
                 .font(StrandFont.caption)
                 .foregroundStyle(StrandPalette.textTertiary)
                 .fixedSize(horizontal: false, vertical: true)
-
-            #if os(iOS)
-            rowDivider
-            Toggle(isOn: $heuteRedesignEnabled) {
-                Text("Heute redesign (prototype)")
-                    .font(StrandFont.subhead)
-                    .foregroundStyle(StrandPalette.textPrimary)
-            }
-            .toggleStyle(.switch)
-            .tint(StrandPalette.accent)
-            Text("An even newer Today rework: activity-status chip, a status-reactive base card with swipeable suggestion cards, and an editable vitals grid. Takes priority over Liquid Today when on. Turn it off any time to return to Liquid Today or the classic dashboard.")
-                .font(StrandFont.caption)
-                .foregroundStyle(StrandPalette.textTertiary)
-                .fixedSize(horizontal: false, vertical: true)
-            #endif
         }
     }
 
@@ -2405,6 +2388,11 @@ private struct SettingsSection<Content: View>: View {
     let blurb: LocalizedStringKey
     @ViewBuilder var content: () -> Content
 
+    /// Apple Health-style leading-icon coloring ("App icon colors") — same switch that recolors the
+    /// More tab and Coach's screens. Keyed directly on `icon` (see `SettingsIconColors`): every one of
+    /// this struct's 15 call sites already uses a distinct SF Symbol, so the glyph itself is a stable key.
+    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = true
+
     var body: some View {
         StrandCard(padding: 20, tint: StrandPalette.accent) {
             VStack(alignment: .leading, spacing: NoopMetrics.space4) {
@@ -2412,7 +2400,8 @@ private struct SettingsSection<Content: View>: View {
                     Text("Settings").strandOverline()
                     HStack(spacing: NoopMetrics.space2 + 2) {
                         Image(systemName: icon)
-                            .foregroundStyle(StrandPalette.accent)
+                            .foregroundStyle(appleHealthColors
+                                            ? SettingsIconColors.color(for: icon) : StrandPalette.accent)
                             .accessibilityHidden(true)
                         Text(title)
                             .font(StrandFont.title2)

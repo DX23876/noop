@@ -130,10 +130,11 @@ sidebar. The Today tab hosts one of three interchangeable home-screen presentati
   Workouts and Data Sources — the same content as Control Center, restyled.
 - **Classic Today** (`TodayView.swift`) — the same screen macOS shows as Control Center (tight
   tile grid, no hero animation), reused verbatim as an iOS fallback.
-- **Heute** ("Heute redesign (prototype)", iOS-only, opt-in, off by default — not yet validated on
-  a real strap/HealthKit history — `StrandiOS/Redesign/HeuteRedesignView.swift` and friends) — a
-  from-scratch redesign on its own fixed green/blue/violet token set (`HeuteRedesignPalette`,
-  independent of the selected chart style):
+- **Heute** (`StrandiOS/Redesign/HeuteRedesignView.swift` and friends) — a from-scratch redesign on
+  its own fixed green/blue/violet token set (`HeuteRedesignPalette`, independent of the selected
+  chart style). **Its Settings toggle was removed (2026-07-25)** — the prototype never got past
+  off-by-default/untested-on-a-real-strap, so `RootTabView` no longer reads its flag at all and the
+  screen is unreachable. The code is left in place, not deleted, in case it's revisited later:
   - **Header** — a greeting + tappable date (opens day navigation; swiping the screen
     left/right also changes the day) and three status chips: **Activity status** (Active / Sick /
     Injured / On break, each with a duration — Today / 3 days / This week / Custom date / Until
@@ -562,10 +563,12 @@ of history. On-device and approximate — informational only, **not** a diagnosi
   figures read closer to reality.
 - **Units** — choose your preferred measurement units (metric / imperial) across the app.
 - **Appearance** — card transparency, whether the coach tile pulses on Today, and **App icon
-  colors** (off by default): recolors the leading icons in the More tab, Chat and Chat's submenus
-  (Coach Settings, Coach Info, Goal & Journey) to an Apple Health-style palette instead of plain blue.
-  Purely cosmetic — chevrons, checkmarks and state icons (e.g. bell vs. bell with a badge) are
-  unaffected either way.
+  colors** (on by default): recolors the leading icons across the app — the More tab, Chat and its
+  submenus (Coach Settings, Coach Info, Goal & Journey), Journey, and Settings' own section headers —
+  to an Apple Health-style palette instead of plain blue. Purely cosmetic — chevrons, checkmarks and
+  state icons (e.g. bell vs. bell with a badge) are unaffected either way. Also here: chart colours
+  (Apple Health palette by default) and the day-cycle sky backdrop / "sky behind cards" (both off by
+  default).
 - **Strap** — connection status, battery, and Re-scan / Disconnect controls.
 - **Export for Shortcuts (iOS)** — a **HealthKit-free** path that hands your NOOP metrics to Apple
   Health via the Shortcuts app, so an anonymous build (with no HealthKit entitlement) can still get

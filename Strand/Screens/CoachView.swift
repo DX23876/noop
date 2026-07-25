@@ -55,8 +55,6 @@ struct CoachView: View {
     private static let headerAvatarSize: CGFloat = 34
     /// Drives the header avatar's breathing while a reply streams (see `header`).
     @State private var breathing = false
-    /// Source/target namespace for the zoom transitions (avatar → settings).
-    @Namespace private var zoomNamespace
     /// Vertical gap before a NEW turn (a role switch, or the first message) — bigger, so a fresh reply or
     /// question reads as its own moment (#R-chat-tidy). Also used before the typing indicator/error banner,
     /// which are themselves always the start of a new turn.
@@ -84,7 +82,7 @@ struct CoachView: View {
     @AppStorage(LiveSessionPrefs.betaKey) private var liveSessionsBeta = true
     /// Apple Health-style leading-icon coloring (SettingsView's "App icon colors") — same switch that
     /// recolors the More tab and Coach's submenus. See `CoachIconColors`.
-    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = false
+    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = true
     #if os(iOS)
     /// Extra clearance the composer needs to clear RootTabView's floating tab bar, which is drawn on
     /// top of pushed content and isn't part of this screen's own safe area. Zero everywhere else: a
@@ -119,10 +117,13 @@ struct CoachView: View {
         .sheet(item: $activeSheet) { which in
             switch which {
             case .settings:
+                // Plain sheet, no zoom transition: CoachSettingsView owns its own NavigationStack and
+                // pushes further into 5 subpages — the zoom-transition system doesn't compose safely
+                // with content that starts an independent NavigationStack and pushes inside it (it
+                // crashed reproducibly on Settings -> Goal & Journey). Matches .history/.plan below,
+                // which never had a zoom transition either.
                 CoachSettingsView()
                     .environmentObject(coach)
-                    // Grows out of the header avatar that opened it (iOS 18+).
-                    .zoomDestination(id: "coach.avatar", namespace: zoomNamespace)
             case .history:  CoachHistoryView(onPick: { activeSheet = nil }).environmentObject(coach)
             case .plan:     CoachPlanView().environmentObject(coach)
             case .goal:
@@ -239,7 +240,6 @@ struct CoachView: View {
                     .animation(reduceMotion ? nil
                                : .easeInOut(duration: 1.1).repeatForever(autoreverses: true),
                                value: breathing)
-                    .zoomSource(id: "coach.avatar", namespace: zoomNamespace)
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Coach settings")

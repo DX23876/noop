@@ -12,10 +12,11 @@ import SwiftUI
 /// the raw value so a flip re-renders the visible charts live.
 public enum ChartStyle: String, CaseIterable, Identifiable, Sendable {
     case signature  // NOOP redesign: family-coded accents (green Charge, blue Effort, violet Rest) over
-                    // the readable red→green score ramps. The shipped default.
+                    // the readable red→green score ramps.
     case titanium   // brand: gold recovery, amber strain, blue rest
     case classic    // throwback: red→green recovery, cool→hot zones, green→red stress
-    case health     // Apple system colours: systemRed→...→systemGreen recovery, indigo sleep, pink stress
+    case health     // Apple system colours: systemRed→...→systemGreen recovery, indigo sleep, pink stress.
+                    // The shipped default.
     case aurora     // Nord: frosty arctic blues, aurora green/purple accents
     case sunset     // Ember: dusk ramp violet→coral→gold, violet rest
     case forest     // Earth: mossy forest greens, terracotta, amber
@@ -99,14 +100,15 @@ public enum AppearanceMode: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
-/// The day-cycle scene backdrop behind the Today screen (sunrise / day / dusk / night). Default ON —
-/// the scene is the v7 atmosphere. Some people find it distracting and want a plain dark canvas (#698),
-/// so this gates whether Today passes a `SceneScreenBackground` into its scaffold. When OFF, Today drops
-/// the scene and falls back to the opaque `surfaceBase`; the cards already sit on an opaque canvas, so
-/// they stay perfectly readable. Read in `TodayView` via `@AppStorage(SceneBackgroundPrefs.enabledKey)`
-/// and toggled from Settings → Appearance. Mirror in Kotlin via `NoopPrefs.showDayCycleBackground`.
+/// The day-cycle scene backdrop behind the Today screen (sunrise / day / dusk / night). Default OFF —
+/// the plain dark canvas ships as the default; turning it on adds the v7 atmosphere for people who want
+/// the moving scene (#698). This gates whether Today passes a `SceneScreenBackground` into its scaffold.
+/// When OFF, Today falls back to the opaque `surfaceBase`; the cards already sit on an opaque canvas, so
+/// they stay perfectly readable either way. Read in `TodayView` via
+/// `@AppStorage(SceneBackgroundPrefs.enabledKey)` and toggled from Settings → Appearance. Mirror in
+/// Kotlin via `NoopPrefs.showDayCycleBackground`.
 public enum SceneBackgroundPrefs {
-    /// The @AppStorage key shared by TodayView and the Settings toggle. Default value is `true`.
+    /// The @AppStorage key shared by TodayView and the Settings toggle. Default value is `false`.
     public static let enabledKey = "noop.showDayCycleBackground"
 }
 

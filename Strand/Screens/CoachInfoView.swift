@@ -27,6 +27,10 @@ struct CoachFirstUseSheet: View {
     let onAcknowledge: () -> Void
     @State private var showInfo = false
 
+    /// Apple Health-style leading-icon coloring (SettingsView's "App icon colors") — same switch that
+    /// recolors the More tab and the rest of Coach's screens. See `CoachIconColors`.
+    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = true
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -45,16 +49,16 @@ struct CoachFirstUseSheet: View {
                     }
 
                     VStack(spacing: 12) {
-                        point("cpu",
+                        point("cpu", "coach.firstUse.model",
                               "It's only as good as its model",
                               "The coach's judgement is the model's judgement. A small or cheap model gives shallow, generic answers; a capable one reasons well over your numbers.")
-                        point("hand.thumbsup",
+                        point("hand.thumbsup", "coach.firstUse.support",
                               "It's support, not the last word",
                               "Treat its answers as a helpful second opinion. Don't follow them blindly — keep using your own judgement.")
-                        point("cross.case",
+                        point("cross.case", "coach.firstUse.notMedical",
                               "It's not a doctor, therapist or trainer",
                               "For anything medical, or anything that really matters, talk to a qualified professional. The coach can be wrong and can miss context you didn't share.")
-                        point("arrow.up.forward.app",
+                        point("arrow.up.forward.app", "coach.firstUse.dataConsent",
                               coach.dataConsent ? "It works with your data" : "It needs your data, off by default",
                               coach.dataConsent
                               ? "To answer well, it sends a short summary of your relevant metrics to the provider you chose — using your own key, and only when you ask. Nothing is sent otherwise."
@@ -88,12 +92,13 @@ struct CoachFirstUseSheet: View {
         .interactiveDismissDisabled(true)   // must be acknowledged, not swiped away
     }
 
-    private func point(_ icon: String, _ title: LocalizedStringKey, _ body: LocalizedStringKey) -> some View {
+    private func point(_ icon: String, _ colorID: String, _ title: LocalizedStringKey,
+                       _ body: LocalizedStringKey) -> some View {
         NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
             HStack(alignment: .top, spacing: 12) {
                 Image(systemName: icon)
                     .font(StrandFont.headline)
-                    .foregroundStyle(StrandPalette.accent)
+                    .foregroundStyle(appleHealthColors ? CoachIconColors.color(for: colorID) : StrandPalette.accent)
                     .frame(width: 26)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 3) {
@@ -121,7 +126,7 @@ struct CoachInfoView: View {
 
     /// Apple Health-style leading-icon coloring (SettingsView's "App icon colors") — same switch that
     /// recolors the More tab and the rest of Coach's screens. See `CoachIconColors`.
-    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = false
+    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = true
 
     private var providerName: String { coach.provider.displayName }
 

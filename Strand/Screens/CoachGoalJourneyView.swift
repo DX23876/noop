@@ -25,7 +25,7 @@ struct CoachGoalJourneyView: View {
     @ObservedObject private var goalStore = CoachGoalStore.shared
     /// Apple Health-style leading-icon coloring (SettingsView's "App icon colors") — same switch that
     /// recolors the More tab and the rest of Coach's screens. See `CoachIconColors`.
-    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = false
+    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = true
 
     private enum GoalSheet: Identifiable {
         case edit(UUID), newGoal, journey(UUID)
@@ -196,7 +196,9 @@ struct CoachGoalJourneyView: View {
                 Button { goalSheet = .edit(goal.id) } label: {
                     HStack(spacing: 10) {
                         Image(systemName: goal.kind.icon)
-                            .foregroundStyle(StrandPalette.accent)
+                            .foregroundStyle(appleHealthColors
+                                            ? CoachIconColors.color(for: "coach.goal.\(goal.kind.rawValue)")
+                                            : StrandPalette.accent)
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 1) {
                             Text(goal.title.isEmpty ? goal.kind.label.localizedCatalogValue : goal.title)

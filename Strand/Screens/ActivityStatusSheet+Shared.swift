@@ -116,10 +116,10 @@ struct SharedActivityStatusSheet: View {
         .buttonStyle(.plain)
     }
 
-    /// Active uses the action accent; the three exception states share one warning colour (the icon
-    /// distinguishes them), matching Heute's "one warning colour, not four" rule (design-spec §6).
+    /// Each state gets its own fixed Apple Health-style colour (green/red/orange/yellow) rather than
+    /// collapsing the three exception states onto one shared warning tone — see `ActivityStatusColors`.
     private func radioColor(_ state: ActivityStatus.State) -> Color {
-        state == .active ? StrandPalette.accent : StrandPalette.statusWarning
+        ActivityStatusColors.color(for: state.rawValue)
     }
 
     private var durationSection: some View {
@@ -187,14 +187,15 @@ private struct FlowRow<Content: View>: View {
 // MARK: - Compact status chip (shared trigger)
 
 /// A small tappable status chip for the two Today screens' headers/synthesis: an icon + the state label,
-/// tinted by the accent (active) or warning (exception) colour. Opens the shared sheet. Kept deliberately
-/// simple — the elaborate expand-on-tap chip is Heute's signature; here it's just a labelled button.
+/// tinted by its own fixed Apple Health-style colour (green/red/orange/yellow, `ActivityStatusColors`).
+/// Opens the shared sheet. Kept deliberately simple — the elaborate expand-on-tap chip is Heute's
+/// signature; here it's just a labelled button.
 struct ActivityStatusChipCompact: View {
     @Binding var status: ActivityStatus
     @State private var showSheet = false
 
     private var tint: Color {
-        status.state == .active ? StrandPalette.textTertiary : StrandPalette.statusWarning
+        ActivityStatusColors.color(for: status.state.rawValue)
     }
 
     var body: some View {

@@ -62,6 +62,17 @@ struct LiquidTodayView: View {
     @State private var hrTimes: [Date] = []
     @State private var workouts: [WorkoutRow] = [] // newest-first
 
+    /// Wraps a tapped row so `.sheet(item:)` can present its detail (`WorkoutRow` isn't `Identifiable`) —
+    /// mirrors `WorkoutsView.WorkoutDetailTarget` exactly.
+    private struct WorkoutDetailTarget: Identifiable {
+        let row: WorkoutRow
+        let id = UUID()
+    }
+    /// A workout tapped in `lastWorkoutsSection`, presented directly as its own detail sheet — NOT via
+    /// `TabRoute.workoutDetail`, which resolves to the full Workouts overview screen first and only then
+    /// auto-opens the detail on top of it. The full `WorkoutRow` is already in hand at the tap site.
+    @State private var workoutDetailTarget: WorkoutDetailTarget?
+
     // sheets / expanders
     @State private var guideSection: ScoreSection?
     @State private var showCustomise = false
@@ -158,13 +169,13 @@ struct LiquidTodayView: View {
     /// Content sits above the surface so it stays readable. Mirrors Kotlin `NoopPrefs.cardOpacityPercent`.
     @AppStorage(CardAppearancePrefs.opacityKey) private var cardOpacityPercent = CardAppearancePrefs.defaultPercent
     private var cardOpacity: Double { max(0, min(1, Double(cardOpacityPercent) / 100)) }
-    /// "Sky behind cards" (default ON): extend the day-cycle sky behind the WHOLE scroll so the
+    /// "Sky behind cards" (default OFF): extend the day-cycle sky behind the WHOLE scroll so the
     /// Card-transparency slider reveals it under every card. User-toggleable. Mirrors Kotlin `NoopPrefs.skyBehindCards`.
-    @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = true
-    /// Day-cycle scene backdrop (#698). Default ON. When off, the liquid Today drops the sky for the plain
-    /// dark canvas — parity with Android and the classic TodayView, which already honour this pref. Mirrors
-    /// Kotlin `NoopPrefs.showDayCycleBackground`.
-    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = true
+    @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = false
+    /// Day-cycle scene backdrop (#698). Default OFF. When on, the liquid Today adds the moving sky; off
+    /// (the default) keeps the plain dark canvas — parity with the classic TodayView, which already
+    /// honours this pref. Mirrors Kotlin `NoopPrefs.showDayCycleBackground`.
+    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = false
 
     // MARK: - Day navigation (ported from classic Today: swipe + calendar, day-keyed reads)
 
@@ -416,6 +427,16 @@ struct LiquidTodayView: View {
         .sheet(item: $guideSection) { section in
             NavigationStack { ScoringGuideView(initialSection: section, onClose: { guideSection = nil }) }
         }
+        // A tapped workout from `lastWorkoutsSection`, opened directly — mirrors WorkoutsView's own
+        // `WorkoutDetailTarget` sheet exactly, so the detail looks identical wherever it's opened from.
+        .sheet(item: $workoutDetailTarget) { target in
+            NavigationStack { WorkoutDetailView(row: target.row).environmentObject(repo) }
+                #if os(iOS)
+                .noopSheetPresentation(largeFirst: true)
+                #else
+                .frame(width: 620, height: 720)
+                #endif
+        }
         .sheet(isPresented: $showCustomise) {
             DashboardCardsEditorSheet(selectionRaw: $dashboardCardsRaw)
         }
@@ -656,7 +677,7 @@ struct LiquidTodayView: View {
             // Activity (`Repository.widgetAnchor`) and Android. Effort deliberately does NOT carry — it is
             // today's own accumulation, so yesterday's number would be a false statement, not a stale one.
             HeroScoreCell(label: String(localized: "Charge"), score: chargeDisplay.pct, tint: StrandPalette.chargeColor,
-                          animated: dataLoaded, onGuide: { guideSection = .charge }, coachContext: chargeCoachContext)
+                          animated: dataLoaded, onGuide: { guideSection = .charge })
             // #45: the hero Effort must honour the user's Effort scale like every other Effort read-out.
             // Show the value on the chosen scale (0–100 or WHOOP 0–21) with the matching vessel max, and
             // one decimal on the compressed 0–21 axis to match the app-wide `effortDisplay` convention
@@ -666,15 +687,14 @@ struct LiquidTodayView: View {
                           tint: StrandPalette.effortColor, animated: dataLoaded,
                           onGuide: { guideSection = .effort },
                           maxValue: effortScale == .whoop ? 21 : 100,
-                          decimals: effortScale == .whoop ? 1 : 0,
-                          coachContext: effortCoachContext)
+                          decimals: effortScale == .whoop ? 1 : 0)
             // The hero's provenance badge ("ON-DEVICE", tucked into the top-right corner) is gone: it sat
             // apart from everything it described and cost the card's cleanest corner. The FACT is still
             // reachable — the Data Sources card at the bottom of Today and every metric's detail name their
             // source — and `heroSourceLabel` below stays, since Data Sources shares that vocabulary and its
             // pure aggregation seam is unit-tested. Android's TodayScreen keeps its own badge.
             HeroScoreCell(label: String(localized: "Rest"), score: restScore, tint: StrandPalette.restColor,
-                          animated: dataLoaded, onGuide: { guideSection = .rest }, coachContext: restCoachContext)
+                          animated: dataLoaded, onGuide: { guideSection = .rest })
         }
         .padding(.vertical, NoopMetrics.space4)
         .padding(.horizontal, NoopMetrics.space3)
@@ -693,37 +713,9 @@ struct LiquidTodayView: View {
         )
     }
 
-    // MARK: - Card-AI contexts (#R-explain): one small "ask coach" sparkle per hero circle and per
-    // "Your cards" row, built from data this screen already loaded — nothing new derived, same posture as
+    // MARK: - Card-AI contexts (#R-explain): one small "ask coach" sparkle per "Your cards" row, built
+    // from data this screen already loaded — nothing new derived, same posture as
     // `StressView.coachCardContext`. Nil (button hidden) until there's a real value to explain.
-
-    private var chargeCoachContext: CoachCardContext? {
-        guard coachUIEnabled, let pct = chargeDisplay.pct else { return nil }
-        return CoachCardContext(
-            title: "Charge",
-            summary: "Charge: \(Int(pct.rounded()))% (\(chargeDisplay.stateLabel)).",
-            suggestions: [String(localized: "Why is my Charge what it is?"),
-                          String(localized: "What should I do today given this?")])
-    }
-
-    private var effortCoachContext: CoachCardContext? {
-        guard coachUIEnabled, let strain = displayDay?.strain else { return nil }
-        let value = UnitFormatter.effortDisplay(strain, scale: effortScale)
-        return CoachCardContext(
-            title: "Effort",
-            summary: "Today's Effort so far: \(value).",
-            suggestions: [String(localized: "Is this a lot for me today?"),
-                          String(localized: "Should I push more or ease off?")])
-    }
-
-    private var restCoachContext: CoachCardContext? {
-        guard coachUIEnabled, let score = restScore else { return nil }
-        return CoachCardContext(
-            title: "Rest",
-            summary: "Rest: \(Int(score.rounded()))%.",
-            suggestions: [String(localized: "How was my sleep quality?"),
-                          String(localized: "What would improve my Rest?")])
-    }
 
     /// Generic "Your cards" row context (#R-explain): title + the row's own already-computed value and
     /// subtitle line, stated plainly. No trend/baseline data invented beyond what the row itself shows.
@@ -1274,9 +1266,9 @@ struct LiquidTodayView: View {
         VStack(spacing: 8) {
             sectionHead("LAST WORKOUTS", trailing: "\(workouts.count) total")
             if let w = workouts.first {
-                // Value-based push straight to THIS workout's detail (matches Workouts → All Sessions,
-                // which opens the tapped row directly, not the bare list).
-                NavigationLink(value: TabRoute.workoutDetail(startTs: w.startTs, sport: w.sport)) { workoutCard(w) }
+                // Opens THIS workout's detail directly as a sheet — not a push through the Workouts
+                // overview screen (see `workoutDetailTarget`'s doc comment).
+                Button { workoutDetailTarget = WorkoutDetailTarget(row: w) } label: { workoutCard(w) }
                     .buttonStyle(LiquidPressStyle())
             } else {
                 card {
@@ -1785,10 +1777,6 @@ private struct HeroScoreCell: View {
     // Decimal places for the displayed number. 0 keeps the whole-number scores; the WHOOP 0–21 Effort
     // scale passes 1 to match the app-wide one-decimal `effortDisplay` convention (#45).
     var decimals: Int = 0
-    /// The coach's own read of THIS score (#R-explain), when there's a real value to explain. A small
-    /// sparkle sits beside the CHARGE/EFFORT/REST label — a sibling of the `onGuide` button, never nested
-    /// inside it, so the two actions (open the scoring guide vs. ask the coach) stay independent taps.
-    var coachContext: CoachCardContext? = nil
 
     @State private var shown: Double = 0
 
@@ -1827,9 +1815,6 @@ private struct HeroScoreCell: View {
                     .foregroundStyle(StrandPalette.onDarkSecondary)
                 }
                 .buttonStyle(.plain)
-                if let coachContext {
-                    CoachCardIconButton(context: coachContext, diameter: 18)
-                }
             }
             .accessibilityLabel(Text("\(label), \(score.map { decimals > 0 ? String(format: "%.\(decimals)f", $0) : String(Int($0.rounded())) } ?? String(localized: "no data yet")). See how it is scored."))
         }

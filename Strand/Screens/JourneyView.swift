@@ -19,6 +19,10 @@ struct JourneyView: View {
     /// page can no longer read a single implicit "the goal").
     let goalId: UUID
 
+    /// Apple Health-style leading-icon coloring (SettingsView's "App icon colors") — same switch that
+    /// recolors the More tab and Coach's screens. See `CoachIconColors`/`SettingsIconColors`.
+    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = true
+
     @State private var evidence = GoalFeasibility.Evidence()
     @State private var latestWeightKg: Double?
     @State private var loaded = false
@@ -150,7 +154,10 @@ struct JourneyView: View {
         NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
-                    Image(systemName: "target").foregroundStyle(StrandPalette.accent)
+                    Image(systemName: "target")
+                        .foregroundStyle(appleHealthColors
+                                        ? CoachIconColors.color(for: "coach.goal.\(goal.kind.rawValue)")
+                                        : StrandPalette.accent)
                         .accessibilityHidden(true)
                     // `goal.kind.label` is a fixed-set English label (#P14); `goal.title` is the user's
                     // own free text, harmlessly passed through unresolved.
@@ -422,7 +429,9 @@ struct JourneyView: View {
                 }
                 Divider().overlay(StrandPalette.hairline)
                 HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "arrow.forward.circle").foregroundStyle(StrandPalette.accent)
+                    Image(systemName: "arrow.forward.circle")
+                        .foregroundStyle(appleHealthColors
+                                        ? SettingsIconColors.color(for: "journey.nextStep") : StrandPalette.accent)
                         .accessibilityHidden(true)
                     Text(JourneyMilestones.nextSuggestion(inputs))
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)

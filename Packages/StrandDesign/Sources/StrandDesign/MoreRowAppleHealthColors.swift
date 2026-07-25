@@ -5,9 +5,9 @@ import SwiftUI
 // Fixed, non-chart-style-reactive accent per row of the iOS "More" tab index (`RootTabView.MoreRow`) —
 // these are chrome/navigation, not a data encoding, so unlike `StrandPalette.metricAmber`/`chargeColor`/
 // etc. they must NOT re-skin when the user picks a different chart style (the redesign rule "colour
-// only re-skins data encodings, never chrome" cuts the other way here). Applied only when the user
-// opts in via a single switch (`RootTabView`'s `moreRowAppleHealthColors`); off by default, which keeps
-// every row `StrandPalette.accent` exactly as before. Apple's own dynamic system colors (light/dark
+// only re-skins data encodings, never chrome" cuts the other way here). Gated behind a single switch
+// (`RootTabView`'s `moreRowAppleHealthColors`, ON by default) that the user can still turn off to keep
+// every row `StrandPalette.accent` instead. Apple's own dynamic system colors (light/dark
 // pairs), one per row, some reuse across sections is expected — Apple Health's own category list
 // reuses hues too. Keyed by the row's `MoreDestination` case name (`String(describing:)` of a
 // no-associated-value enum case), so this package stays decoupled from the app-layer route type.

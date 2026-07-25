@@ -13,7 +13,7 @@ struct CoachSettingsView: View {
 
     /// Apple Health-style leading-icon coloring (SettingsView's "App icon colors") — same switch that
     /// recolors the More tab and the rest of Coach's screens. See `CoachIconColors`.
-    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = false
+    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = true
 
     /// Pending key text (never persisted here, handed to `setKey`).
     @State private var keyDraft: String = ""
@@ -610,7 +610,8 @@ struct CoachSettingsView: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
                     Image(systemName: "wand.and.stars")
-                        .foregroundStyle(StrandPalette.accent)
+                        .foregroundStyle(appleHealthColors
+                                        ? CoachIconColors.color(for: "coach.settings.presets") : StrandPalette.accent)
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Quick presets")
@@ -626,7 +627,9 @@ struct CoachSettingsView: View {
                     } label: {
                         HStack(spacing: 10) {
                             Image(systemName: preset.symbol)
-                                .foregroundStyle(StrandPalette.accent)
+                                .foregroundStyle(appleHealthColors
+                                                ? CoachIconColors.color(for: "coach.preset.\(preset.rawValue)")
+                                                : StrandPalette.accent)
                                 .frame(width: 20)
                                 .accessibilityHidden(true)
                             VStack(alignment: .leading, spacing: 1) {
@@ -706,7 +709,8 @@ struct CoachSettingsView: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
                     Image(systemName: "text.alignleft")
-                        .foregroundStyle(StrandPalette.accent)
+                        .foregroundStyle(appleHealthColors
+                                        ? CoachIconColors.color(for: "coach.settings.verbosity") : StrandPalette.accent)
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Reply length")
@@ -738,7 +742,9 @@ struct CoachSettingsView: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
                     Image(systemName: "bell.badge")
-                        .foregroundStyle(coach.proactiveLevel == .off ? StrandPalette.textTertiary : StrandPalette.accent)
+                        .foregroundStyle(coach.proactiveLevel == .off ? StrandPalette.textTertiary
+                            : (appleHealthColors ? CoachIconColors.color(for: "coach.settings.proactive")
+                                                  : StrandPalette.accent))
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Proactive messages")
@@ -797,7 +803,8 @@ struct CoachSettingsView: View {
             NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
                 HStack(spacing: 10) {
                     Image(systemName: "switch.2")
-                        .foregroundStyle(StrandPalette.accent)
+                        .foregroundStyle(appleHealthColors
+                                        ? CoachIconColors.color(for: "coach.settings.dataAccess") : StrandPalette.accent)
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Data access")
@@ -984,7 +991,8 @@ struct CoachSettingsView: View {
             NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
                 HStack(spacing: 10) {
                     Image(systemName: "info.circle")
-                        .foregroundStyle(StrandPalette.accent)
+                        .foregroundStyle(appleHealthColors
+                                        ? CoachIconColors.color(for: "coach.settings.howItWorks") : StrandPalette.accent)
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 1) {
                         Text("How Coach works")
@@ -1068,7 +1076,8 @@ struct CoachSettingsView: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
                     Image(systemName: "hand.tap")
-                        .foregroundStyle(StrandPalette.accent)
+                        .foregroundStyle(appleHealthColors
+                                        ? CoachIconColors.color(for: "coach.settings.entry") : StrandPalette.accent)
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Coach entry")
@@ -1164,7 +1173,9 @@ struct CoachSettingsView: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
                     Image(systemName: "arrow.triangle.2.circlepath")
-                        .foregroundStyle(coach.autoSummarize ? StrandPalette.accent : StrandPalette.textTertiary)
+                        .foregroundStyle(!coach.autoSummarize ? StrandPalette.textTertiary
+                            : (appleHealthColors ? CoachIconColors.color(for: "coach.settings.autoSummarize")
+                                                  : StrandPalette.accent))
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Summarise past chats")
@@ -1266,7 +1277,8 @@ struct CoachSettingsView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 10) {
                         Image(systemName: "chart.bar.fill")
-                            .foregroundStyle(StrandPalette.accent)
+                            .foregroundStyle(appleHealthColors
+                                            ? CoachIconColors.color(for: "coach.settings.usage") : StrandPalette.accent)
                             .accessibilityHidden(true)
                         Text("Usage so far")
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
@@ -1503,7 +1515,9 @@ struct CoachSettingsView: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 10) {
                     Image(systemName: coach.persona.symbol)
-                        .foregroundStyle(StrandPalette.accent)
+                        .foregroundStyle(appleHealthColors
+                                        ? CoachIconColors.color(for: "coach.persona.\(coach.persona.rawValue)")
+                                        : StrandPalette.accent)
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Coaching style")
@@ -1712,8 +1726,9 @@ struct CoachSettingsView: View {
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: "brain")
-                            .foregroundStyle(memory.facts.isEmpty
-                                             ? StrandPalette.textTertiary : StrandPalette.accent)
+                            .foregroundStyle(memory.facts.isEmpty ? StrandPalette.textTertiary
+                                : (appleHealthColors ? CoachIconColors.color(for: "coach.settings.memoryBar")
+                                                      : StrandPalette.accent))
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 1) {
                             Text("Coach memory")
@@ -1821,7 +1836,9 @@ struct CoachSettingsView: View {
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: "text.alignleft")
-                            .foregroundStyle(coach.hasCustomSystemPrompt ? StrandPalette.accent : StrandPalette.textTertiary)
+                            .foregroundStyle(!coach.hasCustomSystemPrompt ? StrandPalette.textTertiary
+                                : (appleHealthColors ? CoachIconColors.color(for: "coach.settings.systemPrompt")
+                                                      : StrandPalette.accent))
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 1) {
                             Text("Coach instructions")
