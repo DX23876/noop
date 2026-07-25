@@ -311,7 +311,11 @@ final class IntelligenceEngine: ObservableObject {
     /// "-noop" computed source) , those are handled by re-import. A day already on 0–100 is recomputed
     /// from the same raw HR and lands on 0–100 again: UNCHANGED axis (verified by test).
     func runEffortRescoreIfNeeded(historyDays: Int = 4000) async {
-        guard !UserDefaults.standard.bool(forKey: Self.effortRescoreFlagKey) else { return }
+        guard !UserDefaults.standard.bool(forKey: Self.effortRescoreFlagKey) else {
+            NSLog("[FREEZE-DIAG] runEffortRescoreIfNeeded: SKIPPED (flag already set)")
+            return
+        }
+        NSLog("[FREEZE-DIAG] runEffortRescoreIfNeeded: RUNNING FULL-HISTORY rescore (maxDays=\(historyDays)) !!!")
         await analyzeRecent(maxDays: historyDays)
         // Only mark done if the pass actually completed (wasn't skipped because another tick held the
         // `computing` lock). `computing` is false here once analyzeRecent's `defer` has run; a skipped
@@ -361,7 +365,9 @@ final class IntelligenceEngine: ObservableObject {
             NSLog("IntelligenceEngine: timestamp heal (#547) FAILED , \(error); will retry next launch")
             return   // leave the flag unset so a transient failure retries
         }
+        NSLog("[FREEZE-DIAG] runTimestampHealIfNeeded: didChange=\(result.didChange) rawDeleted=\(result.rawRowsDeleted) computedDeleted=\(result.computedRowsDeleted) (pending=\(pending))")
         if result.didChange {
+            NSLog("[FREEZE-DIAG] runTimestampHealIfNeeded: RUNNING FULL-HISTORY rescore (maxDays=\(historyDays)) !!!")
             diagnosticSink?("Heal(#547): purged \(result.rawRowsDeleted) raw + \(result.computedRowsDeleted) computed row(s) with implausible (bad-clock) timestamps; rescoring the real days.", nil)
             // Recompute the affected real days from the surviving raw rows so the polluted (e.g. 721)
             // blocks regenerate cleanly. The dashboard refresh happens inside analyzeRecent on persist.
@@ -379,11 +385,24 @@ final class IntelligenceEngine: ObservableObject {
     /// Personal baselines (HRV / resting HR) are folded from the imported history, so even the first
     /// live night can be scored against your norm.
     func analyzeRecent(maxDays: Int = 21, force: Bool = true) async {
+        // TEMP DIAGNOSTIC (#freeze-investigation) — remove once the Goal & Journey freeze is understood.
+        // Logs WHO calls this, with WHAT window, and how long the pass takes, so a UI freeze can be tied
+        // to a concrete caller + workload instead of guessed at from a paused stack.
+        let diagStart = Date()
+        let diagCaller = Thread.callStackSymbols.dropFirst().prefix(6).joined(separator: " <- ")
+        NSLog("[FREEZE-DIAG] analyzeRecent ENTER maxDays=\(maxDays) force=\(force) computing=\(computing)\n  caller: \(diagCaller)")
+        defer {
+            NSLog("[FREEZE-DIAG] analyzeRecent EXIT maxDays=\(maxDays) force=\(force) took=\(String(format: "%.2f", Date().timeIntervalSince(diagStart)))s")
+        }
         // #899-A: a concurrent pass already holds the lock. A NON-forced idle tick is safe to drop (the
         // in-flight pass already covers the same window). But a FORCED call is a real update path (a
         // post-backfill rescore after a sync) , dropping it would leave a freshly-synced night unscored
         // until the next cycle. Re-arm instead: flag it so the running pass's `defer` re-invokes once.
-        guard !computing else { if force { pendingForcedRescore = true }; return }
+        guard !computing else {
+            if force { pendingForcedRescore = true }
+            NSLog("[FREEZE-DIAG] analyzeRecent SKIPPED (already computing); re-armed=\(force)")
+            return
+        }
         guard let store = await repo.storeHandle() else { note = String(localized: "No on-device store yet."); return }
         guard let hrvCfg = Baselines.metricCfg["hrv"],
               let rhrCfg = Baselines.metricCfg["resting_hr"],
@@ -400,10 +419,15 @@ final class IntelligenceEngine: ObservableObject {
         // workout delete) is untouched and no computed history is dropped. Every real update path (sync
         // backfill, import, sleep/workout edit, baseline recalibrate, timestamp heal) calls with the default
         // `force: true` and always rescores, so a skipped tick can never hide new data.
+        // TEMP DIAGNOSTIC: the whole-history HR fingerprint runs on EVERY call (before the force check),
+        // so time it separately — on a large imported library this query alone can be slow.
+        let diagFpStart = Date()
         let wmKey: String = (try? await store.hrFingerprint(deviceId: deviceId, from: 0, to: 9_999_999_999))
             .map { "\($0.count):\($0.maxTs)" } ?? ""
+        NSLog("[FREEZE-DIAG] hrFingerprint(whole history) took=\(String(format: "%.2f", Date().timeIntervalSince(diagFpStart)))s key=\(wmKey)")
         if !force, !wmKey.isEmpty,
            UserDefaults.standard.string(forKey: Self.analyzeWatermarkKey) == wmKey {
+            NSLog("[FREEZE-DIAG] analyzeRecent SHORT-CIRCUIT (unchanged fingerprint) — no work done")
             return
         }
 
@@ -550,6 +574,16 @@ final class IntelligenceEngine: ObservableObject {
             var skinAnchorByOwner: [String: Double] = [:]
             var skinAnchorResolvedOwners = Set<String>()
             for offset in 0..<maxDays {
+                // Cooperative hand-off between days (#goal-journey-freeze). Each day below is 10-18 s of
+                // uninterrupted array crunching on a library with a deep raw-HR history (~190 k HR +
+                // 200 k R-R samples per 54 h night window), and the enclosing `Task.detached(priority:
+                // .utility)` is PRIORITY-ESCALATED to the awaiting caller's QoS — this class is
+                // `@MainActor`, so the "background" scan actually competes with the UI. Without a
+                // suspension point the whole 21-day pass runs as one unbroken block and any view that
+                // needs a second layout pass (Goal & Journey does) waits minutes for it. `Task.yield()`
+                // costs nothing when the CPU is free and changes NO computed value — the loop body,
+                // its inputs and its output are untouched.
+                await Task.yield()
                 let dayStart = nowLocalMidnight - offset * 86_400
                 let day = AnalyticsEngine.dayString(dayStart, offsetSec: tzOffset)
                 // Read a generous window around the night that ends on `day`; the stager finds the span.
@@ -717,6 +751,12 @@ final class IntelligenceEngine: ObservableObject {
                 // HRV mode (#141): a per-day collector for the nightly per-window RMSSD + summary; nil = default.
                 var hrvTrace: [String] = []
                 let hrvTraceSink: ((String) -> Void)? = hrvTraceActive ? { hrvTrace.append($0) } : nil
+                // TEMP DIAGNOSTIC: per-day cost + input volume, so a slow pass shows WHICH day is heavy
+                // and how many samples it actually had to chew through.
+                let diagDayStart = Date()
+                defer {
+                    NSLog("[FREEZE-DIAG]   day=\(day) took=\(String(format: "%.2f", Date().timeIntervalSince(diagDayStart)))s hr=\(hr.count) rr=\(rr.count) grav=\(grav.count) steps=\(steps.count)")
+                }
                 let res = AnalyticsEngine.analyzeDay(day: day, hr: hr, rr: rr, resp: resp, gravity: grav,
                                                      steps: steps, dayHr: dayHr, daySteps: daySteps,
                                                      dayGravity: dayGrav,

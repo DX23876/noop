@@ -62,6 +62,17 @@ enum TodaySection: String, CaseIterable, Identifiable {
     /// and the stored `today.hiddenSections` string remains authoritative once set (an empty string = nothing
     /// hidden, same as this default), so existing users who already hid sections keep that choice untouched.
     static let defaultHidden: Set<TodaySection> = []
+
+    /// UX hierarchy: "major" sections (the hero scores, the Synthesis verdict, the Key Metrics grid, and
+    /// the Recovery Vitals) carry more visual weight and get extra breathing room above them, while minor
+    /// sections (workouts, HR, journal, data sources) sit tighter. This drives the graduated spacing in
+    /// LiquidTodayView's section stack so the screen reads in clear groups instead of a uniform dense list.
+    var isMajorSection: Bool {
+        switch self {
+        case .hero, .synthesis, .keyMetrics, .recoveryVitals: return true
+        default: return false
+        }
+    }
 }
 
 /// Display-only persistence for the Today section order. Holds the sections in display order; every known

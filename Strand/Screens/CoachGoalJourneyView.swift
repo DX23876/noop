@@ -10,6 +10,9 @@ struct CoachGoalJourneyScreen: View {
                        subtitle: "Your target, your pace, your progress.") {
             CoachGoalJourneyView()
         }
+        // TEMP DIAGNOSTIC (#freeze-investigation): timestamps the moment this screen is built, so the
+        // analytics log lines can be read as before/during/after the tap. Remove with the other markers.
+        .onAppear { NSLog("[FREEZE-DIAG] >>> CoachGoalJourneyScreen onAppear (Goal & Journey opened)") }
     }
 }
 
@@ -43,21 +46,34 @@ struct CoachGoalJourneyView: View {
     /// file already carries a scar from — here it showed up as the wizard resetting to its first step
     /// mid-setup. A push keeps one presentation host and one view identity.
     @State private var showGuidedSetup = false
-    private enum GoalConfirmation: Identifiable {
-        case setAside(UUID), delete(UUID)
-        var id: String {
-            switch self {
-            case .setAside(let id): return "setAside-\(id)"
-            case .delete(let id):   return "delete-\(id)"
-            }
-        }
-    }
-    @State private var goalConfirmation: GoalConfirmation?
+
+    // Two separate confirmation dialogs, each with a LITERAL title and a stored `@State` Bool binding
+    // (#goal-journey-freeze). This replaced a single enum-driven dialog whose `isPresented:` was a
+    // Binding CONSTRUCTED FRESH inside a computed property on every body evaluation, and whose title was
+    // a computed `LocalizedStringKey` that resolved to "" whenever nothing was being confirmed — i.e. in
+    // the normal resting state. That combination put SwiftUI's confirmation-dialog machinery into a
+    // re-evaluation loop that froze the screen the moment it opened, on BOTH routes to it (the chat's
+    // shortcut and the settings subpage). Every other confirmation dialog in the app — DevicesView (3 of
+    // them on one view), CoachSettingsView, JourneyView, CoachPlanView — already uses this
+    // literal-title + stored-@State shape, which is why none of them ever showed the problem.
+    @State private var setAsideGoalId: UUID?
+    @State private var showSetAsideConfirm = false
+    @State private var deleteGoalId: UUID?
+    @State private var showDeleteConfirm = false
+
+    /// TEMP DIAGNOSTIC (#goal-journey-freeze): body-evaluation counter, see `body`.
+    nonisolated(unsafe) static var diagBodyCount = 0
 
     private var activeGoals: [CoachGoal] { goalStore.activeGoals }
     private var canAddMore: Bool { activeGoals.count < CoachGoalStore.maxActiveGoals }
 
     var body: some View {
+        // TEMP DIAGNOSTIC (#goal-journey-freeze): counts body evaluations. A healthy open logs a
+        // handful; a render loop logs hundreds within seconds. Remove once the fix is confirmed.
+        let _ = { Self.diagBodyCount += 1
+                  if Self.diagBodyCount % 10 == 0 || Self.diagBodyCount < 12 {
+                      NSLog("[FREEZE-DIAG] CoachGoalJourneyView body eval #\(Self.diagBodyCount) goals=\(activeGoals.count) expired=\(expiredGoals.count)")
+                  } }()
         VStack(spacing: 16) {
             ForEach(expiredGoals) { g in expiredGoalCard(g) }
             ForEach(activeGoals) { g in goalCard(g) }
@@ -85,53 +101,44 @@ struct CoachGoalJourneyView: View {
                 UserDefaults.standard.set(true, forKey: CoachView.goalOnboardingAskedKey)
             }
         }
-        .confirmationDialog(goalConfirmationTitle,
-                            isPresented: goalConfirmationIsPresented,
+        // Literal titles + stored bindings — see the `showSetAsideConfirm` declaration for why the
+        // previous single computed-Binding dialog froze this screen.
+        .confirmationDialog("Set this goal aside?", isPresented: $showSetAsideConfirm,
                             titleVisibility: .visible) {
-            goalConfirmationActions
+            if let id = setAsideGoalId {
+                Button("Injury or health") { goalStore.setAside(id, reason: "injury or health") }
+                Button("Life got busy") { goalStore.setAside(id, reason: "life got busy") }
+                Button("Priorities changed") { goalStore.setAside(id, reason: "priorities changed") }
+                Button("No particular reason") { goalStore.setAside(id, reason: "") }
+            }
+            Button("Cancel", role: .cancel) {}
         } message: {
-            goalConfirmationMessage
+            Text("It stays in your history — nothing is lost, and there's nothing to justify.")
         }
-    }
-
-    // MARK: - Confirmation dialog (one enum-driven dialog — see R2)
-
-    private var goalConfirmationIsPresented: Binding<Bool> {
-        Binding(get: { goalConfirmation != nil }, set: { if !$0 { goalConfirmation = nil } })
-    }
-
-    private var goalConfirmationTitle: LocalizedStringKey {
-        switch goalConfirmation {
-        case .setAside: return "Set this goal aside?"
-        case .delete:   return "Delete this goal?"
-        case nil:       return ""
-        }
-    }
-
-    @ViewBuilder
-    private var goalConfirmationActions: some View {
-        switch goalConfirmation {
-        case .setAside(let id):
-            Button("Injury or health") { goalStore.setAside(id, reason: "injury or health") }
-            Button("Life got busy") { goalStore.setAside(id, reason: "life got busy") }
-            Button("Priorities changed") { goalStore.setAside(id, reason: "priorities changed") }
-            Button("No particular reason") { goalStore.setAside(id, reason: "") }
+        .confirmationDialog("Delete this goal?", isPresented: $showDeleteConfirm,
+                            titleVisibility: .visible) {
+            if let id = deleteGoalId {
+                Button("Delete goal", role: .destructive) { goalStore.remove(id) }
+            }
             Button("Cancel", role: .cancel) {}
-        case .delete(let id):
-            Button("Delete goal", role: .destructive) { goalStore.remove(id) }
-            Button("Cancel", role: .cancel) {}
-        case nil:
-            EmptyView()
+        } message: {
+            Text("This removes the goal and its history from the device. There is no undo.")
         }
     }
 
-    @ViewBuilder
-    private var goalConfirmationMessage: some View {
-        switch goalConfirmation {
-        case .setAside: Text("It stays in your history — nothing is lost, and there's nothing to justify.")
-        case .delete:   Text("This removes the goal and its history from the device. There is no undo.")
-        case nil:       EmptyView()
-        }
+    // MARK: - Confirmation helpers
+
+    /// Arm the "set this goal aside" dialog for one goal. Payload and visibility are set together, so the
+    /// dialog never renders without knowing which goal it is about.
+    private func confirmSetAside(_ id: UUID) {
+        setAsideGoalId = id
+        showSetAsideConfirm = true
+    }
+
+    /// Arm the "delete this goal" dialog for one goal. Same pairing as `confirmSetAside`.
+    private func confirmDelete(_ id: UUID) {
+        deleteGoalId = id
+        showDeleteConfirm = true
     }
 
     // MARK: - Add a goal
@@ -249,10 +256,10 @@ struct CoachGoalJourneyView: View {
         HStack(spacing: 16) {
             Button("Mark as achieved") { goalStore.markAchieved(goal.id) }
                 .font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
-            Button("Set aside") { goalConfirmation = .setAside(goal.id) }
+            Button("Set aside") { confirmSetAside(goal.id) }
                 .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
             Spacer(minLength: 8)
-            Button { goalConfirmation = .delete(goal.id) } label: {
+            Button { confirmDelete(goal.id) } label: {
                 Image(systemName: "trash")
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.statusWarning)
@@ -287,7 +294,7 @@ struct CoachGoalJourneyView: View {
                         .foregroundStyle(StrandPalette.accent)
                     Button("Extend the date") { goalSheet = .edit(goal.id) }
                         .foregroundStyle(StrandPalette.accent)
-                    Button("Set aside") { goalConfirmation = .setAside(goal.id) }
+                    Button("Set aside") { confirmSetAside(goal.id) }
                         .foregroundStyle(StrandPalette.textSecondary)
                 }
                 .font(StrandFont.footnote)
@@ -303,7 +310,9 @@ struct CoachGoalJourneyView: View {
             parts.append(weeks < 0 ? "target date passed"
                                    : String(format: "%.0f weeks to go", weeks.rounded()))
         }
-        let gate = GoalSafetyGate.assess(goal: goal, bodyWeightKg: ProfileStore().weightKg)
+        // Plain read — NEVER `ProfileStore()` here: that initialiser writes to UserDefaults, and doing
+        // that inside a body evaluation forced this screen's second layout pass (#goal-journey-freeze).
+        let gate = GoalSafetyGate.assess(goal: goal, bodyWeightKg: ProfileStore.persistedWeightKg)
         if gate.verdict == .aggressive || gate.verdict == .veryAggressive {
             parts.append(goal.acknowledgedRisk != nil ? "brisk pace, acknowledged" : "brisk pace")
         }

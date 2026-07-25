@@ -130,6 +130,17 @@ final class ProfileStore: ObservableObject {
         name = d.string(forKey: K.name) ?? ""
     }
 
+    /// The persisted body weight, read WITHOUT constructing a store (#goal-journey-freeze).
+    ///
+    /// `init()` deliberately WRITES (it mirrors the #146-derived age under the legacy key), so building a
+    /// throwaway `ProfileStore()` just to read one number mutates UserDefaults as a side effect. Done
+    /// inside a SwiftUI `body` — as `CoachGoalJourneyView.goalSubtitle` did, once per goal card per pass
+    /// — that invalidates any `@AppStorage` in the same view and forces an extra layout pass. This
+    /// accessor is a plain read: same key, same default, no writes, no `@Published`, no actor hop.
+    nonisolated static var persistedWeightKg: Double {
+        UserDefaults.standard.object(forKey: K.weight) as? Double ?? 75
+    }
+
     /// The trimmed name, or nil when none is set — what greeting surfaces read so they never have to
     /// repeat the trim-and-check dance (and can never render "Good morning, ").
     var displayName: String? {
