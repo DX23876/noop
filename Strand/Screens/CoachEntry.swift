@@ -1,37 +1,29 @@
 import SwiftUI
 import StrandDesign
 
-/// How the user reaches the Coach from the home surface. The user picks in Coach settings; the Today
-/// list row (`.card` — `CoachTodayRow`) and the floating button honour it. Shared (not iOS-only)
-/// because the Today views that read it compile for macOS too — the floating button itself is only
-/// mounted on iOS (see `CoachFloatingButton`).
-enum CoachEntryMode: String, CaseIterable, Identifiable {
-    case card, button, both
+/// How the user reaches the Coach from the home surfaces — three INDEPENDENT entry points, each its own
+/// on/off switch. Replaces the old three-way `card`/`button`/`both` picker (`CoachEntryMode`), which could
+/// only express "row XOR button XOR both" and had no room for the Liquid header-icon entry added later —
+/// a user who wanted the banner AND the header icon AND the floating button simultaneously had no way to
+/// say so. The user picks in Coach settings (`CoachSettingsView`); `CoachTodayRow` / the Liquid coach
+/// banner, `LiquidTodayView`'s header icon, and `CoachFloatingButton` each read their own key directly.
+enum CoachEntryPrefs {
+    /// Full-width row on Today — `CoachTodayRow` on classic, the Liquid-styled coach banner on Liquid.
+    /// Both render as the reorderable `TodaySection.coach` (see `TodayLayoutPrefs`), so its POSITION is
+    /// controlled by the Arrange sheet, not by a setting here — this key only turns it on/off.
+    static let bannerKey = "coach.entry.banner"
+    /// Compact avatar/sparkle button in Liquid Today's header icon cluster. No classic-Today counterpart —
+    /// classic has no such header slot, so only `LiquidTodayView` reads this key.
+    static let headerIconKey = "coach.entry.headerIcon"
+    /// The draggable floating Coach button (`CoachFloatingButton`), mounted app-wide by `RootTabView`,
+    /// iOS only.
+    static let floatingButtonKey = "coach.entry.floatingButton"
 
-    var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .card:   return "List row"
-        case .button: return "Floating button"
-        case .both:   return "Both"
-        }
-    }
-
-    /// Named `showsCard` for history; the `.card` style is the Today **list row** (`CoachTodayRow`) —
-    /// it was briefly a header avatar squeezed next to the profile picture, now split back out into its
-    /// own row. The gate is unchanged — surfaces read this the same way.
-    var showsCard: Bool { self == .card || self == .both }
-    var showsButton: Bool { self == .button || self == .both }
-
-    /// The shared UserDefaults key both the setting and the surfaces read.
-    static let storageKey = "coach.entryMode"
-
-    /// Master switch for the Coach's home-surface UI (#R7 / list 14): when off, the Today header avatar AND
-    /// the floating button are hidden regardless of `self`, while the chosen entry style is remembered for
-    /// when it's turned back on. Deliberately independent of `dataConsent` / `isConfigured` and of the
-    /// card- and background-AI paths (`model(for:)`), which keep running — this hides only the coach's
-    /// own entry points, not the AI features that don't depend on the chat.
+    /// Master switch for the Coach's home-surface UI (#R7 / list 14): when off, ALL THREE entries above
+    /// are hidden regardless of their own toggles, while each one's own value is remembered for when it's
+    /// turned back on. Deliberately independent of `dataConsent` / `isConfigured` and of the card- and
+    /// background-AI paths (`model(for:)`), which keep running — this hides only the coach's own entry
+    /// points, not the AI features that don't depend on the chat.
     static let uiEnabledKey = "coach.uiEnabled"
 
     /// Whether the Coach's home-surface UI is enabled. Absent key ⇒ true, so existing installs are
@@ -42,14 +34,31 @@ enum CoachEntryMode: String, CaseIterable, Identifiable {
             : UserDefaults.standard.bool(forKey: uiEnabledKey)
     }
 
-    /// Show the current coach's avatar (rather than a generic sparkle) on the Today header entry (#R11).
-    /// Default on; turning it off restores the previous plain-icon look. Independent of `uiEnabled`.
+    /// Show the current coach's avatar (rather than a generic sparkle) on the banner/header entries (#R11).
+    /// Default on; turning it off restores the plain-icon look. Independent of `uiEnabled`.
     static let todayAvatarKey = "coach.todayAvatar"
 
-    /// Current mode from UserDefaults (defaults to `.both`). A tiny helper so call sites don't repeat the
-    /// `@AppStorage` raw-string dance.
-    static var current: CoachEntryMode {
-        CoachEntryMode(rawValue: UserDefaults.standard.string(forKey: storageKey) ?? "") ?? .both
+    /// The retired three-way picker's storage key (`card` / `button` / `both`). Read ONLY by
+    /// `migrateIfNeeded()` below, never by a live surface.
+    private static let legacyModeKey = "coach.entryMode"
+
+    /// One-time migration off the retired card/button/both picker: preserves what an existing install
+    /// already had for the header icon and the floating button, and turns the (new) banner on
+    /// unconditionally — it's a brand-new capability on Liquid Today, and was already effectively on for
+    /// classic Today (whose banner, `CoachTodayRow`, used to be gated by the SAME "card" bit the header
+    /// icon now reads independently). A user who had explicitly turned that bit off will see their classic
+    /// banner once more after updating, and can hide it again with the new, more precise `bannerKey`
+    /// toggle. No-ops once the three new keys exist (call it as often as you like, from any reader's init).
+    static func migrateIfNeeded(defaults: UserDefaults = .standard) {
+        guard let legacy = defaults.string(forKey: legacyModeKey),
+              defaults.object(forKey: bannerKey) == nil,
+              defaults.object(forKey: headerIconKey) == nil,
+              defaults.object(forKey: floatingButtonKey) == nil else { return }
+        let showedCard = legacy == "card" || legacy == "both"
+        let showedButton = legacy == "button" || legacy == "both"
+        defaults.set(true, forKey: bannerKey)
+        defaults.set(showedCard, forKey: headerIconKey)
+        defaults.set(showedButton, forKey: floatingButtonKey)
     }
 }
 
@@ -206,7 +215,7 @@ struct CoachCardIconButton: View {
 /// drift apart.
 struct CoachEntryAvatar: View {
     var size: CGFloat = 40
-    /// False renders the generic sparkle disc — the `CoachEntryMode.todayAvatarKey` opt-out.
+    /// False renders the generic sparkle disc — the `CoachEntryPrefs.todayAvatarKey` opt-out.
     var showsAvatar: Bool = true
 
     var body: some View {
@@ -245,7 +254,7 @@ struct CoachTodayRow: View {
     @ObservedObject private var identityStore = CoachIdentityStore.shared
     /// Show the coach's avatar (rather than a generic sparkle) on the row — the same toggle the old
     /// header entry read, so turning it off keeps behaving the same way it always did.
-    @AppStorage(CoachEntryMode.todayAvatarKey) private var todayAvatar = true
+    @AppStorage(CoachEntryPrefs.todayAvatarKey) private var todayAvatar = true
 
     private let avatarSize: CGFloat = 40
 
@@ -299,7 +308,7 @@ struct CoachTodayTile: View {
 
     @EnvironmentObject private var coach: AICoachEngine
     @ObservedObject private var identityStore = CoachIdentityStore.shared
-    @AppStorage(CoachEntryMode.todayAvatarKey) private var todayAvatar = true
+    @AppStorage(CoachEntryPrefs.todayAvatarKey) private var todayAvatar = true
     /// The user's switch for the pulse (Settings → Appearance). See `CoachTilePrefs`.
     @AppStorage(CoachTilePrefs.breathingKey) private var breathingEnabled = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion

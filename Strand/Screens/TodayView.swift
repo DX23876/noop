@@ -206,9 +206,21 @@ struct TodayView: View {
     @EnvironmentObject var coach: AICoachEngine
     @State private var showCoach = false
     @State private var showPlan = false
-    @AppStorage(CoachEntryMode.storageKey) private var coachEntryModeRaw = CoachEntryMode.both.rawValue
-    /// Master switch (#R7): hides the Coach's Today card when the coach UI is turned off.
-    @AppStorage(CoachEntryMode.uiEnabledKey) private var coachUIEnabled = true
+    /// The full-width coach banner (`CoachTodayRow`), rendered as the reorderable `.coach` section.
+    @AppStorage(CoachEntryPrefs.bannerKey) private var coachBannerEnabled = true
+    /// Master switch (#R7): hides every Coach entry point when the coach UI is turned off.
+    @AppStorage(CoachEntryPrefs.uiEnabledKey) private var coachUIEnabled = true
+
+    // #today-layout: the user-chosen section order, SAME `@AppStorage` key `LiquidTodayView` reads/writes
+    // (`TodayLayoutPrefs.orderKey`) — a reorder on one Today screen is reflected on the other, since it's
+    // one persisted layout, not two. Reordered via the Arrange sheet (top-bar/toolbar button); every known
+    // section always renders, a hidden one just keeps its slot (see `TodayLayoutPrefs`).
+    @AppStorage(TodayLayoutPrefs.orderKey) private var sectionOrderRaw = ""
+    @State private var showArrangeSheet = false
+    private var sectionOrder: [TodaySection] { TodayLayoutPrefs.decodeOrder(sectionOrderRaw) }
+    @AppStorage(TodayLayoutPrefs.hiddenKey) private var hiddenSectionsRaw =
+        TodayLayoutPrefs.encodeHidden(TodaySection.defaultHidden)
+    private var hiddenSections: Set<TodaySection> { TodayLayoutPrefs.decodeHidden(hiddenSectionsRaw) }
 
     // Imperial/Metric display preference (D#103). Only the Weight tile carries a convertible unit here.
     @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
@@ -1177,6 +1189,18 @@ struct TodayView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Updates")
+                // #today-layout: opens the Arrange sheet (drag rows to reorder/hide the Today sections) —
+                // same sheet, same persisted order, as Liquid Today's own arrange button.
+                Button { showArrangeSheet = true } label: {
+                    Image(systemName: "arrow.up.arrow.down")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .frame(width: 36, height: 36)
+                        .background(Circle().fill(StrandPalette.surfaceInset))
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Arrange Today sections")
                 // Quick-action + (the accented primary, gold, same 36 size as the rest).
                 Button { router.requestQuickActions() } label: {
                     Image(systemName: "plus")
@@ -1301,12 +1325,6 @@ struct TodayView: View {
                 DayNavBar(selectedOffset: selectedDayOffset,
                           today: Repository.logicalDay(Date())) { selectedDayOffset = $0 }
                 #endif
-                // Coach entry (#R-header-coach): its own row, right under the top bar — pulled out of the
-                // header icon cluster (see `todayTopBar`) so it's never adjacent to the profile picture.
-                // Same gate the header icon used.
-                if coachUIEnabled, (CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both).showsCard {
-                    CoachTodayRow(isPresented: $showCoach)
-                }
                 // A "workout in progress" indicator whenever a manual workout is active. A tap routes to Live
                 // and opens the in-exercise screen. Its own leaf owns the AppModel observation + per-second
                 // clock, so the live tick never re-renders TodayView.body.
@@ -1343,53 +1361,67 @@ struct TodayView: View {
                 // backdrop is confined to the ring region via `.background`, so it lifts the identity rings
                 // without tinting the rest of the dashboard. The day-cycle scene wash caps at ~0.42 opacity
                 // and fades top-down with a bottom dark scrim, no glow, so the white ring numbers + labels
-                // stay crisp and high-contrast.
-                #if os(iOS)
-                // Pull the rings up under the compact top bar, the full section gap left too much air
-                // above them now the big "Today's Synthesis" header is gone. The hero now sits over the
-                // day-cycle SCENE wash (picked by the local hour), which fades top-down behind the rings;
-                // the scene IS the atmosphere here, replacing the procedural time-of-day backdrop. It caps
-                // at ~0.42 opacity with a bottom dark scrim so the white ring numbers + labels stay crisp.
-                heroSection
-                    .padding(.vertical, NoopMetrics.space4)
-                    .frame(maxWidth: .infinity)
-                    // The dark hero CARD floats over the vivid day-scene so the rings + white numbers stay
-                    // crisp, the card does the contrast work, not a muted scene (2026-06-23).
-                    .background(
-                        RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous)
-                            .fill(StrandPalette.surfaceBase.opacity(0.72))
-                    )
-                    .staggeredAppear(index: 0)
-                #else
-                heroSection
-                    .padding(.vertical, NoopMetrics.space4)
-                    .frame(maxWidth: .infinity)
-                    .background(
-                        RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous)
-                            .fill(StrandPalette.surfaceBase.opacity(0.72))
-                    )
-                    .staggeredAppear(index: 0)
-                #endif
-                synthesisSection.staggeredAppear(index: 1)
-                // S4: the SEPARATE Readiness block is no longer a home-screen card, it folded into the
-                // Charge-ring tap (chargeBreakdownSheet). A one-word readiness read (Push / Maintain / Rest,
-                // #205) stays on the hero via the Synthesis section's pill row, so the home screen keeps a
-                // glanceable verdict without the full card. Readiness is NOT deleted, only moved behind a tap.
-                metricsSection.staggeredAppear(index: 2)
-                workoutsSection.staggeredAppear(index: 3)
-                heartRateTrendSection.staggeredAppear(index: 4)
-                yourCardsSection.staggeredAppear(index: 5)
+                // stay crisp and high-contrast. On iOS this also pulls the rings up under the compact top
+                // bar, the full section gap left too much air above them now the big "Today's Synthesis"
+                // header is gone.
+                //
+                // #today-layout: every section below — the hero scores, Coach's banner, Synthesis, Key
+                // Metrics, Workouts, Heart Rate, Recovery Vitals, Your Cards, Journal, Data Sources — renders
+                // in the user's saved order (same mechanism, same persisted order, as `LiquidTodayView`; see
+                // `TodayLayoutPrefs`). `ActiveWorkoutIndicatorSection`, `MorningSuggestionCard`, the
+                // scores-building notes above, and `AutoWorkoutCard`/`PlanTodayCard` below stay fixed outside
+                // this block — the same split Liquid Today itself uses for its own non-reorderable elements.
+                ForEach(Array(sectionOrder.enumerated()), id: \.offset) { idx, section in
+                    if !hiddenSections.contains(section) {
+                        Group {
+                            switch section {
+                            case .coach:
+                                // Same gate the header icon used on Liquid, now this screen's own toggle.
+                                if coachUIEnabled, coachBannerEnabled {
+                                    CoachTodayRow(isPresented: $showCoach)
+                                }
+                            case .hero:
+                                heroCard
+                            case .liveSession:
+                                // Classic has never had a "Start session" entry point on any platform — the
+                                // silent-guardian beta lives in the "+" quick-action sheet here too. Keeping
+                                // the case (rendering nothing) means the shared order string stays valid
+                                // whichever Today screen last wrote it.
+                                EmptyView()
+                            case .synthesis:
+                                synthesisSection
+                            case .keyMetrics:
+                                // S4: the SEPARATE Readiness block is no longer a home-screen card, it folded
+                                // into the Charge-ring tap (chargeBreakdownSheet). A one-word readiness read
+                                // (Push / Maintain / Rest, #205) stays on the hero via the Synthesis section's
+                                // pill row, so the home screen keeps a glanceable verdict without the full card.
+                                metricsSection
+                            case .workouts:
+                                workoutsSection
+                            case .heartRate:
+                                heartRateTrendSection
+                            case .recoveryVitals:
+                                recoveryVitalsCard(displayDay)
+                            case .yourCards:
+                                yourCardsSection
+                            case .journal:
+                                // #627: the persistent journal widget (last-7-days strip + tap-through).
+                                // Today only; self-hides when the reminder toggle is off.
+                                if selectedDayOffset == 0 { JournalReminderCard() }
+                            case .dataSources:
+                                sourcesSection
+                            }
+                        }
+                        .staggeredAppear(index: idx)
+                    }
+                }
                 // Opt-in "looks like a workout?" suggestion (default OFF). Renders only when the
                 // Settings toggle is on AND the detector finds a recent unsaved, un-dismissed window.
                 AutoWorkoutCard()
-                // #627: the persistent journal widget (last-7-days strip + tap-through to the journal).
-                // Today only; self-hides when the reminder toggle is off. Twin of Android JournalReminderCard.
-                if selectedDayOffset == 0 { JournalReminderCard() }
                 // The committed "next up" session sits BELOW the metric sections on purpose: once accepted
                 // it's an ambient reminder, not a demand for the top of the screen. It draws attention on
                 // its own terms as its time nears (colour + breathe, see PlanTodayCard).
                 PlanTodayCard(showPlan: $showPlan)
-                sourcesSection
             }
             #if os(iOS)
             // #817 - horizontal swipe to change day. A right-swipe (positive X) steps to the NEWER day
@@ -1450,6 +1482,13 @@ struct TodayView: View {
             ToolbarItem(placement: .primaryAction) {
                 updateBell.help("Updates")
             }
+            // #today-layout: the Arrange button, macOS toolbar twin of the iOS top-bar icon.
+            ToolbarItem(placement: .primaryAction) {
+                Button { showArrangeSheet = true } label: {
+                    Image(systemName: "arrow.up.arrow.down")
+                }
+                .help("Arrange Today sections")
+            }
         }
         #else
         // Profile/settings from the top-bar button.
@@ -1466,6 +1505,10 @@ struct TodayView: View {
         // The Updates inbox (the header bell). Both platforms.
         .sheet(isPresented: $showUpdatesInbox) {
             UpdatesInboxView(onClose: { showUpdatesInbox = false })
+        }
+        // #today-layout: the Arrange sheet — same shared component `LiquidTodayView` uses.
+        .sheet(isPresented: $showArrangeSheet) {
+            TodayArrangeSheet(orderRaw: $sectionOrderRaw, hiddenRaw: $hiddenSectionsRaw)
         }
         // The Coach chat, opened by the prominent Coach card above. Uses the shared View.coachCover
         // helper (defined alongside LiquidTodayView's covers).
@@ -1730,6 +1773,21 @@ struct TodayView: View {
 
     // MARK: (a) HERO, three ring scores (Charge / Effort / Rest) over a scenic backdrop,
     // then the green-tinted Synthesis coaching card. Bevel layout.
+
+    /// `heroSection` wrapped in its card chrome — pulled out to its own property so the reorderable
+    /// `.hero` case in `body`'s `ForEach` can render it like every other section. The dark hero card floats
+    /// over the vivid day-scene so the rings + white numbers stay crisp; the card does the contrast work,
+    /// not a muted scene (2026-06-23). Identical on both platforms — the styling never actually differed,
+    /// only a stale `#if os(iOS)`/`#else` split (with a comment explaining iOS's compact top bar) duplicated it.
+    private var heroCard: some View {
+        heroSection
+            .padding(.vertical, NoopMetrics.space4)
+            .frame(maxWidth: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous)
+                    .fill(StrandPalette.surfaceBase.opacity(0.72))
+            )
+    }
 
     @ViewBuilder
     private var heroSection: some View {
@@ -2019,9 +2077,6 @@ struct TodayView: View {
                 .padding(.horizontal, 2)
                 .accessibilityElement(children: .combine)
             }
-
-            // HRV / Resting HR / Respiratory, the vitals that drive recovery.
-            recoveryVitalsCard(d)
         }
     }
 
@@ -2982,6 +3037,15 @@ struct TodayView: View {
             let v = hrPoints.map(\.value)
             VStack(alignment: .leading, spacing: NoopMetrics.gap) {
                 SectionHeader("Heart Rate", overline: "\(selectedDayOverline)")
+                // The current LIVE bpm, isolated so its ~1 Hz tick re-renders only this row, never the
+                // chart below (see the `LiveState` note at the top of this type). Today only — a "live"
+                // number would be a false statement while looking at a past day's banked trend.
+                if selectedDayOffset == 0 {
+                    HStack {
+                        Spacer()
+                        TodayLiveHRBadge()
+                    }
+                }
                 ChartCard(
                     title: "Beats per minute",
                     subtitle: selectedDayOffset == 0 ? String(localized: "5-minute average · since midnight") : String(localized: "5-minute average · selected day"),
@@ -3028,6 +3092,7 @@ struct TodayView: View {
                 // to chartHeight, so an in-card hint would be squashed; the Deep Timeline places its hint
                 // outside the card for the same reason).
                 hrZoomHint
+                fullDayLink
             }
         } else {
             // #863: an empty / single-bucket day. A calibrating 4.0 banks HR slowly, so an empty curve early
@@ -3036,6 +3101,14 @@ struct TodayView: View {
             // state is the parity-matched fix. Mirrors the Android HeartRateTrendCard empty branch.
             VStack(alignment: .leading, spacing: NoopMetrics.gap) {
                 SectionHeader("Heart Rate", overline: "\(selectedDayOverline)")
+                // Same live badge as the populated branch — the strap can already be streaming live beats
+                // before enough 5-minute buckets have banked to draw a curve.
+                if selectedDayOffset == 0 {
+                    HStack {
+                        Spacer()
+                        TodayLiveHRBadge()
+                    }
+                }
                 ChartCard(
                     title: "Beats per minute",
                     subtitle: selectedDayOffset == 0
@@ -3090,6 +3163,26 @@ struct TodayView: View {
         withAnimation(NoopMotion.gated(StrandMotion.interactive, reduced: reduceMotion)) {
             hrZoomDomain = nil
         }
+    }
+
+    /// One-tap route into the Deep Timeline ("Ganzer Tag" / full-day view), the twin of Liquid Today's
+    /// "Full day" link under its own HR card. A discrete row rather than wrapping the whole `ChartCard` in
+    /// a `NavigationLink` — the chart already owns pinch/pan/double-tap over that whole area, and a
+    /// card-wide link would swallow those gestures as taps (same reasoning `LiquidTodayView.heartRateSection`
+    /// documents for its own footer link). `TabRoute.fullDayChart` always opens on today, with its own
+    /// day navigation, regardless of which day this Today screen currently has selected.
+    private var fullDayLink: some View {
+        NavigationLink(value: TabRoute.fullDayChart) {
+            HStack(spacing: 4) {
+                Spacer()
+                Text("Full day").font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
+                Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(StrandPalette.accent)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Opens the full-day heart rate timeline")
     }
 
     /// #829 - keep a Today HR zoom window valid as the loaded axis changes across reloads. Pure +
@@ -4618,6 +4711,33 @@ struct TodayDayScopedCache {
 /// / time since last sync / "live" for 5.0/MG experimental) — one indicator instead of two, since both
 /// were describing the same device-status concept. Taps to Devices. Owns the `LiveState` observation so
 /// a live-HR tick refreshes only this element.
+/// The current live bpm + a small pulsing dot, over `heartRateTrendSection`'s chart. Isolated exactly like
+/// `RecordingStatusLight` below — its OWN `@EnvironmentObject LiveState` so the ~1 Hz tick re-renders only
+/// this badge, never the chart or the rest of `body` (see the `LiveState` note at the top of this type).
+/// Renders nothing once the strap stops streaming; the caller only mounts it on `selectedDayOffset == 0`,
+/// so a live number never shows beside a past day's banked trend.
+private struct TodayLiveHRBadge: View {
+    @EnvironmentObject private var live: LiveState
+    @State private var beat = false
+
+    var body: some View {
+        if let hr = live.heartRate, hr > 0, live.connected {
+            HStack(spacing: 5) {
+                Circle().fill(StrandPalette.metricRose).frame(width: 6, height: 6)
+                    .scaleEffect(beat ? 1.35 : 0.85)
+                    .opacity(beat ? 1 : 0.45)
+                    .animation(.easeOut(duration: 0.28), value: beat)
+                (Text("\(hr)").font(StrandFont.bodyNumber).monospacedDigit()
+                    + Text(" bpm live").font(StrandFont.footnote))
+                    .foregroundStyle(StrandPalette.metricRose)
+            }
+            .onChangeCompat(of: live.heartRate) { _ in beat.toggle() }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(hr) beats per minute, live")
+        }
+    }
+}
+
 private struct RecordingStatusLight: View {
     @EnvironmentObject private var live: LiveState
     let selectedDayOffset: Int

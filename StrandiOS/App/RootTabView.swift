@@ -14,12 +14,11 @@ struct RootTabView: View {
     /// the chat from the shell.
     @EnvironmentObject private var coach: AICoachEngine
 
-    /// Coach entry preference (Today card / floating button / both) and the floating-button presentation.
-    @AppStorage(CoachEntryMode.storageKey) private var coachEntryModeRaw = CoachEntryMode.both.rawValue
+    /// Whether the draggable floating Coach button is one of the user's chosen entry points.
+    @AppStorage(CoachEntryPrefs.floatingButtonKey) private var coachFloatingButtonEnabled = true
     /// Master switch (#R7): hides the floating Coach button when the coach UI is turned off.
-    @AppStorage(CoachEntryMode.uiEnabledKey) private var coachUIEnabled = true
+    @AppStorage(CoachEntryPrefs.uiEnabledKey) private var coachUIEnabled = true
     @State private var showCoach = false
-    private var coachEntryMode: CoachEntryMode { CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both }
 
     /// Which quick-action screen the centre FAB is presenting (nil = sheet closed).
     @State private var quickAction: QuickAction?
@@ -154,9 +153,9 @@ struct RootTabView: View {
                 }
             )
 
-            // Draggable floating Coach button — an alternative entry to the Today card, honouring the
+            // Draggable floating Coach button — an alternative entry to the Today banner, honouring the
             // user's Coach-entry preference. Floats over every tab; a tap opens the chat.
-            if coachUIEnabled, coachEntryMode.showsButton {
+            if coachUIEnabled, coachFloatingButtonEnabled {
                 CoachFloatingButton(isPresented: $showCoach)
             }
         }

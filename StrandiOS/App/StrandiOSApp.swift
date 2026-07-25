@@ -30,6 +30,10 @@ struct StrandiOSApp: App {
     @AppStorage(ChartStyle.storageKey) private var chartStyleRaw = ChartStyle.health.rawValue
 
     init() {
+        // One-time migration off the retired card/button/both Coach-entry picker onto the three
+        // independent entry toggles (banner/header-icon/floating-button). No-op after the first launch
+        // that has them. Must run before any Today/RootTabView reads its @AppStorage default.
+        CoachEntryPrefs.migrateIfNeeded()
         #if DEBUG
         // DEBUG-only promo-screenshot harness: when launched with `--demo-hour <Int>`, pin Today to that
         // hour's day-cycle scene + a per-hour stat frame. No-op (active stays nil) when the arg is absent.

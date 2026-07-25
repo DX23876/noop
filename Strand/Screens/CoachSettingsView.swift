@@ -94,13 +94,16 @@ struct CoachSettingsView: View {
     @ObservedObject private var goalStore = CoachGoalStore.shared
     @ObservedObject private var usage = CoachUsageLog.shared
     @State private var memoryExpanded: Bool = false
-    /// How the user reaches Coach from Today: the card, the draggable floating button, or both.
-    @AppStorage(CoachEntryMode.storageKey) private var coachEntryModeRaw = CoachEntryMode.both.rawValue
-    /// Master switch for the Coach's home-surface UI (#R7). Off hides the Today header avatar and floating
-    /// button; card- and background-AI, and the coach settings themselves, are untouched.
-    @AppStorage(CoachEntryMode.uiEnabledKey) private var coachUIEnabled = true
-    /// Show the coach's avatar on the Today entry (#R11); off restores the plain sparkle icon.
-    @AppStorage(CoachEntryMode.todayAvatarKey) private var todayAvatar = true
+    /// The three independent Coach-entry points — see `CoachEntryPrefs` for why this replaced a single
+    /// card/button/both picker.
+    @AppStorage(CoachEntryPrefs.bannerKey) private var coachBannerEnabled = true
+    @AppStorage(CoachEntryPrefs.headerIconKey) private var coachHeaderIconEnabled = true
+    @AppStorage(CoachEntryPrefs.floatingButtonKey) private var coachFloatingButtonEnabled = true
+    /// Master switch for the Coach's home-surface UI (#R7). Off hides all three entries above; card- and
+    /// background-AI, and the coach settings themselves, are untouched.
+    @AppStorage(CoachEntryPrefs.uiEnabledKey) private var coachUIEnabled = true
+    /// Show the coach's avatar on the banner/header entries (#R11); off restores the plain sparkle icon.
+    @AppStorage(CoachEntryPrefs.todayAvatarKey) private var todayAvatar = true
     /// Opt-in: opening Today on a new day generates a workout suggestion. Same key MorningSuggestionCard
     /// reads. Default OFF — a Today-triggered generation is the one thing that talks to the network on
     /// open, so it must be chosen.
@@ -1082,22 +1085,32 @@ struct CoachSettingsView: View {
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Coach entry")
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                        Text("How you open Coach from Today — a list row, a draggable floating button, or both.")
+                        Text("How you open Coach from Today — pick any combination.")
                             .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 8)
                 }
-                Picker("Coach entry", selection: $coachEntryModeRaw) {
-                    ForEach(CoachEntryMode.allCases) { mode in
-                        Text(LocalizedStringKey(mode.label)).tag(mode.rawValue)
-                    }
+                // Three independent switches (not a single either/or picker) — a user can want the banner
+                // AND the floating button, or the compact header icon on its own, in any combination.
+                Toggle(isOn: $coachBannerEnabled) {
+                    Text("Banner")
+                    Text("A full-width card in Today's card list, movable via Arrange Today")
                 }
-                .pickerStyle(.segmented)
-                .accessibilityLabel("Coach entry style")
+                .accessibilityLabel("Coach entry: banner")
+                Toggle(isOn: $coachHeaderIconEnabled) {
+                    Text("Header icon")
+                    Text("A compact avatar in Today's header (Liquid Today only)")
+                }
+                .accessibilityLabel("Coach entry: header icon")
+                Toggle(isOn: $coachFloatingButtonEnabled) {
+                    Text("Floating button")
+                    Text("A draggable button that floats over every screen")
+                }
+                .accessibilityLabel("Coach entry: floating button")
 
                 // Button placement only matters when the floating button is actually shown.
-                if (CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both).showsButton {
+                if coachFloatingButtonEnabled {
                     Divider().overlay(StrandPalette.hairline)
                     buttonPlacementControls
                 }

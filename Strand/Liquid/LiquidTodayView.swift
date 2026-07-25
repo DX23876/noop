@@ -16,15 +16,14 @@ import StrandDesign
 import WhoopStore
 import StrandAnalytics
 
-/// Sizes for the Today header's round controls, in one place because the buttons live in three separate
-/// views (`LiquidAddButton`, `LiquidBatteryButton`, the inline Arrange button) and drifted apart otherwise.
-/// The utilities are deliberately one step smaller than the profile picture: the header read as a cramped
-/// row of four equal discs, and shrinking the utilities is what gives the greeting its room back.
+/// Size for the Today header's round controls, in one place because the buttons live in several separate
+/// views (`LiquidAddButton`, `LiquidBatteryButton`, the inline Arrange button, the profile avatar, the
+/// Coach and Updates-bell buttons) and drifted apart otherwise. One uniform size for the whole cluster
+/// (matching ryanbr's original flat icon row) — six icons now share the row instead of the original four,
+/// so this sits a notch below that original 34pt rather than reintroducing a cramped row of full-size discs.
 enum LiquidHeaderMetrics {
-    /// The +, battery and arrange discs.
+    /// Every header control: profile, coach, add, battery, bell, arrange.
     static let control: CGFloat = 30
-    /// The profile picture — the row's one "you" element, so it stays larger.
-    static let profile: CGFloat = 34
 }
 
 struct LiquidTodayView: View {
@@ -81,14 +80,22 @@ struct LiquidTodayView: View {
     @State private var showLiveSession = false
     @State private var showUpdatesInbox = false
     /// Coach: the AI coach engine (injected at the app root) and the full-screen chat presentation. The
-    /// prominent Today entry opens the redesigned Coach chat directly, so it isn't buried under More.
-    /// The card only shows when the user's Coach-entry preference includes it (card / both).
+    /// prominent Today entries open the redesigned Coach chat directly, so it isn't buried under More.
+    /// Each entry point (banner section, header icon) is its own independent toggle — see `CoachEntryPrefs`.
     @EnvironmentObject private var coach: AICoachEngine
+    /// The coach's identity (name/avatar/tone) — observed so the banner's name/photo updates live, same
+    /// as classic Today's `CoachTodayRow`.
+    @ObservedObject private var identityStore = CoachIdentityStore.shared
     @State private var showCoach = false
     @State private var showPlan = false
-    @AppStorage(CoachEntryMode.storageKey) private var coachEntryModeRaw = CoachEntryMode.both.rawValue
-    /// Master switch (#R7): hides the Coach's Today card when the coach UI is turned off.
-    @AppStorage(CoachEntryMode.uiEnabledKey) private var coachUIEnabled = true
+    /// The full-width coach banner, rendered as the reorderable `.coach` section (`TodaySection`).
+    @AppStorage(CoachEntryPrefs.bannerKey) private var coachBannerEnabled = true
+    /// The compact avatar/sparkle button in the header icon cluster (see `scene`).
+    @AppStorage(CoachEntryPrefs.headerIconKey) private var coachHeaderIconEnabled = true
+    /// Master switch (#R7): hides every Coach entry point when the coach UI is turned off.
+    @AppStorage(CoachEntryPrefs.uiEnabledKey) private var coachUIEnabled = true
+    /// False renders the generic sparkle disc instead of the coach's own avatar on the banner/header entries.
+    @AppStorage(CoachEntryPrefs.todayAvatarKey) private var todayAvatar = true
 
     /// Live Sessions (silent guardian) beta gate — the SAME key the Settings toggle writes. Default ON
     /// (the entry is BETA-labelled in-UI); off removes the Start-session control entirely.
@@ -377,6 +384,10 @@ struct LiquidTodayView: View {
                         // for a total of ~20pt — graduated hierarchy without a cramped uniform density.
                         Group {
                         switch section {
+                        // The full-width Coach banner — the reorderable twin of classic Today's
+                        // `CoachTodayRow`, independent of the compact header-icon entry (see `scene`).
+                        case .coach:
+                            if coachUIEnabled, coachBannerEnabled { coachBanner }
                         case .hero: heroCard
                         // Live Sessions (silent guardian) is an OPTIONAL, strap-dependent beta, so it no
                         // longer holds a prominent card between the scores and Synthesis. On iOS it lives in
@@ -626,13 +637,38 @@ struct LiquidTodayView: View {
                         .liquidPopoverAdaptation()
                 }
                 Spacer(minLength: 8)
-                // The utility icons stay a tight group; the profile picture sits AFTER a deliberate gap and
-                // one size up with a ring, so it reads as the greeting's counterpart (the way into profile /
-                // account / settings) rather than as a fourth interchangeable round icon.
-                // Coach entry (#R-header-coach) moved OUT of this cluster into its own row
-                // (`CoachTodayRow`, in the content below) — it used to sit flush against the profile button
-                // with nothing between them, which read as cluttered.
-                HStack(spacing: 10) {
+                // One flat icon group (ryanbr structure), not a two-tier profile-vs-utilities split.
+                // (#R-header-coach): the Coach entry lives here as a compact avatar/sparkle button,
+                // leading the cluster ahead of the profile picture — the same spot it held before it was
+                // ever demoted to a full-width card and later to a tile beside Synthesis.
+                HStack(spacing: 8) {
+                    if coachUIEnabled, coachHeaderIconEnabled {
+                        Button { showCoach = true } label: {
+                            Group {
+                                if todayAvatar {
+                                    CoachAvatarView(size: LiquidHeaderMetrics.control)
+                                        .frame(width: LiquidHeaderMetrics.control, height: LiquidHeaderMetrics.control)
+                                } else {
+                                    Image(systemName: "sparkles")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(.white)
+                                        .frame(width: LiquidHeaderMetrics.control, height: LiquidHeaderMetrics.control)
+                                        .background(Circle().fill(.white.opacity(0.16)))
+                                }
+                            }
+                        }
+                        .buttonStyle(LiquidPressStyle())
+                        .accessibilityLabel("Ask your Coach")
+                        .accessibilityHint("Opens the AI coach chat.")
+                    }
+                    // Profile pic (the one set in Settings) → opens Settings, matching the classic Today.
+                    Button { showSettings = true } label: {
+                        ProfileAvatarView(imageData: profile.avatarImageData,
+                                          size: LiquidHeaderMetrics.control)
+                            .frame(width: LiquidHeaderMetrics.control, height: LiquidHeaderMetrics.control)
+                    }
+                    .buttonStyle(LiquidPressStyle())
+                    .accessibilityLabel("Profile and settings")
                     LiquidAddButton()
                     LiquidBatteryButton()
                     LiquidUpdatesBellButton(showUpdatesInbox: $showUpdatesInbox)
@@ -646,17 +682,6 @@ struct LiquidTodayView: View {
                     }
                     .buttonStyle(LiquidPressStyle())
                     .accessibilityLabel("Arrange Today sections")
-
-                    // Profile pic (the one set in Settings) → opens Settings, matching the classic Today.
-                    Button { showSettings = true } label: {
-                        ProfileAvatarView(imageData: profile.avatarImageData,
-                                          size: LiquidHeaderMetrics.profile)
-                            .frame(width: LiquidHeaderMetrics.profile, height: LiquidHeaderMetrics.profile)
-                            .overlay(Circle().strokeBorder(.white.opacity(0.18), lineWidth: 1))
-                    }
-                    .buttonStyle(LiquidPressStyle())
-                    .accessibilityLabel("Profile and settings")
-                    .padding(.leading, 6)   // the gap that separates "you" from the utilities
                 }
             }
             // Subtle NOOP wordmark in the sky between header and hero. Perfectly centred (a letter row has
@@ -665,7 +690,7 @@ struct LiquidTodayView: View {
             // section block below. The wordmark's bottom pad (10) + the section VStack's 12 spacing keeps
             // the default hero-under-wordmark gap at the original 22.
             LiquidWordmark()
-                .padding(.top, 16)
+                .padding(.top, 30)
                 .padding(.bottom, 10)
         }
     }
@@ -1007,26 +1032,45 @@ struct LiquidTodayView: View {
         }
     }
 
-    private var synthesisSection: some View {
-        VStack(spacing: NoopMetrics.space3) {
-            // Synthesis and the coach entry share ONE row as two blocks: "what today means" beside "ask about
-            // it". The coach used to be a full-width bar above the scores; here it costs a fixed 104pt and
-            // the Synthesis card takes the rest, which keeps its one-line read from wrapping into a column.
-            // With the coach UI off the card simply spans the whole width. Both stretch to the taller of the
-            // two, so the row can't sit lopsided. UX: widened the spacing from 8 → NoopMetrics.space3 (12)
-            // so the two blocks read as distinct concerns rather than a cramped pair.
-            HStack(alignment: .top, spacing: NoopMetrics.space3) {
-                synthesisCard
-                    .frame(maxHeight: .infinity)
-                if coachUIEnabled, (CoachEntryMode(rawValue: coachEntryModeRaw) ?? .both).showsCard {
-                    CoachTodayTile(isPresented: $showCoach)
-                        .frame(maxHeight: .infinity)
+    /// The full-width Coach banner — a reorderable Today section (`.coach`), independent of the compact
+    /// header-icon entry (see `scene`). Same content `CoachTodayRow` shows on classic Today (identity name
+    /// + avatar + unseen-message dot + chevron), through Liquid's own `card { }` chrome instead of
+    /// `NoopCard`, so it sits flush with every other Liquid card (synthesis, key metrics, …).
+    private var coachBanner: some View {
+        Button { showCoach = true } label: {
+            card {
+                HStack(spacing: 12) {
+                    CoachEntryAvatar(size: 40, showsAvatar: todayAvatar)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(identityStore.identity.name)
+                            .font(StrandFont.headline)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                        Text("Ask your coach")
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                    }
+                    Spacer(minLength: 0)
+                    if coach.hasUnseenCoachMessage {
+                        Circle()
+                            .fill(StrandPalette.statusCritical)
+                            .frame(width: 9, height: 9)
+                            .accessibilityHidden(true)
+                    }
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(StrandPalette.textTertiary)
                 }
             }
-            // Without this the `maxHeight: .infinity` pair would claim the whole remaining screen height
-            // instead of just matching each other.
-            .fixedSize(horizontal: false, vertical: true)
         }
+        .buttonStyle(LiquidPressStyle())
+        .accessibilityLabel(Text("\(identityStore.identity.name), your coach"))
+        .accessibilityHint("Opens the AI coach chat.")
+    }
+
+    private var synthesisSection: some View {
+        // Full-width card (ryanbr structure): the header-icon Coach entry lives in `scene`; the full
+        // banner (when the user has it on) is its own reorderable `.coach` section, not part of Synthesis.
+        synthesisCard
     }
 
     private var synthesisCard: some View {
@@ -2092,91 +2136,6 @@ private struct LiquidRefreshIndicator: View {
 }
 
 /// Quick-actions "+" button. Tap → the shell's quick-action menu.
-/// #today-layout: the Arrange sheet — reorder the Today sections by dragging rows (SwiftUI's native
-/// `onMove`; the always-active edit mode on iOS shows the reorder handles without an Edit button). Writes
-/// straight through to the persisted order, so Today re-lays-out live behind the sheet. Reset restores the
-/// default order. Twin of the Android TodayLayoutEditorDialog over the byte-identical "today.sectionOrder".
-private struct TodayArrangeSheet: View {
-    @Binding var orderRaw: String
-    /// The persisted hidden set (§4): each row carries an eye toggle that shows/hides its section.
-    @Binding var hiddenRaw: String
-    @Environment(\.dismiss) private var dismiss
-
-    private var hidden: Set<TodaySection> { TodayLayoutPrefs.decodeHidden(hiddenRaw) }
-
-    private func toggleHidden(_ section: TodaySection) {
-        var next = hidden
-        if next.contains(section) { next.remove(section) } else { next.insert(section) }
-        hiddenRaw = TodayLayoutPrefs.encodeHidden(next)
-    }
-
-    var body: some View {
-        // On iOS the Start-session section renders nothing (the entry moved into the "+" quick-action
-        // sheet), so listing it here would offer to arrange something the user can't see. Dropping it from
-        // the written order is safe in both directions: `decodeOrder` re-inserts a known-but-missing section
-        // at its default spot, and an Android-saved order containing it still decodes fine.
-        let order = TodayLayoutPrefs.decodeOrder(orderRaw).filter { section in
-            #if os(macOS)
-            return true
-            #else
-            return section != .liveSession
-            #endif
-        }
-        NavigationStack {
-            List {
-                ForEach(order) { section in
-                    let isHidden = hidden.contains(section)
-                    HStack {
-                        Text(section.title)
-                            .font(StrandFont.body)
-                            .foregroundStyle(isHidden ? StrandPalette.textTertiary : StrandPalette.textPrimary)
-                        Spacer()
-                        // Eye toggle: show/hide this section on Today (§4). A hidden section keeps its slot
-                        // in the order, so unhiding restores its position.
-                        Button {
-                            toggleHidden(section)
-                        } label: {
-                            Image(systemName: isHidden ? "eye.slash" : "eye")
-                                .foregroundStyle(isHidden ? StrandPalette.textTertiary : StrandPalette.accent)
-                        }
-                        // .borderless keeps the eye independently tappable while the row is in the always-on
-                        // edit mode used for drag-reorder (a .plain button would hand taps to the whole row).
-                        .buttonStyle(.borderless)
-                        .accessibilityLabel(isHidden ? "Show \(section.title)" : "Hide \(section.title)")
-                    }
-                }
-                .onMove { from, to in
-                    var next = order
-                    next.move(fromOffsets: from, toOffset: to)
-                    orderRaw = TodayLayoutPrefs.encode(next)
-                }
-            }
-            .navigationTitle("Arrange Today")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            // Always-active edit mode: the rows carry their reorder handles immediately — hold and drag —
-            // with no Edit-button dance. (macOS Lists drag-reorder natively with onMove.)
-            .environment(\.editMode, .constant(.active))
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    // Reset restores BOTH the default order and the default hidden set (§4 declutter).
-                    Button("Reset") {
-                        orderRaw = ""
-                        hiddenRaw = TodayLayoutPrefs.encodeHidden(TodaySection.defaultHidden)
-                    }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
-        }
-        #if os(macOS)
-        .frame(minWidth: 340, minHeight: 420)
-        #endif
-    }
-}
-
 private struct LiquidAddButton: View {
     @EnvironmentObject var router: NavRouter
     var body: some View {
