@@ -864,6 +864,7 @@ final class IntelligenceEngine: ObservableObject {
         // side uses; when they DIVERGE on a day that has data, that's the #814 read/write split made
         // visible in every export.
         var readOwnerByDay: [String: (owner: String, hrRows: Int)] = [:]
+        var resolvedScoreOwnerByDay: [String: String] = [:]
 
         // Back on the main actor: fold the off-actor results into the pass-2 state in the SAME order the
         // loop produced them. Pure assignment / appends , no further store reads , so this is cheap and the
@@ -871,6 +872,7 @@ final class IntelligenceEngine: ObservableObject {
         for scan in scanned {
             let res = scan.result
             readOwnerByDay[res.daily.day] = (scan.readOwner, scan.hrRows)
+            resolvedScoreOwnerByDay[res.daily.day] = scan.readOwner
             nightlyHrvByDay[res.daily.day] = res.daily.avgHrv
             nightlyRhrByDay[res.daily.day] = res.daily.restingHr.map(Double.init)
             nightlyRespByDay[res.daily.day] = res.daily.respRateBpm
@@ -1218,6 +1220,7 @@ final class IntelligenceEngine: ObservableObject {
                 let scored = row.with(recovery: recovery, skinTempDevC: row.skinTempDevC)
                 dailies.append(scored)
                 importScoredDays.insert(w.day)
+                resolvedScoreOwnerByDay[w.day] = source
                 if let rest = AnalyticsEngine.Rest.composite(daily: scored) {
                     restPoints.append(MetricPoint(day: w.day, key: "sleep_performance", value: rest))
                 }
@@ -1237,8 +1240,34 @@ final class IntelligenceEngine: ObservableObject {
         // Fitness Age gate can't be undercut by this pass's own scoring/eviction. Windowed to the range.
         let faPriorDaily = await repo.dailyMetrics(fromDay: oldestDay, toDay: newestDay)
 
-        // Upsert FIRST so the row count never transiently dips (#521).
-        if !dailies.isEmpty { _ = try? await store.upsertDailyMetrics(dailies, deviceId: computedId) }
+        // Score provenance is metric-specific and lives outside dayOwnership (which remains solely a
+        // resolver override). Persist scores + provenance atomically so a failed write can never label an
+        // older score with a newer provider. The last row for a duplicate day wins, matching the upsert.
+        var provenanceByCell: [String: ScoreInputProvenanceRow] = [:]
+        for daily in dailies {
+            guard let source = resolvedScoreOwnerByDay[daily.day] else { continue }
+            if daily.recovery != nil {
+                provenanceByCell["\(daily.day)\u{1F}recovery"] =
+                    ScoreInputProvenanceRow(day: daily.day, key: "recovery", sourceId: source)
+            }
+            if daily.strain != nil {
+                provenanceByCell["\(daily.day)\u{1F}strain"] =
+                    ScoreInputProvenanceRow(day: daily.day, key: "strain", sourceId: source)
+            }
+        }
+        for point in restPoints {
+            guard let source = resolvedScoreOwnerByDay[point.day] else { continue }
+            provenanceByCell["\(point.day)\u{1F}\(point.key)"] =
+                ScoreInputProvenanceRow(day: point.day, key: point.key, sourceId: source)
+        }
+        try? await store.persistComputedScores(
+            dailyMetrics: dailies,
+            metricPoints: restPoints,
+            provenance: Array(provenanceByCell.values),
+            deviceId: computedId,
+            from: oldestDay,
+            to: newestDay
+        )
 
         // Now evict only the STALE computed rows in the window , those a prior (e.g. UTC-keyed) run left
         // behind that the current local-keyed run no longer produces. Read the window, diff against the
@@ -1250,8 +1279,6 @@ final class IntelligenceEngine: ObservableObject {
         for stale in existingWindow where !freshKeys.contains(stale.day) {
             _ = try? await store.deleteDailyMetrics(deviceId: computedId, from: stale.day, to: stale.day)
         }
-        if !restPoints.isEmpty { _ = try? await store.upsertMetricSeries(restPoints, deviceId: computedId) }
-
         // ── Fitness Age (Phase 2) , weekly, keyed to the week's Saturday ────────────────────────────
         // Roll the last 7 computed days into the Nes/HUNT inputs and upsert a weekly Fitness Age (+ an
         // optional VO₂max when a waist is set) under the same "-noop" source. Idempotent on the Saturday

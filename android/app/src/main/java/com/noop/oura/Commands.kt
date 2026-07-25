@@ -64,18 +64,24 @@ object OuraCommands {
     // MARK: - Time sync
 
     /**
-     * SyncTime: `12 09 <token:1> <counter:3 LE> 00 00 00 00 f6` where counter = floor(unix_s / 256)
-     * and the trailer 0xf6 is fixed. Per OURA_PROTOCOL.md s5.4. `token` defaults to 0.
+     * SyncTime: `12 09 <unix_seconds:8 LE> <tz:1>` — unix seconds as uint64 LE, then the timezone as a
+     * SIGNED byte in HALF-HOURS from UTC. Per OURA_PROTOCOL.md s5.4 [ringverse BLE.md][open_oura
+     * `req_sync_time`]; on-device proven 2026-07-12 (this layout made the ring emit its first 0x42 and
+     * anchored history). Byte-identical twin of Swift's syncTime.
+     *
+     * SUPERSEDED (open_ring): the previous `token + unix_s/256 + 0xF6` layout never anchored on real
+     * hardware. `tzHalfHours` defaults to 0 (UTC), exactly as the reference client sends; NOOP does its
+     * own LOCAL-day bucketing downstream regardless of what the ring is told here.
      */
-    fun syncTime(unixSeconds: Long, token: Int = 0x00): OuraCommand {
-        val counter = unixSeconds / 256
-        val c0 = (counter and 0xFFL).toInt()
-        val c1 = ((counter shr 8) and 0xFFL).toInt()
-        val c2 = ((counter shr 16) and 0xFFL).toInt()
-        return OuraCommand(
-            "sync_time",
-            intArrayOf(0x12, 0x09, token and 0xFF, c0, c1, c2, 0x00, 0x00, 0x00, 0x00, 0xF6),
-        )
+    fun syncTime(unixSeconds: Long, tzHalfHours: Int = 0): OuraCommand {
+        val body = IntArray(11)
+        body[0] = 0x12
+        body[1] = 0x09
+        for (i in 0 until 8) {
+            body[2 + i] = ((unixSeconds ushr (i * 8)) and 0xFFL).toInt()
+        }
+        body[10] = tzHalfHours and 0xFF
+        return OuraCommand("sync_time", body)
     }
 
     // MARK: - Event fetch (cursor)

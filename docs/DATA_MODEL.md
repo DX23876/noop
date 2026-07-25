@@ -81,7 +81,7 @@ post-v9 addition currently documented here):
 | **Decoded streams** (durable) | `hrSample`, `rrInterval`, `event`, `battery`, `spo2Sample`, `skinTempSample`, `respSample`, `gravitySample` | Decoded from strap frames on-device |
 | **Raw outbox** (transient) | `rawBatch` | Compressed raw BLE frames, prunable |
 | **Bookkeeping** | `cursors` | Highwater / read cursors |
-| **Metric caches** | `sleepSession`, `dailyMetric`, `journal`, `workout`, `appleDaily`, `metricSeries` | Derived metrics + CSV / Apple-Health imports |
+| **Metric caches** | `sleepSession`, `dailyMetric`, `journal`, `workout`, `appleDaily`, `metricSeries`, `scoreInputProvenance` | Derived metrics + their input-provider provenance + CSV / Apple-Health imports |
 | **Oura raw archive** (durable, v25) | `ouraRaw` | Verbatim Oura API payloads behind the opt-in cloud import — see below |
 
 All timestamp columns named `ts`, `startTs`, `endTs`, `capturedAt`, etc. are **unix seconds**
@@ -106,6 +106,7 @@ Migrations are registered in `Packages/WhoopStore/Sources/WhoopStore/Database.sw
 | **v7** | Adds in-sleep signal aggregates to `dailyMetric`: `spo2Pct`, `skinTempDevC`, `respRateBpm` (all nullable). |
 | **v8** | Adds `journal`, `workout`, and `appleDaily` (Apple-Health daily aggregates). |
 | **v9** | Adds the generic long-format `metricSeries` table and its `(deviceId, key, day)` index. |
+| **v29** | Adds metric-level `scoreInputProvenance` for NOOP-computed headline scores. It does not change `dayOwnership` or score precedence. |
 
 ### The vestigial `synced` column
 
@@ -445,6 +446,23 @@ knowing each source's schema.
 to:)`) or `metricDays(key:)`, which scan `(deviceId, key)` and then walk days. This index makes
 those reads index-only. Accessors: `upsertMetricSeries(...)`, `metricSeries(...)`,
 `metricKeys(...)` (distinct keys for a device), and `metricDays(...)` (`MIN`/`MAX` day per key).
+
+### `scoreInputProvenance` *(v29)*
+
+Records which sensor/import source supplied the inputs for each persisted NOOP-computed score.
+This is deliberately separate from `dayOwnership`, which remains a scoring resolver override.
+Rows are replaced atomically with the corresponding `dailyMetric` / `metricSeries` score writes;
+legacy scores without a row have unknown provenance and the UI omits their provider badge.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `deviceId` | TEXT NOT NULL | Computed `-noop` namespace. Part of PK. |
+| `day` | TEXT NOT NULL | `YYYY-MM-DD`. Part of PK. |
+| `key` | TEXT NOT NULL | `recovery`, `strain`, or `sleep_performance`. Part of PK. |
+| `sourceId` | TEXT NOT NULL | Physical device or import source that supplied the inputs. |
+
+**Primary key:** `(deviceId, day, key)`. **Index:** `idx_scoreInputProvenance_source` on
+`sourceId`, used when a provider's data is deleted.
 
 ---
 

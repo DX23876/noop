@@ -78,4 +78,21 @@ class DeviceBrandCatalogTest {
         val brands = DeviceBrandCatalog.all.map { it.brand }
         assertEquals(brands.size, brands.toSet().size)
     }
+
+    /** `isOura` resolves a registry deviceId to its brand by the "<idPrefix>-" prefix, true ONLY for the Oura
+     *  ring — what lets the sleep surfaces name an Oura night's provenance "Oura". Twin of Swift
+     *  `DeviceBrandCatalogTests.testIsOuraByRegistryIdPrefix` (SAME cases). */
+    @Test
+    fun isOuraByRegistryIdPrefix() {
+        assertTrue(DeviceBrandCatalog.isOura("oura-5C4C0BF8-2DF6-1B3A-18D0-3DF0B3590148"))
+        assertTrue(DeviceBrandCatalog.isOura("oura-anything"))
+        assertFalse(DeviceBrandCatalog.isOura("whoop-1234"))
+        assertFalse(DeviceBrandCatalog.isOura("garmin-1234"))
+        assertFalse(DeviceBrandCatalog.isOura("strap-1234"))
+        assertFalse(DeviceBrandCatalog.isOura("huami-1234"))
+        assertFalse(DeviceBrandCatalog.isOura("some-noop"))
+        assertFalse(DeviceBrandCatalog.isOura(""))
+        assertFalse(DeviceBrandCatalog.isOura("oura"))
+        assertFalse(DeviceBrandCatalog.isOura("neuraloura-1"))
+    }
 }

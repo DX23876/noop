@@ -312,13 +312,11 @@ struct TodayView: View {
     // tile previously showed hours where the score belonged (#248). nil until loaded / no night yet.
     @State private var restScore: Double?
 
-    // Component 4, the REAL per-day merge winner (provenance) for the selected day's derived scores,
-    // keyed by metric key ("recovery" / "sleep_performance"); the value is the raw source id the resolver
-    // returned (e.g. "my-whoop", "my-whoop-noop", "apple-health"). Resolved once per load via
-    // `resolvedSeries` (the same imported-WHOOP > NOOP-computed > Apple-Health precedence the dashboard
-    // merge uses), so a provenance badge reflects which source actually supplied that day's number rather
-    // than a blanket "on-device" claim. Absent until loaded / when a day has no value. (spec 2026-06-20)
+    // The raw per-day merge winners remain available for watch-specific confidence behavior.
     @State private var provenanceByMetric: [String: String] = [:]
+    /// The sensor/import provider behind each score cell. Computed rows without durable provenance are
+    /// omitted rather than guessed; direct imported rows always resolve.
+    @State private var providerByMetric: [String: ScoreInputProvider] = [:]
 
     // On-device steps ESTIMATE per day (key "steps_est", computed "-noop" source). The Steps tile
     // prefers a REAL step count (strap @57 counter / Apple Health); only when a day has neither does it
@@ -804,13 +802,10 @@ struct TodayView: View {
 
     // MARK: Component 4, provenance badge (the real per-day merge winner)
 
-    /// The display name for a derived score's per-day merge winner ("On-device" / "Whoop" / "Apple
-    /// Health"), or nil when no source supplied that metric for the selected day (the badge is then
-    /// hidden rather than guessing). Delegates to the PURE `provenanceDisplayLabel` mapper so the
-    /// raw-source-id → spec-label mapping unit-tests without the live view.
+    /// The provider name behind a derived score, or nil when the attribution is unavailable.
     private func provenanceLabel(_ metricKey: String) -> String? {
-        guard let raw = provenanceByMetric[metricKey] else { return nil }
-        return Self.provenanceDisplayLabel(rawSource: raw, deviceId: repo.deviceId)
+        guard let provider = providerByMetric[metricKey] else { return nil }
+        return Self.todayScoreProviderLabel(sourceId: provider.sourceId, brand: provider.brand)
     }
 
     /// PURE mapper (unit-testable), a raw resolver source id onto the spec's provenance labels, given
@@ -862,6 +857,29 @@ struct TodayView: View {
     static func todayProvenanceChipLabel(rawSource: String, deviceId: String, appleHealthSource: String) -> String {
         if rawSource == appleHealthSource { return "Apple Watch" }
         return provenanceDisplayLabel(rawSource: rawSource, deviceId: deviceId)
+    }
+
+    /// Today hero wording names the provider that supplied the score inputs, not where NOOP ran the math.
+    /// Registered device brands cover every live source; stable import ids cover providers without a paired
+    /// registry row. Unknown ids remain visible rather than being falsely labelled as Whoop.
+    static func todayScoreProviderLabel(sourceId: String, brand: String?) -> String {
+        let source = sourceId.lowercased()
+        switch source {
+        case Repository.appleHealthSource: return "Apple Watch"
+        case Repository.healthConnectSource: return "Health Connect"
+        case "oura-import", "oura-api": return "Oura"
+        case "fitbit-import": return "Fitbit"
+        case "garmin-import": return "Garmin"
+        case "xiaomi-band": return "Mi Band"
+        case Repository.activityFileSource: return "Workout files"
+        default: break
+        }
+
+        if let brand = brand?.trimmingCharacters(in: .whitespacesAndNewlines), !brand.isEmpty {
+            return brand.caseInsensitiveCompare("WHOOP") == .orderedSame ? "Whoop" : brand
+        }
+        if source == Repository.whoopSource { return "Whoop" }
+        return FusionSource(rawValue: sourceId)?.displayName ?? sourceId
     }
 
     /// True for a watch-context user with no strap supplying scores (Apple-Health days present and no WHOOP
@@ -1905,6 +1923,15 @@ struct TodayView: View {
                     Text(progress)
                         .font(StrandFont.footnote)
                         .foregroundStyle(StrandPalette.textTertiary)
+                    // #731: when the countdown restarted because the user tapped "Recalibrate baseline",
+                    // say so — otherwise the natural response to a fresh countdown is to tap it again,
+                    // which resets it once more. nil (and no line) for anyone who never recalibrated.
+                    if let restarted = ChargeBreakdownFormat.currentCalibrationRestartCause() {
+                        Text(restarted)
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
             }
         }
@@ -4086,6 +4113,7 @@ struct TodayView: View {
         sparks["sleep_performance"] = c.restSpark
         restScore = c.restScore
         provenanceByMetric = c.provenanceByMetric
+        providerByMetric = c.providerByMetric
         hrPoints = c.hrPoints
         stepActivityClassToday = c.stepActivityClassToday
         liveTodayStrain = c.liveTodayStrain
@@ -4183,21 +4211,30 @@ struct TodayView: View {
             todayKey: selectedDayKey)
         restScore = restScoreLocal
 
-        // Component 4, resolve the REAL per-day merge winner for the selected day's derived scores. The
-        // cross-source resolver applies the SAME imported-WHOOP > NOOP-computed > Apple-Health precedence
-        // the dashboard merge uses, returning the source that actually supplied each day's value, so the
-        // provenance badge reflects the truth (computed vs imported), never a blanket "on-device". Keyed by
-        // metric so the Charge ring and Rest tile each badge their own winner.
+        // Resolve the displayed score row, then map computed rows through durable input provenance so the
+        // badge names the sensor/import provider rather than the device that ran NOOP's math.
         var provenance: [String: String] = [:]
+        var providers: [String: ScoreInputProvider] = [:]
         let recoveryResolved = await recoveryResolvedA
-        if let win = recoveryResolved.points.last(where: { $0.day == selectedDayKey })?.source {
-            provenance["recovery"] = win
+        if let win = recoveryResolved.points.last(where: { $0.day == selectedDayKey }) {
+            provenance["recovery"] = win.source
+            providers["recovery"] = await repo.scoreInputProvider(
+                resolvedSource: win.source,
+                day: win.day,
+                metricKey: "recovery"
+            )
         }
         let restResolved = await restResolvedA
-        if let win = restResolved.points.last(where: { $0.day == selectedDayKey })?.source {
-            provenance["sleep_performance"] = win
+        if let win = restResolved.points.last(where: { $0.day == selectedDayKey }) {
+            provenance["sleep_performance"] = win.source
+            providers["sleep_performance"] = await repo.scoreInputProvider(
+                resolvedSource: win.source,
+                day: win.day,
+                metricKey: "sleep_performance"
+            )
         }
         provenanceByMetric = provenance
+        providerByMetric = providers
 
         // HR trend for the SELECTED day, 5-minute bucket means from that logical day's local midnight.
         // For today the window runs to now (an in-progress curve); for a navigated past day it runs the
@@ -4288,6 +4325,7 @@ struct TodayView: View {
             restSpark: restSparkLocal,
             restScore: restScoreLocal,
             provenanceByMetric: provenance,
+            providerByMetric: providers,
             hrPoints: hrPointsLocal,
             stepActivityClassToday: stepClassLocal,
             liveTodayStrain: liveStrainLocal,
@@ -4679,6 +4717,7 @@ struct TodayDayScopedCache {
     let restSpark: [Double]
     let restScore: Double?
     let provenanceByMetric: [String: String]
+    let providerByMetric: [String: ScoreInputProvider]
     let hrPoints: [TrendPoint]
     let stepActivityClassToday: Int?
     let liveTodayStrain: Double?

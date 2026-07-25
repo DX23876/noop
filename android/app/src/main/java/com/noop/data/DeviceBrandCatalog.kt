@@ -73,4 +73,11 @@ object DeviceBrandCatalog {
     /** The row for a known brand string ("Amazfit", …), or null. Lets the typed `ExperimentalBrand` derive
      *  its facts (capability/routing) from this table rather than re-declaring them. */
     fun specForBrand(brand: String): DeviceBrandSpec? = all.firstOrNull { it.brand == brand }
+
+    /** True when a registry deviceId belongs to an Oura ring, resolved from its "<idPrefix>-" prefix against
+     *  this canonical table (never an ad-hoc "oura" literal — the registry mints every non-WHOOP id as
+     *  "<idPrefix>-<uuid>", so the prefix IS the brand key). Read/UI side only: it lets the sleep surfaces
+     *  name an Oura night's provenance "Oura". Twin of Swift `DeviceBrandCatalog.isOura`. */
+    fun isOura(deviceId: String): Boolean =
+        all.firstOrNull { deviceId.startsWith(it.idPrefix + "-") }?.sourceKind == SourceKind.oura
 }

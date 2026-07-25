@@ -67,18 +67,44 @@ internal fun todayProvenanceChipLabel(
     provenanceDisplayLabel(rawSource, deviceId)
 }
 
+/** The sensor/import provider whose inputs produced a Today score. */
+internal data class ScoreInputProvider(val sourceId: String, val brand: String? = null)
+
+/** Provider-facing hero wording. Registered brands cover live devices; stable import ids cover imports. */
+internal fun todayScoreProviderLabel(provider: ScoreInputProvider): String {
+    val source = provider.sourceId.lowercase()
+    return when (source) {
+        WhoopRepository.APPLE_HEALTH_SOURCE -> "Apple Watch"
+        WhoopRepository.HEALTH_CONNECT_SOURCE -> "Health Connect"
+        "oura-import", "oura-api" -> "Oura"
+        "fitbit-import" -> "Fitbit"
+        "garmin-import" -> "Garmin"
+        "xiaomi-band" -> "Mi Band"
+        WhoopRepository.ACTIVITY_FILE_SOURCE -> "Workout files"
+        else -> {
+            val brand = provider.brand?.trim().orEmpty()
+            when {
+                brand.equals("WHOOP", ignoreCase = true) -> "Whoop"
+                brand.isNotEmpty() -> brand
+                source == WhoopRepository.WHOOP_SOURCE -> "Whoop"
+                else -> FusionSource.entries.firstOrNull { it.id == provider.sourceId }?.displayName
+                    ?: provider.sourceId
+            }
+        }
+    }
+}
+
 /**
- * One compact source label for the liquid score hero. Raw winners arrive in Charge / Effort / Rest order;
+ * One compact provider label for the score hero. Providers arrive in Charge / Effort / Rest order;
  * identical display names collapse and mixed winners are capped at two so the badge stays readable.
  * Mirrors LiquidTodayView.heroSourceLabel value-for-value.
  */
 internal fun heroSourceLabel(
-    rawSources: List<String>,
-    deviceId: String = WhoopRepository.WHOOP_SOURCE,
+    providers: List<ScoreInputProvider>,
 ): String? {
     val labels = LinkedHashSet<String>()
-    for (rawSource in rawSources) {
-        labels.add(todayProvenanceChipLabel(rawSource, deviceId))
+    for (provider in providers) {
+        labels.add(todayScoreProviderLabel(provider))
         if (labels.size == 2) break
     }
     return labels.takeIf { it.isNotEmpty() }?.joinToString(" + ")
@@ -87,24 +113,22 @@ internal fun heroSourceLabel(
 /**
  * Source label for the three visible hero scores. Today can show a carried Charge from the previous
  * scored night while today's recovery is still absent (#543); in that state the selected-day
- * "recovery" provenance is also absent, so use the carried night's resolved recovery source instead of
+ * "recovery" provider is also absent, so use the carried night's resolved recovery provider instead of
  * letting the card badge omit or misrepresent the visible Charge (#390).
  */
 internal fun scoreHeroSourceLabel(
-    provenanceByMetric: Map<String, String>,
-    carriedRecoverySource: String?,
+    providerByMetric: Map<String, ScoreInputProvider>,
+    carriedRecoveryProvider: ScoreInputProvider?,
     usesCarriedRecovery: Boolean,
-    deviceId: String = WhoopRepository.WHOOP_SOURCE,
 ): String? {
-    val recoverySource = provenanceByMetric["recovery"]
-        ?: if (usesCarriedRecovery) carriedRecoverySource else null
+    val recoveryProvider = providerByMetric["recovery"]
+        ?: if (usesCarriedRecovery) carriedRecoveryProvider else null
     return heroSourceLabel(
-        rawSources = listOfNotNull(
-            recoverySource,
-            provenanceByMetric["strain"],
-            provenanceByMetric["sleep_performance"],
+        providers = listOfNotNull(
+            recoveryProvider,
+            providerByMetric["strain"],
+            providerByMetric["sleep_performance"],
         ),
-        deviceId = deviceId,
     )
 }
 

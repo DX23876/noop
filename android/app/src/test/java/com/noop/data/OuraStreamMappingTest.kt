@@ -75,9 +75,9 @@ class OuraStreamMappingTest {
         val deep = s.events[0]
         assertEquals(OuraStreamMapping.EVENT_SLEEP_PHASE, deep.kind)
         assertEquals("OURA_SLEEP_PHASE", deep.kind)
-        assertEquals(2, deep.payload["phase"])           // OuraSleepStage.DEEP.raw == 2
+        assertEquals(0, deep.payload["phase"])           // OuraSleepStage.DEEP.raw == 0 (open_oura validated)
         assertEquals(0, deep.payload["index"])
-        assertEquals(3, s.events[1].payload["phase"])     // REM.raw == 3
+        assertEquals(2, s.events[1].payload["phase"])     // REM.raw == 2 (open_oura validated)
         // PARITY: the payload is exactly { phase, index } - the Swift twin emits no phase_name, so neither
         // does Kotlin. Pin it so a re-added phase_name key breaks this test.
         assertNull(deep.payload["phase_name"])

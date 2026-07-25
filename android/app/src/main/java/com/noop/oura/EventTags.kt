@@ -59,13 +59,17 @@ enum class OuraEventTag(val raw: Int) {
 
     // --- Sleep summaries (Tier B, UNVERIFIED) ---
     SLEEP_SUMMARY_1(0x49),    // sleep_summary_1, OURA_PROTOCOL.md s6.12 (UNVERIFIED)
-    SLEEP_SUMMARY_B(0x4B),    // sleep summary variant, OURA_PROTOCOL.md s6.12 (UNVERIFIED)
     SLEEP_SUMMARY_C(0x4C),    // sleep summary variant, OURA_PROTOCOL.md s6.12 (UNVERIFIED)
     SLEEP_SUMMARY_D(0x4F),    // sleep summary variant, OURA_PROTOCOL.md s6.12 (UNVERIFIED)
     SLEEP_SUMMARY_E(0x57),    // sleep summary variant, OURA_PROTOCOL.md s6.12 (UNVERIFIED)
     SLEEP_SUMMARY_F(0x58),    // sleep summary variant, OURA_PROTOCOL.md s6.12 (UNVERIFIED)
 
     // --- Sleep phase codes (Tier A: 2-bit phase codes are byte-for-byte verified) ---
+    // 0x4B/0x4E/0x5A are the three aliases the ring emits for the SAME hypnogram layout — a header
+    // byte then 2-bit stage codes, 4/byte MSB-first (open_oura decode_sleep_phases routes all three,
+    // events.rs). 0x4B was previously misfiled as a Tier-B "sleep summary"; it is the same validated
+    // phase record. Parity with Swift's sleepPhaseB reclassification (dddbe952).
+    SLEEP_PHASE_B(0x4B),      // sleep_phase_details alias (was SLEEP_SUMMARY_B), OURA_PROTOCOL.md s6.12
     SLEEP_PHASE(0x4E),        // sleep_phase_details (2-bit codes), OURA_PROTOCOL.md s6.12
     SLEEP_PHASE_ALT(0x5A),    // sleep_phase_details alias, OURA_PROTOCOL.md s6.12
 
@@ -87,7 +91,7 @@ enum class OuraEventTag(val raw: Int) {
      */
     val tier: TrustTier
         get() = when (this) {
-            SLEEP_SUMMARY_1, SLEEP_SUMMARY_B, SLEEP_SUMMARY_C, SLEEP_SUMMARY_D, SLEEP_SUMMARY_E,
+            SLEEP_SUMMARY_1, SLEEP_SUMMARY_C, SLEEP_SUMMARY_D, SLEEP_SUMMARY_E,
             SLEEP_SUMMARY_F, ACTIVITY_INFO, ACTIVITY_SUMMARY_1, ACTIVITY_SUMMARY_2,
             REAL_STEPS_1, REAL_STEPS_2, SPO2_SMOOTHED,
             // #287: 0x71 green_ibi_and_amp is NOT corpus-verified — no captured 0x71 fixture, and
@@ -124,7 +128,7 @@ enum class OuraEventTag(val raw: Int) {
             MOTION -> "MOTION"
             MOTION_PERIOD -> "MOTION_PERIOD"
             SLEEP_SUMMARY_1 -> "SLEEP_SUMMARY_1"
-            SLEEP_SUMMARY_B -> "SLEEP_SUMMARY_4B"
+            SLEEP_PHASE_B -> "SLEEP_PHASE_4B"
             SLEEP_SUMMARY_C -> "SLEEP_SUMMARY_4C"
             SLEEP_SUMMARY_D -> "SLEEP_SUMMARY_4F"
             SLEEP_SUMMARY_E -> "SLEEP_SUMMARY_57"

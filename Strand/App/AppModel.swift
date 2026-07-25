@@ -286,8 +286,14 @@ final class AppModel: ObservableObject {
         // `connectSettled` only bumps once that channel is confirmed live, so the readback (and the arm
         // itself) always goes out on a link that's actually ready. `dropFirst()` skips the initial
         // published value (0) at subscribe time, so this doesn't fire on app launch before any connection.
+        // #730: ALSO re-run when a DISARM was dropped. `applySmartAlarm()` branches internally (enabled →
+        // arm, disabled → disarm), but gating purely on `smartAlarmEnabled` meant a user who turned the
+        // alarm OFF while disconnected had the disarm swallowed by `send` and never retried — the strap
+        // kept the old firmware alarm and still buzzed, while the app logged "Alarm: disarmed".
+        // `disarmPending` latches exactly that dropped write, so this stays a no-op for the many users who
+        // never armed one (re-running unconditionally would put a DISABLE_ALARM on every connect).
         live.$connectSettled.dropFirst().sink { [weak self] _ in
-            guard let self, self.behavior.smartAlarmEnabled else { return }
+            guard let self, self.behavior.smartAlarmEnabled || self.ble.disarmPending else { return }
             self.applySmartAlarm()
         }.store(in: &hrCancellables)
         // The firmware alarm is a single absolute instant with no recurrence, and was re-armed ONLY on

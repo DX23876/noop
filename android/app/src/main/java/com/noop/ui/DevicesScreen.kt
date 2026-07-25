@@ -166,6 +166,31 @@ fun DevicesScreen(
         // down (Today / Trends / Sleep / metric-detail parity - same two prefs, same two behaviours).
         fullBleedBackground = showDayCycleBackground && skyBehindCards,
     ) {
+        // #802: the re-pair guide belongs HERE too, not only on Live. A strap that connects but never
+        // finishes bonding leaves the user on this screen — it is where you go to fix a device — while the
+        // four steps that actually resolve it were rendered one tab away. The reporter in #802 filed an
+        // issue with the guide already armed, because nothing on Devices said so. Same state, same strings
+        // as LiveScreen; no new copy.
+        live.reconnectGuide?.let { guide ->
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Palette.surfaceRaised, RoundedCornerShape(12.dp))
+                        .border(1.dp, Palette.statusWarning.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                ) {
+                    Text(
+                        uiString(R.string.l10n_live_screen_can_t_connect_your_strap_s_cf78be83),
+                        style = NoopType.subhead,
+                        color = Palette.textPrimary,
+                    )
+                    Text(guide, style = NoopType.footnote, color = Palette.textSecondary)
+                }
+            }
+        }
+
         if (devices == null) {
             // The registry resolves a beat after launch. Show a calm pending note in that brief window.
             item {

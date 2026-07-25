@@ -50,6 +50,9 @@ class SourceCoordinatorAdoptionTest {
         override suspend fun archiveDevice(id: String) {
             devices[id]?.let { devices[id] = it.copy(status = DeviceStatus.archived.name) }
         }
+        override suspend fun setModel(id: String, model: String) {
+            devices[id]?.let { devices[id] = it.copy(model = model) }
+        }
         override suspend fun renameDevice(id: String, nickname: String?) {
             devices[id]?.let { devices[id] = it.copy(nickname = nickname) }
         }
@@ -88,6 +91,7 @@ class SourceCoordinatorAdoptionTest {
         override suspend fun deleteDayOwnershipFor(deviceId: String) {
             owners.entries.removeIf { it.value.deviceId == deviceId }
         }
+        override suspend fun deleteScoreInputProvenanceFor(deviceId: String) {}
     }
 
     private fun registryWith(dao: FakeRegistryDao) = DeviceRegistry(

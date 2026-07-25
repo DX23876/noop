@@ -81,4 +81,12 @@ public enum DeviceBrandCatalog {
     public static func spec(forBrand brand: String) -> DeviceBrandSpec? {
         all.first { $0.brand == brand }
     }
+
+    /// True when a registry deviceId belongs to an Oura ring, resolved from its "<idPrefix>-" prefix against
+    /// this canonical table (never an ad-hoc "oura" literal — the registry mints every non-WHOOP id as
+    /// "<idPrefix>-<uuid>", so the prefix IS the brand key). Read/UI side only: it lets the sleep surfaces
+    /// name an Oura night's provenance "Oura". Twin of Kotlin `DeviceBrandCatalog.isOura`.
+    public static func isOura(_ deviceId: String) -> Bool {
+        all.first { deviceId.hasPrefix($0.idPrefix + "-") }?.sourceKind == .oura
+    }
 }

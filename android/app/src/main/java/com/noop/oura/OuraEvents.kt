@@ -39,12 +39,21 @@ data class OuraTemp(val ringTimestamp: Long, val celsius: Double)
  */
 data class OuraBattery(val percent: Int, val voltageMv: Int? = null, val charging: Boolean? = null)
 
-/** Sleep phase code (OURA_PROTOCOL.md s6.12): 2-bit codes 0=awake, 1=light, 2=deep, 3=REM. */
+/**
+ * The 2-bit sleep-phase code values, per open_oura's VALIDATED `decode_sleep_phases` mapping
+ * (events.rs `PHASE = ["deep", "light", "rem", "awake"]`): 0=deep, 1=light, 2=rem, 3=awake.
+ *
+ * CORRECTION (2026-07-12, PARITY twin of Swift `OuraSleepStage`): the old mapping
+ * (0=awake/2=deep/3=REM) came from the same unverified doc as the rest of s6.12 and was contradicted
+ * by live captures — phase records decoded AT WAKE (wearer demonstrably awake) carry code 3, which is
+ * awake under open_oura's mapping and "REM" under the old one. The raw wire code persists unchanged
+ * (`stage.raw` is what's stored); only these LABELS changed, byte-identical on both platforms.
+ */
 enum class OuraSleepStage(val raw: Int) {
-    AWAKE(0),
+    DEEP(0),
     LIGHT(1),
-    DEEP(2),
-    REM(3);
+    REM(2),
+    AWAKE(3);
 
     companion object {
         private val byRaw = entries.associateBy { it.raw }
@@ -176,4 +185,28 @@ sealed class OuraEvent {
 
     /** True for Tier-B events, so a consumer can assert none leaked into a Tier-A-only sink. */
     val isTierB: Boolean get() = this is TierB || this is ActivityInfo
+
+    /**
+     * The record's envelope ring-time, when it carries one (battery is a plain response, not a log
+     * record). Feeds the history drain's in-session continuation cursor: open_oura's `drain_events`
+     * advances `start` past the max timestamp of EVERY event in a batch, whatever its tag.
+     * Byte-identical twin of Swift's envelopeRingTimestamp.
+     */
+    val envelopeRingTimestamp: Long?
+        get() = when (this) {
+            is Hr -> value.ringTimestamp
+            is Ibi -> value.ringTimestamp
+            is Hrv -> value.ringTimestamp
+            is Spo2 -> value.ringTimestamp
+            is Temp -> value.ringTimestamp
+            is Battery -> null
+            is SleepPhaseEvent -> value.ringTimestamp
+            is MotionEvent -> value.ringTimestamp
+            is StateEvent -> value.ringTimestamp
+            is TimeSyncEvent -> value.ringTimestamp
+            is RtcBeaconEvent -> value.ringTimestamp
+            is DebugTextEvent -> ringTimestamp
+            is TierB -> value.ringTimestamp
+            is ActivityInfo -> value.ringTimestamp
+        }
 }

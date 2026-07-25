@@ -71,16 +71,46 @@ public enum OuraRingGen: String, Sendable, CaseIterable, Codable {
     }
 
     /// Best-effort generation guess from an advertised peripheral name. Oura does not reliably encode
-    /// the generation in the BLE name, so this is a hint only; the wizard confirms via the model the
-    /// user picks. Returns nil when nothing matches. Per architecture plan s5 (detection is best-effort).
+    /// the generation in the BLE name, so this is a hint only; the authoritative generation comes from the
+    /// GetProductInfo hardware id on connect (`from(hardwareId:)`). Returns nil when nothing matches.
+    ///
+    /// Only infers the generation from an EXPLICIT gen token ("gen3", "ring 4", "horizon"), never a stray
+    /// digit: a factory-reset ring advertises its SERIAL in the name (observed on-device: "Oura 2H3B2405003655"
+    /// on a real Gen3), whose digits would otherwise mint a bogus generation — the "5" in that serial was
+    /// read as gen5 on a Gen3 (#772). A serial-bearing name now yields nil, so the caller falls back to the
+    /// safe default / corrects from the hardware id. Per architecture plan s5 (detection is best-effort).
     public static func recognise(advertisedName: String?) -> OuraRingGen? {
         guard let name = advertisedName?.lowercased() else { return nil }
         // Only treat as an Oura ring at all if the name carries the brand token.
         guard name.contains("oura") || name.contains("ring") else { return nil }
-        if name.contains("5") { return .gen5 }
-        if name.contains("4") { return .gen4 }
-        if name.contains("3") || name.contains("horizon") { return .gen3 }
-        return nil
+        if name.contains("horizon") { return .gen3 }
+        // The digit immediately after an explicit "gen"/"ring" token is the generation; anything else
+        // (a serial, a MAC fragment) is NOT a generation marker.
+        func gen(after token: String) -> OuraRingGen? {
+            guard let r = name.range(of: token) else { return nil }
+            switch name[r.upperBound...].drop(while: { $0 == " " }).first {
+            case "3": return .gen3
+            case "4": return .gen4
+            case "5": return .gen5
+            default:  return nil
+            }
+        }
+        return gen(after: "gen") ?? gen(after: "ring")
+    }
+
+    /// Authoritative generation from the ring's GetProductInfo hardware id (e.g. "BLB_03"). The trailing
+    /// "_NN" encodes the generation — validated on-device on a Gen3 ("BLB_03" → gen3, 2026-07-24); the gen4/5
+    /// codes are unconfirmed, so an unrecognised suffix returns nil (never a guess — honest-data). Unlike
+    /// `recognise(advertisedName:)`, this reads the generation FROM THE RING, so it is trustworthy (#772).
+    public static func from(hardwareId: String) -> OuraRingGen? {
+        guard let underscore = hardwareId.lastIndex(of: "_") else { return nil }
+        let digits = hardwareId[hardwareId.index(after: underscore)...].prefix(while: \.isNumber)
+        switch Int(digits) {
+        case 3: return .gen3
+        case 4: return .gen4
+        case 5: return .gen5
+        default: return nil
+        }
     }
 
     /// Recover the generation from a stored PairedDevice.model string ("Oura Ring 3/4/5"). Defaults

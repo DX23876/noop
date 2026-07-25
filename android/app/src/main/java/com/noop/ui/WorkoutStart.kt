@@ -181,6 +181,7 @@ fun WorkoutStartSection(vm: AppViewModel) {
     val live by vm.live.collectAsStateWithLifecycle()
     val activeWorkout by vm.activeWorkout.collectAsStateWithLifecycle()
     var showSportPicker by remember { mutableStateOf(false) }
+    var confirmingEnd by remember { mutableStateOf(false) }
     // Live workout mode (#238): the full-screen in-exercise view. StartWorkoutSheet opens it the
     // moment a workout begins; this re-entry lets the user re-open it from the compact banner after
     // dismissing. Closing just hides the overlay — the workout keeps recording in the background.
@@ -210,7 +211,7 @@ fun WorkoutStartSection(vm: AppViewModel) {
                 ) { Text(uiString(R.string.l10n_workout_start_open_cf9b7706), style = NoopType.captionNumber) }
                 Spacer(Modifier.width(8.dp))
                 Button(
-                    onClick = { vm.endWorkout() },
+                    onClick = { confirmingEnd = true },
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Palette.statusCritical, contentColor = Palette.surfaceBase,
@@ -242,6 +243,16 @@ fun WorkoutStartSection(vm: AppViewModel) {
         ) {
             LiveWorkoutScreen(vm = vm, onClose = { showLiveWorkout = false })
         }
+    }
+
+    if (confirmingEnd) {
+        EndWorkoutConfirmationDialog(
+            onConfirm = {
+                confirmingEnd = false
+                vm.endWorkout()
+            },
+            onDismiss = { confirmingEnd = false },
+        )
     }
 }
 

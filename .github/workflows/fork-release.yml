@@ -42,7 +42,7 @@ jobs:
       sha: ${{ steps.b.outputs.sha }}
       buildVersion: ${{ steps.b.outputs.buildVersion }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - id: b
         env:
           GH_TOKEN: ${{ github.token }}
@@ -126,11 +126,14 @@ jobs:
               AUTO=$(gh api --method POST "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
                 -f tag_name="$TAG" -f previous_tag_name="$PREV" -f target_commitish="$(git rev-parse HEAD)" \
                 --jq '.body' 2>/dev/null || true)
-              # Drop the per-PR "by @author" credit and any "New Contributors" block — this is a solo fork,
-              # so the auto notes needn't stamp the handle on every line. Keeps the PR titles + links.
+              # Drop only the MAINTAINER's own "by @author" credit (#736). This used to strip every handle
+              # and delete the "New Contributors" block outright, on the premise that this is a solo fork —
+              # a premise that no longer holds: 16 people have landed PRs here, 7 of them in v9.1.0 alone,
+              # and that release's auto notes carried 66 third-party credits, every one of them removed.
+              # Self-credit on nearly every line is still noise and a self-mention notifies nobody, so the
+              # maintainer's handles keep being stripped; everyone else's is the whole point of the section.
               AUTO=$(printf '%s' "$AUTO" \
-                | sed -E 's/ by @[A-Za-z0-9_-]+//g' \
-                | awk 'BEGIN{skip=0} /^#+ *New Contributors/{skip=1; next} /^#+ /{skip=0} skip{next} {print}')
+                | sed -E 's/ by @([Rr]yanbr|[Ff]anboynz)([^A-Za-z0-9_-]|$)/\2/g')
               [ -n "$AUTO" ] && printf '\n---\n\n%s\n' "$AUTO" >> "$BODY"
             else
               echo "First release (no prior release tag) — skipping the auto PR breakdown."
@@ -152,15 +155,15 @@ jobs:
       run:
         working-directory: android
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ needs.bump.outputs.sha }}   # build the bumped commit
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
-      - uses: gradle/actions/wrapper-validation@v4
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/wrapper-validation@v5
+      - uses: gradle/actions/setup-gradle@v5
       # Release-only (no debug APK). Signed with the committed fork-debug.keystore via the debug
       # signingConfig storeFile (release falls back to it when no keystore.properties is present);
       # -PstagingRelease gives it the .staging app id so it installs beside the official app.
@@ -180,7 +183,7 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ needs.bump.outputs.sha }}
       - name: Install XcodeGen
@@ -230,7 +233,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ needs.bump.outputs.sha }}
       - name: Install XcodeGen
@@ -272,7 +275,7 @@ jobs:
     needs: [bump, ios]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: main   # AltStore reads the manifest from main, so commit there regardless of the release branch.
       - name: Add this release to the AltStore source

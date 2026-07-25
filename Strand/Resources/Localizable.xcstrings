@@ -183323,6 +183323,314 @@
           }
         }
       }
+    },
+    "Streak": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streak"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Serie"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Racha"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Série"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sequência"
+          }
+        }
+      }
+    },
+    "day in a row": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "day in a row"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tag in Folge"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "día seguido"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "jour d'affilée"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dia seguido"
+          }
+        }
+      }
+    },
+    "days in a row": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "days in a row"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tage in Folge"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "días seguidos"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "jours d'affilée"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dias seguidos"
+          }
+        }
+      }
+    },
+    "Longest: 1 day": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Longest: 1 day"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Längste: 1 Tag"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Máxima: 1 día"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record : 1 jour"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recorde: 1 dia"
+          }
+        }
+      }
+    },
+    "Longest: %lld days": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Longest: %lld days"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Längste: %lld Tage"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Máxima: %lld días"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record : %lld jours"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recorde: %lld dias"
+          }
+        }
+      }
+    },
+    "This split is the ring's raw on-device classification read over Bluetooth, not the adjusted stages the Oura app shows. Expect more Awake and less Deep/REM here than in the Oura app for the same night.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Aufteilung ist die rohe, auf dem Gerät erstellte Klassifizierung des Rings, ausgelesen über Bluetooth – nicht die angepassten Phasen, die die Oura-App anzeigt. Erwarte hier mehr Wachzeit und weniger Tiefschlaf oder REM als in der Oura-App für dieselbe Nacht."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este desglose es la clasificación sin procesar del anillo, hecha en el dispositivo y leída por Bluetooth, no las fases ajustadas que muestra la app de Oura. Aquí verás más tiempo despierto y menos sueño profundo o REM que en la app de Oura para la misma noche."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cette répartition est la classification brute de l'anneau, effectuée sur l'appareil et lue via Bluetooth, et non les stades ajustés qu'affiche l'app Oura. Attendez-vous ici à plus d'éveil et moins de sommeil profond ou paradoxal que dans l'app Oura pour la même nuit."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Questa suddivisione è la classificazione grezza dell'anello, eseguita sul dispositivo e letta via Bluetooth, non le fasi corrette mostrate dall'app Oura. Aspettati qui più veglia e meno sonno profondo o REM che nell'app Oura per la stessa notte."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta divisão é a classificação em bruto do anel, feita no dispositivo e lida por Bluetooth, não as fases ajustadas que a app da Oura mostra. Espera aqui mais tempo acordado e menos sono profundo ou REM do que na app da Oura para a mesma noite."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Эта разбивка — необработанная классификация кольца, выполненная на устройстве и считанная по Bluetooth, а не скорректированные стадии, которые показывает приложение Oura. Здесь ожидайте больше бодрствования и меньше глубокого или быстрого сна, чем в приложении Oura за ту же ночь."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此分期是戒指在设备端读取（通过蓝牙）的原始分类，而非 Oura 应用显示的调整后阶段。相比 Oura 应用，同一晚这里的清醒会更多、深睡或 REM 会更少。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此分期是戒指在裝置端讀取（透過藍牙）的原始分類，而非 Oura 應用程式顯示的調整後階段。相比 Oura 應用程式，同一晚這裡的清醒會更多、深睡或 REM 會更少。"
+          }
+        }
+      }
+    },
+    "Raw on-device stages. This split is the ring's raw on-device classification read over Bluetooth, not the adjusted stages the Oura app shows. Expect more awake and less deep or REM here than in the Oura app for the same night.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rohe Phasen vom Gerät. Diese Aufteilung ist die rohe, auf dem Gerät erstellte Klassifizierung des Rings, ausgelesen über Bluetooth – nicht die angepassten Phasen, die die Oura-App anzeigt. Erwarte hier mehr Wachzeit und weniger Tiefschlaf oder REM als in der Oura-App für dieselbe Nacht."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fases sin procesar del dispositivo. Este desglose es la clasificación sin procesar del anillo, hecha en el dispositivo y leída por Bluetooth, no las fases ajustadas que muestra la app de Oura. Aquí verás más tiempo despierto y menos sueño profundo o REM que en la app de Oura para la misma noche."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stades bruts sur l'appareil. Cette répartition est la classification brute de l'anneau, effectuée sur l'appareil et lue via Bluetooth, et non les stades ajustés qu'affiche l'app Oura. Attendez-vous ici à plus d'éveil et moins de sommeil profond ou paradoxal que dans l'app Oura pour la même nuit."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fasi grezze sul dispositivo. Questa suddivisione è la classificazione grezza dell'anello, eseguita sul dispositivo e letta via Bluetooth, non le fasi corrette mostrate dall'app Oura. Aspettati qui più veglia e meno sonno profondo o REM che nell'app Oura per la stessa notte."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fases em bruto no dispositivo. Esta divisão é a classificação em bruto do anel, feita no dispositivo e lida por Bluetooth, não as fases ajustadas que a app da Oura mostra. Espera aqui mais tempo acordado e menos sono profundo ou REM do que na app da Oura para a mesma noite."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Необработанные стадии с устройства. Эта разбивка — необработанная классификация кольца, выполненная на устройстве и считанная по Bluetooth, а не скорректированные стадии, которые показывает приложение Oura. Здесь ожидайте больше бодрствования и меньше глубокого или быстрого сна, чем в приложении Oura за ту же ночь."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设备端原始分期. 此分期是戒指在设备端读取（通过蓝牙）的原始分类，而非 Oura 应用显示的调整后阶段。相比 Oura 应用，同一晚这里的清醒会更多、深睡或 REM 会更少。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "裝置端原始分期. 此分期是戒指在裝置端讀取（透過藍牙）的原始分類，而非 Oura 應用程式顯示的調整後階段。相比 Oura 應用程式，同一晚這裡的清醒會更多、深睡或 REM 會更少。"
+          }
+        }
+      }
+    },
+    "Restarted when you recalibrated on %@ — no need to tap it again.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restarted when you recalibrated on %@ — no need to tap it again."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neu gestartet, als du am %@ neu kalibriert hast — du musst nicht erneut tippen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reiniciado cuando recalibraste el %@ — no hace falta volver a pulsarlo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redémarré lors de votre recalibrage du %@ — inutile d'appuyer à nouveau."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reiniciado quando recalibraste em %@ — não precisas de tocar novamente."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

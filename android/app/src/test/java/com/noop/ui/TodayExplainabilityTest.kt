@@ -305,24 +305,56 @@ class TodayExplainabilityTest {
     }
 
     @Test
-    fun liquidHeroSourceLabel_deduplicatesOneWinner() {
+    fun todayScoreProviderLabel_coversImportedAndRegisteredProviders() {
+        assertEquals("Whoop", todayScoreProviderLabel(ScoreInputProvider("my-whoop", "WHOOP")))
+        assertEquals("Apple Watch", todayScoreProviderLabel(ScoreInputProvider("apple-health")))
+        assertEquals("Health Connect", todayScoreProviderLabel(ScoreInputProvider("health-connect")))
+        assertEquals("Oura", todayScoreProviderLabel(ScoreInputProvider("oura-import")))
+        assertEquals("Fitbit", todayScoreProviderLabel(ScoreInputProvider("fitbit-import")))
+        assertEquals("Garmin", todayScoreProviderLabel(ScoreInputProvider("garmin-import")))
+        assertEquals("Mi Band", todayScoreProviderLabel(ScoreInputProvider("xiaomi-band")))
+        for (brand in com.noop.data.DeviceBrandCatalog.all.map { it.brand }) {
+            assertEquals(brand, todayScoreProviderLabel(ScoreInputProvider("device-$brand", brand)))
+        }
+    }
+
+    @Test
+    fun todayScoreProviderLabel_unknownSourceDoesNotPretendToBeWhoop() {
+        assertEquals("sensor-42", todayScoreProviderLabel(ScoreInputProvider("sensor-42")))
+        assertEquals("not-a-whoop", todayScoreProviderLabel(ScoreInputProvider("not-a-whoop")))
+    }
+
+    @Test
+    fun liquidHeroSourceLabel_deduplicatesOneProvider() {
         assertEquals(
-            "On-device",
-            heroSourceLabel(listOf("my-whoop-noop", "my-whoop-noop", "my-whoop-noop")),
+            "Polar",
+            heroSourceLabel(
+                listOf(
+                    ScoreInputProvider("polar-1", "Polar"),
+                    ScoreInputProvider("polar-1", "Polar"),
+                    ScoreInputProvider("polar-1", "Polar"),
+                ),
+            ),
         )
     }
 
     @Test
-    fun liquidHeroSourceLabel_capsMixedWinnersAtTwoInScoreOrder() {
+    fun liquidHeroSourceLabel_capsMixedProvidersAtTwoInScoreOrder() {
         assertEquals(
-            "Whoop + On-device",
-            heroSourceLabel(listOf("my-whoop", "my-whoop-noop", "health-connect")),
+            "Whoop + Oura",
+            heroSourceLabel(
+                listOf(
+                    ScoreInputProvider("my-whoop", "WHOOP"),
+                    ScoreInputProvider("oura-import"),
+                    ScoreInputProvider("health-connect"),
+                ),
+            ),
         )
     }
 
     @Test
     fun liquidHeroSourceLabel_usesAudienceFacingAppleWatchName() {
-        assertEquals("Apple Watch", heroSourceLabel(listOf("apple-health")))
+        assertEquals("Apple Watch", heroSourceLabel(listOf(ScoreInputProvider("apple-health"))))
     }
 
     @Test
@@ -333,10 +365,10 @@ class TodayExplainabilityTest {
     @Test
     fun liquidHeroSourceLabel_usesCarriedChargeSourceWhenTodayRecoveryIsAbsent() {
         assertEquals(
-            "On-device",
+            "Whoop",
             scoreHeroSourceLabel(
-                provenanceByMetric = emptyMap(),
-                carriedRecoverySource = "my-whoop-noop",
+                providerByMetric = emptyMap(),
+                carriedRecoveryProvider = ScoreInputProvider("my-whoop", "WHOOP"),
                 usesCarriedRecovery = true,
             ),
         )
@@ -345,10 +377,10 @@ class TodayExplainabilityTest {
     @Test
     fun liquidHeroSourceLabel_keepsCurrentDayRecoveryAheadOfCarriedFallback() {
         assertEquals(
-            "Whoop",
+            "Oura",
             scoreHeroSourceLabel(
-                provenanceByMetric = mapOf("recovery" to "my-whoop"),
-                carriedRecoverySource = "my-whoop-noop",
+                providerByMetric = mapOf("recovery" to ScoreInputProvider("oura-import")),
+                carriedRecoveryProvider = ScoreInputProvider("my-whoop", "WHOOP"),
                 usesCarriedRecovery = true,
             ),
         )
@@ -358,8 +390,8 @@ class TodayExplainabilityTest {
     fun liquidHeroSourceLabel_ignoresCarriedSourceWhenChargeIsNotCarried() {
         assertNull(
             scoreHeroSourceLabel(
-                provenanceByMetric = emptyMap(),
-                carriedRecoverySource = "my-whoop-noop",
+                providerByMetric = emptyMap(),
+                carriedRecoveryProvider = ScoreInputProvider("my-whoop", "WHOOP"),
                 usesCarriedRecovery = false,
             ),
         )

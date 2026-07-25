@@ -87,6 +87,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -660,6 +661,23 @@ fun SettingsScreen(
         // Choose/Change button and, once set, a Remove. Local-only and honest: the picked image is
         // downscaled and kept on this phone, never uploaded. Reads ProfileAvatarStore.hasAvatar
         // (snapshot state) so the controls update the instant a photo is set or cleared.
+        // Day streak (#569): consecutive days with a Charge score, computed on-device from your own
+        // history. Uses NoopCard directly (not SettingsSection) to keep the wiring self-contained.
+        val streaks by vm.streaks.collectAsStateWithLifecycle()
+        NoopCard(tint = Palette.chargeColor) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(uiString(R.string.settings_streak_title), style = NoopType.subhead, color = Palette.textPrimary)
+                Text(
+                    pluralStringResource(R.plurals.settings_streak_run, streaks.current, streaks.current),
+                    style = NoopType.subhead, color = Palette.chargeColor,
+                )
+                Text(
+                    pluralStringResource(R.plurals.settings_streak_longest, streaks.longest, streaks.longest),
+                    style = NoopType.footnote, color = Palette.textSecondary,
+                )
+            }
+        }
+
         SettingsSection(
             icon = Icons.Outlined.AccountCircle,
             title = uiString(R.string.l10n_settings_screen_profile_photo_33f385bb),

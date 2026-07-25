@@ -342,6 +342,22 @@ data class MetricSeriesRow(
 )
 
 /**
+ * Provider provenance for one NOOP-computed score. Separate from `dayOwnership`: ownership controls
+ * raw-input resolution, while this records the source actually used for a persisted metric.
+ */
+@Entity(
+    tableName = "scoreInputProvenance",
+    primaryKeys = ["deviceId", "day", "key"],
+    indices = [Index(name = "idx_scoreInputProvenance_source", value = ["sourceId"])],
+)
+data class ScoreInputProvenanceRow(
+    val deviceId: String,
+    val day: String,
+    @ColumnInfo(name = "key") val key: String,
+    val sourceId: String,
+)
+
+/**
  * Lab Book marker reading (Health Records pillar). Swift `labMarker` (Database.swift v17 /
  * LabMarkerStore.swift). The richer source-of-truth behind the daily `metricSeries` projection:
  * one row per dated reading the USER entered themselves, a day can hold several readings, each

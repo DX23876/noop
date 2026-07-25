@@ -301,6 +301,20 @@ class WhoopRepository(private val dao: WhoopDao) {
     suspend fun deleteComputedDailyInRange(deviceId: String, from: String, to: String) =
         dao.deleteDailyMetricsInRange(deviceId, from, to)
 
+    suspend fun replaceComputedScoreWindow(
+        deviceId: String,
+        from: String,
+        to: String,
+        dailyMetrics: List<DailyMetric>,
+        metricPoints: List<MetricSeriesRow>,
+        provenance: List<ScoreInputProvenanceRow>,
+    ) = dao.replaceComputedScoreWindow(
+        deviceId, from, to, dailyMetrics, metricPoints, provenance
+    )
+
+    suspend fun scoreInputSource(deviceId: String, day: String, key: String): String? =
+        dao.scoreInputSource(deviceId, day, key)
+
     /** Hand-correct the bed (onset) / wake (end) time of an existing sleep session, DURABLY , port
      *  of iOS PR #395 (Repository.editSleepTimes + MetricsCache.applySleepEdit).
      *

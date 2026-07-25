@@ -1716,4 +1716,13 @@
     <string name="l10n_data_sources_screen_last_shared_6bf8389c">"Last shared "</string>
     <string name="l10n_data_sources_screen_sharing_paused_health_connect_permission_was_e8950315">Sharing paused — Health Connect permission was revoked. Tap to re-grant.</string>
     <string name="l10n_data_sources_screen_last_share_didn_t_finish_noop_0d6c27f0">Last share didn’t finish — NOOP will retry automatically.</string>
+    <string name="settings_streak_title">Streak</string>
+    <plurals name="settings_streak_run">
+        <item quantity="one">%1$d day in a row</item>
+        <item quantity="other">%1$d days in a row</item>
+    </plurals>
+    <plurals name="settings_streak_longest">
+        <item quantity="one">Longest: %1$d day</item>
+        <item quantity="other">Longest: %1$d days</item>
+    </plurals>
 </resources>

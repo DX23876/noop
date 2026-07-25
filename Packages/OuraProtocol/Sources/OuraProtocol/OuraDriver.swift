@@ -159,8 +159,11 @@ public final class OuraDriver {
                 phase = .streaming
                 return []
             }
-            // Ack-fetch (max=0) at the new cursor advances without re-pulling data (s5.3 step 4).
-            return [OuraCommands.getEvents(cursor: cursor, maxEvents: 0)]
+            // Continuation fetch at the ADVANCED cursor (max seen ring-time + 1), same shape as the
+            // initial request — open_oura `drain_events` re-issues `req_get_event(start, 255, -1)` every
+            // batch. The old open_ring "ack-fetch" (max=0 at a non-advancing cursor) made the ring
+            // RESTART serving from that cursor: the observed same-window re-serve loop (s5.3).
+            return [OuraCommands.getEvents(cursor: cursor, maxEvents: 255)]
         }
     }
 
@@ -226,6 +229,35 @@ public final class OuraDriver {
         let seconds = ms / 1000
         guard seconds >= Self.minPlausibleEpochSeconds, seconds <= Self.maxPlausibleEpochSeconds else { return nil }
         return Int(seconds)
+    }
+
+    /// Resolve the 0x13 SyncTime-response device timestamp into ring TICKS, or nil when no unambiguous
+    /// reading exists. ringverse BLE.md labels the field "seconds" but the ring's record clock runs in
+    /// 100 ms ticks, so both readings are tried: the raw value (already ticks) and value×10 (seconds→
+    /// ticks). The ring's clock at connect must sit shortly AFTER where the last drain ended, so a
+    /// candidate is plausible iff it falls in `[historyCursor, historyCursor + 7 days]`; exactly one
+    /// must fit (ambiguity or a fresh/reset cursor → nil → the caller logs raw instead of guessing).
+    /// Pure and testable; the honest-data invariant is "no anchor beats a wrong anchor".
+    public static func syncTimeAnchorCandidate(responseValue: UInt32, historyCursor: UInt32) -> UInt32? {
+        guard historyCursor > 0 else { return nil }
+        let lower = Int64(historyCursor)
+        let upper = lower + 6_048_000   // 7 days of 100 ms ticks
+        let readings = [Int64(responseValue), Int64(responseValue) * 10]
+        let fits = readings.filter { $0 >= lower && $0 <= upper && $0 <= Int64(UInt32.max) }
+        guard fits.count == 1 else { return nil }
+        return UInt32(fits[0])
+    }
+
+    /// Adopt a ring-time→UTC anchor from the 0x13 SyncTime response pair (`rt` = the ring's clock counter
+    /// in ticks when it processed our SyncTime, `unixSeconds` = host wall-clock at receipt). Same
+    /// plausibility gate as the 0x42/0x85 paths; returns whether the anchor was set. The freshest
+    /// possible pair, so it overwrites any earlier anchor (an in-log 0x42 from the same clock domain
+    /// yields the same mapping anyway).
+    public func adoptSyncTimeAnchor(ringTimestamp rt: UInt32, unixSeconds: Int64) -> Bool {
+        guard let ms = Self.plausibleAnchorMs(fromEpochSeconds: unixSeconds) else { return false }
+        anchorUtcMs = ms
+        anchorRingTime = rt
+        return true
     }
 
     /// Bounds for a plausible anchor epoch (unix seconds): 2020-01-01 to 2035-01-01. A decoded 0x42/0x85

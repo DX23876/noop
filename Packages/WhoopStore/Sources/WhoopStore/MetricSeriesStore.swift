@@ -30,19 +30,24 @@ extension WhoopStore {
     @discardableResult
     public func upsertMetricSeries(_ rows: [MetricPoint], deviceId: String) async throws -> Int {
         try syncWrite { db in
-            var n = 0
-            for r in rows {
-                try db.execute(sql: """
-                    INSERT INTO metricSeries
-                        (deviceId, day, key, value)
-                    VALUES (?, ?, ?, ?)
-                    ON CONFLICT(deviceId, day, key) DO UPDATE SET
-                        value = excluded.value
-                    """, arguments: [deviceId, r.day, r.key, r.value])
-                n += db.changesCount
-            }
-            return n
+            try Self.upsertMetricSeries(rows, deviceId: deviceId, in: db)
         }
+    }
+
+    /// Transaction-sharing primitive used by computed-score persistence.
+    static func upsertMetricSeries(_ rows: [MetricPoint], deviceId: String, in db: Database) throws -> Int {
+        var n = 0
+        for r in rows {
+            try db.execute(sql: """
+                INSERT INTO metricSeries
+                    (deviceId, day, key, value)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(deviceId, day, key) DO UPDATE SET
+                    value = excluded.value
+                """, arguments: [deviceId, r.day, r.key, r.value])
+            n += db.changesCount
+        }
+        return n
     }
 
     // MARK: - Reads

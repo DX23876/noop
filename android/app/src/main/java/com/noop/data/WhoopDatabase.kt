@@ -37,6 +37,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         DailyMetric::class,
         SleepSession::class,
         MetricSeriesRow::class,
+        ScoreInputProvenanceRow::class,
         JournalEntry::class,
         WorkoutRow::class,
         DismissedWorkout::class,
@@ -50,7 +51,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         PpgWaveformSampleEntity::class,
         RawImuSampleEntity::class,
     ],
-    version = 22,
+    version = 23,
     exportSchema = false,
 )
 abstract class WhoopDatabase : RoomDatabase() {
@@ -581,6 +582,22 @@ abstract class WhoopDatabase : RoomDatabase() {
             }
         }
 
+        /** Metric-level provenance for NOOP-computed scores. Additive and intentionally independent
+         *  from dayOwnership, whose resolver semantics remain unchanged. */
+        internal val SCORE_INPUT_PROVENANCE_MIGRATION_SQL: List<String> = listOf(
+            "CREATE TABLE IF NOT EXISTS `scoreInputProvenance` (`deviceId` TEXT NOT NULL, " +
+                "`day` TEXT NOT NULL, `key` TEXT NOT NULL, `sourceId` TEXT NOT NULL, " +
+                "PRIMARY KEY(`deviceId`, `day`, `key`))",
+            "CREATE INDEX IF NOT EXISTS `idx_scoreInputProvenance_source` " +
+                "ON `scoreInputProvenance` (`sourceId`)",
+        )
+
+        internal val MIGRATION_22_23 = object : Migration(22, 23) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                for (stmt in SCORE_INPUT_PROVENANCE_MIGRATION_SQL) db.execSQL(stmt)
+            }
+        }
+
         private fun build(appContext: Context): WhoopDatabase =
             Room.databaseBuilder(appContext, WhoopDatabase::class.java, DB_NAME)
                 // #1014: replace ONLY the corruption handling of the default open-helper. The
@@ -597,6 +614,7 @@ abstract class WhoopDatabase : RoomDatabase() {
                     MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
                     MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18,
                     MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22,
+                    MIGRATION_22_23,
                 )
                 // #1037: a FRESH install builds the schema straight at the current version and runs NO
                 // migrations, so the MIGRATION_7_8 "my-whoop" registry seed never fires and the WHOOP,

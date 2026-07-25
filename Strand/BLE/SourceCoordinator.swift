@@ -356,12 +356,49 @@ final class SourceCoordinator: ObservableObject {
             persist: { [storeHandle] streams in
                 Task { if let store = await storeHandle() { _ = try? await store.insert(streams, deviceId: id) } }
             },
+            persistSleepSession: { [storeHandle] session in
+                // The ring-PROVIDED hypnogram night, upserted under the ring's OWN id (the imported/measured
+                // side, NOT the "-noop" computed sibling) so SleepMerge's imported-over-computed rule makes
+                // Oura's SleepNet staging win over NOOP's sparse-motion computed night (#325).
+                Task { if let store = await storeHandle() { _ = try? await store.upsertSleepSessions([session], deviceId: id) } }
+            },
             log: straplog,
             onBattery: { [live] pct in live.setBattery(Double(pct)) },
+            onModel: { [registry] model in registry.setModel(id, model: model) },   // #772: correct a name-guessed gen
+            onSerial: { [weak self] serial in self?.adoptOuraSerial(currentId: id, serial: serial) },  // #771
             adoptIntent: adoptIntent)
         if adoptIntent { straplog("Oura: adopt consent granted - this session may install NOOP's key") }
         ouraSource = source   // the published typed handle for the adopt mirror (same object as activeSource)
         return source
+    }
+
+    /// #771: the live Oura source read the ring's stable SERIAL (`serial`) on connect. Re-point this device
+    /// from its transient CoreBluetooth-UUID id (`currentId`) onto its `oura-<serial>` id, so a re-pair — which
+    /// mints a fresh CB UUID — never orphans the ring's history again. The `oura-` prefix comes from the ONE
+    /// brand catalog (never a literal), matching `AddDeviceWizard.buildOuraDevice`.
+    ///
+    /// Deferred to the next main-loop turn: `setActive` re-points the coordinator via the `activeDeviceId`
+    /// observer, which tears down and rebuilds THIS very source — so we must let the current BLE callback
+    /// return first. Re-checks that this is still the active device, and reconciles ONLY this active row into
+    /// the serial id (other past `oura-*` pairings are left untouched — the store method enforces that scope).
+    private func adoptOuraSerial(currentId: String, serial: String) {
+        let serialId = "\(ExperimentalBrand.oura.idPrefix)-\(serial)"
+        guard currentId != serialId, registry.activeDeviceId == currentId else { return }
+        Task { @MainActor [weak self] in
+            guard let self, self.registry.activeDeviceId == currentId else { return }
+            if self.registry.adoptSerialIdentity(from: currentId, to: serialId) {
+                // The install key is stored in the Keychain keyed by deviceId, so it MUST move with the id or
+                // the re-pointed session finds no key and can't authenticate. Copy it onto the serial id, then
+                // clear the old one (the CB-UUID id no longer exists). (The history cursor is deliberately not
+                // migrated: a missing cursor just re-pulls and self-heals.)
+                if let key = OuraKeyStore.read(deviceId: currentId) {
+                    _ = OuraKeyStore.save(key, deviceId: serialId)
+                    OuraKeyStore.clear(deviceId: currentId)
+                }
+                self.straplog("Oura: adopted stable serial id \(serialId) (was \(currentId)) - re-pointing onto the ring's serial (#771)")
+                self.registry.setActive(serialId)
+            }
+        }
     }
 
     /// Grant explicit adopt consent for `deviceId` so the NEXT live Oura session for it (started when it

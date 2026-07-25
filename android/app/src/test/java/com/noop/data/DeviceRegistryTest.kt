@@ -53,6 +53,10 @@ class DeviceRegistryTest {
             devices[id]?.let { devices[id] = it.copy(status = DeviceStatus.archived.name) }
         }
 
+        override suspend fun setModel(id: String, model: String) {
+            devices[id]?.let { devices[id] = it.copy(model = model) }
+        }
+
         override suspend fun renameDevice(id: String, nickname: String?) {
             devices[id]?.let { devices[id] = it.copy(nickname = nickname) }
         }
@@ -97,6 +101,9 @@ class DeviceRegistryTest {
         override suspend fun deleteDayOwnershipFor(deviceId: String) {
             deletedTables += "dayOwnership" to deviceId
             owners.entries.removeIf { it.value.deviceId == deviceId }
+        }
+        override suspend fun deleteScoreInputProvenanceFor(deviceId: String) {
+            deletedTables += "scoreInputProvenance" to deviceId
         }
         override suspend fun deleteSleepStatesFor(deviceId: String) { deletedTables += "sleepStateSample" to deviceId }
         override suspend fun deleteLabMarkersFor(deviceId: String) { deletedTables += "labMarker" to deviceId }
@@ -237,6 +244,7 @@ class DeviceRegistryTest {
             "hrSample", "rrInterval", "spo2Sample", "skinTempSample", "respSample", "gravitySample",
             "stepSample", "ppgHrSample", "ppgWaveformSample", "rawImuSample", "event", "battery", "dailyMetric", "sleepSession",
             "journal", "workout", "appleDaily", "metricSeries", "dayOwnership",
+            "scoreInputProvenance",
             "sleepStateSample", "labMarker", "liveSession", "dismissedWorkout", "dismissedSleep",
         )
         assertEquals(expectedTables, dao.deletedTables.map { it.first }.toSet())

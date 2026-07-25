@@ -598,6 +598,10 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/SleepScreen.kt",
+      "Raw on-device stages"
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SleepScreen.kt",
       "Removes this recorded sleep and recomputes the day without it. NOOP won't re-detect sleep in this window. You can undo for a few seconds after."
     ],
     [
@@ -611,6 +615,10 @@
     [
       "android/app/src/main/java/com/noop/ui/SleepScreen.kt",
       "Sleep deleted. NOOP won't detect sleep between $startText and $endText again."
+    ],
+    [
+      "android/app/src/main/java/com/noop/ui/SleepScreen.kt",
+      "This split is the ring's raw on-device classification read over Bluetooth, not the adjusted "
     ],
     [
       "android/app/src/main/java/com/noop/ui/SmartAlarmScreen.kt",

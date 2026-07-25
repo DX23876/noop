@@ -366,6 +366,7 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         val w = activeWorkout
         if (w != null) {
+            var confirmingEnd by remember(w.startMs) { mutableStateOf(false) }
             var nowMs by remember { mutableStateOf(System.currentTimeMillis()) }
             LaunchedEffect(w.startMs) {
                 while (true) { nowMs = System.currentTimeMillis(); delay(1000) }
@@ -398,7 +399,7 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
                         }
                     }
                     Button(
-                        onClick = { viewModel.endWorkout() },
+                        onClick = { confirmingEnd = true },
                         modifier = Modifier.fillMaxWidth(),
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
                         colors = ButtonDefaults.buttonColors(
@@ -406,6 +407,15 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
                         ),
                     ) { Text(uiString(R.string.l10n_live_screen_end_workout_3e8d6238), style = NoopType.captionNumber) }
                 }
+            }
+            if (confirmingEnd) {
+                EndWorkoutConfirmationDialog(
+                    onConfirm = {
+                        confirmingEnd = false
+                        viewModel.endWorkout()
+                    },
+                    onDismiss = { confirmingEnd = false },
+                )
             }
         } else {
             // Start-workout + a Refresh-battery action, gated on a live link (parity with the macOS

@@ -181,7 +181,7 @@ class OuraDriverTest {
     // MARK: - History fetch loop
 
     @Test
-    fun testHistoryFetchFlushesThenFetchesThenAcks() {
+    fun testHistoryFetchFlushesThenFetchesThenContinues() {
         val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key)
         val start = d.nextStep(OuraTransition.StartHistoryFetch(cursor = 0L))
         assertEquals(OuraDriverPhase.FetchingHistory, d.phase)
@@ -192,18 +192,31 @@ class OuraDriverTest {
             start[1].bytes,
         )
 
-        // More data -> ack-fetch (max 0) at the advanced cursor.
-        val ack = d.nextStep(OuraTransition.HistoryCursorAdvanced(cursor = 0x12345678L, moreData = true))
-        assertEquals(1, ack.size)
+        // More data -> continuation fetch at the ADVANCED cursor, SAME shape as the initial request
+        // (max 255, open_oura drain_events). The old max=0 "ack" made the ring restart its serve.
+        val cont = d.nextStep(OuraTransition.HistoryCursorAdvanced(cursor = 0x12345678L, moreData = true))
+        assertEquals(1, cont.size)
         assertArrayEquals(
-            intArrayOf(0x10, 0x09, 0x78, 0x56, 0x34, 0x12, 0x00, 0xFF, 0xFF, 0xFF, 0xFF),
-            ack[0].bytes,
+            intArrayOf(0x10, 0x09, 0x78, 0x56, 0x34, 0x12, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF),
+            cont[0].bytes,
         )
 
         // No more -> back to streaming.
         val stop = d.nextStep(OuraTransition.HistoryCursorAdvanced(cursor = 0x12345678L, moreData = false))
         assertTrue(stop.isEmpty())
         assertEquals(OuraDriverPhase.Streaming, d.phase)
+    }
+
+    @Test
+    fun testSyncTimeCommandIsU64SecondsPlusTz() {
+        // 12 09 <unix_seconds:8 LE> <tz:1> (s5.4, ringverse/open_oura layout — on-device proven; the
+        // old open_ring token/counter/0xF6 guess never anchored on real hardware).
+        val cmd = OuraCommands.syncTime(0x1061BCL, tzHalfHours = 4)
+        assertEquals("sync_time", cmd.label)
+        assertArrayEquals(
+            intArrayOf(0x12, 0x09, 0xBC, 0x61, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04),
+            cmd.bytes,
+        )
     }
 
     // MARK: - Ring-time -> UTC anchor (s5.5)
@@ -603,21 +616,23 @@ class OuraDriverTest {
         )
     }
 
-    // MARK: - Notification-level ingest via reassembler
+    // MARK: - Notification-level ingest (one-packet-per-notification, twin of Swift dae3d7a4)
 
     @Test
-    fun testIngestNotificationReassemblesAndDecodes() {
+    fun testIngestNotificationParsesOnePacketPerValue() {
         val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = key)
         val reassembler = OuraReassembler()
-        // Two records packed together: 0x7B SpO2 then 0x46 temp.
+        // A second record packed behind the first is padding under the one-packet model: only the
+        // FIRST record decodes (the old buffering loop minted phantom records from such tails).
         val value = bytes("7b060200010003ca" + "460802000100420e470e")
         val events = d.ingest(notification = value, reassembler = reassembler)
-        // 36.50 and 36.55 are computed identically (IEEE-754 Int/100.0) in both ports.
-        assertEquals(3, events.size)
+        assertEquals(1, events.size)
         assertEquals(OuraEvent.Spo2(OuraSpO2(ringTimestamp = rt, value = 970)), events[0])
-        assertTrue(events[1] is OuraEvent.Temp)
-        assertEquals(36.50, (events[1] as OuraEvent.Temp).value.celsius, 1e-9)
-        assertEquals(36.55, (events[2] as OuraEvent.Temp).value.celsius, 1e-9)
+        // Each notification decodes on its own: the temp record in its OWN value decodes fully.
+        val tempEvents = d.ingest(notification = bytes("460802000100420e470e"), reassembler = reassembler)
+        assertEquals(2, tempEvents.size)
+        assertEquals(36.50, (tempEvents[0] as OuraEvent.Temp).value.celsius, 1e-9)
+        assertEquals(36.55, (tempEvents[1] as OuraEvent.Temp).value.celsius, 1e-9)
     }
 
     // MARK: - Generation-driven command set / MTU
@@ -631,16 +646,6 @@ class OuraDriverTest {
         assertEquals(OuraRingGen.GEN5, OuraRingGen.from("Oura Ring 5"))
         assertEquals(OuraRingGen.GEN3, OuraRingGen.from("Oura Ring 3"))
         assertTrue(OuraRingGen.GEN3.capabilities.contains(OuraMetric.HRV))
-    }
-
-    @Test
-    fun testSyncTimeCommandCounter() {
-        // counter = floor(unix / 256). For unix = 256 -> counter 1 -> bytes 01 00 00, trailer 0xF6.
-        val cmd = OuraCommands.syncTime(unixSeconds = 256L)
-        assertArrayEquals(
-            intArrayOf(0x12, 0x09, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF6),
-            cmd.bytes,
-        )
     }
 
     // MARK: - Dangerous commands are isolated and labelled

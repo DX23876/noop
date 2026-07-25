@@ -4,7 +4,7 @@ contact_links:
     url: https://discord.com/invite/wKgyqVdjrP
     about: "Got a question, stuck on setup, or not sure something's a bug? Discord is the fastest place for a quick answer. (Confirmed bugs still go to a GitHub issue, with a strap log.)"
   - name: ❓ FAQ — start here (most questions are answered)
-    url: https://github.com/ryanbr/noop/wiki/FAQ
+    url: https://github.com/ryanbr/noop/blob/main/docs/FAQ.md
     about: "Live HR, recovery/sleep, steps, importing data, privacy, updates — the common questions are answered here. Please check before filing."
   - name: ⌚ WHOOP 5.0 / MG — what works & what doesn't
     url: https://github.com/ryanbr/noop/wiki/WHOOP-5.0-and-MG-Status

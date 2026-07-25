@@ -245,6 +245,7 @@ busy timeout so two handles to the same file don't deadlock.
 | `sleepSession`, `dailyMetric` | cached derived metrics | `(deviceId, startTs)` / `(deviceId, day)` |
 | `journal`, `workout`, `appleDaily` | journal + workouts + Apple-Health daily | various |
 | `metricSeries` | generic long-format (EAV) metric store | `(deviceId, day, key)` |
+| `scoreInputProvenance` | input provider for a NOOP-computed score | `(deviceId, day, key)` |
 
 ### Key public API
 

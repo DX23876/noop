@@ -204,4 +204,47 @@ final class FramingTests: XCTestCase {
         r.reset()
         XCTAssertEqual(r.bufferedByteCount, 0)
     }
+
+    // MARK: - 0x13 SyncTime response (ringverse BLE.md: device_ts u32 LE + status)
+
+    func testParseSyncTimeResponse() {
+        // ringverse example body: 4b ed a9 00 00 -> device_ts 0x00A9ED4B, status 0.
+        let r = OuraFraming.parseSyncTimeResponse(bytes("4beda90000"))
+        XCTAssertEqual(r?.deviceTimestamp, 0x00A9_ED4B)
+        XCTAssertEqual(r?.status, 0)
+        // Short body -> nil, never a guessed timestamp.
+        XCTAssertNil(OuraFraming.parseSyncTimeResponse(bytes("4beda900")))
+    }
+
+    // MARK: - 0x13 -> anchor tick disambiguation (OuraDriver.syncTimeAnchorCandidate)
+
+    func testSyncTimeAnchorCandidateResolvesUnit() {
+        // The 2026-07-13 shape: cursor banked at 4_413_933 (last night's log end); ~11 h later the
+        // ring's clock is ~4.81M ticks. A raw-ticks response fits the [cursor, cursor+7d] window and
+        // the seconds x10 reading does not -> unambiguous ticks.
+        XCTAssertEqual(OuraDriver.syncTimeAnchorCandidate(responseValue: 4_810_000, historyCursor: 4_413_933),
+                       4_810_000)
+        // A seconds-unit response (481_000 s = 4.81M ticks) only fits when multiplied x10.
+        XCTAssertEqual(OuraDriver.syncTimeAnchorCandidate(responseValue: 481_000, historyCursor: 4_413_933),
+                       4_810_000)
+        // Below the cursor in both readings (ring reboot / stale value) -> nil.
+        XCTAssertNil(OuraDriver.syncTimeAnchorCandidate(responseValue: 100_000, historyCursor: 4_413_933))
+        // Beyond cursor+7d in both readings -> nil.
+        XCTAssertNil(OuraDriver.syncTimeAnchorCandidate(responseValue: 40_000_000, historyCursor: 4_413_933))
+        // A fresh/reset cursor gives no reference -> nil (never guess on a full pull).
+        XCTAssertNil(OuraDriver.syncTimeAnchorCandidate(responseValue: 4_810_000, historyCursor: 0))
+        // Ambiguity guard: BOTH readings inside the window -> nil.
+        XCTAssertNil(OuraDriver.syncTimeAnchorCandidate(responseValue: 150_000, historyCursor: 140_000))
+    }
+
+    func testAdoptSyncTimeAnchorResolvesHistoryTimes() {
+        let d = OuraDriver(ringGen: .gen3, authKey: nil)
+        let now: Int64 = 1_784_000_000                     // inside the 2020-2035 plausibility window
+        XCTAssertNil(d.unixSeconds(forRingTimestamp: 4_800_000), "no anchor yet")
+        XCTAssertTrue(d.adoptSyncTimeAnchor(ringTimestamp: 4_810_000, unixSeconds: now))
+        // A record 10_000 ticks (1000 s) before the anchor resolves to now - 1000.
+        XCTAssertEqual(d.unixSeconds(forRingTimestamp: 4_800_000), Int(now) - 1000)
+        // An implausible host epoch is refused (never anchors to a garbage clock).
+        XCTAssertFalse(d.adoptSyncTimeAnchor(ringTimestamp: 4_810_000, unixSeconds: 100))
+    }
 }

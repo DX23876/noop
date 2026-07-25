@@ -224,8 +224,10 @@ object Framing {
     private fun commandLabel(v: Int): String =
         CommandNumber.fromRaw(v)?.let { "${it.name}($v)" } ?: hexLabel(v)
 
-    /** 5/MG COMMAND_RESPONSE result codes. 3=UNSUPPORTED matches our own MG haptics-rejection
-     *  capture (#48); 2=PENDING precedes SUCCESS on GET_DATA_RANGE (hardware-confirmed, #78 fork). */
+    /** COMMAND_RESPONSE result codes, on both families. 3=UNSUPPORTED matches our own MG haptics-rejection
+     *  capture (#48); 2=PENDING precedes SUCCESS on GET_DATA_RANGE (hardware-confirmed, #78 fork). The same
+     *  codes appear on a 4.0 at payload[1] — 0x01 on an answered GET_DATA_RANGE, 0x00 on an empty
+     *  extended-battery reply (#791 captures). */
     private fun commandResultLabel(v: Int): String = when (v) {
         0 -> "FAILURE(0)"
         1 -> "SUCCESS(1)"
@@ -467,6 +469,19 @@ object Framing {
         val pay = frame.copyOfRange(7, payEnd)
         val cmd = frame.u8(6) ?: return
         parsed["resp_cmd"] = commandLabel(cmd)
+        // #791: the origin-seq echo and the result code, which the 5/MG path has always exposed (at @11/@12)
+        // and this one never did. Without them a 4.0 strap log cannot say whether a command SUCCEEDED or
+        // FAILED — a reporter had to hand-decode `result=0x00` from raw hex to discover that their strap was
+        // answering GET_EXTENDED_BATTERY_INFO with FAILURE rather than an empty success.
+        //
+        // Grounded in real 4.0 captures, not inferred: an answered GET_DATA_RANGE carries pay[1] = 0x01
+        // (SUCCESS) and the empty extended-battery reply carries 0x00 (FAILURE), and the GET_BATTERY_LEVEL
+        // decode below has always read its value from payload[2..4] — already skipping these two bytes.
+        //
+        // The echo also makes a duplicated write self-evident: the same resp_seq arriving two or three times
+        // for one send is the #791 write-queue bug, visible in a log instead of needing frame archaeology.
+        if (pay.isNotEmpty()) parsed["resp_seq"] = pay[0].toInt() and 0xFF
+        if (pay.size >= 2) parsed["result"] = commandResultLabel(pay[1].toInt() and 0xFF)
         when (CommandNumber.fromRaw(cmd)) {
             CommandNumber.GET_BATTERY_LEVEL -> {
                 if (pay.size >= 4) {

@@ -794,6 +794,79 @@ set, keep it reversible and non-destructive.
 
 ---
 
+## Appendix: observed but undecoded (#791)
+
+A reporter running an instrumented build on a **WHOOP 4.0 with recent firmware** (Galaxy S24 Ultra) dumped
+every non-streaming inbound frame across ~40 minutes of bonded sessions. These observations are recorded
+because they exist nowhere else, and because guessing at them would be worse than leaving them raw. Nothing
+here is decoded — the point is that the raw evidence survives for whoever next has a strap in this state.
+
+### Two uncatalogued events
+
+Neither number appears in the shared `EventNumber` catalogue (which tops out at 100), so both are named
+nowhere on either platform and render as their hex label. Full frames, one occurrence each:
+
+```
+event 0x44 (68):  aa 14 00 03 30 fc 44 00 3c ee 63 6a 80 7e 04 00 01 01 ff 00 58 2e c2 81
+event 0x66 (102): aa 14 00 03 30 0a 66 00 9e ee 63 6a 60 48 04 00 01 01 00 00 34 0e 63 88
+                              │  │  │  └─ event_timestamp (u32 LE)      └─ payload
+                              │  │  └─ event @6
+                              │  └─ strap seq
+                              └─ type 0x30 (48, EVENT)
+```
+
+Both are well-formed: `declared_len + 4 == actual`, and the event byte sits at the documented `@6`. Their
+8-byte payloads share a middle run and differ at each end:
+
+```
+0x44 (68):  80 7e | 04 00 01 01 | ff 00
+0x66 (102): 60 48 | 04 00 01 01 | 00 00
+```
+
+Suggestive of a shared record shape, but one sample each proves nothing — do not build a decode on it.
+
+### A strap-sourced ERROR event
+
+The same session produced one `ERROR` (event 1) frame. On a strap in poor health — scrambled RTC, most
+opcodes silent — this may be the firmware describing its own fault, which would make it the most valuable
+payload in the capture:
+
+```
+aa 1c 00 ab 30 a2 01 00 69 f0 63 6a 98 54 0c 00 | 01 00 05 02 05 00 00 00 00 00 00 00
+                        └─ ev 0x01              └─ 12-byte payload
+```
+
+### An opcode-silence census
+
+The most reusable observation. On this firmware the strap answers **five** opcodes and ignores the rest,
+consistently across the whole session:
+
+| resp_cmd | | |
+|---|---|---|
+| `0x03` TOGGLE_REALTIME_HR | 19 | answered |
+| `0x16` SEND_HISTORICAL_DATA | 5 | answered |
+| `0x17` HISTORICAL_DATA_RESULT | 30 | answered |
+| `0x22` GET_DATA_RANGE | 5 | answered |
+| `0x62` GET_EXTENDED_BATTERY_INFO | 23 | answered, `result=FAILURE`, all-zero payload |
+| `0x07` REPORT_VERSION_INFO | 0 | silent |
+| `0x0a` / `0x0b` SET_CLOCK / GET_CLOCK | 0 | silent (both payload forms sent) |
+| `0x1a` GET_BATTERY_LEVEL | 0 | silent |
+| `0x23` GET_HELLO_HARVARD | 0 | silent |
+
+Consequences worth carrying forward:
+
+- **Battery is unreachable on this firmware.** Command 26 silent, command 98 answering `FAILURE`, no
+  `BATTERY_LEVEL(3)` events in 40 minutes, no `EXTENDED_BATTERY_INFORMATION(63)` events either, and the
+  standard `0x2A19` characteristic a constant-100 stub. All four sources are dead, so there is no
+  client-side path to the percent — not a decode bug to find.
+- **`0x62` answers while `0x1a` does not**, which is odd enough to be a lead: the extended-battery opcode is
+  reachable but fails, so it may want a sub-command or page selector in its request payload rather than the
+  `[0x00]` the probe sends.
+- The strap also had stretches — one 25-minute bonded session — where it answered *nothing* despite working
+  realtime and backfill streams, then became chatty later. State-dependent, cause unknown.
+
+---
+
 ## Summary
 
 NOOP interoperates with a WHOOP strap you own by: scanning for its hidden custom GATT service,

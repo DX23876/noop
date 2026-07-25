@@ -8,6 +8,8 @@ import com.noop.analytics.RestScorer
 import com.noop.analytics.ScoreConfidence
 import com.noop.data.DailyMetric
 import java.time.LocalDate
+import java.time.Instant
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.Locale
@@ -216,6 +218,37 @@ sealed class ScoreState {
             is CarriedLastNight -> if (stale) "Latest sleep · $dateLabel" else "Last night · $dateLabel"
             NeedsStrap -> "Needs the strap"
         }
+
+    /**
+     * #731: names WHY the countdown restarted when the user tapped "Recalibrate baseline".
+     *
+     * The count alone is not enough. A reporter sat at "Calibrating, 3 of 4 nights" with 15 valid HRV
+     * nights on file and tapped Recalibrate again — which discards every earlier night and resets the
+     * count to 0. Two weeks of that and Charge could never return. Seeing the countdown without knowing
+     * their own tap caused it makes re-tapping the natural move; naming the cause breaks the loop.
+     *
+     * A separate whole sentence, not a fragment stitched onto the countdown. Returns null when no
+     * recalibration is set, so the card is unchanged for every user who never tapped it. Pure.
+     * Twin of Swift `ChargeBreakdownFormat.calibrationRestartCause`.
+     */
+    companion object {
+        /** The recalibration epoch (seconds) as a short display day ("19 Jul"), or null when none is
+         *  set. Pure - the caller reads the pref. Twin of Swift
+         *  `ChargeBreakdownFormat.recalibrationDay(epoch:)`; uses the same "d MMM" pattern as the
+         *  sibling day formatter in this file. (#731) */
+        fun recalibrationDay(epochSeconds: Long): String? {
+            if (epochSeconds <= 0L) return null
+            return Instant.ofEpochSecond(epochSeconds)
+                .atZone(ZoneId.systemDefault())
+                .toLocalDate()
+                .format(DateTimeFormatter.ofPattern("d MMM", Locale.US))
+        }
+
+        fun calibrationRestartCause(recalibratedOn: String?): String? {
+            if (recalibratedOn.isNullOrEmpty()) return null
+            return "Restarted when you recalibrated on $recalibratedOn — no need to tap it again."
+        }
+    }
 
     /** The one-line plain-English what-to-do. VERBATIM, mirror Swift exactly. The night(s) plural in
      *  the calibrating copy follows [nightsRemaining]. */

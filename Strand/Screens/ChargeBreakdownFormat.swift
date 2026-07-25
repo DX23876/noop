@@ -148,6 +148,39 @@ enum ChargeBreakdownFormat {
         return n == 1 ? String(localized: "1 night to go") : String(localized: "\(n) nights to go")
     }
 
+    /// #731: names WHY the countdown restarted when the user tapped "Recalibrate baseline".
+    ///
+    /// The count alone is not enough. A reporter sat at "Calibrating, 3 of 4 nights" with 15 valid HRV
+    /// nights on file and tapped Recalibrate again — which discards every earlier night and resets the
+    /// count to 0. Two weeks of that and Charge could never return. Seeing the countdown without knowing
+    /// their own tap caused it makes re-tapping the natural move; naming the cause is what breaks the loop.
+    ///
+    /// A separate whole sentence rather than a fragment appended to the countdown, so translators never
+    /// see a stitched string. Returns nil when no recalibration is set, so the card is unchanged for every
+    /// user who never tapped it. Pure.
+    static func calibrationRestartCause(recalibratedOn day: String?) -> String? {
+        guard let day, !day.isEmpty else { return nil }
+        return String(localized: "Restarted when you recalibrated on \(day) — no need to tap it again.")
+    }
+
+    /// The recalibration epoch as a short display day ("19 Jul"), or nil when none is set. Pure — the
+    /// caller supplies the epoch (`Baselines.hrvBaselineEpoch()`), so this stays testable. Locale-aware
+    /// via `DateFormatter.setLocalizedDateFormatFromTemplate`, so the day/month order follows the user.
+    static func recalibrationDay(epoch: Double, locale: Locale = .current) -> String? {
+        guard epoch > 0 else { return nil }
+        let fmt = DateFormatter()
+        fmt.locale = locale
+        fmt.setLocalizedDateFormatFromTemplate("d MMM")
+        return fmt.string(from: Date(timeIntervalSince1970: epoch))
+    }
+
+    /// Convenience for the calibrating cards: the restart-cause line for the CURRENT recalibration epoch,
+    /// or nil when the user has never recalibrated. Keeps the single UserDefaults read in one place
+    /// instead of repeating it at each card. (#731)
+    static func currentCalibrationRestartCause() -> String? {
+        calibrationRestartCause(recalibratedOn: recalibrationDay(epoch: Baselines.hrvBaselineEpoch()))
+    }
+
     /// The supporting line under the countdown, naming the score whose baseline is unlocking. Pure.
     /// `scoreName` is the user-facing score word (e.g. "Charge"); kept a parameter so the same copy
     /// serves any baseline-building score honestly without hard-coding one.

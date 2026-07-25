@@ -203,7 +203,8 @@ struct SettingsView: View {
                 appearanceCard.staggeredAppear(index: 3)
                 strapCard.staggeredAppear(index: 4)
                 powerSavingCard.staggeredAppear(index: 5)
-                featuresCard.staggeredAppear(index: 6)
+                streakCard.staggeredAppear(index: 6)
+                featuresCard.staggeredAppear(index: 7)
 
                 // Lower-frequency sections collapse behind a single default-closed disclosure so the
                 // screen opens at ~6 sections instead of 11. Nothing is removed; every section here
@@ -687,6 +688,34 @@ struct SettingsView: View {
     /// Theme (System / Light / Dark) on every platform, plus the iOS app-icon choice. The Theme picker
     /// writes `AppearanceMode.storageKey`, which both app roots read via `.preferredColorScheme`; because
     /// every palette token is a dynamic `Color(light:dark:)`, the whole UI re-resolves on change.
+    /// Day streak (#569): consecutive days with a Charge score, computed on-device from the merged
+    /// daily metrics. A day qualifies when its `DailyMetric` has a `recovery` value. The math is the
+    /// pure `StreakCalculator` (Swift/Kotlin twin).
+    private var streakCard: some View {
+        let days = model.repo.days
+        let today = AnalyticsEngine.dayString(Int(Date().timeIntervalSince1970),
+                                              offsetSec: TimeZone.current.secondsFromGMT())
+        let s = StreakCalculator.streaks(dayKeys: days.map { $0.day },
+                                         qualified: days.map { $0.recovery != nil },
+                                         today: today)
+        return NoopCard(tint: StrandPalette.accent) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Streak").strandOverline()
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(verbatim: "\(s.current)")
+                        .font(StrandFont.number(30))
+                        .foregroundStyle(StrandPalette.accent)
+                    Text(s.current == 1 ? "day in a row" : "days in a row")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
+                Text(s.longest == 1 ? "Longest: 1 day" : "Longest: \(s.longest) days")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textSecondary)
+            }
+        }
+    }
+
     private var appearanceCard: some View {
         SettingsSection(
             icon: "circle.lefthalf.filled",

@@ -53,6 +53,57 @@ class DeviceRegistry(
         }
     }
 
+    /**
+     * #771 (twin of Swift's `DeviceRegistryStore.adoptSerialIdentity`): re-point the ACTIVE Oura device from
+     * its transient CoreBluetooth-UUID id ([activeId]) onto its STABLE serial id ([serialId], read from the
+     * ring on connect), so a re-pair never orphans history again. Moves ONLY [activeId]'s data + registry row
+     * onto [serialId] — a clone when the serial id is new, a carry-over (fresh peripheralId/model, kept
+     * active, original addedAt preserved) when a prior pairing already established it. Any OTHER `oura-*` rows
+     * (past pairings) are DELIBERATELY left untouched — the agreed scope. One transaction; idempotent (no-op
+     * when [activeId] == [serialId] or [activeId] is absent). Returns true when a re-point happened; the
+     * caller then `setActive(serialId)` so the spine follows.
+     */
+    suspend fun adoptSerialIdentity(activeId: String, serialId: String): Boolean {
+        if (activeId == serialId) return false
+        return transactor.run {
+            val active = dao.pairedDevice(activeId) ?: return@run false
+            val serial = dao.pairedDevice(serialId)
+            if (serial != null) {
+                dao.upsertPairedDevice(serial.copy(peripheralId = active.peripheralId, model = active.model,
+                                                   status = "active", lastSeenAt = active.lastSeenAt))
+            } else {
+                dao.upsertPairedDevice(active.copy(id = serialId))
+            }
+            dao.reKeyHr(activeId, serialId); dao.deleteHrFor(activeId)
+            dao.reKeyRr(activeId, serialId); dao.deleteRrFor(activeId)
+            dao.reKeySpo2(activeId, serialId); dao.deleteSpo2For(activeId)
+            dao.reKeySkinTemp(activeId, serialId); dao.deleteSkinTempFor(activeId)
+            dao.reKeyResp(activeId, serialId); dao.deleteRespFor(activeId)
+            dao.reKeyGravity(activeId, serialId); dao.deleteGravityFor(activeId)
+            dao.reKeySteps(activeId, serialId); dao.deleteStepsFor(activeId)
+            dao.reKeyPpgHr(activeId, serialId); dao.deletePpgHrFor(activeId)
+            dao.reKeyPpgWaveform(activeId, serialId); dao.deletePpgWaveformFor(activeId)
+            dao.reKeyRawImu(activeId, serialId); dao.deleteRawImuFor(activeId)
+            dao.reKeyEvents(activeId, serialId); dao.deleteEventsFor(activeId)
+            dao.reKeyBattery(activeId, serialId); dao.deleteBatteryFor(activeId)
+            dao.reKeyDailyMetrics(activeId, serialId); dao.deleteDailyMetricsFor(activeId)
+            dao.reKeySleepSessions(activeId, serialId); dao.deleteSleepSessionsFor(activeId)
+            dao.reKeyJournal(activeId, serialId); dao.deleteJournalFor(activeId)
+            dao.reKeyWorkouts(activeId, serialId); dao.deleteWorkoutsFor(activeId)
+            dao.reKeyAppleDaily(activeId, serialId); dao.deleteAppleDailyFor(activeId)
+            dao.reKeyMetricSeries(activeId, serialId); dao.deleteMetricSeriesFor(activeId)
+            dao.reKeyDayOwnership(activeId, serialId); dao.deleteDayOwnershipFor(activeId)
+            dao.reKeySleepStates(activeId, serialId); dao.deleteSleepStatesFor(activeId)
+            dao.reKeyLabMarkers(activeId, serialId); dao.deleteLabMarkersFor(activeId)
+            dao.reKeyLiveSessions(activeId, serialId); dao.deleteLiveSessionsFor(activeId)
+            dao.reKeyDismissedWorkouts(activeId, serialId); dao.deleteDismissedWorkoutsFor(activeId)
+            dao.reKeyDismissedSleeps(activeId, serialId); dao.deleteDismissedSleepsFor(activeId)
+            dao.deletePairedDeviceRow(activeId)
+            dao.deleteDeviceRow(activeId)
+            true
+        }
+    }
+
     /** Archive a device — keeps its row and samples (invariant I4). */
     suspend fun archive(id: String) = dao.archiveDevice(id)
 
@@ -109,6 +160,7 @@ class DeviceRegistry(
             dao.deleteAppleDailyFor(id)
             dao.deleteMetricSeriesFor(id)
             dao.deleteDayOwnershipFor(id)
+            dao.deleteScoreInputProvenanceFor(id)
             dao.deleteSleepStatesFor(id)
             dao.deleteLabMarkersFor(id)
             dao.deleteLiveSessionsFor(id)

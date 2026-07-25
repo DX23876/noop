@@ -374,44 +374,50 @@ extension WhoopStore {
     @discardableResult
     public func upsertDailyMetrics(_ days: [DailyMetric], deviceId: String) async throws -> Int {
         try syncWrite { db in
-            var n = 0
-            for d in days {
-                try db.execute(sql: """
-                    INSERT INTO dailyMetric
-                        (deviceId, day, totalSleepMin, efficiency, deepMin, remMin, lightMin,
-                         disturbances, restingHr, avgHrv, recovery, strain, exerciseCount,
-                         spo2Pct, skinTempDevC, respRateBpm, steps, activeKcalEst,
-                         spo2Red, spo2Ir)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(deviceId, day) DO UPDATE SET
-                        totalSleepMin = excluded.totalSleepMin,
-                        efficiency = excluded.efficiency,
-                        deepMin = excluded.deepMin,
-                        remMin = excluded.remMin,
-                        lightMin = excluded.lightMin,
-                        disturbances = excluded.disturbances,
-                        restingHr = excluded.restingHr,
-                        avgHrv = excluded.avgHrv,
-                        recovery = excluded.recovery,
-                        strain = excluded.strain,
-                        exerciseCount = excluded.exerciseCount,
-                        spo2Pct = excluded.spo2Pct,
-                        skinTempDevC = excluded.skinTempDevC,
-                        respRateBpm = excluded.respRateBpm,
-                        steps = excluded.steps,
-                        activeKcalEst = excluded.activeKcalEst,
-                        spo2Red = excluded.spo2Red,
-                        spo2Ir = excluded.spo2Ir
-                    """, arguments: [deviceId, d.day, d.totalSleepMin, d.efficiency, d.deepMin,
-                                     d.remMin, d.lightMin, d.disturbances, d.restingHr, d.avgHrv,
-                                     d.recovery, d.strain, d.exerciseCount,
-                                     d.spo2Pct, d.skinTempDevC, d.respRateBpm,
-                                     d.steps, d.activeKcalEst,
-                                     d.spo2Red, d.spo2Ir])
-                n += db.changesCount
-            }
-            return n
+            try Self.upsertDailyMetrics(days, deviceId: deviceId, in: db)
         }
+    }
+
+    /// Transaction-sharing primitive used by computed-score persistence. Keeping the SQL here ensures
+    /// ordinary cache writes and score+provenance writes cannot drift.
+    static func upsertDailyMetrics(_ days: [DailyMetric], deviceId: String, in db: Database) throws -> Int {
+        var n = 0
+        for d in days {
+            try db.execute(sql: """
+                INSERT INTO dailyMetric
+                    (deviceId, day, totalSleepMin, efficiency, deepMin, remMin, lightMin,
+                     disturbances, restingHr, avgHrv, recovery, strain, exerciseCount,
+                     spo2Pct, skinTempDevC, respRateBpm, steps, activeKcalEst,
+                     spo2Red, spo2Ir)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(deviceId, day) DO UPDATE SET
+                    totalSleepMin = excluded.totalSleepMin,
+                    efficiency = excluded.efficiency,
+                    deepMin = excluded.deepMin,
+                    remMin = excluded.remMin,
+                    lightMin = excluded.lightMin,
+                    disturbances = excluded.disturbances,
+                    restingHr = excluded.restingHr,
+                    avgHrv = excluded.avgHrv,
+                    recovery = excluded.recovery,
+                    strain = excluded.strain,
+                    exerciseCount = excluded.exerciseCount,
+                    spo2Pct = excluded.spo2Pct,
+                    skinTempDevC = excluded.skinTempDevC,
+                    respRateBpm = excluded.respRateBpm,
+                    steps = excluded.steps,
+                    activeKcalEst = excluded.activeKcalEst,
+                    spo2Red = excluded.spo2Red,
+                    spo2Ir = excluded.spo2Ir
+                """, arguments: [deviceId, d.day, d.totalSleepMin, d.efficiency, d.deepMin,
+                                 d.remMin, d.lightMin, d.disturbances, d.restingHr, d.avgHrv,
+                                 d.recovery, d.strain, d.exerciseCount,
+                                 d.spo2Pct, d.skinTempDevC, d.respRateBpm,
+                                 d.steps, d.activeKcalEst,
+                                 d.spo2Red, d.spo2Ir])
+            n += db.changesCount
+        }
+        return n
     }
 
     /// Delete a source's cached daily rows whose day-key is in [from, to] (inclusive, yyyy-MM-dd

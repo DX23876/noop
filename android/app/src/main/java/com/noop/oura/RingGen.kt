@@ -85,10 +85,40 @@ enum class OuraRingGen(val raw: String) {
             val name = advertisedName?.lowercase() ?: return null
             // Only treat as an Oura ring at all if the name carries the brand token.
             if (!name.contains("oura") && !name.contains("ring")) return null
-            if (name.contains("5")) return GEN5
-            if (name.contains("4")) return GEN4
-            if (name.contains("3") || name.contains("horizon")) return GEN3
-            return null
+            if (name.contains("horizon")) return GEN3
+            // Only infer the generation from an EXPLICIT gen token ("gen3", "ring 4"), never a stray digit:
+            // a factory-reset ring advertises its SERIAL in the name (observed: "oura 2h3b2405003655" on a
+            // real Gen3), whose "5" was mis-read as gen5 (#772). The authoritative gen is from(hardwareId).
+            fun gen(after: String): OuraRingGen? {
+                val i = name.indexOf(after)
+                if (i < 0) return null
+                return when (name.drop(i + after.length).trimStart().firstOrNull()) {
+                    '3' -> GEN3
+                    '4' -> GEN4
+                    '5' -> GEN5
+                    else -> null
+                }
+            }
+            return gen("gen") ?: gen("ring")
+        }
+
+        /**
+         * Authoritative generation from the ring's GetProductInfo hardware id (e.g. "BLB_03"). The trailing
+         * "_NN" encodes the generation — validated on-device on a Gen3 ("BLB_03" -> gen3, 2026-07-24); gen4/5
+         * codes are unconfirmed, so an unrecognised suffix returns null (never a guess). Unlike
+         * [recognise], this reads the generation FROM THE RING, so it is trustworthy (#772). Twin of Swift's
+         * `OuraRingGen.from(hardwareId:)`.
+         */
+        fun fromHardwareId(hardwareId: String): OuraRingGen? {
+            val underscore = hardwareId.lastIndexOf('_')
+            if (underscore < 0) return null
+            val digits = hardwareId.substring(underscore + 1).takeWhile { it.isDigit() }
+            return when (digits.toIntOrNull()) {
+                3 -> GEN3
+                4 -> GEN4
+                5 -> GEN5
+                else -> null
+            }
         }
 
         /**

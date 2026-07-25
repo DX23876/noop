@@ -38,6 +38,22 @@ while [ $# -gt 0 ]; do
   ASSETS+=("$1"); shift
 done
 
+# #736: release notes credit third-party contributors by @handle, not display name — a plain name
+# neither notifies them nor links anywhere. Nothing here can know who contributed, so this only
+# nudges when the notes carry no handle at all (the default stub never does). Non-fatal by design:
+# a hotfix release with no outside contributions is legitimate, and re-running refreshes the notes.
+#
+# A bare `*@*` glob would count an email address as a credit, silencing the nudge on notes that credit
+# nobody; require an @ that is NOT preceded by an email local-part character. `=~` is bash 3.2-safe.
+NOTES_HANDLE_RE='(^|[^A-Za-z0-9._%+-])@[A-Za-z0-9]'
+if [[ ! "$NOTES" =~ $NOTES_HANDLE_RE ]]; then
+  # The tag is created by `gh release create` further down, so the latest tag right now is the PREVIOUS
+  # release — exactly the point to collect contributors since. Fall back to a placeholder in a bare repo.
+  PREV_TAG="$(git describe --tags --abbrev=0 2>/dev/null || echo '<previous-tag>')"
+  echo "  note: these notes credit no @handle (#736) — Tools/release-contributors.sh $PREV_TAG"
+  echo "        re-run release.sh with -- \"<notes>\" to refresh them; publishing is idempotent"
+fi
+
 # ── iOS asset: ONE canonical name ────────────────────────────────────────────
 # The iOS .ipa ships under a SINGLE name: NOOP-v<V>-ios.ipa, which every doc
 # (README, docs/IOS.md, the wiki) and the AltStore source point at. We used to

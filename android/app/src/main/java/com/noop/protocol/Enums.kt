@@ -43,21 +43,83 @@ enum class MetadataType(val rawValue: Int) {
     }
 }
 
-/** EVENT frame event code (offset 6 in an EVENT frame). */
+/**
+ * EVENT frame event code (offset 6 in an EVENT frame).
+ *
+ * The FULL shared `EventNumber` catalogue, kept in lockstep with
+ * `WhoopProtocol/Resources/whoop_protocol.json` — the cross-platform contract says a frame must label
+ * identically on both platforms. Only 13 of these were listed before, so everything else rendered as a
+ * bare `0x44(68)` in an Android strap log while iOS named it; #791 was filed partly on the strength of an
+ * "uncatalogued" event that iOS already knew. That gap makes an Android bug report unable to say what the
+ * strap is reporting — RTC_LOST, BOOT, BLE_SYSTEM_RESET and EXTENDED_BATTERY_INFORMATION all arrived
+ * anonymous.
+ *
+ * Names only. Event PAYLOAD decoding stays exactly as it was: family-gated and deliberately conservative,
+ * because several of these payloads have no on-device 5.0 ground truth and are left raw rather than ported
+ * from 4.0 on faith (see `decodeWhoop5Event`). A name here does not imply a decoder.
+ *
+ * A number absent from the schema still falls through to `hexLabel`, and is NEVER given an invented name —
+ * event 68 (`0x44`) observed on a real 4.0 in #791 is unknown to both platforms and stays unknown.
+ */
 enum class EventNumber(val rawValue: Int) {
+    UNDEFINED(0),
+    ERROR(1),
+    CONSOLE_OUTPUT(2),
     BATTERY_LEVEL(3),
+    SYSTEM_CONTROL(4),
+    EXTERNAL_5V_ON(5),
+    EXTERNAL_5V_OFF(6),
     CHARGING_ON(7),
     CHARGING_OFF(8),
     WRIST_ON(9),
     WRIST_OFF(10),
+    BLE_CONNECTION_UP(11),
+    BLE_CONNECTION_DOWN(12),
+    RTC_LOST(13),
     DOUBLE_TAP(14),
+    BOOT(15),
+    SET_RTC(16),
     TEMPERATURE_LEVEL(17),
+    PAIRING_MODE(18),
+    SERIAL_HEAD_CONNECTED(19),
+    SERIAL_HEAD_REMOVED(20),
+    BATTERY_PACK_CONNECTED(21),
+    BATTERY_PACK_REMOVED(22),
     BLE_BONDED(23),
+    BLE_HR_PROFILE_ENABLED(24),
+    BLE_HR_PROFILE_DISABLED(25),
+    TRIM_ALL_DATA(26),
+    TRIM_ALL_DATA_ENDED(27),
+    FLASH_INIT_COMPLETE(28),
+    STRAP_CONDITION_REPORT(29),
+    BOOT_REPORT(30),
+    EXIT_VIRGIN_MODE(31),
+    CAPTOUCH_AUTOTHRESHOLD_ACTION(32),
     BLE_REALTIME_HR_ON(33),
     BLE_REALTIME_HR_OFF(34),
+    ACCELEROMETER_RESET(35),
+    AFE_RESET(36),
+    SHIP_MODE_ENABLED(37),
+    SHIP_MODE_DISABLED(38),
+    SHIP_MODE_BOOT(39),
+    CH1_SATURATION_DETECTED(40),
+    CH2_SATURATION_DETECTED(41),
+    ACCELEROMETER_SATURATION_DETECTED(42),
+    BLE_SYSTEM_RESET(43),
+    BLE_SYSTEM_ON(44),
+    BLE_SYSTEM_INITIALIZED(45),
+    RAW_DATA_COLLECTION_ON(46),
+    RAW_DATA_COLLECTION_OFF(47),
+    STRAP_DRIVEN_ALARM_SET(56),
     STRAP_DRIVEN_ALARM_EXECUTED(57),
     APP_DRIVEN_ALARM_EXECUTED(58),
-    HAPTICS_FIRED(60);
+    STRAP_DRIVEN_ALARM_DISABLED(59),
+    HAPTICS_FIRED(60),
+    EXTENDED_BATTERY_INFORMATION(63),
+    HIGH_FREQ_SYNC_PROMPT(96),
+    HIGH_FREQ_SYNC_ENABLED(97),
+    HIGH_FREQ_SYNC_DISABLED(98),
+    HAPTICS_TERMINATED(100);
 
     companion object {
         private val byRaw = entries.associateBy { it.rawValue }

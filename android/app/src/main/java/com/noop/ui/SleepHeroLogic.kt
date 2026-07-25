@@ -40,10 +40,16 @@ internal fun heroPerformanceScore(
 }
 
 /**
- * Whether a SPECIFIC night's sleep-performance score is WHOOP's own imported figure or NOOP's
- * on-device approximation — so the hero is honest about provenance, like Today's badges. Keyed by the
- * night's wake-day (matching [heroPerformanceScore]) so a navigated night's badge tracks ITS OWN
- * score's provenance, not last night's. Mirrors the macOS SleepView.heroSource.
+ * Whether a SPECIFIC night's sleep-performance score is WHOOP's own imported figure, an Oura
+ * ring-provided figure, or NOOP's on-device approximation — so the hero is honest about provenance, like
+ * Today's badges. Keyed by the night's wake-day (matching [heroPerformanceScore]) so a navigated night's
+ * badge tracks ITS OWN score's provenance, not last night's. WHOOP import wins first; only a night
+ * surfaced under a live Oura strap reads "Oura". Mirrors the macOS SleepView.heroSource.
  */
-internal fun restHeroSource(imported: ImportedSleepSeries, wakeDay: String?): String =
-    if (wakeDay != null && imported.performance[wakeDay] != null) "Whoop" else "On-device"
+internal fun restHeroSource(
+    imported: ImportedSleepSeries, wakeDay: String?, activeIsOura: Boolean = false,
+): String = when {
+    wakeDay != null && imported.performance[wakeDay] != null -> "Whoop"
+    activeIsOura -> "Oura"
+    else -> "On-device"
+}

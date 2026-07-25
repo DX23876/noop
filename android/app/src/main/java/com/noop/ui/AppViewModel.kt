@@ -112,6 +112,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** All paired devices (oldest first), read fresh. The screen re-reads after every mutation. */
     suspend fun pairedDevices(): List<com.noop.data.PairedDeviceRow> = noopApp.deviceRegistry.all()
 
+    /** Resolve a displayed score's storage namespace back to its input provider. Missing provenance on
+     *  a legacy computed row returns null rather than guessing from the computed namespace. */
+    internal suspend fun scoreInputProvider(
+        resolvedSource: String,
+        day: String,
+        metricKey: String,
+    ): ScoreInputProvider? {
+        val sourceId = if (resolvedSource.endsWith("-noop")) {
+            repository.scoreInputSource(resolvedSource, day, metricKey) ?: return null
+        } else {
+            resolvedSource
+        }
+        val brand = noopApp.deviceRegistry.all().firstOrNull { it.id == sourceId }?.brand
+        return ScoreInputProvider(sourceId, brand)
+    }
+
     /** Add (or update) a paired device. */
     suspend fun addPairedDevice(row: com.noop.data.PairedDeviceRow) = noopApp.deviceRegistry.add(row)
 
@@ -127,6 +143,27 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      *  (MW-6). Null until the first registry read resolves; falls back to "WHOOP" in the UI when null. */
     private val _activeDeviceName = MutableStateFlow<String?>(null)
     val activeDeviceName: StateFlow<String?> = _activeDeviceName.asStateFlow()
+
+    /** WHOOP-style day streak (#569): consecutive local days that carry a Charge score, computed on
+     *  device from the merged daily metrics. A day "qualifies" when its [com.noop.data.DailyMetric] has a
+     *  non-null `recovery`. Pure math lives in [com.noop.analytics.StreakCalculator] (Swift/Kotlin twin). */
+    val streaks: StateFlow<com.noop.analytics.StreakCalculator.Streaks> =
+        repository.daysMergedFlow(noopApp.activeDeviceId)
+            .map { days ->
+                val nowSec = System.currentTimeMillis() / 1000L
+                val tz = java.util.TimeZone.getDefault().getOffset(nowSec * 1000L) / 1000L
+                val today = com.noop.analytics.AnalyticsEngine.dayString(nowSec, tz)
+                com.noop.analytics.StreakCalculator.streaks(
+                    dayKeys = days.map { it.day },
+                    qualified = days.map { it.recovery != null },
+                    today = today,
+                )
+            }
+            .stateIn(
+                viewModelScope,
+                kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000L),
+                com.noop.analytics.StreakCalculator.Streaks(0, 0),
+            )
 
     /** Re-read the active device row and republish its display name. Called at launch + after a setActive. */
     fun refreshActiveDeviceName() {

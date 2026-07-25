@@ -25,6 +25,13 @@ public struct OuraHistoryDrain: Sendable, Equatable {
     private var stallCount = 0
     /// Newest STORED ring-time seen this drain — the value the resume cursor commits to at drain end.
     public private(set) var maxStoredRingTime: UInt32 = 0
+    /// Newest ring-time SEEN this drain across ALL history records (anchored or not) — the in-session
+    /// continuation cursor's source. Kept separate from [maxStoredRingTime]: the continuation cursor may
+    /// advance on unanchored records (they were served, so the ring must not re-serve them this session),
+    /// while the DURABLE cursor still only commits from anchored, stored samples.
+    public private(set) var maxSeenRingTime: UInt32 = 0
+    /// History records seen since the last GetEvents request — open_oura's `batch_events` progress test.
+    public private(set) var eventsSinceLastRequest: UInt32 = 0
     /// A real stored sample older than where we sought this fetch: the ring's clock reset (or it ignored
     /// the seek), so the persisted cursor is stale → full pull next connect.
     public private(set) var sawPreResumeData = false
@@ -36,6 +43,8 @@ public struct OuraHistoryDrain: Sendable, Equatable {
         minBytesLeftSeen = .max
         stallCount = 0
         maxStoredRingTime = 0
+        maxSeenRingTime = 0
+        eventsSinceLastRequest = 0
         sawPreResumeData = false
     }
 
@@ -66,6 +75,28 @@ public struct OuraHistoryDrain: Sendable, Equatable {
         guard rt <= Self.maxPlausibleResumeTicks else { return }
         if rt > maxStoredRingTime { maxStoredRingTime = rt }
         if resumeCursorAtFetchStart > 0, rt < resumeCursorAtFetchStart { sawPreResumeData = true }
+    }
+
+    /// Record ANY history record's ring-time toward the in-session continuation cursor (anchored or not),
+    /// and count it toward the batch-progress test. Ignores corrupt (over-ceiling) times. Call once per
+    /// decoded history record that carries an envelope ring-time.
+    public mutating func noteSeenRingTime(_ rt: UInt32) {
+        guard rt <= Self.maxPlausibleResumeTicks else { return }
+        if rt > maxSeenRingTime { maxSeenRingTime = rt }
+        eventsSinceLastRequest &+= 1
+    }
+
+    /// The cursor for the NEXT in-session GetEvents request, or nil to stop (open_oura `drain_events`:
+    /// `progressed = batch_events > 0 && next > start; if !progressed break`). Re-sending a non-advancing
+    /// cursor makes the ring RESTART serving from it — the observed 5x same-window re-serve loop — so a
+    /// flat batch ends the drain instead of retrying. On advance, the batch counter re-arms for the next
+    /// request's progress test.
+    public mutating func continuationCursor(lastRequestCursor: UInt32) -> UInt32? {
+        guard eventsSinceLastRequest > 0 else { return nil }
+        let next = maxSeenRingTime &+ 1
+        guard next > lastRequestCursor else { return nil }
+        eventsSinceLastRequest = 0
+        return next
     }
 
     /// The cursor to persist at drain end, given the current cursor and whether `maxStoredRingTime`

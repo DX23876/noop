@@ -40,6 +40,7 @@ import com.noop.protocol.DeviceFamily
 import com.noop.protocol.Framing
 import com.noop.protocol.HapticClock
 import com.noop.protocol.Reassembler
+import com.noop.protocol.Whoop5Variant
 import com.noop.protocol.RebootProbeVariant
 import com.noop.protocol.Streams
 import com.noop.protocol.Whoop5Config
@@ -303,14 +304,35 @@ interface GattOps {
  */
 @SuppressLint("MissingPermission")
 class RealGattOps(private val gatt: BluetoothGatt) : GattOps {
+
+    /**
+     * #791: the raw status of the most recent Android 13+ write, kept because the `Boolean` contract throws
+     * away WHY the stack refused — and that "why" is the open question.
+     *
+     * A reporter on a Galaxy S24 saw one `GET_DATA_RANGE` produce THREE CRC-valid responses with consecutive
+     * strap-side sequence numbers, every time correlating with a burst of busy-retries, and single responses
+     * on ticks with no retries. That means a write the stack reported as refused had in fact been delivered,
+     * and the retry duplicated it. `ERROR_GATT_WRITE_REQUEST_BUSY` is documented as "not initiated", so
+     * either this stack returns it while still delivering, or it is returning something else entirely. The
+     * code distinguishes those, and nothing was recording it.
+     *
+     * Null on pre-TIRAMISU, where the legacy API only ever returned a Boolean.
+     */
+    @Volatile
+    var lastWriteStatus: Int? = null
+        private set
+
     override fun writeCharacteristicCompat(
         ch: BluetoothGattCharacteristic,
         value: ByteArray,
         writeType: Int,
     ): Boolean =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            gatt.writeCharacteristic(ch, value, writeType) == BluetoothGatt.GATT_SUCCESS
+            val status = gatt.writeCharacteristic(ch, value, writeType)
+            lastWriteStatus = status
+            status == BluetoothGatt.GATT_SUCCESS
         } else {
+            lastWriteStatus = null
             @Suppress("DEPRECATION")
             run {
                 ch.writeType = writeType
@@ -437,6 +459,13 @@ class WhoopBleClient(
         private val HEART_RATE_CHAR: UUID = UUID.fromString("00002a37-0000-1000-8000-00805f9b34fb")
         private val BATTERY_SERVICE: UUID = UUID.fromString("0000180f-0000-1000-8000-00805f9b34fb")
         private val BATTERY_CHAR: UUID = UUID.fromString("00002a19-0000-1000-8000-00805f9b34fb")
+
+        // Standard Device Information Service — READ-ONLY. Used only to tell a WHOOP MG apart from a
+        // plain 5.0 (#520); [Whoop5Variant] resolves the serial prefix + hardware-revision string.
+        // Never written, never subscribed. A WHOOP 4.0 never reads these (see readDisIdentity).
+        private val DIS_SERVICE: UUID = UUID.fromString("0000180a-0000-1000-8000-00805f9b34fb")
+        private val DIS_SERIAL_CHAR: UUID = UUID.fromString("00002a25-0000-1000-8000-00805f9b34fb")
+        private val DIS_HW_REV_CHAR: UUID = UUID.fromString("00002a27-0000-1000-8000-00805f9b34fb")
 
         // Client Characteristic Configuration Descriptor — written to enable notifications
         // (CoreBluetooth does this implicitly via setNotifyValue; Android requires the explicit write).
@@ -864,6 +893,67 @@ class WhoopBleClient(
          * Every other dropped frame (haptics, offload-ack, clock, …) has its own recovery and must NOT poke
          * the realtime latch. Pure + instance-free so the unit harness can pin it without a live GATT stack.
          */
+        /**
+         * #791: name an Android 13+ write-refusal code for the strap log.
+         *
+         * The distinction that matters is `ERROR_GATT_WRITE_REQUEST_BUSY` (201), documented as the write not
+         * having been initiated and therefore safe to retry, versus anything else. A reporter's captures show
+         * a refused write being delivered anyway and the retry duplicating it, so which code the stack
+         * returned is the evidence that separates "safe retry" from "we just sent it twice".
+         *
+         * Literal codes rather than `BluetoothStatusCodes` constants: these are compile-time-inlined API 33
+         * values, and spelling them out keeps this readable in a log review and buildable on any compileSdk.
+         */
+        /**
+         * #791: may a write-completion callback cancel the BUSY-retry currently held?
+         *
+         * Yes exactly when a frame is held for retry and the completion is for a command-channel write. A
+         * completion for a frame the stack claimed to refuse proves the refusal was wrong and the frame went
+         * out, so repeating it delivers the same command to the strap twice — the reported symptom, where one
+         * GET_DATA_RANGE drew three responses carrying one unchanged origin-seq echo.
+         *
+         * `pendingRetry` is non-null only when the most recent DRAINED write returned BUSY, and the drain
+         * never starts a write while one is in flight — so within the drain there is no other outstanding
+         * command-channel write this completion could belong to. A frame the stack truly refused produces no
+         * completion at all, leaving its retry to fire, so the #77/#312 protection against a silently dropped
+         * TOGGLE_REALTIME_HR / SET_CLOCK / offload-ack is untouched.
+         *
+         * [writeBondFrame] is the exception that forces the third argument: it writes to the same
+         * characteristic DELIBERATELY outside the queue, so its completion is not evidence about the held
+         * frame. Acting on it would cancel a retry for a frame that never went out — turning the duplicate
+         * this fixes into the silent loss #77/#312 is about, which is strictly worse. Excluded explicitly.
+         *
+         * Only WITH-response writes reach here at all: a without-response write gets no completion callback
+         * (the drain frees its own slot after a pacing gap), so this cannot help those. That happens to cover
+         * the reported case and the commands where a duplicate actually harms — GET_DATA_RANGE, SET_CLOCK,
+         * the historical acks, haptics and RUN_ALARM are all sent with response — but it is a real limit, not
+         * a general guarantee.
+         *
+         * Pure so it can be tested: the instance-level path cannot be, since the constructor needs a real
+         * Looper and Context (see [GattCrashSafetyTest]'s infra note).
+         */
+        fun shouldCancelBusyRetryOnCompletion(
+            writtenChar: UUID?,
+            hasFrameHeldForRetry: Boolean,
+            isBondWriteCompletion: Boolean,
+        ): Boolean =
+            hasFrameHeldForRetry &&
+                !isBondWriteCompletion &&
+                (writtenChar == CMD_WRITE_CHAR || writtenChar == WHOOP5_CMD_WRITE_CHAR)
+
+        fun writeStatusLabel(status: Int?): String = when (status) {
+            null -> "status=n/a(legacy-api)"
+            0 -> "status=SUCCESS(0)"          // BluetoothStatusCodes.SUCCESS — should not reach the busy path
+            1 -> "status=ERROR_BLUETOOTH_NOT_ENABLED(1)"
+            2 -> "status=ERROR_BLUETOOTH_NOT_ALLOWED(2)"
+            3 -> "status=ERROR_DEVICE_NOT_BONDED(3)"
+            6 -> "status=ERROR_MISSING_BLUETOOTH_CONNECT_PERMISSION(6)"
+            9 -> "status=ERROR_PROFILE_SERVICE_NOT_BOUND(9)"
+            200 -> "status=ERROR_GATT_WRITE_NOT_ALLOWED(200)"
+            201 -> "status=ERROR_GATT_WRITE_REQUEST_BUSY(201)"
+            else -> "status=$status"
+        }
+
         fun shouldReArmRealtimeAfterDrop(droppedCmd: CommandNumber?): Boolean =
             droppedCmd == CommandNumber.TOGGLE_REALTIME_HR
 
@@ -2025,6 +2115,12 @@ class WhoopBleClient(
     /** Guards the once-per-connect initial offload kick (Swift `backfillStarted`). */
     private var backfillStarted = false
 
+    // #520 DIS identity — read ONCE per connection, post-handshake, 5/MG only. Serial and hardware
+    // revision are immutable, so they are never re-polled (unlike the battery). Reset on disconnect.
+    private var disRead = false
+    private var disSerial: String? = null
+    private var disHwRev: String? = null
+
     /** #364 auto-continue: consecutive immediate re-kicks after a 60s idle-cap OR HISTORY_COMPLETE exit on
      *  THIS connection. Bounded by [MAX_AUTO_CONTINUES] so a pathological strap can't pin the radio. Reset
      *  to 0 once [shouldAutoContinue] proves we're caught up (its else path, under the cap) and on
@@ -2122,6 +2218,11 @@ class WhoopBleClient(
     // write-completion callbacks - the barrier guarantees the main-thread drain sees the flag flip promptly
     // (else a queued write could stall until the next drain trigger).
     @Volatile private var writeInFlight = false
+    /** #791: set while [writeBondFrame]'s out-of-queue confirmed write is outstanding, so its completion is
+     *  not mistaken for evidence about a frame held for retry. @Volatile: set on the main looper, read and
+     *  cleared from the GATT binder thread in onCharacteristicWrite. */
+    @Volatile private var bondWriteOutstanding = false
+
     /** A frame being retried after a transient BUSY rejection. Held here rather than re-added to the
      *  queue so it keeps its place AHEAD of later commands — command order matters (e.g. SET_CLOCK
      *  before GET_CLOCK). Only ever touched on the main looper inside [drainWriteQueue]. */
@@ -2132,6 +2233,28 @@ class WhoopBleClient(
      *  teardown path can cancel a still-pending retry — otherwise a queued retry fires after the link is
      *  dead and re-enters the now-dead write, re-throwing `DeadObjectException` (#314). */
     private val drainWriteRetryRunnable = Runnable { drainWriteQueue() }
+
+    /**
+     * #791: drop a scheduled BUSY-retry because the write it would repeat has just completed.
+     *
+     * Called from `onCharacteristicWrite` (via the main looper, since [pendingRetry] is main-looper-only
+     * state). A completion for a frame the stack said it refused means the refusal was wrong and the frame
+     * went out, so repeating it would deliver the same command to the strap twice. Not re-draining here: the
+     * caller's own `drainWriteQueue()` follows on the same looper and picks up the next queued frame.
+     *
+     * No-op when nothing is held for retry, which is the normal case for every successful write.
+     */
+    private fun cancelRetryOfWriteDeliveredDespiteBusy(writtenChar: UUID?, fromBondWrite: Boolean) {
+        if (!shouldCancelBusyRetryOnCompletion(writtenChar, pendingRetry != null, fromBondWrite)) return
+        val delivered = pendingRetry ?: return
+        pendingRetry = null
+        writeRetries = 0
+        handler.removeCallbacks(drainWriteRetryRunnable)
+        log(
+            "write reported busy but then completed — dropping the duplicate retry of " +
+                "${delivered.cmd?.name ?: "raw frame"} (#791)",
+        )
+    }
 
     /** Descriptor-write queue: enabling notifications is also a one-at-a-time GATT operation. */
     private val cccdQueue = ConcurrentLinkedQueue<BluetoothGattCharacteristic>()
@@ -3138,6 +3261,54 @@ class WhoopBleClient(
      * So WHOOP 4 uses ONLY the command; WHOOP 5/MG uses ONLY 0x2A19 (its proprietary command isn't framed
      * — see send()). Mirrors macOS BLEManager.refreshBattery().
      */
+    /**
+     * #520: read the strap's DIS identity so a WHOOP MG can be told apart from a plain 5.0.
+     *
+     * Post-handshake ONLY (a 5/MG refuses standard reads on an unencrypted link — the same reason the
+     * battery read is deferred), 5/MG ONLY (a 4.0 issues no new reads at all), and ONCE per connection:
+     * serial and hardware revision are immutable, so unlike the battery they are never re-polled.
+     *
+     * Android serializes GATT operations, so the two reads are CHAINED, not fired together — the
+     * hardware-revision read is issued from [onInbound] once the serial lands. Firing both here would
+     * silently drop the second. Read-only and non-fatal: any failure just leaves the variant UNKNOWN.
+     */
+    fun readDisIdentity() {
+        if (disRead) return
+        val g = gatt ?: return
+        if (connectedFamily == DeviceFamily.WHOOP4) return
+        val ops = gattOps ?: return
+        val ch = g.getService(DIS_SERVICE)?.getCharacteristic(DIS_SERIAL_CHAR)
+        if (ch != null && (ch.properties and BluetoothGattCharacteristic.PROPERTY_READ) != 0) {
+            disRead = true
+            safeGatt("readCharacteristic(dis-serial)") { ops.readCharacteristicCompat(ch) }
+        } else {
+            log("DIS: serial characteristic unavailable — hardware variant stays unknown")
+        }
+    }
+
+    /** Chained second half of [readDisIdentity] — issued only after the serial read has landed. */
+    private fun readDisHardwareRevision() {
+        val g = gatt ?: return
+        val ops = gattOps ?: return
+        val ch = g.getService(DIS_SERVICE)?.getCharacteristic(DIS_HW_REV_CHAR) ?: return
+        if ((ch.properties and BluetoothGattCharacteristic.PROPERTY_READ) != 0) {
+            safeGatt("readCharacteristic(dis-hwrev)") { ops.readCharacteristicCompat(ch) }
+        }
+    }
+
+    /**
+     * Resolve + log the 5/MG hardware variant from whatever DIS strings have landed (#520). Diagnostic
+     * only — nothing gates on it yet.
+     *
+     * The serial is a device identifier, so ONLY its 3-character prefix is logged (that is the entire
+     * information content here) — never the full string, which would end up in a shareable strap log.
+     */
+    private fun noteWhoop5VariantFromDis() {
+        val variant = Whoop5Variant.from(disSerial, disHwRev)
+        val prefix = disSerial?.trim()?.uppercase()?.take(3) ?: "?"
+        log("DIS: serialPrefix=$prefix hwRev=${disHwRev ?: "?"} -> variant=${variant.label}")
+    }
+
     fun refreshBattery() {
         val g = gatt
         if (g == null) {
@@ -3224,17 +3395,29 @@ class WhoopBleClient(
         }
     }
 
+    /** Whether a command written right now would actually reach the strap — the same conditions [send]
+     *  guards on. Lets a caller that REPORTS an outcome to the user check first, instead of logging
+     *  success for a write that was dropped (#730). Twin of macOS `commandChannelReady`. */
+    private val commandChannelReady: Boolean get() = gatt != null && cmdCharacteristic != null
+
     /** Clear the strap's firmware alarm. Port of macOS `BLEManager.disableStrapAlarm`. */
     fun disableStrapAlarm() {
+        // #730: report the OUTCOME, not the intent. [send] drops the write when the link isn't up and logs
+        // "ignored — not connected", but this then logged "Alarm: disarmed" anyway — telling the user the
+        // firmware alarm was cleared when the command never reached the strap, so a strap that IS armed
+        // would still buzz. (reconcileStrapAlarm already re-runs on the bond edge, so a deferred disarm is
+        // re-issued once the link is up — Android never had the iOS gap where that re-apply was skipped.)
+        val willReach = commandChannelReady
+        val notSent = "Alarm: disarm NOT sent — not connected; will retry on connect (strap may still be armed)"
         if (connectedFamily == DeviceFamily.WHOOP5) {
             // 5/MG DISABLE_ALARM is REVISION_2 [0x02, 0xFF]. Sent unconditionally (clearing is safe
             // even if arming was gated off — a no-op on a strap with no alarm set). (PR #85)
             send(CommandNumber.DISABLE_ALARM, AlarmPayload.disableRev2())
-            log("Alarm: disarmed (5/MG rev2)")
+            log(if (willReach) "Alarm: disarmed (5/MG rev2)" else notSent)
             return
         }
         send(CommandNumber.DISABLE_ALARM, byteArrayOf(0x01))
-        log("Alarm: disarmed")
+        log(if (willReach) "Alarm: disarmed" else notSent)
     }
 
     // ====================================================================================
@@ -4071,6 +4254,24 @@ class WhoopBleClient(
                 runConnectHandshake()
             }
 
+            // #791: a completion callback arriving while a BUSY-refused frame is STILL held for retry is
+            // proof that write was delivered after all — the stack refused it and sent it anyway. Cancel the
+            // retry, or the strap receives the same command twice. Observed on a Galaxy S24 Ultra: one
+            // GET_DATA_RANGE produced three CRC-valid responses with advancing strap-side sequence numbers
+            // and one unchanged origin-seq echo, always after a burst of busy-retries and never without.
+            //
+            // This cannot cancel a legitimate retry. `pendingRetry` is non-null only when the MOST RECENT
+            // write attempt returned BUSY, and the drain never starts a write while one is in flight, so
+            // there is no other outstanding write this completion could belong to. A frame the stack truly
+            // refused produces no completion at all, so its retry still fires — the #77/#312 protection
+            // against a silently dropped TOGGLE_REALTIME_HR / SET_CLOCK / offload-ack is untouched.
+            // Hops to the main looper because pendingRetry is main-looper-only state, and it is read there
+            // rather than here. Posted with no delay, so it runs ahead of the >=12 ms retry it cancels. The
+            // bond flag is consumed HERE, on the callback, so a later completion cannot inherit it.
+            val wasBondWrite = bondWriteOutstanding
+            bondWriteOutstanding = false
+            handler.post { cancelRetryOfWriteDeliveredDespiteBusy(characteristic.uuid, wasBondWrite) }
+
             // This with-response write is done; release the in-flight slot and send the next.
             writeInFlight = false
             drainWriteQueue()
@@ -4150,6 +4351,17 @@ class WhoopBleClient(
             uuid == BATTERY_CHAR -> if (connectedFamily != DeviceFamily.WHOOP4) {
                 bytes.firstOrNull()?.let { setBattery((it.toInt() and 0xFF).toDouble()) }
             } else Unit
+            // #520 DIS identity. NUL-terminated ASCII per the DIS spec, so trim padding. The serial
+            // lands first and CHAINS the hardware-revision read (Android serializes GATT ops).
+            uuid == DIS_SERIAL_CHAR -> {
+                disSerial = bytes.toString(Charsets.UTF_8).trim { it == '\u0000' || it.isWhitespace() }
+                noteWhoop5VariantFromDis()
+                readDisHardwareRevision()
+            }
+            uuid == DIS_HW_REV_CHAR -> {
+                disHwRev = bytes.toString(Charsets.UTF_8).trim { it == '\u0000' || it.isWhitespace() }
+                noteWhoop5VariantFromDis()
+            }
             // WHOOP4 custom notify chars, OR the WHOOP 5/MG puffin notify chars (fd4b0003/4/5/7) once
             // bonded — both carry framed records (REALTIME_DATA etc.) through the family-aware reassembler.
             uuid == CMD_NOTIFY_CHAR || uuid == EVENT_NOTIFY_CHAR || uuid == DATA_NOTIFY_CHAR ||
@@ -5139,7 +5351,14 @@ class WhoopBleClient(
             if (gatt == null) return
             if (writeRetries < MAX_WRITE_RETRIES) {
                 writeRetries++
-                log("writeCharacteristic busy; retry $writeRetries/$MAX_WRITE_RETRIES")
+                // #791: report WHICH refusal, not just that there was one. A retry is only safe if the write
+                // truly was not initiated, and a reporter's captures show it sometimes WAS — so the status
+                // code is the evidence that tells the two apart. Frame is named too, since the harm from a
+                // duplicate depends entirely on which command got sent twice.
+                log(
+                    "writeCharacteristic busy; retry $writeRetries/$MAX_WRITE_RETRIES " +
+                        "cmd=${item.cmd?.name ?: "raw"} ${writeStatusLabel((ops as? RealGattOps)?.lastWriteStatus)}",
+                )
                 pendingRetry = item
                 // Escalating backoff (12, 24, … capped ~96ms) — ride out a congestion spike instead of
                 // exhausting the budget in a few tens of ms while the stack is still busy (#77). NAMED
@@ -5190,6 +5409,7 @@ class WhoopBleClient(
         val bondFrame = Framing.buildCommand(CommandNumber.GET_BATTERY_LEVEL, byteArrayOf(0), s)
         log("Bonding: confirmed write GET_BATTERY_LEVEL to 61080002")
         writeInFlight = true   // hold the slot until onCharacteristicWrite fires (with response).
+        bondWriteOutstanding = true   // #791: this write bypasses the queue; its ack proves nothing about pendingRetry
         // safeGatt: a throw means the binder died (#314) — teardown, return false, fall into the
         // "rejected" branch which just clears the (now-stale) in-flight slot.
         val ok = safeGatt("writeBondFrame") {
@@ -5197,6 +5417,7 @@ class WhoopBleClient(
         }
         if (!ok) {
             writeInFlight = false
+            bondWriteOutstanding = false
             log("Bond write rejected by stack")
         }
     }
@@ -5275,6 +5496,9 @@ class WhoopBleClient(
                 // Populate the battery ring right after connect, not only once the Live screen opens. Posted
                 // after the clock writes settle so the 0x2A19 read does not race them on a slow stack.
                 handler.postDelayed({ refreshBattery() }, BATTERY_ON_CONNECT_DELAY_MS)
+                // #520: read the DIS identity on the same post-handshake schedule, staggered after the
+                // battery read so the two do not contend for the serialized GATT queue.
+                handler.postDelayed({ readDisIdentity() }, BATTERY_ON_CONNECT_DELAY_MS * 2)
                 log("WHOOP 5/MG: clock synced (set/get) — strap can persist history now")
                 if (!backfillStarted) {
                     backfillStarted = true
@@ -6250,6 +6474,7 @@ class WhoopBleClient(
         writeInFlight = false
         pendingRetry = null
         writeRetries = 0
+        bondWriteOutstanding = false   // #791: a stale flag would suppress a legitimate cancel next session
         // Cancel any scheduled BUSY-retry kicks so a queued retry can't fire after teardown and
         // re-enter a dead write/descriptor (#314).
         handler.removeCallbacks(drainWriteRetryRunnable)
@@ -6271,6 +6496,10 @@ class WhoopBleClient(
         // Reset offload state so the next connect starts a fresh session (port of the backfill
         // flag resets in didDisconnectPeripheral). Timers are handler-posted, so cancel them here.
         backfillStarted = false
+        // #520: a re-connect must re-read the DIS identity (the strap may be a different one).
+        disRead = false
+        disSerial = null
+        disHwRev = null
         backfilling = false
         backfillDraining = false
         backfillFrameQueue.clear()

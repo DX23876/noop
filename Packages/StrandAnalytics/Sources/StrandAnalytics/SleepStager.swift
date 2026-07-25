@@ -462,6 +462,57 @@ public enum SleepStager {
         return merged
     }
 
+    /// Why `bridgeSparseSleep` did or did not merge one adjacent pair of runs (#737).
+    ///
+    /// The existing trace reports only `runsBefore`/`runsAfter`, so a bridge that changed NOTHING gives
+    /// no reason — and there are three very different causes (gap over the tolerance, HR outside the
+    /// sleep band, or the pair simply not being two adjacent sleep runs). A reporter's night showed
+    /// `runsBefore=13 runsAfter=13` with 8 runs then discarded by `minSleepMin`, and the log could not
+    /// say which cause applied, so no fix could be chosen responsibly. This names it per pair.
+    struct SparseBridgeAttempt: Equatable, Sendable {
+        /// Gap between the two runs, in whole minutes (negative when they overlap).
+        let gapMin: Int
+        /// Whether the intervening HR stayed in the sleep band (the bridge's second condition).
+        let hrInSleepBand: Bool
+        /// Whether this pair was merged.
+        let bridged: Bool
+        /// Stable token for the log: bridged / gapTooLong / hrOutOfBand / overlap.
+        let reason: String
+    }
+
+    /// Per-pair explanation of `bridgeSparseSleep`, mirroring its rule EXACTLY (same adjacency walk,
+    /// same `gap >= 0 && gap <= sparseBridgeGapMin*60`, same HR-band check) so the reasons describe what
+    /// actually happened rather than an approximation. Only pairs the bridge itself CONSIDERS (two
+    /// adjacent sleep runs) produce an attempt; a pair separated by an active run is never considered,
+    /// which is itself the answer when no attempts are reported. Pure — no I/O, no side effects.
+    static func sparseBridgeAttempts(_ periods: [Period], sparse: Bool,
+                                     hr: [HRSample], baseline: Double?) -> [SparseBridgeAttempt] {
+        guard sparse, !periods.isEmpty else { return [] }
+        let bridgeGapS = sparseBridgeGapMin * 60
+        var attempts: [SparseBridgeAttempt] = []
+        var out: [Period] = []
+        for p in periods {
+            if let last = out.last, last.stage == "sleep", p.stage == "sleep" {
+                let gap = p.start - last.end
+                let inBand = hrSleepBandAcross(last.end, p.start, hr: hr, baseline: baseline)
+                let bridged = gap >= 0 && gap <= bridgeGapS && inBand
+                let reason: String
+                if bridged { reason = "bridged" }
+                else if gap < 0 { reason = "overlap" }
+                else if gap > bridgeGapS { reason = "gapTooLong" }
+                else { reason = "hrOutOfBand" }
+                attempts.append(SparseBridgeAttempt(gapMin: gap / 60, hrInSleepBand: inBand,
+                                                    bridged: bridged, reason: reason))
+                if bridged {
+                    out[out.count - 1] = Period(stage: "sleep", start: last.start, end: p.end)
+                    continue
+                }
+            }
+            out.append(p)
+        }
+        return attempts
+    }
+
     /// Sparse-gravity bridge (#308): merge two adjacent SLEEP runs separated ONLY by a gap up to
     /// sparseBridgeGapMin minutes when the intervening HR stays in the sleep band — so a real night
     /// fragmented by gravity dropouts is re-stitched into one continuous in-bed span BEFORE the
@@ -875,6 +926,10 @@ public enum SleepStager {
         runs = mergePeriods(runs)
         // Re-stitch sleep runs fragmented by pure gravity dropouts (sparse only) before minSleepMin.
         let runsBeforeBridge = traceSink == nil ? 0 : runs.filter { $0.stage == "sleep" }.count
+        // #737: capture the per-pair reasons BEFORE the merge mutates `runs`, so a bridge that changed
+        // nothing still says why (gapTooLong / hrOutOfBand / overlap) instead of only before==after.
+        let bridgeAttempts = traceSink == nil ? [] : sparseBridgeAttempts(runs, sparse: sparse, hr: hrS,
+                                                                         baseline: baseline)
         runs = bridgeSparseSleep(runs, sparse: sparse, hr: hrS, baseline: baseline)
         // Sleep & Rest test mode (E3): record the sparse-gravity bridge result, so a sparse 5.0 night
         // rescued from fragmentation is visible. Only emitted when gravity is sparse (the only case the
@@ -884,6 +939,20 @@ public enum SleepStager {
             traceSink(GateTrace.runLine(index: -1, startTs: 0, endTs: 0,
                 verdict: runsAfterBridge < runsBeforeBridge ? .kept : .dropped, gate: "sparseBridge",
                 detail: "sparse=true gapMin=\(sparseBridgeGapMin) runsBefore=\(runsBeforeBridge) runsAfter=\(runsAfterBridge)"))
+            // #737: one line per pair the bridge CONSIDERED. No lines at all means no two adjacent sleep
+            // runs were ever seen — i.e. the fragments are separated by active runs, which the bridge
+            // deliberately never crosses. That absence is itself the diagnosis.
+            if bridgeAttempts.isEmpty {
+                traceSink(GateTrace.runLine(index: -1, startTs: 0, endTs: 0, verdict: .dropped,
+                    gate: "sparseBridge",
+                    detail: "no adjacent sleep pairs considered (fragments separated by active runs)"))
+            }
+            for (i, a) in bridgeAttempts.enumerated() {
+                traceSink(GateTrace.runLine(index: -1, startTs: 0, endTs: 0,
+                    verdict: a.bridged ? .kept : .dropped, gate: "sparseBridgePair",
+                    detail: "pair=\(i) gapMin=\(a.gapMin) hrInSleepBand=\(a.hrInSleepBand) "
+                        + "reason=\(a.reason)"))
+            }
         }
 
         let minSleepS = minSleepMin * 60

@@ -80,15 +80,18 @@ final class OuraStreamMappingTests: XCTestCase {
     // MARK: - Sleep phase -> events[OURA_SLEEP_PHASE]
 
     func testSleepPhaseMapsToEventWithPhaseCode() {
+        // Raw codes persist per open_oura's validated mapping (deep=0, light=1, rem=2, awake=3). Each
+        // code arrives with its RECONSTRUCTED ts (30 s-spaced by OuraHypnogramAssembler upstream), so
+        // the mapping stores the given ts verbatim — no synthetic index offset.
         let s = OuraStreamMapping.streams(from: [
             .sleepPhase(OuraSleepPhase(ringTimestamp: 100, index: 0, stage: .deep)),
             .sleepPhase(OuraSleepPhase(ringTimestamp: 100, index: 1, stage: .rem)),
         ], at: ts)
         XCTAssertEqual(s.events.count, 2)
         XCTAssertTrue(s.events.allSatisfy { $0.kind == OuraStreamMapping.sleepPhaseEventKind })
-        XCTAssertEqual(s.events.map { $0.payload["phase"] }, [.int(2), .int(3)])
+        XCTAssertEqual(s.events.map { $0.payload["phase"] }, [.int(0), .int(2)])
         XCTAssertEqual(s.events.map { $0.payload["index"] }, [.int(0), .int(1)])
-        XCTAssertEqual(s.events.map { $0.ts }, [ts, ts])
+        XCTAssertEqual(s.events.map { $0.ts }, [ts, ts], "ts is stored verbatim; spacing happens upstream")
     }
 
     // MARK: - Battery -> battery:[BatterySample]

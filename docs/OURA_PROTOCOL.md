@@ -241,22 +241,56 @@ Gen 5 example `0912 020100 020103 010001 090329 665544332211`. [open_oura-r5]
 
 ### 5.2 GetEvents response / summary (`0x11`)
 ```
-11 08 <status:1> <sub_status:1> <last_ring_timestamp:4 LE> <pad:2>
+11 08 <events_received:1> <progress:1> <bytes_left:4 LE> <pad:2>
 ```
-[open_ring]
-- `status` - `0x00` = empty/no more; `0xFF` = data follows (event records arrive as inner TLV stream, §2.3). [open_ring]
-- `last_ring_timestamp` - new cursor value to use next fetch.
+[open_oura `EventBatchSummary`]
+- `events_received` - COUNT of events in the batch (`0xFF` = 255, the legacy max). NOT a status byte.
+- `progress` - `sleepAnalysisProgress`, informational only (never a block).
+- `bytes_left` - the ring's remaining buffered bytes; the drain is done at `bytes_left == 0`.
+- The summary carries **no cursor**. An earlier revision read bytes 2–5 as `last_ring_timestamp` — that
+  value is `bytes_left`, and persisting it as a cursor caused the #91 full re-dump loop.
+- Observed on-device (2026-07-12): the `0x11` can arrive BEFORE its batch finishes streaming.
 
-### 5.3 Canonical fetch loop (NOOP)
-1. SyncTime (§5.4). 2. Send `0x10` with stored cursor, `max=255`. 3. Receive inner TLV records (§6). 4. ~100 ms later send ack-fetch (`max=0`, cursor = `last_ring_timestamp`) to advance. 5. Repeat until `status=0x00`. [open_ring]
-6. Optionally `28 01 00` to flush flash-buffered events first. [open_ring]
+### 5.3 Canonical fetch loop (NOOP, aligned with open_oura `drain_events`)
+1. SyncTime (§5.4). 2. Optionally `28 01 00` to flush flash-buffered events first. [open_ring]
+3. Send `0x10` with the stored cursor, `max=255`, flags `FF FF FF FF` (open_oura's `flags=-1`).
+4. Collect the batch until the stream goes QUIET (~1.5 s of no records — open_oura's `transact()`
+   window). The `0x11` summary is NOT an end-of-batch marker (§5.2); never re-request mid-stream.
+5. Next cursor = max envelope ring-time seen across ALL batch records + 1. If the batch had no records,
+   or the cursor did not advance past the previous request's, STOP (open_oura `!progressed`).
+6. Repeat from step 3 while the summary reports `bytes_left > 0`; done at `bytes_left == 0`.
 
-### 5.4 SyncTime (`0x12`)
+**SUPERSEDED (open_ring):** an earlier revision taught an ack-fetch (`max=0`, cursor =
+`last_ring_timestamp`) ~100 ms after the records. Re-sending `0x10` at a non-advancing cursor — and
+especially mid-stream — makes the ring RESTART serving from that cursor: observed on-device 2026-07-12
+as five identical ~955 KB re-serves of one window while the tail (`bytes_left` 409 KB) was never
+reached. open_oura has no ack-fetch; every request is the same `(cursor, max=255, flags=-1)` shape
+with the cursor advanced per batch.
+
+### 5.4 SyncTime (`0x12`) and its response (`0x13`)
 ```
-12 09 <token:1> <counter:3 LE> 00 00 00 00 f6
+12 09 <unix_seconds:8 LE> <tz:1>
 ```
-where `counter = floor(unix_seconds / 256)`, trailer `0xf6` fixed. [open_ring]
-Response: `13 05 <ack> <counter_echo:3 LE> 00`. [open_ring]
+`unix_seconds` = host UTC as uint64 seconds; `tz` = signed offset in HALF-HOURS from UTC.
+[ringverse BLE.md][open_oura `req_sync_time`] — validated on-device 2026-07-12 (this layout made the
+ring emit its first 0x42 and anchored history).
+
+Response:
+```
+13 05 <current_device_timestamp:4 LE> <status:1>
+```
+`current_device_timestamp` is the ring's OWN clock counter when it processed the SyncTime. [ringverse]
+**NOOP anchor use (2026-07-13):** paired with the host wall-clock at receipt this is a DETERMINISTIC
+ring-time→UTC anchor available at every connect. Needed because the `0x42` time_sync_ind record is
+only logged when the ring actually ADJUSTS its clock — an already-synced ring can serve an entire
+drain with no 0x42 (observed: a whole night parked unanchored). ringverse labels the field "seconds"
+while the record clock runs in 100 ms ticks; NOOP disambiguates raw-ticks vs seconds×10 against the
+persisted resume cursor (exactly one reading must land within cursor…cursor+7 days) and adopts
+nothing when ambiguous.
+
+**SUPERSEDED (open_ring):** `12 09 <token:1> <counter:3 LE> 00 00 00 00 f6` with
+`counter = floor(unix_seconds/256)` and response `13 05 <ack> <counter_echo:3 LE> 00` — that request
+layout never anchored on real hardware.
 
 ### 5.5 Ring-time → UTC anchoring
 - The ring clock is in **ticks**: default **100 ms/tick** (10 Hz); burst mode **1 ms/tick** (`factor_flag=1`). [open_ring]
@@ -301,13 +335,35 @@ All records share the §2.3 TLV header (`type`, `len`, 4-byte `ringTimestamp`). 
   — i.e. 1 LSB from an amplitude byte, 8 mid bits from `b[k]`, 2 high bits from the pack bytes. [oura-rs]
 - Each **amplitude** = `(b[6+k] >> 1) << shift` (7-bit mantissa `[7:1]` shifted by the exponent). [oura-rs]
 - Per-sample timestamp: walk backward from event UTC by each IBI duration. [ringverse]
-- **Validated (decode fix):** the earlier linear-MSB-first bitstream reading recovered only the FIRST IBI and
-  scrambled the rest (a real overnight capture → 82% non-physiological beat-to-beat jumps). The byte-scatter
-  layout above, cross-checked on the same capture, yields a coherent ~60 bpm train (10% jumps) that tracks the
-  night's sleep stages and day/night dip. Matches `open_oura`'s decompiled `parse_api_ibi_and_amplitude_event`.
+- **WARNING (2026-07-12, ringverse ingest):** ringverse's `p_ibi_and_amplitude` shows the byte order
+  is **SCRAMBLED** (each 11-bit IBI rebuilt from three non-adjacent pieces, exact indices in
+  parse.js), while NOOP's `decodeIBIAmplitude` reads the fields with a naive SEQUENTIAL BitReader —
+  the two do not agree, so our 0x60 IBI values are SUSPECT until cross-checked against concurrent
+  live-HR R-R (same method as the 0x71 fixture plan). Part of the parked history-IBI work.
 
 ### 6.2 Green-LED IBI+amp - `0x71` `green_ibi_and_amp_event` (18 B)
-- 5 IBI deltas + 6 amplitudes; shift from byte19 bits `[2:0]`; same 11-bit IBI / 7-bit amplitude structure. [ringverse]
+Full layout per ringverse `p_green_ibi_and_amp` (parse.js, firmware `@0x503960`); payload = 14 body
+bytes (indices below are payload offsets = spec offsets − 6). Strict length gate: wire len == 18.
+- `p13` (spec byte 19): bit `[3]` RESERVED — set means a firmware-layout mismatch, do not decode;
+  `s = p13 & 7`, `shift = (s == 7) ? 0 : s + 1`.
+- 5 IBIs, each an **11-bit** value from three scrambled pieces (bit 0 | bits 2:1 | bits 10:3):
+```
+ibi0 = (p10 & 1) | (p4 << 3) | ((p13 >> 5) & 6)
+ibi1 = (p9  & 1) | (p3 << 3) | ((p12 & 3) << 1)
+ibi2 = (p8  & 1) | (p2 << 3) | ((p12 >> 1) & 6)
+ibi3 = (p7  & 1) | (p1 << 3) | ((p12 >> 3) & 6)
+ibi4 = (p6  & 1) | (p0 << 3) | ((p12 >> 5) & 6)
+```
+- 5 amplitudes: `amp[i] = (p[6+i] >> 1) << shift` (7-bit mantissa in bits `[7:1]` of `p6..p10`).
+- Emission order: first entry is **amplitude-only** (`ibi = 0`, `amp[0]`), then 5 entries
+  `{ibi[i], amp[i]}`; per-sample timestamps walk BACKWARD from the event UTC by each IBI (same
+  model as 0x60). `p5`/`p11` unused. [ringverse]
+- NOOP: `OuraDecoders.decodeGreenIBIAmpCandidate` implements this verbatim as a **Tier-B CANDIDATE**
+  (#287) — used only in the 0x71 fixture-capture log, side by side with the raw bytes, until a real
+  capture cross-checked against concurrent live-HR R-R validates it.
+- CORRECTION: an earlier revision summarized this as "5 IBI deltas + 6 amplitudes" — the five values
+  are full 11-bit IBIs (0–2047 ms) used as backward TIME deltas, and only 5 amplitude bytes exist
+  (the first emitted entry reuses `amp[0]`).
 
 ### 6.3 SpO2 IBI+amp - `0x6E` `spo2_ibi_and_amplitude_event` (17 B)
 - Byte 6: bits `[7:6]` = flag(1)+shift(3); bits `[3:0]` = mode(4). [ringverse]
@@ -361,12 +417,61 @@ good beats. Matches `open_oura`'s `parse_api_green_ibi_quality_event`.
 - This is the primary UTC anchor (§5.5). [open_ring][ringverse]
 
 ### 6.12 Sleep architecture
-- **`0x4E` / `0x5A` `sleep_phase_details`** (≥19 B): byte6 = header; phase codes are **2-bit**, 4 per byte (bits `[7:6][5:4][3:2][1:0]`); codes **0=awake, 1=light, 2=deep, 3=REM**. [ringverse]
+- **`0x4B` / `0x4E` / `0x5A` `sleep_phase_details`** (≥19 B): byte6 = header; phase codes are **2-bit**, 4 per byte (bits `[7:6][5:4][3:2][1:0]`); codes **0=deep, 1=light, 2=rem, 3=awake** per open_oura's VALIDATED `decode_sleep_phases` (events.rs `PHASE = ["deep","light","rem","awake"]`). **CORRECTION:** an earlier revision of this line taught `0=awake, 1=light, 2=deep, 3=REM` from [ringverse] (unverified); live captures contradicted it (records decoded at wake carry code 3 = awake under open_oura's mapping), and both platform decoders inherited the bug from this exact text. [open_oura]
 - **`0x6A` `sleep_period_info`** (14 B): bytes6–9 four int8 metrics; bytes10–11 `uint8/8.0`; byte12 motion-seconds uint8; byte13 sleep-state int8; bytes14–15 `uint16 LE / 65536`. [ringverse]
 - **`0x72` `sleep_acm_period`** (16 B): values0–2 = `whole(8)+frac(8)/255`; values3–5 = `whole(4)+frac(12)/4095`. [ringverse]
-- **`0x49` `sleep_summary_1`**: start/end as uint16 LE minutes-before-event. [ringverse]
+- **`0x49` `sleep_summary_1`**: `start_offset_min` / `end_offset_min`, both uint16 LE **minutes
+  before the event time** — the ring's tracked sleep window is
+  `[event_utc − start_offset·60 s, event_utc − end_offset·60 s]`. [ringverse]
+  **VALIDATED against NOOP captures 2026-07-12**: the `600/10` sample on the 7/11→12 night decodes
+  to 23:30→09:20, matching the reconstructed 1196-code hypnogram (23:32→09:30 write-anchored) and
+  the reported sleep (23:35–09:00). Earlier samples fit the same shape (688/101, 584/108, 716/164).
+  Note the window END trails the SleepNet WRITE by `end_offset` minutes (10–43 min observed).
+  **NOOP anchors the hypnogram burst end at `event − end_offset`** when a same-finalization 0x49
+  (envelope ring-time within 10 min of the burst's) is present — the write-moment envelope shifted a
+  whole reconstructed night +43 min on 2026-07-13 before this refinement; the 0x49 window matched the
+  wearer's report within minutes (23:32→08:08 vs 23:34→08:03).
+  **NOOP also clamps the burst START at `event − start_offset`** (2026-07-23): the SleepNet burst can
+  write a few epochs BEFORE the 0x49 onset (7 min / 14 codes observed — reconstruct `22:48:58` vs the
+  0x49 onset `22:55:58`), so the pre-window codes are clipped, symmetric with the end anchor. A clamp
+  that would drop EVERY code (a mis-paired 0x49) is ignored, so it can never empty the night.
 - **`0x76` `bedtime_period`**: start/end as uint32 LE ringTimestamps → map to UTC (§5.5). [ringverse]
 - Tags `0x48,0x4A–0x4D,0x4F,0x57,0x58` are additional sleep summary/feature variants in the dictionary; layouts **(UNVERIFIED)** - decode only after fixtures. [ringverse]
+
+**NOOP hypnogram reconstruction & persist (implementation).** The whole-night SleepNet phase codes
+arrive as a BURST of `0x4E`/`0x5A` (and `0x4B`) records finalized after wake — all with near-identical
+envelope ring-times (the WRITE moment, seconds apart), so arrival order is the code sequence, not a
+sortable time. NOOP:
+1. **Groups** consecutive phase records into one burst (envelope-gap grouping).
+2. **Reconstructs the time axis** by laying the codes BACKWARD from the burst end at the 30 s SleepNet
+   epoch: code *j* of *N* gets `ts = end − (N − j)·30 s` (each ts marks the start of its 30 s interval,
+   the last interval ending exactly at the burst end).
+3. **Refines BOTH ends with the paired `0x49` window** (closest envelope ring-time within 10 min): the
+   END anchors to `event − end_offset·60 s` (the true sleep-end, ahead of the write moment) and the
+   START clamps to `event − start_offset·60 s` (the onset), clipping the few pre-window codes. Both use
+   only RING signals (the `0x49` window + the SleepNet codes); a clamp that would empty the night is
+   ignored. The clip lives in the pure `OuraHypnogramBurst.codesWithTimes(…, sleepStartUnixSeconds:)`
+   (unit-tested, both platforms).
+4. **Anchors to UTC** via the session's `0x42`/`0x13` time-sync (§5.5); an unanchored burst is HELD
+   until the anchor lands, never wall-clocked (the resume cursor only advances on an anchored persist).
+5. **Persists** the anchored codes as a `CachedSleepSession` (`[{start,end,stage}]` breakdown) under the
+   ring's OWN deviceId, so the imported-over-computed merge surfaces the ring's SleepNet staging as the
+   night; the UI labels it **"Oura" / "raw on-device stages"**.
+
+**FINDING — raw window vs the app's adjusted period.** The `0x49` window (hence NOOP's persisted window)
+is the ring's RAW sleep window: it includes the edge AWAKE epochs (settling-in before sleep, lying awake
+before rising). The Oura app / WHOOP display an ADJUSTED *sleep period* (first-asleep → last-asleep),
+which is narrower — e.g. 2026-07-23: NOOP raw `22:56 → 08:21` (post start-clamp) vs a perceived/app
+`~23:30 → 08:14`; the ~34 min onset gap is edge-awake the ring counts. This is the same raw-vs-adjusted
+difference the "raw on-device stages" UI caveat surfaces.
+
+**DESIGN DECISION — surface raw, do NOT NOOP-adjust.** NOOP persists the ring's window VERBATIM (only
+reconciling the ring's own `0x49` window with its own SleepNet codes, above). It deliberately does NOT
+trim the edge-awake to synthesize a "sleep period" — that would be NOOP post-processing the ring's
+hypnogram, contradicting the ring-PROVIDED provenance and the "raw" label. If an adjusted/cleaned sleep
+period is ever wanted, the consistent path is NOOP's OWN sleep staging from the raw signals (dense IBI
+`0x60`/`0x80` + skin temp + motion), surfaced separately as an "On-device" computed night — never an
+edit of the ring's tag.
 
 ### 6.13 Motion / activity
 - **`0x47` `motion_events`** (variable): byte6 bits`[7:5]`=field_a, `[4:0]`=field_b; bytes7–9 = three **int8 × 8** axis magnitudes; optional bytes10–11. [ringverse]

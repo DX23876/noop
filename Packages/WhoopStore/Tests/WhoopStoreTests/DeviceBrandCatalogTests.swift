@@ -74,4 +74,22 @@ final class DeviceBrandCatalogTests: XCTestCase {
         let brands = DeviceBrandCatalog.all.map(\.brand)
         XCTAssertEqual(Set(brands).count, brands.count)
     }
+
+    /// `isOura` resolves a registry deviceId to its brand by the "<idPrefix>-" prefix, and is true ONLY for
+    /// the Oura ring — this is what lets the sleep surfaces name an Oura night's provenance "Oura". The Kotlin
+    /// twin `DeviceBrandCatalogTest` asserts the SAME cases.
+    func testIsOuraByRegistryIdPrefix() {
+        XCTAssertTrue(DeviceBrandCatalog.isOura("oura-5C4C0BF8-2DF6-1B3A-18D0-3DF0B3590148"))
+        XCTAssertTrue(DeviceBrandCatalog.isOura("oura-anything"))
+        // Other brands / WHOOP / computed / imports are NOT Oura.
+        XCTAssertFalse(DeviceBrandCatalog.isOura("whoop-1234"))
+        XCTAssertFalse(DeviceBrandCatalog.isOura("garmin-1234"))
+        XCTAssertFalse(DeviceBrandCatalog.isOura("strap-1234"))
+        XCTAssertFalse(DeviceBrandCatalog.isOura("huami-1234"))
+        XCTAssertFalse(DeviceBrandCatalog.isOura("some-noop"))
+        XCTAssertFalse(DeviceBrandCatalog.isOura(""))
+        // Prefix must be delimited: a bare "oura" with no "-" (or an unrelated id) is not a registry ring id.
+        XCTAssertFalse(DeviceBrandCatalog.isOura("oura"))
+        XCTAssertFalse(DeviceBrandCatalog.isOura("neuraloura-1"))
+    }
 }

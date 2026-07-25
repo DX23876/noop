@@ -1,5 +1,6 @@
 import XCTest
 import SwiftUI
+import WhoopStore
 @testable import Strand
 
 /// Renders a `LocalizedStringKey` to its user-visible string so tests can keep pinning verbatim copy.
@@ -323,23 +324,47 @@ final class TodayExplainabilityTests: XCTestCase {
             "Mi Band")
     }
 
-    func testLiquidHeroSourceLabel_deduplicatesOneWinner() {
-        XCTAssertEqual(
-            LiquidTodayView.heroSourceLabel(
-                rawSources: ["my-whoop-noop", "my-whoop-noop", "my-whoop-noop"],
-                deviceId: "my-whoop"),
-            "On-device")
+    func testTodayScoreProviderLabel_coversImportedAndRegisteredProviders() {
+        XCTAssertEqual(TodayView.todayScoreProviderLabel(sourceId: "my-whoop", brand: "WHOOP"), "Whoop")
+        XCTAssertEqual(TodayView.todayScoreProviderLabel(sourceId: "apple-health", brand: nil), "Apple Watch")
+        XCTAssertEqual(TodayView.todayScoreProviderLabel(sourceId: "health-connect", brand: nil), "Health Connect")
+        XCTAssertEqual(TodayView.todayScoreProviderLabel(sourceId: "oura-import", brand: nil), "Oura")
+        XCTAssertEqual(TodayView.todayScoreProviderLabel(sourceId: "fitbit-import", brand: nil), "Fitbit")
+        XCTAssertEqual(TodayView.todayScoreProviderLabel(sourceId: "garmin-import", brand: nil), "Garmin")
+        XCTAssertEqual(TodayView.todayScoreProviderLabel(sourceId: "xiaomi-band", brand: nil), "Mi Band")
+        for brand in DeviceBrandCatalog.all.map(\.brand) {
+            XCTAssertEqual(TodayView.todayScoreProviderLabel(sourceId: "device-\(brand)", brand: brand), brand)
+        }
     }
 
-    func testLiquidHeroSourceLabel_capsMixedWinnersAtTwoInScoreOrder() {
+    func testTodayScoreProviderLabel_unknownSourceDoesNotPretendToBeWhoop() {
+        XCTAssertEqual(TodayView.todayScoreProviderLabel(sourceId: "sensor-42", brand: nil), "sensor-42")
+        XCTAssertEqual(TodayView.todayScoreProviderLabel(sourceId: "not-a-whoop", brand: nil), "not-a-whoop")
+    }
+
+    func testLiquidHeroSourceLabel_deduplicatesOneProvider() {
         XCTAssertEqual(
             LiquidTodayView.heroSourceLabel(
-                rawSources: ["my-whoop", "my-whoop-noop", "apple-health"],
-                deviceId: "my-whoop"),
-            "Whoop + On-device")
+                providers: [
+                    .init(sourceId: "polar-1", brand: "Polar"),
+                    .init(sourceId: "polar-1", brand: "Polar"),
+                    .init(sourceId: "polar-1", brand: "Polar"),
+                ]),
+            "Polar")
+    }
+
+    func testLiquidHeroSourceLabel_capsMixedProvidersAtTwoInScoreOrder() {
+        XCTAssertEqual(
+            LiquidTodayView.heroSourceLabel(
+                providers: [
+                    .init(sourceId: "my-whoop", brand: "WHOOP"),
+                    .init(sourceId: "oura-import", brand: nil),
+                    .init(sourceId: "apple-health", brand: nil),
+                ]),
+            "Whoop + Oura")
     }
 
     func testLiquidHeroSourceLabel_hidesWhenNoScoreHasAResolvedSource() {
-        XCTAssertNil(LiquidTodayView.heroSourceLabel(rawSources: [], deviceId: "my-whoop"))
+        XCTAssertNil(LiquidTodayView.heroSourceLabel(providers: []))
     }
 }

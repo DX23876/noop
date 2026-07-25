@@ -5,24 +5,25 @@ An **offline WHOOP companion** for Android. NOOP connects directly to a WHOOP 4.
 battery, and sensor data, and stores everything **locally** on the device. There is
 no account, no server, and no `INTERNET` permission — nothing leaves the phone.
 
-This is a Kotlin / Jetpack Compose port of the hardware-verified macOS reference app
-(`/path/to/NOOP`, Swift). The protocol, framing, and BLE handshake are
-translated from that verified implementation; they are not invented here.
+This is an independent Kotlin / Jetpack Compose reimplementation of the macOS/iOS
+reference app (`Strand/`, Swift). The protocol, framing, and BLE handshake are
+translated from that hardware-verified implementation, not invented here, and kept in
+byte-for-byte parity with it (see the repo root [`CLAUDE.md`](../CLAUDE.md)).
 
 ---
 
-## Status — read this first
+## Status
 
-> **This project has NOT been compiled or run on a device.** It was authored without a
-> JDK or Android SDK available, against a written contract, so the modules fit together
-> by construction rather than by a green build. Treat the first `./gradlew assembleDebug`
-> as the real compile check, and treat the first on-strap session as the real protocol
-> check.
+NOOP for Android is a **shipped app**, not a draft. It builds in CI (dependency-locked +
+SHA-256-verified + Room KSP-validated), ships versioned releases, and runs on real devices
+with real users against real **WHOOP 4.0 and 5.0/MG** straps.
 
-In particular, **the BLE layer must be validated on real hardware** — a phone with
-Bluetooth and an actual WHOOP strap. The bond trick (one confirmed write to the command
-characteristic), the realtime HR stream, the historical (type-47) offload, and the haptic
-buzz cannot be exercised in an emulator. See the **Verification checklist** at the bottom.
+**BLE work still needs real hardware, though — a compile proves nothing about the radio.**
+The bond handshake (one confirmed write to the command characteristic), the realtime HR
+stream, the historical (type-47) offload, and the haptic buzz can't be exercised in an
+emulator. Any change on the CoreBluetooth/GATT, offload, or live-HR path must be validated
+on a phone with Bluetooth **and** an actual strap — say what you tested on hardware. See the
+**Verification checklist** at the bottom.
 
 ---
 
@@ -32,9 +33,9 @@ buzz cannot be exercised in an emulator. See the **Verification checklist** at t
 |---|---|---|
 | **JDK** | 17 | The build targets `jvmTarget = "17"`. JDK 17 ships inside recent Android Studio (Jellyfish / Koala) — use *Settings → Build Tools → Gradle → Gradle JDK → 17*, or install Temurin 17. |
 | **Android SDK** | API 34 (compileSdk/targetSdk) | Install "Android 14 (UpsideDownCake)" + Platform-Tools via the SDK Manager. `minSdk` is 26 (Android 8.0). |
-| **Android Studio** | Koala 2024.x or newer | Bundles a compatible Gradle 8.5 + AGP 8.5. |
+| **Android Studio** | New enough for Gradle 8.7 (Ladybug 2024.2+ / recent Koala) | The project pins Gradle **8.7** + AGP **8.5.2** via the checked-in wrapper. |
 | **A physical device** | Android 8.0+ with BLE | An emulator has no Bluetooth radio — you cannot test the strap link on it. |
-| **A WHOOP strap** | WHOOP 4.0 (verified) or 5.0 | Required to exercise the protocol end-to-end. |
+| **A WHOOP strap** | WHOOP 4.0 or 5.0/MG (both shipped/verified) | Required to exercise the protocol end-to-end. |
 
 ### Point Gradle at your SDK
 
@@ -92,22 +93,24 @@ JAR/scripts with the target Gradle version.
 ## Build & run
 
 ```bash
-cd /path/to/NOOP/android
+cd <your-noop-clone>/android
 
 # If intentionally regenerating the checked-in wrapper, use the pinned version + official checksum.
 ./gradlew wrapper --gradle-version 8.7 \
   --gradle-distribution-sha256-sum 544c35d6bd849ae8a5ed0bcea39ba677dc40f49df7d1835561582da2009b961d
 
-# Compile a debug APK:
-./gradlew assembleDebug
+# Compile the real ("full" flavor) debug APK:
+./gradlew assembleFullDebug
 
 # Install onto a connected, USB-debugging-enabled device:
-./gradlew installDebug
+./gradlew installFullDebug
 
 # Or simply open this folder in Android Studio and press Run.
 ```
 
-The debug APK lands at `app/build/outputs/apk/debug/app-debug.apk`.
+The debug APK lands at `app/build/outputs/apk/full/debug/app-full-debug.apk`. (There are two
+flavors — `full` = the real app, `demo` = preloaded synthetic data; substitute `Demo` for
+`Full` to build that one.)
 
 > **About the wrapper:** `gradle-wrapper.jar`, both wrapper scripts, and the wrapper properties are
 > checked in. The properties pin the Gradle distribution checksum, while CI validates the wrapper
@@ -135,13 +138,18 @@ android/
         └── java/com/noop/
             ├── NoopApplication.kt
             ├── protocol/        # enums, Crc, Framing, Reassembler, DeviceFamily
-            ├── ble/             # WhoopBleClient (BluetoothGatt + scanner)
-            ├── data/            # Room entities, DAO, database, repository
-            ├── analytics/       # Hrv, Zones, IllnessWatch
-            └── ui/              # NoopTheme, MainActivity, AppViewModel, screens, NavHost
+            ├── ble/             # WhoopBleClient (BluetoothGatt + scanner), collect + offload
+            ├── data/            # Room entities, DAO, database, repository, backup
+            ├── analytics/       # HRV, recovery, strain, sleep staging, auto-workout, baselines, …
+            ├── ingest/          # CSV / Apple Health / Health Connect import + export
+            ├── oura/ · polar/   # experimental non-WHOOP source decoders
+            ├── alarm/ · notif/ · location/ · update/ · widget/ · testcentre/ · ai/
+            └── ui/              # NoopTheme, MainActivity, AppViewModel, Compose screens, NavHost
 ```
 
-Root package: `com.noop` · application id: `com.noop.whoop` (debug builds append `.debug`).
+Root package: `com.noop` · application id: `com.noop.whoop`. Debug builds append `.debug`;
+the `demo` flavor appends `.demo`; the fork staging release appends `.staging` — so all
+install side-by-side.
 
 ---
 
@@ -166,7 +174,7 @@ permissions at first launch** before scanning — handle this in the UI permissi
 
 ## BLE contract (must match the strap)
 
-These come from the hardware-verified reference (`Strand/Strand/BLE/BLEManager.swift`)
+These come from the hardware-verified reference (`Strand/BLE/BLEManager.swift`)
 and are the source of truth for the BLE layer:
 
 | Item | Value |
@@ -194,10 +202,10 @@ phone **and** a WHOOP strap.
 
 **Build (phone or emulator):**
 
-- [ ] `./gradlew assembleDebug` compiles with no errors.
+- [ ] `./gradlew assembleFullDebug` compiles with no errors.
 - [ ] App installs and launches to the main screen without crashing.
 - [ ] Dark NOOP theme renders (surfaceBase `#060A08`, accent `#18C98B`); no white flash on launch.
-- [ ] Navigation between screens works (Live / History / Support, etc.).
+- [ ] Navigation between the main tabs works (Today / Sleep / Trends / Coach / Settings, etc.).
 - [ ] Runtime BLE permission prompt appears on first launch (Android 12+) and is handled.
 
 **On real hardware (phone + WHOOP strap):**
@@ -220,7 +228,7 @@ phone **and** a WHOOP strap.
 
 ---
 
-## Notes for porters
+## Notes for contributors (BLE)
 
 - The BLE layer is the highest-risk part. Android's `BluetoothGatt` is callback-based and
   serializes GATT operations differently from CoreBluetooth — queue writes/reads and wait

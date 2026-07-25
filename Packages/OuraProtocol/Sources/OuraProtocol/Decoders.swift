@@ -33,6 +33,19 @@ public enum OuraDecoders {
         Int(b[i]) | (Int(b[i + 1]) << 8) | (Int(b[i + 2]) << 16) | (Int(b[i + 3]) << 24)
     }
 
+    // MARK: - GetProductInfo reply (serial / hardware pages; s4.1 / s7.3)
+
+    /// Decode a GetProductInfo reply body (the serial page `18 03 08 00 10` or the hardware page
+    /// `18 03 18 00 10`, both answered under outer op 0x19). On-device capture 2026-07-24 (Gen3): the body is
+    /// `byte0 = 0x00 status/OK, then a NUL-terminated ASCII string, NUL-padded` — e.g. serial "2H3B2405003655"
+    /// or hardware id "BLB_03". Returns the trimmed ASCII string, or nil for an empty/non-printable body.
+    public static func productInfoString(_ body: [UInt8]) -> String? {
+        guard body.count > 1 else { return nil }
+        let ascii = body.dropFirst().prefix(while: { $0 != 0x00 })
+        guard !ascii.isEmpty, ascii.allSatisfy({ (0x20...0x7e).contains($0) }) else { return nil }
+        return String(bytes: ascii, encoding: .ascii)
+    }
+
     // MARK: - Live-HR realtime push (0x2F sub-op 0x28; s5.6)
 
     /// Decode a live-HR push body (the bytes AFTER `2f 0f 28`). Per OURA_PROTOCOL.md s5.6 the wire
@@ -88,6 +101,45 @@ public enum OuraDecoders {
             out.append(OuraIBI(ringTimestamp: rec.ringTimestamp, ibiMs: ibi[k], amplitude: amp))
         }
         return out.isEmpty ? nil : out
+    }
+
+    // MARK: - Green IBI + amplitude CANDIDATE decode (0x71; s6.2, upstream #287)
+
+    /// CANDIDATE decode of the 0x71 green_ibi_and_amp_event, ported verbatim from ringverse's
+    /// `p_green_ibi_and_amp` (parse.js, firmware @0x503960): 5 densely bit-packed 11-bit IBIs +
+    /// amplitudes (7-bit mantissa << shift), first entry amplitude-only (`ibiMs == 0`), timestamps
+    /// walking backward from the event time by each IBI in turn (caller's job — entries are returned
+    /// in that walk order). `shift` comes from payload[13] bits [2:0] (`s == 7 → 0`, else `s+1`);
+    /// bit [3] set means a firmware-layout mismatch → nil (never guess).
+    ///
+    /// TIER-B (#287): this layout has NO verified NOOP capture yet — the result is for the 0x71
+    /// fixture-capture log ONLY (side-by-side with the raw bytes, cross-checked against concurrent
+    /// live-HR R-R), never a stored rrInterval. Promote only after a real capture validates it.
+    /// Payload indexing: ringverse's `b[i]` spans the whole frame (type/len/rt4/body); our `payload`
+    /// starts at spec offset 6, so `b[i] == payload[i-6]`. Strict 14-byte gate (= wire len 18).
+    public static func decodeGreenIBIAmpCandidate(payload p: [UInt8], ringTimestamp: UInt32)
+        -> (shift: Int, samples: [OuraIBI])? {
+        guard p.count == 14 else { return nil }
+        let b13 = Int(p[13])
+        guard (b13 >> 3) & 1 == 0 else { return nil }   // reserved bit set → firmware mismatch
+        let s = b13 & 7
+        let shift = (s == 7) ? 0 : s + 1
+        let b12 = Int(p[12])
+        // Each 11-bit IBI: 1 low bit (an amplitude byte's LSB) | 8 mid bits (a full byte << 3)
+        // | 2 bits [2:1] from the pack bytes. Ordering per the firmware's scrambled layout.
+        let ds = [
+            (Int(p[10]) & 1) | (Int(p[4]) << 3) | ((b13 >> 5) & 6),
+            (Int(p[9]) & 1) | (Int(p[3]) << 3) | ((b12 & 3) << 1),
+            (Int(p[8]) & 1) | (Int(p[2]) << 3) | ((b12 >> 1) & 6),
+            (Int(p[7]) & 1) | (Int(p[1]) << 3) | ((b12 >> 3) & 6),
+            (Int(p[6]) & 1) | (Int(p[0]) << 3) | ((b12 >> 5) & 6),
+        ]
+        let amps = (6...10).map { (Int(p[$0]) >> 1) << shift }
+        var samples = [OuraIBI(ringTimestamp: ringTimestamp, ibiMs: 0, amplitude: amps[0])]
+        for i in 0..<5 {
+            samples.append(OuraIBI(ringTimestamp: ringTimestamp, ibiMs: ds[i], amplitude: amps[i]))
+        }
+        return (shift, samples)
     }
 
     // MARK: - Green IBI quality, 2 bytes/sample (0x80; s6.4)
@@ -358,8 +410,9 @@ public enum OuraDecoders {
     // MARK: - Sleep phase, 2-bit codes (0x4E / 0x5A; s6.12)
 
     /// Decode the 0x4E/0x5A sleep_phase_details: byte6 = header; phase codes are 2-bit, 4 per byte
-    /// (bits [7:6][5:4][3:2][1:0]); codes 0=awake,1=light,2=deep,3=REM. Per OURA_PROTOCOL.md s6.12.
-    /// Returns nil on a short body. The header byte is skipped; phase bytes follow.
+    /// (bits [7:6][5:4][3:2][1:0]); codes 0=deep, 1=light, 2=rem, 3=awake per open_oura's VALIDATED
+    /// `decode_sleep_phases` mapping (see OuraSleepStage). Returns nil on a short body. The header
+    /// byte is skipped; phase bytes follow.
     public static func decodeSleepPhase(_ rec: OuraRecord) -> [OuraSleepPhase]? {
         let b = rec.payload
         // body[0] is the header (spec offset 6); phase codes begin at body[1].

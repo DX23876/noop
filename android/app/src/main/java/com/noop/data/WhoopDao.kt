@@ -183,6 +183,41 @@ interface WhoopDao : DeviceRegistryDao {
     suspend fun upsertMetricSeries(rows: List<MetricSeriesRow>)
 
     @Upsert
+    suspend fun upsertScoreInputProvenance(rows: List<ScoreInputProvenanceRow>)
+
+    @Query(
+        "SELECT sourceId FROM scoreInputProvenance " +
+            "WHERE deviceId = :deviceId AND day = :day AND key = :key"
+    )
+    suspend fun scoreInputSource(deviceId: String, day: String, key: String): String?
+
+    @Query(
+        "DELETE FROM scoreInputProvenance " +
+            "WHERE deviceId = :deviceId AND day >= :from AND day <= :to"
+    )
+    suspend fun deleteScoreInputProvenanceInRange(deviceId: String, from: String, to: String)
+
+    /**
+     * Replace a computed scoring window atomically. If any score or provenance write fails, Room rolls
+     * the whole transaction back, so an old score can never be labelled with a newer provider.
+     */
+    @Transaction
+    suspend fun replaceComputedScoreWindow(
+        deviceId: String,
+        from: String,
+        to: String,
+        dailyMetrics: List<DailyMetric>,
+        metricPoints: List<MetricSeriesRow>,
+        provenance: List<ScoreInputProvenanceRow>,
+    ) {
+        deleteDailyMetricsInRange(deviceId, from, to)
+        deleteScoreInputProvenanceInRange(deviceId, from, to)
+        if (dailyMetrics.isNotEmpty()) upsertDailyMetrics(dailyMetrics)
+        if (metricPoints.isNotEmpty()) upsertMetricSeries(metricPoints)
+        if (provenance.isNotEmpty()) upsertScoreInputProvenance(provenance)
+    }
+
+    @Upsert
     suspend fun upsertJournal(rows: List<JournalEntry>)
 
     @Upsert

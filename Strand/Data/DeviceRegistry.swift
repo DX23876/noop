@@ -56,6 +56,17 @@ final class DeviceRegistry: ObservableObject {
         reload()
     }
 
+    /// #771: re-point the active Oura device off its transient CoreBluetooth-UUID id onto its stable
+    /// `oura-<serial>` id (read from the ring on connect), folding ONLY the active row's data + registry into
+    /// the serial id — other past `oura-*` pairings are left untouched. Best-effort; returns true when a
+    /// re-point happened so the caller can `setActive(serialId)` to move the spine onto it.
+    @discardableResult
+    func adoptSerialIdentity(from activeId: String, to serialId: String) -> Bool {
+        let moved = (try? store.adoptSerialIdentity(from: activeId, to: serialId)) ?? false
+        if moved { reload() }
+        return moved
+    }
+
     /// Archive (remove) a device: NOOP stops connecting to it, but its recorded data is kept. If the
     /// archived device was the active one, `activeDeviceId` is left as-is here — the caller decides the
     /// next active device (or leaves none active) and calls `setActive` explicitly.

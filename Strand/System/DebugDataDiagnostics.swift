@@ -198,21 +198,35 @@ enum DebugDataDiagnostics {
                    "apple-health", "health-connect"].filter { seen.insert($0).inserted }
         var parts: [String] = []
         var spine: [DailyMetric] = []
+        var activeRows: [DailyMetric] = []
         for id in ids {
             let rows = (try? await store.dailyMetrics(deviceId: id, from: "0000-01-01", to: "9999-12-31")) ?? []
             parts.append("\(id)=\(rows.count)")
             if id == "my-whoop" { spine = rows }
+            if id == did { activeRows = rows }
         }
         lines.append("Days: " + parts.joined(separator: "  "))
-        let recent = Array(spine.suffix(7))
-        if !recent.isEmpty {
+        // #731: this line used to read ONLY "my-whoop" and label it "Recent 7d". For a live-BLE user whose
+        // rows land under the ACTIVE strap id that reported sleep=0/7 while every one of the last 7 nights
+        // had sleep — it sent triage hunting for missing data that was never missing. It also took
+        // `suffix(7)` of that id's rows, so "Recent" could be the last 7 IMPORTED days (months old) rather
+        // than the last 7 calendar days. Report the active id (where live data lands) AND the import spine
+        // when they differ, each stamped with the day range it actually covers so staleness is visible.
+        func recentLine(_ rows: [DailyMetric], id: String) -> String? {
+            let recent = Array(rows.suffix(7))
+            guard !recent.isEmpty else { return nil }
             let n = recent.count
-            lines.append("Recent \(n)d (my-whoop): "
+            let span = (recent.first?.day ?? "?") + "…" + (recent.last?.day ?? "?")
+            return "Recent \(n) rows (\(id), \(span)): "
                 + "sleep=\(recent.filter { ($0.totalSleepMin ?? 0) > 0 }.count)/\(n)  "
                 + "recovery=\(recent.filter { $0.recovery != nil }.count)/\(n)  "
                 + "steps=\(recent.filter { $0.steps != nil }.count)/\(n)  "
-                + "kcal=\(recent.filter { $0.activeKcalEst != nil }.count)/\(n)")
-        } else {
+                + "kcal=\(recent.filter { $0.activeKcalEst != nil }.count)/\(n)"
+        }
+        var emitted = false
+        if let l = recentLine(activeRows, id: did) { lines.append(l); emitted = true }
+        if did != "my-whoop", let l = recentLine(spine, id: "my-whoop") { lines.append(l); emitted = true }
+        if !emitted {
             lines.append("Recent: no day rows")
         }
         if let dv = await repo.dataVolumeSnapshot() {

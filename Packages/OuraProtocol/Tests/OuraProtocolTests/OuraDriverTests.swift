@@ -155,7 +155,7 @@ final class OuraDriverTests: XCTestCase {
 
     // MARK: - History fetch loop
 
-    func testHistoryFetchFlushesThenFetchesThenAcks() {
+    func testHistoryFetchFlushesThenFetchesThenContinues() {
         let d = OuraDriver(ringGen: .gen3, authKey: key)
         let start = d.nextStep(after: .startHistoryFetch(cursor: 0))
         XCTAssertEqual(d.phase, .fetchingHistory)
@@ -163,10 +163,11 @@ final class OuraDriverTests: XCTestCase {
         // get_events cursor 0, max 255, flags FFFFFFFF.
         XCTAssertEqual(start[1].bytes, [0x10, 0x09, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
 
-        // More data -> ack-fetch (max 0) at the advanced cursor.
-        let ack = d.nextStep(after: .historyCursorAdvanced(cursor: 0x12345678, moreData: true))
-        XCTAssertEqual(ack.count, 1)
-        XCTAssertEqual(ack[0].bytes, [0x10, 0x09, 0x78, 0x56, 0x34, 0x12, 0x00, 0xFF, 0xFF, 0xFF, 0xFF])
+        // More data -> continuation fetch at the ADVANCED cursor, SAME shape as the initial request
+        // (max 255, open_oura drain_events). The old max=0 "ack" made the ring restart its serve.
+        let cont = d.nextStep(after: .historyCursorAdvanced(cursor: 0x12345678, moreData: true))
+        XCTAssertEqual(cont.count, 1)
+        XCTAssertEqual(cont[0].bytes, [0x10, 0x09, 0x78, 0x56, 0x34, 0x12, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])
 
         // No more -> back to streaming.
         let stop = d.nextStep(after: .historyCursorAdvanced(cursor: 0x12345678, moreData: false))
@@ -353,16 +354,17 @@ final class OuraDriverTests: XCTestCase {
         // 0x4B was previously a Tier-B "sleep summary" (dropped by default). It is actually a hypnogram
         // alias (open_oura `0x4b | 0x4e | 0x5a => decode_sleep_phases`), so it now decodes with the SAME
         // validated 2-bit phase decoder as 0x4E/0x5A and emits Tier-A sleep-phase events even when
-        // allowTierB == false. Same payload as the 0x4E golden -> light, deep, rem, awake.
+        // allowTierB == false. Same payload as the 0x4E golden; open_oura's validated stage mapping
+        // (0=deep, 1=light, 2=rem, 3=awake) -> codes 1,2,3,0 = light, rem, awake, deep.
         XCTAssertEqual(OuraEventTag(rawValue: 0x4B), .sleepPhaseB)
         XCTAssertEqual(OuraEventTag.sleepPhaseB.tier, .tierA)
         let d = OuraDriver(ringGen: .gen3, authKey: key)   // allowTierB defaults to false
         let rec = OuraFraming.parseRecord(bytes("4b0602000100006c"))!
         XCTAssertEqual(d.ingest(record: rec), [
             .sleepPhase(OuraSleepPhase(ringTimestamp: rt, index: 0, stage: .light)),
-            .sleepPhase(OuraSleepPhase(ringTimestamp: rt, index: 1, stage: .deep)),
-            .sleepPhase(OuraSleepPhase(ringTimestamp: rt, index: 2, stage: .rem)),
-            .sleepPhase(OuraSleepPhase(ringTimestamp: rt, index: 3, stage: .awake)),
+            .sleepPhase(OuraSleepPhase(ringTimestamp: rt, index: 1, stage: .rem)),
+            .sleepPhase(OuraSleepPhase(ringTimestamp: rt, index: 2, stage: .awake)),
+            .sleepPhase(OuraSleepPhase(ringTimestamp: rt, index: 3, stage: .deep)),
         ])
     }
 
@@ -539,10 +541,18 @@ final class OuraDriverTests: XCTestCase {
         XCTAssertTrue(OuraRingGen.gen3.capabilities.contains(.hrv))
     }
 
-    func testSyncTimeCommandCounter() {
-        // counter = floor(unix / 256). For unix = 256 -> counter 1 -> bytes 01 00 00, trailer 0xF6.
-        let cmd = OuraCommands.syncTime(unixSeconds: 256)
-        XCTAssertEqual(cmd.bytes, [0x12, 0x09, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF6])
+    func testSyncTimeCommandIsU64SecondsLEPlusTz() {
+        // Authoritative layout: 12 09 <unix_secs u64 LE> <tz i8>. 1_700_000_000 = 0x6553F100
+        // -> LE 00 F1 53 65 00 00 00 00, tz 0. (Supersedes the old unix/256 + 0xF6-trailer guess.)
+        let cmd = OuraCommands.syncTime(unixSeconds: 1_700_000_000)
+        XCTAssertEqual(cmd.bytes,
+                       [0x12, 0x09, 0x00, 0xF1, 0x53, 0x65, 0x00, 0x00, 0x00, 0x00, 0x00])
+    }
+
+    func testSyncTimeCommandTimezoneByte() {
+        // tz is a signed half-hour offset in the trailing byte: +4 (=UTC+2) -> 0x04; -4 -> 0xFC.
+        XCTAssertEqual(OuraCommands.syncTime(unixSeconds: 0, tzHalfHours: 4).bytes.last, 0x04)
+        XCTAssertEqual(OuraCommands.syncTime(unixSeconds: 0, tzHalfHours: -4).bytes.last, 0xFC)
     }
 
     // MARK: - Dangerous commands are isolated and labelled

@@ -91,8 +91,39 @@ private struct DevicesContent: View {
         return (String(localized: "Clock latched: \(latched) · last frame \(frame)"), warning)
     }
 
+    /// #802: same shape and copy as `LiveView.reconnectGuideBanner`. Duplicated rather than hoisted
+    /// because the two live in different view files with no shared banner container today; the STRING is
+    /// shared, which is the part that must not drift.
+    private func repairGuideBanner(_ guide: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(StrandPalette.statusWarning)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Can't connect: your strap's pairing was reset")
+                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                Text(guide)
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(NoopMetrics.space3)
+        .background(StrandPalette.surfaceRaised, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .strokeBorder(StrandPalette.statusWarning.opacity(0.5), lineWidth: 1))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Reconnect help: \(guide)")
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
+            // #802: the re-pair guide belongs HERE too, not only on Live. A strap that connects but never
+            // finishes bonding leaves the user on this screen — it is where you go to fix a device — while
+            // the four steps that resolve it were rendered one tab away. The reporter in #802 filed an issue
+            // with the guide already armed, because nothing on Devices said so. Same state and same string
+            // as LiveView's banner; no new copy.
+            if let guide = live.reconnectGuide { repairGuideBanner(guide) }
             // UPPERCASE overline section header, matching the liquid Today. Counts the paired bands so the
             // multi-WHOOP reality reads at a glance.
             sectionHead("YOUR BANDS", trailing: activeDevices.count == 1

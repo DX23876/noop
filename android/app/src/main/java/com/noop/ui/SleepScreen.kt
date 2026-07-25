@@ -134,6 +134,10 @@ fun SleepScreen(
     onOpenJournal: () -> Unit = {},
 ) {
     val days by vm.recentDays.collectAsStateWithLifecycle()
+    // Whether the ACTIVE strap is an Oura ring, off the canonical brand table (not an "oura" literal) — so
+    // the sleep surfaces name a ring-PROVIDED night's provenance "Oura" and flag its split as the ring's
+    // RAW on-device stages. Read/UI only, no stored value. Mirrors macOS Repository.activeDeviceIsOura.
+    val activeIsOura = com.noop.data.DeviceBrandCatalog.isOura(vm.activeStrapId)
 
     // PERF (#scroll-jank): the BLE live state ticks ~1Hz. This screen reads `live` ONLY for the
     // "syncing history" note (backfilling + the chunk count), so reading the whole `live` object at
@@ -494,7 +498,7 @@ fun SleepScreen(
                     score = if (night != null) heroPerformanceScore(night, days, imported)
                             else tilesModel?.performance?.latest,
                     asleepMin = model?.stages?.asleep,
-                    source = restHeroSource(imported, night?.dayKey ?: days.lastOrNull()?.day),
+                    source = restHeroSource(imported, night?.dayKey ?: days.lastOrNull()?.day, activeIsOura),
                     overline = nightRelativeLabel(nightOffset),
                 )
             }
@@ -521,6 +525,7 @@ fun SleepScreen(
             item {
             Hero(
                 display = display,
+                activeIsOura = activeIsOura,
                 clock = night?.clockLabel ?: model?.clockLabel,
                 nightOffset = nightOffset,
                 lastIndex = max(navDays.lastIndex, 0),
@@ -933,6 +938,9 @@ private fun SleepHeroVessel(fraction: Double, value: Double, tint: Color, diamet
 @Composable
 private fun Hero(
     display: HeroDisplay?,
+    // Whether the active strap is an Oura ring — names an Oura night's provenance and captions its split as
+    // the ring's RAW on-device stages. Read/UI only. Mirrors macOS Repository.activeDeviceIsOura.
+    activeIsOura: Boolean = false,
     clock: String?,
     nightOffset: Int,
     lastIndex: Int,
@@ -991,8 +999,12 @@ private fun Hero(
             val inBedMin = groupInBedMin
                 ?: session?.let { (it.endTs - it.effectiveStartTs) / 60.0 }
                 ?: s.total
+            // An Oura night's stages are the ring's RAW on-device SleepNet classification (decoded off the
+            // 0x49 phase stream), NOT a NOOP approximation — so it gets its own honest caption instead of the
+            // "approx. stages (on-device)" one that describes NOOP's own sparse-motion staging.
+            val stageCaption = if (activeIsOura) " · raw on-device stages" else " · approx. stages (on-device)"
             val subtitle = "${durationText(inBedMin)} in bed · ${display.efficiencyText} efficiency" +
-                (if (display.realSegments != null) " · approx. stages (on-device)" else "")
+                (if (display.realSegments != null) stageCaption else "")
             // iOS #988 port: true per-epoch segments (≥ 2 — a single run has no transitions to lay
             // out) get the per-stage timeline rows; the rows ARE the legend, so no footer. Anything
             // else keeps the honest proportional strip + StageBreakdownRows footer.
@@ -1043,6 +1055,10 @@ private fun Hero(
                     }
                 }
             }
+            // For an Oura-provided night, say plainly this split is the ring's RAW on-device classification —
+            // so the larger Awake / smaller Deep+REM here isn't misread as the polished numbers the Oura app
+            // shows for the same night (the app post-processes the same stream). Mirrors iOS ouraRawStagesNote.
+            if (activeIsOura) OuraRawStagesNote()
         }
         // Naps card (#508/#518): the day's blocks OTHER than the main night, each editable / deletable
         // with the SAME mechanism main sleep uses, plus a Main / Nap(s) / Total split so what drives the
@@ -1054,6 +1070,7 @@ private fun Hero(
                 onEditNapTimes = onUpdateTimes,
                 onDeleteNap = onDeleteSession,
                 habitualMidsleepSec = habitualMidsleepSec,
+                activeIsOura = activeIsOura,
             )
         }
     }
@@ -1076,6 +1093,8 @@ private fun NapsCard(
     // The LEARNED habitual midsleep, fed to the main-night selector so the "why this is your main sleep"
     // reason matches the block the hero shows. null = cold-start band. Mirrors iOS SleepView. (C1)
     habitualMidsleepSec: Long? = null,
+    // Active strap is an Oura ring → a computed night's provenance reads "Oura" not "On-device" (C4).
+    activeIsOura: Boolean = false,
 ) {
     val mainMin = (main.endTs - main.effectiveStartTs) / 60.0
     val napMin = naps.sumOf { (it.endTs - it.effectiveStartTs) / 60.0 }
@@ -1109,8 +1128,33 @@ private fun NapsCard(
             // per-day merge winner; the info affordance reveals the foundation reason for the pick. Mirrors
             // iOS SleepView.mainSleepFooter. (spec 2026-06-20 C1/C4)
             Box(Modifier.fillMaxWidth().height(Metrics.divider).background(Palette.hairline))
-            MainSleepFooter(main = main, naps = naps, habitualMidsleepSec = habitualMidsleepSec)
+            MainSleepFooter(main = main, naps = naps, habitualMidsleepSec = habitualMidsleepSec, activeIsOura = activeIsOura)
         }
+    }
+}
+
+/**
+ * Honest caveat for an Oura-provided night: the stage split shown is the ring's RAW on-device SleepNet
+ * classification read straight off the BLE phase stream — NOT the adjusted stages the Oura app displays.
+ * The app post-processes the same night, so its Deep/REM run higher and its Awake lower; cross-checks put
+ * our Awake well above the app's. Surfaced so the breakdown isn't taken for the app's. Mirrors iOS
+ * SleepView.ouraRawStagesNote. Copy + tint (design token [Palette.restColor]) match Swift.
+ */
+@Composable
+private fun OuraRawStagesNote() {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.Top,
+        modifier = Modifier.padding(horizontal = 2.dp),
+    ) {
+        SourceBadge(text = "Raw on-device stages", tint = Palette.restColor)
+        Text(
+            "This split is the ring's raw on-device classification read over Bluetooth, not the adjusted " +
+                "stages the Oura app shows. Expect more Awake and less Deep/REM here than in the Oura app " +
+                "for the same night.",
+            style = NoopType.caption,
+            color = Palette.textTertiary,
+        )
     }
 }
 
@@ -1127,11 +1171,16 @@ private fun MainSleepFooter(
     main: SleepSession,
     naps: List<SleepSession>,
     habitualMidsleepSec: Long?,
+    activeIsOura: Boolean = false,
 ) {
     val reason = mainSleepReasonText(listOf(main) + naps, habitualMidsleepSec)
-    // C4 — the real merge winner, the SAME wording the By-Day badge uses ("On-device" / "Whoop" /
-    // "Apple Health"), keyed on the main block's source. Mirrors iOS SleepView.nightSource.
-    val (sourceText, sourceTint) = daySourceBadge(main.deviceId)
+    // C4 — the real merge winner, the SAME wording the By-Day badge uses ("Oura" / "On-device" / "Whoop" /
+    // "Apple Health"), keyed on the main block's source. A persisted Oura night already carries the ring id
+    // (→ "Oura" from daySourceBadge); a night that merely COMPUTED under a live Oura strap reads "On-device"
+    // there, so flip it to "Oura" too, matching iOS SleepView.nightSource (WHOOP/Apple imports still win).
+    val base = daySourceBadge(main.deviceId)
+    val (sourceText, sourceTint) =
+        if (base.first == "On-device" && activeIsOura) "Oura" to Palette.restColor else base
     var showWhy by remember(main.startTs) { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.space10)) {
         Row(verticalAlignment = Alignment.CenterVertically) {

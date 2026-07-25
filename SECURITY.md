@@ -18,11 +18,17 @@ otherwise breaks the offline, local-only guarantee the app makes.
 ## Reporting a vulnerability
 
 NOOP is maintained anonymously and has no security contact email. **Report
-security issues by opening a GitHub issue** on the repository.
+security issues through GitHub's Private Vulnerability Reporting** — Security →
+Report a vulnerability. That keeps proof-of-concept details out of public view
+until a fix ships, and needs no email address on either side.
 
-If a public report would put users at immediate risk before a fix can ship,
-open an issue with a short, non-exploitable summary (what is affected and how
-severe) and hold the proof-of-concept details until a fix is released.
+One advisory per finding is easiest to triage; group them only if they share a
+root cause.
+
+A public issue is fine as a fallback — for anything low-risk, or if private
+reporting is unavailable to you. If a public report would put users at immediate
+risk before a fix can ship, open it with a short, non-exploitable summary (what
+is affected and how severe) and hold the proof-of-concept until a fix is released.
 
 Please include, as far as you can without putting anyone at risk:
 

@@ -658,6 +658,15 @@ struct CoupledView: View {
                     Text(progress)
                         .font(StrandFont.footnote)
                         .foregroundStyle(StrandPalette.textTertiary)
+                    // #731: when the countdown restarted because the user tapped "Recalibrate baseline",
+                    // say so — otherwise the natural response to a fresh countdown is to tap it again,
+                    // which resets it once more. nil (and no line) for anyone who never recalibrated.
+                    if let restarted = ChargeBreakdownFormat.currentCalibrationRestartCause() {
+                        Text(restarted)
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
             }
         }

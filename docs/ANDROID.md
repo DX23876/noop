@@ -482,6 +482,7 @@ storage layer holds these invariants — preserve them when extending it:
   | `DailyMetric` | `dailyMetric` | `(deviceId, day)` |
   | `SleepSession` | `sleepSession` | `(deviceId, startTs)` |
   | `MetricSeriesRow` | `metricSeries` | `(deviceId, day, key)` + index `idx_metricSeries_device_key_day (deviceId, key, day)` |
+  | `ScoreInputProvenanceRow` | `scoreInputProvenance` | `(deviceId, day, key)` + index `idx_scoreInputProvenance_source (sourceId)` |
   | `DeviceRow` | `device` | `id` |
 
 - **Timestamps are wall-clock unix seconds.** Swift stores them as `Int`; the entities widen to

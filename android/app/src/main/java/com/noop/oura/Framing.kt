@@ -85,12 +85,27 @@ data class OuraRecord(val type: Int, val ringTimestamp: Long, val payload: IntAr
 }
 
 /**
- * The parsed result of a 0x11 GetEvents response (OURA_PROTOCOL.md s5.2). Kotlin twin of the Swift
- * `(cursor: UInt32, moreData: Bool)` tuple. `cursor` is the new resume cursor (an unsigned 32-bit ring
- * timestamp carried as a Long, 0..0xFFFFFFFF); `moreData` is true while the ring still has banked events
- * to hand over.
+ * The parsed result of a 0x11 GetEvents response (OURA_PROTOCOL.md s5.2), per open_oura's
+ * `EventBatchSummary`. Kotlin twin of the Swift `(eventsReceived: UInt8, bytesLeft: UInt32,
+ * moreData: Bool)` tuple. The summary carries **no cursor** — the resume position is a CLIENT-managed
+ * event-envelope ring-time (see OuraHistoryDrain), never read back from here.
+ *
+ * #91 (fixed here in parity with Swift): an earlier revision decoded bytes 2–5 as a
+ * `last_ring_timestamp` cursor and body[0] as a status. Both are wrong: body[0] is `events_received`
+ * (a batch COUNT — treating 0 as "done" stopped a drain with data still banked), and bytes 2–5 are
+ * `bytes_left` (a remaining-BYTE count — persisting it as a cursor minted a phantom "ring-time
+ * regression" → reset-to-0 → full history re-dump on every connect).
  */
-data class GetEventsSummary(val cursor: Long, val moreData: Boolean)
+data class GetEventsSummary(val eventsReceived: Int, val bytesLeft: Long, val moreData: Boolean)
+
+/**
+ * The parsed result of a 0x13 SyncTime response (OURA_PROTOCOL.md s5.4, [ringverse BLE.md]):
+ * `current_device_timestamp:4 LE  status:1`. The device timestamp is the ring's own clock counter AT
+ * THE MOMENT it processed our SyncTime — paired with the host wall-clock at receipt it forms a
+ * deterministic ring-time→UTC anchor available at EVERY connect (the 0x42 record is only logged when
+ * the ring actually adjusts its clock). Kotlin twin of Swift's parseSyncTimeResponse tuple.
+ */
+data class SyncTimeResponse(val deviceTimestamp: Long, val status: Int)
 
 object OuraFraming {
     /** The secure-session / extended opcode. Per OURA_PROTOCOL.md s2.2 / s4.1. */
@@ -111,24 +126,45 @@ object OuraFraming {
      */
     const val batteryResponseOp = 0x0D
 
+    /**
+     * The SyncTime response outer opcode (OURA_PROTOCOL.md s5.4, [ringverse BLE.md]). Below the
+     * event-tag range, so it round-trips safely through the TLV decoder as an "unknown tag" no-op if a
+     * caller fails to special-case it. Kotlin twin of Swift's syncTimeResponseOp.
+     */
+    const val syncTimeResponseOp = 0x13
+
     /** The minimum legal TLV `len` field: it must cover the 4 timestamp bytes. Per OURA_PROTOCOL.md s2.3. */
     const val minRecordLen = 4
 
     /**
-     * Parse a 0x11 GetEvents response body: `status:1 sub_status:1 last_ring_timestamp:4LE pad:2`
-     * (OURA_PROTOCOL.md s5.2). `status` 0x00 = empty/no more; any other value = data follows. The
-     * `last_ring_timestamp` is the new cursor to resume the fetch from. Returns null on a short body
-     * (never guesses a cursor). Kotlin twin of Swift's parseGetEventsResponse; `cursor` is the unsigned
-     * 32-bit ring timestamp carried as a Long (0..0xFFFFFFFF).
+     * Parse a 0x11 GetEvents response body per open_oura's `EventBatchSummary`:
+     * `events_received:1  sleep_analysis_progress:1  bytes_left:4LE  [pad:2]` (OURA_PROTOCOL.md s5.2).
+     * The drain loop runs until `bytes_left == 0`; there is NO resume cursor in this packet. Returns
+     * null on a short body. Byte-identical twin of Swift's parseGetEventsResponse (#91 fix).
      */
     fun parseGetEventsResponse(body: IntArray): GetEventsSummary? {
         if (body.size < 6) return null
-        val status = body[0]
-        val cursor = (body[2].toLong() and 0xFFL) or
+        val eventsReceived = body[0] and 0xFF
+        val bytesLeft = (body[2].toLong() and 0xFFL) or
             ((body[3].toLong() and 0xFFL) shl 8) or
             ((body[4].toLong() and 0xFFL) shl 16) or
             ((body[5].toLong() and 0xFFL) shl 24)
-        return GetEventsSummary(cursor = cursor, moreData = status != 0x00)
+        return GetEventsSummary(eventsReceived = eventsReceived, bytesLeft = bytesLeft, moreData = bytesLeft > 0)
+    }
+
+    /**
+     * Parse a 0x13 SyncTime response body: `current_device_timestamp:4 LE  status:1` (s5.4,
+     * [ringverse BLE.md]). ringverse labels the field "seconds" but the tick unit is unconfirmed; the
+     * caller disambiguates against the persisted resume cursor (OuraDriver.syncTimeAnchorCandidate).
+     * Returns null on a short body. Byte-identical twin of Swift's parseSyncTimeResponse.
+     */
+    fun parseSyncTimeResponse(body: IntArray): SyncTimeResponse? {
+        if (body.size < 5) return null
+        val ts = (body[0].toLong() and 0xFFL) or
+            ((body[1].toLong() and 0xFFL) shl 8) or
+            ((body[2].toLong() and 0xFFL) shl 16) or
+            ((body[3].toLong() and 0xFFL) shl 24)
+        return SyncTimeResponse(deviceTimestamp = ts, status = body[4] and 0xFF)
     }
 
     /**
@@ -171,85 +207,70 @@ object OuraFraming {
     }
 
     /**
-     * Parse one TLV inner record from the front of `bytes`. Returns null when the header or the full
-     * `len`-described body is not present (so the Reassembler can wait), or when `len < 4` (a record
-     * must cover its 4 timestamp bytes). A malformed/short record decodes to null, never a guess
-     * (honest-data invariant). Per OURA_PROTOCOL.md s2.3.
+     * Parse one TLV inner record LENIENTLY, per open_oura's `Packet::parse` (protocol.rs): the payload
+     * is whatever bytes are present up to `min(2 + len, bytes.size)`. The `len` field is NOT required
+     * to equal the notification length; open_oura tolerates that disagreement, and honoring it is what
+     * keeps NOOP from (a) minting phantom records out of a "too-small" len's leftover bytes or (b)
+     * swallowing the next notification on a "too-big" len. Returns null only when the 4 timestamp
+     * bytes are not even present (`size < 6`) or `len < 4` — a genuinely unusable frame, never a guess
+     * (honest-data invariant). Byte-identical twin of Swift's lenient parseRecord. Per s2.3.
      */
     fun parseRecord(bytes: IntArray): OuraRecord? {
-        if (bytes.size < 2) return null
+        if (bytes.size < 6) return null   // 2 header + 4 timestamp bytes, the record floor
         val type = bytes[0]
         val len = bytes[1]
         if (len < minRecordLen) return null
-        val total = 2 + len
-        if (bytes.size < total) return null
         // ringTimestamp is the 4 bytes at offset 2 as a u32 LE (counter low, session high).
         val rt = (bytes[2].toLong() and 0xFFL) or
             ((bytes[3].toLong() and 0xFFL) shl 8) or
             ((bytes[4].toLong() and 0xFFL) shl 16) or
             ((bytes[5].toLong() and 0xFFL) shl 24)
-        val payload = bytes.copyOfRange(6, total)
+        // Lenient payload: min(declared end, notification end). Trailing bytes beyond `len` are
+        // ignored; a truncated payload uses what arrived. Never waits for a next notification.
+        val end = minOf(2 + len, bytes.size)
+        val payload = if (end > 6) bytes.copyOfRange(6, end) else IntArray(0)
         return OuraRecord(type = type, ringTimestamp = rt, payload = payload)
     }
 }
 
 /**
- * Accumulate BLE notification fragments into complete TLV inner records. A record never spans two
- * notifications in the verified corpus, but the parser is still defensive: it buffers partial
- * trailing bytes across feeds and only emits complete `2 + len` records (OURA_PROTOCOL.md s2.4).
+ * Turn each BLE notification into (at most) one TLV inner record, matching open_oura's
+ * `Packet::parse` (protocol.rs): ONE packet per notification, parsed leniently, with NO
+ * cross-notification buffering, NO multi-record loop, and NO byte-drop resync.
  *
- * This handles BOTH the multi-record-per-notification case (several records packed into one value)
- * and the partial-trailing-bytes case (a record split across two notifications). Mirrors the Swift
- * OuraReassembler, value-type and platform-pure.
+ * WHY (parity with Swift `dae3d7a4`, the phantom-storm fix): the previous model treated the byte
+ * stream as continuous — it buffered partial trailing bytes and looped extracting `2+len` records.
+ * Whenever a packet's `len` disagreed with the notification length — which open_oura explicitly
+ * tolerates — a too-small `len` made the loop mint phantom records from the leftover bytes (aliased
+ * `0x42`/`0x85`/`0x57`/`0x70` tags → the reject/drop storm), and a too-big `len` made it wait and
+ * swallow the following notification. Parsing exactly one lenient packet per notification removes
+ * both failure modes at the source.
+ *
+ * The type name and `feed`/`reset` API are kept so the driver call sites are unchanged; there is
+ * simply no longer any state to carry. Platform-pure. Byte-identical twin of Swift's OuraReassembler.
  */
 class OuraReassembler {
-    private val buf = ArrayList<Int>()
-
     /** Feed one notification value (BLE callback ByteArray). Convenience over [feed]. */
     fun feed(fragment: ByteArray): List<OuraRecord> =
         feed(IntArray(fragment.size) { fragment[it].toInt() and 0xFF })
 
     /**
-     * Feed one notification value. Returns every complete TLV record now available, in order. Partial
-     * trailing bytes are retained for the next feed. Per OURA_PROTOCOL.md s2.3 / s2.4.
+     * Parse one notification value into at most one record (open_oura `Packet::parse`, lenient).
+     * Returns `[]` when the notification is not a usable TLV record (too short, or `len < 4`). Never
+     * buffers, never spans, never resyncs — a garbled notification is dropped whole, not walked
+     * byte-by-byte.
      */
     fun feed(fragment: IntArray): List<OuraRecord> {
-        for (b in fragment) buf.add(b and 0xFF)
-        val out = ArrayList<OuraRecord>()
-        while (buf.size >= 2) {
-            val len = buf[1]
-            // A record must cover its 4 timestamp bytes. A len < 4 here is a misaligned byte: drop one
-            // and resync rather than emit garbage (honest-data invariant).
-            if (len < OuraFraming.minRecordLen) {
-                buf.removeAt(0)
-                continue
-            }
-            val total = 2 + len
-            if (buf.size < total) break   // wait for the rest of this record
-            val slice = IntArray(total) { buf[it] }
-            OuraFraming.parseRecord(slice)?.let { out.add(it) }
-            repeat(total) { buf.removeAt(0) }
-        }
-        return out
+        val rec = OuraFraming.parseRecord(fragment) ?: return emptyList()
+        return listOf(rec)
     }
 
     /**
-     * Discard any buffered partial bytes (call on disconnect so a half-record does not bleed into the
-     * next session). Mirrors the StandardHRSource stop()/reset discipline.
+     * No-op retained for call-site compatibility (disconnect teardown). There is no buffered state to
+     * clear in the one-packet-per-notification model, so a half-record can never bleed across sessions.
      */
-    fun reset() {
-        buf.clear()
-    }
+    fun reset() {}
 
-    /** Number of bytes currently buffered awaiting completion (observability only). */
-    val bufferedByteCount: Int get() = buf.size
-
-    companion object {
-        /**
-         * A declared total beyond this is a corrupt/misaligned length, not a real record. The largest
-         * real Oura record is ~18 bytes (s6); `len` is a single byte (max 255), so 2 + 255 = 257 is
-         * the hard ceiling regardless; this constant documents the intent.
-         */
-        const val maxRecordBytes = 257
-    }
+    /** Always 0: no bytes are ever buffered between notifications (observability only). */
+    val bufferedByteCount: Int get() = 0
 }

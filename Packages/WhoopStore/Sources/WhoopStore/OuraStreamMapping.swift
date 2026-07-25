@@ -90,6 +90,12 @@ public enum OuraStreamMapping {
                 out.skinTemp.append(SkinTempSample(ts: ts, raw: Int((v.celsius * 100).rounded()), unit: "centi_c"))
 
             case .sleepPhase(let v):
+                // Each code arrives with its RECONSTRUCTED time as `ts` (OuraHypnogramAssembler lays the
+                // burst's codes backward at the documented 30 s SleepNet epoch from the anchored burst
+                // end — the record envelope marks the analysis WRITE moment, not the sleep). 30 s spacing
+                // makes every code a distinct (deviceId, ts, kind) row; the earlier provisional
+                // `ts + index` offset is gone (it would double-shift reconstructed codes). The raw 2-bit
+                // code persists unchanged; `index` (position within the wire record) is kept for audit.
                 out.events.append(WhoopEvent(ts: ts, kind: sleepPhaseEventKind, payload: [
                     "phase": .int(v.stage.rawValue),
                     "index": .int(v.index),

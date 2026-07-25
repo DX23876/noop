@@ -117,11 +117,67 @@ final class OuraHistoryDrainTests: XCTestCase {
         var d = OuraHistoryDrain()
         d.noteStoredRingTime(3_453_828, resumeCursorAtFetchStart: 1000)
         d.noteStoredRingTime(500, resumeCursorAtFetchStart: 1000)
+        d.noteSeenRingTime(3_453_900)
         _ = d.onSummary(bytesLeft: 1000, moreData: true, elapsedSeconds: 1)
         d.reset()
         XCTAssertEqual(d.maxStoredRingTime, 0)
+        XCTAssertEqual(d.maxSeenRingTime, 0)
+        XCTAssertEqual(d.eventsSinceLastRequest, 0)
         XCTAssertFalse(d.sawPreResumeData)
         // Stall floor reset: a fresh flat sequence starts counting from scratch.
         XCTAssertTrue(d.onSummary(bytesLeft: 1000, moreData: true, elapsedSeconds: 1))
+    }
+
+    // MARK: in-session continuation cursor (open_oura drain_events `progressed`)
+
+    func testContinuationCursorAdvancesPastMaxSeen() {
+        var d = OuraHistoryDrain()
+        // The 2026-07-12 shape: sought from 1_681_398, batch served records up to rt 3_595_428.
+        d.noteSeenRingTime(1_686_000)
+        d.noteSeenRingTime(3_595_428)
+        d.noteSeenRingTime(2_000_000)   // out-of-order within the batch, doesn't lower the max
+        XCTAssertEqual(d.continuationCursor(lastRequestCursor: 1_681_398), 3_595_429,
+                       "next request starts one past the newest record served")
+    }
+
+    func testContinuationStopsOnEmptyBatch() {
+        var d = OuraHistoryDrain()
+        XCTAssertNil(d.continuationCursor(lastRequestCursor: 1_681_398),
+                     "no records since the last request → no progress → stop, never re-request")
+    }
+
+    func testContinuationStopsWhenCursorWouldNotAdvance() {
+        var d = OuraHistoryDrain()
+        // A re-served window: records arrived but none newer than where we already asked from.
+        d.noteSeenRingTime(1_686_000)
+        d.noteSeenRingTime(3_595_428)
+        XCTAssertNil(d.continuationCursor(lastRequestCursor: 3_595_429),
+                     "a batch that only re-serves old records must stop the drain (the 5x re-serve loop)")
+    }
+
+    func testContinuationReArmsProgressTestPerRequest() {
+        var d = OuraHistoryDrain()
+        d.noteSeenRingTime(2_000_000)
+        XCTAssertEqual(d.continuationCursor(lastRequestCursor: 1_000_000), 2_000_001)
+        // No new records after the advanced request: the next decision is stop, not a re-request at
+        // the same cursor.
+        XCTAssertNil(d.continuationCursor(lastRequestCursor: 2_000_001))
+        // Fresh records past the new cursor re-enable progress.
+        d.noteSeenRingTime(2_500_000)
+        XCTAssertEqual(d.continuationCursor(lastRequestCursor: 2_000_001), 2_500_001)
+    }
+
+    func testSeenRingTimeIgnoresCorruptAndIsIndependentOfStored() {
+        var d = OuraHistoryDrain()
+        d.noteSeenRingTime(OuraHistoryDrain.maxPlausibleResumeTicks + 1)
+        XCTAssertEqual(d.maxSeenRingTime, 0, "over-ceiling ring-time must not steer the continuation")
+        // Unanchored records advance the CONTINUATION cursor without touching the durable one: the
+        // ring served them (must not re-serve this session), but only anchored stored samples commit.
+        d.noteSeenRingTime(3_000_000)
+        XCTAssertEqual(d.maxSeenRingTime, 3_000_000)
+        XCTAssertEqual(d.maxStoredRingTime, 0)
+        d.noteStoredRingTime(2_900_000, resumeCursorAtFetchStart: 0)
+        XCTAssertEqual(d.maxStoredRingTime, 2_900_000)
+        XCTAssertEqual(d.maxSeenRingTime, 3_000_000, "stored notes don't inflate the seen max")
     }
 }

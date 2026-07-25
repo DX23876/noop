@@ -466,6 +466,12 @@ public final class BLEManager: NSObject, ObservableObject {
     static let heartRateChar    = CBUUID(string: "2A37") // HR + R-R (works unbonded)
     static let batteryService   = CBUUID(string: "180F")
     static let batteryChar      = CBUUID(string: "2A19")
+    /// Standard Device Information Service — read-only. Used ONLY to tell a WHOOP MG apart from a
+    /// plain 5.0 (#520): the serial's prefix and the hardware-revision string are the two signals
+    /// `Whoop5Variant` resolves. No writes, and 4.0 never reads these (see the post-bond gate).
+    static let disService       = CBUUID(string: "180A")
+    static let disSerialChar    = CBUUID(string: "2A25") // Serial Number String
+    static let disHwRevChar     = CBUUID(string: "2A27") // Hardware Revision String
 
     static let restoreID = "com.openwhoop.ble.central"
 
@@ -549,6 +555,14 @@ public final class BLEManager: NSObject, ObservableObject {
     /// actually advertises. (PR#195)
     private var scanFallbackWorkItem: DispatchWorkItem?
     static let scanFallbackDelaySeconds: TimeInterval = 8
+    /// #730 diagnostic. A direct `central.connect(p)` to a RESTORED peripheral never scans, so
+    /// `scanFallbackWorkItem` (which only fires while `central.isScanning`) does not cover it — and
+    /// CoreBluetooth's connect has NO timeout, it pends indefinitely. A reporter's log showed exactly
+    /// that: "reconnecting", then nothing, with `didFailToConnect` (which DOES log) never firing, so
+    /// there was no way to tell pending from failed. Log once if the connect is still outstanding.
+    /// DIAGNOSTIC ONLY — it never cancels or retries; recovery is separate work.
+    private var pendingConnectProbe: DispatchWorkItem?
+    static let pendingConnectProbeSeconds: TimeInterval = 15
     /// Last time ANY notification arrived — drives the liveness watchdog.
     private var lastDataAt = Date()
     /// True while a Live/Health screen is on-screen and wants the realtime stream. One of the two
@@ -726,11 +740,24 @@ public final class BLEManager: NSObject, ObservableObject {
     private var commandChannelReady: Bool {
         state.connected && peripheral?.state == .connected && cmdCharacteristic != nil
     }
+    /// #730: a DISABLE_ALARM that `send` dropped because the link wasn't up. The connect-settle hook
+    /// re-issues ONLY this case, so a user who turned the alarm off while disconnected still gets the
+    /// strap disarmed — without making every connect emit a DISABLE_ALARM for the majority who never
+    /// armed one. Cleared once a disarm actually reaches the strap.
+    private(set) var disarmPending = false
     private var cmdNotifyCharacteristic: CBCharacteristic?
     private var eventNotifyCharacteristic: CBCharacteristic?
     private var dataNotifyCharacteristic: CBCharacteristic?
     private var heartRateCharacteristic: CBCharacteristic?
     private var batteryCharacteristic: CBCharacteristic?
+    /// #520 DIS: remembered at discovery, READ post-bond (see the #490 note — a 5/MG refuses standard
+    /// reads before the link is encrypted). Serial + hardware revision are immutable, so they are read
+    /// ONCE per connection (`disRead`), never re-polled like the battery.
+    private var disSerialCharacteristic: CBCharacteristic?
+    private var disHwRevCharacteristic: CBCharacteristic?
+    private var disRead = false
+    private var disSerial: String?
+    private var disHwRev: String?
     /// EXPERIMENTAL WHOOP 5.0/MG puffin notify chars (fd4b0003/4/5/7), remembered at discovery so we
     /// can re-subscribe them AFTER bonding — the strap refuses them ("Authentication is insufficient")
     /// until the link is encrypted (issue #17).
@@ -2699,6 +2726,7 @@ public final class BLEManager: NSObject, ObservableObject {
     private func discoverPrimaryServices(on p: CBPeripheral) {
         p.discoverServices([
             selectedModel.scanService, BLEManager.heartRateService, BLEManager.batteryService,
+            BLEManager.disService,
         ])
     }
 
@@ -2709,6 +2737,11 @@ public final class BLEManager: NSObject, ObservableObject {
         dataNotifyCharacteristic = nil
         heartRateCharacteristic = nil
         batteryCharacteristic = nil
+        disSerialCharacteristic = nil
+        disHwRevCharacteristic = nil
+        disRead = false
+        disSerial = nil
+        disHwRev = nil
         whoop5NotifyCharacteristics.removeAll()
     }
 
@@ -2745,6 +2778,41 @@ public final class BLEManager: NSObject, ObservableObject {
         )
     }
 
+    /// Human-readable `CBPeripheralState`, so a strap log says what the peripheral actually was at
+    /// connect time rather than a bare enum ordinal (#730).
+    private func peripheralStateName(_ s: CBPeripheralState) -> String {
+        switch s {
+        case .disconnected: return "disconnected"
+        case .connecting: return "connecting"
+        case .connected: return "connected"
+        case .disconnecting: return "disconnecting"
+        @unknown default: return "unknown"
+        }
+    }
+
+    /// Issue a direct connect to a restored peripheral, logging that it actually happened and arming the
+    /// #730 pending-connect probe. Both restore entry points funnel through here so the two paths can be
+    /// told apart in a strap log.
+    private func connectRestored(_ p: CBPeripheral, reason: String) {
+        log("Connecting to restored peripheral (\(reason)) — peripheral state=\(peripheralStateName(p.state))")
+        central.connect(p, options: nil)
+        pendingConnectProbe?.cancel()
+        let probe = DispatchWorkItem { [weak self] in
+            guard let self, !self.state.connected, self.peripheral?.state != .connected else { return }
+            self.log("Still not connected \(Int(BLEManager.pendingConnectProbeSeconds))s after the restored "
+                     + "connect (\(reason)) — CoreBluetooth connect has no timeout, so it is still PENDING "
+                     + "(no didFailToConnect). The strap is likely out of range, asleep, or bonded elsewhere.")
+        }
+        pendingConnectProbe = probe
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + BLEManager.pendingConnectProbeSeconds, execute: probe)
+    }
+
+    private func cancelPendingConnectProbe() {
+        pendingConnectProbe?.cancel()
+        pendingConnectProbe = nil
+    }
+
     private func cancelScanFallback() {
         scanFallbackWorkItem?.cancel()
         scanFallbackWorkItem = nil
@@ -2779,6 +2847,34 @@ public final class BLEManager: NSObject, ObservableObject {
            selectedModel.deviceFamily != .whoop4 {
             p.readValue(for: b)
         }
+        // #520 DIS identity read — same post-bond reasoning as the #490 battery read above: on a 5/MG the
+        // link must be encrypted first. Gated to 5/MG (a 4.0 issues NO new reads, exactly like the battery
+        // re-read excludes it) and fired ONCE per connection: serial + hardware revision are immutable, so
+        // unlike the battery they are never re-polled on the keep-alive tick.
+        // NOTE: `disRead` is set only once a read is actually ISSUED — never merely because this ran.
+        // `enableLiveNotifications` fires from several callers (CLIENT_HELLO-ack, post-bond, keep-alive),
+        // and the earliest can land before DIS discovery has completed. Setting the flag unconditionally
+        // would burn the one-shot on a call where the characteristics were still nil, and the variant
+        // would never resolve. Leaving it unset lets a later caller (the keep-alive tick) pick it up.
+        if !disRead, selectedModel.deviceFamily != .whoop4,
+           let serialChar = disSerialCharacteristic, serialChar.properties.contains(.read) {
+            disRead = true
+            p.readValue(for: serialChar)
+            if let c = disHwRevCharacteristic, c.properties.contains(.read) { p.readValue(for: c) }
+        }
+    }
+
+    /// Resolve + log the 5/MG hardware variant once a DIS string lands (#520). Both characteristics
+    /// arrive as SEPARATE async callbacks, so this runs on each and re-resolves — the contradiction rule
+    /// in `Whoop5Variant` needs both before it can disagree. Diagnostic only: nothing gates on it yet.
+    ///
+    /// The serial is a device identifier, so ONLY its 3-character prefix is logged (that is the entire
+    /// information content here) — never the full string, which would land in a shareable strap log.
+    private func noteWhoop5VariantFromDIS() {
+        let variant = Whoop5Variant.from(serial: disSerial, hardwareRevision: disHwRev)
+        let prefix = (disSerial?.trimmingCharacters(in: .whitespacesAndNewlines).uppercased())
+            .map { String($0.prefix(3)) } ?? "?"
+        log("DIS: serialPrefix=\(prefix) hwRev=\(disHwRev ?? "?") -> variant=\(variant.label)")
     }
 
     private func requestNotify(_ c: CBCharacteristic, on p: CBPeripheral, reason: String) {
@@ -2899,14 +2995,26 @@ public final class BLEManager: NSObject, ObservableObject {
         // #34: clear the "strap keeps rejecting the alarm" streak/warning — it's about an ACTIVE arm being
         // refused, and there's nothing armed to refuse once disarmed.
         UserDefaults.standard.set(0, forKey: "alarm.rejectStreak")
+        // #730: report the OUTCOME, not the intent — using the SAME `commandChannelReady` gate the arm
+        // path already uses (it reports "queued" rather than a false "armed"). The disarm never adopted
+        // it: `send` drops the write when the link isn't up and logs "ignored — not connected", then this
+        // logged "Alarm: disarmed" anyway, telling the user the firmware alarm was cleared when the
+        // command never reached the strap — so a strap that IS armed would still buzz. (`applySmartAlarm`
+        // now re-runs on connectSettled, so a deferred disarm is re-issued once the link is really up.)
+        let willReach = commandChannelReady
+        // Latch a dropped disarm so the connect-settle hook can re-issue exactly this case, WITHOUT
+        // making every connect send a DISABLE_ALARM for the many users who never armed one.
+        disarmPending = !willReach
         if selectedModel.deviceFamily == .whoop5 {
             // 5/MG DISABLE_ALARM is REVISION_2 [0x02, 0xFF]; the rev-1 [0x01] form below is WHOOP4.
             send(.disableAlarm, payload: AlarmPayload.disableRev2())
-            log("Alarm: disarmed (5/MG rev2)")
+            log(willReach ? "Alarm: disarmed (5/MG rev2)"
+                          : "Alarm: disarm NOT sent — not connected; will retry on connect (strap may still be armed)")
             return
         }
         send(.disableAlarm, payload: [0x01])
-        log("Alarm: disarmed")
+        log(willReach ? "Alarm: disarmed"
+                      : "Alarm: disarm NOT sent — not connected; will retry on connect (strap may still be armed)")
     }
 
     /// Request the currently-armed alarm time from the strap (response arrives on cmd-notify char).
@@ -3177,7 +3285,7 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         if let p = restoredPeripheral {
             log("poweredOn with restored peripheral — reconnecting \(p.identifier)")
             if p.state != .connected {
-                central.connect(p, options: nil)
+                connectRestored(p, reason: "poweredOn")
             } else {
                 discoverPrimaryServices(on: p)
             }
@@ -3251,6 +3359,7 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
 
     public func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         cancelScanFallback()
+        cancelPendingConnectProbe()   // #730: the connect resolved; no pending-connect log needed
         failedConnectAttempts = 0   // a successful connect clears the reconnect backoff (#414)
         restoredPeripheral = nil
         preparePeripheral(peripheral)
@@ -3482,6 +3591,7 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
     public func centralManager(_ central: CBCentralManager,
                                didFailToConnect peripheral: CBPeripheral,
                                error: Error?) {
+        cancelPendingConnectProbe()   // #730: it FAILED rather than pending — this log is the answer
         log("Failed to connect\(error.map { " — \($0.localizedDescription)" } ?? "")")
         // The strap wiped its bond (a firmware update, or the official WHOOP app re-bonding it). macOS keeps
         // re-presenting the now-stale pairing key, so every reconnect loops on this same error with no
@@ -3580,7 +3690,11 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         } else {
             state.connected = false
             log("Restored DISCONNECTED peripheral \(p.identifier) — reconnect on poweredOn")
-            if central.state == .poweredOn { central.connect(p, options: nil) }
+            if central.state == .poweredOn {
+                connectRestored(p, reason: "willRestoreState")
+            } else {
+                log("Restore: central not poweredOn yet (state=\(central.state.rawValue)) — deferring to poweredOn")
+            }
         }
     }
 }
@@ -3604,6 +3718,10 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                 peripheral.discoverCharacteristics([BLEManager.heartRateChar], for: s)
             case BLEManager.batteryService:
                 peripheral.discoverCharacteristics([BLEManager.batteryChar], for: s)
+            case BLEManager.disService:
+                // #520: read-only identity strings. Discovered here, but READ post-bond (below).
+                peripheral.discoverCharacteristics(
+                    [BLEManager.disSerialChar, BLEManager.disHwRevChar], for: s)
             case BLEManager.whoop5Service:
                 // EXPERIMENTAL WHOOP 5.0/MG path: discover the puffin command + notify characteristics
                 // so we can send CLIENT_HELLO and receive frames. Live HR/battery still arrive over the
@@ -3674,6 +3792,16 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                 default: break
                 }
                 requestNotify(c, on: peripheral, reason: "discovery")
+            case BLEManager.disSerialChar, BLEManager.disHwRevChar:
+                // #520: CAPTURE ONLY — the read is issued post-bond (a 5/MG refuses standard reads on an
+                // unencrypted link, see #490). These are read-only identity strings: never subscribed
+                // (no notify property) and never written. Must be handled BEFORE `default`, or they'd be
+                // retained as puffin notify characteristics.
+                if c.uuid == BLEManager.disSerialChar {
+                    disSerialCharacteristic = c
+                } else {
+                    disHwRevCharacteristic = c
+                }
             default:
                 // WHOOP 5.0/MG puffin notify characteristics (fd4b0003/0004/0005/0007). Retain them but DO
                 // NOT subscribe yet — on an unauthenticated link the strap rejects them with "Authentication
@@ -4096,6 +4224,15 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
             if selectedModel.deviceFamily != .whoop4, let pct = bytes.first {
                 state.setBattery(Double(pct))
             }
+        case BLEManager.disSerialChar:
+            // #520: NUL-terminated ASCII per the DIS spec; trim any padding before resolving.
+            disSerial = String(decoding: bytes, as: UTF8.self)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\0").union(.whitespacesAndNewlines))
+            noteWhoop5VariantFromDIS()
+        case BLEManager.disHwRevChar:
+            disHwRev = String(decoding: bytes, as: UTF8.self)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\0").union(.whitespacesAndNewlines))
+            noteWhoop5VariantFromDIS()
         case BLEManager.dataNotifyChar,
              BLEManager.cmdNotifyChar,
              BLEManager.eventNotifyChar:

@@ -2,14 +2,15 @@ package com.noop.oura
 
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
  * Framing tests: outer command/response frames, the 0x2F secure-session sub-frame, and the TLV
- * inner-record Reassembler (multi-record-per-notification + partial-trailing-bytes buffering).
- * Kotlin twin of the Swift FramingTests.swift.
+ * inner-record parse — open_oura's ONE-packet-per-notification model (lenient `len`, no buffering,
+ * no multi-record loop, no byte-drop resync). Kotlin twin of the Swift FramingTests.swift.
  *
  * PARITY NOTE: every fixture hex string here is byte-for-byte identical to the Swift FramingTests
  * fixtures, so the same wire bytes parse + reassemble to the same records across both ports.
@@ -58,30 +59,74 @@ class FramingTest {
         assertEquals(0x57, battery?.percent)   // 87%
     }
 
-    // MARK: - GetEvents response (0x11, s5.2)
+    // MARK: - GetEvents response (0x11, s5.2 — open_oura EventBatchSummary, #91 twin)
 
     @Test
     fun testParseGetEventsResponseMoreDataFollows() {
-        // 11 08 <status=ff> <sub_status=00> <last_rt:4LE=78563412> <pad:2>
-        val outer = OuraFraming.parseOuterFrame(bytes("1108ff00785634120000"))
+        // 11 08 <events=ff> <progress=00> <bytes_left:4LE=0x00145d39> <pad:2> (a real on-device body).
+        val outer = OuraFraming.parseOuterFrame(bytes("1108ff00395d14000300"))
         assertEquals(OuraFraming.getEventsResponseOp, outer?.op)
         val summary = OuraFraming.parseGetEventsResponse(outer!!.body)
-        assertEquals(0x1234_5678L, summary?.cursor)
+        assertEquals(0xFF, summary?.eventsReceived)
+        assertEquals(0x0014_5D39L, summary?.bytesLeft)
         assertEquals(true, summary?.moreData)
     }
 
     @Test
-    fun testParseGetEventsResponseNoMoreData() {
-        // status 0x00 -> caught up, no more data.
-        val outer = OuraFraming.parseOuterFrame(bytes("11080000785634120000"))
+    fun testParseGetEventsResponseBytesLeftZeroIsDone() {
+        // bytes_left == 0 -> drain complete, even with a nonzero events count in body[0] (#91: body[0]
+        // is a batch COUNT, not a status; bytes 2-5 are bytes_left, never a cursor).
+        val outer = OuraFraming.parseOuterFrame(bytes("11081000000000000300"))
         val summary = OuraFraming.parseGetEventsResponse(outer!!.body)
-        assertEquals(0x1234_5678L, summary?.cursor)
+        assertEquals(0x10, summary?.eventsReceived)
+        assertEquals(0L, summary?.bytesLeft)
         assertEquals(false, summary?.moreData)
     }
 
     @Test
     fun testParseGetEventsResponseShortBodyReturnsNil() {
         assertNull(OuraFraming.parseGetEventsResponse(bytes("ff0012")))
+    }
+
+    // MARK: - SyncTime response (0x13, s5.4 [ringverse]) + anchor tick disambiguation
+
+    @Test
+    fun testParseSyncTimeResponse() {
+        // ringverse example body: 4b ed a9 00 00 -> device_ts 0x00A9ED4B, status 0.
+        val resp = OuraFraming.parseSyncTimeResponse(bytes("4beda90000"))
+        assertEquals(0x00A9_ED4BL, resp?.deviceTimestamp)
+        assertEquals(0, resp?.status)
+        // Short body -> null, never a guessed timestamp.
+        assertNull(OuraFraming.parseSyncTimeResponse(bytes("4beda900")))
+    }
+
+    @Test
+    fun testSyncTimeAnchorCandidateResolvesUnit() {
+        // The 2026-07-13 shape: cursor banked at 4_413_933; ~11 h later the ring's clock is ~4.81M
+        // ticks. A raw-ticks response fits [cursor, cursor+7d] and the seconds x10 reading does not.
+        assertEquals(4_810_000L, OuraDriver.syncTimeAnchorCandidate(4_810_000L, 4_413_933L))
+        // A seconds-unit response (481_000 s = 4.81M ticks) only fits when multiplied x10.
+        assertEquals(4_810_000L, OuraDriver.syncTimeAnchorCandidate(481_000L, 4_413_933L))
+        // Below the cursor in both readings (ring reboot / stale value) -> null.
+        assertNull(OuraDriver.syncTimeAnchorCandidate(100_000L, 4_413_933L))
+        // Beyond cursor+7d in both readings -> null.
+        assertNull(OuraDriver.syncTimeAnchorCandidate(40_000_000L, 4_413_933L))
+        // A fresh/reset cursor gives no reference -> null (never guess on a full pull).
+        assertNull(OuraDriver.syncTimeAnchorCandidate(4_810_000L, 0L))
+        // Ambiguity guard: BOTH readings inside the window -> null.
+        assertNull(OuraDriver.syncTimeAnchorCandidate(150_000L, 140_000L))
+    }
+
+    @Test
+    fun testAdoptSyncTimeAnchorResolvesHistoryTimes() {
+        val d = OuraDriver(ringGen = OuraRingGen.GEN3, authKey = null)
+        val now = 1_784_000_000L                     // inside the 2020-2035 plausibility window
+        assertNull("no anchor yet", d.unixSeconds(forRingTimestamp = 4_800_000L))
+        assertTrue(d.adoptSyncTimeAnchor(ringTimestamp = 4_810_000L, unixSeconds = now))
+        // A record 10_000 ticks (1000 s) before the anchor resolves to now - 1000.
+        assertEquals(now - 1000L, d.unixSeconds(forRingTimestamp = 4_800_000L))
+        // An implausible host epoch is refused (never anchors to a garbage clock).
+        assertFalse(d.adoptSyncTimeAnchor(ringTimestamp = 4_810_000L, unixSeconds = 100L))
     }
 
     // MARK: - Secure-session sub-frame (0x2F)
@@ -135,80 +180,69 @@ class FramingTest {
         assertNull(OuraFraming.parseRecord(intArrayOf(0x7B, 0x03, 0x00, 0x01, 0x02)))
     }
 
-    // MARK: - Reassembler: multiple records per notification
+    // MARK: - Lenient TLV parse + one-packet-per-notification reassembler (open_oura Packet::parse,
+    // twin of Swift dae3d7a4 — the phantom-storm fix)
 
     @Test
-    fun testReassemblerMultipleRecordsInOneNotification() {
-        // Two complete records packed into one notification value.
-        val r = OuraReassembler()
-        val recs = r.feed(bytes("7b060200010003ca" + "4e0602000100006c"))
-        assertEquals(2, recs.size)
-        assertEquals(0x7B, recs[0].type)
-        assertEquals(0x4E, recs[1].type)
-        assertEquals(0, r.bufferedByteCount)
+    fun testParseRecordTooBigLenUsesWhatArrived() {
+        // len 0x10 (16) declared but only 4 payload bytes present: the lenient parse uses what
+        // arrived instead of waiting for (and swallowing) the next notification.
+        val rec = OuraFraming.parseRecord(bytes("7b100200010003ca0102"))
+        assertEquals(0x7B, rec?.type)
+        assertArrayEquals(bytes("03ca0102"), rec?.payload)
     }
 
-    // MARK: - Reassembler: partial trailing bytes buffered across notifications
+    @Test
+    fun testParseRecordTrailingBytesBeyondLenAreIgnored() {
+        // len 0x06 but extra trailing bytes follow (BLE padding / an unpacked second frame): the
+        // payload stops at the declared end; the tail is never minted into a phantom record.
+        val rec = OuraFraming.parseRecord(bytes("7b060200010003ca" + "4e0602000100006c"))
+        assertEquals(0x7B, rec?.type)
+        assertArrayEquals(bytes("03ca"), rec?.payload)
+    }
 
     @Test
-    fun testReassemblerPartialTrailingBytesBuffered() {
-        val full = bytes("7b060200010003ca")   // one complete 8-byte record
+    fun testFeedReturnsAtMostOneRecordPerNotification() {
+        // Two records packed into one value: the one-packet model parses the FIRST leniently and
+        // ignores the tail (the ring sends one packet per notification; a packed tail is padding).
         val r = OuraReassembler()
-        // Feed only the first 5 bytes -> nothing complete yet, the rest is buffered.
-        assertTrue(r.feed(full.copyOfRange(0, 5)).isEmpty())
-        assertEquals(5, r.bufferedByteCount)
-        // Feed the remaining 3 bytes -> the record now completes.
-        val recs = r.feed(full.copyOfRange(5, full.size))
+        val recs = r.feed(bytes("7b060200010003ca" + "4e0602000100006c"))
         assertEquals(1, recs.size)
         assertEquals(0x7B, recs[0].type)
         assertEquals(0, r.bufferedByteCount)
     }
 
     @Test
-    fun testReassemblerSplitAcrossThreeFragments() {
-        // A record split byte-by-byte still reassembles, and a second record packed behind it emerges.
-        val recHex = "4e0602000100006c"          // 8 bytes
-        val trailing = "7b060200010003ca"         // 8 bytes
-        val all = bytes(recHex + trailing)
+    fun testFeedNeverBuffersAcrossNotifications() {
+        // A truncated notification is dropped whole (nothing buffered), and the next notification is
+        // parsed on its own — no cross-notification reassembly, so a garbled value can never corrupt
+        // the following one (the phantom-storm failure mode).
+        val full = bytes("7b060200010003ca")
         val r = OuraReassembler()
-        val out = ArrayList<OuraRecord>()
-        // Feed in 3-byte chunks.
-        var i = 0
-        while (i < all.size) {
-            out.addAll(r.feed(all.copyOfRange(i, minOf(i + 3, all.size))))
-            i += 3
-        }
-        assertArrayEquals(intArrayOf(0x4E, 0x7B), out.map { it.type }.toIntArray())
-    }
-
-    @Test
-    fun testReassemblerResetClearsBuffer() {
-        val r = OuraReassembler()
-        r.feed(intArrayOf(0x7B, 0x06, 0x02))   // partial
-        assertTrue(r.bufferedByteCount > 0)
-        r.reset()
+        assertTrue(r.feed(full.copyOfRange(0, 5)).isEmpty())
+        assertEquals(0, r.bufferedByteCount)
+        val recs = r.feed(full)
+        assertEquals(1, recs.size)
+        assertEquals(0x7B, recs[0].type)
         assertEquals(0, r.bufferedByteCount)
     }
 
     @Test
-    fun testReassemblerDrainsPureNoiseWithoutEmittingOrWedging() {
-        // The TLV format has NO start-of-frame marker, so a stream of bytes whose len field is < 4
-        // cannot be realigned to an arbitrary later record (unlike WHOOP's 0xAA SOF). The len < 4
-        // guard's job is narrower but important: never EMIT a garbage record, and never WEDGE waiting
-        // for bytes that cannot complete. A pure-noise burst drains to a tiny tail with no emissions.
+    fun testFeedDropsUnusableNotificationWholeNoResync() {
+        // A noise value (len < 4 / too short) yields nothing — never walked byte-by-byte for a
+        // resync, never a type-0 garbage record.
         val r = OuraReassembler()
-        val recs = r.feed(intArrayOf(0x00, 0x01, 0x02, 0x03, 0x01, 0x02))   // every len field < 4
-        assertTrue("noise must not produce false records", recs.isEmpty())
-        assertTrue("noise must drain, not accumulate forever", r.bufferedByteCount <= 1)
+        assertTrue(r.feed(intArrayOf(0x00, 0x01, 0x02, 0x03, 0x01, 0x02)).isEmpty())
+        assertTrue(r.feed(intArrayOf(0x00, 0x01) + bytes("4e0602000100006c")).isEmpty())
+        assertEquals(0, r.bufferedByteCount)
     }
 
     @Test
-    fun testReassemblerLenBelowFourDoesNotEmitGarbageBeforeValidRecord() {
-        // A 2-byte garbage header whose len is < 4 is dropped one byte at a time; because TLV has no
-        // SOF this does not realign to the trailing valid record, but it must NOT emit a bogus record.
-        val valid = bytes("4e0602000100006c")
+    fun testResetIsANoOpWithNoBufferedState() {
         val r = OuraReassembler()
-        val recs = r.feed(intArrayOf(0x00, 0x01) + valid)   // 00 01 = len 1 (< 4)
-        assertTrue("must never emit a type-0 garbage record", recs.all { it.type != 0x00 })
+        assertTrue(r.feed(intArrayOf(0x7B, 0x06, 0x02)).isEmpty())   // below floor, nothing retained
+        assertEquals(0, r.bufferedByteCount)
+        r.reset()
+        assertEquals(0, r.bufferedByteCount)
     }
 }

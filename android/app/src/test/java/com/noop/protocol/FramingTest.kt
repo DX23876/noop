@@ -482,13 +482,15 @@ class FramingTest {
 
     @Test
     fun whoop5_event_decodesAtPlus4AndPreservesPayload() {
-        // Real 5/MG capture: uncatalogued event 0x1D(29) with a 16-byte payload — kept as hex so
-        // protocol research can classify it later.
+        // Real 5/MG capture: event 29 with a 16-byte payload. The shared catalogue names it
+        // STRAP_CONDITION_REPORT — event NAMES are family-independent (#791) — but its PAYLOAD has no
+        // on-device 5.0 ground truth, so it stays raw hex for protocol research rather than being decoded
+        // on faith. The payload assertion below is what pins that distinction.
         val frame = fromHex("aa011c00010023d130c61d00e61ab7698a390c000e0000000000e8020b000100d2803585")
         val parsed = Framing.parseFrame(frame, DeviceFamily.WHOOP5)
         assertEquals("EVENT", parsed.typeName)
         assertEquals(true, parsed.crcOk)
-        assertEquals("0x1D(29)", parsed.parsed["event"])
+        assertEquals("STRAP_CONDITION_REPORT(29)", parsed.parsed["event"])
         assertEquals(1773607654, parsed.parsed["event_timestamp"])
         assertEquals("8a390c000e0000000000e8020b000100", parsed.parsed["event_payload_hex"])
     }

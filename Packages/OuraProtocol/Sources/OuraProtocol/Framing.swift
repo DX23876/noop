@@ -47,6 +47,25 @@ public enum OuraFraming {
     /// caller fails to special-case it.
     public static let batteryResponseOp: UInt8 = 0x0D
 
+    /// The SyncTime response outer opcode (OURA_PROTOCOL.md s5.4, [ringverse BLE.md]). Below the
+    /// event-tag range, so it round-trips safely through the TLV decoder as an "unknown tag" no-op if a
+    /// caller fails to special-case it.
+    public static let syncTimeResponseOp: UInt8 = 0x13
+
+    /// Parse a 0x13 SyncTime response body per ringverse BLE.md:
+    /// `current_device_timestamp:4 LE  status:1`. The device timestamp is the ring's own clock counter
+    /// AT THE MOMENT it processed our SyncTime — paired with the host wall-clock at receipt it forms a
+    /// deterministic ring-time→UTC anchor available at EVERY connect (the 0x42 time-sync record is only
+    /// logged when the ring actually adjusts its clock, so a session on an already-synced ring may never
+    /// see one — observed 2026-07-13: a whole night's drain with no anchor). ringverse labels the field
+    /// "seconds" but the tick unit is unconfirmed; the caller disambiguates against the persisted resume
+    /// cursor (OuraDriver.syncTimeAnchorCandidate). Returns nil on a short body.
+    public static func parseSyncTimeResponse(_ body: [UInt8]) -> (deviceTimestamp: UInt32, status: UInt8)? {
+        guard body.count >= 5 else { return nil }
+        let ts = UInt32(body[0]) | (UInt32(body[1]) << 8) | (UInt32(body[2]) << 16) | (UInt32(body[3]) << 24)
+        return (ts, body[4])
+    }
+
     /// Parse a 0x11 GetEvents response body per open_oura's `EventBatchSummary`:
     /// `events_received:1  sleep_analysis_progress:1  bytes_left:4LE  [pad:2]`. The drain loop runs
     /// until `bytes_left == 0`; there is NO resume cursor in this packet — the resume position is a

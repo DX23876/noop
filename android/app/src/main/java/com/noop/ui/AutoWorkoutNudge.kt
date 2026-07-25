@@ -229,7 +229,11 @@ private suspend fun autoDetectCandidate(
     val fromSec = nowSec - AUTO_DETECT_DAYS_BACK * 86_400L
     val repo = viewModel.repo
 
-    val hr = repo.hrSamples(AUTO_DETECT_DEVICE, fromSec, nowSec, limit = 200_000)
+    // #767/#717: read HR over the ACTIVE-strap UNION, not the hardcoded "my-whoop" id. A live-BLE strap
+    // banks its raw under its OWN fresh id ("whoop-<uuid>", #908), so a read pinned to "my-whoop" finds
+    // NOTHING and auto-detect goes silent — even though sleep/charge (which read the union) keep working.
+    // Mirrors iOS Repository.autoDetectCandidate(), which reads the hrSamples(from:to:) union.
+    val hr = repo.hrSamplesUnion(viewModel.deviceId, fromSec, nowSec, limit = 200_000)
     if (hr.size < 2) return null
 
     // Resting HR: most recent nightly RHR in history, else the detector's own default (60). Byte-faithful
