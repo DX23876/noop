@@ -76,7 +76,7 @@ struct AutoWorkoutCard: View {
                         Label("Save it", systemImage: "checkmark")
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(StrandPalette.accent)
+                    .appleInspiredTint("training")
                     .disabled(saving)
 
                     Button("Not a workout") { dismiss(w) }

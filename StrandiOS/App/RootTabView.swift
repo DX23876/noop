@@ -629,7 +629,7 @@ private struct MoreRow: View {
     /// `MoreRowAppleHealthColors`' Apple Health-style palette — never per-row, never persisted per icon.
     /// Read directly here (rather than threaded through `init`) so all 25 `MoreRow(...)` call sites in
     /// `moreTab` stay untouched.
-    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = true
+    @AppStorage(AppleInspiredColorsPrefs.enabledKey) private var appleHealthColors = AppleInspiredColorsPrefs.defaultEnabled
 
     init(_ title: LocalizedStringKey, _ icon: String, _ route: MoreDestination) {
         self.title = title; self.icon = icon; self.route = route

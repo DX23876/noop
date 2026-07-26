@@ -97,7 +97,7 @@ struct AppleWatchSetupView: View {
                     Text("Continue").frame(minWidth: 120).padding(.vertical, 4)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("health")
                 .keyboardShortcut(.defaultAction)
                 .accessibilityHint("Goes to the Apple Health permission step")
             }
@@ -108,7 +108,7 @@ struct AppleWatchSetupView: View {
                     withAnimation(.easeInOut(duration: 0.2)) { step = .intro }
                 }
                 .buttonStyle(.bordered)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("health")
                 Spacer()
                 #if os(iOS)
                 if health.auth == .authorized {
@@ -118,7 +118,7 @@ struct AppleWatchSetupView: View {
                         Text("Done").frame(minWidth: 120).padding(.vertical, 4)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(StrandPalette.accent)
+                    .appleInspiredTint("health")
                     .keyboardShortcut(.defaultAction)
                 } else {
                     Button("Not now") { onClose() }
@@ -128,7 +128,7 @@ struct AppleWatchSetupView: View {
                 #else
                 Button("Close") { onClose() }
                     .buttonStyle(.bordered)
-                    .tint(StrandPalette.accent)
+                    .appleInspiredTint("health")
                 #endif
             }
             .padding(16)

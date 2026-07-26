@@ -744,7 +744,7 @@ private struct ProfileStep: View {
                             FieldRow(label: String(localized: "Date of birth"),
                                      value: String(localized: "\(profile.age) yrs"))
                         }
-                        .tint(StrandPalette.accent)
+                        .appleInspiredTint("health")
 
                         Divider().overlay(StrandPalette.hairline)
 
@@ -857,7 +857,7 @@ private struct ImportStep: View {
                 if model.hasActiveImport {
                     ProgressView()
                         .controlSize(.small)
-                        .tint(StrandPalette.accent)
+                        .appleInspiredTint("health")
                 }
 
                 // Show the summary for the source the user last imported, styled off the typed

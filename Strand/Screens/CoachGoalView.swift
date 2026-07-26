@@ -180,11 +180,11 @@ struct CoachGoalEditorView: View {
                             .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                     }
                 }
-                .toggleStyle(.switch).tint(StrandPalette.accent)
+                .toggleStyle(.switch).appleInspiredTint("coach")
                 if hasTargetDate {
                     DatePicker("Target date", selection: $targetDate, in: Date()..., displayedComponents: .date)
                         .datePickerStyle(.compact)
-                        .tint(StrandPalette.accent)
+                        .appleInspiredTint("coach")
                         .labelsHidden()
                         .accessibilityLabel("Target date")
                 }
@@ -262,7 +262,7 @@ struct CoachGoalEditorView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                .toggleStyle(.switch).tint(StrandPalette.accent)
+                .toggleStyle(.switch).appleInspiredTint("coach")
                 .disabled(motivation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }

@@ -202,7 +202,7 @@ struct TestCentreView: View {
                     Text("Daily auto-export of the strap log")
                         .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                 }
-                .toggleStyle(.switch).tint(StrandPalette.accent)
+                .toggleStyle(.switch).appleInspiredTint("testCentre")
                 .onChangeCompat(of: debugExportOn) { on in ScheduledDebugExport.setEnabled(on) }
 
                 if debugExportOn {
@@ -244,7 +244,7 @@ struct TestCentreView: View {
                     Text("HR-from-PPG sub-lag interpolation (v26 gap-fill)")
                         .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                 }
-                .toggleStyle(.switch).tint(StrandPalette.accent)
+                .toggleStyle(.switch).appleInspiredTint("testCentre")
                 Text("When NOOP reconstructs heart rate from the WHOOP 5/MG v26 optical waveform (the seconds the strap stored no HR), refine the autocorrelation peak with a parabolic sub-lag fit so the estimate is not quantized to roughly 16 bpm steps near a high HR. It only fills seconds the strap never reported; it never overrides a stored HR. 5/MG only, off by default.")
                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -255,7 +255,7 @@ struct TestCentreView: View {
                     Text("HRV readiness (Plews/Altini)")
                         .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                 }
-                .toggleStyle(.switch).tint(StrandPalette.accent)
+                .toggleStyle(.switch).appleInspiredTint("testCentre")
                 Text("A read-only Plews/Altini smallest-worthwhile-change reading of your nightly HRV: it shows whether your 7-night HRV baseline sits above, inside, or below your personal normal band. It changes nothing else - the Charge ring is identical whether this is on or off. This is rough / early testing, not yet validated against varying real data (n=1).")
                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -405,7 +405,7 @@ private struct TestModeRow: View {
                 Spacer()
                 Toggle("", isOn: $on)
                     .labelsHidden()
-                    .tint(StrandPalette.accent)
+                    .appleInspiredTint("testCentre")
                     .accessibilityLabel("\(mode.title) test mode")
                     .onChangeCompat(of: on) { isOn in
                         if isOn { TestCentre.activate(mode.domain) } else { TestCentre.deactivate(mode.domain) }

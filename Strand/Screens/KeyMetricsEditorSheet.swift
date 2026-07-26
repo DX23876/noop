@@ -110,7 +110,7 @@ struct KeyMetricsEditorSheet: View {
                 }
             }
             .toggleStyle(.switch)
-            .tint(StrandPalette.accent)
+            .appleInspiredTint("hrv")
             .accessibilityLabel("Detailed tiles")
             // The detailed graphs' trailing window, only shown while Detailed is on (Android twin).
             if detailed {
@@ -152,7 +152,7 @@ struct KeyMetricsEditorSheet: View {
                         .foregroundStyle(item.enabled ? StrandPalette.textPrimary : StrandPalette.textTertiary)
                 }
                 .toggleStyle(.switch)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("hrv")
                 .accessibilityLabel("Show \(item.metric.title)")
 
                 Spacer(minLength: 0)
@@ -234,7 +234,7 @@ struct KeyMetricsEditorSheet: View {
                 dismiss()
             }
             .buttonStyle(.borderedProminent)
-            .tint(StrandPalette.accent)
+            .appleInspiredTint("hrv")
             // At least one tile must stay visible — an empty grid reads as a bug, not a choice.
             .disabled(!items.contains { $0.enabled })
             .accessibilityLabel("Done editing Key Metrics")

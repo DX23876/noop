@@ -104,7 +104,7 @@ struct BackupSyncView: View {
                     }
                     Spacer(minLength: 0)
                     Toggle("Daily auto-backup", isOn: $auto)
-                        .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                        .labelsHidden().toggleStyle(.switch).appleInspiredTint("backupSync")
                         .disabled(folderLabel == nil)
                         .onChangeCompat(of: auto) { on in FolderBackup.autoEnabled = on }
                 }
@@ -122,7 +122,7 @@ struct BackupSyncView: View {
                     Picker("Keep last snapshots", selection: $keep) {
                         ForEach(FolderBackup.keepOptions, id: \.self) { n in Text("\(n)").tag(n) }
                     }
-                    .labelsHidden().pickerStyle(.menu).tint(StrandPalette.accent)
+                    .labelsHidden().pickerStyle(.menu).appleInspiredTint("backupSync")
                     .onChangeCompat(of: keep) { n in FolderBackup.keepCount = n }
                 }
                 Text(lastMs > 0 ? "Last backup: \(relativeTime(lastMs))" : "No backup yet.")

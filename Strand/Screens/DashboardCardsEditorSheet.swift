@@ -90,7 +90,7 @@ struct DashboardCardsEditorSheet: View {
             // swipe still keeps the edit, mirroring WHOOP's live "My Dashboard" customise. Done just dismisses.
             .onChange(of: items) { _ in commit() }
         }
-        .tint(StrandPalette.accent)
+        .appleInspiredTint("settings.controls")
         #if os(macOS)
         // macOS sheets don't auto-size to content the way iOS does — give it a usable frame.
         .frame(width: 420, height: 540)
@@ -122,7 +122,7 @@ struct DashboardCardsEditorSheet: View {
                     .foregroundStyle(enabled ? StrandPalette.textPrimary : StrandPalette.textTertiary)
             }
             .toggleStyle(.switch)
-            .tint(StrandPalette.accent)
+            .appleInspiredTint("settings.controls")
             .accessibilityLabel("Show \(card.title)")
         }
     }

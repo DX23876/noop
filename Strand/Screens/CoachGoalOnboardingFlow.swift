@@ -103,7 +103,7 @@ struct CoachGoalOnboardingFlow: View {
     private var progressBar: some View {
         let fraction = Double(draft.step.rawValue + 1) / Double(Step.allCases.count)
         return ProgressView(value: fraction)
-            .tint(StrandPalette.accent)
+            .appleInspiredTint("coach")
             .padding(.horizontal, 16).padding(.top, 8)
             .accessibilityLabel("Step \(draft.step.rawValue + 1) of \(Step.allCases.count)")
     }
@@ -192,10 +192,10 @@ struct CoachGoalOnboardingFlow: View {
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                 }
             }
-            .toggleStyle(.switch).tint(StrandPalette.accent)
+            .toggleStyle(.switch).appleInspiredTint("coach")
             if draft.hasTargetDate {
                 DatePicker("Target date", selection: $draft.targetDate, in: Date()..., displayedComponents: .date)
-                    .datePickerStyle(.compact).tint(StrandPalette.accent).labelsHidden()
+                    .datePickerStyle(.compact).appleInspiredTint("coach").labelsHidden()
                     .accessibilityLabel("Target date")
             }
         }
@@ -226,7 +226,7 @@ struct CoachGoalOnboardingFlow: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .toggleStyle(.switch).tint(StrandPalette.accent)
+            .toggleStyle(.switch).appleInspiredTint("coach")
             .disabled(draft.motivation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
     }

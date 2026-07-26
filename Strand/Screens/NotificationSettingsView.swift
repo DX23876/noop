@@ -42,7 +42,7 @@ struct NotificationSettingsView: View {
                         .foregroundStyle(StrandPalette.textPrimary)
                 }
                 .toggleStyle(.switch)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("automations")
 
                 HStack(spacing: 10) {
                     StatePill("\(strapPillTitle)", tone: strapPillTone, pulsing: live.connected)
@@ -147,7 +147,7 @@ struct NotificationSettingsView: View {
                 set: { store.setEnabled(app.id, $0) }))
                 .labelsHidden()
                 .toggleStyle(.switch)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("automations")
                 .accessibilityLabel("\(app.name) wrist alerts")
         }
         .frame(minHeight: 42)
@@ -213,7 +213,7 @@ struct NotificationSettingsView: View {
                 .frame(width: 24, height: 24)
         }
         .buttonStyle(.bordered)
-        .tint(StrandPalette.accent)
+        .appleInspiredTint("automations")
         .disabled(!live.bonded)
         .help(live.bonded ? "Test \(app.name) buzz" : "Connect your strap to test")
         .accessibilityLabel("Test \(app.name) buzz")
@@ -344,7 +344,7 @@ private struct FormToggleRow: View {
             Toggle("", isOn: $isOn)
                 .labelsHidden()
                 .toggleStyle(.switch)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("automations")
                 .accessibilityLabel(label)
         }
         .frame(minHeight: 42)

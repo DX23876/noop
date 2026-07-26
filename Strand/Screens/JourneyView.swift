@@ -21,7 +21,7 @@ struct JourneyView: View {
 
     /// Apple Health-style leading-icon coloring (SettingsView's "App icon colors") — same switch that
     /// recolors the More tab and Coach's screens. See `CoachIconColors`/`SettingsIconColors`.
-    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = true
+    @AppStorage(AppleInspiredColorsPrefs.enabledKey) private var appleHealthColors = AppleInspiredColorsPrefs.defaultEnabled
 
     @State private var evidence = GoalFeasibility.Evidence()
     @State private var latestWeightKg: Double?
@@ -200,7 +200,7 @@ struct JourneyView: View {
                 if let measured {
                     if let fraction = measured.fraction {
                         ProgressView(value: fraction)
-                            .tint(StrandPalette.accent)
+                            .appleInspiredTint("journey.nextStep")
                             .accessibilityLabel("Progress toward your goal")
                             .accessibilityValue("\(Int((fraction * 100).rounded())) percent")
                     }

@@ -29,7 +29,7 @@ struct CoachFirstUseSheet: View {
 
     /// Apple Health-style leading-icon coloring (SettingsView's "App icon colors") — same switch that
     /// recolors the More tab and the rest of Coach's screens. See `CoachIconColors`.
-    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = true
+    @AppStorage(AppleInspiredColorsPrefs.enabledKey) private var appleHealthColors = AppleInspiredColorsPrefs.defaultEnabled
 
     var body: some View {
         NavigationStack {
@@ -126,7 +126,7 @@ struct CoachInfoView: View {
 
     /// Apple Health-style leading-icon coloring (SettingsView's "App icon colors") — same switch that
     /// recolors the More tab and the rest of Coach's screens. See `CoachIconColors`.
-    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = true
+    @AppStorage(AppleInspiredColorsPrefs.enabledKey) private var appleHealthColors = true
 
     private var providerName: String { coach.provider.displayName }
 

@@ -13,7 +13,7 @@ struct CoachSettingsView: View {
 
     /// Apple Health-style leading-icon coloring (SettingsView's "App icon colors") — same switch that
     /// recolors the More tab and the rest of Coach's screens. See `CoachIconColors`.
-    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = true
+    @AppStorage(AppleInspiredColorsPrefs.enabledKey) private var appleHealthColors = AppleInspiredColorsPrefs.defaultEnabled
 
     /// Pending key text (never persisted here, handed to `setKey`).
     @State private var keyDraft: String = ""
@@ -699,7 +699,7 @@ struct CoachSettingsView: View {
                 }
                 Spacer(minLength: 8)
                 Toggle("", isOn: $coach.allowEmoji)
-                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                    .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
                     .accessibilityLabel("Emoji in replies")
             }
         }
@@ -870,7 +870,7 @@ struct CoachSettingsView: View {
                 }
                 Spacer(minLength: 8)
                 Toggle("", isOn: purposeBinding(.coreBiometrics))
-                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                    .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
                     .accessibilityLabel("Let the coach fetch core biometrics")
             }
         }
@@ -892,7 +892,7 @@ struct CoachSettingsView: View {
                 }
                 Spacer(minLength: 8)
                 Toggle("", isOn: purposeBinding(.workouts))
-                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                    .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
                     .accessibilityLabel("Let the coach fetch workouts")
             }
         }
@@ -915,7 +915,7 @@ struct CoachSettingsView: View {
                 }
                 Spacer(minLength: 8)
                 Toggle("", isOn: purposeBinding(.planning))
-                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                    .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
                     .accessibilityLabel("Let the coach suggest and review sessions")
             }
         }
@@ -937,7 +937,7 @@ struct CoachSettingsView: View {
                 }
                 Spacer(minLength: 8)
                 Toggle("", isOn: purposeBinding(.stress))
-                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                    .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
                     .accessibilityLabel("Let the coach fetch the stress index")
             }
         }
@@ -959,7 +959,7 @@ struct CoachSettingsView: View {
                 }
                 Spacer(minLength: 8)
                 Toggle("", isOn: purposeBinding(.logs))
-                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                    .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
                     .accessibilityLabel("Let the coach read and log your entries")
             }
         }
@@ -981,7 +981,7 @@ struct CoachSettingsView: View {
                 }
                 Spacer(minLength: 8)
                 Toggle("", isOn: purposeBinding(.memory))
-                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                    .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
                     .accessibilityLabel("Let the coach save and search memory")
             }
         }
@@ -1048,7 +1048,7 @@ struct CoachSettingsView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("coach")
 
                 if coachUIEnabled {
                     Divider().overlay(StrandPalette.hairline)
@@ -1064,7 +1064,7 @@ struct CoachSettingsView: View {
                             }
                         }
                     }
-                    .tint(StrandPalette.accent)
+                    .appleInspiredTint("coach")
                 }
             }
         }
@@ -1174,7 +1174,7 @@ struct CoachSettingsView: View {
                 }
             }
             .toggleStyle(.switch)
-            .tint(StrandPalette.accent)
+            .appleInspiredTint("coach")
         }
     }
     #endif
@@ -1201,7 +1201,7 @@ struct CoachSettingsView: View {
                     }
                     Spacer(minLength: 8)
                     Toggle("", isOn: $coach.autoSummarize)
-                        .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                        .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
                         .accessibilityLabel("Summarise past chats automatically")
                 }
 
@@ -1492,7 +1492,7 @@ struct CoachSettingsView: View {
                 }
                 Spacer(minLength: 8)
                 Toggle("", isOn: $coach.dataConsent)
-                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                    .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
                     .accessibilityLabel("Let the coach use my data")
             }
         }
@@ -1515,7 +1515,7 @@ struct CoachSettingsView: View {
                 }
                 Spacer(minLength: 8)
                 Toggle("", isOn: $coach.includeOnDeviceSignals)
-                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                    .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
                     .accessibilityLabel("Also share my patterns and Lab Book with the coach")
             }
         }
@@ -1580,7 +1580,7 @@ struct CoachSettingsView: View {
                     }
                     Spacer(minLength: 8)
                     Toggle("", isOn: $morningSuggestionOn)
-                        .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                        .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
                         .accessibilityLabel("Morning suggestion on Today")
                 }
                 if !(coach.isConfigured && coach.dataConsent) {
@@ -1613,7 +1613,7 @@ struct CoachSettingsView: View {
                     }
                     Spacer(minLength: 8)
                     Toggle("", isOn: $checkInOn)
-                        .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                        .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
                         .accessibilityLabel("Daily coach check-in")
                         .onChangeCompat(of: checkInOn) { on in
                             CoachCheckIn.setEnabled(on) { outcome in
@@ -1705,7 +1705,7 @@ struct CoachSettingsView: View {
                     }
                     Spacer(minLength: 8)
                     Toggle("", isOn: $planReminderOn)
-                        .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                        .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
                         .accessibilityLabel("Plan session reminders")
                         .onChangeCompat(of: planReminderOn) { on in
                             PlanReminder.setEnabled(on) { outcome in
@@ -1963,7 +1963,7 @@ struct CoachSettingsView: View {
                 }
             }
             .pickerStyle(.menu)
-            .tint(StrandPalette.accent)
+            .appleInspiredTint("coach")
             .accessibilityLabel("Provider")
         }
 
