@@ -18,7 +18,7 @@ final class TodayLayoutPrefsTests: XCTestCase {
         ]
         let encoded = TodayLayoutPrefs.encode(reordered)
         XCTAssertEqual(encoded, "heartRate,hero,yourCards,liveSession,synthesis,keyMetrics,workouts,recoveryVitals,journal,dataSources")
-        XCTAssertEqual(TodayLayoutPrefs.decodeOrder(encoded), reordered)
+        XCTAssertEqual(TodayLayoutPrefs.decodeOrder(encoded), [.coach] + reordered)
     }
 
     /// The v1 upgrade path: an order saved by the FIRST cut (6 sections — no hero/liveSession, which were
@@ -28,8 +28,8 @@ final class TodayLayoutPrefsTests: XCTestCase {
         let firstCut = "synthesis,keyMetrics,workouts,heartRate,recoveryVitals,yourCards"
         XCTAssertEqual(
             TodayLayoutPrefs.decodeOrder(firstCut),
-            // journal(8) then dataSources(9) follow everything saved → appended in default order.
-            [.hero, .liveSession, .synthesis, .keyMetrics, .workouts, .heartRate, .recoveryVitals, .yourCards, .journal, .dataSources]
+            // Coach, hero and session lead; journal and data sources follow everything saved.
+            [.coach, .hero, .liveSession, .synthesis, .keyMetrics, .workouts, .heartRate, .recoveryVitals, .yourCards, .journal, .dataSources]
         )
     }
 
@@ -37,7 +37,7 @@ final class TodayLayoutPrefsTests: XCTestCase {
         let partial = "heartRate,synthesis,keyMetrics,recoveryVitals"
         XCTAssertEqual(
             TodayLayoutPrefs.decodeOrder(partial),
-            [.hero, .liveSession, .workouts, .heartRate, .synthesis, .keyMetrics, .recoveryVitals, .yourCards, .journal, .dataSources]
+            [.coach, .hero, .liveSession, .workouts, .heartRate, .synthesis, .keyMetrics, .recoveryVitals, .yourCards, .journal, .dataSources]
         )
     }
 
@@ -45,7 +45,7 @@ final class TodayLayoutPrefsTests: XCTestCase {
         let messy = "yourCards,BOGUS,yourCards,heartRate, ,heartRate"
         XCTAssertEqual(
             TodayLayoutPrefs.decodeOrder(messy),
-            [.hero, .liveSession, .synthesis, .keyMetrics, .workouts, .recoveryVitals, .yourCards, .heartRate, .journal, .dataSources]
+            [.coach, .hero, .liveSession, .synthesis, .keyMetrics, .workouts, .recoveryVitals, .yourCards, .heartRate, .journal, .dataSources]
         )
     }
 
@@ -66,7 +66,7 @@ final class TodayLayoutPrefsTests: XCTestCase {
         // Pin the exact wire strings — they must match the Android TodaySection byte-for-byte.
         XCTAssertEqual(
             raws,
-            ["hero", "liveSession", "synthesis", "keyMetrics", "workouts", "heartRate", "recoveryVitals", "yourCards", "journal", "dataSources"]
+            ["coach", "hero", "liveSession", "synthesis", "keyMetrics", "workouts", "heartRate", "recoveryVitals", "yourCards", "journal", "dataSources"]
         )
     }
 }
