@@ -112,6 +112,71 @@ final class GeminiToolsTests: XCTestCase {
                        "args arrive decoded — unlike OpenAI there is no JSON string to reassemble")
     }
 
+    func testThoughtSignatureIsParsedAndEchoedBackInModelTurn() {
+        let parsed = GeminiClient.parseCandidate(json("""
+        {"candidates":[{"content":{"parts":[
+          {"functionCall":{"name":"get_readiness","args":{"days":7}},"thoughtSignature":"sig-123"}
+        ]}}]}
+        """))
+        XCTAssertEqual(parsed.calls.count, 1)
+        let turn = GeminiClient.modelTurn(for: parsed.calls)
+        let part = (turn["parts"] as? [[String: Any]])?.first
+        XCTAssertEqual(part?["thoughtSignature"] as? String, "sig-123",
+                       "Gemini requires the original thought signature in the same functionCall part")
+    }
+
+    func testThoughtSignatureSnakeCaseIsPreservedWhenItIsWhatTheProviderReturns() {
+        let parsed = GeminiClient.parseCandidate(json("""
+        {"candidates":[{"content":{"parts":[
+          {"functionCall":{"name":"get_readiness","args":{"days":7}},"thought_signature":"sig-legacy"}
+        ]}}]}
+        """))
+        let turn = GeminiClient.modelTurn(for: parsed.calls)
+        let part = (turn["parts"] as? [[String: Any]])?.first
+        XCTAssertEqual(part?["thought_signature"] as? String, "sig-legacy")
+    }
+
+    func testThoughtSignatureInsideFunctionCallIsLiftedToPartLevel() {
+        let parsed = GeminiClient.parseCandidate(json("""
+        {"candidates":[{"content":{"parts":[
+          {"functionCall":{"name":"get_readiness","args":{"days":7},"thought_signature":"sig-nested"}}
+        ]}}]}
+        """))
+        let turn = GeminiClient.modelTurn(for: parsed.calls)
+        let part = (turn["parts"] as? [[String: Any]])?.first
+        XCTAssertEqual(part?["thought_signature"] as? String, "sig-nested")
+    }
+
+    func testStreamCallMergeTreatsIncomingSupersetAsSnapshotAndReplacesIt() {
+        let existing = [GeminiFunctionCall(name: "get_readiness",
+                                           args: ["days": 7],
+                                           thoughtSignature: nil)]
+        let incoming = [
+            GeminiFunctionCall(name: "get_readiness",
+                               args: ["days": 7],
+                               thoughtSignature: "sig-a"),
+            GeminiFunctionCall(name: "charge_drivers",
+                               args: ["days": 7],
+                               thoughtSignature: nil)
+        ]
+        let merged = GeminiClient.mergeStreamCalls(existing: existing, incoming: incoming)
+        XCTAssertEqual(merged.count, 2)
+        XCTAssertEqual(merged[0].thoughtSignature, "sig-a")
+        XCTAssertEqual(merged[1].name, "charge_drivers")
+    }
+
+    func testStreamCallMergeBackfillsSignatureOnIdentityMatch() {
+        let existing = [GeminiFunctionCall(name: "get_readiness",
+                                           args: ["days": 7],
+                                           thoughtSignature: nil)]
+        let incoming = [GeminiFunctionCall(name: "get_readiness",
+                                           args: ["days": 7],
+                                           thoughtSignature: "sig-b")]
+        let merged = GeminiClient.mergeStreamCalls(existing: existing, incoming: incoming)
+        XCTAssertEqual(merged.count, 1)
+        XCTAssertEqual(merged[0].thoughtSignature, "sig-b")
+    }
+
     func testEmptyOrUnexpectedBodyParsesToNothingRatherThanThrowing() {
         XCTAssertEqual(GeminiClient.parseCandidate([:]).text, "")
         XCTAssertTrue(GeminiClient.parseCandidate(json("""

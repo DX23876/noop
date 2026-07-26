@@ -107,10 +107,9 @@ extension GeminiClient: ToolCallingClient, StreamingToolClient {
         return CoachToolReply(text: fullText, toolsUsed: calledTools)
     }
 
-    /// One streamed round over `:streamGenerateContent?alt=sse`. Gemini re-sends whole `candidates`
-    /// objects per chunk rather than deltas of a single message, so text is taken per chunk and function
-    /// calls are collected as they appear complete (they are never split across chunks the way OpenAI's
-    /// argument strings are).
+    /// One streamed round over `:streamGenerateContent?alt=sse`. Gemini can repeat full candidate
+    /// snapshots while streaming; function calls are therefore merged snapshot-safely rather than naively
+    /// appended (which can shift call positions and drop required thought signatures).
     private func streamRound(
         req: URLRequest,
         session: URLSession,
@@ -145,7 +144,7 @@ extension GeminiClient: ToolCallingClient, StreamingToolClient {
                 text += chunk.text
                 await onDelta(chunk.text)
             }
-            calls.append(contentsOf: chunk.calls)
+            calls = Self.mergeStreamCalls(existing: calls, incoming: chunk.calls)
         }
 
         // Nothing decodable at all means the stream failed rather than finished. Unlike Anthropic's
@@ -213,18 +212,29 @@ extension GeminiClient: ToolCallingClient, StreamingToolClient {
             return ("", [])
         }
         let text = parts.compactMap { $0["text"] as? String }.joined()
-        let calls: [GeminiFunctionCall] = parts.compactMap { part in
+        let calls: [GeminiFunctionCall] = parts.compactMap { part -> GeminiFunctionCall? in
             guard let fn = part["functionCall"] as? [String: Any],
                   let name = fn["name"] as? String, !name.isEmpty else { return nil }
-            return GeminiFunctionCall(name: name, args: fn["args"] as? [String: Any] ?? [:])
+            let signatureAndKey = Self.extractThoughtSignature(part: part, functionCall: fn)
+            return GeminiFunctionCall(name: name,
+                                      args: fn["args"] as? [String: Any] ?? [:],
+                                      thoughtSignature: signatureAndKey.signature,
+                                      thoughtSignatureKey: signatureAndKey.key)
         }
         return (text, calls)
     }
 
     /// The model turn echoing its own function calls — required before the matching results.
+    /// The thought signature (when present) must be echoed back in the same part as the function call.
     static func modelTurn(for calls: [GeminiFunctionCall]) -> [String: Any] {
         ["role": "model",
-         "parts": calls.map { ["functionCall": ["name": $0.name, "args": $0.args]] }]
+         "parts": calls.map { call in
+             var part: [String: Any] = ["functionCall": ["name": call.name, "args": call.args]]
+             if let thoughtSignature = call.thoughtSignature, !thoughtSignature.isEmpty {
+                 part[call.thoughtSignatureKey ?? "thoughtSignature"] = thoughtSignature
+             }
+             return part
+         }]
     }
 
     /// Run each call and pack the results into one turn. `response` MUST be an object here, so the
@@ -270,6 +280,49 @@ extension GeminiClient: ToolCallingClient, StreamingToolClient {
         out.append(["role": "user", "parts": [["text": closing]]])
         return out
     }
+
+    /// Gemini may provide signatures either at part level (`thoughtSignature`/`thought_signature`) or
+    /// nested under `functionCall` on some bridges. Preserve whichever key was present.
+    static func extractThoughtSignature(part: [String: Any], functionCall: [String: Any])
+        -> (signature: String?, key: String?) {
+        if let signature = part["thoughtSignature"] as? String, !signature.isEmpty {
+            return (signature, "thoughtSignature")
+        }
+        if let signature = part["thought_signature"] as? String, !signature.isEmpty {
+            return (signature, "thought_signature")
+        }
+        if let signature = functionCall["thoughtSignature"] as? String, !signature.isEmpty {
+            return (signature, "thoughtSignature")
+        }
+        if let signature = functionCall["thought_signature"] as? String, !signature.isEmpty {
+            return (signature, "thought_signature")
+        }
+        return (nil, nil)
+    }
+
+    /// Merge streamed call snapshots without duplicating calls or losing signatures.
+    static func mergeStreamCalls(existing: [GeminiFunctionCall], incoming: [GeminiFunctionCall]) -> [GeminiFunctionCall] {
+        guard !incoming.isEmpty else { return existing }
+        if incoming.count >= existing.count
+            && zip(existing, incoming).allSatisfy({ $0.matchesIdentity(of: $1) }) {
+            return incoming
+        }
+        if existing.count > incoming.count
+            && zip(incoming, existing).allSatisfy({ $0.matchesIdentity(of: $1) }) {
+            return existing
+        }
+        var merged = existing
+        for call in incoming {
+            if let idx = merged.firstIndex(where: { $0.matchesIdentity(of: call) }) {
+                if merged[idx].thoughtSignature == nil, call.thoughtSignature != nil {
+                    merged[idx] = call
+                }
+            } else {
+                merged.append(call)
+            }
+        }
+        return merged
+    }
 }
 
 /// One function call Gemini asked for. Unlike the OpenAI shape, `args` arrives as a decoded object, not
@@ -277,8 +330,27 @@ extension GeminiClient: ToolCallingClient, StreamingToolClient {
 struct GeminiFunctionCall: Equatable {
     let name: String
     let args: [String: Any]
+    let thoughtSignature: String?
+    let thoughtSignatureKey: String?
+
+    init(name: String,
+         args: [String: Any],
+         thoughtSignature: String? = nil,
+         thoughtSignatureKey: String? = nil) {
+        self.name = name
+        self.args = args
+        self.thoughtSignature = thoughtSignature
+        self.thoughtSignatureKey = thoughtSignatureKey
+    }
 
     static func == (lhs: GeminiFunctionCall, rhs: GeminiFunctionCall) -> Bool {
-        lhs.name == rhs.name && NSDictionary(dictionary: lhs.args).isEqual(to: rhs.args)
+        lhs.name == rhs.name
+            && NSDictionary(dictionary: lhs.args).isEqual(to: rhs.args)
+            && lhs.thoughtSignature == rhs.thoughtSignature
+            && lhs.thoughtSignatureKey == rhs.thoughtSignatureKey
+    }
+
+    func matchesIdentity(of other: GeminiFunctionCall) -> Bool {
+        name == other.name && NSDictionary(dictionary: args).isEqual(to: other.args)
     }
 }
