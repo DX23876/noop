@@ -14,7 +14,7 @@ source stands and the protocol facts we've verified, so the next build can pick 
 | **Polar deep streams** (ECG / PPG / ACC / PPI) | 🔬 Pure PPI decoder built (`Packages/PolarProtocol` + `com.noop.polar`, tests green both platforms); live `PolarPMDSource` + ECG/PPG decode still to build | PMD service (below) — alpha, hardware-gated |
 | **Garmin** (sleep / HRV / Body Battery / SpO₂ / FIT) | 📋 Researched, not built | Local BLE re-derive (Gadgetbridge-informed, **never** GPLv3 copy) |
 | **Amazfit / Zepp** (incl. Helio deep) | 📋 Researched, not built | Encrypted Huami BLE — needs a one-time **user-pasted** vendor key (NOOP never logs into the vendor cloud) |
-| **Oura** (Gen 3/4/5) | 🔬 Cloud import shipped; local BLE ring **experimental** | Cloud API v2 (off-by-default OAuth backfill) **+** clean-room BLE ring — auth, live HR/IBI, history drain, sleep hypnogram, activity/HR research (below) |
+| **Oura** | 🔬 Built (cloud import) | Cloud API v2 — off-by-default OAuth, one-time backfill; local BLE ring also supported |
 | **Fitbit / Google** | 📋 Researched, not built | Build against **Google Health** API (Fitbit Web API sunsets Sept 2026) — off-by-default import |
 
 ## Polar Measurement Data (PMD) — verified protocol
@@ -112,48 +112,6 @@ band in an iterative BLE test loop. Verified facts to pick up from:
 
 This earns its place only if it stays tractable and never threatens WHOOP stability — it
 will not ship blind.
-
-## Oura Ring — BLE (experimental)
-
-A clean-room BLE lane for a ring the user owns, alongside the shipped cloud import. **Experimental**
-(`ExperimentalBrand`-gated, not a shipped supported strap). NOOP computes its **own** Charge/Rest from the
-ring's raw signals and **never** reads Oura's encrypted readiness/sleep scores. Full byte-level spec:
-[`OURA_PROTOCOL.md`](OURA_PROTOCOL.md); this is the where-we-stand summary.
-
-**Working (validated on a live Gen 3):** app-auth handshake (nonce → AES-128 proof), live HR + IBI stream,
-SyncTime (`0x12`/`0x13`) handshake plus the ring-emitted `0x42` time-sync event as the UTC anchor (§6.11),
-and a history drain aligned with open_oura `drain_events` (per-batch
-cursor advance + quiet window → converges to `bytes_left 0`, no re-serve loop). Decoded signals: HR/IBI, HRV
-(`0x5D` + reconstructed), skin temp (`0x46`), SpO₂, battery. Own central/GATT — never the WHOOP path.
-
-**Sleep — hypnogram persist (DRAFT PR #446).** The ring writes the whole night's SleepNet phase codes in one
-burst after wake; NOOP reconstructs the time axis (30 s/code, end anchored by the `0x49` sleep-summary) and
-banks it as a `CachedSleepSession` with a `[{start,end,stage}]` timeline under the ring's own deviceId, so
-`SleepMerge`'s imported-over-computed rule surfaces Oura's staging (reusing the #988/HC stage-timeline path).
-Cross-checks: **light** matches WHOOP/the Oura app well (±2–3 min); **deep/REM undercounted, awake over** vs
-the Oura app — the raw on-device SleepNet stream ≠ the app's post-processed hypnogram (surfaced honestly with
-an "Oura / raw on-device stages" badge). **Display-only** — traced: it does NOT feed the recovery score (Charge
-is computed from the engine's own HR staging). **Open:** a main-night gate so junk daytime fragments don't win
-a day (same class as the import-side fix **#375**); on-device multi-night validation.
-
-**Activity / MET — `0x50` (DRAFT PR #447, Tier-B, never scored).** A plausible third-party MET decode
-(PR #960): `state` byte + per-sample MET. Captured to a diagnostic JSONL corpus (`oura-activity-<id>.jsonl`),
-never a durable/scoring row. **Validated:** MET tracks land-activity intensity — three walks read mean ≈ 4 MET
-vs a ≈ 0.9 sleep floor, and per-minute MET vs a Suunto `.fit` speed profile correlates **r = 0.89**. It
-underreads water, and the stream is sparse with **ring-side** cadence gaps (~86 % coverage) so daily totals
-undercount. **NOOP has no MET field** in its HR/strain model, so `0x50` stays research only — the ring's path
-into NOOP activity is HR, never MET, and it is never a step count.
-
-**Banked IBI → HR — `0x80` (research instrumentation).** open_oura derives per-minute HR (`hr_bpm = 60000/ibi`)
-from the `0x80` green-IBI record, not from `0x50`. NOOP already decodes those IBIs for HRV; a tagged JSONL
-sidecar (`oura-ibihr-<id>.jsonl`) also reconstructs an HR history from the banked stream for offline study.
-**First daytime sample was sparse + noisy** (~7 usable beats/min, ~15 % impossible-HR artifacts) — looks like a
-quality-sampled subset, not a full beat record. **Decisive test pending:** overnight density (ring still →
-cleanest optics), per source tag. If a clean+dense stream emerges it becomes a real sleep-HR/RHR source (own
-branch/PR); if not, it is a documented dead-end and MET stays the daytime proxy.
-
-**Analysis tooling:** `diagnostics/oura_met_crosscheck.py` cross-checks the MET + IBI-HR corpora against the
-app SQLite (workouts/sleep) and, with `--suunto`, a `.fit` export — per-minute MET/HR profiles + correlations.
 
 ## Notes on the deep-band lanes (Garmin / Amazfit / cloud)
 

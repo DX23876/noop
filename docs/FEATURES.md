@@ -115,6 +115,79 @@ The home dashboard (`TodayView.swift`, titled "Control Center"). A tight, gaples
 
 ---
 
+## Today (iOS)
+
+**Tab bar: Today (first tab) · works from imported data; live status/battery in the header.**
+
+iOS uses a bottom tab bar (`RootTabView.swift`: Today, Trends, Sleep, More) instead of macOS's
+sidebar. The Today tab hosts one of three interchangeable home-screen presentations, picked under
+**Settings → Appearance → Experimental**:
+
+- **Liquid Today** (default, `LiquidTodayView.swift`) — a sky-gradient hero with three fluid,
+  count-up "vessel" circles for Charge / Effort / Rest, a synthesis line ("Charge is strong and
+  sleep was consistent") with day-scoped readiness pills, a scrubbable live/banked heart-rate
+  thread, "Your Cards" (swipeable coach training suggestions), Key Metrics, Recovery Vitals, Last
+  Workouts and Data Sources — the same content as Control Center, restyled.
+- **Classic Today** (`TodayView.swift`) — the same screen macOS shows as Control Center (tight
+  tile grid, no hero animation), reused verbatim as an iOS fallback. As of 2026-07-25 it has full
+  functional parity with Liquid Today (design stays its own): reorderable/hideable sections via the
+  same **Arrange Today** sheet and shared saved order, a live heart-rate badge over the HR trend
+  chart with a one-tap **Full day** link into the Deep Timeline, and Recovery Vitals as its own
+  movable section instead of being fixed inside Synthesis.
+- **Heute** (`StrandiOS/Redesign/HeuteRedesignView.swift` and friends) — a from-scratch redesign on
+  its own fixed green/blue/violet token set (`HeuteRedesignPalette`, independent of the selected
+  chart style). **Its Settings toggle was removed (2026-07-25)** — the prototype never got past
+  off-by-default/untested-on-a-real-strap, so `RootTabView` no longer reads its flag at all and the
+  screen is unreachable. The code is left in place, not deleted, in case it's revisited later:
+  - **Header** — a greeting + tappable date (opens day navigation; swiping the screen
+    left/right also changes the day) and three status chips: **Activity status** (Active / Sick /
+    Injured / On break, each with a duration — Today / 3 days / This week / Custom date / Until
+    changed), strap **battery**, and **coach** entry.
+  - **Rings** — Charge / Effort / Rest as three glow rings. **Charge is tappable** — even while
+    calibrating or empty — and opens a breakdown sheet naming which drivers (HRV, resting HR,
+    respiration, sleep quality, skin temperature) pulled the score up or down versus your personal
+    baseline, with the same confidence tier (Calibrating / Est. / Reliable) the ring itself shows.
+    Effort and Rest stay display-only.
+  - **Card zone** — a fixed base card (today's readiness statement, or the current activity-status
+    exception) behind a swipeable stack of the coach's real pending training-plan proposals; a
+    swipe hides a card locally without declining the proposal, tapping one opens the full
+    accept/modify/decline sheet.
+  - **Vitals grid** — HRV, resting heart rate, blood oxygen, respiratory rate, Fitness Age, steps,
+    and the day's workout as a tappable tile.
+  - **Heart rate** — a live beat-by-beat trace (when connected) over the day's banked 5-minute
+    trace, scrubbable by dragging along it.
+  - **Journal reminder + Data Sources footer** — shown only on today, not on a navigated past day.
+
+All three presentations read the SAME carry-over rules: an unscored today shows the last scored
+night's Charge (labelled whose it is), a mid-calibration baseline shows "Learning your baseline,
+N of 4 nights" instead of a stale number, and each vital falls back per-field to the freshest
+prior reading independent of whether that night scored a Charge — so switching between the three
+never changes what number you see for the same day.
+
+---
+
+## Updates inbox
+
+**The bell, top of Today (Classic and Liquid alike) · `UpdateStore.swift` / `UpdatesInboxView.swift`.**
+
+A calm, newest-first log of what's new — tap the bell (badged with the unread count) to open it. Three
+kinds of row, each behaving differently rather than all looking like the same generic notification:
+
+- **Needs a decision** — a session the coach proposed (see [docs/COACH.md](COACH.md) §11a), with
+  **Accept / Change / Decline** right there. Once it's decided elsewhere (e.g. from the Today card
+  first), the row shows the outcome instead of stale buttons.
+- **A hint, nothing to decide** — release notes, "new data arrived" readings, and the coach's proactive
+  nudges (a body signal worth knowing about, a small win) — tap to mark read, nothing else expected of
+  you. Proactive hints used to be chat-only; they now show up here too, without needing to open Coach.
+- **Status & reminders** — a Today info-card you swiped away, restorable with one tap ("Restore to
+  Today"); everything else in this bucket is read-only history.
+
+Old rows are deduped and capped so a background recompute loop can't spam the same "new data" row; items
+still awaiting a decision sort to the top of their unread/read section. Everything here is local —
+nothing about the bell's contents leaves the device.
+
+---
+
 ## Live
 
 **Sidebar: Live · needs a bonded strap for HR; the hardware-test surface.**
@@ -493,6 +566,13 @@ of history. On-device and approximate — informational only, **not** a diagnosi
 - **Step calibration** — tune the stride/step estimate to your own walking so step and distance
   figures read closer to reality.
 - **Units** — choose your preferred measurement units (metric / imperial) across the app.
+- **Appearance** — card transparency, whether the coach tile pulses on Today, and **App icon
+  colors** (on by default): recolors the leading icons across the app — the More tab, Chat and its
+  submenus (Coach Settings, Coach Info, Goal & Journey), Journey, and Settings' own section headers —
+  to an Apple Health-style palette instead of plain blue. Purely cosmetic — chevrons, checkmarks and
+  state icons (e.g. bell vs. bell with a badge) are unaffected either way. Also here: chart colours
+  (Apple Health palette by default) and the day-cycle sky backdrop / "sky behind cards" (both off by
+  default).
 - **Strap** — connection status, battery, and Re-scan / Disconnect controls.
 - **Export for Shortcuts (iOS)** — a **HealthKit-free** path that hands your NOOP metrics to Apple
   Health via the Shortcuts app, so an anonymous build (with no HealthKit entitlement) can still get

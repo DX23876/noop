@@ -178,6 +178,11 @@ public struct CaffeineActiveEstimate: Equatable, Sendable {
 @MainActor
 public final class CaffeineLogStore: ObservableObject {
 
+    /// One shared instance (NOOP AI): the coach's `log_caffeine` tool and the Caffeine card write and
+    /// observe the SAME store, so a chat-logged intake appears in the card immediately — and two
+    /// instances can never clobber each other's UserDefaults blob.
+    public static let shared = CaffeineLogStore()
+
     /// Logged intakes, newest first. Persisted as JSON under one UserDefaults key.
     @Published public private(set) var intakes: [CaffeineIntake] { didSet { save() } }
 

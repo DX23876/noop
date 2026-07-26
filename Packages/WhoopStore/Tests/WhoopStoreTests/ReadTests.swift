@@ -65,9 +65,6 @@ final class ReadTests: XCTestCase {
         XCTAssertEqual(other, [HRBucket(ts: 200, bpm: 99)])
     }
 
-    /// Both same-second beats survive the v24 key. Since #823 the read order is EMISSION order, and
-    /// `seeded()` happens to insert these two ascending — so the expectation is unchanged, but it now
-    /// holds because 800 was sent first, not because 800 < 820.
     func testRrIntervalsReturnsBothTiedRows() async throws {
         let store = try await seeded()
         let rr = try await store.rrIntervals(deviceId: "dev1", from: 0, to: 1000, limit: 100)

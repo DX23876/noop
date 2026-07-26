@@ -562,10 +562,16 @@ targets:
 - [x] `MenuBarExtra` replaced by a WidgetKit widget + Live Activity (`StrandiOSWidgets`), reusing `StrandDesign`.
 - [x] iOS action layer: `lockScreen` returns false on iOS, `buzzBack`/`markMoment` portable, **App Intents** exposed (`StrandiOS/System/NOOPAppIntents.swift`).
 - [x] Clipboard + URL-open routed through `Platform.swift` (`PlatformPasteboard`/`PlatformOpen`).
-- [x] `HealthKitBridge` two-way Apple Health (read live + write NOOP metrics). _(See the device-id follow-up flagged below.)_
+- [x] `HealthKitBridge` two-way Apple Health (read live + write NOOP metrics).
 - [ ] **Still TODO (needs hardware):** verify BLE on a **physical iPhone** with a real strap — CoreBluetooth has no Simulator. This is the one thing CI/compile can't cover.
 
-> **Open follow-up:** `HealthKitBridge.writeBack` reads NOOP-computed metrics under `deviceId = "my-whoop"`, but the on-device *computed* scores (recovery/HRV/…) are persisted under the **computed** id `"my-whoop-noop"` — so the Apple-Health write-back may read little/nothing for a strap-only user. Behavioural (not a compile issue); fix when the iOS HealthKit path gets device-tested.
+> **Resolved:** the device-id follow-up previously noted here — `HealthKitBridge.writeBack` reading
+> NOOP-computed metrics under the wrong device id — no longer applies. `writeVitals`
+> (`StrandiOS/Health/HealthKitBridge.swift:567-572`) already unions `computedDeviceId` (`deviceId +
+> "-noop"`, where on-device scores live) with `noopDeviceId` (imports), computed first, imported
+> overriding — a strap-only user's recovery/HRV/RHR/SpO₂/resp write back correctly. `writeHeartRate`
+> reads only the base `noopDeviceId`, which is correct as-is: raw HR buckets are live telemetry with no
+> "-noop" computed variant, unlike the daily scores. Still device-untested per the TODO above.
 
 ---
 

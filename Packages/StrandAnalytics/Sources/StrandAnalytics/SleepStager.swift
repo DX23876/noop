@@ -910,7 +910,7 @@ public enum SleepStager {
         if grav.count < 2 { return [] }
 
         let hrS = hr.sorted { $0.ts < $1.ts }
-        let rrS = rr.sortedByTsStable()   // stable: keeps #823 emission order within a second
+        let rrS = rr.sorted { $0.ts < $1.ts }
         let respS = resp.sorted { $0.ts < $1.ts }
 
         let baseline = hrBaseline(hrS)
@@ -1506,11 +1506,9 @@ public enum SleepStager {
         let nan = Double.nan
         if end <= start { return nan }
 
-        // 1. In-bed RR rows in chronological order, range-filtered. STABLE sort: step 2 reconstructs
-        // beat times by cumulative sum, so the order of a second's beats moves every subsequent beat
-        // time and with it the RSA estimate. Kotlin's twin uses sortedBy, stable by contract. (#823)
+        // 1. In-bed RR rows in chronological order, range-filtered.
         let inBed = rr.filter { $0.ts >= start && $0.ts <= end }
-            .sortedByTsStable()
+            .sorted { $0.ts < $1.ts }
             .map { Double($0.rrMs) }
         let filtered = HRVAnalyzer.rangeFilter(inBed)
         if filtered.count < 30 { return nan }  // need enough beats for any RSA estimate

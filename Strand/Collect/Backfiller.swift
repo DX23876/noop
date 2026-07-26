@@ -132,11 +132,6 @@ final class Backfiller {
     /// ingest gate already kept the garbage rows out of the DB).
     private(set) var sessionDroppedImplausible = 0
 
-    /// #520 diagnostic: `dynamic_acceleration` folded across every chunk of this session, logged once at
-    /// the session boundary. Session-scoped rather than per-chunk because a chunk is an arbitrary slice of
-    /// an offload — a still-fraction only means something over a whole night's worth of records.
-    private(set) var sessionDynAccel = Streams.DynAccelDiag()
-
     /// The trim cursor of the LAST chunk this Backfiller acked (durably persisted + confirmed to the
     /// strap). Survives across sessions on the same connection so the auto-continue gate (#364) can ask
     /// "did the offload actually advance the strap's trim this session?" — the spin-detector signal that
@@ -234,7 +229,6 @@ final class Backfiller {
         loggedNoCursor = false
         loggedFutureRtc = false
         sessionDroppedImplausible = 0
-        sessionDynAccel = Streams.DynAccelDiag()
         loggedLayoutVersions.removeAll(keepingCapacity: true)
         spo2Dumped = 0
         // #547: the range markers belong to a connection's GET_DATA_RANGE, which BLEManager re-sets per
@@ -493,10 +487,6 @@ final class Backfiller {
                 log?("Historical records use firmware layout v\(v), which NOOP doesn't decode yet — no motion data, so sleep can't be computed from the strap. Please report this (issue #30).")
             }
             let decoded = d.decoded
-            // #520: accumulate the motion-magnitude diagnostic across the session; logged once at the
-            // session boundary by BLEManager, never per chunk. Merge logic lives in WhoopProtocol so it is
-            // covered by swift-packages CI — this app-target file is not.
-            sessionDynAccel.merge(decoded.dynAccel)
             // #547: surface a bad-clock strap. extractHistoricalStreams DROPPED any record whose own unix
             // timestamp was implausible (far-past / bogus-2027 / future-dated) before it could pollute the
             // DB. Log it (once it's accrued at least one this session, on the first chunk that sees it) so

@@ -527,6 +527,26 @@ struct TrendsView: View {
 
     // MARK: Hero — recovery over time
 
+    /// The largest data gap in a windowed (ascending) series as an explicit caption — so a run of missing
+    /// days reads as "no data" rather than an unexplained empty stretch in the line (redesign bug §1, the
+    /// Charge gap). nil when the series is dense (no gap of 2+ consecutive missing days).
+    private func gapCaption(_ pts: [TrendPoint]) -> String? {
+        guard pts.count >= 2 else { return nil }
+        let day: TimeInterval = 86_400
+        var start: Date?, end: Date?, maxMissing = 0
+        for i in 1..<pts.count {
+            let missing = Int((pts[i].date.timeIntervalSince(pts[i - 1].date) / day).rounded()) - 1
+            if missing > maxMissing {
+                maxMissing = missing
+                start = pts[i - 1].date.addingTimeInterval(day)
+                end = pts[i].date.addingTimeInterval(-day)
+            }
+        }
+        guard maxMissing >= 2, let s = start, let e = end else { return nil }
+        let fmt = Date.FormatStyle.dateTime.day().month(.abbreviated)
+        return String(localized: "No data · \(s.formatted(fmt))–\(e.formatted(fmt))")
+    }
+
     @ViewBuilder
     private func heroRecovery(recovery: ResolvedMetric) -> some View {
         let pts = recovery.points
@@ -565,6 +585,12 @@ struct TrendsView: View {
                             ("Days", "\(pts.count)"),
                         ])
                         changeChip(pts, higherIsBetter: true, fmt: { "\(Int($0.rounded()))" })
+                    }
+                    // Redesign bug §1: the 90-day Charge gap used to draw as unexplained empty space.
+                    if let gap = gapCaption(pts) {
+                        Text(gap)
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textTertiary)
                     }
                 }
             }

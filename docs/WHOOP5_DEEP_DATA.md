@@ -136,27 +136,6 @@ tracking the WHOOP app's own SpO₂ across many nights on **multiple devices** (
 coincidental match), including on the device where the two checked nights currently move opposite.
 Until that clears the bar, SpO₂ stays import-only on the 5.0.
 
-### Multi-device validation tool (`validate_spo2_candidate.py`)
-
-To make that bar concrete and privacy-preserving, `tools/linux-capture/validate_spo2_candidate.py`
-turns one or more `(capture.json, WHOOP export)` pairs into a promote checklist:
-
-```bash
-cd tools/linux-capture
-python3 validate_spo2_candidate.py capture.json my_whoop_data/ --device strap-a --postable
-python3 validate_spo2_candidate.py --batch devices.json --postable
-```
-
-Per device it computes the **nightly mean** of in-band `@82` samples (70–100) while
-`sleep_state = asleep`, pairs each night with CSV `blood_oxygen_pct`, then reports Pearson **r**,
-MAE, bias, and an **offset-specificity** scan over bytes 74–92 (only `@82` should win). Default
-gates: ≥5 paired nights, export range ≥1 %, r ≥ 0.7, MAE ≤ 1.0, best offset = 82.
-
-`--postable` prints a CSV-ish block with **no raw SpO₂ values** — safe to paste on
-[#103](https://github.com/ryanbr/noop/issues/103). Promote `spo2_candidate_82` → `spo2Pct` only when
-**≥2 devices** each PASS (the tool's multi-device footer tracks that). This does **not** change app
-metrics by itself; it is the research harness for the split-evidence problem above.
-
 ## Mapping the layout — ground-truth correlation
 
 An HCI capture on its own is a pile of un-labelled bytes. The fast way to label them is *known
@@ -165,17 +144,14 @@ per-night values — HRV, resting HR, skin temperature, SpO₂, respiratory rate
 in the capture. Searching each record type for the byte offset + encoding that reproduces those known
 values across every night pins the field without guesswork.
 
-Three stdlib tools in [`tools/linux-capture/`](../tools/linux-capture/) do this:
+Two stdlib tools in [`Tools/linux-capture/`](../Tools/linux-capture/) do this:
 
 - **`hci_extract.py`** converts a phone HCI log (iOS `.pklg` / Android `btsnoop_hci.log`) of the
   official app into the project's `capture.json` frame format — so an official-app full-sync capture
   feeds the same decoder as a Linux capture. It keeps only CRC-valid WHOOP frames.
 - **`correlate_ground_truth.py`** cross-references those frames against the CSV export and reports
   candidate `(record type, offset, encoding, scale)` tuples, requiring both breadth and a
-  distribution match so constants and coincidences don't score. English export headers (e.g.
-  `Blood oxygen %`) map to the same canonical keys as DE/ES.
-- **`validate_spo2_candidate.py`** is the SpO₂-specific multi-device harness for `@82` (nightly mean
-  vs export, checklist, postable summary) — see above.
+  distribution match so constants and coincidences don't score.
 
 Crucially this is **privacy-preserving**: both tools run locally and the correlation output is only
 offsets/encodings, never health values — so a 5/MG owner can contribute a confirmed field mapping to
@@ -194,10 +170,6 @@ lands in `parseFrameWhoop5` / `whoop_protocol.json`.
    or Android **Developer Options → Bluetooth HCI snoop log** → `btsnoop_hci.log`, opened in Wireshark — the
    same iOS-HCI approach the [judes.club write-up](https://judes.club/writing/cracking-the-whoop-5-bluetooth-protocol/)
    used. Filter to just the WHOOP peripheral and attach it to [#103](https://github.com/ryanbr/noop/issues/103).
-5. **SpO₂ multi-device check:** after you have a history capture + your data export, run
-   `python3 tools/linux-capture/validate_spo2_candidate.py capture.json export/ --device <label> --postable`
-   and paste the postable summary on [#103](https://github.com/ryanbr/noop/issues/103). Keep the capture
-   and CSV private; only the aggregate r / MAE / checklist line is needed.
 
 Credit to **judes.club**, **Asherlc/dofek**, and **b-nnett/goose** for the public protocol work this
 builds on.

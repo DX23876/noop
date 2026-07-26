@@ -34,10 +34,7 @@ read off real v18 frames and checked for a behaviour that can only hold if the o
   wake_quality = (frame[81] >> 2) & 3   quality code (b2-3); observed nonzero only in wake.
   sleep_state = (frame[81] >> 4) & 3   high nibble tracks a scored night (wake/still/asleep/up); the
                               low nibble is sub-flags. Deep/REM/light are computed off-band, not here.
-  aux_byte_82 = frame[82]     raw; observed nonzero only while sleep_state = asleep.
-  spo2_candidate_82           aux_byte_82 when in 70..100 (inclusive); else absent. Instrumentation
-                              only (#103) — multi-device validation via validate_spo2_candidate.py
-                              before any promote to spo2Pct.
+  aux_byte_82 = frame[82]     raw; observed nonzero only while sleep_state = asleep (meaning not pinned).
   unknown_f32_113 = f32 LE @113   a float32 (observed range ~ -5.3..0, 0 = unset); purpose unknown,
                               carried raw for completeness.
 
@@ -67,9 +64,7 @@ def decode_v18(frame):
         "onwrist": frame[81] & 3,            # @81 b0-1 on-wrist/validity flag
         "wake_quality": (frame[81] >> 2) & 3,  # @81 b2-3 quality code (nonzero only in wake)
         "sleep_state": (frame[81] >> 4) & 3,
-        "aux_byte_82": frame[82],            # @82 raw (nonzero only while asleep)
-        # In-band only (70–100): mirrors Swift spo2_candidate_82 / Kotlin twin — instrumentation.
-        "spo2_candidate_82": frame[82] if 70 <= frame[82] <= 100 else None,
+        "aux_byte_82": frame[82],            # @82 raw (nonzero only while asleep; meaning not pinned)
         "motion_count": u16le(frame, 57),
         "step_cadence": frame[59],           # @59 cadence-like byte (raw)
         "motion_wear_quality": frame[63],    # @63 3-valued byte (raw; semantics not pinned)

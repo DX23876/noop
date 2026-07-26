@@ -1,28 +1,42 @@
 import SwiftUI
 
-/// The data-visualisation colour style: the brand "Titanium & Gold" data ramps, or a "Classic"
+/// The data-visualisation colour style: the brand "Titanium & Gold" data ramps, a "Classic"
 /// throwback — the recognizable red → amber → green readiness scale (cool→hot zones, green→red stress,
-/// purple REM) that health apps have always used. Works in BOTH light and dark. It only re-colours the
-/// DATA encodings (gauge rings, charts, sparklines, scales, stage bands) — never the chrome/surfaces.
+/// purple REM) that health apps have always used — or "Apple Health", built from Apple's own public
+/// iOS system semantic colours (the same reds/greens/indigo Apple's own Health app uses for its
+/// category icons). Works in BOTH light and dark. It only re-colours the DATA encodings (gauge rings,
+/// charts, sparklines, scales, stage bands) — never the chrome/surfaces.
 ///
 /// Read globally via `StrandPalette.chartStyle` (set from `@AppStorage(ChartStyle.storageKey)` at the
 /// app root); the data-ramp accessors in `StrandPalette` branch on it. The app root keys its content on
 /// the raw value so a flip re-renders the visible charts live.
 public enum ChartStyle: String, CaseIterable, Identifiable, Sendable {
+    case signature  // NOOP redesign: family-coded accents (green Charge, blue Effort, violet Rest) over
+                    // the readable red→green score ramps.
     case titanium   // brand: gold recovery, amber strain, blue rest
     case classic    // throwback: red→green recovery, cool→hot zones, green→red stress
+    case health     // Apple system colours: systemRed→...→systemGreen recovery, indigo sleep, pink stress.
+                    // The shipped default.
+    case aurora     // Nord: frosty arctic blues, aurora green/purple accents
+    case sunset     // Ember: dusk ramp violet→coral→gold, violet rest
+    case forest     // Earth: mossy forest greens, terracotta, amber
 
     public var id: String { rawValue }
     public static let storageKey = "chart.style"
 
     public var label: String {
         switch self {
-        case .titanium: return String(localized: "Default", bundle: .module)
+        case .signature: return String(localized: "Signature", bundle: .module)
+        case .titanium: return String(localized: "Titanium", bundle: .module)
         case .classic:  return String(localized: "Classic", bundle: .module)
+        case .health:   return String(localized: "Apple Health", bundle: .module)
+        case .aurora:   return String(localized: "Aurora", bundle: .module)
+        case .sunset:   return String(localized: "Sunset", bundle: .module)
+        case .forest:   return String(localized: "Forest", bundle: .module)
         }
     }
 
-    public static func resolve(_ raw: String) -> ChartStyle { ChartStyle(rawValue: raw) ?? .titanium }
+    public static func resolve(_ raw: String) -> ChartStyle { ChartStyle(rawValue: raw) ?? .signature }
 }
 
 /// Applies the chart style: sets the global `StrandPalette.chartStyle` (read by the data-ramp
@@ -86,14 +100,15 @@ public enum AppearanceMode: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
-/// The day-cycle scene backdrop behind the Today screen (sunrise / day / dusk / night). Default ON —
-/// the scene is the v7 atmosphere. Some people find it distracting and want a plain dark canvas (#698),
-/// so this gates whether Today passes a `SceneScreenBackground` into its scaffold. When OFF, Today drops
-/// the scene and falls back to the opaque `surfaceBase`; the cards already sit on an opaque canvas, so
-/// they stay perfectly readable. Read in `TodayView` via `@AppStorage(SceneBackgroundPrefs.enabledKey)`
-/// and toggled from Settings → Appearance. Mirror in Kotlin via `NoopPrefs.showDayCycleBackground`.
+/// The day-cycle scene backdrop behind the Today screen (sunrise / day / dusk / night). Default OFF —
+/// the plain dark canvas ships as the default; turning it on adds the v7 atmosphere for people who want
+/// the moving scene (#698). This gates whether Today passes a `SceneScreenBackground` into its scaffold.
+/// When OFF, Today falls back to the opaque `surfaceBase`; the cards already sit on an opaque canvas, so
+/// they stay perfectly readable either way. Read in `TodayView` via
+/// `@AppStorage(SceneBackgroundPrefs.enabledKey)` and toggled from Settings → Appearance. Mirror in
+/// Kotlin via `NoopPrefs.showDayCycleBackground`.
 public enum SceneBackgroundPrefs {
-    /// The @AppStorage key shared by TodayView and the Settings toggle. Default value is `true`.
+    /// The @AppStorage key shared by TodayView and the Settings toggle. Default value is `false`.
     public static let enabledKey = "noop.showDayCycleBackground"
 }
 
@@ -112,6 +127,16 @@ public enum CardAppearancePrefs {
 /// Kotlin via `NoopPrefs.skyBehindCards`.
 public enum SkyBehindCardsPrefs {
     public static let enabledKey = "noop.skyBehindCards"
+}
+
+/// "Breathing coach tile" (default ON): the Today coach entry pulses very slightly — ~3% over a ~4s cycle,
+/// with its accent glow swelling in step — so the one element on the home screen that speaks back has a
+/// pulse. It is the only continuously animating thing on Today, and a permanently moving element in
+/// peripheral vision genuinely bothers some people, hence the switch (Settings → Appearance). Read in
+/// `CoachTodayTile` via `@AppStorage(CoachTilePrefs.breathingKey)`. Independent of Reduce Motion, which
+/// suppresses the animation regardless of this setting.
+public enum CoachTilePrefs {
+    public static let breathingKey = "noop.coachTileBreathing"
 }
 
 // MARK: - Light-idiom helpers

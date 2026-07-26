@@ -1,6 +1,7 @@
 import SwiftUI
 import StrandDesign
 import StrandAnalytics
+import WhoopStore
 
 // MARK: - Charge breakdown presentation (pure, testable)
 //
@@ -16,6 +17,38 @@ import StrandAnalytics
 // supporting term reads green and a limiting term reads red, matching the Charge colour world.
 
 enum ChargeBreakdownFormat {
+
+    // MARK: - Charge-driver composition (shared by classic Today + Heute redesign)
+
+    /// The ordered "What shaped it" Charge drivers for a displayed Charge row, PLUS the confidence tier,
+    /// composed from the SAME folded HRV/RHR/resp baselines the engine scored with. Extracted verbatim from
+    /// `TodayView.chargeBreakdown()` so classic Today and the Heute redesign share ONE composition and can't
+    /// drift (the P5 shared-selector principle — see docs/decisions.md). PURE: it folds the passed `days`
+    /// history and surfaces `RecoveryScorer.chargeDrivers` + `ScoreConfidence.charge` verbatim; it never
+    /// recomputes a score or reads a store. `row` is the row the ring shows (today's own or the carried
+    /// last-scored day); `restScore` is the merged Rest composite (0…100) the Rest ring reads, so the
+    /// sleep-quality term stays consistent. Returns nil for a calibrating / cold-start night (no HRV or RHR,
+    /// or no usable HRV baseline), so the caller gates through to the calibration copy instead.
+    static func compute(row: DailyMetric?, days: [DailyMetric], restScore: Double?)
+        -> (drivers: [ChargeDriver], confidence: ScoreConfidence)? {
+        guard let row, let hrv = row.avgHrv, let rhr = row.restingHr else { return nil }
+        let hrvBase = Baselines.foldHistory(days.map(\.avgHrv), cfg: Baselines.hrvCfg)
+        guard hrvBase.usable else { return nil }
+        let rhrBase = Baselines.foldHistory(days.map { $0.restingHr.map(Double.init) },
+                                            cfg: Baselines.restingHRCfg)
+        let respBase = Baselines.foldHistory(days.map(\.respRateBpm), cfg: Baselines.respCfg)
+        // Rest-quality term = the Rest composite ÷100, matching AnalyticsEngine's `sleepPerf`.
+        let sleepPerf = restScore.map { $0 / 100.0 }
+        let drivers = RecoveryScorer.chargeDrivers(
+            hrv: hrv, rhr: Double(rhr), resp: row.respRateBpm,
+            hrvBaseline: hrvBase,
+            rhrBaseline: rhrBase.usable ? rhrBase : nil,
+            respBaseline: respBase.usable ? respBase : nil,
+            sleepPerf: sleepPerf, skinTempDev: row.skinTempDevC)
+        // Confidence SURFACED (never recomputed) from the SAME folded HRV baseline the drivers scored with,
+        // so the header tier tag and the breakdown agree by construction.
+        return (drivers, ScoreConfidence.charge(recovery: row.recovery, hrvBaseline: hrvBase))
+    }
 
     // MARK: - Signed point-delta chip (A1)
 

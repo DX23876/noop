@@ -10,11 +10,24 @@ struct RootTabView: View {
     /// Cross-screen navigation requests (e.g. Live → "Manage devices"). Devices isn't a tab — it lives
     /// behind the More list — so a request presents it as a sheet, matching the quick-action screens.
     @EnvironmentObject private var router: NavRouter
+    /// The AI coach engine (injected at the app root), so the draggable floating Coach button can present
+    /// the chat from the shell.
+    @EnvironmentObject private var coach: AICoachEngine
+
+    /// Whether the draggable floating Coach button is one of the user's chosen entry points.
+    @AppStorage(CoachEntryPrefs.floatingButtonKey) private var coachFloatingButtonEnabled = true
+    /// Master switch (#R7): hides the floating Coach button when the coach UI is turned off.
+    @AppStorage(CoachEntryPrefs.uiEnabledKey) private var coachUIEnabled = true
+    @State private var showCoach = false
 
     /// Which quick-action screen the centre FAB is presenting (nil = sheet closed).
     @State private var quickAction: QuickAction?
     /// Presents the Devices manager (pair / switch bands) when a screen asks the shell to open it.
     @State private var showDevices = false
+    /// Live Sessions (silent guardian). Owned by the SHELL now, not by Today: the entry moved off the Today
+    /// dashboard into the quick-action menu, and the guardian wants the full screen, so it presents as a
+    /// cover here rather than as one of the `quickAction` sheets.
+    @State private var showLiveSession = false
     /// A routed v5 pillar screen (Insights hub / Lab Book / fused record / Rhythm) presented as a sheet
     /// when a hub row deep-links to it via NavRouter. nil = closed.
     @State private var routedPillar: NavRouter.Destination?
@@ -32,6 +45,10 @@ struct RootTabView: View {
     /// a no-op). Threaded into each tab's root via `\.scrollToTopSignal`; ScreenScaffold / LiquidTodayView
     /// scroll to their top anchor when their tab's token changes.
     @State private var scrollTop: [Int] = Array(repeating: 0, count: 4)
+    /// The floating bar's measured on-screen height, threaded to pushed content via
+    /// `\.floatingTabBarInset` (see the key below) so a bottom-docked composer can add exactly this
+    /// much extra clearance instead of guessing a number that drifts if the bar's own padding changes.
+    @State private var floatingTabBarHeight: CGFloat = 0
     /// Which More-tab groups are expanded (S2). Insights + Body stay open at rest; Data + App collapse to
     /// just their header until tapped. Persisted (#860 item 2): the user's open/closed choice must SURVIVE
     /// leaving and re-entering the More tab (and relaunch), not reset to the seed every visit. Backed by an
@@ -45,8 +62,14 @@ struct RootTabView: View {
     @AppStorage("noop.liquidTodayEnabled") private var liquidTodayEnabled = true
 
     /// The Today tab root, honouring the liquid/classic preference.
+    ///
+    /// The Heute-screen redesign (StrandiOS/Redesign/) used to take priority here when its own
+    /// `noop.heuteRedesignEnabled` flag was on — removed along with its Settings toggle, since the
+    /// prototype never got past off-by-default/untested-on-a-real-strap. Its code is left in place,
+    /// just unreached from here, so no persisted `true` from an earlier build can resurrect it.
     @ViewBuilder private var todayTabRoot: some View {
-        if liquidTodayEnabled { LiquidTodayView() } else { TodayView() }
+        if liquidTodayEnabled { LiquidTodayView() }
+        else { TodayView() }
     }
 
     init() {
@@ -101,6 +124,15 @@ struct RootTabView: View {
             }
             .tint(StrandPalette.accent)
             .toolbar(.hidden, for: .tabBar)
+            // Reaches every tab root AND everything pushed within it (e.g. Coach, opened from the More
+            // list) — but NOT the FloatingTabBar itself (a ZStack sibling, not a TabView descendant) and
+            // NOT `.coachCover`'s fullScreenCover (attached to the ZStack below, also a sibling context).
+            // `.coachCover` additionally re-zeroes this explicitly for its own presented CoachView, since
+            // the Today-card entry point calls `.coachCover` on Today's OWN view — which, being a TabView
+            // descendant, would otherwise inherit this non-zero value despite being a true full-screen
+            // cover with no floating bar drawn over it.
+            .environment(\.floatingTabBarInset, floatingTabBarHeight)
+            .onPreferenceChange(FloatingTabBarHeightKey.self) { floatingTabBarHeight = $0 }
             // Tab crossfade — README §Motion: ~240ms opacity swap between tab roots, global calm
             // easing cubic-bezier(0.22,1,0.36,1).
             .animation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24), value: selectedTab)
@@ -138,7 +170,24 @@ struct RootTabView: View {
                     scrollTop[tag] += 1                // already at root: scroll to the top (#198 follow-up)
                 }
             })
+            // Measure the bar's own rendered footprint (capsule + its bottom padding) rather than
+            // hardcoding a guessed pixel value that would silently drift the day its padding/shadow
+            // change. Read via `.floatingTabBarInset` below by anything docked at the bottom of a
+            // pushed screen — today just Coach's composer (2026-07 "composer hidden behind the tab
+            // bar" fix) — that would otherwise sit UNDER this always-on-top overlay.
+            .background(
+                GeometryReader { proxy in
+                    Color.clear.preference(key: FloatingTabBarHeightKey.self, value: proxy.size.height)
+                }
+            )
+
+            // Draggable floating Coach button — an alternative entry to the Today banner, honouring the
+            // user's Coach-entry preference. Floats over every tab; a tap opens the chat.
+            if coachUIEnabled, coachFloatingButtonEnabled {
+                CoachFloatingButton(isPresented: $showCoach)
+            }
         }
+        .coachCover(isPresented: $showCoach, coach: coach)
         .task {
             await repo.refresh()
             // Backup & Sync: on-launch catch-up (see RootView). Detached + utility priority so a
@@ -159,6 +208,9 @@ struct RootTabView: View {
         .sheet(isPresented: $showDevices) {
             devicesScreen
         }
+        // Live Sessions: a full-screen cover (the guardian owns the display mid-session), presented from
+        // the quick-action menu or a coach deep-link. Same helper the macOS Today row uses.
+        .liveSessionCover(isPresented: $showLiveSession)
         // v5 pillar deep-links (Insights hub / Lab Book / fused record / Rhythm) present as a sheet in
         // their own nav stack — the same idiom the quick-action + Devices screens use on iPhone.
         .sheet(item: $routedPillar) { dest in
@@ -185,9 +237,15 @@ struct RootTabView: View {
                 withAnimation(Self.sheetEase) { quickAction = .live }
                 router.requestedDestination = nil
             case .liveSession:
-                // Live Sessions is presented from Today's own Start entry (a cover, not a routed sheet),
-                // so a deep-link lands on the Today tab where that entry lives.
-                withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 0 }
+                // The Start entry no longer lives on Today (it moved into the quick-action menu), so a
+                // deep-link presents the session cover straight from the shell instead of switching tabs
+                // and hoping the user finds a card. Mirrors how `.breathe` skips the menu step below.
+                showLiveSession = true
+                router.requestedDestination = nil
+            case .breathe:
+                // Reuses the SAME quick-action sheet machinery `.activeWorkout` does for `.live` — the
+                // coach chat's action row asks for Breathe directly, skipping the quick-action MENU step.
+                withAnimation(Self.sheetEase) { quickAction = .breathe }
                 router.requestedDestination = nil
             case .journal:
                 // The #627 Today journal widget opens the journal through the quick-action Journal sheet
@@ -197,6 +255,18 @@ struct RootTabView: View {
             case nil:
                 break
             }
+        }
+        // Daily coach check-in tapped (NOOP AI): jump to the More tab and open Coach on top of it.
+        // CoachView refreshes the brief itself — it observes the same event.
+        .onReceive(NotificationCenter.default.publisher(for: .noopOpenCoachCheckIn)) { _ in
+            withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 3 }
+            tabPaths[3] = NavigationPath([MoreDestination.coach])
+        }
+        // "Ask coach" tapped on a metric card (#P11): same jump — open Coach on top of the More tab; it
+        // reads the pending card context and gives a short read of that metric.
+        .onReceive(NotificationCenter.default.publisher(for: .noopOpenCoachCard)) { _ in
+            withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 3 }
+            tabPaths[3] = NavigationPath([MoreDestination.coach])
         }
         // A screen's top-bar "+" routes here: open the quick-action sheet, then clear the flag.
         .onChange(of: router.quickActionsRequested) { _, req in
@@ -228,6 +298,9 @@ struct RootTabView: View {
                 // .liveSession routes to the Today tab (handled above — its Start entry owns the cover);
                 // this keeps the switch exhaustive and falls back to Today if it ever reaches the host.
                 case .liveSession: LiquidTodayView()
+                // .breathe routes through the quick-action sheet (handled above); this keeps the switch
+                // exhaustive and falls back to BreathingView directly if it ever reaches the host.
+                case .breathe: BreathingView()
                 // .journal opens through the quick-action Journal sheet (handled above); this keeps the
                 // switch exhaustive and falls back to the journal's Insights host if it ever reaches here.
                 case .journal: InsightsView()
@@ -265,10 +338,13 @@ struct RootTabView: View {
                 // re-presents cleanly (avoids dismiss/re-present races). Calm easing on re-present.
                 quickAction = nil
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                    withAnimation(Self.sheetEase) { quickAction = picked }
+                    // The guardian is a full-screen cover, not one of the sheet destinations — route it to
+                    // its own presentation flag rather than back through `quickAction`.
+                    if picked == .liveSession { showLiveSession = true }
+                    else { withAnimation(Self.sheetEase) { quickAction = picked } }
                 }
             }
-            .presentationDetents([.height(344)])
+            .presentationDetents([.height(416)])
             .presentationDragIndicator(.hidden)
         case .live:
             quickScreen(LiveView())
@@ -278,6 +354,10 @@ struct RootTabView: View {
             quickScreen(InsightsView())
         case .breathe:
             quickScreen(BreathingView())
+        case .liveSession:
+            // Never reached: the picker routes the guardian to `showLiveSession` (a full-screen cover), so
+            // this arm only keeps the switch exhaustive.
+            EmptyView()
         }
     }
 
@@ -355,11 +435,21 @@ struct RootTabView: View {
             ScreenScaffold(title: "More", subtitle: "Everything else, one tap away",
                            onRefresh: { await repo.refresh() },
                            topBackground: liquidScaffoldSky()) {
-                moreSection("Insights") {
-                    MoreRow("What Moves You", "wand.and.sparkles", .insightsHub)
-                    MoreRow("Intelligence", "brain.head.profile", .intelligence)
-                    MoreRow("Coach", "sparkles", .coach)
-                    MoreRow("Insights", "lightbulb.fill", .insights)
+                // "Analysis" (was "Insights", §7) — clearer group name. Coach is intentionally NOT listed
+                // here: it's an action, reachable from the floating button, the Today tile and deep links,
+                // not a place (its .coach destination stays registered so those entry points still push it).
+                moreSection("Analysis") {
+                    // Renamed to match InsightsHubView's own ScreenScaffold title ("Insights") — the word
+                    // freed up once the section became "Analysis" and the old "Insights" row became "Journal".
+                    MoreRow("Insights", "wand.and.sparkles", .insightsHub)
+                    // Renamed from "Intelligence": names what the screen actually explains (its own subtitle
+                    // is "NOOP scores your charge, effort and rest itself: on-device, no cloud.").
+                    MoreRow("How Scoring Works", "brain.head.profile", .intelligence)
+                    MoreRow("Goal & Journey", "target", .goalJourney)
+                    // Named "Journal" (was "Insights", colliding with this section's name — redesign bug §1):
+                    // this row opens the behaviour-logging + personal-experiments screen, the same view the
+                    // "Log journal" quick action opens.
+                    MoreRow("Journal", "book.closed.fill", .insights)
                     MoreRow("Explore", "square.grid.2x2.fill", .explore)
                     MoreRow("Compare", "rectangle.split.2x1.fill", .compare)
                 }
@@ -367,12 +457,15 @@ struct RootTabView: View {
                     MoreRow("Live", "waveform.path.ecg", .live)
                     MoreRow("Workouts", "figure.run", .workouts)
                     MoreRow("Health", "heart.text.square.fill", .health)
-                    MoreRow("Lab Book", "books.vertical.fill", .labBook)
+                    // Renamed from "Lab Book": names the content directly (blood/BP/body numbers), not the
+                    // record-keeping metaphor.
+                    MoreRow("Biomarkers", "books.vertical.fill", .labBook)
                     MoreRow("Stress", "bolt.heart.fill", .stress)
                     MoreRow("Breathe", "wind", .breathe)
                     MoreRow("Intervals", "timer", .intervals)
                     // Experimental beat-to-beat regularity visualization — self-gates on its own consent.
-                    MoreRow("Rhythm", "waveform.path", .rhythm)
+                    // Renamed from "Rhythm": explicit that this is about heartbeat, not daily/circadian rhythm.
+                    MoreRow("Beat Rhythm", "waveform.path", .rhythm)
                 }
                 moreSection("Data") {
                     MoreRow("Your Data, Fused", "square.stack.3d.up.fill", .fusedRecord)
@@ -484,7 +577,7 @@ struct RootTabView: View {
 /// per-screen chrome the old inline links applied lives at the single `navigationDestination(for:)`
 /// registration in `moreTab`.
 private enum MoreDestination: Hashable {
-    case insightsHub, intelligence, coach, insights, explore, compare
+    case insightsHub, intelligence, coach, goalJourney, insights, explore, compare
     case live, workouts, health, labBook, stress, breathe, intervals, rhythm
     case fusedRecord, appleHealth, miBand, dataSources, backupSync, shortcutsExport
     case alarms, automations, testCentre, siriShortcuts, settings
@@ -494,6 +587,7 @@ private enum MoreDestination: Hashable {
         case .insightsHub:     InsightsHubView()
         case .intelligence:    IntelligenceView()
         case .coach:           CoachView()
+        case .goalJourney:     CoachGoalJourneyScreen()
         case .insights:        InsightsView()
         case .explore:         MetricExplorerView()
         case .compare:         CompareView()
@@ -530,8 +624,19 @@ private struct MoreRow: View {
     let icon: String
     let route: MoreDestination
 
+    /// Single global switch (Settings → Appearance), OFF by default so every row stays the plain
+    /// `StrandPalette.accent` blue exactly as before. ON recolors every row at once to
+    /// `MoreRowAppleHealthColors`' Apple Health-style palette — never per-row, never persisted per icon.
+    /// Read directly here (rather than threaded through `init`) so all 25 `MoreRow(...)` call sites in
+    /// `moreTab` stay untouched.
+    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = true
+
     init(_ title: LocalizedStringKey, _ icon: String, _ route: MoreDestination) {
         self.title = title; self.icon = icon; self.route = route
+    }
+
+    private var tint: Color {
+        appleHealthColors ? MoreRowAppleHealthColors.color(for: String(describing: route)) : StrandPalette.accent
     }
 
     var body: some View {
@@ -542,7 +647,7 @@ private struct MoreRow: View {
                 // explicit foregroundStyle on the image overrides that; the title keeps the primary colour.
                 Image(systemName: icon)
                     .font(.system(size: 17, weight: .regular))
-                    .foregroundStyle(StrandPalette.accent)
+                    .foregroundStyle(tint)
                     .frame(width: 26, alignment: .center)
                 Text(title)
                     .font(StrandFont.body)
@@ -574,7 +679,7 @@ private struct MoreRow: View {
 /// The destinations the centre FAB can present. `.menu` is the action sheet itself; the rest
 /// route to existing screens. `Identifiable` so it drives `.sheet(item:)`.
 private enum QuickAction: Int, Identifiable {
-    case menu, live, workout, journal, breathe
+    case menu, live, workout, journal, breathe, liveSession
     var id: Int { rawValue }
 }
 
@@ -583,6 +688,10 @@ private enum QuickAction: Int, Identifiable {
 private struct QuickActionSheet: View {
     /// Called with the picked destination (the host swaps the menu for that screen).
     let onPick: (QuickAction) -> Void
+
+    /// Live Sessions (silent guardian) beta gate — the SAME key Settings and the macOS Today row read.
+    /// Off removes the row entirely, exactly as it used to remove the Today Start-session entry.
+    @AppStorage(LiveSessionPrefs.betaKey) private var liveSessionsBeta = true
 
     var body: some View {
         VStack(spacing: 0) {
@@ -606,6 +715,13 @@ private struct QuickActionSheet: View {
                 row("Start workout", icon: "figure.run", tint: StrandPalette.effortColor) { onPick(.workout) }
                 row("Log journal", icon: "square.and.pencil", tint: StrandPalette.accent) { onPick(.journal) }
                 row("Breathe", icon: "wind", tint: StrandPalette.restColor) { onPick(.breathe) }
+                if liveSessionsBeta {
+                    // A Live Session is NOT a breathing exercise — it is quiet strap coaching against
+                    // today's Charge — so it carries a subtitle here. Sitting one row under "Breathe"
+                    // without one, the two would read as duplicates of each other.
+                    row("Silent Guardian", icon: "shield.lefthalf.filled", tint: StrandPalette.metricCyan,
+                        subtitle: "Quiet strap coaching against today's Charge") { onPick(.liveSession) }
+                }
             }
             .padding(.horizontal, 16)
 
@@ -624,8 +740,10 @@ private struct QuickActionSheet: View {
         )
     }
 
-    /// One flat action row: hued line-icon tile + title, inset surface, hairline border.
-    private func row(_ title: LocalizedStringKey, icon: String, tint: Color, action: @escaping () -> Void) -> some View {
+    /// One flat action row: hued line-icon tile + title, inset surface, hairline border. `subtitle` is for
+    /// the rare row whose title alone can be mistaken for a neighbour's (see Silent Guardian vs Breathe).
+    private func row(_ title: LocalizedStringKey, icon: String, tint: Color,
+                     subtitle: LocalizedStringKey? = nil, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 13) {
                 Image(systemName: icon)
@@ -633,9 +751,17 @@ private struct QuickActionSheet: View {
                     .foregroundStyle(tint)
                     .frame(width: 38, height: 38)
                     .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(StrandPalette.surfaceInset))
-                Text(title)
-                    .font(StrandFont.headline)
-                    .foregroundStyle(StrandPalette.textPrimary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(StrandFont.headline)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .semibold))
@@ -648,6 +774,29 @@ private struct QuickActionSheet: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+}
+
+/// Carries `FloatingTabBar`'s measured on-screen height up to `RootTabView`, which republishes it via
+/// `\.floatingTabBarInset`. `reduce` just takes the latest report — there is only ever one bar.
+private struct FloatingTabBarHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
+/// How much extra bottom clearance a pushed screen needs to clear the floating tab bar drawn on top of
+/// it — 0 everywhere outside the tab shell (macOS's sidebar `RootView`, or a true full-screen
+/// presentation like `.coachCover`, never sets this), so anything reading it is inert by default and
+/// only opts in where the bar is actually floating above. Mirrors `scrollToTopSignal`'s pattern
+/// (`ScreenScaffold.swift`) for threading a tab-shell-only layout fact down through pushed content.
+private struct FloatingTabBarInsetKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 0
+}
+
+extension EnvironmentValues {
+    var floatingTabBarInset: CGFloat {
+        get { self[FloatingTabBarInsetKey.self] }
+        set { self[FloatingTabBarInsetKey.self] = newValue }
     }
 }
 
@@ -724,17 +873,7 @@ private struct FloatingTabBar: View {
 
 }
 
-// MARK: - Liquid Glass (iOS 26) with a Material fallback
-
-private extension View {
-    /// Real iOS 26 Liquid Glass where available; `.ultraThinMaterial` on iOS 17–25 — a clean
-    /// blended degrade so the bar stays modern on new OSes without breaking older ones.
-    @ViewBuilder func liquidGlass(in shape: some Shape) -> some View {
-        if #available(iOS 26.0, *) {
-            self.glassEffect(.regular, in: shape)
-        } else {
-            self.background(.ultraThinMaterial, in: shape)
-        }
-    }
-}
+// The `liquidGlass(in:)` helper this bar uses now lives beside the other liquid view helpers
+// (`Strand/Liquid/LiquidPrimitives.swift`) — Today's hero card calls the same one, and two copies of an
+// availability-gated effect would inevitably drift.
 #endif

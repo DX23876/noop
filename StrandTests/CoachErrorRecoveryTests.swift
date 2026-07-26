@@ -144,4 +144,3 @@ final class CoachErrorRecoveryTests: XCTestCase {
                      "a stale typed error would leave a Retry under a chat that has since succeeded")
     }
 }
-

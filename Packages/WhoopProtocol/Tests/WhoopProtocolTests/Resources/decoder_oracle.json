@@ -119,8 +119,7 @@
         "temp_aux_1_raw": 247,
         "temp_aux_2_raw": 265,
         "unknown_f32_113": -5.2307,
-        "gravity_mag": 1.0,
-        "dynamic_acceleration": 0.00916
+        "gravity_mag": 1.0
       }
     },
     {
@@ -133,8 +132,7 @@
         "unix": 1780916152,
         "heart_rate": 101,
         "rr_count": 1,
-        "rr_intervals": [595],
-        "dynamic_acceleration": 0.010708
+        "rr_intervals": [595]
       }
     },
     {
@@ -149,8 +147,7 @@
         "hist_version": 18,
         "unix": 1780910472,
         "heart_rate": 0,
-        "skin_temp_raw": 2247,
-        "dynamic_acceleration": 0.005963
+        "skin_temp_raw": 2247
       }
     },
     {
@@ -167,8 +164,7 @@
         "temp_aux_2_raw": 310,
         "status_word_1": 3073,
         "status_word_2": 3074,
-        "gravity_mag": 1.0,
-        "dynamic_acceleration": 0.014449
+        "gravity_mag": 1.0
       }
     },
     {
@@ -186,8 +182,7 @@
         "onwrist": 1,
         "wake_quality": 0,
         "sleep_state": 0,
-        "skin_temp_raw": 2962,
-        "dynamic_acceleration": 0.032788
+        "skin_temp_raw": 2962
       }
     },
     {
@@ -201,8 +196,7 @@
         "optical_amp_b": 28,
         "hist_version": 18,
         "unix": 1781124622,
-        "heart_rate": 63,
-        "dynamic_acceleration": 0.008421
+        "heart_rate": 63
       }
     }
   ]

@@ -58,6 +58,21 @@ enum KeyMetricPrefs {
     /// UserDefaults key — a comma-joined list of `KeyMetric` rawValues in display order.
     static let layoutKey = "today.keyMetrics"
 
+    /// How many tiles per row the liquid grid draws. 3 (the long-standing hard-coded value) stays the
+    /// default; 2 is the calmer option — fewer, wider tiles with a bigger number and a taller sparkline,
+    /// for users who find ten tiles three abreast overwhelming. Display-only and iOS-side only, so it is
+    /// deliberately NOT in the `.noopbak` whitelist (which carries no `today.*` key at all).
+    static let columnsKey = "today.keyMetricsColumns"
+
+    /// The supported column counts, narrowest first — also the picker's contents.
+    static let columnChoices = [2, 3]
+
+    /// Clamp a stored/possible column count to something the grid can actually draw. An unset key reads
+    /// as 0, which lands on the 3-column default.
+    static func columns(_ raw: Int) -> Int {
+        columnChoices.contains(raw) ? raw : 3
+    }
+
     /// Encode an ordered list of enabled tiles into the stored comma-joined string.
     static func encode(_ metrics: [KeyMetric]) -> String {
         metrics.map(\.rawValue).joined(separator: ",")

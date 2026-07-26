@@ -22,6 +22,7 @@ public enum TestDomain: String, CaseIterable, Sendable, Codable {
     case sources            // 11 Sources, Fusion and Metric Decode
     case stress             // 12 Stress and Illness
     case longevity          // 13 Longevity, Cycles and Haptics
+    case circadian          // 14 Circadian and Body Clock  (guided, days — the cosinor fit needs a run)
     case master             // Log Everything
 
     /// Stable wire id used in log tags, meta.json and the GitHub label. NOTE: `dataImport` maps to "import".

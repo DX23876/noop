@@ -1,6 +1,7 @@
 import XCTest
 import StrandAnalytics
 import StrandDesign
+import WhoopStore
 @testable import Strand
 
 /// LANE 2 (iOS UI) presentation helpers behind the "What shaped it" Charge breakdown, the score-
@@ -147,5 +148,96 @@ final class ChargeBreakdownFormatTests: XCTestCase {
 
         // Enough deep sleep banked: the nil (if any) has some other cause, not "no deep sleep".
         XCTAssertFalse(ChargeBreakdownFormat.chargeDeepWindowGap(hrvWindow: .deep, avgHrv: nil, deepMin: 12.0))
+    }
+
+    // MARK: - compute(row:days:restScore:) — the shared classic+Heute extraction (D3)
+
+    /// A day carrying the overnight vitals `compute` folds over.
+    private func vitalsDay(_ key: String, hrv: Double?, rhr: Int?, resp: Double?,
+                           recovery: Double? = nil, skinTempDevC: Double? = nil) -> DailyMetric {
+        DailyMetric(day: key, totalSleepMin: nil, efficiency: nil, deepMin: nil, remMin: nil,
+                    lightMin: nil, disturbances: nil, restingHr: rhr, avgHrv: hrv,
+                    recovery: recovery, strain: nil, exerciseCount: nil,
+                    skinTempDevC: skinTempDevC, respRateBpm: resp)
+    }
+
+    /// ≥ `minNightsSeed` nights of vitals so the HRV baseline folds to `usable`; below that `compute`
+    /// returns nil by design (calibrating).
+    private func usableHistory() -> [DailyMetric] {
+        (1...12).map { i in
+            vitalsDay(String(format: "2026-07-%02d", i),
+                      hrv: 60 + Double(i % 5), rhr: 55 + (i % 4), resp: 14 + Double(i % 3) * 0.2)
+        }
+    }
+
+    /// The extraction must forward its inputs to the engine UNCHANGED: composing the same folded baselines
+    /// and calling `RecoveryScorer.chargeDrivers` / `ScoreConfidence.charge` here must reproduce exactly
+    /// what `compute` returns. This is what stops classic Today and Heute (its two only callers) from
+    /// drifting — any change to how the row/history/restScore are folded or forwarded fails this.
+    func testComputeMatchesTheEngineCompositionVerbatim() {
+        var days = usableHistory()
+        let row = vitalsDay("2026-07-13", hrv: 72, rhr: 58, resp: 14.2, recovery: 66, skinTempDevC: 0.3)
+        days.append(row)
+        let restScore = 84.0
+
+        guard let out = ChargeBreakdownFormat.compute(row: row, days: days, restScore: restScore) else {
+            return XCTFail("a scored night with a usable HRV baseline must yield a breakdown")
+        }
+
+        let hrvBase = Baselines.foldHistory(days.map(\.avgHrv), cfg: Baselines.hrvCfg)
+        XCTAssertTrue(hrvBase.usable, "fixture must fold to a usable HRV baseline")
+        let rhrBase = Baselines.foldHistory(days.map { $0.restingHr.map(Double.init) },
+                                            cfg: Baselines.restingHRCfg)
+        let respBase = Baselines.foldHistory(days.map(\.respRateBpm), cfg: Baselines.respCfg)
+        let expected = RecoveryScorer.chargeDrivers(
+            hrv: 72, rhr: 58, resp: 14.2,
+            hrvBaseline: hrvBase,
+            rhrBaseline: rhrBase.usable ? rhrBase : nil,
+            respBaseline: respBase.usable ? respBase : nil,
+            sleepPerf: restScore / 100.0, skinTempDev: 0.3)
+
+        XCTAssertEqual(out.drivers, expected, "compute must forward inputs to chargeDrivers unchanged")
+        XCTAssertFalse(out.drivers.isEmpty, "a scored night attributes at least one driver")
+        XCTAssertEqual(out.confidence, ScoreConfidence.charge(recovery: 66, hrvBaseline: hrvBase),
+                       "confidence must be surfaced from the SAME folded HRV baseline the drivers scored with")
+        // Biggest mover first (the engine's documented order) so the UI sizes bars against drivers[0].
+        let mags = out.drivers.map { abs($0.deltaPoints) }
+        XCTAssertEqual(mags, mags.sorted(by: >), "drivers stay ordered biggest-mover-first")
+    }
+
+    /// The nil guards, identical to the pre-extraction `TodayView.chargeBreakdown()`: no row, no HRV, no
+    /// resting HR, or too little history for a usable HRV baseline all mean "nothing to attribute" and the
+    /// caller must gate through to the calibration copy instead of an empty breakdown.
+    func testComputeReturnsNilForTheColdStartAndCalibratingGuards() {
+        let history = usableHistory()
+
+        // No row resolved at all.
+        XCTAssertNil(ChargeBreakdownFormat.compute(row: nil, days: history, restScore: 80))
+
+        // Row missing HRV -> nil (Charge needs a nightly HRV to attribute).
+        let noHrv = vitalsDay("2026-07-13", hrv: nil, rhr: 58, resp: 14.2, recovery: 66)
+        XCTAssertNil(ChargeBreakdownFormat.compute(row: noHrv, days: history + [noHrv], restScore: 80))
+
+        // Row missing resting HR -> nil.
+        let noRhr = vitalsDay("2026-07-13", hrv: 72, rhr: nil, resp: 14.2, recovery: 66)
+        XCTAssertNil(ChargeBreakdownFormat.compute(row: noRhr, days: history + [noRhr], restScore: 80))
+
+        // Row present but too little history for a usable HRV baseline (< seed nights) -> nil.
+        let row = vitalsDay("2026-07-02", hrv: 72, rhr: 58, resp: 14.2, recovery: 66)
+        let thin = [vitalsDay("2026-07-01", hrv: 60, rhr: 55, resp: 14), row]
+        XCTAssertNil(ChargeBreakdownFormat.compute(row: row, days: thin, restScore: 80))
+    }
+
+    /// A missing `restScore` (Rest ring calibrating / no sleep-performance value) must not break the
+    /// breakdown — the sleep-quality term simply drops, exactly as `TodayView.chargeBreakdown()` passed a
+    /// nil `sleepPerf` through. The other drivers still attribute.
+    func testComputeToleratesMissingRestScore() {
+        var days = usableHistory()
+        let row = vitalsDay("2026-07-13", hrv: 72, rhr: 58, resp: 14.2, recovery: 66)
+        days.append(row)
+
+        let out = ChargeBreakdownFormat.compute(row: row, days: days, restScore: nil)
+        XCTAssertNotNil(out, "a nil restScore drops the sleep term but must not nil out the whole breakdown")
+        XCTAssertEqual(out?.drivers.isEmpty, false, "the HRV/RHR terms still attribute without a Rest score")
     }
 }

@@ -179,16 +179,19 @@ public struct TrendChart: View {
     public var body: some View {
         Chart {
             if showsBars {
-                // Bar mode: one value-ramp-filled BarMark per (down-sampled) sample, from the baseline.
-                // The line, area and point marks are all replaced. The same `displayPoints` feed it, so a
-                // dense window is min/max-bucketed to the vertex budget exactly as the line is; hover, the
-                // axes, the domain and accessibility are unchanged (they read the full `points`).
+                // Bar mode: one BarMark per (down-sampled) sample, from the baseline, coloured by SAMPLING
+                // the ramp at the bar's own value — so the colour ENCODES the value (a low bar reads red, a
+                // high bar green), the same rule the point marks use. A vertical bottom→top gradient per bar
+                // looked identical on every bar and encoded nothing (redesign bug §1). The line, area and
+                // point marks are all replaced. The same `displayPoints` feed it, so a dense window is
+                // min/max-bucketed to the vertex budget exactly as the line is; hover, the axes, the domain
+                // and accessibility are unchanged (they read the full `points`).
                 ForEach(displayPoints) { p in
                     BarMark(
                         x: .value("Date", p.date),
                         y: .value("Value", p.value)
                     )
-                    .foregroundStyle(valueGradient)
+                    .foregroundStyle(StrandPalette.sample(stops: gradient.toStops(), at: unit(p.value)))
                 }
             } else {
                 if showsArea {

@@ -107,17 +107,12 @@ extension WhoopStore {
         }
     }
 
-    /// R-R intervals in EMISSION order (#823). `ord` leads the sort: ordering by `rrMs` returned a
-    /// second's beats sorted by VALUE, which makes successive beats similar by construction and biases
-    /// RMSSD — all successive differences — downward. Pre-v30 rows have `ord` NULL and SQLite sorts NULL
-    /// first in ASC, so an all-NULL second ties and falls through to the old (rrMs, seq) order unchanged.
-    /// Byte-parity twin of Kotlin `WhoopDao.rrIntervals`; both are SQLite, so NULL ordering matches.
     public func rrIntervals(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [RRInterval] {
         try syncRead { db in
             try Row.fetchAll(db, sql: """
                 SELECT ts, rrMs FROM rrInterval
                 WHERE deviceId = ? AND ts >= ? AND ts <= ?
-                ORDER BY ts ASC, ord ASC, rrMs ASC, seq ASC LIMIT ?
+                ORDER BY ts ASC, rrMs ASC, seq ASC LIMIT ?
                 """, arguments: [deviceId, from, to, limit])
                 .map { RRInterval(ts: $0["ts"], rrMs: $0["rrMs"]) }
         }

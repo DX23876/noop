@@ -140,27 +140,4 @@ enum PuffinExperiment {
     static let motionAwareWakeKey = "noopMotionAwareWake"
 
     static var motionAwareWakeEnabled: Bool { UserDefaults.standard.bool(forKey: motionAwareWakeKey) }
-
-    /// Every 5/MG-only probe key, in ONE place — the twin of Kotlin's `FIVE_MG_GATED_KEYS`.
-    ///
-    /// The capture flag deliberately appears here even though it is declared on `PuffinFrameRecorder`
-    /// rather than on this type, and under a DIFFERENT string (`noopPuffinCapture` vs Kotlin's
-    /// `noopWhoop5Capture`). That split is exactly why it was missed when this reset first shipped:
-    /// grepping this file for a capture key found nothing, and grepping for the Kotlin key name found
-    /// nothing either. Add new gated probes here, not inline in the reset.
-    static let fiveMGGatedKeys: [String] = [
-        defaultsKey,                     // protocol probes
-        deepDataKey,                     // R22 deep-data strap write
-        broadcastHrKey,                  // broadcast-HR write
-        PuffinFrameRecorder.enabledKey,  // raw frame capture — declared on PuffinFrameRecorder
-    ]
-
-    /// Turn OFF every key in [fiveMGGatedKeys] on a strap FAMILY switch (WHOOP 4.0 ↔ 5/MG), so a
-    /// 5/MG-only option cannot linger enabled and get applied to a strap that does not support it.
-    /// The line is "does it SEND something to the strap" — model-agnostic analysis toggles (continuous
-    /// HRV, experimental sleep V2, auto-detect workouts) are deliberately left alone. Mirrors the
-    /// Android `PuffinExperiment.resetFiveMGGatedProbes`.
-    static func resetFiveMGGatedProbes() {
-        for key in fiveMGGatedKeys { UserDefaults.standard.set(false, forKey: key) }
-    }
 }

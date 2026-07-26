@@ -266,8 +266,6 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     /// SQLite). Created only on a live/persisting source (nil for the discovery-only scanner). Deduped by
     /// ring-time so re-served records don't duplicate; logs its file path once when the first record lands.
     private let activityDump: OuraActivityDump?
-    /// Append-only JSONL sidecar for the 0x47 motion vectors (Tier-A), for offline LSB→g calibration (#804).
-    private let motionDump: OuraMotionDump?
     /// Cached local-day formatter (the 0x50 stream is high-volume; avoid building one per record).
     private static let activityDayFormatter: DateFormatter = {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f   // local time zone by default
@@ -774,8 +772,6 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         self.adoptIntent = adoptIntent
         // Tier-B MET research corpus: only on a live/persisting source, never the discovery-only scanner.
         self.activityDump = feedsLive && !deviceId.isEmpty ? OuraActivityDump(deviceId: deviceId, log: log) : nil
-        // 0x47 motion calibration corpus: same gate as the activity dump (live/persisting source only).
-        self.motionDump = feedsLive && !deviceId.isEmpty ? OuraMotionDump(deviceId: deviceId, log: log) : nil
         super.init()
         // Dedicated queue-less central -> callbacks arrive on the main queue, matching @MainActor.
         self.central = CBCentralManager(delegate: self, queue: nil)
@@ -1060,12 +1056,7 @@ public final class OuraLiveSource: NSObject, ObservableObject {
         for pending in pendingAnchorEvents {
             if let ts = driver.unixSeconds(forRingTimestamp: pending.ringTimestamp) {
                 enqueue([pending.event], ts: ts)
-                // A parked IBI can be a LIVE beat that arrived before the anchor (see .ibi in ingest());
-                // it must never advance the resume cursor either, or a live push could skip un-drained
-                // backlog on a force-stopped drain. Only the history-only siblings drive the cursor.
-                if case .ibi = pending.event {} else {
-                    noteStoredHistoryRingTime(pending.ringTimestamp)   // parked history sample placed → advance resume cursor
-                }
+                noteStoredHistoryRingTime(pending.ringTimestamp)   // parked sample placed → advance resume cursor
             } else {
                 enqueue([pending.event], ts: now)   // honest wall-clock fallback; NEVER advances the cursor
             }
@@ -1091,14 +1082,12 @@ public final class OuraLiveSource: NSObject, ObservableObject {
     }
 
     /// Fold decoded events into live state (HR / R-R only - skin temp and SpO2 are SLEEP-ONLY on this
-    /// hardware, never a live readout) + the persist buffer. Genuinely-live pushes (HR/battery) are stamped
-    /// at wall-clock arrival time, since they really are "now". Ring-time-carrying events (IBI, temp, SpO2,
-    /// HRV, sleep-phase) are stamped with their REAL ring-time-anchored UTC (s5.5) so last night's banked
-    /// data is never mis-recorded as happening right now; when no anchor has arrived yet this session, we
-    /// park the event until one does (`pendingAnchorEvents`), rather than immediately guessing wall-clock.
-    /// (IBI is special: it arrives both live and banked, so it anchors like history but — unlike the
-    /// history-only streams — never advances the resume cursor; see the `.ibi` case.) Out-of-range HR/temp
-    /// is dropped, never shown.
+    /// hardware, never a live readout) + the persist buffer. Live-push events (HR/IBI/battery) are stamped
+    /// at wall-clock arrival time, since they genuinely are "now". History-fetched events (temp, SpO2, HRV,
+    /// sleep-phase) are stamped with their REAL ring-time-anchored UTC (s5.5) so last night's data is never
+    /// mis-recorded as happening right now; when no anchor has arrived yet this session, we park the event
+    /// until one does (`pendingAnchorEvents`), rather than immediately guessing wall-clock. Out-of-range
+    /// HR/temp is dropped, never shown.
     private func ingest(_ events: [OuraEvent]) {
         guard !events.isEmpty, let driver else { return }
         let now = Int(Date().timeIntervalSince1970)
@@ -1177,22 +1166,7 @@ public final class OuraLiveSource: NSObject, ObservableObject {
 
             case .ibi(let ibi):
                 if feedsLive { live.setRRIntervals([ibi.ibiMs]) }
-                // A banked IBI is history data: anchor it to its REAL ring-time, exactly like the sibling
-                // banked streams (.hrv/.temp/.spo2/.sleepPhase) below — never the drain-arrival `now`.
-                // Stamping it at `now` (52b6e88d) misfiled every overnight beat to the daytime sync moment,
-                // so the sleep window ended up with zero R-R -> no restingHr/avgHrv for the night.
-                if let ts = driver.unixSeconds(forRingTimestamp: ibi.ringTimestamp) {
-                    enqueue([e], ts: ts)
-                    // NOTE: unlike the history-only siblings, do NOT noteStoredHistoryRingTime here — IBI is
-                    // the one stream that arrives both LIVE (ring-time ~now) and banked, indistinguishable
-                    // at this call site except by ring-time. Letting a live beat advance the resume cursor
-                    // could leap `maxStoredRingTime` to ~now during a force-stopped drain (300s/stall guard,
-                    // bytes_left > 0) and permanently skip the un-drained backlog. The resume cursor is still
-                    // driven correctly by the history-only siblings (hrv/temp/spo2/sleepPhase) that share the
-                    // same night window; this also matches Kotlin, which notes no stream's ring-time.
-                } else {
-                    pendingAnchorEvents.append((e, ibi.ringTimestamp))
-                }
+                enqueue([e], ts: now)
 
             case .battery(let bat):
                 batteryPct = bat.percent
@@ -1376,20 +1350,8 @@ public final class OuraLiveSource: NSObject, ObservableObject {
                     publishWearState()
                 }
 
-            case .motionEvent(let m):
-                // 0x47 averaged accel vector (Tier-A). Diagnostic sidecar ONLY for now: decode + store + log
-                // the vector beside the incumbent so the LSB→g scale + cadence can be pinned offline from a
-                // still capture (issue #804). Never persisted to SQLite, never scored — OuraStreamMapping
-                // drops .motionEvent until the scale is calibrated. Anchored records only (deduped by
-                // ring-time inside the writer).
-                if let utc = driver.unixSeconds(forRingTimestamp: m.ringTimestamp) {
-                    motionDump?.record(ringTs: m.ringTimestamp, utc: utc, orientation: m.orientation,
-                                       motionSeconds: m.motionSeconds, x: m.avgX, y: m.avgY, z: m.avgZ,
-                                       lowIntensity: m.lowIntensity, highIntensity: m.highIntensity)
-                }
-
             default:
-                break   // state / debugText / etc: not a durable Streams row (see OuraStreamMapping)
+                break   // motion / debugText / etc: not a durable Streams row (see OuraStreamMapping)
             }
         }
     }

@@ -1,0 +1,16 @@
+<svg width="1024" height="1024" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Full-bleed square, no rounded corners and no border: iOS applies its own corner mask and
+       shadow at render time, so pre-rounding here would only reintroduce the transparent-corner
+       problem the GitHub logo had (docs/assets/logo.svg's rx=116 rect leaves its four corners
+       uncovered; QuickLook/other flatteners then bake those as OPAQUE WHITE, not transparent —
+       verified by rasterizing that file and reading its corner pixels: 255,255,255,255). Filling
+       the entire square with the background colour makes that failure mode structurally
+       impossible: there is no uncovered corner left to mis-render. -->
+  <rect width="512" height="512" fill="#060A08"/>
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#2FE6A8" stroke-width="26"
+          stroke-linecap="round" stroke-dasharray="735 208" transform="rotate(-90 256 256)"/>
+  <circle cx="256" cy="256" r="112" fill="none" stroke="#60A0E0" stroke-width="26"
+          stroke-linecap="round" stroke-dasharray="450 254" transform="rotate(-90 256 256)"/>
+  <circle cx="256" cy="256" r="74" fill="none" stroke="#9FB4C9" stroke-width="26"
+          stroke-linecap="round" stroke-dasharray="418 47" transform="rotate(-90 256 256)"/>
+</svg>

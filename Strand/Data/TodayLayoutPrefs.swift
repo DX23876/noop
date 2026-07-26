@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import StrandDesign
 
 // MARK: - Reorderable Today sections (#today-layout)
 //
@@ -19,6 +20,7 @@ import SwiftUI
 /// One reorderable Today section. The rawValue is the stable persisted identifier — keep it byte-identical
 /// to the Android `TodaySection` enum so a backup/restore reads the same layout on either OS.
 enum TodaySection: String, CaseIterable, Identifiable {
+    case coach
     case hero
     case liveSession
     case synthesis
@@ -28,12 +30,14 @@ enum TodaySection: String, CaseIterable, Identifiable {
     case recoveryVitals
     case yourCards
     case journal
+    case dataSources
 
     var id: String { rawValue }
 
     /// The section's display label in the Arrange sheet — matches the Android `TodaySection.title`.
     var title: String {
         switch self {
+        case .coach:          return String(localized: "Coach")
         case .hero:           return String(localized: "Charge / Effort / Rest")
         case .liveSession:    return String(localized: "Start session")
         case .synthesis:      return String(localized: "Synthesis")
@@ -43,15 +47,36 @@ enum TodaySection: String, CaseIterable, Identifiable {
         case .recoveryVitals: return String(localized: "Recovery Vitals")
         case .yourCards:      return String(localized: "Your Cards")
         case .journal:        return String(localized: "Journal")
+        case .dataSources:    return String(localized: "Data Sources")
         }
     }
 
     /// The original, hard-coded section order — the default when the layout isn't customised. The journal
-    /// widget (#656) is last by default, where it was first added, above the data-sources card.
+    /// widget (#656) sits above the data-sources card, which is last. Coach leads the list — the same spot
+    /// its full-width banner has always held on classic Today, before the hero scores.
     static let defaultOrder: [TodaySection] = [
-        .hero, .liveSession, .synthesis, .keyMetrics, .workouts, .heartRate, .recoveryVitals, .yourCards,
-        .journal,
+        .coach, .hero, .liveSession, .synthesis, .keyMetrics, .workouts, .heartRate, .recoveryVitals,
+        .yourCards, .journal, .dataSources,
     ]
+
+    /// Sections hidden by default on a new/never-customised install: none. The redesign originally
+    /// decluttered Heart Rate, Recovery Vitals, Your Cards and Data Sources off the home screen by default;
+    /// that default was reverted (product decision) so a fresh install shows every section, matching the
+    /// classic Today. Not a removal of the feature — the Arrange sheet still lets a user hide any section,
+    /// and the stored `today.hiddenSections` string remains authoritative once set (an empty string = nothing
+    /// hidden, same as this default), so existing users who already hid sections keep that choice untouched.
+    static let defaultHidden: Set<TodaySection> = []
+
+    /// UX hierarchy: "major" sections (the hero scores, the Synthesis verdict, the Key Metrics grid, and
+    /// the Recovery Vitals) carry more visual weight and get extra breathing room above them, while minor
+    /// sections (workouts, HR, journal, data sources) sit tighter. This drives the graduated spacing in
+    /// LiquidTodayView's section stack so the screen reads in clear groups instead of a uniform dense list.
+    var isMajorSection: Bool {
+        switch self {
+        case .hero, .synthesis, .keyMetrics, .recoveryVitals: return true
+        default: return false
+        }
+    }
 }
 
 /// Display-only persistence for the Today section order. Holds the sections in display order; every known
@@ -60,6 +85,23 @@ enum TodaySection: String, CaseIterable, Identifiable {
 enum TodayLayoutPrefs {
     /// UserDefaults key — a comma-joined list of `TodaySection` rawValues in display order.
     static let orderKey = "today.sectionOrder"
+
+    /// UserDefaults key — a comma-joined list of `TodaySection` rawValues that are HIDDEN (§4). Its
+    /// @AppStorage default is `encodeHidden(TodaySection.defaultHidden)`, so an unset install hides the
+    /// redesign's decluttered set; an explicit empty string means "show everything".
+    static let hiddenKey = "today.hiddenSections"
+
+    /// Encode a hidden set into the stored string, in `allCases` order so it's deterministic.
+    static func encodeHidden(_ hidden: Set<TodaySection>) -> String {
+        TodaySection.allCases.filter(hidden.contains).map(\.rawValue).joined(separator: ",")
+    }
+
+    /// Decode the stored hidden string into a set (unknown tokens dropped). An empty string = nothing hidden.
+    static func decodeHidden(_ raw: String) -> Set<TodaySection> {
+        Set(raw.split(separator: ",").compactMap {
+            TodaySection(rawValue: $0.trimmingCharacters(in: .whitespaces))
+        })
+    }
 
     /// Encode an ordered section list into the stored comma-joined string.
     static func encode(_ sections: [TodaySection]) -> String {
@@ -94,5 +136,95 @@ enum TodayLayoutPrefs {
             if let insertAt { saved.insert(missing, at: insertAt) } else { saved.append(missing) }
         }
         return saved
+    }
+}
+
+// MARK: - Arrange sheet (shared by Liquid Today and Classic Today)
+
+/// #today-layout: the Arrange sheet — reorder the Today sections by dragging rows (SwiftUI's native
+/// `onMove`; the always-active edit mode on iOS shows the reorder handles without an Edit button). Writes
+/// straight through to the persisted order, so Today re-lays-out live behind the sheet. Reset restores the
+/// default order. Twin of the Android TodayLayoutEditorDialog over the byte-identical "today.sectionOrder".
+/// Shared verbatim between `LiquidTodayView` and classic `TodayView` — built from `StrandFont`/
+/// `StrandPalette` tokens only, no Liquid-specific chrome, so it reads at home in either screen's own
+/// navigation.
+struct TodayArrangeSheet: View {
+    @Binding var orderRaw: String
+    /// The persisted hidden set (§4): each row carries an eye toggle that shows/hides its section.
+    @Binding var hiddenRaw: String
+    @Environment(\.dismiss) private var dismiss
+
+    private var hidden: Set<TodaySection> { TodayLayoutPrefs.decodeHidden(hiddenRaw) }
+
+    private func toggleHidden(_ section: TodaySection) {
+        var next = hidden
+        if next.contains(section) { next.remove(section) } else { next.insert(section) }
+        hiddenRaw = TodayLayoutPrefs.encodeHidden(next)
+    }
+
+    var body: some View {
+        // On iOS the Start-session section renders nothing (the entry moved into the "+" quick-action
+        // sheet), so listing it here would offer to arrange something the user can't see. Dropping it from
+        // the written order is safe in both directions: `decodeOrder` re-inserts a known-but-missing section
+        // at its default spot, and an Android-saved order containing it still decodes fine.
+        let order = TodayLayoutPrefs.decodeOrder(orderRaw).filter { section in
+            #if os(macOS)
+            return true
+            #else
+            return section != .liveSession
+            #endif
+        }
+        NavigationStack {
+            List {
+                ForEach(order) { section in
+                    let isHidden = hidden.contains(section)
+                    HStack {
+                        Text(section.title)
+                            .font(StrandFont.body)
+                            .foregroundStyle(isHidden ? StrandPalette.textTertiary : StrandPalette.textPrimary)
+                        Spacer()
+                        // Eye toggle: show/hide this section on Today (§4). A hidden section keeps its slot
+                        // in the order, so unhiding restores its position.
+                        Button {
+                            toggleHidden(section)
+                        } label: {
+                            Image(systemName: isHidden ? "eye.slash" : "eye")
+                                .foregroundStyle(isHidden ? StrandPalette.textTertiary : StrandPalette.accent)
+                        }
+                        // .borderless keeps the eye independently tappable while the row is in the always-on
+                        // edit mode used for drag-reorder (a .plain button would hand taps to the whole row).
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel(isHidden ? "Show \(section.title)" : "Hide \(section.title)")
+                    }
+                }
+                .onMove { from, to in
+                    var next = order
+                    next.move(fromOffsets: from, toOffset: to)
+                    orderRaw = TodayLayoutPrefs.encode(next)
+                }
+            }
+            .navigationTitle("Arrange Today")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            // Always-active edit mode: the rows carry their reorder handles immediately — hold and drag —
+            // with no Edit-button dance. (macOS Lists drag-reorder natively with onMove.)
+            .environment(\.editMode, .constant(.active))
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    // Reset restores BOTH the default order and the default hidden set (§4 declutter).
+                    Button("Reset") {
+                        orderRaw = ""
+                        hiddenRaw = TodayLayoutPrefs.encodeHidden(TodaySection.defaultHidden)
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+        #if os(macOS)
+        .frame(minWidth: 340, minHeight: 420)
+        #endif
     }
 }

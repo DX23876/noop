@@ -359,6 +359,12 @@ final class AppModel: ObservableObject {
         // actor; no-op on macOS for the Inbox part.
         Task.detached { AppModel.purgeImportInbox(); AppModel.purgeImportTemp() }
 
+        // Let the coach read the live illness signal without holding a reference to AppModel — mirrors
+        // the diagnosticSink closure-wiring pattern above for IntelligenceEngine. Wired here (rather than
+        // right after `self.coach = ...`) because every stored property must be set before `self` can be
+        // captured, even weakly.
+        self.coach.illnessSignalProvider = { [weak self] in self?.illnessSignal }
+
         // FIX 2(b): the launch sequence runs at `.utility` so its heavy one-shot 4000-day heal/rescore
         // yields to UI rendering instead of contending at the inherited user-initiated QoS. The reads are
         // already off the main actor (analyzeRecent , FIX 1), and at `.utility` the scheduler keeps the
@@ -1540,7 +1546,12 @@ final class AppModel: ObservableObject {
         let now = Int(Date().timeIntervalSince1970)
         let from = now - 14 * 86_400
         let buckets = await repo.hrBuckets(from: from, to: now, bucketSeconds: 3_600)
-        guard buckets.count >= 24 else { circadianPhase = nil; return }
+        guard buckets.count >= 24 else {
+            emitCircadianTrace(CircadianTrace.rejectedLine(reason: .tooFewBuckets,
+                                                           detail: "buckets=\(buckets.count) need=24"))
+            circadianPhase = nil
+            return
+        }
         let tz = TimeZone.current.secondsFromGMT()
         // Pool HR by LOCAL hour-of-day → mean bpm per hour as the activity proxy (higher HR ≈ more active).
         var sums = [Double](repeating: 0, count: 24)
@@ -1555,11 +1566,64 @@ final class AppModel: ObservableObject {
         let bins: [CircadianEngine.ActivityBin] = (0..<24).compactMap { h in
             counts[h] > 0 ? CircadianEngine.ActivityBin(hour: Double(h), activity: sums[h] / Double(counts[h])) : nil
         }
-        guard bins.count >= 6 else { circadianPhase = nil; return }
+        emitCircadianTrace(CircadianTrace.inputLine(binCount: bins.count,
+                                                    daysObserved: daySet.count,
+                                                    hoursCovered: counts.filter { $0 > 0 }.count,
+                                                    minDaysForFit: CircadianEngine.minDaysForFit))
+        guard bins.count >= 6 else {
+            emitCircadianTrace(CircadianTrace.rejectedLine(reason: .tooFewBins,
+                                                           detail: "bins=\(bins.count) need=6"))
+            circadianPhase = nil
+            return
+        }
+        emitCircadianTrace(CircadianTrace.binsLine(bins))
         // Habitual wake from the most recent night's banked wake, falling back to a 07:00 default.
         let wakeHour = habitualWakeHour() ?? 7.0
-        circadianPhase = CircadianEngine.estimatePhase(
+        let estimate = CircadianEngine.estimatePhase(
             bins: bins, daysObserved: daySet.count, habitualWakeHour: wakeHour)
+        emitCircadianDerivation(bins: bins, daysObserved: daySet.count, wakeHour: wakeHour,
+                                estimate: estimate)
+        circadianPhase = estimate
+    }
+
+    /// Emit one Circadian & Body Clock test-mode line tagged `.circadian` iff the mode is on. Same shape
+    /// as `emitWorkoutsTrace`: the cheap `TestCentre.active` gate runs BEFORE the @autoclosure builds the
+    /// line, so an inactive mode costs one Bool read and constructs no string.
+    private func emitCircadianTrace(_ build: @autoclosure () -> String) {
+        guard TestCentre.active(.circadian) else { return }
+        live.append(log: build(), domain: .circadian)
+    }
+
+    /// The fit and its verdict, for the test mode only.
+    ///
+    /// This is the reason the mode exists: `estimatePhase` returns nil when the cosinor doesn't solve, and
+    /// returns an `unreadable` estimate when the run is too short OR the rhythm too flat — three different
+    /// outcomes that look identical on screen. Re-deriving the fit here (rather than plumbing it out of the
+    /// engine) keeps the production path byte-identical, and it only runs when the mode is on.
+    private func emitCircadianDerivation(bins: [CircadianEngine.ActivityBin],
+                                         daysObserved: Int,
+                                         wakeHour: Double,
+                                         estimate: CircadianEngine.PhaseEstimate?) {
+        guard TestCentre.active(.circadian) else { return }
+        guard let fit = CircadianEngine.cosinor(bins) else {
+            live.append(log: CircadianTrace.rejectedLine(reason: .noFit), domain: .circadian)
+            return
+        }
+        live.append(log: CircadianTrace.fitLine(fit,
+                                                minRelativeAmplitude: CircadianEngine.minRelativeAmplitude),
+                    domain: .circadian)
+        guard let estimate else {
+            live.append(log: CircadianTrace.rejectedLine(reason: .noFit), domain: .circadian)
+            return
+        }
+        live.append(log: CircadianTrace.phaseLine(estimate, habitualWakeHour: wakeHour), domain: .circadian)
+        if estimate.confidence == .unreadable {
+            var reasons: [CircadianTrace.Reason] = []
+            if daysObserved < CircadianEngine.minDaysForFit { reasons.append(.tooFewDays) }
+            let relative = fit.mesor != 0 ? fit.amplitude / abs(fit.mesor) : 0
+            if relative < CircadianEngine.minRelativeAmplitude { reasons.append(.flatRhythm) }
+            live.append(log: CircadianTrace.degradedLine(reasons: reasons), domain: .circadian)
+        }
     }
 
     /// A coarse habitual wake hour (local) from the most recent banked sleep session's end time, for the

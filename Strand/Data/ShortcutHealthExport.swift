@@ -144,7 +144,7 @@ enum ShortcutHealthExport {
         // HRV — rolling RMSSD per window via the shared analyzer (Task Force RMSSD over Malik-cleaned
         // NN intervals). nil rmssd (< 20 clean beats in the window) leaves the field empty.
         var rrByWindow: [Int: [Double]] = [:]
-        for s in rr.sortedByTsStable() where s.ts < end {
+        for s in rr.sorted(by: { $0.ts < $1.ts }) where s.ts < end {
             rrByWindow[windowStart(s.ts), default: []].append(Double(s.rrMs))
         }
         for (start, values) in rrByWindow {

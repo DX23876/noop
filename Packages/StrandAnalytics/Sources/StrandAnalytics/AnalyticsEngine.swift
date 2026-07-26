@@ -520,7 +520,7 @@ public enum AnalyticsEngine {
                 // from, so the displayed value equals the `deepOnly` figure the trace logs. rr sorted (RMSSD
                 // = successive diffs). nil when no deep sleep is detected (WHOOP-4.0 staging can be sparse) —
                 // the caller shows calibrating, never a fabricated number.
-                let rrSorted = rr.sortedByTsStable()
+                let rrSorted = rr.sorted { $0.ts < $1.ts }
                 let deep = matched.flatMap { s in
                     SleepStager.sessionHrvWindows(start: s.start, end: s.end, rr: rrSorted, stages: s.stages)
                         .filter { $0.stage == "deep" }.compactMap { $0.rmssd }
@@ -546,7 +546,7 @@ public enum AnalyticsEngine {
             func r2(_ x: Double) -> Double { (x * 100).rounded() / 100 }
             // sessionHrvWindows requires ts-sorted rr (RMSSD = successive diffs); the value path passes the
             // stager's pre-sorted rrS, so sort our own copy of the day's raw rr once here for the re-window.
-            let rrSorted = rr.sortedByTsStable()
+            let rrSorted = rr.sorted { $0.ts < $1.ts }
             var allWin: [SleepStager.HrvWindow] = []
             for s in matched {
                 let wins = SleepStager.sessionHrvWindows(start: s.start, end: s.end, rr: rrSorted, stages: s.stages)

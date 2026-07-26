@@ -506,18 +506,6 @@ Schema lives in `Packages/WhoopStore/Sources/WhoopStore/Database.swift` as a **v
 - **No proprietary material.** Don't add WHOOP firmware, decompiled app code, logos, or assets, and
   don't introduce DRM circumvention. Keep contributions to clean-room interoperability with hardware
   the user owns.
-- **Facts vs code — the line that actually gets tested.** The rule above is about *code*: verbatim or
-  transcribed implementations, string literals, and assets stay out however correct they are. A
-  **protocol fact** — a byte offset, a field width, an enum value — is an observation about the wire,
-  and this project's practice is that it may be reimplemented, *provided* it is attributed and lands as an **unvalidated candidate**: decoded and
-  logged, never backing a shipped metric, until independent captures clear it. `spo2_candidate_82`
-  (v18 byte `@82`) is the worked example — sourced from a decompile, attributed as such in
-  `Interpreter.swift`, gated by a test that stops it ever writing `spo2Pct`, and still a candidate
-  because the cross-device evidence is split. See [`ATTRIBUTION.md`](../ATTRIBUTION.md).
-
-  This matters because third-party WHOOP projects are frequently decompile-derived. "It came from a
-  decompile" doesn't by itself rule a finding out; **copying their implementation does**, and so does
-  shipping a metric on an unvalidated one.
 - **Licensing.** By opening a pull request you agree your contribution is licensed under the same
   [PolyForm Noncommercial License 1.0.0](../LICENSE) as the rest of NOOP. Forks and personal,
   non-commercial use are welcome under those terms.

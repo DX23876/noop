@@ -128,29 +128,18 @@ extension WhoopStore {
             }
             if !streams.rr.isEmpty {
                 let stmt = try db.cachedStatement(sql: """
-                    INSERT INTO rrInterval (deviceId, ts, rrMs, seq, ord) VALUES (?, ?, ?, ?, ?)
+                    INSERT INTO rrInterval (deviceId, ts, rrMs, seq) VALUES (?, ?, ?, ?)
                     ON CONFLICT(deviceId, ts, rrMs, seq) DO NOTHING
                     """)
                 // v24 (#163): number EQUAL (ts, rrMs) beats 0, 1, … within this batch so both survive;
                 // distinct beats keep seq 0 and their own (ts, rrMs, 0) key, so a distinct beat is never
                 // dropped even across batches (rrMs stays in the key). Re-syncing identical rows reproduces
                 // the same (ts, rrMs, seq) → still idempotent. Nested dict = (ts, rrMs) occurrence counter.
-                //
-                // v30 (#823): `ord` is the beat's position among ALL beats sharing this ts in this batch —
-                // its emission order. `seq` cannot express it (it keys on (ts, rrMs), so distinct beats in
-                // a second are all 0). Not in the key, never changes which rows survive; it exists so reads
-                // return beats in heart order rather than sorted by value, which biases RMSSD down. Same
-                // batch-local caveat as seq: a second split across two live flushes restarts ord at 0 and
-                // DO NOTHING keeps the first row. The historical path delivers a second atomically.
-                // Twin of Kotlin assignRrSeq.
                 var seqByTsRr: [Int: [Int: Int]] = [:]
-                var ordByTs: [Int: Int] = [:]
                 for r in streams.rr {
                     let seq = seqByTsRr[r.ts]?[r.rrMs] ?? 0
                     seqByTsRr[r.ts, default: [:]][r.rrMs] = seq + 1
-                    let ord = ordByTs[r.ts] ?? 0
-                    ordByTs[r.ts] = ord + 1
-                    try stmt.execute(arguments: [deviceId, r.ts, r.rrMs, seq, ord])
+                    try stmt.execute(arguments: [deviceId, r.ts, r.rrMs, seq])
                     rr += db.changesCount
                 }
             }
@@ -309,12 +298,9 @@ extension WhoopStore {
                 row.cols[1] = WhoopStore.intStr(r["bpm"])
                 out.append(row)
             }
-            // rr: stream=rr → rr_ms (col 4). Same-second beats need the #823 tiebreak here too, and
-            // more so: bare "ORDER BY ts" left their order UNDEFINED, so a raw export could differ
-            // between runs over identical data. Emission order first, then the pre-v30 fallback.
+            // rr: stream=rr → rr_ms (col 4).
             for r in try Row.fetchAll(db, sql:
-                "SELECT ts, rrMs FROM rrInterval WHERE deviceId = ? AND ts >= ? " +
-                "ORDER BY ts, ord, rrMs, seq",
+                "SELECT ts, rrMs FROM rrInterval WHERE deviceId = ? AND ts >= ? ORDER BY ts",
                 arguments: [deviceId, floor]) {
                 var row = RawCSVRow(ts: r["ts"]); row.cols[0] = "rr"
                 row.cols[2] = WhoopStore.intStr(r["rrMs"])
@@ -521,29 +507,6 @@ extension WhoopStore {
                 return nil
             }
             return (row["mac"], row["name"])
-        }
-    }
-
-    /// Write an R-R row the way a PRE-v30 build did: `ord` left NULL, emission order never recorded.
-    /// The normal insert path always stamps `ord`, so there is otherwise no way to construct the
-    /// legacy shape — and the read-order fallback for existing user data is exactly the branch most
-    /// worth testing rather than assuming. Test-only (#823).
-    public func insertLegacyRrWithoutOrdForTest(deviceId: String, ts: Int, rrMs: Int) async throws {
-        try syncWrite { db in
-            try db.execute(sql: """
-                INSERT INTO rrInterval (deviceId, ts, rrMs, seq, ord) VALUES (?, ?, ?, 0, NULL)
-                ON CONFLICT(deviceId, ts, rrMs, seq) DO NOTHING
-                """, arguments: [deviceId, ts, rrMs])
-        }
-    }
-
-    /// The stored `ord` values for one second, in read order. Test-only (#823).
-    public func rrOrdValuesForTest(deviceId: String, ts: Int) async throws -> [Int?] {
-        try syncRead { db in
-            try Row.fetchAll(db, sql: """
-                SELECT ord FROM rrInterval WHERE deviceId = ? AND ts = ?
-                ORDER BY ts ASC, ord ASC, rrMs ASC, seq ASC
-                """, arguments: [deviceId, ts]).map { $0["ord"] }
         }
     }
 }

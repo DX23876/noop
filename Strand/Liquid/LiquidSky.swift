@@ -150,8 +150,8 @@ struct LiquidSky: View {
 /// `fullBleedBackground` pairing.
 struct LiquidScaffoldSky: View {
     var height: CGFloat = 240
-    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = true
-    @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = true
+    @AppStorage(SceneBackgroundPrefs.enabledKey) private var showDayCycleBackground = false
+    @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = false
 
     var body: some View {
         if showDayCycleBackground {

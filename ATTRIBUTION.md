@@ -27,43 +27,6 @@ NOOP builds on prior community reverse-engineering and interoperability work:
   about the live Mi-protobuf BLE stack in the roadmap's research notes. GPLv3; NOOP copies
   **none** of its code and has not built the live lane.
 
-## Facts learned from a decompiled app
-
-The facts-only doctrine above is usually applied to other open-source RE projects. It applies the same
-way when a fact originates in a **decompile of the vendor's own app** — a case that recurs because
-several third-party WHOOP projects are decompile-derived.
-
-The line is between the fact and the expression of it:
-
-- **A protocol fact may be re-derived** — a byte offset, field width, enum value, scale factor. It is
-  attributed at the point of use, and it ships as an **unvalidated candidate**: decoded and logged,
-  never backing a shipped metric, until independent captures from real hardware clear it.
-- **The implementation may not be copied** — not verbatim, not transcribed. Nor may string literals,
-  assets, or anything else that is authored expression rather than an observation about the wire.
-
-This is long-standing practice, not a one-off. Worked examples already in the tree:
-
-- **`spo2_candidate_82`** (`Interpreter.swift`) — WHOOP 5 v18 byte `@82` read as a strap-computed SpO₂
-  percentage, attributed as *"a decompile-sourced decode (gen5.rs `spo2_pct`), reimplemented here as a
-  protocol fact with attribution"*. A guard test stops it ever writing `spo2Pct`, and it is still a
-  candidate because the cross-device evidence is split.
-- **The R22 config opcodes** (`Whoop5Config.swift` / `.kt`) — `SET_FF_VALUE (0x78)` and the flag key
-  names, corroborated against *Asherlc/dofek docs/whoop-ble-protocol.md (Android APK decompilation)*
-  and validated byte-for-byte against a decrypted HCI capture.
-- **The disputed battery opcode** (`Commands.swift`, `Enums.kt`) — a decompile reads
-  `GET_EXTENDED_BATTERY_INFO` as 87 where our table says 98. Both readings are recorded and the
-  question is settled by probing real firmware, not by picking a source.
-
-And the line held from the other side:
-
-- **`StrainTargetNotifier`** (both platforms) — *"CLEAN-ROOM: this reimplements the BEHAVIOUR only. The
-  copy is NOOP's own — NOT WHOOP's decompiled strings."* Behaviour re-derived; the user-facing text
-  written fresh.
-- **The `LINK_VALID` handshake**, rejected in
-  [`docs/BLE_REVERSE_ENGINEERING.md`](docs/BLE_REVERSE_ENGINEERING.md) — its reply payload is a
-  literal string lifted from the app. Expression, not a fact about the wire, so it stays out
-  regardless of whether the handshake turns out to be real.
-
 ## Oura ring (gen 3/4/5) protocol
 NOOP's Oura code is **original clean-room** work. The local BLE source
 (`Strand/BLE/OuraLiveSource.swift` + `android/.../ble/OuraLiveSource.kt`) and the JVM/Swift-pure

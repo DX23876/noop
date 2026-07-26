@@ -411,7 +411,7 @@ struct AppleHealthView: View {
                         .fixedSize(horizontal: false, vertical: true)
 
                 case .unknown, .denied:
-                    Text("Read your heart rate, HRV, blood oxygen, respiratory rate, sleep, steps and energy straight from Apple Health, and write NOOP's strap data back: sleep with full stages, continuous heart rate, workouts, and nightly vitals. Everything stays on \(Platform.deviceNounPhrase).")
+                    Text("Read your heart rate, HRV, blood oxygen, respiratory rate, sleep, steps and energy straight from Apple Health, and write NOOP's strap data back: sleep with full stages, continuous heart rate, workouts, nightly vitals, and your profile weight. Everything stays on \(Platform.deviceNounPhrase).")
                         .font(StrandFont.caption)
                         .foregroundStyle(StrandPalette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -454,6 +454,26 @@ struct AppleHealthView: View {
                     .buttonStyle(.bordered)
                     .tint(StrandPalette.metricCyan)
                     .disabled(health.syncing)
+
+                    // Re-request permission so newly-added data types (e.g. weight and body composition,
+                    // which older grants never included) surface their Health prompt. HealthKit only shows
+                    // types you haven't decided yet, so this is a no-op once everything is granted.
+                    Button {
+                        Task {
+                            await health.requestAuthorization()
+                            await health.sync()
+                            await load()
+                        }
+                    } label: {
+                        Label("Refresh permissions", systemImage: "checkmark.shield")
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(StrandPalette.metricCyan)
+                    .disabled(health.syncing)
+                    Text("Missing a metric like weight? Tap Refresh permissions to grant data types added in a later update. Weight and body composition sync up to 10 years of history. To fully disconnect, use Settings › Health › Data Access & Devices › NOOP.")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 if let err = health.lastError {

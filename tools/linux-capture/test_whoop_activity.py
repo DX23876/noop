@@ -1,7 +1,4 @@
-import pathlib
 import struct
-import tempfile
-
 import whoop_activity as wa
 
 
@@ -41,24 +38,11 @@ def test_decode_v18_roundtrips_fields():
     d = wa.decode_v18(make_v18(unix=1700000000, hr=58, motion=4000, wear=1, sleep_state=2))
     assert d == {"record_index": 0, "unix": 1700000000, "hr": 58,
                  "onwrist": 0, "wake_quality": 0, "sleep_state": 2, "aux_byte_82": 0,
-                 "spo2_candidate_82": None,  # 0 is out-of-band (not 70–100)
                  "motion_count": 4000, "step_cadence": 0, "motion_wear_quality": 1,
                  "hr_fixed_8_8": 0, "rr_packed": 0, "cardiac_flags": 0, "cardiac_status": 0,
                  "temp_aux_1_raw": 0, "temp_aux_2_raw": 0,
                  "status_word": 0, "status_word_1": 0, "status_word_2": 0,
                  "unknown_f32_113": 0.0}
-
-
-def test_decode_v18_spo2_candidate_82_tri_mode():
-    # Mirrors Swift testHistoricalV18Spo2Candidate82TriMode: in-band 70–100 only.
-    assert wa.decode_v18(make_v18(aux_byte_82=0))["spo2_candidate_82"] is None
-    assert wa.decode_v18(make_v18(aux_byte_82=90))["spo2_candidate_82"] == 90
-    assert wa.decode_v18(make_v18(aux_byte_82=70))["spo2_candidate_82"] == 70
-    assert wa.decode_v18(make_v18(aux_byte_82=100))["spo2_candidate_82"] == 100
-    for raw in (0x80, 0xA0, 0x20, 69, 101):
-        d = wa.decode_v18(make_v18(aux_byte_82=raw))
-        assert d["spo2_candidate_82"] is None
-        assert d["aux_byte_82"] == raw
 
 
 def test_decode_v18_higher_precision_hr():
@@ -187,12 +171,7 @@ def _make_db(path, frames):
     con.close()
 
 
-def test_records_reads_and_decodes():
-    with tempfile.TemporaryDirectory() as _td:
-        _run_test_records_reads_and_decodes(pathlib.Path(_td))
-
-
-def _run_test_records_reads_and_decodes(tmp_path):
+def test_records_reads_and_decodes(tmp_path):
     db = tmp_path / "t.db"
     frames = [(1000 + i, make_v18(unix=1000 + i, motion=i, sleep_state=2)) for i in range(5)]
     frames.append((2000, make_v18(unix=2000, version=26)))   # non-v18 -> skipped
@@ -201,12 +180,7 @@ def _run_test_records_reads_and_decodes(tmp_path):
     assert len(recs) == 5 and all(r["sleep_state"] == 2 for r in recs)
 
 
-def test_cli_steps_json():
-    with tempfile.TemporaryDirectory() as _td:
-        _run_test_cli_steps_json(pathlib.Path(_td))
-
-
-def _run_test_cli_steps_json(tmp_path):
+def test_cli_steps_json(tmp_path):
     db = tmp_path / "t.db"
     frames = [(1000 + i, make_v18(unix=1000 + i, motion=i, wear=1)) for i in range(5)]
     _make_db(str(db), frames)
@@ -219,12 +193,7 @@ def _run_test_cli_steps_json(tmp_path):
     assert data["wear_quality_minutes"].get("fair", 0) == 0   # 5 s < 1 min
 
 
-def test_cli_sleep_json():
-    with tempfile.TemporaryDirectory() as _td:
-        _run_test_cli_sleep_json(pathlib.Path(_td))
-
-
-def _run_test_cli_sleep_json(tmp_path):
+def test_cli_sleep_json(tmp_path):
     db = tmp_path / "t.db"
     frames = [(1000 + i, make_v18(unix=1000 + i, sleep_state=(2 if i < 3 else 0))) for i in range(5)]
     _make_db(str(db), frames)
@@ -239,10 +208,8 @@ def _run_test_cli_sleep_json(tmp_path):
 def test_integration_real_db_if_present():
     db = os.path.join(os.path.dirname(wa.__file__), "..", "..", "captures", "whoop4.db")
     if not os.path.exists(db):
-        # unittest.SkipTest, not pytest.skip: pytest honours SkipTest, unittest does not honour
-        # pytest.skip, and pytest is not in requirements.txt. One spelling works under both runners.
-        import unittest
-        raise unittest.SkipTest("real capture DB not present")
+        import pytest
+        pytest.skip("real capture DB not present")
     import datetime as dt
     def u(s): return int(dt.datetime.fromisoformat(s).replace(tzinfo=dt.timezone.utc).timestamp())
     recs = wa.records(db, device_id=2, start=u("2026-06-09T00:00:00"), end=u("2026-06-10T00:00:00"))
@@ -250,22 +217,3 @@ def test_integration_real_db_if_present():
     total = wa.steps_total(recs)
     assert 1000 < total < 60000, f"daily steps out of sane range: {total}"
     assert wa.sleep_state_minutes(recs).get("asleep", 0) > 0
-
-
-# ── unittest collection ───────────────────────────────────────────────────────────────────────────
-# This module is written pytest-style: bare `def test_*` functions with plain `assert`, and no
-# `unittest.TestCase`. `python3 -m unittest` — the command the linux-capture README documents, and the
-# only runner guaranteed present (pytest is not in requirements.txt) — collects NOTHING from a module
-# shaped that way. It exits 0 while running zero of these tests, which is indistinguishable from
-# passing: that is how the @82 tri-mode decoder test below shipped without ever executing.
-#
-# `load_tests` is unittest's documented hook for exactly this. It wraps each module-level `test_*`
-# callable in a FunctionTestCase so both runners see the same set, rather than rewriting 21 working
-# tests into TestCase classes and risking a transcription error in the rewrite.
-def load_tests(loader, tests, pattern):    # noqa: ARG001 — unittest protocol signature
-    import unittest
-    suite = unittest.TestSuite(tests)
-    for name, fn in sorted(globals().items()):
-        if name.startswith("test_") and callable(fn):
-            suite.addTest(unittest.FunctionTestCase(fn, description=name))
-    return suite

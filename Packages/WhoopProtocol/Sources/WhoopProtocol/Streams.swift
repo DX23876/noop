@@ -16,29 +16,6 @@ public struct RRInterval: Equatable, Codable {
     public init(ts: Int, rrMs: Int) { self.ts = ts; self.rrMs = rrMs }
 }
 
-public extension Array where Element == RRInterval {
-    /// Ascending by `ts`, GUARANTEED stable — same-second beats keep the relative order they came in.
-    ///
-    /// Swift's `sorted(by:)` is explicitly documented as NOT stable. Since #823 the store returns a
-    /// second's beats in EMISSION order, and RMSSD is built entirely from successive differences, so an
-    /// unstable sort anywhere downstream could silently re-scramble them and reintroduce exactly the
-    /// bias the store fix removes. Every analytics entry point re-sorts defensively ("the table read is
-    /// already ordered, but we don't assume it"), which is where that would happen.
-    ///
-    /// Decorating with the original offset makes the comparator TOTAL, so no two elements compare equal
-    /// and stability becomes a property of this code rather than of the current stdlib implementation.
-    /// (Swift's sort is timsort today and stable in practice — but that is unguaranteed, and a metric
-    /// that silently drifts if the stdlib changes is not one you can trust.)
-    ///
-    /// Kotlin needs no equivalent: `sortedBy` delegates to `java.util.Arrays.sort`, which is stable by
-    /// contract. This makes the twins match on paper as well as in behaviour.
-    func sortedByTsStable() -> [RRInterval] {
-        enumerated()
-            .sorted { ($0.element.ts, $0.offset) < ($1.element.ts, $1.offset) }
-            .map(\.element)
-    }
-}
-
 public struct WhoopEvent: Equatable, Codable {
     public let ts: Int          // real unix seconds (event RTC; never offset)
     public let kind: String
@@ -276,82 +253,6 @@ public struct Streams: Equatable, Codable {
     /// The #547 gate discards them like any bad-ts record, but these are the GROUND TRUTH that the clock reset
     /// - so we capture (kind, rawTs) for the strap log before dropping. Transient, empty by default, not encoded.
     public var droppedRtcEvents: [DroppedRtcEvent] = []
-    /// #520 diagnostic: a summary of `dynamic_acceleration@41` (the strap's own gravity-removed motion
-    /// magnitude) over this chunk's v18 records. The field is decoded but has never been persisted or
-    /// scored, so there is no evidence about whether it is a usable stillness signal; this counts what
-    /// arrived so the strap log can answer that from real nights before anyone pays for a migration.
-    /// Transient like the counters above — not in `CodingKeys`, defaults keep golden fixtures identical.
-    public var dynAccel = DynAccelDiag()
-
-    /// #520 diagnostic: distribution of `dynamic_acceleration` over one decoded chunk. Deliberately a
-    /// summary, not a stream — at 1 Hz a night is ~30k values and the open question needs a shape, not
-    /// samples. `still` counts values under `SleepStager.gravityStillThresholdG` (0.01 g) — borrowed as a
-    /// REFERENCE CUT, not because the two quantities are the same thing. The stager thresholds a per-sample
-    /// DELTA (how much the gravity vector moved between consecutive samples); this field is an ABSOLUTE
-    /// gravity-removed magnitude at one instant. Both go to ~0 when the wrist is still, so the same cut is a
-    /// sensible starting point, but the two still-fractions are not measuring the same thing and should not
-    /// be read as if a match proved equivalence. `min`/`max`/`mean` are here so a reader can re-derive any
-    /// other cut from the logs — picking the right one is what this diagnostic exists to inform.
-    public struct DynAccelDiag: Equatable, Codable, Sendable {
-        public var count = 0
-        public var still = 0
-        public var min: Double?
-        public var max: Double?
-        /// Mean over `count` values, or nil when nothing arrived. Kept as a running sum so a chunk of any
-        /// size costs O(1) memory.
-        public var sum = 0.0
-        public var mean: Double? { count > 0 ? sum / Double(count) : nil }
-        /// Fraction of values below the stillness threshold, or nil when nothing arrived.
-        public var stillFraction: Double? { count > 0 ? Double(still) / Double(count) : nil }
-
-        public init() {}
-
-        /// Fold another chunk's summary into this one. A chunk is an arbitrary slice of an offload, so the
-        /// still-fraction only means anything once a whole session is merged — the Backfiller accumulates
-        /// with this and logs once at the session boundary. Merging an empty diag is a no-op.
-        public mutating func merge(_ other: DynAccelDiag) {
-            guard other.count > 0 else { return }
-            count += other.count
-            still += other.still
-            sum += other.sum
-            if let lo = other.min { min = min.map { Swift.min($0, lo) } ?? lo }
-            if let hi = other.max { max = max.map { Swift.max($0, hi) } ?? hi }
-        }
-
-        /// Milli-g, rounded half-away-from-zero. Integers are the ONLY safe way to render this across the
-        /// two platforms: C's `%.3f` (what Swift's `String(format:)` uses) rounds half-to-EVEN while Java's
-        /// `String.format` rounds HALF_UP, so a tie diverges — 0.0625 g prints `0.062` on Swift and `0.063`
-        /// on Kotlin, and 0.0625 is exactly representable in the f32 the strap sends. Swift's `.rounded()`
-        /// and Kotlin's `round()` agree for non-negative input, and the decoder gates this field to
-        /// `[0, 8] g`, so the two sides round identically here.
-        static func mg(_ g: Double) -> Int { Int((g * 1000).rounded()) }
-
-        /// Whole percent, same rounding rule and the same reason (`%.0f` of 66.5 is 66 on Swift, 67 on Kotlin).
-        static func pct(_ fraction: Double) -> Int { Int((fraction * 100).rounded()) }
-
-        /// The strap-log line for a whole offload session, or nil when nothing arrived (so a WHOOP 4.0 or a
-        /// caught-up session stays quiet). Every field is an Int rendered by interpolation — no `String(format:)`,
-        /// so neither locale nor printf rounding mode can make the two platforms disagree.
-        public func logLine(threshold: Double) -> String? {
-            guard count > 0, let lo = min, let hi = max, let avg = mean, let frac = stillFraction else {
-                return nil
-            }
-            return "Backfill: dynaccel n=\(count) still=\(Self.pct(frac))% mean=\(Self.mg(avg))mg "
-                + "range=\(Self.mg(lo))..\(Self.mg(hi))mg (thr \(Self.mg(threshold))mg) "
-                + "— diagnostic only, not stored or scored (#520)"
-        }
-
-        /// Fold one decoded value in. `threshold` is passed rather than imported so WhoopProtocol keeps no
-        /// dependency on StrandAnalytics; the caller supplies the stager's own constant.
-        public mutating func add(_ g: Double, threshold: Double) {
-            guard g.isFinite else { return }
-            count += 1
-            sum += g
-            if g < threshold { still += 1 }
-            if let m = min { self.min = Swift.min(m, g) } else { min = g }
-            if let m = max { self.max = Swift.max(m, g) } else { max = g }
-        }
-    }
     public init(hr: [HRSample] = [], rr: [RRInterval] = [],
                 spo2: [SpO2Sample] = [], skinTemp: [SkinTempSample] = [],
                 resp: [RespSample] = [], gravity: [GravitySample] = [],

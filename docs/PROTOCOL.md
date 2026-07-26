@@ -605,55 +605,7 @@ inherit a base layout and override only what changed. The streamed decode that f
 
 ---
 
-## 9. WHOOP 5.0 vs MG — telling the hardware apart
-
-Both labels share the `fd4b…` GATT family and the same puffin envelope: framing, CRC, offload and
-historical decode are **identical**, and `DeviceFamily.whoop5` covers both. What differs is hardware —
-an MG carries the ECG-conductive clasp, a 5.0 does not.
-
-`Whoop5Variant` resolves it from the standard BLE Device Information Service (`BLEManager` discovers
-both characteristics as `disSerialChar` / `disHwRevChar`), deliberately orthogonal to `DeviceFamily` so
-a capability gate can never change how a frame is parsed:
-
-| Signal | DIS characteristic | Reads |
-|---|---|---|
-| Serial prefix `5AM` | Serial Number String (`0x2A25`) | MG |
-| Serial prefix `5AG` | Serial Number String (`0x2A25`) | 5.0 |
-| Hardware revision contains `WG50` | Hardware Revision String (`0x2A27`) | 5.0 |
-
-Contradictory signals resolve to `.unknown` rather than a guess, and `.unknown` is not MG — an MG-only
-feature stays gated off until the hardware attests to it. Only the 5.0 hardware string is attested on
-real hardware so far; the MG's own revision string is not, so its absence proves nothing.
-
-## 10. SpO₂ on 5.0 / MG — what the wire does and does not carry
-
-Recorded because "why is there no blood oxygen?" is a recurring question with a protocol answer.
-
-- **No SpO₂ read opcode is known.** Our `CommandNumber` catalogue carries 80 commands and none is an
-  oxygen/blood-oxygen read; independent RE reports none either. Note the catalogue is what we have
-  mapped, not a proof of the strap's whole command space — §6 is explicitly a *safe subset*, and the
-  98-vs-87 battery dispute shows the map is incomplete. Treat it as "nobody has found one", which is
-  still enough to say hunting for a missing opcode is the wrong lead.
-- **It is computed on-device, during sleep.** Our own decode corroborates the gating: `aux_byte_82` is
-  observed nonzero *only* while the band sleep flag reads asleep. Expect values in overnight windows,
-  never a continuous 24/7 series.
-- **The export is a per-cycle aggregate.** `blood_oxygen_pct` arrives on the physiological-cycles row —
-  our own importer reads it beside `recovery_score_pct` and `day_strain`, keyed on
-  `cycleStart`/`cycleEnd` (`WhoopExportImporter.swift:272`) — so it is one value per recovery cycle and
-  will not equal a plain mean of raw wire samples. Rounding, quality gates and incomplete nights all
-  move it.
-- **A night with no export value is a real gap**, not a NOOP bug — naps and incomplete nights are
-  reported to carry none. (Contributor observation from #807, not something this repo can verify from
-  the wire; recorded because "my SpO₂ is missing" reads as a decode failure otherwise.)
-
-So the research target is finding the banked on-device sample in the historical type-47 record — not
-inventing a red/IR ratio or reversing a calibration curve. The v18 `@82` candidate and its split
-cross-device evidence are covered in
-[`WHOOP5_DEEP_DATA.md`](WHOOP5_DEEP_DATA.md); the full v18 field map lives in
-[`BLE_REVERSE_ENGINEERING.md`](BLE_REVERSE_ENGINEERING.md#the-whoop-50-type-47-record-version-18) and
-is deliberately **not** duplicated here — one table, one place to keep correct.
-
-## 11. File map
+## 9. File map
 
 | Path | Responsibility |
 |------|----------------|

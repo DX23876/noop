@@ -132,10 +132,10 @@ The app is **sandboxed** and requests Bluetooth + user-selected-file access. Fro
 <key>com.apple.security.files.user-selected.read-write</key> <true/>
 ```
 
-`project.yml` deliberately leaves `DEVELOPMENT_TEAM` empty by default (see `Config/BundleId.xcconfig`),
-keeps `ENABLE_HARDENED_RUNTIME: NO`, and uses **ad-hoc signing** — no Apple Developer account is
-required to run a personal build. To produce the runnable bundle, build without disabling signing so
-Xcode applies the sandbox + Bluetooth entitlements with an ad-hoc identity:
+`project.yml` deliberately keeps `DEVELOPMENT_TEAM` empty, `ENABLE_HARDENED_RUNTIME: NO`, and uses
+**ad-hoc signing** — no Apple Developer account is required to run a personal build. To produce the
+runnable bundle, build without disabling signing so Xcode applies the sandbox + Bluetooth
+entitlements with an ad-hoc identity:
 
 ```bash
 xcodebuild \
@@ -255,9 +255,7 @@ Notes:
 - The `NOOPiOS` and `NOOPiOSWidgets` targets deploy to **iOS 17.0**. (The shared packages still
   declare a floor of iOS 16 — `.iOS(.v16)` — but the app targets require iOS 17.)
 - Running on a physical iPhone needs a signing identity selected in Xcode (a free personal Apple ID
-  works for on-device builds). Set `DEVELOPMENT_TEAM` in `Config/BundleIdSecrets.xcconfig` (see
-  `Config/BundleIdSecrets.example.xcconfig`) to avoid re-selecting a team in Xcode after every
-  `xcodegen generate`. **BLE requires a real device** — the iOS simulator can't reach a
+  works for on-device builds). **BLE requires a real device** — the iOS simulator can't reach a
   physical strap.
 - The iOS app reuses `BLEManager` (CoreBluetooth is identical API on iOS) and the shared analytics,
   store, import, and design packages. `StrandDesign` already bridges `NSColor`/`UIColor` behind

@@ -104,14 +104,15 @@ public enum StrandPalette {
     /// Opacity for dimmed/disabled sections (shared so screens don't invent their own value).
     public static let disabledOpacity: Double = 0.45
 
-    // MARK: - Chart style (data-viz colour mode) — Titanium (brand) or Classic (throwback)
+    // MARK: - Chart style (data-viz colour mode) — Titanium (brand), Classic (throwback), or Apple Health
     //
     // Set from `@AppStorage(ChartStyle.storageKey)` at the app root. The DATA-RAMP accessors below
     // (recoveryStops, strainStops, hrZones, sleepStageColor, stress gradient, status, metric, and the
-    // DomainTheme worlds) branch on this — so flipping it re-colours every gauge/chart/scale to the
-    // classic red→green readiness scale, in BOTH light and dark, with NO call-site changes. Chrome
-    // (surfaces, text, accent) is never touched.
-    public static var chartStyle: ChartStyle = .titanium
+    // DomainTheme worlds) branch on this — so flipping it re-colours every gauge/chart/scale, in BOTH
+    // light and dark, with NO call-site changes. Chrome (surfaces, text, accent) is never touched.
+    public static var chartStyle: ChartStyle = .signature
+    /// Convenience for any spot that only ever cared about the titanium/classic split. Everything that
+    /// also needs to know about `.health` branches on `chartStyle` directly (a 3-way switch).
     @inline(__always) static var isClassic: Bool { chartStyle == .classic }
 
     // MARK: Classic (throwback) data ramps — the recognizable health-app scale. Light/dark tuned.
@@ -153,6 +154,132 @@ public enum StrandPalette {
         .init(color: Color(light: "#CB3A2F", dark: "#E5483B"), location: 1.0),
     ]
 
+    // MARK: Apple Health data ramps — built from Apple's own public iOS system semantic colours
+    // (the same reds/greens/indigo/pink Apple's own Health app uses for its category icons), not
+    // invented. Recovery: systemRed → systemOrange → systemYellow → (yellow-green) → systemGreen.
+    static let hRecovery000 = Color(light: "#FF3B30", dark: "#FF453A") // systemRed
+    static let hRecovery030 = Color(light: "#FF9500", dark: "#FF9F0A") // systemOrange
+    static let hRecovery055 = Color(light: "#FFCC00", dark: "#FFD60A") // systemYellow
+    static let hRecovery078 = Color(light: "#99C92C", dark: "#97D331") // yellow → green midpoint
+    static let hRecovery100 = Color(light: "#34C759", dark: "#30D158") // systemGreen
+    static let hRecoveryStops: [Gradient.Stop] = [
+        .init(color: hRecovery000, location: 0.00), .init(color: hRecovery030, location: 0.30),
+        .init(color: hRecovery055, location: 0.55), .init(color: hRecovery078, location: 0.78),
+        .init(color: hRecovery100, location: 1.00),
+    ]
+    // Strain: systemBlue → systemIndigo.
+    static let hStrain000 = Color(light: "#007AFF", dark: "#0A84FF") // systemBlue
+    static let hStrain033 = Color(light: "#2D74E0", dark: "#3E82F0")
+    static let hStrain066 = Color(light: "#4864DB", dark: "#5270E8")
+    static let hStrain100 = Color(light: "#5856D6", dark: "#5E5CE6") // systemIndigo
+    static let hStrainStops: [Gradient.Stop] = [
+        .init(color: hStrain000, location: 0.00), .init(color: hStrain033, location: 0.33),
+        .init(color: hStrain066, location: 0.66), .init(color: hStrain100, location: 1.00),
+    ]
+    // Sleep: systemGray awake, systemTeal light, systemIndigo deep, systemPurple REM.
+    static let hSleepAwake = Color(light: "#8E8E93", dark: "#8E8E93") // systemGray
+    static let hSleepLight = Color(light: "#30B0C7", dark: "#40C8E0") // systemTeal
+    static let hSleepDeep  = Color(light: "#5856D6", dark: "#5E5CE6") // systemIndigo
+    static let hSleepREM   = Color(light: "#AF52DE", dark: "#BF5AF2") // systemPurple
+    // HR zones: systemGray → systemTeal → systemYellow → systemOrange → systemRed.
+    static let hZone1 = Color(light: "#8E8E93", dark: "#8E8E93") // systemGray
+    static let hZone2 = Color(light: "#30B0C7", dark: "#40C8E0") // systemTeal
+    static let hZone3 = Color(light: "#FFCC00", dark: "#FFD60A") // systemYellow
+    static let hZone4 = Color(light: "#FF9500", dark: "#FF9F0A") // systemOrange
+    static let hZone5 = Color(light: "#FF3B30", dark: "#FF453A") // systemRed
+    // Stress: calm systemGreen → systemYellow → systemPink (Apple's own heart-rate/vitals red).
+    static let hStressStops: [Gradient.Stop] = [
+        .init(color: Color(light: "#34C759", dark: "#30D158"), location: 0.0),
+        .init(color: Color(light: "#FFCC00", dark: "#FFD60A"), location: 0.5),
+        .init(color: Color(light: "#FF2D55", dark: "#FF375F"), location: 1.0),
+    ]
+
+    // MARK: Aurora (Nord) data ramps — a frosty arctic palette after the Nord scheme: polar-night
+    // neutrals, Frost blues/teals, and the Aurora accent hues (red/orange/yellow/green/purple).
+    // Recovery: aurora red → orange → yellow → green → frost teal.
+    static let auRecovery000 = Color(light: "#A54650", dark: "#BF616A")
+    static let auRecovery030 = Color(light: "#B56A54", dark: "#D08770")
+    static let auRecovery055 = Color(light: "#C9A860", dark: "#EBCB8B")
+    static let auRecovery078 = Color(light: "#7E9E68", dark: "#A3BE8C")
+    static let auRecovery100 = Color(light: "#6C9C9A", dark: "#8FBCBB")
+    static let auRecoveryStops: [Gradient.Stop] = [
+        .init(color: auRecovery000, location: 0.00), .init(color: auRecovery030, location: 0.30),
+        .init(color: auRecovery055, location: 0.55), .init(color: auRecovery078, location: 0.78),
+        .init(color: auRecovery100, location: 1.00),
+    ]
+    // Strain: the cool Frost ramp (light frost → deep polar blue).
+    static let auStrain000 = Color(light: "#5F9FB2", dark: "#88C0D0")
+    static let auStrain033 = Color(light: "#5C82A6", dark: "#81A1C1")
+    static let auStrain066 = Color(light: "#456691", dark: "#5E81AC")
+    static let auStrain100 = Color(light: "#33507A", dark: "#3E5F8A")
+    static let auStrainStops: [Gradient.Stop] = [
+        .init(color: auStrain000, location: 0.00), .init(color: auStrain033, location: 0.33),
+        .init(color: auStrain066, location: 0.66), .init(color: auStrain100, location: 1.00),
+    ]
+    // Stress: calm aurora green → yellow → red.
+    static let auStressStops: [Gradient.Stop] = [
+        .init(color: Color(light: "#6E9460", dark: "#A3BE8C"), location: 0.0),
+        .init(color: Color(light: "#C9A860", dark: "#EBCB8B"), location: 0.5),
+        .init(color: Color(light: "#A54650", dark: "#BF616A"), location: 1.0),
+    ]
+
+    // MARK: Sunset (Ember) data ramps — a warm dusk gradient: deep plum through rose and coral into
+    // gold, with a violet rest world. Recovery: plum → rose → coral-red → orange → gold.
+    static let suRecovery000 = Color(light: "#6B2551", dark: "#7A2E5D")
+    static let suRecovery030 = Color(light: "#A83A5C", dark: "#C34A6E")
+    static let suRecovery055 = Color(light: "#E04E56", dark: "#FF6B6B")
+    static let suRecovery078 = Color(light: "#E37E3C", dark: "#FF9E5E")
+    static let suRecovery100 = Color(light: "#E0AE3E", dark: "#FFD166")
+    static let suRecoveryStops: [Gradient.Stop] = [
+        .init(color: suRecovery000, location: 0.00), .init(color: suRecovery030, location: 0.30),
+        .init(color: suRecovery055, location: 0.55), .init(color: suRecovery078, location: 0.78),
+        .init(color: suRecovery100, location: 1.00),
+    ]
+    // Strain: heat ramp — deep magenta → coral → amber.
+    static let suStrain000 = Color(light: "#79305A", dark: "#8E3B6B")
+    static let suStrain033 = Color(light: "#AC3C4A", dark: "#C74E5B")
+    static let suStrain066 = Color(light: "#E85F42", dark: "#FF7E5F")
+    static let suStrain100 = Color(light: "#E38F3C", dark: "#FFB25E")
+    static let suStrainStops: [Gradient.Stop] = [
+        .init(color: suStrain000, location: 0.00), .init(color: suStrain033, location: 0.33),
+        .init(color: suStrain066, location: 0.66), .init(color: suStrain100, location: 1.00),
+    ]
+    // Stress: calm sage → amber → rose-red.
+    static let suStressStops: [Gradient.Stop] = [
+        .init(color: Color(light: "#5F9456", dark: "#86B87A"), location: 0.0),
+        .init(color: Color(light: "#E0952E", dark: "#FFB74D"), location: 0.5),
+        .init(color: Color(light: "#E03656", dark: "#FF4D6D"), location: 1.0),
+    ]
+
+    // MARK: Forest (Earth) data ramps — earthy naturals: terracotta, wheat amber, sage and forest
+    // green. Classic red→green magnitude, but in muted earth tones. Recovery: terracotta → clay →
+    // wheat → sage → forest green.
+    static let foRecovery000 = Color(light: "#9C4330", dark: "#B5533A")
+    static let foRecovery030 = Color(light: "#AC583B", dark: "#C56B4A")
+    static let foRecovery055 = Color(light: "#BC8A3E", dark: "#D8A657")
+    static let foRecovery078 = Color(light: "#7F9068", dark: "#A3B18A")
+    static let foRecovery100 = Color(light: "#3B7345", dark: "#4E8C57")
+    static let foRecoveryStops: [Gradient.Stop] = [
+        .init(color: foRecovery000, location: 0.00), .init(color: foRecovery030, location: 0.30),
+        .init(color: foRecovery055, location: 0.55), .init(color: foRecovery078, location: 0.78),
+        .init(color: foRecovery100, location: 1.00),
+    ]
+    // Strain: warm earth ramp — olive → amber-brown → terracotta.
+    static let foStrain000 = Color(light: "#596233", dark: "#6E7A3E")
+    static let foStrain033 = Color(light: "#7E7038", dark: "#9A8B45")
+    static let foStrain066 = Color(light: "#AC7239", dark: "#C58A47")
+    static let foStrain100 = Color(light: "#AC583B", dark: "#C56B4A")
+    static let foStrainStops: [Gradient.Stop] = [
+        .init(color: foStrain000, location: 0.00), .init(color: foStrain033, location: 0.33),
+        .init(color: foStrain066, location: 0.66), .init(color: foStrain100, location: 1.00),
+    ]
+    // Stress: calm forest green → wheat → clay red.
+    static let foStressStops: [Gradient.Stop] = [
+        .init(color: Color(light: "#437E4C", dark: "#5A9C63"), location: 0.0),
+        .init(color: Color(light: "#BC8A3E", dark: "#D8A657"), location: 0.5),
+        .init(color: Color(light: "#8C3324", dark: "#A6412E"), location: 1.0),
+    ]
+
     // MARK: Recovery / Charge gradient — the gold "Charge" colour world.
     // A single warm metal ramp: a deep bronze floor climbs through brand gold into a
     // bright champagne peak — no green anywhere; depleted reads as dim gold, not coral.
@@ -163,15 +290,25 @@ public enum StrandPalette {
     public static let recovery078 = Color(light: "#6FB23A", dark: "#8FD86A") // primed — yellow-green
     public static let recovery100 = Color(light: "#0F9D62", dark: "#03E095") // peak — WHOOP green
 
-    /// Ordered gradient stops for the recovery scale (Titanium gold ramp, or the Classic red→green).
+    /// Ordered gradient stops for the recovery scale (Titanium gold ramp, Classic red→green, or
+    /// Apple Health's systemRed→systemGreen).
     public static var recoveryStops: [Gradient.Stop] {
-        isClassic ? cRecoveryStops : [
+        switch chartStyle {
+        case .classic: return cRecoveryStops
+        case .health:  return hRecoveryStops
+        case .aurora:  return auRecoveryStops
+        case .sunset:  return suRecoveryStops
+        case .forest:  return foRecoveryStops
+        // Signature keeps the readable red→green recovery scale (user decision 2026-07-23); its family
+        // green shows in the Charge accent/chrome, not the score arc.
+        case .titanium, .signature: return [
             .init(color: recovery000, location: 0.00),
             .init(color: recovery030, location: 0.30),
             .init(color: recovery055, location: 0.55),
             .init(color: recovery078, location: 0.78),
             .init(color: recovery100, location: 1.00),
         ]
+        }
     }
 
     /// The signature recovery gradient (bronze → champagne, or Classic red→green).
@@ -186,12 +323,19 @@ public enum StrandPalette {
     public static let strain100 = Color(light: "#D89240", dark: "#F0A85A") // soft amber peak
 
     public static var strainStops: [Gradient.Stop] {
-        isClassic ? cStrainStops : [
+        switch chartStyle {
+        case .classic: return cStrainStops
+        case .health:  return hStrainStops
+        case .aurora:  return auStrainStops
+        case .sunset:  return suStrainStops
+        case .forest:  return foStrainStops
+        case .titanium, .signature: return [
             .init(color: strain000, location: 0.00),
             .init(color: strain033, location: 0.33),
             .init(color: strain066, location: 0.66),
             .init(color: strain100, location: 1.00),
         ]
+        }
     }
 
     /// The strain gradient (output / heat, or the Classic blue ramp).
@@ -202,31 +346,178 @@ public enum StrandPalette {
     // Awake white-grey #CAC8CB, Light periwinkle #A7A4F4, SWS/Deep orchid-pink #FD96FD, REM purple
     // #AE5BEF — because the previous three near-identical blues made a fragmented on-device
     // hypnogram unreadable. Light-mode variants are the same hues darkened for contrast on white.
-    public static var sleepAwake: Color { isClassic ? cSleepAwake : Color(light: "#8E949E", dark: "#CAC8CB") }
-    public static var sleepLight: Color { isClassic ? cSleepLight : Color(light: "#7B78E0", dark: "#A7A4F4") }
-    public static var sleepDeep:  Color { isClassic ? cSleepDeep  : Color(light: "#C13EC1", dark: "#FD96FD") }
-    public static var sleepREM:   Color { isClassic ? cSleepREM   : Color(light: "#8E3BD6", dark: "#AE5BEF") }
+    public static var sleepAwake: Color {
+        switch chartStyle {
+        case .classic: return cSleepAwake
+        case .health:  return hSleepAwake
+        case .aurora:  return Color(light: "#6E7686", dark: "#CAD1DE")
+        case .sunset:  return Color(light: "#7C6E86", dark: "#B0A0B8")
+        case .forest:  return Color(light: "#7E7060", dark: "#A89A86")
+        case .titanium, .signature: return Color(light: "#8E949E", dark: "#CAC8CB")
+        }
+    }
+    public static var sleepLight: Color {
+        switch chartStyle {
+        case .classic: return cSleepLight
+        case .health:  return hSleepLight
+        case .aurora:  return Color(light: "#4E8FA6", dark: "#88C0D0")
+        case .sunset:  return Color(light: "#9E6EB0", dark: "#C89FD6")
+        case .forest:  return Color(light: "#7F9068", dark: "#A3B18A")
+        case .titanium, .signature: return Color(light: "#7B78E0", dark: "#A7A4F4")
+        }
+    }
+    public static var sleepDeep: Color {
+        switch chartStyle {
+        case .classic: return cSleepDeep
+        case .health:  return hSleepDeep
+        case .aurora:  return Color(light: "#3E608F", dark: "#5E81AC")
+        case .sunset:  return Color(light: "#4A3A70", dark: "#5E4B8B")
+        case .forest:  return Color(light: "#305840", dark: "#3E6B4F")
+        case .titanium, .signature: return Color(light: "#C13EC1", dark: "#FD96FD")
+        }
+    }
+    public static var sleepREM: Color {
+        switch chartStyle {
+        case .classic: return cSleepREM
+        case .health:  return hSleepREM
+        case .aurora:  return Color(light: "#8E5E88", dark: "#B48EAD")
+        case .sunset:  return Color(light: "#A83C82", dark: "#C74E9B")
+        case .forest:  return Color(light: "#82567C", dark: "#A0729A")
+        case .titanium, .signature: return Color(light: "#8E3BD6", dark: "#AE5BEF")
+        }
+    }
 
-    // MARK: HR zones — Titanium cool→warm (no green), or the Classic grey→green→yellow→orange→red.
-    public static var zone1: Color { isClassic ? cZone1 : Color(light: "#3A80D6", dark: "#4A90E2") }
-    public static var zone2: Color { isClassic ? cZone2 : Color(light: "#2E92B4", dark: "#3FA9C9") }
-    public static var zone3: Color { isClassic ? cZone3 : Color(light: "#C28E26", dark: "#E8B84B") }
-    public static var zone4: Color { isClassic ? cZone4 : Color(light: "#C2792E", dark: "#D98A3D") }
-    public static var zone5: Color { isClassic ? cZone5 : Color(light: "#C84E1E", dark: "#E0662F") }
+    // MARK: HR zones — Titanium cool→warm (no green), Classic grey→green→yellow→orange→red, or
+    // Apple Health grey→teal→yellow→orange→red.
+    public static var zone1: Color {
+        switch chartStyle {
+        case .classic: return cZone1
+        case .health:  return hZone1
+        case .aurora:  return Color(light: "#5A6376", dark: "#6B7488")
+        case .sunset:  return Color(light: "#5A4A6E", dark: "#6E5A82")
+        case .forest:  return Color(light: "#6C7260", dark: "#8A9078")
+        case .titanium, .signature: return Color(light: "#3A80D6", dark: "#4A90E2")
+        }
+    }
+    public static var zone2: Color {
+        switch chartStyle {
+        case .classic: return cZone2
+        case .health:  return hZone2
+        case .aurora:  return Color(light: "#5E8E8C", dark: "#8FBCBB")
+        case .sunset:  return Color(light: "#945685", dark: "#B06A9C")
+        case .forest:  return Color(light: "#547045", dark: "#6B8E5A")
+        case .titanium, .signature: return Color(light: "#2E92B4", dark: "#3FA9C9")
+        }
+    }
+    public static var zone3: Color {
+        switch chartStyle {
+        case .classic: return cZone3
+        case .health:  return hZone3
+        case .aurora:  return Color(light: "#C9A860", dark: "#EBCB8B")
+        case .sunset:  return Color(light: "#C43F64", dark: "#E5567A")
+        case .forest:  return Color(light: "#BC8A3E", dark: "#D8A657")
+        case .titanium, .signature: return Color(light: "#C28E26", dark: "#E8B84B")
+        }
+    }
+    public static var zone4: Color {
+        switch chartStyle {
+        case .classic: return cZone4
+        case .health:  return hZone4
+        case .aurora:  return Color(light: "#B56A54", dark: "#D08770")
+        case .sunset:  return Color(light: "#E85F42", dark: "#FF7E5F")
+        case .forest:  return Color(light: "#AC583B", dark: "#C56B4A")
+        case .titanium, .signature: return Color(light: "#C2792E", dark: "#D98A3D")
+        }
+    }
+    public static var zone5: Color {
+        switch chartStyle {
+        case .classic: return cZone5
+        case .health:  return hZone5
+        case .aurora:  return Color(light: "#A54650", dark: "#BF616A")
+        case .sunset:  return Color(light: "#E0384A", dark: "#FF4D5E")
+        case .forest:  return Color(light: "#8C3324", dark: "#A6412E")
+        case .titanium, .signature: return Color(light: "#C84E1E", dark: "#E0662F")
+        }
+    }
 
     /// HR zones indexed 1...5; index 0 mirrors zone1 for convenience.
     public static var hrZones: [Color] { [zone1, zone1, zone2, zone3, zone4, zone5] }
 
-    // MARK: Status — Titanium gold/amber/orange, or the Classic green/amber/red.
-    public static var statusPositive: Color { isClassic ? Color(light: "#2E9E4F", dark: "#46B45A") : Color(light: "#1F8A5B", dark: "#03E095") }
-    public static var statusWarning:  Color { isClassic ? Color(light: "#CFA528", dark: "#F2C53D") : Color(light: "#C2792E", dark: "#F0A020") }
-    public static var statusCritical: Color { isClassic ? Color(light: "#CB3A2F", dark: "#E5483B") : Color(light: "#C84E1E", dark: "#E0662F") }
+    // MARK: Status — Titanium gold/amber/orange, Classic green/amber/red, or Apple Health's own
+    // systemGreen/systemYellow/systemRed.
+    public static var statusPositive: Color {
+        switch chartStyle {
+        case .classic: return Color(light: "#2E9E4F", dark: "#46B45A")
+        case .health:  return Color(light: "#34C759", dark: "#30D158")
+        case .aurora:  return Color(light: "#6E9460", dark: "#A3BE8C")
+        case .sunset:  return Color(light: "#5F9456", dark: "#86B87A")
+        case .forest:  return Color(light: "#3B7345", dark: "#4E8C57")
+        case .titanium, .signature: return Color(light: "#1F8A5B", dark: "#03E095")
+        }
+    }
+    public static var statusWarning: Color {
+        switch chartStyle {
+        case .classic: return Color(light: "#CFA528", dark: "#F2C53D")
+        case .health:  return Color(light: "#FFCC00", dark: "#FFD60A")
+        case .aurora:  return Color(light: "#C9A860", dark: "#EBCB8B")
+        case .sunset:  return Color(light: "#E0952E", dark: "#FFB74D")
+        case .forest:  return Color(light: "#BC8A3E", dark: "#D8A657")
+        case .titanium, .signature: return Color(light: "#C2792E", dark: "#F0A020")
+        }
+    }
+    public static var statusCritical: Color {
+        switch chartStyle {
+        case .classic: return Color(light: "#CB3A2F", dark: "#E5483B")
+        case .health:  return Color(light: "#FF3B30", dark: "#FF453A")
+        case .aurora:  return Color(light: "#A54650", dark: "#BF616A")
+        case .sunset:  return Color(light: "#E03656", dark: "#FF4D6D")
+        case .forest:  return Color(light: "#9C3524", dark: "#B5432E")
+        case .titanium, .signature: return Color(light: "#C84E1E", dark: "#E0662F")
+        }
+    }
 
-    // MARK: Per-metric accents — HRV / SpO₂ / energy / risk. Classic leans the traditional hues (purple HRV, red risk).
-    public static var metricCyan:   Color { isClassic ? Color(light: "#2E92B4", dark: "#3FA9C9") : Color(light: "#2E92B4", dark: "#3FA9C9") }
-    public static var metricPurple: Color { isClassic ? Color(light: "#6A4FC0", dark: "#8E6FD6") : Color(light: "#3A80D6", dark: "#4A90E2") }
-    public static var metricAmber:  Color { isClassic ? Color(light: "#CFA528", dark: "#F2C53D") : Color(light: "#C2792E", dark: "#D98A3D") }
-    public static var metricRose:   Color { isClassic ? Color(light: "#CB3A2F", dark: "#E5483B") : Color(light: "#C84E1E", dark: "#E0662F") }
+    // MARK: Per-metric accents — HRV / SpO₂ / energy / risk. Classic leans the traditional hues
+    // (purple HRV, red risk); Apple Health uses Apple's own teal/indigo/orange/pink system colours.
+    public static var metricCyan: Color {
+        switch chartStyle {
+        case .classic: return Color(light: "#2E92B4", dark: "#3FA9C9")
+        case .health:  return Color(light: "#30B0C7", dark: "#40C8E0")
+        case .aurora:  return Color(light: "#4E8FA6", dark: "#88C0D0")
+        case .sunset:  return Color(light: "#3C9E9E", dark: "#5CC0C0")
+        case .forest:  return Color(light: "#3A7E6C", dark: "#4E9A86")
+        case .titanium, .signature: return Color(light: "#2E92B4", dark: "#3FA9C9")
+        }
+    }
+    public static var metricPurple: Color {
+        switch chartStyle {
+        case .classic: return Color(light: "#6A4FC0", dark: "#8E6FD6")
+        case .health:  return Color(light: "#5856D6", dark: "#5E5CE6")
+        case .aurora:  return Color(light: "#8E5E88", dark: "#B48EAD")
+        case .sunset:  return Color(light: "#8A3A82", dark: "#A64D9C")
+        case .forest:  return Color(light: "#7E5474", dark: "#9A6B8E")
+        case .titanium, .signature: return Color(light: "#3A80D6", dark: "#4A90E2")
+        }
+    }
+    public static var metricAmber: Color {
+        switch chartStyle {
+        case .classic: return Color(light: "#CFA528", dark: "#F2C53D")
+        case .health:  return Color(light: "#FF9500", dark: "#FF9F0A")
+        case .aurora:  return Color(light: "#C9A860", dark: "#EBCB8B")
+        case .sunset:  return Color(light: "#E0952E", dark: "#FFB74D")
+        case .forest:  return Color(light: "#BC8A3E", dark: "#D8A657")
+        case .titanium, .signature: return Color(light: "#C2792E", dark: "#D98A3D")
+        }
+    }
+    public static var metricRose: Color {
+        switch chartStyle {
+        case .classic: return Color(light: "#CB3A2F", dark: "#E5483B")
+        case .health:  return Color(light: "#FF2D55", dark: "#FF375F")
+        case .aurora:  return Color(light: "#A54650", dark: "#BF616A")
+        case .sunset:  return Color(light: "#E04E6E", dark: "#FF6B8A")
+        case .forest:  return Color(light: "#AC583B", dark: "#C56B4A")
+        case .titanium, .signature: return Color(light: "#C84E1E", dark: "#E0662F")
+        }
+    }
 
     // MARK: - Titanium & Gold domain "colour worlds" (NEW)
     //
@@ -239,33 +530,161 @@ public enum StrandPalette {
     // the data scale. The gauge ARC itself samples the recovery/strain/stress STOPS above, so it goes
     // full red→green / blue / green→red in Classic regardless of these.
 
-    /// Charge (recovery) — gold world / Classic green.
-    public static var chargeColor: Color  { isClassic ? Color(light: "#2E9E4F", dark: "#46B45A") : Color(light: "#0F9D62", dark: "#03E095") }
-    public static var chargeDeep: Color    { isClassic ? Color(light: "#207A3C", dark: "#2E9E4F") : Color(light: "#0B7A4A", dark: "#0B9D62") }
-    public static var chargeBright: Color  { isClassic ? Color(light: "#5FBE6E", dark: "#86D98E") : Color(light: "#5FD89A", dark: "#6BF0B4") }
-    public static var chargeGlow: Color    { isClassic ? Color(light: "#2E9E4F", dark: "#46B45A") : Color(light: "#0F9D62", dark: "#03E095") }
+    /// Charge (recovery) — gold world / Classic green / Apple Health systemGreen.
+    public static var chargeColor: Color {
+        switch chartStyle {
+        case .classic: return Color(light: "#2E9E4F", dark: "#46B45A")
+        case .health:  return Color(light: "#34C759", dark: "#30D158")
+        case .aurora:  return Color(light: "#6E9460", dark: "#A3BE8C")
+        case .sunset:  return Color(light: "#E08E2E", dark: "#FFB24D")
+        case .forest:  return Color(light: "#437E4C", dark: "#5A9C63")
+        case .signature: return Color(light: "#0C8F62", dark: "#31E39C") // redesign Charge green
+        case .titanium: return Color(light: "#0F9D62", dark: "#03E095")
+        }
+    }
+    public static var chargeDeep: Color {
+        switch chartStyle {
+        case .classic: return Color(light: "#207A3C", dark: "#2E9E4F")
+        case .health:  return Color(light: "#238A45", dark: "#1F7A3D")
+        case .aurora:  return Color(light: "#5C7E50", dark: "#7A9F6A")
+        case .sunset:  return Color(light: "#BC6630", dark: "#D97E3C")
+        case .forest:  return Color(light: "#305840", dark: "#3E6B4F")
+        case .signature: return Color(light: "#0A6E4C", dark: "#1FB87E") // redesign Charge green (deep)
+        case .titanium: return Color(light: "#0B7A4A", dark: "#0B9D62")
+        }
+    }
+    public static var chargeBright: Color {
+        switch chartStyle {
+        case .classic: return Color(light: "#5FBE6E", dark: "#86D98E")
+        case .health:  return Color(light: "#6FDB8E", dark: "#7BE89E")
+        case .aurora:  return Color(light: "#86B074", dark: "#BBD49F")
+        case .sunset:  return Color(light: "#E0B85E", dark: "#FFD98A")
+        case .forest:  return Color(light: "#6BA868", dark: "#8FC88A")
+        case .signature: return Color(light: "#3FB483", dark: "#6BF7C0") // redesign Charge green (bright)
+        case .titanium: return Color(light: "#5FD89A", dark: "#6BF0B4")
+        }
+    }
+    public static var chargeGlow: Color { chargeColor }
     /// Diagonal accent pair for the Charge card wash + gauge stroke (deep → bright).
     public static var chargeGradient: Gradient { Gradient(colors: [chargeDeep, chargeBright]) }
 
-    /// Effort (strain) — amber world / Classic blue.
-    public static var effortColor: Color   { isClassic ? Color(light: "#3A74C4", dark: "#4A90E2") : Color(light: "#2A78C8", dark: "#4090E0") }
-    public static var effortDeep: Color    { isClassic ? Color(light: "#284F9C", dark: "#2F6FCB") : Color(light: "#1E5B96", dark: "#2A6FB0") }
-    public static var effortBright: Color  { isClassic ? Color(light: "#5E92D6", dark: "#7FB2E8") : Color(light: "#5AA0E0", dark: "#74B6F0") }
-    public static var effortGlow: Color    { isClassic ? Color(light: "#3A74C4", dark: "#4A90E2") : Color(light: "#2A78C8", dark: "#4090E0") }
+    /// Effort (strain) — amber world / Classic blue / Apple Health systemOrange.
+    public static var effortColor: Color {
+        switch chartStyle {
+        case .classic: return Color(light: "#3A74C4", dark: "#4A90E2")
+        case .health:  return Color(light: "#FF9500", dark: "#FF9F0A")
+        case .aurora:  return Color(light: "#5C82A6", dark: "#81A1C1")
+        case .sunset:  return Color(light: "#E04E50", dark: "#FF6B6B")
+        case .forest:  return Color(light: "#AC7239", dark: "#C58A47")
+        case .signature: return Color(light: "#0A63B8", dark: "#3AA0FF") // redesign Effort blue
+        case .titanium: return Color(light: "#2A78C8", dark: "#4090E0")
+        }
+    }
+    public static var effortDeep: Color {
+        switch chartStyle {
+        case .classic: return Color(light: "#284F9C", dark: "#2F6FCB")
+        case .health:  return Color(light: "#C97400", dark: "#D68200")
+        case .aurora:  return Color(light: "#456691", dark: "#5E81AC")
+        case .sunset:  return Color(light: "#AC3049", dark: "#C7405B")
+        case .forest:  return Color(light: "#7E552D", dark: "#9A6B3A")
+        case .signature: return Color(light: "#084C8E", dark: "#2A7FD0") // redesign Effort blue (deep)
+        case .titanium: return Color(light: "#1E5B96", dark: "#2A6FB0")
+        }
+    }
+    public static var effortBright: Color {
+        switch chartStyle {
+        case .classic: return Color(light: "#5E92D6", dark: "#7FB2E8")
+        case .health:  return Color(light: "#FFB454", dark: "#FFC670")
+        case .aurora:  return Color(light: "#6E9FB6", dark: "#A6C6D8")
+        case .sunset:  return Color(light: "#E87E68", dark: "#FF9E8A")
+        case .forest:  return Color(light: "#C29A5A", dark: "#E0B478")
+        case .signature: return Color(light: "#3A88D6", dark: "#6BB8FF") // redesign Effort blue (bright)
+        case .titanium: return Color(light: "#5AA0E0", dark: "#74B6F0")
+        }
+    }
+    public static var effortGlow: Color { effortColor }
     public static var effortGradient: Gradient { Gradient(colors: [effortDeep, effortBright]) }
 
-    /// Rest (sleep) — blue world / Classic indigo.
-    public static var restColor: Color     { isClassic ? Color(light: "#3A80D6", dark: "#6FA8E8") : Color(light: "#5E7896", dark: "#83A0B8") }
-    public static var restDeep: Color      { isClassic ? Color(light: "#203E73", dark: "#2A4C8F") : Color(light: "#234F9E", dark: "#2F6FCB") }
-    public static var restBright: Color    { isClassic ? Color(light: "#6A4FC0", dark: "#8E6FD6") : Color(light: "#5790DA", dark: "#6FA8E8") }
-    public static var restGlow: Color      { isClassic ? Color(light: "#3A80D6", dark: "#6FA8E8") : Color(light: "#3A80D6", dark: "#4A90E2") }
+    /// Rest (sleep) — blue world / Classic indigo / Apple Health systemIndigo (Apple's own Sleep colour).
+    public static var restColor: Color {
+        switch chartStyle {
+        case .classic: return Color(light: "#3A80D6", dark: "#6FA8E8")
+        case .health:  return Color(light: "#5856D6", dark: "#5E5CE6")
+        case .aurora:  return Color(light: "#3E608F", dark: "#5E81AC")
+        case .sunset:  return Color(light: "#624788", dark: "#7C5EA8")
+        case .forest:  return Color(light: "#3A6058", dark: "#4E7A70")
+        case .signature: return Color(light: "#5546C4", dark: "#8C7BFF") // redesign Rest violet
+        case .titanium: return Color(light: "#5E7896", dark: "#83A0B8")
+        }
+    }
+    public static var restDeep: Color {
+        switch chartStyle {
+        case .classic: return Color(light: "#203E73", dark: "#2A4C8F")
+        case .health:  return Color(light: "#403DB0", dark: "#4644B8")
+        case .aurora:  return Color(light: "#333A56", dark: "#434C6E")
+        case .sunset:  return Color(light: "#3E2E62", dark: "#4E3A7A")
+        case .forest:  return Color(light: "#253A37", dark: "#2F4A46")
+        case .signature: return Color(light: "#3E3299", dark: "#6B5BE0") // redesign Rest violet (deep)
+        case .titanium: return Color(light: "#234F9E", dark: "#2F6FCB")
+        }
+    }
+    public static var restBright: Color {
+        switch chartStyle {
+        case .classic: return Color(light: "#6A4FC0", dark: "#8E6FD6")
+        case .health:  return Color(light: "#8987E8", dark: "#9492F0")
+        case .aurora:  return Color(light: "#4E8FA6", dark: "#88C0D0")
+        case .sunset:  return Color(light: "#8E6EB6", dark: "#B08FD6")
+        case .forest:  return Color(light: "#5E9484", dark: "#7FB0A0")
+        case .signature: return Color(light: "#6E5FD6", dark: "#A99CFF") // redesign Rest violet (bright)
+        case .titanium: return Color(light: "#5790DA", dark: "#6FA8E8")
+        }
+    }
+    public static var restGlow: Color {
+        switch chartStyle {
+        case .classic: return Color(light: "#3A80D6", dark: "#6FA8E8")
+        case .health:  return restColor
+        case .aurora:  return Color(light: "#4E8FA6", dark: "#88C0D0")
+        case .sunset:  return Color(light: "#8E6EB6", dark: "#B08FD6")
+        case .forest:  return Color(light: "#5E9484", dark: "#7FB0A0")
+        case .signature: return Color(light: "#5546C4", dark: "#8C7BFF") // redesign Rest violet (glow)
+        case .titanium: return Color(light: "#3A80D6", dark: "#4A90E2")
+        }
+    }
     public static var restGradient: Gradient { Gradient(colors: [restDeep, restBright]) }
 
-    /// Stress — blue→gold→orange world / Classic green→amber→red.
-    public static var stressColor: Color   { isClassic ? Color(light: "#CFA528", dark: "#F2C53D") : Color(light: "#C7891A", dark: "#F0A020") }
-    public static var stressDeep: Color    { isClassic ? Color(light: "#2E9E4F", dark: "#46B45A") : Color(light: "#3A80D6", dark: "#4A90E2") }
-    public static var stressBright: Color  { isClassic ? Color(light: "#CB3A2F", dark: "#E5483B") : Color(light: "#C84E1E", dark: "#E0662F") }
-    public static var stressGlow: Color    { isClassic ? Color(light: "#CFA528", dark: "#F2C53D") : Color(light: "#C7891A", dark: "#F0A020") }
+    /// Stress — blue→gold→orange world / Classic green→amber→red / Apple Health
+    /// systemGreen→systemYellow→systemPink (Apple's own heart-rate/vitals red).
+    public static var stressColor: Color {
+        switch chartStyle {
+        case .classic: return Color(light: "#CFA528", dark: "#F2C53D")
+        case .health:  return Color(light: "#FFCC00", dark: "#FFD60A")
+        case .aurora:  return Color(light: "#C9A860", dark: "#EBCB8B")
+        case .sunset:  return Color(light: "#E0952E", dark: "#FFB74D")
+        case .forest:  return Color(light: "#BC8A3E", dark: "#D8A657")
+        case .titanium, .signature: return Color(light: "#C7891A", dark: "#F0A020")
+        }
+    }
+    public static var stressDeep: Color {
+        switch chartStyle {
+        case .classic: return Color(light: "#2E9E4F", dark: "#46B45A")
+        case .health:  return Color(light: "#34C759", dark: "#30D158")
+        case .aurora:  return Color(light: "#6E9460", dark: "#A3BE8C")
+        case .sunset:  return Color(light: "#5F9456", dark: "#86B87A")
+        case .forest:  return Color(light: "#437E4C", dark: "#5A9C63")
+        case .titanium, .signature: return Color(light: "#3A80D6", dark: "#4A90E2")
+        }
+    }
+    public static var stressBright: Color {
+        switch chartStyle {
+        case .classic: return Color(light: "#CB3A2F", dark: "#E5483B")
+        case .health:  return Color(light: "#FF2D55", dark: "#FF375F")
+        case .aurora:  return Color(light: "#A54650", dark: "#BF616A")
+        case .sunset:  return Color(light: "#E03656", dark: "#FF4D6D")
+        case .forest:  return Color(light: "#8C3324", dark: "#A6412E")
+        case .titanium, .signature: return Color(light: "#C84E1E", dark: "#E0662F")
+        }
+    }
+    public static var stressGlow: Color { stressColor }
     /// 3-stop gauge ramp: calm → balanced → high.
     public static var stressGradient: Gradient { Gradient(colors: [stressDeep, stressColor, stressBright]) }
 

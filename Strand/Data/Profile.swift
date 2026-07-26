@@ -61,8 +61,22 @@ final class ProfileStore: ObservableObject {
         }
     }
 
+    // ── Name (optional, on-device only) ─────────────────────────────────────────────────────────
+    /// What the user wants to be called — used ONLY to personalise the Today greeting
+    /// ("Good morning, Marc"). Empty = no name set, and every surface falls back to the bare greeting.
+    /// LOCAL-ONLY and deliberately NOT part of the `.noopbak` whitelist: the backup contract is
+    /// byte-identical across Swift and Kotlin, and a cosmetic greeting isn't worth widening it (a
+    /// restore simply starts again with no name). NOOP is offline, so this never leaves the device.
+    @Published var name: String {
+        didSet {
+            let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty { d.removeObject(forKey: K.name) } else { d.set(trimmed, forKey: K.name) }
+        }
+    }
+
     private let d = UserDefaults.standard
     private enum K {
+        static let name = "profile.name"
         static let dateOfBirth = "profile.dateOfBirth"
         /// Pre-#146 age key. No longer the source of truth; kept mirrored from `dateOfBirth` so the
         /// cross-platform `.noopbak` whitelist keeps round-tripping an Int age unchanged.
@@ -113,6 +127,25 @@ final class ProfileStore: ObservableObject {
         stepsCalibrationManual = d.object(forKey: K.stepsManualFlag) as? Bool ?? false
         stepsManualCoefficient = max(0, d.object(forKey: K.stepsManualCoeff) as? Double ?? 0)
         avatarImageData = d.data(forKey: K.avatar)
+        name = d.string(forKey: K.name) ?? ""
+    }
+
+    /// The persisted body weight, read WITHOUT constructing a store (#goal-journey-freeze).
+    ///
+    /// `init()` deliberately WRITES (it mirrors the #146-derived age under the legacy key), so building a
+    /// throwaway `ProfileStore()` just to read one number mutates UserDefaults as a side effect. Done
+    /// inside a SwiftUI `body` — as `CoachGoalJourneyView.goalSubtitle` did, once per goal card per pass
+    /// — that invalidates any `@AppStorage` in the same view and forces an extra layout pass. This
+    /// accessor is a plain read: same key, same default, no writes, no `@Published`, no actor hop.
+    nonisolated static var persistedWeightKg: Double {
+        UserDefaults.standard.object(forKey: K.weight) as? Double ?? 75
+    }
+
+    /// The trimmed name, or nil when none is set — what greeting surfaces read so they never have to
+    /// repeat the trim-and-check dance (and can never render "Good morning, ").
+    var displayName: String? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     // MARK: - Profile picture
@@ -141,6 +174,16 @@ final class ProfileStore: ObservableObject {
 
     /// Remove the profile photo (reverts the header / Settings to the default icon).
     func clearAvatar() { avatarImageData = nil }
+
+    /// "Health always wins" (user decision, supersedes the old one-time seed-if-unset behavior): every
+    /// successful HealthKit sync overwrites the profile weight with the freshest Health reading, not just
+    /// once when the field was never set. Still ignores unrealistic readings (<10 kg). Known tradeoff: a
+    /// manual edit not yet written back to Health (e.g. app killed mid-write) can be reverted by the next
+    /// sync — accepted explicitly per the user's choice, not engineered around (see docs/decisions.md).
+    func applyHealthWeight(kg: Double) {
+        guard kg > 10 else { return }
+        weightKg = kg
+    }
 
     /// The manual override to feed into `StepsEstimateEngine.calibrate(_:manualOverride:)`:
     /// nil when 0 (auto-fit), the positive value otherwise.

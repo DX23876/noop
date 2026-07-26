@@ -11,8 +11,4 @@
 // Apple ID / device so this build's bundle id, App Group, and watch companion pairing don't
 // collide with an installed copy of the official com.noopapp build.
 BUNDLE_ID_PREFIX = com.noopapp
-// Empty by default: CODE_SIGN_STYLE is Automatic and macOS ad-hoc builds (see docs/BUILD.md) need
-// no team at all. Set DEVELOPMENT_TEAM in BundleIdSecrets.xcconfig to run on a physical iPhone or
-// to stop Xcode from asking you to reselect a team after every `xcodegen generate`.
-DEVELOPMENT_TEAM =
 #include? "BundleIdSecrets.xcconfig"

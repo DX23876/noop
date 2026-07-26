@@ -108,19 +108,6 @@ public enum OuraStreamMapping {
                     mv: v.voltageMv,
                     charging: v.charging))
 
-            case .motionEvent:
-                // 0x47 averaged accel vector (Tier-A). Decoded and available, but NOT written to any
-                // durable stream. This is NOT merely a "pending LSB→g scale" hold — the open question is
-                // whether `gravitySample` is the right destination AT ALL. 0x47 is MOVEMENT-GATED (the
-                // ring emits it only while moving, validated on-device #804), so it yields NO still
-                // samples; `SleepStager` instead needs a CONTINUOUS gravity stream (≥70% of a rolling
-                // 15-min window with per-sample delta < 0.01 g, and a >20-min gap breaks the run). Missing
-                // samples are not still samples, so feeding 0x47 into gravity is a SHAPE MISMATCH, not an
-                // unscaled one, and synthesising still samples to fill the gaps would be inventing data.
-                // The usable signal is `motion_seconds` / intensity as an ACTIVITY input on a separate path
-                // (#804 option B). Held here until that path lands. Dropped, not faked.
-                continue
-
             case .motion, .state, .timeSync, .rtcBeacon, .debugText, .tierB, .activityInfo:
                 // Not a durable per-device stream row (timeSync/rtcBeacon anchor the transport's clock;
                 // motion/state/debug are diagnostics; Tier-B / .activityInfo are UNVERIFIED and must

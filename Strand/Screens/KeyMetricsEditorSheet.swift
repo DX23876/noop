@@ -21,12 +21,21 @@ struct KeyMetricsEditorSheet: View {
     /// The detailed graphs' trailing window — 2 days / 1 week / 2 weeks (shared key with Android).
     @AppStorage("today.keyMetricsWindowDays") private var windowDays = 14
 
+    /// Tiles per row on the liquid Today grid. 3 is the long-standing layout; 2 is the calmer option for
+    /// anyone who finds ten tiles three abreast overwhelming. iOS/macOS display-only — no Android twin.
+    @AppStorage(KeyMetricPrefs.columnsKey) private var columns = 3
+
     @Environment(\.dismiss) private var dismiss
 
     /// Working copy: the full ordered list with an enabled flag per tile. Enabled tiles come first in
     /// their saved order, then the disabled remainder in the default order — so toggling one on drops it
     /// at the end of the visible set, and the editor always lists every known tile exactly once.
     @State private var items: [Item]
+
+    /// Guards `commit()` against writing twice — "Done" calls it explicitly before dismissing, which then
+    /// triggers `onDisappear`'s own `commit()` call for the swipe/other-dismiss path. Both must be safe to
+    /// call, but only the first needs to actually touch `layoutRaw`.
+    @State private var didCommit = false
 
     private struct Item: Identifiable {
         let metric: KeyMetric
@@ -50,22 +59,44 @@ struct KeyMetricsEditorSheet: View {
         // #430 parity: the sheet is now ALSO presented from the liquid Today on iPhone — the macOS-shaped
         // fixed 420pt width would overflow a 390pt phone, and ten rows + the toggle outgrow a sheet's
         // height, so the phone presentation scrolls and sizes to the screen instead.
-        #if os(macOS)
-        editorContent
-            .padding(24)
-            .frame(width: 420)
+        Group {
+            #if os(macOS)
+            editorContent
+                .padding(24)
+                .frame(width: 420)
+                .background(StrandPalette.surfaceOverlay)
+            #else
+            ScrollView {
+                editorContent.padding(20)
+            }
             .background(StrandPalette.surfaceOverlay)
-        #else
-        ScrollView {
-            editorContent.padding(20)
+            #endif
         }
-        .background(StrandPalette.surfaceOverlay)
-        #endif
+        // Swipe-to-dismiss (and any other non-Done dismissal) skipped `commit()` entirely, leaving
+        // whatever was toggled/reordered unsaved — a half-applied edit that silently reverted on next
+        // open. `onDisappear` fires for every dismissal path, Done included, so `commit()` also guards
+        // itself against running twice (see below).
+        .onDisappear(perform: commit)
     }
 
     private var editorContent: some View {
         VStack(alignment: .leading, spacing: 18) {
             header
+            // Tiles per row: the density control. Two columns give each tile ~50pt more width, which the
+            // grid spends on a bigger number and a taller trend graph.
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Tiles per row")
+                    .font(StrandFont.body)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                Picker("Tiles per row", selection: $columns) {
+                    ForEach(KeyMetricPrefs.columnChoices, id: \.self) { count in
+                        Text("\(count)").tag(count)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .accessibilityLabel("Tiles per row")
+            }
             // Detailed tiles: the tile-style option (compact ktile vs squarer tile + trend graph). Twin
             // of the Android editor's switch; applies live via the shared @AppStorage key.
             Toggle(isOn: $detailed) {
@@ -231,8 +262,12 @@ struct KeyMetricsEditorSheet: View {
 
     /// Persist the enabled tiles in their current order. Disabled tiles are simply omitted from the
     /// stored string — `KeyMetricPrefs.decodeEnabled` rebuilds the editor's disabled remainder from the
-    /// default order on next open, so nothing is lost.
+    /// default order on next open, so nothing is lost. Idempotent: "Done" calls this directly, and dismissal
+    /// (any path, including Done's own `dismiss()`) calls it again via `onDisappear` — `didCommit` makes the
+    /// second call a no-op instead of re-writing the same @AppStorage value twice.
     private func commit() {
+        guard !didCommit else { return }
+        didCommit = true
         layoutRaw = KeyMetricPrefs.encode(items.filter { $0.enabled }.map(\.metric))
     }
 }

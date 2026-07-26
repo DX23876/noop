@@ -5,6 +5,10 @@ import UserNotifications
 @main
 struct StrandApp: App {
     init() {
+        // One-time migration off the retired card/button/both Coach-entry picker onto the three
+        // independent entry toggles (banner/header-icon/floating-button). No-op after the first launch
+        // that has them. Must run before any Today/RootTabView reads its @AppStorage default.
+        CoachEntryPrefs.migrateIfNeeded()
         #if DEBUG
         // DEBUG-only promo-screenshot harness: when launched with `--demo-hour <Int>`, pin the Today
         // screen to that hour's day-cycle scene + a plausible per-hour stat frame. Runs synchronously
@@ -15,6 +19,9 @@ struct StrandApp: App {
         // Foreground presentation: without a delegate, macOS suppresses a notification's banner while the
         // app is frontmost, so a reminder tested with NOOP open would show nothing. Mirrors iOS.
         UNUserNotificationCenter.current().delegate = NotificationPresenter.shared
+        // Register the check-in's action buttons before any notification can arrive — a category a
+        // notification names but nobody registered simply shows no buttons, silently.
+        CoachCheckIn.registerCategory()
     }
 
     @StateObject private var model = AppModel()
@@ -27,7 +34,7 @@ struct StrandApp: App {
     /// Appearance preference (System/Light/Dark). Default follows the OS; the Settings picker writes it.
     @AppStorage(AppearanceMode.storageKey) private var appearanceRaw = AppearanceMode.system.rawValue
     /// Chart data-colour style (Titanium / Classic throwback). Re-colours gauges + charts.
-    @AppStorage(ChartStyle.storageKey) private var chartStyleRaw = ChartStyle.titanium.rawValue
+    @AppStorage(ChartStyle.storageKey) private var chartStyleRaw = ChartStyle.health.rawValue
 
     var body: some Scene {
         WindowGroup {
@@ -59,7 +66,13 @@ struct StrandApp: App {
                 // Single-param form (not the two-param `{ _, phase in }`) — that overload needs macOS 14,
                 // this target is macOS 13.
                 .onChange(of: scenePhase) { phase in
-                    if phase == .active { model.ble.requestSync(.foreground) }
+                    if phase == .active {
+                        model.ble.requestSync(.foreground)
+                        // Re-learn the wake-time-tracking check-in from fresh sleep. No-op unless the
+                        // check-in is on and set to .afterWake; keeps the repeating trigger in step with
+                        // the user's actual wake time rather than a clock time that drifts.
+                        Task { await CoachCheckIn.refreshDynamicScheduleIfNeeded(repo: model.repo) }
+                    }
                 }
         }
         .windowStyle(.hiddenTitleBar)

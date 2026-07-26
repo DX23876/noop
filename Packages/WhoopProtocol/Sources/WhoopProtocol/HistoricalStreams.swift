@@ -22,15 +22,6 @@ public let FUTURE_MARGIN = 86_400               // 1 day
 /// catching the months-off garbage. Kept in lockstep with Android `HistoricalStreams.kt` SESSION_RANGE_MARGIN.
 public let SESSION_RANGE_MARGIN = 7 * 86_400    // 7 days
 
-/// #520: the stillness cut for the `dynamic_acceleration` diagnostic. Borrowed from
-/// `SleepStager.gravityStillThresholdG` (0.01 g) as a REFERENCE point, not because the two measure the
-/// same thing — the stager thresholds a per-sample DELTA between consecutive gravity vectors, while this
-/// field is an ABSOLUTE gravity-removed magnitude at one instant. Both approach 0 when the wrist is still,
-/// so the same cut is a sensible starting point, but a matching still-fraction would not prove the two are
-/// equivalent. Duplicated as a literal rather than imported — WhoopProtocol is the wire layer and must not
-/// depend on StrandAnalytics. If the stager's constant moves, move this one with it.
-public let dynAccelStillThresholdG = 0.01
-
 /// True when `ts` is a plausible capture time for a historical record given `wallNow` (#547): on or
 /// after the 2023-11 floor and no more than a day ahead of now. The single predicate the ingest gate
 /// and the one-time DB heal both use, so both platforms reject the exact same set.
@@ -240,15 +231,6 @@ public func extractHistoricalStreams(_ parsed: [ParsedFrame],
             if let gx = p["gravity_x"]?.doubleValue {
                 out.gravity.append(GravitySample(ts: ts, x: gx,
                     y: p["gravity_y"]?.doubleValue ?? 0, z: p["gravity_z"]?.doubleValue ?? 0))
-            }
-            // #520 diagnostic: fold `dynamic_acceleration@41` into a summary. Counted, never stored —
-            // the decoder has emitted this field all along with nothing consuming it, so there is no
-            // evidence on whether it beats the gravity-delta stillness the stager derives today. The
-            // threshold is the stager's own cut, borrowed as a reference point (the stager thresholds a
-            // per-sample delta, this is an absolute magnitude — related, not the same measurement);
-            // it is passed as a literal because WhoopProtocol must not depend on StrandAnalytics.
-            if let dyn = p["dynamic_acceleration"]?.doubleValue {
-                out.dynAccel.add(dyn, threshold: dynAccelStillThresholdG)
             }
         case "REALTIME_RAW_DATA":
             // #547 gate: the device-epoch→wall mapping can also land out of bounds on a bad clock, so

@@ -78,6 +78,11 @@ struct WorkoutsView: View {
     /// the add/edit sheet so a primary tap (detail) and the ••• menu (edit) never collide. (#410)
     @State private var detail: WorkoutDetailTarget?
 
+    /// A specific workout's natural key (`selectionKey`) to auto-open on arrival, threaded from
+    /// `TabRoute.workoutDetail` — Today's "Latest Workouts" tiles push straight to one session instead
+    /// of landing on the bare list. Consumed (and cleared) the first time `allRows` loads.
+    @State private var pendingDetailKey: String?
+
     /// A transient one-line note shown after a manual save / relabel for a sport that already has a
     /// solid/building ActivityCost entry — "Sessions like this usually …" (#439). Auto-clears.
     @State private var postLogNote: String?
@@ -126,12 +131,13 @@ struct WorkoutsView: View {
         let id = UUID()
     }
 
-    init(previewRows: [WorkoutRow]? = nil) {
+    init(previewRows: [WorkoutRow]? = nil, openDetailKey: String? = nil) {
         _allRows = State(initialValue: previewRows ?? [])
         _loaded = State(initialValue: previewRows != nil)
         // Preview-seeded rows are treated as the full history (nil window) so the preview path never pages.
         _loadedWindowDays = State(initialValue: previewRows != nil ? nil : Self.firstPaintWindowDays)
         usesPreviewRows = previewRows != nil
+        _pendingDetailKey = State(initialValue: openDetailKey)
     }
 
     var body: some View {
@@ -189,6 +195,10 @@ struct WorkoutsView: View {
             if !wasLoaded {
                 range = defaultRange(for: r)
                 seededInitialRange = true
+            }
+            if let key = pendingDetailKey {
+                if let row = r.first(where: { selectionKey($0) == key }) { openDetail(row) }
+                pendingDetailKey = nil
             }
         }
         .onAppear {

@@ -27,9 +27,13 @@ struct StrandiOSApp: App {
     /// Appearance preference (System/Light/Dark). Default follows the OS; the Settings picker writes it.
     @AppStorage(AppearanceMode.storageKey) private var appearanceRaw = AppearanceMode.system.rawValue
     /// Chart data-colour style (Titanium / Classic throwback). Re-colours gauges + charts.
-    @AppStorage(ChartStyle.storageKey) private var chartStyleRaw = ChartStyle.titanium.rawValue
+    @AppStorage(ChartStyle.storageKey) private var chartStyleRaw = ChartStyle.health.rawValue
 
     init() {
+        // One-time migration off the retired card/button/both Coach-entry picker onto the three
+        // independent entry toggles (banner/header-icon/floating-button). No-op after the first launch
+        // that has them. Must run before any Today/RootTabView reads its @AppStorage default.
+        CoachEntryPrefs.migrateIfNeeded()
         #if DEBUG
         // DEBUG-only promo-screenshot harness: when launched with `--demo-hour <Int>`, pin Today to that
         // hour's day-cycle scene + a per-hour stat frame. No-op (active stays nil) when the arg is absent.
@@ -50,6 +54,9 @@ struct StrandiOSApp: App {
         // is open, so a user testing the wind-down reminder with NOOP foregrounded sees nothing. Register
         // before the first scene so any early-fired notification is presented.
         UNUserNotificationCenter.current().delegate = NotificationPresenter.shared
+        // Register the check-in's action buttons before any notification can arrive — a category a
+        // notification names but nobody registered simply shows no buttons, silently.
+        CoachCheckIn.registerCategory()
         let model = AppModel()
         _model = StateObject(wrappedValue: model)
         _health = StateObject(wrappedValue: HealthKitBridge(
@@ -82,6 +89,20 @@ struct StrandiOSApp: App {
                 // fixed-geometry tiles/gauges stay legible at the largest accessibility sizes rather than
                 // clipping; the common Larger-Text range still scales fully.
                 .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+                // "Health always wins" (user decision): every successful sync overwrites the profile
+                // weight with the freshest Health reading, not just once when unset.
+                .onReceive(health.$latestImportedWeightKg) { kg in
+                    if let kg { model.profile.applyHealthWeight(kg: kg) }
+                }
+                // The reverse direction: a genuine user edit to the profile weight writes back to Health.
+                // Ping-pong guard — skip when the new value is (near-)identical to what Health itself last
+                // reported, since that means this change is the "Health always wins" overwrite above
+                // echoing back through this same publisher, not a fresh user edit (a real edit almost
+                // never lands within 0.05 kg of the last Health-imported value by coincidence).
+                .onReceive(model.profile.$weightKg.dropFirst()) { kg in
+                    guard abs(kg - (health.latestImportedWeightKg ?? -.greatestFiniteMagnitude)) > 0.05 else { return }
+                    Task { try? await health.writeWeight(kg: kg) }
+                }
                 .onReceive(model.live.$heartRate) { _ in
                     // #911: anchor the Live Activity on the SAME shared `Repository.widgetAnchor` the
                     // Home/Lock widget and the watch snapshot use, so this fourth surface can't drift to a
@@ -204,6 +225,10 @@ struct StrandiOSApp: App {
                 // timer or an incidental reconnect. Floored at 90s and never clock/empty-streak-suppressed
                 // (BackfillPolicy.shouldRun's .foreground case), so this is a safe no-op on rapid re-opens.
                 model.ble.requestSync(.foreground)
+                // Re-learn the wake-time-tracking check-in from fresh sleep on foreground. No-op unless
+                // the check-in is on and set to .afterWake; keeps the repeating trigger in step with the
+                // user's actual wake time rather than a clock time that drifts out of sync.
+                Task { await CoachCheckIn.refreshDynamicScheduleIfNeeded(repo: model.repo) }
                 Task {
                     health.refreshAuthIfPreviouslyGranted()
                     await health.sync()
