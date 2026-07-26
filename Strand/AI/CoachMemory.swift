@@ -182,6 +182,10 @@ final class CoachMemory: ObservableObject {
         let qTokens = Self.tokens(query)
         let ranked = rest
             .map { fact -> (MemoryFact, Double) in (fact, Self.relevanceScore(fact, qTokens, now: now)) }
+            // A ranking is not a reason to disclose: when no meaningful token overlaps, a normal fact
+            // must stay local. Without this filter the newest eight facts would leak into every request
+            // merely because zero-score ties still have an order.
+            .filter { $0.1 > 0 }
             .sorted { $0.1 > $1.1 }
             .map { $0.0 }
         // Always take pinned; fill the remaining budget with the highest-ranked normal facts.

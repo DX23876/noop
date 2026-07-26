@@ -130,6 +130,41 @@ final class MetricSeriesStoreTests: XCTestCase {
         XCTAssertEqual(keys, [])
     }
 
+    // MARK: - source discovery by metric key
+
+    func testMetricSourcesDiscoversEverySourceHoldingTheKey() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertMetricSeries([MetricPoint(day: "2026-01-01", key: "weight", value: 80)],
+                                           deviceId: "apple-health")
+        try await store.upsertMetricSeries([MetricPoint(day: "2026-01-02", key: "weight", value: 79)],
+                                           deviceId: "garmin-import")
+        try await store.upsertMetricSeries([MetricPoint(day: "2026-01-02", key: "hrv", value: 50)],
+                                           deviceId: "garmin-import")
+
+        let weightSources = try await store.metricSources(key: "weight")
+        let unknownSources = try await store.metricSources(key: "unknown")
+        XCTAssertEqual(weightSources, ["apple-health", "garmin-import"])
+        XCTAssertEqual(unknownSources, [])
+    }
+
+    func testMetricCatalogContainsOnlyMetadataAndGroupsEachSeries() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertMetricSeries([
+            MetricPoint(day: "2026-01-01", key: "weight", value: 80),
+            MetricPoint(day: "2026-01-03", key: "weight", value: 79),
+        ], deviceId: "apple-health")
+        try await store.upsertMetricSeries([MetricPoint(day: "2026-01-02", key: "hrv", value: 50)],
+                                           deviceId: "garmin-import")
+
+        let catalog = try await store.metricCatalog()
+        XCTAssertEqual(catalog, [
+            MetricCatalogEntry(source: "garmin-import", key: "hrv", pointCount: 1,
+                               earliestDay: "2026-01-02", latestDay: "2026-01-02"),
+            MetricCatalogEntry(source: "apple-health", key: "weight", pointCount: 2,
+                               earliestDay: "2026-01-01", latestDay: "2026-01-03"),
+        ])
+    }
+
     // MARK: - metricDays (min/max)
 
     func testMetricDaysReturnsEarliestAndLatest() async throws {

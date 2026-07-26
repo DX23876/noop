@@ -5,9 +5,10 @@ import Foundation
 /// its own file, driven entirely through internal engine APIs (`cheapComplete`, `applySummary`), so it
 /// stays merge-clean against upstream and never touches the private key/HTTP internals.
 ///
-/// Cost control: only runs with data consent AND auto-summarise on, only after enough new turns have
-/// accrued, and always via the cheap `memoryModel`. Best-effort and silent — a failure never disturbs
-/// the chat. Everything stays on-device except the one cheap request to the user's own provider.
+/// Cost control: only runs with data consent, the separate Memory purpose AND auto-summarise on, only
+/// after enough new turns have accrued, and always via the cheap `memoryModel`. Best-effort and silent —
+/// a failure never disturbs the chat. Everything stays on-device except the one cheap request to the
+/// user's own provider.
 extension AICoachEngine {
 
     /// What a manual "Summarise now" actually did, so the settings card can say so instead of looking
@@ -24,7 +25,7 @@ extension AICoachEngine {
 
     /// Summarise a conversation the user is leaving, if worthwhile. Fire-and-forget.
     func maybeSummarize(_ conversationID: UUID) {
-        guard dataConsent, autoSummarize else { return }
+        guard memoryContextAllowed, autoSummarize else { return }
         guard let convo = conversations.first(where: { $0.id == conversationID }) else { return }
         let userTurns = convo.messages.filter { $0.role == .user && !$0.text.isEmpty }.count
         guard userTurns >= 1 else { return }
@@ -40,7 +41,7 @@ extension AICoachEngine {
     /// (`.alreadyUpToDate`), which is also what makes repeat taps free rather than merely harmless.
     @discardableResult
     func summarizeNow(_ conversationID: UUID) -> SummarizeOutcome {
-        guard dataConsent else { return .noConsent }
+        guard memoryContextAllowed else { return .noConsent }
         guard let convo = conversations.first(where: { $0.id == conversationID }) else {
             return .nothingToSummarize
         }

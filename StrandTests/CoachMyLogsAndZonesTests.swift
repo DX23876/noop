@@ -60,18 +60,21 @@ final class CoachMyLogsAndZonesTests: XCTestCase {
 
     // MARK: - Tool census (the guard that outlives this plan)
 
-    /// Both new tools are on the wire, and the default (no second opt-in) census is pinned so any future
-    /// addition is a deliberately reviewed cost bump rather than drift.
-    func testToolCensusIncludesTheTwoNewToolsAndIsPinned() {
+    /// The core long-history tools are on the wire, and the full-purpose (except patterns) census is pinned
+    /// so any future addition is a deliberately reviewed cost bump rather than drift.
+    func testToolCensusIncludesLongHistoryToolsAndIsPinned() {
         let engine = makeEngine()
         engine.toolConsent = ToolConsent(enabled: Set(CoachPurpose.allCases.filter { $0 != .patterns }))
         XCTAssertTrue(engine.coachTools.contains(.myLogs))
         XCTAssertTrue(engine.coachTools.contains(.zoneMinutes))
-        XCTAssertEqual(engine.coachTools.count, 21,
+        XCTAssertTrue(engine.coachTools.contains(.dataCatalog))
+        XCTAssertTrue(engine.coachTools.contains(.metricHistory))
+        XCTAssertEqual(engine.coachTools.count, 24,
                        "tool count changed — confirm the added per-round cost is intended")
 
         engine.toolConsent.enabled.insert(.patterns)
-        XCTAssertEqual(engine.coachTools.count, 22, "the second opt-in adds get_personal_patterns")
+        XCTAssertEqual(engine.coachTools.count, 26,
+                       "the second opt-in adds personal patterns and training preferences")
     }
 
     /// Every tool has a non-empty description and a well-formed object input schema — the new ones

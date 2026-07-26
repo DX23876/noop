@@ -3,7 +3,7 @@ import XCTest
 
 /// The coach must never promise a tool it wasn't handed.
 ///
-/// `send()` passes `tools: toolCallingActive ? coachTools : []`, but the system prompt used to say
+/// `send()` passes the locally policy-filtered tool list for this question, but the system prompt used to say
 /// "record it with propose_plan" unconditionally. For a provider without tool-calling — or with data
 /// consent off — the model was told to record proposals via a tool that wasn't on the wire, and would
 /// report having done so. Nothing was created, so the user had nothing to accept: the proposal never
@@ -128,6 +128,18 @@ final class CoachSystemPromptToolClauseTests: XCTestCase {
         XCTAssertFalse(engine.systemPrompt.contains(AICoachEngine.toolModeClause))
         // Mutually exclusive with the no-tool clause: they never both ride the same prompt.
         XCTAssertTrue(engine.systemPrompt.contains(AICoachEngine.noPlanToolClause))
+    }
+
+    func testPerTurnLocalPolicyCanTruthfullyRemoveTools() {
+        let engine = makeEngine()
+        engine.provider = .anthropic
+        engine.dataConsent = true
+        XCTAssertTrue(engine.toolCallingActive, "premise: the provider can normally run tools")
+
+        let prompt = engine.systemPrompt(toolsActive: false)
+        XCTAssertFalse(prompt.contains("propose_plan"))
+        XCTAssertFalse(prompt.contains(AICoachEngine.toolModeClause))
+        XCTAssertTrue(prompt.contains(AICoachEngine.noPlanToolClause))
     }
 
     /// The regression the W1 clause split exists for: a user with a custom `ai.systemPrompt` override

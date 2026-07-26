@@ -9,7 +9,7 @@
 <p align="center">
   <img alt="Platform" src="https://img.shields.io/badge/iOS%2017%2B%20%C2%B7%20macOS%2013%2B-234F9E?style=flat-square">
   <img alt="Straps" src="https://img.shields.io/badge/WHOOP-4.0%20%C2%B7%205.0%2FMG-234F9E?style=flat-square">
-  <img alt="AI coach" src="https://img.shields.io/badge/AI%20coach-22%20tools%20%C2%B7%20long--term%20memory-C8902F?style=flat-square">
+  <img alt="AI coach" src="https://img.shields.io/badge/AI%20coach-25%20tools%20%C2%B7%20long--term%20memory-C8902F?style=flat-square">
   <img alt="No cloud" src="https://img.shields.io/badge/no%20server-no%20account-E8B84B?style=flat-square">
   <img alt="Fork of ryanbr/noop" src="https://img.shields.io/badge/fork%20of-ryanbr%2Fnoop-6B737B?style=flat-square&logo=github&logoColor=white">
   <a href="LICENSE"><img alt="License: PolyForm Noncommercial 1.0.0" src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-6B737B?style=flat-square"></a>
@@ -27,7 +27,7 @@
 |---|---|
 | ⌚ **Your WHOOP, without WHOOP** | Pairs straight with a **WHOOP 4.0 or 5.0/MG** over Bluetooth. No WHOOP account, no subscription, nothing in the middle. |
 | 📱 **iPhone and Mac** | Runs on **iOS 17+** and **macOS 13+**, from the same codebase. |
-| 🤖 **A coach with a memory** | 22 tools it uses to look things up mid-answer, a goal, a plan you agreed to, and facts it remembers across months — not a chatbot bolted onto a dashboard. |
+| 🤖 **A coach with a memory** | 26 tools it uses to look things up mid-answer, a goal, a plan you agreed to, and facts it remembers across months — not a chatbot bolted onto a dashboard. |
 | 📈 **Deep health analysis** | Recovery, strain, sleep, HRV, readiness, training load and n-of-1 correlations — all computed **on your device**, from published methods. |
 | 🔘 **A home-screen widget, and Siri** | The NOOP Rings widget (Charge alone, or Charge + Effort + Rest) at a glance, plus a "How's my recovery?" Siri/Shortcuts intent that answers without opening the app. |
 | 🔒 **No server, no account** | Everything lives in a database on your machine. The coach is the one thing that opens a socket, only with your own API key, only when you ask it something. |
@@ -56,13 +56,17 @@ fetch its own data.
 
 ### 🔧 It looks things up while it answers
 
-Instead of a fixed summary, the coach reaches for **22 tools** mid-sentence. Crucially,
+Instead of a fixed summary, the coach reaches for **26 tools** mid-sentence. Crucially,
 `get_readiness` and `get_charge_drivers` read from the **exact same engines the Today screen uses**,
 so its verdict can never contradict the number you're looking at.
 
 - 🎯 `get_readiness` — the same push / maintain / rest verdict Today shows
 - 🔬 `get_charge_drivers` — *why* today's Charge is what it is, term by term, never an invented reason
 - 📈 `plot_metric` — draws a real chart inline in the chat
+- 🗂️ `get_data_catalog` / `get_metric_history` — discovers local history first, then shares one
+  bounded, aggregate trend rather than a raw data dump
+- 🔁 `get_training_preferences` — learns repeated plan decisions, such as regularly declining runs
+  at weekends; it never changes a plan by itself
 - 📝 `propose_plan` — suggests a session; it cannot book one
 - ☕ `log_caffeine` / `log_journal` / `log_lab_marker` — **writes** to your real app data
 
@@ -184,12 +188,17 @@ Worth being precise about, because "AI" and "private" rarely share a sentence:
 - **Only the coach opens a socket** — only when you send a message, only to **your own provider with
   your own key**, and only if you've turned data access on. Turn it off and the coach still works;
   it just doesn't see your numbers.
-- **Data access isn't one switch — it's seven.** Core biometrics, workouts, planning, stress,
-  logging, memory and personal patterns are each granted independently (Settings → Privacy & data →
-  Data access), so you can hand the coach your workouts without your sleep, say, rather than
-  all-or-nothing.
+- **Data access starts with three clear levels.** Essentials, Personal and Deep insights bundle the
+  right grants for most people; Expert mode exposes the underlying controls. Sensitive journal fields
+  always need their own extra choice.
 - **Summaries, never raw signal.** Derived daily numbers and short text — never raw R-R streams or
   sensor buffers.
+- **Deep history stays local until it is needed.** Tool-capable models choose a narrow local read;
+  tool-less local servers use an on-device router that selects only relevant, separately granted
+  categories. A reply shows the resulting category receipt in the chat. Long-term trends are aggregate
+  evidence from one local source, not exported daily readings.
+- **Lab reports are review-first.** A selected PDF or photo is read locally, recognised values are shown
+  for approval, and only confirmed markers enter the private Lab Book. Nothing is uploaded or diagnosed.
 - **You can go fully local.** Point the Custom provider at Ollama or LM Studio and nothing leaves
   your network at all.
 

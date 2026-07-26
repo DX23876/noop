@@ -1,15 +1,45 @@
 import Foundation
 
 /// A grouping of coach tools by what a user might want to grant or withhold, independent of any single
-/// tool. Coarser than per-tool (22 individual toggles would overwhelm Settings) but finer than the single
+/// tool. Coarser than per-tool (26 individual toggles would overwhelm Settings) but finer than the single
 /// `dataConsent` switch that, until now, was the only lever — all-or-nothing across every tool. Sits
 /// BELOW `dataConsent`, never instead of it: `dataConsent` remains the master switch for context
 /// building, the daily brief, proactive nudges and `MemoryMaintainer`; a `CoachPurpose` only narrows what
 /// tools are offered/allowed once that master switch is already on.
 enum CoachPurpose: String, Codable, CaseIterable, Identifiable {
-    case coreBiometrics, workouts, planning, stress, logs, memory, patterns
+    case coreBiometrics, longHistory, workouts, planning, stress, logs, sensitiveLogs, memory, patterns
 
     var id: String { rawValue }
+}
+
+/// The simple privacy choices presented to most people. Fine-grained purposes stay intact underneath,
+/// but a person should not have to understand every data path just to start using Coach.
+enum CoachDataAccessMode: String, CaseIterable, Identifiable {
+    case essentials, personal, deepInsights, expert
+
+    var id: String { rawValue }
+
+    var purposes: Set<CoachPurpose>? {
+        switch self {
+        case .essentials:
+            return [.coreBiometrics, .workouts, .planning, .memory]
+        case .personal:
+            return [.coreBiometrics, .workouts, .planning, .stress, .logs, .memory, .patterns]
+        case .deepInsights:
+            // Sensitive journal labels intentionally remain OFF even here: they need a conscious
+            // separate choice in Expert settings rather than riding a broad convenience preset.
+            return [.coreBiometrics, .longHistory, .workouts, .planning, .stress, .logs, .memory, .patterns]
+        case .expert:
+            return nil
+        }
+    }
+
+    static func current(for enabled: Set<CoachPurpose>) -> CoachDataAccessMode {
+        for mode in [CoachDataAccessMode.essentials, .personal, .deepInsights] where mode.purposes == enabled {
+            return mode
+        }
+        return .expert
+    }
 }
 
 extension CoachTool {
@@ -20,6 +50,8 @@ extension CoachTool {
         switch self {
         case .biometricSummary, .readiness, .chargeDrivers, .sleepDetail, .plotMetric:
             return .coreBiometrics
+        case .dataCatalog, .metricHistory:
+            return .longHistory
         case .recentWorkouts, .zoneMinutes, .sessionOutlook, .simulateDay:
             return .workouts
         case .proposePlan, .planAdherence, .rangeReport:
@@ -28,9 +60,11 @@ extension CoachTool {
             return .stress
         case .myLogs, .logCaffeine, .logJournal, .logLabMarker:
             return .logs
+        case .sensitiveLogs:
+            return .sensitiveLogs
         case .rememberFact, .updateFact, .forgetFact, .searchPastConversations:
             return .memory
-        case .personalPatterns:
+        case .personalPatterns, .trainingPreferences:
             return .patterns
         }
     }
@@ -57,8 +91,8 @@ struct ToolConsent: Codable, Equatable {
     ///
     /// `dataConsent == true` grants the four conversational essentials — core biometrics, workouts,
     /// planning, memory — the load-bearing part of what the old all-or-nothing switch covered day to day.
-    /// `stress` and `logs` start OFF even for an existing `dataConsent` user: a deliberate, narrower
-    /// default under the new granular model, not an oversight — re-enabling either is one tap in Data
+    /// `longHistory`, `stress` and `logs` start OFF even for an existing `dataConsent` user: a deliberate, narrower
+    /// default under the new granular model, not an oversight — re-enabling any is one tap in Data
     /// access. `includeOnDeviceSignals == true` (the old second opt-in) additionally grants `patterns`
     /// (what it always meant) and `logs` (its own description already named "Lab Book markers", which
     /// `logs` now covers).

@@ -120,6 +120,9 @@
         }
       }
     },
+    " bpm live" : {
+
+    },
     " EFFORT" : {
       "localizations" : {
         "de" : {
@@ -2820,7 +2823,18 @@
         }
       }
     },
+    "%@ in bed · %@ efficiency · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ in bed · %2$@ efficiency · %3$@"
+          }
+        }
+      }
+    },
     "%@ in bed · %@ efficiency · stages approximate (on-device)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -7353,6 +7367,9 @@
           }
         }
       }
+    },
+    "%lld beats per minute, live" : {
+
     },
     "%lld beats per minute, zone %lld" : {
       "localizations" : {
@@ -18170,6 +18187,67 @@
         }
       }
     },
+    "A compact avatar in Today's header (Liquid Today only)" : {
+
+    },
+    "A compact local trend across months or years" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein kompakter lokaler Trend über Monate oder Jahre"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A compact local trend across months or years"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una tendencia local resumida a lo largo de meses o años"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une tendance locale synthétique sur des mois ou des années"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una tendenza locale compatta su mesi o anni"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uma tendência local resumida ao longo de meses ou anos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Краткая локальная динамика за месяцы или годы"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跨月或跨年的简明本地趋势"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跨月或跨年的精簡本機趨勢"
+          }
+        }
+      }
+    },
     "A couple of metrics depend on which Apple Watch you wear. Wrist temperature, which feeds skin temp, arrived with Series 8, so older watches don't report it. Blood oxygen is the bigger one: Apple removed the SpO₂ sensor from the newest US units over a patent dispute, so those simply don't measure it." : {
       "localizations" : {
         "de" : {
@@ -18295,6 +18373,9 @@
           }
         }
       }
+    },
+    "A draggable button that floats over every screen" : {
+
     },
     "A few honest words, so nothing's a surprise." : {
       "localizations" : {
@@ -18631,6 +18712,9 @@
           }
         }
       }
+    },
+    "A full-width card in Today's card list, movable via Arrange Today" : {
+
     },
     "A gentle wrist buzz when you've been sitting too long, a nudge to get up and move. Inferred from the strap's motion on each history sync, so it lags real time by a sync or two." : {
       "localizations" : {
@@ -23598,6 +23682,38 @@
         }
       }
     },
+    "Adds compact long-term trends; sensitive journal data stays off." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ergänzt kompakte Langzeittrends; sensible Tagebuchdaten bleiben aus."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adds compact long-term trends; sensitive journal data stays off."
+          }
+        }
+      }
+    },
+    "Adds stress, ordinary logs and personal patterns." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ergänzt Stress, normale Protokolle und persönliche Muster."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adds stress, ordinary logs and personal patterns."
+          }
+        }
+      }
+    },
     "Adjust amount" : {
       "localizations" : {
         "de" : {
@@ -26780,6 +26896,7 @@
       }
     },
     "App icon colors" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -27338,6 +27455,9 @@
           }
         }
       }
+    },
+    "Apple-inspired colors" : {
+
     },
     "Apple-logged" : {
       "localizations" : {
@@ -31973,6 +32093,9 @@
         }
       }
     },
+    "Banner" : {
+
+    },
     "Based mostly on typical patterns, not yet yours. Log a few more %@ days and this becomes yours." : {
       "localizations" : {
         "de" : {
@@ -35095,6 +35218,7 @@
       }
     },
     "Both" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -39347,7 +39471,6 @@
       }
     },
     "Calibrating, %lld of %lld" : {
-      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -42899,6 +43022,7 @@
       }
     },
     "Cheaper models for background jobs — leave on default to use %@'s small model. Keeps the pricey coaching model for the actual conversation." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -43443,6 +43567,9 @@
           }
         }
       }
+    },
+    "Choose a lab report PDF or photo to review locally" : {
+
     },
     "Choose a markers CSV file to import" : {
 
@@ -45112,6 +45239,7 @@
       }
     },
     "Coach entry style" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -45132,6 +45260,15 @@
           }
         }
       }
+    },
+    "Coach entry: banner" : {
+
+    },
+    "Coach entry: floating button" : {
+
+    },
+    "Coach entry: header icon" : {
+
     },
     "Coach identity" : {
       "localizations" : {
@@ -46442,6 +46579,9 @@
           }
         }
       }
+    },
+    "Colors leading interface icons and primary controls to match Apple Health's palette. Charts, health data, warnings, and destructive actions stay unchanged. Off keeps the existing blue controls." : {
+
     },
     "Coming soon" : {
       "extractionState" : "stale",
@@ -50210,6 +50350,22 @@
         }
       }
     },
+    "Core health, workouts, planning and memory." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grundlegende Gesundheitswerte, Training, Planung und Gedächtnis."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Core health, workouts, planning and memory."
+          }
+        }
+      }
+    },
     "Correct when you went to bed and woke. Stages are re-derived from your data; the edit is kept through the next strap sync." : {
       "localizations" : {
         "de" : {
@@ -50417,6 +50573,9 @@
           }
         }
       }
+    },
+    "Couldn't choose that PDF: %@" : {
+
     },
     "Couldn't locate the NOOP database. %@" : {
       "localizations" : {
@@ -50678,6 +50837,9 @@
         }
       }
     },
+    "Couldn't read that PDF locally: %@" : {
+
+    },
     "Couldn't read the local store right now. Try again in a moment." : {
       "localizations" : {
         "de" : {
@@ -50937,6 +51099,9 @@
           }
         }
       }
+    },
+    "Couldn't save the reviewed readings locally." : {
+
     },
     "Couldn't start. Needs a connected strap and a resting heart rate." : {
       "localizations" : {
@@ -51807,6 +51972,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "自訂 %lld 毫升"
+          }
+        }
+      }
+    },
+    "Custom access choices. Sensitive journal data needs its own extra switch." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eigene Zugriffsregeln. Sensible Tagebuchdaten brauchen ihren eigenen zusätzlichen Schalter."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Custom access choices. Sensitive journal data needs its own extra switch."
           }
         }
       }
@@ -52971,6 +53152,64 @@
         }
       }
     },
+    "Data catalog" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datenkatalog"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Data catalog"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Catálogo de datos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Catalogue de données"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Catalogo dati"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Catálogo de dados"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Каталог данных"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数据目录"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "資料目錄"
+          }
+        }
+      }
+    },
     "Data kept" : {
 
     },
@@ -53163,9 +53402,6 @@
           }
         }
       }
-    },
-    "Data: %@" : {
-
     },
     "Date" : {
       "localizations" : {
@@ -53636,6 +53872,40 @@
         }
       }
     },
+    "day in a row" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tag in Folge"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "day in a row"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "día seguido"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "jour d'affilée"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "dia seguido"
+          }
+        }
+      }
+    },
     "Day strain" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -53911,6 +54181,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "天"
+          }
+        }
+      }
+    },
+    "days in a row" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tage in Folge"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "days in a row"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "días seguidos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "jours d'affilée"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "dias seguidos"
           }
         }
       }
@@ -54370,6 +54674,22 @@
     },
     "Deep data is on — open NOOP near your strap and let it sync its motion history (a full first-run sync can take a while). Once a day or two of motion lands, your step estimate and the calibration below fill in." : {
 
+    },
+    "Deep insights" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tiefe Einblicke"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deep insights"
+          }
+        }
+      }
     },
     "Deep sleep" : {
       "localizations" : {
@@ -62039,6 +62359,22 @@
         }
       }
     },
+    "Essentials" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grundlagen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Essentials"
+          }
+        }
+      }
+    },
     "est." : {
       "localizations" : {
         "de" : {
@@ -65005,6 +65341,22 @@
         }
       }
     },
+    "Expert" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expert"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expert"
+          }
+        }
+      }
+    },
     "Explained by" : {
       "localizations" : {
         "de" : {
@@ -66848,6 +67200,22 @@
         }
       }
     },
+    "Fine-tune access" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zugriff anpassen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fine-tune access"
+          }
+        }
+      }
+    },
     "Fine-tune when alerts reach your wrist." : {
       "localizations" : {
         "de" : {
@@ -68229,6 +68597,9 @@
           }
         }
       }
+    },
+    "Found %lld readings to review. Nothing has been saved yet." : {
+
     },
     "Frame" : {
       "localizations" : {
@@ -71582,6 +71953,12 @@
           }
         }
       }
+    },
+    "Have a lab PDF or photo? NOOP can find recognisable values locally, then shows them for your approval. It does not interpret the report or upload it." : {
+
+    },
+    "Header icon" : {
+
     },
     "Heads up: this test mode is off, so the report has no capture for it. For a useful report, turn the mode on, reproduce the problem while wearing the strap, then report again." : {
       "localizations" : {
@@ -76518,6 +76895,7 @@
       }
     },
     "How you open Coach from Today — a list row, a draggable floating button, or both." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -76574,6 +76952,9 @@
           }
         }
       }
+    },
+    "How you open Coach from Today — pick any combination." : {
+
     },
     "How your scores are computed" : {
       "localizations" : {
@@ -83040,7 +83421,11 @@
         }
       }
     },
+    "It's a notebook, not a lab. NOOP can help you review recognised text, but it doesn't test or judge your readings. Not medical advice." : {
+
+    },
     "It's a notebook, not a lab. NOOP lines up the numbers you enter. It doesn't test, read, or judge them. Not medical advice." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -84359,7 +84744,11 @@
         }
       }
     },
+    "Lab Book is a private notebook, not a medical service. NOOP stores and lines up the numbers you confirm. It can recognise text locally for review, but it doesn't test, diagnose, or advise. Your records never leave %@; there's no account or cloud, so it isn't \"HIPAA-covered.\" Always rely on your doctor or pharmacist to interpret results." : {
+
+    },
     "Lab Book is a private notebook, not a medical service. NOOP stores and lines up the numbers you enter. It doesn't test, read, diagnose, or advise. Your records never leave %@; there's no account or cloud, so it isn't \"HIPAA-covered.\" Always rely on your doctor or pharmacist to interpret results." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -88492,6 +88881,7 @@
       }
     },
     "List row" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -92026,6 +92416,64 @@
         }
       }
     },
+    "Long-term trend" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Langzeittrend"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Long-term trend"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tendencia a largo plazo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tendance à long terme"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tendenza a lungo termine"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tendência a longo prazo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Долгосрочная динамика"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "长期趋势"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "長期趨勢"
+          }
+        }
+      }
+    },
     "Longer ranges unlock as more history builds." : {
       "localizations" : {
         "de" : {
@@ -92056,6 +92504,74 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "随着历史数据的积累，您将解锁更长时间跨度的分析。"
+          }
+        }
+      }
+    },
+    "Longest: %lld days" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Längste: %lld Tage"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Longest: %lld days"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Máxima: %lld días"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record : %lld jours"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recorde: %lld dias"
+          }
+        }
+      }
+    },
+    "Longest: 1 day" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Längste: 1 Tag"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Longest: 1 day"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Máxima: 1 día"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record : 1 jour"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recorde: 1 dia"
           }
         }
       }
@@ -104779,6 +105295,9 @@
         }
       }
     },
+    "No recognisable readings were found. You can add them manually instead." : {
+
+    },
     "No recovery score yet today." : {
       "localizations" : {
         "de" : {
@@ -108001,7 +108520,11 @@
         }
       }
     },
+    "NOOP stores and lines up the numbers you confirm yourself. It can recognise text locally for review, but does not give medical advice or diagnose anything." : {
+
+    },
     "NOOP stores and lines up the numbers you enter yourself. It does not test you, read your results, give medical advice, or diagnose anything." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -111051,6 +111574,9 @@
           }
         }
       }
+    },
+    "Nothing is saved until you confirm." : {
+
     },
     "Nothing leaves your %@" : {
       "localizations" : {
@@ -114574,6 +115100,22 @@
         }
       }
     },
+    "Only separately approved sensitive journal entries" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nur separat freigegebene sensible Tagebucheinträge"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only separately approved sensitive journal entries"
+          }
+        }
+      }
+    },
     "Only setbacks and big milestones — the things worth a nudge." : {
       "localizations" : {
         "de" : {
@@ -115992,6 +116534,34 @@
         }
       }
     },
+    "Optional cheaper models for chat summaries or a manually requested card read. You do not need to choose one for normal coaching, tools or saved facts." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Optionale günstigere Modelle für Chat-Zusammenfassungen oder eine manuell angeforderte Kartenanalyse. Für normales Coaching, Tools oder gespeicherte Fakten musst du keines auswählen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Optional cheaper models for chat summaries or a manually requested card read. You do not need to choose one for normal coaching, tools or saved facts."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modelos económicos opcionales para resúmenes de chat o una lectura de tarjeta solicitada manualmente. No necesitas elegir uno para el coaching normal, las herramientas o los hechos guardados."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Des modèles économiques facultatifs pour les résumés de discussion ou une analyse de carte demandée manuellement. Vous n’avez pas besoin d’en choisir un pour le coaching normal, les outils ou les faits enregistrés."
+          }
+        }
+      }
+    },
     "Optional note" : {
       "localizations" : {
         "de" : {
@@ -116248,6 +116818,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "選用：現在匯入，或先繼續，之後再回到「資料來源」。"
+          }
+        }
+      }
+    },
+    "Optional: turning this on sends a finished chat to your provider. Without it, saved facts and local chat history still remain on your device." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Optional: Wenn du dies aktivierst, wird ein abgeschlossener Chat an deinen Anbieter gesendet. Ohne diese Option bleiben gespeicherte Fakten und der lokale Chatverlauf auf deinem Gerät."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Optional: turning this on sends a finished chat to your provider. Without it, saved facts and local chat history still remain on your device."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opcional: al activarlo, se envía un chat terminado a tu proveedor. Sin ello, los hechos guardados y el historial local de chat permanecen en tu dispositivo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Facultatif : l’activer envoie une discussion terminée à votre fournisseur. Sans cela, les faits enregistrés et l’historique local restent sur votre appareil."
           }
         }
       }
@@ -116537,6 +117135,9 @@
           }
         }
       }
+    },
+    "Oura" : {
+
     },
     "Oura / Fitbit / Garmin export" : {
       "localizations" : {
@@ -119372,6 +119973,22 @@
         }
       }
     },
+    "Personal" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Persönlich"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personal"
+          }
+        }
+      }
+    },
     "Personal curve · prior-shrunk" : {
       "localizations" : {
         "de" : {
@@ -122025,6 +122642,22 @@
         }
       }
     },
+    "Privacy level" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Datenschutzstufe"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy level"
+          }
+        }
+      }
+    },
     "Proactive messages" : {
       "localizations" : {
         "de" : {
@@ -124194,6 +124827,64 @@
         }
       }
     },
+    "raw on-device stages" : {
+
+    },
+    "Raw on-device stages" : {
+
+    },
+    "Raw on-device stages. This split is the ring's raw on-device classification read over Bluetooth, not the adjusted stages the Oura app shows. Expect more awake and less deep or REM here than in the Oura app for the same night." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rohe Phasen vom Gerät. Diese Aufteilung ist die rohe, auf dem Gerät erstellte Klassifizierung des Rings, ausgelesen über Bluetooth – nicht die angepassten Phasen, die die Oura-App anzeigt. Erwarte hier mehr Wachzeit und weniger Tiefschlaf oder REM als in der Oura-App für dieselbe Nacht."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fases sin procesar del dispositivo. Este desglose es la clasificación sin procesar del anillo, hecha en el dispositivo y leída por Bluetooth, no las fases ajustadas que muestra la app de Oura. Aquí verás más tiempo despierto y menos sueño profundo o REM que en la app de Oura para la misma noche."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stades bruts sur l'appareil. Cette répartition est la classification brute de l'anneau, effectuée sur l'appareil et lue via Bluetooth, et non les stades ajustés qu'affiche l'app Oura. Attendez-vous ici à plus d'éveil et moins de sommeil profond ou paradoxal que dans l'app Oura pour la même nuit."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fasi grezze sul dispositivo. Questa suddivisione è la classificazione grezza dell'anello, eseguita sul dispositivo e letta via Bluetooth, non le fasi corrette mostrate dall'app Oura. Aspettati qui più veglia e meno sonno profondo o REM che nell'app Oura per la stessa notte."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fases em bruto no dispositivo. Esta divisão é a classificação em bruto do anel, feita no dispositivo e lida por Bluetooth, não as fases ajustadas que a app da Oura mostra. Espera aqui mais tempo acordado e menos sono profundo ou REM do que na app da Oura para a mesma noite."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Необработанные стадии с устройства. Эта разбивка — необработанная классификация кольца, выполненная на устройстве и считанная по Bluetooth, а не скорректированные стадии, которые показывает приложение Oura. Здесь ожидайте больше бодрствования и меньше глубокого или быстрого сна, чем в приложении Oura за ту же ночь."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设备端原始分期. 此分期是戒指在设备端读取（通过蓝牙）的原始分类，而非 Oura 应用显示的调整后阶段。相比 Oura 应用，同一晚这里的清醒会更多、深睡或 REM 会更少。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "裝置端原始分期. 此分期是戒指在裝置端讀取（透過藍牙）的原始分類，而非 Oura 應用程式顯示的調整後階段。相比 Oura 應用程式，同一晚這裡的清醒會更多、深睡或 REM 會更少。"
+          }
+        }
+      }
+    },
     "Raw SpO₂" : {
 
     },
@@ -124861,16 +125552,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "準備度：%@"
-          }
-        }
-      }
-    },
-    "Readiness: %@, data: %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Readiness: %1$@, data: %2$@"
           }
         }
       }
@@ -125724,6 +126405,9 @@
           }
         }
       }
+    },
+    "Reading…" : {
+
     },
     "Readings" : {
       "localizations" : {
@@ -126799,6 +127483,7 @@
       }
     },
     "Recolors the leading icons across the app — the More tab, Chat and its submenus, Journey, and Settings — to match Apple Health's palette. Off keeps them plain blue." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -130457,6 +131142,64 @@
         }
       }
     },
+    "Repeated accepts, declines and skips around suggested sessions" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wiederholte Annahmen, Ablehnungen und Auslassungen bei vorgeschlagenen Einheiten"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Repeated accepts, declines and skips around suggested sessions"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aceptaciones, rechazos y omisiones repetidos en sesiones sugeridas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Acceptations, refus et séances manquées répétés autour des séances proposées"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accettazioni, rifiuti e sessioni saltate ripetuti per le sessioni suggerite"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aceitações, recusas e sessões ignoradas repetidas em sessões sugeridas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Повторяющиеся принятия, отказы и пропуски предложенных тренировок"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "围绕建议训练的重复接受、拒绝和跳过"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "圍繞建議訓練的重複接受、拒絕與跳過"
+          }
+        }
+      }
+    },
     "Replace all current data with the backup %@? This cannot be undone." : {
       "localizations" : {
         "de" : {
@@ -130895,6 +131638,9 @@
           }
         }
       }
+    },
+    "Report date" : {
+
     },
     "Rescan" : {
       "localizations" : {
@@ -132467,6 +133213,40 @@
         }
       }
     },
+    "Restarted when you recalibrated on %@ — no need to tap it again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neu gestartet, als du am %@ neu kalibriert hast — du musst nicht erneut tippen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restarted when you recalibrated on %@ — no need to tap it again."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reiniciado cuando recalibraste el %@ — no hace falta volver a pulsarlo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Redémarré lors de votre recalibrage du %@ — inutile d'appuyer à nouveau."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reiniciado quando recalibraste em %@ — não precisas de tocar novamente."
+          }
+        }
+      }
+    },
     "Restarts the roughly 4-night build-up for Charge and your HRV baseline from tonight. Use it if a bad first week set your baseline off. Your history stays." : {
       "localizations" : {
         "de" : {
@@ -134028,6 +134808,12 @@
           }
         }
       }
+    },
+    "Review PDF or photo…" : {
+
+    },
+    "Review report readings" : {
+
     },
     "Reviews each scored wake block for real evidence of getting up (walking cadence, a change in body position) instead of just a heart-rate rise. A wake block with no locomotion and a stable posture — a hot night, a brief turn-over — is folded back into light sleep; a real get-up is left alone. Self-checks how much motion detail your strap actually recorded and stays off on a night that's too sparse to trust (older WHOOP 4.0 firmware, mainly). Off by default; takes effect on the next nights staged." : {
       "localizations" : {
@@ -136056,6 +136842,16 @@
         }
       }
     },
+    "Save %lld reading%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Save %1$lld reading%2$@"
+          }
+        }
+      }
+    },
     "Save a full backup to a folder you choose - point it at Google Drive, iCloud or Dropbox for off-device sync." : {
       "localizations" : {
         "de" : {
@@ -136563,6 +137359,9 @@
           }
         }
       }
+    },
+    "Saved %lld reviewed readings to your Lab Book." : {
+
     },
     "Saved a backup to your folder." : {
       "localizations" : {
@@ -138962,6 +139761,22 @@
         }
       }
     },
+    "Sensitive journal" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sensibles Tagebuch"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sensitive journal"
+          }
+        }
+      }
+    },
     "SENSOR" : {
       "localizations" : {
         "de" : {
@@ -140530,6 +141345,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "性別"
+          }
+        }
+      }
+    },
+    "Sexual, relationship, illness and cannabis entries need an extra choice." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sexualität, Beziehung, Krankheit und Cannabis brauchen eine zusätzliche Freigabe."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sexual, relationship, illness and cannabis entries need an extra choice."
           }
         }
       }
@@ -146958,6 +147789,9 @@
         }
       }
     },
+    "stages approximate (on-device)" : {
+
+    },
     "Stages vs typical" : {
       "localizations" : {
         "de" : {
@@ -151420,6 +152254,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "手環喚醒鬧鐘"
+          }
+        }
+      }
+    },
+    "Streak" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Serie"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Streak"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Racha"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Série"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sequência"
           }
         }
       }
@@ -157029,6 +157897,9 @@
     "The Deep sleep HRV window needs a night with deep-stage sleep to score Charge. Switch to Whole night in Settings, or wait for a night with more deep sleep." : {
 
     },
+    "The extracted text is too large to review locally." : {
+
+    },
     "The full terms are in TERMS.md, shipped with NOOP. This is not legal advice." : {
       "localizations" : {
         "de" : {
@@ -157475,6 +158346,7 @@
       }
     },
     "The model this uses lives under Connection & model → Background models." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -158678,6 +159550,9 @@
           }
         }
       }
+    },
+    "These are local text matches from the PDF, not medical interpretations. Check each value against your report and deselect anything you do not want to keep." : {
+
     },
     "These are the days where your phone also counted steps, so NOOP can learn how your motion maps to steps. Or set the coefficient manually below." : {
       "localizations" : {
@@ -160748,6 +161623,58 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "這個側載建置版本將在 1 天後過期。請重新簽署以維持運作。"
+          }
+        }
+      }
+    },
+    "This split is the ring's raw on-device classification read over Bluetooth, not the adjusted stages the Oura app shows. Expect more Awake and less Deep/REM here than in the Oura app for the same night." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Aufteilung ist die rohe, auf dem Gerät erstellte Klassifizierung des Rings, ausgelesen über Bluetooth – nicht die angepassten Phasen, die die Oura-App anzeigt. Erwarte hier mehr Wachzeit und weniger Tiefschlaf oder REM als in der Oura-App für dieselbe Nacht."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este desglose es la clasificación sin procesar del anillo, hecha en el dispositivo y leída por Bluetooth, no las fases ajustadas que muestra la app de Oura. Aquí verás más tiempo despierto y menos sueño profundo o REM que en la app de Oura para la misma noche."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette répartition est la classification brute de l'anneau, effectuée sur l'appareil et lue via Bluetooth, et non les stades ajustés qu'affiche l'app Oura. Attendez-vous ici à plus d'éveil et moins de sommeil profond ou paradoxal que dans l'app Oura pour la même nuit."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questa suddivisione è la classificazione grezza dell'anello, eseguita sul dispositivo e letta via Bluetooth, non le fasi corrette mostrate dall'app Oura. Aspettati qui più veglia e meno sonno profondo o REM che nell'app Oura per la stessa notte."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta divisão é a classificação em bruto do anel, feita no dispositivo e lida por Bluetooth, não as fases ajustadas que a app da Oura mostra. Espera aqui mais tempo acordado e menos sono profundo ou REM do que na app da Oura para a mesma noite."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Эта разбивка — необработанная классификация кольца, выполненная на устройстве и считанная по Bluetooth, а не скорректированные стадии, которые показывает приложение Oura. Здесь ожидайте больше бодрствования и меньше глубокого или быстрого сна, чем в приложении Oura за ту же ночь."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此分期是戒指在设备端读取（通过蓝牙）的原始分类，而非 Oura 应用显示的调整后阶段。相比 Oura 应用，同一晚这里的清醒会更多、深睡或 REM 会更少。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此分期是戒指在裝置端讀取（透過藍牙）的原始分類，而非 Oura 應用程式顯示的調整後階段。相比 Oura 應用程式，同一晚這裡的清醒會更多、深睡或 REM 會更少。"
           }
         }
       }
@@ -163964,6 +164891,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "訓練負荷"
+          }
+        }
+      }
+    },
+    "Training preferences" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trainingspräferenzen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Training preferences"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preferencias de entrenamiento"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Préférences d’entraînement"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preferenze di allenamento"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preferências de treino"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Предпочтения в тренировках"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "训练偏好"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訓練偏好"
           }
         }
       }
@@ -174588,6 +175573,64 @@
         }
       }
     },
+    "Which locally stored metrics and sources are available" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Welche lokal gespeicherten Metriken und Quellen verfügbar sind"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Which locally stored metrics and sources are available"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qué métricas y fuentes almacenadas localmente están disponibles"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quelles métriques et sources stockées localement sont disponibles"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quali metriche e fonti archiviate localmente sono disponibili"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Que métricas e fontes guardadas localmente estão disponíveis"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Какие локально сохранённые показатели и источники доступны"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可用的本地存储指标和来源"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可用的本機儲存指標與來源"
+          }
+        }
+      }
+    },
     "Which strap are you pairing?" : {
       "localizations" : {
         "de" : {
@@ -183320,314 +184363,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Δ 較上次"
-          }
-        }
-      }
-    },
-    "Streak": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Streak"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Serie"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Racha"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Série"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sequência"
-          }
-        }
-      }
-    },
-    "day in a row": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "day in a row"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tag in Folge"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "día seguido"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "jour d'affilée"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "dia seguido"
-          }
-        }
-      }
-    },
-    "days in a row": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "days in a row"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tage in Folge"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "días seguidos"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "jours d'affilée"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "dias seguidos"
-          }
-        }
-      }
-    },
-    "Longest: 1 day": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Longest: 1 day"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Längste: 1 Tag"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Máxima: 1 día"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Record : 1 jour"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Recorde: 1 dia"
-          }
-        }
-      }
-    },
-    "Longest: %lld days": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Longest: %lld days"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Längste: %lld Tage"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Máxima: %lld días"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Record : %lld jours"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Recorde: %lld dias"
-          }
-        }
-      }
-    },
-    "This split is the ring's raw on-device classification read over Bluetooth, not the adjusted stages the Oura app shows. Expect more Awake and less Deep/REM here than in the Oura app for the same night.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Diese Aufteilung ist die rohe, auf dem Gerät erstellte Klassifizierung des Rings, ausgelesen über Bluetooth – nicht die angepassten Phasen, die die Oura-App anzeigt. Erwarte hier mehr Wachzeit und weniger Tiefschlaf oder REM als in der Oura-App für dieselbe Nacht."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Este desglose es la clasificación sin procesar del anillo, hecha en el dispositivo y leída por Bluetooth, no las fases ajustadas que muestra la app de Oura. Aquí verás más tiempo despierto y menos sueño profundo o REM que en la app de Oura para la misma noche."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cette répartition est la classification brute de l'anneau, effectuée sur l'appareil et lue via Bluetooth, et non les stades ajustés qu'affiche l'app Oura. Attendez-vous ici à plus d'éveil et moins de sommeil profond ou paradoxal que dans l'app Oura pour la même nuit."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Questa suddivisione è la classificazione grezza dell'anello, eseguita sul dispositivo e letta via Bluetooth, non le fasi corrette mostrate dall'app Oura. Aspettati qui più veglia e meno sonno profondo o REM che nell'app Oura per la stessa notte."
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Esta divisão é a classificação em bruto do anel, feita no dispositivo e lida por Bluetooth, não as fases ajustadas que a app da Oura mostra. Espera aqui mais tempo acordado e menos sono profundo ou REM do que na app da Oura para a mesma noite."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Эта разбивка — необработанная классификация кольца, выполненная на устройстве и считанная по Bluetooth, а не скорректированные стадии, которые показывает приложение Oura. Здесь ожидайте больше бодрствования и меньше глубокого или быстрого сна, чем в приложении Oura за ту же ночь."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "此分期是戒指在设备端读取（通过蓝牙）的原始分类，而非 Oura 应用显示的调整后阶段。相比 Oura 应用，同一晚这里的清醒会更多、深睡或 REM 会更少。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "此分期是戒指在裝置端讀取（透過藍牙）的原始分類，而非 Oura 應用程式顯示的調整後階段。相比 Oura 應用程式，同一晚這裡的清醒會更多、深睡或 REM 會更少。"
-          }
-        }
-      }
-    },
-    "Raw on-device stages. This split is the ring's raw on-device classification read over Bluetooth, not the adjusted stages the Oura app shows. Expect more awake and less deep or REM here than in the Oura app for the same night.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rohe Phasen vom Gerät. Diese Aufteilung ist die rohe, auf dem Gerät erstellte Klassifizierung des Rings, ausgelesen über Bluetooth – nicht die angepassten Phasen, die die Oura-App anzeigt. Erwarte hier mehr Wachzeit und weniger Tiefschlaf oder REM als in der Oura-App für dieselbe Nacht."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fases sin procesar del dispositivo. Este desglose es la clasificación sin procesar del anillo, hecha en el dispositivo y leída por Bluetooth, no las fases ajustadas que muestra la app de Oura. Aquí verás más tiempo despierto y menos sueño profundo o REM que en la app de Oura para la misma noche."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stades bruts sur l'appareil. Cette répartition est la classification brute de l'anneau, effectuée sur l'appareil et lue via Bluetooth, et non les stades ajustés qu'affiche l'app Oura. Attendez-vous ici à plus d'éveil et moins de sommeil profond ou paradoxal que dans l'app Oura pour la même nuit."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fasi grezze sul dispositivo. Questa suddivisione è la classificazione grezza dell'anello, eseguita sul dispositivo e letta via Bluetooth, non le fasi corrette mostrate dall'app Oura. Aspettati qui più veglia e meno sonno profondo o REM che nell'app Oura per la stessa notte."
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fases em bruto no dispositivo. Esta divisão é a classificação em bruto do anel, feita no dispositivo e lida por Bluetooth, não as fases ajustadas que a app da Oura mostra. Espera aqui mais tempo acordado e menos sono profundo ou REM do que na app da Oura para a mesma noite."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Необработанные стадии с устройства. Эта разбивка — необработанная классификация кольца, выполненная на устройстве и считанная по Bluetooth, а не скорректированные стадии, которые показывает приложение Oura. Здесь ожидайте больше бодрствования и меньше глубокого или быстрого сна, чем в приложении Oura за ту же ночь."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "设备端原始分期. 此分期是戒指在设备端读取（通过蓝牙）的原始分类，而非 Oura 应用显示的调整后阶段。相比 Oura 应用，同一晚这里的清醒会更多、深睡或 REM 会更少。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "裝置端原始分期. 此分期是戒指在裝置端讀取（透過藍牙）的原始分類，而非 Oura 應用程式顯示的調整後階段。相比 Oura 應用程式，同一晚這裡的清醒會更多、深睡或 REM 會更少。"
-          }
-        }
-      }
-    },
-    "Restarted when you recalibrated on %@ — no need to tap it again.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Restarted when you recalibrated on %@ — no need to tap it again."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Neu gestartet, als du am %@ neu kalibriert hast — du musst nicht erneut tippen."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reiniciado cuando recalibraste el %@ — no hace falta volver a pulsarlo."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Redémarré lors de votre recalibrage du %@ — inutile d'appuyer à nouveau."
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reiniciado quando recalibraste em %@ — não precisas de tocar novamente."
           }
         }
       }

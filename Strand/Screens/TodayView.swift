@@ -210,6 +210,7 @@ struct TodayView: View {
     @AppStorage(CoachEntryPrefs.bannerKey) private var coachBannerEnabled = true
     /// Master switch (#R7): hides every Coach entry point when the coach UI is turned off.
     @AppStorage(CoachEntryPrefs.uiEnabledKey) private var coachUIEnabled = true
+    @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
 
     // #today-layout: the user-chosen section order, SAME `@AppStorage` key `LiquidTodayView` reads/writes
     // (`TodayLayoutPrefs.orderKey`) — a reorder on one Today screen is reflected on the other, since it's
@@ -1395,7 +1396,7 @@ struct TodayView: View {
                             switch section {
                             case .coach:
                                 // Same gate the header icon used on Liquid, now this screen's own toggle.
-                                if coachUIEnabled, coachBannerEnabled {
+                                if coachFeatureEnabled, coachUIEnabled, coachBannerEnabled {
                                     CoachTodayRow(isPresented: $showCoach)
                                 }
                             case .hero:

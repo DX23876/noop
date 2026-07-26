@@ -75,6 +75,10 @@ enum CoachCheckIn {
     /// `WindDownNudge.setEnabled`): if undetermined it asks once and schedules on grant; if already denied
     /// it reports back rather than persisting a dead toggle. `completion` always runs on the main actor.
     static func setEnabled(_ on: Bool, completion: (@MainActor (EnableOutcome) -> Void)? = nil) {
+        guard CoachFeaturePrefs.isEnabled || !on else {
+            completion?(.off)
+            return
+        }
         guard on else {
             UserDefaults.standard.set(false, forKey: K.enabled)
             UNUserNotificationCenter.current()

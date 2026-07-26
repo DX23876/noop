@@ -7,6 +7,8 @@ import Foundation
 /// readings ever leave the device. Kept in its own file so it stays merge-clean against upstream, and
 /// only used for providers that advertise `ToolCallingClient` (Anthropic today).
 enum CoachTool: String, CaseIterable {
+    /// A metadata-only inventory of the user's locally stored metrics and their coverage.
+    case dataCatalog = "get_data_catalog"
     /// Recent-days table + 30-day averages of every core vital (charge, effort, rest, HRV, RHR, SpO₂…).
     case biometricSummary = "get_biometric_summary"
     /// The user's recent workouts, newest first — parameterised, so the model can ask for more than
@@ -36,6 +38,10 @@ enum CoachTool: String, CaseIterable {
     case sleepDetail = "get_sleep_detail"
     /// A multi-week range report: per-metric stats + headline changes over 7–365 days.
     case rangeReport = "get_range_report"
+    /// Recurring accept/decline behaviour around suggested sessions, reported as cautious hypotheses.
+    case trainingPreferences = "get_training_preferences"
+    /// A bounded, local aggregate of one metric over up to ten years; never returns raw readings.
+    case metricHistory = "get_metric_history"
     /// The on-device Readiness verdict — the SAME algorithm Today's synthesis card reads (level, ACWR,
     /// training monotony, contributing signals), plus a health/safety note when relevant.
     case readiness = "get_readiness"
@@ -52,6 +58,8 @@ enum CoachTool: String, CaseIterable {
     /// READ back what the user has LOGGED — caffeine, journal behaviours, Lab Book, hydration, mood —
     /// closing the write-without-read gap (the coach can log a coffee but couldn't recall it).
     case myLogs = "get_my_logs"
+    /// Read only locally flagged sensitive journal fields after a separate explicit opt-in.
+    case sensitiveLogs = "get_sensitive_logs"
     /// Time-in-zone minutes (Zone 1–5) over recent workouts, so a "did I hit Zone 2?" question — and
     /// `propose_plan`'s own Zone-2 prescriptions — can actually be checked against what was done.
     case zoneMinutes = "get_zone_minutes"
@@ -59,6 +67,11 @@ enum CoachTool: String, CaseIterable {
     /// Natural-language description the model reads to decide when to call the tool.
     var description: String {
         switch self {
+        case .dataCatalog:
+            return "List which metrics and local import sources actually have history, with coverage dates "
+                + "and counts but no readings. Pass the user's essential topic words in query so the app "
+                + "filters locally; omit query only for a genuinely broad inventory. Then use "
+                + "get_metric_history for the one relevant analysis."
         case .biometricSummary:
             return "Get the user's recent daily wearable metrics (last ~14 days plus 30-day averages): "
                 + "charge/recovery, effort/strain, rest/sleep hours, HRV, resting HR, SpO2, respiration, "
@@ -119,6 +132,17 @@ enum CoachTool: String, CaseIterable {
             return "Get a range report over the last N days (7–365): per-metric averages, trends and "
                 + "headline changes across recovery, sleep, HRV, resting HR, strain, workouts, stress. "
                 + "Use for weekly/monthly reviews and 'how am I doing' questions."
+        case .trainingPreferences:
+            return "Find cautious local hypotheses from the user's own decisions on training suggestions, "
+                + "for example repeatedly declining running at weekends. Use it before proposing or "
+                + "reviewing a session when their real preferences, schedule or resistance might matter. "
+                + "It never changes a plan and requires a meaningful repeated pattern, not one decline."
+        case .metricHistory:
+            return "Analyse one locally stored metric over a long period (up to 10 years), for example "
+                + "weight, HRV, resting_hr, sleep_total_min or steps. Use this for questions such as "
+                + "'how has my weight changed over three years?' or when a deep historical trend is "
+                + "needed. It returns only a compact aggregate, trend and bounded monthly/quarterly "
+                + "timeline — never raw readings."
         case .readiness:
             return "Get the user's on-device Readiness verdict — the SAME call the Today screen uses "
                 + "(level: primed/balanced/strained/rundown/insufficient), acute:chronic workload ratio, "
@@ -164,6 +188,10 @@ enum CoachTool: String, CaseIterable {
                 + "a question turns on something they logged — 'is my coffee hurting my sleep?', 'how's "
                 + "my hydration this week?' — so you answer from their real logs, not a guess. You can "
                 + "log these; this is how you read them back."
+        case .sensitiveLogs:
+            return "Read back only the user's locally flagged sensitive journal fields, for example sexual, "
+                + "relationship, illness or cannabis entries. Use only for an explicit related question. "
+                + "This requires separate sensitive-data access."
         case .zoneMinutes:
             return "Get time-in-zone minutes (Zone 1–5, from the user's HR during recent workouts) over "
                 + "the last N days. Use it to check whether they actually hit an intensity — especially "
@@ -174,6 +202,16 @@ enum CoachTool: String, CaseIterable {
     /// JSON Schema for the tool's input (Anthropic `input_schema`). Only `recentWorkouts` takes an argument.
     var inputSchema: [String: Any] {
         switch self {
+        case .dataCatalog:
+            return [
+                "type": "object",
+                "properties": [
+                    "query": [
+                        "type": "string",
+                        "description": "Optional concise topic words from the user's question, e.g. weight, sleep, ferritin or HRV. Narrows catalog discovery locally."
+                    ]
+                ]
+            ]
         case .recentWorkouts:
             return [
                 "type": "object",
@@ -351,6 +389,36 @@ enum CoachTool: String, CaseIterable {
                     ]
                 ]
             ]
+        case .trainingPreferences:
+            return [
+                "type": "object",
+                "properties": [
+                    "days": [
+                        "type": "integer",
+                        "description": "How far back to inspect planning decisions (30–365 days). Defaults to 180."
+                    ]
+                ]
+            ]
+        case .metricHistory:
+            return [
+                "type": "object",
+                "properties": [
+                    "metric": [
+                        "type": "string",
+                        "description": "Metric key, e.g. weight, hrv, resting_hr, sleep_total_min or steps."
+                    ],
+                    "days": [
+                        "type": "integer",
+                        "description": "How far back to analyse (7–3650 days). Defaults to 365."
+                    ],
+                    "source": [
+                        "type": "string",
+                        "enum": ["auto", "my-whoop", "apple-health", "health-connect", "oura", "garmin", "fitbit"],
+                        "description": "Optional named local source. Default auto selects the source with the widest usable coverage."
+                    ]
+                ],
+                "required": ["metric"]
+            ]
         case .proposePlan:
             return [
                 "type": "object",
@@ -448,6 +516,13 @@ enum CoachTool: String, CaseIterable {
                     ]
                 ],
                 "required": ["kind"]
+            ]
+        case .sensitiveLogs:
+            return [
+                "type": "object",
+                "properties": [
+                    "days": ["type": "integer", "description": "How many days back to include (1–90). Defaults to 14."]
+                ]
             ]
         case .zoneMinutes:
             return [
@@ -552,6 +627,32 @@ extension AICoachEngine {
         CoachTool.allCases.filter { toolConsent.allows($0) }
     }
 
+    /// The locally enforced first decision before a tool-capable provider sees its tool list. Purpose
+    /// consent answers "may this category ever be used?"; this policy answers the narrower per-turn
+    /// question "does this wording justify opening it now?". It keeps broad history discovery and direct
+    /// structured-log reads out of ordinary coaching turns while retaining current-data tools.
+    func coachTools(for question: String, journalQuestions: [String] = []) -> [CoachTool] {
+        let historyRequested = CoachLocalQueryRouter.explicitHistoryDays(for: question) != nil
+        let catalogRequested = CoachLocalQueryRouter.requestsDataCatalog(for: question)
+        // The catalog is local user settings, not provider context. It includes custom fields even before
+        // the first answer is recorded; imported fields are supplied by the caller from the local store.
+        let knownJournalQuestions = JournalCatalogStore()
+            .resolvedItems(imported: journalQuestions)
+            .flatMap { [$0.canonical, $0.display] }
+        let logsRequested = CoachLocalQueryRouter.requestsPersonalLogs(for: question,
+                                                                         knownQuestions: knownJournalQuestions)
+        return coachTools.filter { tool in
+            switch tool {
+            case .metricHistory: return historyRequested
+            case .dataCatalog: return catalogRequested
+            case .myLogs: return logsRequested && !CoachSensitiveJournalPolicy.questionNamesSensitiveTopic(question)
+            case .sensitiveLogs:
+                return logsRequested && CoachSensitiveJournalPolicy.questionNamesSensitiveTopic(question)
+            default: return true
+            }
+        }
+    }
+
     /// True when the current turn should use the tool-use path: the user has granted data access, tools
     /// exist, and the chosen provider can run them. When false, the engine keeps the plain text-context path.
     ///
@@ -576,8 +677,8 @@ extension AICoachEngine {
     /// carries it here. Empty when nothing is pending — `wirePairs` then sends the question alone rather
     /// than wrapping a "Question:" scaffold around nothing.
     ///
-    /// Two things ride alongside the plan block, both fixing the same reported failure ("what did I ask
-    /// you yesterday?" → "I don't have that"):
+    /// Two things may ride alongside the plan block when their own purpose grants are on, both fixing
+    /// the same reported failure ("what did I ask you yesterday?" → "I don't have that"):
     ///   • the CLOCK, because the tool path carried no date at all, so the model had nothing to resolve
     ///     a relative day against — `buildFullContext()` gets it via `buildContext()`, this path got
     ///     nothing;
@@ -587,7 +688,22 @@ extension AICoachEngine {
     /// Neither belongs in the system prompt: that block carries Anthropic's `cache_control` breakpoint,
     /// and a per-request clock would invalidate the prefix cache on every turn.
     var toolModeContext: String {
-        [clockLine(), recentThreadsIndex(), planContextBlock() ?? ""]
+        let includeMemory = memoryContextAllowed
+        let includePlanning = toolConsent.allows(.planAdherence)
+        return Self.assembledToolModeContext(
+            clock: clockLine(),
+            threadIndex: includeMemory ? recentThreadsIndex() : "",
+            plan: includePlanning ? (planContextBlock() ?? "") : "",
+            includeMemory: includeMemory,
+            includePlanning: includePlanning
+        )
+    }
+
+    /// Small pure boundary for the lean tool context. Keeping the filtering here makes it directly
+    /// testable that a disabled purpose cannot leak its already-computed local text onto the wire.
+    static func assembledToolModeContext(clock: String, threadIndex: String, plan: String,
+                                         includeMemory: Bool, includePlanning: Bool) -> String {
+        [clock, includeMemory ? threadIndex : "", includePlanning ? plan : ""]
             .filter { !$0.isEmpty }
             .joined(separator: "\n\n")
     }
@@ -608,7 +724,7 @@ extension AICoachEngine {
     /// the text-context path uses, so the no-raw-egress posture holds. Unknown names, missing overall data
     /// access, and a purpose the user hasn't granted are all reported as plain text so the model can
     /// recover gracefully rather than erroring out.
-    func runCoachTool(_ name: String, input: [String: Any]) async -> String {
+    func runCoachTool(_ name: String, input: [String: Any], allowedTools: Set<CoachTool>? = nil) async -> String {
         guard dataConsent else {
             return "The user has not granted data access, so their metrics are unavailable. "
                 + "Coach generally and invite them to enable data access."
@@ -623,7 +739,13 @@ extension AICoachEngine {
             return "The user hasn't enabled that kind of access in Privacy & data → Data access, so this "
                 + "isn't available."
         }
+        guard allowedTools?.contains(tool) ?? true else {
+            return "The local data policy did not approve that kind of access for this question. "
+                + "Only use it after the user explicitly asks for that history, inventory or log."
+        }
         switch tool {
+        case .dataCatalog:
+            return await dataCatalogTool(query: input["query"] as? String)
         case .biometricSummary:
             var block = buildContext()
             if let confidence = chargeConfidenceLine() { block += "\n\n" + confidence }
@@ -639,7 +761,11 @@ extension AICoachEngine {
             // The `.patterns` purpose guard above already covers this — no separate check needed here.
             let raw = (input["limit"] as? Int) ?? Int(input["limit"] as? Double ?? 3)
             let limit = max(1, min(raw, 10))
-            let block = await onDeviceSignalsBlock(limit: limit)
+            let block = await onDeviceSignalsBlock(
+                limit: limit,
+                includeLabBook: toolConsent.allows(.myLogs),
+                includeSensitiveLogs: toolConsent.allows(.sensitiveLogs)
+            )
             return block.isEmpty ? "No strong personal patterns have emerged yet." : block
         case .plotMetric:
             let metric = (input["metric"] as? String) ?? ""
@@ -699,6 +825,13 @@ extension AICoachEngine {
         case .rangeReport:
             let days = (input["days"] as? Int) ?? Int(input["days"] as? Double ?? 7)
             return await rangeReportTool(days: days)
+        case .trainingPreferences:
+            let days = (input["days"] as? Int) ?? Int(input["days"] as? Double ?? 180)
+            return trainingPreferencesTool(days: days)
+        case .metricHistory:
+            let days = (input["days"] as? Int) ?? Int(input["days"] as? Double ?? 365)
+            return await metricHistoryTool(metric: (input["metric"] as? String) ?? "",
+                                           days: days, source: input["source"] as? String)
         case .readiness:
             return readinessBlock()
         case .chargeDrivers:
@@ -734,6 +867,9 @@ extension AICoachEngine {
         case .myLogs:
             let raw = (input["days"] as? Int) ?? Int(input["days"] as? Double ?? 14)
             return await myLogsTool(kind: (input["kind"] as? String) ?? "", days: max(1, min(raw, 90)))
+        case .sensitiveLogs:
+            let raw = (input["days"] as? Int) ?? Int(input["days"] as? Double ?? 14)
+            return await myLogsTool(kind: "journal", days: max(1, min(raw, 90)), onlySensitive: true)
         case .zoneMinutes:
             let raw = (input["days"] as? Int) ?? Int(input["days"] as? Double ?? 7)
             return await zoneMinutesTool(days: max(1, min(raw, 90)))

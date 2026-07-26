@@ -96,6 +96,7 @@ struct LiquidTodayView: View {
     @AppStorage(CoachEntryPrefs.headerIconKey) private var coachHeaderIconEnabled = true
     /// Master switch (#R7): hides every Coach entry point when the coach UI is turned off.
     @AppStorage(CoachEntryPrefs.uiEnabledKey) private var coachUIEnabled = true
+    @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
     /// False renders the generic sparkle disc instead of the coach's own avatar on the banner/header entries.
     @AppStorage(CoachEntryPrefs.todayAvatarKey) private var todayAvatar = true
 
@@ -389,7 +390,7 @@ struct LiquidTodayView: View {
                         // The full-width Coach banner — the reorderable twin of classic Today's
                         // `CoachTodayRow`, independent of the compact header-icon entry (see `scene`).
                         case .coach:
-                            if coachUIEnabled, coachBannerEnabled { coachBanner }
+                            if coachFeatureEnabled, coachUIEnabled, coachBannerEnabled { coachBanner }
                         case .hero: heroCard
                         // Live Sessions (silent guardian) is an OPTIONAL, strap-dependent beta, so it no
                         // longer holds a prominent card between the scores and Synthesis. On iOS it lives in
@@ -644,7 +645,7 @@ struct LiquidTodayView: View {
                 // leading the cluster ahead of the profile picture — the same spot it held before it was
                 // ever demoted to a full-width card and later to a tile beside Synthesis.
                 HStack(spacing: 8) {
-                    if coachUIEnabled, coachHeaderIconEnabled {
+                    if coachFeatureEnabled, coachUIEnabled, coachHeaderIconEnabled {
                         Button { showCoach = true } label: {
                             Group {
                                 if todayAvatar {
@@ -808,7 +809,7 @@ struct LiquidTodayView: View {
     /// subtitle line, stated plainly. No trend/baseline data invented beyond what the row itself shows.
     /// Nil for a placeholder value ("–"), same as an empty card showing no button.
     private func dashboardCoachContext(title: String, value: String, subtitle: String) -> CoachCardContext? {
-        guard coachUIEnabled, value != "–", !value.isEmpty else { return nil }
+        guard coachFeatureEnabled, coachUIEnabled, value != "–", !value.isEmpty else { return nil }
         return CoachCardContext(
             title: title,
             summary: "\(title): \(value). \(subtitle).",

@@ -697,6 +697,7 @@ struct CoachView: View {
     @ViewBuilder
     private func evidenceLabel(_ tool: CoachTool) -> some View {
         switch tool {
+        case .dataCatalog:             Text("Data catalog")
         case .biometricSummary:        Text("Your metrics")
         case .recentWorkouts:          Text("Recent workouts")
         case .stressIndex:             Text("Stress index")
@@ -709,6 +710,8 @@ struct CoachView: View {
         case .logLabMarker:            Text("Lab Book")
         case .sleepDetail:             Text("Sleep detail")
         case .rangeReport:             Text("Range report")
+        case .trainingPreferences:     Text("Training preferences")
+        case .metricHistory:           Text("Long-term trend")
         case .readiness:               Text("Readiness")
         case .chargeDrivers:           Text("Charge breakdown")
         case .proposePlan:             Text("Plan proposal")
@@ -716,6 +719,7 @@ struct CoachView: View {
         case .simulateDay:             Text("Simulation")
         case .planAdherence:           Text("Plan adherence")
         case .myLogs:                  Text("Your logs")
+        case .sensitiveLogs:           Text("Sensitive journal")
         case .zoneMinutes:             Text("Zone minutes")
         }
     }
@@ -726,6 +730,7 @@ struct CoachView: View {
     @ViewBuilder
     private func evidenceDetail(_ tool: CoachTool) -> some View {
         switch tool {
+        case .dataCatalog:             Text("Which locally stored metrics and sources are available")
         case .biometricSummary:        Text("Recovery, HRV, resting HR and sleep")
         case .recentWorkouts:          Text("Your last few sessions and their strain")
         case .stressIndex:             Text("Autonomic load from today's heart-rate variability")
@@ -738,6 +743,8 @@ struct CoachView: View {
         case .logLabMarker:            Text("A lab marker you logged")
         case .sleepDetail:             Text("Last night's stages, timing and debt")
         case .rangeReport:             Text("Trends across a range of weeks or months")
+        case .trainingPreferences:     Text("Repeated accepts, declines and skips around suggested sessions")
+        case .metricHistory:           Text("A compact local trend across months or years")
         case .readiness:               Text("Today's push / maintain / rest call")
         case .chargeDrivers:           Text("What moved your Charge up or down")
         case .proposePlan:             Text("A session proposed for you to accept or change")
@@ -745,7 +752,25 @@ struct CoachView: View {
         case .simulateDay:             Text("Tomorrow's Charge under a plan")
         case .planAdherence:           Text("How closely you've kept to your plan")
         case .myLogs:                  Text("What you logged — caffeine, journal, lab, mood")
+        case .sensitiveLogs:           Text("Only separately approved sensitive journal entries")
         case .zoneMinutes:             Text("Time spent in each heart-rate zone")
+        }
+    }
+
+    /// Human-readable receipt labels for the app's own local fallback routing. These are categories only;
+    /// no values, filenames, device identifiers or unseen prompt text are rendered here.
+    @ViewBuilder
+    private func localContextLabel(_ category: ChatMessage.LocalContextCategory) -> some View {
+        switch category {
+        case .biometricSnapshot:   Text("Your metrics")
+        case .readiness:           Text("Readiness")
+        case .recentWorkouts:      Text("Recent workouts")
+        case .planning:            Text("Your plan")
+        case .trainingPreferences: Text("Training preferences")
+        case .stress:              Text("Stress index")
+        case .personalPatterns:    Text("Your patterns")
+        case .conversationMemory:  Text("Past conversations")
+        case .longTermHistory:     Text("Long-term trend")
         }
     }
 
@@ -797,6 +822,44 @@ struct CoachView: View {
                                 }
                             }
                             .font(StrandFont.caption)
+                        }
+                    }
+                    .padding(.leading, Self.sideContentIndent)
+                }
+            }
+        } else if !message.localContextUsed.isEmpty {
+            let categories = message.localContextUsed
+            let isExpanded = expandedEvidenceIds.contains(message.id)
+            VStack(alignment: .leading, spacing: 4) {
+                Button {
+                    withAnimation(reduceMotion ? nil : StrandMotion.fade) {
+                        if isExpanded { expandedEvidenceIds.remove(message.id) }
+                        else { expandedEvidenceIds.insert(message.id) }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "lock.shield")
+                            .accessibilityHidden(true)
+                        Text("Data access")
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .accessibilityHidden(true)
+                    }
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                }
+                .buttonStyle(.plain)
+
+                if isExpanded {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(categories, id: \.self) { category in
+                            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                                Image(systemName: "circle.fill")
+                                    .font(.system(size: 3))
+                                    .accessibilityHidden(true)
+                                localContextLabel(category)
+                                    .foregroundStyle(StrandPalette.textSecondary)
+                                    .font(StrandFont.caption)
+                            }
                         }
                     }
                     .padding(.leading, Self.sideContentIndent)

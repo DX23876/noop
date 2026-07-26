@@ -57,6 +57,11 @@ struct CoachSettingsView: View {
     @State private var checkInDenied: Bool = false
     @State private var planReminderOn: Bool = PlanReminder.isEnabled
     @State private var planReminderDenied: Bool = false
+    /// Fine-grained purpose toggles are intentionally secondary to the three simple privacy modes.
+    @State private var dataAccessExpertMode = false
+    /// The Coach is an explicit opt-in feature. It starts off on a new installation, including when no
+    /// provider/key has been configured yet; the settings remain reachable so setup is never a dead end.
+    @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
 
     // MARK: Hub attention badges
 
@@ -129,6 +134,7 @@ struct CoachSettingsView: View {
                 } else {
                     ScrollView {
                         VStack(spacing: 16) {
+                            coachFeatureBar
                             setupCard
                             privacyFootnote
                         }
@@ -146,6 +152,14 @@ struct CoachSettingsView: View {
             // macOS `Strand` target (deploymentTarget 13.0 in project.yml), and that form needs macOS 14
             // (see ScreenScaffold.swift's `#if os(iOS)` guard around its own two-param onChange).
             .onChange(of: coach.provider) { _ in customModel = false }
+            .onChangeCompat(of: coachFeatureEnabled) { enabled in
+                // Existing chats, memory and all health data stay on device. Only future Coach surfaces
+                // and automation stop; turning it back on restores the person's saved preferences.
+                if !enabled {
+                    checkInOn = false
+                    CoachCheckIn.setEnabled(false)
+                }
+            }
             .navigationTitle("Coach settings")
             #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -183,6 +197,7 @@ struct CoachSettingsView: View {
     private var hub: some View {
         ScrollView {
             VStack(spacing: 16) {
+                coachFeatureBar
                 connectedHeader
 
                 NavigationLink { connectionSubpage } label: {
@@ -381,7 +396,7 @@ struct CoachSettingsView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Background models")
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                        Text("Cheaper models for background jobs — leave on default to use \(coach.provider.displayName)'s small model. Keeps the pricey coaching model for the actual conversation.")
+                        Text("Optional cheaper models for chat summaries or a manually requested card read. You do not need to choose one for normal coaching, tools or saved facts.")
                             .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -826,21 +841,117 @@ struct CoachSettingsView: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// Per-purpose tool consent (#coach-tool-consent): seven groups narrowing what `dataConsent` already
-    /// allows overall. `onDeviceSignalsBar` (the pre-existing second opt-in) folds in here as the
-    /// `.patterns` row rather than being duplicated — it already reads/writes the same underlying
-    /// `toolConsent` via `coach.includeOnDeviceSignals`.
+    /// Most people choose one of three understandable modes. Expert settings exposes the underlying
+    /// purpose gates without weakening them, including the separate sensitive-journal permission.
     private var dataAccessSubpage: some View {
         subpageScaffold {
-            coreBiometricsAccessBar
-            workoutsAccessBar
-            planningAccessBar
-            stressAccessBar
-            logsAccessBar
-            memoryToolsAccessBar
-            onDeviceSignalsBar
+            dataAccessExplanationBar
+            dataAccessModeBar
+            if dataAccessExpertMode || CoachDataAccessMode.current(for: coach.toolConsent.enabled) == .expert {
+                coreBiometricsAccessBar
+                longHistoryAccessBar
+                workoutsAccessBar
+                planningAccessBar
+                stressAccessBar
+                logsAccessBar
+                sensitiveLogsAccessBar
+                memoryToolsAccessBar
+                onDeviceSignalsBar
+            }
         }
         .navigationTitle("Data access")
+    }
+
+    /// Explains the boundary before showing switches. The provider receives only values returned through
+    /// these locally checked paths; it cannot browse the database or raise its own permission level.
+    private var dataAccessExplanationBar: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            VStack(alignment: .leading, spacing: 8) {
+                Label("How this access is used", systemImage: "lock.shield")
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                Text("Before each answer, NOOP checks your question and the privacy level below on this device. It selects only the relevant local summary or permitted tool result — for example a recent recovery trend for a recovery question.")
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("Your provider cannot browse your database, request a new permission, or receive raw sensor streams. Long-term questions use compact aggregates only when Deep insights is allowed. Sensitive journal answers always need their own separate switch.")
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var dataAccessModeBar: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Privacy level")
+                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                Picker("Privacy level", selection: dataAccessModeBinding) {
+                    Text("Essentials").tag(CoachDataAccessMode.essentials)
+                    Text("Personal").tag(CoachDataAccessMode.personal)
+                    Text("Deep insights").tag(CoachDataAccessMode.deepInsights)
+                    Text("Expert").tag(CoachDataAccessMode.expert)
+                }
+                // Four translated labels do not fit reliably in one segmented row on an iPhone.
+                // The menu retains the simple choice without making the labels tiny or truncated.
+                .pickerStyle(.menu)
+                Text(dataAccessModeDetail)
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+                if !dataAccessExpertMode && CoachDataAccessMode.current(for: coach.toolConsent.enabled) != .expert {
+                    Button("Fine-tune access") { dataAccessExpertMode = true }
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
+                        .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    private var dataAccessModeBinding: Binding<CoachDataAccessMode> {
+        Binding(
+            get: { CoachDataAccessMode.current(for: coach.toolConsent.enabled) },
+            set: { mode in
+                if let purposes = mode.purposes {
+                    coach.toolConsent.enabled = purposes
+                    dataAccessExpertMode = false
+                } else {
+                    dataAccessExpertMode = true
+                }
+            }
+        )
+    }
+
+    private var dataAccessModeDetail: String {
+        switch CoachDataAccessMode.current(for: coach.toolConsent.enabled) {
+        case .essentials:
+            return "Core health, workouts, planning and memory."
+        case .personal:
+            return "Adds stress, ordinary logs and personal patterns."
+        case .deepInsights:
+            return "Adds compact long-term trends; sensitive journal data stays off."
+        case .expert:
+            return "Custom access choices. Sensitive journal data needs its own extra switch."
+        }
+    }
+
+    /// Global feature opt-in. It intentionally lives at the top of the settings hub, not under the
+    /// appearance-only Today controls, because this governs the whole Coach rather than one entry point.
+    private var coachFeatureBar: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            Toggle(isOn: $coachFeatureEnabled) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Enable AI Coach")
+                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                    Text(coachFeatureEnabled
+                         ? "Coach entry points and optional check-ins are available. Data sharing is still a separate choice."
+                         : "Off by default. Turn this on after you choose to use a provider; chats and local data stay saved.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .tint(StrandPalette.accent)
+        }
+        .accessibilityHint("Turning this off hides Coach from the app and stops Coach check-ins. It does not delete chats or health data.")
     }
 
     /// A `Binding` onto one `CoachPurpose`'s membership in `toolConsent.enabled` — thin projection, no
@@ -872,6 +983,30 @@ struct CoachSettingsView: View {
                 Toggle("", isOn: purposeBinding(.coreBiometrics))
                     .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
                     .accessibilityLabel("Let the coach fetch core biometrics")
+            }
+        }
+    }
+
+    /// Deep time-series reads have their own opt-in: normal day-to-day coaching never needs a multi-year
+    /// inventory, and a local routing match is not permission to examine it.
+    private var longHistoryAccessBar: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            HStack(spacing: 10) {
+                Image(systemName: "chart.xyaxis.line")
+                    .foregroundStyle(coach.toolConsent.enabled.contains(.longHistory)
+                                     ? StrandPalette.accent : StrandPalette.textTertiary)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Long-term trend")
+                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                    Text("A compact local trend across months or years")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Toggle("", isOn: purposeBinding(.longHistory))
+                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                    .accessibilityLabel("Long-term trend")
             }
         }
     }
@@ -961,6 +1096,30 @@ struct CoachSettingsView: View {
                 Toggle("", isOn: purposeBinding(.logs))
                     .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
                     .accessibilityLabel("Let the coach read and log your entries")
+            }
+        }
+    }
+
+    /// A second affirmative choice for journal labels that can reveal sexual, relationship, illness or
+    /// cannabis information. This never broadens ordinary Logs; it unlocks only the dedicated reader.
+    private var sensitiveLogsAccessBar: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            HStack(spacing: 10) {
+                Image(systemName: "lock.heart")
+                    .foregroundStyle(coach.toolConsent.enabled.contains(.sensitiveLogs)
+                                     ? StrandPalette.accent : StrandPalette.textTertiary)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Sensitive journal")
+                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                    Text("Sexual, relationship, illness and cannabis entries need an extra choice.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Toggle("", isOn: purposeBinding(.sensitiveLogs))
+                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                    .accessibilityLabel("Sensitive journal")
             }
         }
     }
@@ -1205,7 +1364,7 @@ struct CoachSettingsView: View {
                         .accessibilityLabel("Summarise past chats automatically")
                 }
 
-                Text("The model this uses lives under Connection & model → Background models.")
+                Text("Optional: turning this on sends a finished chat to your provider. Without it, saved facts and local chat history still remain on your device.")
                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -1732,7 +1891,8 @@ struct CoachSettingsView: View {
     // MARK: - Memory
 
     private var memoryBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+        let footprint = CoachMemoryFootprint.estimate(conversations: coach.conversations, facts: memory.facts)
+        return NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
             VStack(alignment: .leading, spacing: memoryExpanded ? 10 : 0) {
                 Button {
                     withAnimation(StrandMotion.fade) { memoryExpanded.toggle() }
@@ -1753,6 +1913,13 @@ struct CoachSettingsView: View {
                                     : String(localized: "\(memory.facts.count) remembered facts. The coach uses these in every reply.")))
                                 .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                                 .fixedSize(horizontal: false, vertical: true)
+                            HStack(spacing: 7) {
+                                Label(CoachMemoryFootprint.formatted(footprint.totalBytes), systemImage: "internaldrive")
+                                Label("\(coach.conversations.count)", systemImage: "bubble.left.and.bubble.right")
+                                Label("\(memory.facts.count)", systemImage: "brain")
+                            }
+                            .font(StrandFont.caption)
+                            .foregroundStyle(StrandPalette.textTertiary)
                         }
                         Spacer(minLength: 8)
                         Image(systemName: memoryExpanded ? "chevron.up" : "chevron.down")

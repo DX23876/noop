@@ -11,15 +11,18 @@ final class ChatMessageCodableTests: XCTestCase {
 
     func testToolsUsedRoundTripsThroughEncoding() throws {
         let message = ChatMessage(role: .assistant, text: "You're at 72 today.",
-                                  toolsUsed: ["get_readiness", "get_charge_drivers"])
+                                  toolsUsed: ["get_readiness", "get_charge_drivers"],
+                                  localContextUsed: [.biometricSnapshot, .readiness])
         let data = try encoder.encode(message)
         let decoded = try decoder.decode(ChatMessage.self, from: data)
         XCTAssertEqual(decoded.toolsUsed, ["get_readiness", "get_charge_drivers"])
+        XCTAssertEqual(decoded.localContextUsed, [.biometricSnapshot, .readiness])
     }
 
     func testDefaultsToEmptyToolsUsedWhenNotSpecified() {
         let message = ChatMessage(role: .user, text: "How am I doing?")
         XCTAssertTrue(message.toolsUsed.isEmpty)
+        XCTAssertTrue(message.localContextUsed.isEmpty)
     }
 
     /// A transcript saved before `toolsUsed` existed has no such key at all — this must decode cleanly
@@ -31,6 +34,7 @@ final class ChatMessageCodableTests: XCTestCase {
         let decoded = try decoder.decode(ChatMessage.self, from: Data(legacyJSON.utf8))
         XCTAssertEqual(decoded.text, "Old reply.")
         XCTAssertTrue(decoded.toolsUsed.isEmpty)
+        XCTAssertTrue(decoded.localContextUsed.isEmpty)
     }
 
     func testEmptyToolsUsedRoundTripsAsEmptyNotNil() throws {
@@ -38,6 +42,7 @@ final class ChatMessageCodableTests: XCTestCase {
         let data = try encoder.encode(message)
         let decoded = try decoder.decode(ChatMessage.self, from: data)
         XCTAssertEqual(decoded.toolsUsed, [])
+        XCTAssertEqual(decoded.localContextUsed, [])
     }
 
     // MARK: - uniqueTools(from:) — the evidence chain's dedup/ordering (P6)

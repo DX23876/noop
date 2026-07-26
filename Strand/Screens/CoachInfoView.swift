@@ -135,17 +135,19 @@ struct CoachInfoView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     section("How it works", icon: "sparkles", colorID: "coach.info.howItWorks") {
-                        para("The coach reads a compact summary of your recent data — roughly your last two weeks plus 30-day averages and recent workouts — and can call small tools to fetch specific numbers on demand. Then it answers in plain language, grounded in those numbers rather than generic advice.")
+                        para("NOOP first interprets your question locally. Its local data planner checks which categories you allowed and prepares only the relevant compact context — for example recovery, workouts, a journal pattern or a long-term aggregate. The provider never gets direct access to your database.")
+                        para("The model then writes the answer in plain language. When a specific number is needed, it can use a permitted tool; NOOP checks that tool locally before returning a result.")
                     }
 
                     section("What stays here, what's sent", icon: "lock.shield", colorID: "coach.info.whatIsShared") {
                         para("Everything is computed on \(Platform.deviceNounPhrase). The coach is the ONE feature in NOOP that talks to the internet.")
-                        para("When you ask a question with data-sharing on, it sends a short TEXT summary of the relevant metrics — never your raw sensor streams — to your chosen provider, using your own key. With data-sharing off, it sends only your question. Either way, nothing leaves until you ask.")
+                        para("When you ask a question with data sharing on, it sends a short text summary or a permitted tool result to your chosen provider — never raw sensor streams or unrestricted database access. With data sharing off, it sends only your question. Nothing leaves until you ask or opt into a Coach automation.")
+                        para("Deep historical questions use on-device aggregates, not years of daily rows. Sensitive journal information is excluded unless you separately allow it in Data access for an explicitly sensitive question.")
                     }
 
                     section("Provider & model", icon: "server.rack", colorID: "coach.info.providerModel") {
                         para("You bring your own API key. The provider — right now \(providerName) — is who actually receives your data, so it's the real privacy choice: pick one you trust, and check how they handle it.")
-                        para("The coaching model runs the conversation; cheaper background models handle chat summaries and quick card reads (Settings → Connection & model). NOOP never sends more personal data than a request needs.")
+                        para("The coaching model runs the conversation. Background models for chat summaries or card reads are optional and off unless you set them up (Settings → Connection & model). NOOP never sends more personal data than a request needs.")
                     }
 
                     section("Why the model matters", icon: "cpu", colorID: "coach.info.whyModelMatters") {
@@ -154,6 +156,10 @@ struct CoachInfoView: View {
 
                     section("Its limits", icon: "exclamationmark.triangle", colorID: "coach.info.limits") {
                         para("It's a support tool, not a medical or clinical authority. It can be wrong, it can miss context you didn't tell it, and it never replaces professional advice. Use it to think — not to obey.")
+                    }
+
+                    section("Turn it off any time", icon: "power", colorID: "coach.info.limits") {
+                        para("More → AI Coach lets you disable the whole feature. Its buttons, Today entries and check-ins disappear, while your on-device chats and health data remain saved unless you remove them yourself.")
                     }
                 }
                 .padding(20)

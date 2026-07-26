@@ -18,6 +18,9 @@ struct RootTabView: View {
     @AppStorage(CoachEntryPrefs.floatingButtonKey) private var coachFloatingButtonEnabled = true
     /// Master switch (#R7): hides the floating Coach button when the coach UI is turned off.
     @AppStorage(CoachEntryPrefs.uiEnabledKey) private var coachUIEnabled = true
+    /// Feature-level switch, independent of Today placement. A fresh installation keeps the Coach
+    /// inactive until the person has chosen to enable it in More → AI Coach.
+    @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
     @State private var showCoach = false
 
     /// Which quick-action screen the centre FAB is presenting (nil = sheet closed).
@@ -183,7 +186,7 @@ struct RootTabView: View {
 
             // Draggable floating Coach button — an alternative entry to the Today banner, honouring the
             // user's Coach-entry preference. Floats over every tab; a tap opens the chat.
-            if coachUIEnabled, coachFloatingButtonEnabled {
+            if coachFeatureEnabled, coachUIEnabled, coachFloatingButtonEnabled {
                 CoachFloatingButton(isPresented: $showCoach)
             }
         }
@@ -259,14 +262,21 @@ struct RootTabView: View {
         // Daily coach check-in tapped (NOOP AI): jump to the More tab and open Coach on top of it.
         // CoachView refreshes the brief itself — it observes the same event.
         .onReceive(NotificationCenter.default.publisher(for: .noopOpenCoachCheckIn)) { _ in
+            guard coachFeatureEnabled else { return }
             withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 3 }
             tabPaths[3] = NavigationPath([MoreDestination.coach])
         }
         // "Ask coach" tapped on a metric card (#P11): same jump — open Coach on top of the More tab; it
         // reads the pending card context and gives a short read of that metric.
         .onReceive(NotificationCenter.default.publisher(for: .noopOpenCoachCard)) { _ in
+            guard coachFeatureEnabled else { return }
             withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 3 }
             tabPaths[3] = NavigationPath([MoreDestination.coach])
+        }
+        .onChange(of: coachFeatureEnabled) { enabled in
+            // A cover can remain on screen while the switch is changed from a second window or a
+            // Settings deep link. Close it immediately so "off" really means no visible Coach UI.
+            if !enabled { showCoach = false }
         }
         // A screen's top-bar "+" routes here: open the quick-action sheet, then clear the flag.
         .onChange(of: router.quickActionsRequested) { _, req in
@@ -452,6 +462,9 @@ struct RootTabView: View {
                     MoreRow("Journal", "book.closed.fill", .insights)
                     MoreRow("Explore", "square.grid.2x2.fill", .explore)
                     MoreRow("Compare", "rectangle.split.2x1.fill", .compare)
+                    // This row remains reachable while the Coach itself is off: it is where a person
+                    // connects a provider and explicitly turns the feature on again.
+                    MoreRow("AI Coach", "sparkles", .coachSettings)
                 }
                 moreSection("Body") {
                     MoreRow("Live", "waveform.path.ecg", .live)
@@ -577,7 +590,7 @@ struct RootTabView: View {
 /// per-screen chrome the old inline links applied lives at the single `navigationDestination(for:)`
 /// registration in `moreTab`.
 private enum MoreDestination: Hashable {
-    case insightsHub, intelligence, coach, goalJourney, insights, explore, compare
+    case insightsHub, intelligence, coach, coachSettings, goalJourney, insights, explore, compare
     case live, workouts, health, labBook, stress, breathe, intervals, rhythm
     case fusedRecord, appleHealth, miBand, dataSources, backupSync, shortcutsExport
     case alarms, automations, testCentre, siriShortcuts, settings
@@ -587,6 +600,7 @@ private enum MoreDestination: Hashable {
         case .insightsHub:     InsightsHubView()
         case .intelligence:    IntelligenceView()
         case .coach:           CoachView()
+        case .coachSettings:   CoachSettingsView()
         case .goalJourney:     CoachGoalJourneyScreen()
         case .insights:        InsightsView()
         case .explore:         MetricExplorerView()

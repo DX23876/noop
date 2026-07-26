@@ -1,6 +1,29 @@
 import SwiftUI
 import StrandDesign
 
+/// The master availability switch for the AI Coach.
+///
+/// This is deliberately separate from `CoachEntryPrefs`: those preferences only arrange entry points on
+/// Today, whereas this switch turns the Coach feature itself on or off. A new installation starts off —
+/// until a person has deliberately connected a provider and chosen to use the feature, the app should
+/// neither advertise a dead chat button nor generate coach work in the background. Turning it off hides
+/// all Coach entry points but keeps the locally stored chats, preferences and data intact for a later
+/// re-enable.
+enum CoachFeaturePrefs {
+    static let enabledKey = "coach.featureEnabled"
+
+    /// Absent key means a fresh install, where the Coach is intentionally inactive by default.
+    static var isEnabled: Bool { isEnabled(defaults: .standard) }
+
+    /// Dependency-injected form keeps the fresh-install default testable without touching a person's
+    /// real settings.
+    static func isEnabled(defaults: UserDefaults) -> Bool {
+        defaults.object(forKey: enabledKey) == nil
+            ? false
+            : defaults.bool(forKey: enabledKey)
+    }
+}
+
 /// How the user reaches the Coach from the home surfaces — three INDEPENDENT entry points, each its own
 /// on/off switch. Replaces the old three-way `card`/`button`/`both` picker (`CoachEntryMode`), which could
 /// only express "row XOR button XOR both" and had no room for the Liquid header-icon entry added later —
@@ -145,12 +168,13 @@ struct CoachCardButton: View {
     let context: CoachCardContext
 
     @EnvironmentObject private var coach: AICoachEngine
+    @AppStorage(CoachFeaturePrefs.enabledKey) private var coachEnabled = false
     /// Dismisses a presenting sheet (some cards open as sheets) so the coach isn't buried under it; a
     /// no-op for a pushed or root screen, which is fine.
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        if coach.isConfigured {
+        if coachEnabled, coach.isConfigured {
             Button {
                 coach.openedFromCard(context)
                 NotificationCenter.default.post(name: .noopOpenCoachCard, object: nil)
@@ -186,10 +210,11 @@ struct CoachCardIconButton: View {
     var diameter: CGFloat = 26
 
     @EnvironmentObject private var coach: AICoachEngine
+    @AppStorage(CoachFeaturePrefs.enabledKey) private var coachEnabled = false
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        if coach.isConfigured {
+        if coachEnabled, coach.isConfigured {
             Button {
                 coach.openedFromCard(context)
                 NotificationCenter.default.post(name: .noopOpenCoachCard, object: nil)

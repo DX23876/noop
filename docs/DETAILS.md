@@ -2,7 +2,7 @@
 
 👈 Looking for the friendly tour? **[Back to the README](../README.md)**
 
-This is the technical deep-dive: the fork rationale, the full 22-tool table, token-cost mechanics,
+This is the technical deep-dive: the fork rationale, the full 25-tool table, token-cost mechanics,
 the architecture, build/signing minutiae, and where this fork stands relative to upstream today. If
 you just want to know what the app does and how to get it running, the README has everything you
 need — this page is for when you want to know *why*, or you're about to touch the code yourself.
@@ -10,7 +10,7 @@ need — this page is for when you want to know *why*, or you're about to touch 
 ## Contents
 
 - [Why a fork, not a contribution upstream?](#why-a-fork-not-a-contribution-upstream)
-- [The coach's 22 tools, in full](#the-coachs-22-tools-in-full)
+- [The coach's 26 tools, in full](#the-coachs-26-tools-in-full)
 - [Token cost and prompt caching](#token-cost-and-prompt-caching)
 - [Under the hood: the architecture](#under-the-hood-the-architecture)
 - [Quickstart: the signing fine print](#quickstart-the-signing-fine-print)
@@ -56,7 +56,7 @@ be worth having. It needs to iterate quickly, for one person. So rather than pus
   one coach file ever needed a manual merge. The additive-files design is *why* that was painless; see
   [Relationship to upstream today](#relationship-to-upstream-today) for where things stand now.
 
-## The coach's 22 tools, in full
+## The coach's 26 tools, in full
 
 The README covers the idea (the coach fetches its own data instead of being handed a fixed
 summary); here's every tool it can reach for, mid-sentence, while answering you. `get_readiness`
@@ -70,6 +70,9 @@ so the coach's verdict can never contradict what you already see there.
 | 😰 | `get_stress_index` | Today's autonomic load (Baevsky index over your R-R intervals) |
 | 😴 | `get_sleep_detail` | Per-night stages, efficiency, and your rolling sleep-debt ledger |
 | 📅 | `get_range_report` | Any 7–365 day window: averages, trends, headline changes |
+| 🗂️ | `get_data_catalog` | Metadata-only local discovery of available metric history, with focused matching kept on-device |
+| 📆 | `get_metric_history` | One selected source's compact, aggregate long-term trend — never raw readings |
+| 🔁 | `get_training_preferences` | Conservative repeated accepted/declined plan patterns; it never changes a plan |
 | 🎯 | `get_readiness` | The same push/maintain/rest verdict Today shows — ACWR, training monotony, contributing signals |
 | 🔬 | `get_charge_drivers` | *Why* today's Charge is what it is, term by term — never an invented reason |
 | 📝 | `propose_plan` | Suggests a session. Never schedules one — that's your call, in the app |
@@ -80,6 +83,7 @@ so the coach's verdict can never contradict what you already see there.
 | 🧠 | `remember_fact` · `update_fact` · `forget_fact` | Its own long-term memory |
 | 🕰️ | `search_past_conversations` | Finds what you discussed weeks ago — by keyword, by day, or both ("what did I ask you yesterday?") |
 | 📓 | `get_my_logs` | Reads back what you logged: caffeine, journal, lab markers, hydration, mood |
+| 🔒 | `get_sensitive_logs` | Reads only explicitly requested sensitive journal fields, after its separate extra permission |
 | 💓 | `get_zone_minutes` | Minutes per heart-rate zone, so a prescribed intensity can be checked rather than assumed |
 | ☕ | `log_caffeine` · `log_journal` · `log_lab_marker` | **Writes** to your real app data |
 
@@ -88,11 +92,11 @@ Caffeine card. **"drank last night"** becomes a journal entry. **"my Vitamin D c
 becomes a Lab Book marker. Same data the app always had — just logged by talking instead of tapping
 through a form.
 
-**Access to all 22 is gated per purpose, not by one switch.** Every tool belongs to exactly one of
-seven `CoachPurpose` groups — `coreBiometrics`, `workouts`, `planning`, `stress`, `logs`, `memory`,
-`patterns` — via an exhaustive `switch`, so a new tool literally can't ship without being assigned a
-group. Each is granted independently in Settings → Privacy & data → Data access; a tool whose group
-isn't granted is left out of what's offered to the model entirely, not merely told not to use it.
+**Access to all 26 is gated per purpose, not by one switch.** Every tool belongs to exactly one of
+nine `CoachPurpose` groups — `coreBiometrics`, `longHistory`, `workouts`, `planning`, `stress`, `logs`,
+`sensitiveLogs`, `memory`, `patterns` — via an exhaustive `switch`, so a new tool literally can't ship
+without being assigned a group. Essentials, Personal and Deep insights are simple presets over these
+groups; Expert mode exposes the individual controls. Sensitive logs remain a separate extra choice.
 
 📖 The full schema for every one of these — parameters, gating, the two safety gates, the plan
 book's state machine, the memory ranking algorithm — lives in **[`COACH.md`](COACH.md)**.

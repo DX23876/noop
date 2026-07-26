@@ -23,7 +23,7 @@ final class ToolConsentTests: XCTestCase {
     }
 
     /// The four conversational essentials a `dataConsent`-only user actually relied on day to day.
-    /// `stress`/`logs` start OFF even for an existing consenting user — a deliberate narrower default
+    /// Long history, `stress` and `logs` start OFF even for an existing consenting user — a deliberate narrower default
     /// under the new granular model, not an oversight.
     func testLegacyDataConsentMigratesToTheFourEssentials() {
         let defaults = freshDefaults()
@@ -77,15 +77,68 @@ final class ToolConsentTests: XCTestCase {
                        "every purpose must be reachable by at least one tool, and vice versa")
     }
 
-    func testPatternsPurposeCoversExactlyPersonalPatterns() {
+    func testPatternsPurposeCoversOnlyTheExplicitPatternTools() {
         let patternsTools = CoachTool.allCases.filter { $0.purpose == .patterns }
-        XCTAssertEqual(patternsTools, [.personalPatterns])
+        XCTAssertEqual(patternsTools, [.personalPatterns, .trainingPreferences])
     }
 
     func testAllowsReflectsThePurposeMapping() {
         let consent = ToolConsent(enabled: [.workouts])
         XCTAssertTrue(consent.allows(.recentWorkouts))
         XCTAssertFalse(consent.allows(.biometricSummary), "biometricSummary is coreBiometrics, not workouts")
+    }
+
+    func testLongHistoryNeedsItsOwnExplicitGrant() {
+        let normalConsent = ToolConsent(enabled: [.coreBiometrics])
+        XCTAssertFalse(normalConsent.allows(.dataCatalog))
+        XCTAssertFalse(normalConsent.allows(.metricHistory))
+
+        let longHistoryConsent = ToolConsent(enabled: [.longHistory])
+        XCTAssertTrue(longHistoryConsent.allows(.dataCatalog))
+        XCTAssertTrue(longHistoryConsent.allows(.metricHistory))
+    }
+
+    func testSimplePrivacyModesKeepSensitiveJournalDataOff() {
+        XCTAssertEqual(CoachDataAccessMode.current(for: CoachDataAccessMode.essentials.purposes!), .essentials)
+        XCTAssertEqual(CoachDataAccessMode.current(for: CoachDataAccessMode.personal.purposes!), .personal)
+        XCTAssertEqual(CoachDataAccessMode.current(for: CoachDataAccessMode.deepInsights.purposes!), .deepInsights)
+        XCTAssertFalse(CoachDataAccessMode.deepInsights.purposes!.contains(.sensitiveLogs))
+        XCTAssertEqual(CoachDataAccessMode.current(for: [.coreBiometrics]), .expert)
+    }
+
+    func testMemoryContextNeedsBothMasterAndMemoryGrants() {
+        let engine = AICoachEngine(repo: Repository(deviceId: "test-memory-context-\(UUID().uuidString)"))
+        engine.toolConsent = ToolConsent(enabled: [.memory])
+        engine.dataConsent = false
+        XCTAssertFalse(engine.memoryContextAllowed)
+
+        engine.dataConsent = true
+        XCTAssertTrue(engine.memoryContextAllowed)
+
+        engine.toolConsent = ToolConsent(enabled: [.coreBiometrics])
+        XCTAssertFalse(engine.memoryContextAllowed)
+    }
+
+    func testToolModeContextFiltersMemoryAndPlanBeforeTheProviderSeesThem() {
+        let hidden = AICoachEngine.assembledToolModeContext(
+            clock: "CLOCK", threadIndex: "PRIVATE THREAD TITLE", plan: "PRIVATE PLAN",
+            includeMemory: false, includePlanning: false)
+        XCTAssertEqual(hidden, "CLOCK")
+
+        let permitted = AICoachEngine.assembledToolModeContext(
+            clock: "CLOCK", threadIndex: "THREAD", plan: "PLAN",
+            includeMemory: true, includePlanning: true)
+        XCTAssertEqual(permitted, "CLOCK\n\nTHREAD\n\nPLAN")
+    }
+
+    func testPerTurnLocalAllowListDefendsTheDispatcherToo() async {
+        let engine = AICoachEngine(repo: Repository(deviceId: "test-local-allow-list-\(UUID().uuidString)"))
+        engine.dataConsent = true
+        engine.toolConsent = ToolConsent(enabled: [.coreBiometrics])
+
+        let result = await engine.runCoachTool("get_biometric_summary", input: [:], allowedTools: [])
+        XCTAssertTrue(result.contains("local data policy did not approve"),
+                      "a model must not read a tool that was withheld for this specific question")
     }
 
     // MARK: - First-session self-heal (dataConsent flips true mid-session, not already true at launch)

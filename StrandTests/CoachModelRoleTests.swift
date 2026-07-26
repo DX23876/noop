@@ -10,6 +10,10 @@ import XCTest
 @MainActor
 final class CoachModelRoleTests: XCTestCase {
 
+    func testAutomaticChatSummariesAreOptIn() {
+        XCTAssertFalse(AICoachEngine.defaultAutoSummarize)
+    }
+
     private func makeEngine() -> AICoachEngine {
         AICoachEngine(repo: Repository(deviceId: "test-model-role-\(UUID().uuidString)"))
     }

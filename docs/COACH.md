@@ -19,7 +19,11 @@ Strand/AI/
 │                                presets or fully custom
 ├── CoachPersona.swift         Guardian / Friend / Commander — coaching STYLE only; the name lives
 │                                in CoachIdentity now
-├── CoachTools.swift           The 22 tools: schemas + dispatch
+├── CoachTools.swift           The 26 tools: schemas + dispatch
+├── CoachDataCatalog.swift     Metadata-only local metric discovery + safe source labels
+├── CoachLocalContextPlanner.swift  On-device, question-specific context-category selection for tool-less providers
+├── CoachMetricHistory.swift   Bounded local long-range trend aggregation + source selection
+├── CoachTrainingPreferences.swift  Conservative repeated plan-decision patterns
 ├── CoachMemory.swift          Long-term memory: facts, categories, ranking, dedup
 ├── CoachTranscriptStore.swift Conversations: model + JSON persistence
 ├── MemoryMaintainer.swift     Cheap-model summarisation + fact distillation
@@ -74,7 +78,11 @@ user types
    ↓
 systemPrompt          identity preamble + persona preamble + methodology + PINNED facts + goal
    ↓
-context               tool-mode note  ─OR─  buildFullContext() when consent is on:
+context               tool-mode note  ─OR─  a local context plan when a provider has no tools:
+                        • compact biometric snapshot by default; detailed recent days only for a related question
+                        • only the relevant granted purposes (training, planning, stress, patterns, memory)
+                        • aggregate-only deep-history evidence when the user explicitly requests it
+                      buildFullContext() is reserved for deliberate app-generated prompts and still honours every grant:
                         • clock (date/weekday/time-of-day, days since last workout)
                         • 14-day metric table + 30-day averages     (buildContext)
                         • recent workouts
@@ -82,7 +90,7 @@ context               tool-mode note  ─OR─  buildFullContext() when consent 
                         • Charge confidence (never states progress off a still-calibrating score)
                         • active plan + adherence (what was agreed vs. what happened, and why)
                         • today's stress index
-                        • personal patterns + Lab Book   (2nd opt-in only)
+                        • personal patterns (Lab Book only with the separate Logs grant)
                         • digest of recent conversation summaries
                         • facts RELEVANT to this question   (wireMessages)
    ↓
@@ -108,18 +116,19 @@ Three deliberate choices in there:
 
 ---
 
-## 2. The 22 tools
+## 2. The 26 tools
 
 Declared in `CoachTools.swift` as `CoachTool`, offered to the model as JSON Schema, dispatched in
 `runCoachTool(_:input:)`. **All of them are gated behind `dataConsent`** — without it the dispatcher
 returns a polite "no data access" string and the model coaches generally. Underneath that master switch,
-each tool ALSO belongs to one of seven `CoachPurpose` groups (`ToolConsent.swift`) — core biometrics,
-workouts, planning, stress, logging, memory, patterns — that the user grants independently in Settings →
+each tool ALSO belongs to one of nine `CoachPurpose` groups (`ToolConsent.swift`) — core biometrics,
+long-term history, workouts, planning, stress, logging, sensitive logs, memory, patterns — that the user grants independently in Settings →
 Privacy & data → Data access. A tool whose purpose isn't granted is left out of the list offered to the
 model entirely (`coachTools`), with a defensive re-check in `runCoachTool` for a stale in-flight round.
-`get_personal_patterns` is the sole tool in the `patterns` group, which doubles as the pre-existing
-*second* opt-in (`includeOnDeviceSignals` is now a computed passthrough onto it) — nothing changed about
-what enabling it means.
+`get_personal_patterns` and `get_training_preferences` share the `patterns` group, which doubles as the
+pre-existing *second* opt-in (`includeOnDeviceSignals` is now a computed passthrough onto it). Lab Book
+values remain separately protected by the `logs` group even though their chart projection technically
+lives beside ordinary metrics.
 
 Tool-calling engages for every provider that conforms to `ToolCallingClient` — Anthropic, OpenAI,
 OpenRouter (per selected model, gated on `supported_parameters`) and Gemini. **Custom is the only one
@@ -139,11 +148,14 @@ breakpoint, and a per-request clock would invalidate the prefix cache every turn
 
 | Tool | Params | Returns |
 |---|---|---|
+| `get_data_catalog` | optional `query` | Metadata-only inventory of locally available metric keys, sources and coverage, plus only the separately granted high-level stores (workouts, plan, logs, memory). When given a topic, the app uses a transparent local alias/keyword match before returning metric metadata, so unrelated entries stay on-device. It contains no readings, log text, device IDs or import identifiers. Omit the query only to route a genuinely broad deep-history question. |
 | `get_biometric_summary` | — | 14-day table + 30-day averages: charge, effort, rest, HRV, RHR, SpO₂, respiration, skin-temp deviation, steps, energy |
 | `get_recent_workouts` | `limit` 1–30 | Sport, duration, effort, avg HR, energy, distance |
 | `get_stress_index` | — | Today's Baevsky Stress Index over today's R-R |
 | `get_sleep_detail` | `nights` 1–14 | Bed/wake, efficiency, deep/REM/light minutes, disturbances + the rolling 14-night sleep-debt ledger |
 | `get_range_report` | `days` 7–365 | Per-metric averages, trends, headline changes |
+| `get_metric_history` | `metric`, `days` 7–3,650, optional named `source` | One compact long-range aggregate, directional trend and bounded monthly/quarterly timeline. The automatic path compares sources locally and uses the widest usable *single* series; it never blends sources or exports readings. Numeric analysis and each timeline group need at least three observations; no min/max values leave the device. |
+| `get_training_preferences` | `days` 30–365 | Conservative hypotheses from repeated accepted, declined or skipped training proposals (for example, repeatedly declining runs at weekends). It never changes a plan. |
 | `get_readiness` | — | The SAME verdict Today shows (primed/balanced/strained/rundown/insufficient), acute:chronic workload ratio (Gabbett), Foster training monotony, and the contributing signals in plain English. Carries a HEALTH SIGNAL / SAFETY note when relevant — the model is told not to suggest more load regardless of the readiness level when it's present. |
 | `get_charge_drivers` | — | *Why* today's Charge is what it is: each contributing term (HRV, resting HR, respiration, skin temperature) with its signed point contribution, your value, your baseline, and a plain-English read. Answers the single most common coaching question without the model inventing a reason. |
 | `get_session_outlook` | `sport`, optional `swap_from` | What a session costs *this user*, from their own history: typical next-morning Charge cost, bounce-back days, tomorrow's projection. Pass `swap_from` to compare two activities side by side. |
@@ -151,6 +163,7 @@ breakpoint, and a per-request clock would invalidate the prefix cache every turn
 | `get_plan_adherence` | `days` | What was agreed vs. what actually happened, including *why* a session was skipped when the user told the coach. Days still calibrating carry no verdict at all — never treated as adherence data. |
 | `get_personal_patterns` | — | Top n-of-1 correlations (`EffectRanker`, significant only) + Lab Book roll-up. **Second opt-in required** (`includeOnDeviceSignals`) |
 | `get_my_logs` | `kind` (caffeine/journal/lab/hydration/mood), `days` 1–90 | Reads back what the user LOGGED, so "is my coffee hurting my sleep?" is answered from their real entries rather than a guess. The write tools below are how these get there. |
+| `get_sensitive_logs` | `days` 1–90 | Reads only locally flagged sexual, relationship, illness or cannabis journal fields after a separate sensitive-logs grant. It is offered only for an explicit related question. |
 | `get_zone_minutes` | `days` | Minutes per HR zone, so a prescribed intensity can be checked against what was actually hit instead of assumed from a "done" status |
 | `search_past_conversations` | `query`, `on_days_ago`, `since_days` — **all optional** | Past chats as dated snippets **quoting the user's own questions**. Either axis works alone: a purely temporal question ("what did I ask you yesterday?") carries no keywords, so requiring `query` made it structurally unanswerable. Filtering is per MESSAGE date, so a thread reopened today doesn't hide what was asked in it yesterday. |
 
@@ -333,6 +346,23 @@ get sick or travel, which is precisely when they need the app least judgmental.
 
 `CoachMemory` is a `@MainActor` singleton, JSON in `UserDefaults`, capped at **40 facts**.
 
+### Storage size and bounds
+
+The coach uses ordinary local JSON, not an embedding database. The Memory settings card measures its
+own current serialised footprint on-device: drive icon = conversation + fact bytes, speech bubbles =
+conversation count, brain = fact count. It does **not** count the main health database, sensor streams,
+attachments or provider traffic.
+
+- Facts: maximum **40** entries; normal use is tiny because each is short text plus metadata.
+- Normal conversation history: up to **50** conversations, with the newest **200** messages retained in
+  each. A pinned conversation is deliberately exempt from the 50-thread count cap, so there is no false
+  promise of a global byte ceiling when someone explicitly pins many long chats.
+- No vector index is stored. Query matching ranks a few facts/conversation snippets on demand, so it
+  does not duplicate health text or create a growing embedding store.
+
+The visible byte counter is therefore the authoritative answer for a particular device and history; the
+limits describe normal retention, not a fabricated fixed MB claim.
+
 ### The fact model
 
 ```swift
@@ -353,9 +383,9 @@ so an upgrade never drops your memory.
 Dumping 40 facts into every prompt is the naive approach: expensive, unfocused, and it crowds small
 context windows. Instead:
 
-- **`pinnedBlock`** — your training goal + every `.pinned` fact. Goes in the *system prompt*, every
-  single request. This is for things that must frame every reply: a serious injury, a hard
-  constraint.
+- **`pinnedBlock`** — your training goal + every `.pinned` fact. Goes in the *system prompt* only
+  while Data access and the separate Memory purpose are enabled. This is for things that must frame
+  every reply: a serious injury, a hard constraint.
 - **`relevantBlock(for:limit:)`** — ranks the `.normal` facts against the **current question** and
   takes the top few (default 8, minus whatever pinned already took). Goes into the *turn's context*.
 
@@ -489,12 +519,14 @@ per provider:
 | Gemini | `gemini-flash-latest` | `gemini-flash-lite-latest` |
 | Custom | *(you pick)* | *(falls back to your model)* |
 
-The engine exposes `memoryModel` (editable in Settings) and `autoSummarize`.
+The engine exposes `memoryModel` (an optional Settings override) and `autoSummarize`. Automatic
+summaries are **off by default**: ordinary coaching, structured facts and local recall do not require a
+background model.
 
 `MemoryMaintainer` fires on `switchTo` / `newConversation` — i.e. when you *leave* a chat — and only
 when **all** of these hold:
 
-- `dataConsent` is on (chat content leaves the device, so it's the same gate as everything else)
+- `dataConsent` and the separate Memory purpose are on (chat content leaves the device, so both gates apply)
 - `autoSummarize` is on
 - the conversation has ≥ 1 real user turn
 - ≥ 4 new messages since the last summary (`summarizeThreshold`)
@@ -532,7 +564,7 @@ tools on Custom just to get streaming.
 
 **Gemini's schema is a subset.** `CoachTool.geminiSchema` strips every JSON-Schema keyword Gemini's
 own `Schema` type doesn't model (`minimum`/`maximum` appear in several of ours). This is not tidiness:
-an unsupported keyword rejects the **entire request**, so one stray bound costs all 22 tools at once
+an unsupported keyword rejects the **entire request**, so one stray bound costs all 26 tools at once
 rather than degrading one. A test reduces every real schema and asserts nothing unsupported survives.
 
 **Reasoning tokens are tracked, never rendered.** OpenRouter's `delta.reasoning` (and the
@@ -573,20 +605,96 @@ and tool-calling for OpenAI/Gemini remain open — see "Contributing / hacking o
 
 The app is offline-first and stays that way; the coach is the *only* thing that ever opens a socket.
 
-**Consent is two-stage, both off by default:**
+**Consent is a master switch plus purpose controls, all off by default:**
 
 1. **`dataConsent`** — without it, no metrics are included in any request and every tool returns
-   "no data access". The coach still works; it just doesn't know you.
-2. **`includeOnDeviceSignals`** — additionally folds in your n-of-1 patterns and Lab Book roll-up.
-   Summary-only, and gated behind `dataConsent` too.
+   "no data access". If the separately enabled Coach is connected, it can still answer generally; it
+   just doesn't know you.
+2. **Purpose controls** — once the master switch is on, the user separately grants core biometrics,
+   long-term history, workouts, planning, stress, logging, sensitive logs, memory and patterns. The
+   normal interface starts with Essentials, Personal and Deep insights presets; Expert mode reveals the
+   individual choices. Long-term history is
+   off by default, including for a migrated legacy consent: a request for months or years is not part of
+   normal day-to-day coaching. `includeOnDeviceSignals` remains the
+   compatibility toggle for the patterns purpose, which includes n-of-1 signals and conservative
+   training-decision patterns. Lab Book remains under the separate logs purpose.
 
 **What is sent:** derived daily numbers (charge, HRV, RHR…), short summary lines, your saved facts,
-your goal and plan state, and — under consent — past-conversation snippets for recall.
+your goal and plan state, and — under consent — past-conversation snippets for recall. A deep-history
+request additionally needs the separate long-term-history grant and is first resolved locally: the provider
+receives at most one selected source's aggregate, trend and bounded timeline. The optional catalog contains
+only metric names, coverage and safe source labels.
+Lab Book series are excluded from both routes unless the separate **logs** purpose is granted; their
+database projection must never accidentally turn them into ordinary core biometrics.
+
+For a provider without tools, the app does not use the former one-size-fits-all context. A transparent
+on-device router first chooses relevant categories from the wording (for example, readiness and recent
+workouts for a run question, but neither for an ordinary chat question). It starts with a compact
+snapshot rather than the complete recent-day table and upgrades detail only for a recent metric/trend
+question. A training question also asks for the conservative local training-preferences report when its
+separate Patterns grant exists, so a recurring decline/skip can inform a proposal without changing it.
+Each chosen category is then checked against its separate purpose grant; routing never grants
+access on its own. The resulting assistant turn stores a small, on-device **data-access receipt** — only
+category names such as “Readiness” or “Recent workouts”, never copied values — which the person can
+expand below a tool-less reply even after reopening the chat.
+
+Tool-capable providers follow the same local-first policy: `get_data_catalog` is only put on the wire
+for an explicit inventory or long-history question, `get_metric_history` only for an explicit long-history
+question, and `get_my_logs` only when the question names a non-sensitive log topic. `get_sensitive_logs`
+additionally requires its own grant and an explicit related question. The local matcher also considers
+the person's own configured journal labels (including a custom numeric field) for explicit retrospective
+questions; those labels never enter provider context merely to make that decision. The external model
+cannot call a tool it was not offered; the dispatcher also re-checks that per-turn allow-list before it
+reads anything. Consent remains the first, separate gate.
+
+### External architecture check
+
+The design borrows the useful part of a local RAG workspace — local retrieval before model context —
+without importing a general document-agent stack into a health app:
+
+- [Apple's HealthKit privacy guidance](https://developer.apple.com/documentation/healthkit/protecting-user-privacy)
+  requires fine-grained user control and clear disclosure for sensitive health data. That is why a
+  local routing match is never an authorisation: the per-purpose grant remains the hard gate.
+- [AnythingLLM's self-hosted terms](https://github.com/Mintplex-Labs/anything-llm/blob/master/TERMS_SELF_HOSTED.md)
+  demonstrate that an air-gapped local document workspace is feasible, but its product also has an
+  optional telemetry feature. NOOP does not adopt that feature, any analytics, or a server component.
+- [Apple Vision's text-recognition request](https://developer.apple.com/documentation/vision) is the
+  platform facility used by the Lab Book photo path; the app performs the recognition locally and does
+  not retain image/OCR text after review.
+
+An embedding/vector store is therefore deliberately **not** the first storage layer here. The present
+data is structured time series, short facts and small document-derived markers; transparent key/alias
+matching plus aggregate queries are cheaper to inspect, easier to revoke and avoid a second persistent
+copy of sensitive health text. A future local semantic index is viable only as an optional, separately
+metered index with the same purpose grants and a delete/rebuild control.
 
 **What is never sent:** raw R-R streams, raw sensor buffers, raw PPG/IMU. The tool layer routes
 through the same summarised reads the UI uses, so there's no path for raw egress even by accident.
 The coach also **never plans nutrition** — there's no data to found that on, and a weight goal's
 feasibility is always reported as `.unknown` rather than guessed.
+
+**Lab-report import stays local and review-first.** A selected text PDF is read through PDFKit; a selected
+photo is recognised with the platform's on-device OCR. The narrow parser considers only known marker
+labels immediately next to a numeric value, then shows each candidate and its report date for the person
+to confirm or deselect. It does not retain the file, OCR text, filename or path, does not extract a
+reference range, does not infer an unknown marker, and does not make a clinical judgement. Only the
+confirmed values become ordinary private Lab Book rows; the coach can see them later only through its
+existing, consent-gated summaries.
+
+**Retrieval does not need an embedding database yet.** Durable facts and past conversations already use
+local keyword-overlap ranking; deep metric discovery now uses a small, inspectable alias vocabulary
+(`weight`/`Gewicht`, `ferritin`/`iron`/`Eisen`, `sleep`/`Schlaf`, …) before returning catalog metadata.
+That is deterministic, small and auditable, and avoids persisting a second copy of sensitive health text
+as vectors. A future semantic index should remain optional, local and independently explainable; it must
+not replace consent or the aggregate-only data boundary.
+
+For a provider without tool calling (for example a local OpenAI-compatible server), a second conservative
+router covers the obvious deep-history case. It activates only when the user's own question explicitly
+asks for a long trend (such as weight over three years), selects one named metric locally and appends the
+same aggregate-only evidence that `get_metric_history` would return. If the metric is not one of the
+small built-in aliases, it can match an explicit locally stored key such as `vitamin_d` — still without
+emitting the catalog. It never runs for an ordinary coaching question and never sends an inventory or raw
+series to compensate for missing tool support.
 
 **Where it goes:** only to the provider *you* chose, with *your* key, when *you* send a message.
 There is no NOOP server. There is no account. Local provider ⇒ zero egress.
@@ -603,7 +711,7 @@ Everything stored — memory, conversations, goal, plan, chart snapshots — is 
 | **Banner** | "Ask your Coach" — a reorderable `TodaySection.coach` card on both Today screens (classic's `CoachTodayRow`; Liquid's own banner, styled in its own chrome), movable via the same Arrange sheet as every other section |
 | **Header icon** | Liquid Today only — a compact avatar/sparkle button in the header's icon cluster |
 | **Floating button** | Draggable, pinnable to any of 4 chrome-clear corners, lockable |
-| **More tab** | The original `MoreDestination.coach` row |
+| **More tab** | **AI Coach** opens Coach settings even while the feature is off; active Coach deep links use `MoreDestination.coach` |
 | **Goal & Journey** | Its own `MoreDestination.goalJourney` row, right alongside Coach — no longer nested five taps deep in settings |
 | **Daily check-in** | Notification → deep-links to the Coach with a fresh brief (gated on the *logical* day, not per-conversation, so it can only fire once per real day). Carries **Remind me in 2 hours** / **Not today** actions; snoozing adds a one-off request beside the untouched daily trigger. |
 
@@ -635,13 +743,17 @@ All routes present through one shared `View.coachCover(isPresented:coach:)` help
 `RootTabView`'s floating tab bar via a measured (not guessed) environment value,
 `\.floatingTabBarInset` — see the fix's commit for why a guessed pixel constant would have been wrong.
 
-**Turning the coach's UI off entirely** is a separate master switch, `CoachEntryPrefs.uiEnabledKey`
-(`coach.uiEnabled`, default on) — deliberately independent of the three entry toggles. Off, it hides
-the banner, the header icon **and** the floating button regardless of their individual settings; each
-one's own choice is remembered for when it's turned back on. It is also independent of `dataConsent` /
-`isConfigured` and of the card-/background-AI paths (`model(for:)`): per-metric "Ask coach" buttons
-and the AI that writes card summaries keep running — this switch hides only the coach's own chat
-entry points, never the on-device analysis.
+**The AI Coach itself is an explicit feature opt-in.** `CoachFeaturePrefs.enabledKey`
+(`coach.featureEnabled`) defaults to **off** on a fresh installation: without a provider/key there is
+no useful chat to surface. More → **AI Coach** remains available for setup. Turning the feature off
+hides all Coach entries (Today banner/tile/header icon, floating button and per-metric “Ask coach”),
+closes an open Coach cover, cancels its daily check-in and prevents its automatic brief/nudge/review
+requests. It does **not** delete chats, memory, health data or the person's entry preferences.
+
+`CoachEntryPrefs.uiEnabledKey` (`coach.uiEnabled`, default on) is a smaller, independent *home-surface*
+preference for an enabled Coach: it hides the banner, header icon and floating button while remembering
+their individual settings. It is deliberately separate from data consent and from on-device card
+analysis that is not a Coach chat action.
 
 ## 11a. Notifications & the bell
 
@@ -738,8 +850,9 @@ rather than animating. The composer grows to 12 lines at the accessibility text 
 holds a few words. The proactive-level picker states its active option in words rather than carrying it
 on a highlight colour alone.
 
-**Coaching** leads with the coach-identity editor (§3) and now also carries the "Show Coach on
-Today" master switch and its avatar toggle — see §11 for what each actually does.
+**Coaching** leads with the coach-identity editor and the home-surface preferences (including the
+avatar toggle). The feature-level **Enable AI Coach** control lives at the top of Coach settings, so it
+is available before connection setup as well as after it — see §11 for what each control does.
 
 ---
 

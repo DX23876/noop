@@ -27,6 +27,21 @@ public let aiCoachPrivacyNote =
 struct ChatMessage: Identifiable, Equatable, Codable {
     enum Role: String, Codable { case user, assistant }
 
+    /// The broad, user-visible categories the local fallback placed in a non-tool provider's prompt.
+    /// This is a receipt, not a second copy of health data: it persists only category names so a person
+    /// can audit a local routing decision after reopening a conversation.
+    enum LocalContextCategory: String, Codable, CaseIterable, Hashable {
+        case biometricSnapshot
+        case readiness
+        case recentWorkouts
+        case planning
+        case trainingPreferences
+        case stress
+        case personalPatterns
+        case conversationMemory
+        case longTermHistory
+    }
+
     /// Why this message exists. Everything the coach says looks identical in the transcript, so a
     /// message the user never asked for — a morning brief, an unprompted nudge, the weekly review —
     /// reads exactly like an answer to a question they've forgotten asking. Naming the origin lets the
@@ -56,21 +71,26 @@ struct ChatMessage: Identifiable, Equatable, Codable {
     /// user turns, for a plain-context-path reply (no tool-calling provider), and for turns predating
     /// this field (back-compat decode).
     let toolsUsed: [String]
+    /// Local context categories actually supplied to a provider without tool calling. Empty for tool
+    /// replies, user turns and old transcripts. Unlike `toolsUsed`, this records the app's own local
+    /// choice before a request was sent.
+    let localContextUsed: [LocalContextCategory]
     /// Why this message exists — see `Origin`. Defaulted on decode, so every stored transcript keeps
     /// loading and simply reads as ordinary replies.
     let origin: Origin
 
     init(id: UUID = UUID(), role: Role, text: String, date: Date = Date(),
-         toolsUsed: [String] = [], origin: Origin = .reply) {
+         toolsUsed: [String] = [], localContextUsed: [LocalContextCategory] = [], origin: Origin = .reply) {
         self.id = id
         self.role = role
         self.text = text
         self.date = date
         self.toolsUsed = toolsUsed
+        self.localContextUsed = localContextUsed
         self.origin = origin
     }
 
-    private enum CodingKeys: String, CodingKey { case id, role, text, date, toolsUsed, origin }
+    private enum CodingKeys: String, CodingKey { case id, role, text, date, toolsUsed, localContextUsed, origin }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -79,6 +99,7 @@ struct ChatMessage: Identifiable, Equatable, Codable {
         text = try c.decode(String.self, forKey: .text)
         date = try c.decodeIfPresent(Date.self, forKey: .date) ?? Date()
         toolsUsed = try c.decodeIfPresent([String].self, forKey: .toolsUsed) ?? []
+        localContextUsed = try c.decodeIfPresent([LocalContextCategory].self, forKey: .localContextUsed) ?? []
         origin = try c.decodeIfPresent(Origin.self, forKey: .origin) ?? .reply
     }
 
@@ -392,10 +413,17 @@ final class AICoachEngine: ObservableObject {
         didSet { UserDefaults.standard.set(explicitlyDisconnected, forKey: Self.explicitlyDisconnectedKey) }
     }
     /// Per-purpose tool access (#coach-tool-consent), layered UNDER `dataConsent`: which groups of tools
-    /// (core biometrics, workouts, planning, stress, logging, memory, patterns) the coach may actually
+    /// (core biometrics, long-term history, workouts, planning, stress, ordinary/sensitive logging,
+    /// memory, patterns) the coach may actually
     /// call once data access is on. See `ToolConsent`/`CoachPurpose`.
     @Published var toolConsent: ToolConsent {
         didSet { toolConsent.save() }
+    }
+
+    /// A memory choice is meaningful only when the master data-consent switch is also on. Keep this as
+    /// one predicate so tool use, prompt context and background summarisation cannot drift apart.
+    var memoryContextAllowed: Bool {
+        dataConsent && toolConsent.allows(.searchPastConversations)
     }
     /// SECOND opt-in (v5): also fold a SUMMARY of the new on-device signals, your strongest n-of-1
     /// correlations and your Lab Book markers, into the coach context. OFF by default and gated behind
@@ -437,8 +465,9 @@ final class AICoachEngine: ObservableObject {
     @Published var cardModel: String {
         didSet { UserDefaults.standard.set(cardModel, forKey: Self.cardModelKey) }
     }
-    /// Whether the coach auto-summarises a conversation (via the cheap model) when the user moves on from
-    /// it, feeding cross-conversation memory. ON by default; gated behind `dataConsent` at run time.
+    /// Whether the coach auto-summarises a conversation (via the optional cheap model) when the user
+    /// moves on from it, feeding cross-conversation memory. Off by default: the durable fact memory and
+    /// all normal coach tools work without a background-model request.
     @Published var autoSummarize: Bool {
         didSet { UserDefaults.standard.set(autoSummarize, forKey: Self.autoSummarizeKey) }
     }
@@ -495,6 +524,9 @@ final class AICoachEngine: ObservableObject {
     private static let cardModelKey = CoachModelRole.cardAnalysis.overrideDefaultsKey!
     private static let deepModelKey = CoachModelRole.deepAnalysis.overrideDefaultsKey!
     private static let autoSummarizeKey = "ai.autoSummarize"
+    /// A background provider call should be a conscious convenience choice, never an implicit cost or
+    /// extra disclosure just because the person enabled the coach itself.
+    static let defaultAutoSummarize = false
     /// Emoji in coach replies (#P14 7.3) — off by default, matching the careful/human register the P13
     /// voice clause already asks for; a user who wants a lighter touch can opt in.
     private static let allowEmojiKey = "ai.allowEmoji"
@@ -642,7 +674,10 @@ final class AICoachEngine: ObservableObject {
     • READ their data — get_biometric_summary, get_readiness, get_charge_drivers, get_sleep_detail, \
     get_recent_workouts, get_stress_index, get_zone_minutes, get_range_report, get_plan_adherence, \
     get_my_logs (read back what they logged — caffeine, journal, lab, hydration, mood), plot_metric to \
-    draw one, and get_personal_patterns when they've shared it. Call get_readiness before any \
+    draw one, get_training_preferences before a plan when repeated declines may matter, and \
+    get_personal_patterns when they've shared it. For a long-horizon or imported metric question, first \
+    call get_data_catalog with the user's essential topic words if the metric/source is unclear, then get_metric_history for ONLY the relevant \
+    metric; it selects the best-covered local source and returns an aggregate, not readings. Call get_readiness before any \
     push/maintain/rest call; never re-derive that from the raw charge number.
     • PROJECT forward — get_session_outlook (what a session would cost, from their own history), \
     simulate_day (tomorrow's Charge under a plan).
@@ -657,7 +692,9 @@ final class AICoachEngine: ObservableObject {
     /// The system prompt actually sent, read FRESH from UserDefaults on every request so an edit in
     /// the settings takes effect on the next message, with no engine rebuild. A blank/absent stored
     /// value falls back to `defaultSystemPrompt`, so a user who clears it never sends an empty prompt.
-    var systemPrompt: String {
+    /// `toolsActive` is per request: local policy can deliberately hand a tool-capable provider an empty
+    /// list for a particular question, and the prompt must then make the same promise as the wire.
+    func systemPrompt(toolsActive: Bool) -> String {
         let stored = UserDefaults.standard.string(forKey: Self.systemPromptKey)?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let base = (stored?.isEmpty == false) ? stored! : Self.defaultSystemPrompt
@@ -668,18 +705,19 @@ final class AICoachEngine: ObservableObject {
         // the persona — they never fight over "who you are".
         var prompt = CoachIdentityStore.shared.identity.identityPreamble
             + "\n\n" + persona.systemPreamble + "\n\n" + base
-        // Persistent memory: the user's goal + PINNED facts (injuries, hard constraints) ride every
-        // prompt. Query-relevant normal facts are injected per-question in `wireMessages` instead, so a
-        // large memory doesn't bloat every request. Read fresh so a fact pinned THIS turn frames the next.
-        let memory = CoachMemory.shared.pinnedBlock
-        if !memory.isEmpty { prompt += "\n\n" + memory }
-        // Tell the model the truth about what it can DO this turn. Both this and `send`'s
-        // `tools: toolCallingActive ? coachTools : []` read the same gate on the same MainActor turn,
-        // so the promise and the tool array can never disagree.
-        prompt += "\n\n" + (toolCallingActive ? Self.planToolClause : Self.noPlanToolClause)
+        // Persistent memory is only shared when its own purpose is enabled under the master consent.
+        // Query-relevant normal facts are injected per-question in `wireMessages` instead, so a large
+        // memory doesn't bloat every request. Read fresh so a fact pinned THIS turn frames the next.
+        if memoryContextAllowed {
+            let memory = CoachMemory.shared.pinnedBlock
+            if !memory.isEmpty { prompt += "\n\n" + memory }
+        }
+        // Tell the model the truth about what it can DO this turn. This exact per-request value also
+        // chooses the tools array, so the promise and the wire can never disagree.
+        prompt += "\n\n" + (toolsActive ? Self.planToolClause : Self.noPlanToolClause)
         // The tool-awareness map rides the cached system block (not a per-round user message) so the
         // model is reminded what its tools are for at ~1/10th the per-round cost. Same gate as above.
-        if toolCallingActive { prompt += "\n\n" + Self.toolModeClause }
+        if toolsActive { prompt += "\n\n" + Self.toolModeClause }
         // Explainability (#P12): always ask the coach to name the source under each claim — in both
         // modes, and after the tool/plan clauses so it reads as the closing discipline on top of them.
         prompt += "\n\n" + Self.citationClause
@@ -695,6 +733,9 @@ final class AICoachEngine: ObservableObject {
         if let clause = verbosity.promptClause { prompt += "\n\n" + clause }
         return prompt
     }
+
+    /// The default prompt used by app-driven requests that are not narrowed by a user question.
+    var systemPrompt: String { systemPrompt(toolsActive: toolCallingActive) }
 
     /// The active coaching personality. Backed by UserDefaults via `CoachPersona`; the setter
     /// signals `objectWillChange` so the settings picker updates, mirroring `customSystemPrompt`.
@@ -778,11 +819,13 @@ final class AICoachEngine: ObservableObject {
         // Role model OVERRIDES: restore the user's explicit choice, or empty. Empty is the honest
         // default — `model(for:)` then resolves it to the provider's cheap model DYNAMICALLY, so it
         // always matches the current provider (an earlier version baked the cheap model in at init, which
-        // went stale across a provider switch). auto-summarise defaults ON.
+        // went stale across a provider switch). Auto-summarise is deliberately opt-in: facts and local
+        // recall remain useful without sending a finished chat to a background model.
         self.memoryModel = UserDefaults.standard.string(forKey: Self.memoryModelKey) ?? ""
         self.cardModel = UserDefaults.standard.string(forKey: Self.cardModelKey) ?? ""
         self.deepModel = UserDefaults.standard.string(forKey: Self.deepModelKey) ?? ""
-        self.autoSummarize = (UserDefaults.standard.object(forKey: Self.autoSummarizeKey) as? Bool) ?? true
+        self.autoSummarize = (UserDefaults.standard.object(forKey: Self.autoSummarizeKey) as? Bool)
+            ?? Self.defaultAutoSummarize
         self.proactiveLevel = UserDefaults.standard.string(forKey: ProactiveLevel.storageKey)
             .flatMap(ProactiveLevel.init(rawValue:)) ?? .important
         self.allowEmoji = UserDefaults.standard.bool(forKey: Self.allowEmojiKey)
@@ -1306,9 +1349,34 @@ final class AICoachEngine: ObservableObject {
         // Include the user's data ONLY with explicit consent; otherwise send a note instead of numbers.
         // In tool-calling mode we send a lean note and let the model FETCH the data it needs via tools,
         // instead of pre-baking the whole summary into the prompt.
-        let context = toolCallingActive
-            ? toolModeContext
-            : (dataConsent ? await buildFullContext() : noConsentNote)
+        // Only read journal labels locally when their separate consent exists; those labels are used by
+        // the local policy only and never appended to the provider prompt.
+        let journalQuestions: [String]
+        if toolConsent.allows(.myLogs) {
+            journalQuestions = await repo.journalEntries().map(\.question)
+        } else {
+            journalQuestions = []
+        }
+        let requestTools = toolCallingActive ? coachTools(for: trimmed, journalQuestions: journalQuestions) : []
+        let toolsActiveForTurn = !requestTools.isEmpty
+        let requestSystemPrompt = systemPrompt(toolsActive: toolsActiveForTurn)
+        let context: String
+        var localContextUsed: [ChatMessage.LocalContextCategory] = []
+        if toolsActiveForTurn {
+            context = toolModeContext
+        } else if dataConsent {
+            let prepared = await buildNonToolContext(for: trimmed)
+            var full = prepared.text
+            localContextUsed = prepared.categories
+            let localEvidence = await nonToolLocalEvidence(for: trimmed)
+            if !localEvidence.isEmpty {
+                full += "\n\n" + localEvidence
+                localContextUsed.append(.longTermHistory)
+            }
+            context = full
+        } else {
+            context = noConsentNote
+        }
         let wire = wireMessages(context: context)
 
         // Streaming path when the provider supports it (Anthropic): the reply appears token-by-token in
@@ -1317,16 +1385,17 @@ final class AICoachEngine: ObservableObject {
         if let streamer = provider.client as? StreamingToolClient {
             let replyId = UUID()
             let startedAt = Date()
-            messages.append(ChatMessage(id: replyId, role: .assistant, text: "", date: startedAt))
+            messages.append(ChatMessage(id: replyId, role: .assistant, text: "", date: startedAt,
+                                        localContextUsed: localContextUsed))
             do {
                 let reply = try await streamer.streamWithTools(
                     key: key,
                     model: requestModel,
-                    systemPrompt: systemPrompt,
+                    systemPrompt: requestSystemPrompt,
                     messages: wire,
-                    tools: toolCallingActive ? coachTools : [],
+                    tools: requestTools,
                     runTool: { [weak self] name, input in
-                        await self?.runCoachTool(name, input: input) ?? ""
+                        await self?.runCoachTool(name, input: input, allowedTools: Set(requestTools)) ?? ""
                     },
                     onDelta: { [weak self] delta in self?.appendDelta(delta, to: replyId) },
                     session: session
@@ -1338,13 +1407,15 @@ final class AICoachEngine: ObservableObject {
                     // we drop the blank bubble and let the chart (flushed below) stand on its own.
                     if pendingCharts.isEmpty {
                         messages[idx] = ChatMessage(id: replyId, role: .assistant, text: "(no reply)",
-                                                    date: startedAt, toolsUsed: reply.toolsUsed)
+                                                    date: startedAt, toolsUsed: reply.toolsUsed,
+                                                    localContextUsed: messages[idx].localContextUsed)
                     } else {
                         messages.remove(at: idx)
                     }
                 } else if let idx = messages.firstIndex(where: { $0.id == replyId }), !reply.toolsUsed.isEmpty {
                     messages[idx] = ChatMessage(id: replyId, role: .assistant, text: messages[idx].text,
-                                                date: startedAt, toolsUsed: reply.toolsUsed)
+                                                date: startedAt, toolsUsed: reply.toolsUsed,
+                                                localContextUsed: messages[idx].localContextUsed)
                 }
                 flushPendingCharts()
             } catch let e as AICoachError {
@@ -1362,10 +1433,11 @@ final class AICoachEngine: ObservableObject {
         }
 
         do {
-            let reply = try await callProvider(key: key, messages: wire)
+            let reply = try await callProvider(key: key, messages: wire, tools: requestTools,
+                                               systemPrompt: requestSystemPrompt)
             let clean = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
             appendMessage(ChatMessage(role: .assistant, text: clean.isEmpty ? "(no reply)" : clean,
-                                      toolsUsed: reply.toolsUsed))
+                                      toolsUsed: reply.toolsUsed, localContextUsed: localContextUsed))
             flushPendingCharts()
         } catch let e as AICoachError {
             discardPendingCharts(); setError(e)
@@ -1607,7 +1679,7 @@ final class AICoachEngine: ObservableObject {
     /// returns recoverable text (never throws), and `lab` refuses without the second on-device-signals
     /// opt-in, mirroring `get_personal_patterns`. Never a bare empty string: a blank tool result is what
     /// makes a model hallucinate, so an empty log says so in words.
-    func myLogsTool(kind: String, days: Int) async -> String {
+    func myLogsTool(kind: String, days: Int, onlySensitive: Bool = false) async -> String {
         switch kind.lowercased() {
         case "caffeine":
             let cutoff = Date().addingTimeInterval(-Double(days) * 86_400)
@@ -1630,10 +1702,19 @@ final class AICoachEngine: ObservableObject {
 
         case "journal":
             let cutoffDay = Repository.localDayKey(Date().addingTimeInterval(-Double(days) * 86_400))
-            let entries = (await repo.journalEntries()).filter { $0.day >= cutoffDay }
+            let entries = (await repo.journalEntries()).filter {
+                $0.day >= cutoffDay
+                    && (onlySensitive == CoachSensitiveJournalPolicy.isSensitive(label: $0.question))
+            }
                 .sorted { $0.day > $1.day }
-            guard !entries.isEmpty else { return "No journal entries in the last \(days) days." }
-            var lines = ["JOURNAL LOG (newest first, last \(days) days):"]
+            guard !entries.isEmpty else {
+                return onlySensitive
+                    ? "No sensitive journal entries are available in the last \(days) days."
+                    : "No non-sensitive journal entries in the last \(days) days."
+            }
+            var lines = [onlySensitive
+                         ? "SENSITIVE JOURNAL LOG (newest first, last \(days) days):"
+                         : "JOURNAL LOG (newest first, last \(days) days):"]
             for e in entries.prefix(40) {
                 let val = e.numericValue.map { " = \($0)" } ?? (e.answeredYes ? ": yes" : ": no")
                 lines.append("  • \(e.day) — \(e.question)\(val)")
@@ -1826,6 +1907,161 @@ final class AICoachEngine: ObservableObject {
         return lines.joined(separator: "\n")
     }
 
+    /// `get_training_preferences`: local behavioural evidence from accepted, declined and skipped plan
+    /// decisions. It does not write memory or alter a plan; the coach must ask before acting on it.
+    func trainingPreferencesTool(days: Int) -> String {
+        CoachTrainingPreferences.report(proposals: CoachPlanStore.shared.proposals, days: days)
+    }
+
+    /// `get_data_catalog`: metadata-only local discovery. This is the router's first step when it needs
+    /// to know whether a long-running or imported metric exists, before asking for a compact analysis.
+    func dataCatalogTool(query: String? = nil) async -> String {
+        let includesLabBook = toolConsent.allows(.myLogs)
+        let entries = CoachDataCatalog.entriesVisibleToCoach(await repo.metricCatalog(), includesLabBook: includesLabBook)
+        var areas: [CoachDataCatalog.Area] = []
+        if toolConsent.allows(.recentWorkouts) {
+            let workouts = await repo.workoutRows(days: 4_000)
+            if !workouts.isEmpty { areas.append(.init(name: "Workout history", summary: "\(workouts.count) recorded sessions")) }
+        }
+        if toolConsent.allows(.planAdherence) {
+            let proposals = CoachPlanStore.shared.proposals
+            if !proposals.isEmpty { areas.append(.init(name: "Training plan", summary: "\(proposals.count) local plan proposals/decisions")) }
+        }
+        if toolConsent.allows(.myLogs) {
+            let journalCount = (await repo.journalEntries()).filter {
+                toolConsent.allows(.sensitiveLogs)
+                    || !CoachSensitiveJournalPolicy.isSensitive(label: $0.question)
+            }.count
+            let caffeineCount = CaffeineLogStore.shared.intakes.count
+            let hydrationDays = (await repo.hydrationHistory(days: 4_000)).filter { $0.value > 0 }.count
+            let moodDays = (await repo.moodSeries()).count
+            var parts: [String] = []
+            if journalCount > 0 { parts.append("\(journalCount) journal entries") }
+            if caffeineCount > 0 { parts.append("\(caffeineCount) caffeine entries") }
+            if hydrationDays > 0 { parts.append("\(hydrationDays) hydration days") }
+            if moodDays > 0 { parts.append("\(moodDays) mood check-ins") }
+            if let store = await repo.storeHandle() {
+                let markerTypes = (try? await store.markerKeysPresent(deviceId: repo.deviceId).count) ?? 0
+                if markerTypes > 0 { parts.append("\(markerTypes) Lab Book marker types") }
+            }
+            if !parts.isEmpty { areas.append(.init(name: "Personal logs", summary: parts.joined(separator: ", "))) }
+        }
+        if toolConsent.allows(.searchPastConversations) {
+            let facts = CoachMemory.shared.facts.count
+            if facts > 0 || !conversations.isEmpty {
+                areas.append(.init(name: "Coach memory", summary: "\(facts) saved facts, \(conversations.count) local conversations"))
+            }
+        }
+        return CoachDataCatalog.report(entries: entries, areas: areas, query: query)
+    }
+
+    /// `get_metric_history`: a deliberately compact long-range read. The source database remains local;
+    /// even when the selected coach provider is remote, it receives aggregate evidence only.
+    func metricHistoryTool(metric rawMetric: String, days: Int, source requestedSource: String?) async -> String {
+        let metric = Self.normalizedHistoryMetric(rawMetric)
+        guard !metric.isEmpty else { return "Choose a metric to analyse, for example weight or hrv." }
+        let includesLabBook = toolConsent.allows(.myLogs)
+        let sourceRequest = requestedSource?.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        if ["lab-book", "lab book"].contains(sourceRequest), !includesLabBook {
+            return "The user hasn't shared their Lab Book, so this history isn't available."
+        }
+        let window = max(7, min(days, 3_650))
+        let candidates: [String]
+        switch sourceRequest {
+        case "my-whoop": candidates = [Repository.whoopSource]
+        case "apple-health": candidates = [Repository.appleHealthSource]
+        case "health-connect": candidates = [Repository.healthConnectSource]
+        case "lab-book", "lab book": candidates = [WhoopStore.labBookSourceId]
+        case "oura", "oura-import": candidates = ["oura-import", "oura-api"]
+        case "garmin", "garmin-import": candidates = ["garmin-import"]
+        case "fitbit", "fitbit-import": candidates = ["fitbit-import"]
+        default:
+            // Body metrics normally live in Health; wearable metrics normally live on the strap. The
+            // automatic order reflects that without combining incompatible measurements across sources.
+            candidates = metric == "weight"
+                ? [Repository.appleHealthSource, Repository.healthConnectSource, Repository.whoopSource]
+                : [Repository.whoopSource, Repository.appleHealthSource, Repository.healthConnectSource]
+        }
+        // The store may contain sources from a CSV, a ring, a watch or a future importer. Preserve the
+        // preferred order above, then append any discovered source that actually holds this metric.
+        let discovered = await repo.metricSources(key: metric)
+        let allCandidates = (candidates + discovered).reduce(into: [String]()) { result, source in
+            if !result.contains(source) { result.append(source) }
+        }.filter { CoachLocalSourceAccess.permits($0, includesLabBook: includesLabBook) }
+        let cutoff = Calendar.current.date(byAdding: .day, value: -(window - 1), to: Date()) ?? Date()
+        let cutoffDay = Repository.localDayKey(cutoff)
+
+        var available: [CoachMetricHistory.SourceSeries] = []
+        for candidate in allCandidates {
+            let rows = candidate == Repository.whoopSource
+                ? await repo.exploreSeries(key: metric, source: candidate, days: window)
+                : await repo.series(key: metric, source: candidate, days: window)
+            // `exploreSeries` can fill an otherwise missing stored series from the in-memory daily
+            // cache. Filter here as well, so that fallback never makes a requested time window wider.
+            let windowed = rows.filter { $0.day >= cutoffDay }
+            if windowed.count >= 2 {
+                available.append(.init(source: candidate,
+                                       points: windowed.map { CoachMetricHistory.Point(day: $0.day, value: $0.value) }))
+            }
+        }
+        if let selected = CoachMetricHistory.bestAvailableSeries(from: available) {
+            return CoachMetricHistory.report(metric: Self.humanizeMetricKey(metric),
+                                             source: Self.historySourceLabel(selected.source),
+                                             unit: Self.historyUnit(for: metric), points: selected.points)
+        }
+        return "No usable local \(Self.humanizeMetricKey(metric)) history was found in the last \(window) days. "
+            + "It may not have been imported or recorded yet."
+    }
+
+    /// Local pre-routing for a provider with no tool-call protocol. This preserves the same aggregate-only
+    /// boundary as `get_metric_history`, but avoids sending a whole historical store merely because a
+    /// local model cannot ask for it itself. The policy is intentionally conservative and only runs for an
+    /// explicit long-history question; a tool-capable provider continues to decide through its tools.
+    private func nonToolLocalEvidence(for question: String) async -> String {
+        guard !toolCallingActive, toolConsent.allows(.metricHistory),
+              let days = CoachLocalQueryRouter.explicitHistoryDays(for: question) else { return "" }
+        // Prefer the router's short, inspectable aliases. If none applies, match a literal key from the
+        // *local* catalog — useful for an imported lab marker without ever exposing that catalog itself.
+        let metric: String?
+        if let knownMetric = CoachLocalQueryRouter.metricHistoryRequest(for: question)?.metric {
+            metric = knownMetric
+        } else {
+            let entries = CoachDataCatalog.entriesVisibleToCoach(await repo.metricCatalog(),
+                                                                  includesLabBook: toolConsent.allows(.myLogs))
+            metric = CoachDataCatalog.bestMatchingKey(entries: entries, query: question)
+        }
+        guard let metric else { return "" }
+        let evidence = await metricHistoryTool(metric: metric, days: days, source: nil)
+        guard evidence.hasPrefix("LOCAL METRIC HISTORY") else { return "" }
+        return "LOCAL RETRIEVED LONG-HISTORY EVIDENCE (selected because the user's question explicitly asks for it):\n" + evidence
+    }
+
+    private static func normalizedHistoryMetric(_ raw: String) -> String {
+        switch raw.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) {
+        case "weight", "body_weight", "body mass", "body_mass", "weight_kg": return "weight"
+        case "resting hr", "resting-heart-rate", "resting_heart_rate", "rhr": return "resting_hr"
+        case "sleep", "sleep_minutes", "asleep_min": return "sleep_total_min"
+        default: return raw.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+    }
+
+    private static func historySourceLabel(_ source: String) -> String {
+        CoachLocalSourceLabel.label(source)
+    }
+
+    private static func historyUnit(for metric: String) -> String? {
+        switch metric {
+        case "weight": return "kg"
+        case "hrv": return "ms"
+        case "resting_hr", "rhr", "avg_hr", "max_hr": return "bpm"
+        case "sleep_total_min", "asleep_min", "sleep_deep_min", "sleep_rem_min", "sleep_light_min": return "min"
+        case "steps": return "steps"
+        case "active_kcal", "energy_kcal": return "kcal"
+        case "spo2": return "%"
+        default: return nil
+        }
+    }
+
     /// Proactively generate "Today's brief" the first time the Coach opens, readiness + a training
     /// prescription + one recovery tip, without the user typing. Requires a key + data consent.
     /// Start a fresh "Today's brief" if the active conversation doesn't have one for TODAY yet, and no
@@ -1835,6 +2071,7 @@ final class AICoachEngine: ObservableObject {
     /// silently showing Monday's brief on Friday, while two conversations opened the same day don't each
     /// get their own.
     func startBriefIfNeeded() async {
+        guard CoachFeaturePrefs.isEnabled else { return }
         let today = Repository.logicalDayKey(Date())
         guard UserDefaults.standard.string(forKey: Self.lastBriefDayKey) != today else { return }
         if let last = messages.last, Repository.logicalDayKey(last.date) == today { return }
@@ -2004,6 +2241,7 @@ final class AICoachEngine: ObservableObject {
     /// `lastCheckInDayKey`). Backs the daily check-in notification's tap. A failed run doesn't stamp the
     /// day, so the next tap retries.
     func checkInIfNeeded() async {
+        guard CoachFeaturePrefs.isEnabled else { return }
         let today = Repository.logicalDayKey(Date())
         guard UserDefaults.standard.string(forKey: Self.lastCheckInDayKey) != today else { return }
         await runCheckInCancellable()
@@ -2047,8 +2285,9 @@ final class AICoachEngine: ObservableObject {
 
         let context = toolCallingActive ? toolModeContext : await buildFullContext()
         let instruction = Self.checkInInstruction(toolsActive: toolCallingActive)
-        // Fold relevant memory in like a normal turn (wireMessages does the same for send()).
-        let relevant = CoachMemory.shared.relevantBlock(for: instruction, limit: 8)
+        // Fold relevant memory in like a normal turn (wireMessages does the same for send()), but only
+        // when the separate Memory purpose is enabled.
+        let relevant = memoryContextAllowed ? CoachMemory.shared.relevantBlock(for: instruction, limit: 8) : ""
         let preamble = [context, relevant]
             .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             .joined(separator: "\n\n")
@@ -2160,7 +2399,7 @@ final class AICoachEngine: ObservableObject {
     /// — but signals are rare (a streak, a run of skips, a real multi-night trend, or a goal's own target
     /// date), so this stays quiet on ordinary days.
     func runProactiveNudgeIfNeeded() async {
-        guard proactiveLevel != .off, isConfigured, dataConsent, !sending else { return }
+        guard CoachFeaturePrefs.isEnabled, proactiveLevel != .off, isConfigured, dataConsent, !sending else { return }
         let today = Repository.logicalDayKey(Date())
         guard UserDefaults.standard.string(forKey: Self.lastProactiveDayKey) != today else { return }
         guard let signal = ProactiveCoach.detect(proposals: CoachPlanStore.shared.proposals,
@@ -2209,7 +2448,7 @@ final class AICoachEngine: ObservableObject {
     /// Offer a look-back on a goal whose target date has passed. Once per goal, ever — the review is a
     /// moment, not a recurring reminder, and repeating it would turn a missed target into nagging.
     func runGoalReviewIfNeeded() async {
-        guard proactiveLevel != .off, isConfigured, dataConsent, !sending else { return }
+        guard CoachFeaturePrefs.isEnabled, proactiveLevel != .off, isConfigured, dataConsent, !sending else { return }
         guard let goal = ProactiveCoach.expiredGoalNeedingReview(CoachGoalStore.shared.goals) else {
             return
         }
@@ -2225,7 +2464,7 @@ final class AICoachEngine: ObservableObject {
     /// Fire a weekly review at most once every 7 logical days, only at the `normal` level and only when
     /// there's plan activity to review (#P10 13.2).
     func runWeeklyReviewIfNeeded() async {
-        guard proactiveLevel == .normal, isConfigured, dataConsent, !sending else { return }
+        guard CoachFeaturePrefs.isEnabled, proactiveLevel == .normal, isConfigured, dataConsent, !sending else { return }
         let today = Repository.localDayKey(Date())
         if let last = UserDefaults.standard.string(forKey: Self.lastWeeklyReviewDayKey),
            let days = Self.dayKeyDistance(from: last, to: today), days < 7 { return }
@@ -2273,7 +2512,7 @@ final class AICoachEngine: ObservableObject {
         await ensureOpenRouterCapabilities()
 
         let context = toolCallingActive ? toolModeContext : await buildFullContext()
-        let relevant = CoachMemory.shared.relevantBlock(for: instruction, limit: 8)
+        let relevant = memoryContextAllowed ? CoachMemory.shared.relevantBlock(for: instruction, limit: 8) : ""
         let preamble = [context, relevant]
             .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             .joined(separator: "\n\n")
@@ -2370,44 +2609,124 @@ final class AICoachEngine: ObservableObject {
         return wire
     }
 
-    /// Full data context = the metrics summary + recent workouts (+ an OPT-IN on-device-signals summary
-    /// when the second consent is on). Used when the user has granted data access.
+    /// The broad context used by deliberate app-driven prompts (for example a daily brief). Unlike the
+    /// question-specific non-tool context below, it includes every *granted* purpose, but never silently
+    /// crosses a granular data-access boundary.
     func buildFullContext() async -> String {
-        var ctx = buildContext()
-        ctx += "\n\n" + (await recentWorkoutsBlock())
+        var blocks: [String] = []
+        if toolConsent.allows(.biometricSummary) {
+            blocks.append(buildContext(includeGoals: toolConsent.allows(.planAdherence)))
+        } else {
+            blocks.append("NOTE: The user has not shared core biometrics. Do not infer health metrics.")
+        }
+        if toolConsent.allows(.recentWorkouts) {
+            blocks.append(await recentWorkoutsBlock())
+        }
         // Readiness (the SAME verdict Today's synthesis card shows) rides every full-context request —
         // not just the tool path — so a non-tool-calling provider (OpenAI/Gemini/Custom) can't drift from
         // what the user sees on Today either. Includes the health-signal safety note when relevant.
-        ctx += "\n\n" + readinessBlock()
+        if toolConsent.allows(.readiness) { blocks.append(readinessBlock()) }
         // Charge confidence: whether today's number is a real, baseline-trusted score or still a
         // cold-start placeholder, so the coach never states progress/trends off a "calibrating" number.
-        if let confidence = chargeConfidenceLine() { ctx += "\n\n" + confidence }
+        if toolConsent.allows(.readiness), let confidence = chargeConfidenceLine() { blocks.append(confidence) }
         // What's already proposed/agreed, so the coach doesn't talk over a plan the user is mid-way
         // through, plus how the last week actually went (skips carry their reason).
-        if let plan = planContextBlock() { ctx += "\n\n" + plan }
-        ctx += "\n\n" + (await planAdherenceBlock())
+        if toolConsent.allows(.planAdherence) {
+            if let plan = planContextBlock() { blocks.append(plan) }
+            blocks.append(await planAdherenceBlock())
+        }
         // Derived stress: a single Baevsky Stress Index summary line over today's R-R, computed the same
         // way StressView does. Gated here under `dataConsent` (the caller only reaches buildFullContext()
         // with consent on), so it rides the SAME consent + text-only channel as the HRV/RHR summary, a
         // derived number, never raw R-R egress. Omitted when there aren't enough clean beats yet.
-        if let line = await stressIndexLine() { ctx += "\n\n" + line }
-        if includeOnDeviceSignals {
-            let block = await onDeviceSignalsBlock()
-            if !block.isEmpty { ctx += "\n\n" + block }
+        if toolConsent.allows(.stressIndex), let line = await stressIndexLine() { blocks.append(line) }
+        if toolConsent.allows(.personalPatterns) {
+            let block = await onDeviceSignalsBlock(includeLabBook: toolConsent.allows(.myLogs),
+                                                   includeSensitiveLogs: toolConsent.allows(.sensitiveLogs))
+            if !block.isEmpty { blocks.append(block) }
         }
         // Cross-conversation memory: a short digest of the user's recent past conversations, so the coach
         // has continuity across chats even on providers without tool-calling. Empty until chats are
         // summarised by the memory maintainer. Rides the same consent channel (buildFullContext only runs
         // with dataConsent on).
-        let digest = recentSummariesDigest()
-        if !digest.isEmpty { ctx += "\n\n" + digest }
+        if toolConsent.allows(.searchPastConversations) {
+            let digest = recentSummariesDigest()
+            if !digest.isEmpty { blocks.append(digest) }
         // The thread INDEX on top of the digest: a summary only exists once the memory maintainer has
         // run, so a thread from yesterday the user never left cleanly has none. Its title does exist —
         // and `CoachConversation.autoTitle` derives it from the user's FIRST question, so even on a
         // provider with no tool-calling this alone can answer "what did I ask you yesterday" in outline.
-        let threads = recentThreadsIndex()
-        if !threads.isEmpty { ctx += "\n\n" + threads }
-        return ctx
+            let threads = recentThreadsIndex()
+            if !threads.isEmpty { blocks.append(threads) }
+        }
+        return blocks.joined(separator: "\n\n")
+    }
+
+    /// Context for a provider without a tool protocol. A small local planner selects only the sections
+    /// the current question is likely to need, then this method applies the non-negotiable purpose grants.
+    /// It is intentionally deterministic: a model can never decide to see a category the user disabled.
+    private struct PreparedNonToolContext {
+        let text: String
+        let categories: [ChatMessage.LocalContextCategory]
+    }
+
+    private func buildNonToolContext(for question: String) async -> PreparedNonToolContext {
+        let sections = CoachLocalContextPlanner.sections(for: question)
+        var blocks: [String] = []
+        var categories: [ChatMessage.LocalContextCategory] = []
+        let grantsCore = toolConsent.allows(.biometricSummary)
+        if grantsCore, sections.contains(.compactBiometrics) {
+            if sections.contains(.detailedBiometrics) {
+                blocks.append(buildContext(includeGoals: false))
+                categories.append(.biometricSnapshot)
+            } else {
+                blocks.append(buildCompactContext())
+                categories.append(.biometricSnapshot)
+            }
+        } else if !grantsCore {
+            blocks.append("NOTE: The user has not shared core biometrics. Do not infer health metrics.")
+        }
+        if sections.contains(.readiness), toolConsent.allows(.readiness) {
+            blocks.append(readinessBlock())
+            if let confidence = chargeConfidenceLine() { blocks.append(confidence) }
+            categories.append(.readiness)
+        }
+        if sections.contains(.workouts), toolConsent.allows(.recentWorkouts) {
+            blocks.append(await recentWorkoutsBlock())
+            categories.append(.recentWorkouts)
+        }
+        if sections.contains(.planning), toolConsent.allows(.planAdherence) {
+            let profile = ProfileStore()
+            if let goals = goalsBlock(profile: profile) { blocks.append(goals) }
+            if let plan = planContextBlock() { blocks.append(plan) }
+            blocks.append(await planAdherenceBlock())
+            categories.append(.planning)
+        }
+        if sections.contains(.trainingPreferences), toolConsent.allows(.trainingPreferences) {
+            let preferences = trainingPreferencesTool(days: 180)
+            if preferences.hasPrefix("LOCAL TRAINING-PREFERENCE HYPOTHESES") {
+                blocks.append(preferences)
+                categories.append(.trainingPreferences)
+            }
+        }
+        if sections.contains(.stress), toolConsent.allows(.stressIndex), let stress = await stressIndexLine() {
+            blocks.append(stress)
+            categories.append(.stress)
+        }
+        if sections.contains(.patterns), toolConsent.allows(.personalPatterns) {
+            let patterns = await onDeviceSignalsBlock(includeLabBook: toolConsent.allows(.myLogs),
+                                                       includeSensitiveLogs: toolConsent.allows(.sensitiveLogs))
+            if !patterns.isEmpty { blocks.append(patterns) }
+            if !patterns.isEmpty { categories.append(.personalPatterns) }
+        }
+        if sections.contains(.conversationMemory), toolConsent.allows(.searchPastConversations) {
+            let digest = recentSummariesDigest()
+            if !digest.isEmpty { blocks.append(digest) }
+            let threads = recentThreadsIndex()
+            if !threads.isEmpty { blocks.append(threads) }
+            if !digest.isEmpty || !threads.isEmpty { categories.append(.conversationMemory) }
+        }
+        return PreparedNonToolContext(text: blocks.joined(separator: "\n\n"), categories: categories)
     }
 
     // MARK: - Readiness / Charge drivers / clock
@@ -3359,11 +3678,14 @@ final class AICoachEngine: ObservableObject {
     /// second opt-in; returns "" when there's nothing worth adding. `limit` caps the correlation list
     /// (the `get_personal_patterns` tool parameter), not the dose-response section (at most one line per
     /// `DosedBehavior` case).
-    func onDeviceSignalsBlock(limit: Int = 3) async -> String {
+    func onDeviceSignalsBlock(limit: Int = 3, includeLabBook: Bool = true,
+                              includeSensitiveLogs: Bool = false) async -> String {
         var lines: [String] = []
 
         // 1. Strongest behaviour→outcome associations (EffectRanker over the journal × Charge).
-        let entries = await repo.journalEntries()
+        let entries = (await repo.journalEntries()).filter {
+            includeSensitiveLogs || !CoachSensitiveJournalPolicy.isSensitive(label: $0.question)
+        }
         var byBehaviour: [String: Set<String>] = [:]
         for e in entries where e.answeredYes { byBehaviour[e.question, default: []].insert(e.day) }
         let recoveryByDay = Dictionary(
@@ -3401,7 +3723,7 @@ final class AICoachEngine: ObservableObject {
         }
 
         // 2. Lab Book markers roll-up (count + latest of a few, never the full history).
-        if let store = await repo.storeHandle() {
+        if includeLabBook, let store = await repo.storeHandle() {
             var markerSummaries: [String] = []
             for category in LabMarkerCategory.allCases {
                 let rows = (try? await store.labMarkers(deviceId: repo.deviceId, category: category.rawValue)) ?? []
@@ -3450,16 +3772,20 @@ final class AICoachEngine: ObservableObject {
     /// tool-capable provider such as Anthropic), run the tool-use loop so the model pulls the user's real
     /// numbers on demand; otherwise fall back to the plain single-shot text path.
     private func callProvider(key: String,
-                              messages: [(role: ChatMessage.Role, content: String)]) async throws -> CoachToolReply {
-        if toolCallingActive, let toolClient = provider.client as? ToolCallingClient {
+                              messages: [(role: ChatMessage.Role, content: String)],
+                              tools requestedTools: [CoachTool]? = nil,
+                              systemPrompt requestedSystemPrompt: String? = nil) async throws -> CoachToolReply {
+        let availableTools = requestedTools ?? coachTools
+        let prompt = requestedSystemPrompt ?? systemPrompt
+        if toolCallingActive, !availableTools.isEmpty, let toolClient = provider.client as? ToolCallingClient {
             return try await toolClient.sendWithTools(
                 key: key,
                 model: requestModel,
-                systemPrompt: systemPrompt,
+                systemPrompt: prompt,
                 messages: messages,
-                tools: coachTools,
+                tools: availableTools,
                 runTool: { [weak self] name, input in
-                    await self?.runCoachTool(name, input: input) ?? ""
+                    await self?.runCoachTool(name, input: input, allowedTools: Set(availableTools)) ?? ""
                 },
                 session: session
             )
@@ -3467,7 +3793,7 @@ final class AICoachEngine: ObservableObject {
         let text = try await provider.client.send(
             key: key,
             model: requestModel,
-            systemPrompt: systemPrompt,
+            systemPrompt: prompt,
             messages: messages,
             session: session
         )
@@ -3524,7 +3850,7 @@ final class AICoachEngine: ObservableObject {
     /// the wire: Anthropic rejects empty content, so a follow-up question after a chart would 400.
     private func wireMessages(context: String) -> [(role: ChatMessage.Role, content: String)] {
         let question = messages.last(where: { $0.role == .user })?.text ?? ""
-        let relevant = CoachMemory.shared.relevantBlock(for: question, limit: 8)
+        let relevant = memoryContextAllowed ? CoachMemory.shared.relevantBlock(for: question, limit: 8) : ""
         let fullContext = relevant.isEmpty ? context : context + "\n\n" + relevant
         return Self.wirePairs(from: windowedMessages(), context: fullContext)
     }
@@ -3557,7 +3883,7 @@ final class AICoachEngine: ObservableObject {
     /// Build a compact plain-text summary of the user's recent data: last ~14 days of
     /// recovery/strain/sleep-hours/HRV/restingHR where present, plus 30-day averages, plus a few
     /// recent workouts. Kept well under ~1500 tokens. If there's no data, it says so.
-    func buildContext() -> String {
+    func buildContext(includeGoals: Bool = true) -> String {
         let days = repo.days // oldest → newest
         var lines: [String] = [clockLine(), "", "USER BIOMETRIC SUMMARY (the user's own wearable data):"]
 
@@ -3572,7 +3898,7 @@ final class AICoachEngine: ObservableObject {
         lines.append("Profile: " + profileParts.joined(separator: ", "))
         // The goal as a REAL goal: weeks remaining, required change, phase, and the safety verdict —
         // not the bare sentence the old free-text field could only offer.
-        if let goalsBlock = goalsBlock(profile: profile) { lines.append(goalsBlock) }
+        if includeGoals, let goalsBlock = goalsBlock(profile: profile) { lines.append(goalsBlock) }
 
         guard !days.isEmpty else {
             // Keep the profile/goal line (already appended) so the coach can still personalise zones
@@ -3610,6 +3936,30 @@ final class AICoachEngine: ObservableObject {
             lines.append(String(format: "Estimated VO2max: %.1f ml/kg/min", vo2max))
         }
 
+        return lines.joined(separator: "\n")
+    }
+
+    /// A lower-detail core snapshot for a tool-less model. It has a current daily summary and rolling
+    /// averages but deliberately omits the 14-day, line-by-line table. The question router promotes to
+    /// `buildContext()` only for a recent change/trend question.
+    private func buildCompactContext() -> String {
+        let days = repo.days
+        var lines: [String] = [clockLine(), "", "USER BIOMETRIC SNAPSHOT (derived local summary):"]
+        let profile = ProfileStore()
+        lines.append("Profile: age \(profile.age), \(profile.sex), \(Int(profile.weightKg.rounded())) kg, "
+                     + "\(Int(profile.heightCm.rounded())) cm, HRmax \(profile.hrMax) bpm")
+        guard !days.isEmpty else {
+            lines.append("No wearable data is available yet. Do not invent a trend or a recovery score.")
+            return lines.joined(separator: "\n")
+        }
+        if let latest = days.last {
+            lines.append("Latest recorded day: " + dayLine(latest))
+        }
+        let last7 = Array(days.suffix(7))
+        lines.append("7-day averages: charge \(avgInt(last7.compactMap { $0.recovery })), "
+                     + "effort \(avgOne(last7.compactMap { $0.strain })), "
+                     + "sleep \(avgSleepHours(last7))h, HRV \(avgInt(last7.compactMap { $0.avgHrv })) ms, "
+                     + "RHR \(avgInt(last7.compactMap { $0.restingHr.map(Double.init) })) bpm.")
         return lines.joined(separator: "\n")
     }
 

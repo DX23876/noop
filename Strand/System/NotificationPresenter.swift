@@ -38,7 +38,7 @@ final class NotificationPresenter: NSObject, UNUserNotificationCenterDelegate {
         let isCheckIn = request.identifier.hasPrefix("coach-checkin")
             || request.content.categoryIdentifier == CoachCheckIn.Action.category
 
-        if isCheckIn {
+        if isCheckIn, CoachFeaturePrefs.isEnabled {
             switch response.actionIdentifier {
             case CoachCheckIn.Action.snooze:
                 // Handled entirely in the notification centre; the app is not brought forward.

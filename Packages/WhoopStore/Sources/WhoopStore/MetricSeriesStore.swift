@@ -20,6 +20,25 @@ public struct MetricPoint: Equatable, Codable, Sendable {
     }
 }
 
+/// Local metadata for one `(source, metric)` series. It deliberately contains no readings: callers can
+/// discover what is available before asking for a bounded aggregate, without turning discovery itself
+/// into a data export.
+public struct MetricCatalogEntry: Equatable, Codable, Sendable {
+    public let source: String
+    public let key: String
+    public let pointCount: Int
+    public let earliestDay: String
+    public let latestDay: String
+
+    public init(source: String, key: String, pointCount: Int, earliestDay: String, latestDay: String) {
+        self.source = source
+        self.key = key
+        self.pointCount = pointCount
+        self.earliestDay = earliestDay
+        self.latestDay = latestDay
+    }
+}
+
 extension WhoopStore {
 
     // MARK: - Upsert (idempotent by natural key; latest value wins on conflict)
@@ -73,6 +92,38 @@ extension WhoopStore {
                 WHERE deviceId = ?
                 ORDER BY key ASC
                 """, arguments: [deviceId])
+        }
+    }
+
+    /// Distinct source ids that hold at least one point for `key`, sorted ascending. This lets a local
+    /// consumer discover imported sources without maintaining a brittle allow-list of every device or
+    /// file importer. It is metadata only: callers still read the selected source through the normal
+    /// bounded `metricSeries(deviceId:key:from:to:)` path.
+    public func metricSources(key: String) async throws -> [String] {
+        try syncRead { db in
+            try String.fetchAll(db, sql: """
+                SELECT DISTINCT deviceId FROM metricSeries
+                WHERE key = ?
+                ORDER BY deviceId ASC
+                """, arguments: [key])
+        }
+    }
+
+    /// Metadata for every populated metric series, ordered deterministically. The query groups inside
+    /// SQLite, so it remains small even when the underlying history spans years of daily readings.
+    public func metricCatalog() async throws -> [MetricCatalogEntry] {
+        try syncRead { db in
+            try Row.fetchAll(db, sql: """
+                SELECT deviceId, key, COUNT(*) AS pointCount,
+                       MIN(day) AS earliestDay, MAX(day) AS latestDay
+                FROM metricSeries
+                GROUP BY deviceId, key
+                ORDER BY key ASC, deviceId ASC
+                """).map {
+                    MetricCatalogEntry(source: $0["deviceId"], key: $0["key"],
+                                       pointCount: $0["pointCount"], earliestDay: $0["earliestDay"],
+                                       latestDay: $0["latestDay"])
+                }
         }
     }
 

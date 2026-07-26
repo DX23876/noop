@@ -2043,6 +2043,21 @@ final class Repository: ObservableObject {
         return keys.sorted()
     }
 
+    /// Every locally stored source that has points for a metric key. Unlike the small fixed source list
+    /// used by individual screens, this is intentionally open-ended so a coach can discover data from a
+    /// future importer (or an existing third-party import) without an app update.
+    func metricSources(key: String) async -> [String] {
+        guard let store = await ensureStore() else { return [] }
+        return (try? await store.metricSources(key: key)) ?? []
+    }
+
+    /// Source-neutral local metric inventory, used by the coach to decide which bounded analysis is
+    /// relevant. It contains availability metadata only, never the metric readings themselves.
+    func metricCatalog() async -> [MetricCatalogEntry] {
+        guard let store = await ensureStore() else { return [] }
+        return (try? await store.metricCatalog()) ?? []
+    }
+
     /// Native journal answers live under this dedicated source id. The journal table has no
     /// `source` column (PK is (deviceId, day, question)), so writing native answers under the
     /// imported `deviceId` would let a CSV re-import silently overwrite them , and clears could

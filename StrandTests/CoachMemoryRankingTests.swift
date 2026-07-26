@@ -19,6 +19,15 @@ final class CoachMemoryRankingTests: XCTestCase {
         XCTAssertEqual(CoachMemory.relevanceScore(f, ["knee"], now: now), 0)
     }
 
+    func testNormalFactsWithNoTopicOverlapStayOutOfThePrompt() {
+        let now = Date()
+        let sleep = fact("prefers a consistent bedtime", daysAgo: 0, now: now)
+        let memory = seededMemory([sleep])
+
+        XCTAssertTrue(memory.relevantFacts(for: "How should I train my legs today?", limit: 8, now: now).isEmpty,
+                      "ranking zero-score ties must not disclose unrelated normal memories")
+    }
+
     func testFreshFactScoresTheRawOverlap() {
         let now = Date()
         let f = fact("left knee pain when running", daysAgo: 0, now: now)

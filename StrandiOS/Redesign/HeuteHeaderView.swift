@@ -11,6 +11,7 @@ import StrandDesign
 struct HeuteHeaderView: View {
     @EnvironmentObject private var profile: ProfileStore
     @EnvironmentObject private var coach: AICoachEngine
+    @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
     /// Shared with the host's Basiskarte (`HeuteCardZoneView`) — both must read the SAME status, or
     /// changing it in the sheet wouldn't be reflected in the base card. Owned by the screen root.
     @Binding var status: ActivityStatus
@@ -50,7 +51,9 @@ struct HeuteHeaderView: View {
                 HStack(spacing: 8) {
                     ActivityStatusChip(status: $status)
                     HeuteBatteryChip()
-                    HeuteCoachChip(isPresented: $showCoach)
+                    if coachFeatureEnabled {
+                        HeuteCoachChip(isPresented: $showCoach)
+                    }
                 }
             }
             if showDayNav {

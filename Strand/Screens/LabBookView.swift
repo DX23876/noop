@@ -10,8 +10,9 @@ import WhoopStore
 //
 // "Your own logbook." NOOP gives you a private place to KEEP the numbers you already
 // get from your doctor or pharmacy — bloods, blood pressure, body measurements — and
-// SEE them next to your wearable signals, entirely on this device. NOOP never tests
-// you, never reads a result for you, and never tells you what a number means medically.
+// SEE them next to your wearable signals, entirely on this device. A user may locally extract
+// recognisable text from a selected PDF or photo, but NOOP never tests, diagnoses or tells them what a
+// number means medically.
 // (Spec: docs/superpowers/specs/2026-06-19-v5-health-records-design.md.)
 //
 // This screen is SELF-CONTAINED: it takes the repo via the environment (the same one
@@ -48,6 +49,12 @@ struct LabBookView: View {
     @State private var csvImporting = false
     @State private var csvSummary: String?
     @State private var csvFailed = false
+    @State private var showingReportImporter = false
+    @State private var reportImporting = false
+    @State private var reportSummary: String?
+    @State private var reportFailed = false
+    @State private var reportCandidates: [LabReportTextCandidate] = []
+    @State private var showingReportReview = false
 
     var body: some View {
         ScreenScaffold(
@@ -104,6 +111,22 @@ struct LabBookView: View {
                 NSLog("Import: markers CSV picker failed - \(error.localizedDescription)")
             }
         }
+        .fileImporter(isPresented: $showingReportImporter,
+                      allowedContentTypes: [.pdf, .image],
+                      allowsMultipleSelection: false) { result in
+            switch result {
+            case .success(let urls):
+                if let url = urls.first { prepareLabReport(url: url) }
+            case .failure(let error):
+                reportSummary = String(localized: "Couldn't choose that PDF: \(error.localizedDescription)")
+                reportFailed = true
+            }
+        }
+        .sheet(isPresented: $showingReportReview) {
+            LabReportReviewView(candidates: reportCandidates) { date, candidates in
+                await saveReportCandidates(candidates, on: date)
+            }
+        }
     }
 
     // MARK: - Header (count + scope + actions)
@@ -134,7 +157,7 @@ struct LabBookView: View {
                     .buttonStyle(.plain)
                     .accessibilityLabel("What Lab Book is (and isn't)")
                 }
-                Text("It's a notebook, not a lab. NOOP lines up the numbers you enter. It doesn't test, read, or judge them. Not medical advice.")
+                Text("It's a notebook, not a lab. NOOP can help you review recognised text, but it doesn't test or judge your readings. Not medical advice.")
                     .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 Button {
@@ -200,6 +223,27 @@ struct LabBookView: View {
                         .foregroundStyle(csvFailed ? StrandPalette.statusWarning : StrandPalette.statusPositive)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                Divider().overlay(StrandPalette.hairline)
+                Text("Have a lab PDF or photo? NOOP can find recognisable values locally, then shows them for your approval. It does not interpret the report or upload it.")
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 10) {
+                    Button {
+                        presentReportImporter()
+                    } label: {
+                        Label(reportImporting ? "Reading…" : "Review PDF or photo…", systemImage: "doc.text.magnifyingglass")
+                    }
+                    .buttonStyle(.noopSecondary)
+                    .disabled(reportImporting)
+                    .accessibilityLabel("Choose a lab report PDF or photo to review locally")
+                    if reportImporting { ProgressView().controlSize(.small) }
+                }
+                if let s = reportSummary {
+                    Text(s).font(StrandFont.subhead)
+                        .foregroundStyle(reportFailed ? StrandPalette.statusWarning : StrandPalette.statusPositive)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
     }
@@ -215,6 +259,104 @@ struct LabBookView: View {
         #else
         showingCsvImporter = true
         #endif
+    }
+
+    private func presentReportImporter() {
+        #if os(iOS)
+        Task {
+            guard let url = await DocumentPicker.importFile([.pdf, .image]) else { return }
+            prepareLabReport(url: url)
+        }
+        #else
+        showingReportImporter = true
+        #endif
+    }
+
+    /// Extract text locally from a PDF or a photo, form only conservative known-marker candidates, and
+    /// show the review sheet. The file path/name and extracted prose are never stored or sent to the coach.
+    private func prepareLabReport(url: URL) {
+        reportImporting = true
+        reportSummary = nil
+        reportFailed = false
+        Task {
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            do {
+                let type = UTType(filenameExtension: url.pathExtension)
+                let text: String
+                if type?.conforms(to: .pdf) == true {
+                    #if canImport(PDFKit)
+                    text = try LabReportPDFTextExtractor.text(from: url)
+                    #else
+                    reportSummary = String(localized: "PDF text review isn't available in this build.")
+                    reportFailed = true
+                    reportImporting = false
+                    return
+                    #endif
+                } else {
+                    #if canImport(Vision)
+                    text = try await LabReportImageTextExtractor.text(from: url)
+                    #else
+                    reportSummary = String(localized: "Photo text review isn't available in this build.")
+                    reportFailed = true
+                    reportImporting = false
+                    return
+                    #endif
+                }
+                let result = LabReportTextImport.parse(text: text)
+                guard !result.textTooLarge else {
+                    reportSummary = String(localized: "The extracted text is too large to review locally.")
+                    reportFailed = true
+                    reportImporting = false
+                    return
+                }
+                guard !result.candidates.isEmpty else {
+                    reportSummary = String(localized: "No recognisable readings were found. You can add them manually instead.")
+                    reportFailed = true
+                    reportImporting = false
+                    return
+                }
+                reportCandidates = result.candidates
+                showingReportReview = true
+                reportSummary = String(localized: "Found \(result.candidates.count) readings to review. Nothing has been saved yet.")
+            } catch {
+                reportSummary = String(localized: "Couldn't read that PDF locally: \(error.localizedDescription)")
+                reportFailed = true
+                logImport("Lab Book PDF review failed")
+            }
+            reportImporting = false
+        }
+    }
+
+    /// The review sheet is the only write boundary for a report. The report itself is not retained; only
+    /// user-confirmed marker values enter the existing private Lab Book with generic provenance.
+    private func saveReportCandidates(_ candidates: [LabReportTextCandidate], on date: Date) async {
+        guard !candidates.isEmpty, let store = await repo.storeHandle() else {
+            reportSummary = String(localized: "Couldn't open the local store.")
+            reportFailed = true
+            return
+        }
+        let day = LabBookFormat.dayKey(date)
+        let epoch = LabBookFormat.noonEpoch(day)
+        let rows = candidates.map { candidate in
+            LabMarkerRow(id: "\(candidate.markerKey)-\(epoch)-\(UUID().uuidString.prefix(8))",
+                         deviceId: repo.deviceId, markerKey: candidate.markerKey,
+                         category: candidate.category.rawValue, day: day, takenAt: epoch,
+                         value: candidate.value, valueText: nil, unit: candidate.unit,
+                         source: LabReportTextImport.sourceId, note: nil, referenceText: nil)
+        }
+        do {
+            try await store.upsertLabMarkers(rows)
+            await repo.refresh()
+            await load()
+            reportSummary = String(localized: "Saved \(rows.count) reviewed readings to your Lab Book.")
+            reportFailed = false
+            logImport("Lab Book PDF: \(rows.count) user-confirmed readings")
+        } catch {
+            reportSummary = String(localized: "Couldn't save the reviewed readings locally.")
+            reportFailed = true
+            logImport("Lab Book PDF save failed")
+        }
     }
 
     /// Parse a markers CSV (LabMarkerCsvImport) and upsert the readings into the Lab Book
@@ -398,7 +540,7 @@ struct LabBookView: View {
 
     private var disclaimerNote: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Lab Book is a private notebook, not a medical service. NOOP stores and lines up the numbers you enter. It doesn't test, read, diagnose, or advise. Your records never leave \(Platform.deviceNounPhrase); there's no account or cloud, so it isn't \"HIPAA-covered.\" Always rely on your doctor or pharmacist to interpret results.")
+            Text("Lab Book is a private notebook, not a medical service. NOOP stores and lines up the numbers you confirm. It can recognise text locally for review, but it doesn't test, diagnose, or advise. Your records never leave \(Platform.deviceNounPhrase); there's no account or cloud, so it isn't \"HIPAA-covered.\" Always rely on your doctor or pharmacist to interpret results.")
                 .font(StrandFont.footnote)
                 .foregroundStyle(StrandPalette.textTertiary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -982,7 +1124,7 @@ private struct LabBookDisclaimerView: View {
     var body: some View {
         ScreenScaffold(title: "About Lab Book", subtitle: "A private notebook, not a medical service.") {
             VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-                bullet(String(localized: "NOOP stores and lines up the numbers you enter yourself. It does not test you, read your results, give medical advice, or diagnose anything."))
+                bullet(String(localized: "NOOP stores and lines up the numbers you confirm yourself. It can recognise text locally for review, but does not give medical advice or diagnose anything."))
                 bullet(String(localized: "Anything you see here (including any side-by-side trend) is your own information shown back to you. It's an association, never a cause, and never a medical finding."))
                 bullet(String(localized: "NOOP never decides whether a value is \"normal,\" \"high,\" or \"low.\" Any reference range shown is exactly what you typed from your own report."))
                 bullet(String(localized: "Your records never leave \(Platform.deviceNounPhrase). There's no account, no cloud, no NOOP server. Because NOOP is an independent app you run yourself (not a healthcare provider), it isn't \"HIPAA-covered,\" and that protection doesn't apply here; the safety comes from the data being local-only and yours."))
