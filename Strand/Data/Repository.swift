@@ -742,18 +742,20 @@ final class Repository: ObservableObject {
             for p in cons { fig[p.day, default: ImportedSleepFigures()].consistencyPct = p.value }
             for p in need { fig[p.day, default: ImportedSleepFigures()].needMin = p.value }
             for p in debt { fig[p.day, default: ImportedSleepFigures()].debtMin = p.value }
-            // H5 (#509): a night the user hand-edited (userEdited) must keep its corrected sleep figures even
-            // when a WHOOP/Apple import also covers that day. The computed ("-noop") session carries the edit,
-            // and IntelligenceEngine re-keys the computed DAILY row from it; collect those edited days so the
-            // merge lets the computed row's SLEEP fields win there (imports still win on every un-edited day).
-            let editedDays = Self.userEditedDays(compSleep)
+            // A user correction can live in either the computed or imported namespace. Merge the displayed
+            // sessions first, then use their corrected stages to overlay the affected daily sleep fields.
+            // This keeps the Sleep tab, its debt ledger, and the dashboard on the same edited night even when
+            // no raw data exists to produce a computed daily row (for example a historical WHOOP import).
+            let mergedSleeps = Self.mergeSleep(imported: impSleep, computed: compSleep)
+            let editedDays = Self.userEditedDays(mergedSleeps)
+            let mergedDays = Self.mergeDaily(imported: imported, computed: computed, userEditedDays: editedDays)
             return MergedCaches(
                 importedSleep: fig,
                 days: Self.mergeActivityFileSteps(
-                    into: Self.mergeDaily(imported: imported, computed: computed, userEditedDays: editedDays),
+                    into: Self.applyingEditedSleepSessions(mergedSleeps, to: mergedDays),
                     activityFile
                 ),
-                sleeps: Self.mergeSleep(imported: impSleep, computed: compSleep),
+                sleeps: mergedSleeps,
                 vitalRows: Self.sourceRows(imported: imported, computed: computed, apple: apple),
                 freshness: Self.computeFreshness(imported: imported, computed: computed, apple: apple,
                                                  importedSleeps: impSleep, computedSleeps: compSleep))
@@ -879,6 +881,53 @@ final class Repository: ObservableObject {
             days.insert(AnalyticsEngine.dayString(s.endTs, offsetSec: offsetSec))
         }
         return days
+    }
+
+    /// Rebuild the sleep-only fields for days with a manually corrected session. Historical imports have no
+    /// raw streams, so `IntelligenceEngine` cannot always create a computed daily row after an edit; deriving
+    /// this overlay from the stored, re-clipped stages makes the edited duration immediately authoritative.
+    nonisolated static func applyingEditedSleepSessions(_ sessions: [CachedSleepSession],
+                                                        to days: [DailyMetric]) -> [DailyMetric] {
+        guard sessions.contains(where: \.userEdited) else { return days }
+        let offsetSec = TimeZone.current.secondsFromGMT()
+        let habitualBlocks = sessions.compactMap { session -> SleepStageTotals.HistoryBlock? in
+            let start = session.effectiveStartTs, end = session.endTs
+            guard end > start else { return nil }
+            let midpoint = start + (end - start) / 2
+            return SleepStageTotals.HistoryBlock(
+                start: start,
+                end: end,
+                dayKey: AnalyticsEngine.dayString(midpoint, offsetSec: offsetSec)
+            )
+        }
+        let habitualMidsleepSec = SleepStageTotals.habitualMidsleepSec(habitualBlocks, offsetSec: offsetSec)
+        let sessionsByDay = Dictionary(grouping: sessions) { session in
+            AnalyticsEngine.dayString(session.endTs, offsetSec: offsetSec)
+        }
+
+        return days.map { daily in
+            guard let daySessions = sessionsByDay[daily.day], daySessions.contains(where: \.userEdited) else {
+                return daily
+            }
+            let editedStages = Dictionary(
+                daySessions.filter(\.userEdited).map { ($0.startTs, $0.stagesJSON) },
+                uniquingKeysWith: { first, _ in first }
+            )
+            let onsets = Dictionary(
+                daySessions.map { ($0.startTs, $0.effectiveStartTs) },
+                uniquingKeysWith: { first, _ in first }
+            )
+            guard let aggregate = SleepStageTotals.dailyAggregateHonoringEdits(
+                detected: daySessions.map { (startTs: $0.startTs, stagesJSON: $0.stagesJSON) },
+                edited: editedStages,
+                onsetByStart: onsets,
+                offsetSec: offsetSec,
+                habitualMidsleepSec: habitualMidsleepSec
+            ), aggregate.editApplied else {
+                return daily
+            }
+            return daily.takingEditedSleepFields(from: aggregate.sleep)
+        }
     }
 
     /// Daily rows tagged with the source that supplied them, for the source-aware vital-sign cards.
@@ -2740,6 +2789,32 @@ private extension DailyMetric {
             steps: steps,
             activeKcalEst: activeKcalEst,
             spo2Red: spo2Red,   // non-sleep field: preserved as-is (#93)
+            spo2Ir: spo2Ir
+        )
+    }
+
+    /// Applies the stage totals re-derived from a user-edited session while retaining fields that stages
+    /// cannot truthfully recompute, such as disturbances and overnight vitals.
+    func takingEditedSleepFields(from source: SleepStageTotals.DailySleep) -> DailyMetric {
+        DailyMetric(
+            day: day,
+            totalSleepMin: source.totalSleepMin,
+            efficiency: source.efficiency,
+            deepMin: source.deepMin,
+            remMin: source.remMin,
+            lightMin: source.lightMin,
+            disturbances: disturbances,
+            restingHr: restingHr,
+            avgHrv: avgHrv,
+            recovery: recovery,
+            strain: strain,
+            exerciseCount: exerciseCount,
+            spo2Pct: spo2Pct,
+            skinTempDevC: skinTempDevC,
+            respRateBpm: respRateBpm,
+            steps: steps,
+            activeKcalEst: activeKcalEst,
+            spo2Red: spo2Red,
             spo2Ir: spo2Ir
         )
     }
