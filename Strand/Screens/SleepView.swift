@@ -2326,13 +2326,17 @@ struct SleepView: View {
         metric { $0.respRateBpm }
     }
 
-    /// Sleep debt (minutes): the imported sleep_debt_min when the export carried it; else
-    /// the APPROXIMATE per-night need − asleep, floored at 0 (no "credit").
+    /// Sleep debt (minutes): the imported sleep_debt_min when the export carried it, except a manually
+    /// corrected night must use its rebuilt sleep duration; otherwise the APPROXIMATE per-night need −
+    /// asleep, floored at 0 (no "credit").
     private var sleepDebtSeries: Metric {
         let imported = repo.importedSleep
         let need = sleepNeedMin
+        let editedDays = Repository.userEditedDays(repo.sleeps)
         let series = repo.days.compactMap { d -> Double? in
-            if let debt = imported[d.day]?.debtMin { return debt }   // minutes, export-verbatim
+            if !editedDays.contains(d.day), let debt = imported[d.day]?.debtMin {
+                return debt   // minutes, export-verbatim
+            }
             guard let asleep = d.totalSleepMin, asleep > 0, need > 0 else { return nil }
             return Swift.max(0, need - asleep)   // APPROXIMATE fallback
         }
