@@ -122,6 +122,33 @@ final class ReadSpineActiveDeviceTests: XCTestCase {
                         "the canonical computed history must NOT be orphaned by the re-add")
     }
 
+    /// A historical sleep can remain visible under the canonical source after a strap re-add. The editor
+    /// receives an id-free CachedSleepSession, so its write must resolve that canonical owner instead of
+    /// trying only the active strap's two namespaces and silently doing nothing.
+    @MainActor
+    func testEditingCanonicalSleepAfterReAddPersistsTheVisibleNight() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertDevice(id: canonicalId, mac: nil, name: "WHOOP")
+        try await store.upsertDevice(id: newId, mac: nil, name: "WHOOP")
+        try await store.upsertSleepSessions(
+            [CachedSleepSession(startTs: 1_000, endTs: 5_000, efficiency: 0.9,
+                                restingHr: 52, avgHrv: 60, stagesJSON: nil)],
+            deviceId: canonicalId)
+
+        let repo = Repository(deviceId: canonicalId)
+        repo.setStoreForTesting(store)
+        repo.adoptActiveDeviceId(newId)
+
+        await repo.editSleepTimes(detectedStartTs: 1_000, oldEndTs: 5_000,
+                                  storedStagesJSON: nil, newStartTs: 1_200, newEndTs: 4_800)
+
+        let rows = try await store.sleepSessions(deviceId: canonicalId, from: 0, to: 10_000, limit: 10)
+        XCTAssertEqual(rows.count, 1)
+        XCTAssertEqual(rows[0].effectiveStartTs, 1_200)
+        XCTAssertEqual(rows[0].endTs, 4_800)
+        XCTAssertTrue(rows[0].userEdited)
+    }
+
     /// THE union-model regression (#814 follow-up): import history under the CANONICAL "my-whoop", THEN
     /// re-add a strap so the active id becomes "whoop-uuid" and write LIVE HR under it. Assert (i) the
     /// imported canonical days STILL surface in refresh(), (ii) the new live HR under the re-added id also
