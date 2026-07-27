@@ -97,9 +97,11 @@ final class OpticalExperimentAnalysisTests: XCTestCase {
         var c = frame(baseTs: 112, block0Value: 10, block0HeaderByte1: 2,
                       block1SampleCount: 0)
         let header = Whoop5RawOptical.blockStart
-        a[header + 2] = 3
-        b[header + 2] = 4
-        c[header + 2] = 3
+        // Re-seal after mutating a header byte: the decoder CRC-gates, so an unsealed edit would be
+        // rejected as corruption rather than analysed as a differing configuration.
+        a[header + 2] = 3; a = Whoop5RawOpticalTests.reseal(a)
+        b[header + 2] = 4; b = Whoop5RawOpticalTests.reseal(b)
+        c[header + 2] = 3; c = Whoop5RawOpticalTests.reseal(c)
         let jsonl = [
             markerLine("baseline", unixTs: 100, loggedAtMs: 100_100),
             bufferLine(a, strapTs: 110),
@@ -141,10 +143,16 @@ final class OpticalExperimentAnalysisTests: XCTestCase {
         "{\"ts_ms\":999999,\"strap_ts\":\(strapTs),\"size\":\(frame.count),\"offload\":true,\"char\":\"fd4b\",\"hex\":\"\(hex(frame))\"}"
     }
 
+    /// Builds a synthetic v20 record. `Whoop5RawOptical.decode` CRC-gates, so the frame is sealed with
+    /// real checksums on the way out — a hand-built frame has to carry them exactly like a strap's.
     private func frame(baseTs: Int, block0Value: Int32, block0HeaderByte1: UInt8,
                        block1SampleCount: Int) -> [UInt8] {
         var bytes = [UInt8](repeating: 0, count: Whoop5RawOptical.bufferLength)
         bytes[0] = 0xAA
+        bytes[1] = 0x01
+        bytes[2] = 0x54          // declared length 2132 = 2140 - 8
+        bytes[3] = 0x08
+        bytes[4] = 0x01
         bytes[8] = 0x2F
         bytes[9] = 20
         write(UInt32(7), to: &bytes, at: 11)
@@ -168,7 +176,7 @@ final class OpticalExperimentAnalysisTests: XCTestCase {
             write(UInt32(bitPattern: 55), to: &bytes,
                   at: samples + Whoop5RawOptical.channelSlotLength)
         }
-        return bytes
+        return Whoop5RawOpticalTests.reseal(bytes)
     }
 
     private func write(_ value: UInt32, to bytes: inout [UInt8], at offset: Int) {
