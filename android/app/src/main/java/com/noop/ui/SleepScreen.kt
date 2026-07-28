@@ -247,13 +247,19 @@ fun SleepScreen(
     var imported by remember { mutableStateOf(ImportedSleepSeries()) }
     LaunchedEffect(days) {
         suspend fun load(key: String) = runCatching {
-            vm.repo.metricSeries("my-whoop", key, "0000-00-00", "9999-99-99")
+            vm.repo.metricSeriesImportedUnion(vm.activeStrapId, key, "0000-00-00", "9999-99-99")
         }.getOrDefault(emptyList()).associate { it.day to it.value }
+        val originalSleepMin = runCatching {
+            vm.repo.importedDailyMetricsUnion(vm.activeStrapId, "0000-00-00", "9999-99-99")
+        }.getOrDefault(emptyList()).mapNotNull { day ->
+            day.totalSleepMin?.takeIf { it > 0.0 }?.let { day.day to it }
+        }.toMap()
         imported = ImportedSleepSeries(
             performance = load("sleep_performance"),
             consistency = load("sleep_consistency"),
             needMin = load("sleep_need_min"),
             debtMin = load("sleep_debt_min"),
+            originalSleepMin = originalSleepMin,
         )
     }
 
@@ -364,13 +370,23 @@ fun SleepScreen(
     val night = remember(nightOffset, navDays, days, habitualMidsleep, motionByStart) {
         selectNight(navDays, days, nightOffset, habitualMidsleep, motionByStart)
     }
+    // The read-side union may hold an imported sleep under the canonical owner and an edited one
+    // under the active strap. Resolve every edited session against the same UTC/local day keys the
+    // hero uses, so its exported debt never masks the corrected duration.
+    val editedDays = remember(sleeps, days) {
+        sleeps.asSequence().filter { it.userEdited }.map { sleep ->
+            val utcDay = AnalyticsEngine.dayString(sleep.endTs)
+            val localDay = localDayString(sleep.endTs)
+            listOf(utcDay, localDay).firstOrNull { candidate -> days.any { it.day == candidate } } ?: utcDay
+        }.toSet()
+    }
 
     // The HERO follows the selected night (its stage breakdown comes from that day's row); the
     // at-a-glance TILES, the debt ledger, the personal need and the trend stay full-history /
     // latest-anchored, matching iOS SleepView. `selectedDay` re-points only the hero. Model is null
     // when the selected day has no stage minutes. (#5)
-    val model = remember(days, night, imported) {
-        buildSleepModel(days, night?.session, imported, selectedDay = night?.dayKey,
+    val model = remember(days, night, imported, editedDays) {
+        buildSleepModel(days, night?.session, imported, editedDays, selectedDay = night?.dayKey,
             heroStages = night?.groupStages, heroSegments = night?.groupSegments)
     }
     val display = remember(model, night) { heroDisplay(model, night) }
@@ -382,7 +398,9 @@ fun SleepScreen(
     // newest stage-bearing day instead of vanishing. The HERO stays on `model`/`display` (an
     // honest no-stage-data fallback for the bad day, edit pencil reachable). Null only when NO day
     // has stage data: the true first-run empty state.
-    val tilesModel = remember(model, days, imported) { model ?: fallbackSleepModel(days, imported) }
+    val tilesModel = remember(model, days, imported, editedDays) {
+        model ?: fallbackSleepModel(days, imported, editedDays)
+    }
 
     // Jump straight to a night by its (local) wake-day — the center date block opens a picker.
     // navDays is newest-day-first, so the day's index IS its offset (0 = last night). (#160, #59)

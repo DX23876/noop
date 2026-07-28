@@ -95,6 +95,8 @@ internal fun buildSleepModel(
     days: List<DailyMetric>,
     session: SleepSession?,
     imported: ImportedSleepSeries = ImportedSleepSeries(),
+    // A manually corrected night adjusts the export's original debt by its sleep-duration delta.
+    editedDays: Set<String> = emptySet(),
     selectedDay: String? = null,
     // The bridged main-night GROUP's summed stage minutes + full-night segments (#561), threaded from
     // selectNight so a biphasic night's hero shows the WHOLE night, not one fragment (#555). Null for a
@@ -191,9 +193,13 @@ internal fun buildSleepModel(
     val respiratory = metric(days) { it.respRateBpm }
     val sleepDebt = run {
         val series = days.mapNotNull { d ->
-            imported.debtMin[d.day]   // minutes, export-verbatim
-                ?: d.totalSleepMin?.takeIf { it > 0.0 && needMin > 0.0 }
-                    ?.let { max(0.0, needMin - it) }   // APPROXIMATE fallback
+            resolvedSleepDebtMinutes(
+                day = d.day,
+                actualSleepMin = d.totalSleepMin,
+                fallbackNeedMin = needMin,
+                imported = imported,
+                isEdited = d.day in editedDays,
+            )
         }
         Metric(series.lastOrNull(), mean(series), series)
     }
@@ -204,9 +210,14 @@ internal fun buildSleepModel(
     val trendHours = trendRows.mapNotNull { it.totalSleepMin?.let { minutes -> minutes / 60.0 } }
     val trendNeedHours = trendRows.map { row -> ((imported.needMin[row.day] ?: needMin) / 60.0) }
     val trendDebtHours = trendRows.map { row ->
-        val sleptMin = row.totalSleepMin ?: 0.0
         val neededMin = imported.needMin[row.day] ?: needMin
-        ((imported.debtMin[row.day] ?: max(0.0, neededMin - sleptMin)) / 60.0)
+        (resolvedSleepDebtMinutes(
+            day = row.day,
+            actualSleepMin = row.totalSleepMin,
+            fallbackNeedMin = neededMin,
+            imported = imported,
+            isEdited = row.day in editedDays,
+        ) ?: 0.0) / 60.0
     }
     val trendDates = trendRows.map { it.day }
 
@@ -258,6 +269,27 @@ internal fun buildSleepModel(
     )
 }
 
+/** Keeps export-derived debt accurate after a hand edit without discarding its prior history. */
+internal fun resolvedSleepDebtMinutes(
+    day: String,
+    actualSleepMin: Double?,
+    fallbackNeedMin: Double,
+    imported: ImportedSleepSeries,
+    isEdited: Boolean,
+): Double? {
+    val debt = imported.debtMin[day]
+    if (debt != null && !isEdited) return debt
+
+    val actual = actualSleepMin?.takeIf { it > 0.0 } ?: return null
+    if (isEdited) {
+        val original = imported.originalSleepMin[day]
+        if (debt != null && original != null && original > 0.0) {
+            return max(0.0, debt + original - actual)
+        }
+    }
+    return fallbackNeedMin.takeIf { it > 0.0 }?.let { max(0.0, it - actual) }
+}
+
 /**
  * #940 no-blank fallback: one impossible/stage-less SELECTED day (typically the newest, after a bad
  * hand-edit staged it all-awake) must not hide the whole tab's full-history surfaces. Re-anchor the
@@ -269,11 +301,12 @@ internal fun buildSleepModel(
 internal fun fallbackSleepModel(
     days: List<DailyMetric>,
     imported: ImportedSleepSeries = ImportedSleepSeries(),
+    editedDays: Set<String> = emptySet(),
 ): SleepModel? {
     val anchorDay = days.lastOrNull {
         (it.deepMin ?: 0.0) + (it.remMin ?: 0.0) + (it.lightMin ?: 0.0) > 0.0
     }?.day ?: return null
-    return buildSleepModel(days, null, imported, selectedDay = anchorDay)
+    return buildSleepModel(days, null, imported, editedDays, selectedDay = anchorDay)
 }
 
 /** Build a metric from a per-day transform, keeping only finite values. */

@@ -79,6 +79,34 @@ final class EditMergePrecedenceTests: XCTestCase {
         XCTAssertEqual(days, [expectedDay])
     }
 
+    /// A historical import has no raw streams, so editing its cached sleep must still rebuild the daily
+    /// duration. Otherwise the debt ledger continues to read the original import's total after the edit.
+    func testEditedImportedSleepRebuildsDailySleepFields() {
+        let endTs = 1_780_000_000
+        let offsetSec = TimeZone.current.secondsFromGMT(for: Date(timeIntervalSince1970: TimeInterval(endTs)))
+        let day = AnalyticsEngine.dayString(endTs, offsetSec: offsetSec)
+        let imported = full(day: day, totalSleepMin: 480, deepMin: 90, remMin: 110,
+                            lightMin: 280, efficiency: 0.92, recovery: 80, strain: 9.0)
+        let corrected = CachedSleepSession(
+            startTs: endTs - 360 * 60,
+            endTs: endTs,
+            efficiency: 0.85,
+            restingHr: 52,
+            avgHrv: 70,
+            stagesJSON: #"{"awake":20,"light":150,"deep":60,"rem":70}"#,
+            userEdited: true
+        )
+
+        let rebuilt = Repository.applyingEditedSleepSessions([corrected], to: [imported])
+
+        XCTAssertEqual(rebuilt[0].totalSleepMin, 280)
+        XCTAssertEqual(rebuilt[0].deepMin, 60)
+        XCTAssertEqual(rebuilt[0].remMin, 70)
+        XCTAssertEqual(rebuilt[0].lightMin, 150)
+        XCTAssertEqual(try XCTUnwrap(rebuilt[0].efficiency), 280.0 / 300.0, accuracy: 0.0001)
+        XCTAssertEqual(rebuilt[0].recovery, 80, "non-sleep import fields must remain intact")
+    }
+
     // MARK: - sleep_performance daily-column derivation (#614)
     //
     // The resolver derives the Rest composite from a banked DailyMetric's sleep totals when no

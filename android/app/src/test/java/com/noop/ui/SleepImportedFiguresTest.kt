@@ -38,6 +38,27 @@ class SleepImportedFiguresTest {
         assertEquals(60.0, m.sleepDebt.latest!!, 1e-9)
     }
 
+    /** A hand-edited night adjusts the export's debt by its exact asleep-minute delta. */
+    @Test
+    fun editedNightAdjustsImportedDebtBySleepDurationDelta() {
+        val days = listOf(day("2026-06-01", 420.0), day("2026-06-02", 410.0))
+        val imported = ImportedSleepSeries(
+            debtMin = mapOf("2026-06-01" to 30.0, "2026-06-02" to 60.0),
+            originalSleepMin = mapOf("2026-06-02" to 480.0),
+        )
+
+        val m = buildSleepModel(
+            days,
+            session = null,
+            imported = imported,
+            editedDays = setOf("2026-06-02"),
+        )!!
+
+        // Original 60 min debt plus 70 min less sleep than the 480 min export = 130 min.
+        assertEquals(130.0, m.sleepDebt.latest!!, 1e-9)
+        assertEquals(listOf(0.5, 130.0 / 60.0), m.trendDebtHours)
+    }
+
     @Test
     fun hoursVsNeededUsesImportedNeedPerDay() {
         val days = listOf(day("2026-06-01", 400.0))

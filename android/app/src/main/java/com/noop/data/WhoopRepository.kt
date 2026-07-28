@@ -1205,6 +1205,21 @@ class WhoopRepository(private val dao: WhoopDao) {
         dao.metricSeries(deviceId, key, from, to)
 
     /**
+     * Imported [key] series across the active-strap and canonical import union. Active rows win on a
+     * shared day, matching [importedDailyMetricsUnion] and the Swift import resolver.
+     */
+    suspend fun metricSeriesImportedUnion(
+        activeStrapId: String,
+        key: String,
+        from: String,
+        to: String,
+    ): List<MetricSeriesRow> {
+        val ids = importedSourceIds(activeStrapId)
+        if (ids.size == 1) return metricSeries(ids[0], key, from, to)
+        return mergeComputedSeriesUnion(ids.map { metricSeries(it, key, from, to) })
+    }
+
+    /**
      * Computed ("-noop") [key] series across the active-strap UNION (the active strap's own computed
      * sibling + the canonical "my-whoop-noop"), deduped per day with the active strap winning. This is
      * how the weekly computed scores (fitness_age / vo2max_est / vitality / body_age) MUST be read:
@@ -1546,6 +1561,10 @@ class WhoopRepository(private val dao: WhoopDao) {
     /** Cached daily metrics for the inclusive day range [from, to] (YYYY-MM-DD), oldest first. */
     suspend fun dailyMetrics(deviceId: String, from: String, to: String): List<DailyMetric> =
         dao.dailyMetricsRange(deviceId, from, to)
+
+    /** Imported daily metrics across the active-strap and canonical import union, active rows first. */
+    suspend fun importedDailyMetricsUnion(deviceId: String, from: String, to: String): List<DailyMetric> =
+        unionByDay(importedSourceIds(deviceId).map { dao.dailyMetricsRange(it, from, to) })
 
     // MARK: - Cross-source resolver (PR#196 , freshest-wins charts/metrics)
     //

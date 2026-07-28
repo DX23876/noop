@@ -30,6 +30,8 @@ internal data class ImportedSleepSeries(
     val consistency: Map<String, Double> = emptyMap(), // sleep_consistency, 0–100
     val needMin: Map<String, Double> = emptyMap(),     // sleep_need_min, minutes
     val debtMin: Map<String, Double> = emptyMap(),     // sleep_debt_min, minutes
+    // Original export duration, retained when an edited daily row replaces its sleep fields.
+    val originalSleepMin: Map<String, Double> = emptyMap(),
 )
 
 /** Everything the screen renders, derived once per data change. */
