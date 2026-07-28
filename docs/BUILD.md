@@ -283,7 +283,7 @@ provisioning profile, or personal developer name.
 
 Android ships as a **full, native client** — a separate Kotlin/Gradle module rather than a port of
 the Swift app. It lives under **`android/`** with its own `README`. Its source version is aligned with
-the 9.10.0 Apple beta; public Android beta artifacts follow in a later rollout. A sample-data **demo**
+the 9.2.1 Apple beta; public Android beta artifacts follow in a later rollout. A sample-data **demo**
 flavour exists for exploring every screen with no strap and is build-from-source only
 (`./gradlew assembleDemoDebug`).
 

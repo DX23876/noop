@@ -7,7 +7,7 @@
 <p align="center"><b>Your WHOOP data, on your own devices, with a coach that remembers.</b></p>
 
 <p align="center">
-  <img alt="Current release" src="https://img.shields.io/badge/current%20beta-9.10.0%20Beta%201-C8902F?style=flat-square">
+  <img alt="Current release" src="https://img.shields.io/badge/current%20beta-9.2.1%20Beta%201-C8902F?style=flat-square">
   <img alt="Platforms" src="https://img.shields.io/badge/iOS%2017%2B%20%C2%B7%20macOS%2013%2B-234F9E?style=flat-square">
   <img alt="Straps" src="https://img.shields.io/badge/WHOOP-4.0%20%C2%B7%205.0%2FMG-234F9E?style=flat-square">
   <img alt="Privacy" src="https://img.shields.io/badge/no%20account%20%C2%B7%20no%20cloud-6B737B?style=flat-square">
@@ -27,20 +27,22 @@ MAINTAINER NOTE — update this small release section for every beta or public r
 3. Move shipped items out of “In development” and link the matching release note.
 -->
 
-## Latest beta — 9.10.0 Beta 1
+## Latest beta — 9.2.1 Beta 1
 
-- **A bell that remembers real events.** Battery, health, movement, and smart-alarm alerts now have a
-  short local history in Today. The entry remains useful even when the operating system cannot show a banner.
-- **A calmer Classic Today.** The first Synthesis insight no longer expands the entire card, and the
-  redundant WHOOP label has been removed.
+- **The coach now has real long-term memory.** An on-device semantic index lets it recall past
+  conversations and journal entries by meaning, not just exact wording — nothing leaves your device,
+  and it stays off until you turn it on.
+- **Privacy is three taps, not nine.** Data access collapses into three understandable modes —
+  Essentials, Personal, Deep insights — plus an Expert mode for the individual switches. Sensitive
+  journal topics always need their own separate, explicit choice.
 - **Unsigned iOS IPA, signed by you.** Install through AltStore or SideStore. NOOP AI does not use an
   Apple team, certificate, or personal signing name to distribute the build.
 
-Read the full [9.10.0 Beta 1 notes](docs/releases/v9.10.0-beta.1.md).
+Read the full [9.2.1 Beta 1 notes](docs/releases/v9.2.1-beta.1.md).
 
 ## In development
 
-- **Android distribution.** The Android source is version-aligned with 9.10.0; a public Android beta
+- **Android distribution.** The Android source is version-aligned with 9.2.1; a public Android beta
   download will follow in a later rollout.
 - **More practical alert history.** The inbox will keep evolving around events that actually happened,
   rather than becoming a second copy of scheduled reminders.
@@ -61,8 +63,8 @@ https://raw.githubusercontent.com/DX23876/noop/main/altstore-source.json
 
 - **AltStore:** Browse → **+** → paste the source URL → add NOOP AI.
 - **SideStore:** Sources → **+ Add Source** → paste the same URL → install NOOP AI.
-- Prefer a direct file? Download `NOOP-ios-unsigned-v9.10.0-beta.1.ipa` from the
-  [Beta 1 prerelease](https://github.com/DX23876/noop/releases/tag/v9.10.0-beta.1).
+- Prefer a direct file? Download `NOOP-ios-unsigned-v9.2.1-beta.1.ipa` from the
+  [Beta 1 prerelease](https://github.com/DX23876/noop/releases/tag/v9.2.1-beta.1).
 
 See [the iOS install guide](docs/IOS.md) for the free-Apple-ID limits, widget notes, and build-from-source
 instructions.
@@ -71,7 +73,7 @@ instructions.
 
 | Platform | Status | Distribution |
 |---|---|---|
-| iOS / iPadOS | 9.10.0 Beta 1 | AltStore, SideStore, or build from source |
+| iOS / iPadOS | 9.2.1 Beta 1 | AltStore, SideStore, or build from source |
 | macOS | Source build | Build with Xcode; a packaged beta follows separately |
 | Android | Distribution in progress | Source version aligned; public beta follows later |
 

@@ -26,7 +26,7 @@ object AppChangelog {
      * Bump this when you add a release below. The "What's New" sheet shows automatically when the
      * stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
      */
-    const val CURRENT_VERSION = "9.10.0-beta.1"
+    const val CURRENT_VERSION = "9.2.1-beta.1"
 
     data class Release(
         val version: String,
@@ -38,12 +38,13 @@ object AppChangelog {
     /** Newest first. */
     val releases: List<Release> = listOf(
         Release(
-            version = "9.10.0-beta.1",
-            title = "A calmer Today and a bell that remembers",
+            version = "9.2.1-beta.1",
+            title = "A coach that remembers, privacy presets that stay simple",
             date = "July 2026",
             items = listOf(
-                "**The bell now remembers real alerts.** Low battery, runtime, fully charged, health, movement, and smart-alarm events stay in a recent local history even when system banners are unavailable.",
-                "**Today is more focused.** The Classic Today synthesis card no longer expands into an oversized first item, and the redundant WHOOP label is gone.",
+                "**The coach now has real long-term memory.** An on-device semantic index lets it recall past conversations and journal entries by meaning, not just exact wording — nothing leaves your device, and it stays off until you turn it on.",
+                "**Privacy is three taps, not nine.** Data access collapses into three understandable modes — Essentials, Personal, Deep insights — plus an Expert mode for the individual switches. Sensitive journal topics always need their own separate, explicit choice.",
+                "**A bell that remembers real events.** Battery, health, movement, and smart-alarm alerts now have a short local history in Today, useful even when the operating system cannot show a banner.",
                 "**iOS Beta 1 is ready for sideloading.** Install the unsigned IPA with AltStore or SideStore; it is signed only by your own Apple ID on your device.",
             ),
         ),

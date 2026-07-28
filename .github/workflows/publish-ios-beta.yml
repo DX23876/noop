@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Numeric app version already committed to source (for example 9.10.0)"
+        description: "Numeric app version already committed to source (for example 9.2.1)"
         required: true
-        default: "9.10.0"
+        default: "9.2.1"
       beta:
         description: "Beta sequence number (for example 1)"
         required: true

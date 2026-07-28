@@ -1,7 +1,7 @@
 # iOS — Install & Build
 
-> **iOS Beta 1 is a direct download.** Grab **`NOOP-ios-unsigned-v9.10.0-beta.1.ipa`** from the
-> [NOOP AI prerelease](https://github.com/DX23876/noop/releases/tag/v9.10.0-beta.1) page and install it with **AltStore** or **SideStore** — see
+> **iOS Beta 1 is a direct download.** Grab **`NOOP-ios-unsigned-v9.2.1-beta.1.ipa`** from the
+> [NOOP AI prerelease](https://github.com/DX23876/noop/releases/tag/v9.2.1-beta.1) page and install it with **AltStore** or **SideStore** — see
 > **[Install (sideload)](#install-sideload)** below. No Mac, no Xcode, no App Store, and no Apple
 > Developer account needed — **and NOOP stays anonymous**, because the `.ipa` we ship is *unsigned*
 > and **you** sign it on your own iPhone with your own free Apple ID. The app target (`NOOPiOS` +
@@ -18,8 +18,8 @@ Nothing about this touches NOOP's identity or Apple's servers on our side.
 1. **Install a sideloader on your computer** — [AltStore](https://altstore.io) or
    [SideStore](https://sidestore.io) (both free). Follow their one-time setup (it installs a helper +
    AltStore/SideStore onto your iPhone using your own Apple ID).
-2. **Download `NOOP-ios-unsigned-v9.10.0-beta.1.ipa`** from the
-   [Beta 1 prerelease](https://github.com/DX23876/noop/releases/tag/v9.10.0-beta.1) to your iPhone (or your
+2. **Download `NOOP-ios-unsigned-v9.2.1-beta.1.ipa`** from the
+   [Beta 1 prerelease](https://github.com/DX23876/noop/releases/tag/v9.2.1-beta.1) to your iPhone (or your
    computer, then AirDrop/transfer it).
 3. **Open the `.ipa` with AltStore/SideStore** (Share → AltStore, or the app's "+" button). It signs
    and installs NOOP. First launch may need **Settings → General → VPN & Device Management → trust
