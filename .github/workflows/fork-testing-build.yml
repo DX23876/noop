@@ -145,6 +145,17 @@ jobs:
         run: brew install xcodegen
       - name: Generate Xcode project
         run: xcodegen generate
+      # NOOPiOS links Vendor/Nomic/llama.xcframework (the on-device semantic-memory runtime) and bundles
+      # the pinned Nomic embedding model — both fetched/verified by this script, never committed (it's a
+      # ~330 MiB binary pair). Cached on the script's own pinned hashes/tag so a re-run doesn't re-download
+      # unless the pin changes.
+      - name: Cache Nomic build inputs
+        uses: actions/cache@v4
+        with:
+          path: Vendor/Nomic
+          key: nomic-${{ hashFiles('Tools/bootstrap-nomic.sh') }}
+      - name: Bootstrap Nomic embedding runtime + model
+        run: Tools/bootstrap-nomic.sh
       - name: Build NOOPiOS for device (unsigned, Release)
         # #53: build RELEASE, not Debug. A Debug build carries get-task-allow + debug artifacts that make a
         # re-signed sideload fail "integrity could not be verified" on modern iOS; Release (the correct config

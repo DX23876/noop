@@ -66,6 +66,20 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
 
+      # NOOPiOS links Vendor/Nomic/llama.xcframework (the on-device semantic-memory runtime) and bundles
+      # the pinned Nomic embedding model — both fetched/verified by this script, never committed (it's a
+      # ~330 MiB binary pair). The Strand/macOS leg doesn't link it, so this only runs for NOOPiOS.
+      - name: Cache Nomic build inputs
+        if: matrix.scheme == 'NOOPiOS'
+        uses: actions/cache@v4
+        with:
+          path: Vendor/Nomic
+          key: nomic-${{ hashFiles('Tools/bootstrap-nomic.sh') }}
+
+      - name: Bootstrap Nomic embedding runtime + model
+        if: matrix.scheme == 'NOOPiOS'
+        run: Tools/bootstrap-nomic.sh
+
       - name: Build ${{ matrix.scheme }}
         run: >-
           xcodebuild -scheme '${{ matrix.scheme }}' -configuration Debug
