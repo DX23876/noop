@@ -168,11 +168,14 @@ object IntelligenceEngine {
         // are unaffected; the AppViewModel wires it to the BLE client's strap log (ble.externalLog),
         // which PII-scrubs every line at the sink. Pure-JVM (a closure), matching persistStepsCalibration.
         diag: (String) -> Unit = {},
-        // Opt-in "Experimental sleep staging (V2)" flag (Settings → Experimental · Sleep staging). The
-        // analytics layer is Context-free, so the Context-aware caller (AppViewModel / WhoopBleClient) reads
-        // it off SharedPreferences (PuffinExperiment.experimentalSleepV2) and threads it down to the sleep
-        // self-heal, which re-stages with SleepStagerV2 when true. Default false → V1 (the default, untouched
-        // path), so existing callers / tests are unaffected. (V7 Pillar 3b)
+        // "Experimental sleep staging (V2)" flag (Settings → Experimental · Sleep staging). The analytics
+        // layer is Context-free, so the Context-aware caller (AppViewModel / WhoopBleClient) reads it off
+        // SharedPreferences (PuffinExperiment.experimentalSleepV2) and threads it down to the sleep
+        // self-heal, which re-stages with SleepStagerV2 when true.
+        // The stored preference is default TRUE (getBoolean(KEY, true)) — V2 was promoted over V1 in #277
+        // and extended to every strap family in #351 — so the SHIPPED app stages with V2. This PARAMETER
+        // defaults false only so existing callers / tests are unaffected; it is not the product default.
+        // (V7 Pillar 3b)
         useExperimentalSleepV2: Boolean = false,
         // Opt-in "Motion-aware wake refinement" flag (#364 "Proposal 2" follow-up; density gate precedent
         // #345). Same Context-free threading as [useExperimentalSleepV2]: the Context-aware caller reads
@@ -298,7 +301,9 @@ object IntelligenceEngine {
         baselineEpoch: Double = 0.0,
         recoveryEpoch: Double = 0.0,
         diag: (String) -> Unit = {},
-        // Opt-in experimental staging (V2), threaded down to the sleep self-heal. Default false → V1. (3b)
+        // Experimental staging (V2), threaded down to the sleep self-heal. This PARAMETER defaults false so
+        // existing callers / tests are unaffected; the STORED PREFERENCE the app threads in is default TRUE,
+        // so the shipped app stages with V2. Not the same default — see [analyzeRecent]'s note. (3b)
         useExperimentalSleepV2: Boolean = false,
         // Opt-in motion-aware wake refinement (#364 follow-up), threaded the same way. Default false.
         useMotionAwareWake: Boolean = false,

@@ -22,6 +22,19 @@ public enum WhoopCommand: UInt8, CaseIterable {
     case reportVersionInfo     = 7
     case setClock              = 10
     case getClock              = 11
+    /// ABORT_HISTORICAL_TRANSMITS (20) — ask the strap to stop streaming the offload it is part-way
+    /// through. NON-DESTRUCTIVE, and specifically not a trim: the strap only frees banked records when
+    /// NOOP acks a HISTORY_END, so anything unacked when the abort lands stays in flash and re-offloads
+    /// on the next sync. Nothing is deleted and no cursor moves.
+    ///
+    /// The counterpart to `sendHistoricalData` (22), which NOOP has always had with no way to stop it:
+    /// until now a drain ran to completion, the 15-minute timeout, or a dropped link.
+    ///
+    /// `BLEManager.abortBackfill()` tears the session down LOCALLY whether or not the strap honours the
+    /// opcode, so a firmware that ignores 20 degrades to exactly today's behaviour rather than leaving
+    /// the UI stuck. Confirmed in use on WHOOP 4.0 by OpenStrap Edge (`Cmd.abortHistoricalTransmits`);
+    /// the 5/MG form is the same opcode over puffin framing and is NOT hardware-confirmed here.
+    case abortHistoricalTransmits = 20
     case sendHistoricalData    = 22
     case historicalDataResult  = 23
     case getBatteryLevel       = 26
@@ -82,6 +95,32 @@ public enum WhoopCommand: UInt8, CaseIterable {
     /// #690: read-only body-location/status probe. Documented in the WHOOP protocol; driven only by the
     /// user-triggered, Test-Centre-gated probeBodyLocationAndStatus(). Decoded to a diagnostic report only.
     case getBodyLocationAndStatus = 84
+    /// START_FF_KEY_EXCHANGE (117 / 0x75) — ask the strap how many feature flags its firmware knows.
+    /// READ-ONLY: the reply carries a count, and nothing on the strap changes. Payload `[0x01]` (the
+    /// inner b3 byte the SET_CONFIG family and GET_HELLO use). This is the READ half of the flag surface
+    /// NOOP has only ever written (`setConfig`/120): the protocol's own `CommandNumber` table names
+    /// 117/118 alongside 119/120, and only the SET pair was implemented. Driven ONLY by
+    /// `BLEManager.probeFeatureFlags()` — user-initiated, Test Centre → Connection gated. Parsing lives in
+    /// `FeatureFlagProbe` (pure, unit-tested). (#761, and #103 which it exists to answer.)
+    case startFeatureFlagKeyExchange = 117
+    /// SEND_NEXT_FF (118 / 0x76) — advance the strap's own key cursor and report one flag NAME.
+    /// READ-ONLY: names only, no values, nothing written. Payload `[0x01]`; the body is a CURSOR, not an
+    /// index, so the same frame is repeated to walk the list. Bounded by `FeatureFlagProbe.maxFlags` and
+    /// by the strap's own end marker. Driven ONLY by `BLEManager.probeFeatureFlags()`. (#761)
+    case sendNextFeatureFlag = 118
+    /// GET_DEVICE_CONFIG_VALUE (121 / 0x79) — ask for ONE device-config value by key name.
+    /// READ-ONLY: nothing on the strap changes. Payload `[0x01]` + the key ASCII NUL-padded to 32 bytes,
+    /// the SET side's own name field minus its value byte. This is the read half of the DEVICE-CONFIG
+    /// namespace — the one `setDeviceConfig`/119 writes and that the #761 enumerate pair (117/118, feature
+    /// flags only) never reached. **May not be implemented in firmware**; establishing that is the point.
+    /// Driven ONLY by `BLEManager.probeDeviceConfigValues()` — user-initiated, Test Centre → Connection
+    /// gated. Parsing lives in `DeviceConfigReadProbe` (pure, unit-tested). (#103, follow-up to #761.)
+    case getDeviceConfigValue = 121
+    /// GET_FF_VALUE (128 / 0x80) — ask for ONE feature-flag value by key name.
+    /// READ-ONLY, same body shape as 121. The read half of the flag surface NOOP has only ever written
+    /// (`setConfig`/120): #761 read the flag NAMES, this reads a named flag's VALUE. **May not be
+    /// implemented in firmware.** Driven ONLY by `BLEManager.probeDeviceConfigValues()`. (#103)
+    case getFeatureFlagValue = 128
     case toggleIMUMode         = 106
     case enableOpticalData     = 107
     /// SET_CONFIG / SET_FF_VALUE (0x78) — write one persistent device feature-flag. Used by the
@@ -133,6 +172,7 @@ public enum WhoopCommand: UInt8, CaseIterable {
         case .reportVersionInfo:     return "Report Version Info"
         case .setClock:              return "Set Clock"
         case .getClock:              return "Get Clock"
+        case .abortHistoricalTransmits: return "Abort Historical Transmits"
         case .sendHistoricalData:    return "Send Historical Data"
         case .historicalDataResult:  return "Historical Data Result"
         case .getBatteryLevel:       return "Get Battery Level"
@@ -149,6 +189,10 @@ public enum WhoopCommand: UInt8, CaseIterable {
         case .exitHighFreqSync:      return "Exit High-Freq Sync"
         case .getExtendedBatteryInfo:return "Get Extended Battery Info"
         case .getBodyLocationAndStatus:return "Get Body Location And Status"
+        case .startFeatureFlagKeyExchange: return "Start Feature-Flag Key Exchange"
+        case .sendNextFeatureFlag:   return "Send Next Feature Flag"
+        case .getDeviceConfigValue:  return "Get Device Config Value"
+        case .getFeatureFlagValue:   return "Get Feature Flag Value"
         case .toggleIMUMode:         return "Toggle IMU Mode"
         case .enableOpticalData:     return "Enable Optical Data"
         case .setConfig:             return "Set Config (R22 feature flag)"

@@ -319,10 +319,12 @@ public enum AnalyticsEngine {
                                   // pure-function callers/tests free of it; IntelligenceEngine threads the
                                   // night window's persisted band state. (#531 / H8 consume)
                                   bandSleepState: [(ts: Int, state: Int)] = [],
-                                  // Opt-in experimental sleep staging (V2). When true, detected nights are
-                                  // staged by `SleepStagerV2` instead of V1. Default false keeps V1 the
-                                  // byte-identical default for pure-function callers/tests; IntelligenceEngine
-                                  // threads `PuffinExperiment.experimentalSleepV2Enabled`. (V7 / #690)
+                                  // Which sleep-staging recipe runs (V2 vs V1). When true, detected nights
+                                  // are staged by `SleepStagerV2` instead of V1. This PARAMETER defaults
+                                  // false to keep pure-function callers/tests byte-identical — it is NOT
+                                  // the product default. IntelligenceEngine threads
+                                  // `PuffinExperiment.experimentalSleepV2Enabled`, which is default ON
+                                  // (#277/#351), so the shipped app stages with V2. (V7 / #690)
                                   useSleepStagerV2: Bool = false,
                                   // Opt-in motion-aware wake refinement (#364 "Proposal 2" follow-up; density
                                   // gate precedent #345). When true, `WakeMotionRefinement` re-derives each

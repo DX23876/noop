@@ -4,7 +4,7 @@ package com.noop.ingest
  * Pure (Android-free, HC-SDK-free) planning logic for what NOOP exports INTO Health Connect.
  *
  * Everything here operates on plain Kotlin types so it is unit-testable on the JVM, mirroring
- * [HealthConnectImporter.sumActiveKcalInWindow]. [HealthConnectWriter] turns these descriptors into
+ * [HealthConnectImporter.sumKcalInWindow]. [HealthConnectWriter] turns these descriptors into
  * actual Health Connect records (the untestable SDK glue is kept thin, as in `buildExerciseRecords`).
  *
  * #528 (reimplemented from @sunny-noop): close the export gaps so a strap-only user surfaces the

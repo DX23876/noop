@@ -14,7 +14,7 @@ class UpdateStoreAlertTest {
     fun sameAlertKey_refreshesOneRow_rearmsUnread_andPersists() {
         val prefs = FakeSharedPreferences()
         val store = UpdateStore.forTesting(prefs)
-        val first = 900_000_000_000L
+        val first = System.currentTimeMillis()
         store.postOrRefreshAlert("battery-low:2028-07-10", "Low battery", "20% remaining", "devices", first + DAY, first)
         val id = store.items.single().id
         store.markRead(id)

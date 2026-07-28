@@ -262,6 +262,28 @@ final class AppModel: ObservableObject {
                                               charging: self.live.charging,
                                               enabled: self.behavior.batteryAlerts
                                                     && self.behavior.batteryPredictiveAlerts)
+            // ESCALATION (both independent of the two latching gates above). The 15% alert and the
+            // 24 h predictive alert each fire ONCE per discharge cycle and then latch, so a strap that
+            // keeps draining goes silent exactly when the news gets worse — measured: a user got both
+            // alerts, then nothing across the final ~3 h to the ~10% cutoff, and lost the night.
+            //
+            // 1. Critical SoC: a second, lower crossing with its own persisted gate.
+            BatteryNotifier.onCriticalBattery(pct: Int(pct.rounded()),
+                                              charging: self.live.charging,
+                                              enabled: self.behavior.batteryAlerts)
+            // 2. Bedtime night-guard: near the LEARNED habitual bedtime, does the strap actually clear
+            //    tonight? Uses the cutoff-aware runtime (the raw estimate is time-to-0%, and the strap
+            //    dies ~10% above that — ~6 h of phantom runway at this user's drain). Cold-start (no
+            //    learned midsleep / too few nights) → the policy returns silent, no fabricated bedtime.
+            //    Rides the predictive toggle: it IS a prediction.
+            BatteryNotifier.onBedtimeRunway(
+                nowSecOfDay: Self.localSecOfDayNow(),
+                habitualMidsleepSec: self.habitualMidsleepCache,
+                typicalSleepHours: BatteryEstimator.typicalSleepHours(
+                    nightlyHours: self.repo.days.compactMap { $0.totalSleepMin.map { $0 / 60.0 } }),
+                usableRemainingHours: self.live.batteryEstimate.map(BatteryEstimator.usableRemainingHours),
+                charging: self.live.charging,
+                enabled: self.behavior.batteryAlerts && self.behavior.batteryPredictiveAlerts)
         }
         // HR-zone haptic coaching watches the smoothed bpm.
         $bpm.sink { [weak self] hr in self?.coachZone(hr) }.store(in: &hrCancellables)
@@ -269,6 +291,8 @@ final class AppModel: ObservableObject {
         repo.$days.sink { [weak self] days in
             self?.evaluateIllness(days)
             self?.evaluateStrainTarget()
+            // Keep the battery night-guard's learned bedtime warm off the same signal (throttled inside).
+            self?.refreshHabitualMidsleep()
         }.store(in: &hrCancellables)
         // Re-arm the strap's firmware alarm once the connection has SETTLED — not the instant it (re)bonds.
         // A smart-alarm time changed while the strap was away never reached it , the send is gated on bond
@@ -824,6 +848,17 @@ final class AppModel: ObservableObject {
     func probeBodyLocationAndStatus() { ble.probeBodyLocationAndStatus() }
     func clearBodyLocationProbe() { ble.clearBodyLocationProbe() }
 
+    // #761: READ-ONLY feature-flag ENUMERATION probe (117/118) — reads the flag NAMES the strap's firmware
+    // knows and writes nothing. User-initiated, Test-Centre-gated in DevicesView.
+    func probeFeatureFlags() { ble.probeFeatureFlags() }
+    func clearFeatureFlagProbe() { ble.clearFeatureFlagProbe() }
+
+    // #103: READ-ONLY device-config READ probe (121/128) — asks the strap for a key's VALUE, the
+    // follow-up to #761's key-NAME enumeration. Writes nothing. User-initiated, Test-Centre-gated in
+    // DevicesView.
+    func probeDeviceConfigValues() { ble.probeDeviceConfigValues() }
+    func clearDeviceConfigProbe() { ble.clearDeviceConfigProbe() }
+
     /// Drop the current strap and clear bond state so a newly-picked strap model connects fresh
     /// (lets a user with both a WHOOP 4 and a 5/MG switch between them).
     func prepareStrapSwitch() { ble.prepareForModelSwitch() }
@@ -1359,6 +1394,35 @@ final class AppModel: ObservableObject {
     /// (alcohol / a hard-or-late workout / etc.) so a night out doesn't cry wolf. The journal context is
     /// read asynchronously, so this kicks a Task; the published `illnessSignal` + the `healthAlert`
     /// banner both come from the engine's single decision. On-device only, APPROXIMATE , not a diagnosis.
+    // MARK: - Battery night-guard: learned bedtime cache
+
+    /// The learned habitual midsleep (local seconds-of-day), cached for the battery night-guard.
+    /// `repo.habitualMidsleepSec()` is an async whole-history store read, but the battery hook runs
+    /// synchronously on the BLE callback, so the value is kept warm here instead. nil = cold-start
+    /// (< `SleepStageTotals.habitualMinDays` nights) → `BatteryEstimator.bedtimeAlert` stays silent.
+    private var habitualMidsleepCache: Int? = nil
+    private var habitualMidsleepCachedAt: Date? = nil
+
+    /// Refresh the cached habitual midsleep, at most hourly. The learner reads the full sleep history
+    /// and the value moves on a timescale of WEEKS, so recomputing it on every `repo.$days` republish
+    /// (several per rollup) would be pure cost for a number that cannot have changed.
+    private func refreshHabitualMidsleep() {
+        if let at = habitualMidsleepCachedAt, Date().timeIntervalSince(at) < 3600 { return }
+        habitualMidsleepCachedAt = Date()
+        Task { [weak self] in
+            guard let self else { return }
+            self.habitualMidsleepCache = await self.repo.habitualMidsleepSec()
+        }
+    }
+
+    /// Local time-of-day in seconds [0, 86400) — the clock the night-guard's bedtime window is in.
+    /// Uses the CURRENT zone, so a traveller's window follows them rather than sticking to home time.
+    static func localSecOfDayNow(_ now: Date = Date()) -> Int {
+        let cal = Calendar.current
+        let c = cal.dateComponents([.hour, .minute, .second], from: now)
+        return (c.hour ?? 0) * 3600 + (c.minute ?? 0) * 60 + (c.second ?? 0)
+    }
+
     private func evaluateIllness(_ days: [DailyMetric]) {
         guard behavior.illnessWatch, days.count >= 14 else {
             healthAlert = nil; illnessSignal = nil; illnessDistance = nil; return

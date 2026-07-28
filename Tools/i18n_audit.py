@@ -254,6 +254,8 @@ def _extract_literals(text: str, start: int, end: int) -> list[tuple[int, str]]:
 ANDROID_DIRS = [
     ROOT / "android/app/src/main/java/com/noop/ui",
     ROOT / "android/app/src/main/java/com/noop/widget",
+    ROOT / "android/app/src/main/java/com/noop/ble",
+    ROOT / "android/app/src/main/java/com/noop/notif",
 ]
 
 # `AlertDialog` is deliberately NOT in this list: confirmed (all 22 call sites
@@ -262,7 +264,7 @@ ANDROID_DIRS = [
 # `Snackbar(`/`TopAppBar(` do not currently appear anywhere in this codebase;
 # kept for whatever future call sites use them, since `Text(` always does
 # take its content as the first argument here.
-ANDROID_CALL_PATTERN = re.compile(r"\b(?:Text|Snackbar|TopAppBar)\s*\(")
+ANDROID_CALL_PATTERN = re.compile(r"\b(?:Text|Snackbar|TopAppBar|setContentTitle|setContentText)\s*\(")
 ANDROID_KWARG_PATTERN = re.compile(r"\b(?:title|label|text|contentDescription|placeholder)\s*=\s*")
 
 # `contentDescription = <expr>` is UI accessibility text wherever it is ASSIGNED. Unlike the general
@@ -471,6 +473,12 @@ def scan_android() -> list[tuple[str, int, str]]:
     return findings
 
 
+# Keys that are deliberately identical in every language, so their absence from a locale file is not
+# a gap. ONE definition: both the hard-gated focus locales and the #844 discovered ones subtract this,
+# and a second copy would let the two paths disagree the moment anyone adds a key here.
+ANDROID_EXEMPT_KEYS = {"app_name"}  # brand name
+
+
 def android_strings_xml_gaps() -> dict[str, set[str]]:
     """Keys present in the base values/strings.xml but missing from an
     existing values-<locale>/strings.xml. (Doesn't invent missing locale dirs —
@@ -480,7 +488,6 @@ def android_strings_xml_gaps() -> dict[str, set[str]]:
     # otherwise DROP those keys out of this gate's view entirely, so a locale could silently lose them —
     # fixing the plural model must not open a coverage hole (see #540 for the same class of blind spot).
     base_keys = set(re.findall(r'<(?:string|plurals) name="([^"]+)"', base_path.read_text(encoding="utf-8")))
-    exempt = {"app_name"}  # brand name, deliberately identical everywhere
     gaps: dict[str, set[str]] = {}
     for lang in LANGS:
         locale_dir = ANDROID_LOCALE_DIRS[lang]
@@ -489,7 +496,7 @@ def android_strings_xml_gaps() -> dict[str, set[str]]:
             gaps[lang] = {"<entire %s/ directory is missing>" % locale_dir}
             continue
         lang_keys = set(re.findall(r'<(?:string|plurals) name="([^"]+)"', lang_path.read_text(encoding="utf-8")))
-        missing = (base_keys - exempt) - lang_keys
+        missing = (base_keys - ANDROID_EXEMPT_KEYS) - lang_keys
         if missing:
             gaps[lang] = missing
     return gaps
@@ -861,6 +868,55 @@ def scan_ios() -> tuple[list[tuple[str, int, str]], dict[str, list[str]]]:
     return hardcoded, lang_gaps
 
 
+# Languages the audit hard-gates at ZERO missing keys. Historically the ONLY languages it looked at
+# — which is why they sit at 100% while everything else drifted. Unchanged here: still zero tolerance.
+#
+# Every OTHER shipped locale is discovered below and gated against a ratcheting allowance instead, so
+# switching coverage on does not red-check every open PR with hundreds of pre-existing gaps (#844).
+EXTRA_LOCALE_BASELINE_PATH = ROOT / "Tools/i18n_extra_locale_baseline.txt"
+
+
+def shipped_apple_langs(cat: dict) -> set[str]:
+    """Every non-English localization the catalog actually carries.
+
+    Read from the catalog rather than a constant so a language is covered the day it appears. The
+    hardcoded LANGS is what let `it`, `ru`, `zh-Hans` and `zh-Hant` ship for months at up to 85%
+    untranslated while the audit reported green (#844).
+    """
+    langs: set[str] = set()
+    for v in cat.get("strings", {}).values():
+        langs |= set((v.get("localizations") or {}).keys())
+    return langs - {"en"}
+
+
+def shipped_android_locale_dirs() -> list[str]:
+    """Every `values-<locale>` directory on disk, not just the four in ANDROID_LOCALE_DIRS.
+
+    `values-zh` has existed and been unchecked long enough to fall 43 keys behind (#844).
+    """
+    res = ROOT / "android/app/src/main/res"
+    return sorted(d.name for d in res.glob("values-*") if (d / "strings.xml").exists())
+
+
+def extra_locale_allowance() -> dict[str, int]:
+    """`target -> allowed missing count` for the newly-covered locales.
+
+    Counts rather than key lists, for the same reason as Tools/doc_comment_lint_baseline.txt: a key
+    list goes stale on every edit and trains people to regenerate it unread, while a count moves only
+    when someone adds or removes a gap. Ratchets DOWN — closing gaps prints an IMPROVED line.
+    """
+    if not EXTRA_LOCALE_BASELINE_PATH.exists():
+        return {}
+    out: dict[str, int] = {}
+    for raw in EXTRA_LOCALE_BASELINE_PATH.read_text(encoding="utf-8").splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if not line:
+            continue
+        target, _, count = line.rpartition(" ")
+        out[target.strip()] = int(count)
+    return out
+
+
 BASELINE_PATH = ROOT / "Tools/i18n_audit_baseline.json"
 
 
@@ -953,8 +1009,18 @@ def ci_check(base_ref: str) -> int:
     ios_fixed = baseline["ios"] - ios_found
     if ios_fixed:
         print(f"  {len(ios_fixed)} baseline entr(y/ies) no longer found — run --update-baseline to shrink the backlog")
+    allowance = extra_locale_allowance()
+    extra_apple_gaps: dict[str, int] = {}
     for _dirs, catalog_path in CATALOGS:
         cat = load_catalog(catalog_path)
+        # #844: count the shipped locales OUTSIDE the focus set while the catalog is already parsed,
+        # and gate them below. Reloading each catalog for a second pass wasted a full re-parse of a
+        # 3255-string file.
+        for extra in sorted(shipped_apple_langs(cat) - set(LANGS)):
+            extra_apple_gaps[f"{catalog_path.relative_to(ROOT)}:{extra}"] = sum(
+                1 for v in cat.get("strings", {}).values()
+                if v.get("shouldTranslate") is not False and not _is_translated(v, extra)
+            )
         for lang in LANGS:
             missing = sum(
                 1 for v in cat.get("strings", {}).values()
@@ -970,6 +1036,52 @@ def ci_check(base_ref: str) -> int:
                 failed = True
                 print(f"FAIL {catalog_path.relative_to(ROOT)} {lang}: {len(format_gaps)} format mismatch(es): {format_gaps[:10]}")
 
+    # #844: every OTHER shipped locale, gated against a ratcheting allowance. LANGS above stays at zero
+    # tolerance; these carry real pre-existing debt (StrandDesign ships 14 of 95 Italian), so the gate
+    # blocks GROWTH rather than demanding the backlog be cleared before anyone can merge.
+    print("\n--- Locales beyond the focus set: no NEW gaps (ratcheting allowance) ---")
+    # Local, NOT the global `failed`: an earlier section failing (a German string, an un-extracted
+    # literal) must not silence this section's own verdict. Reporting nothing here reads as "did not
+    # run", which is the worst thing a gate can say to someone trying to understand a red build.
+    locale_failed = False
+    improved: list[str] = []
+    seen_targets: set[str] = set()
+    for target, missing in sorted(extra_apple_gaps.items()):
+        seen_targets.add(target)
+        allowed = allowance.get(target, 0)
+        if missing > allowed:
+            failed = True
+            locale_failed = True
+            print(f"FAIL {target}: missing={missing} exceeds the allowance of {allowed}")
+        elif missing < allowed:
+            improved.append(f"{target}: {allowed} -> {missing}")
+    base_path = ROOT / "android/app/src/main/res/values/strings.xml"
+    base_keys = set(re.findall(r'<(?:string|plurals) name="([^"]+)"', base_path.read_text(encoding="utf-8")))
+    for locale_dir in shipped_android_locale_dirs():
+        if locale_dir in ANDROID_LOCALE_DIRS.values():
+            continue   # already hard-gated above
+        lang_path = ROOT / f"android/app/src/main/res/{locale_dir}/strings.xml"
+        lang_keys = set(re.findall(r'<(?:string|plurals) name="([^"]+)"', lang_path.read_text(encoding="utf-8")))
+        missing = len((base_keys - ANDROID_EXEMPT_KEYS) - lang_keys)
+        target = f"{locale_dir}/strings.xml"
+        seen_targets.add(target)
+        allowed = allowance.get(target, 0)
+        if missing > allowed:
+            failed = True
+            locale_failed = True
+            print(f"FAIL {target}: missing={missing} exceeds the allowance of {allowed}")
+        elif missing < allowed:
+            improved.append(f"{target}: {allowed} -> {missing}")
+    # An allowance for a target that no longer exists (locale removed, catalog dropped) can never be
+    # satisfied and silently inflates the tracked total, so surface it rather than let it rot.
+    for stale in sorted(set(allowance) - seen_targets):
+        print(f"  STALE {stale} is no longer present — drop it from {EXTRA_LOCALE_BASELINE_PATH.name}.")
+    for line in improved:
+        print(f"  IMPROVED {line}. Lower it in {EXTRA_LOCALE_BASELINE_PATH.name}.")
+    if not locale_failed:
+        tracked = sum(allowance.values())
+        print(f"  OK no new gaps in the non-focus locales ({tracked} tracked, ratcheting down)")
+
     return 1 if failed else 0
 
 
@@ -980,7 +1092,11 @@ def catalog_summary() -> None:
         strings = cat.get("strings", {})
         total = len(strings)
         line = f"{catalog_path.relative_to(ROOT)} ({total} keys):"
-        for lang in LANGS:
+        # #844: report every locale the catalog actually ships, not just the focus four. Showing only
+        # LANGS is very likely WHY the drift went unnoticed for so long — this summary read 100% across
+        # the board while `it` sat at 14 of 95. The gate and the human-readable view must see the same
+        # set, or the view quietly reassures you about languages nobody is checking.
+        for lang in sorted(set(LANGS) | shipped_apple_langs(cat)):
             missing = 0
             for v in strings.values():
                 if v.get("shouldTranslate") is False:
@@ -997,7 +1113,7 @@ def main() -> int:
     ap.add_argument("--platform", choices=["ios", "android", "all"], default="all")
     ap.add_argument("--full", action="store_true", help="print every finding, not just counts")
     ap.add_argument("--ci", metavar="BASE_REF", help="strict coverage gate (BASE_REF is retained for workflow compatibility); see ci_check() docstring")
-    ap.add_argument("--update-baseline", action="store_true", help="rewrite Tools/i18n_audit_baseline.json from the current hardcoded-literal scan (see load_baseline() docstring)")
+    ap.add_argument("--update-baseline", action="store_true", help="rewrite Tools/i18n_audit_baseline.json from the current hardcoded-literal scan (see load_baseline() docstring). Does NOT touch Tools/i18n_extra_locale_baseline.txt — that one is lowered by hand, so shrinking it stays a deliberate act")
     args = ap.parse_args()
 
     if args.update_baseline:

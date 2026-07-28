@@ -14,6 +14,7 @@ import com.noop.analytics.HrZones
 import com.noop.analytics.IllnessSignalEngine
 import com.noop.analytics.IllnessWatch
 import com.noop.analytics.IntelligenceEngine
+import com.noop.analytics.CircadianEngine
 import com.noop.analytics.V5HealthSignals
 import com.noop.analytics.RegistryDayOwnerSource
 import com.noop.analytics.RestScorer
@@ -63,6 +64,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.TimeZone
 import kotlin.math.roundToInt
 
 /**
@@ -75,6 +77,35 @@ import kotlin.math.roundToInt
 /** Last Health Connect writeback outcome for the Data Sources UI (#660). [code] is a PII-safe
  *  category (see [NoopPrefs.HC_WB_OK] etc.); "" = never attempted. */
 data class HcWritebackStatus(val code: String, val atMs: Long, val written: Int)
+
+/**
+ * The pure half of the body-clock binning (#852): hourly HR buckets + a timezone offset -> a per-hour
+ * activity profile and the number of distinct local days it spans.
+ *
+ * Separated from the store read so it is unit-testable with no Context, no ViewModel and no database.
+ * Byte-for-byte mirror of the maths in Swift `AppModel.computeCircadianPhase`: the >= 24-bucket floor,
+ * pooling by LOCAL hour-of-day, mean bpm per populated hour, and distinct local days as `daysObserved`.
+ */
+internal fun circadianBinsFrom(
+    buckets: List<com.noop.data.HrBucket>,
+    tzOffsetSeconds: Long,
+): Pair<List<CircadianEngine.ActivityBin>, Int> {
+    if (buckets.size < 24) return emptyList<CircadianEngine.ActivityBin>() to 0
+    val sums = DoubleArray(24)
+    val counts = IntArray(24)
+    val days = HashSet<Long>()
+    for (b in buckets) {
+        val local = b.bucket + tzOffsetSeconds
+        val hour = (((local % 86_400L) + 86_400L) % 86_400L / 3_600L).toInt()
+        sums[hour] += b.avgBpm
+        counts[hour] += 1
+        days.add(local / 86_400L)
+    }
+    val bins = (0 until 24).mapNotNull { h ->
+        if (counts[h] > 0) CircadianEngine.ActivityBin(h.toDouble(), sums[h] / counts[h]) else null
+    }
+    return bins to days.size
+}
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -363,6 +394,41 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      *  workout union can follow a re-paired strap's fresh "whoop-<id>" instead of stranding its
      *  recordings under a read pinned to the literal "my-whoop" (#814 twin of the Workouts screen). */
     val deviceId = noopApp.activeDeviceId
+
+    /** Last (bins, daysObserved) computed on the collector pass. Reused by the SYNCHRONOUS settings
+     *  re-evaluate below, which has no coroutine to read the store from — without this, flipping the
+     *  cycle-tracking toggle would blank the body clock until the next collector tick.
+     *
+     *  Not volatile and not synchronised, deliberately: the write resumes on `viewModelScope`
+     *  (Dispatchers.Main.immediate) and the read is a UI-thread settings callback, so both touch it on
+     *  the main thread. The Swift twin gets the same guarantee from `@MainActor` on AppModel. */
+    private var lastCircadianBins: Pair<List<CircadianEngine.ActivityBin>, Int> =
+        emptyList<CircadianEngine.ActivityBin>() to 0
+
+    /**
+     * Per-hour activity profile for the body clock (#852), from the last ~14 days of hourly HR buckets.
+     * HR amplitude is a usable rest/activity rhythm proxy when raw motion is not to hand.
+     *
+     * Byte-for-byte mirror of Swift `AppModel.computeCircadianPhase`: 3600 s buckets, the >= 24-bucket
+     * floor, pooling by LOCAL hour-of-day, and `daysObserved` as the count of distinct local days. The
+     * binning lives here rather than in `CircadianEngine` precisely because Swift keeps it in AppModel —
+     * the engine stays an untouched byte-for-byte mirror on both platforms.
+     *
+     * Returns an empty list when there is too little to read; the caller treats that as "no estimate".
+     */
+    private suspend fun circadianActivityBins(): Pair<List<CircadianEngine.ActivityBin>, Int> {
+        val nowMs = System.currentTimeMillis()
+        val now = nowMs / 1000L
+        val from = now - 14L * 86_400L
+        // hrBucketsUnion, not hrBuckets: the Swift twin's `repo.hrBuckets(from:to:)` UNIONs the active
+        // strap with the canonical "my-whoop" (#814 read spine). Reading one id here would give Android
+        // strictly less data than Apple after a strap re-add — enough to miss the 24-bucket floor and
+        // render no estimate where Swift renders one. Single-WHOOP install resolves to one id either way.
+        val buckets = runCatching { repository.hrBucketsUnion(deviceId, from, now, 3_600L) }
+            .getOrDefault(emptyList())
+        val tz = TimeZone.getDefault().getOffset(nowMs) / 1000L
+        return circadianBinsFrom(buckets, tz)
+    }
 
     /** Live connection + biometric snapshot, surfaced straight from the BLE client. */
     val live: StateFlow<LiveState> = ble.state
@@ -733,10 +799,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 // so the contract the notification path relies on is untouched. Best-effort — never let a
                 // signals hiccup kill the collector.
                 runCatching {
+                    lastCircadianBins = circadianActivityBins()
                     _v5Signals.value = V5HealthSignals.evaluate(
                         days = days,
                         cycleOptedIn = _cycleTrackingEnabled.value,
                         journalContext = illnessJournalContext(days),
+                        activityBins = lastCircadianBins.first,
+                        daysObserved = lastCircadianBins.second,
                     )
                 }
                 // Keep the home-screen widget fresh while the app is open — covers users who turned
@@ -868,8 +937,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         // report ships proof of what was computed per day. Mirrors the macOS sink wired to
                         // live.append(log:). (Sleep overhaul §2.5.)
                         diag = { line -> ble.externalLog(line) },
-                        // Opt-in experimental sleep staging (V2) — read off SharedPreferences here (the
-                        // analytics layer is Context-free) and thread it into the sleep self-heal. (V7 3b)
+                        // Experimental sleep staging (V2) — read off SharedPreferences here (the analytics
+                        // layer is Context-free) and thread it into the sleep self-heal. The preference is
+                        // default TRUE, so this normally passes V2. (V7 3b)
                         useExperimentalSleepV2 = PuffinExperiment.from(appContext).experimentalSleepV2,
                         // Opt-in motion-aware wake refinement (#364 follow-up) — same Context-free threading.
                         useMotionAwareWake = PuffinExperiment.from(appContext).motionAwareWake,
@@ -1475,8 +1545,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 // would re-score + persist every night's HRV over the WHOLE night, silently overwriting the
                 // deep-window value (the "deep sleep window changes nothing" bug).
                 deepHrvWindow = UnitPrefs.hrvWindow(appContext) == HrvWindow.DEEP_SLEEP,
-                // Opt-in experimental sleep staging (V2) — same flag the 15-min loop reads, so a manual
-                // re-score after an edit stages with the same engine the user chose. (V7 Pillar 3b)
+                // Experimental sleep staging (V2) — same flag the 15-min loop reads (default TRUE), so a
+                // manual re-score after an edit stages with the same engine the user chose. (V7 Pillar 3b)
                 useExperimentalSleepV2 = PuffinExperiment.from(appContext).experimentalSleepV2,
                 // Opt-in motion-aware wake refinement (#364 follow-up) — same flag the 15-min loop reads.
                 useMotionAwareWake = PuffinExperiment.from(appContext).motionAwareWake,
@@ -1582,11 +1652,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      *  HR-curve. A short session wants a finer bucket than the Today 24h chart (300 s would flatten a
      *  30-min run to ~6 points), so the bucket scales with duration: ~120 buckets across the window,
      *  floored at 15 s and capped at 300 s. Mirrors macOS Repository.workoutHrBuckets. */
-    suspend fun workoutHrBuckets(from: Long, to: Long): List<com.noop.data.HrBucket> {
+    suspend fun workoutHrBuckets(
+        from: Long,
+        to: Long,
+        source: String = "",
+        rowDeviceId: String = deviceId,
+    ): List<com.noop.data.HrBucket> {
         if (to <= from) return emptyList()
         val span = to - from
         val bucket = (span / 120).coerceIn(15L, 300L)
-        return runCatching { repository.hrBuckets(deviceId, from, to, bucket) }.getOrDefault(emptyList())
+        // #856: read the ids this row actually belongs to. A bout detected on a SECOND WHOOP charts
+        // from the strap that recorded it; an imported row gets the active ∪ canonical union, since it
+        // has no strap of its own and the worn strap may bank under either after a re-add. Previously
+        // this read the single active id, so both cases could chart the wrong data — and disagree with
+        // the Avg HR on the same card. Defaults keep any caller without a row on today's behaviour.
+        val ids = WhoopRepository.workoutHrDeviceIds(source, rowDeviceId, deviceId)
+        return runCatching { repository.hrBucketsFor(ids, from, to, bucket) }.getOrDefault(emptyList())
     }
 
     /** Per-zone MINUTES for a workout window, binning the strap's raw HR samples into the age-derived
@@ -1594,9 +1675,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      *  percentages, but from the strap's own samples so a session WITHOUT imported zones still gets a
      *  real time-in-zone split. null when the window carries no HR. age <= 0 falls back to 30 y.
      *  Mirrors macOS Repository.workoutZoneMinutes. */
-    suspend fun workoutZoneMinutes(from: Long, to: Long): List<Double>? {
+    suspend fun workoutZoneMinutes(
+        from: Long,
+        to: Long,
+        source: String = "",
+        rowDeviceId: String = deviceId,
+    ): List<Double>? {
         if (to <= from) return null
-        val samples = runCatching { repository.hrSamples(deviceId, from, to) }.getOrDefault(emptyList())
+        // #856: the same resolved ids the chart and Avg HR use. Binning a different strap's samples
+        // than the curve plots would put three different answers on one card.
+        val ids = WhoopRepository.workoutHrDeviceIds(source, rowDeviceId, deviceId)
+        val samples = runCatching { repository.hrSamplesFor(ids, from, to) }.getOrDefault(emptyList())
         if (samples.isEmpty()) return null
         val age = profileStore.age.toDouble().takeIf { it > 0 } ?: 30.0
         val zoneSet = com.noop.analytics.HrZones.zones(age = age)
@@ -1608,12 +1697,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** HRR for one workout (#516), derived from a narrow workout-end + post-workout HR read. The pure
      *  engine owns the intensity and coverage gates, so a disconnect after exercise returns null rather
      *  than an interpolated value. Mirrors macOS Repository.workoutHeartRateRecovery. */
-    suspend fun workoutHeartRateRecovery(from: Long, to: Long): com.noop.analytics.HeartRateRecovery.Result? {
+    suspend fun workoutHeartRateRecovery(
+        from: Long,
+        to: Long,
+        source: String = "",
+        rowDeviceId: String = deviceId,
+    ): com.noop.analytics.HeartRateRecovery.Result? {
         if (to <= from) return null
         val readFrom = maxOf(from, to - com.noop.analytics.HeartRateRecovery.eligibilityLookbackSeconds)
         val readTo = to + 5 * 60 + com.noop.analytics.HeartRateRecovery.measurementToleranceSeconds
+        // #856: the same resolved ids as the chart, zones and Avg HR — the fourth surface on this card.
+        // The recovery window extends PAST the bout, but the strap that recorded it is still the one on
+        // the wrist a few minutes later, so a detected bout reads its own strap here too.
+        val ids = WhoopRepository.workoutHrDeviceIds(source, rowDeviceId, deviceId)
         val samples = runCatching {
-            repository.hrSamplesUnion(activeStrapId, readFrom, readTo, limit = 2_000)
+            repository.hrSamplesFor(ids, readFrom, readTo, limit = 2_000)
         }.getOrDefault(emptyList())
         return com.noop.analytics.HeartRateRecovery.calculate(
             samples = samples,
@@ -1775,6 +1873,29 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val bodyLocationProbe = ble.bodyLocationProbe
 
     fun clearBodyLocationProbe() = ble.clearBodyLocationProbe()
+
+    /** #761: READ-ONLY feature-flag ENUMERATION probe (117 then repeated 118) — reads the flag NAMES the
+     *  strap's own firmware knows and writes nothing (no SET_FF_VALUE, no value of any kind).
+     *  User-initiated, Test-Centre-gated in DevicesScreen; the report goes to the dialog + strap log. */
+    fun probeFeatureFlags() = ble.probeFeatureFlags()
+
+    /** Stop an offload part-way through (#ABORT). Twin of Swift `AppModel`/`BLEManager.abortBackfill()`. */
+    fun abortBackfill() = ble.abortBackfill()
+
+    /** #761 probe report text (null until the walk finishes; waiting sentinel while it runs). */
+    val featureFlagProbe = ble.featureFlagProbe
+
+    fun clearFeatureFlagProbe() = ble.clearFeatureFlagProbe()
+
+    /** #103: READ-ONLY device-config READ probe (GET_DEVICE_CONFIG_VALUE/121 + GET_FF_VALUE/128) — asks
+     *  the strap for a config key's VALUE, the follow-up to #761's key-NAME enumeration. Writes nothing.
+     *  User-initiated, Test-Centre-gated in DevicesScreen; the report goes to the dialog + strap log. */
+    fun probeDeviceConfigValues() = ble.probeDeviceConfigValues()
+
+    /** #103 probe report text (null until the plan finishes; waiting sentinel while it runs). */
+    val deviceConfigProbe = ble.deviceConfigProbe
+
+    fun clearDeviceConfigProbe() = ble.clearDeviceConfigProbe()
 
     /**
      * Flip the "keep connected in the background" preference (driven by Settings). Turning it on
@@ -2148,6 +2269,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 days = days,
                 cycleOptedIn = enabled,
                 journalContext = illnessJournalContext(days),
+                activityBins = lastCircadianBins.first,
+                daysObserved = lastCircadianBins.second,
             )
         }
     }

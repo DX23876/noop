@@ -17,6 +17,8 @@ object AlertInbox {
         BATTERY_LOW("battery-low", 3L * 24L * 60L * 60L * 1000L, "devices"),
         BATTERY_RUNTIME("battery-runtime", 3L * 24L * 60L * 60L * 1000L, "devices"),
         BATTERY_FULL("battery-full", 24L * 60L * 60L * 1000L, "devices"),
+        BATTERY_CRITICAL("battery-critical", 3L * 24L * 60L * 60L * 1000L, "devices"),
+        BATTERY_BEDTIME("battery-bedtime", 24L * 60L * 60L * 1000L, "devices"),
         ILLNESS("illness", 2L * 24L * 60L * 60L * 1000L),
         INACTIVITY("inactivity", 24L * 60L * 60L * 1000L),
         SMART_ALARM("smart-alarm", 24L * 60L * 60L * 1000L),

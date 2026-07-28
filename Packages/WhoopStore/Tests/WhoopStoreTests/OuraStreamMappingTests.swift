@@ -50,6 +50,40 @@ final class OuraStreamMappingTests: XCTestCase {
         XCTAssertEqual(ev.payload["b2"], .int(3))
     }
 
+    // MARK: - Motion 0x47 -> events[OURA_MOTION]
+
+    func testMotionMapsToOuraMotionEvent() {
+        let s = OuraStreamMapping.streams(from: [
+            .motionEvent(OuraMotionEvent(ringTimestamp: 100, orientation: 5, motionSeconds: 21,
+                                         avgX: -96, avgY: 0, avgZ: -1024, lowIntensity: 42, highIntensity: 63)),
+        ], at: ts)
+        XCTAssertEqual(s.events.count, 1)
+        let ev = s.events[0]
+        XCTAssertEqual(ev.kind, OuraStreamMapping.motionEventKind)
+        XCTAssertEqual(ev.kind, "OURA_MOTION")
+        XCTAssertEqual(ev.ts, ts)
+        // The ring's OWN per-window motion summary; keys/values must match the Kotlin twin exactly.
+        XCTAssertEqual(ev.payload["orientation"], .int(5))
+        XCTAssertEqual(ev.payload["motion_seconds"], .int(21))
+        XCTAssertEqual(ev.payload["x"], .int(-96))
+        XCTAssertEqual(ev.payload["y"], .int(0))
+        XCTAssertEqual(ev.payload["z"], .int(-1024))
+        XCTAssertEqual(ev.payload["low_intensity"], .int(42))
+        XCTAssertEqual(ev.payload["high_intensity"], .int(63))
+    }
+
+    func testMotionShortRecordOmitsIntensityKeys() {
+        // A short (4-byte) record decodes with nil low/high — the keys are ABSENT, never faked to 0.
+        let s = OuraStreamMapping.streams(from: [
+            .motionEvent(OuraMotionEvent(ringTimestamp: 100, orientation: 1, motionSeconds: 0,
+                                         avgX: 80, avgY: 0, avgZ: 0, lowIntensity: nil, highIntensity: nil)),
+        ], at: ts)
+        let ev = s.events[0]
+        XCTAssertEqual(ev.payload["motion_seconds"], .int(0))
+        XCTAssertNil(ev.payload["low_intensity"], "absent intensity must not be faked")
+        XCTAssertNil(ev.payload["high_intensity"], "absent intensity must not be faked")
+    }
+
     // MARK: - SpO2 -> spo2:[SpO2Sample]
 
     func testSpO2MapsToSpO2StreamPreservingUnit() {

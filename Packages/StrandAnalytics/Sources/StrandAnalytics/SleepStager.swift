@@ -827,12 +827,16 @@ public enum SleepStager {
     /// re-onset (#531): a daytime block the strap itself scored predominantly "asleep" is KEPT even on a
     /// borderline HR dip. Default empty keeps pure-function callers/tests free of it; IntelligenceEngine
     /// passes the night window's persisted band state. It can only RESCUE a real-sleep block, never fabricate.
-    /// `useSleepStagerV2` (V7 / #690): when true, each accepted night is staged by the experimental
-    /// cardiorespiratory recipe `SleepStagerV2.stageSession` instead of V1's `stageSession`. DETECTION is
-    /// unchanged (same accepted windows); only the per-epoch hypnogram differs. Default false keeps V1 the
-    /// byte-identical default (the frozen-golden tests stay green). The live call site threads
-    /// `PuffinExperiment.experimentalSleepV2Enabled` so the Settings toggle now affects normal detected
-    /// nights, not just the self-heal restage path.
+    /// `useSleepStagerV2` (V7 / #690): which recipe stages an accepted night — the cardiorespiratory
+    /// `SleepStagerV2.stageSession` when true, V1's `stageSession` when false. DETECTION is unchanged
+    /// (same accepted windows); only the per-epoch hypnogram differs.
+    ///
+    /// THE TWO DEFAULTS ARE NOT THE SAME, and reading only the signature gets this backwards. This
+    /// PARAMETER defaults false so pure-function callers and the frozen-golden tests stay byte-identical.
+    /// The SHIPPED app never takes that default: the live call site threads
+    /// `PuffinExperiment.experimentalSleepV2Enabled`, which is **default ON** (V2 was promoted over V1 in
+    /// #277 and extended to every strap family in #351), so a normal user's nights are staged by **V2**.
+    /// `= false` here describes the library's contract with its callers, not the product's behaviour.
     /// `sleepHRBaseline` (motion-corroborated wake, directive b): the wearer's PERSONALISED overnight HR band
     /// (`adaptiveOvernightHRBaseline`), used by `confirmSleepWithHR` in place of the day-median so a supplement /
     /// fitness era self-calibrates the sleep band. Default nil keeps the day-median (byte-identical to before);

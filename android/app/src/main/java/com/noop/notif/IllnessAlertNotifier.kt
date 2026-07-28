@@ -49,7 +49,7 @@ object IllnessAlertNotifier {
             )
             val n = NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_stat_heart)
-                .setContentTitle("Early warning: take it easy")
+                .setContentTitle(context.getString(R.string.illness_alert_title))
                 .setContentText(alert)
                 .setStyle(
                     NotificationCompat.BigTextStyle()

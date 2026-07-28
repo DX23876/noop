@@ -938,11 +938,14 @@ object SleepStager {
         // HR dip. Default empty keeps pure-function callers/tests free of it; IntelligenceEngine passes the
         // night window's persisted band state. It can only RESCUE a real-sleep block, never fabricate. Mirrors Swift.
         bandSleepState: List<Pair<Long, Int>> = emptyList(),
-        // V7 / #690: when true, each accepted night is staged by the experimental cardiorespiratory recipe
-        // [SleepStagerV2.stageSession] instead of V1's [stageSession]. DETECTION is unchanged (same accepted
-        // windows); only the per-epoch hypnogram differs. Default false keeps V1 the byte-identical default
-        // (frozen-golden tests stay green). The live call site threads the experimentalSleepV2 flag so the
-        // Settings toggle now affects normal detected nights, not just the self-heal restage path. Mirrors Swift.
+        // V7 / #690: which recipe stages an accepted night — the cardiorespiratory
+        // [SleepStagerV2.stageSession] when true, V1's [stageSession] when false. DETECTION is unchanged
+        // (same accepted windows); only the per-epoch hypnogram differs.
+        // THE TWO DEFAULTS DIFFER. This PARAMETER defaults false so pure-function callers and the
+        // frozen-golden tests stay byte-identical. The SHIPPED app never takes that default: the live call
+        // site threads the experimentalSleepV2 preference, which is default TRUE (V2 promoted over V1 in
+        // #277, extended to every strap family in #351), so a normal user's nights are staged by V2.
+        // Mirrors Swift.
         useSleepStagerV2: Boolean = false,
         // Motion-corroborated wake (#462, directive b): the wearer's PERSONALISED overnight HR band
         // ([adaptiveOvernightHRBaseline]), used by [confirmSleepWithHR] in place of the day-median so a

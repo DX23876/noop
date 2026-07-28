@@ -457,6 +457,44 @@ public enum OuraDecoders {
         return out.isEmpty ? nil : out
     }
 
+    // MARK: - Motion events, averaged accel vector (0x47; s6.13)
+
+    /// Decode a 0x47 `motion_events` record: a compact per-window motion summary. Layout is a
+    /// byte-for-byte port of open_oura's `decode_motion` / native `parse_api_motion_events`
+    /// (clean-room fact citation; OURA_PROTOCOL.md s6.13):
+    ///   byte0 >> 5      = orientation (0…7)
+    ///   byte0 & 0x1f    = motion_seconds (0…31)
+    ///   byte1/2/3       = avg X/Y/Z, signed int8 × 8
+    ///   byte4 (opt)     = low_intensity: bit 0x40 set ⇒ INVALID (whole record → nil); else `& 0x3f`
+    ///   byte5 (opt)     = high_intensity: bit 0x40 set ⇒ INVALID (whole record → nil); else `& 0x3f`
+    /// Needs ≥ 4 bytes (orientation/motion_seconds + the 3 axes); low/high intensity are optional. The
+    /// avg vector is the SAME averaged-accel shape as a WHOOP 4.0 gravity sample. NOTE (validated
+    /// on-device #804): 0x47 is MOVEMENT-GATED — the ring emits it only while moving, so there is no
+    /// still/1 g sample; `motion_seconds` / intensity are the activity signal, not a gravity magnitude.
+    public static func decodeMotionEvents(_ rec: OuraRecord) -> OuraMotionEvent? {
+        let b = rec.payload
+        guard b.count >= 4 else { return nil }
+        var low: Int? = nil
+        if b.count >= 5 {
+            guard b[4] & 0x40 == 0 else { return nil }
+            low = Int(b[4] & 0x3f)
+        }
+        var high: Int? = nil
+        if b.count >= 6 {
+            guard b[5] & 0x40 == 0 else { return nil }
+            high = Int(b[5] & 0x3f)
+        }
+        return OuraMotionEvent(
+            ringTimestamp: rec.ringTimestamp,
+            orientation: Int(b[0] >> 5),
+            motionSeconds: Int(b[0] & 0x1f),
+            avgX: Int(Int8(bitPattern: b[1])) * 8,
+            avgY: Int(Int8(bitPattern: b[2])) * 8,
+            avgZ: Int(Int8(bitPattern: b[3])) * 8,
+            lowIntensity: low,
+            highIntensity: high)
+    }
+
     // MARK: - Activity info (0x50; s6.13) - Tier B, third-party formula
 
     /// Decode the 0x50 activity_info record: byte0 = a `state` code (activity-category; meaning

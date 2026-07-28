@@ -230,6 +230,13 @@
     <string name="l10n_devices_screen_body_location_probe_690_re_7def8c39">Sonda de posición corporal (#690 RE)…</string>
     <string name="l10n_devices_screen_body_location_probe_result_690_60c5ee79">Resultado de la sonda de posición corporal (#690)</string>
     <string name="l10n_devices_screen_body_location_probe_explainer_a9363239">Envía el comando de posición corporal de solo lectura (0x54) y vuelca la respuesta cruda completa de la banda al registro, decodificando el registro (revisión / posición / confianza / estado) en la WHOOP 4.0. No se escribe nada en la banda y nunca cambia la detección de uso ni la puntuación.</string>
+    <string name="l10n_devices_screen_feature_flag_probe_761_re_21241d68">Sonda de indicadores de función (#761 RE)…</string>
+    <string name="l10n_devices_screen_stop_sync_4a1f2b6e">Detener sincronización</string>
+    <string name="l10n_devices_screen_feature_flag_probe_result_761_c50ef4d4">Resultado de la sonda de indicadores de función (#761)</string>
+    <string name="l10n_devices_screen_feature_flag_probe_explainer_58eec30f">Pide a la banda que enumere los NOMBRES de los indicadores de función que conoce su propio firmware: START_FF_KEY_EXCHANGE (0x75) y luego SEND_NEXT_FF (0x76) hasta que la banda indique que ha terminado. Solo lectura — no se escribe ningún valor y esta sonda nunca envía los comandos SET. La lista se muestra aquí y se escribe en el registro de la banda.</string>
+    <string name="l10n_devices_screen_device_config_read_probe_103_re_837f46de">Sonda de lectura de configuración del dispositivo (#103 RE)…</string>
+    <string name="l10n_devices_screen_device_config_read_probe_result_103_67d02ec9">Resultado de la sonda de lectura de configuración del dispositivo (#103)</string>
+    <string name="l10n_devices_screen_device_config_probe_explainer_dd23169f">Pide a la banda los VALORES de configuración: GET_DEVICE_CONFIG_VALUE (0x79) y GET_FF_VALUE (0x80), una clave por intercambio. Puede que ambos comandos sencillamente no existan en este firmware; averiguarlo es el objetivo. Solo lectura: no se escribe ningún valor y los comandos SET nunca se envían desde esta sonda. El resultado se muestra aquí y se escribe en el registro de la banda.</string>
     <string name="l10n_devices_screen_battery_probe_explainer_2858bb6a">Dos tablas de protocolo independientes discrepan sobre el opcode de batería extendida (98 vs 87). Esto envía el 98 curado y de solo lectura y vuelca la respuesta cruda completa de la banda al registro. Una carga tipo batería confirma 98 en tu firmware; un stub corto lo deja ambiguo. No se escribe nada en la banda. Exporta y comparte el registro después.</string>
     <string name="l10n_devices_screen_cancel_77dfd213">Cancelar</string>
     <string name="l10n_devices_screen_clamped_1f39cebb">%1$s%%</string>
@@ -1000,6 +1007,7 @@
     <string name="l10n_app_changelog_personal_vital_baselines_mac_analytics_parity_744972d1">Bases vitales personales + Paridad analítica de Mac</string>
     <string name="l10n_app_changelog_polish_matched_to_the_iphone_mac_cc34126b">Polaco - compatible con el diseño iPhone &amp;amp; Mac</string>
     <string name="l10n_app_changelog_german_french_spanish_pull_to_sync_1109bda2">Alemán, francés y español, deslizar para sincronizar en Today y una oleada de mejoras</string>
+    <string name="l10n_app_changelog_hrv_accuracy_fix_oura_sleep_and_4ed31e39">Corrección de HRV, sueño y movimiento de Oura, más datos 5/MG y una sincronización que puedes detener</string>
     <string name="l10n_app_changelog_optimal_strain_alerts_faster_history_sync_6488a27a">Avisos de esfuerzo óptimo, sincronización del historial más rápida y una oleada de correcciones de precisión</string>
     <string name="l10n_app_changelog_power_saving_that_protects_your_strap_57a32503">Ahorro de energía que protege su correa, un entrenador con Géminis en Android, y detalles métricos más ricos</string>
     <string name="l10n_app_changelog_raw_spo_honest_units_and_a_55e83a59">Raw SpO2, unidades honestas y una aplicación más ligera</string>
@@ -1638,6 +1646,7 @@
     <string name="timeline_metric_respiration">Respiración</string>
     <string name="timeline_metric_motion">Movimiento</string>
     <string name="timeline_metric_band_sleep_state">Estado de sueño de la pulsera</string>
+    <string name="timeline_metric_movement">Movimiento</string>
     <string name="explore_category_charge">Carga</string>
     <string name="explore_category_effort">Esfuerzo</string>
     <string name="explore_category_rest">Descanso</string>
@@ -1706,4 +1715,46 @@
         <item quantity="one">Máxima: %1$d día</item>
         <item quantity="other">Máxima: %1$d días</item>
     </plurals>
+
+    <!-- Alertas de batería escaladas (cruce crítico de carga + guardia nocturna antes de dormir). -->
+    <string name="battery_critical_title">Cargue su WHOOP ahora</string>
+    <string name="battery_critical_body">Queda %1$d%%. La correa deja de registrar cerca del 10%% — no captará esta noche si no la carga.</string>
+    <string name="battery_bedtime_title">No aguantará la noche</string>
+    <string name="battery_bedtime_body">Queda %1$s de registro, pero esta noche necesita alrededor de %2$s. Cárguela antes de acostarse.</string>
+
+    <!-- #867: the three older battery notifications, previously raw Kotlin literals in
+         BatteryAlertNotifier and therefore English in every locale. Wording and translations are the
+         Apple catalog's, moved across unchanged. -->
+    <string name="battery_runtime_title">Batería baja de la pulsera</string>
+    <string name="battery_runtime_body">Autonomía restante en tu WHOOP: %1$s. Recárgalo esta noche.</string>
+    <string name="battery_low_title">Batería baja</string>
+    <string name="battery_low_body">Recarga tu WHOOP antes de esta noche.</string>
+    <string name="battery_full_title">Pulsera completamente cargada</string>
+    <string name="battery_full_body">Tu WHOOP está al 100%.</string>
+
+    <!-- Foreground-service notification (WhoopConnectionService). Always on screen while the strap is
+         connected, and hardcoded English until now: com/noop/ble is outside i18n_audit.py's scan roots,
+         and a NotificationCompat builder chain matches none of its Compose patterns, so the gate could
+         not see it. postNotification's dedupe key now includes the locale — without that, these would
+         keep the previous language until the connection or battery state happened to change. -->
+    <string name="fgs_title_reconnecting">Reconectando con tu WHOOP…</string>
+    <string name="fgs_title_syncing">Sincronizando el historial de la pulsera…</string>
+    <string name="fgs_title_connected">Conectado a tu WHOOP</string>
+    <string name="fgs_detail_streaming">Transmitiendo en segundo plano</string>
+    <string name="fgs_detail_keeping_link">Manteniendo la conexión abierta</string>
+    <string name="fgs_detail_recovery">Recuperación %1$d%%</string>
+    <string name="fgs_detail_battery">Pulsera %1$d%%</string>
+    <string name="fgs_action_disconnect">Desconectar</string>
+    <string name="fgs_channel_name">Conexión de la pulsera</string>
+    <string name="fgs_channel_desc">Se muestra mientras NOOP mantiene tu WHOOP conectado en segundo plano.</string>
+
+    <!-- The remaining notifier titles/bodies, surfaced by extending i18n_audit.py to the
+         notification builders. Same defect as the block above: user-visible, never localised. -->
+    <string name="illness_alert_title">Aviso temprano: tómatelo con calma</string>
+    <string name="inactivity_title">Recordatorio de movimiento</string>
+    <string name="smart_alarm_title">Buenos días</string>
+    <string name="smart_alarm_body">Tu alarma inteligente acaba de sonar.</string>
+    <string name="battery_channel_name">Alertas de batería</string>
+    <string name="battery_channel_desc">Avisos cuando la batería de la pulsera está baja o completamente cargada.</string>
+    <string name="l10n_app_changelog_battery_saver_quiets_the_gauges_translated_bdbe8650">El ahorro de batería calma los indicadores, notificaciones de Android traducidas y gráficos instantáneos</string>
 </resources>

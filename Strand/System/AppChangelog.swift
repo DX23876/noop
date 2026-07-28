@@ -30,6 +30,30 @@ enum AppChangelog {
             ]
         ),
         Release(
+            version: "9.2.1",
+            title: "Battery saver quiets the gauges, translated Android notifications, and instant chart loads",
+            date: "July 2026",
+            items: [
+                "**Battery saver stops the animation (#909).** Turn on Low Power Mode or battery saver and the live gauges, sky and pulsing dots settle into a single still frame. On iPhone that was measured at ~18% of a CPU core with the screen just sitting idle, and 0% posed still. It switches the moment you flip the setting — no restart.",
+                "**Android notifications are translated (#867).** Every notification the app sends shipped in English no matter your language — the always-on connection notice, all five battery alerts, the illness, move and smart-alarm alerts, and both notification categories in system settings. All of them now speak German, Spanish, French, Portuguese and Chinese.",
+                "**Today and the day chart open instantly on a long history (#908).** Finding your most recent reading walked every heart-rate row for the strap. On a large store that took four to six seconds every time the screen opened; it now takes hundredths of a second.",
+                "**The pulsing connection dot honours \"Remove animations\" (#909).** It kept pulsing regardless. It doesn't now.",
+                "**Strap logs name every command (#891).** An Android strap log showed a bare `0x8B(139)` where iPhone showed the command's name, and neither platform said whether a command had actually succeeded. Both now do — which is what makes a pasted log useful to anyone reading it.",
+            ]
+        ),
+        Release(
+            version: "9.2.0",
+            title: "HRV accuracy fix, Oura sleep and motion, richer 5/MG decoding, and a stoppable sync",
+            date: "July 2026",
+            items: [
+                "**HRV was reading low (#823).** Same-second R-R beats were sorted by size instead of the order the strap sent them, which biased RMSSD downward. Fixed on both platforms — your HRV numbers will shift slightly, and the new ones are the correct ones.",
+                "**Oura nights now actually score (#774, #773).** Overnight beats banked by the ring are turned into heart-rate samples, so a night no longer comes back empty, and the ring's own sleep hypnogram appears as its own stage timeline.",
+                "**Workout heart rate reads from the right strap (#856).** The chart, the zones and the Avg HR now agree on which device recorded a bout, instead of quietly disagreeing after you re-add a strap.",
+                "**Battery warnings that arrive in time (#864).** A critical alert at 12%, plus a bedtime warning when the strap will not last the night — both fire even after the earlier alerts have already gone quiet.",
+                "**You can stop a sync (#875).** A long history offload no longer has to run to the end; nothing is lost, and the rest arrives on the next sync.",
+            ]
+        ),
+        Release(
             version: "9.0.2",
             title: "Optimal-strain alerts, faster history sync, and a wave of accuracy fixes",
             date: "July 2026",

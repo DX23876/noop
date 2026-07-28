@@ -474,6 +474,21 @@ Schema lives in `Packages/WhoopStore/Sources/WhoopStore/Database.swift` as a **v
   add metric caches (`sleepSession`, `dailyMetric`, `metricSeries`), cursors, and more. Follow the
   same shape and naming.
 - Add a `MigrationTests` case proving the migration applies cleanly on top of the prior version.
+- **Update `schema_oracle.json` in the same PR.** Room (Android) and GRDB (iOS) must agree on the
+  resulting schema, and that agreement is pinned by a shared fixture committed in two byte-identical
+  copies (`Packages/WhoopStore/Tests/WhoopStoreTests/Resources/` and `android/app/src/test/resources/`).
+  `SchemaOracleTests.swift` compares it to GRDB's `PRAGMA table_info`; `SchemaOracleTest.kt` compares it
+  to the schema Room's KSP processor exports. Both fail on a column added to one side only, a column
+  ORDER difference, a type/nullability/DEFAULT change, a primary-key change, an index change, or a new
+  unpinned table — so a migration cannot land until the twin lands with it. A divergence that is
+  deliberate must be written into the fixture's `divergenceReasons` with the reason and what closing it
+  would cost; the suites also fail on a ledger entry that has stopped being true, so the list can only
+  shrink on purpose. Extend the oracle rather than adding a parallel mechanism (same idiom as
+  `decoder_oracle.json`).
+- **GRDB migration identifiers are `v<N>[-slug]`, strictly sequential.** GRDB keys migrations by NAME
+  and applies them in registration order, so two open PRs that both add a `v31` produce two migrations
+  claiming one number (and an exact name collision makes GRDB silently skip the second body). The
+  oracle test asserts the numbers run 1…N with no gaps or repeats: renumber when you rebase.
 
 ---
 

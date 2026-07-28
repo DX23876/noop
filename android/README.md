@@ -88,6 +88,40 @@ Never bypass verification or hand-edit the generated lockfile. For a wrapper upg
 the binary-distribution SHA-256 from Gradle's official checksum reference and regenerate the wrapper
 JAR/scripts with the target Gradle version.
 
+#### Platform-classified artifacts (why `aapt2` carries one entry per OS)
+
+`com.android.tools.build:aapt2` ships a separate jar per host OS — `-linux.jar`, `-osx.jar`,
+`-windows.jar` — and Gradle only ever resolves the one matching the machine it runs on. Step 2
+above can therefore only record *that* host's variant, so the checked-in file reflects whichever
+OS last regenerated it. CI runs on Linux, so a Linux-only file makes every macOS build fail at
+`:app:processFullDebugResources`:
+
+```
+> Dependency verification failed for configuration ':app:detachedConfiguration2'
+  One artifact failed verification: aapt2-8.5.2-11315950-osx.jar
+```
+
+The fix is **additive**: add the missing variant, never drop the one already there. This is the
+one case where editing `verification-metadata.xml` by hand is correct rather than a bypass — the
+checksum is still verified from the publisher before it is trusted, which is the whole point of
+the file. Verify it against Google's published digest, not against the build error:
+
+```bash
+V=8.5.2-11315950
+B=https://dl.google.com/dl/android/maven2/com/android/tools/build/aapt2/$V
+curl -sS "$B/aapt2-$V-osx.jar.sha256"            # Google's published digest
+curl -sS -o /tmp/aapt2.jar "$B/aapt2-$V-osx.jar"
+shasum -a 256 /tmp/aapt2.jar                     # must equal the line above
+```
+
+Only when those two agree, add the artifact beside the existing one, keeping the file's sorted
+order (classifier jars before the `.pom`) so a later regeneration does not churn the diff.
+
+Do **not** paste the "actual" checksum out of Gradle's failure report: that value is precisely
+what verification is challenging, so trusting it defeats the check. To confirm the method itself
+is sound, run the same two commands against `-linux.jar` — they should reproduce the `-linux`
+checksum already committed in the file.
+
 ---
 
 ## Build & run

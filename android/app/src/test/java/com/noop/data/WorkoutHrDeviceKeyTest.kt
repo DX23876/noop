@@ -13,6 +13,11 @@ import org.junit.Test
  */
 class WorkoutHrDeviceKeyTest {
 
+    // #856: the resolver returns a LIST now — one id for a detected bout (the strap that recorded it),
+    // the active ∪ canonical union for manual/imported. These cases all assert the id that wins, which
+    // is `.first()` in both branches, so the original expectations are unchanged.
+
+
     @Test fun `strap-native sources are classified as strap-native`() {
         assertTrue(WhoopRepository.isStrapNativeWorkout("manual"))
         assertTrue(WhoopRepository.isStrapNativeWorkout("MANUAL"))          // case-insensitive
@@ -34,19 +39,19 @@ class WorkoutHrDeviceKeyTest {
         // "whoop-aabbcc". The active strap being something else must NOT redirect the read.
         assertEquals(
             "whoop-aabbcc",
-            WhoopRepository.workoutHrDeviceId("whoop-aabbcc-noop", "whoop-aabbcc-noop", activeStrapId = "my-whoop"),
+            WhoopRepository.workoutHrDeviceIds("whoop-aabbcc-noop", "whoop-aabbcc-noop", activeStrapId = "my-whoop").first(),
         )
         // Canonical single-WHOOP detected row is unchanged from the old "my-whoop" behaviour.
         assertEquals(
             "my-whoop",
-            WhoopRepository.workoutHrDeviceId("my-whoop-noop", "my-whoop-noop", activeStrapId = "my-whoop"),
+            WhoopRepository.workoutHrDeviceIds("my-whoop-noop", "my-whoop-noop", activeStrapId = "my-whoop").first(),
         )
     }
 
     @Test fun `manual row reads HR under its own strap id`() {
         assertEquals(
             "whoop-aabbcc",
-            WhoopRepository.workoutHrDeviceId("manual", "whoop-aabbcc", activeStrapId = "my-whoop"),
+            WhoopRepository.workoutHrDeviceIds("manual", "whoop-aabbcc", activeStrapId = "my-whoop").first(),
         )
     }
 
@@ -54,11 +59,11 @@ class WorkoutHrDeviceKeyTest {
         // An Apple/HC/activity-file row carries no strap HR; #77 fills it from the worn strap = active strap.
         assertEquals(
             "whoop-aabbcc",
-            WhoopRepository.workoutHrDeviceId("apple-health", "apple-health", activeStrapId = "whoop-aabbcc"),
+            WhoopRepository.workoutHrDeviceIds("apple-health", "apple-health", activeStrapId = "whoop-aabbcc").first(),
         )
         assertEquals(
             "my-whoop",
-            WhoopRepository.workoutHrDeviceId("activity-file", "activity-file", activeStrapId = "my-whoop"),
+            WhoopRepository.workoutHrDeviceIds("activity-file", "activity-file", activeStrapId = "my-whoop").first(),
         )
     }
 
@@ -66,7 +71,7 @@ class WorkoutHrDeviceKeyTest {
         // removeSuffix is a no-op when the suffix is absent — a manual/base id must not be truncated.
         assertEquals(
             "whoop-aabbcc",
-            WhoopRepository.workoutHrDeviceId("manual", "whoop-aabbcc", activeStrapId = "ignored"),
+            WhoopRepository.workoutHrDeviceIds("manual", "whoop-aabbcc", activeStrapId = "ignored").first(),
         )
     }
 }

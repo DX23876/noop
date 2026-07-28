@@ -1,0 +1,18 @@
+# Pre-existing detached doc comments, grandfathered so the gate starts green.
+# Format: <path> <count>.  The gate fails when a file EXCEEDS its count, or when a
+# file not listed here has any. Ratchet DOWN as they are fixed — never up.
+# Generated at the time Tools/doc_comment_lint.py landed; see #846 for the pattern.
+
+android/app/src/main/java/com/noop/analytics/AnalyticsEngine.kt 1
+android/app/src/main/java/com/noop/analytics/IntelligenceEngine.kt 5
+android/app/src/main/java/com/noop/ble/WhoopBleClient.kt 8
+android/app/src/main/java/com/noop/ble/WhoopConnectionService.kt 1
+android/app/src/main/java/com/noop/ingest/CaptureImporter.kt 1
+android/app/src/main/java/com/noop/protocol/PpgHr.kt 1
+android/app/src/main/java/com/noop/ui/AddDeviceWizard.kt 1
+android/app/src/main/java/com/noop/ui/AppViewModel.kt 1
+android/app/src/main/java/com/noop/ui/BackupSyncScreen.kt 1
+android/app/src/main/java/com/noop/ui/Components.kt 1
+android/app/src/main/java/com/noop/ui/HealthVitalDetailLogic.kt 1
+android/app/src/main/java/com/noop/ui/TodayScreen.kt 1
+android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt 2

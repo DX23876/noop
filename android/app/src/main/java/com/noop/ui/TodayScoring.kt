@@ -6,7 +6,6 @@ import com.noop.analytics.ChargeDriver
 import com.noop.analytics.RecoveryDrivers
 import com.noop.analytics.RestScorer
 import com.noop.analytics.ScoreConfidence
-import com.noop.R
 import com.noop.data.DailyMetric
 import java.time.LocalDate
 import java.time.Instant
@@ -388,15 +387,29 @@ sealed class SyncChipState {
 
     companion object {
         /** Pure + unit-tested. Mirrors Swift `SyncChipState.resolve` exactly: backfilling wins over a
-         *  known last-sync, which wins over the 5/MG experimental fallback. */
+         *  known last-sync, which wins over the 5/MG experimental fallback.
+         *
+         *  [nowSec] (unix seconds) and [nowLabel] (the already-translated "now" word) are PARAMETERS
+         *  rather than things this function reaches for, which is what keeps "pure" true. Resolving the
+         *  word in here instead cost the twin its own test: it goes through `NoopApplication`, which
+         *  throws `IllegalStateException: NoopApplication is not attached` under a plain JVM unit test —
+         *  these run without Robolectric, so no Application is ever attached. Only the `< 60s` branch of
+         *  [shortSyncAgo] wants a word, so the failure was invisible until a case landed in it. Same
+         *  injected-clock style as [recordingStateFor] just above.
+         *
+         *  Swift's twin keeps both inside its own `shortAgo` and is fine there — XCTest runs against a
+         *  real bundle, so `String(localized:)` resolves. The two SIGNATURES therefore differ on purpose;
+         *  the decision they encode does not. Don't "restore parity" by moving the lookup back in here. */
         fun resolve(
             backfilling: Boolean,
             chunks: Int,
             lastSyncAtSec: Long?,
             historySyncExperimental: Boolean,
+            nowSec: Long,
+            nowLabel: String,
         ): SyncChipState = when {
             backfilling -> Syncing(chunks)
-            lastSyncAtSec != null -> Synced(shortSyncAgo(lastSyncAtSec))
+            lastSyncAtSec != null -> Synced(shortSyncAgo(lastSyncAtSec, nowSec, nowLabel))
             historySyncExperimental -> ExperimentalLive
             else -> Hidden
         }
@@ -405,11 +418,13 @@ sealed class SyncChipState {
 
 /** Compact relative age for the header chip ("now" / "Nm" / "Nh" / "Nd") from a unix-SECONDS timestamp —
  *  deliberately terse. "now" is the only word in here (the rest is digits + a unit letter), so it's the
- *  only piece that needs a catalog entry to translate. Mirrors the iOS `SyncChipState.shortAgo`. */
-internal fun shortSyncAgo(unixSec: Long): String {
-    val secs = (System.currentTimeMillis() / 1000L - unixSec).coerceAtLeast(0)
+ *  only piece that needs a catalog entry to translate; it arrives as [nowLabel], resolved by the
+ *  composable that owns the chip, so the bucketing stays framework-free. [nowSec] is unix seconds,
+ *  injected for the same reason. Mirrors the iOS `SyncChipState.shortAgo`. */
+internal fun shortSyncAgo(unixSec: Long, nowSec: Long, nowLabel: String): String {
+    val secs = (nowSec - unixSec).coerceAtLeast(0)
     return when {
-        secs < 60 -> uiString(R.string.l10n_today_screen_sync_chip_now_c9bc849a)
+        secs < 60 -> nowLabel
         secs < 3600 -> "${secs / 60}m"
         secs < 86_400 -> "${secs / 3600}h"
         else -> "${secs / 86_400}d"

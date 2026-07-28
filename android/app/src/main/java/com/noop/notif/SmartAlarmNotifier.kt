@@ -29,12 +29,13 @@ object SmartAlarmNotifier {
     @SuppressLint("MissingPermission") // guarded by areNotificationsEnabled() + runCatching
     fun onFired(context: Context) {
         if (!NotifPrefs.getBool(context, NotifPrefs.MASTER, false)) return
-        val body = "Your smart alarm just went off."
+        val title = context.getString(R.string.smart_alarm_title)
+        val body = context.getString(R.string.smart_alarm_body)
         runCatching {
-            AlertInbox.post(context, AlertInbox.Kind.SMART_ALARM, "Good morning", body)
+            AlertInbox.post(context, AlertInbox.Kind.SMART_ALARM, title, body)
         }
         runCatching {
-            if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return@runCatching
+            if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return
             ensureChannel(context)
             val openApp = PendingIntent.getActivity(
                 context, 6,
@@ -43,7 +44,7 @@ object SmartAlarmNotifier {
             )
             val n = NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_stat_heart)
-                .setContentTitle("Good morning")
+                .setContentTitle(title)
                 .setContentText(body)
                 .setContentIntent(openApp)
                 .setAutoCancel(true)

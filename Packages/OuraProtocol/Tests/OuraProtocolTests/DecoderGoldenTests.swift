@@ -148,6 +148,49 @@ final class DecoderGoldenTests: XCTestCase {
         ])
     }
 
+    // MARK: - 0x47 motion events (averaged accel vector)
+
+    func testMotionEvents0x47() {
+        // open_oura decode_motion vector: body [0x6f,0x0c,0x1d,0x07,0x0c,0x07].
+        // byte0 0x6f: orientation = 0x6f>>5 = 3, motion_seconds = 0x6f&0x1f = 15.
+        // avg x/y/z = 12/29/7 signed ×8 = 96/232/56. low=0x0c&0x3f=12, high=0x07&0x3f=7.
+        let rec = OuraRecord(type: OuraEventTag.motion.rawValue, ringTimestamp: rt,
+                             payload: [0x6f, 0x0c, 0x1d, 0x07, 0x0c, 0x07])
+        XCTAssertEqual(OuraDecoders.decodeMotionEvents(rec),
+                       OuraMotionEvent(ringTimestamp: rt, orientation: 3, motionSeconds: 15,
+                                       avgX: 96, avgY: 232, avgZ: 56, lowIntensity: 12, highIntensity: 7))
+    }
+
+    func testMotionEvents0x47DiscriminatesOrientationFromMotionSeconds() {
+        // byte0 0xB5 = 1011_0101: orientation = 0xB5>>5 = 5 (NOT 0xB5&0x03 = 1), motion_seconds = 0x15 = 21.
+        // This vector fails the old `& 0x03` orientation bug (would give 1). Negative axes prove ×8 sign.
+        // byte4 0x2A → low 42; byte5 0x3F → high 63 (max, still valid).
+        let rec = OuraRecord(type: OuraEventTag.motion.rawValue, ringTimestamp: rt,
+                             payload: [0xB5, 0xF4, 0x00, 0x80, 0x2A, 0x3F])
+        XCTAssertEqual(OuraDecoders.decodeMotionEvents(rec),
+                       OuraMotionEvent(ringTimestamp: rt, orientation: 5, motionSeconds: 21,
+                                       avgX: -96, avgY: 0, avgZ: -1024, lowIntensity: 42, highIntensity: 63))
+    }
+
+    func testMotionEvents0x47IntensityValidityBitRejectsRecord() {
+        // A set 0x40 bit in the intensity byte means INVALID per open_oura → the whole record decodes nil.
+        XCTAssertNil(OuraDecoders.decodeMotionEvents(   // byte5 0x47 has 0x40 set
+            OuraRecord(type: OuraEventTag.motion.rawValue, ringTimestamp: rt, payload: [0x00, 0, 0, 0, 0x00, 0x47])))
+        XCTAssertNil(OuraDecoders.decodeMotionEvents(   // byte4 0x40 set
+            OuraRecord(type: OuraEventTag.motion.rawValue, ringTimestamp: rt, payload: [0x00, 0, 0, 0, 0x40, 0x00])))
+    }
+
+    func testMotionEvents0x47OptionalIntensityAndShortBody() {
+        // A 4-byte record is valid (orientation/motion_seconds + 3 axes); intensities are nil.
+        let four = OuraDecoders.decodeMotionEvents(
+            OuraRecord(type: OuraEventTag.motion.rawValue, ringTimestamp: rt, payload: [0x20, 0x0a, 0x00, 0x00]))
+        XCTAssertEqual(four, OuraMotionEvent(ringTimestamp: rt, orientation: 1, motionSeconds: 0,
+                                             avgX: 80, avgY: 0, avgZ: 0, lowIntensity: nil, highIntensity: nil))
+        // A 3-byte body is too short → nil.
+        XCTAssertNil(OuraDecoders.decodeMotionEvents(
+            OuraRecord(type: OuraEventTag.motion.rawValue, ringTimestamp: rt, payload: [0x6f, 0x0c, 0x1d])))
+    }
+
     // MARK: - 0x85 RTC beacon (unix_s u32 LE)
 
     func testRtcBeacon0x85() {

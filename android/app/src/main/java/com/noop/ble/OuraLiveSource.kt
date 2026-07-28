@@ -1723,11 +1723,11 @@ class OuraLiveSource(
                 }
             }
             is OuraEvent.MotionVectorEvent -> {
-                // 0x47 averaged accel vector (Tier-A). Diagnostic sidecar ONLY for now: decode + store + log
-                // the vector beside the incumbent so the LSB→g scale + cadence can be pinned offline from a
-                // still capture (issue #804). Never persisted to the DB, never scored — OuraStreamMapping
-                // drops MotionVectorEvent until the scale is calibrated. Anchored records only (deduped by
-                // ring-time in the writer). Twin of the Swift hook.
+                // 0x47 averaged accel vector (Tier-A). Persisted as an OURA_MOTION event (same event-table
+                // path as OURA_HRV / OURA_SLEEP_PHASE — see OuraStreamMapping), AND appended to the raw
+                // calibration sidecar. Instrumentation only: never scored, never fed to the sleep stager
+                // (0x47 is movement-gated, a shape mismatch for the gravity-stillness stager, #804). Anchor
+                // per record so each window lands on a distinct (deviceId, ts, kind) row. Twin of Swift.
                 d.unixSeconds(forRingTimestamp = e.value.ringTimestamp)?.let { utc ->
                     motionDump?.record(
                         ringTs = e.value.ringTimestamp, utc = utc, orientation = e.value.orientation,
@@ -1736,6 +1736,7 @@ class OuraLiveSource(
                         highIntensity = e.value.highIntensity,
                     )
                 }
+                enqueueAnchoredOrPark(e, e.value.ringTimestamp, d)
             }
             // Motion (0x6b) / debugText / etc: not a durable Streams row (see OuraStreamMapping). StateEvent
             // is handled above (wear badge only, also not a Streams row).

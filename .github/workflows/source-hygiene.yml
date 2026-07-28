@@ -1,0 +1,40 @@
+# Catches doc comments that bind to nothing, BEFORE merge. Kotlin and Swift attach a doc block to
+# the declaration that FOLLOWS it and keep only the LAST of several stacked ones, so an inserted
+# block or an inserted declaration silently orphans the text above it. Nothing looks wrong: the
+# comment is still there, still above the right function, still correct prose — it just no longer
+# reaches Dokka or IDE hover. That is why review does not catch it.
+#
+# It recurs because it is a side effect of editing by INSERTION rather than in place. #846 fixed
+# three sites in one day, one of which #842 had introduced that same morning, and the block that
+# came adrift was "Byte-parity twin of Swift classifyCoverage" — a parity-contract statement, and
+# parity is the #1 rule in CLAUDE.md. Losing that note is not a cosmetic problem.
+#
+# Pure Python + git, no Xcode/Gradle: runs in seconds on ubuntu-latest, independent of the
+# disabled-by-default app-build.yml / android.yml compile jobs. Same shape as i18n-coverage.yml.
+name: Source Hygiene
+
+on:
+  pull_request:
+    branches: [main]
+  # Audit main itself too, not just PRs into it — a release pushes straight to main with no PR, so a
+  # PR-only trigger would let a regression land unaudited. Same reasoning as i18n-coverage.yml.
+  push:
+    branches: [main]
+
+concurrency:
+  group: source-hygiene-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  doc-comments:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      # Pre-existing sites are grandfathered per-file in Tools/doc_comment_lint_baseline.txt, so this
+      # starts green and fails only on NEW ones. The baseline ratchets DOWN: fixing a site prints an
+      # IMPROVED line telling you to lower the allowance. Raising it to make the job pass defeats the
+      # point — fix the comment instead.
+      - name: Detached doc comments (regression gate)
+        run: python3 Tools/doc_comment_lint.py

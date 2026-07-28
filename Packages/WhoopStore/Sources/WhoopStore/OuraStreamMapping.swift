@@ -30,6 +30,12 @@ public enum OuraStreamMapping {
     public static let hrvEventKind = "OURA_HRV"
     /// WhoopEvent.kind for a decoded sleep-phase code (2-bit: awake/light/deep/rem).
     public static let sleepPhaseEventKind = "OURA_SLEEP_PHASE"
+    /// WhoopEvent.kind for a decoded 0x47 motion_events window (open_oura `decode_motion`). The payload
+    /// carries the ring's OWN per-window motion summary — `orientation` / `motion_seconds` / `x` / `y` / `z`
+    /// (avg accel ×8) / `low_intensity` / `high_intensity` (the last two absent on a short record). This is
+    /// INSTRUMENTATION: an honest activity signal, never scored and never fed to the sleep stager (0x47 is
+    /// movement-gated — a shape mismatch for the gravity-stillness stager, #804). Must match the Kotlin twin.
+    public static let motionEventKind = "OURA_MOTION"
 
     /// Build a `Streams` from a batch of decoded Oura events, all stamped at the arrival wall-clock `ts`
     /// (unix seconds). Pure → unit-testable. Section-4 table:
@@ -107,6 +113,23 @@ public enum OuraStreamMapping {
                     soc: Double(v.percent),
                     mv: v.voltageMv,
                     charging: v.charging))
+
+            case .motionEvent(let m):
+                // 0x47 motion window → an OURA_MOTION event carrying the ring's OWN per-window summary. This
+                // is INSTRUMENTATION on the honest activity signal, NOT a gravity stream: 0x47 is
+                // movement-gated (no still samples), a shape mismatch for the gravity-stillness `SleepStager`
+                // (#804), so it is NEVER folded into `gravitySample` and NEVER scored. It rides the SAME
+                // event-table path as OURA_HRV / OURA_SLEEP_PHASE (the ring's other per-record signals), one
+                // row per window at its own anchored `ts`. Keys IDENTICAL to the Kotlin twin. `low_/
+                // high_intensity` are omitted on a short record (absent, never faked to 0).
+                var payload: [String: ParsedValue] = [
+                    "orientation": .int(m.orientation),
+                    "motion_seconds": .int(m.motionSeconds),
+                    "x": .int(m.avgX), "y": .int(m.avgY), "z": .int(m.avgZ),
+                ]
+                if let lo = m.lowIntensity { payload["low_intensity"] = .int(lo) }
+                if let hi = m.highIntensity { payload["high_intensity"] = .int(hi) }
+                out.events.append(WhoopEvent(ts: ts, kind: motionEventKind, payload: payload))
 
             case .motion, .state, .timeSync, .rtcBeacon, .debugText, .tierB, .activityInfo:
                 // Not a durable per-device stream row (timeSync/rtcBeacon anchor the transport's clock;

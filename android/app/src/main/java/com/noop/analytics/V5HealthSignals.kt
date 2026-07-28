@@ -57,6 +57,8 @@ object V5HealthSignals {
         loggedPeriodStarts: List<String> = emptyList(),
         journalContext: IllnessSignalEngine.Context = IllnessSignalEngine.Context(),
         habitualWakeHour: Double = 7.0,
+        activityBins: List<CircadianEngine.ActivityBin> = emptyList(),
+        daysObserved: Int = 0,
     ): Snapshot {
         val baselineTrusted = days.count { hasAnyVital(it) } >= MIN_BASELINE_NIGHTS
 
@@ -126,14 +128,28 @@ object V5HealthSignals {
             correlation = null,
         )
 
-        // ── Body clock: needs per-hour rest-activity bins we don't bank here; the planner is on-demand.
-        //    Leave null so the BodyClockCard reads its honest "Calibrating" empty state until a future
-        //    activity-bin source lands (the engine is wired + ready, the input pipe is the gap). ──
-        val bodyClock: CircadianEngine.PhaseEstimate? = null
+        // ── Body clock (#852): the caller pools HR by local hour into [activityBins] — the same
+        //    activity proxy the Swift twin uses in AppModel.computeCircadianPhase, which has shipped
+        //    this card on iOS/macOS all along. Android had the engine, the tests and the card, and only
+        //    ever lacked these twenty lines of input, behind a comment claiming the data did not exist.
+        //
+        //    Under six populated hours is too thin to fit, so it stays null and HealthScreen's `?.let`
+        //    skips the card — no fabricated estimate. Both parameters default, so every existing caller
+        //    is byte-identical. ──
+        val bodyClock: CircadianEngine.PhaseEstimate? =
+            if (activityBins.size >= MIN_CIRCADIAN_BINS) {
+                CircadianEngine.estimatePhase(activityBins, daysObserved, habitualWakeHour)
+            } else {
+                null
+            }
 
         return Snapshot(cycle = cycle, bodyClock = bodyClock, illness = illness,
             illnessDistance = illnessDistance, baselineTrusted = baselineTrusted)
     }
+
+    /** Populated local hours needed before a cosinor fit is worth attempting. Mirrors the Swift
+     *  twin's `guard bins.count >= 6` in AppModel.computeCircadianPhase. */
+    internal const val MIN_CIRCADIAN_BINS = 6
 
     /** A day is "usable" for the baseline if it carries at least one of the four illness/cycle vitals. */
     private fun hasAnyVital(d: DailyMetric): Boolean =

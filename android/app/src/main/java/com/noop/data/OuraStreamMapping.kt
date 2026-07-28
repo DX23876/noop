@@ -37,6 +37,9 @@ object OuraStreamMapping {
     /** The event `kind` recorded for the ring's own open sleep-phase (0x49.../0x58) tags. */
     const val EVENT_SLEEP_PHASE = "OURA_SLEEP_PHASE"
 
+    /** The event `kind` for a decoded 0x47 motion window (activity instrumentation). Must match Swift. */
+    const val EVENT_MOTION = "OURA_MOTION"
+
     /**
      * Fold a batch of decoded [events] into a protocol [Streams] for one flush. [anchor] maps a
      * ring-clock timestamp to wall-clock unix seconds (null => drop the sample). Pure: no BLE, no DB,
@@ -130,7 +133,24 @@ object OuraStreamMapping {
                 // synthesising still samples to fill the gaps would be inventing data. The usable signal is
                 // motion_seconds / intensity as an ACTIVITY input on a separate path (#804 option B). Held
                 // here until that path lands. Dropped, not faked. Mirrors the Swift twin.
-                is OuraEvent.MotionVectorEvent -> Unit
+                is OuraEvent.MotionVectorEvent -> {
+                    // 0x47 motion window → an OURA_MOTION event: the ring's OWN per-window motion summary
+                    // (orientation / motion_seconds / x / y / z / low_/high_intensity). INSTRUMENTATION only
+                    // — an honest activity signal, never scored and never fed to the sleep stager (0x47 is
+                    // movement-gated, a shape mismatch for the gravity-stillness stager, #804). Rides the SAME
+                    // event-table path as OURA_HRV / OURA_SLEEP_PHASE, one row per window at its own anchored
+                    // ts. Keys IDENTICAL to the Swift twin; low_/high_intensity omitted on a short record.
+                    val ts = anchor(ev.value.ringTimestamp) ?: continue
+                    val m = ev.value
+                    val payload = linkedMapOf<String, Any?>(
+                        "orientation" to m.orientation,
+                        "motion_seconds" to m.motionSeconds,
+                        "x" to m.avgX, "y" to m.avgY, "z" to m.avgZ,
+                    )
+                    m.lowIntensity?.let { payload["low_intensity"] = it }
+                    m.highIntensity?.let { payload["high_intensity"] = it }
+                    out.events.add(WhoopEvent(ts = ts, kind = EVENT_MOTION, payload = payload))
+                }
 
                 // Motion / state / time-sync / rtc / debug / TierB / ActivityInfo never map onto a
                 // scored stream. In particular the 0x50 activity/MET decode (PR #960) NEVER mints a

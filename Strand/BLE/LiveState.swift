@@ -244,6 +244,18 @@ public final class LiveState: ObservableObject {
     /// #690: the body-location probe result (or the waiting sentinel), shown + copied in the Devices dialog.
     /// Cleared on disconnect and on dialog dismiss. Twin of the Android WhoopBleClient.bodyLocationProbe flow.
     @Published public var bodyLocationProbe: String? = nil
+
+    /// #761: the READ-ONLY feature-flag enumeration report — the flag NAMES the strap's own firmware lists
+    /// (`START_FF_KEY_EXCHANGE`/`SEND_NEXT_FF`), or the waiting sentinel while the walk runs. Nothing is
+    /// written to the strap to produce it. Cleared on disconnect and on dialog dismiss. Twin of the Android
+    /// WhoopBleClient.featureFlagProbe flow.
+    @Published public var featureFlagProbe: String? = nil
+
+    /// #103: the READ-ONLY device-config read report — what `GET_DEVICE_CONFIG_VALUE`(121) and
+    /// `GET_FF_VALUE`(128) answer when asked for a key's VALUE (the #761 follow-up), or the waiting
+    /// sentinel while the walk runs. Nothing is written to the strap to produce it. Cleared on disconnect
+    /// and on dialog dismiss. Twin of the Android WhoopBleClient.deviceConfigProbe flow.
+    @Published public var deviceConfigProbe: String? = nil
     /// Wrist-wear state from WRIST_ON/WRIST_OFF events. Defaults true so wear-gated features work
     /// before the first event arrives; flipped by FrameRouter on a real event.
     @Published public var worn: Bool = true

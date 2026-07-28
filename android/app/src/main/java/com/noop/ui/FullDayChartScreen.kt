@@ -58,6 +58,11 @@ private enum class TimelineMetric(val title: String) {
     // stepped track alongside the derived hypnogram. This is the band's REPORTED state, NOT a stage NOOP
     // trusts as truth — the pill names it "Band Sleep State" so it can't be mistaken for the derived stages.
     BandSleepState(uiString(R.string.timeline_metric_band_sleep_state)),
+
+    // The Oura ring's OWN per-window motion (0x47, OURA_MOTION events): seconds of movement in each ~30 s
+    // window. An honest ACTIVITY signal — NOT gravity magnitude (the ring sends no continuous gravity) and
+    // NEVER a step count. Empty for a WHOOP strap. Twin of Swift TimelineMetric.ouraMovement.
+    Movement(uiString(R.string.timeline_metric_movement)),
 }
 
 @Composable
@@ -413,6 +418,17 @@ private suspend fun readTimeline(
             // which the view renders as its honest "nothing here" state — never a fabricated flat line.
             runCatching { repo.sleepStateSamples(deviceId, from, to, 200_000) }.getOrDefault(emptyList())
                 .map { TimelinePoint(it.ts, it.state.toDouble()) }
+        TimelineMetric.Movement ->
+            // The ring's OWN per-window motion from OURA_MOTION events (0x47): plot `motion_seconds`
+            // (0 when still, up to 31 s in the ~30 s window). Honest activity, NEVER scored/steps; empty
+            // for a WHOOP strap. Twin of Swift's ouraMovement series.
+            runCatching { repo.events(deviceId, from, to, 200_000) }.getOrDefault(emptyList())
+                .filter { it.kind == com.noop.data.OuraStreamMapping.EVENT_MOTION }
+                .mapNotNull { row ->
+                    val ms = runCatching { org.json.JSONObject(row.payloadJSON).optInt("motion_seconds", -1) }
+                        .getOrDefault(-1)
+                    if (ms < 0) null else TimelinePoint(row.ts, ms.toDouble())
+                }
     }
     if (raw.isEmpty() || bucket <= 1L) return@withContext raw
     downsampleTimeline(raw, bucket)
@@ -448,7 +464,7 @@ private fun metricColor(metric: TimelineMetric): Color = when (metric) {
     TimelineMetric.Hr -> Palette.metricRose
     TimelineMetric.SkinTemp -> Palette.strain033
     TimelineMetric.Hrv, TimelineMetric.Spo2 -> Palette.sleepLight
-    TimelineMetric.Respiration, TimelineMetric.Motion -> Palette.textSecondary
+    TimelineMetric.Respiration, TimelineMetric.Motion, TimelineMetric.Movement -> Palette.textSecondary
     // #175: the band-state track uses the deep-sleep hue so it reads as a distinct sleep track.
     TimelineMetric.BandSleepState -> Palette.sleepDeep
 }
@@ -457,11 +473,12 @@ private fun unitSuffix(metric: TimelineMetric, tempUnit: TemperatureUnit): Strin
     TimelineMetric.Hr -> " bpm"
     TimelineMetric.SkinTemp -> UnitFormatter.temperatureUnit(tempUnit)   // #101: °C / °F per preference
     TimelineMetric.Hrv -> " ms"
+    TimelineMetric.Movement -> " s"   // seconds of movement per ~30 s window (ring's 0x47 activity)
     else -> ""
 }
 
 private fun formatValue(metric: TimelineMetric, v: Double): String = when (metric) {
-    TimelineMetric.Hr, TimelineMetric.Respiration, TimelineMetric.Hrv -> v.toInt().toString()
+    TimelineMetric.Hr, TimelineMetric.Respiration, TimelineMetric.Hrv, TimelineMetric.Movement -> v.toInt().toString()
     // `v` already arrives in the displayed unit — callers read from `displayPoints`, which converts skin
     // temp to °F upfront so the chart's axis (plotted from the same points) agrees with this readout (#101).
     TimelineMetric.SkinTemp -> String.format(Locale.US, "%.1f", v)

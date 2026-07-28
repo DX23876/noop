@@ -8,14 +8,16 @@ enum AlertInbox {
         case batteryLow = "battery-low"
         case batteryRuntime = "battery-runtime"
         case batteryFull = "battery-full"
+        case batteryCritical = "battery-critical"
+        case batteryBedtime = "battery-bedtime"
         case illness = "illness"
         case inactivity = "inactivity"
         case smartAlarm = "smart-alarm"
 
         var lifetime: TimeInterval {
             switch self {
-            case .batteryLow, .batteryRuntime: return 3 * 24 * 60 * 60
-            case .batteryFull:                 return 24 * 60 * 60
+            case .batteryLow, .batteryRuntime, .batteryCritical: return 3 * 24 * 60 * 60
+            case .batteryFull, .batteryBedtime:                  return 24 * 60 * 60
             case .illness:                     return 2 * 24 * 60 * 60
             case .inactivity, .smartAlarm:     return 24 * 60 * 60
             }
@@ -23,7 +25,8 @@ enum AlertInbox {
 
         var deepLink: String? {
             switch self {
-            case .batteryLow, .batteryRuntime, .batteryFull: return NavRouter.Destination.devices.rawValue
+            case .batteryLow, .batteryRuntime, .batteryFull, .batteryCritical, .batteryBedtime:
+                return NavRouter.Destination.devices.rawValue
             case .illness, .inactivity, .smartAlarm: return nil
             }
         }

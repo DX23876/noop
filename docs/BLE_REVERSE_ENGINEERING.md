@@ -428,12 +428,17 @@ garbage (HR `0`, gravity overflow). The fields below were read off real frames a
 | 22 | `heart_rate` (u8) | **matched the 2A37-verified live HR exactly at all 96 overlapping timestamps** (mean \|Δ\| 0.00 bpm); note this is v24's `21`+1, **not** +4 |
 | 23 | `rr_count` (u8) | matches #valid R-R intervals 100 % (1141/1143) |
 | 24 + 2·i | `rr[i]` (u16, ms) | 60000/mean(R-R) ≈ HR for 88 % (rest are HR-averaging) |
-| 36 | `hr_fixed_8_8` (u16 LE) — bpm = `value/256` | a **higher-precision heart rate**: `value/256` correlates **0.989** with the integer `heart_rate@22` over ~258k records and carries sub-bpm fractions `@22` can't (e.g. `25997` → 101.55 bpm vs `@22`=102). |
-| 33 / 38 / 40 | raw bytes near the HR / R-R fields | carried **raw** (meaning not pinned from observation): `@33` a flag-ish byte, `@38` a u16 beside the R-R fields, `@40` a status-like byte. |
+| 36 | `hr_quality_flags` (u8) | a **flag byte**, *not* the low half of a fixed-point HR. Over **18,650** real v18 records bit 4 is **never** set (0/18,650 — a genuine 8.8 fraction sets it ~50 % of the time, and it is the only bit never set), **95.02 %** of values land in `0x80`–`0x8F` (uniform would be 6.25 %) across just **40 distinct values**, and sd = **26.5** vs 73.9 for a uniform byte. **Bit 7 = validity**: with it clear (n=748) `rr_count == 0` in **70.32 %** of records vs **19.82 %** with it set, and the `@108/@109` sentinel fires in **69.65 %** vs 1.32 %. Remaining bits unpinned; carried raw. |
+| 37 | `heart_rate_alt` (u8, bpm) | a **duplicate** of `heart_rate@22` — equal in **99.575 %** of records (18,523/18,602), differing only by −6…+2, and it tracks HR only while `@36` bit 7 is set (99.74 % exact vs 94.12 % when clear). |
+| ~~36–37~~ | ~~`hr_fixed_8_8` (u16 LE) — bpm = `value/256`~~ | **Retired.** The "corr 0.989 with `heart_rate@22`" that justified this name was **circular**: the u16 is literally `hr@22` (at `@37`) plus the `@36` flag byte over 256, so the residual is a flat **+0.504 ± 0.189** — i.e. `@36/256`, not a sub-bpm fraction. On records where `@36` bit 7 is clear it produced absurd readings (a fixture decodes to **227 bpm**). |
+| 33 | `cardiac_flags` (u8) | a **beat-detection quality byte**, not cardiac. Over **18,650** v18 records (#845 census — @digitalerdude's public HCI capture plus a second strap): **bit 0 is byte-identical to `@81` bit 0** in 18,650/18,650, across two sessions 15 days apart on different hosts, so it is **not an independent signal**. Bits 1–3 are never set; bits 4–5 are **thermometer-coded** (bit 4 only ever set with bit 5; state `01` never occurs) — a 3-level field. High-nibble popcount is monotone against `P(rr_count == 0)`: **.180 / .207 / .301 / .427 / .612** for popcount 0→4, against a **.219** base rate. The name is POSITIONAL (it sits near the HR fields), not derived — the census says what the byte does, not what it is. |
+| 38 | `rr_packed` (u16) | a u16 beside the R-R fields; meaning still **not pinned**. |
+| 40 | `cardiac_status` (u8) | a **saturating 0–255 confidence score**, correlated **r = −0.80** with `@113` (#845 census). `whoop-local` names this `signal_quality` in its own code with no stated source or supporting analysis; the census independently supports something quality-shaped, but the name here stays positional until someone pins the scale. |
+| 41 | `dynamic_acceleration` (f32, g) | the strap's own **gravity-removed motion magnitude**, one scalar per second sitting immediately before the gravity triplet. Gated to `[0, 8] g` so a wrong offset stores nothing rather than garbage; reads 0.006–0.033 g across the resting oracle frames. Decoded on both platforms but **not persisted and not scored** — `step_motion_counter@57` and `activity_class@63` are what the motion paths actually consume. See the byte-43 note below. |
 | 45 / 49 / 53 | `gravity_x/y/z` (f32, g) | \|g\| ≈ 1.0 for 100 % of 500 records; v18 has **one** triplet (not v24's two) |
 | 57–58 | `step_motion_counter` (u16 LE @[57:59]) | a **cumulative** counter: climbs while moving, flat when still, low byte wraps at 256. **Steps = Σ wrap-aware diffs** `(cur-prev)&0xFFFF` — *not* the value summed per record (that over-counts massively — the WHOOP 5/MG step over-report). No per-record step count is in the record. |
 | 59 | `step_cadence` (u8) | a **cadence-like** byte between the counter and `@63`: never `0`, and lower when moving faster (still > walk > run in the data). Raw — no unit asserted. |
-| 63 | `motion_wear_quality` (u8) {0,1,2} | a 3-valued byte; kept **raw** (semantics not pinned from observation). |
+| 63 | `motion_wear_quality` (u8) {0,1,2} | a 3-valued byte; kept **raw** (semantics not pinned from observation). Also read as an **activity class** (0 still / 1 walk / 2 run, #316); `whoop-local` decodes the same offset with the same `<= 2` gate, reached independently (#715). |
 | 69 | `temp_aux_1_raw` (i16 LE); °C = value/10 | a **secondary temperature channel**: tracks `skin_temp@73` (corr **0.92** on two straps) with the same on-wrist diurnal curve; deci-°C resolution. |
 | 71 | `temp_aux_2_raw` (i16 LE); °C = value/10 | a second **temperature channel**: tracks `skin_temp@73` (corr **0.97**), same diurnal behaviour. |
 | 73 | `skin_temp_raw` (u16); °C = raw / 100 | A **digital skin-temperature sensor**, identified **purely from the data**: the on-wrist warming/diurnal curve is a thermal signature nothing else in the record has. **Scale = `/100`** — the only divisor that yields a physiological worn skin temperature (median ≈ **34 °C** across two straps; `/128` reads a non-physiological ≈ 27 °C). Decoded in `decodeWhoop5Historical` (`Interpreter.swift`); flows to the decode-features store as `skin_temp_raw` + derived `skin_temp_c`. |
@@ -441,10 +446,14 @@ garbage (HR `0`, gravity overflow). The fields below were read off real frames a
 | 77 | `status_word_1` (u16 LE) | raw; a near-static sibling of `status_word@75` (low nibble = channel index `1`). |
 | 79 | `status_word_2` (u16 LE) | raw; sibling of `@75`/`@77` (low nibble = `2`). |
 | 81 | `sleep_state` = `(byte >> 4) & 3` (+ low-nibble sub-flags) | bits 4-5 = the band sleep state: `0` wake / `1` still / `2` asleep / `3` up (deep/REM/light are off-band). Low-nibble sub-flags, observation-framed: **b0-1 `onwrist`** (on-wrist/validity flag) and **b2-3 `wake_quality`** (a 2-bit code observed nonzero **only in wake**); **b6-7 reserved** (`0` across all records). (Hypothesised from captures + a scored night on #132.) |
-| 82 | `aux_byte_82` (u8) | raw; observed **nonzero only while `sleep_state` = asleep** (meaning not pinned from observation). |
+| 82 | `aux_byte_82` (u8) | the raw carry of the byte decoded as **`spo2_candidate_82`** — a strap-computed SpO₂ % scalar, tri-mode, sleep-only (#103). Instrumentation only, never a shipped metric; see the note below and [`WHOOP5_DEEP_DATA.md`](WHOOP5_DEEP_DATA.md). |
 | 83–103 | reserved | observed **constant `0`** on two straps (zero-filled). |
 | 104 | (const) | observed **constant `1`** on two straps; carried raw, no metric. |
-| 113 | `unknown_f32_113` (f32 LE) | a float32 (observed range ~ −5.3…0, `0` = unset); **purpose unknown**, carried raw. |
+| 106 / 107 | `optical_baseline_a` / `optical_baseline_b` (u8, u8) | two **independent u8** optical/ADC baseline channels — **not** one u16 LE. A u16 is structurally impossible here: across 18,599 consecutive-second pairs the **high byte changed while the low byte stayed frozen in 3,514 (18.89 %)**, and the corpus holds **zero** low-byte wrap events — a real u16 cannot step its high byte without a carry. The apparent u16 deltas are exactly `256·Δ@107 + Δ@106` (clustering at 0, ±1, ±255, ±256, ±257, ±513). Correlated but independent (corr **+0.73**; they move in **opposite** directions in 5.8 % of pairs where both move). **`0` — not `128` — marks off-wrist**: both bytes read 0 in exactly the 8 records that also carry `HR == 0`, while 128 occurs unremarkably while worn (`@106` in 10 records, `@107` in 103). Magnitudes are device-specific (102–255 / 119–247 on one strap vs 20–66 / 34–81 on another), so **no scale is asserted**. |
+| 108 / 109 | `optical_amp_a` / `optical_amp_b` (u8, u8) | a tightly-coupled **pair** (equal in 23.5 % of records, within ±2 in ~80 %). **`128` is a RECORD-level sentinel**, not per-channel: `amp_a == 128` in 757 records and `amp_b == 128` in 757 — the **same** 757, never one without the other. They do **not** rise with heart rate; that reading (~34 at HR 40–49 → ~58 at 80–89) was an **averaging artifact** of counting the 128 sentinel as a number — with sentinels excluded the trend is flat-to-declining (**32.45 → 29.52**). The real monotone trend is with **motion**: ~32.7 while still (`dyn_acc` < 0.02 g) → **37.4** at 0.05–0.2 g. The sentinel is a usable per-second **signal-quality** flag: it fires on 4.02 % of worn seconds and predicts the band's own beat-detection failure (`rr_count == 0`) at **79.44 % vs 19.40 %** — a **4.09×** lift that **survives holding motion constant** (4.11× within `dyn_acc` < 0.009 g), where shuffled and circular-shift nulls all sit at ~1.0×. **Not** SpO₂, blood pressure or a perfusion substrate — signal-quality/AGC is the supported reading and the wavelength identity is unknown. |
+| 113 | `unknown_f32_113` (f32 LE) | a **graded quality metric**, no longer unknown: it **floors at −5.2869** when signal quality is good, and across its range takes `P(rr_count == 0)` from **18.30 % to 78.00 %** — a 4.3× lift (#845 census). `0` = unset. Correlated **r = −0.80** with `@40`, so the two report the same condition on different scales. Carried raw; no physiological reading is asserted. |
+
+**Corpus caveat for the `@33` / `@40` / `@108`–`@109` / `@113` quality group.** Those figures come from the #845 census over one contiguous capture: **a single subject, one night, 5 h 10 m, 99.48 % band-scored asleep**, median `dyn_acc` 0.0073 g, with **no ambulation, no workout and no verified off-wrist period**. The cardiac-quality fields are therefore well exercised and the activity-side behaviour is barely exercised at all. Read the monotone relationships as established *for still, asleep wear* — not across wake, exercise or off-wrist, which this corpus cannot speak to. A second corpus is what would promote any of this beyond instrumentation.
 
 The strongest check on the HR offset: where a historical record and a live `REALTIME_DATA` (§5, 2A37
 ground-truth-verified) frame share a timestamp, the historical HR equalled the live HR at **96/96**
@@ -455,6 +464,74 @@ WHOOP 5 worn over the same window, both offloaded and decoded, agree at **corr 0
 overlapping 1 Hz samples, with a **rest-only mean absolute error of 0.7 bpm** (they diverge only during
 exercise, as two independent PPG sensors do). That is a large-sample, cross-generation check on HR@22
 on top of the live-vs-historical match above.
+
+#### Byte 43 is not a respiration rate (#520)
+
+A third-party decoder reads a `u8` at payload offset 35 — **frame offset 43** — and labels it a raw
+respiration rate. It is not. Frame 43 is the third byte of the little-endian `dynamic_acceleration`
+float32 at 41, and the claim is disproved by the fixture frames already in the repo:
+
+| frame | byte 43 as "brpm" | f32@41 as g | \|g\| @45/49/53 |
+|---|---|---|---|
+| `whoop5_v18_real_worn` | 22 | 0.0092 | 1.0086 |
+| `whoop5_v18_real_one_rr` | 47 | 0.0107 | 1.0106 |
+| **`whoop5_v18_real_offwrist`** | **195** | 0.0060 | 0.9985 |
+| `whoop5_v18_real_ack_capture` | 108 | 0.0144 | 1.0074 |
+| `whoop5_v18_real_device2_hr57` | 6 | 0.0328 | 1.0029 |
+| `whoop5_v18_real_device2_hr63` | 9 | 0.0084 | 1.0096 |
+
+Two readings of bytes 41–44 are on offer, and they disagree about byte 43. The evidence, in order:
+
+1. **The 4-byte grid is fixed.** The f32s at 45/49/53 give \|g\| = 0.9985…1.0106 on every frame; three
+   values landing on unit magnitude together is not something a misaligned read produces.
+2. **Read as an f32 on that grid, 41–44 is physically coherent** — 0.006–0.033 g on all six frames,
+   the right size for a gravity-removed magnitude, and it stays coherent across worn, off-wrist and
+   two different straps. (Being on the grid doesn't by itself make it a float; the coherence is what
+   argues it is one.)
+3. **Read as a rate, byte 43 is impossible** — 6…195 "brpm", worst on the **off-wrist** frame: 195
+   breaths/min from a strap nobody is wearing, with `heart_rate@22` = 0.
+
+A byte belongs to one field. (2) and (3) can't both be right, and (3) is refuted by its own values.
+
+Note the tautology to avoid: byte 43 *is* byte 2 of that float by construction, so reproducing it from
+the float's exponent/mantissa bits proves nothing. The evidence is the gravity anchor plus the
+off-wrist value. `dynamic_acceleration` is now pinned in `decoder_oracle.json` on both platforms, so a
+future offset change here fails a test rather than silently reintroducing a fabricated vital sign.
+
+#### Byte 82: already decoded as `spo2_candidate_82`, blocked on a cross-device contradiction (#103)
+
+**This byte is not unmapped, and the open question is not what it is.** `Interpreter.swift` and
+`HistoricalStreams.kt` both decode `@82` as **`spo2_candidate_82`** — a strap-computed SpO₂ % scalar,
+tri-mode (70–100 a real %, bit-7 a saturation sentinel, other sub-70 a diagnostic code), populated only
+during sleep. It is instrumentation only: a guard test
+(`testHistoricalV18OpticalFieldsAreNotNamedPhysiologically`) stops it ever writing `spo2Pct`,
+`spo2_red` or `spo2_ir`, and nothing downstream reads it. The full analysis lives in
+[`WHOOP5_DEEP_DATA.md`](WHOOP5_DEEP_DATA.md); the `aux_byte_82` row above is the same byte carried raw
+alongside it.
+
+**The evidence is split, and that is the whole blocker.** An 8-night independent validation with real
+spread reaches **corr +0.99** (~0.4 %/night), tracks both a 92 % desaturation and a 98 % high, and is
+offset-specific — only `@82` tracks in a 74–92 scan. But on the original #103 capture device, two
+checked nights moved **opposite** to the app value (app 95.50→92.83 vs gated mean 93.62→93.80).
+Unresolved: device/firmware variance, or an extraction error on one side. Until that contradiction
+resolves, `@82` stays a candidate.
+
+**What clears the bar is multi-device correlation, not one more capture** — the nightly candidate
+tracking the app's own SpO₂ across many nights on several straps, *including* the device where the two
+nights currently disagree. `tools/linux-capture/validate_spo2_candidate.py` is the harness for exactly
+that. A single asleep frame proves nothing here; the value range has been seen.
+
+**Independent corroboration (#715).** `whoop-local` reads the same byte the same way — sleep-only, and
+its decoder applies the identical `70…100` in-band gate, reached separately. That is a second source on
+the *identification*. It does not touch the contradiction above, which is about whether the values
+track a given wearer's app figures, not about what the field is. Note also that this project's decode is
+already attributed as decompile-sourced (`gen5.rs spo2_pct`), reimplemented here as a protocol fact —
+so whoop-local is corroboration, not the origin.
+
+WHOOP 5 v18 carries no raw respiration channel, and the decoders already say so: `respRateRawOff = 80`
+is set on the **4.0** `HIST_V24` layout only (§ the type-47 biometric record), and `AnalyticsEngine`
+notes "WHOOP5 v18 carries no raw resp ADC, so this is an on-device estimate" where it derives the rate
+from RSA instead.
 
 Skin temperature @73 **is** decoded (above); PPG / SpO₂ still live further in the 124-byte record but
 lack on-device ground truth, so that region is left raw rather than guessed (project rule: real
@@ -544,6 +621,14 @@ The bodies are blocks of fixed-length **sample channels**:
   or moving v20 capture in the tree, and the earlier "same sensor set as v21" claim was the only basis for
   calling it optical — now that v21 is inertial, that inference no longer supports an optical reading. Do
   not treat v20 as an SpO₂/BP optical substrate pending a labelled **moving** capture.
+
+  **Independently corroborated (#715).** `whoop-local` lists six 20-bit v20 channel offsets, derived
+  separately from this tree: frame `47, 247, 1313, 1513, 1735, 1935`. Those are exactly the six slots of
+  our **non-empty** blocks (0, 3 and 4 — the corpus shows block counts are always `[25, 0, 0, 25, 25]`),
+  out of the ten listed above. Two unrelated methods agreeing on which six slots carry data, and where,
+  is the strongest confirmation this layout has. Note what it does **not** settle: both projects agree on
+  the *structure*, and neither has a labelled capture, so the sensor-identity question above is untouched
+  — agreement about where the bytes are is not evidence about what produced them.
 
 `decodeWhoop5HistoricalV2021` exposes `layout_marker`, `record_index`, `unix`, and the channels as **raw
 i16 sample arrays with no scale applied at this layer**. For **v21** the channels are named `accel_x/y/z`
@@ -776,6 +861,27 @@ output in `Tests/WhoopProtocolTests/Resources/` (`frames.json`, `golden.json`,
 decoder reproduces them byte-for-byte. Prefer real captures over invented offsets — unmapped regions
 are kept raw and labelled rather than guessed.
 
+**Check where a fixture came from before citing it as evidence.** A generated vector and a real
+capture are interchangeable for testing a decoder and are *not* interchangeable as evidence about
+firmware — once committed they look identical, and a CRC-valid synthetic frame is as convincing as a
+captured one.
+
+Provenance is generally declared, but **at the top of the file, not at each fixture**: `StreamsTests`
+and `FramingTests` both open by saying their frames are synthetic and that no real capture is
+embedded, the Kotlin `FramingTest` says its vectors were generated independently in Python, and
+`ExtendedBatteryProbeTests.realFrame` names the device it came off. Read that header before quoting a
+frame in an issue.
+
+This is not bookkeeping. #900 was filed against a decode that four in-tree fixtures appeared to
+contradict; three of the four declare themselves generated in exactly those headers, and the fourth
+shares a byte-identical envelope with one of them — a vector derived from another vector keeps its
+header, so a synthetic frame can read as corroboration of the original it was copied from. The issue
+went through two rounds of correction before anyone opened the files.
+
+Two habits follow: state provenance for a new fixture, at the fixture when the frame is the kind
+likely to be quoted outside its own file; and when a decode looks contradicted, check what the
+contradicting bytes actually are before changing the decoder.
+
 ### A note on whoop5 offsets
 
 If you map the WHOOP 5.0 biometric fields, do it in `parseFrameWhoop5` (inner record at offset 8) and
@@ -793,6 +899,54 @@ user-initiated, confirmation-gated action — never automatically (#166). When e
 set, keep it reversible and non-destructive.
 
 ---
+
+## Appendix: evaluated and rejected — the LINK_VALID handshake (#715)
+
+Recorded so it is not re-proposed. `whoop-local` ([a9eelsh](https://github.com/a9eelsh/whoop-local))
+implements a handshake in which the strap sends a `LINK_VALID` (command 1) and the client must answer
+with a `COMMAND_RESPONSE` (36) carrying `[originSeq, SUCCESS, "There it is."]`, stating that otherwise
+"the strap treats the link as invalid and withholds data."
+
+**As stated, that is contradicted by what NOOP does in the field.** Neither platform has ever had a
+`LINK_VALID` handler — not one reference in `Strand/BLE/` or `com.noop.ble` — and NOOP nonetheless
+completes historical offloads, live HR and sleep sync on WHOOP 5/MG for real users. If the strap
+withheld data from a client that never answers, *every* 5/MG user would get nothing; instead the
+5/MG reports we receive are about intermittent disconnects (#802) and state restoration (#613), not
+about a strap that never sends anything.
+
+The decode corpora point the same way — **~258k v18 records**, an **18,602-record** v18 span from a
+third strap's overnight stream, a **29,203-record** v20 corpus — though note those are cited here as
+corroboration, not proof: this project also has HCI-snoop tooling (`hci_extract.py`, #103), and a
+corpus extracted from a snoop of the *official* app would have been produced by a client that DID
+answer. The field-behaviour argument above does not depend on how any corpus was captured.
+
+What may still be true is narrower: their handshake sits alongside `TOGGLE_IMU_MODE` (106) and
+`TOGGLE_OPTICAL_MODE` (108), which arm the realtime R20/R21 raw streams — so if the exchange gates
+anything, it plausibly gates *those streams* rather than the offload.
+
+Our exposure to that is limited but not zero, and worth stating precisely. NOOP takes live HR from the
+standard `0x2A37` profile and disables the R10/R11 flood on connect (§4), and it never sends
+`TOGGLE_OPTICAL_MODE` (108) at all. But `captureRawAccel` **does** send `START_RAW_DATA` (81) +
+`TOGGLE_IMU_MODE` (106) — on demand, for a bounded window, never continuously. So the one place this
+could bite is an on-demand raw-accel capture on a 5/MG. Whether that path yields IMU frames today is
+the observation that would settle the narrow claim, and it is not recorded anywhere here.
+
+**Two questions are genuinely open**, and a capture answers both without implementing anything:
+
+1. Does a WHOOP 5/MG ever send us a type-35 `COMMAND` with `cmd == 1`? The schema knows both
+   (`PacketType 35 = COMMAND`, `CommandNumber 1 = LINK_VALID`) but nothing routes it, so today it would
+   arrive and be dropped silently.
+2. If it does, does ignoring it affect *link stability* — as distinct from data flow? That is a
+   different claim from the one above and is not disproved by the corpus. It would be a candidate
+   contributor to the intermittent-disconnect reports (#802, #613), though those look unlike a link the
+   strap has declared invalid.
+
+**Provenance caveat, and it is the deciding one.** The whole path is decompile-sourced
+(`com/whoop/service/rearchitect/c.java`, `zi0/*`, `bj0/x.java`, `bj0/f.java`) and its payload is a
+**literal string lifted from the app**. This project reimplements decompile-sourced *facts* with
+attribution when they are treated as unvalidated candidates — `spo2_candidate_82` is the precedent —
+but an offset is a fact and a magic string is expression. Even if question 1 turns out yes, the reply
+should be derived from our own capture of what the strap accepts, not copied.
 
 ## Appendix: observed but undecoded (#791)
 

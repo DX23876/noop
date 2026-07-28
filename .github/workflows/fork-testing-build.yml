@@ -48,6 +48,14 @@ jobs:
           - **iOS** — \`NOOP-ios-unsigned-v${VER}.ipa\` — sideload via **AltStore / Sideloadly** (re-signs on-device); embedded watch app stripped, widget extension retained for Home/Lock-Screen widgets and Live Activities.
 
           Base app version ${VER} · built ${DATE} · \`${SHA}\`."
+          # Belt-and-braces: a rolling tag is deleted with --cleanup-tag and recreated seconds later, and
+          # that recreate has come back as a DRAFT — the 9.2.1 staging build did, and a draft release does
+          # not create its tag, so the assets were unreachable and the `testing-latest` URL 404'd until
+          # someone noticed. Whatever the cause (the tag delete is not instant on GitHub's side), asserting
+          # the published state costs one idempotent call and cannot make things worse.
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease
+          DRAFT=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft -q .isDraft)
+          [ "$DRAFT" = "false" ] || { echo "::error::$TAG is still a draft — testers cannot download it."; exit 1; }
 
   android:
     needs: meta

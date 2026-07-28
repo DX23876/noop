@@ -367,6 +367,13 @@
     <string name="l10n_devices_screen_battery_4a9be042">设备电量</string>
     <string name="l10n_devices_screen_battery_clamped_2494c8c9">电量 %1$s%%</string>
     <string name="l10n_devices_screen_cancel_77dfd213">取消</string>
+    <string name="l10n_devices_screen_feature_flag_probe_761_re_21241d68">功能标志探测（#761 RE）…</string>
+    <string name="l10n_devices_screen_stop_sync_4a1f2b6e">停止同步</string>
+    <string name="l10n_devices_screen_feature_flag_probe_result_761_c50ef4d4">功能标志探测结果（#761）</string>
+    <string name="l10n_devices_screen_feature_flag_probe_explainer_58eec30f">请求手环列出其固件已知的功能标志名称：先发送 START_FF_KEY_EXCHANGE (0x75)，再重复发送 SEND_NEXT_FF (0x76)，直到手环表示已列完。只读——不会写入任何标志值，本探测也从不发送 SET 命令。列表会显示在此处并写入手环日志。</string>
+    <string name="l10n_devices_screen_device_config_read_probe_103_re_837f46de">设备配置读取探测（#103 RE）…</string>
+    <string name="l10n_devices_screen_device_config_read_probe_result_103_67d02ec9">设备配置读取探测结果（#103）</string>
+    <string name="l10n_devices_screen_device_config_probe_explainer_dd23169f">向手环询问配置的取值：GET_DEVICE_CONFIG_VALUE (0x79) 与 GET_FF_VALUE (0x80)，每次往返查询一个键。这两条命令在该固件中可能根本不存在——弄清这一点正是本次探测的目的。只读——不会写入任何取值，本探测也绝不会发送 SET 命令。结果会显示在此处并写入手环日志。</string>
     <string name="l10n_devices_screen_clamped_1f39cebb">%1$s%%</string>
     <string name="l10n_devices_screen_device_name_79d7a157">设备名称</string>
     <string name="l10n_devices_screen_give_device_brand_device_model_a_7a15585c">为您的 %1$s %2$s 起一个好记的名字。</string>
@@ -965,6 +972,7 @@
     <string name="l10n_add_device_wizard_not_now_e4571490">暂不</string>
     <string name="l10n_add_device_wizard_take_over_2c7f5505">接管</string>
     <string name="l10n_add_device_wizard_take_over_this_ring_cc79ef5e">接管这枚智能戒指吗？</string>
+    <string name="l10n_app_changelog_hrv_accuracy_fix_oura_sleep_and_4ed31e39">HRV 修正、Oura 睡眠与运动、更丰富的 5/MG 解码，以及可中断的同步</string>
     <string name="l10n_app_changelog_5_mg_bonding_on_android_health_c94c46ac">Android 版 5.0/MG 配对绑定 + 健康监测器修复</string>
     <string name="l10n_app_changelog_a_beautiful_new_look_aa8c910c">焕然一新的绝美外观设计</string>
     <string name="l10n_app_changelog_a_big_bug_fix_sweep_with_65335764">大规模 Bug 修复，并全新引入“测试中心”用于排查问题</string>
@@ -1635,4 +1643,46 @@
     <string name="l10n_data_sources_screen_last_shared_6bf8389c">"上次分享 "</string>
     <string name="l10n_data_sources_screen_sharing_paused_health_connect_permission_was_e8950315">分享已暂停——Health Connect 权限已被撤销。点按以重新授予。</string>
     <string name="l10n_data_sources_screen_last_share_didn_t_finish_noop_0d6c27f0">上次分享未完成——NOOP 将自动重试。</string>
+
+    <!-- 升级电量提醒（临界电量 + 睡前守护）。 -->
+    <string name="battery_critical_title">请立即为 WHOOP 充电</string>
+    <string name="battery_critical_body">剩余 %1$d%%。手环在约 10%% 时就会停止记录——不充电就无法记录今晚。</string>
+    <string name="battery_bedtime_title">撑不过今晚</string>
+    <string name="battery_bedtime_body">还能记录 %1$s，但今晚约需 %2$s。请在睡前充电。</string>
+
+    <!-- #867: the three older battery notifications, previously raw Kotlin literals in
+         BatteryAlertNotifier and therefore English in every locale. Wording and translations are the
+         Apple catalog's, moved across unchanged. -->
+    <string name="battery_runtime_title">手环电量低</string>
+    <string name="battery_runtime_body">你的 WHOOP 还剩 %1$s，今晚请充电。</string>
+    <string name="battery_low_title">电量低</string>
+    <string name="battery_low_body">今晚之前给你的 WHOOP 充电。</string>
+    <string name="battery_full_title">手环已充满电</string>
+    <string name="battery_full_body">你的 WHOOP 电量为 100%。</string>
+
+    <!-- Foreground-service notification (WhoopConnectionService). Always on screen while the strap is
+         connected, and hardcoded English until now: com/noop/ble is outside i18n_audit.py's scan roots,
+         and a NotificationCompat builder chain matches none of its Compose patterns, so the gate could
+         not see it. postNotification's dedupe key now includes the locale — without that, these would
+         keep the previous language until the connection or battery state happened to change. -->
+    <string name="fgs_title_reconnecting">正在重新连接你的 WHOOP…</string>
+    <string name="fgs_title_syncing">正在同步手环历史…</string>
+    <string name="fgs_title_connected">已连接到你的 WHOOP</string>
+    <string name="fgs_detail_streaming">正在后台传输</string>
+    <string name="fgs_detail_keeping_link">正在保持连接</string>
+    <string name="fgs_detail_recovery">恢复 %1$d%%</string>
+    <string name="fgs_detail_battery">手环 %1$d%%</string>
+    <string name="fgs_action_disconnect">断开连接</string>
+    <string name="fgs_channel_name">手环连接</string>
+    <string name="fgs_channel_desc">当 NOOP 在后台保持你的 WHOOP 连接时显示。</string>
+
+    <!-- The remaining notifier titles/bodies, surfaced by extending i18n_audit.py to the
+         notification builders. Same defect as the block above: user-visible, never localised. -->
+    <string name="illness_alert_title">早期预警：放轻松</string>
+    <string name="inactivity_title">活动提醒</string>
+    <string name="smart_alarm_title">早上好</string>
+    <string name="smart_alarm_body">你的智能闹钟刚刚响了。</string>
+    <string name="battery_channel_name">电量提醒</string>
+    <string name="battery_channel_desc">当手环电量低或已充满时提醒。</string>
+    <string name="l10n_app_changelog_battery_saver_quiets_the_gauges_translated_bdbe8650">省电模式让仪表静止、Android 通知已翻译、图表秒开</string>
 </resources>

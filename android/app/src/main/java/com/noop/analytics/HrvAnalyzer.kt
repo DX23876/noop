@@ -339,8 +339,9 @@ object HrvAnalyzer {
      *  point of logging the verdict in the first place. Twin of Swift `coveragePlausibleCeiling`. */
     const val COVERAGE_PLAUSIBLE_CEILING: Double = 1.10
 
-    /** Classify a night from its coverage pair. Pure. Byte-parity twin of Swift `classifyCoverage`. */
-    /** Both platforms use the NEGATED `>` form rather than `<=` so a non-finite input lands identically:
+    /** Classify a night from its coverage pair. Pure. Byte-parity twin of Swift `classifyCoverage`.
+     *
+     *  Both platforms use the NEGATED `>` form rather than `<=` so a non-finite input lands identically:
      *  every IEEE-754 comparison with NaN is false, so `<=` and `>` are not each other's inverse there and
      *  the twins would otherwise disagree. NaN falls to UNMEASURABLE on both. */
     fun classifyCoverage(coverage: Double, collapsed: Double): RrCoverageVerdict {

@@ -25,6 +25,7 @@ import com.noop.data.StreamBatch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
@@ -555,7 +556,7 @@ class StandardHrSource(
         /** Speed in km/h as one decimal, or null when absent / negative / non-finite. */
         fun formatSpeedKmh(kmh: Double?): String? {
             if (kmh == null || !kmh.isFinite() || kmh < 0.0) return null
-            return String.format("%.1f", kmh)
+            return String.format(Locale.ROOT, "%.1f", kmh)
         }
 
         /** Cadence (per-minute) rounded to a whole number, or null when absent / negative / non-finite. */

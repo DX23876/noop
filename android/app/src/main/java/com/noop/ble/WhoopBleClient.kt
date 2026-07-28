@@ -38,6 +38,10 @@ import com.noop.protocol.BackfillCaptureRecord
 import com.noop.protocol.BackfillCaptureSummary
 import com.noop.protocol.CommandNumber
 import com.noop.protocol.DeviceFamily
+import com.noop.protocol.DeviceConfigReadProbe
+import com.noop.protocol.DeviceConfigReadProbeReport
+import com.noop.protocol.FeatureFlagProbe
+import com.noop.protocol.FeatureFlagProbeReport
 import com.noop.protocol.Framing
 import com.noop.protocol.HapticClock
 import com.noop.protocol.Reassembler
@@ -864,6 +868,16 @@ class WhoopBleClient(
             connected && bonded && !backfilling
 
         /**
+         * The mirror gate for stopping one: an abort is only meaningful while an offload is actually
+         * running. Pure for the same reason as [canRequestSync] — the menu's visibility and the
+         * client's own guard must not drift apart, and neither needs a live GATT stack to test.
+         *
+         * Note it does NOT require [connected]. A user can abort a session whose link has already
+         * dropped; there is simply no opcode to send, and the local teardown is the whole point.
+         */
+        fun canAbortSync(backfilling: Boolean): Boolean = backfilling
+
+        /**
          * #314: should a Throwable that escaped a raw GATT call trigger a full link teardown?
          *
          * Once the OS Bluetooth radio is turned off mid-link the binder dies, and `BluetoothGatt`'s
@@ -1187,6 +1201,20 @@ class WhoopBleClient(
         /** #690: persisted previous body-location payload hex, so a new capture can diff against it. */
         private const val KEY_690_PREV_PAYLOAD = "noop.690.prevPayload"
 
+        /** #761: sentinel value of [featureFlagProbe] while the read-only enumeration walk is running. */
+        const val WAITING_FEATURE_FLAG_PROBE = "__waiting__"
+
+        /** #761: per-step reply window. Each 118 is only sent after the previous reply lands, so this
+         *  bounds one round-trip, not the whole walk. */
+        const val FEATURE_FLAG_PROBE_TIMEOUT_MS = 8_000L
+
+        /** #103: sentinel value of [deviceConfigProbe] while the read-only VALUE probe is walking. */
+        const val WAITING_DEVICE_CONFIG_PROBE = "__waiting__"
+
+        /** #103: per-step reply window. Each read is only sent after the previous reply lands (or times
+         *  out), so this bounds one round-trip, not the whole plan. */
+        const val DEVICE_CONFIG_PROBE_TIMEOUT_MS = 8_000L
+
         /**
          * #690: format a GET_BODY_LOCATION_AND_STATUS (0x54) COMMAND_RESPONSE into a clean, readable,
          * copyable report — verdict, full raw hex, an offset-labelled payload grid, the four decoded fields
@@ -1270,7 +1298,7 @@ class WhoopBleClient(
                     sb.append("Δ vs previous capture: first capture — probe again in another position to diff")
                 }
             } else {
-                sb.append("\nNo payload beyond the command byte (bare stub) — no body-location data on this firmware")
+                sb.append("\nNo payload beyond the command byte (bare stub) — this reply carried no body-location data, which is not the same as the firmware having none (see the Verdict above)")
             }
             return sb.toString() to payloadHex
         }
@@ -1493,6 +1521,32 @@ class WhoopBleClient(
     // #690: the body-location probe result (or the waiting sentinel), shown + copied in the Devices dialog.
     private val _bodyLocationProbe = MutableStateFlow<String?>(null)
     val bodyLocationProbe: StateFlow<String?> = _bodyLocationProbe.asStateFlow()
+
+    // #761: the READ-ONLY feature-flag ENUMERATION report — the flag NAMES the strap's own firmware lists
+    // — or the waiting sentinel while the walk runs. Nothing is written to the strap to produce it.
+    private val _featureFlagProbe = MutableStateFlow<String?>(null)
+    val featureFlagProbe: StateFlow<String?> = _featureFlagProbe.asStateFlow()
+
+    /** The in-flight #761 report; null when no probe is running. Doubles as the [send] allowlist's
+     *  in-flight gate — 117/118 cannot leave the app unless this is non-null. */
+    private var featureFlagReport: FeatureFlagProbeReport? = null
+    /** Monotonic step counter so a late timeout from an earlier step can't cancel a live walk. */
+    private var featureFlagStep = 0
+    /** The opcode whose reply we are waiting for (117 or 118), null between steps. */
+    private var featureFlagAwaiting: Int? = null
+
+    // #103: the READ-ONLY device-config READ report — what 121/128 answer when asked for a key's VALUE —
+    // or the waiting sentinel while the plan runs. Nothing is written to the strap to produce it.
+    private val _deviceConfigProbe = MutableStateFlow<String?>(null)
+    val deviceConfigProbe: StateFlow<String?> = _deviceConfigProbe.asStateFlow()
+
+    /** The in-flight #103 report; null when no probe is running. Doubles as the [send] allowlist's
+     *  in-flight gate — 121/128 cannot leave the app unless this is non-null. */
+    private var deviceConfigReport: DeviceConfigReadProbeReport? = null
+    /** The step whose reply we are waiting for, null between steps. */
+    private var deviceConfigAwaiting: DeviceConfigReadProbeReport.Step? = null
+    /** Monotonic step counter so a late timeout from an earlier step can't cancel a live walk. */
+    private var deviceConfigStep = 0
 
     private val _connectedPeripheralAddress = MutableStateFlow<String?>(null)
     /** The BLE address of the strap currently connected, or null when disconnected. Twin of macOS
@@ -1979,9 +2033,11 @@ class WhoopBleClient(
                         // the night MEAN (the other app's number) — from the post-backfill scoring pass, not
                         // only the UI's 15-min loop. log() PII-scrubs at the sink. Best-effort + logging only.
                         diag = { s -> log(s) },
-                        // Opt-in experimental sleep staging (V2): stage this post-backfill pass with the same
+                        // Experimental sleep staging (V2): stage this post-backfill pass with the same
                         // engine the user chose in Settings, read off SharedPreferences here (the analytics
-                        // layer is Context-free). Default off → V1. (V7 Pillar 3b)
+                        // layer is Context-free). The stored preference is default TRUE
+                        // (getBoolean(KEY, true)), so this normally passes V2 — turning the Settings toggle
+                        // off is what falls back to V1. (V7 Pillar 3b)
                         useExperimentalSleepV2 = PuffinExperiment.from(context).experimentalSleepV2,
                         // Opt-in motion-aware wake refinement (#364 follow-up) — same Context-free threading.
                         useMotionAwareWake = PuffinExperiment.from(context).motionAwareWake,
@@ -2085,6 +2141,29 @@ class WhoopBleClient(
     /** Wall time (ms) the current connect attempt began, to measure connect latency at onConnectionStateChange
      *  CONNECTED. null between attempts; set when connect() kicks the radio. */
     private var connectAttemptStartedAtMs: Long? = null
+
+    /**
+     * Wall time (ms) this link reached STATE_CONNECTED, or null while down. Read only to LOG how long a
+     * connection was held before it dropped.
+     *
+     * Why it is worth a field: reaching STATE_CONNECTED zeroes [failedReconnectAttempts], and that
+     * counter is the ONLY input to [scanModeForReconnectAttempts]. So a strap that connects and drops
+     * repeatedly — edge of range, phone in another room — never accumulates a streak and every rescan
+     * stays on the battery-hungry SCAN_MODE_LOW_LATENCY, which the PR #588 backoff was meant to escape.
+     * The #982 guard covers the never-bonded variant of that loop; a bonded-but-short-lived link is not
+     * covered. Printing the hold time makes the pattern readable in an ordinary strap log: a run of
+     * drops that all say `attempt 1` with a short `held` is that bug, with no instrumentation needed.
+     *
+     * Diagnostic only — nothing reads this to make a decision.
+     */
+    @Volatile
+    private var linkUpSinceMs: Long? = null
+
+    /** `, held 24s` for the drop log, or an empty string if we never reached STATE_CONNECTED. */
+    private fun heldForLogSuffix(): String {
+        val since = linkUpSinceMs ?: return ""
+        return ", held ${(System.currentTimeMillis() - since) / 1000}s"
+    }
     /** Count of INVOLUNTARY reconnects this run, surfaced as the reconnect-churn count. Reset by an
      *  intentional disconnect. */
     private var connReconnectCount = 0
@@ -2742,6 +2821,11 @@ class WhoopBleClient(
             // (whoop5HistoricalAckFrame = puffinCommandFrame(23, [0x01]+endData)). (#78)
             if (cmd != CommandNumber.TOGGLE_REALTIME_HR && cmd != CommandNumber.RUN_HAPTICS_PATTERN &&
                 cmd != CommandNumber.SEND_HISTORICAL_DATA && cmd != CommandNumber.HISTORICAL_DATA_RESULT &&
+                // ABORT_HISTORICAL_TRANSMITS (20) over puffin: stop an offload already in flight. Allowed
+                // ONLY while one actually is, so a default install can never form these bytes on a 5/MG —
+                // and the gate is the same state the command is about. Non-destructive: the strap frees
+                // records on our HISTORY_END ack, not on this, so an aborted drain re-offloads intact.
+                !(cmd == CommandNumber.ABORT_HISTORICAL_TRANSMITS && backfilling) &&
                 cmd != CommandNumber.SET_CLOCK && cmd != CommandNumber.GET_CLOCK &&
                 cmd != CommandNumber.GET_DATA_RANGE &&
                 cmd != CommandNumber.SET_ALARM_TIME && cmd != CommandNumber.DISABLE_ALARM &&
@@ -2757,6 +2841,26 @@ class WhoopBleClient(
                 // probeBodyLocationAndStatus() (user-initiated, Test Centre gated); response decoded to a
                 // diagnostic report only, never gates wear/scoring. Whether 5/MG answers is a hardware check.
                 cmd != CommandNumber.GET_BODY_LOCATION_AND_STATUS &&
+                // START_FF_KEY_EXCHANGE (117) / SEND_NEXT_FF (118) over puffin: the READ-ONLY feature-flag
+                // ENUMERATION probe (#761) — it reads the strap's own flag NAMES and writes no value. Gated
+                // harder than the probes above: allowed ONLY while a probe is actually in flight, so on a
+                // 5/MG a default install can never form these bytes. NOTE this whole allowlist is the 5/MG
+                // path — WHOOP 4.0 has no send allowlist at all, so on a 4.0 the only thing keeping 117/118
+                // off the wire is probeFeatureFlags()'s own Test Centre gate. Same practical result,
+                // different mechanism, and worth knowing because the 4.0 is the family with a published key
+                // dump to reproduce and so the likely first runner. The SET verbs (120 / 119) keep their own
+                // separate opt-in clauses below and are never sent from this path. Driven only by
+                // probeFeatureFlags() (user-initiated, Test Centre gated).
+                !((cmd == CommandNumber.START_FF_KEY_EXCHANGE || cmd == CommandNumber.SEND_NEXT_FF) &&
+                    featureFlagReport != null) &&
+                // GET_DEVICE_CONFIG_VALUE (121) / GET_FF_VALUE (128) over puffin: the READ-ONLY
+                // device-config READ probe (#103) — it asks for a key's VALUE and writes none. Gated the
+                // same way as 117/118: allowed ONLY while a probe is actually in flight, and the opcode
+                // must additionally satisfy DeviceConfigReadProbe.isReadOnlyOpcode, the same predicate a
+                // unit test proves rejects SET_FF_VALUE(120) and SET_DEVICE_CONFIG_VALUE(119). Those two
+                // keep their own separate opt-in clauses below and are never sent from this path. Driven
+                // only by probeDeviceConfigValues() (user-initiated, Test Centre gated).
+                !(DeviceConfigReadProbe.isReadOnlyOpcode(cmd.rawValue) && deviceConfigReport != null) &&
                 // SET_CONFIG (the R22 deep-stream unlock) is allowed ONLY while the deep-data experiment
                 // is opted in — it writes a persistent feature flag to the strap, so it must never fire
                 // on a default install. Reversible; driven only by enableWhoop5DeepData(). (#174)
@@ -3187,6 +3291,224 @@ class WhoopBleClient(
 
     /** Clear the #690 probe result (Devices dialog dismissed). */
     fun clearBodyLocationProbe() { _bodyLocationProbe.value = null }
+
+    /**
+     * #761 read-only probe: ask the strap to ENUMERATE the feature-flag key names its firmware knows —
+     * `START_FF_KEY_EXCHANGE(117)` for the count, then `SEND_NEXT_FF(118)` repeatedly (its body is a
+     * cursor, not an index) until the strap's own end marker. NOTHING is written: no `SET_FF_VALUE(120)`,
+     * no `SET_DEVICE_CONFIG_VALUE(119)`, no value of any kind — this writes command frames purely to read,
+     * exactly like the Oura feature-status probes NOOP already ships. `GET_FF_VALUE(128)` is deliberately
+     * NOT sent (its reply's value field is reported unreliable — see [FeatureFlagProbe]).
+     *
+     * The strap's own key list is the direct evidence #103 lacks: if a 5/MG names no oxygen-related flag,
+     * Blood Oxygen is not client-writable; if it names one, that is the answer outright. The report goes
+     * to the Devices dialog and the strap log — no new storage. User-initiated only, Test Centre →
+     * Connection gated at the call site. Twin of macOS BLEManager.probeFeatureFlags().
+     */
+    fun probeFeatureFlags() {
+        if (!_state.value.connected) {
+            log("Feature-flag probe (#761) ignored — not connected")
+            return
+        }
+        // Defence in depth: the menu entry is already Test-Centre gated, but the sender re-checks so no
+        // other path can start a probe on a default install (twin of the macOS guard).
+        //
+        // On WHOOP 4.0 this check is the ONLY thing standing between a default install and 117/118 on the
+        // wire: the send() allowlist that also gates them is the 5/MG path, and 4.0 has no allowlist. So
+        // this guard is not merely belt-and-braces on every family — for the family most likely to run
+        // this first, it is the belt.
+        if (!testCentre.active(com.noop.testcentre.TestDomain.CONNECTION)) {
+            log("Feature-flag probe (#761) ignored — Test Centre → Connection is off")
+            return
+        }
+        if (featureFlagReport != null) {
+            log("Feature-flag probe (#761) ignored — a probe is already walking the list")
+            return
+        }
+        featureFlagReport = FeatureFlagProbeReport(connectedFamily)
+        _featureFlagProbe.value = WAITING_FEATURE_FLAG_PROBE
+        log(
+            "Feature-flag probe (#761): sending START_FF_KEY_EXCHANGE(117, read-only) on " +
+                "family=$connectedFamily; no value is written (SET_FF_VALUE/120 is never sent from this path)",
+        )
+        sendFeatureFlagStep(CommandNumber.START_FF_KEY_EXCHANGE)
+    }
+
+    /** Send one read-only enumeration command and arm the per-step reply window. */
+    private fun sendFeatureFlagStep(cmd: CommandNumber) {
+        featureFlagStep += 1
+        featureFlagAwaiting = cmd.rawValue
+        val step = featureFlagStep
+        send(cmd, FeatureFlagProbe.REQUEST_BODY)
+        // A reply that already landed advanced featureFlagStep, so this stale closure no-ops (the same
+        // guard the #592/#690 timeouts use, expressed as a step check because the walk has many hops).
+        handler.postDelayed({
+            if (featureFlagReport != null && featureFlagStep == step && featureFlagAwaiting != null) {
+                featureFlagReport?.noteTimeout(cmd.rawValue, (FEATURE_FLAG_PROBE_TIMEOUT_MS / 1000).toInt())
+                finishFeatureFlagProbe()
+            }
+        }, FEATURE_FLAG_PROBE_TIMEOUT_MS)
+    }
+
+    /** Render + publish + log the report and end the probe (which also re-closes the send() allowlist). */
+    private fun finishFeatureFlagProbe() {
+        val report = featureFlagReport ?: return
+        featureFlagReport = null
+        featureFlagAwaiting = null
+        val text = report.render()
+        log("Feature-flag probe (#761):\n$text")
+        _featureFlagProbe.value = text
+    }
+
+    /** Clear the #761 probe result (Devices dialog dismissed). */
+    fun clearFeatureFlagProbe() { _featureFlagProbe.value = null }
+
+    /**
+     * #103 read-only probe: ask the strap for config VALUES — `GET_DEVICE_CONFIG_VALUE(121)` and
+     * `GET_FF_VALUE(128)`, one key per round-trip. The #761 probe asked the strap for key NAMES in the
+     * feature-flag namespace; this asks for a named key's VALUE, and reaches the DEVICE-CONFIG namespace
+     * (the one `SET_DEVICE_CONFIG_VALUE`/119 writes) that 117/118 never covered.
+     *
+     * NOTHING is written: no `SET_FF_VALUE(120)`, no `SET_DEVICE_CONFIG_VALUE(119)`, no value of any kind
+     * — this writes command frames purely to read, exactly like the Oura feature-status probes NOOP
+     * already ships.
+     *
+     * **Both target opcodes may simply be unimplemented.** The probe spends one round-trip per verb
+     * establishing that before it does anything else, and a clean "neither verb is served" is a useful
+     * result. Only a verb that answers goes on to read the sixteen known flag values and the short list
+     * of guessed oxygen key names. The report goes to the Devices dialog and the strap log — no new
+     * storage. User-initiated only, Test Centre → Connection gated at the call site. Twin of macOS
+     * BLEManager.probeDeviceConfigValues().
+     */
+    fun probeDeviceConfigValues() {
+        if (!_state.value.connected) {
+            log("Device-config read probe (#103) ignored — not connected")
+            return
+        }
+        // Defence in depth: the menu entry is already Test-Centre gated, but the sender re-checks so no
+        // other path can start a probe on a default install (twin of the macOS guard).
+        if (!testCentre.active(com.noop.testcentre.TestDomain.CONNECTION)) {
+            log("Device-config read probe (#103) ignored — Test Centre → Connection is off")
+            return
+        }
+        if (deviceConfigReport != null) {
+            log("Device-config read probe (#103) ignored — a probe is already walking its plan")
+            return
+        }
+        deviceConfigReport = DeviceConfigReadProbeReport(
+            connectedFamily,
+            // The flag names come from NOOP's own R22 sequence — never restated here.
+            Whoop5Config.enableR22Sequence.map { it.name },
+            DeviceConfigReadProbe.OXYGEN_CANDIDATE_KEYS,
+        )
+        _deviceConfigProbe.value = WAITING_DEVICE_CONFIG_PROBE
+        log(
+            "Device-config read probe (#103): asking for config VALUES via GET_DEVICE_CONFIG_VALUE(121) + " +
+                "GET_FF_VALUE(128) on family=$connectedFamily; read-only (SET_FF_VALUE/120 and " +
+                "SET_DEVICE_CONFIG_VALUE/119 are never sent from this path)",
+        )
+        advanceDeviceConfigProbe()
+    }
+
+    /** Send the next planned read, or finish when the plan is done. */
+    private fun advanceDeviceConfigProbe() {
+        val step = deviceConfigReport?.nextStep()
+        if (step == null) {
+            finishDeviceConfigProbe()
+            return
+        }
+        val cmd = CommandNumber.fromRaw(step.opcode)
+        if (cmd == null || !DeviceConfigReadProbe.isReadOnlyOpcode(step.opcode)) {
+            // Unreachable with the plan as written; failing closed here means a future edit that widened
+            // the plan cannot put a non-read opcode on the wire.
+            log("Device-config read probe (#103): refusing to send opcode ${step.opcode} — not a read verb")
+            finishDeviceConfigProbe()
+            return
+        }
+        deviceConfigStep += 1
+        deviceConfigAwaiting = step
+        val armed = deviceConfigStep
+        send(cmd, DeviceConfigReadProbe.requestBody(step.key))
+        // A reply that already landed advanced deviceConfigStep, so this stale closure no-ops.
+        handler.postDelayed({
+            if (deviceConfigReport != null && deviceConfigStep == armed && deviceConfigAwaiting != null) {
+                deviceConfigAwaiting = null
+                deviceConfigReport?.noteTimeout(step, (DEVICE_CONFIG_PROBE_TIMEOUT_MS / 1000).toInt())
+                // A silent verb is retired by the report, so the plan skips its remaining steps rather
+                // than spending another eight seconds on each of them.
+                advanceDeviceConfigProbe()
+            }
+        }, DEVICE_CONFIG_PROBE_TIMEOUT_MS)
+    }
+
+    /** Render + publish + log the report and end the probe (which also re-closes the send() allowlist). */
+    private fun finishDeviceConfigProbe() {
+        val report = deviceConfigReport ?: return
+        deviceConfigReport = null
+        deviceConfigAwaiting = null
+        val text = report.render()
+        log("Device-config read probe (#103):\n$text")
+        _deviceConfigProbe.value = text
+    }
+
+    /** Clear the #103 probe result (Devices dialog dismissed). */
+    fun clearDeviceConfigProbe() { _deviceConfigProbe.value = null }
+
+    /**
+     * #103: one COMMAND_RESPONSE for 121/128. Guarded on a probe being IN-FLIGHT (like #690/#761) so a
+     * stray byte match can never surface a result. Parsing — including the CRC gate — lives in the pure
+     * [DeviceConfigReadProbe]; a frame that fails any check retires that verb with a named reason instead
+     * of being decoded. Twin of macOS BLEManager.handleDeviceConfigProbeResponse.
+     */
+    private fun handleDeviceConfigProbeResponse(frame: ByteArray) {
+        if (deviceConfigReport == null) return
+        val step = deviceConfigAwaiting ?: return
+        deviceConfigAwaiting = null
+        val parsed = DeviceConfigReadProbe.parse(frame, connectedFamily, step.opcode)
+        val value = parsed.value
+        if (value != null) {
+            deviceConfigReport?.noteReply(value, step)
+        } else {
+            deviceConfigReport?.noteFailure(parsed.failure!!, step)
+        }
+        advanceDeviceConfigProbe()
+    }
+
+    /**
+     * #761: one COMMAND_RESPONSE for 117/118. Guarded on a probe being IN-FLIGHT (like #690) so a stray
+     * byte match can never surface a result. Parsing — including the CRC gate — lives in the pure
+     * [FeatureFlagProbe]; a frame that fails any check ends the walk with a named reason instead of being
+     * decoded. Twin of macOS BLEManager.handleFeatureFlagProbeResponse.
+     */
+    private fun handleFeatureFlagProbeResponse(frame: ByteArray) {
+        if (featureFlagReport == null) return
+        val awaiting = featureFlagAwaiting ?: return
+        featureFlagAwaiting = null
+        if (awaiting == CommandNumber.START_FF_KEY_EXCHANGE.rawValue) {
+            val parsed = FeatureFlagProbe.parseStart(frame, connectedFamily)
+            val start = parsed.value
+            if (start != null) {
+                featureFlagReport?.noteStart(start)
+                sendFeatureFlagStep(CommandNumber.SEND_NEXT_FF)
+            } else {
+                featureFlagReport?.noteFailure(parsed.failure!!, awaiting)
+                finishFeatureFlagProbe()
+            }
+            return
+        }
+        val parsed = FeatureFlagProbe.parseNext(frame, connectedFamily)
+        val next = parsed.value
+        if (next == null) {
+            featureFlagReport?.noteFailure(parsed.failure!!, awaiting)
+            finishFeatureFlagProbe()
+            return
+        }
+        if (featureFlagReport?.noteNext(next) == true) {
+            sendFeatureFlagStep(CommandNumber.SEND_NEXT_FF)
+        } else {
+            finishFeatureFlagProbe()
+        }
+    }
 
     /** Shared reboot send + debug trail + watchdog, used by both the production [rebootStrap] and the
      *  4.0 [rebootProbe]. `probe == null` is the normal restart; a non-null variant is a probe attempt
@@ -4027,6 +4349,10 @@ class WhoopBleClient(
                     // climb on a flapping co-resident band froze the link, and with it the keep-alive battery
                     // poll and every historical offload: sync + battery stopped updating (regression of #173).
                     resetReconnectBackoff()
+                    // Diagnostic only (see linkUpSinceMs): how long this link is held before it drops is
+                    // exactly what distinguishes a healthy connection from the flapping loop that keeps
+                    // the reconnect streak — and so the scan mode — pinned at its most power-hungry.
+                    linkUpSinceMs = System.currentTimeMillis()
                     // A connect succeeded → clear the stale-bond re-pair guide UNLESS we are in a known
                     // bond-loop (#617). In that loop the strap "connects" every ~3 s before timing out
                     // again, so clearing here wiped the guide on EVERY cycle: it flashed for ~1 s and
@@ -4469,6 +4795,24 @@ class WhoopBleClient(
                         _bodyLocationProbe.value = text
                         if (payHex != null) NoopPrefs.of(context).edit().putString(KEY_690_PREV_PAYLOAD, payHex).apply()
                     }
+                    // #761: a reply to the read-only feature-flag enumeration (117/118). In-flight-guarded
+                    // inside handleFeatureFlagProbeResponse, so this is a byte compare on every other frame.
+                    if (frame.size > cmdOff &&
+                        ((frame[cmdOff].toInt() and 0xFF) == CommandNumber.START_FF_KEY_EXCHANGE.rawValue ||
+                            (frame[cmdOff].toInt() and 0xFF) == CommandNumber.SEND_NEXT_FF.rawValue)
+                    ) {
+                        handleFeatureFlagProbeResponse(frame)
+                    }
+                    // #103: a reply to the read-only device-config READ probe (121/128). In-flight-guarded
+                    // inside handleDeviceConfigProbeResponse, so this is a byte compare on other frames.
+                    // The COMMAND_RESPONSE type gate (cmdOff - 2 on both families) is checked HERE as well
+                    // as in the parser: a data frame that happens to carry 121/128 at the cmd offset would
+                    // otherwise abort a live walk with an envelope failure instead of being ignored.
+                    if (frame.size > cmdOff && (frame[cmdOff - 2].toInt() and 0xFF) == 0x24 &&
+                        DeviceConfigReadProbe.isReadOnlyOpcode(frame[cmdOff].toInt() and 0xFF)
+                    ) {
+                        handleDeviceConfigProbeResponse(frame)
+                    }
                     if (frame.size > cmdOff && (frame[cmdOff].toInt() and 0xFF) == CommandNumber.GET_DATA_RANGE.rawValue) {
                         // #451: dump raw GET_DATA_RANGE response bytes unconditionally (even if decode returns
                         // null) so a stale/wrong-epoch "newest" can be told apart from a frame-alignment bug in
@@ -4731,8 +5075,23 @@ class WhoopBleClient(
                 }
                 // Surface non-success command results in the strap log — a result=UNSUPPORTED line
                 // here is how the MG haptics rejection (#48) would have shown itself in-app.
+                //
+                // A reply that DELIVERED ITS VALUE is annotated rather than reported as a bare failure.
+                // The 4.0 GET_BATTERY_LEVEL replies on record carry a zeroed [seq][result] prefix, so a
+                // battery read that returned a perfectly good percentage logs as
+                // "FAILURE(0)" — and a log line saying a battery read failed, next to a battery gauge
+                // showing 42%, is the kind of artefact that gets quoted in an issue as evidence of a
+                // fault that is not there. That is how #900 started. The line still prints, because
+                // hiding it would hide the anomaly itself; it just no longer reads as a failure.
                 if (result != null && !result.startsWith("SUCCESS")) {
-                    log("Command response: ${respCmd ?: "?"} → $result")
+                    val decodedValue = doubleValue(parsed.parsed["battery_pct"])
+                    val note = if (decodedValue != null) {
+                        " (the reply still carried a value: battery ${"%.1f".format(decodedValue)}%" +
+                            " — the result byte on this reply is not established, see #900)"
+                    } else {
+                        ""
+                    }
+                    log("Command response: ${respCmd ?: "?"} → $result$note")
                 }
                 // Arm-readback diagnostic (#401 close-out): armStrapAlarm follows every WHOOP 4.0 arm
                 // with GET_ALARM_TIME (67) so the log proves what the STRAP believes is armed, not just
@@ -5909,6 +6268,42 @@ class WhoopBleClient(
         exitBackfilling("timeout")
     }
 
+    /**
+     * Stop an offload that is part-way through, at the user's request.
+     *
+     * NOOP has been able to START a drain since day one (SEND_HISTORICAL_DATA) with no way to stop it:
+     * a session ran to HISTORY_COMPLETE, the backfill timeout, or a dropped link.
+     *
+     * NOTHING IS LOST. The strap frees banked records when we ack a HISTORY_END, so acked records are
+     * persisted and unacked ones stay in flash and re-offload next sync. A stop, not a trim.
+     *
+     * The local teardown does NOT depend on the strap honouring opcode 20 — [exitBackfilling] runs
+     * either way, the same path the timeout and disconnect already use — so a firmware that ignores
+     * the abort degrades to today's behaviour rather than wedging the UI in "Syncing". Deliberate: the
+     * opcode is confirmed in use on WHOOP 4.0 by OpenStrap Edge, and is NOT hardware-confirmed here on
+     * either family. Twin of Swift `BLEManager.abortBackfill()`.
+     */
+    fun abortBackfill() {
+        if (!canAbortSync(backfilling)) {
+            log("Abort sync ignored — no offload in flight")
+            return
+        }
+        // Send BEFORE tearing down: the 5/MG allow-list admits opcode 20 only while `backfilling` is
+        // still true, so the ordering here is load-bearing, not stylistic.
+        if (_state.value.connected) {
+            send(CommandNumber.ABORT_HISTORICAL_TRANSMITS, byteArrayOf(0), withResponse = true)
+            log("Abort sync: ABORT_HISTORICAL_TRANSMITS (20) sent; unacked records stay on the strap")
+        } else {
+            log("Abort sync: not connected — tearing down the local session only")
+        }
+        // The reason string is deliberately NOT one [exitBackfilling] classifies. Only "HISTORY_COMPLETE"
+        // stamps lastSyncAt and only "timeout" raises a sync error; everything else hits the `else` branch
+        // and leaves both untouched — exactly right for an abort. A cancelled sync is neither a success
+        // nor a failure: nothing was lost, and the next sync re-offloads what was left. If a future edit
+        // starts classifying more reasons, this one must stay in the fall-through. Twin of the Swift note.
+        exitBackfilling("aborted by user")
+    }
+
     /** Tear down the backfill session. Port of `exitBackfilling`. Does NOT auto-start live HR. */
     private fun exitBackfilling(reason: String) {
         if (!backfilling) return
@@ -6295,6 +6690,11 @@ class WhoopBleClient(
 
     @SuppressLint("MissingPermission")
     private fun handleDisconnect(status: Int) {
+        // Snapshot the hold time and clear it IMMEDIATELY: every drop log below reads the snapshot, and a
+        // stale `linkUpSinceMs` surviving into the next drop would report a hold time for a link that never
+        // reached STATE_CONNECTED — the diagnostic would then invent exactly the evidence it exists to find.
+        val heldSuffix = heldForLogSuffix()
+        linkUpSinceMs = null
         // Reboot trail: if a user reboot is in flight, this drop is the strap acting on it. Log how long the
         // link stayed up (a real reboot drops within ~1-2s) and cancel the no-disconnect watchdog. The
         // reconnect time is logged separately once the handshake completes; rebootRequestedAtMs stays set so
@@ -6417,6 +6817,16 @@ class WhoopBleClient(
         // Multi-WHOOP: the link is down — clear the published connected address so SourceCoordinator's
         // adoption sink can't re-fire on a stale strap id (twin of macOS clearing connectedPeripheralUUID).
         _connectedPeripheralAddress.value = null
+        // #761: drop a stale probe result and abandon a walk the link interrupted, which also re-closes
+        // the 117/118 send() allowlist (twin of the macOS disconnect cleanup).
+        _featureFlagProbe.value = null
+        featureFlagReport = null
+        featureFlagAwaiting = null
+        // #103: same for the device-config READ probe — dropping the report re-closes the 121/128
+        // send() allowlist.
+        _deviceConfigProbe.value = null
+        deviceConfigReport = null
+        deviceConfigAwaiting = null
         reset()
 
         // close() can itself throw DeadObjectException on a dead binder — teardown must NEVER throw,
@@ -6509,12 +6919,12 @@ class WhoopBleClient(
                 // count — keep it DIRECT; only a genuinely-out-of-range band escalates to PASSIVE for power.
                 val aclHeld = isStrapAclHeld(dev.address)
                 val passiveReconnect = passiveReconnectDecision(failedReconnectAttempts, aclHeld)
-                log("Disconnected (status=$status); reconnecting ${if (passiveReconnect) "passively" else "directly"} in ${directDelay / 1000}s (attempt $failedReconnectAttempts${if (aclHeld) ", ACL-held" else ""})")
+                log("Disconnected (status=$status); reconnecting ${if (passiveReconnect) "passively" else "directly"} in ${directDelay / 1000}s (attempt $failedReconnectAttempts$heldSuffix${if (aclHeld) ", ACL-held" else ""})")
                 // #1030 (ryanbr): cancellable backoff timer (see scheduleReconnect).
                 scheduleReconnect(directDelay) { connectToDevice(dev, autoConnect = passiveReconnect) }
             } else {
                 val rescanDelay = nextReconnectDelayMs()
-                log("Disconnected (status=$status); rescanning in ${rescanDelay / 1000}s (attempt $failedReconnectAttempts)")
+                log("Disconnected (status=$status); rescanning in ${rescanDelay / 1000}s (attempt $failedReconnectAttempts$heldSuffix)")
                 // #1030 (ryanbr): cancellable backoff timer (see scheduleReconnect).
                 scheduleReconnect(rescanDelay) { connect(selectedModel) }
             }

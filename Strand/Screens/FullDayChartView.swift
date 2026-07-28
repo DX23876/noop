@@ -433,13 +433,15 @@ struct FullDayChartView: View {
         // Gravity-vector magnitude (#102): tag it "g" so the readout doesn't read as a bare, unexplained
         // number — spo2/bandSleepState stay unitless (unitless ratio / a named state, not a magnitude).
         case .motion: return " g"
+        // Seconds of movement per ~30 s window (the ring's OWN 0x47 activity), so tag it "s".
+        case .ouraMovement: return " s"
         case .spo2, .bandSleepState: return ""
         }
     }
 
     private func format(_ v: Double) -> String {
         switch metric {
-        case .hr, .respiration, .hrv: return String(Int(v.rounded()))
+        case .hr, .respiration, .hrv, .ouraMovement: return String(Int(v.rounded()))
         // `v` already arrives in the displayed unit — callers read from `displayPoints`, which converts
         // skin temp to °F upfront so the chart's own axis (plotted from the same points) agrees. (#101)
         case .skinTemp: return String(format: "%.1f", v)
@@ -481,7 +483,7 @@ struct FullDayChartView: View {
             return Gradient(colors: [StrandPalette.strain033.opacity(0.55), StrandPalette.strain033])
         case .hrv, .spo2:
             return Gradient(colors: [StrandPalette.sleepLight.opacity(0.55), StrandPalette.sleepLight])
-        case .respiration, .motion:
+        case .respiration, .motion, .ouraMovement:
             return Gradient(colors: [StrandPalette.textSecondary.opacity(0.5), StrandPalette.textSecondary])
         // #175: the band-state track uses the deep-sleep hue so it reads as a distinct sleep track.
         case .bandSleepState:

@@ -13,11 +13,15 @@ import kotlin.math.sin
 import kotlin.math.roundToInt
 
 /**
- * Basic coverage for the OPT-IN experimental stager [SleepStagerV2] (V7 Pillar 3b, reimplemented from
- * contributor PR #600), the Android twin of SleepStagerV2Tests.swift. Asserts the drop-in CONTRACT — same
- * [SleepStager.stageSession] signature + return shape, segments that tile [start, end] with canonical stage
- * labels — and that the [SleepStageHealer] V1/V2 switch actually routes to V2 (and defaults to V1, byte for
- * byte). NOT a fidelity claim against any reference (the recipe's own validation is n=1).
+ * Basic coverage for [SleepStagerV2] (V7 Pillar 3b, reimplemented from contributor PR #600), the Android
+ * twin of SleepStagerV2Tests.swift — the recipe that stages a normal user's nights, since the stored
+ * `experimentalSleepV2` preference is default TRUE (#277 promoted it over V1; #351 extended it to every
+ * strap family). Asserts the drop-in CONTRACT — same [SleepStager.stageSession] signature + return shape,
+ * segments that tile [start, end] with canonical stage labels — and that the [SleepStageHealer] V1/V2
+ * switch actually routes to V2 (its PARAMETER defaults to V1 byte for byte, which is the library contract,
+ * not the product default).
+ * NOT a fidelity claim against any reference: the cross-subject evidence behind the promotion is a
+ * 44-subject leave-one-subject-out benchmark, and these unit tests do not re-measure it.
  */
 class SleepStagerV2Test {
 

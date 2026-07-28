@@ -390,6 +390,13 @@
     <string name="l10n_devices_screen_body_location_probe_690_re_7def8c39">Körperpositions-Test (#690 RE)…</string>
     <string name="l10n_devices_screen_body_location_probe_result_690_60c5ee79">Ergebnis des Körperpositions-Tests (#690)</string>
     <string name="l10n_devices_screen_body_location_probe_explainer_a9363239">Sendet den nur lesenden Körperpositions-Befehl (0x54) und schreibt die vollständige Rohantwort des Bands ins Strap-Log, wobei der Datensatz (Revision / Position / Konfidenz / Status) auf der WHOOP 4.0 dekodiert wird. Es wird nichts auf das Band geschrieben, und Trageerkennung oder Bewertung werden nie verändert.</string>
+    <string name="l10n_devices_screen_feature_flag_probe_761_re_21241d68">Feature-Flag-Test (#761 RE)…</string>
+    <string name="l10n_devices_screen_stop_sync_4a1f2b6e">Sync stoppen</string>
+    <string name="l10n_devices_screen_feature_flag_probe_result_761_c50ef4d4">Ergebnis des Feature-Flag-Tests (#761)</string>
+    <string name="l10n_devices_screen_feature_flag_probe_explainer_58eec30f">Fragt das Band nach den NAMEN der Feature-Flags, die seine eigene Firmware kennt: START_FF_KEY_EXCHANGE (0x75), dann SEND_NEXT_FF (0x76), bis das Band das Ende meldet. Nur lesend — es wird kein Flag-Wert geschrieben, und die SET-Befehle werden von diesem Test nie gesendet. Die Liste wird hier angezeigt und ins Strap-Log geschrieben.</string>
+    <string name="l10n_devices_screen_device_config_read_probe_103_re_837f46de">Geräte-Konfigurationsleseprobe (#103 RE)…</string>
+    <string name="l10n_devices_screen_device_config_read_probe_result_103_67d02ec9">Ergebnis der Geräte-Konfigurationsleseprobe (#103)</string>
+    <string name="l10n_devices_screen_device_config_probe_explainer_dd23169f">Fragt das Band nach Konfigurations-WERTEN: GET_DEVICE_CONFIG_VALUE (0x79) und GET_FF_VALUE (0x80), ein Schlüssel pro Austausch. Beide Befehle existieren in dieser Firmware möglicherweise gar nicht — genau das soll herausgefunden werden. Nur lesend — es wird kein Wert geschrieben, und die SET-Befehle werden von dieser Probe nie gesendet. Das Ergebnis wird hier angezeigt und ins Band-Protokoll geschrieben.</string>
     <string name="l10n_devices_screen_battery_probe_explainer_2858bb6a">Zwei unabhängige Protokolltabellen widersprechen sich beim Extended-Battery-Opcode (98 vs. 87). Dies sendet das kuratierte, nur lesende 98 und schreibt die vollständige Rohantwort des Bands ins Strap-Log. Eine batterieartige Nutzlast bestätigt 98 auf deiner Firmware; ein kurzer Stub bleibt mehrdeutig. Es wird nichts auf das Band geschrieben. Bitte exportiere und teile danach das Strap-Log.</string>
     <string name="l10n_devices_screen_cancel_77dfd213">Abbrechen</string>
     <string name="l10n_devices_screen_clamped_1f39cebb">%1$s%%</string>
@@ -1160,6 +1167,7 @@
     <string name="l10n_app_changelog_personal_vital_baselines_mac_analytics_parity_744972d1">Persönliche Vital Baselines + Mac Analytics Parität</string>
     <string name="l10n_app_changelog_polish_matched_to_the_iphone_mac_cc34126b">Polnisch - abgestimmt auf das iPhone &amp; Mac Design</string>
     <string name="l10n_app_changelog_german_french_spanish_pull_to_sync_1109bda2">Deutsch, Französisch und Spanisch, Pull-to-Sync auf Today und viele Verbesserungen</string>
+    <string name="l10n_app_changelog_hrv_accuracy_fix_oura_sleep_and_4ed31e39">HRV-Korrektur, Oura-Schlaf und -Bewegung, mehr 5/MG-Daten und ein stoppbarer Sync</string>
     <string name="l10n_app_changelog_optimal_strain_alerts_faster_history_sync_6488a27a">Hinweise zur optimalen Anstrengung, schnellere Verlaufssynchronisierung und viele Genauigkeitskorrekturen</string>
     <string name="l10n_app_changelog_power_saving_that_protects_your_strap_57a32503">Energieeinsparung, die Ihren Riemen schützt, ein Gemini-powered Coach auf Android und reichere metrische Details</string>
     <string name="l10n_app_changelog_raw_spo_honest_units_and_a_55e83a59">Raw SpO2, ehrliche Einheiten und eine leichtere App</string>
@@ -1653,6 +1661,7 @@
     <string name="timeline_metric_respiration">Atmung</string>
     <string name="timeline_metric_motion">Bewegung</string>
     <string name="timeline_metric_band_sleep_state">Schlafstatus des Bands</string>
+    <string name="timeline_metric_movement">Bewegung</string>
     <string name="explore_category_charge">Ladung</string>
     <string name="explore_category_effort">Anstrengung</string>
     <string name="explore_category_rest">Ruhe</string>
@@ -1721,4 +1730,46 @@
         <item quantity="one">Längste: %1$d Tag</item>
         <item quantity="other">Längste: %1$d Tage</item>
     </plurals>
+
+    <!-- Eskalations-Akkuwarnungen (kritischer Ladestand + Schutz vor dem Schlafengehen). -->
+    <string name="battery_critical_title">Lade dein WHOOP jetzt auf</string>
+    <string name="battery_critical_body">%1$d%% übrig. Das Band hört bei etwa 10%% auf aufzuzeichnen – ohne Aufladen erfasst es die heutige Nacht nicht.</string>
+    <string name="battery_bedtime_title">Reicht nicht durch die Nacht</string>
+    <string name="battery_bedtime_body">Noch %1$s Aufzeichnung, aber die heutige Nacht braucht etwa %2$s. Lade vor dem Schlafengehen auf.</string>
+
+    <!-- #867: the three older battery notifications, previously raw Kotlin literals in
+         BatteryAlertNotifier and therefore English in every locale. Wording and translations are the
+         Apple catalog's, moved across unchanged. -->
+    <string name="battery_runtime_title">Strap-Akku schwach</string>
+    <string name="battery_runtime_body">Noch %1$s auf deinem WHOOP – lade es heute Nacht auf.</string>
+    <string name="battery_low_title">Akku schwach</string>
+    <string name="battery_low_body">Lade dein WHOOP vor heute Nacht auf.</string>
+    <string name="battery_full_title">Strap voll geladen</string>
+    <string name="battery_full_body">Dein WHOOP ist bei 100 %.</string>
+
+    <!-- Foreground-service notification (WhoopConnectionService). Always on screen while the strap is
+         connected, and hardcoded English until now: com/noop/ble is outside i18n_audit.py's scan roots,
+         and a NotificationCompat builder chain matches none of its Compose patterns, so the gate could
+         not see it. postNotification's dedupe key now includes the locale — without that, these would
+         keep the previous language until the connection or battery state happened to change. -->
+    <string name="fgs_title_reconnecting">Verbindung zu deinem WHOOP wird wiederhergestellt…</string>
+    <string name="fgs_title_syncing">Strap-Verlauf wird synchronisiert…</string>
+    <string name="fgs_title_connected">Mit deinem WHOOP verbunden</string>
+    <string name="fgs_detail_streaming">Streaming im Hintergrund</string>
+    <string name="fgs_detail_keeping_link">Verbindung wird offen gehalten</string>
+    <string name="fgs_detail_recovery">Erholung %1$d %%</string>
+    <string name="fgs_detail_battery">Strap %1$d %%</string>
+    <string name="fgs_action_disconnect">Trennen</string>
+    <string name="fgs_channel_name">Strap-Verbindung</string>
+    <string name="fgs_channel_desc">Wird angezeigt, während NOOP dein WHOOP im Hintergrund verbunden hält.</string>
+
+    <!-- The remaining notifier titles/bodies, surfaced by extending i18n_audit.py to the
+         notification builders. Same defect as the block above: user-visible, never localised. -->
+    <string name="illness_alert_title">Frühwarnung: Nimm es locker</string>
+    <string name="inactivity_title">Bewegungserinnerung</string>
+    <string name="smart_alarm_title">Guten Morgen</string>
+    <string name="smart_alarm_body">Dein Smart-Wecker hat gerade geklingelt.</string>
+    <string name="battery_channel_name">Akku-Hinweise</string>
+    <string name="battery_channel_desc">Hinweise, wenn der Strap-Akku schwach oder voll geladen ist.</string>
+    <string name="l10n_app_changelog_battery_saver_quiets_the_gauges_translated_bdbe8650">Energiesparmodus beruhigt die Anzeigen, übersetzte Android-Benachrichtigungen und sofort geladene Diagramme</string>
 </resources>

@@ -132,6 +132,19 @@ final class Backfiller {
     /// ingest gate already kept the garbage rows out of the DB).
     private(set) var sessionDroppedImplausible = 0
 
+    /// #891 diagnostic: packet types this session's offload carried that the decoder has no rows for,
+    /// folded across chunks. Each type is logged the FIRST time it appears — a 30k-record offload must not
+    /// emit 30k lines — and the running total is what a later line can report. See
+    /// `Streams.unhandledPacketTypes` for why this is not derivable from anything already logged: an
+    /// unmapped type is dropped by the decoder AND excluded from the reject archive, so today it is
+    /// invisible and the sync reports clean.
+    private(set) var sessionUnhandledPacketTypes: [String: Int] = [:]
+
+    /// #520 diagnostic: `dynamic_acceleration` folded across every chunk of this session, logged once at
+    /// the session boundary. Session-scoped rather than per-chunk because a chunk is an arbitrary slice of
+    /// an offload — a still-fraction only means something over a whole night's worth of records.
+    private(set) var sessionDynAccel = Streams.DynAccelDiag()
+
     /// The trim cursor of the LAST chunk this Backfiller acked (durably persisted + confirmed to the
     /// strap). Survives across sessions on the same connection so the auto-continue gate (#364) can ask
     /// "did the offload actually advance the strap's trim this session?" — the spin-detector signal that
@@ -229,6 +242,8 @@ final class Backfiller {
         loggedNoCursor = false
         loggedFutureRtc = false
         sessionDroppedImplausible = 0
+        sessionUnhandledPacketTypes = [:]   // #891: a second offload must re-log its first sighting
+        sessionDynAccel = Streams.DynAccelDiag()
         loggedLayoutVersions.removeAll(keepingCapacity: true)
         spo2Dumped = 0
         // #547: the range markers belong to a connection's GET_DATA_RANGE, which BLEManager re-sets per
@@ -487,6 +502,10 @@ final class Backfiller {
                 log?("Historical records use firmware layout v\(v), which NOOP doesn't decode yet — no motion data, so sleep can't be computed from the strap. Please report this (issue #30).")
             }
             let decoded = d.decoded
+            // #520: accumulate the motion-magnitude diagnostic across the session; logged once at the
+            // session boundary by BLEManager, never per chunk. Merge logic lives in WhoopProtocol so it is
+            // covered by swift-packages CI — this app-target file is not.
+            sessionDynAccel.merge(decoded.dynAccel)
             // #547: surface a bad-clock strap. extractHistoricalStreams DROPPED any record whose own unix
             // timestamp was implausible (far-past / bogus-2027 / future-dated) before it could pollute the
             // DB. Log it (once it's accrued at least one this session, on the first chunk that sees it) so
@@ -513,6 +532,20 @@ final class Backfiller {
             let nowForRtc = Int(Date().timeIntervalSince1970)
             for ev in decoded.droppedRtcEvents {
                 log?("Backfill: strap reported \(ev.kind) with an implausible own-timestamp \(BadClockDiagnostics.isoDay(ev.rawTs)) (\(BadClockDiagnostics.hoursOffset(ev.rawTs, now: nowForRtc)) vs now) — the strap's RTC reset to a wrong base (#324/#928); this is the ground-truth cause of the future-dated banking, not a NOOP decode bug.")
+            }
+            // #891: packet types this chunk carried that the decoder has no case for. Logged the first
+            // time each type appears so a long offload stays readable. This is the only place such a
+            // record becomes visible: `default:` drops it and `rejectedHistoricalRecords` archives only
+            // type-47, so without this line an offload full of an unmapped type reports a clean sync.
+            for (typeName, n) in decoded.unhandledPacketTypes.sorted(by: { $0.key < $1.key }) {
+                let firstSighting = sessionUnhandledPacketTypes[typeName] == nil
+                sessionUnhandledPacketTypes[typeName, default: 0] += n
+                if firstSighting {
+                    log?("Backfill: the strap sent \(n) record(s) of packet type \(typeName), which this " +
+                         "decoder has no rows for — they are being dropped. If \(typeName) is not a name " +
+                         "you recognise, this is a firmware record type NOOP has never mapped: please " +
+                         "report it on #891 with the strap model and firmware build.")
+                }
             }
             // Diagnostic (#77): the AGGREGATE silent-loss case — frames arrived but produced no rows at
             // all (CRC fail / unmapped layout / out-of-range timestamp), so this chunk persists nothing

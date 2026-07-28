@@ -320,7 +320,8 @@ public enum HRVAnalyzer {
                                     stepSec: Int = 0,
                                     minBeatsPerWindow: Int = 8) -> [RollingRmssdPoint] {
         guard windowSec > 0, rr.count >= minBeatsPerWindow else { return [] }
-        let sorted = rr.sorted { $0.ts < $1.ts }
+        // Stable: preserves the store's #823 emission order for same-second beats, which RMSSD needs.
+        let sorted = rr.sortedByTsStable()
         var out: [RollingRmssdPoint] = []
         var lastEmitTs: Int? = nil
         var left = 0   // index of the oldest interval still inside the trailing window
@@ -342,6 +343,43 @@ public enum HRVAnalyzer {
     }
 
     // MARK: - R-R integrity diagnostics (#257)
+
+    /// What a night's R-R coverage pair says about the capture (#550).
+    ///
+    /// `rrCoverage` above 1.0 is physically impossible, and `collapsedCoverage` previews what a
+    /// same-second de-dup would leave. Reading the two together is what tells you WHICH over-count you
+    /// have — a rule that until now lived only in a comment, so anyone triaging an "HRV reads ~2× high"
+    /// report had to know it. Encoding it means the log states the conclusion instead of the evidence.
+    public enum RrCoverageVerdict: String, Equatable, Sendable {
+        /// At or near 1.0 — the beat-time fits the wall clock. Nothing to explain.
+        case plausible
+        /// Over-covered, but collapsing same-second duplicates brings it back in range: the extra beats
+        /// share a timestamp, so a de-dup at that granularity would fix it.
+        case sameSecondOverCount
+        /// Over-covered AND still over-covered after the same-second collapse: the duplicates straddle
+        /// second boundaries, so a same-second de-dup would NOT be enough.
+        case crossSecondOverCount
+        /// No usable coverage figure — `rrCoverage` returns 0 for < 2 beats or a zero span. Absence of
+        /// evidence, NOT a clean night: reporting those as `plausible` would claim the capture was fine
+        /// when nothing was measurable, which is the opposite of what this verdict exists to do.
+        case unmeasurable
+    }
+
+    /// Tolerance above 1.0 treated as "fits". R-R timestamps are whole seconds while beats are not, so a
+    /// clean night can round fractionally over. This is a ROUNDING allowance, deliberately not a tuned
+    /// threshold — where the real boundary sits needs coverage figures from several wearers, which is the
+    /// point of logging the verdict in the first place.
+    public static let coveragePlausibleCeiling: Double = 1.10
+
+    /// Classify a night from its coverage pair. Pure. Byte-parity twin of Kotlin `classifyCoverage`.
+    /// Both platforms use the NEGATED `>` form rather than `<=` so a non-finite input lands identically:
+    /// every IEEE-754 comparison with NaN is false, so `<=` and `>` are not each other's inverse there and
+    /// the twins would otherwise disagree. NaN falls to `.unmeasurable` on both.
+    public static func classifyCoverage(coverage: Double, collapsed: Double) -> RrCoverageVerdict {
+        guard coverage > 0 else { return .unmeasurable }
+        guard coverage > coveragePlausibleCeiling else { return .plausible }
+        return collapsed > coveragePlausibleCeiling ? .crossSecondOverCount : .sameSecondOverCount
+    }
 
     /// Total heartbeat-time (sum of NN intervals, ms) ÷ wall-clock span of the R-R window (ms). A value
     /// > ~1.0 is physically impossible — you can't record more beat-time than elapsed time — so it

@@ -18,6 +18,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
 
@@ -634,7 +635,7 @@ class AiCoach(private val repo: WhoopRepository) {
 
     private fun fmt1(v: Double): String =
         if (v == v.roundToInt().toDouble()) v.roundToInt().toString()
-        else String.format("%.1f", v)
+        else String.format(Locale.ROOT, "%.1f", v)
 
     private inline fun avgInt(days: List<DailyMetric>, sel: (DailyMetric) -> Double?): String {
         val vals = days.mapNotNull(sel)

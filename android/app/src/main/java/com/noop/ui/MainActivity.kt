@@ -721,6 +721,30 @@ object NoopPrefs {
         of(context).edit().putBoolean(KEY_BATTERY_RUNTIME_ALERTED, alerted).apply()
     }
 
+    /** Persisted gates behind the two ESCALATION alerts. Deliberately separate keys from the low /
+     *  runtime flags above: the bug those alerts fix IS the latch, so a `KEY_BATTERY_LOW_ALERTED` or
+     *  `KEY_BATTERY_RUNTIME_ALERTED` that is already true must never be able to silence them.
+     *  - CRITICAL (BatteryEstimator.criticalAlert): once per discharge cycle, re-arms above 25%.
+     *  - BEDTIME (BatteryEstimator.bedtimeAlert): once per NIGHT — it re-arms whenever the pre-bed
+     *    window is not open, so it speaks again tomorrow without needing a charge.
+     *  iOS/macOS twin keys: behavior.batteryCriticalAlerted / behavior.batteryBedtimeAlerted. */
+    const val KEY_BATTERY_CRITICAL_ALERTED = "noop.batteryCriticalAlerted"
+    const val KEY_BATTERY_BEDTIME_ALERTED = "noop.batteryBedtimeAlerted"
+
+    fun batteryCriticalAlerted(context: Context): Boolean =
+        of(context).getBoolean(KEY_BATTERY_CRITICAL_ALERTED, false)
+
+    fun setBatteryCriticalAlerted(context: Context, alerted: Boolean) {
+        of(context).edit().putBoolean(KEY_BATTERY_CRITICAL_ALERTED, alerted).apply()
+    }
+
+    fun batteryBedtimeAlerted(context: Context): Boolean =
+        of(context).getBoolean(KEY_BATTERY_BEDTIME_ALERTED, false)
+
+    fun setBatteryBedtimeAlerted(context: Context, alerted: Boolean) {
+        of(context).edit().putBoolean(KEY_BATTERY_BEDTIME_ALERTED, alerted).apply()
+    }
+
     /** Scheduled report notifications (#517), opt-in, default OFF, no AI. Two independent toggles:
      *  - [KEY_REPORT_MORNING]: a morning recap (Charge + Rest) posted once after a fresh night is
      *    processed. It is NOT alarm-precise, it lands when the next sync + analytics pass completes,

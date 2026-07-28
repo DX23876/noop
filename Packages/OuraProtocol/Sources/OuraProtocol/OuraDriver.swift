@@ -333,9 +333,10 @@ public final class OuraDriver {
         case .motionPeriod:
             return (OuraDecoders.decodeMotionPeriod(record) ?? []).map { OuraEvent.motion($0) }
         case .motion:
-            // 0x47 motion_events: surfaced as state-free motion is out of v1 scope; decode to nothing
-            // rather than guess the partial layout. Per OURA_PROTOCOL.md s6.13.
-            return []
+            // 0x47 motion_events: the ring's averaged accel vector (orientation + avg x/y/z ×8 +
+            // high_intensity), the same shape as a WHOOP 4.0 gravity sample. open_oura `decode_motion`,
+            // OURA_PROTOCOL.md s6.13. Tier-A.
+            return OuraDecoders.decodeMotionEvents(record).map { [OuraEvent.motionEvent($0)] } ?? []
 
         // --- Tier A: Sleep phase (2-bit codes are verified) ---
         // 0x4B/0x4E/0x5A are the three hypnogram aliases (open_oura decode_sleep_phases); 0x4B was

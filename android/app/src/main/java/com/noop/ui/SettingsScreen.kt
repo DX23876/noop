@@ -2079,7 +2079,7 @@ fun SettingsScreen(
                     leadingIcon = Icons.Filled.Upload,
                     kind = NoopButtonKind.Secondary,
                     fullWidth = true,
-                    onClick = { scope.launch { RawSensorExport.export(context, vm.repo) } },
+                    onClick = { scope.launch { RawSensorExport.export(context, vm.repo, vm.activeStrapId) } },
                 )
                 Text(
                     uiString(R.string.l10n_settings_screen_saves_the_last_24h_of_decoded_f7026f47),

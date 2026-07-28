@@ -11,7 +11,15 @@ read off real v18 frames and checked for a behaviour that can only hold if the o
                               two different straps.
   unix   = u32 LE @15         ticks +1 s per record.
   hr     = frame[22]          equals the live HR at the same unix second.
-  hr_fixed_8_8 = u16 LE @36   value/256 correlates 0.989 with hr@22 (sub-bpm precision @22 lacks).
+  hr_quality_flags = frame[36]  a FLAG byte, not the low half of a fixed-point HR: bit 4 is never set
+                              (0/18,650 real v18 records — a genuine 8.8 fraction sets it ~50% of the
+                              time) and 95.02% of values land in 0x80-0x8F over only 40 distinct values.
+                              Bit 7 reads as a validity bit (rr_count == 0 in 70.32% of records when it
+                              is clear vs 19.82% when set).
+  heart_rate_alt = frame[37]  a DUPLICATE of hr@22 — equal in 99.575% of records, differing by -6..+2.
+                              (The retired `hr_fixed_8_8 = u16 LE @36, bpm = value/256` read these two
+                              bytes as one field; its "corr 0.989" was circular — the u16 is hr@22 plus
+                              the flag byte over 256, a flat +0.504 +/- 0.189 residual.)
   motion_count = u16 LE @[57:59]   cumulative counter: climbs while moving, flat when still, low byte
                               wraps at 256. Steps = sum of wrap-aware diffs (summing the value
                               over-counts massively — that's the WHOOP 5/MG step over-report).
@@ -68,7 +76,8 @@ def decode_v18(frame):
         "motion_count": u16le(frame, 57),
         "step_cadence": frame[59],           # @59 cadence-like byte (raw)
         "motion_wear_quality": frame[63],    # @63 3-valued byte (raw; semantics not pinned)
-        "hr_fixed_8_8": u16le(frame, 36),    # value/256 ≈ hr@22 (corr 0.989)
+        "hr_quality_flags": frame[36],       # @36 flag byte: bit7 = valid, bit4 never set (NOT a fixed-point HR)
+        "heart_rate_alt": frame[37],         # @37 duplicate of hr@22 (99.6% exact)
         "rr_packed": u16le(frame, 38),       # raw u16 near the R-R fields
         "cardiac_flags": frame[33],          # raw byte near the HR fields
         "cardiac_status": frame[40],         # raw status-like byte near the HR fields

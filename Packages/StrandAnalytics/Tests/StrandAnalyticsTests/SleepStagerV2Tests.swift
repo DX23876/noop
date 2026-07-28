@@ -2,10 +2,13 @@ import XCTest
 @testable import StrandAnalytics
 import WhoopProtocol
 
-/// Basic coverage for the OPT-IN experimental stager `SleepStagerV2` (V7 Pillar 3b, reimplemented from
-/// contributor PR #600). These assert the drop-in CONTRACT — same `stageSession` signature + return shape as
-/// V1, segments that tile `[start, end]` with canonical stage labels — and a couple of recipe invariants.
-/// They are NOT a fidelity claim against any reference (the recipe's own validation is n=1).
+/// Basic coverage for `SleepStagerV2` (V7 Pillar 3b, reimplemented from contributor PR #600) — the recipe
+/// that stages a normal user's nights, since `PuffinExperiment.experimentalSleepV2Enabled` is default ON
+/// (#277 promoted it over V1; #351 extended it to every strap family). These assert the drop-in CONTRACT —
+/// same `stageSession` signature + return shape as V1, segments that tile `[start, end]` with canonical
+/// stage labels — and a couple of recipe invariants.
+/// They are NOT a fidelity claim against any reference: the cross-subject evidence behind the promotion is
+/// a 44-subject leave-one-subject-out benchmark, and these unit tests do not re-measure it.
 final class SleepStagerV2Tests: XCTestCase {
 
     // MARK: - fixtures

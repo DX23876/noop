@@ -2132,7 +2132,19 @@ private fun SyncStatusChip(
     lastSyncAt: Long?,
     historySyncExperimental: Boolean,
 ) {
-    when (val state = SyncChipState.resolve(backfilling, chunks, lastSyncAt, historySyncExperimental)) {
+    // The clock and the translated "now" word are resolved HERE, in the composable that already depends
+    // on both, and handed down — so `SyncChipState.resolve` stays a genuinely pure decision that a plain
+    // JVM unit test can call with no attached Application. Reading the clock at composition time (rather
+    // than snapshotting it) is unchanged behaviour: `shortSyncAgo` did exactly this on every recomposition.
+    val state = SyncChipState.resolve(
+        backfilling = backfilling,
+        chunks = chunks,
+        lastSyncAtSec = lastSyncAt,
+        historySyncExperimental = historySyncExperimental,
+        nowSec = System.currentTimeMillis() / 1000L,
+        nowLabel = uiString(R.string.l10n_today_screen_sync_chip_now_c9bc849a),
+    )
+    when (state) {
         is SyncChipState.Syncing -> ChipCapsule(
             Icons.Filled.Autorenew, "${state.chunks}", Palette.accent,
             uiString(R.string.l10n_today_screen_sync_chip_syncing_desc_bfc290e7, state.chunks))

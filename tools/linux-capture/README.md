@@ -86,7 +86,8 @@ the Python capture side does not require Swift.
 | `whoop_probe.py` | **Read-only status probe.** Reports the strap RTC + whether a historical store is present (`GET_CLOCK` / `GET_DATA_RANGE`) without writing anything. |
 | `whoop_frame.py` | CRC8 / CRC16-Modbus / CRC32, frame builders (`build_command_frame`, `build_puffin_command`, `build_whoop5_buzz` / `build_whoop4_buzz`), the family-aware `Reassembler`, and the standard-HR parser. Stdlib only. |
 | `hci_extract.py` | **Turn a phone HCI capture into `capture.json`.** Parses a btsnoop (`btsnoop_hci.log`) or Apple PacketLogger (`.pklg`) log, reassembles L2CAP/ATT, and extracts the CRC-valid WHOOP frames — so a capture of the **official app** (issue [#103](https://github.com/ryanbr/noop/issues/103)) feeds the same decode pipeline. Only WHOOP streams reach the output. Stdlib only. See [From a phone HCI capture](#from-a-phone-hci-capture-hci_extractpy). |
-| `correlate_ground_truth.py` | **Locate un-decoded record fields using your WHOOP CSV export as known-plaintext.** Cross-references capture frames against the official per-night values (HRV, resting HR, skin temp, SpO₂, respiratory rate) to find each biometric's byte offset + encoding. Reuses the Swift importer's localized header aliases. Reports offsets only — your health values never leave the machine. Stdlib only. See [Ground-truth correlation](#ground-truth-correlation-correlate_ground_truthpy). |
+| `correlate_ground_truth.py` | **Locate un-decoded record fields using your WHOOP CSV export as known-plaintext.** Cross-references capture frames against the official per-night values (HRV, resting HR, skin temp, SpO₂, respiratory rate) to find each biometric's byte offset + encoding. Reuses the Swift importer's localized header aliases (English + DE/ES). Reports offsets only — your health values never leave the machine. Stdlib only. See [Ground-truth correlation](#ground-truth-correlation-correlate_ground_truthpy). |
+| `validate_spo2_candidate.py` | **Multi-device validation of the v18 SpO₂ candidate at frame @82** (`spo2_candidate_82`). Nightly aggregate of in-band (70–100) samples during `sleep_state=asleep` vs CSV `blood_oxygen_pct`; reports r / MAE / bias / offset-specificity and a promote checklist. **@82 is duty-cycled**, so the tool detects its window schedule per capture, aggregates per window, and reports window coverage; a strap that never emits @82 is classified `feature_absent` rather than failed. Batch mode for several straps. Postable summary has **no raw SpO₂ values** (safe for [#103](https://github.com/ryanbr/noop/issues/103)). Stdlib only. See [SpO₂ candidate validation](#spo₂-candidate-validation-validate_spo2_candidatepy). |
 | `pair_probe.py` | One-shot WHOOP 5 bonding probe: scan → connect → `pair()` → test `fd4b` access. `python3 pair_probe.py <MAC>`. |
 | `analyze_v26_waveform.py` | Characterise the WHOOP 5 **v26** type-47 buffer as PPG @24 Hz using its own co-timestamped HR as ground truth. |
 | `analyze_v25_waveform.py` | **WHOOP 4.0 v25 PPG → HR span-pinning harness ([#194](https://github.com/ryanbr/noop/issues/194)).** Sweeps the unpinned PPG span (start + sample-count) across a corpus of captures at *known* HRs and reports the span where recovered HR **tracks** ground truth instead of the `1440/N` autocorrelation artifact — or, on resting-only data, exactly what capture is still needed. `--selftest` proves it on synthetic pulses; no args runs the bundled-frames demo. Stdlib only. |
@@ -94,6 +95,7 @@ the Python capture side does not require Swift.
 | `test_whoop_frame.py` | Unit tests for framing / reassembly / HR parsing / buzz frames (no `bleak` needed). |
 | `test_hci_extract.py` | Unit tests for the btsnoop/pklg parsers, L2CAP/ATT reassembly, and WHOOP-frame extraction (synthetic fixtures; stdlib only). |
 | `test_correlate_ground_truth.py` | Unit tests for the CSV/alias loading and the known-plaintext field search (planted-value recovery + false-positive rejection; stdlib only). |
+| `test_validate_spo2_candidate.py` | Unit tests for multi-device SpO₂ @82 validation (planted perfect correlation, incomplete nights, awake gating, offset specificity, duty-cycle detection at planted period/phase, window coverage, the variance floor, flat-zero classification, privacy of postable output; stdlib only). |
 | `test_whoop_spot_hrv.py` | Unit tests for the spot-HRV DSP (synthetic-signal HR/RMSSD recovery, ectopic rejection, grid reconstruction; stdlib only). |
 | `requirements.txt` | `bleak` (runtime dep for capture only). |
 
@@ -575,6 +577,108 @@ type; widen `--tolerance` if a field is stored pre-rounded.
 values — so its output is safe to post on #103 while the CSV export and the capture stay on your
 machine. That's the intended way for other 5/MG owners to contribute field mappings without sharing
 personal data.
+
+## SpO₂ candidate validation (`validate_spo2_candidate.py`)
+
+Once a capture has v18 historical records, this tool tests whether **byte @82** is a trustworthy
+strap-computed SpO₂ scalar (the `spo2_candidate_82` decode already in Swift/Kotlin) by comparing
+**nightly means** against your WHOOP CSV export — the multi-device bar described in
+[`docs/WHOOP5_DEEP_DATA.md`](../../docs/WHOOP5_DEEP_DATA.md).
+
+The frame source can be **either** an `hci_extract` / `whoop_capture` `capture.json` **or the SQLite
+capture DB `whoop_sync.py` writes** (`captures/whoop.db`) — the same `frames` table
+`whoop_activity.py` reads. Previously a Linux capture had to be round-tripped through
+`whoop_sync.py export --only-type 47` before this tool, which sits in the same directory, could read
+it. The file is identified by its SQLite header rather than its extension, since capture DBs get
+renamed freely. Use `--device-id` if yours is not the default `2`.
+
+Only v18 rows are read, filtered in SQL rather than after loading: newer 5/MG firmware serves a
+v20 (2140 B) + v21 (1244 B) pair every second alongside the 124-byte v18, and only v18 carries
+`@82`. On a mixed corpus that is the difference between 115 MB and 28 MB to reach the same 20k
+usable records.
+
+> **This is the capture tooling's database, not the app's.** Neither shipped app has a `frames`
+> table — Android uses Room, iOS/macOS uses GRDB — so this cannot be pointed at a phone's store or a
+> `.noopbak`. Validating a strap still requires a capture.
+
+```bash
+# One strap from a capture (summary stays aggregate-only unless you pass --show-nights):
+python3 validate_spo2_candidate.py capture.json my_whoop_data/ --device strap-a --postable
+
+# ...or straight from a whoop_sync.py capture DB, skipping the export step:
+python3 validate_spo2_candidate.py captures/whoop.db my_whoop_data/ --device strap-a --postable
+
+# Several straps at once (entries may mix .json and .db, and carry their own device_id):
+python3 validate_spo2_candidate.py --batch devices.json --postable
+```
+
+`devices.json`:
+
+```json
+[
+  {"device": "strap-a", "capture": "a.json", "export": "export_a/"},
+  {"device": "strap-b", "capture": "b.json", "export": "export_b.zip"}
+]
+```
+
+### @82 is duty-cycled — read this before trusting a run
+
+`@82` is **not** sampled every second. On a corpus of 18,650 v18 records — 18,602 of them from
+[@digitalerdude](https://github.com/digitalerdude)'s public PacketLogger capture of an official-app
+overnight sync (see [#103](https://github.com/ryanbr/noop/issues/103)), plus 48 from a NOOP sync — it
+is nonzero in only **450 records (2.4 %)**, in **15 runs, every one exactly 30 records long**, each
+starting at the same `unix % 1200`, with **zero phase variance**. Outside that window the byte is
+identically `0x00`.
+
+So a capture (or a sampling scheme) that is not aligned to the phase reads all zeros and looks
+exactly like a strap with the feature switched off. The tool therefore:
+
+- **detects** the schedule per capture — period, phase, window length, jitter — and prints what it
+  found. The window's *existence and stable length* is the robust fact; the phase offset is **not**
+  assumed to generalise across straps or firmware, so it is never hard-coded;
+- **aggregates per window**, not per second: a 30-second burst is one measurement the strap took, so
+  a densely-sampled window cannot outvote a sparse one;
+- **reports coverage** per night (windows sampled ÷ windows expected) and warns loudly below
+  `--min-window-coverage` (default 0.5), because a night built on 2 of 21 windows is not comparable
+  to one built on all of them.
+
+If your run reports low coverage, re-capture aligned to the phase the tool printed rather than
+reading the correlation.
+
+What it checks (per device):
+
+| Check | Default gate |
+|-------|----------------|
+| Paired nights with export SpO₂ **and** in-band @82 during sleep | ≥ 5 |
+| Export SpO₂ has real night-to-night spread | range ≥ 1.0 % |
+| Pearson **r** (nightly aggregate @82 vs export) | ≥ 0.7 |
+| Mean absolute error | ≤ 1.0 % |
+| Offset specificity scan @74–92 | best \|r\| is **@82** |
+| Distinct in-band values at @82 (variance floor) | ≥ 5, stdev ≥ 0.5 |
+| Median share of the night's duty windows sampled | ≥ 0.5 (n/a if not duty-cycled) |
+
+The variance floor exists because "the value lands in 70–100" is **not** a specific screen. On a real
+subscription-free 5.0 strap six offsets pass an in-band-only screen on a majority of records — `@17`,
+`@33`, `@59`, `@69`, `@71`, `@107` — and every one is either an already-decoded non-SpO₂ field (`@33`
+`cardiac_flags`, `@59` `step_cadence`, `@69`/`@71` the two aux thermal channels) or near-constant
+(`@17` is byte 2 of the u32 unix timestamp at `@15`; `@107` has 4 distinct values). A nightly SpO₂
+cannot have 2 distinct values, so an offset must show real variation before its correlation is ranked.
+
+**Overall PASS** only if every gate clears. A strap whose `@82` is `0x00` on 100 % of a long enough
+capture is reported as **`feature_absent`** — neither a PASS nor a FAIL, and excluded from the
+multi-device gate, because a device with no data has not failed a correlation. To make that claim the
+capture must also have **watched** the strap: at least an hour of *observed* sleep (samples × cadence,
+not `max − min`, which counts gaps) and a cadence of **≤ 30 s**, since a coarser one can alias with the
+duty period and read `0x00` off a working strap. Either bar missed and it stays a plain FAIL, with the
+duty line saying why. NOOP still will not
+promote `spo2_candidate_82` → `spo2Pct` from a single device: need **≥ 2 devices** that each PASS
+(postable summary prints `multi_device_eligible` / `all_pass` / `feature_absent`).
+
+**Privacy:** default output and `--postable` print only aggregates (r, MAE, bias, offsets, pass/fail).
+`--show-nights` prints per-night values for **local** debugging — do not paste that on GitHub.
+
+Capture sources: `hci_extract.py` on an official-app overnight sync, or `whoop_capture.py` after a
+bonded 5/MG history offload. Synthetic/absolute v18 buffers (test fixtures) are also accepted.
 
 ## Contributing captures back
 

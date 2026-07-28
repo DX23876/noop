@@ -285,3 +285,30 @@ func liquidWave(_ x: Double, amp: Double, R: Double, hw: Double,
 
 /// A monotonic seconds clock for a TimelineView date.
 @inline(__always) func liquidSeconds(_ date: Date) -> Double { date.timeIntervalSinceReferenceDate }
+
+// MARK: - Low Power Mode
+
+/// Publishes Low Power Mode so the live gauges can pose still, the way they already do for
+/// Reduce Motion. There is no SwiftUI environment key for this, so the primitives observe this
+/// instead; `.NSProcessInfoPowerStateDidChange` makes the switch live, with no relaunch needed.
+///
+/// Worth doing because a continuously-animating `Canvas` is not free: measured on an iPhone 17 Pro
+/// simulator seeded with a real 746 MB store, the default Today screen sitting idle costs ~18% of a
+/// CPU core in BOTH Debug and Release, and 0.0% once the live gauges pose still. Low Power Mode is
+/// the user telling the system to stop exactly that kind of work.
+@MainActor
+final class LiquidPowerMonitor: ObservableObject {
+    static let shared = LiquidPowerMonitor()
+    @Published private(set) var isLowPower: Bool
+
+    private init() {
+        isLowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
+        NotificationCenter.default.addObserver(
+            forName: .NSProcessInfoPowerStateDidChange, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.isLowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
+            }
+        }
+    }
+}

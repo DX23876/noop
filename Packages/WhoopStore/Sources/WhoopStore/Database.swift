@@ -544,6 +544,21 @@ extension WhoopStore {
         // re-sync); it is untouched by and unrelated to this table. Growth here is bounded by how much
         // v26 data a strap actually emits (firmware chooses v26 vs v18 per second, not every night is
         // v26-heavy), not by an artificial cap.
+        //
+        // CONSUMER STATUS — deliberately none, and stated here so nobody has to re-derive it. The writer is
+        // live on both platforms (offload + archive replay + the Android capture importer), but the reader
+        // `ppgWaveformSamples` has ZERO production callers on either platform: five test call sites on the
+        // Swift side, none at all on Android. No analytic, no UI, no export, no diagnostic reads a waveform
+        // row. That is the intended shape — the project's rule is to land unvalidated sensor work as
+        // instrumentation (decode + store, never a score; see CLAUDE.md and the withdrawn #194 PPG->HR
+        // estimate), and this table exists so a BETTER estimator, HRV-from-PPG, or a waveform viewer can
+        // later run over the ORIGINAL samples rather than the derived bpm. Do NOT "clean up" the reader as
+        // dead code: the rows are the point, and the reader is how they are reachable.
+        //
+        // Note the sharp distinction from `ppgHrSample` (v12), which is the DERIVED per-second HR estimate
+        // and IS fully consumed in production (COALESCEd with measured HR in the primary series). The
+        // derivation happens in memory inside `extractHistoricalStreams` and never reads back from this
+        // table, so these rows are not on any scoring path at all.
         migrator.registerMigration("v27-ppg-waveform") { db in
             try db.create(table: "ppgWaveformSample") { t in
                 t.column("deviceId", .text).notNull()
@@ -579,6 +594,105 @@ extension WhoopStore {
             }
             try db.create(index: "idx_scoreInputProvenance_source",
                           on: "scoreInputProvenance", columns: ["sourceId"])
+        }
+
+        // v30 (#823): record each R-R beat's EMISSION order within its second. Reads ordered by
+        // `rrMs`, i.e. by VALUE, which makes successive beats similar by construction and biases
+        // RMSSD — built entirely from successive differences — DOWNWARD. `seq` cannot serve here:
+        // it counts repeats of an identical (ts, rrMs) beat, so every DISTINCT beat in a second
+        // carries seq 0 and they all tie.
+        //
+        // Additive nullable column, no table rebuild, no existing row touched. Deliberately NOT in
+        // the primary key, which stays (deviceId, ts, rrMs, seq) from v24 — an insertion counter in
+        // the key would collide distinct beats arriving in separate batches, the data-loss
+        // regression the v24 note warns about. `ord` only informs read order.
+        //
+        // Pre-v30 rows stay NULL: the order was never recorded, so it cannot be backfilled and a
+        // guess would be worse than an admission. SQLite sorts NULL first in ASC, so an all-NULL
+        // second ties on `ord` and falls through to the old (rrMs, seq) order, unchanged.
+        //
+        // Twin of Room MIGRATION_23_24. Both stores are SQLite, so NULL-ordering matches exactly.
+        migrator.registerMigration("v30-rr-ord") { db in
+            try db.alter(table: "rrInterval") { t in
+                t.add(column: "ord", .integer)
+            }
+        }
+
+        // v31: stop DISCARDING four per-second channels the 5/MG v18 decoder already produces.
+        //
+        // `extractHistoricalStreams` is a narrow funnel — a field the Interpreter decodes but the funnel
+        // does not name is computed and dropped one line later. That drop is PERMANENT: the strap trims
+        // its banked history as soon as NOOP acks the offload, so the seconds are not re-fetchable. The
+        // four channels below have been decoded (and pinned by the cross-platform decoder oracle) since
+        // the v18 layout was mapped, and stored nowhere.
+        //
+        //   gravitySample.dynAccel    `dynamic_acceleration@41` (f32 g) — the strap's OWN gravity-removed
+        //                             motion magnitude, computed on-device from the full-rate IMU. NOOP's
+        //                             motion spine instead derives stillness from `gravityDeltas`, the L2
+        //                             distance between consecutive 1 Hz gravity vectors. That proxy sees
+        //                             orientation CHANGE at 1 Hz, not acceleration, so the two are not the
+        //                             same measurement; this column puts the strap's own number BESIDE the
+        //                             incumbent, which is the only way a later comparison on real nights
+        //                             becomes possible.
+        //   sleepStateSample.rawByte  the WHOLE @81 flag byte. v21 stored only `(byte >> 4) & 3` as
+        //                             `state`; b0-1 `onwrist` and b2-3 `wake_quality` are decoded and were
+        //                             dropped, and b6-7 have no interpretation at all (0 across every
+        //                             capture held here). `state` is untouched, so #175 behavior is
+        //                             bit-identical.
+        //   skinTempSample.aux1Raw    `temp_aux_1_raw@69` / `temp_aux_2_raw@71` (i16, °C = value/10, a
+        //   skinTempSample.aux2Raw    DIFFERENT scale from the primary's /100). Two further thermal
+        //                             channels that track the primary closely (corr ~0.92 / ~0.97) with
+        //                             the same diurnal curve.
+        //
+        // Additive nullable ALTERs only: no table rebuild, no row touched, no key changed. Every existing
+        // row reads back NULL and an old reader that does not SELECT the columns is unaffected. NULL is
+        // load-bearing here and no column carries a DEFAULT — a WHOOP 4.0 never emits any of these, and
+        // history banked before this migration cannot be backfilled (the strap already trimmed it), so an
+        // absent channel must stay absent rather than become a fabricated 0.
+        //
+        // INSTRUMENTATION ONLY. Nothing reads these columns: no analytic, no score, no gate, no UI. That
+        // is deliberate — see the "validate against the artifact, not one match" rule in CLAUDE.md. The
+        // point of this migration is that the data starts accruing NOW so a validated consumer is possible
+        // LATER; landing a consumer at the same time would be scoring on evidence that does not exist yet.
+        //
+        // The remaining fifteen v18 slots go to their OWN narrow table rather than fifteen more columns
+        // (see `V18AuxCodec` for the wire format and the column-vs-blob tradeoff). Three reasons this is
+        // a table and not another column on an existing row:
+        //   1. No existing per-second table is guaranteed present. `gravitySample` needs `gravity_x` to
+        //      decode, `skinTempSample` needs @73 to clear its thermal gate, `hrSample` skips bpm=0. A v18
+        //      record can carry aux fields while every one of those gated out, so hanging the blob off any
+        //      of them would silently drop records.
+        //   2. It keeps fifteen unpinned bytes out of the tables analytics actually read.
+        //   3. It can be dropped or re-shaped later without touching a scored table.
+        // `fields` is NOT NULL because a row is only written when at least one slot is present — absence is
+        // encoded as "no row", and within a row as a clear bitmap bit, never as a fabricated 0.
+        //
+        // Retention: `v18AuxSample` is CAPPED, `rawImuSample`-style, at `WhoopStore.v18AuxRetentionRows`
+        // rows per device (rolling, newest-first). It is the only genuinely new row growth here — the four
+        // named columns widen rows that were already being written (~14 B on a gravity/skinTemp/sleepState
+        // row that exists either way) and add no rows at all, so they inherit whatever retention their
+        // tables have. `PrunePolicy`'s ~50 MB cap governs only `rawBatch`. The table is also added to the
+        // storage-stats readout, because visible growth and bounded growth are different guarantees and
+        // an instrumentation table nothing reads should have both.
+        //
+        // Twin of Room MIGRATION_24_25.
+        migrator.registerMigration("v31-deep-capture-channels") { db in
+            try db.alter(table: "gravitySample") { t in
+                t.add(column: "dynAccel", .double)
+            }
+            try db.alter(table: "sleepStateSample") { t in
+                t.add(column: "rawByte", .integer)
+            }
+            try db.alter(table: "skinTempSample") { t in
+                t.add(column: "aux1Raw", .integer)
+                t.add(column: "aux2Raw", .integer)
+            }
+            try db.create(table: "v18AuxSample") { t in
+                t.column("deviceId", .text).notNull()
+                t.column("ts", .integer).notNull()
+                t.column("fields", .blob).notNull()
+                t.primaryKey(["deviceId", "ts"])
+            }
         }
         return migrator
     }
