@@ -26,7 +26,7 @@ object AppChangelog {
      * Bump this when you add a release below. The "What's New" sheet shows automatically when the
      * stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
      */
-    const val CURRENT_VERSION = "9.2.1-beta.1"
+    const val CURRENT_VERSION = "9.2.1-dx-beta"
 
     data class Release(
         val version: String,
@@ -38,14 +38,14 @@ object AppChangelog {
     /** Newest first. */
     val releases: List<Release> = listOf(
         Release(
-            version = "9.2.1-beta.1",
+            version = "9.2.1 DX Beta",
             title = "A coach that remembers, privacy presets that stay simple",
             date = "July 2026",
             items = listOf(
                 "**The coach now has real long-term memory.** An on-device semantic index lets it recall past conversations and journal entries by meaning, not just exact wording — nothing leaves your device, and it stays off until you turn it on.",
                 "**Privacy is three taps, not nine.** Data access collapses into three understandable modes — Essentials, Personal, Deep insights — plus an Expert mode for the individual switches. Sensitive journal topics always need their own separate, explicit choice.",
                 "**A bell that remembers real events.** Battery, health, movement, and smart-alarm alerts now have a short local history in Today, useful even when the operating system cannot show a banner.",
-                "**iOS Beta 1 is ready for sideloading.** Install the unsigned IPA with AltStore or SideStore; it is signed only by your own Apple ID on your device.",
+                "**The iOS DX Beta is ready for sideloading.** Install the unsigned IPA with AltStore or SideStore; it is signed only by your own Apple ID on your device.",
             ),
         ),
         Release(

@@ -143,8 +143,6 @@ jobs:
       - uses: actions/checkout@v5
       - name: Install XcodeGen
         run: brew install xcodegen
-      - name: Generate Xcode project
-        run: xcodegen generate
       # NOOPiOS links Vendor/Nomic/llama.xcframework (the on-device semantic-memory runtime) and bundles
       # the pinned Nomic embedding model — both fetched/verified by this script, never committed (it's a
       # ~330 MiB binary pair). Cached on the script's own pinned hashes/tag so a re-run doesn't re-download
@@ -154,8 +152,14 @@ jobs:
         with:
           path: Vendor/Nomic
           key: nomic-${{ hashFiles('Tools/bootstrap-nomic.sh') }}
+      # MUST run BEFORE xcodegen: project.yml adds Vendor/Nomic/Resources as a `buildPhase: resources`
+      # directory, and XcodeGen enumerates that directory's CONTENTS at generation time. Bootstrap after
+      # generate and the only file there is .gitkeep — the model is silently left out of the project, and
+      # the app ships with the runtime but no model to load.
       - name: Bootstrap Nomic embedding runtime + model
         run: Tools/bootstrap-nomic.sh
+      - name: Generate Xcode project
+        run: xcodegen generate
       - name: Build NOOPiOS for device (unsigned, Release)
         # #53: build RELEASE, not Debug. A Debug build carries get-task-allow + debug artifacts that make a
         # re-signed sideload fail "integrity could not be verified" on modern iOS; Release (the correct config

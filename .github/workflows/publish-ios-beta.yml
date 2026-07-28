@@ -7,10 +7,6 @@ on:
         description: "Numeric app version already committed to source (for example 9.2.1)"
         required: true
         default: "9.2.1"
-      beta:
-        description: "Beta sequence number (for example 1)"
-        required: true
-        default: "1"
 
 permissions:
   contents: write
@@ -36,20 +32,19 @@ jobs:
       - name: Validate release metadata
         env:
           VERSION: ${{ inputs.version }}
-          BETA: ${{ inputs.beta }}
         run: |
           set -euo pipefail
+          # MARKETING_VERSION must stay numeric (Apple rejects anything else in
+          # CFBundleShortVersionString), so the "DX Beta" branding lives only in the tag, the asset
+          # name and the release title — never in the version the app reports.
           [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
             echo "version must be numeric X.Y.Z" >&2; exit 1;
-          }
-          [[ "$BETA" =~ ^[1-9][0-9]*$ ]] || {
-            echo "beta must be a positive integer" >&2; exit 1;
           }
 
           SOURCE_VERSION=$(grep -m1 'MARKETING_VERSION:' project.yml | sed -E 's/.*"([^"]+)".*/\1/')
           ANDROID_VERSION=$(grep -m1 'versionName = ' android/app/build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/')
           BUILD=$(grep -m1 'CURRENT_PROJECT_VERSION:' project.yml | sed -E 's/.*"([0-9]+)".*/\1/')
-          NOTES="docs/releases/v${VERSION}-beta.${BETA}.md"
+          NOTES="docs/releases/v${VERSION}-dx-beta.md"
 
           [[ "$SOURCE_VERSION" == "$VERSION" ]] || {
             echo "project.yml is $SOURCE_VERSION, not requested $VERSION" >&2; exit 1;
@@ -62,11 +57,10 @@ jobs:
           }
 
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "BETA=$BETA" >> "$GITHUB_ENV"
           echo "BUILD=$BUILD" >> "$GITHUB_ENV"
-          echo "TAG=v${VERSION}-beta.${BETA}" >> "$GITHUB_ENV"
+          echo "TAG=v${VERSION}-dx-beta" >> "$GITHUB_ENV"
           echo "NOTES=$NOTES" >> "$GITHUB_ENV"
-          echo "IPA=NOOP-ios-unsigned-v${VERSION}-beta.${BETA}.ipa" >> "$GITHUB_ENV"
+          echo "IPA=NOOP-ios-unsigned-v${VERSION}-dx-beta.ipa" >> "$GITHUB_ENV"
 
       - name: Select Xcode
         run: |
@@ -84,11 +78,6 @@ jobs:
           done
           xcodebuild -version
 
-      - name: Install XcodeGen and generate project
-        run: |
-          brew install xcodegen
-          xcodegen generate
-
       # NOOPiOS links Vendor/Nomic/llama.xcframework (the on-device semantic-memory runtime) and bundles
       # the pinned Nomic embedding model — both fetched/verified by this script, never committed (it's a
       # ~330 MiB binary pair). Cached on the script's own pinned hashes/tag so a re-run doesn't re-download
@@ -99,8 +88,18 @@ jobs:
           path: Vendor/Nomic
           key: nomic-${{ hashFiles('Tools/bootstrap-nomic.sh') }}
 
+      # MUST run BEFORE xcodegen: project.yml adds Vendor/Nomic/Resources as a `buildPhase: resources`
+      # directory, and XcodeGen enumerates that directory's CONTENTS at generation time. Bootstrap after
+      # generate and the only file there is .gitkeep — the model is silently left out of the project, and
+      # the app ships with the runtime but no model to load. That shipped once (9.2.1 Beta 1, a 20 MB IPA
+      # where ~350 MB was expected); the size assertion in the packaging step below is what now catches it.
       - name: Bootstrap Nomic embedding runtime + model
         run: Tools/bootstrap-nomic.sh
+
+      - name: Install XcodeGen and generate project
+        run: |
+          brew install xcodegen
+          xcodegen generate
 
       - name: Build unsigned iOS Release app
         run: >-
@@ -118,6 +117,18 @@ jobs:
             echo "Refusing to publish a provisioned IPA" >&2; exit 1;
           }
 
+          # The on-device coach model must actually be IN the bundle. A resource that XcodeGen never saw
+          # (see the bootstrap-before-generate note above) produces a perfectly successful build whose
+          # semantic memory has no model to load — invisible in the log, and only obvious from the IPA
+          # being ~20 MB instead of ~350 MB. Assert the file, not the size, so the check stays true if
+          # the model is ever re-quantized.
+          MODEL=$(find "$APP" -maxdepth 1 -name '*.gguf' | head -1)
+          [[ -n "$MODEL" ]] || {
+            echo "No .gguf model in the app bundle — did bootstrap-nomic.sh run before xcodegen?" >&2
+            exit 1
+          }
+          echo "Bundled model: $(basename "$MODEL") ($(du -h "$MODEL" | cut -f1))"
+
           # project.yml deliberately does not embed the widget extension or the Watch app into NOOPiOS: a
           # free Apple ID only gets 10 app ids / 7 days and no App Groups, and each extra embedded target
           # (its own app id + the shared group) makes free-account signing fail. Neither PlugIns/ nor
@@ -126,6 +137,7 @@ jobs:
           mkdir Payload
           cp -R "$APP" Payload/
           zip -qry "$IPA" Payload
+          echo "Packaged $IPA ($(du -h "$IPA" | cut -f1))"
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
@@ -144,11 +156,11 @@ jobs:
 
           if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-              --prerelease --title "NOOP AI $VERSION Beta $BETA" --notes-file "$BODY"
+              --prerelease --title "NOOP AI $VERSION DX Beta" --notes-file "$BODY"
           fi
           gh release upload "$TAG" "$IPA" --repo "$GITHUB_REPOSITORY" --clobber
 
-      - name: Publish Beta to AltStore and SideStore source
+      - name: Publish DX Beta to AltStore and SideStore source
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -156,7 +168,7 @@ jobs:
           SIZE=$(stat -f%z "$IPA")
           DATE=$(date -u +%Y-%m-%d)
           URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${IPA}"
-          DESCRIPTION="NOOP AI ${VERSION} Beta ${BETA}. See the release notes for what changed."
+          DESCRIPTION="NOOP AI ${VERSION} DX Beta. See the release notes for what changed."
           tmp=$(mktemp)
 
           jq --arg version "$VERSION" --arg build "$BUILD" --arg date "$DATE" \
@@ -182,5 +194,5 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add altstore-source.json
-          git diff --cached --quiet || git commit -m "Release ${VERSION} Beta ${BETA}: publish sideload source"
+          git diff --cached --quiet || git commit -m "Release ${VERSION} DX Beta: publish sideload source"
           git push origin HEAD:main

@@ -7,7 +7,7 @@
 <p align="center"><b>Your WHOOP data, on your own devices, with a coach that remembers.</b></p>
 
 <p align="center">
-  <img alt="Current release" src="https://img.shields.io/badge/current%20beta-9.2.1%20Beta%201-C8902F?style=flat-square">
+  <img alt="Current release" src="https://img.shields.io/badge/current%20beta-9.2.1%20DX%20Beta-C8902F?style=flat-square">
   <img alt="Platforms" src="https://img.shields.io/badge/iOS%2017%2B%20%C2%B7%20macOS%2013%2B-234F9E?style=flat-square">
   <img alt="Straps" src="https://img.shields.io/badge/WHOOP-4.0%20%C2%B7%205.0%2FMG-234F9E?style=flat-square">
   <img alt="Privacy" src="https://img.shields.io/badge/no%20account%20%C2%B7%20no%20cloud-6B737B?style=flat-square">
@@ -27,7 +27,7 @@ MAINTAINER NOTE — update this small release section for every beta or public r
 3. Move shipped items out of “In development” and link the matching release note.
 -->
 
-## Latest beta — 9.2.1 Beta 1
+## Latest beta — 9.2.1 DX Beta
 
 - **The coach now has real long-term memory.** An on-device semantic index lets it recall past
   conversations and journal entries by meaning, not just exact wording — nothing leaves your device,
@@ -38,7 +38,7 @@ MAINTAINER NOTE — update this small release section for every beta or public r
 - **Unsigned iOS IPA, signed by you.** Install through AltStore or SideStore. NOOP AI does not use an
   Apple team, certificate, or personal signing name to distribute the build.
 
-Read the full [9.2.1 Beta 1 notes](docs/releases/v9.2.1-beta.1.md).
+Read the full [9.2.1 DX Beta notes](docs/releases/v9.2.1-dx-beta.md).
 
 ## In development
 
@@ -49,7 +49,7 @@ Read the full [9.2.1 Beta 1 notes](docs/releases/v9.2.1-beta.1.md).
 
 ## Download and install
 
-### iPhone and iPad — Beta 1
+### iPhone and iPad — DX Beta
 
 The iOS build is an **unsigned IPA on purpose**. Add the source below in AltStore or SideStore, then
 the sideloader signs the app locally with the Apple ID you choose. NOOP AI never receives your Apple ID
@@ -63,8 +63,8 @@ https://raw.githubusercontent.com/DX23876/noop/main/altstore-source.json
 
 - **AltStore:** Browse → **+** → paste the source URL → add NOOP AI.
 - **SideStore:** Sources → **+ Add Source** → paste the same URL → install NOOP AI.
-- Prefer a direct file? Download `NOOP-ios-unsigned-v9.2.1-beta.1.ipa` from the
-  [Beta 1 prerelease](https://github.com/DX23876/noop/releases/tag/v9.2.1-beta.1).
+- Prefer a direct file? Download `NOOP-ios-unsigned-v9.2.1-dx-beta.ipa` from the
+  [DX Beta prerelease](https://github.com/DX23876/noop/releases/tag/v9.2.1-dx-beta).
 
 See [the iOS install guide](docs/IOS.md) for the free-Apple-ID limits, widget notes, and build-from-source
 instructions.
@@ -73,7 +73,7 @@ instructions.
 
 | Platform | Status | Distribution |
 |---|---|---|
-| iOS / iPadOS | 9.2.1 Beta 1 | AltStore, SideStore, or build from source |
+| iOS / iPadOS | 9.2.1 DX Beta | AltStore, SideStore, or build from source |
 | macOS | Source build | Build with Xcode; a packaged beta follows separately |
 | Android | Distribution in progress | Source version aligned; public beta follows later |
 
