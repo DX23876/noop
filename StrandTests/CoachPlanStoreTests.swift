@@ -330,6 +330,38 @@ final class CoachPlanStoreTests: XCTestCase {
         XCTAssertEqual(back.rescheduledFrom, "2026-07-16")
     }
 
+    func testRecommendationEffectIsRecordedOnlyAfterCompletion() {
+        let store = makeStore()
+        store.propose(proposal(day: "2026-07-17", sport: "Zone 2 ride"))
+        let id = store.proposals[0].id
+
+        store.recordEffect(id, feedback: .helpful, note: "More energy")
+        XCTAssertNil(store.proposals[0].effectFeedback)
+
+        store.accept(id)
+        store.complete(id)
+        store.recordEffect(id, feedback: .helpful, note: "  More energy  ")
+        XCTAssertEqual(store.proposals[0].effectFeedback, .helpful)
+        XCTAssertEqual(store.proposals[0].feedbackNote, "More energy")
+    }
+
+    func testLegacyProposalDecodesWithoutEffectFeedback() throws {
+        let legacy = """
+        {
+          "day":"2026-07-17",
+          "sport":"Walk",
+          "intent":"easy",
+          "status":"completed",
+          "source":"userCreated",
+          "createdAt":0
+        }
+        """.data(using: .utf8)!
+
+        let decoded = try JSONDecoder().decode(PlanProposal.self, from: legacy)
+        XCTAssertNil(decoded.effectFeedback)
+        XCTAssertNil(decoded.feedbackNote)
+    }
+
     // MARK: - Consequence maths
 
     /// The swap moment: the app tells you what your OWN history says each option costs, then stops.

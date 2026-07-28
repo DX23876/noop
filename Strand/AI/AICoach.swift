@@ -5,6 +5,7 @@ import WhoopStore
 import StrandAnalytics
 import StrandImport
 import StrandDesign
+import SemanticMemory
 
 // MARK: - AI Coach (the one networked feature, strictly opt-in, bring-your-own-key)
 //
@@ -39,6 +40,8 @@ struct ChatMessage: Identifiable, Equatable, Codable {
         case stress
         case personalPatterns
         case conversationMemory
+        case semanticMemory
+        case keywordMemory
         case longTermHistory
     }
 
@@ -394,6 +397,7 @@ final class AICoachEngine: ObservableObject {
             if dataConsent, !ToolConsent.hasBeenExplicitlySaved() {
                 toolConsent = ToolConsent.load()
             }
+            Task { await semanticPrivacyDidChange() }
         }
     }
     /// Base URL for the Custom (OpenAI-compatible) provider, e.g. `http://localhost:11434/v1` for a
@@ -417,13 +421,84 @@ final class AICoachEngine: ObservableObject {
     /// memory, patterns) the coach may actually
     /// call once data access is on. See `ToolConsent`/`CoachPurpose`.
     @Published var toolConsent: ToolConsent {
-        didSet { toolConsent.save() }
+        didSet {
+            toolConsent.save()
+            Task { await semanticPrivacyDidChange() }
+        }
     }
 
     /// A memory choice is meaningful only when the master data-consent switch is also on. Keep this as
     /// one predicate so tool use, prompt context and background summarisation cannot drift apart.
     var memoryContextAllowed: Bool {
         dataConsent && toolConsent.allows(.searchPastConversations)
+    }
+
+    private var semanticAllowedScopes: Set<SemanticConsentScope> {
+        guard dataConsent else { return [] }
+        return CoachSemanticMemory.allowedScopes(for: toolConsent)
+    }
+
+    /// Called from the Coach screen. It only reconciles text metadata and begins an asynchronous warm-up;
+    /// normal app launch still never opens the 328 MB model.
+    func prepareSemanticMemory() async {
+        let entries = semanticAllowedScopes.contains(.personalLogs)
+            || semanticAllowedScopes.contains(.sensitiveLogs)
+            ? await repo.journalEntries()
+            : []
+        await CoachSemanticMemory.shared.prewarm(
+            conversations: conversations,
+            journalEntries: entries,
+            allowedScopes: semanticAllowedScopes
+        )
+    }
+
+    /// Entry point for the iOS background task and its 24-hour foreground catch-up.
+    func performSemanticMemoryMaintenance(limit: Int = 240) async {
+        let entries = semanticAllowedScopes.contains(.personalLogs)
+            || semanticAllowedScopes.contains(.sensitiveLogs)
+            ? await repo.journalEntries()
+            : []
+        await CoachSemanticMemory.shared.performMaintenance(
+            conversations: conversations,
+            journalEntries: entries,
+            allowedScopes: semanticAllowedScopes,
+            limit: limit
+        )
+    }
+
+    /// User-triggered foreground catch-up from Memory settings. Reconcile first so the manual worker
+    /// never indexes stale or newly disallowed text, then let the coordinator drain the queue.
+    func startManualSemanticIndexing() async {
+        let entries = semanticAllowedScopes.contains(.personalLogs)
+            || semanticAllowedScopes.contains(.sensitiveLogs)
+            ? await repo.journalEntries()
+            : []
+        await CoachSemanticMemory.shared.reconcile(
+            conversations: conversations,
+            journalEntries: entries,
+            allowedScopes: semanticAllowedScopes
+        )
+        CoachSemanticMemory.shared.startManualIndexing()
+    }
+
+    func unloadSemanticMemory() async {
+        await CoachSemanticMemory.shared.unload()
+    }
+
+    private func semanticPrivacyDidChange() async {
+        // A privacy change invalidates any in-flight lease. Reconciliation below may retain still-
+        // permitted vectors, but the 328 MB model is released immediately and only a later Coach use
+        // or approved maintenance run may load it again.
+        await CoachSemanticMemory.shared.unload()
+        let entries = semanticAllowedScopes.contains(.personalLogs)
+            || semanticAllowedScopes.contains(.sensitiveLogs)
+            ? await repo.journalEntries()
+            : []
+        await CoachSemanticMemory.shared.reconcile(
+            conversations: conversations,
+            journalEntries: entries,
+            allowedScopes: semanticAllowedScopes
+        )
     }
     /// SECOND opt-in (v5): also fold a SUMMARY of the new on-device signals, your strongest n-of-1
     /// correlations and your Lab Book markers, into the coach context. OFF by default and gated behind
@@ -845,7 +920,10 @@ final class AICoachEngine: ObservableObject {
         transcriptAutosave = $conversations
             .dropFirst()
             .debounce(for: .seconds(1.0), scheduler: DispatchQueue.main)
-            .sink { CoachConversationStore.save($0) }
+            .sink { conversations in
+                CoachConversationStore.save(conversations)
+                Task { await CoachSemanticMemory.shared.conversationsChanged(conversations) }
+            }
 
         // Rebuild the in-memory chart artifacts for the active conversation from their snapshots.
         rebuildChartsForActive()
@@ -1332,6 +1410,8 @@ final class AICoachEngine: ObservableObject {
         }
 
         clearError()
+        // The current question becomes searchable for the NEXT turn, not its own retrieval.
+        let conversationsBeforeCurrentQuestion = conversations
         // Route through `appendMessage` for upstream's `maxStoredMessages` cap (unbounded-RAM fix, #741)
         // while keeping the fork's richer clear-error + card-suggestion reset.
         appendMessage(ChatMessage(role: .user, text: trimmed))
@@ -1351,11 +1431,29 @@ final class AICoachEngine: ObservableObject {
         // instead of pre-baking the whole summary into the prompt.
         // Only read journal labels locally when their separate consent exists; those labels are used by
         // the local policy only and never appended to the provider prompt.
-        let journalQuestions: [String]
-        if toolConsent.allows(.myLogs) {
-            journalQuestions = await repo.journalEntries().map(\.question)
+        let semanticJournalEntries = semanticAllowedScopes.contains(.personalLogs)
+            || semanticAllowedScopes.contains(.sensitiveLogs)
+            ? await repo.journalEntries()
+            : []
+        let journalQuestions = toolConsent.allows(.myLogs)
+            ? semanticJournalEntries.map(\.question)
+            : []
+        let semanticRetrieval: CoachSemanticRetrieval
+        if dataConsent {
+            semanticRetrieval = await CoachSemanticMemory.shared.retrieve(
+                question: trimmed,
+                conversations: conversationsBeforeCurrentQuestion,
+                journalEntries: semanticJournalEntries,
+                allowedScopes: semanticAllowedScopes
+            )
+            // Queue the just-added user turn immediately, but do not start another model operation.
+            await CoachSemanticMemory.shared.reconcile(
+                conversations: conversations,
+                journalEntries: semanticJournalEntries,
+                allowedScopes: semanticAllowedScopes
+            )
         } else {
-            journalQuestions = []
+            semanticRetrieval = CoachSemanticRetrieval(context: "", mode: .unavailable)
         }
         let requestTools = toolCallingActive ? coachTools(for: trimmed, journalQuestions: journalQuestions) : []
         let toolsActiveForTurn = !requestTools.isEmpty
@@ -1363,7 +1461,13 @@ final class AICoachEngine: ObservableObject {
         let context: String
         var localContextUsed: [ChatMessage.LocalContextCategory] = []
         if toolsActiveForTurn {
-            context = toolModeContext
+            context = [toolModeContext, semanticRetrieval.context]
+                .filter { !$0.isEmpty }
+                .joined(separator: "\n\n")
+            if !semanticRetrieval.context.isEmpty {
+                localContextUsed.append(semanticRetrieval.mode == .semantic
+                    ? .semanticMemory : .keywordMemory)
+            }
         } else if dataConsent {
             let prepared = await buildNonToolContext(for: trimmed)
             var full = prepared.text
@@ -1372,6 +1476,11 @@ final class AICoachEngine: ObservableObject {
             if !localEvidence.isEmpty {
                 full += "\n\n" + localEvidence
                 localContextUsed.append(.longTermHistory)
+            }
+            if !semanticRetrieval.context.isEmpty {
+                full += "\n\n" + semanticRetrieval.context
+                localContextUsed.append(semanticRetrieval.mode == .semantic
+                    ? .semanticMemory : .keywordMemory)
             }
             context = full
         } else {
@@ -1913,6 +2022,12 @@ final class AICoachEngine: ObservableObject {
         CoachTrainingPreferences.report(proposals: CoachPlanStore.shared.proposals, days: days)
     }
 
+    /// The coach's automatic context uses all four fixed horizons. A tool call can still request one
+    /// focused range, while the proactive model sees whether a pattern is new, persistent, or absent.
+    func longitudinalTrainingPreferences() -> String {
+        CoachTrainingPreferences.longitudinalReport(proposals: CoachPlanStore.shared.proposals)
+    }
+
     /// `get_data_catalog`: metadata-only local discovery. This is the router's first step when it needs
     /// to know whether a long-running or imported metric exists, before asking for a compact analysis.
     func dataCatalogTool(query: String? = nil) async -> String {
@@ -1976,8 +2091,22 @@ final class AICoachEngine: ObservableObject {
         case "garmin", "garmin-import": candidates = ["garmin-import"]
         case "fitbit", "fitbit-import": candidates = ["fitbit-import"]
         default:
-            // Body metrics normally live in Health; wearable metrics normally live on the strap. The
-            // automatic order reflects that without combining incompatible measurements across sources.
+            // A source is NEVER named by the user for an ordinary long-range question. Resolve a
+            // day-by-day timeline locally instead: Apple Health may cover the years before a strap was
+            // paired, while WHOOP owns newer days. `resolvedSeries` applies the metric-specific source
+            // precedence and records the winner on every day, so neither source is silently ignored.
+            let timeline = await automaticMetricTimeline(metric: metric, days: window,
+                                                         includesLabBook: includesLabBook)
+            if timeline.points.count >= 2 {
+                let source = CoachMetricHistory.sourceSummary(from: timeline.points,
+                                                               label: Self.historySourceLabel)
+                return CoachMetricHistory.report(metric: Self.humanizeMetricKey(metric),
+                                                 source: source.isEmpty ? "local sources" : source,
+                                                 unit: Self.historyUnit(for: metric),
+                                                 points: timeline.points.map { .init(day: $0.day, value: $0.value) })
+            }
+            // Continue with an exact-source discovery fallback for custom imported metrics that have
+            // no declared cross-source mapping yet.
             candidates = metric == "weight"
                 ? [Repository.appleHealthSource, Repository.healthConnectSource, Repository.whoopSource]
                 : [Repository.whoopSource, Repository.appleHealthSource, Repository.healthConnectSource]
@@ -2011,6 +2140,36 @@ final class AICoachEngine: ObservableObject {
         }
         return "No usable local \(Self.humanizeMetricKey(metric)) history was found in the last \(window) days. "
             + "It may not have been imported or recorded yet."
+    }
+
+    /// Build the automatic, provenance-preserving history that powers ordinary questions such as
+    /// "How did my weight change last year?". The user does not have to ask for an Apple-Health view:
+    /// body/activity values start with Apple Health, while WHOOP-specific values start with WHOOP.
+    /// The repository fills uncovered days from compatible sources and keeps the winning source on every
+    /// point. A second resolution supplies the complementary source for metrics where Health is primary.
+    private func automaticMetricTimeline(metric: String, days: Int,
+                                         includesLabBook: Bool) async -> MetricSeriesResolution {
+        let healthPrimary: Set<String> = [
+            "weight", "body_fat", "lean_mass", "bmi", "steps", "active_kcal", "basal_kcal", "vo2max"
+        ]
+        let primary = healthPrimary.contains(metric) ? Repository.appleHealthSource : Repository.whoopSource
+        let secondary = primary == Repository.appleHealthSource ? Repository.whoopSource : Repository.appleHealthSource
+        let first = await repo.resolvedSeries(key: metric, source: primary, days: days)
+
+        // `resolvedSeries` already provides Apple Health as a fallback for WHOOP-compatible vitals.
+        // Health-primary body/activity series need the inverse fallback so an Apple gap still exposes an
+        // otherwise valid WHOOP day. Keep the policy local and exclude Lab Book unless that separate
+        // consent was granted.
+        var byDay = Dictionary(first.points.map { ($0.day, $0) }, uniquingKeysWith: { existing, _ in existing })
+        let second = await repo.resolvedSeries(key: metric, source: secondary, days: days)
+        for point in second.points where byDay[point.day] == nil {
+            guard CoachLocalSourceAccess.permits(point.source, includesLabBook: includesLabBook) else { continue }
+            byDay[point.day] = point
+        }
+        let points = byDay.values.sorted { $0.day < $1.day }
+        return MetricSeriesResolution(requestedSource: primary,
+                                      candidates: first.candidates + second.candidates,
+                                      points: points)
     }
 
     /// Local pre-routing for a provider with no tool-call protocol. This preserves the same aggregate-only
@@ -2703,9 +2862,11 @@ final class AICoachEngine: ObservableObject {
             categories.append(.planning)
         }
         if sections.contains(.trainingPreferences), toolConsent.allows(.trainingPreferences) {
-            let preferences = trainingPreferencesTool(days: 180)
-            if preferences.hasPrefix("LOCAL TRAINING-PREFERENCE HYPOTHESES") {
-                blocks.append(preferences)
+            let reports = CoachTrainingPreferences.longitudinalReports(
+                proposals: CoachPlanStore.shared.proposals
+            )
+            if reports.contains(where: \.hasHypothesis) {
+                blocks.append(longitudinalTrainingPreferences())
                 categories.append(.trainingPreferences)
             }
         }
@@ -3175,6 +3336,18 @@ final class AICoachEngine: ObservableObject {
             when = df.date(from: "\(dayKey) \(time)")
         }
 
+        let adaptation = CoachRecommendationAdaptation.advice(
+            sport: trimmedSport,
+            intent: parsedIntent,
+            day: dayKey,
+            proposedTime: when,
+            history: CoachPlanStore.shared.proposals
+        )
+        if let reason = adaptation.blockReason {
+            return "Not proposed because of the user's local feedback: \(reason)"
+        }
+        if when == nil { when = adaptation.preferredTime }
+
         // Link the session to the goal it serves, but ONLY when there is exactly one active goal. With
         // several, the model didn't say which this is for and guessing would put a real session under the
         // wrong goal's progress — an unlinked session still counts on the journey page, a misfiled one
@@ -3193,7 +3366,8 @@ final class AICoachEngine: ObservableObject {
                 + "Acknowledge their existing plan rather than suggesting it again as if it were new."
         }
         CoachNotifier.postPlanProposal(proposal)
-        return "Proposed (NOT scheduled): \(proposal.summary()) on \(dayKey). It's waiting for the user "
+        let adapted = adaptation.evidenceNote.map { " Local adaptation: \($0)" } ?? ""
+        return "Proposed (NOT scheduled): \(proposal.summary()) on \(dayKey).\(adapted) It's waiting for the user "
             + "to accept, change or decline it in the app — tell them it's there for their yes, and "
             + "don't refer to it as booked."
     }
@@ -3576,13 +3750,31 @@ final class AICoachEngine: ObservableObject {
 
         connectionTest = .testing
         do {
-            _ = try await provider.client.send(
-                key: key,
-                model: model,
-                systemPrompt: "Reply with the single word: ok",
-                messages: [(role: .user, content: "ok")],
-                session: session
-            )
+            // Anthropic's actual coach path streams and, when the person granted data access,
+            // attaches the permitted tool definitions.  A small non-streaming completion can prove
+            // the key and model, yet miss a malformed tool request entirely.  Exercise the same
+            // wire format here without reading any health data or allowing a diagnostic tool call.
+            if let streamer = provider.client as? StreamingToolClient {
+                let diagnosticTools = toolCallingActive ? coachTools(for: "ok") : []
+                _ = try await streamer.streamWithTools(
+                    key: key,
+                    model: model,
+                    systemPrompt: systemPrompt(toolsActive: !diagnosticTools.isEmpty),
+                    messages: [(role: .user, content: "Reply with the single word: ok. Do not call tools.")],
+                    tools: diagnosticTools,
+                    runTool: { _, _ in "No tool is available during the connection test." },
+                    onDelta: { _ in },
+                    session: session
+                )
+            } else {
+                _ = try await provider.client.send(
+                    key: key,
+                    model: model,
+                    systemPrompt: "Reply with the single word: ok",
+                    messages: [(role: .user, content: "ok")],
+                    session: session
+                )
+            }
             connectionTest = .ok(model: model)
         } catch {
             // Same classification the chat uses, so "you're offline" reads identically in both places
@@ -3678,7 +3870,7 @@ final class AICoachEngine: ObservableObject {
     /// second opt-in; returns "" when there's nothing worth adding. `limit` caps the correlation list
     /// (the `get_personal_patterns` tool parameter), not the dose-response section (at most one line per
     /// `DosedBehavior` case).
-    func onDeviceSignalsBlock(limit: Int = 3, includeLabBook: Bool = true,
+    func onDeviceSignalsBlock(limit: Int = 4, includeLabBook: Bool = true,
                               includeSensitiveLogs: Bool = false) async -> String {
         var lines: [String] = []
 
@@ -3692,12 +3884,14 @@ final class AICoachEngine: ObservableObject {
             repo.days.compactMap { d in d.recovery.map { (d.day, $0) } },
             uniquingKeysWith: { _, last in last })
         if !byBehaviour.isEmpty {
-            let ranked = EffectRanker.rank(behaviors: byBehaviour, outcomeByDay: recoveryByDay, outcome: "Charge")
-                .filter { $0.effect.significant }
-                .prefix(limit)
-            if !ranked.isEmpty {
-                lines.append("STRONGEST PERSONAL PATTERNS (the user's own data — association, not cause):")
-                for r in ranked { lines.append("  • " + r.sentence()) }
+            let windows = CoachJournalPatternAnalyzer.analyze(entries: entries,
+                                                               outcomeByDay: recoveryByDay,
+                                                               outcomeName: "Charge")
+            if !windows.isEmpty {
+                lines.append("STRONGEST PERSONAL PATTERNS BY WINDOW:")
+                for evidence in windows.prefix(max(1, min(4, limit))) {
+                    lines.append("  • " + evidence.sentence)
+                }
             }
         }
 
@@ -3966,16 +4160,52 @@ final class AICoachEngine: ObservableObject {
     /// Append recent workouts to an existing context string. Async (workouts are read from the store),
     /// so callers that want workouts in the context can await this and feed the result to `send`'s
     /// flow via the chat, kept separate so `buildContext()` stays synchronous per the spec.
-    func recentWorkoutsBlock(limit: Int = 6) async -> String {
-        let rows = await repo.workoutRows(days: 30) // newest first
-        guard !rows.isEmpty else { return "Recent workouts: none recorded in the last 30 days." }
+    func recentWorkoutsBlock(limit: Int = 6, days: Int = 30) async -> String {
+        let window = max(1, min(days, 3_650))
+        let rows = await repo.workoutRows(days: window) // newest first
+        guard !rows.isEmpty else { return "Workout history: none recorded in the last \(window) days." }
         var lines: [String] = []
         if let mostRecent = rows.first {
             let n = daysAgo(mostRecent.startTs)
             let ago = n <= 0 ? "today" : (n == 1 ? "1 day ago" : "\(n) days ago")
             lines.append("Last trained: \(ago) (\(mostRecent.sport)).")
         }
-        lines.append("Recent workouts (newest first):")
+        let oldest = rows.last.map { dateString($0.startTs) } ?? "—"
+        let newest = rows.first.map { dateString($0.startTs) } ?? "—"
+        lines.append("WORKOUT HISTORY: \(rows.count) sessions, \(oldest) → \(newest), searched \(window) days.")
+
+        var sportCountByName: [String: Int] = [:]
+        for row in rows {
+            sportCountByName[row.sport, default: 0] += 1
+        }
+        var sportCounts: [(name: String, count: Int)] = []
+        for (name, count) in sportCountByName {
+            sportCounts.append((name: name, count: count))
+        }
+        sportCounts.sort { left, right in
+            if left.count == right.count { return left.name < right.name }
+            return left.count > right.count
+        }
+        if !sportCounts.isEmpty {
+            lines.append("Sports: " + sportCounts.prefix(12)
+                .map { "\($0.name) \($0.count)" }
+                .joined(separator: ", "))
+        }
+        var sourceCountByLabel: [String: Int] = [:]
+        for row in rows {
+            sourceCountByLabel[CoachLocalSourceLabel.label(row.source), default: 0] += 1
+        }
+        var sourceCounts: [(label: String, count: Int)] = []
+        for (label, count) in sourceCountByLabel {
+            sourceCounts.append((label: label, count: count))
+        }
+        sourceCounts.sort { left, right in left.label < right.label }
+        if !sourceCounts.isEmpty {
+            lines.append("Local sources: " + sourceCounts
+                .map { "\($0.label) \($0.count)" }
+                .joined(separator: ", "))
+        }
+        lines.append("Newest sessions:")
         for w in rows.prefix(limit) {
             var parts = ["  \(dateString(w.startTs)) \(w.sport)"]
             if let dur = w.durationS { parts.append("\(Int((dur / 60).rounded())) min") }

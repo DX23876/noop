@@ -154,8 +154,8 @@ breakpoint, and a per-request clock would invalidate the prefix cache every turn
 | `get_stress_index` | — | Today's Baevsky Stress Index over today's R-R |
 | `get_sleep_detail` | `nights` 1–14 | Bed/wake, efficiency, deep/REM/light minutes, disturbances + the rolling 14-night sleep-debt ledger |
 | `get_range_report` | `days` 7–365 | Per-metric averages, trends, headline changes |
-| `get_metric_history` | `metric`, `days` 7–3,650, optional named `source` | One compact long-range aggregate, directional trend and bounded monthly/quarterly timeline. The automatic path compares sources locally and uses the widest usable *single* series; it never blends sources or exports readings. Numeric analysis and each timeline group need at least three observations; no min/max values leave the device. |
-| `get_training_preferences` | `days` 30–365 | Conservative hypotheses from repeated accepted, declined or skipped training proposals (for example, repeatedly declining runs at weekends). It never changes a plan. |
+| `get_metric_history` | `metric`, `days` 7–3,650, optional named `source` | One compact long-range aggregate, directional trend and bounded monthly/quarterly timeline. Without a named source, the app builds a local per-day timeline: compatible Apple Health history fills the period before or between WHOOP data, while the metric-specific source priority resolves overlaps. The result names every contributing source and never exports readings. Numeric analysis and each timeline group need at least three observations; no min/max values leave the device. |
+| `get_training_preferences` | `days` 28–3650 | Conservative hypotheses from repeated accepted, declined or skipped training proposals and explicit post-completion effect feedback. Automatic context compares 28-, 90-, 365-day and all-available windows. It never changes a plan. |
 | `get_readiness` | — | The SAME verdict Today shows (primed/balanced/strained/rundown/insufficient), acute:chronic workload ratio (Gabbett), Foster training monotony, and the contributing signals in plain English. Carries a HEALTH SIGNAL / SAFETY note when relevant — the model is told not to suggest more load regardless of the readiness level when it's present. |
 | `get_charge_drivers` | — | *Why* today's Charge is what it is: each contributing term (HRV, resting HR, respiration, skin temperature) with its signed point contribution, your value, your baseline, and a plain-English read. Answers the single most common coaching question without the model inventing a reason. |
 | `get_session_outlook` | `sport`, optional `swap_from` | What a session costs *this user*, from their own history: typical next-morning Charge cost, bounce-back days, tomorrow's projection. Pass `swap_from` to compare two activities side by side. |
@@ -348,17 +348,18 @@ get sick or travel, which is precisely when they need the app least judgmental.
 
 ### Storage size and bounds
 
-The coach uses ordinary local JSON, not an embedding database. The Memory settings card measures its
-own current serialised footprint on-device: drive icon = conversation + fact bytes, speech bubbles =
-conversation count, brain = fact count. It does **not** count the main health database, sensor streams,
-attachments or provider traffic.
+Canonical coach memory uses ordinary local JSON. The Memory settings card measures that source
+material's current serialised footprint on-device: drive icon = conversation + fact bytes, speech
+bubbles = conversation count, brain = fact count. It does **not** count the main health database,
+sensor streams, attachments, provider traffic or the separately displayed rebuildable semantic index.
 
 - Facts: maximum **40** entries; normal use is tiny because each is short text plus metadata.
 - Normal conversation history: up to **50** conversations, with the newest **200** messages retained in
   each. A pinned conversation is deliberately exempt from the 50-thread count cap, so there is no false
   promise of a global byte ceiling when someone explicitly pins many long chats.
-- No vector index is stored. Query matching ranks a few facts/conversation snippets on demand, so it
-  does not duplicate health text or create a growing embedding store.
+- On iOS, approved text can additionally have a derived Float16 vector in
+  `coach-semantic.sqlite`. Original text is not duplicated there; the index has its own visible size,
+  progress and deletion controls and can always be rebuilt from canonical sources.
 
 The visible byte counter is therefore the authoritative answer for a particular device and history; the
 limits describe normal retention, not a fabricated fixed MB claim.
@@ -662,11 +663,32 @@ without importing a general document-agent stack into a health app:
   platform facility used by the Lab Book photo path; the app performs the recognition locally and does
   not retain image/OCR text after review.
 
-An embedding/vector store is therefore deliberately **not** the first storage layer here. The present
-data is structured time series, short facts and small document-derived markers; transparent key/alias
-matching plus aggregate queries are cheaper to inspect, easier to revoke and avoid a second persistent
-copy of sensitive health text. A future local semantic index is viable only as an optional, separately
-metered index with the same purpose grants and a delete/rebuild control.
+The iOS app adds a deliberately narrow local semantic layer on top of this architecture. Nomic Embed
+Text v2 searches only approved text: remembered facts, the user's own chat turns, conversation titles
+and summaries, journal questions/notes, recommendation feedback and explicitly labelled habit hypotheses. Raw
+R-R/PPG/motion streams, numerical health histories, lab-value tables and provider replies are never
+embedded. Structured health questions still use exact local aggregate queries.
+
+The derived vectors live in a separate rebuildable `coach-semantic.sqlite`, not in the canonical health
+database and not in `.noopbak`. It stores source ids, hashes, consent scopes and Float16 vectors, but no
+duplicate original text. Consent is checked before search and again before context hand-off. Deleting a
+source or withdrawing a scope removes its vectors; Settings also exposes delete and rebuild controls.
+Semantic and keyword ranks are fused so names, dates and exact terms stay competitive.
+
+Recommendation history keeps five outcomes distinct: declined, accepted but not completed, completed
+and helpful, completed with no noticeable effect, and completed followed by feeling worse. An absent
+effect answer remains missing. Habit hypotheses compare 28-, 90-, 365-day and all-available windows,
+carry a sample-size-based personal uncertainty label, and never claim that an observational association
+is causal. Stronger causal language requires a deliberate personal N-of-1 comparison.
+The proposal boundary also applies feedback deterministically: repeated recent negative decisions add a
+short re-pitch cooldown, repeated negative effect ratings stop another moderate/hard version until the
+coach asks, weekend rejection changes the proposed timing/form, and a stable time among helpful
+completions can prefill an otherwise untimed suggestion. Every resulting proposal still requires the
+person's explicit acceptance.
+
+Remembered preferences start as hypotheses. Injury/health facts, goals and other sensitive facts remain
+pending until the person confirms them. Each fact carries validity dates, sensitivity, evidence count
+and a bounded revision history; expired facts do not enter retrieval.
 
 **What is never sent:** raw R-R streams, raw sensor buffers, raw PPG/IMU. The tool layer routes
 through the same summarised reads the UI uses, so there's no path for raw egress even by accident.
@@ -681,12 +703,35 @@ reference range, does not infer an unknown marker, and does not make a clinical 
 confirmed values become ordinary private Lab Book rows; the coach can see them later only through its
 existing, consent-gated summaries.
 
-**Retrieval does not need an embedding database yet.** Durable facts and past conversations already use
-local keyword-overlap ranking; deep metric discovery now uses a small, inspectable alias vocabulary
-(`weight`/`Gewicht`, `ferritin`/`iron`/`Eisen`, `sleep`/`Schlaf`, …) before returning catalog metadata.
-That is deterministic, small and auditable, and avoids persisting a second copy of sensitive health text
-as vectors. A future semantic index should remain optional, local and independently explainable; it must
-not replace consent or the aggregate-only data boundary.
+**Retrieval is hybrid on iOS.** Durable facts and past conversations retain the deterministic keyword
+ranker, while Nomic adds paraphrase/synonym retrieval over the same allowed textual sources. Deep metric
+discovery continues to use the inspectable alias vocabulary (`weight`/`Gewicht`,
+`ferritin`/`iron`/`Eisen`, `sleep`/`Schlaf`, …) and aggregate queries, never vectors over measurements.
+macOS and Android retain keyword retrieval at this stage. Nomic improves finding context; it does not
+replace consent, statistics, the provider's reasoning or the aggregate-only data boundary.
+
+### iOS Nomic runtime
+
+`nomic-embed-text-v2-moe` Q4_K_M and a pinned llama.cpp XCFramework are build inputs prepared by
+`Tools/bootstrap-nomic.sh`. The script downloads the official release artifacts, verifies hard-coded
+SHA-256 hashes, and leaves the model/runtime under `Vendor/Nomic/`; the large binary files are ignored by
+Git. The finished iOS app embeds both and needs no model download at runtime.
+
+The provider is not loaded during an ordinary fresh launch. Opening Coach starts an asynchronous warm-up
+and indexes high-priority pending text first. A question waits at most 2.5 seconds for semantic retrieval;
+keyword retrieval answers that turn if Nomic is still starting. The model unloads after 120 seconds idle,
+on memory or serious thermal pressure, when Coach is disabled, or when consent is withdrawn. A
+best-effort `BGProcessingTask` handles remaining work near night-time while charging; iOS may decline or
+delay it, so a 24-hour foreground catch-up and Coach-open indexing remain authoritative.
+
+Memory settings shows the continuously updated indexed/pending counts and a percentage progress bar.
+“Continue indexing” explicitly drains the current queue in small cancellable foreground batches;
+“Stop indexing” leaves every committed row valid and the remainder pending. “Rebuild index” clears only
+the derived vectors, requeues the currently allowed canonical text and starts the same manual worker.
+
+The Expert memory card can run a fixed on-device retrieval check against the actual bundled model. Its
+German corpus covers paraphrases, synonyms, negation and ambiguous health wording, compares recall with
+the keyword baseline, and separately verifies that exact-name queries remain correct.
 
 For a provider without tool calling (for example a local OpenAI-compatible server), a second conservative
 router covers the obvious deep-history case. It activates only when the user's own question explicitly

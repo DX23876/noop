@@ -6,6 +6,10 @@ final class CoachLocalQueryRouterTests: XCTestCase {
     func testRecognisesExplicitMultiYearWeightQuestion() {
         XCTAssertEqual(CoachLocalQueryRouter.metricHistoryRequest(for: "How has my weight changed over 3 years?"),
                        .init(metric: "weight", days: 1_095))
+        XCTAssertEqual(CoachLocalQueryRouter.metricHistoryRequest(for: "Wie hat sich mein Gewicht letztes Jahr entwickelt?"),
+                       .init(metric: "weight", days: 365))
+        XCTAssertEqual(CoachLocalQueryRouter.metricHistoryRequest(for: "Wie war mein Gewicht über die letzten drei Jahre?"),
+                       .init(metric: "weight", days: 1_095))
     }
 
     func testRecognisesGermanLongTermFerritinQuestion() {
@@ -70,11 +74,26 @@ final class CoachLocalQueryRouterTests: XCTestCase {
         XCTAssertTrue(trend.contains(.dataCatalog))
         XCTAssertTrue(trend.contains(.metricHistory))
         XCTAssertFalse(trend.contains(.myLogs))
+        XCTAssertFalse(trend.contains(.personalPatterns),
+                       "a metric-history question must not be diverted into Lab Book patterns")
 
         let journal = engine.coachTools(for: "Was habe ich in meinem Tagebuch notiert?")
         XCTAssertTrue(journal.contains(.myLogs))
         XCTAssertFalse(journal.contains(.dataCatalog))
         XCTAssertFalse(journal.contains(.metricHistory))
+    }
+
+    func testLongWorkoutQuestionUsesWorkoutStoreInsteadOfLabsOrMetricCatalog() {
+        let engine = AICoachEngine(repo: Repository(deviceId: "test-workout-history-\(UUID().uuidString)"))
+        engine.toolConsent = ToolConsent(enabled: Set(CoachPurpose.allCases))
+
+        XCTAssertTrue(CoachLocalQueryRouter.requestsWorkoutHistory(
+            for: "Welche Trainings habe ich über die letzten drei Jahre gemacht?"
+        ))
+        let tools = engine.coachTools(for: "Welche Trainings habe ich über die letzten drei Jahre gemacht?")
+        XCTAssertEqual(tools, [.recentWorkouts])
+        XCTAssertFalse(tools.contains(.myLogs))
+        XCTAssertFalse(tools.contains(.personalPatterns))
     }
 
     func testSensitiveJournalQuestionGetsOnlyTheDedicatedReader() {

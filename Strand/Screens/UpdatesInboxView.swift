@@ -38,6 +38,7 @@ struct UpdatesInboxView: View {
         .noopSheetPresentation(largeFirst: true)
         #endif
         .background(StrandPalette.surfaceBase)
+        .onAppear { updateStore.pruneExpired() }
     }
 
     // MARK: Header
@@ -316,7 +317,8 @@ private struct UpdateRow: View {
         switch item.category {
         case .actionable:     return "sparkles"
         case .informative:    return item.kind == .whatsNew ? "sparkles" : "waveform.path.ecg"
-        case .statusReminder: return item.kind == .dismissedCard ? "rectangle.on.rectangle" : "bell.badge"
+        case .statusReminder:
+            return item.kind == .dismissedCard ? "rectangle.on.rectangle" : "bell.badge.fill"
         }
     }
 

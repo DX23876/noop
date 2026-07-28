@@ -77,8 +77,9 @@ enum CoachTool: String, CaseIterable {
                 + "charge/recovery, effort/strain, rest/sleep hours, HRV, resting HR, SpO2, respiration, "
                 + "skin-temperature deviation, steps and active energy. Call this first for most questions."
         case .recentWorkouts:
-            return "Get the user's recent workouts (newest first) with sport, duration, effort, average "
-                + "heart rate, energy and distance. Use for training-load or workout questions."
+            return "Get the user's workout history (newest first) with total count, coverage, sports, "
+                + "local sources, duration, effort, average heart rate, energy and distance. Use days=30 "
+                + "for recent training or up to 3650 for a long-range workout question."
         case .stressIndex:
             return "Get today's derived stress index (Baevsky Stress Index over today's R-R intervals); "
                 + "higher means more sympathetic / under load. Use for stress or autonomic-balance questions."
@@ -219,6 +220,10 @@ enum CoachTool: String, CaseIterable {
                     "limit": [
                         "type": "integer",
                         "description": "How many recent workouts to return (1–30). Defaults to 6."
+                    ],
+                    "days": [
+                        "type": "integer",
+                        "description": "How far back to search (1–3650 days). Defaults to 30."
                     ]
                 ]
             ]
@@ -641,6 +646,17 @@ extension AICoachEngine {
             .flatMap { [$0.canonical, $0.display] }
         let logsRequested = CoachLocalQueryRouter.requestsPersonalLogs(for: question,
                                                                          knownQuestions: knownJournalQuestions)
+        if historyRequested {
+            if CoachLocalQueryRouter.requestsWorkoutHistory(for: question) {
+                // Historical workout questions must never be diverted into Lab Book or generic pattern
+                // tools. The workout reader now accepts the requested multi-year window itself.
+                return coachTools.filter { $0 == .recentWorkouts }
+            }
+            // A numeric/imported long-history question has one deterministic route: discover the local
+            // metric key if necessary, then run the provenance-preserving timeline. Keeping logs and
+            // personal-pattern tools out is what prevents "weight last year" from searching Lab Book.
+            return coachTools.filter { $0 == .dataCatalog || $0 == .metricHistory }
+        }
         return coachTools.filter { tool in
             switch tool {
             case .metricHistory: return historyRequested
@@ -753,7 +769,8 @@ extension AICoachEngine {
         case .recentWorkouts:
             let raw = (input["limit"] as? Int) ?? Int(input["limit"] as? Double ?? 6)
             let limit = max(1, min(raw, 30))
-            return await recentWorkoutsBlock(limit: limit)
+            let rawDays = (input["days"] as? Int) ?? Int(input["days"] as? Double ?? 30)
+            return await recentWorkoutsBlock(limit: limit, days: max(1, min(rawDays, 3_650)))
         case .stressIndex:
             return await stressIndexLine()
                 ?? "Not enough clean R-R data today to compute a stress index yet."
@@ -777,7 +794,8 @@ extension AICoachEngine {
                 .flatMap(CoachMemory.Category.init(rawValue:)) ?? .other
             let importance = (input["importance"] as? String)
                 .flatMap(CoachMemory.Importance.init(rawValue:)) ?? .normal
-            return CoachMemory.shared.add(fact, category: category, importance: importance)
+            return CoachMemory.shared.add(fact, category: category, importance: importance,
+                                          source: .coachTool)
                 ? "Remembered: \(fact)"
                 : "Nothing saved (the fact was empty)."
         case .updateFact:

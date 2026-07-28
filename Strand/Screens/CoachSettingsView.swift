@@ -92,6 +92,7 @@ struct CoachSettingsView: View {
         checkInDenied = await !CoachCheckIn.isCurrentlyAuthorized()
     }
     @ObservedObject private var memory = CoachMemory.shared
+    @ObservedObject private var semanticMemory = CoachSemanticMemory.shared
     /// The coach's identity (#R9) — name, avatar, tone. Observed so the `identityBar` row updates live.
     @ObservedObject private var identityStore = CoachIdentityStore.shared
     /// The structured goal (P3). The memory card's field still edits its title inline; the full editor
@@ -173,7 +174,9 @@ struct CoachSettingsView: View {
                 TextField("Fact", text: $editingFactText)
                 Button("Cancel", role: .cancel) { editingFactID = nil }
                 Button("Save") {
-                    if let id = editingFactID { memory.update(id, text: editingFactText) }
+                    if let id = editingFactID {
+                        memory.update(id, text: editingFactText, confirmedByUser: true)
+                    }
                     editingFactID = nil
                 }
             }
@@ -796,9 +799,125 @@ struct CoachSettingsView: View {
     private var memorySubpage: some View {
         subpageScaffold {
             memoryBar
+            semanticMemoryBar
             if coach.dataConsent { memoryMaintenanceBar }
         }
         .navigationTitle("Memory")
+    }
+
+    private var semanticMemoryBar: some View {
+        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
+                    Image(systemName: semanticMemory.status.isModelLoaded
+                          ? "brain.filled.head.profile" : "brain.head.profile")
+                        .foregroundStyle(semanticMemory.isEnabled
+                                         ? StrandPalette.accent : StrandPalette.textTertiary)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Semantic memory")
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                        Text("Nomic finds related local text without uploading it. Health measurements still use exact local queries.")
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 8)
+                    Toggle("", isOn: Binding(
+                        get: { semanticMemory.isEnabled },
+                        set: { enabled in
+                            semanticMemory.isEnabled = enabled
+                            Task {
+                                if enabled { await coach.prepareSemanticMemory() }
+                                else { await semanticMemory.deleteIndex() }
+                            }
+                        }
+                    ))
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .tint(StrandPalette.accent)
+                    .accessibilityLabel("Semantic memory")
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Model: Nomic Embed Text v2 (Q4_K_M, 256 dimensions)")
+                    Text("Indexed: \(semanticMemory.status.indexedDocuments) · Pending: \(semanticMemory.status.pendingDocuments)")
+                    Text("Index size: \(CoachMemoryFootprint.formatted(Int(semanticMemory.status.byteSize)))")
+                    if let lastRun = semanticMemory.status.lastRunAt {
+                        Text("Last local run: \(lastRun.formatted(date: .abbreviated, time: .shortened))")
+                    }
+                    Text(semanticMemory.status.isModelLoaded
+                         ? "Model is currently loaded and will unload after inactivity."
+                         : "Model is not using memory right now.")
+                    switch semanticMemory.lastRetrievalMode {
+                    case .semantic:
+                        Text("Last retrieval: semantic memory")
+                    case .keywordFallback:
+                        Text("Last retrieval: keyword fallback")
+                    case .unavailable:
+                        Text("Last retrieval: no matching memory used")
+                    }
+                    if let error = semanticMemory.status.lastError, !error.isEmpty {
+                        Text("Fallback active: \(error)")
+                            .foregroundStyle(StrandPalette.statusCritical)
+                    }
+                }
+                .font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textSecondary)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text(semanticMemory.isIndexing ? "Building index…" : "Indexing progress")
+                        Spacer()
+                        Text("\(semanticMemory.status.completionPercentage)%")
+                            .monospacedDigit()
+                    }
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    ProgressView(value: semanticMemory.status.completionFraction)
+                        .tint(StrandPalette.accent)
+                        .accessibilityLabel("Semantic memory indexing progress")
+                        .accessibilityValue("\(semanticMemory.status.completionPercentage) percent")
+                }
+
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 118), spacing: 8)],
+                          alignment: .leading,
+                          spacing: 8) {
+                    if semanticMemory.isManualIndexing {
+                        Button("Stop indexing") {
+                            semanticMemory.cancelManualIndexing()
+                        }
+                        .buttonStyle(.bordered)
+                    } else {
+                        Button("Continue indexing") {
+                            Task { await coach.startManualSemanticIndexing() }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(semanticMemory.status.pendingDocuments == 0)
+                    }
+                    Button("Rebuild index") {
+                        Task { await semanticMemory.rebuild() }
+                    }
+                    .buttonStyle(.bordered)
+                    Button("Delete index", role: .destructive) {
+                        Task { await semanticMemory.deleteIndex() }
+                    }
+                    .buttonStyle(.bordered)
+                    Button("Run model check") {
+                        Task { await semanticMemory.runModelSelfTest() }
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .disabled(!semanticMemory.isEnabled)
+                if let summary = semanticMemory.selfTestSummary {
+                    Text(summary)
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
     }
 
     private var privacySubpage: some View {
@@ -870,10 +989,10 @@ struct CoachSettingsView: View {
                 Label("How this access is used", systemImage: "lock.shield")
                     .font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.textPrimary)
-                Text("Before each answer, NOOP checks your question and the privacy level below on this device. It selects only the relevant local summary or permitted tool result — for example a recent recovery trend for a recovery question.")
+                Text("Before each answer, NOOP checks your question and the privacy level below on this device. It selects only the relevant local summary, permitted tool result or approved text-memory match — for example a recent recovery trend for a recovery question.")
                     .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
-                Text("Your provider cannot browse your database, request a new permission, or receive raw sensor streams. Long-term questions use compact aggregates only when Deep insights is allowed. Sensitive journal answers always need their own separate switch.")
+                Text("Your provider cannot browse your database, request a new permission, or receive raw sensor streams. Nomic searches approved text locally; it never receives numerical health histories. Long-term questions use compact aggregates only when Deep insights is allowed. Sensitive journal answers always need their own separate switch.")
                     .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -950,6 +1069,12 @@ struct CoachSettingsView: View {
                 }
             }
             .tint(StrandPalette.accent)
+            .onChangeCompat(of: coachFeatureEnabled) { enabled in
+                Task {
+                    if enabled { await coach.prepareSemanticMemory() }
+                    else { await coach.unloadSemanticMemory() }
+                }
+            }
         }
         .accessibilityHint("Turning this off hides Coach from the app and stops Coach check-ins. It does not delete chats or health data.")
     }
@@ -1951,7 +2076,22 @@ struct CoachSettingsView: View {
                                         .font(StrandFont.footnote)
                                         .foregroundStyle(StrandPalette.textSecondary)
                                         .fixedSize(horizontal: false, vertical: true)
+                                    if fact.verification != .confirmed {
+                                        Text(LocalizedStringKey(fact.verification.label))
+                                            .font(StrandFont.caption)
+                                            .foregroundStyle(StrandPalette.textTertiary)
+                                    }
                                     Spacer(minLength: 8)
+                                    if fact.verification != .confirmed {
+                                        Button {
+                                            memory.confirm(fact.id)
+                                        } label: {
+                                            Image(systemName: "checkmark.seal")
+                                                .foregroundStyle(StrandPalette.accent)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .accessibilityLabel("Confirm: \(fact.text)")
+                                    }
                                     Button {
                                         editingFactText = fact.text
                                         editingFactID = fact.id

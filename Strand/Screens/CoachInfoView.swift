@@ -136,6 +136,7 @@ struct CoachInfoView: View {
                 VStack(alignment: .leading, spacing: 24) {
                     section("How it works", icon: "sparkles", colorID: "coach.info.howItWorks") {
                         para("NOOP first interprets your question locally. Its local data planner checks which categories you allowed and prepares only the relevant compact context — for example recovery, workouts, a journal pattern or a long-term aggregate. The provider never gets direct access to your database.")
+                        para("On iPhone, Nomic can also find related text in your approved memories, your own chat messages and journal notes. This semantic search runs entirely on the iPhone. It does not embed raw sensor streams or numerical health histories, and it falls back to keyword search if the local model is not ready.")
                         para("The model then writes the answer in plain language. When a specific number is needed, it can use a permitted tool; NOOP checks that tool locally before returning a result.")
                     }
 
@@ -147,6 +148,7 @@ struct CoachInfoView: View {
 
                     section("Provider & model", icon: "server.rack", colorID: "coach.info.providerModel") {
                         para("You bring your own API key. The provider — right now \(providerName) — is who actually receives your data, so it's the real privacy choice: pick one you trust, and check how they handle it.")
+                        para("Nomic is not the coaching model. It only retrieves relevant local text and is loaded on demand, then released after inactivity, a memory warning or a privacy change. The selected provider model still reasons over the compact context and writes the reply.")
                         para("The coaching model runs the conversation. Background models for chat summaries or card reads are optional and off unless you set them up (Settings → Connection & model). NOOP never sends more personal data than a request needs.")
                     }
 

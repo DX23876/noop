@@ -30,7 +30,10 @@ extension AnthropicClient: StreamingToolClient {
             var body: [String: Any] = [
                 "model": model,
                 "max_tokens": CoachOutputBudget.maxTokens,
-                "system": Self.cacheableSystem(systemPrompt),
+                // A plain conversation must use the same system shape as the connection test and
+                // ordinary `send()`.  Prompt caching only pays off (and only needs exercising) when
+                // a tool loop can resend the large tools + system prefix in later rounds.
+                "system": toolSpecs.isEmpty ? systemPrompt : Self.cacheableSystem(systemPrompt),
                 "messages": wire,
                 "stream": true
             ]
@@ -105,7 +108,15 @@ extension AnthropicClient: StreamingToolClient {
             switch http.statusCode {
             case 401, 403: throw AICoachError.badKey
             case 429: throw AICoachError.rateLimited(retryAfter: retryAfterSeconds(http))
-            default: throw AICoachError.server(http.statusCode, "")
+            default:
+                // `URLSession.bytes(for:)` gives us the response before its body.  Previously this
+                // threw away Anthropic's useful JSON error (for example the exact invalid field),
+                // leaving the person with only an opaque "Error 400" while the non-streaming test
+                // could still be green.  Read only this rejected body; successful replies stay
+                // streamed and are never buffered in memory.
+                var data = Data()
+                for try await byte in bytes { data.append(byte) }
+                throw AICoachError.server(http.statusCode, providerErrorMessage(from: data))
             }
         }
 

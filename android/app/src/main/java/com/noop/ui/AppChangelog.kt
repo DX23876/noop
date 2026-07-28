@@ -26,7 +26,7 @@ object AppChangelog {
      * Bump this when you add a release below. The "What's New" sheet shows automatically when the
      * stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
      */
-    const val CURRENT_VERSION = "9.0.2"
+    const val CURRENT_VERSION = "9.10.0-beta.1"
 
     data class Release(
         val version: String,
@@ -37,6 +37,16 @@ object AppChangelog {
 
     /** Newest first. */
     val releases: List<Release> = listOf(
+        Release(
+            version = "9.10.0-beta.1",
+            title = "A calmer Today and a bell that remembers",
+            date = "July 2026",
+            items = listOf(
+                "**The bell now remembers real alerts.** Low battery, runtime, fully charged, health, movement, and smart-alarm events stay in a recent local history even when system banners are unavailable.",
+                "**Today is more focused.** The Classic Today synthesis card no longer expands into an oversized first item, and the redundant WHOOP label is gone.",
+                "**iOS Beta 1 is ready for sideloading.** Install the unsigned IPA with AltStore or SideStore; it is signed only by your own Apple ID on your device.",
+            ),
+        ),
         Release(
             version = "9.0.2",
             title = uiString(R.string.l10n_app_changelog_optimal_strain_alerts_faster_history_sync_6488a27a),

@@ -589,7 +589,7 @@ struct RootTabView: View {
 /// (#198): a closure-destination push would bypass the path and be un-poppable on tab re-tap. The
 /// per-screen chrome the old inline links applied lives at the single `navigationDestination(for:)`
 /// registration in `moreTab`.
-private enum MoreDestination: Hashable {
+enum MoreDestination: Hashable {
     case insightsHub, intelligence, coach, coachSettings, goalJourney, insights, explore, compare
     case live, workouts, health, labBook, stress, breathe, intervals, rhythm
     case fusedRecord, appleHealth, miBand, dataSources, backupSync, shortcutsExport
@@ -633,10 +633,14 @@ private enum MoreDestination: Hashable {
 /// the SF Symbol icon tinted `StrandPalette.accent`, the title in the body text colour, a `Spacer`, and a
 /// trailing `chevron.right` in `textTertiary`. ~44pt min height + the card's row insets keep the whole row a
 /// comfortable tap target.
-private struct MoreRow: View {
+struct MoreRow: View {
     let title: LocalizedStringKey
     let icon: String
     let route: MoreDestination
+    /// The dedicated settings entry needs a concrete destination: a value-based link is restored from
+    /// the More tab's path during tab/scene restoration, before SwiftUI has registered this stack's
+    /// `MoreDestination` resolver, which causes the repeated "no matching navigationDestination" fault.
+    @EnvironmentObject private var coach: AICoachEngine
 
     /// Single global switch (Settings → Appearance), OFF by default so every row stays the plain
     /// `StrandPalette.accent` blue exactly as before. ON recolors every row at once to
@@ -654,7 +658,22 @@ private struct MoreRow: View {
     }
 
     var body: some View {
-        NavigationLink(value: route) {
+        if route == .coachSettings {
+            NavigationLink {
+                CoachSettingsView().environmentObject(coach)
+            } label: {
+                rowLabel
+            }
+            .buttonStyle(.plain)
+        } else {
+            NavigationLink(value: route) {
+                rowLabel
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var rowLabel: some View {
             HStack(spacing: 14) {
                 // Pin the icon to the accent explicitly. A plain inherited tint gets re-resolved by iOS to
                 // its default blue a beat after first render — so the icons flashed green→blue (#184). The
@@ -684,10 +703,7 @@ private struct MoreRow: View {
                     .padding(.leading, 16)
             }
         }
-        .buttonStyle(.plain)
     }
-}
-
 // MARK: - Quick actions (centre FAB)
 
 /// The destinations the centre FAB can present. `.menu` is the action sheet itself; the rest

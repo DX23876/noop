@@ -151,6 +151,7 @@ struct CoachView: View {
             }
         }
         .task(id: coach.dataConsent) {
+            await coach.prepareSemanticMemory()
             // On open: the morning brief (forward), then — sequentially, each with its own once-per-day
             // or once-per-week lock and a real-signal gate — a proactive nudge and a weekly review (#P10).
             // In practice the latter two stay silent most days; they only speak on a streak, a run of
@@ -770,6 +771,8 @@ struct CoachView: View {
         case .stress:              Text("Stress index")
         case .personalPatterns:    Text("Your patterns")
         case .conversationMemory:  Text("Past conversations")
+        case .semanticMemory:      Text("Semantic memory (on device)")
+        case .keywordMemory:       Text("Keyword memory fallback")
         case .longTermHistory:     Text("Long-term trend")
         }
     }

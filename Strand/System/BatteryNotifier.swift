@@ -77,11 +77,17 @@ enum BatteryNotifier {
         d.set(result.newLowAlerted, forKey: lowAlertedKey)
         d.set(result.newFullAlerted, forKey: fullAlertedKey)
         if result.fireLow {
+            AlertInbox.post(.batteryLow,
+                            title: String(localized: "Low battery"),
+                            message: String(localized: "Recharge your WHOOP before tonight."))
             post(identifier: "battery-low",
                  title: String(localized: "Low battery"),
                  body: String(localized: "Recharge your WHOOP before tonight."))
         }
         if result.fireFull {
+            AlertInbox.post(.batteryFull,
+                            title: String(localized: "Strap fully charged"),
+                            message: String(localized: "Your WHOOP is at 100%."))
             post(identifier: "battery-full",
                  title: String(localized: "Strap fully charged"),
                  body: String(localized: "Your WHOOP is at 100%."))
@@ -109,9 +115,13 @@ enum BatteryNotifier {
                                                    alerted: d.bool(forKey: runtimeAlertedKey))
         d.set(result.newAlerted, forKey: runtimeAlertedKey)
         if result.fire {
+            let message = String(localized: "\(BatteryEstimator.label(hours: remainingHours)) left on your WHOOP — recharge tonight.")
+            AlertInbox.post(.batteryRuntime,
+                            title: String(localized: "Strap battery low"),
+                            message: message)
             post(identifier: "battery-runtime",
                  title: String(localized: "Strap battery low"),
-                 body: String(localized: "\(BatteryEstimator.label(hours: remainingHours)) left on your WHOOP — recharge tonight."))
+                 body: message)
         }
     }
 

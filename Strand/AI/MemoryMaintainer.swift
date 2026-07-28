@@ -87,7 +87,13 @@ extension AICoachEngine {
         // and leaving the watermark behind is exactly what made the next run re-distil them.
         applySummary(conversationID: id, summary: summary, summarizedCount: convo.messages.count)
         // Distil durable facts into memory; CoachMemory.add handles near-duplicates and the cap.
-        for fact in facts { CoachMemory.shared.add(fact) }
+        for fact in facts {
+            let category = CoachMemory.inferredCategory(for: fact)
+            CoachMemory.shared.add(fact,
+                                   category: category,
+                                   source: .conversationSummary,
+                                   referenceID: id.uuidString)
+        }
     }
 
     /// Instruction for the cheap summariser: one summary line + distilled durable facts, in a strict,

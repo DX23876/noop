@@ -40,28 +40,94 @@ final class CoachMemory: ObservableObject {
     /// constraints); `normal` facts are injected only when relevant to the question.
     enum Importance: String, Codable { case pinned, normal }
 
+    enum Verification: String, Codable {
+        case hypothesis
+        case pendingConfirmation
+        case confirmed
+
+        var label: String {
+            switch self {
+            case .hypothesis: return "Hypothesis"
+            case .pendingConfirmation: return "Needs confirmation"
+            case .confirmed: return "Confirmed"
+            }
+        }
+    }
+
+    enum Sensitivity: String, Codable {
+        case ordinary
+        case health
+    }
+
+    enum Source: String, Codable {
+        case user
+        case coachTool
+        case conversationSummary
+        case legacy
+    }
+
+    struct Evidence: Codable, Equatable {
+        let source: Source
+        let referenceID: String?
+        let recordedAt: Date
+    }
+
+    struct Revision: Codable, Equatable {
+        let previousText: String
+        let changedAt: Date
+    }
+
     struct MemoryFact: Identifiable, Codable, Equatable {
         let id: UUID
         var text: String
         var category: Category
         var importance: Importance
         var createdAt: Date
+        var verification: Verification
+        var sensitivity: Sensitivity
+        var source: Source
+        var validFrom: Date
+        var validUntil: Date?
+        var evidenceCount: Int
+        var evidence: [Evidence]
+        var revisions: [Revision]
 
         init(id: UUID = UUID(),
              text: String,
              category: Category = .other,
              importance: Importance = .normal,
-             createdAt: Date = Date()) {
+             createdAt: Date = Date(),
+             verification: Verification = .confirmed,
+             sensitivity: Sensitivity = .ordinary,
+             source: Source = .user,
+             validFrom: Date? = nil,
+             validUntil: Date? = nil,
+             evidenceCount: Int = 1,
+             evidence: [Evidence]? = nil,
+             revisions: [Revision] = []) {
             self.id = id
             self.text = text
             self.category = category
             self.importance = importance
             self.createdAt = createdAt
+            self.verification = verification
+            self.sensitivity = sensitivity
+            self.source = source
+            self.validFrom = validFrom ?? createdAt
+            self.validUntil = validUntil
+            self.evidenceCount = max(1, evidenceCount)
+            self.evidence = evidence ?? [
+                Evidence(source: source, referenceID: nil, recordedAt: createdAt)
+            ]
+            self.revisions = revisions
         }
 
         // Back-compat: facts saved before category/importance existed decode with sensible defaults, so
         // an upgrade never drops the user's memory.
-        private enum CodingKeys: String, CodingKey { case id, text, category, importance, createdAt }
+        private enum CodingKeys: String, CodingKey {
+            case id, text, category, importance, createdAt, verification, sensitivity
+            case source, validFrom, validUntil, evidenceCount, evidence, revisions
+        }
 
         init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -70,6 +136,15 @@ final class CoachMemory: ObservableObject {
             category = try c.decodeIfPresent(Category.self, forKey: .category) ?? .other
             importance = try c.decodeIfPresent(Importance.self, forKey: .importance) ?? .normal
             createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
+            verification = try c.decodeIfPresent(Verification.self, forKey: .verification) ?? .confirmed
+            sensitivity = try c.decodeIfPresent(Sensitivity.self, forKey: .sensitivity) ?? .ordinary
+            source = try c.decodeIfPresent(Source.self, forKey: .source) ?? .legacy
+            validFrom = try c.decodeIfPresent(Date.self, forKey: .validFrom) ?? createdAt
+            validUntil = try c.decodeIfPresent(Date.self, forKey: .validUntil)
+            evidenceCount = max(1, try c.decodeIfPresent(Int.self, forKey: .evidenceCount) ?? 1)
+            evidence = try c.decodeIfPresent([Evidence].self, forKey: .evidence)
+                ?? [Evidence(source: source, referenceID: nil, recordedAt: createdAt)]
+            revisions = try c.decodeIfPresent([Revision].self, forKey: .revisions) ?? []
         }
     }
 
@@ -81,12 +156,14 @@ final class CoachMemory: ObservableObject {
     @Published private(set) var facts: [MemoryFact] { didSet { saveFacts() } }
 
     private let d: UserDefaults
+    private let updatesSemanticIndex: Bool
     private static let factsKey = "ai.memory.facts"
     /// Hard cap on stored facts — old ones fall off the end when the model over-remembers.
     static let maxFacts = 40
 
     init(defaults: UserDefaults = .standard) {
         self.d = defaults
+        self.updatesSemanticIndex = defaults === UserDefaults.standard
         self.facts = (try? JSONDecoder().decode([MemoryFact].self,
                                                 from: defaults.data(forKey: Self.factsKey) ?? Data())) ?? []
     }
@@ -100,7 +177,11 @@ final class CoachMemory: ObservableObject {
     /// Only matched against facts in the SAME category — dedup is category-scoped (see `isNearDuplicate`),
     /// so an "injury" restating a knee problem never collapses onto an unrelated "preference".
     @discardableResult
-    func add(_ text: String, category: Category = .other, importance: Importance = .normal) -> Bool {
+    func add(_ text: String,
+             category: Category = .other,
+             importance: Importance = .normal,
+             source: Source = .user,
+             referenceID: String? = nil) -> Bool {
         let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty else { return false }
         let key = Self.normalize(clean)
@@ -111,12 +192,28 @@ final class CoachMemory: ObservableObject {
             // never DOWNGRADED by a restatement — a rephrasing of a pinned injury must not quietly demote
             // it out of `pinnedBlock` just because the caller passed a looser importance this time.
             facts[idx].text = clean
+            facts[idx].evidenceCount += 1
+            facts[idx].evidence.append(Evidence(source: source,
+                                                referenceID: referenceID,
+                                                recordedAt: Date()))
+            if facts[idx].evidence.count > 20 {
+                facts[idx].evidence.removeFirst(facts[idx].evidence.count - 20)
+            }
             if importance == .pinned { facts[idx].importance = .pinned }
             facts[idx].createdAt = Date()
             facts.sort { $0.createdAt > $1.createdAt }
             return true
         }
-        let fact = MemoryFact(text: clean, category: category, importance: importance)
+        let needsConfirmation = category == .injury || category == .physiology || category == .goal
+        let fact = MemoryFact(
+            text: clean,
+            category: category,
+            importance: importance,
+            verification: needsConfirmation ? .pendingConfirmation : .hypothesis,
+            sensitivity: (category == .injury || category == .physiology) ? .health : .ordinary,
+            source: source,
+            evidence: [Evidence(source: source, referenceID: referenceID, recordedAt: Date())]
+        )
         // Evict the OLDEST NON-pinned fact first when at the cap, so a pinned fact (injuries, hard
         // constraints) never falls off just because it happens to be old.
         var updated = [fact] + facts
@@ -133,11 +230,24 @@ final class CoachMemory: ObservableObject {
 
     /// Edit a fact's text in place (a model correction, or the user editing in settings).
     @discardableResult
-    func update(_ id: UUID, text: String) -> Bool {
+    func update(_ id: UUID, text: String, confirmedByUser: Bool = false) -> Bool {
         let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty, let idx = facts.firstIndex(where: { $0.id == id }) else { return false }
+        if facts[idx].text != clean {
+            facts[idx].revisions.append(Revision(previousText: facts[idx].text, changedAt: Date()))
+            if facts[idx].revisions.count > 20 {
+                facts[idx].revisions.removeFirst(facts[idx].revisions.count - 20)
+            }
+        }
         facts[idx].text = clean
+        if confirmedByUser { facts[idx].verification = .confirmed }
         return true
+    }
+
+    func confirm(_ id: UUID) {
+        guard let idx = facts.firstIndex(where: { $0.id == id }) else { return }
+        facts[idx].verification = .confirmed
+        facts[idx].evidenceCount += 1
     }
 
     /// Find a fact whose text near-matches `query` (for the model's forget/update-by-text tools). The
@@ -165,7 +275,12 @@ final class CoachMemory: ObservableObject {
     /// injected by `AICoachEngine.goalBlock` with its dates, remaining change and pace verdict.
     var pinnedBlock: String {
         var lines: [String] = []
-        let pinned = facts.filter { $0.importance == .pinned }
+        let now = Date()
+        let pinned = facts.filter {
+            $0.importance == .pinned && $0.verification == .confirmed
+                && $0.validFrom <= now
+                && ($0.validUntil == nil || $0.validUntil! >= now)
+        }
         if !pinned.isEmpty {
             lines.append("ALWAYS-RELEVANT FACTS ABOUT THE USER (rely on these every time):")
             for f in pinned { lines.append("• \(f.text)") }
@@ -177,8 +292,11 @@ final class CoachMemory: ObservableObject {
     /// overlap with the question, decayed by age. Injected into the question's context so the coach gets
     /// the pertinent memory without every prompt carrying all 40 facts.
     func relevantFacts(for query: String, limit: Int, now: Date = Date()) -> [MemoryFact] {
-        let pinned = facts.filter { $0.importance == .pinned }
-        let rest = facts.filter { $0.importance != .pinned }
+        let active = facts.filter {
+            $0.validFrom <= now && ($0.validUntil == nil || $0.validUntil! >= now)
+        }
+        let pinned = active.filter { $0.importance == .pinned && $0.verification == .confirmed }
+        let rest = active.filter { !($0.importance == .pinned && $0.verification == .confirmed) }
         let qTokens = Self.tokens(query)
         let ranked = rest
             .map { fact -> (MemoryFact, Double) in (fact, Self.relevanceScore(fact, qTokens, now: now)) }
@@ -217,7 +335,16 @@ final class CoachMemory: ObservableObject {
         let picked = relevantFacts(for: query, limit: limit).filter { $0.importance != .pinned }
         guard !picked.isEmpty else { return "" }
         var lines = ["POSSIBLY-RELEVANT FACTS ABOUT THE USER (from memory):"]
-        for f in picked { lines.append("• \(f.text)") }
+        for f in picked {
+            switch f.verification {
+            case .confirmed:
+                lines.append("• \(f.text)")
+            case .hypothesis:
+                lines.append("• [hypothesis; \(f.evidenceCount) observation(s)] \(f.text)")
+            case .pendingConfirmation:
+                lines.append("• [unconfirmed — ask the user before relying on this] \(f.text)")
+            }
+        }
         return lines.joined(separator: "\n")
     }
 
@@ -244,6 +371,34 @@ final class CoachMemory: ObservableObject {
         let lowered = s.lowercased()
         let kept = lowered.map { ($0.isLetter || $0.isNumber || $0 == " ") ? $0 : " " }
         return String(kept).split(separator: " ").joined(separator: " ")
+    }
+
+    /// Conservative local classifier for facts distilled by the optional summariser, whose legacy
+    /// output format carries text but no category. False negatives remain ordinary hypotheses; obvious
+    /// health/injury and goal language is promoted to a category that requires user confirmation.
+    static func inferredCategory(for text: String) -> Category {
+        let normalized = normalize(text)
+        let injuryTerms = [
+            "injury", "injured", "pain", "ache", "sore", "diagnosed", "surgery",
+            "verletzung", "verletzt", "schmerz", "operation", "entzündung",
+        ]
+        if injuryTerms.contains(where: normalized.contains) { return .injury }
+        let physiologyTerms = [
+            "allergy", "condition", "medication", "blood test", "lab result",
+            "allergie", "erkrankung", "medikament", "blutwert", "laborwert",
+        ]
+        if physiologyTerms.contains(where: normalized.contains) { return .physiology }
+        let goalTerms = [
+            "goal", "target", "aims to", "training for", "ziel", "möchte erreichen",
+            "trainiert für",
+        ]
+        if goalTerms.contains(where: normalized.contains) { return .goal }
+        let scheduleTerms = [
+            "schedule", "weekday", "weekend", "morning", "evening",
+            "zeitplan", "wochentag", "wochenende", "morgens", "abends",
+        ]
+        if scheduleTerms.contains(where: normalized.contains) { return .schedule }
+        return .preference
     }
 
     /// How much of the smaller fact's meaningful vocabulary must appear in the other before the two are
@@ -311,5 +466,9 @@ final class CoachMemory: ObservableObject {
 
     private func saveFacts() {
         if let data = try? JSONEncoder().encode(facts) { d.set(data, forKey: Self.factsKey) }
+        if updatesSemanticIndex {
+            let snapshot = facts
+            Task { await CoachSemanticMemory.shared.memoryFactsChanged(snapshot) }
+        }
     }
 }

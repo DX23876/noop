@@ -84,6 +84,22 @@ struct PlanProposal: Codable, Identifiable, Equatable {
         case coachProposed, userCreated, userSwapped
     }
 
+    /// What the person experienced after following a recommendation. Completion alone says only that
+    /// it happened; this separates useful adaptation from a session that did nothing or felt harmful.
+    enum EffectFeedback: String, Codable, CaseIterable {
+        case helpful
+        case noEffect
+        case negativeEffect
+
+        var label: String {
+            switch self {
+            case .helpful: return "Helpful"
+            case .noEffect: return "No noticeable effect"
+            case .negativeEffect: return "Felt worse"
+            }
+        }
+    }
+
     let id: UUID
     /// The day it's for, "yyyy-MM-dd".
     var day: String
@@ -113,6 +129,8 @@ struct PlanProposal: Codable, Identifiable, Equatable {
     var goalId: UUID?
     let createdAt: Date
     var decidedAt: Date?
+    var effectFeedback: EffectFeedback?
+    var feedbackNote: String?
 
     init(id: UUID = UUID(),
          day: String,
@@ -128,7 +146,9 @@ struct PlanProposal: Codable, Identifiable, Equatable {
          skipReason: SkipReason? = nil,
          goalId: UUID? = nil,
          createdAt: Date = Date(),
-         decidedAt: Date? = nil) {
+         decidedAt: Date? = nil,
+         effectFeedback: EffectFeedback? = nil,
+         feedbackNote: String? = nil) {
         self.id = id
         self.day = day
         self.time = time
@@ -144,12 +164,15 @@ struct PlanProposal: Codable, Identifiable, Equatable {
         self.goalId = goalId
         self.createdAt = createdAt
         self.decidedAt = decidedAt
+        self.effectFeedback = effectFeedback
+        self.feedbackNote = feedbackNote
     }
 
     // Back-compat: fields added later decode with defaults so a stored plan never fails to load.
     private enum CodingKeys: String, CodingKey {
         case id, day, time, sport, intent, targetEffort, rationale, status
         case source, swappedFrom, rescheduledFrom, skipReason, goalId, createdAt, decidedAt
+        case effectFeedback, feedbackNote
     }
 
     init(from decoder: Decoder) throws {
@@ -169,6 +192,8 @@ struct PlanProposal: Codable, Identifiable, Equatable {
         goalId = try c.decodeIfPresent(UUID.self, forKey: .goalId)
         createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
         decidedAt = try c.decodeIfPresent(Date.self, forKey: .decidedAt)
+        effectFeedback = try c.decodeIfPresent(EffectFeedback.self, forKey: .effectFeedback)
+        feedbackNote = try c.decodeIfPresent(String.self, forKey: .feedbackNote)
     }
 
     /// One-line description for the context / UI, e.g. "Zone 2 ride (easy) at 10:00".
@@ -194,7 +219,9 @@ final class CoachPlanStore: ObservableObject {
     /// Newest first. Capped — this is a working plan, not an archive.
     @Published private(set) var proposals: [PlanProposal] = [] { didSet { save() } }
 
-    static let maxProposals = 200
+    // A few thousand compact JSON rows are still small, while 200 recommendations can represent only
+    // months for an active user and would make the "all available" habit window silently forget years.
+    static let maxProposals = 5_000
     /// After this many consecutive declines, the coach is told to stop softening and re-offer real work.
     /// Without a floor, a few "not today"s would train it into permanent wet-lettuce mode — the filter
     /// bubble, applied to training.
@@ -356,6 +383,15 @@ final class CoachPlanStore: ObservableObject {
         }
     }
 
+    func recordEffect(_ id: UUID, feedback: PlanProposal.EffectFeedback, note: String? = nil) {
+        update(id) { proposal in
+            guard proposal.status == .completed else { return }
+            proposal.effectFeedback = feedback
+            let clean = note?.trimmingCharacters(in: .whitespacesAndNewlines)
+            proposal.feedbackNote = clean?.isEmpty == false ? clean : nil
+        }
+    }
+
     /// Mark a session as not-done WITH its reason. The reason is the point: it's what stops adherence
     /// from being a scoreboard of failures.
     func skip(_ id: UUID, reason: PlanProposal.SkipReason) {
@@ -433,5 +469,7 @@ final class CoachPlanStore: ObservableObject {
     private func save() {
         guard let data = try? JSONEncoder().encode(proposals) else { return }
         try? data.write(to: Self.fileURL, options: .atomic)
+        let snapshot = proposals
+        Task { await CoachSemanticMemory.shared.recommendationsChanged(snapshot) }
     }
 }

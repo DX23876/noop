@@ -2139,24 +2139,41 @@ struct TodayView: View {
         let detail = copy.detail
 
         if synthesisExpanded {
-            // Expanded: the full locked InsightCard, then a tap target to collapse it again.
+            // Expanded: the same compact card chrome with the detail line revealed.
             Button {
                 withAnimation(StrandMotion.interactive) { synthesisExpanded = false }
             } label: {
-                InsightCard(
-                    category: "Synthesis",
-                    status: status,
-                    detail: detail,
-                    statusColor: StrandPalette.textPrimary,
-                    tint: StrandPalette.chargeColor
-                )
+                NoopCard(tint: StrandPalette.chargeColor) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Synthesis").strandOverline()
+                                Text(status)
+                                    .font(StrandFont.headline)
+                                    .foregroundStyle(StrandPalette.textPrimary)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.85)
+                            }
+                            Spacer(minLength: 8)
+                            Image(systemName: "chevron.up")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(StrandPalette.textTertiary)
+                        }
+                        Text(detail)
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Synthesis. \(status)")
             .accessibilityHint("Collapse")
         } else {
-            // Collapsed: a one-liner with the category overline, the status headline and a down-chevron.
+            // Collapsed: the same card chrome with only the status headline and a down-chevron.
             Button {
                 withAnimation(StrandMotion.interactive) { synthesisExpanded = true }
             } label: {
@@ -2881,7 +2898,8 @@ struct TodayView: View {
                 } else if watchNeedsMoreData(key) {
                     SourceBadge("Needs more data", tint: StrandPalette.textTertiary)
                         .accessibilityLabel("Apple Watch. Needs more data to score this yet.")
-                } else if ringHasValue(key), let label = provenanceLabel(key) {
+                } else if ringHasValue(key), let label = provenanceLabel(key),
+                          label.caseInsensitiveCompare("Whoop") != .orderedSame {
                     SourceBadge("\(label)", tint: provenanceTint(key))
                         .accessibilityLabel("Source: \(label)")
                 }

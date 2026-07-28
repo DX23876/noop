@@ -16,7 +16,17 @@ ZIPFoundation — https://github.com/weichsel/ZIPFoundation
   License: MIT
   Used for: reading WHOOP / Apple Health export archives during import.
 
-The MIT license is permissive: these components may be used, modified, and
+llama.cpp — https://github.com/ggml-org/llama.cpp
+  License: MIT
+  Used for: on-device inference for the optional iOS semantic-memory index.
+  Pinned release: b9623 (XCFramework).
+
+nomic-embed-text-v2-moe — https://huggingface.co/nomic-ai/nomic-embed-text-v2-moe
+  License: Apache License 2.0
+  Used for: on-device multilingual text embeddings in the optional iOS semantic-memory index.
+  Pinned revision: ffbcf4c99e5d617dda10ec8c0e9f75754b0cbb80 (Q4_K_M GGUF).
+
+The MIT and Apache 2.0 licenses are permissive: these components may be used, modified, and
 redistributed (including commercially) on their own terms. When they are used as
 part of NOOP's combined work, the combined work as a whole is governed by NOOP's
 PolyForm Noncommercial license.

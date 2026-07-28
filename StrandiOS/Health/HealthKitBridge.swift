@@ -35,6 +35,12 @@ final class HealthKitBridge: ObservableObject {
     /// none. Published so the app can one-time seed an unset profile weight (see
     /// `ProfileStore.seedWeightFromHealthIfUnset`); the profile field itself stays the source of truth.
     @Published private(set) var latestImportedWeightKg: Double?
+    /// A user-requested historical import, deliberately separate from normal foreground/background
+    /// synchronisation. The app stores daily aggregates, never raw HealthKit samples.
+    @Published private(set) var fullHistoryImporting = false
+    @Published private(set) var fullHistoryProgress: Double?
+    @Published private(set) var lastFullHistoryImport: Date?
+    private var fullHistoryTask: Task<Void, Never>?
 
     private let store = HKHealthStore()
     private let repo: Repository
@@ -349,11 +355,26 @@ final class HealthKitBridge: ObservableObject {
     /// Pull the last `days` of Apple Health into the on-device store under the `apple-health` source,
     /// then write NOOP's own computed metrics back into Health. Safe to call repeatedly (idempotent
     /// upserts keyed by day).
-    func sync(days: Int = 30) async {
+    func sync(days: Int = 30, importingFullHistory: Bool = false) async {
         guard auth == .authorized, !syncing else { return }
         syncing = true
-        defer { syncing = false }
+        if importingFullHistory {
+            fullHistoryImporting = true
+            fullHistoryProgress = 0
+        }
+        defer {
+            syncing = false
+            if importingFullHistory {
+                fullHistoryImporting = false
+                fullHistoryProgress = nil
+            }
+        }
         guard let store = await repo.storeHandle() else { return }
+
+        func progress(_ value: Double) {
+            guard importingFullHistory else { return }
+            fullHistoryProgress = min(1, max(0, value))
+        }
 
         let cal = Calendar.current
         let end = Date()
@@ -401,6 +422,8 @@ final class HealthKitBridge: ObservableObject {
         await collect(.vo2Max, unit: HKUnit(from: "ml/kg*min"), start: start, end: end, op: .discreteAverage) { day, v in
             var a = agg(day); a.vo2max = v; byDay[day] = a
         }
+        progress(0.40)
+        guard !Task.isCancelled else { return }
 
         // Body composition — READ-ONLY import under the apple-health source (#20). Weight, lean mass
         // and BMI are point-in-time readings, so take the latest-of-day; body-fat reads fine as a
@@ -418,6 +441,8 @@ final class HealthKitBridge: ObservableObject {
         await collect(.bodyMassIndex, unit: .count(), start: bodyStart, end: end, op: .discreteMostRecent) { day, v in
             var a = agg(day); a.bmi = v; byDay[day] = a
         }
+        progress(0.60)
+        guard !Task.isCancelled else { return }
 
         // Sleep minutes per day (asleep stages summed; attributed to wake day).
         await collectSleep(start: start, end: end) { day, asleepMin, deepMin, remMin, coreMin in
@@ -425,6 +450,8 @@ final class HealthKitBridge: ObservableObject {
             a.asleepMin = asleepMin; a.deepMin = deepMin; a.remMin = remMin; a.coreMin = coreMin
             byDay[day] = a
         }
+        progress(0.75)
+        guard !Task.isCancelled else { return }
 
         // Build + upsert the store rows under the apple-health source.
         let appleRows = byDay.map { (day, a) in
@@ -478,6 +505,8 @@ final class HealthKitBridge: ObservableObject {
         // reads them live on-device too, so the platforms reach parity. ON-DEVICE ONLY: this is a plain
         // HealthKit read of workouts NOOP did NOT author, never any cloud/3rd-party API. (#835)
         let workoutRows = await collectWorkouts(start: start, end: end)
+        progress(0.85)
+        guard !Task.isCancelled else { return }
 
         // Persist all the apple-health rows AND write back, advancing lastSync only when the WHOLE
         // round-trip succeeds. The three read-side upserts used to be swallowed by `try?`, so a failed
@@ -491,6 +520,7 @@ final class HealthKitBridge: ObservableObject {
             if !workoutRows.isEmpty { try await store.upsertWorkouts(workoutRows, deviceId: appleDeviceId) }
             try await writeBack(whoopStore: store)
             lastSync = Date()
+            if importingFullHistory { lastFullHistoryImport = lastSync }
             lastError = nil
             // Newest realistic weigh-in from this sync, for the one-time profile seed. Latest = the
             // highest day key carrying a >10 kg reading; nil when Health held none.
@@ -498,9 +528,33 @@ final class HealthKitBridge: ObservableObject {
                 .filter { ($0.weightKg ?? 0) > 10 }
                 .max { $0.day < $1.day }?
                 .weightKg
+            progress(1)
         } catch {
             lastError = String(localized: "Apple Health sync failed: \(error.localizedDescription)")
         }
+    }
+
+    /// Build the local Apple-Health history used by long-range Coach questions. This is an explicit
+    /// action because a multi-year HealthKit query can take noticeable time; subsequent normal syncs
+    /// remain incremental/short-window. Ten years matches the existing sparse body-composition lookback.
+    func startFullHistoryImport() {
+        guard auth == .authorized, !syncing, !fullHistoryImporting else { return }
+        // Publish synchronously so the view cannot mistake the scheduling gap for a completed import.
+        fullHistoryImporting = true
+        fullHistoryProgress = 0
+        fullHistoryTask = Task { [weak self] in
+            guard let self else { return }
+            await self.sync(days: Self.bodyCompositionLookbackDays, importingFullHistory: true)
+            self.fullHistoryTask = nil
+        }
+    }
+
+    /// HealthKit queries are cooperative: the current aggregate query may finish, but no later category
+    /// or database write is started after cancellation. A later tap safely starts the full, idempotent
+    /// import again; day-keyed upserts prevent duplicates.
+    func cancelFullHistoryImport() {
+        fullHistoryTask?.cancel()
+        fullHistoryTask = nil
     }
 
     // MARK: - Write back (NOOP → Health)

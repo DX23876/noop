@@ -129,7 +129,12 @@ enum CoachLocalSourceLabel {
         case "oura-import", "oura-api": return "Oura import"
         case "garmin-import": return "Garmin import"
         case "fitbit-import": return "Fitbit import"
-        default: return "Another local import"
+        default:
+            // Active straps use a durable `whoop-<uuid>` identifier rather than the canonical import
+            // id. It is still WHOOP data; never turn that opaque identifier into a misleading generic
+            // import label in a coach provenance line.
+            if source.hasPrefix("whoop-") || source.hasSuffix("-noop") { return "WHOOP / NOOP" }
+            return "Another local import"
         }
     }
 }

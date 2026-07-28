@@ -2,6 +2,7 @@
 import SwiftUI
 import StrandDesign
 import UserNotifications
+import UIKit
 
 /// iOS entry point. Unlike the macOS app (which adds a `MenuBarExtra` scene), iOS uses a single
 /// `WindowGroup`; the glanceable menu-bar role is filled by the Home/Lock-Screen widget instead.
@@ -50,6 +51,7 @@ struct StrandiOSApp: App {
         // target's BGTaskSchedulerPermittedIdentifiers (project.yml). Without this the overnight drop
         // never fires; the macOS timer, foreground catch-up, and "Run now" already work without it.
         ScheduledDebugExport.register()
+        SemanticMemoryBackgroundTask.register()
         // Foreground presentation: without a delegate, iOS suppresses a notification's banner while the app
         // is open, so a user testing the wind-down reminder with NOOP foregrounded sees nothing. Register
         // before the first scene so any early-fired notification is presented.
@@ -58,6 +60,7 @@ struct StrandiOSApp: App {
         // notification names but nobody registered simply shows no buttons, silently.
         CoachCheckIn.registerCategory()
         let model = AppModel()
+        SemanticMemoryBackgroundTask.attach(coach: model.coach)
         _model = StateObject(wrappedValue: model)
         _health = StateObject(wrappedValue: HealthKitBridge(
             repo: model.repo,
@@ -175,6 +178,19 @@ struct StrandiOSApp: App {
                     guard WidgetSnapshot.HRPublishThrottle.admit() else { return }
                     Task { await WidgetSnapshot.publish(from: model) }
                 }
+                .onReceive(NotificationCenter.default.publisher(
+                    for: UIApplication.didReceiveMemoryWarningNotification
+                )) { _ in
+                    Task { await model.coach.unloadSemanticMemory() }
+                }
+                .onReceive(NotificationCenter.default.publisher(
+                    for: ProcessInfo.thermalStateDidChangeNotification
+                )) { _ in
+                    let state = ProcessInfo.processInfo.thermalState
+                    if state == .serious || state == .critical {
+                        Task { await model.coach.unloadSemanticMemory() }
+                    }
+                }
                 // #581: the `noop://import-health` deep link the iOS Shortcut opens after building the
                 // HealthKit-free payload. Filter on the host so other future schemes don't trip the
                 // importer; macOS never registers the scheme so this stays iOS-only.
@@ -229,6 +245,10 @@ struct StrandiOSApp: App {
                 // the check-in is on and set to .afterWake; keeps the repeating trigger in step with the
                 // user's actual wake time rather than a clock time that drifts out of sync.
                 Task { await CoachCheckIn.refreshDynamicScheduleIfNeeded(repo: model.repo) }
+                if CoachSemanticMemory.shared.foregroundCatchUpIsDue() {
+                    CoachSemanticMemory.shared.markForegroundCatchUp()
+                    Task { await model.coach.performSemanticMemoryMaintenance(limit: 64) }
+                }
                 Task {
                     health.refreshAuthIfPreviouslyGranted()
                     await health.sync()
@@ -239,6 +259,8 @@ struct StrandiOSApp: App {
                     await watch.pushLatest(from: model)
                 }
             } else if phase == .background {
+                SemanticMemoryBackgroundTask.schedule()
+                Task { await model.coach.unloadSemanticMemory() }
                 // #114: capture the LAST in-app live state on the way out so the Home widget matches what
                 // the user just saw — its battery/HR/score otherwise lag to the last FOREGROUND refreshSeq
                 // bump. One reload per app-exit is low-frequency and well within WidgetKit's daily budget.

@@ -63,6 +63,10 @@ struct UpdateItem: Identifiable, Codable, Equatable {
     /// When this stops being relevant (nil = never). Only enforced for non-`.actionable` items — an
     /// undecided actionable item's decision window must never vanish silently. See `pruneExpired()`.
     var expiresAt: Date?
+    /// Stable identifier for a recent local alert. An alert can re-fire during the same day (for example
+    /// a repeated inactivity nudge); the inbox refreshes that one row instead of growing a backlog.
+    /// Nil for ordinary updates and legacy rows.
+    var alertKey: String?
     /// True only for `.actionable` items still awaiting a decision.
     var actionRequired: Bool
     /// Set only when `category == .actionable` and this wraps a `PlanProposal` — a pointer, not a copy;
@@ -75,7 +79,7 @@ struct UpdateItem: Identifiable, Codable, Equatable {
          date: Date = Date(), read: Bool = false,
          deepLink: String? = nil, restorePayload: String? = nil,
          category: Category? = nil, priority: Priority = .normal,
-         expiresAt: Date? = nil, actionRequired: Bool = false,
+         expiresAt: Date? = nil, alertKey: String? = nil, actionRequired: Bool = false,
          planProposalId: UUID? = nil, showOnToday: Bool = false) {
         self.id = id
         self.kind = kind
@@ -88,6 +92,7 @@ struct UpdateItem: Identifiable, Codable, Equatable {
         self.category = category ?? kind.defaultCategory
         self.priority = priority
         self.expiresAt = expiresAt
+        self.alertKey = alertKey
         self.actionRequired = actionRequired
         self.planProposalId = planProposalId
         self.showOnToday = showOnToday
@@ -109,6 +114,7 @@ struct UpdateItem: Identifiable, Codable, Equatable {
         category = try c.decodeIfPresent(Category.self, forKey: .category) ?? kind.defaultCategory
         priority = try c.decodeIfPresent(Priority.self, forKey: .priority) ?? .normal
         expiresAt = try c.decodeIfPresent(Date.self, forKey: .expiresAt)
+        alertKey = try c.decodeIfPresent(String.self, forKey: .alertKey)
         actionRequired = try c.decodeIfPresent(Bool.self, forKey: .actionRequired) ?? false
         planProposalId = try c.decodeIfPresent(UUID.self, forKey: .planProposalId)
         showOnToday = try c.decodeIfPresent(Bool.self, forKey: .showOnToday) ?? false
@@ -203,6 +209,34 @@ final class UpdateStore: ObservableObject {
         pruneExpired()
     }
 
+    /// Add or refresh one recent local alert. Alert keys include the local day, so a repeated event today
+    /// stays one unread row while tomorrow's genuinely new event can appear independently.
+    func postOrRefreshAlert(key: String, title: String, message: String,
+                            deepLink: String? = nil, expiresAt: Date,
+                            now: Date = Date()) {
+        pruneExpired(now: now)
+        if let i = items.firstIndex(where: { $0.alertKey == key }) {
+            items[i].title = title
+            items[i].message = message
+            items[i].date = now
+            items[i].read = false
+            items[i].deepLink = deepLink
+            items[i].expiresAt = expiresAt
+        } else {
+            items.append(UpdateItem(
+                kind: .strapAlert,
+                title: title,
+                message: message,
+                date: now,
+                deepLink: deepLink,
+                category: .statusReminder,
+                expiresAt: expiresAt,
+                alertKey: key
+            ))
+        }
+        pruneExpired(now: now)
+    }
+
     /// Rows the cap/dedup logic is allowed to collapse or evict — `.informative` items only. `.actionable`
     /// and `.statusReminder` rows (incl. legacy `.dismissedCard`/`.strapAlert`, via `Kind.defaultCategory`)
     /// are exempt: the user owns those.
@@ -230,11 +264,12 @@ final class UpdateStore: ObservableObject {
 
     /// Drop non-`.actionable` items past their `expiresAt` — an undecided actionable item's decision
     /// window must never vanish silently, so `.actionable` rows are never auto-pruned here.
-    private func pruneExpired() {
-        let now = Date()
+    /// Refresh expiry on every inbox appearance as well as every post, so a stale alert cannot survive
+    /// merely because no new event arrived after it expired.
+    func pruneExpired(now: Date = Date()) {
         let expired = items.filter { item in
             guard item.category != .actionable, let expiresAt = item.expiresAt else { return false }
-            return expiresAt < now
+            return expiresAt <= now
         }
         guard !expired.isEmpty else { return }
         let expiredIDs = Set(expired.map(\.id))

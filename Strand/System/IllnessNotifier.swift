@@ -24,6 +24,9 @@ enum IllnessNotifier {
         // notifications or delivery is deferred — the in-app banner stays the live surface either
         // way, and we never re-prompt or retry on every transition.
         d.set(day, forKey: lastDayKey)
+        AlertInbox.post(.illness,
+                        title: String(localized: "Early warning: take it easy"),
+                        message: message)
         let center = UNUserNotificationCenter.current()
         // Authorization is requested once via requestAuthorization() when the watch is enabled;
         // here we only check status (no second system prompt).

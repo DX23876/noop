@@ -9,6 +9,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.noop.R
+import com.noop.ui.AlertInbox
 import com.noop.ui.NoopPrefs
 import com.noop.ui.appLaunchIntent
 
@@ -96,22 +97,26 @@ object BatteryAlertNotifier {
         if (remainingHours == null) return
         if (!NoopPrefs.batteryAlerts(context)) return
         if (!NoopPrefs.predictiveBatteryAlerts(context)) return
+        val decision = com.noop.analytics.BatteryEstimator.runtimeAlert(
+            remainingHours = remainingHours,
+            charging = charging,
+            alerted = NoopPrefs.batteryRuntimeAlerted(context),
+        )
+        // ALWAYS persist the updated gate — re-arming must stick even when nothing fired.
+        NoopPrefs.setBatteryRuntimeAlerted(context, decision.newAlerted)
+        if (!decision.fire) return
+        val label = com.noop.analytics.BatteryEstimator.label(remainingHours)
+        val body = "$label left on your WHOOP — recharge tonight."
         runCatching {
-            val decision = com.noop.analytics.BatteryEstimator.runtimeAlert(
-                remainingHours = remainingHours,
-                charging = charging,
-                alerted = NoopPrefs.batteryRuntimeAlerted(context),
-            )
-            // ALWAYS persist the updated gate — re-arming must stick even when nothing fired.
-            NoopPrefs.setBatteryRuntimeAlerted(context, decision.newAlerted)
-            if (!decision.fire) return
-            if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return
+            AlertInbox.post(context, AlertInbox.Kind.BATTERY_RUNTIME, "Strap battery low", body)
+        }
+        runCatching {
+            if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return@runCatching
             ensureChannel(context)
-            val label = com.noop.analytics.BatteryEstimator.label(remainingHours)
             val n = NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_stat_heart)
                 .setContentTitle("Strap battery low")
-                .setContentText("$label left on your WHOOP — recharge tonight.")
+                .setContentText(body)
                 .setContentIntent(openAppIntent(context))
                 .setAutoCancel(true)
                 .setCategory(NotificationCompat.CATEGORY_STATUS)
@@ -125,16 +130,31 @@ object BatteryAlertNotifier {
     fun onBatteryUpdate(context: Context, currPct: Int?, charging: Boolean?) {
         if (currPct == null) return
         if (!NoopPrefs.batteryAlerts(context)) return
+        val decision = BatteryAlertPolicy.evaluate(
+            pct = currPct,
+            charging = charging,
+            lowAlerted = NoopPrefs.batteryLowAlerted(context),
+            fullAlerted = NoopPrefs.batteryFullAlerted(context),
+        )
+        // ALWAYS persist the updated flags — re-arming must stick even when the system banner is off.
+        NoopPrefs.setBatteryLowAlerted(context, decision.newLowAlerted)
+        NoopPrefs.setBatteryFullAlerted(context, decision.newFullAlerted)
+        if (decision.fireLow) {
+            runCatching {
+                AlertInbox.post(context, AlertInbox.Kind.BATTERY_LOW,
+                    "Low battery", "Recharge your WHOOP before tonight.")
+            }
+        }
+        if (decision.fireFull) {
+            runCatching {
+                AlertInbox.post(context, AlertInbox.Kind.BATTERY_FULL,
+                    "Strap fully charged", "Your WHOOP is at 100%.")
+            }
+        }
         // Defensive: never let a notify() throw (revoked POST_NOTIFICATIONS, OEM quirk) crash a collector.
         runCatching {
-            if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return
+            if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return@runCatching
             ensureChannel(context)
-            val decision = BatteryAlertPolicy.evaluate(
-                pct = currPct,
-                charging = charging,
-                lowAlerted = NoopPrefs.batteryLowAlerted(context),
-                fullAlerted = NoopPrefs.batteryFullAlerted(context),
-            )
             if (decision.fireLow) {
                 val n = NotificationCompat.Builder(context, CHANNEL_ID)
                     .setSmallIcon(R.drawable.ic_stat_heart)
@@ -165,9 +185,6 @@ object BatteryAlertNotifier {
             if (decision.clearFull) {
                 NotificationManagerCompat.from(context).cancel(NOTIF_ID_FULL)
             }
-            // ALWAYS persist the updated flags — re-arming must stick even when nothing fired.
-            NoopPrefs.setBatteryLowAlerted(context, decision.newLowAlerted)
-            NoopPrefs.setBatteryFullAlerted(context, decision.newFullAlerted)
         }
     }
 

@@ -540,21 +540,16 @@ Contributions toward these are welcome — open an issue to coordinate first.
   `WhoopProtocol/Resources/whoop_protocol.json` and the framing/CRC rules are language-agnostic, so
   the wire behavior is portable; the work is a Windows BLE stack + UI re-implementation that matches
   the shared packages' behavior.
-- **Android (shipped).** A full, native Kotlin/Gradle client lives under `android/`, re-implementing
-  the same wire protocol against Android's BLE stack — it pairs, offloads, persists and scores
-  on-device, and imports WHOOP / Apple Health / Health Connect. Pre-built APKs are in
-  [Releases](https://github.com/ryanbr/noop/releases). Continued real-hardware testing across more devices is always welcome
-  (an emulator can't reach a physical strap).
-- **iOS (build-from-source target on `main`).** iOS was folded into `main` in v1.94 as a first-class
-  build-from-source target — the `NOOPiOS` and `NOOPiOSWidgets` schemes (app target plus widgets, a
-  Live Activity, and HealthKit), built against current code in Xcode, with CI compiling both macOS and
-  iOS on every change. It is **build-it-yourself only, intentionally not shipped:** iOS has no
-  anonymous distribution path (the App Store and TestFlight both require a real Apple Developer
-  identity), which is at odds with NOOP staying anonymous, so there are no pre-built downloads. Every
-  package declares `.iOS(.v16)` and guards UI-framework code with `#if canImport(UIKit)/AppKit`, so
-  the shared core and analytics run unmodified — results match macOS. It is newer and less
-  battle-tested than macOS/Android (live BLE on a real iPhone isn't fully validated yet), so
-  on-hardware testing is especially welcome; [`IOS.md`](IOS.md) is the detailed guide.
+- **Android (distribution in progress).** A full, native Kotlin/Gradle client lives under `android/`,
+  re-implementing the same wire protocol against Android's BLE stack — it pairs, offloads, persists
+  and scores on-device, and imports WHOOP / Apple Health / Health Connect. Its source version is kept
+  aligned with the Apple beta; a fork-owned public APK follows in a later rollout. Continued
+  real-hardware testing across more devices is always welcome (an emulator can't reach a physical strap).
+- **iOS (unsigned beta on `main`).** iOS is a first-class target — the `NOOPiOS` and
+  `NOOPiOSWidgets` schemes (app target plus widgets, a Live Activity, and HealthKit), built against
+  current code in Xcode. The fork publishes an intentionally unsigned IPA for AltStore and SideStore:
+  the sideloader signs it with each user's own Apple ID, keeping the project free of an App Store,
+  TestFlight, or project-owned Apple Developer identity. See [IOS.md](IOS.md) for the source URL.
 
 ### Deferred ideas
 

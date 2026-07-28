@@ -102,6 +102,13 @@ __pycache__/
 dist/
 err.txt
 
+# Local Nomic/llama.cpp runtime artifacts. The bootstrap script downloads pinned, checksum-verified
+# copies before xcodegen runs; the final iOS app bundles them, but Git does not carry ~550 MB binaries.
+Vendor/Nomic/*.zip
+Vendor/Nomic/*.download
+Vendor/Nomic/*.xcframework/
+Vendor/Nomic/Resources/*.gguf
+
 # Oura OAuth app credentials (BYO; never committed)
 Strand/Oura/OuraSecrets.xcconfig
 

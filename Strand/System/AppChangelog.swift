@@ -7,7 +7,7 @@ enum AppChangelog {
 
     /// Bump this when you add a release below. The "What's New" sheet shows automatically when the
     /// stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
-    static let currentVersion = "9.0.2"
+    static let currentVersion = "9.10.0-beta.1"
 
     struct Release: Identifiable {
         let version: String
@@ -19,6 +19,16 @@ enum AppChangelog {
 
     /// Newest first.
     static let releases: [Release] = [
+        Release(
+            version: "9.10.0-beta.1",
+            title: "A calmer Today and a bell that remembers",
+            date: "July 2026",
+            items: [
+                "**The bell now remembers real alerts.** Low battery, runtime, fully charged, health, movement, and smart-alarm events stay in a recent local history even when system banners are unavailable.",
+                "**Today is more focused.** The Classic Today synthesis card no longer expands into an oversized first item, and the redundant WHOOP label is gone.",
+                "**iOS Beta 1 is ready for sideloading.** Install the unsigned IPA with AltStore or SideStore; it is signed only by your own Apple ID on your device.",
+            ]
+        ),
         Release(
             version: "9.0.2",
             title: "Optimal-strain alerts, faster history sync, and a wave of accuracy fixes",

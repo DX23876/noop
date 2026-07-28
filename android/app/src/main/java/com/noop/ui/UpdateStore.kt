@@ -57,6 +57,10 @@ data class UpdateItem(
     val read: Boolean = false,
     val deepLink: String? = null,
     val restorePayload: String? = null,
+    /** Recent local alert identity. Repeated events with this key refresh one row instead of stacking. */
+    val alertKey: String? = null,
+    /** Epoch milliseconds after which this non-actionable alert disappears from the local inbox. */
+    val expiresAt: Long? = null,
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         put("id", id)
@@ -67,6 +71,8 @@ data class UpdateItem(
         put("read", read)
         if (deepLink != null) put("deepLink", deepLink)
         if (restorePayload != null) put("restorePayload", restorePayload)
+        if (alertKey != null) put("alertKey", alertKey)
+        if (expiresAt != null) put("expiresAt", expiresAt)
     }
 
     companion object {
@@ -79,6 +85,8 @@ data class UpdateItem(
             read = o.optBoolean("read", false),
             deepLink = if (o.has("deepLink")) o.optString("deepLink") else null,
             restorePayload = if (o.has("restorePayload")) o.optString("restorePayload") else null,
+            alertKey = if (o.has("alertKey")) o.optString("alertKey") else null,
+            expiresAt = if (o.has("expiresAt")) o.optLong("expiresAt") else null,
         )
     }
 }
@@ -193,7 +201,44 @@ class UpdateStore private constructor(private val prefs: SharedPreferences) {
             items.add(item)
         }
         evictOverflow()
+        pruneExpired()
         persist()
+    }
+
+    /**
+     * Add or refresh a user-facing local alert. The caller supplies a day-scoped [alertKey], so a
+     * repeated inactivity nudge refreshes one unread row while a genuinely new day can surface again.
+     */
+    fun postOrRefreshAlert(
+        alertKey: String,
+        title: String,
+        message: String,
+        deepLink: String? = null,
+        expiresAt: Long,
+        now: Long = System.currentTimeMillis(),
+    ) {
+        pruneExpired(now)
+        val index = items.indexOfFirst { it.alertKey == alertKey }
+        val item = UpdateItem(
+            kind = UpdateKind.STRAP_ALERT,
+            title = title,
+            message = message,
+            date = now,
+            read = false,
+            deepLink = deepLink,
+            alertKey = alertKey,
+            expiresAt = expiresAt,
+        )
+        if (index >= 0) items[index] = item.copy(id = items[index].id)
+        else items.add(item)
+        pruneExpired(now)
+        persist()
+    }
+
+    /** Remove expired local alerts whenever the store changes and when the inbox opens. */
+    fun pruneExpired(now: Long = System.currentTimeMillis()) {
+        val removed = items.removeAll { it.expiresAt?.let { expiry -> expiry <= now } == true }
+        if (removed) persist()
     }
 
     private fun isInformational(kind: UpdateKind): Boolean =
@@ -283,6 +328,7 @@ class UpdateStore private constructor(private val prefs: SharedPreferences) {
             val o = arr.optJSONObject(i) ?: continue
             items.add(UpdateItem.fromJson(o))
         }
+        pruneExpired()
     }
 
     private fun persist() {
@@ -313,5 +359,8 @@ class UpdateStore private constructor(private val prefs: SharedPreferences) {
                     context.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE),
                 ).also { instance = it }
             }
+
+        /** Isolated store for the plain-JVM persistence tests; never shares the app singleton. */
+        internal fun forTesting(prefs: SharedPreferences): UpdateStore = UpdateStore(prefs)
     }
 }

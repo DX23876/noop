@@ -1,13 +1,13 @@
 # iOS — Install & Build
 
-> **iOS is now a direct download (v1.96).** Grab **`NOOP-v<version>-ios.ipa`** from the
-> [Releases](https://github.com/ryanbr/noop/releases) page and install it with **AltStore** or **SideStore** — see
+> **iOS Beta 1 is a direct download.** Grab **`NOOP-ios-unsigned-v9.10.0-beta.1.ipa`** from the
+> [NOOP AI prerelease](https://github.com/DX23876/noop/releases/tag/v9.10.0-beta.1) page and install it with **AltStore** or **SideStore** — see
 > **[Install (sideload)](#install-sideload)** below. No Mac, no Xcode, no App Store, and no Apple
 > Developer account needed — **and NOOP stays anonymous**, because the `.ipa` we ship is *unsigned*
 > and **you** sign it on your own iPhone with your own free Apple ID. The app target (`NOOPiOS` +
 > `NOOPiOSWidgets`) also still builds from source in Xcode if you'd rather (**[Build from source](#build-from-source)**).
-> A CI job ([`app-build.yml`](../.github/workflows/app-build.yml)) compiles both the macOS and iOS
-> targets on every change so iOS can't silently break.
+> The manual [`publish-ios-beta.yml`](../.github/workflows/publish-ios-beta.yml) workflow builds the
+> unsigned release IPA without an Apple team or personal signing identity.
 
 ## Install (sideload)
 
@@ -18,7 +18,8 @@ Nothing about this touches NOOP's identity or Apple's servers on our side.
 1. **Install a sideloader on your computer** — [AltStore](https://altstore.io) or
    [SideStore](https://sidestore.io) (both free). Follow their one-time setup (it installs a helper +
    AltStore/SideStore onto your iPhone using your own Apple ID).
-2. **Download `NOOP-v<version>-ios.ipa`** from [Releases](https://github.com/ryanbr/noop/releases) to your iPhone (or your
+2. **Download `NOOP-ios-unsigned-v9.10.0-beta.1.ipa`** from the
+   [Beta 1 prerelease](https://github.com/DX23876/noop/releases/tag/v9.10.0-beta.1) to your iPhone (or your
    computer, then AirDrop/transfer it).
 3. **Open the `.ipa` with AltStore/SideStore** (Share → AltStore, or the app's "+" button). It signs
    and installs NOOP. First launch may need **Settings → General → VPN & Device Management → trust
@@ -29,7 +30,7 @@ Nothing about this touches NOOP's identity or Apple's servers on our side.
 So you never have to manually re-download, add NOOP's **source** to AltStore/SideStore once — new
 releases then show up (and re-sign) automatically:
 
-**Source URL:** `https://raw.githubusercontent.com/ryanbr/noop/main/altstore-source.json`
+**Source URL:** `https://raw.githubusercontent.com/DX23876/noop/main/altstore-source.json`
 
 > Make sure you copy the **raw** URL above exactly. If a sideloader says **"given data not valid
 > JSON"** when you add the source, you've pasted a normal web page URL (which returns HTML) instead of
@@ -65,7 +66,11 @@ are very welcome.
 ## Build from source
 
 Prefer to build it yourself (which also grants HealthKit/widgets under your own Apple ID)? Run
-`xcodegen generate`, then build the **`NOOPiOS`** scheme in Xcode. The reconciliation that brought the
+`Tools/bootstrap-nomic.sh` once to download and verify the pinned on-device Coach model and llama.cpp
+runtime, then run `xcodegen generate` and build the **`NOOPiOS`** scheme in Xcode. The verified files
+remain local build inputs, so later Xcode builds do not download them again. They add roughly 328 MiB
+for the quantized model plus the selected runtime slice to the installed app; Git does not store those
+large binaries. The reconciliation that brought the
 [PR #42](../../../pull/42) port onto current `main` is summarised in **"Lessons from the fold-in"**
 below.
 
@@ -76,7 +81,7 @@ below.
 > 1. `cp Config/BundleIdSecrets.example.xcconfig Config/BundleIdSecrets.xcconfig` and set
 >    `BUNDLE_ID_PREFIX` to your own reverse-domain prefix (e.g. `com.yourdomain`), then re-run
 >    `xcodegen generate`. This one gitignored file drives **every** target's bundle id *and* the shared
->    App Group together (`$(BUNDLE_ID_PREFIX).noop`, `group.$(BUNDLE_ID_PREFIX).noop.staging`) — nothing
+>    App Group together (`$(BUNDLE_ID_PREFIX).noopai`, `group.$(BUNDLE_ID_PREFIX).noop.staging`) — nothing
 >    hard-coded in Swift, nothing else to edit, and it survives future regenerates.
 > 2. In Xcode, **select your Team** (Signing & Capabilities) for the `NOOPiOS` **and** `NOOPiOSWidgets`
 >    targets — the one step Apple still requires you to do by hand.
@@ -506,7 +511,7 @@ targets:
   NOOPiOS:
     type: application
     platform: iOS
-    deploymentTarget: "16.0"
+    deploymentTarget: "17.0"
     sources:
       - StrandiOS
       - Shared            # screens lifted from Strand/Screens, if shared
@@ -535,7 +540,7 @@ targets:
         com.apple.developer.healthkit.background-delivery: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.noopapp.noop
+        PRODUCT_BUNDLE_IDENTIFIER: com.noopapp.noopai
         PRODUCT_NAME: NOOP
     dependencies:
       - package: WhoopProtocol

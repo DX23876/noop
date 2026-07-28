@@ -9,6 +9,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.noop.R
+import com.noop.ui.AlertInbox
 import com.noop.ui.NoopPrefs
 import com.noop.ui.appLaunchIntent
 
@@ -32,9 +33,14 @@ object IllnessAlertNotifier {
     fun onEvaluated(context: Context, alert: String?) {
         val today = java.time.LocalDate.now().toString()
         if (!IllnessAlertPolicy.shouldNotify(alert, NoopPrefs.illnessLastNotifiedDay(context), today)) return
+        // Keep a local record even if the operating-system banner is disabled.
+        NoopPrefs.setIllnessLastNotifiedDay(context, today)
+        runCatching {
+            AlertInbox.post(context, AlertInbox.Kind.ILLNESS, "Early warning: take it easy", alert.orEmpty())
+        }
         // Defensive: never let a notify() throw (revoked POST_NOTIFICATIONS, OEM quirk) crash a collector.
         runCatching {
-            if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return
+            if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return@runCatching
             ensureChannel(context)
             val openApp = PendingIntent.getActivity(
                 context, 2,
@@ -55,7 +61,6 @@ object IllnessAlertNotifier {
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .build()
             NotificationManagerCompat.from(context).notify(NOTIF_ID, n)
-            NoopPrefs.setIllnessLastNotifiedDay(context, today)
         }
     }
 

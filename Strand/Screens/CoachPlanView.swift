@@ -18,6 +18,7 @@ struct CoachPlanView: View {
     @State private var swapping: PlanProposal?
     @State private var scheduling: PlanProposal?
     @State private var rescheduling: PlanProposal?
+    @State private var feedbackProposal: PlanProposal?
     /// Which committed session is choosing a skip reason (#R3). A `.confirmationDialog` here, not a
     /// native `Menu` — the `Menu` sat directly over `NoopCard`'s frosted/material background, and its
     /// dismiss transition briefly showed unrendered black compositor layers (a known Menu-over-material
@@ -72,6 +73,9 @@ struct CoachPlanView: View {
             }
             .sheet(item: $rescheduling) { p in
                 PlanRescheduleSheet(proposal: p)
+            }
+            .sheet(item: $feedbackProposal) { p in
+                PlanEffectFeedbackSheet(proposal: p)
             }
             .confirmationDialog("Why didn't it happen?",
                                 isPresented: Binding(get: { skippingReason != nil },
@@ -139,50 +143,72 @@ struct CoachPlanView: View {
                     Spacer(minLength: 4)
                     Text(dayLabel(p.day)).strandOverline()
                 }
-                HStack(spacing: 8) {
-                    action(p.time == nil ? "Set a time" : "Change time", icon: "clock") { scheduling = p }
-                    action("Move day", icon: "calendar.badge.clock") { rescheduling = p }
-                    action("Swap", icon: "arrow.triangle.2.circlepath") { swapping = p }
-                }
-                HStack(spacing: 8) {
-                    action("Done", icon: "checkmark.circle", prominent: true) { store.complete(p.id) }
-                    // The one-tap reason. A reason you have to type is a reason that never gets
-                    // recorded — and then "didn't train" reads as laziness when it was a sore knee.
-                    // A plain Button + confirmationDialog (#R3), not a Menu — see `skippingReason`'s
-                    // doc comment for why.
-                    Button { skippingReason = p } label: {
-                        Label("Didn't happen", systemImage: "xmark.circle")
-                            .font(StrandFont.footnote)
-                            .foregroundStyle(StrandPalette.textSecondary)
-                            .padding(.horizontal, 10).padding(.vertical, 7)
-                            .background(StrandPalette.surfaceInset,
-                                        in: RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
+                if p.status == .completed {
+                    effectFeedbackControl(p)
+                } else {
+                    HStack(spacing: 8) {
+                        action(p.time == nil ? "Set a time" : "Change time", icon: "clock") { scheduling = p }
+                        action("Move day", icon: "calendar.badge.clock") { rescheduling = p }
+                        action("Swap", icon: "arrow.triangle.2.circlepath") { swapping = p }
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Mark as not done, and say why")
+                    HStack(spacing: 8) {
+                        action("Done", icon: "checkmark.circle", prominent: true) { store.complete(p.id) }
+                        // The one-tap reason. A reason you have to type is a reason that never gets
+                        // recorded — and then "didn't train" reads as laziness when it was a sore knee.
+                        Button { skippingReason = p } label: {
+                            Label("Didn't happen", systemImage: "xmark.circle")
+                                .font(StrandFont.footnote)
+                                .foregroundStyle(StrandPalette.textSecondary)
+                                .padding(.horizontal, 10).padding(.vertical, 7)
+                                .background(StrandPalette.surfaceInset,
+                                            in: RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Mark as not done, and say why")
+                    }
                 }
             }
         }
     }
 
     private func historyRow(_ p: PlanProposal) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Image(systemName: icon(for: p.status))
-                .font(StrandFont.footnote)
-                .foregroundStyle(StrandPalette.textTertiary)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(p.summary())
-                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
-                Text(statusLine(p))
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Image(systemName: icon(for: p.status))
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(p.summary())
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                    Text(statusLine(p))
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                }
+                Spacer(minLength: 4)
+                Text(dayLabel(p.day))
                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
             }
-            Spacer(minLength: 4)
-            Text(dayLabel(p.day))
-                .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+            if p.status == .completed {
+                effectFeedbackControl(p)
+            }
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(p.summary()), \(statusLine(p)), \(dayLabel(p.day))")
+    }
+
+    @ViewBuilder
+    private func effectFeedbackControl(_ proposal: PlanProposal) -> some View {
+        if let feedback = proposal.effectFeedback {
+            Button { feedbackProposal = proposal } label: {
+                Label(feedback.label, systemImage: "bubble.left.and.text.bubble.right")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textSecondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Recommendation effect: \(feedback.label). Change feedback")
+        } else {
+            action("How did it feel?", icon: "bubble.left.and.text.bubble.right") {
+                feedbackProposal = proposal
+            }
+        }
     }
 
     private var emptyState: some View {
@@ -294,6 +320,11 @@ struct CoachPlanView: View {
     /// label, neither of which performs a catalog lookup on their own — the resolution has to happen here.
     private func statusLine(_ p: PlanProposal) -> String {
         switch p.status {
+        case .completed:
+            if let feedback = p.effectFeedback {
+                return String(localized: "completed — \(feedback.label.localizedCatalogValue)")
+            }
+            return String(localized: "completed — effect not rated")
         case .skipped:
             if let reason = p.skipReason {
                 return String(localized: "didn't happen — \(reason.label.localizedCatalogValue)")
@@ -319,6 +350,73 @@ struct CoachPlanView: View {
         if Calendar.current.isDateInYesterday(date) { return "Yesterday" }
         let out = DateFormatter(); out.dateFormat = "EEE d MMM"
         return out.string(from: date)
+    }
+}
+
+private struct PlanEffectFeedbackSheet: View {
+    let proposal: PlanProposal
+    @ObservedObject private var store = CoachPlanStore.shared
+    @Environment(\.dismiss) private var dismiss
+    @State private var selection: PlanProposal.EffectFeedback?
+    @State private var note = ""
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text(proposal.summary())
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                    Text("Completion and effect are stored separately. Missing feedback stays missing and is never treated as “no effect”.")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
+                Section("What happened afterwards?") {
+                    ForEach(PlanProposal.EffectFeedback.allCases, id: \.self) { feedback in
+                        Button {
+                            selection = feedback
+                        } label: {
+                            HStack {
+                                Text(feedback.label)
+                                    .foregroundStyle(StrandPalette.textPrimary)
+                                Spacer()
+                                if selection == feedback {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(StrandPalette.accent)
+                                }
+                            }
+                        }
+                    }
+                }
+                Section("Optional note") {
+                    TextField("What did you notice?", text: $note, axis: .vertical)
+                        .lineLimit(3...6)
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .background(StrandPalette.surfaceBase)
+            .navigationTitle("Recommendation effect")
+            #if !os(macOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        guard let selection else { return }
+                        store.recordEffect(proposal.id, feedback: selection, note: note)
+                        dismiss()
+                    }
+                    .disabled(selection == nil)
+                }
+            }
+            .onAppear {
+                selection = proposal.effectFeedback
+                note = proposal.feedbackNote ?? ""
+            }
+        }
     }
 }
 

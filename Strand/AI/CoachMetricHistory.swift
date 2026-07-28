@@ -17,6 +17,23 @@ struct CoachMetricHistory {
         let points: [Point]
     }
 
+    /// A compact provenance line for a locally resolved timeline.  The model receives coverage only,
+    /// never a list of individual source readings, but can still say where a long-range conclusion
+    /// came from (for example Apple Health before a strap was paired, then WHOOP afterwards).
+    static func sourceSummary(from points: [ResolvedMetricPoint],
+                              label: (String) -> String) -> String {
+        let grouped = Dictionary(grouping: points, by: \.source)
+        let orderedSources = points.reduce(into: [String]()) { result, point in
+            if !result.contains(point.source) { result.append(point.source) }
+        }
+        return orderedSources.compactMap { source in
+            guard let rows = grouped[source],
+                  let first = rows.map(\.day).min(), let last = rows.map(\.day).max() else { return nil }
+            let span = first == last ? first : "\(first) → \(last)"
+            return "\(label(source)) (\(span); \(rows.count) days)"
+        }.joined(separator: "; ")
+    }
+
     static func bestAvailableSeries(from candidates: [SourceSeries]) -> SourceSeries? {
         let usable = candidates.filter { $0.points.count >= 2 }
         return usable.sorted { left, right in

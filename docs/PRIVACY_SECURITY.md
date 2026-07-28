@@ -95,6 +95,14 @@ on your terms:
   your own machine and the request never leaves it.
 - **What is NOT sent.** No raw biometric streams, no Bluetooth data, no account or
   device identifiers — only the summary text and your question.
+- **Local semantic memory on iOS.** The bundled Nomic embedding model can search only
+  text categories you have allowed (for example remembered facts, your own chat turns
+  and approved journal notes). It runs on-device, does not make an API call, and never
+  embeds raw sensors, numerical health histories, lab-value tables or provider replies.
+  Its separate `coach-semantic.sqlite` file is derived, excluded from `.noopbak`, and
+  can be deleted or rebuilt from Settings. Revoking a category deletes that category's
+  vectors immediately and unloads the model. Recommendation feedback and habit hypotheses
+  require the Patterns grant; sensitive journal text requires the separate sensitive-logs grant.
 - **Your key, your relationship.** The request goes from your device straight to the
   provider you picked, under your own account. NOOP runs no server in between and keeps
   no copy.

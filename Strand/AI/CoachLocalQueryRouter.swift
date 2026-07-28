@@ -25,6 +25,20 @@ struct CoachLocalQueryRouter {
         return explicitHistoryDays(words: words(in: text), text: text)
     }
 
+    /// A long-range workout question needs the workout store, not the numeric metric catalog and never
+    /// the Lab Book merely because a custom journal field happens to share one of its words.
+    static func requestsWorkoutHistory(for question: String) -> Bool {
+        let text = folded(question)
+        let questionWords = words(in: text)
+        guard explicitHistoryDays(words: questionWords, text: text) != nil else { return false }
+        let workoutWords: Set<String> = [
+            "workout", "workouts", "training", "trainings", "session", "sessions",
+            "exercise", "sport", "activity", "activities", "einheit", "einheiten",
+            "aktivitat", "aktivitaten"
+        ]
+        return !questionWords.isDisjoint(with: workoutWords)
+    }
+
     /// A broad local-data inventory is itself an explicit request. It may expose only metadata, but it
     /// can still reveal which health domains exist on the device, so the tool policy must not offer it on
     /// every ordinary coaching turn. A genuine long-history question also qualifies because the catalog
@@ -98,13 +112,18 @@ struct CoachLocalQueryRouter {
     }
 
     private static func requestsLongHistory(words: Set<String>, text: String) -> Bool {
-        let direct = ["history", "historical", "trend", "trajectory", "development", "verlauf", "entwicklung", "langzeit"]
+        let direct = ["history", "historical", "trend", "trajectory", "development", "developed",
+                      "verlauf", "entwicklung", "entwickelt", "langzeit"]
         if direct.contains(where: words.contains) { return true }
         if (words.contains("over") && words.contains("time")) || (words.contains("uber") && words.contains("zeit")) {
             return true
         }
-        return text.range(of: "\\b(last|past|over|letzte[nr]?|uber)\\s+\\d+\\s+(years?|jahre[n]?)\\b",
-                          options: .regularExpression) != nil
+        if text.contains("last year") || text.contains("letztes jahr") { return true }
+        let historyWords: Set<String> = [
+            "last", "past", "over", "previous", "uber", "letzte", "letzten", "letztes",
+            "vergangene", "vergangenen"
+        ]
+        return !words.isDisjoint(with: historyWords) && requestedYearCount(in: text) != nil
     }
 
     private static func metric(in words: Set<String>) -> String? {
@@ -118,14 +137,31 @@ struct CoachLocalQueryRouter {
     }
 
     private static func requestedDays(in text: String) -> Int {
+        if let years = requestedYearCount(in: text) {
+            return max(7, min(years * 365, 3_650))
+        }
+        return 365
+    }
+
+    private static func requestedYearCount(in text: String) -> Int? {
         let pattern = "\\b(\\d{1,2})\\s*(?:years?|jahre[n]?)\\b"
         if let range = text.range(of: pattern, options: .regularExpression) {
             let match = String(text[range])
-            let number = match.split { !$0.isNumber }.first.flatMap { Int($0) } ?? 1
-            return max(7, min(number * 365, 3_650))
+            return match.split { !$0.isNumber }.first.flatMap { Int($0) }
         }
-        if text.contains("last year") || text.contains("letztes jahr") { return 365 }
-        return 365
+        if text.contains("last year") || text.contains("letztes jahr") { return 1 }
+        let words: [String: Int] = [
+            "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+            "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+            "ein": 1, "einem": 1, "einen": 1, "einer": 1,
+            "zwei": 2, "drei": 3, "vier": 4, "funf": 5,
+            "sechs": 6, "sieben": 7, "acht": 8, "neun": 9, "zehn": 10
+        ]
+        for (word, count) in words {
+            let wordPattern = "\\b\(word)\\s+(?:years?|jahre[n]?)\\b"
+            if text.range(of: wordPattern, options: .regularExpression) != nil { return count }
+        }
+        return nil
     }
 
     private static func intersects(_ lhs: Set<String>, _ rhs: [String]) -> Bool {

@@ -17,11 +17,11 @@ configFiles:
   Release: Config/BundleId.xcconfig
 settings:
   base:
-    MARKETING_VERSION: "9.1.1"
+    MARKETING_VERSION: "9.10.0"
     # iOS build number (CFBundleVersion). GLOBAL so the iOS app AND its widget extension inherit the
     # SAME value — they must match or iOS warns "extension version must match parent app" (#416).
     # macOS sets its own CFBundleVersion on the Strand target and is unaffected by this.
-    CURRENT_PROJECT_VERSION: "208"
+    CURRENT_PROJECT_VERSION: "209"
     SWIFT_VERSION: "5.0"
     # Emit localizable strings so Xcode auto-extracts every LocalizedStringKey into the
     # String Catalog on build (the English (US) base entries).
@@ -57,6 +57,8 @@ packages:
     path: Packages/StrandImport
   StrandDesign:
     path: Packages/StrandDesign
+  SemanticMemory:
+    path: Packages/SemanticMemory
   # Clean-room local Oura ring BLE protocol (framing, auth, decoders, driver). Pure value types,
   # zero CoreBluetooth, so it stays headless/JVM-testable; the app target imports it for OuraLiveSource.
   OuraProtocol:
@@ -146,6 +148,7 @@ targets:
       - package: StrandAnalytics
       - package: StrandImport
       - package: StrandDesign
+      - package: SemanticMemory
       - package: MarkdownUI
       - package: ZIPFoundation
       - package: OuraProtocol
@@ -165,6 +168,7 @@ targets:
       - package: WhoopProtocol
       - package: WhoopStore
       - package: OuraProtocol
+      - package: SemanticMemory
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
@@ -209,6 +213,10 @@ targets:
           - "Resources/Info.plist"
           - "Resources/NOOP.entitlements"
       - path: StrandiOSShared
+      # Installed by Tools/bootstrap-nomic.sh before xcodegen. The final app contains the pinned model;
+      # there is no runtime download and no model load during ordinary app launch.
+      - path: Vendor/Nomic/Resources
+        buildPhase: resources
     # Same tracked wrapper as the macOS target (Strand/Oura/ is shared, not per-platform).
     configFiles:
       Debug: Strand/Oura/OuraConfig.xcconfig
@@ -256,12 +264,16 @@ targets:
           # launch in StrandiOSApp.init) or the submit fails gracefully and only the foreground/"Run now"
           # paths run.
           - fetch
+          # Best-effort local semantic-memory indexing. No network access; iOS decides whether and when
+          # the processing lease is granted.
+          - processing
         # #510: permit the scheduled debug auto-export's BGAppRefreshTask identifier. Built from
         # $(PRODUCT_BUNDLE_IDENTIFIER) so it tracks BUNDLE_ID_PREFIX automatically; MUST still match
         # ScheduledDebugExport.bgTaskIdentifier EXACTLY (which derives it from Bundle.main the same
         # way) and be registered at launch (StrandiOSApp.init), or iOS refuses to schedule/deliver it.
         BGTaskSchedulerPermittedIdentifiers:
           - $(PRODUCT_BUNDLE_IDENTIFIER).debugexport
+          - $(PRODUCT_BUNDLE_IDENTIFIER).semanticmemory
         NSBluetoothAlwaysUsageDescription: "NOOP connects directly to your WHOOP strap over Bluetooth to read heart rate, R-R intervals, battery, and sensor data locally on your iPhone. Nothing leaves your device."
         NSLocationWhenInUseUsageDescription: "NOOP records your route during an outdoor workout to show distance, pace, and a map, and keeps recording while the screen is off. The route stays on your device. Nothing leaves it."
         NSHealthShareUsageDescription: "NOOP reads your own Apple Health data on-device to compute recovery, strain, and sleep. Nothing leaves your device."
@@ -317,8 +329,11 @@ targets:
       - package: StrandAnalytics
       - package: StrandImport
       - package: StrandDesign
+      - package: SemanticMemory
       - package: MarkdownUI
       - package: ZIPFoundation
+      - framework: Vendor/Nomic/llama.xcframework
+        embed: true
       # NOOP AI fork: the widget extension + embedded watch app are NOT built into the iPhone app.
       # A free Apple ID gets no App Groups and only 10 app ids / 7 days, so each extra embedded target
       # (each its own app id + the shared group) makes free-account signing fail — the same reason the
@@ -327,6 +342,21 @@ targets:
       # Restore the two target dependencies below (and the app-group entitlement above):
       #   - target: NOOPiOSWidgets
       #   - target: NOOPWatch
+
+  NOOPiOSTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - StrandiOSTests
+    dependencies:
+      - target: NOOPiOS
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).noop.ios.tests
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/NOOP Staging.app/NOOP Staging"
+        BUNDLE_LOADER: "$(TEST_HOST)"
 
   # WidgetKit + Live Activity extension — the iOS analogue of the macOS menu-bar
   # extra. Reads a tiny snapshot the app publishes into the shared App Group.
@@ -498,6 +528,12 @@ schemes:
         NOOPiOS: all
     run:
       config: Debug
+    test:
+      config: Debug
+      language: de
+      region: DE
+      targets:
+        - NOOPiOSTests
   # `xcodebuild -scheme NOOPWatch …` compile-verifies the watchOS app + its embedded complication
   # extension (M3). Name matches the app-build CI matrix entry the verify script adds.
   NOOPWatch:

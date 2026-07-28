@@ -4,14 +4,13 @@
 
 <h1 align="center">NOOP AI</h1>
 
-<p align="center"><b>Your WHOOP data, on your own devices, with a coach that actually remembers you.</b></p>
+<p align="center"><b>Your WHOOP data, on your own devices, with a coach that remembers.</b></p>
 
 <p align="center">
-  <img alt="Platform" src="https://img.shields.io/badge/iOS%2017%2B%20%C2%B7%20macOS%2013%2B-234F9E?style=flat-square">
+  <img alt="Current release" src="https://img.shields.io/badge/current%20beta-9.10.0%20Beta%201-C8902F?style=flat-square">
+  <img alt="Platforms" src="https://img.shields.io/badge/iOS%2017%2B%20%C2%B7%20macOS%2013%2B-234F9E?style=flat-square">
   <img alt="Straps" src="https://img.shields.io/badge/WHOOP-4.0%20%C2%B7%205.0%2FMG-234F9E?style=flat-square">
-  <img alt="AI coach" src="https://img.shields.io/badge/AI%20coach-25%20tools%20%C2%B7%20long--term%20memory-C8902F?style=flat-square">
-  <img alt="No cloud" src="https://img.shields.io/badge/no%20server-no%20account-E8B84B?style=flat-square">
-  <img alt="Fork of ryanbr/noop" src="https://img.shields.io/badge/fork%20of-ryanbr%2Fnoop-6B737B?style=flat-square&logo=github&logoColor=white">
+  <img alt="Privacy" src="https://img.shields.io/badge/no%20account%20%C2%B7%20no%20cloud-6B737B?style=flat-square">
   <a href="LICENSE"><img alt="License: PolyForm Noncommercial 1.0.0" src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-6B737B?style=flat-square"></a>
 </p>
 
@@ -21,292 +20,116 @@
 
 ---
 
-## What you get
+<!--
+MAINTAINER NOTE — update this small release section for every beta or public release:
+1. Change the badge and heading version.
+2. Keep three or fewer concrete highlights.
+3. Move shipped items out of “In development” and link the matching release note.
+-->
 
-|  | |
-|---|---|
-| ⌚ **Your WHOOP, without WHOOP** | Pairs straight with a **WHOOP 4.0 or 5.0/MG** over Bluetooth. No WHOOP account, no subscription, nothing in the middle. |
-| 📱 **iPhone and Mac** | Runs on **iOS 17+** and **macOS 13+**, from the same codebase. |
-| 🤖 **A coach with a memory** | 26 tools it uses to look things up mid-answer, a goal, a plan you agreed to, and facts it remembers across months — not a chatbot bolted onto a dashboard. |
-| 📈 **Deep health analysis** | Recovery, strain, sleep, HRV, readiness, training load and n-of-1 correlations — all computed **on your device**, from published methods. |
-| 🔘 **A home-screen widget, and Siri** | The NOOP Rings widget (Charge alone, or Charge + Effort + Rest) at a glance, plus a "How's my recovery?" Siri/Shortcuts intent that answers without opening the app. |
-| 🔒 **No server, no account** | Everything lives in a database on your machine. The coach is the one thing that opens a socket, only with your own API key, only when you ask it something. |
-| 🍎 **Apple-only, diverging freely** | Forked from [ryanbr/noop](https://github.com/ryanbr/noop) — every protocol decoder and analytics formula started there — but this fork dropped Android and no longer tracks upstream commit-for-commit. |
+## Latest beta — 9.10.0 Beta 1
 
-> **New here?** The coach is what makes this fork different — jump to **[The coach](#the-coach-)**.
-> Everything else is upstream NOOP, which is excellent and deserves the credit.
+- **A bell that remembers real events.** Battery, health, movement, and smart-alarm alerts now have a
+  short local history in Today. The entry remains useful even when the operating system cannot show a banner.
+- **A calmer Classic Today.** The first Synthesis insight no longer expands the entire card, and the
+  redundant WHOOP label has been removed.
+- **Unsigned iOS IPA, signed by you.** Install through AltStore or SideStore. NOOP AI does not use an
+  Apple team, certificate, or personal signing name to distribute the build.
 
----
+Read the full [9.10.0 Beta 1 notes](docs/releases/v9.10.0-beta.1.md).
 
-## Contents
+## In development
 
-- [The coach](#the-coach-) — the reason this fork exists
-- [What NOOP itself does](#what-noop-itself-does-) · [What leaves your device](#what-leaves-your-device-)
-- [Quickstart](#quickstart-) · [What it looks like](#what-it-looks-like-)
-- [About the fork](#about-the-fork-) · [Docs](#docs-)
-- [Attribution](#attribution-) · [Disclaimer](#disclaimer-) · [License](#license-)
+- **Android distribution.** The Android source is version-aligned with 9.10.0; a public Android beta
+  download will follow in a later rollout.
+- **More practical alert history.** The inbox will keep evolving around events that actually happened,
+  rather than becoming a second copy of scheduled reminders.
 
----
+## Download and install
 
-# The coach 🤖
+### iPhone and iPad — Beta 1
 
-Upstream ships a chat-with-your-own-API-key coach that receives one pre-baked block of text per
-message. This fork turns that into something with a goal, a plan, a memory, and hands to go and
-fetch its own data.
+The iOS build is an **unsigned IPA on purpose**. Add the source below in AltStore or SideStore, then
+the sideloader signs the app locally with the Apple ID you choose. NOOP AI never receives your Apple ID
+or a signing certificate.
 
-### 🔧 It looks things up while it answers
+**Source URL:**
 
-Instead of a fixed summary, the coach reaches for **26 tools** mid-sentence. Crucially,
-`get_readiness` and `get_charge_drivers` read from the **exact same engines the Today screen uses**,
-so its verdict can never contradict the number you're looking at.
+```
+https://raw.githubusercontent.com/DX23876/noop/main/altstore-source.json
+```
 
-- 🎯 `get_readiness` — the same push / maintain / rest verdict Today shows
-- 🔬 `get_charge_drivers` — *why* today's Charge is what it is, term by term, never an invented reason
-- 📈 `plot_metric` — draws a real chart inline in the chat
-- 🗂️ `get_data_catalog` / `get_metric_history` — discovers local history first, then shares one
-  bounded, aggregate trend rather than a raw data dump
-- 🔁 `get_training_preferences` — learns repeated plan decisions, such as regularly declining runs
-  at weekends; it never changes a plan by itself
-- 📝 `propose_plan` — suggests a session; it cannot book one
-- ☕ `log_caffeine` / `log_journal` / `log_lab_marker` — **writes** to your real app data
+- **AltStore:** Browse → **+** → paste the source URL → add NOOP AI.
+- **SideStore:** Sources → **+ Add Source** → paste the same URL → install NOOP AI.
+- Prefer a direct file? Download `NOOP-ios-unsigned-v9.10.0-beta.1.ipa` from the
+  [Beta 1 prerelease](https://github.com/DX23876/noop/releases/tag/v9.10.0-beta.1).
 
-That last group is the fun one: *"just had a double espresso"* becomes a real entry in the Caffeine
-card. *"my Vitamin D came back at 38"* becomes a Lab Book marker. Same data, logged by talking.
+See [the iOS install guide](docs/IOS.md) for the free-Apple-ID limits, widget notes, and build-from-source
+instructions.
 
-### 🧠 It has a real memory
+### Platform status
 
-Most AI chat features either forget everything or dump everything into every prompt. This one works
-more like a person's:
+| Platform | Status | Distribution |
+|---|---|---|
+| iOS / iPadOS | 9.10.0 Beta 1 | AltStore, SideStore, or build from source |
+| macOS | Source build | Build with Xcode; a packaged beta follows separately |
+| Android | Distribution in progress | Source version aligned; public beta follows later |
 
-- **Facts have shape.** Each carries a category (goal, injury, preference, physiology, schedule) and
-  an importance. **Pinned** facts — a serious injury, a hard constraint — ride along on every reply;
-  the rest surface only when relevant to what you just asked.
-- **It corrects itself.** Tell it your knee is fine now and the stale fact is rewritten, not stacked
-  next to a contradiction. Near-duplicates merge instead of eating the memory budget.
-- **It remembers conversations — including *when*.** Ask *"what did I ask you yesterday?"* and it
-  searches by day, quoting your own questions back.
-- **It tidies up cheaply.** Leaving a chat hands it to a small, cheap model (Haiku / gpt-4o-mini /
-  Flash-Lite — you pick) for a one-line summary. Your expensive model never pays for housekeeping.
-
-Every fact is visible and editable in Settings. Nothing is remembered that you can't see or delete.
-
-### 🎯 It knows your goal, and stays honest about it
-
-Set a target — a run, a consistency streak, sleep, weight, or free-text — and the coach stops
-improvising. Up to five goals can run at once, weighed against each other.
-
-- **Two safety checks, neither of which ever blocks you.** *Is the pace aggressive?* Measured as a
-  percentage of your own body weight or volume per week, so the same 20 kg cut reads correctly at
-  60 kg and at 160 kg — an aggressive pace asks for a one-line reason and remembers it. *Is it
-  realistic?* Checked against your on-device VO₂max estimate — and for weight goals, always reported
-  honestly as "no data to judge that on", because there isn't any.
-- **It never plans your diet.** Training is the only lever it has, and it says so.
-- **No invented percentages.** Progress is a real measurement against a real baseline, or nothing.
-- **A goal whose date passes gets a look-back** — once, asking what you want to do with it, rather
-  than a verdict on a number it hasn't checked.
-
-### 📅 It proposes; you decide
-
-The coach can suggest a session. It cannot schedule one. Every suggestion waits as a proposal until
-you accept, decline, reschedule or swap it.
-
-Swapping shows the consequence **before** you decide, computed from your own history rather than a
-generic table: *"CrossFit at 10:00 instead of Zone 2 — about 18 points and 2 recovery days instead
-of 6 and one. Tomorrow's projection drops from ~62 to ~45."* Skipping is one tap and a reason;
-pain and illness are read back with context, not judgment, and a few skips never get a sport
-permanently written off.
-
-### 📬 It decides what reaches you, and how
-
-Not every message from the coach deserves the same treatment — a suggested session needs a decision;
-"your recovery is low" doesn't. The coach now picks a **category**, a **priority**, and how long
-something stays relevant, and the app renders each one differently instead of stuffing everything into
-one "Today's session" card:
-
-- **Needs a decision** — a proposed session, with Accept / Change / Decline right there.
-- **Just a hint** — a proactive nudge (a body signal worth knowing, a small win) that used to live only
-  in chat, now also lands in the bell so it's visible without opening a conversation. Dismiss it or
-  leave it for later; there's nothing to accept.
-- **Status & reminders** — read-only history: what a decided proposal turned into, a goal deadline, a
-  restorable card.
-
-The bell — previously Classic Today only — is now in **both** Today screens, reading the same inbox, so
-switching between them never hides what's waiting for you.
-
-### 🎭 It has a face and a name
-
-**Svea** or **Marv** — two ready-made identities, each with its own name and avatar — or make your
-own: any name, a symbol, or a real photo via the system picker. A photo never leaves the device or
-gets sent to your provider; it's rendered locally everywhere the coach shows up. Identity is who's
-talking — separate from coaching *style* (Guardian / Friend / Commander), which only changes tone,
-never the methodology or the "I'm not a doctor" guardrails.
-
-### 💬 The chat itself
+## What NOOP AI does
 
 | | |
 |---|---|
-| **Streams everywhere** | Token-by-token on **every** provider, with tool calls running inline — including local models, where it matters most. |
-| **Says when it spoke first** | A daily brief or an unprompted nudge is labelled as such, and badged, so it never reads as a reply to a question you've forgotten asking. |
-| **Recovers from failures** | Offline says *offline*; a rejected key offers the key screen; a rate limit counts down from the provider's own `Retry-After`. |
-| **Searchable, pinnable history** | Full-text search across threads, pin the ones worth keeping, share any as Markdown. |
-| **A closer look on demand** | Optionally set a heavier model for one question at a time — *"Look at this more closely"* on a reply you've already read. Off unless you configure it. |
-| **In-chat charts** | Native trend charts drawn in the conversation, and they survive a relaunch. |
-| **"Ask coach" on any card** | A sparkle on Today's rings and every card — a short, careful read of one number without leaving Today. |
-| **A name and a face** | See [🎭 It has a face and a name](#-it-has-a-face-and-a-name) above. |
-| **Honest about cost** | Token counts and cache behaviour after every question, on every provider. |
-| **Bring almost any model** | Anthropic, OpenAI, Google Gemini, OpenRouter, or any OpenAI-compatible endpoint — including a local Ollama or LM Studio server. |
-| **Replies in your language** | The coach is told the app's current language and answers in it — chat, check-ins and briefs alike, not just the UI chrome. |
-| **8 languages in the UI** | English, Deutsch, Español, Français, Italiano, Português, Русский, 中文(简/繁). German/Spanish/French are reviewed; the rest are machine-translated and would benefit from a native pass — see [docs/COACH.md](docs/COACH.md). |
+| ⌚ **Own your strap data** | Connect directly to a WHOOP 4.0 or 5.0/MG over Bluetooth. No WHOOP account, subscription, or cloud relay. |
+| 📈 **Compute locally** | Charge, Effort, Rest, sleep, HRV, heart rate, recovery trends, and correlations are calculated and stored on your device. |
+| 🤖 **Use a coach with context** | The optional coach can reason over the local data you explicitly allow, remember goals and preferences, and propose rather than impose a plan. |
+| 🔒 **Keep control** | No telemetry, no NOOP account, and no server. The optional coach only contacts the provider and API key you configure when you send a message. |
+| 📬 **See what happened** | Today and the bell keep daily signals, important status, and recent alerts visible without turning every event into noise. |
 
-📖 **The deep version** → **[docs/COACH.md](docs/COACH.md)**: every tool's schema, the safety gates,
-the plan book's state machine, the memory ranking, provider support, and the file map.
+## Privacy, precisely
 
----
+NOOP AI is offline-first. Your strap data, database, scores, history, goals, coach memory, and plans
+stay on your device. The optional AI coach is the only feature that can make a network request, and it
+does so only when you choose a provider, provide your own key, and send a message.
 
-## What NOOP itself does ⌚
+More detail: [Privacy and security](docs/PRIVACY_SECURITY.md).
 
-Everything in this section is **upstream [ryanbr/noop](https://github.com/ryanbr/noop)**, inherited
-unchanged — credit belongs there and in [`docs/FEATURES.md`](docs/FEATURES.md).
+## Build from source
 
-- **Pairs directly with a WHOOP 4.0 or 5.0/MG strap over Bluetooth Low Energy.** WHOOP straps don't
-  appear in *Settings → Bluetooth*; NOOP finds them on their own advertising profile.
-- **Computes its own scores on-device, from published methods**: **Charge** (recovery), **Effort**
-  (strain) and **Rest** (sleep quality) — an energy economy you wake with, spend, and rebuild
-  overnight — plus HRV, resting heart rate, SpO₂, respiration and skin temperature. Honest
-  approximations, explicitly **not WHOOP's own scores**.
-- **Everything lives in an on-device SQLite database.** Import a WHOOP or Apple Health export for
-  instant history, or just wear the strap and let it build.
-- **Automatic Apple Health sync** (HealthKit background delivery), so the coach always reasons over
-  fresh data.
-
-## What leaves your device 🔒
-
-Worth being precise about, because "AI" and "private" rarely share a sentence:
-
-- **The app itself is fully offline.** Strap data, database, scores, goals, plan, memory and chat
-  history are all local. There is no NOOP server and no account.
-- **Only the coach opens a socket** — only when you send a message, only to **your own provider with
-  your own key**, and only if you've turned data access on. Turn it off and the coach still works;
-  it just doesn't see your numbers.
-- **Data access starts with three clear levels.** Essentials, Personal and Deep insights bundle the
-  right grants for most people; Expert mode exposes the underlying controls. Sensitive journal fields
-  always need their own extra choice.
-- **Summaries, never raw signal.** Derived daily numbers and short text — never raw R-R streams or
-  sensor buffers.
-- **Deep history stays local until it is needed.** Tool-capable models choose a narrow local read;
-  tool-less local servers use an on-device router that selects only relevant, separately granted
-  categories. A reply shows the resulting category receipt in the chat. Long-term trends are aggregate
-  evidence from one local source, not exported daily readings.
-- **Lab reports are review-first.** A selected PDF or photo is read locally, recognised values are shown
-  for approval, and only confirmed markers enter the private Lab Book. Nothing is uploaded or diagnosed.
-- **You can go fully local.** Point the Custom provider at Ollama or LM Studio and nothing leaves
-  your network at all.
-
-More: [`docs/PRIVACY_SECURITY.md`](docs/PRIVACY_SECURITY.md).
-
-## Quickstart 🚀
-
-You'll need a Mac with **Xcode 26+** and [`xcodegen`](https://github.com/yonaskolb/XcodeGen)
-(`brew install xcodegen`). For the iOS app you also need a **physical iPhone** — Bluetooth and
-HealthKit don't exist in the Simulator.
+You need a Mac with Xcode 26+ and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
 
 ```bash
 git clone https://github.com/DX23876/noop.git NOOP-AI
 cd NOOP-AI
-xcodegen generate     # project.yml is the source of truth; the .xcodeproj is generated
+xcodegen generate
 open Strand.xcodeproj
 ```
 
-**iPhone** — pick the `NOOPiOS` scheme → select your iPhone → *Signing & Capabilities* → set your
-Team → ⌘R. On the phone, trust the certificate under *Settings → General → VPN & Device Management*.
-A free Apple ID works, with two small trade-offs (the Watch app/widget step back, and the build
-expires after 7 days) — 👉 **[docs/DETAILS.md](docs/DETAILS.md#quickstart-the-signing-fine-print)**.
+- Choose **NOOPiOS** and a physical iPhone to build iOS.
+- Choose **Strand** to build macOS.
+- For Android development, follow [Android build instructions](docs/ANDROID.md).
 
-**Mac** — pick the `Strand` scheme and ⌘R.
+## Documentation
 
-Then: pair your strap → grant Apple Health access → open **Coach** → paste your API key → optionally
-give your coach a name, a face and a goal.
+- [iOS install and build guide](docs/IOS.md)
+- [Build and signing guide](docs/BUILD.md)
+- [Coach guide](docs/COACH.md)
+- [Feature reference](docs/FEATURES.md)
+- [Privacy and security](docs/PRIVACY_SECURITY.md)
+- [Contributing](docs/CONTRIBUTING.md)
 
-## What it looks like 📸
+## About the project
 
-![NOOP AI — Trends, Today and the on-device Intelligence read, side by side](docs/assets/hero-v8.jpg)
+NOOP AI is a personal fork of [ryanbr/noop](https://github.com/ryanbr/noop). The upstream project
+deserves credit for the protocol, analytics, and design-system foundations; this fork develops the
+local coach and Apple-first beta distribution independently. It is an unofficial, non-commercial
+interoperability project and is not affiliated with WHOOP.
 
-<table>
-<tr>
-<td width="50%" align="center">
-<img src="docs/assets/coach/svea-avatar.png" width="96" alt="Svea, one of the two ready-made coach identities"><br>
-<b>Svea</b>
-</td>
-<td width="50%" align="center">
-<img src="docs/assets/coach/marv-avatar.png" width="96" alt="Marv, the other ready-made coach identity"><br>
-<b>Marv</b>
-</td>
-</tr>
-<tr>
-<td colspan="2" align="center"><i>Pick a ready-made coach, or make your own — any name, symbol or photo.</i></td>
-</tr>
-</table>
+## Disclaimer
 
-<p align="center">
-  <img src="docs/assets/shot-ios-today.png" width="320"
-       alt="Today: Charge, Effort and Rest at a glance, with the coach one tap away">
-</p>
+NOOP AI is not a medical device. Its health and training values are on-device estimates, not clinical
+advice or diagnosis. Use it as a personal tool and consult a qualified professional for medical decisions.
 
-<!-- TODO: add captures of the coach chat, the guided goal setup and Goal & Journey. Three such
-     images were referenced here previously (docs/assets/screenshots/*.png) but never existed, so
-     GitHub rendered three broken-image icons. Re-add each row only once its file is committed. -->
+## License
 
-▶️ Short demo video: [`marketing/NOOP-demo.mp4`](marketing/NOOP-demo.mp4).
-
-## About the fork 🍴
-
-NOOP AI is a **personal fork** of [ryanbr/noop](https://github.com/ryanbr/noop) — not a competitor,
-and not a rebrand that hides where it came from. Every protocol decoder, analytics formula and pixel
-of the design system comes from upstream; this fork adds **a much bigger coach** on top, in its own
-files, without rewriting upstream logic. Apple platforms (iOS + macOS) are what it builds and tests —
-Android is dropped as a target, and this fork no longer necessarily tracks upstream; it diverges
-freely now.
-
-**Just want a great WHOOP app?** Use [ryanbr/noop](https://github.com/ryanbr/noop) — macOS, Android
-and iOS, actively maintained, and the right answer for most people. This fork is for the narrow case
-where you want the coach pushed further than a cross-platform project could reasonably justify.
-
-👉 The full rationale: **[docs/DETAILS.md](docs/DETAILS.md#why-a-fork-not-a-contribution-upstream)**.
-
-## Docs 📚
-
-- **[docs/COACH.md](docs/COACH.md)** — the coach in full: tools, goal gates, plan book, memory, providers.
-- **[docs/DETAILS.md](docs/DETAILS.md)** — fork rationale, the complete tool table, architecture,
-  signing fine print, where things stand with upstream, and the docs index.
-- **[docs/PRIVACY_SECURITY.md](docs/PRIVACY_SECURITY.md)** — the data posture in detail.
-
----
-
-## Attribution 🙏
-
-NOOP AI is a fork of **[NOOP](https://github.com/ryanbr/noop)** by ryanbr — please treat that
-repository as the canonical project, not this fork. NOOP itself stands on community
-protocol-documentation work: **`johnmiddleton12/my-whoop`** (WHOOP 4.0 BLE protocol),
-**`b-nnett/goose`** (WHOOP 5.0/MG BLE protocol), **`groue/GRDB.swift`** (SQLite persistence), and
-**`weichsel/ZIPFoundation`** (export unzipping).
-
-NOOP contains no WHOOP proprietary code, firmware, logos, or assets. Full detail in
-**[docs/DETAILS.md](docs/DETAILS.md)** and [`ATTRIBUTION.md`](ATTRIBUTION.md).
-
-## Disclaimer ⚠️
-
-NOOP AI is an independent, unofficial, non-commercial interoperability project. It is **not
-affiliated with, endorsed by, or connected to WHOOP, Inc.** All references to "WHOOP" are nominative.
-
-**NOOP is not a medical device.** Heart rate, HRV, recovery, strain, sleep stages, SpO₂, respiratory
-rate and skin temperature are **approximations** from published methods — not clinically validated,
-not medical advice. The AI coach is not a doctor and must not be used to diagnose or treat. Consult a
-qualified professional. Provided **as-is, with no warranty**, for **personal and educational use**.
-See [`DISCLAIMER.md`](DISCLAIMER.md).
-
-## License 📄
-
-Source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE): **free for personal and
-other non-commercial use** — read it, run it, fork it. Commercial use is not granted. This fork keeps
-the upstream `LICENSE` and `Copyright 2026 NoopApp` notice intact, per NOOP's mirroring terms;
-bundled dependencies keep their own licenses (see [`NOTICE`](NOTICE)).
+Source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE). See [NOTICE](NOTICE) and
+[ATTRIBUTION.md](ATTRIBUTION.md) for bundled dependency and upstream credits.

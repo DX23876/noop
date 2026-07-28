@@ -455,6 +455,37 @@ struct AppleHealthView: View {
                     .tint(StrandPalette.metricCyan)
                     .disabled(health.syncing)
 
+                    if health.fullHistoryImporting {
+                        VStack(alignment: .leading, spacing: 6) {
+                            ProgressView(value: health.fullHistoryProgress ?? 0)
+                                .tint(StrandPalette.metricCyan)
+                            Text("Importing Apple Health history \(Int(((health.fullHistoryProgress ?? 0) * 100).rounded()))%")
+                                .font(StrandFont.footnote)
+                                .foregroundStyle(StrandPalette.textSecondary)
+                            Button("Stop import") {
+                                health.cancelFullHistoryImport()
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(StrandPalette.metricCyan)
+                        }
+                    } else {
+                        Button {
+                            health.startFullHistoryImport()
+                            Task {
+                                while health.fullHistoryImporting {
+                                    try? await Task.sleep(for: .milliseconds(250))
+                                }
+                                await repo.refresh()
+                                await load()
+                            }
+                        } label: {
+                            Label("Import all Apple Health history", systemImage: "clock.arrow.trianglehead.counterclockwise.rotate.90")
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(StrandPalette.metricCyan)
+                        .disabled(health.syncing)
+                    }
+
                     // Re-request permission so newly-added data types (e.g. weight and body composition,
                     // which older grants never included) surface their Health prompt. HealthKit only shows
                     // types you haven't decided yet, so this is a no-op once everything is granted.
@@ -470,7 +501,7 @@ struct AppleHealthView: View {
                     .buttonStyle(.bordered)
                     .tint(StrandPalette.metricCyan)
                     .disabled(health.syncing)
-                    Text("Missing a metric like weight? Tap Refresh permissions to grant data types added in a later update. Weight and body composition sync up to 10 years of history. To fully disconnect, use Settings › Health › Data Access & Devices › NOOP.")
+                    Text("Import all Apple Health history once to make older values available to the Coach. Later syncs only refresh recent changes. Missing a metric like weight? Tap Refresh permissions to grant data types added in a later update. To fully disconnect, use Settings › Health › Data Access & Devices › NOOP.")
                         .font(StrandFont.footnote)
                         .foregroundStyle(StrandPalette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)

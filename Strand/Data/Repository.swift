@@ -2136,6 +2136,7 @@ final class Repository: ObservableObject {
         _ = try? await store.upsertJournal(
             [JournalEntry(day: day, question: question, answeredYes: answeredYes, notes: notes)],
             deviceId: Self.journalDeviceId)
+        await CoachSemanticMemory.shared.journalEntriesChanged(await journalEntries())
     }
 
     /// Write one native NUMERIC answer (#322): stores the value AND answeredYes=true, so the existing
@@ -2147,6 +2148,7 @@ final class Repository: ObservableObject {
             [JournalEntry(day: day, question: question, answeredYes: true, notes: notes,
                           numericValue: value)],
             deviceId: Self.journalDeviceId)
+        await CoachSemanticMemory.shared.journalEntriesChanged(await journalEntries())
     }
 
     /// Per-question numeric series (question → [day: value]) over the imported ∪ native union, native
@@ -2167,6 +2169,7 @@ final class Repository: ObservableObject {
     func clearJournalAnswer(day: String, question: String) async {
         guard let store = await ensureStore() else { return }
         _ = try? await store.deleteJournal(deviceId: Self.journalDeviceId, day: day, question: question)
+        await CoachSemanticMemory.shared.journalEntriesChanged(await journalEntries())
     }
 
     /// All workouts (Whoop + Apple Health + on-device detected bouts), newest first.

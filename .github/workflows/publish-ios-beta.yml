@@ -1,0 +1,174 @@
+name: Publish unsigned iOS beta
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Numeric app version already committed to source (for example 9.10.0)"
+        required: true
+        default: "9.10.0"
+      beta:
+        description: "Beta sequence number (for example 1)"
+        required: true
+        default: "1"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-ios-beta
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Build and publish unsigned IPA
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-26
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Validate release metadata
+        env:
+          VERSION: ${{ inputs.version }}
+          BETA: ${{ inputs.beta }}
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            echo "version must be numeric X.Y.Z" >&2; exit 1;
+          }
+          [[ "$BETA" =~ ^[1-9][0-9]*$ ]] || {
+            echo "beta must be a positive integer" >&2; exit 1;
+          }
+
+          SOURCE_VERSION=$(grep -m1 'MARKETING_VERSION:' project.yml | sed -E 's/.*"([^"]+)".*/\1/')
+          ANDROID_VERSION=$(grep -m1 'versionName = ' android/app/build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/')
+          BUILD=$(grep -m1 'CURRENT_PROJECT_VERSION:' project.yml | sed -E 's/.*"([0-9]+)".*/\1/')
+          NOTES="docs/releases/v${VERSION}-beta.${BETA}.md"
+
+          [[ "$SOURCE_VERSION" == "$VERSION" ]] || {
+            echo "project.yml is $SOURCE_VERSION, not requested $VERSION" >&2; exit 1;
+          }
+          [[ "$ANDROID_VERSION" == "$VERSION" ]] || {
+            echo "Android version is $ANDROID_VERSION, not requested $VERSION" >&2; exit 1;
+          }
+          [[ -f "$NOTES" ]] || {
+            echo "Missing beta release notes: $NOTES" >&2; exit 1;
+          }
+
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "BETA=$BETA" >> "$GITHUB_ENV"
+          echo "BUILD=$BUILD" >> "$GITHUB_ENV"
+          echo "TAG=v${VERSION}-beta.${BETA}" >> "$GITHUB_ENV"
+          echo "NOTES=$NOTES" >> "$GITHUB_ENV"
+          echo "IPA=NOOP-ios-unsigned-v${VERSION}-beta.${BETA}.ipa" >> "$GITHUB_ENV"
+
+      - name: Select Xcode
+        run: |
+          set -euo pipefail
+          for xcode_path in \
+            "/Applications/Xcode_26.5.app/Contents/Developer" \
+            "/Applications/Xcode_26.4.1.app/Contents/Developer" \
+            "/Applications/Xcode_26.4.app/Contents/Developer" \
+            "/Applications/Xcode.app/Contents/Developer"
+          do
+            if [[ -d "$xcode_path" ]]; then
+              sudo xcode-select -s "$xcode_path"
+              break
+            fi
+          done
+          xcodebuild -version
+
+      - name: Install XcodeGen and generate project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Build unsigned iOS Release app
+        run: >-
+          xcodebuild -project Strand.xcodeproj -scheme NOOPiOS -configuration Release
+          -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/noop-dd"
+          CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+          DEVELOPMENT_TEAM="" build
+
+      - name: Package unsigned IPA
+        run: |
+          set -euo pipefail
+          APP=$(find "$RUNNER_TEMP/noop-dd/Build/Products/Release-iphoneos" -maxdepth 1 -name '*.app' -type d | head -1)
+          [[ -n "$APP" ]] || { echo "iOS .app not found" >&2; exit 1; }
+          [[ ! -e "$APP/embedded.mobileprovision" ]] || {
+            echo "Refusing to publish a provisioned IPA" >&2; exit 1;
+          }
+
+          # The unsigned sideload build cannot carry the Watch app. Keep the widget extension: it powers
+          # both widgets and Live Activities when a sideloader can provision it.
+          rm -rf "$APP/Watch" Payload
+          test -d "$APP/PlugIns/NOOPWidgets.appex" || {
+            echo "NOOPWidgets.appex missing from iOS build" >&2; exit 1;
+          }
+          mkdir Payload
+          cp -R "$APP" Payload/
+          zip -qry "$IPA" Payload
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.IPA }}
+          path: ${{ env.IPA }}
+          retention-days: 30
+
+      - name: Create or refresh prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          BODY=$(mktemp)
+          awk 'NR==1 && $0=="---"{frontmatter=1; next} frontmatter && $0=="---"{frontmatter=0; next} !frontmatter{print}' "$NOTES" > "$BODY"
+
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --prerelease --title "NOOP AI $VERSION Beta $BETA" --notes-file "$BODY"
+          fi
+          gh release upload "$TAG" "$IPA" --repo "$GITHUB_REPOSITORY" --clobber
+
+      - name: Publish Beta to AltStore and SideStore source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          SIZE=$(stat -f%z "$IPA")
+          DATE=$(date -u +%Y-%m-%d)
+          URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${IPA}"
+          DESCRIPTION="NOOP AI ${VERSION} Beta ${BETA}. See the release notes for what changed."
+          tmp=$(mktemp)
+
+          jq --arg version "$VERSION" --arg build "$BUILD" --arg date "$DATE" \
+             --arg description "$DESCRIPTION" --arg url "$URL" --argjson size "$SIZE" '
+            .apps[0].versions |= ([{
+              version: $version,
+              buildVersion: $build,
+              date: $date,
+              localizedDescription: $description,
+              downloadURL: $url,
+              size: $size,
+              minOSVersion: "17.0"
+            }] + map(select(.version != $version)))
+            | .apps[0].version = $version
+            | .apps[0].buildVersion = $build
+            | .apps[0].versionDate = $date
+            | .apps[0].versionDescription = $description
+            | .apps[0].downloadURL = $url
+            | .apps[0].size = $size
+          ' altstore-source.json > "$tmp"
+          mv "$tmp" altstore-source.json
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add altstore-source.json
+          git diff --cached --quiet || git commit -m "Release ${VERSION} Beta ${BETA}: publish sideload source"
+          git push origin HEAD:main

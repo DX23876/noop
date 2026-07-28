@@ -27,8 +27,8 @@ import androidx.compose.material.icons.outlined.Done
 import androidx.compose.material.icons.outlined.DoneAll
 import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.MonitorHeart
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.NotificationsOff
-import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
@@ -40,6 +40,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -78,6 +79,7 @@ fun UpdatesInboxScreen(
     onDeepLink: (String) -> Unit,
     onRestore: (String) -> Unit,
 ) {
+    LaunchedEffect(Unit) { store.pruneExpired() }
     val sorted = store.sortedItems
     val unread = sorted.filter { !it.read }
     val read = sorted.filter { it.read }
@@ -393,7 +395,7 @@ private fun kindIcon(kind: UpdateKind): ImageVector = when (kind) {
     UpdateKind.DISMISSED_CARD -> Icons.Outlined.Layers
     UpdateKind.WHATS_NEW -> Icons.Outlined.AutoAwesome
     UpdateKind.READING -> Icons.Outlined.MonitorHeart
-    UpdateKind.STRAP_ALERT -> Icons.Outlined.Warning
+    UpdateKind.STRAP_ALERT -> Icons.Outlined.Notifications
 }
 
 /** A per-kind tint drawn from the domain palette so each row reads in its own colour world.

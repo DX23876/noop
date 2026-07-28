@@ -24546,6 +24546,9 @@
     "Ahead" : {
 
     },
+    "AI Coach" : {
+
+    },
     "Alarms" : {
       "localizations" : {
         "de" : {
@@ -26896,7 +26899,6 @@
       }
     },
     "App icon colors" : {
-      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -27455,9 +27457,6 @@
           }
         }
       }
-    },
-    "Apple-inspired colors" : {
-
     },
     "Apple-logged" : {
       "localizations" : {
@@ -33129,6 +33128,9 @@
         }
       }
     },
+    "Before each answer, NOOP checks your question and the privacy level below on this device. It selects only the relevant local summary, permitted tool result or approved text-memory match — for example a recent recovery trend for a recovery question." : {
+
+    },
     "Before you talk to your coach" : {
       "localizations" : {
         "de" : {
@@ -37254,6 +37256,9 @@
           }
         }
       }
+    },
+    "Building index…" : {
+
     },
     "Building your baseline" : {
       "localizations" : {
@@ -45238,6 +45243,9 @@
         }
       }
     },
+    "Coach entry points and optional check-ins are available. Data sharing is still a separate choice." : {
+
+    },
     "Coach entry style" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -46580,9 +46588,6 @@
         }
       }
     },
-    "Colors leading interface icons and primary controls to match Apple Health's palette. Charts, health data, warnings, and destructive actions stay unchanged. Off keeps the existing blue controls." : {
-
-    },
     "Coming soon" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -47074,6 +47079,15 @@
         }
       }
     },
+    "completed — %@" : {
+
+    },
+    "completed — effect not rated" : {
+
+    },
+    "Completion and effect are stored separately. Missing feedback stays missing and is never treated as “no effect”." : {
+
+    },
     "Compliance" : {
       "localizations" : {
         "de" : {
@@ -47501,6 +47515,9 @@
           }
         }
       }
+    },
+    "Confirm: %@" : {
+
     },
     "Connect" : {
       "localizations" : {
@@ -49451,6 +49468,9 @@
           }
         }
       }
+    },
+    "Continue indexing" : {
+
     },
     "Continue to get your ring ready" : {
       "localizations" : {
@@ -54675,6 +54695,9 @@
     "Deep data is on — open NOOP near your strap and let it sync its motion history (a full first-run sync can take a while). Once a day or two of motion lands, your step estimate and the calibration below fill in." : {
 
     },
+    "Deep historical questions use on-device aggregates, not years of daily rows. Sensitive journal information is excluded unless you separately allow it in Data access for an explicitly sensitive question." : {
+
+    },
     "Deep insights" : {
       "localizations" : {
         "de" : {
@@ -55137,6 +55160,9 @@
           }
         }
       }
+    },
+    "Delete index" : {
+
     },
     "Delete the %lld millilitre drink logged at %@" : {
       "localizations" : {
@@ -61479,6 +61505,9 @@
         }
       }
     },
+    "Enable AI Coach" : {
+
+    },
     "Enable Apple Health" : {
       "localizations" : {
         "de" : {
@@ -66632,6 +66661,9 @@
           }
         }
       }
+    },
+    "Fallback active: %@" : {
+
     },
     "Fat" : {
       "localizations" : {
@@ -76512,6 +76544,9 @@
         }
       }
     },
+    "How this access is used" : {
+
+    },
     "How this is computed" : {
       "localizations" : {
         "de" : {
@@ -80390,6 +80425,12 @@
         }
       }
     },
+    "Import all Apple Health history" : {
+
+    },
+    "Import all Apple Health history once to make older values available to the Coach. Later syncs only refresh recent changes. Missing a metric like weight? Tap Refresh permissions to grant data types added in a later update. To fully disconnect, use Settings › Health › Data Access & Devices › NOOP." : {
+
+    },
     "Import an Apple Health export (Health app → profile → Export All Health Data → export.zip). 7 years of HR, HRV, sleep, SpO₂, steps and more, streamed locally. Large exports take a minute or two." : {
       "localizations" : {
         "de" : {
@@ -81443,6 +81484,9 @@
     "Imported history can't be merged" : {
 
     },
+    "Importing Apple Health history %lld%%" : {
+
+    },
     "Importing overwrites everything currently on %@. Your old data is kept in a side file just in case. NOOP needs a relaunch for an import to take effect. Export CSV writes a WHOOP-format zip of your days, sleeps, workouts and journal that re-imports into NOOP on Mac, iPhone, or Android. On-device computed rows are marked APPROXIMATE in its Source column; the full backup stays the lossless restore path." : {
       "localizations" : {
         "de" : {
@@ -82281,6 +82325,22 @@
           }
         }
       }
+    },
+    "Index size: %@" : {
+
+    },
+    "Indexed: %lld · Pending: %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Indexed: %1$lld · Pending: %2$lld"
+          }
+        }
+      }
+    },
+    "Indexing progress" : {
+
     },
     "Informational only, not medical advice." : {
       "localizations" : {
@@ -84658,6 +84718,9 @@
         }
       }
     },
+    "Keyword memory fallback" : {
+
+    },
     "Kick in at (strap battery)" : {
       "localizations" : {
         "de" : {
@@ -85635,6 +85698,9 @@
         }
       }
     },
+    "Last local run: %@" : {
+
+    },
     "last night" : {
 
     },
@@ -86159,6 +86225,15 @@
           }
         }
       }
+    },
+    "Last retrieval: keyword fallback" : {
+
+    },
+    "Last retrieval: no matching memory used" : {
+
+    },
+    "Last retrieval: semantic memory" : {
+
     },
     "Last seen %@" : {
       "localizations" : {
@@ -97171,6 +97246,7 @@
       }
     },
     "Missing a metric like weight? Tap Refresh permissions to grant data types added in a later update. Weight and body composition sync up to 10 years of history. To fully disconnect, use Settings › Health › Data Access & Devices › NOOP." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -97353,6 +97429,12 @@
         }
       }
     },
+    "Model is currently loaded and will unload after inactivity." : {
+
+    },
+    "Model is not using memory right now." : {
+
+    },
     "Model not set. Opens a searchable list of %lld models." : {
       "localizations" : {
         "de" : {
@@ -97396,6 +97478,9 @@
           }
         }
       }
+    },
+    "Model: Nomic Embed Text v2 (Q4_K_M, 256 dimensions)" : {
+
     },
     "moderate" : {
       "localizations" : {
@@ -97865,6 +97950,9 @@
           }
         }
       }
+    },
+    "More → AI Coach lets you disable the whole feature. Its buttons, Today entries and check-ins disappear, while your on-device chats and health data remain saved unless you remove them yourself." : {
+
     },
     "More energy" : {
       "localizations" : {
@@ -106557,6 +106645,12 @@
         }
       }
     },
+    "Nomic finds related local text without uploading it. Health measurements still use exact local queries." : {
+
+    },
+    "Nomic is not the coaching model. It only retrieves relevant local text and is loaded on demand, then released after inactivity, a memory warning or a privacy change. The selected provider model still reasons over the compact context and writes the reply." : {
+
+    },
     "Non-binary" : {
       "localizations" : {
         "de" : {
@@ -107208,6 +107302,9 @@
           }
         }
       }
+    },
+    "NOOP first interprets your question locally. Its local data planner checks which categories you allowed and prepares only the relevant compact context — for example recovery, workouts, a journal pattern or a long-term aggregate. The provider never gets direct access to your database." : {
+
     },
     "NOOP gives you three daily scores (Charge, Effort and Rest), each on a 0-100 scale. They're built from your strap's raw signals using published, peer-reviewed sport science, and computed entirely on your device. They are NOT WHOOP's scores: we don't have WHOOP's private algorithms and don't pretend to. They aim at the same three questions using open science, so they'll usually track WHOOP's in direction, but won't match number-for-number. And that's the point." : {
       "localizations" : {
@@ -113031,6 +113128,9 @@
         }
       }
     },
+    "Off by default. Turn this on after you choose to use a provider; chats and local data stay saved." : {
+
+    },
     "Off wrist" : {
       "localizations" : {
         "de" : {
@@ -114054,6 +114154,9 @@
           }
         }
       }
+    },
+    "On iPhone, Nomic can also find related text in your approved memories, your own chat messages and journal notes. This semantic search runs entirely on the iPhone. It does not embed raw sensor streams or numerical health histories, and it falls back to keyword search if the local model is not ready." : {
+
     },
     "On target" : {
       "localizations" : {
@@ -126946,6 +127049,9 @@
         }
       }
     },
+    "Rebuild index" : {
+
+    },
     "Recalibrate" : {
       "localizations" : {
         "de" : {
@@ -127483,7 +127589,6 @@
       }
     },
     "Recolors the leading icons across the app — the More tab, Chat and its submenus, Journey, and Settings — to match Apple Health's palette. Off keeps them plain blue." : {
-      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -127545,6 +127650,12 @@
           }
         }
       }
+    },
+    "Recommendation effect" : {
+
+    },
+    "Recommendation effect: %@. Change feedback" : {
+
     },
     "Recompute" : {
       "localizations" : {
@@ -136156,6 +136267,9 @@
         }
       }
     },
+    "Run model check" : {
+
+    },
     "Run NOOP actions hands-free." : {
       "localizations" : {
         "de" : {
@@ -139514,6 +139628,15 @@
           }
         }
       }
+    },
+    "Semantic memory" : {
+
+    },
+    "Semantic memory (on device)" : {
+
+    },
+    "Semantic memory indexing progress" : {
+
     },
     "Send" : {
       "localizations" : {
@@ -150407,6 +150530,12 @@
         }
       }
     },
+    "Stop import" : {
+
+    },
+    "Stop indexing" : {
+
+    },
     "Stop session" : {
       "localizations" : {
         "de" : {
@@ -157755,6 +157884,7 @@
       }
     },
     "The coach reads a compact summary of your recent data — roughly your last two weeks plus 30-day averages and recent workouts — and can call small tools to fetch specific numbers on demand. Then it answers in plain language, grounded in those numbers rather than generic advice." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -157867,6 +157997,7 @@
       }
     },
     "The coaching model runs the conversation; cheaper background models handle chat summaries and quick card reads (Settings → Connection & model). NOOP never sends more personal data than a request needs." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -157893,6 +158024,9 @@
           }
         }
       }
+    },
+    "The coaching model runs the conversation. Background models for chat summaries or card reads are optional and off unless you set them up (Settings → Connection & model). NOOP never sends more personal data than a request needs." : {
+
     },
     "The Deep sleep HRV window needs a night with deep-stage sleep to score Charge. Switch to Whole night in Settings, or wait for a night with more deep sleep." : {
 
@@ -158344,6 +158478,9 @@
           }
         }
       }
+    },
+    "The model then writes the answer in plain language. When a specific number is needed, it can use a permitted tool; NOOP checks that tool locally before returning a result." : {
+
     },
     "The model this uses lives under Connection & model → Background models." : {
       "extractionState" : "stale",
@@ -165748,6 +165885,9 @@
         }
       }
     },
+    "Turn it off any time" : {
+
+    },
     "Turn off" : {
       "localizations" : {
         "de" : {
@@ -166195,6 +166335,9 @@
           }
         }
       }
+    },
+    "Turning this off hides Coach from the app and stops Coach check-ins. It does not delete chats or health data." : {
+
     },
     "Two independent protocol tables disagree on the extended-battery opcode (98 vs 87). This sends the curated read-only 98 and shows the strap's full raw reply. A battery-style payload confirms 98 on your firmware; a short stub means it stays ambiguous. Nothing is written to the strap." : {
       "localizations" : {
@@ -173237,6 +173380,9 @@
         }
       }
     },
+    "What did you notice?" : {
+
+    },
     "What does this mean for me?" : {
 
     },
@@ -173320,6 +173466,9 @@
           }
         }
       }
+    },
+    "What happened afterwards?" : {
+
     },
     "WHAT IT'S GREAT AT" : {
       "localizations" : {
@@ -175233,7 +175382,11 @@
         }
       }
     },
+    "When you ask a question with data sharing on, it sends a short text summary or a permitted tool result to your chosen provider — never raw sensor streams or unrestricted database access. With data sharing off, it sends only your question. Nothing leaves until you ask or opt into a Coach automation." : {
+
+    },
     "When you ask a question with data-sharing on, it sends a short TEXT summary of the relevant metrics — never your raw sensor streams — to your chosen provider, using your own key. With data-sharing off, it sends only your question. Either way, nothing leaves until you ask." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -182486,6 +182639,9 @@
           }
         }
       }
+    },
+    "Your provider cannot browse your database, request a new permission, or receive raw sensor streams. Nomic searches approved text locally; it never receives numerical health histories. Long-term questions use compact aggregates only when Deep insights is allowed. Sensitive journal answers always need their own separate switch." : {
+
     },
     "YOUR READING" : {
       "localizations" : {

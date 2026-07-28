@@ -43,6 +43,7 @@ final class UpdateItemCategoryDecodeTests: XCTestCase {
         let item = try decodeLegacy(kind: "reading")
         XCTAssertEqual(item.priority, .normal)
         XCTAssertNil(item.expiresAt)
+        XCTAssertNil(item.alertKey)
         XCTAssertFalse(item.actionRequired)
         XCTAssertNil(item.planProposalId)
         XCTAssertFalse(item.showOnToday)
@@ -62,12 +63,13 @@ final class UpdateItemCategoryDecodeTests: XCTestCase {
         let expiry = Date(timeIntervalSinceReferenceDate: 800_000_000)
         let original = UpdateItem(kind: .dismissedCard, title: "T", message: "M",
                                   category: .actionable, priority: .high,
-                                  expiresAt: expiry, actionRequired: true,
+                                  expiresAt: expiry, alertKey: "battery-low:2026-07-27", actionRequired: true,
                                   planProposalId: proposalId, showOnToday: true)
         let decoded = try JSONDecoder().decode(UpdateItem.self, from: JSONEncoder().encode(original))
         XCTAssertEqual(decoded.category, .actionable)
         XCTAssertEqual(decoded.priority, .high)
         XCTAssertEqual(decoded.expiresAt, expiry)
+        XCTAssertEqual(decoded.alertKey, "battery-low:2026-07-27")
         XCTAssertTrue(decoded.actionRequired)
         XCTAssertEqual(decoded.planProposalId, proposalId)
         XCTAssertTrue(decoded.showOnToday)

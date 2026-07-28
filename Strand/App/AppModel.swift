@@ -1030,10 +1030,11 @@ final class AppModel: ObservableObject {
     /// `BLEManager.maybeBuzzInactivity` fires its buzz (see crossLaneNotes). `minutes` = the seated bout
     /// length the detector reported. No-op on macOS and when wrist alerts are off.
     static func postInactivity(minutes: Int) {
-        #if os(iOS)
         let body = minutes > 0
             ? String(localized: "You've been seated for about \(minutes) min. Time to move.")
             : String(localized: "Time to move. You've been seated a while.")
+        AlertInbox.post(.inactivity, title: String(localized: "Move reminder"), message: body)
+        #if os(iOS)
         postWristAlert(identifier: "inactivity-nudge", title: String(localized: "Move reminder"), body: body)
         #endif
     }
@@ -1041,9 +1042,10 @@ final class AppModel: ObservableObject {
     /// Post the local notification mirroring the smart-alarm wake buzz. Called from the
     /// `onSmartAlarmFired` hook. No-op on macOS and when wrist alerts are off.
     static func postSmartAlarm() {
+        let body = String(localized: "Good morning. Your smart alarm just woke you.")
+        AlertInbox.post(.smartAlarm, title: String(localized: "Smart alarm"), message: body)
         #if os(iOS)
-        postWristAlert(identifier: "smart-alarm-wake", title: String(localized: "Smart alarm"),
-                       body: String(localized: "Good morning. Your smart alarm just woke you."))
+        postWristAlert(identifier: "smart-alarm-wake", title: String(localized: "Smart alarm"), body: body)
         #endif
     }
 

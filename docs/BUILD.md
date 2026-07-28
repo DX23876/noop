@@ -216,11 +216,12 @@ swift run backfill
 
 ---
 
-## iOS (build-from-source only)
+## iOS (unsigned sideload beta and source builds)
 
-iOS ships as a **build-from-source-only** target, folded into main in v1.94. There is **no App
-Store or TestFlight build** — both require a real Apple Developer identity, which is fundamentally
-at odds with NOOP staying anonymous, so the only way to run it is to build it yourself in Xcode.
+iOS ships as an **unsigned sideload beta** plus a build-from-source target. There is **no App Store
+or TestFlight build** — both require a real Apple Developer identity, which is fundamentally at odds
+with NOOP staying anonymous. The release IPA carries no signing identity; AltStore or SideStore signs
+it locally with the user's own Apple ID. See [IOS.md](IOS.md) for the source URL and install steps.
 The iOS app is **newer and less battle-tested** than macOS and Android: live BLE on a real iPhone
 isn't yet fully validated. It shares the same analytics packages, so once data is in, results match
 macOS.
@@ -263,15 +264,28 @@ Notes:
   over. macOS-only surfaces (the menu-bar HR extra, screen-lock / Shortcut strap actions) have no
   iOS equivalent and are `#if os(macOS)`-gated; iOS uses a widget / Live Activity instead.
 
+### Publish an unsigned iOS beta
+
+The repository's **Publish unsigned iOS beta** GitHub Action is intentionally manual. Dispatch it
+from `main` with the numeric version already committed in `project.yml` and
+`android/app/build.gradle.kts`, plus the beta sequence number. It validates the matching English
+release note under `docs/releases/`, builds `NOOPiOS` in Release without a signing team or certificate,
+strips the embedded Watch app, uploads the unsigned IPA to a GitHub prerelease, and updates
+`altstore-source.json` with the real release URL and file size.
+
+The workflow needs repository Actions permissions set to **Read and write** and permission for the
+GitHub Actions bot to push its manifest-only commit to `main`. It never receives an Apple certificate,
+provisioning profile, or personal developer name.
+
 ---
 
 ## Android (shipped)
 
 Android ships as a **full, native client** — a separate Kotlin/Gradle module rather than a port of
-the Swift app. It lives under **`android/`** with its own `README`, and a pre-built APK
-(`NOOP-full.apk`) is published in [Releases](https://github.com/ryanbr/noop/releases). A sample-data **demo** flavour still
-exists for exploring every screen with no strap, but it's now **build-from-source only**
-(`./gradlew assembleDemoDebug`) — it is no longer published as a release asset.
+the Swift app. It lives under **`android/`** with its own `README`. Its source version is aligned with
+the 9.10.0 Apple beta; public Android beta artifacts follow in a later rollout. A sample-data **demo**
+flavour exists for exploring every screen with no strap and is build-from-source only
+(`./gradlew assembleDemoDebug`).
 
 Toolchain:
 
