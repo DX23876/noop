@@ -18,7 +18,23 @@
       "tintColor": "44E2B0",
       "category": "healthcare-fitness",
       "screenshotURLs": [],
-      "versions": []
+      "versions": [
+        {
+          "version": "9.2.1",
+          "buildVersion": "213",
+          "date": "2026-07-28",
+          "localizedDescription": "NOOP AI 9.2.1 Beta 1. See the release notes for what changed.",
+          "downloadURL": "https://github.com/DX23876/noop/releases/download/v9.2.1-beta.1/NOOP-ios-unsigned-v9.2.1-beta.1.ipa",
+          "size": 20533960,
+          "minOSVersion": "17.0"
+        }
+      ],
+      "version": "9.2.1",
+      "buildVersion": "213",
+      "versionDate": "2026-07-28",
+      "versionDescription": "NOOP AI 9.2.1 Beta 1. See the release notes for what changed.",
+      "downloadURL": "https://github.com/DX23876/noop/releases/download/v9.2.1-beta.1/NOOP-ios-unsigned-v9.2.1-beta.1.ipa",
+      "size": 20533960
     }
   ]
 }
