@@ -165,20 +165,18 @@ jobs:
           -derivedDataPath build/dd
           CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
           build
-      - name: Package unsigned .ipa (strip embedded watch app, retain widget extension) + attach
+      - name: Package unsigned .ipa + attach
         env:
           GH_TOKEN: ${{ github.token }}
           VER: ${{ needs.meta.outputs.ver }}
         run: |
           APP=$(find build/dd/Build/Products/Release-iphoneos -maxdepth 1 -name '*.app' -type d | head -1)
           test -n "$APP" || { echo ".app (iphoneos) not found"; exit 1; }
+          # project.yml deliberately does not embed the widget extension or the Watch app into NOOPiOS: a
+          # free Apple ID only gets 10 app ids / 7 days and no App Groups, and each extra embedded target
+          # (its own app id + the shared group) makes free-account signing fail. Neither PlugIns/ nor
+          # Watch/ is expected to exist in this build — the rm -rf below is defensive, not a strip step.
           rm -rf "$APP/Watch"
-          # Keep NOOPWidgets.appex. It renders both the Home/Lock-Screen widgets AND the Live Activity;
-          # deleting PlugIns still lets ActivityKit create an activity, but iOS can only show an empty
-          # Dynamic Island shell because its renderer is gone.
-          test -d "$APP/PlugIns/NOOPWidgets.appex" || {
-            echo "NOOPWidgets.appex missing from iOS build"; exit 1;
-          }
           rm -rf Payload && mkdir Payload && cp -R "$APP" Payload/
           zip -qr "NOOP-ios-unsigned-v${VER}.ipa" Payload
           gh release upload "${{ needs.meta.outputs.tag }}" "NOOP-ios-unsigned-v${VER}.ipa" --repo "$GITHUB_REPOSITORY" --clobber

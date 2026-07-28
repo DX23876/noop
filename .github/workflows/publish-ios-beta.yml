@@ -118,12 +118,11 @@ jobs:
             echo "Refusing to publish a provisioned IPA" >&2; exit 1;
           }
 
-          # The unsigned sideload build cannot carry the Watch app. Keep the widget extension: it powers
-          # both widgets and Live Activities when a sideloader can provision it.
+          # project.yml deliberately does not embed the widget extension or the Watch app into NOOPiOS: a
+          # free Apple ID only gets 10 app ids / 7 days and no App Groups, and each extra embedded target
+          # (its own app id + the shared group) makes free-account signing fail. Neither PlugIns/ nor
+          # Watch/ is expected to exist in this build — the rm -rf below is defensive, not a strip step.
           rm -rf "$APP/Watch" Payload
-          test -d "$APP/PlugIns/NOOPWidgets.appex" || {
-            echo "NOOPWidgets.appex missing from iOS build" >&2; exit 1;
-          }
           mkdir Payload
           cp -R "$APP" Payload/
           zip -qry "$IPA" Payload
