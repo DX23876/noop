@@ -33,15 +33,49 @@ NOOP AI stays close to [RyanBR's NOOP](https://github.com/ryanbr/noop) for the s
 on-device analytics, storage and shared design system. The code below is the additional,
 Apple-first layer maintained in this fork:
 
-| Fork addition | What it does |
-|---|---|
-| 🤖 **A real coaching system, not just a chat box** | A configurable identity and coaching style, streaming replies, model-specific history budgets and 26 consent-gated tools that can read local summaries, explain readiness, draw charts, propose plans and write only the logs you explicitly request. Provider connections support Anthropic, OpenAI, Gemini, OpenRouter and custom OpenAI-compatible endpoints with your own key; tool calling is enabled where the selected provider and model support it. [Coach architecture →](docs/COACH.md) |
-| 🧠 **Private long-term memory on the device** | Hybrid keyword and semantic retrieval over approved facts, your own chat turns and selected journal context. The Nomic embedding model runs locally on iPhone; raw sensor streams and numerical health histories are never embedded. Consent can be withdrawn at any time, and the derived index can be rebuilt or deleted. [SemanticMemory package →](Packages/SemanticMemory/) |
-| 🎯 **Goals, Journey and a plan you control** | One structured goal with feasibility and safety checks, progress based on actual evidence, milestones without invented streaks, and weekly proposals you can accept, decline, reschedule, swap or skip. A model proposal never silently becomes your schedule. |
-| 🔐 **Purpose-by-purpose data consent** | Essentials, Personal and Deep Insights presets make setup simple; Expert mode exposes the individual grants. Sensitive journal topics always require a separate decision, and unavailable grants remove the corresponding tools before a request is sent. [Privacy model →](docs/PRIVACY_SECURITY.md) |
-| 🔔 **Proactive coaching with a local history** | Optional daily briefs, check-ins and goal reviews live in the Coach; plan proposals and important body/goal signals also feed the in-app bell, so useful events remain visible even when iOS cannot show a notification banner. |
-| 🧪 **Review-first health workflows** | Lab reports can be read from a text PDF or on-device photo OCR, but only recognised marker candidates you confirm become Lab Book entries. Files, OCR text and unconfirmed values are not retained. |
-| 🍎 **Apple-first interface and distribution** | A redesigned Today experience, configurable Coach entry points, compact-iPhone chat handling, fork-added surfaces covering upstream's full Apple language matrix, and an unsigned AltStore/SideStore beta that is signed only with the Apple ID you choose. |
+### 🤖 A real coaching system, not just a chat box
+
+A configurable identity and coaching style, streaming replies, model-specific history budgets and
+26 consent-gated tools that can read local summaries, explain readiness, draw charts, propose plans
+and write only the logs you explicitly request. Provider connections support Anthropic, OpenAI,
+Gemini, OpenRouter and custom OpenAI-compatible endpoints with your own key; tool calling is enabled
+where the selected provider and model support it. [Coach architecture →](docs/COACH.md)
+
+### 🧠 Private long-term memory on the device
+
+Hybrid keyword and semantic retrieval over approved facts, your own chat turns and selected journal
+context. The Nomic embedding model runs locally on iPhone; raw sensor streams and numerical health
+histories are never embedded. Consent can be withdrawn at any time, and the derived index can be
+rebuilt or deleted. [SemanticMemory package →](Packages/SemanticMemory/)
+
+### 🎯 Goals, Journey and a plan you control
+
+One structured goal with feasibility and safety checks, progress based on actual evidence, milestones
+without invented streaks, and weekly proposals you can accept, decline, reschedule, swap or skip.
+A model proposal never silently becomes your schedule.
+
+### 🔐 Purpose-by-purpose data consent
+
+Essentials, Personal and Deep Insights presets make setup simple; Expert mode exposes the individual
+grants. Sensitive journal topics always require a separate decision, and unavailable grants remove
+the corresponding tools before a request is sent. [Privacy model →](docs/PRIVACY_SECURITY.md)
+
+### 🔔 Proactive coaching with a local history
+
+Optional daily briefs, check-ins and goal reviews live in the Coach; plan proposals and important
+body/goal signals also feed the in-app bell, so useful events remain visible even when iOS cannot
+show a notification banner.
+
+### 🧪 Review-first health workflows
+
+Lab reports can be read from a text PDF or on-device photo OCR, but only recognised marker candidates
+you confirm become Lab Book entries. Files, OCR text and unconfirmed values are not retained.
+
+### 🍎 Apple-first interface and distribution
+
+A redesigned Today experience, configurable Coach entry points, compact-iPhone chat handling,
+fork-added surfaces covering upstream's full Apple language matrix, and an unsigned AltStore/SideStore
+beta that is signed only with the Apple ID you choose.
 
 The upstream base and the fork additions remain intentionally separated in code so upstream protocol,
 analytics and safety fixes can continue to be merged without rewriting the coaching layer.
