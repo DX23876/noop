@@ -488,7 +488,7 @@ struct CoachSettingsView: View {
     /// "Same as coaching model" — the role's default — kept distinct from "Custom…" (typing an id outside
     /// the fetched list).
     /// `emptyLabel` names what an unset field MEANS, which differs per role: for the background roles
-    /// empty is "fall back to the coaching model", but for Closer look empty means the feature is off and
+    /// empty means it falls back to the coaching model, but for Closer look empty means the feature is off and
     /// its action stays hidden. Showing "Same as coaching model" there would promise a fallback that
     /// deliberately doesn't happen.
     private func roleModelField(title: LocalizedStringKey, caption: LocalizedStringKey,
@@ -1636,11 +1636,14 @@ struct CoachSettingsView: View {
                     case .ok(let info):
                         VStack(alignment: .leading, spacing: 2) {
                             if let limit = info.limitUSD {
-                                Text(String(format: "$%.2f of $%.2f used", info.usageUSD, limit))
+                                let usage = info.usageUSD.formatted(.currency(code: "USD"))
+                                let ceiling = limit.formatted(.currency(code: "USD"))
+                                Text(String(localized: "\(usage) of \(ceiling) used"))
                                     .font(StrandFont.footnote.monospacedDigit())
                                     .foregroundStyle(StrandPalette.textSecondary)
                             } else {
-                                Text(String(format: "$%.2f used — no limit set on this key", info.usageUSD))
+                                let usage = info.usageUSD.formatted(.currency(code: "USD"))
+                                Text(String(localized: "\(usage) used — no limit set on this key"))
                                     .font(StrandFont.footnote.monospacedDigit())
                                     .foregroundStyle(StrandPalette.textSecondary)
                             }
@@ -1668,7 +1671,7 @@ struct CoachSettingsView: View {
         }
     }
 
-    /// "Did that actually work?", answered here rather than by the user's first real question.
+    /// Answers whether the connection actually worked before the user's first real question.
     ///
     /// A wrong key, a typo'd Custom URL or a model this account can't serve was previously only
     /// discovered by asking the coach something and getting an error back — after leaving settings. The
@@ -1957,7 +1960,7 @@ struct CoachSettingsView: View {
     }
 
     /// The `.afterWake` explanation line: the learned wake time once there's enough sleep history, or a
-    /// plain "still learning, using your fixed time meanwhile" while there isn't — so the mode never looks
+    /// says that it is still learning and uses the fixed time meanwhile — so the mode never looks
     /// broken on a fresh install with no nights recorded yet.
     private var checkInWakeReadout: String {
         if let minutes = checkInResolvedWake {

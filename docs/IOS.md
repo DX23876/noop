@@ -1,11 +1,12 @@
 # iOS — Install & Build
 
-> **The iOS DX Beta is a direct download.** Grab **`NOOP-ios-unsigned-v9.2.1-dx-beta.ipa`** from the
-> [NOOP AI prerelease](https://github.com/DX23876/noop/releases/tag/v9.2.1-dx-beta) page and install it with **AltStore** or **SideStore** — see
+> **The iOS DX Beta is a direct download.** Grab **`NOOP-ios-unsigned-v9.2.2-dx-beta.ipa`** from the
+> [NOOP AI prerelease](https://github.com/DX23876/noop/releases/tag/v9.2.2-dx-beta) page and install it with **AltStore** or **SideStore** — see
 > **[Install (sideload)](#install-sideload)** below. No Mac, no Xcode, no App Store, and no Apple
 > Developer account needed — **and NOOP stays anonymous**, because the `.ipa` we ship is *unsigned*
-> and **you** sign it on your own iPhone with your own free Apple ID. The app target (`NOOPiOS` +
-> `NOOPiOSWidgets`) also still builds from source in Xcode if you'd rather (**[Build from source](#build-from-source)**).
+> and **you** sign it on your own iPhone with your own free Apple ID. All Apple targets remain
+> buildable from source in Xcode; the distributed IPA intentionally contains only `NOOPiOS`
+> (**[Build from source](#build-from-source)**).
 > The manual [`publish-ios-beta.yml`](../.github/workflows/publish-ios-beta.yml) workflow builds the
 > unsigned release IPA without an Apple team or personal signing identity.
 
@@ -18,8 +19,8 @@ Nothing about this touches NOOP's identity or Apple's servers on our side.
 1. **Install a sideloader on your computer** — [AltStore](https://altstore.io) or
    [SideStore](https://sidestore.io) (both free). Follow their one-time setup (it installs a helper +
    AltStore/SideStore onto your iPhone using your own Apple ID).
-2. **Download `NOOP-ios-unsigned-v9.2.1-dx-beta.ipa`** from the
-   [DX Beta prerelease](https://github.com/DX23876/noop/releases/tag/v9.2.1-dx-beta) to your iPhone (or your
+2. **Download `NOOP-ios-unsigned-v9.2.2-dx-beta.ipa`** from the
+   [DX Beta prerelease](https://github.com/DX23876/noop/releases/tag/v9.2.2-dx-beta) to your iPhone (or your
    computer, then AirDrop/transfer it).
 3. **Open the `.ipa` with AltStore/SideStore** (Share → AltStore, or the app's "+" button). It signs
    and installs NOOP. First launch may need **Settings → General → VPN & Device Management → trust
@@ -48,15 +49,13 @@ hunting for the `.ipa` each time.
 > - **7-day expiry.** Apps signed with a *free* Apple ID stop launching after 7 days and need
 >   re-signing. **AltStore/SideStore refresh this automatically** in the background — keep the
 >   sideloader installed and NOOP keeps working.
-> - **Some Apple-only features may be limited.** A free signing identity can't grant certain Apple
->   entitlements, so **Apple Health (HealthKit) read/write and the Live Activity / lock-screen
->   widgets may not work** on a free-signed sideload. The core app — pairing your strap, live HR,
->   recovery/strain/sleep, history, the AI Coach, everything on-device — works regardless. This is an
->   Apple signing constraint, not a NOOP limitation, and it's why a HealthKit toggle can appear to do
->   nothing on a sideloaded build. The release IPA retains `NOOPWidgets.appex`, so AltStore/Sideloadly
->   must provision one additional app extension for widgets and Live Activities; removing app extensions
->   while signing disables those surfaces. Building from source with your own Apple ID in Xcode and
->   selecting your Team for both targets grants these entitlements normally.
+> - **The sideload IPA deliberately contains only the iPhone/iPad app.** This fork does not embed
+>   `NOOPWidgets.appex` or `NOOPWatch.app` in its AltStore/SideStore build. A free Personal Team has
+>   short-lived App IDs and cannot reliably provision the App Group/HealthKit combination used to
+>   share NOOP's snapshot between the phone, widgets, Watch app and complication. The core app —
+>   pairing your strap, live HR, recovery/strain/sleep, history, the AI Coach, everything on-device —
+>   works without those extensions. Apple Watch, complications, Home/Lock-Screen widgets and Live
+>   Activities require the Full Apple source build described below.
 
 iOS shares the cross-platform Swift packages with macOS, so the number-crunching (recovery, strain,
 HRV, sleep) is the **same code** and produces the same results. iOS is newer and less battle-tested
@@ -65,7 +64,7 @@ are very welcome.
 
 ## Build from source
 
-Prefer to build it yourself (which also grants HealthKit/widgets under your own Apple ID)? Run
+Prefer to build it yourself? Run
 `Tools/bootstrap-nomic.sh` once to download and verify the pinned on-device Coach model and llama.cpp
 runtime, then run `xcodegen generate` and build the **`NOOPiOS`** scheme in Xcode. The verified files
 remain local build inputs, so later Xcode builds do not download them again. They add roughly 328 MiB
@@ -75,19 +74,42 @@ large binaries. The reconciliation that brought the
 below.
 
 > 🛠️ **Signing it under your own Apple ID** (thanks @gingerbeardman for the original recipe). Apple
-> requires a bundle id and app group unique to *your* developer account — otherwise the build collides
+> requires a bundle id unique to *your* developer account — otherwise the build collides
 > with any other NOOP install already on your device (an AltStore/SideStore sideload, or someone
 > else's build). Two steps:
 > 1. `cp Config/BundleIdSecrets.example.xcconfig Config/BundleIdSecrets.xcconfig` and set
 >    `BUNDLE_ID_PREFIX` to your own reverse-domain prefix (e.g. `com.yourdomain`), then re-run
->    `xcodegen generate`. This one gitignored file drives **every** target's bundle id *and* the shared
+>    `xcodegen generate`. This one gitignored file drives **every** target's bundle id and the shared
 >    App Group together (`$(BUNDLE_ID_PREFIX).noopai`, `group.$(BUNDLE_ID_PREFIX).noop.staging`) — nothing
 >    hard-coded in Swift, nothing else to edit, and it survives future regenerates.
-> 2. In Xcode, **select your Team** (Signing & Capabilities) for the `NOOPiOS` **and** `NOOPiOSWidgets`
->    targets — the one step Apple still requires you to do by hand.
+> 2. In Xcode, **select your Team** under Signing & Capabilities for the target you are installing.
 >
 > Skip step 1 and the build still works under the default `com.noopapp` identifiers — fine if this is
 > the only NOOP install on your device.
+
+### Full Apple build — Watch, complications and widgets
+
+The source tree still contains `NOOPiOSWidgets`, `NOOPWatch` and
+`NOOPWatchComplications`, but the distributed sideload configuration intentionally does not embed
+them. This differs from the upstream source project: upstream embeds the widget and Watch targets when
+building from source, while its release workflow removes the Watch bundle before publishing the
+unsigned IPA.
+
+Use a paid Apple Developer team for the Full Apple build. In `project.yml`:
+
+1. Restore `com.apple.security.application-groups: [$(APP_GROUP_ID)]` under the `NOOPiOS`
+   entitlements.
+2. Restore the `NOOPiOSWidgets` and `NOOPWatch` target dependencies under `NOOPiOS`.
+3. Run `xcodegen generate`.
+4. Select the same Team for `NOOPiOS`, `NOOPiOSWidgets`, `NOOPWatch` and
+   `NOOPWatchComplications`.
+5. Build the `NOOPiOS` scheme to the iPhone paired with the Watch. The phone app carries
+   `Watch/NOOPWatch.app`; the Watch app carries its complication extension.
+
+Do not add these extensions to the normal unsigned release IPA without testing the complete
+AltStore/SideStore re-signing path on a physical iPhone and paired Watch. Every nested app or extension
+needs its own correctly matched bundle identifier, signature and provisioning profile; an IPA that
+installs only the phone app is preferable to one that advertises extensions but fails during signing.
 
 > ℹ️ **Cross-platform engineering lives in [`CROSS_PLATFORM.md`](CROSS_PLATFORM.md)** — the shared-code
 > boundary across the macOS / iOS / Android clients, the `Platform.swift` shim convention, the

@@ -345,9 +345,10 @@ struct CoachView: View {
                         bubble(message, groupStart: isAssistantGroupStart(at: index))
                             .id(message.id)
                             .padding(.top, topGap(at: index))
-                            // Settle into place on scroll, and arrive from below when sent/received —
-                            // both skipped under Reduce Motion.
-                            .liquidScrollFade(active: !reduceMotion)
+                            // New turns still arrive from below, but existing transcript rows stay
+                            // fully opaque while scrolling. A row-level scrollTransition fades the
+                            // ENTIRE row; for a reply taller than the viewport that made most of the
+                            // visible answer dim merely because one edge crossed the screen boundary.
                             .transition(reduceMotion
                                         ? .opacity
                                         : .move(edge: .bottom).combined(with: .opacity))

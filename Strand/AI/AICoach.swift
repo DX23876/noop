@@ -243,35 +243,34 @@ enum AICoachError: LocalizedError, Equatable {
         case .badCustomURL(let message):
             return message
         case .noKey:
-            return "Add your own API key first to use the coach."
+            return String(localized: "Add your own API key first to use the coach.")
         case .noModel:
             // Reachable mainly on the Custom provider, whose model list starts empty on purpose. Say
             // what to do rather than forwarding the server's 400, which reads as if the request itself
             // were malformed.
-            return "Pick a model first. Tap Refresh next to Model in Coach settings to load the ones "
-                + "your provider offers, or type an id yourself."
+            return String(localized: "Pick a model first. Tap Refresh next to Model in Coach settings to load the ones your provider offers, or type an id yourself.")
         case .keySaveFailed:
-            return "Couldn't save the key to the Keychain. The key was not stored, so try again."
+            return String(localized: "Couldn't save the key to the Keychain. The key was not stored, so try again.")
         case .emptyQuestion:
-            return "Type a question for the coach."
+            return String(localized: "Type a question for the coach.")
         case .badKey:
-            return "That API key was rejected. Check the key and the provider you selected."
+            return String(localized: "That API key was rejected. Check the key and the provider you selected.")
         case .rateLimited(let after):
             if let after {
-                return "The provider is rate-limiting requests. It asked to wait \(after) seconds."
+                return String(localized: "The provider is rate-limiting requests. It asked to wait \(after) seconds.")
             }
-            return "The provider is rate-limiting requests right now. Wait a moment and try again."
+            return String(localized: "The provider is rate-limiting requests right now. Wait a moment and try again.")
         case .offline:
             // No CFNetwork prose: the cause is plain, and the coach is the only part of NOOP that needs
             // a connection at all — worth saying, so an offline user doesn't think the app is broken.
-            return "You're offline. The coach needs a connection; everything else in NOOP keeps working."
+            return String(localized: "You're offline. The coach needs a connection; everything else in NOOP keeps working.")
         case .server(let code, let detail):
             let extra = detail.isEmpty ? "" : " - \(detail)"
-            return "The provider returned an error (\(code))\(extra)."
+            return String(localized: "The provider returned an error (\(code))\(extra).")
         case .network(let detail):
-            return "Network problem: \(detail). The coach is the only feature that needs the internet."
+            return String(localized: "Network problem: \(detail). The coach is the only feature that needs the internet.")
         case .decode:
-            return "Couldn't read the provider's reply. Try again."
+            return String(localized: "Couldn't read the provider's reply. Try again.")
         }
     }
 }
@@ -720,22 +719,9 @@ final class AICoachEngine: ObservableObject {
     /// The emoji clause matching `allowEmoji`'s current value.
     var emojiClause: String { allowEmoji ? Self.emojiOnClause : Self.emojiOffClause }
 
-    /// Reply language: nothing else in this prompt ever states one, so without this the model tends to
-    /// default to English regardless of the app's own language (the app UI is fully localized via the
-    /// string catalog, but that says nothing about what language the MODEL writes in). Read fresh from
-    /// `Locale.current` — the system/app language, same source every other formatter in the app already
-    /// reads (`SleepMark`, `TodayView`, …) — so a language change takes effect on the next message with
-    /// no engine rebuild, same posture as the rest of `systemPrompt`. Named in English on purpose: this
-    /// is an instruction TO the model, not text it should echo back.
-    var languageClause: String {
-        let code = Locale.current.language.languageCode?.identifier ?? "en"
-        let name = Locale(identifier: "en_US").localizedString(forLanguageCode: code) ?? "English"
-        return """
-        Reply in \(name) (\(code)) - that's the app's current language. Keep numbers, units, and proper \
-        nouns as they are; translate everything else. If the user writes to you in a different language, \
-        follow their lead for that reply instead.
-        """
-    }
+    /// Reply language, resolved from the app's actual localization rather than the formatting locale.
+    /// Read fresh for every request so an app-language change applies without rebuilding the engine.
+    var languageClause: String { CoachReplyLanguage.current.promptClause }
 
     /// The tool-awareness map, appended to the CACHED system block when tools are live (same
     /// `toolCallingActive` gate as `planToolClause`). It lands in the system block — cached by Anthropic
@@ -798,14 +784,14 @@ final class AICoachEngine: ObservableObject {
         prompt += "\n\n" + Self.citationClause
         // Coach voice (#P13): the human/careful register, under whichever persona leads the prompt.
         prompt += "\n\n" + Self.voiceClause
-        // Reply language: read fresh so a system/app language change applies on the next message, same
-        // as everything else in this property.
-        prompt += "\n\n" + languageClause
         // Emoji (#P14 7.3): a user-set dial, read fresh so a settings change applies next message.
         prompt += "\n\n" + emojiClause
         // Verbosity: a user-set dial on reply length. `normal` has no clause at all — it's the coach's
         // existing register, unchanged from before this setting existed.
         if let clause = verbosity.promptClause { prompt += "\n\n" + clause }
+        // Language is deliberately LAST, after user-editable and behavioural clauses, so neither a
+        // custom prompt nor old conversation history can override the active app language.
+        prompt += "\n\n" + languageClause
         return prompt
     }
 
@@ -1515,7 +1501,8 @@ final class AICoachEngine: ObservableObject {
                     // An empty reply shows "(no reply)" — unless the turn produced a chart, in which case
                     // we drop the blank bubble and let the chart (flushed below) stand on its own.
                     if pendingCharts.isEmpty {
-                        messages[idx] = ChatMessage(id: replyId, role: .assistant, text: "(no reply)",
+                        messages[idx] = ChatMessage(id: replyId, role: .assistant,
+                                                    text: String(localized: "(no reply)"),
                                                     date: startedAt, toolsUsed: reply.toolsUsed,
                                                     localContextUsed: messages[idx].localContextUsed)
                     } else {
@@ -1545,7 +1532,8 @@ final class AICoachEngine: ObservableObject {
             let reply = try await callProvider(key: key, messages: wire, tools: requestTools,
                                                systemPrompt: requestSystemPrompt)
             let clean = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
-            appendMessage(ChatMessage(role: .assistant, text: clean.isEmpty ? "(no reply)" : clean,
+            appendMessage(ChatMessage(role: .assistant,
+                                      text: clean.isEmpty ? String(localized: "(no reply)") : clean,
                                       toolsUsed: reply.toolsUsed, localContextUsed: localContextUsed))
             flushPendingCharts()
         } catch let e as AICoachError {
@@ -2617,7 +2605,7 @@ final class AICoachEngine: ObservableObject {
         // deadline is exactly the spec's "status message" bucket, just not built in this first pass.
         await runSeededTurnCancellable(
             instruction: Self.goalReviewInstruction(for: goal),
-            prefix: "Your goal", stampKey: stampKey, origin: .nudge)
+            prefix: String(localized: "Your goal"), stampKey: stampKey, origin: .nudge)
     }
 
     /// Fire a weekly review at most once every 7 logical days, only at the `normal` level and only when
@@ -2632,7 +2620,8 @@ final class AICoachEngine: ObservableObject {
         // the goal-review TODO above, not built in this first pass.
         await runSeededTurnCancellable(
             instruction: Self.weeklyReviewInstruction(toolsActive: toolCallingActive),
-            prefix: "Weekly review", stampKey: Self.lastWeeklyReviewDayKey, origin: .weeklyReview)
+            prefix: String(localized: "Weekly review"),
+            stampKey: Self.lastWeeklyReviewDayKey, origin: .weeklyReview)
     }
 
     /// Whole-day distance between two "yyyy-MM-dd" keys, or nil if either doesn't parse.
@@ -2707,13 +2696,16 @@ final class AICoachEngine: ObservableObject {
     /// System prompt for the cheap per-card read: the persona's voice, scoped to ONE metric and told to
     /// stay short, careful, and non-diagnostic — the "small AI on a card" role. Kept lean (no tool
     /// clauses) because it runs on the cheap card model with the figures handed to it, not tool calls.
-    static func cardAnalysisSystem(persona: CoachPersona) -> String {
+    static func cardAnalysisSystem(
+        persona: CoachPersona,
+        replyLanguage: CoachReplyLanguage = .current
+    ) -> String {
         persona.systemPreamble + "\n\n" + """
         You are giving a brief, careful read of ONE metric the user just opened. Two or three sentences: \
         what the value and its recent trend suggest, in plain language, and at most one gentle, optional \
         next step. Ground everything in the figures you are given — never invent data or numbers. This \
         is not a diagnosis and you are not a doctor. No bullet lists, no headings, no preamble.
-        """
+        """ + "\n\n" + replyLanguage.promptClause
     }
 
     /// The user turn for a card read: the card's own title and factual summary, framed as a request.

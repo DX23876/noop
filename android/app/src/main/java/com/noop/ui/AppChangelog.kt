@@ -26,7 +26,7 @@ object AppChangelog {
      * Bump this when you add a release below. The "What's New" sheet shows automatically when the
      * stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
      */
-    const val CURRENT_VERSION = "9.2.1-dx-beta"
+    const val CURRENT_VERSION = "9.2.2-dx-beta"
 
     data class Release(
         val version: String,
@@ -37,6 +37,17 @@ object AppChangelog {
 
     /** Newest first. */
     val releases: List<Release> = listOf(
+        Release(
+            version = "9.2.2-dx-beta",
+            title = "The Coach follows your app language and stays readable on compact iPhones",
+            date = "July 2026",
+            items = listOf(
+                "**The Coach now follows NOOP's selected language.** German, Spanish, French, Italian, Portuguese (Portugal), Russian and both Chinese variants use the same strict reply-language contract across normal chat, custom prompts, card reads, check-ins and proactive messages.",
+                "**Every fork-added Apple surface has caught up with upstream's language matrix.** All 915 fork-specific strings now carry every Apple localization, with matching placeholders.",
+                "**The composer stays above the floating navigation bar.** Its clearance is measured from the rendered bar instead of guessed, including compact iPhones and the More → AI Coach route.",
+                "**Long Coach replies remain fully opaque while scrolling.** The row-wide edge fade that dimmed viewport-height answers has been removed.",
+            ),
+        ),
         Release(
             version = "9.2.1 DX Beta",
             title = "A coach that remembers, privacy presets that stay simple",

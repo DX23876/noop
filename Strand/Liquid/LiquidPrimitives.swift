@@ -489,21 +489,6 @@ extension View {
 // Every one of these is a no-op when the effect isn't available: the view renders, it just doesn't move.
 
 extension View {
-    /// Fade + settle a row as it scrolls into view. `active: false` (Reduce Motion) skips it entirely —
-    /// this is self-starting movement tied to scrolling, exactly what that setting turns off.
-    @ViewBuilder func liquidScrollFade(active: Bool = true) -> some View {
-        if #available(iOS 17.0, macOS 14.0, *), active {
-            self.scrollTransition { content, phase in
-                content
-                    .opacity(phase.isIdentity ? 1 : 0)
-                    .scaleEffect(phase.isIdentity ? 1 : 0.96)
-                    .offset(y: phase.isIdentity ? 0 : 8)
-            }
-        } else {
-            self
-        }
-    }
-
     /// Keep a scroll view pinned to its bottom edge — the natural resting place for a transcript.
     @ViewBuilder func liquidBottomAnchored() -> some View {
         if #available(iOS 17.0, macOS 14.0, *) {

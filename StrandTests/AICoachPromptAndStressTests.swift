@@ -41,11 +41,11 @@ final class AICoachPromptAndStressTests: XCTestCase {
         prompt += "\n\n" + AICoachEngine.citationClause
         // P13: the coach-voice clause rides every prompt too, after the citation clause.
         prompt += "\n\n" + AICoachEngine.voiceClause
-        // Reply-language clause: read fresh from the engine (Locale.current) so this reconstruction
-        // matches the real `systemPrompt` exactly — it sits after the voice clause, before emoji.
-        prompt += "\n\n" + engine.languageClause
         // P14: the emoji clause, matching the engine's current allowEmoji setting.
         prompt += "\n\n" + engine.emojiClause
+        // The strict app-language clause is deliberately last so custom/persona/history language cannot
+        // override it.
+        prompt += "\n\n" + engine.languageClause
         return prompt
     }
 

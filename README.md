@@ -7,7 +7,7 @@
 <p align="center"><b>Your WHOOP data, on your own devices, with a coach that remembers.</b></p>
 
 <p align="center">
-  <img alt="Current release" src="https://img.shields.io/badge/current%20beta-9.2.1%20DX%20Beta-C8902F?style=flat-square">
+  <img alt="Current release" src="https://img.shields.io/badge/current%20beta-9.2.2%20DX%20Beta-C8902F?style=flat-square">
   <img alt="Platforms" src="https://img.shields.io/badge/iOS%2017%2B%20%C2%B7%20macOS%2013%2B-234F9E?style=flat-square">
   <img alt="Straps" src="https://img.shields.io/badge/WHOOP-4.0%20%C2%B7%205.0%2FMG-234F9E?style=flat-square">
   <img alt="Privacy" src="https://img.shields.io/badge/no%20account%20%C2%B7%20no%20cloud-6B737B?style=flat-square">
@@ -27,22 +27,20 @@ MAINTAINER NOTE — update this small release section for every beta or public r
 3. Move shipped items out of “In development” and link the matching release note.
 -->
 
-## Latest beta — 9.2.1 DX Beta
+## Latest beta — 9.2.2 DX Beta
 
-- **The coach now has real long-term memory.** An on-device semantic index lets it recall past
-  conversations and journal entries by meaning, not just exact wording — nothing leaves your device,
-  and it stays off until you turn it on.
-- **Privacy is three taps, not nine.** Data access collapses into three understandable modes —
-  Essentials, Personal, Deep insights — plus an Expert mode for the individual switches. Sensitive
-  journal topics always need their own separate, explicit choice.
-- **Unsigned iOS IPA, signed by you.** Install through AltStore or SideStore. NOOP AI does not use an
-  Apple team, certificate, or personal signing name to distribute the build.
+- **The Coach follows NOOP's selected language.** The same strict language contract now covers normal
+  chat, custom prompts, card reads, check-ins and proactive messages.
+- **Every fork-added Apple screen has caught up with upstream.** All 915 fork-specific strings ship in
+  English plus the complete eight-language Apple matrix.
+- **Compact-iPhone chat fixes.** The composer clears the floating navigation bar, and long answers stay
+  fully opaque while scrolling.
 
-Read the full [9.2.1 DX Beta notes](docs/releases/v9.2.1-dx-beta.md).
+Read the full [9.2.2 DX Beta notes](docs/releases/v9.2.2-dx-beta.md).
 
 ## In development
 
-- **Android distribution.** The Android source is version-aligned with 9.2.1; a public Android beta
+- **Android distribution.** The Android source is version-aligned with 9.2.2; a public Android beta
   download will follow in a later rollout.
 - **More practical alert history.** The inbox will keep evolving around events that actually happened,
   rather than becoming a second copy of scheduled reminders.
@@ -63,8 +61,8 @@ https://raw.githubusercontent.com/DX23876/noop/main/altstore-source.json
 
 - **AltStore:** Browse → **+** → paste the source URL → add NOOP AI.
 - **SideStore:** Sources → **+ Add Source** → paste the same URL → install NOOP AI.
-- Prefer a direct file? Download `NOOP-ios-unsigned-v9.2.1-dx-beta.ipa` from the
-  [DX Beta prerelease](https://github.com/DX23876/noop/releases/tag/v9.2.1-dx-beta).
+- Prefer a direct file? Download `NOOP-ios-unsigned-v9.2.2-dx-beta.ipa` from the
+  [DX Beta prerelease](https://github.com/DX23876/noop/releases/tag/v9.2.2-dx-beta).
 
 See [the iOS install guide](docs/IOS.md) for the free-Apple-ID limits, widget notes, and build-from-source
 instructions.
@@ -73,7 +71,7 @@ instructions.
 
 | Platform | Status | Distribution |
 |---|---|---|
-| iOS / iPadOS | 9.2.1 DX Beta | AltStore, SideStore, or build from source |
+| iOS / iPadOS | 9.2.2 DX Beta | AltStore, SideStore, or build from source |
 | macOS | Source build | Build with Xcode; a packaged beta follows separately |
 | Android | Distribution in progress | Source version aligned; public beta follows later |
 
