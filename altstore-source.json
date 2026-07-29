@@ -20,6 +20,15 @@
       "screenshotURLs": [],
       "versions": [
         {
+          "version": "9.2.2",
+          "buildVersion": "214",
+          "date": "2026-07-29",
+          "localizedDescription": "NOOP AI 9.2.2 DX Beta. See the release notes for what changed.",
+          "downloadURL": "https://github.com/DX23876/noop/releases/download/v9.2.2-dx-beta/NOOP-ios-unsigned-v9.2.2-dx-beta.ipa",
+          "size": 357177472,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "9.2.1",
           "buildVersion": "213",
           "date": "2026-07-28",
@@ -29,12 +38,12 @@
           "minOSVersion": "17.0"
         }
       ],
-      "version": "9.2.1",
-      "buildVersion": "213",
-      "versionDate": "2026-07-28",
-      "versionDescription": "NOOP AI 9.2.1 DX Beta. See the release notes for what changed.",
-      "downloadURL": "https://github.com/DX23876/noop/releases/download/v9.2.1-dx-beta/NOOP-ios-unsigned-v9.2.1-dx-beta.ipa",
-      "size": 356757740
+      "version": "9.2.2",
+      "buildVersion": "214",
+      "versionDate": "2026-07-29",
+      "versionDescription": "NOOP AI 9.2.2 DX Beta. See the release notes for what changed.",
+      "downloadURL": "https://github.com/DX23876/noop/releases/download/v9.2.2-dx-beta/NOOP-ios-unsigned-v9.2.2-dx-beta.ipa",
+      "size": 357177472
     }
   ]
 }
