@@ -10,8 +10,9 @@ import StrandDesign
 /// unknown (we never invent mg), the active hint covers the dose-unknown case in words, and the copy
 /// states it's an estimate from what was logged.
 struct CaffeineLogCard: View {
-    /// NOOP AI: the shared store, so a coach-logged intake (log_caffeine tool) shows up here live —
-    /// and two instances can never overwrite each other's UserDefaults blob.
+    /// The shared UserDefaults-backed store (#949). Shared rather than owned here so the Apple Health
+    /// import, the coach's `log_caffeine` tool and this card all write through the same instance —
+    /// see `CaffeineLogStore.shared`.
     @ObservedObject private var store = CaffeineLogStore.shared
 
     /// Drives a live recompute of the estimate while the card is on screen (the decay is time-based).
@@ -279,15 +280,24 @@ struct CaffeineLogCard: View {
                     .font(StrandFont.body)
                     .foregroundStyle(StrandPalette.textPrimary)
                 Spacer()
-                Button {
-                    store.remove(intake.id)
-                } label: {
-                    Image(systemName: "minus.circle.fill")
-                        .font(StrandFont.body)
-                        .foregroundStyle(StrandPalette.statusCritical)
+                // No remove control on an imported intake (#949): the next sync re-reads the same window
+                // from Apple Health and would bring it straight back, so offering the button would be
+                // offering something NOOP cannot honour. Remove it where it was logged.
+                if intake.isImported {
+                    Text("Apple Health")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                } else {
+                    Button {
+                        store.remove(intake.id)
+                    } label: {
+                        Image(systemName: "minus.circle.fill")
+                            .font(StrandFont.body)
+                            .foregroundStyle(StrandPalette.statusCritical)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Remove caffeine intake at \(Self.timeFormatter.string(from: intake.at))")
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Remove caffeine intake at \(Self.timeFormatter.string(from: intake.at))")
             }
         }
     }

@@ -37,6 +37,8 @@ import com.noop.protocol.BackfillCaptureJsonl
 import com.noop.protocol.BackfillCaptureRecord
 import com.noop.protocol.BackfillCaptureSummary
 import com.noop.protocol.CommandNumber
+import com.noop.protocol.FeatureFlagWriteGate
+import com.noop.protocol.R22DisableReport
 import com.noop.protocol.DeviceFamily
 import com.noop.protocol.DeviceConfigReadProbe
 import com.noop.protocol.DeviceConfigReadProbeReport
@@ -1548,6 +1550,21 @@ class WhoopBleClient(
     /** Monotonic step counter so a late timeout from an earlier step can't cancel a live walk. */
     private var deviceConfigStep = 0
 
+    // #174: the R22 DISABLE report — the per-key result of writing '0' to the sixteen feature flags and
+    // reading every one back with GET_FF_VALUE(128), or the waiting sentinel while the run walks. Unlike
+    // the two probes above this one DOES write, which is exactly why it reports the value the strap stores
+    // rather than the write's own ack.
+    private val _r22DisableReport = MutableStateFlow<String?>(null)
+    val r22DisableReport: StateFlow<String?> = _r22DisableReport.asStateFlow()
+
+    /** The in-flight #174 disable run; null when none is running. Doubles as the [send] allowlist's
+     *  in-flight gate for the 128 read-back. */
+    private var r22DisableRun: R22DisableReport? = null
+    /** The step whose reply we are waiting for, null between steps. */
+    private var r22DisableAwaiting: R22DisableReport.Step? = null
+    /** Monotonic step counter so a late timeout from an earlier step can't cancel a live run. */
+    private var r22DisableStep = 0
+
     private val _connectedPeripheralAddress = MutableStateFlow<String?>(null)
     /** The BLE address of the strap currently connected, or null when disconnected. Twin of macOS
      *  BLEManager.connectedPeripheralUUID — drives SourceCoordinator's first-connect identity adoption. */
@@ -2861,10 +2878,28 @@ class WhoopBleClient(
                 // keep their own separate opt-in clauses below and are never sent from this path. Driven
                 // only by probeDeviceConfigValues() (user-initiated, Test Centre gated).
                 !(DeviceConfigReadProbe.isReadOnlyOpcode(cmd.rawValue) && deviceConfigReport != null) &&
-                // SET_CONFIG (the R22 deep-stream unlock) is allowed ONLY while the deep-data experiment
-                // is opted in — it writes a persistent feature flag to the strap, so it must never fire
-                // on a default install. Reversible; driven only by enableWhoop5DeepData(). (#174)
-                !(cmd == CommandNumber.SET_CONFIG && puffinExperiment.isDeepDataEnabled) &&
+                // SET_CONFIG / SET_FF_VALUE (120), ENABLE direction — the R22 deep-stream unlock. Allowed
+                // only while the deep-data experiment is opted in, and only for a KEY and a VALUE the gate
+                // recognises: one of the sixteen R22 flags carrying that key's own enable value. The clause
+                // this replaces was opcode-only, so it admitted ANY feature-flag key with ANY value for as
+                // long as the opt-in happened to be on — the same weakness #907 closed on opcode 119.
+                // Driven only by enableWhoop5DeepData(). (#174)
+                !FeatureFlagWriteGate.admitsEnableWrite(
+                    cmd.rawValue, payload, puffinExperiment.isDeepDataEnabled,
+                ) &&
+                // SET_FF_VALUE (120), DISABLE direction — the undo. Gated on a disable run being in flight
+                // rather than on the opt-in, exactly like the 128 read-back clause below, and restricted to
+                // FEATURE_FLAG_OFF_VALUE. The opt-in CANNOT gate this: the Settings switch writes the pref
+                // false before it raises the confirmation dialog, so it is already false by the time the
+                // user confirms the undo the switch itself offered — gating on it made the whole toggle-off
+                // path dead. Driven only by disableWhoop5DeepData(). (#174)
+                !FeatureFlagWriteGate.admitsDisableWrite(
+                    cmd.rawValue, payload, r22DisableRun != null,
+                ) &&
+                // GET_FF_VALUE (128) as the disable run's mandatory READ-BACK. Gated on a disable run being
+                // in flight, exactly like the read probes' 121/128 clause above, so a default install can
+                // never form these bytes. The write ack is not trusted; this is what proves the clear.
+                !(FeatureFlagWriteGate.isReadBackOpcode(cmd.rawValue) && r22DisableRun != null) &&
                 // SET_DEVICE_CONFIG (the Broadcast-HR flag) is allowed ONLY while that opt-in is on.
                 // Reversible; driven only by setBroadcastHr(). (#181)
                 !(cmd == CommandNumber.SET_DEVICE_CONFIG && puffinExperiment.broadcastHr)) {
@@ -4813,6 +4848,16 @@ class WhoopBleClient(
                     ) {
                         handleDeviceConfigProbeResponse(frame)
                     }
+                    // #174: a reply belonging to an R22 DISABLE run — either the SET_FF_VALUE(120) write
+                    // ack or the GET_FF_VALUE(128) read-back that verifies it. In-flight-guarded inside.
+                    // 128 is also matched by the read-probe clause above; both handlers guard on their OWN
+                    // run being live, so exactly one acts.
+                    if (frame.size > cmdOff && (frame[cmdOff - 2].toInt() and 0xFF) == 0x24 &&
+                        ((frame[cmdOff].toInt() and 0xFF) == CommandNumber.SET_CONFIG.rawValue ||
+                            (frame[cmdOff].toInt() and 0xFF) == CommandNumber.GET_FF_VALUE.rawValue)
+                    ) {
+                        handleR22DisableResponse(frame)
+                    }
                     if (frame.size > cmdOff && (frame[cmdOff].toInt() and 0xFF) == CommandNumber.GET_DATA_RANGE.rawValue) {
                         // #451: dump raw GET_DATA_RANGE response bytes unconditionally (even if decode returns
                         // null) so a stale/wrong-epoch "newest" can be told apart from a frame-alignment bug in
@@ -4953,7 +4998,12 @@ class WhoopBleClient(
         if (connectedFamily != DeviceFamily.WHOOP5) return
         if (frame.size <= 10) return
         val type = frame[8].toInt() and 0xFF
-        if (type == 0x24 && (frame[10].toInt() and 0xFF) == CommandNumber.SET_CONFIG.rawValue) {
+        // #174: a SET_CONFIG ack means "one enable_r22_* flag accepted" ONLY when we are enabling. A
+        // disable run writes through the same opcode, so without this guard turning R22 OFF would tick the
+        // "Strap accepted N/16 R22 flags" counter upwards — the exact opposite of what happened. The
+        // disable run scores its own acks (and does not trust them; the 128 read-back is its proof).
+        if (type == 0x24 && (frame[10].toInt() and 0xFF) == CommandNumber.SET_CONFIG.rawValue &&
+            r22DisableRun == null) {
             val n = _state.value.r22FlagsAccepted + 1
             _state.update { it.copy(r22FlagsAccepted = n) }
             val total = Whoop5Config.enableR22Sequence.size
@@ -5656,8 +5706,147 @@ class WhoopBleClient(
             }, 80L * i)
         }
         handler.postDelayed({
-            log("Deep-data: sequence sent. Keep the strap on, let it sync, then share your strap log — we're looking for new deep records (type-0x2F) to start arriving. (#174)")
+            log("Deep-data: sequence sent. Keep the strap on, let it sync, then share your strap log — we're looking for new deep records (type-0x2F) to start arriving. To undo it later, use \"Turn deep data back off\" — disableWhoop5DeepData() writes '0' to the same sixteen keys and reads each one back. (#174)")
         }, 80L * flags.size + 200L)
+    }
+
+    /**
+     * EXPERIMENTAL (#174): the undo of [enableWhoop5DeepData] — write '0' to the sixteen `enable_r22_*`
+     * feature flags and report, per key, the value the strap actually stores afterwards. Port of
+     * `BLEManager.disableWhoop5DeepData`.
+     *
+     * Why this exists: the Settings copy has promised since #174 that the R22 unlock is "reversible", and
+     * that was true about the hardware and false about the app — NOOP shipped an enable button and no way
+     * back, so the only routes out were the official WHOOP app or a factory reset.
+     *
+     * Why it is staged rather than sixteen writes: '0' is the confirmed off value in the device-config
+     * namespace (#181, hardware-validated) and that namespace shares this one's entire wire idiom — but no
+     * FEATURE flag has ever been observed holding '0', and the two namespaces are proven separate at the
+     * verb level. So the run writes ONE flag, reads it back, and only touches the other fifteen if the
+     * strap actually stopped reporting the old value.
+     *
+     * The ack is never the proof: SELECT_WRIST returns SUCCESS for a no-op and FAILURE for a real mutation
+     * on this firmware, so only the value a GET_FF_VALUE(128) read returns is reported as state (#907/#891).
+     *
+     * Same guards as the enable minus wear: the on-wrist gate exists because the R22 STREAM is on-wrist
+     * only, and turning a feature off should not require strapping the device back on.
+     */
+    fun disableWhoop5DeepData() {
+        if (connectedFamily != DeviceFamily.WHOOP5) {
+            log("Deep-data disable: needs a WHOOP 5.0/MG strap — ignored."); return
+        }
+        // NOTE there is deliberately NO isDeepDataEnabled guard here. There was one, and it made this whole
+        // function unreachable from the control users actually use: the Settings switch writes the pref
+        // false the moment it is flipped OFF, THEN raises the "Clear the R22 flags on your strap?" dialog.
+        // By the time the user taps "Clear flags on strap" the pref is already false, so the guard returned
+        // at the top and nothing happened — the same shape of defect this change exists to fix (UI
+        // promising an undo that never runs). The send allowlist now gates the off-value writes on
+        // r22DisableRun != null instead, which is the state that is actually about this operation. (#174)
+        val s = _state.value
+        if (!s.connected || !s.encryptedBond) {
+            log("Deep-data disable: needs the full encrypted bond, not the live-HR-only link. Close the official WHOOP app, put the strap in pairing mode, and bond it to NOOP first — ignored."); return
+        }
+        if (r22DisableRun != null) {
+            log("Deep-data disable: a disable run is already walking its plan — ignored."); return
+        }
+        r22DisableRun = R22DisableReport()
+        _r22DisableReport.value = WAITING_DEVICE_CONFIG_PROBE
+        log(
+            "Deep-data disable (#174): clearing the ${Whoop5Config.disableR22Sequence.size}-flag R22 " +
+                "sequence — writing '0' via SET_FF_VALUE(120), each verified with GET_FF_VALUE(128). " +
+                "Probing ${R22DisableReport.PROBE_KEY} first; the other flags are only written if that one moves."
+        )
+        advanceR22Disable()
+    }
+
+    /** Send the next planned step, or finish when the plan is done. */
+    private fun advanceR22Disable() {
+        val step = r22DisableRun?.nextStep()
+        if (step == null) { finishR22Disable(); return }
+        val cmd = CommandNumber.entries.firstOrNull { it.rawValue == step.opcode }
+        if (cmd == null) {
+            log("Deep-data disable: refusing to send unknown opcode ${step.opcode}")
+            finishR22Disable(); return
+        }
+        val payload: ByteArray
+        if (step.isWrite) {
+            payload = byteArrayOf(0x01) +
+                Whoop5Config.payloadBody(step.key, Whoop5Config.FEATURE_FLAG_OFF_VALUE)
+            // Fail closed: the same predicate the send path consults, asked here too, so a future edit that
+            // widened the plan cannot put an unrecognised key or value on the wire. `r22DisableRun != null`
+            // is true by construction here (this is only called from inside a run) — it is passed rather
+            // than hardcoded so this and the send path evaluate the identical predicate.
+            if (!FeatureFlagWriteGate.admitsDisableWrite(step.opcode, payload, r22DisableRun != null)) {
+                log("Deep-data disable: refusing to write ${step.key} — not admitted by the feature-flag gate")
+                finishR22Disable(); return
+            }
+        } else {
+            if (!FeatureFlagWriteGate.isReadBackOpcode(step.opcode)) {
+                log("Deep-data disable: refusing to read with opcode ${step.opcode}")
+                finishR22Disable(); return
+            }
+            payload = DeviceConfigReadProbe.requestBody(step.key)
+        }
+        r22DisableStep++
+        r22DisableAwaiting = step
+        val armed = r22DisableStep
+        send(cmd, payload, withResponse = true)
+        handler.postDelayed({
+            if (r22DisableRun != null && r22DisableStep == armed && r22DisableAwaiting != null) {
+                r22DisableAwaiting = null
+                r22DisableRun?.noteTimeout(step, (DEVICE_CONFIG_PROBE_TIMEOUT_MS / 1000).toInt())
+                advanceR22Disable()
+            }
+        }, DEVICE_CONFIG_PROBE_TIMEOUT_MS)
+    }
+
+    /** Render + publish + log the report and end the run (which also re-closes the 128 send allowlist). */
+    private fun finishR22Disable() {
+        val report = r22DisableRun ?: return
+        r22DisableRun = null
+        r22DisableAwaiting = null
+        // The "Strap accepted N/16 R22 flags" line reports the last ENABLE send. If this run cleared even
+        // one key that claim is stale, so retire it rather than leaving the card asserting the strap is
+        // unlocked while the report below says it was just cleared.
+        if (report.outcomes.values.any { it.isSuccess }) {
+            _state.update { it.copy(r22FlagsAccepted = 0) }
+        }
+        val text = report.render()
+        log("Deep-data disable (#174):\n$text")
+        _r22DisableReport.value = text
+    }
+
+    /** Clear the #174 disable result (Settings card dismissed). */
+    fun clearR22DisableReport() { _r22DisableReport.value = null }
+
+    /**
+     * #174: one COMMAND_RESPONSE belonging to a disable run — either a SET_FF_VALUE(120) write ack or a
+     * GET_FF_VALUE(128) read-back. Guarded on a run being IN-FLIGHT so a stray byte match can never
+     * surface a result. Parsing — including the CRC gate — lives in the pure [DeviceConfigReadProbe].
+     */
+    private fun handleR22DisableResponse(frame: ByteArray) {
+        if (r22DisableRun == null) return
+        val step = r22DisableAwaiting ?: return
+        r22DisableAwaiting = null
+        if (step.isWrite) {
+            // The ack is recorded for the transcript and decides nothing. The puffin envelope puts the type
+            // at 8 and the cmd at 10, so the payload starts at 11 and the result byte is at 12.
+            val resultCode = if (frame.size > 12) frame[12].toInt() and 0xFF else null
+            r22DisableRun?.noteWriteAck(resultCode, step)
+        } else {
+            val parsed = DeviceConfigReadProbe.parse(frame, connectedFamily, step.opcode)
+            val value = parsed.value
+            if (value != null) r22DisableRun?.noteReadBack(value, step)
+            else r22DisableRun?.noteReadFailure(parsed.failure!!, step)
+        }
+        advanceR22Disable()
+    }
+
+    /** Abandon a disable run the link interrupted, re-closing the 128 send allowlist. */
+    private fun abandonR22DisableRun(why: String) {
+        if (r22DisableRun == null) return
+        r22DisableRun?.noteAbandoned(why)
+        finishR22Disable()
     }
 
     /**
@@ -6825,6 +7014,10 @@ class WhoopBleClient(
         // #103: same for the device-config READ probe — dropping the report re-closes the 121/128
         // send() allowlist.
         _deviceConfigProbe.value = null
+        // #174: a disable run interrupted mid-plan is RENDERED rather than dropped — unlike the read-only
+        // probes it has already written to the strap, so the user must be told how far it got and which
+        // keys are still set. This publishes the partial report and re-closes the 128 allowlist.
+        abandonR22DisableRun("the strap disconnected mid-run")
         deviceConfigReport = null
         deviceConfigAwaiting = null
         reset()

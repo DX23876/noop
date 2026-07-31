@@ -741,7 +741,10 @@ as the 4.0 `event` post-hook fail closed.
 ## 6. Haptic preset discovery (GET_ALL_HAPTICS_PATTERN)
 
 The strap has a built-in table of haptic waveforms. `GET_ALL_HAPTICS_PATTERN` (command **80**) reports
-the device's preset patterns — **7 presets on the WHOOP 4.0 (Harvard)**, indexed `0–6`. They are fired
+the device's preset patterns — **7 presets on the WHOOP 4.0 (Harvard)**, indexed `0–6`. That count is
+a claim about the STRAP's own table, not about NOOP: it would be read with `GET_ALL_HAPTICS_PATTERN`
+(80), and neither platform has ever sent that command, so we have never enumerated it (#926). What the
+app exposes is four `BuzzPattern` choices, all sharing patternId 2. They are fired
 with `RUN_HAPTICS_PATTERN` (command **79**):
 
 ```text

@@ -6,16 +6,20 @@ import StrandDesign
 //
 // The liquid Today's sections — the Charge/Effort/Rest hero, the Start-session entry, Synthesis, Key
 // Metrics, Workouts, Heart Rate, Recovery Vitals, Your Cards — rendered in one fixed order. This lets the
-// user REORDER them, with the default being the original order so nothing changes for anyone who never
-// rearranges. Display-only — no metric is computed or stored differently; this only decides the SEQUENCE
-// the already-built sections render in.
+// user REORDER or HIDE them, with the default being the original order so nothing changes for anyone who
+// never customizes Today. Display-only — no metric is computed or stored differently; this only decides
+// which already-built sections render and in what sequence.
 //
 // Stored as a single comma-joined string of section keys in @AppStorage("today.sectionOrder"), the same
 // mechanism KeyMetricPrefs uses. The Android side mirrors this byte-identically in TodayLayoutPrefs.kt
-// (SharedPreferences "today.sectionOrder"). Every known section ALWAYS renders: unknown tokens are dropped,
-// and any known section missing from the saved order is INSERTED at its default-order position relative to
-// the saved sections — so a section added in a later version surfaces where users expect it rather than
-// teleporting to the bottom of an existing saved order. This reorders, it never hides.
+// (SharedPreferences "today.sectionOrder"). Every known section stays in the ORDER registry: unknown tokens
+// are dropped, and any known section missing from the saved order is INSERTED at its default-order position
+// relative to the saved sections — so a section added in a later version surfaces where users expect it
+// rather than teleporting to the bottom of an existing saved order.
+//
+// User visibility is stored separately in "today.hiddenSections". Keeping order and visibility separate is
+// intentional: hiding is reversible, a hidden section keeps its stable identity, and a section introduced by
+// a future version defaults to visible because it is absent from the explicit hidden set.
 
 /// One reorderable Today section. The rawValue is the stable persisted identifier — keep it byte-identical
 /// to the Android `TodaySection` enum so a backup/restore reads the same layout on either OS.
@@ -79,32 +83,23 @@ enum TodaySection: String, CaseIterable, Identifiable {
     }
 }
 
-/// Display-only persistence for the Today section order. Holds the sections in display order; every known
-/// section always renders (a missing one is inserted at its default position), so this reorders but never
-/// hides. Mirrors the Android `TodayLayoutPrefs` (SharedPreferences "today.sectionOrder") byte-for-byte.
+/// Display-only persistence for the Today section order and visibility. The order registry always contains
+/// every known section; `hiddenKey` stores the explicit reversible hidden set. Mirrors Android byte-for-byte.
 enum TodayLayoutPrefs {
     /// UserDefaults key — a comma-joined list of `TodaySection` rawValues in display order.
     static let orderKey = "today.sectionOrder"
-
-    /// UserDefaults key — a comma-joined list of `TodaySection` rawValues that are HIDDEN (§4). Its
-    /// @AppStorage default is `encodeHidden(TodaySection.defaultHidden)`, so an unset install hides the
-    /// redesign's decluttered set; an explicit empty string means "show everything".
+    /// UserDefaults key — a comma-joined list of explicitly hidden `TodaySection` rawValues. Unset means
+    /// nothing is hidden, same as an explicit empty string.
     static let hiddenKey = "today.hiddenSections"
-
-    /// Encode a hidden set into the stored string, in `allCases` order so it's deterministic.
-    static func encodeHidden(_ hidden: Set<TodaySection>) -> String {
-        TodaySection.allCases.filter(hidden.contains).map(\.rawValue).joined(separator: ",")
-    }
-
-    /// Decode the stored hidden string into a set (unknown tokens dropped). An empty string = nothing hidden.
-    static func decodeHidden(_ raw: String) -> Set<TodaySection> {
-        Set(raw.split(separator: ",").compactMap {
-            TodaySection(rawValue: $0.trimmingCharacters(in: .whitespaces))
-        })
-    }
 
     /// Encode an ordered section list into the stored comma-joined string.
     static func encode(_ sections: [TodaySection]) -> String {
+        sections.map(\.rawValue).joined(separator: ",")
+    }
+
+    /// Encode the explicit hidden set in stable list order. The editor passes its Hidden-section order;
+    /// rendering treats the decoded value as a set.
+    static func encodeHidden(_ sections: [TodaySection]) -> String {
         sections.map(\.rawValue).joined(separator: ",")
     }
 
@@ -137,94 +132,26 @@ enum TodayLayoutPrefs {
         }
         return saved
     }
-}
 
-// MARK: - Arrange sheet (shared by Liquid Today and Classic Today)
-
-/// #today-layout: the Arrange sheet — reorder the Today sections by dragging rows (SwiftUI's native
-/// `onMove`; the always-active edit mode on iOS shows the reorder handles without an Edit button). Writes
-/// straight through to the persisted order, so Today re-lays-out live behind the sheet. Reset restores the
-/// default order. Twin of the Android TodayLayoutEditorDialog over the byte-identical "today.sectionOrder".
-/// Shared verbatim between `LiquidTodayView` and classic `TodayView` — built from `StrandFont`/
-/// `StrandPalette` tokens only, no Liquid-specific chrome, so it reads at home in either screen's own
-/// navigation.
-struct TodayArrangeSheet: View {
-    @Binding var orderRaw: String
-    /// The persisted hidden set (§4): each row carries an eye toggle that shows/hides its section.
-    @Binding var hiddenRaw: String
-    @Environment(\.dismiss) private var dismiss
-
-    private var hidden: Set<TodaySection> { TodayLayoutPrefs.decodeHidden(hiddenRaw) }
-
-    private func toggleHidden(_ section: TodaySection) {
-        var next = hidden
-        if next.contains(section) { next.remove(section) } else { next.insert(section) }
-        hiddenRaw = TodayLayoutPrefs.encodeHidden(next)
+    /// Decode explicitly hidden sections. Empty/unset means nothing is hidden. Unknown tokens are ignored
+    /// and duplicates collapsed; unlike `decodeOrder`, missing cases are NOT inserted because absence here
+    /// means visible (including a section introduced by a future app version).
+    static func decodeHidden(_ raw: String) -> [TodaySection] {
+        var seen = Set<TodaySection>()
+        var hidden: [TodaySection] = []
+        for token in raw.split(separator: ",") {
+            if let section = TodaySection(rawValue: token.trimmingCharacters(in: .whitespaces)),
+               seen.insert(section).inserted {
+                hidden.append(section)
+            }
+        }
+        return hidden
     }
 
-    var body: some View {
-        // On iOS the Start-session section renders nothing (the entry moved into the "+" quick-action
-        // sheet), so listing it here would offer to arrange something the user can't see. Dropping it from
-        // the written order is safe in both directions: `decodeOrder` re-inserts a known-but-missing section
-        // at its default spot, and an Android-saved order containing it still decodes fine.
-        let order = TodayLayoutPrefs.decodeOrder(orderRaw).filter { section in
-            #if os(macOS)
-            return true
-            #else
-            return section != .liveSession
-            #endif
-        }
-        NavigationStack {
-            List {
-                ForEach(order) { section in
-                    let isHidden = hidden.contains(section)
-                    HStack {
-                        Text(section.title)
-                            .font(StrandFont.body)
-                            .foregroundStyle(isHidden ? StrandPalette.textTertiary : StrandPalette.textPrimary)
-                        Spacer()
-                        // Eye toggle: show/hide this section on Today (§4). A hidden section keeps its slot
-                        // in the order, so unhiding restores its position.
-                        Button {
-                            toggleHidden(section)
-                        } label: {
-                            Image(systemName: isHidden ? "eye.slash" : "eye")
-                                .foregroundStyle(isHidden ? StrandPalette.textTertiary : StrandPalette.accent)
-                        }
-                        // .borderless keeps the eye independently tappable while the row is in the always-on
-                        // edit mode used for drag-reorder (a .plain button would hand taps to the whole row).
-                        .buttonStyle(.borderless)
-                        .accessibilityLabel(isHidden ? "Show \(section.title)" : "Hide \(section.title)")
-                    }
-                }
-                .onMove { from, to in
-                    var next = order
-                    next.move(fromOffsets: from, toOffset: to)
-                    orderRaw = TodayLayoutPrefs.encode(next)
-                }
-            }
-            .navigationTitle("Arrange Today")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            // Always-active edit mode: the rows carry their reorder handles immediately — hold and drag —
-            // with no Edit-button dance. (macOS Lists drag-reorder natively with onMove.)
-            .environment(\.editMode, .constant(.active))
-            #endif
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    // Reset restores BOTH the default order and the default hidden set (§4 declutter).
-                    Button("Reset") {
-                        orderRaw = ""
-                        hiddenRaw = TodayLayoutPrefs.encodeHidden(TodaySection.defaultHidden)
-                    }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
-        }
-        #if os(macOS)
-        .frame(minWidth: 340, minHeight: 420)
-        #endif
+    /// The sections Today should render, preserving the full saved order while filtering only the user's
+    /// explicit hidden set. At least one visible section is enforced by the editor, not the decoder.
+    static func visibleOrder(orderRaw: String, hiddenRaw: String) -> [TodaySection] {
+        let hidden = Set(decodeHidden(hiddenRaw))
+        return decodeOrder(orderRaw).filter { !hidden.contains($0) }
     }
 }

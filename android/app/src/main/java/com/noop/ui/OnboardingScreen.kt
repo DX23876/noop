@@ -826,9 +826,14 @@ private fun ImportStep(viewModel: AppViewModel) {
             val granted = runCatching {
                 HealthConnectImporter.client(context).permissionController.getGrantedPermissions()
             }.getOrDefault(emptySet())
-            if (granted.any { it in HealthConnectImporter.PERMISSIONS }) {
+            if (granted.any { it in HealthConnectImporter.PERMISSIONS } &&
+                !HealthConnectImporter.hasUnaskedPermissions(context)
+            ) {
                 runImport { HealthConnectImporter.import(context, viewModel.repo, ProfileStore.from(context).heightCm) }
             } else {
+                // Marked before launching so the request is made ONCE per permission set: a user who
+                // declines is not asked again on every visit (#949).
+                HealthConnectImporter.markPermissionsAsked(context)
                 hcPermissionLauncher.launch(HealthConnectImporter.PERMISSIONS)
             }
         }

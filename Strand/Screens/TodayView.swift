@@ -212,17 +212,6 @@ struct TodayView: View {
     @AppStorage(CoachEntryPrefs.uiEnabledKey) private var coachUIEnabled = true
     @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
 
-    // #today-layout: the user-chosen section order, SAME `@AppStorage` key `LiquidTodayView` reads/writes
-    // (`TodayLayoutPrefs.orderKey`) — a reorder on one Today screen is reflected on the other, since it's
-    // one persisted layout, not two. Reordered via the Arrange sheet (top-bar/toolbar button); every known
-    // section always renders, a hidden one just keeps its slot (see `TodayLayoutPrefs`).
-    @AppStorage(TodayLayoutPrefs.orderKey) private var sectionOrderRaw = ""
-    @State private var showArrangeSheet = false
-    private var sectionOrder: [TodaySection] { TodayLayoutPrefs.decodeOrder(sectionOrderRaw) }
-    @AppStorage(TodayLayoutPrefs.hiddenKey) private var hiddenSectionsRaw =
-        TodayLayoutPrefs.encodeHidden(TodaySection.defaultHidden)
-    private var hiddenSections: Set<TodaySection> { TodayLayoutPrefs.decodeHidden(hiddenSectionsRaw) }
-
     // Imperial/Metric display preference (D#103). Only the Weight tile carries a convertible unit here.
     @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
     private var unitSystem: UnitSystem { UnitSystem(rawValue: unitSystemRaw) ?? .metric }
@@ -239,13 +228,20 @@ struct TodayView: View {
     private var hrvWindow: HrvWindow { HrvWindow(rawValue: hrvWindowRaw) ?? .whole }
 
     // Editable Key-Metrics layout (#251), an ordered list of the enabled tiles, persisted display-only.
-    // Empty/unset shows the full default order. The "Edit" affordance on the section opens a local sheet.
+    // Empty/unset shows the full default order. Every edit affordance routes into one customization sheet.
     @AppStorage(KeyMetricPrefs.layoutKey) private var keyMetricsRaw = ""
-    @State private var showingMetricsEditor = false
+    /// "Detailed tiles" — same key Liquid Today reads, so the customization sheet's toggle applies here
+    /// too. Off by default, matching Liquid.
+    @AppStorage("today.keyMetricsDetailed") private var keyMetricsDetailed = false
+    /// The detailed graphs' trailing window — 2 days / 1 week / 2 weeks (shared key with Liquid/Android).
+    /// `sparks` already banks a 14-day superset; `windowedSpark(_:)` filters it down at render, so a
+    /// picker change in the editor applies instantly with no reload (mirrors `LiquidTodayView`'s
+    /// `windowedSpark`).
+    @AppStorage("today.keyMetricsWindowDays") private var keyMetricsWindowDays = 14
     private var enabledKeyMetrics: [KeyMetric] { KeyMetricPrefs.decodeEnabled(keyMetricsRaw) }
-    // The editor's "Tiles per row" picker (KeyMetricsEditorSheet) wrote this key but the classic grid
-    // never read it — only LiquidTodayView did, so the picker silently did nothing here. Read the SAME
-    // key/default LiquidTodayView reads (see `grid` below for how it's applied).
+    // The "Tiles per row" picker wrote this key but the classic grid never read it — only
+    // LiquidTodayView did, so the picker silently did nothing here. Read the SAME key/default
+    // LiquidTodayView reads (see `grid` below for how it's applied).
     @AppStorage(KeyMetricPrefs.columnsKey) private var keyMetricsColumnsRaw = 3
 
     // "Your cards" customisable dashboard (WHOOP "My Dashboard"), a persisted, reorderable selection of
@@ -253,7 +249,18 @@ struct TodayView: View {
     // Resting HR). The "CUSTOMISE" link on the section header opens a local sheet (no new nav destination).
     // Persistence is display-only, these cards read the SAME values the rest of Today already loads.
     @AppStorage(DashboardCardPrefs.selectionKey) private var dashboardCardsRaw = ""
-    @State private var showingDashboardEditor = false
+
+    // #today-layout: the user-chosen section order, SAME `@AppStorage` key `LiquidTodayView` reads/writes
+    // (`TodayLayoutPrefs.orderKey`) — a reorder on one Today screen is reflected on the other, since it's
+    // one persisted layout, not two. Order and visibility are both edited in `TodayCustomizationSheet`,
+    // which every Today edit affordance opens (#940).
+    @AppStorage(TodayLayoutPrefs.orderKey) private var sectionOrderRaw = ""
+    @AppStorage(TodayLayoutPrefs.hiddenKey) private var hiddenSectionsRaw = ""
+    @AppStorage(LiveSessionPrefs.betaKey) private var liveSessionsBeta = true
+    private var sectionOrder: [TodaySection] {
+        TodayLayoutPrefs.visibleOrder(orderRaw: sectionOrderRaw, hiddenRaw: hiddenSectionsRaw)
+    }
+    @State private var customizationDestination: TodayCustomizationDestination?
     // Hydration tracker (opt-in, default OFF). When off the hydration dashboard card is hidden even if a
     // user had it in their saved selection, the feature owns its own gate.
     @AppStorage(HydrationStore.enabledKey) private var hydrationEnabled = false
@@ -286,16 +293,6 @@ struct TodayView: View {
 
     // 14-day sparkline series, keyed by metric key. Loaded once in .task.
     @State private var sparks: [String: [Double]] = [:]
-    /// "Detailed tiles" — same key `KeyMetricsEditorSheet`/Liquid Today read, so the Key-Metrics editor's
-    /// toggle applies here too (was written by the sheet but had no reader on this screen — the tiles
-    /// always drew a sparkline whenever `sparks[key]` had data, regardless of this setting). Off by
-    /// default, matching Liquid.
-    @AppStorage("today.keyMetricsDetailed") private var keyMetricsDetailed = false
-    /// The detailed graphs' trailing window — 2 days / 1 week / 2 weeks (shared key with Liquid/Android).
-    /// `sparks` already banks a 14-day superset; `windowedSpark(_:)` filters it down at render, so a
-    /// picker change in the editor applies instantly with no reload (mirrors `LiquidTodayView`'s
-    /// `windowedSpark`).
-    @AppStorage("today.keyMetricsWindowDays") private var keyMetricsWindowDays = 14
     @State private var workouts: [WorkoutRow] = []
     @State private var appleDays: [AppleDaily] = []
     // Design Reset / #582, the pinned "Your cards" values (Stress / Fitness age / Vitality), surfaced
@@ -381,6 +378,7 @@ struct TodayView: View {
     // iOS top-bar state: the date-jump popover and the profile/settings sheet.
     @State private var showDayPicker = false
     @State private var showSettings = false
+    @State private var showLiveSession = false
     /// The Updates inbox sheet (opened by the header bell). Shared across both platforms.
     @State private var showUpdatesInbox = false
 
@@ -1208,10 +1206,10 @@ struct TodayView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Updates")
-                // #today-layout: opens the Arrange sheet (drag rows to reorder/hide the Today sections) —
-                // same sheet, same persisted order, as Liquid Today's own arrange button.
-                Button { showArrangeSheet = true } label: {
-                    Image(systemName: "arrow.up.arrow.down")
+                // One entry point for section order/visibility and both nested card editors — same sheet,
+                // same persisted layout, as Liquid Today's own customization button.
+                Button { customizationDestination = .today } label: {
+                    Image(systemName: "slider.horizontal.3")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(StrandPalette.textSecondary)
                         .frame(width: 36, height: 36)
@@ -1219,7 +1217,7 @@ struct TodayView: View {
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Arrange Today sections")
+                .accessibilityLabel("Customize Today")
                 // Quick-action + (the accented primary, gold, same 36 size as the rest).
                 Button { router.requestQuickActions() } label: {
                     Image(systemName: "plus")
@@ -1384,55 +1382,16 @@ struct TodayView: View {
                 // bar, the full section gap left too much air above them now the big "Today's Synthesis"
                 // header is gone.
                 //
-                // #today-layout: every section below — the hero scores, Coach's banner, Synthesis, Key
-                // Metrics, Workouts, Heart Rate, Recovery Vitals, Your Cards, Journal, Data Sources — renders
-                // in the user's saved order (same mechanism, same persisted order, as `LiquidTodayView`; see
-                // `TodayLayoutPrefs`). `ActiveWorkoutIndicatorSection`, `MorningSuggestionCard`, the
+                // The same full order/visibility registry as Liquid Today. Every editor row maps to one real
+                // section here, so a change saved from the shared sheet immediately affects this reference
+                // implementation too. `ActiveWorkoutIndicatorSection`, `MorningSuggestionCard`, the
                 // scores-building notes above, and `AutoWorkoutCard`/`PlanTodayCard` below stay fixed outside
                 // this block — the same split Liquid Today itself uses for its own non-reorderable elements.
+                // The index only drives the entrance stagger, so `.offset` (a position, not an identity) is
+                // the right id here.
                 ForEach(Array(sectionOrder.enumerated()), id: \.offset) { idx, section in
-                    if !hiddenSections.contains(section) {
-                        Group {
-                            switch section {
-                            case .coach:
-                                // Same gate the header icon used on Liquid, now this screen's own toggle.
-                                if coachFeatureEnabled, coachUIEnabled, coachBannerEnabled {
-                                    CoachTodayRow(isPresented: $showCoach)
-                                }
-                            case .hero:
-                                heroCard
-                            case .liveSession:
-                                // Classic has never had a "Start session" entry point on any platform — the
-                                // silent-guardian beta lives in the "+" quick-action sheet here too. Keeping
-                                // the case (rendering nothing) means the shared order string stays valid
-                                // whichever Today screen last wrote it.
-                                EmptyView()
-                            case .synthesis:
-                                synthesisSection
-                            case .keyMetrics:
-                                // S4: the SEPARATE Readiness block is no longer a home-screen card, it folded
-                                // into the Charge-ring tap (chargeBreakdownSheet). A one-word readiness read
-                                // (Push / Maintain / Rest, #205) stays on the hero via the Synthesis section's
-                                // pill row, so the home screen keeps a glanceable verdict without the full card.
-                                metricsSection
-                            case .workouts:
-                                workoutsSection
-                            case .heartRate:
-                                heartRateTrendSection
-                            case .recoveryVitals:
-                                recoveryVitalsCard(displayDay)
-                            case .yourCards:
-                                yourCardsSection
-                            case .journal:
-                                // #627: the persistent journal widget (last-7-days strip + tap-through).
-                                // Today only; self-hides when the reminder toggle is off.
-                                if selectedDayOffset == 0 { JournalReminderCard() }
-                            case .dataSources:
-                                sourcesSection
-                            }
-                        }
+                    todaySection(section)
                         .staggeredAppear(index: idx)
-                    }
                 }
                 // Opt-in "looks like a workout?" suggestion (default OFF). Renders only when the
                 // Settings toggle is on AND the detector finds a recent unsaved, un-dismissed window.
@@ -1440,6 +1399,10 @@ struct TodayView: View {
                 // The committed "next up" session sits BELOW the metric sections on purpose: once accepted
                 // it's an ambient reminder, not a demand for the top of the screen. It draws attention on
                 // its own terms as its time nears (colour + breathe, see PlanTodayCard).
+                //
+                // Data Sources is NOT pinned here (upstream renders it fixed at this spot): the fork keeps
+                // `.dataSources` a reorderable section in the loop above, so pinning it too would render it
+                // twice.
                 PlanTodayCard(showPlan: $showPlan)
             }
             #if os(iOS)
@@ -1501,12 +1464,12 @@ struct TodayView: View {
             ToolbarItem(placement: .primaryAction) {
                 updateBell.help("Updates")
             }
-            // #today-layout: the Arrange button, macOS toolbar twin of the iOS top-bar icon.
+            // The customization button, macOS toolbar twin of the iOS top-bar icon.
             ToolbarItem(placement: .primaryAction) {
-                Button { showArrangeSheet = true } label: {
-                    Image(systemName: "arrow.up.arrow.down")
+                Button { customizationDestination = .today } label: {
+                    Image(systemName: "slider.horizontal.3")
                 }
-                .help("Arrange Today sections")
+                .help("Customize Today")
             }
         }
         #else
@@ -1524,10 +1487,6 @@ struct TodayView: View {
         // The Updates inbox (the header bell). Both platforms.
         .sheet(isPresented: $showUpdatesInbox) {
             UpdatesInboxView(onClose: { showUpdatesInbox = false })
-        }
-        // #today-layout: the Arrange sheet — same shared component `LiquidTodayView` uses.
-        .sheet(isPresented: $showArrangeSheet) {
-            TodayArrangeSheet(orderRaw: $sectionOrderRaw, hiddenRaw: $hiddenSectionsRaw)
         }
         // The Coach chat, opened by the prominent Coach card above. Uses the shared View.coachCover
         // helper (defined alongside LiquidTodayView's covers).
@@ -1552,6 +1511,29 @@ struct TodayView: View {
                 .frame(width: 620, height: 720)
                 #endif
         }
+        // Every Today layout/card affordance presents the same draft-based editor. Section-level buttons
+        // deep-link to their child page; Cancel/Save semantics and Shown/Hidden rows stay identical.
+        .sheet(item: $customizationDestination) { destination in
+            TodayCustomizationSheet(
+                initialDestination: destination,
+                sectionOrderRaw: $sectionOrderRaw,
+                hiddenSectionsRaw: $hiddenSectionsRaw,
+                keyMetricsRaw: $keyMetricsRaw,
+                keyMetricsDetailed: $keyMetricsDetailed,
+                keyMetricsWindowDays: $keyMetricsWindowDays,
+                keyMetricsColumns: $keyMetricsColumnsRaw,
+                dashboardCardsRaw: $dashboardCardsRaw
+            )
+        }
+        #if os(iOS)
+        .fullScreenCover(isPresented: $showLiveSession) {
+            LiveSessionView(onClose: { showLiveSession = false })
+        }
+        #else
+        .sheet(isPresented: $showLiveSession) {
+            LiveSessionView(onClose: { showLiveSession = false })
+        }
+        #endif
         // Honour a "Restore to Today" tap from the inbox: flip the matching dismissed flag back so the
         // card reappears (the inbox also clears the @AppStorage key directly, but this covers an
         // already-mounted Today). Cleared once handled.
@@ -1793,12 +1775,46 @@ struct TodayView: View {
     // MARK: (a) HERO, three ring scores (Charge / Effort / Rest) over a scenic backdrop,
     // then the green-tinted Synthesis coaching card. Bevel layout.
 
-    /// `heroSection` wrapped in its card chrome — pulled out to its own property so the reorderable
-    /// `.hero` case in `body`'s `ForEach` can render it like every other section. The dark hero card floats
-    /// over the vivid day-scene so the rings + white numbers stay crisp; the card does the contrast work,
-    /// not a muted scene (2026-06-23). Identical on both platforms — the styling never actually differed,
-    /// only a stale `#if os(iOS)`/`#else` split (with a comment explaining iOS's compact top bar) duplicated it.
-    private var heroCard: some View {
+    @ViewBuilder
+    private func todaySection(_ section: TodaySection) -> some View {
+        switch section {
+        case .coach:
+            // Fork-only section. The editor always lists the row; the banner itself stays behind the
+            // coach's own gates, so turning the coach off empties the slot rather than hiding the row.
+            if coachFeatureEnabled, coachUIEnabled, coachBannerEnabled {
+                CoachTodayRow(isPresented: $showCoach)
+            }
+        case .hero:
+            classicHeroSection
+        case .liveSession:
+            if liveSessionsBeta { liveSessionStartSection }
+        case .synthesis:
+            synthesisSection
+        case .keyMetrics:
+            // S4: the SEPARATE Readiness block is no longer a home-screen card, it folded into the
+            // Charge-ring tap (chargeBreakdownSheet). A one-word readiness read (Push / Maintain / Rest,
+            // #205) stays on the hero via the Synthesis section's pill row, so the home screen keeps a
+            // glanceable verdict without the full card.
+            metricsSection
+        case .workouts:
+            workoutsSection
+        case .heartRate:
+            heartRateTrendSection
+        case .recoveryVitals:
+            recoveryVitalsSection
+        case .yourCards:
+            yourCardsSection
+        case .journal:
+            // #627: the persistent journal widget (last-7-days strip + tap-through).
+            // Today only; self-hides when the reminder toggle is off.
+            if selectedDayOffset == 0 { JournalReminderCard() }
+        case .dataSources:
+            // Fork-only as a REORDERABLE section — upstream pins it below the loop instead.
+            sourcesSection
+        }
+    }
+
+    private var classicHeroSection: some View {
         heroSection
             .padding(.vertical, NoopMetrics.space4)
             .frame(maxWidth: .infinity)
@@ -1806,6 +1822,40 @@ struct TodayView: View {
                 RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous)
                     .fill(StrandPalette.surfaceBase.opacity(0.72))
             )
+    }
+
+    private var liveSessionStartSection: some View {
+        Button { showLiveSession = true } label: {
+            NoopCard(tint: StrandPalette.metricCyan) {
+                HStack(spacing: NoopMetrics.space3) {
+                    Image(systemName: "shield.lefthalf.filled")
+                        .font(StrandFont.headline)
+                        .foregroundStyle(StrandPalette.metricCyan)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+                        Text("Start session")
+                            .font(StrandFont.headline)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                        Text("Silent strap coaching against today's Charge.")
+                            .font(StrandFont.caption)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                    }
+                    Spacer(minLength: NoopMetrics.space2)
+                    Text("BETA")
+                        .strandOverline()
+                    Image(systemName: "chevron.right")
+                        .font(StrandFont.caption.weight(.semibold))
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .accessibilityHidden(true)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Start a live session. Beta. Silent strap coaching against today's Charge.")
+    }
+
+    private var recoveryVitalsSection: some View {
+        recoveryVitalsCard(displayDay)
     }
 
     @ViewBuilder
@@ -2242,7 +2292,7 @@ struct TodayView: View {
                     Text("Your cards").strandOverline()
                     Spacer(minLength: 8)
                     Button {
-                        showingDashboardEditor = true
+                        customizationDestination = .yourCards
                     } label: {
                         Label(String(localized: "Edit").uppercased(), systemImage: "slider.horizontal.3")   // #492/#563: unified "EDIT"
                             .font(StrandFont.overline)
@@ -2256,9 +2306,6 @@ struct TodayView: View {
                 ForEach(enabledDashboardCards) { card in
                     dashboardCardRow(card)
                 }
-            }
-            .sheet(isPresented: $showingDashboardEditor) {
-                DashboardCardsEditorSheet(selectionRaw: $dashboardCardsRaw)
             }
         }
     }
@@ -3325,7 +3372,7 @@ struct TodayView: View {
             HStack(alignment: .firstTextBaseline) {
                 SectionHeader("Key Metrics", overline: "\(selectedDayOverline)", trailing: String(localized: "14-day trend"))
                 Button {
-                    showingMetricsEditor = true
+                    customizationDestination = .keyMetrics
                 } label: {
                     Label(String(localized: "Edit").uppercased(), systemImage: "slider.horizontal.3")   // #492/#563: uppercase to match
                         .font(StrandFont.footnote)
@@ -3354,9 +3401,6 @@ struct TodayView: View {
             if metricsHasOverflow {
                 metricsExpander
             }
-        }
-        .sheet(isPresented: $showingMetricsEditor) {
-            KeyMetricsEditorSheet(layoutRaw: $keyMetricsRaw)
         }
     }
 
@@ -4111,7 +4155,8 @@ struct TodayView: View {
 
     /// #989: today's hydration total + goal, re-read wherever staleness could show: the history-wide load,
     /// the same-seq cache restore, a hydration mutation (`repo.hydrationSeq`), and the feature toggle.
-    /// One metricSeries row + a UserDefaults read, cheap enough to run on every pass.
+    /// Two metricSeries rows (hand-logged + imported, #949) and a UserDefaults read — still cheap
+    /// enough to run on every pass.
     private func reloadHydration() async {
         if hydrationEnabled {
             hydrationTotalML = await repo.hydrationTotal(day: Repository.localDayKey(Date()))

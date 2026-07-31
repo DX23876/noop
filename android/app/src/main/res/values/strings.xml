@@ -58,6 +58,16 @@
     <!-- Today screen: header of the workouts feed. Renamed from "Last Workouts" ("Last" read as
          "final", #34/#53 follow-up); wording mirrored on iOS in Localizable.xcstrings. -->
     <string name="today_latest_workouts">Latest Workouts</string>
+    <string name="today_customize_title">Customize Today</string>
+    <string name="today_customize_action">Customize</string>
+    <string name="today_customize_description">Reorder what is shown, or move a section to Hidden without deleting it.</string>
+    <string name="today_customize_shown">SHOWN</string>
+    <string name="today_customize_hidden">HIDDEN</string>
+    <string name="today_customize_nothing_hidden">Nothing hidden</string>
+    <string name="today_customize_move_up">Move %1$s up</string>
+    <string name="today_customize_move_down">Move %1$s down</string>
+    <string name="today_customize_hide">Hide %1$s</string>
+    <string name="today_customize_show">Show %1$s</string>
 
     <!-- First-run Terms gate (clickwrap). Moved out of TermsGate.kt string literals so the gate is
          localizable (PR #984); English wording kept byte-identical to the macOS/iOS `Terms.points` /
@@ -263,6 +273,7 @@
     <string name="l10n_backup_sync_screen_restore_3cbe6d6b">Restore</string>
     <string name="l10n_backup_sync_screen_restore_from_a_backup_c28917c6">Restore from a backup…</string>
     <string name="l10n_backup_sync_screen_roughly_when_the_daily_backup_runs_71de04e1">Roughly when the daily backup runs (best-effort — the system may slide it a little).</string>
+    <string name="l10n_backup_sync_screen_these_backups_are_unencrypted_too_if_53e70fe8">These backups are unencrypted too. If this folder syncs to Drive, Dropbox or iCloud, the readable file goes there as well — only point it at a service you trust.</string>
     <string name="l10n_backup_sync_screen_tip_a_desktop_drive_dropbox_app_2eaff1e3">Tip: a desktop Drive / Dropbox app auto-syncs a chosen folder. On the phone, save to a </string>
     <string name="l10n_backup_sync_screen_writes_a_fresh_dated_backup_to_bd964fc5">Writes a fresh dated backup to your folder once a day at the time below, keeping </string>
     <string name="l10n_breathe_screen_a_relaxation_rhythm_not_cardiac_control_5c2f10a8">A relaxation rhythm, not cardiac control. It never paces below a safe rate and you can stop anytime. If your heart rate doesn\'t settle, we\'ll say so plainly.</string>
@@ -493,6 +504,7 @@
     <string name="l10n_hydration_screen_kotlin_math_min_100_fraction_100_72f2dfde">%1$s%% of today\'s goal</string>
     <string name="l10n_hydration_screen_log_8bf95ea3">Log</string>
     <string name="l10n_hydration_screen_logged_today_0071a46c">Logged today</string>
+    <string name="l10n_hydration_screen_from_health_connect_4ad037a3">From Health Connect</string>
     <string name="l10n_hydration_screen_millilitres_ml_0fb0d2a4">Millilitres (ml)</string>
     <string name="l10n_hydration_screen_no_drinks_logged_yet_tap_sip_cc0d2f72">No drinks logged yet. Tap Sip, Cup or Bottle to start.</string>
     <string name="l10n_hydration_screen_no_history_yet_933f417e">No history yet.</string>
@@ -865,6 +877,11 @@
     <string name="l10n_test_centre_screen_experimental_algorithms_e09581e2">Experimental algorithms</string>
     <string name="l10n_test_centre_screen_export_f3e4fadb">Export</string>
     <string name="l10n_test_centre_screen_export_time_2ca90c2e">Export time</string>
+    <string name="l10n_test_centre_screen_keep_last_exports_44bc65f5">Keep last exports</string>
+    <string name="l10n_test_centre_screen_older_scheduled_exports_beyond_this_c75723fc">Older scheduled exports beyond this many are pruned automatically, oldest first.</string>
+    <string name="l10n_test_centre_screen_clear_scheduled_exports_54123329">Clear scheduled exports</string>
+    <string name="l10n_test_centre_screen_clear_scheduled_exports_36e93dd0">Clear scheduled exports?</string>
+    <string name="l10n_test_centre_screen_this_deletes_every_scheduled_strap_ea52c535">This deletes every scheduled strap-log and raw-capture file NOOP has saved. This can\'t be undone.</string>
     <string name="l10n_test_centre_screen_heads_up_this_test_mode_is_8b82ed69">Heads up: this test mode is off, so the report has no capture for it. For a </string>
     <string name="l10n_test_centre_screen_hr_from_ppg_sub_lag_interpolation_a3ed1536">HR-from-PPG sub-lag interpolation (v26 gap-fill)</string>
     <string name="l10n_test_centre_screen_hrv_readiness_experimental_924f61bc">HRV readiness (experimental)</string>
@@ -1306,11 +1323,19 @@
     <string name="l10n_connection_help_your_strap_is_connected_and_we_8ab98ac6">Your strap is connected and we\'re trying an experimental handshake to bring up live </string>
     <string name="l10n_coupled_screen_day_987b9ced">Day</string>
     <string name="l10n_devices_screen_delete_all_of_this_device_s_754cde90">Delete all of this device\'s data?</string>
+    <string name="l10n_devices_screen_delete_this_device_s_data_3cae7a2a">Delete this device\'s data…</string>
     <string name="l10n_devices_screen_device_actions_for_displayname_device_160eb3de">Device actions for %1$s</string>
     <string name="l10n_devices_screen_devices_df485c87">Devices</string>
+    <string name="l10n_devices_screen_disconnect_ed28e068">Disconnect</string>
     <string name="l10n_devices_screen_getting_your_devices_ready_bd391949">Getting your devices ready</string>
+    <string name="l10n_devices_screen_make_active_75690bb8">Make active</string>
     <string name="l10n_devices_screen_make_this_your_active_strap_fea6bebd">Make this your active strap?</string>
+    <string name="l10n_devices_screen_reboot_probe_4_0_re_828b3916">Reboot probe (4.0 RE)…</string>
+    <string name="l10n_devices_screen_reconnect_6988b16a">Reconnect</string>
+    <string name="l10n_devices_screen_remove_e963907d">Remove</string>
     <string name="l10n_devices_screen_remove_this_device_dd9dbda9">Remove this device?</string>
+    <string name="l10n_devices_screen_rename_d3f4cb89">Rename</string>
+    <string name="l10n_devices_screen_restart_strap_c976cd6c">Restart strap…</string>
     <string name="l10n_devices_screen_restart_this_strap_50fc481b">Restart this strap?</string>
     <string name="l10n_fused_record_screen_nothing_to_fuse_yet_30789c4e">Nothing to fuse yet</string>
     <string name="l10n_fused_record_screen_your_data_fused_a740fd4a">Your Data, Fused</string>
@@ -1509,6 +1534,7 @@
     <string name="l10n_settings_screen_temperature_0a9062a9">Temperature</string>
     <string name="l10n_settings_screen_test_centre_37b36828">Test Centre</string>
     <string name="l10n_settings_screen_theme_a797e309">Theme</string>
+    <string name="l10n_settings_screen_this_is_a_plain_unencrypted_archive_b0dfe63d">This is a plain, unencrypted archive — anyone who gets the file can open it with any zip tool. Store it somewhere you trust.</string>
     <string name="l10n_settings_screen_this_restarts_the_roughly_4_night_c610a93d">This restarts the roughly 4-night build-up for Charge and your HRV baseline. Your history stays. Use it if a bad first week, like wearing it while sick, set your baseline off.</string>
     <string name="l10n_settings_screen_trend_charts_19085c81">Trend charts</string>
     <string name="l10n_settings_screen_try_whoop_5_mg_protocol_probes_1d584653">Try WHOOP 5/MG protocol probes</string>
@@ -1783,4 +1809,22 @@
     <string name="battery_channel_name">Battery alerts</string>
     <string name="battery_channel_desc">Alerts when the strap battery is low or fully charged.</string>
     <string name="l10n_app_changelog_battery_saver_quiets_the_gauges_translated_bdbe8650">Battery saver quiets the gauges, translated Android notifications, and instant chart loads</string>
+    <string name="l10n_health_screen_no_spo_import_or_health_value_408f8c55">No SpO₂ import or Health value</string>
+    <string name="l10n_health_screen_raw_counts_only_needs_an_import_d0e33552">Raw counts only — needs an import</string>
+    <string name="l10n_settings_screen_turn_deep_data_back_off_r22disable">Turn deep data back off</string>
+    <string name="l10n_settings_screen_r22disable_needs_bond">Needs the full encrypted bond: close the official WHOOP app and pair the strap to NOOP first (a live-HR-only link can’t carry the write).</string>
+    <string name="l10n_settings_screen_r22disable_reason">Writes the off value to all 16 flags and reads each one back, so you see what the strap stores rather than just that it acked. The off value is inferred from the flag NOOP already turns off this way for Garmin broadcast — it has never been seen on an R22 flag, so NOOP tries one flag first and stops if the strap refuses it. Clearing the flags is not the same as watching the deep records stop: check that by syncing afterwards.</string>
+    <string name="l10n_settings_screen_r22disable_running">Clearing R22 flags and reading each one back…</string>
+    <string name="l10n_settings_screen_r22disable_dismiss">Dismiss disable report</string>
+    <string name="l10n_settings_screen_r22disable_confirm_title">Clear the R22 flags on your strap?</string>
+    <string name="l10n_settings_screen_r22disable_confirm_body">Turning this switch off only stops NOOP sending the unlock. The flags it already wrote stay on the strap until something clears them. NOOP can write the off value to all 16 now and read each one back so you can see what the strap actually stores. Needs the strap connected and bonded.</string>
+    <string name="l10n_settings_screen_r22disable_confirm_action">Clear flags on strap</string>
+    <string name="l10n_settings_screen_r22disable_confirm_cancel">Just stop sending</string>
+    <string name="l10n_settings_screen_r22_accepted_all">✓ Strap accepted all %1$d R22 flags</string>
+    <string name="l10n_settings_screen_r22_accepted_partial">Strap accepted %1$d/%2$d R22 flags…</string>
+    <string name="l10n_notifications_settings_screen_every_pattern_buzzes_the_same_on_34e873f6">Every pattern buzzes the same on a WHOOP 5/MG — the repeat count isn\'t sent to that strap. Your choice is saved and applies to a WHOOP 4.0.</string>
+    <string name="l10n_app_changelog_water_and_caffeine_from_apple_health_5123b6b0">Water and caffeine from Apple Health, a sharper Effort score, and an Oura resting-heart-rate fix</string>
+    <string name="l10n_app_changelog_upstream_9_3_0_with_the_89c9eaa5">Upstream 9.3.0, with the Coach still on Today and one place to arrange it</string>
+    <string name="l10n_app_changelog_the_coach_follows_your_app_language_9b87ad5b">The Coach follows your app language and stays readable on compact iPhones</string>
+    <string name="l10n_app_changelog_a_coach_that_remembers_privacy_presets_73036e50">A coach that remembers, privacy presets that stay simple</string>
 </resources>

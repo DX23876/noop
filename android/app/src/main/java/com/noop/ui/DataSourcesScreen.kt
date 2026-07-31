@@ -301,9 +301,15 @@ fun DataSourcesScreen(vm: AppViewModel) {
             val granted = runCatching {
                 HealthConnectImporter.client(context).permissionController.getGrantedPermissions()
             }.getOrDefault(emptySet())
-            if (granted.any { it in HealthConnectImporter.PERMISSIONS }) {
+            // `any` (not `all`) is deliberate — partial grants are supported (#150). But that alone
+            // would never ASK about a permission added in an update, so a newly-read type would come
+            // back empty forever (#949). Route through the request once when the set has grown.
+            if (granted.any { it in HealthConnectImporter.PERMISSIONS } &&
+                !HealthConnectImporter.hasUnaskedPermissions(context)
+            ) {
                 runImport { HealthConnectImporter.import(context, vm.repo, ProfileStore.from(context).heightCm) }
             } else {
+                HealthConnectImporter.markPermissionsAsked(context)
                 hcPermissionLauncher.launch(HealthConnectImporter.PERMISSIONS)
             }
         }

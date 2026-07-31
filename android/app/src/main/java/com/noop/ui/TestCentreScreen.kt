@@ -3,6 +3,7 @@ package com.noop.ui
 import com.noop.R
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,10 +16,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -406,6 +410,11 @@ private fun ExportCard(vm: AppViewModel, onReport: () -> Unit) {
     val settings = remember { DebugExportSettings.from(context) }
     var enabled by remember { mutableStateOf(settings.enabled) }
     var minutes by remember { mutableStateOf(settings.timeMinutes) }
+    // Retention (#642): how many scheduled-export generations to keep before the next write prunes
+    // older ones. Same shape as BackupSyncScreen's keep-count dropdown.
+    var keep by remember { mutableStateOf(settings.keepCount) }
+    var keepMenu by remember { mutableStateOf(false) }
+    var showClearConfirm by remember { mutableStateOf(false) }
     SettingsSectionTC(
         icon = Icons.Filled.Upload,
         title = uiString(R.string.l10n_test_centre_screen_export_f3e4fadb),
@@ -453,10 +462,90 @@ private fun ExportCard(vm: AppViewModel, onReport: () -> Unit) {
                         },
                     )
                 }
+                // Retention: how many scheduled exports to keep. Wired to DebugExportSettings.keepCount;
+                // the next scheduled write prunes the oldest generations beyond this count (#642).
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        Text(uiString(R.string.l10n_test_centre_screen_keep_last_exports_44bc65f5), style = NoopType.subhead, color = Palette.textPrimary)
+                        Text(
+                            uiString(R.string.l10n_test_centre_screen_older_scheduled_exports_beyond_this_c75723fc),
+                            style = NoopType.footnote, color = Palette.textTertiary,
+                        )
+                    }
+                    Box {
+                        TextButton(onClick = { keepMenu = true }) {
+                            Text(uiString(R.string.l10n_backup_sync_screen_keep_1addd33c, keep), style = NoopType.body, color = Palette.accent)
+                        }
+                        DropdownMenu(expanded = keepMenu, onDismissRequest = { keepMenu = false }) {
+                            EXPORT_KEEP_OPTIONS.forEach { n ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            uiString(R.string.l10n_backup_sync_screen_n_9e03569f, n),
+                                            style = NoopType.body,
+                                            color = if (n == keep) Palette.accent else Palette.textPrimary,
+                                        )
+                                    },
+                                    onClick = {
+                                        keep = n
+                                        settings.keepCount = n
+                                        keepMenu = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
             }
+            // Manual clear (#642): always available, even with the toggle off, since files written
+            // while it was on can outlive that toggle flip.
+            NoopButton(
+                text = uiString(R.string.l10n_test_centre_screen_clear_scheduled_exports_54123329),
+                leadingIcon = Icons.Filled.DeleteOutline,
+                kind = NoopButtonKind.Secondary,
+                fullWidth = true,
+                onClick = { showClearConfirm = true },
+            )
         }
     }
+    if (showClearConfirm) {
+        AlertDialog(
+            onDismissRequest = { showClearConfirm = false },
+            containerColor = Palette.surfaceOverlay,
+            title = {
+                Text(
+                    uiString(R.string.l10n_test_centre_screen_clear_scheduled_exports_36e93dd0),
+                    style = NoopType.title2, color = Palette.textPrimary,
+                )
+            },
+            text = {
+                Text(
+                    uiString(R.string.l10n_test_centre_screen_this_deletes_every_scheduled_strap_ea52c535),
+                    style = NoopType.subhead, color = Palette.textSecondary,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    LogExport.clearScheduledExports(context)
+                    showClearConfirm = false
+                }) { Text(uiString(R.string.l10n_lab_book_screen_clear_719ea396), style = NoopType.body, color = Palette.statusCritical) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearConfirm = false }) {
+                    Text(uiString(R.string.l10n_test_centre_screen_cancel_77dfd213), style = NoopType.body, color = Palette.textSecondary)
+                }
+            },
+        )
+    }
 }
+
+/** Retention choices for the scheduled-debug-export keep-count dropdown (#642). These are lightweight
+ *  text/JSONL files, not a whole-DB snapshot, so the range skews longer than BackupSyncScreen's
+ *  KEEP_OPTIONS. */
+private val EXPORT_KEEP_OPTIONS = listOf(3, 7, 14, 30, 60)
 
 /**
  * Test Centre → Experimental algorithms. The single home for OPT-IN, off-by-default, non-clinical research

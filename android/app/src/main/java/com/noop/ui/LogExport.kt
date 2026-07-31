@@ -151,6 +151,12 @@ object LogExport {
                 }
                 out.add(rawFile)
             }
+
+            // Retention (#642): scheduled exports accumulate silently with no UI in the loop (unlike an
+            // interactive share, nobody is looking when this runs), so prune every write — mirrors
+            // BackupSync.backupNow calling prune() right after it writes.
+            pruneScheduledExports(context, DebugExportSettings.from(context).keepCount)
+
             out.toList()
         }.getOrDefault(emptyList())
 
@@ -158,6 +164,67 @@ object LogExport {
      *  already grants, so a future "open last export" share works without a manifest change. */
     private fun exportDir(context: Context): File =
         File(context.cacheDir, "logs").apply { mkdirs() }
+
+    /** Filename prefix common to BOTH scheduled-export files (the `.txt` log and the `.bin` raw capture),
+     *  distinct from the interactive-share prefixes (`noop-strap-log-`, `noop-raw-capture-`) so retention
+     *  and the manual clear action only ever touch scheduled drops, never an interactive share sitting in
+     *  the same cache/logs dir. */
+    private const val SCHEDULED_PREFIX = "noop-straplog-"
+
+    /**
+     * The `yyyyMMdd-HHmmss` stamp embedded in one scheduled-export filename (log `.txt` or raw `.bin`),
+     * or null if [filename] isn't one of ours. Pure — no file IO — so retention math is unit-testable.
+     */
+    fun scheduledExportStamp(filename: String): String? {
+        if (!filename.startsWith(SCHEDULED_PREFIX)) return null
+        val rest = filename.removePrefix(SCHEDULED_PREFIX)
+        return when {
+            rest.endsWith(".txt") -> rest.removeSuffix(".txt")
+            rest.endsWith(".bin") -> rest.removeSuffix(".bin")
+            else -> null
+        }
+    }
+
+    /**
+     * Scheduled-export STAMPS (not filenames) to prune to keep only the [keep] newest generations — a
+     * day's log+raw pair shares a stamp and counts once. Mirrors [BackupSync.snapshotsToPrune]. The
+     * fixed-width, zero-padded `yyyyMMdd-HHmmss` stamp sorts correctly as a plain string (no date
+     * parsing needed). Empty when already within budget.
+     */
+    fun scheduledExportStampsToPrune(names: List<String>, keep: Int): Set<String> {
+        val stamps = names.mapNotNull(::scheduledExportStamp).distinct().sortedDescending()
+        return if (stamps.size <= keep) emptySet() else stamps.drop(keep).toSet()
+    }
+
+    /** Best-effort retention (#642): delete scheduled-export files beyond [keep] generations, oldest
+     *  first. Called after every scheduled write. Listing/delete failures are ignored — a transient
+     *  hiccup here must never fail the export itself. */
+    private fun pruneScheduledExports(context: Context, keep: Int) {
+        val files = exportDir(context).listFiles()?.toList() ?: return
+        val toPrune = scheduledExportStampsToPrune(files.map { it.name }, keep)
+        if (toPrune.isEmpty()) return
+        for (f in files) {
+            val stamp = scheduledExportStamp(f.name)
+            if (stamp != null && stamp in toPrune) runCatching { f.delete() }
+        }
+    }
+
+    /**
+     * Manual "Clear scheduled exports" action (#642): delete every scheduled-export file right now,
+     * regardless of the retention setting, so a user who wants the folder empty can make it so without
+     * waiting for the next daily prune. Never touches interactive-share files (distinct filename
+     * prefixes) or anything else under cache/logs. Returns the number of files removed; self-toasts like
+     * the other actions in this object.
+     */
+    fun clearScheduledExports(context: Context): Int {
+        val files = exportDir(context).listFiles()?.filter { scheduledExportStamp(it.name) != null }
+            ?: emptyList()
+        var removed = 0
+        for (f in files) if (runCatching { f.delete() }.getOrDefault(false)) removed++
+        val message = if (removed > 0) "Cleared $removed scheduled export file(s)." else "No scheduled exports to clear."
+        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        return removed
+    }
 
     /**
      * Build the shareable strap-log file (header + body + last crash) under cache/logs and return it,

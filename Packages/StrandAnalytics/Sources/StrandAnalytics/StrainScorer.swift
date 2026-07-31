@@ -132,27 +132,67 @@ public enum StrainScorer {
 
     // MARK: - TRIMP accumulation
 
+    /// Longest span (minutes) a single reading may be credited with. A wear or connection dropout leaves a
+    /// gap with no data in it; without a ceiling the last reading before the gap would be credited with the
+    /// whole of it, so one sample in zone 5 could invent hours of effort. 2 min is 4x the sparsest real
+    /// cadence we know of (the 5/MG's ~30 s, see `minSparseReadings`), so no genuine cadence is truncated.
+    public static let maxSampleGapMin: Double = 2.0
+
     /// Infer per-sample duration (minutes) from the first two timestamps. Falls
     /// back to 1 s when fewer than two samples or coincident timestamps.
+    ///
+    /// No production caller remains — TRIMP uses `sampleDurationsMinutes` (#950). Kept ONLY so the
+    /// uniform-identity regression test can compare the new accumulation against the SHIPPED old formula
+    /// rather than a reimplementation of it. Delete it if that test ever goes.
     static func sampleDurationMinutes(_ hr: [HRSample]) -> Double {
         guard hr.count >= 2 else { return fallbackSampleMin }
         let deltaS = abs(Double(hr[1].ts - hr[0].ts))
         return deltaS > 0 ? deltaS / 60.0 : fallbackSampleMin
     }
 
+    /// Per-sample durations (minutes): each reading covers the gap to the NEXT one, clamped to
+    /// `maxSampleGapMin`; the last reuses the gap before it.
+    ///
+    /// #950: TRIMP used to take ONE duration inferred from the first two timestamps and multiply the whole
+    /// zone-weight sum by it. NOOP's HR stream is not uniformly spaced — live Bluetooth arrives ~1 s apart,
+    /// banked 5/MG history ~30 s, and dropouts leave larger holes — so whichever gap happened to be first
+    /// set the scale for the entire window. Worse, a workout window and the day that contains it start at
+    /// different samples, so they picked different factors and the two Effort numbers stopped being
+    /// comparable, which is what the report was about.
+    ///
+    /// For a UNIFORMLY spaced series every gap is the same, so this returns the old value for every sample
+    /// and the resulting TRIMP is unchanged — which is why no existing test moves. Byte-parity twin of
+    /// Kotlin `sampleDurationsMinutes`.
+    static func sampleDurationsMinutes(_ hr: [HRSample]) -> [Double] {
+        if hr.isEmpty { return [] }
+        if hr.count == 1 { return [fallbackSampleMin] }
+        var out: [Double] = []
+        out.reserveCapacity(hr.count)
+        for i in 0..<(hr.count - 1) {
+            let deltaS = abs(Double(hr[i + 1].ts - hr[i].ts))
+            let minutes = deltaS > 0 ? deltaS / 60.0 : fallbackSampleMin
+            out.append(min(minutes, maxSampleGapMin))
+        }
+        out.append(out[out.count - 1])   // the final reading has no successor; reuse the gap before it
+        return out
+    }
+
     static func edwardsTRIMP(_ hr: [HRSample], restingHR: Double, hrReserve: Double,
-                             sampleDurationMin: Double) -> Double {
-        var weighted = 0
-        for s in hr { weighted += zoneWeight(Double(s.bpm), restingHR: restingHR, hrReserve: hrReserve) }
-        return Double(weighted) * sampleDurationMin
+                             durations: [Double]) -> Double {
+        var acc = 0.0
+        for i in hr.indices {
+            acc += Double(zoneWeight(Double(hr[i].bpm), restingHR: restingHR, hrReserve: hrReserve))
+                * durations[i]
+        }
+        return acc
     }
 
     static func banisterTRIMP(_ hr: [HRSample], restingHR: Double, hrReserve: Double,
-                              sampleDurationMin: Double, b: Double) -> Double {
+                              durations: [Double], b: Double) -> Double {
         var acc = 0.0
-        for s in hr {
-            let x = pctHRR(Double(s.bpm), restingHR: restingHR, hrReserve: hrReserve) / 100.0
-            if x > 0 { acc += sampleDurationMin * x * banisterScale * exp(b * x) }
+        for i in hr.indices {
+            let x = pctHRR(Double(hr[i].bpm), restingHR: restingHR, hrReserve: hrReserve) / 100.0
+            if x > 0 { acc += durations[i] * x * banisterScale * exp(b * x) }
         }
         return acc
     }
@@ -249,7 +289,7 @@ public enum StrainScorer {
         }
         if !enoughData || effMax <= restingHR { return nil }
 
-        let sampleDur = sampleDurationMinutes(hr)
+        let durations = sampleDurationsMinutes(hr)
         let hrReserve = effMax - restingHR
 
         let trimp: Double
@@ -257,10 +297,10 @@ public enum StrainScorer {
         case .banister:
             let b = sex.lowercased().hasPrefix("f") ? banisterBWomen : banisterBMen
             trimp = banisterTRIMP(hr, restingHR: restingHR, hrReserve: hrReserve,
-                                  sampleDurationMin: sampleDur, b: b)
+                                  durations: durations, b: b)
         case .edwards:
             trimp = edwardsTRIMP(hr, restingHR: restingHR, hrReserve: hrReserve,
-                                 sampleDurationMin: sampleDur)
+                                 durations: durations)
         }
         return trimpToStrain(trimp, denominator: denominator)
     }

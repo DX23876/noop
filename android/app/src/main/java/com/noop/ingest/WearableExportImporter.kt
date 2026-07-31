@@ -237,6 +237,15 @@ object WearableExportImporter {
         val byDay = LinkedHashMap<String, DayAcc>()
         val sleeps = ArrayList<SleepAcc>()
         fun day(key: String) = byDay.getOrPut(key) { DayAcc(key) }
+        // The (rank, totalSleepMin) of the session CURRENTLY backing each day's sleep rollup. A day can
+        // carry MULTIPLE sessions (a nap/fragment alongside the real night), and first-write-wins let
+        // whichever session the export happened to list first claim every daily field — worse, since the
+        // old fold was per-FIELD, it could MIX a fragment's totalSleepMin with the real night's restingHr.
+        // Select the day's MAIN session instead, same rule as the Swift OuraApiParser's dayWinner: Oura's
+        // primary sleep `type == "long_sleep"` always outranks any other type; among same-rank candidates,
+        // the longer total_sleep_duration wins. The winner supplies every rollup field as a UNIT — fields
+        // are never mixed across two different sessions on the same day.
+        val sleepDayWinner = HashMap<String, Pair<Int, Double>>()
 
         for (data in files.values) {
             val root = parseObject(data) ?: continue
@@ -248,16 +257,25 @@ object WearableExportImporter {
                     if (sleeps.size >= MAX_ROWS) break
                     sleeps.add(session)
                     val key = s.strOpt("day") ?: dayString(session.endTs)
-                    val d = day(key)
-                    d.totalSleepMin = d.totalSleepMin ?: session.totalSleepMin
-                    d.deepMin = d.deepMin ?: session.deepMin
-                    d.lightMin = d.lightMin ?: session.lightMin
-                    d.remMin = d.remMin ?: session.remMin
-                    d.awakeMin = d.awakeMin ?: session.awakeMin
-                    d.efficiencyPct = d.efficiencyPct ?: session.efficiencyPct
-                    d.avgHrvMs = d.avgHrvMs ?: session.avgHrvMs
-                    d.respRateBpm = d.respRateBpm ?: session.respRateBpm   // night resp → day rollup (#17)
-                    if (d.restingHr == null) d.restingHr = session.lowestHr
+                    val isLongSleep = s.strOpt("type")?.lowercase() == "long_sleep"
+                    val candidateRank = if (isLongSleep) 1 else 0
+                    val candidateTotal = session.totalSleepMin ?: 0.0
+                    val incumbent = sleepDayWinner[key]
+                    val winsDay = incumbent == null || candidateRank > incumbent.first ||
+                        (candidateRank == incumbent.first && candidateTotal > incumbent.second)
+                    if (winsDay) {
+                        sleepDayWinner[key] = candidateRank to candidateTotal
+                        val d = day(key)
+                        d.totalSleepMin = session.totalSleepMin
+                        d.deepMin = session.deepMin
+                        d.lightMin = session.lightMin
+                        d.remMin = session.remMin
+                        d.awakeMin = session.awakeMin
+                        d.efficiencyPct = session.efficiencyPct
+                        d.avgHrvMs = session.avgHrvMs
+                        d.respRateBpm = session.respRateBpm   // night resp → day rollup (#17)
+                        d.restingHr = session.lowestHr
+                    }
                 }
             }
             // Daily readiness → temperature deviation + reference readiness score.
@@ -334,6 +352,22 @@ object WearableExportImporter {
         byDay: LinkedHashMap<String, DayAcc>,
         sleeps: ArrayList<SleepAcc>,
     ) {
+        // CSV-internal day winner for the sleep-session ROLLUP fields, tracked separately from `byDay` so
+        // the cross-format "JSON wins, CSV fills gaps" fold below is untouched. The REAL per-category CSV
+        // schema puts one row per SLEEP PERIOD (`sleep.csv`, with the same `type` column as the JSON path),
+        // so a day can carry a nap/fragment alongside the real night here too; the old per-field `?:` fold
+        // let whichever CSV row came first claim every field, even mixing a fragment's totalSleepMin with
+        // the real night's restingHr. Same rule as parseOura's sleepDayWinner: `type == "long_sleep"`
+        // outranks any other type; among same-rank candidates, the longer total_sleep_duration wins; the
+        // winner supplies every rollup field as a UNIT.
+        data class SleepRollup(
+            val totalSleepMin: Double?, val deepMin: Double?, val lightMin: Double?, val remMin: Double?,
+            val awakeMin: Double?, val efficiencyPct: Double?, val avgHrvMs: Double?, val respRateBpm: Double?,
+            val restingHr: Int?,
+        )
+        val sleepDayWinner = HashMap<String, Pair<Int, Double>>()
+        val sleepRollupByDay = HashMap<String, SleepRollup>()
+
         for ((name, data) in files) {
             if (!name.endsWith(".csv")) continue
             val table = CsvTable.fromData(data)
@@ -355,21 +389,34 @@ object WearableExportImporter {
                 val light = minutes("light_sleep_duration", "light_sleep")
                 val rem = minutes("rem_sleep_duration", "rem_sleep")
                 val awake = minutes("awake_time", "awake_duration", "time_awake")
-
-                d.totalSleepMin = d.totalSleepMin ?: total
-                d.deepMin = d.deepMin ?: deep
-                d.lightMin = d.lightMin ?: light
-                d.remMin = d.remMin ?: rem
-                d.awakeMin = d.awakeMin ?: awake
-                d.efficiencyPct = d.efficiencyPct ?: cells.double("sleep_efficiency", "efficiency")?.takeIf { it > 0 }
-
+                val efficiency = cells.double("sleep_efficiency", "efficiency")?.takeIf { it > 0 }
                 val rhr = cells.double("average_resting_heart_rate", "resting_heart_rate")
                     ?: cells.double("lowest_resting_heart_rate", "lowest_heart_rate")
-                if (rhr != null && rhr > 0 && d.restingHr == null) d.restingHr = rhr.toInt()
-                cells.double("average_hrv", "hrv")?.takeIf { it > 0 }?.let { d.avgHrvMs = d.avgHrvMs ?: it }
+                val hrv = cells.double("average_hrv", "hrv")?.takeIf { it > 0 }
                 // Oura's CSV resp column (`respiratory_rate` / `average_breath`) → the day rollup (#17).
                 val resp = cells.double("respiratory_rate", "average_breath")?.takeIf { it > 0 }
-                resp?.let { d.respRateBpm = d.respRateBpm ?: it }
+
+                // A sleep-period row carries at least one of these; none of them appears on an activity /
+                // readiness / spo2 / vo2max row (each real per-category CSV carries only its own columns),
+                // so this alone tells a session row apart from any other category without a `type` column.
+                val hasSleepFields = total != null || deep != null || light != null || rem != null ||
+                    awake != null || efficiency != null || (rhr != null && rhr > 0) || hrv != null || resp != null
+                if (hasSleepFields) {
+                    val isLongSleep = cells.cell("type")?.lowercase() == "long_sleep"
+                    val candidateRank = if (isLongSleep) 1 else 0
+                    val candidateTotal = total ?: 0.0
+                    val incumbent = sleepDayWinner[key]
+                    val winsDay = incumbent == null || candidateRank > incumbent.first ||
+                        (candidateRank == incumbent.first && candidateTotal > incumbent.second)
+                    if (winsDay) {
+                        sleepDayWinner[key] = candidateRank to candidateTotal
+                        sleepRollupByDay[key] = SleepRollup(
+                            totalSleepMin = total, deepMin = deep, lightMin = light, remMin = rem,
+                            awakeMin = awake, efficiencyPct = efficiency, avgHrvMs = hrv, respRateBpm = resp,
+                            restingHr = rhr?.takeIf { it > 0 }?.toInt(),
+                        )
+                    }
+                }
                 cells.double("temperature_deviation", "skin_temperature_deviation")?.let { d.skinTempDevC = d.skinTempDevC ?: it }
                 // SpO2: the real `dailyspo2` CSV column is `spo2_percentage` (the average %); keep the older
                 // flat aliases too for a combined-summary CSV (#862).
@@ -399,7 +446,11 @@ object WearableExportImporter {
                     }
                 }
 
-                // A bedtime window (when the CSV carries one) lands the night on the Sleep tab too.
+                // A bedtime window (when the CSV carries one) lands the night on the Sleep tab too. Every
+                // valid session is recorded here regardless of day-winner rank — only the rollup fold below
+                // picks one. Uses THIS row's own values (not `d.efficiencyPct`/`d.avgHrvMs`, which may now
+                // hold a different, winning session's fields) so a losing session's own record is never
+                // contaminated by the day's rollup winner.
                 val start = WhoopTime.parseIsoWithOffsetEpochSeconds(cells.cell("bedtime_start", "sleep_start"))
                 val end = WhoopTime.parseIsoWithOffsetEpochSeconds(cells.cell("bedtime_end", "sleep_end"))
                 if (start != null && end != null && end > start && sleeps.size < MAX_ROWS) {
@@ -407,15 +458,30 @@ object WearableExportImporter {
                         SleepAcc(
                             startTs = start, endTs = end,
                             deepMin = deep, lightMin = light, remMin = rem, awakeMin = awake,
-                            totalSleepMin = total, efficiencyPct = d.efficiencyPct,
+                            totalSleepMin = total, efficiencyPct = efficiency,
                             avgHr = null,
                             lowestHr = rhr?.takeIf { it > 0 }?.toInt(),
-                            avgHrvMs = d.avgHrvMs, respRateBpm = resp,
+                            avgHrvMs = hrv, respRateBpm = resp,
                             sleepScore = null, stagesJson = null,
                         ),
                     )
                 }
             }
+        }
+
+        // Fold each day's WINNING CSV sleep session into the shared day accumulator — JSON (already folded
+        // into `byDay` by parseOura's sleep loop above) still wins field-by-field; CSV only fills gaps (#857).
+        for ((key, win) in sleepRollupByDay) {
+            val d = byDay.getOrPut(key) { DayAcc(key) }
+            d.totalSleepMin = d.totalSleepMin ?: win.totalSleepMin
+            d.deepMin = d.deepMin ?: win.deepMin
+            d.lightMin = d.lightMin ?: win.lightMin
+            d.remMin = d.remMin ?: win.remMin
+            d.awakeMin = d.awakeMin ?: win.awakeMin
+            d.efficiencyPct = d.efficiencyPct ?: win.efficiencyPct
+            d.avgHrvMs = d.avgHrvMs ?: win.avgHrvMs
+            d.respRateBpm = d.respRateBpm ?: win.respRateBpm
+            if (d.restingHr == null) d.restingHr = win.restingHr
         }
     }
 

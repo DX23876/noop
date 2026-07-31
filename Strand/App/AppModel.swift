@@ -723,14 +723,27 @@ final class AppModel: ObservableObject {
         let avg = samples.isEmpty ? nil
             : Int((Double(samples.map(\.bpm).reduce(0, +)) / Double(samples.count)).rounded())
         let peak = samples.map(\.bpm).max()
+        // #983: score the SAVED workout with the wearer's measured resting HR, not the hardcoded
+        // default of 60. %HRR is (bpm - resting) / (max - resting), so the default moves every zone
+        // boundary — at 136 bpm with maxHR 190 it is the difference between zone 1 and zone 2. Today's
+        // Effort and the manual rescore (#972) already thread this, so the stored number used to
+        // disagree with its own re-score. Read once here, at save time; the live readout during the
+        // session is a transient running estimate and deliberately left alone.
+        let restingHR = repo.today?.restingHr.map(Double.init) ?? StrainScorer.defaultRestingHR
         let strain = samples.count >= 2
-            ? StrainScorer.strain(samples, maxHR: Double(profile.hrMax), sex: profile.sex) : nil
+            ? StrainScorer.strain(samples, maxHR: Double(profile.hrMax),
+                                  restingHR: restingHR, sex: profile.sex) : nil
         // Estimate calories from the captured HR window (same Keytel/Harris–Benedict model the
         // auto-detector uses) so a manual session shows energy too, not just duration/strain. (#117)
         let up = UserProfile(weightKg: profile.weightKg, heightCm: profile.heightCm,
                              age: Double(profile.age), sex: profile.sex)
         let kcal = samples.count >= 2
-            ? Calories.estimateBoutCalories(samples, profile: up, hrmax: Double(profile.hrMax), restingHR: nil).0
+            // #983: same measured resting HR as the strain above, not nil. The calories model's
+            // active-vs-resting threshold sits at resting + 30% HRR, so the default silently shifts what
+            // counts as active — and #972 already threads it in the rescore path, so leaving it nil here
+            // meant a saved workout's kcal disagreed with its own re-score just as its Effort did.
+            ? Calories.estimateBoutCalories(samples, profile: up, hrmax: Double(profile.hrMax),
+                                            restingHR: restingHR).0
             : 0
         let startTs = Int(w.start.timeIntervalSince1970)
         let row = WorkoutRow(
@@ -1025,11 +1038,6 @@ final class AppModel: ObservableObject {
         ble.buzzStrapOnce()
     }
 
-    /// Fire a specific preset haptic pattern (patternId 0–6 on Harvard; loops sets length).
-    /// Used by the notification-pattern picker and coaching features.
-    func buzz(pattern: UInt8, loops: UInt8 = 1) {
-        ble.send(.runHapticsPattern, payload: [pattern, loops, 0, 0, 0])
-    }
 
     /// Tell the strap to STOP an in-progress haptic pattern (#769). The biofeedback layers (Breathe /
     /// "Calm me" / resonance) schedule a stream of buzzes; cancelling the app-side DispatchWorkItems stops
