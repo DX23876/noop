@@ -116,29 +116,39 @@ xcodegen generate && xcodebuild -project Strand.xcodeproj -scheme Strand \
 | Workflow | Covers | Runner | Trigger |
 |---|---|---|---|
 | `swift-packages.yml` | `swift test` for **`Packages/**` only** (WhoopProtocol, WhoopStore, StrandAnalytics, StrandImport, StrandDesign, NoopLocalAccess) | macos-15 | **automatic** — PR + push touching `Packages/**` |
-| `app-build.yml` | Compile of the **app targets** (`Strand` macOS + `NOOPiOS` iOS) **plus `xcodebuild … test` (`StrandTests`) on the macOS leg only**. iOS leg needs **macos-26** (iOS 26 SDK / `glassEffect`). | macos-15 / macos-26 | **DISABLED at the GitHub level** (`disabled_manually`) — effectively `workflow_dispatch`-only. Its `pull_request`/`push` triggers are in the file but inert while the workflow is off. |
+| `app-build.yml` | Compile of the **app targets** (`Strand` macOS + `NOOPiOS` iOS) **plus `xcodebuild … test` (`StrandTests`) on the macOS leg only**. iOS leg needs **macos-26** (iOS 26 SDK / `glassEffect`). | macos-15 / macos-26 | **automatic in this fork** — PR + push touching `Strand/**`, `StrandiOS*/**`, `Packages/**`, or `project.yml`; also `workflow_dispatch`. **Disabled upstream** (`ryanbr/noop`), which is what `docs/CONTRIBUTING.md` still describes. |
 | `android.yml` | `assembleFullDebug` + `testFullDebugUnitTest` | ubuntu | **automatic** — PR + push touching `android/**`; also `workflow_dispatch` |
 | `i18n-coverage.yml` | String/localization audit (EN/DE/FR/ES completeness) | — | **automatic** — every PR, and every push to `main` (so a release pushed straight to `main` is still audited, not just PRs) |
 | `sync-upstream.yml` | Pulls upstream `ryanbr/noop` and opens a sync PR | — | weekly cron (Monday 06:00 UTC) + `workflow_dispatch` |
 | `fork-testing-build.yml` / `fork-release.yml` | Staging / release builds (apk + mac + ios) | — | `workflow_dispatch` only |
 
-**Read a workflow's trigger from `gh workflow list`, never from its `on:` block alone.** A workflow
-disabled in GitHub's UI keeps its `pull_request`/`push` triggers in the file while running for
-nobody, and nothing in the repo shows it. `app-build.yml` is in exactly that state — off since
-2026-07-21, matching `docs/CONTRIBUTING.md`'s "disabled by design, you build the app yourself".
-`android.yml` **is** live, path-filtered CI.
+**Always pass `-R DX23876/noop` to `gh`, or check what it resolved to.** This clone has two remotes
+and no `gh repo set-default`, so a bare `gh run list` / `gh workflow list` silently answers about
+**`ryanbr/noop`** — where `app-build.yml` is `disabled_manually` and the last run was 2026-07-21.
+The fork's own state is the opposite: every workflow active, `app-build.yml` running on each push to
+`main`. Reading the upstream answer as the fork's is an easy and very misleading mistake.
 
-**What that costs: `StrandTests` runs nowhere automatically.** `app-build.yml` is its only home
-(added #607, 2026-07-19), so while that workflow is off, app-target logic tests are only as good as
-the last person who ran them by hand. A real case: `CoachMemoryDedupTests` was broken on 2026-07-28
-by a deliberate `pinnedBlock` change and stayed red on `main` for days, unnoticed. **If you touch
-app-target Swift that no `Packages/**` test covers — anything under `Strand/AI/`, `Strand/Data/`,
-`Strand/Screens/` — run `xcodebuild -scheme Strand -destination 'platform=macOS' … test` locally, or
-dispatch `app-build.yml`. Nothing else will.** Better still, put new pure logic in `Packages/` where
+**`StrandTests` runs in exactly one place: `app-build.yml`'s macOS leg** (added #607, 2026-07-19).
+There is no second safety net — `swift-packages.yml` cannot see app-target code. Two consequences
+worth internalising, both of which actually happened:
+
+- **A red `Build Strand` step silently disables the whole test suite.** `Test Strand` is a later step
+  in the same job, so it is skipped, not failed. From 2026-07-28 a `Float16` use broke the *universal*
+  macOS build (arm64-only locally, `ARCHS="x86_64 arm64"` on CI — see #51) and no app-target test ran
+  for days while `main` looked merely "still red".
+- **Permanent red hides new breakage.** `CoachMemoryDedupTests` and `TodayLayoutPrefsTests` both went
+  stale behind deliberate feature changes and sat unnoticed in an already-failing pipeline. **A red
+  `main` is not a background condition to work around — fix it or the next regression is free.**
+
+So: when you touch app-target Swift that no `Packages/**` test covers (`Strand/AI/`, `Strand/Data/`,
+`Strand/Screens/`), run `xcodebuild -scheme Strand -destination 'platform=macOS' … test` locally, and
+**build the way CI does** — `-destination 'generic/platform=macOS' ARCHS="x86_64 arm64"
+ONLY_ACTIVE_ARCH=NO` — because a plain `platform=macOS` build on Apple Silicon thins to arm64 and
+will not show you an x86_64-only break. Better still, put new pure logic in `Packages/`, where
 `swift-packages.yml` gates it automatically.
 
-The compile gap is narrower than "no CI at all": a change your local (likely newer) Xcode tolerates
-but CI's pinned runner doesn't can still slip through — see "Lessons from the fold-in" in
+A change your local (likely newer) Xcode tolerates but CI's pinned runner doesn't can still slip
+through — see "Lessons from the fold-in" in
 [`docs/IOS.md`](docs/IOS.md) for a concrete case (a `String?` interpolated into a `LocalizedStringKey`
 that a bleeding-edge local Xcode silently accepted and the CI runner correctly rejected). Build the
 app yourself for anything non-trivial in `Strand/`/`StrandiOS*/` rather than relying on the git-push
