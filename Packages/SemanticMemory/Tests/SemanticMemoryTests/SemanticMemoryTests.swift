@@ -61,6 +61,70 @@ final class SemanticMemoryTests: XCTestCase {
         XCTAssertEqual(decoded ?? [], values)
     }
 
+    /// The binary16 edges the three friendly powers of two above never reach: subnormals, the rounding
+    /// boundary, overflow to Inf, and underflow to a signed zero. These run on EVERY architecture —
+    /// unlike `testFloat16MatchesHardware` below, which can only run where `Float16` exists.
+    func testFloat16HandlesSubnormalsOverflowAndSignedZero() {
+        XCTAssertEqual(SemanticVector.binary16Bits(0), 0x0000)
+        XCTAssertEqual(SemanticVector.binary16Bits(-0.0), 0x8000)
+        XCTAssertEqual(SemanticVector.binary16Bits(1), 0x3C00)
+        XCTAssertEqual(SemanticVector.binary16Bits(-2), 0xC000)
+        // Largest finite binary16 (65504) and the first value that overflows it.
+        XCTAssertEqual(SemanticVector.binary16Bits(65504), 0x7BFF)
+        XCTAssertEqual(SemanticVector.binary16Bits(70000), 0x7C00)
+        XCTAssertEqual(SemanticVector.binary16Bits(-.infinity), 0xFC00)
+        // Smallest normal (2^-14) and smallest subnormal (2^-24); half of the latter underflows to ±0
+        // rather than rounding away from zero.
+        XCTAssertEqual(SemanticVector.binary16Bits(0x1p-14), 0x0400)
+        XCTAssertEqual(SemanticVector.binary16Bits(0x1p-24), 0x0001)
+        XCTAssertEqual(SemanticVector.binary16Bits(0x1p-25), 0x0000)
+        XCTAssertEqual(SemanticVector.binary16Bits(-0x1p-25), 0x8000)
+        // Round-to-nearest-EVEN, not round-half-up: an exact tie goes to the even neighbour.
+        XCTAssertEqual(SemanticVector.binary16Bits(Float(bitPattern: 0x3F80_1000)), 0x3C00)
+        XCTAssertEqual(SemanticVector.binary16Bits(Float(bitPattern: 0x3F80_3000)), 0x3C02)
+        // A NaN must survive as a NaN; truncating its payload to zero would turn it into Inf.
+        XCTAssertTrue(SemanticVector.float(fromBinary16: SemanticVector.binary16Bits(.nan)).isNaN)
+        // Decoding covers the same edges.
+        XCTAssertEqual(SemanticVector.float(fromBinary16: 0x0001), 0x1p-24)
+        XCTAssertEqual(SemanticVector.float(fromBinary16: 0x03FF), 1023 * 0x1p-24)
+        XCTAssertEqual(SemanticVector.float(fromBinary16: 0x7C00), .infinity)
+        XCTAssertTrue(SemanticVector.float(fromBinary16: 0x8000).sign == .minus)
+    }
+
+    /// The manual conversion must be BYTE-IDENTICAL to the hardware `Float16` it replaced, or every
+    /// embedding already indexed on a user's device would decode differently after this change. Runs only
+    /// where `Float16` exists (arm64) — which is exactly where the old implementation ever ran, so this is
+    /// a true differential test against the previous behaviour rather than a re-statement of the new one.
+    #if arch(arm64)
+    func testFloat16MatchesHardware() {
+        var checked = 0
+        // Every representable binary16 bit pattern, decoded and re-encoded through both paths.
+        for raw in UInt16.min...UInt16.max {
+            let hardware = Float16(bitPattern: raw)
+            guard !hardware.isNaN else { continue }              // NaN != NaN; payloads are covered above
+            let value = Float(hardware)
+            XCTAssertEqual(SemanticVector.float(fromBinary16: raw), value, "decode differs at \(raw)")
+            XCTAssertEqual(SemanticVector.binary16Bits(value), Float16(value).bitPattern,
+                           "encode differs at \(raw)")
+            checked += 1
+        }
+        XCTAssertGreaterThan(checked, 60_000)
+        // Values BETWEEN representable binary16s, where the rounding mode is what actually decides.
+        var generator = SystemRandomNumberGenerator()
+        for _ in 0..<20_000 {
+            let value = Float.random(in: -70_000...70_000, using: &generator)
+            XCTAssertEqual(SemanticVector.binary16Bits(value), Float16(value).bitPattern,
+                           "rounding differs for \(value)")
+        }
+        for _ in 0..<20_000 {
+            // Subnormal and near-subnormal magnitudes, where the shift-and-round path is exercised.
+            let value = Float.random(in: -0x1p-13...0x1p-13, using: &generator)
+            XCTAssertEqual(SemanticVector.binary16Bits(value), Float16(value).bitPattern,
+                           "subnormal rounding differs for \(value)")
+        }
+    }
+    #endif
+
     func testStoreQueuesOnlyChangedDocumentsAndSearchesAllowedScopes() async throws {
         let store = try SemanticIndexStore(inMemory: true)
         let doc = SemanticDocument(sourceKind: .memoryFact,

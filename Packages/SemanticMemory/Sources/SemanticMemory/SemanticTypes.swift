@@ -204,10 +204,78 @@ public enum SemanticVector {
         return Double(dot / sqrt(leftNorm * rightNorm))
     }
 
+    /// IEEE-754 binary16 conversion done in integer arithmetic rather than through the `Float16` type.
+    ///
+    /// `Float16` is an **arm64-only** stdlib type on macOS — on the x86_64 slice it doesn't exist, so a
+    /// universal build (`ARCHS="x86_64 arm64"`, which is how CI builds the macOS app, #51) fails to
+    /// compile while a local arm64-thinned build succeeds. That asymmetry is the trap: the break is
+    /// invisible on an Apple-Silicon dev machine and only ever shows up in CI.
+    ///
+    /// The conversion is round-to-nearest-even, exactly what the hardware instruction does, so the
+    /// encoding stays **byte-identical to the `Float16` implementation this replaces** — already-indexed
+    /// embedding vectors on disk remain valid and re-encode to the same bytes. `testFloat16MatchesHardware`
+    /// pins that equivalence against real `Float16` wherever the type is available.
+    static func binary16Bits(_ value: Float) -> UInt16 {
+        let bits = value.bitPattern
+        let sign = UInt16(truncatingIfNeeded: (bits >> 16) & 0x8000)
+        let exponent = Int((bits >> 23) & 0xFF)
+        let mantissa = bits & 0x007F_FFFF
+
+        // Inf / NaN: keep a NaN a NaN (a payload truncated to zero would silently become Inf).
+        if exponent == 0xFF {
+            if mantissa == 0 { return sign | 0x7C00 }
+            return sign | 0x7E00 | UInt16(truncatingIfNeeded: mantissa >> 13)
+        }
+
+        let halfExponent = exponent - 127 + 15
+        if halfExponent >= 0x1F { return sign | 0x7C00 }        // overflows binary16's range → ±Inf
+
+        if halfExponent <= 0 {
+            // Subnormal binary16 (or an underflow to ±0): the value is k * 2^-24 for integer k, so shift
+            // the 24-bit significand down by (126 - exponent) and round. A float32 subnormal or zero
+            // (exponent == 0) lands in the same branch and underflows to ±0, as it must.
+            let shift = 126 - exponent
+            if shift > 24 { return sign }
+            let significand = mantissa | 0x0080_0000
+            let halfway: UInt32 = 1 << (shift - 1)
+            let remainder = significand & ((1 << shift) - 1)
+            var quantized = significand >> shift
+            if remainder > halfway || (remainder == halfway && quantized & 1 == 1) { quantized += 1 }
+            // A carry out of the subnormal range yields the smallest normal binary16 — the correct result.
+            return sign | UInt16(truncatingIfNeeded: quantized)
+        }
+
+        let remainder = mantissa & 0x1FFF                        // the 13 bits binary16 cannot keep
+        var quantized = mantissa >> 13
+        if remainder > 0x1000 || (remainder == 0x1000 && quantized & 1 == 1) { quantized += 1 }
+        // Added, not OR-ed: a mantissa carry must roll into the exponent (and may reach ±Inf, correctly).
+        return sign | UInt16(truncatingIfNeeded: (UInt32(halfExponent) << 10) + quantized)
+    }
+
+    /// The inverse of `binary16Bits`, likewise free of `Float16` — see that method for why.
+    static func float(fromBinary16 bits: UInt16) -> Float {
+        let sign = UInt32(bits & 0x8000) << 16
+        let exponent = UInt32((bits >> 10) & 0x1F)
+        let mantissa = UInt32(bits & 0x03FF)
+
+        if exponent == 0x1F {                                    // Inf / NaN
+            return Float(bitPattern: sign | 0x7F80_0000 | (mantissa << 13))
+        }
+        if exponent == 0 {
+            if mantissa == 0 { return Float(bitPattern: sign) }  // ±0
+            // Subnormal binary16 == mantissa * 2^-24, which is a perfectly ordinary (normal) float32,
+            // so this scaling is exact — no second rounding.
+            let magnitude = Float(mantissa) * 0x1p-24
+            return sign == 0 ? magnitude : -magnitude
+        }
+        // 112 == 127 - 15: rebias the exponent, then pad the mantissa back out to 23 bits.
+        return Float(bitPattern: sign | ((exponent + 112) << 23) | (mantissa << 13))
+    }
+
     public static func encodeFloat16(_ values: [Float]) -> Data {
         var data = Data(capacity: values.count * MemoryLayout<UInt16>.size)
         for value in values {
-            var littleEndian = Float16(value).bitPattern.littleEndian
+            var littleEndian = binary16Bits(value).littleEndian
             withUnsafeBytes(of: &littleEndian) { data.append(contentsOf: $0) }
         }
         return data
@@ -223,7 +291,7 @@ public enum SemanticVector {
             let raw = data[index..<next].withUnsafeBytes { bytes in
                 UInt16(littleEndian: bytes.loadUnaligned(as: UInt16.self))
             }
-            result.append(Float(Float16(bitPattern: raw)))
+            result.append(float(fromBinary16: raw))
             index = next
         }
         return result
