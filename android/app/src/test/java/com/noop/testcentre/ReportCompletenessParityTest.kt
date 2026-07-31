@@ -114,6 +114,40 @@ class ReportCompletenessParityTest {
         )
     }
 
+    /**
+     * #950 — the capture check must not read its OWN output as evidence.
+     *
+     * The section renders a missing domain as `<id>: MISSING (expected <killer token>)`, and that line
+     * contains the killer token. meta.json's capture_check was computed over report.txt AFTER the section
+     * was appended, so the re-scan found the token inside its own "expected …" text and recorded the
+     * domain as present. Every missing trace flipped and `complete` went true while report.txt said
+     * INCOMPLETE — a bug report that says it carries a workouts trace, attached to a report that says it
+     * does not. Seen on #950.
+     *
+     * The Swift twin evaluates once and reuses that result, which is why only Android had it.
+     */
+    @Test fun metaMustNotBeComputedOverTextContainingTheSection() {
+        val body = "header\ndayOwner day=D readId=x writeActiveId=x hrRows=0 provenance=none\nbody"
+        val active = setOf(TestDomain.WORKOUTS)
+        val section = ReportCompleteness.captureCheckSection(body, active)
+        // The section itself carries the killer token, in the "expected …" label.
+        assertTrue(section.contains("session event="))
+
+        // Scanned over the body (correct): MISSING and not complete.
+        val fromBody = ReportCompleteness.captureCheckMeta(body, active)
+        assertEquals("MISSING", fromBody.traces["workouts"])
+        assertEquals(false, fromBody.complete)
+
+        // Scanned over body+section (the bug): the check reads its own words back as evidence.
+        val poisoned = ReportCompleteness.captureCheckMeta(body + "\n" + section, active)
+        assertEquals(
+            "the section's own 'expected session event=' must not count as the trace landing",
+            "present", poisoned.traces["workouts"],
+        )
+        // Pinned as the REASON the assembler must pass the pre-append body: if this ever stops being
+        // "present", the self-poisoning is gone at the source and the assembler's argument can relax.
+    }
+
     @Test fun captureCheckSectionExactText_incomplete() {
         // dayOwner present (universal informational), but the active sleep + connection traces never landed.
         val report = "header\ndayOwner day=D readId=x writeActiveId=x hrRows=0 provenance=none\nbody"

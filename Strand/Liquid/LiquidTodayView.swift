@@ -80,7 +80,7 @@ struct LiquidTodayView: View {
 
     // sheets / expanders
     @State private var guideSection: ScoreSection?
-    @State private var showCustomise = false
+    @State private var customizationDestination: TodayCustomizationDestination?
     @State private var showSettings = false
     @State private var synthesisExpanded = false
     @State private var showLiveSession = false
@@ -107,19 +107,14 @@ struct LiquidTodayView: View {
     /// Live Sessions (silent guardian) beta gate — the SAME key the Settings toggle writes. Default ON
     /// (the entry is BETA-labelled in-UI); off removes the Start-session control entirely.
     @AppStorage(LiveSessionPrefs.betaKey) private var liveSessionsBeta = true
-    // #today-layout (parity with Android): the user-chosen section order, persisted under the byte-identical
-    // "today.sectionOrder" key the Android TodayLayoutPrefs uses. Reordered via the Arrange sheet (native
-    // drag-to-reorder rows); every section always renders (decode inserts a missing one at its default spot).
+    // #today-layout: the user-chosen section order, persisted under the "today.sectionOrder" key. Order and
+    // visibility are both edited in `TodayCustomizationSheet` (#940); every section always renders (decode
+    // inserts a missing one at its default spot) unless it is in the explicit hidden set.
     @AppStorage(TodayLayoutPrefs.orderKey) private var sectionOrderRaw = ""
-    @State private var showArrangeSheet = false
-    private var sectionOrder: [TodaySection] { TodayLayoutPrefs.decodeOrder(sectionOrderRaw) }
-    // §4 declutter (reverted — product decision, see TodaySection.defaultHidden): a new/never-customised
-    // install now shows every section, same as classic Today. The Arrange sheet still lets a user hide any
-    // of them; once `hiddenSectionsRaw` holds an explicit value (including an explicit empty string) it's
-    // authoritative and this default is never consulted again for that install.
-    @AppStorage(TodayLayoutPrefs.hiddenKey) private var hiddenSectionsRaw =
-        TodayLayoutPrefs.encodeHidden(TodaySection.defaultHidden)
-    private var hiddenSections: Set<TodaySection> { TodayLayoutPrefs.decodeHidden(hiddenSectionsRaw) }
+    @AppStorage(TodayLayoutPrefs.hiddenKey) private var hiddenSectionsRaw = ""
+    private var sectionOrder: [TodaySection] {
+        TodayLayoutPrefs.visibleOrder(orderRaw: sectionOrderRaw, hiddenRaw: hiddenSectionsRaw)
+    }
     // #430 parity: the Key-Metrics grid honours the SAME editor selection/order + Detailed-tiles switch as
     // Android (byte-identical @AppStorage keys). `kSparks` holds the trailing-14-day series the detailed
     // tiles graph (keyed by metric-catalog key), filled by the loader alongside everything else.
@@ -128,10 +123,9 @@ struct LiquidTodayView: View {
     /// The detailed graphs' trailing window — 2 days / 1 week / 2 weeks (shared key with Android). The
     /// loader banks a day-keyed 14-day superset; render filters down, so a window change applies instantly.
     @AppStorage("today.keyMetricsWindowDays") private var keyMetricsWindowDays = 14
-    /// Tiles per row (2 or 3; 3 = the original layout). Set in the Key-Metrics editor.
+    /// Tiles per row (2 or 3; 3 = the original layout). Set on the Key Metrics page of the customization sheet.
     @AppStorage(KeyMetricPrefs.columnsKey) private var keyMetricsColumnsRaw = 3
     private var keyMetricsColumns: Int { KeyMetricPrefs.columns(keyMetricsColumnsRaw) }
-    @State private var showKeyMetricsEditor = false
     @State private var kSparks: [String: [(String, Double)]] = [:]
     private var enabledKeyMetrics: [KeyMetric] { KeyMetricPrefs.decodeEnabled(keyMetricsRaw) }
 
@@ -374,17 +368,12 @@ struct LiquidTodayView: View {
                     // and taps straight through to Live. Renders nothing when no workout is active.
                     ActiveWorkoutIndicatorSection()
                     MorningSuggestionCard(showPlan: $showPlan)
-                    // #today-layout (parity with Android): every Today section — the Charge/Effort/Rest hero
-                    // and Start-session included — renders in the user's saved order. Reorder via the Arrange
-                    // sheet (the header's up/down button; native drag rows); the order persists under the
-                    // byte-identical "today.sectionOrder" key Android uses. A gated-off Start-session renders
-                    // nothing and keeps its slot in the saved order.
+                    // #today-layout: every Today section — the Charge/Effort/Rest hero and Start-session
+                    // included — renders in the user's saved order. Reorder and hide in the customization
+                    // sheet (the header's slider button); `sectionOrder` is already filtered to the visible
+                    // set, and a hidden section keeps its slot in the stored order so unhiding restores its
+                    // position. A gated-off Start-session renders nothing and keeps its slot too.
                     ForEach(sectionOrder) { section in
-                        if hiddenSections.contains(section) {
-                            // §4: hidden by default, re-addable in the Arrange sheet. Keeps its slot in the
-                            // saved order so unhiding restores its position.
-                            EmptyView()
-                        } else {
                         // UX: major sections (hero, synthesis, keyMetrics, recoveryVitals) get extra top
                         // breathing room so the screen reads in clear groups; minor sections sit tighter.
                         // The base VStack spacing is NoopMetrics.gap (12); major sections add space2 (8)
@@ -426,7 +415,6 @@ struct LiquidTodayView: View {
                         }
                         }
                         .padding(.top, section.isMajorSection ? NoopMetrics.space2 : 0)
-                        }
                     }
                     // The committed "next up" session sits BELOW the metric sections on purpose: once
                     // accepted it's an ambient reminder, not a demand for the top of the screen. It draws
@@ -501,8 +489,18 @@ struct LiquidTodayView: View {
                 .frame(width: 620, height: 720)
                 #endif
         }
-        .sheet(isPresented: $showCustomise) {
-            DashboardCardsEditorSheet(selectionRaw: $dashboardCardsRaw)
+        // Every Today layout/card affordance presents the same draft-based editor (#940).
+        .sheet(item: $customizationDestination) { destination in
+            TodayCustomizationSheet(
+                initialDestination: destination,
+                sectionOrderRaw: $sectionOrderRaw,
+                hiddenSectionsRaw: $hiddenSectionsRaw,
+                keyMetricsRaw: $keyMetricsRaw,
+                keyMetricsDetailed: $keyMetricsDetailed,
+                keyMetricsWindowDays: $keyMetricsWindowDays,
+                keyMetricsColumns: $keyMetricsColumnsRaw,
+                dashboardCardsRaw: $dashboardCardsRaw
+            )
         }
         .sheet(isPresented: $showSettings) {
             NavigationStack {
@@ -521,15 +519,6 @@ struct LiquidTodayView: View {
         // The bell — same store, same inbox, as the classic Today's (TodayView.swift).
         .sheet(isPresented: $showUpdatesInbox) {
             UpdatesInboxView(onClose: { showUpdatesInbox = false })
-        }
-        // #today-layout: the Arrange sheet — native drag-to-reorder rows over the same persisted order.
-        .sheet(isPresented: $showArrangeSheet) {
-            TodayArrangeSheet(orderRaw: $sectionOrderRaw, hiddenRaw: $hiddenSectionsRaw)
-        }
-        // #430 parity: the Key-Metrics editor (selection + order + the Detailed-tiles switch), the same
-        // sheet the classic macOS grid uses, bound to the same persisted layout string.
-        .sheet(isPresented: $showKeyMetricsEditor) {
-            KeyMetricsEditorSheet(layoutRaw: $keyMetricsRaw)
         }
         // The Charge-breakdown sheet — opened from the readiness hero pill (Maintain/Push/Rest), parity
         // with classic TodayView's `showChargeBreakdown`. Shows the drivers + confidence + calibration
@@ -679,16 +668,16 @@ struct LiquidTodayView: View {
                     LiquidAddButton()
                     LiquidBatteryButton()
                     LiquidUpdatesBellButton(showUpdatesInbox: $showUpdatesInbox)
-                    // #today-layout: opens the Arrange sheet (drag rows to reorder the Today sections).
-                    Button { showArrangeSheet = true } label: {
-                        Image(systemName: "arrow.up.arrow.down")
-                            .font(.system(size: 13, weight: .bold))
+                    // One entry point for section order/visibility and both nested card editors.
+                    Button { customizationDestination = .today } label: {
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.system(size: 14, weight: .bold))
                             .foregroundStyle(.white)
                             .frame(width: LiquidHeaderMetrics.control, height: LiquidHeaderMetrics.control)
                             .background(Circle().fill(.white.opacity(0.16)))
                     }
                     .buttonStyle(LiquidPressStyle())
-                    .accessibilityLabel("Arrange Today sections")
+                    .accessibilityLabel("Customize Today")
                 }
             }
             // Subtle NOOP wordmark in the sky between header and hero. Perfectly centred (a letter row has
@@ -873,7 +862,7 @@ struct LiquidTodayView: View {
                 Text("YOUR CARDS").font(StrandFont.overline).tracking(1.6)
                     .foregroundStyle(StrandPalette.textTertiary)
                 Spacer()
-                Button { showCustomise = true } label: {
+                Button { customizationDestination = .yourCards } label: {
                     // #492 item 4 parity: unify the Your Cards / Key Metrics edit affordance to "EDIT" across
                     // platforms (Android #563). Reuse the localized "Edit" key, uppercased at display, so this
                     // stays translated (BEARBEITEN / MODIFIER / …) without a new literal.
@@ -1356,9 +1345,10 @@ struct LiquidTodayView: View {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 sectionHead("KEY METRICS", trailing: trendWindowLabel)
                 // #430 parity: the SAME editor the classic grid uses — selection + order + Detailed tiles.
-                Button { showKeyMetricsEditor = true } label: {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 12, weight: .semibold))
+                Button { customizationDestination = .keyMetrics } label: {
+                    Text(String(localized: "Edit").uppercased())
+                        .font(StrandFont.overlineScaled(11))
+                        .tracking(1.0)
                         .foregroundStyle(StrandPalette.accent)
                 }
                 .buttonStyle(.plain)

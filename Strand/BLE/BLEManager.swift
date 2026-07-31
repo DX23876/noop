@@ -1528,12 +1528,30 @@ public final class BLEManager: NSObject, ObservableObject {
                 || (DeviceConfigReadProbe.isReadOnlyOpcode(command.rawValue) && deviceConfigReport != nil)
                 || command == .sendHistoricalData || command == .historicalDataResult
                 || command == .setClock || command == .getClock
-                // SET_CONFIG (the R22 deep-stream unlock) is allowed ONLY while the deep-data
-                // experiment is opted in — it writes a persistent feature flag to the strap, so it
-                // must never fire on a default install. It's still reversible (just changes which
-                // data the strap emits) and is what the official app sends. Driven only by
-                // enableWhoop5DeepData(). (#174)
-                || (command == .setConfig && PuffinExperiment.deepDataEnabled)
+                // SET_CONFIG / SET_FF_VALUE (120), ENABLE direction — the R22 deep-stream unlock. Allowed
+                // only while the deep-data experiment is opted in, and only for a KEY and a VALUE the gate
+                // recognises: one of the sixteen R22 flags carrying that key's own enable value. The clause
+                // this replaces was opcode-only, so it admitted ANY feature-flag key with ANY value for as
+                // long as the opt-in happened to be on — the same weakness #907 closed on opcode 119.
+                // Driven only by enableWhoop5DeepData(). (#174)
+                || FeatureFlagWriteGate.admitsEnableWrite(opcode: command.rawValue,
+                                                          payload: payload,
+                                                          deepDataOptIn: PuffinExperiment.deepDataEnabled)
+                // SET_FF_VALUE (120), DISABLE direction — the undo. Gated on a disable run being in flight
+                // rather than on the opt-in, exactly like the 128 read-back clause below, and restricted to
+                // `featureFlagOffValue`. The opt-in CANNOT gate this: `deepDataEnabled` is @AppStorage bound
+                // straight to the Settings switch, so it is already false by the time the user confirms the
+                // undo the switch itself offered — gating on it made the whole toggle-off path dead (every
+                // write refused here, and the run's own guard returning early). Gating on the run is also
+                // narrower the other way: with the opt-in merely left on, no off value reaches the wire
+                // unless a run is genuinely walking its plan. Driven only by disableWhoop5DeepData(). (#174)
+                || FeatureFlagWriteGate.admitsDisableWrite(opcode: command.rawValue,
+                                                           payload: payload,
+                                                           disableRunInFlight: r22DisableRun != nil)
+                // GET_FF_VALUE (128) as the disable run's mandatory READ-BACK. Gated on a disable run being
+                // in flight, exactly like the read probes' 121/128 clause above, so a default install can
+                // never form these bytes. The write ack is not trusted; this is what proves the clear.
+                || (FeatureFlagWriteGate.isReadBackOpcode(command.rawValue) && r22DisableRun != nil)
                 // SET_DEVICE_CONFIG (the Broadcast-HR flag) is allowed ONLY while that opt-in is on —
                 // it writes one persistent device-config value so the strap advertises standard HR.
                 // Reversible; driven only by setBroadcastHr(_:). (#181)
@@ -2305,7 +2323,11 @@ public final class BLEManager: NSObject, ObservableObject {
         // entirely, so counting it as a "deep packet" gave 4.0 owners a bogus deep-data counter (#346).
         guard selectedModel.deviceFamily == .whoop5 else { return }
         guard frame.count > 10 else { return }
-        if frame[8] == 0x24, frame[10] == WhoopCommand.setConfig.rawValue {
+        // #174: a SET_CONFIG ack means "one enable_r22_* flag accepted" ONLY when we are enabling. A disable
+        // run writes through the same opcode, so without this guard turning R22 OFF would tick the
+        // "Strap accepted N/16 R22 flags" counter upwards — the exact opposite of what happened. The
+        // disable run scores its own acks (and does not trust them; the 128 read-back is its proof).
+        if frame[8] == 0x24, frame[10] == WhoopCommand.setConfig.rawValue, r22DisableRun == nil {
             state.r22FlagsAccepted += 1
             let total = Whoop5Config.enableR22Sequence.count
             if state.r22FlagsAccepted == total {
@@ -2376,8 +2398,166 @@ public final class BLEManager: NSObject, ObservableObject {
             }
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(80 * frames.count + 200)) { [weak self] in
-            self?.log("Deep-data: sequence sent. Keep the strap on, let it sync, then share your strap log — we're looking for new deep records (type-0x2F) to start arriving. (#174)")
+            self?.log("Deep-data: sequence sent. Keep the strap on, let it sync, then share your strap log — we're looking for new deep records (type-0x2F) to start arriving. To undo it later, use \"Turn deep data back off\" — disableWhoop5DeepData() writes '0' to the same sixteen keys and reads each one back. (#174)")
         }
+    }
+
+    // MARK: - R22 disable (#174)
+
+    /// Per-step reply window for the disable run. Each step is only sent once the previous reply lands (or
+    /// times out), so this bounds one round-trip, not the whole run.
+    private static let r22DisableStepTimeout: TimeInterval = 8
+
+    /// The in-flight disable run's accumulating report; nil when none is running. Doubles as the send()
+    /// allowlist's in-flight gate for the 128 read-back.
+    private var r22DisableRun: R22DisableReport?
+    /// The step whose reply we are waiting for, nil between steps.
+    private var r22DisableAwaiting: R22DisableReport.Step?
+    /// Monotonic step counter so a late timeout from an earlier step cannot cancel a live run.
+    private var r22DisableStep = 0
+
+    /// EXPERIMENTAL (#174): the undo of `enableWhoop5DeepData()` — write `'0'` to the sixteen `enable_r22_*`
+    /// feature flags and report, per key, the value the strap actually stores afterwards.
+    ///
+    /// **Why this exists.** The Settings copy has promised since #174 that the R22 unlock is "reversible",
+    /// and that was true about the hardware and false about the app: NOOP shipped an enable button and no
+    /// way back, so the only routes out were the official WHOOP app or a factory reset. This closes that.
+    ///
+    /// **Why it is staged rather than sixteen writes.** `'0'` is the confirmed off value in the
+    /// device-config namespace (#181, hardware-validated on the Broadcast-HR flag) and that namespace shares
+    /// this one's entire wire idiom — but no *feature* flag has ever been observed holding `'0'`, and the two
+    /// namespaces are proven separate at the verb level. So the run writes ONE flag, reads it back, and only
+    /// touches the other fifteen if the strap actually stopped reporting the old value. A firmware that
+    /// refuses `'0'` costs the user one round-trip and yields a publishable answer instead of fifteen mystery
+    /// writes. See `Whoop5Config.featureFlagOffValue` and `R22DisableReport` for the full reasoning.
+    ///
+    /// **The ack is never the proof.** Every write's COMMAND_RESPONSE is recorded and not believed —
+    /// `SELECT_WRIST` returns SUCCESS for a no-op and FAILURE for a real mutation on this firmware — so only
+    /// the value a `GET_FF_VALUE(128)` read returns is reported as state (#907/#891).
+    ///
+    /// Same guards as the enable: 5/MG family, explicit opt-in, full encrypted bond. `worn` is deliberately
+    /// NOT required — the on-wrist gate exists because the R22 STREAM is on-wrist-only, and a user turning
+    /// the feature off should not have to put the strap back on to do it. Result goes to
+    /// `LiveState.r22DisableReport` and the strap log; no new storage. Twin of Android
+    /// `disableWhoop5DeepData()`.
+    public func disableWhoop5DeepData() {
+        guard selectedModel.deviceFamily == .whoop5 else {
+            log("Deep-data disable: needs a WHOOP 5.0/MG strap selected — ignored."); return
+        }
+        // NOTE there is deliberately NO `PuffinExperiment.deepDataEnabled` guard here. There was one, and it
+        // made this entire function unreachable from the control users actually use: the Settings switch is
+        // @AppStorage-bound, so flipping it OFF writes the pref false immediately, THEN raises the "Clear the
+        // R22 flags on your strap?" dialog. By the time the user taps "Clear flags on strap" the pref is
+        // already false, so the guard returned at the top and nothing happened — the same shape of defect
+        // this PR exists to fix (UI promising an undo that never runs). The send allowlist now gates the
+        // off-value writes on `r22DisableRun != nil` instead, which is the state that is actually about this
+        // operation. (#174)
+        guard state.connected, state.encryptedBond else {
+            log("Deep-data disable: needs the full encrypted bond, not the live-HR-only link. Close the official WHOOP app, put the strap in pairing mode, and bond it to NOOP first — ignored."); return
+        }
+        guard r22DisableRun == nil else {
+            log("Deep-data disable: a disable run is already walking its plan — ignored."); return
+        }
+        r22DisableRun = R22DisableReport()
+        state.r22DisableReport = BLEManager.deviceConfigProbeWaiting
+        log("Deep-data disable (#174): clearing the \(Whoop5Config.disableR22Sequence.count)-flag R22 sequence — writing '0' via SET_FF_VALUE(120), each verified with GET_FF_VALUE(128). Probing \(R22DisableReport.probeKey) first; the other flags are only written if that one moves.")
+        advanceR22Disable()
+    }
+
+    /// Send the next planned step, or finish when the plan is done.
+    private func advanceR22Disable() {
+        guard let step = r22DisableRun?.nextStep() else {
+            finishR22Disable()
+            return
+        }
+        guard let command = WhoopCommand(rawValue: step.opcode) else {
+            log("Deep-data disable: refusing to send unknown opcode \(step.opcode)")
+            finishR22Disable()
+            return
+        }
+        let payload: [UInt8]
+        if step.isWrite {
+            payload = [0x01] + Whoop5Config.payloadBody(name: step.key, value: Whoop5Config.featureFlagOffValue)
+            // Fail closed: the same predicate the send path consults, asked here too, so a future edit that
+            // widened the plan cannot put an unrecognised key or value on the wire. `disableRunInFlight` is
+            // true by construction here (this is only called from inside a run) — it is passed rather than
+            // hardcoded so this and the send path evaluate the identical predicate.
+            guard FeatureFlagWriteGate.admitsDisableWrite(opcode: step.opcode, payload: payload,
+                                                          disableRunInFlight: r22DisableRun != nil) else {
+                log("Deep-data disable: refusing to write \(step.key) — not admitted by the feature-flag gate")
+                finishR22Disable()
+                return
+            }
+        } else {
+            guard FeatureFlagWriteGate.isReadBackOpcode(step.opcode) else {
+                log("Deep-data disable: refusing to read with opcode \(step.opcode)")
+                finishR22Disable()
+                return
+            }
+            payload = DeviceConfigReadProbe.requestBody(key: step.key)
+        }
+        r22DisableStep &+= 1
+        r22DisableAwaiting = step
+        let armed = r22DisableStep
+        send(command, payload: payload, writeType: .withResponse)
+        // BLE callbacks and this timer both run on the main queue, so guard-then-advance is race-free: a
+        // reply that already landed advanced `r22DisableStep`, and this stale closure no-ops.
+        DispatchQueue.main.asyncAfter(deadline: .now() + BLEManager.r22DisableStepTimeout) { [weak self] in
+            guard let self, self.r22DisableRun != nil, self.r22DisableStep == armed,
+                  self.r22DisableAwaiting != nil else { return }
+            self.r22DisableAwaiting = nil
+            self.r22DisableRun?.noteTimeout(for: step, seconds: Int(BLEManager.r22DisableStepTimeout))
+            self.advanceR22Disable()
+        }
+    }
+
+    /// Render + publish + log the report and end the run (which also re-closes the 128 send allowlist).
+    private func finishR22Disable() {
+        guard let report = r22DisableRun else { return }
+        r22DisableRun = nil
+        r22DisableAwaiting = nil
+        // The "Strap accepted N/16 R22 flags" line reports the last ENABLE send. If this run cleared even one
+        // key that claim is stale, so retire it rather than leaving the card asserting the strap is unlocked
+        // while the report below says it was just cleared. A run that changed nothing leaves it alone.
+        if report.outcomes.values.contains(where: { $0.isSuccess }) {
+            state.r22FlagsAccepted = 0
+        }
+        let text = report.render()
+        log("Deep-data disable (#174):\n\(text)")
+        state.r22DisableReport = text
+    }
+
+    /// Clear the #174 disable result (Settings card dismissed). Twin of Android clearR22DisableReport().
+    public func clearR22DisableReport() { state.r22DisableReport = nil }
+
+    /// #174: one COMMAND_RESPONSE belonging to a disable run — either a `SET_FF_VALUE(120)` write ack or a
+    /// `GET_FF_VALUE(128)` read-back. Guarded on a run being IN-FLIGHT so a stray byte match can never
+    /// surface a result. Parsing — including the CRC gate — lives in the pure `DeviceConfigReadProbe`.
+    private func handleR22DisableResponse(_ frame: [UInt8], isWhoop5: Bool) {
+        guard r22DisableRun != nil, let step = r22DisableAwaiting else { return }
+        r22DisableAwaiting = nil
+        if step.isWrite {
+            // The ack is recorded for the transcript and decides nothing. `pay[1]` is the 5/MG result code:
+            // puffin envelope puts the type @8 and the cmd @10, so the payload starts at 11 and the result
+            // byte is at 12.
+            let resultCode: Int? = frame.count > 12 ? Int(frame[12]) : nil
+            r22DisableRun?.noteWriteAck(resultCode: resultCode, for: step)
+        } else {
+            switch DeviceConfigReadProbe.parse(frame: frame, family: isWhoop5 ? .whoop5 : .whoop4,
+                                               expecting: step.opcode) {
+            case .success(let r): r22DisableRun?.noteReadBack(r, for: step)
+            case .failure(let f): r22DisableRun?.noteReadFailure(f, for: step)
+            }
+        }
+        advanceR22Disable()
+    }
+
+    /// Abandon a disable run the link interrupted, re-closing the 128 send allowlist. Called from the
+    /// disconnect path alongside the probe teardowns.
+    private func abandonR22DisableRun(_ why: String) {
+        guard r22DisableRun != nil else { return }
+        r22DisableRun?.noteAbandoned(why)
+        finishR22Disable()
     }
 
     /// EXPERIMENTAL (#181): make a bonded WHOOP 5/MG advertise its heart rate as a standard BLE HR
@@ -3816,6 +3996,10 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         // …and abandon a plan the link interrupted, re-closing the 121/128 send() allowlist.
         deviceConfigReport = nil
         deviceConfigAwaiting = nil
+        // #174: a disable run interrupted mid-plan is RENDERED rather than dropped — unlike the read-only
+        // probes above it has already written to the strap, so the user must be told exactly how far it got
+        // and which keys are still set. This publishes the partial report and re-closes the 128 allowlist.
+        abandonR22DisableRun("the strap disconnected mid-run")
         state.clearBiometrics()       // and a stale HR / R-R must not outlive the link either
         state.liveFeedActive = false  // a drop while Live is open must not leave a stale "Stop live feed"
         didBond = false
@@ -4690,6 +4874,15 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                     if frame.count > 10, frame[8] == 0x24,
                        DeviceConfigReadProbe.isReadOnlyOpcode(frame[10]) {
                         handleDeviceConfigProbeResponse(frame, isWhoop5: true)
+                    }
+                    // #174: a reply belonging to an R22 DISABLE run — either the SET_FF_VALUE(120) write ack
+                    // or the GET_FF_VALUE(128) read-back that verifies it. In-flight-guarded inside, so this
+                    // is a byte compare on every other frame. Note 128 is also matched by the read-probe
+                    // clause above; both handlers guard on their OWN run being live, so exactly one acts.
+                    if frame.count > 10, frame[8] == 0x24,
+                       frame[10] == WhoopCommand.setConfig.rawValue
+                        || frame[10] == WhoopCommand.getFeatureFlagValue.rawValue {
+                        handleR22DisableResponse(frame, isWhoop5: true)
                     }
                     // #695: a 5/MG GET_DATA_RANGE COMMAND_RESPONSE (puffin envelope: type @8, cmd @10). Feeds
                     // the SAME newest/oldest window + backfill gate + diagnostics as the 4.0 path above — this

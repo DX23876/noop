@@ -51,8 +51,6 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.TrackChanges
-import androidx.compose.material.icons.filled.DragHandle
-import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Info
@@ -395,6 +393,7 @@ fun TodayScreen(
     // aren't reactive) and re-read on the editor's save, exactly like enabledKeyMetrics above.
     var showLayoutEditor by remember { mutableStateOf(false) }
     var sectionOrder by remember { mutableStateOf(TodayLayoutPrefs.order(context)) }
+    var hiddenSections by remember { mutableStateOf(TodayLayoutPrefs.hidden(context)) }
     // #today-layout (hold-to-drag): the hoisted list state (the drag math needs layoutInfo + scrollBy) and
     // the live drag state. The frame loop below runs ONLY while a section is lifted: each frame it retries
     // the swap (so a card held still at a viewport edge keeps reordering as the list scrolls under it —
@@ -1179,20 +1178,19 @@ fun TodayScreen(
             // aligned to the trailing edge — so neither needs its own empty band.
             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 LiquidWordmark()
-                // #today-layout: a small affordance to REORDER the sections below (an alternative to
-                // holding + dragging the cards directly). Opens a Today-local dialog — no nav destination.
+                // One consistent customization affordance for section order and visibility.
                 TextButton(
                     onClick = { showLayoutEditor = true },
                     colors = ButtonDefaults.textButtonColors(contentColor = Palette.textTertiary),
                     modifier = Modifier.align(Alignment.CenterEnd),
                 ) {
                     Icon(
-                        Icons.Filled.SwapVert,
-                        contentDescription = uiString(R.string.l10n_today_screen_arrange_today_sections_9675862b),
+                        Icons.Filled.Tune,
+                        contentDescription = stringResource(R.string.today_customize_title),
                         modifier = Modifier.size(Metrics.iconSmall),
                     )
-                    Spacer(Modifier.width(4.dp))
-                    Text(uiString(R.string.l10n_today_screen_arrange_cfdd099c), style = NoopType.footnote)
+                    Spacer(Modifier.width(Metrics.space4))
+                    Text(stringResource(R.string.today_customize_action), style = NoopType.footnote)
                 }
             }
         }
@@ -1315,7 +1313,7 @@ fun TodayScreen(
         // neighbours as it crosses their centres (the screen-level frame loop also auto-scrolls at the
         // viewport edges and keeps swapping while it does), and the order persists on drop. The stagger
         // index follows the section's live position.
-        sectionOrder.forEach { section ->
+        sectionOrder.filterNot { it in hiddenSections }.forEach { section ->
             // Entrance stagger keyed on the section's FIXED default position, not its live position: the
             // stagger only matters on first appearance (staggeredAppear latches), and a live-position
             // stagger changes every moved section's content lambda on every mid-drag swap — recomposing
@@ -1653,10 +1651,8 @@ fun TodayScreen(
         )
     }
 
-    // "Your cards" dashboard editor (WHOOP "My Dashboard" ✎), a Today-local dialog (no new nav
-    // destination): toggle which cards show + reorder them with up/down arrows. Saves the selection and
-    // re-reads it into local state so the dashboard updates immediately and survives relaunch. Mirrors the
-    // iOS DashboardCardsEditorSheet. (No reorder lib is added, simple arrow buttons, like KeyMetricsEditor.)
+    // "Your cards" uses the same shown/hidden editor pattern as Today and Key Metrics. Saves the
+    // selection and re-reads it into local state so the dashboard updates immediately and survives relaunch.
     if (showDashboardEditor) {
         DashboardCardsEditorDialog(
             initial = enabledDashboardCards,
@@ -1673,11 +1669,14 @@ fun TodayScreen(
     // re-reads it into local state so Today re-lays-out immediately and survives relaunch.
     if (showLayoutEditor) {
         TodayLayoutEditorDialog(
-            initial = sectionOrder,
+            initialOrder = sectionOrder,
+            initialHidden = hiddenSections,
             onDismiss = { showLayoutEditor = false },
-            onSave = { order ->
+            onSave = { order, hidden ->
                 TodayLayoutPrefs.setOrder(context, order)
+                TodayLayoutPrefs.setHidden(context, hidden)
                 sectionOrder = order
+                hiddenSections = hidden
                 showLayoutEditor = false
             },
         )
@@ -3364,14 +3363,123 @@ private fun intStringGrouped(v: Double): String {
     return if (kotlin.math.abs(n) >= 1000) String.format(Locale.US, "%,d", n) else "$n"
 }
 
+// MARK: - Shared Shown / Hidden editor rows
+
+/**
+ * The common editor body used by Today sections, Key Metrics and Your Cards. Items are never deleted:
+ * remove moves one from Shown to Hidden, add restores it at the end of Shown, and the arrow controls use
+ * the same ordering behavior in every editor. SnapshotStateList callers recompose on these mutations.
+ */
+@Composable
+private fun <T> EditableVisibilityRows(
+    shown: MutableList<T>,
+    hidden: MutableList<T>,
+    itemTitle: (T) -> String,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .heightIn(max = Metrics.editorListMaxHeight)
+            .verticalScroll(rememberScrollState()),
+    ) {
+        Text(stringResource(R.string.today_customize_shown), style = NoopType.overline, color = Palette.textTertiary)
+        shown.forEachIndexed { index, item ->
+            val title = itemTitle(item)
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = Metrics.space6),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(title, style = NoopType.body, color = Palette.textPrimary, modifier = Modifier.weight(1f))
+                IconButton(
+                    onClick = {
+                        if (index > 0) shown.add(index - 1, shown.removeAt(index))
+                    },
+                    enabled = index > 0,
+                    modifier = Modifier.size(Metrics.iconButton),
+                ) {
+                    Icon(
+                        Icons.Filled.KeyboardArrowUp,
+                        contentDescription = stringResource(R.string.today_customize_move_up, title),
+                        tint = if (index > 0) Palette.textSecondary else Palette.textTertiary,
+                        modifier = Modifier.size(Metrics.iconSmall),
+                    )
+                }
+                IconButton(
+                    onClick = {
+                        if (index < shown.lastIndex) shown.add(index + 1, shown.removeAt(index))
+                    },
+                    enabled = index < shown.lastIndex,
+                    modifier = Modifier.size(Metrics.iconButton),
+                ) {
+                    Icon(
+                        Icons.Filled.KeyboardArrowDown,
+                        contentDescription = stringResource(R.string.today_customize_move_down, title),
+                        tint = if (index < shown.lastIndex) Palette.textSecondary else Palette.textTertiary,
+                        modifier = Modifier.size(Metrics.iconSmall),
+                    )
+                }
+                IconButton(
+                    onClick = {
+                        if (shown.size > 1) hidden.add(shown.removeAt(index))
+                    },
+                    enabled = shown.size > 1,
+                    modifier = Modifier.size(Metrics.iconButton),
+                ) {
+                    Icon(
+                        Icons.Filled.Close,
+                        contentDescription = stringResource(R.string.today_customize_hide, title),
+                        tint = if (shown.size > 1) Palette.textSecondary else Palette.textTertiary,
+                        modifier = Modifier.size(Metrics.iconSmall),
+                    )
+                }
+            }
+            if (index < shown.lastIndex) {
+                HorizontalDivider(color = Palette.hairline, thickness = Metrics.divider)
+            }
+        }
+
+        Spacer(Modifier.height(Metrics.space16))
+        Text(stringResource(R.string.today_customize_hidden), style = NoopType.overline, color = Palette.textTertiary)
+        if (hidden.isEmpty()) {
+            Text(
+                stringResource(R.string.today_customize_nothing_hidden),
+                style = NoopType.body,
+                color = Palette.textTertiary,
+                modifier = Modifier.padding(vertical = Metrics.space12),
+            )
+        } else {
+            hidden.forEachIndexed { index, item ->
+                val title = itemTitle(item)
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = Metrics.space6),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(title, style = NoopType.body, color = Palette.textTertiary, modifier = Modifier.weight(1f))
+                    IconButton(
+                        onClick = { shown.add(hidden.removeAt(index)) },
+                        modifier = Modifier.size(Metrics.iconButton),
+                    ) {
+                        Icon(
+                            Icons.Filled.Add,
+                            contentDescription = stringResource(R.string.today_customize_show, title),
+                            tint = Palette.accent,
+                            modifier = Modifier.size(Metrics.iconSmall),
+                        )
+                    }
+                }
+                if (index < hidden.lastIndex) {
+                    HorizontalDivider(color = Palette.hairline, thickness = Metrics.divider)
+                }
+            }
+        }
+    }
+}
+
 // MARK: - "Your cards" dashboard editor (WHOOP "My Dashboard" ✎)
 //
-// A Today-local dialog for choosing WHICH dashboard cards show and in what order. Display-only: it edits the
-// persisted selection, never any stored metric. Enabled cards first (saved order), then the disabled
-// remainder in canonical order, so toggling one on drops it at the end of the visible set and every known
-// card is listed once. Toggle hides/shows a card; up/down arrows reorder it (no reorder lib, simple arrow
-// buttons, matching KeyMetricsEditorDialog). Mirrors iOS DashboardCardsEditorSheet. At least one card must
-// stay enabled (an empty dashboard reads as a bug).
+// A Today-local dialog for choosing which dashboard cards show and in what order. Display-only: it edits the
+// persisted selection, never any stored metric. Shown cards retain their saved order; Hidden contains the
+// canonical remainder, and restoring a card appends it to Shown. At least one card must stay enabled.
 
 @Composable
 private fun DashboardCardsEditorDialog(
@@ -3379,18 +3487,10 @@ private fun DashboardCardsEditorDialog(
     onDismiss: () -> Unit,
     onSave: (List<DashboardCard>) -> Unit,
 ) {
-    val items = remember {
-        val enabledSet = initial.toHashSet()
-        mutableStateListOf<EditableDashboardCard>().apply {
-            initial.forEach { add(EditableDashboardCard(it, true)) }
-            DashboardCard.canonicalOrder.filter { it !in enabledSet }.forEach { add(EditableDashboardCard(it, false)) }
-        }
-    }
-
-    fun move(from: Int, to: Int) {
-        if (from in items.indices && to in items.indices) {
-            val item = items.removeAt(from)
-            items.add(to, item)
+    val shown = remember { mutableStateListOf<DashboardCard>().apply { addAll(initial) } }
+    val hidden = remember {
+        mutableStateListOf<DashboardCard>().apply {
+            addAll(DashboardCard.canonicalOrder.filter { it !in initial })
         }
     }
 
@@ -3413,83 +3513,26 @@ private fun DashboardCardsEditorDialog(
                     )
                 }
 
-                Column(
-                    modifier = Modifier
-                        .heightIn(max = 360.dp)
-                        .verticalScroll(rememberScrollState()),
-                ) {
-                    items.forEachIndexed { index, item ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Switch(
-                                checked = item.enabled,
-                                onCheckedChange = { items[index] = item.copy(enabled = it) },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = Palette.surfaceBase,
-                                    checkedTrackColor = Palette.accent,
-                                    uncheckedThumbColor = Palette.textSecondary,
-                                    uncheckedTrackColor = Palette.surfaceInset,
-                                    uncheckedBorderColor = Palette.hairline,
-                                ),
-                                modifier = Modifier.semantics { contentDescription = uiString(R.string.l10n_today_screen_show_item_card_title_7844540d, item.card.title) },
-                            )
-                            Spacer(Modifier.width(12.dp))
-                            Text(
-                                item.card.title,
-                                style = NoopType.body,
-                                color = if (item.enabled) Palette.textPrimary else Palette.textTertiary,
-                                modifier = Modifier.weight(1f),
-                            )
-                            IconButton(
-                                onClick = { move(index, index - 1) },
-                                enabled = index > 0,
-                                modifier = Modifier.size(Metrics.iconButton),
-                            ) {
-                                Icon(
-                                    Icons.Filled.KeyboardArrowUp,
-                                    contentDescription = uiString(R.string.l10n_today_screen_move_item_card_title_up_61a1b306, item.card.title),
-                                    tint = if (index > 0) Palette.textSecondary else Palette.textTertiary,
-                                    modifier = Modifier.size(Metrics.iconSmall),
-                                )
-                            }
-                            IconButton(
-                                onClick = { move(index, index + 1) },
-                                enabled = index < items.lastIndex,
-                                modifier = Modifier.size(Metrics.iconButton),
-                            ) {
-                                Icon(
-                                    Icons.Filled.KeyboardArrowDown,
-                                    contentDescription = uiString(R.string.l10n_today_screen_move_item_card_title_down_abd8549a, item.card.title),
-                                    tint = if (index < items.lastIndex) Palette.textSecondary else Palette.textTertiary,
-                                    modifier = Modifier.size(Metrics.iconSmall),
-                                )
-                            }
-                        }
-                        if (index < items.lastIndex) {
-                            HorizontalDivider(color = Palette.hairline, thickness = 1.dp)
-                        }
-                    }
-                }
+                EditableVisibilityRows(
+                    shown = shown,
+                    hidden = hidden,
+                    itemTitle = { it.title },
+                )
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     TextButton(
                         onClick = {
-                            // Reset to the canonical default: the default selection enabled, rest disabled.
-                            items.clear()
-                            val enabledSet = DashboardCard.defaultSelection.toHashSet()
-                            DashboardCard.defaultSelection.forEach { items.add(EditableDashboardCard(it, true)) }
-                            DashboardCard.canonicalOrder.filter { it !in enabledSet }
-                                .forEach { items.add(EditableDashboardCard(it, false)) }
+                            shown.clear()
+                            shown.addAll(DashboardCard.defaultSelection)
+                            hidden.clear()
+                            hidden.addAll(DashboardCard.canonicalOrder.filter { it !in shown })
                         },
                         colors = ButtonDefaults.textButtonColors(contentColor = Palette.textSecondary),
                     ) { Text(uiString(R.string.l10n_today_screen_reset_44c57abd), style = NoopType.body) }
                     Spacer(Modifier.weight(1f))
                     Button(
-                        onClick = { onSave(items.filter { it.enabled }.map { it.card }) },
-                        // At least one card must stay visible, an empty dashboard reads as a bug, not a choice.
-                        enabled = items.any { it.enabled },
+                        onClick = { onSave(shown.toList()) },
+                        enabled = shown.isNotEmpty(),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Palette.accent,
                             contentColor = Palette.surfaceBase,
@@ -3500,9 +3543,6 @@ private fun DashboardCardsEditorDialog(
         }
     }
 }
-
-/** One row's working state in the dashboard editor: the card + whether it's currently enabled. */
-private data class EditableDashboardCard(val card: DashboardCard, val enabled: Boolean)
 
 // #today-layout (hold-to-drag): LazyColumn key prefix for the reorderable section items, so the drag can
 // tell a section item from the pinned rows around it.
@@ -3687,28 +3727,23 @@ private fun LazyItemScope.TodayReorderableSection(
 }
 
 /**
- * #today-layout: reorder the below-hero Today sections (Synthesis / Key Metrics / Workouts / Heart Rate /
- * Recovery Vitals / Your Cards) by LONG-PRESSING a row and dragging it — a Today-local dialog, no new nav
- * destination. Every section always shows (this reorders, never hides), so there are no toggles, only order.
- * Hand-rolled fixed-height drag (no reorder lib, matching the project's "no reorder lib" stance). Twin of
- * the macOS TodayLayoutEditor. The sheet remains as the tap-based alternative to the live on-feed drag.
+ * Today section editor. Uses the same Shown / Hidden rows as the Key Metrics and Your Cards editors.
+ * Hiding is reversible and persists separately from the full order registry.
  */
 @Composable
 private fun TodayLayoutEditorDialog(
-    initial: List<TodaySection>,
+    initialOrder: List<TodaySection>,
+    initialHidden: List<TodaySection>,
     onDismiss: () -> Unit,
-    onSave: (List<TodaySection>) -> Unit,
+    onSave: (List<TodaySection>, List<TodaySection>) -> Unit,
 ) {
-    val items = remember { mutableStateListOf<TodaySection>().apply { addAll(initial) } }
-    val haptics = LocalHapticFeedback.current
-    val density = LocalDensity.current
-    // Fixed row height makes the long-press drag deterministic: the dragged row swaps with its neighbour
-    // once its accumulated offset crosses HALF a row, then the offset resets by one row so it keeps
-    // tracking the finger. `draggingIndex` is the dragged section's CURRENT index (updated on each swap).
-    val rowHeight = 52.dp
-    val rowHeightPx = with(density) { rowHeight.toPx() }
-    var draggingIndex by remember { mutableStateOf<Int?>(null) }
-    var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    val hiddenSet = remember(initialHidden) { initialHidden.toSet() }
+    val shown = remember {
+        mutableStateListOf<TodaySection>().apply { addAll(initialOrder.filterNot { it in hiddenSet }) }
+    }
+    val hidden = remember {
+        mutableStateListOf<TodaySection>().apply { addAll(initialOrder.filter { it in hiddenSet }) }
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(color = Palette.surfaceOverlay, shape = RoundedCornerShape(16.dp)) {
@@ -3717,94 +3752,33 @@ private fun TodayLayoutEditorDialog(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(uiString(R.string.l10n_today_screen_arrange_today_6b699147), style = NoopType.title2, color = Palette.textPrimary)
+                    Text(stringResource(R.string.today_customize_title), style = NoopType.title2, color = Palette.textPrimary)
                     Text(
-                        uiString(R.string.l10n_today_screen_hold_a_section_and_drag_it_1d6e2441),
+                        stringResource(R.string.today_customize_description),
                         style = NoopType.subhead,
                         color = Palette.textSecondary,
                     )
                 }
 
-                // 6 fixed-height rows fit without scrolling (drag + inner scroll would fight); each row is
-                // picked up on long-press and follows the finger, swapping neighbours as it crosses them.
-                Column {
-                    items.forEachIndexed { index, section ->
-                        val isDragging = draggingIndex == index
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(rowHeight)
-                                .zIndex(if (isDragging) 1f else 0f)
-                                .graphicsLayer {
-                                    if (isDragging) {
-                                        translationY = dragOffsetY
-                                        shadowElevation = 8f
-                                        scaleX = 1.02f
-                                        scaleY = 1.02f
-                                    }
-                                }
-                                .background(
-                                    if (isDragging) Palette.surfaceRaised else Color.Transparent,
-                                    RoundedCornerShape(10.dp),
-                                )
-                                .pointerInput(section) {
-                                    detectDragGesturesAfterLongPress(
-                                        onDragStart = {
-                                            draggingIndex = index
-                                            dragOffsetY = 0f
-                                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        },
-                                        onDragEnd = { draggingIndex = null; dragOffsetY = 0f },
-                                        onDragCancel = { draggingIndex = null; dragOffsetY = 0f },
-                                        onDrag = { change, amount ->
-                                            change.consume()
-                                            dragOffsetY += amount.y
-                                            val cur = draggingIndex
-                                            if (cur != null) {
-                                                if (dragOffsetY > rowHeightPx / 2f && cur < items.lastIndex) {
-                                                    items.add(cur + 1, items.removeAt(cur))
-                                                    draggingIndex = cur + 1
-                                                    dragOffsetY -= rowHeightPx
-                                                } else if (dragOffsetY < -rowHeightPx / 2f && cur > 0) {
-                                                    items.add(cur - 1, items.removeAt(cur))
-                                                    draggingIndex = cur - 1
-                                                    dragOffsetY += rowHeightPx
-                                                }
-                                            }
-                                        },
-                                    )
-                                }
-                                .padding(horizontal = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(
-                                Icons.Filled.DragHandle,
-                                contentDescription = null,
-                                tint = Palette.textTertiary,
-                                modifier = Modifier.size(Metrics.iconSmall),
-                            )
-                            Spacer(Modifier.width(12.dp))
-                            Text(
-                                section.title,
-                                style = NoopType.body,
-                                color = Palette.textPrimary,
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                    }
-                }
+                EditableVisibilityRows(
+                    shown = shown,
+                    hidden = hidden,
+                    itemTitle = { it.title },
+                )
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     TextButton(
                         onClick = {
-                            items.clear()
-                            items.addAll(TodaySection.defaultOrder)
+                            shown.clear()
+                            shown.addAll(TodaySection.defaultOrder)
+                            hidden.clear()
                         },
                         colors = ButtonDefaults.textButtonColors(contentColor = Palette.textSecondary),
                     ) { Text(uiString(R.string.l10n_today_screen_reset_44c57abd), style = NoopType.body) }
                     Spacer(Modifier.weight(1f))
                     Button(
-                        onClick = { onSave(items.toList()) },
+                        onClick = { onSave(shown.toList() + hidden.toList(), hidden.toList()) },
+                        enabled = shown.isNotEmpty(),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Palette.accent,
                             contentColor = Palette.surfaceBase,
@@ -5984,9 +5958,7 @@ private fun grouped(value: Int): String =
 //
 // A Today-local dialog (no new nav destination, another lane owns the nav graph) for choosing which
 // Key-Metric tiles show on the Control Center and in what order. Display-only: it edits the persisted
-// `today.keyMetrics` layout, never any stored metric. A switch hides/shows a tile and the up/down arrows
-// reorder it, explicit arrows rather than drag so it behaves the same on every device. Mirrors the macOS
-// KeyMetricsEditorSheet.
+// `today.keyMetrics` layout, never any stored metric. Uses the shared Shown / Hidden editor rows.
 
 /** The Key-Metrics header's trailing label for the chosen detailed-graph window. */
 private fun trendWindowLabel(days: Int): String = when (days) {
@@ -5994,9 +5966,6 @@ private fun trendWindowLabel(days: Int): String = when (days) {
     7 -> "7-day trend"
     else -> "14-day trend"
 }
-
-/** One editor row: a tile with its current enabled flag. The working list is rebuilt on each edit. */
-private data class EditableMetric(val metric: KeyMetric, val enabled: Boolean)
 
 @Composable
 private fun KeyMetricsEditorDialog(
@@ -6010,19 +5979,10 @@ private fun KeyMetricsEditorDialog(
     // chosen trailing window (2 days / 1 week / 2 weeks).
     var detailed by remember { mutableStateOf(initialDetailed) }
     var windowDays by remember { mutableStateOf(initialWindowDays) }
-    // Working copy: enabled tiles first (saved order), then the disabled remainder in the default order,     // so toggling one on drops it at the end of the visible set, and every known tile is listed once.
-    val items = remember {
-        val enabledSet = initial.toHashSet()
-        mutableStateListOf<EditableMetric>().apply {
-            initial.forEach { add(EditableMetric(it, true)) }
-            KeyMetric.defaultOrder.filter { it !in enabledSet }.forEach { add(EditableMetric(it, false)) }
-        }
-    }
-
-    fun move(from: Int, to: Int) {
-        if (from in items.indices && to in items.indices) {
-            val item = items.removeAt(from)
-            items.add(to, item)
+    val shown = remember { mutableStateListOf<KeyMetric>().apply { addAll(initial) } }
+    val hidden = remember {
+        mutableStateListOf<KeyMetric>().apply {
+            addAll(KeyMetric.defaultOrder.filter { it !in initial })
         }
     }
 
@@ -6083,80 +6043,27 @@ private fun KeyMetricsEditorDialog(
                 }
                 HorizontalDivider(color = Palette.hairline, thickness = 1.dp)
 
-                Column(
-                    modifier = Modifier
-                        .heightIn(max = 360.dp)
-                        .verticalScroll(rememberScrollState()),
-                ) {
-                    items.forEachIndexed { index, item ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Switch(
-                                checked = item.enabled,
-                                onCheckedChange = { items[index] = item.copy(enabled = it) },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = Palette.surfaceBase,
-                                    checkedTrackColor = Palette.accent,
-                                    uncheckedThumbColor = Palette.textSecondary,
-                                    uncheckedTrackColor = Palette.surfaceInset,
-                                    uncheckedBorderColor = Palette.hairline,
-                                ),
-                                modifier = Modifier.semantics { contentDescription = uiString(R.string.l10n_today_screen_show_item_metric_title_81803daf, item.metric.title) },
-                            )
-                            Spacer(Modifier.width(12.dp))
-                            Text(
-                                item.metric.title,
-                                style = NoopType.body,
-                                color = if (item.enabled) Palette.textPrimary else Palette.textTertiary,
-                                modifier = Modifier.weight(1f),
-                            )
-                            IconButton(
-                                onClick = { move(index, index - 1) },
-                                enabled = index > 0,
-                                modifier = Modifier.size(Metrics.iconButton),
-                            ) {
-                                Icon(
-                                    Icons.Filled.KeyboardArrowUp,
-                                    contentDescription = uiString(R.string.l10n_today_screen_move_item_metric_title_up_52d2104c, item.metric.title),
-                                    tint = if (index > 0) Palette.textSecondary else Palette.textTertiary,
-                                    modifier = Modifier.size(Metrics.iconSmall),
-                                )
-                            }
-                            IconButton(
-                                onClick = { move(index, index + 1) },
-                                enabled = index < items.lastIndex,
-                                modifier = Modifier.size(Metrics.iconButton),
-                            ) {
-                                Icon(
-                                    Icons.Filled.KeyboardArrowDown,
-                                    contentDescription = uiString(R.string.l10n_today_screen_move_item_metric_title_down_890afe60, item.metric.title),
-                                    tint = if (index < items.lastIndex) Palette.textSecondary else Palette.textTertiary,
-                                    modifier = Modifier.size(Metrics.iconSmall),
-                                )
-                            }
-                        }
-                        if (index < items.lastIndex) {
-                            HorizontalDivider(color = Palette.hairline, thickness = 1.dp)
-                        }
-                    }
-                }
+                EditableVisibilityRows(
+                    shown = shown,
+                    hidden = hidden,
+                    itemTitle = { it.title },
+                )
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     TextButton(
                         onClick = {
-                            // Reset to the canonical default: every tile enabled, original order.
-                            items.clear()
-                            KeyMetric.defaultOrder.forEach { items.add(EditableMetric(it, true)) }
+                            shown.clear()
+                            shown.addAll(KeyMetric.defaultOrder)
+                            hidden.clear()
+                            detailed = false
+                            windowDays = 14
                         },
                         colors = ButtonDefaults.textButtonColors(contentColor = Palette.textSecondary),
                     ) { Text(uiString(R.string.l10n_today_screen_reset_44c57abd), style = NoopType.body) }
                     Spacer(Modifier.weight(1f))
                     Button(
-                        onClick = { onSave(items.filter { it.enabled }.map { it.metric }, detailed, windowDays) },
-                        // At least one tile must stay visible, an empty grid reads as a bug, not a choice.
-                        enabled = items.any { it.enabled },
+                        onClick = { onSave(shown.toList(), detailed, windowDays) },
+                        enabled = shown.isNotEmpty(),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Palette.accent,
                             contentColor = Palette.surfaceBase,

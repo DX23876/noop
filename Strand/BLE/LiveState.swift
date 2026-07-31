@@ -256,6 +256,14 @@ public final class LiveState: ObservableObject {
     /// sentinel while the walk runs. Nothing is written to the strap to produce it. Cleared on disconnect
     /// and on dialog dismiss. Twin of the Android WhoopBleClient.deviceConfigProbe flow.
     @Published public var deviceConfigProbe: String? = nil
+
+    /// #174: the R22 DISABLE report — the per-key result of writing `'0'` to the sixteen feature flags and
+    /// reading every one of them back with `GET_FF_VALUE`(128), or the waiting sentinel while the run walks.
+    /// Unlike the two probes above this one DOES write, which is exactly why it reports the value the strap
+    /// stores rather than the write's own ack. Cleared on disconnect and on dialog dismiss. Twin of the
+    /// Android WhoopBleClient.r22DisableReport flow.
+    @Published public var r22DisableReport: String? = nil
+
     /// Wrist-wear state from WRIST_ON/WRIST_OFF events. Defaults true so wear-gated features work
     /// before the first event arrives; flipped by FrameRouter on a real event.
     @Published public var worn: Bool = true

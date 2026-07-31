@@ -26,7 +26,7 @@ object AppChangelog {
      * Bump this when you add a release below. The "What's New" sheet shows automatically when the
      * stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
      */
-    const val CURRENT_VERSION = "9.2.2-dx-beta"
+    const val CURRENT_VERSION = "9.3.0-dx-beta"
 
     data class Release(
         val version: String,
@@ -38,8 +38,32 @@ object AppChangelog {
     /** Newest first. */
     val releases: List<Release> = listOf(
         Release(
+            version = "9.3.0-dx-beta",
+            title = uiString(R.string.l10n_app_changelog_upstream_9_3_0_with_the_89c9eaa5),
+            date = "July 2026",
+            items = listOf(
+                "**Water and caffeine import themselves.** Log a drink in Apple Health and it shows up in NOOP, kept in its own row so it can never overwrite what you typed by hand. iPhone asks permission once for the two new data types. The Coach's own caffeine logging writes to the same place.",
+                "**Effort is measured more honestly.** Every heart-rate sample is now weighted by its own gap rather than the window's first one, and a saved workout is scored against your measured resting heart rate instead of a hardcoded 60. Your Effort numbers will move — in either direction — including for past days.",
+                "**Oura days no longer spike to 90+ resting heart rate.** A nap or a short fragment could outrank the real night and claim the whole day's numbers. Re-import your Oura history to correct days already stored.",
+                "**One place to customise Today.** Section order, Key Metrics and Your Cards moved out of three separate sheets into a single editor with Cancel and Save. The Coach banner is a row in it like any other — drag it anywhere, or move it to Hidden.",
+                "**Sleep staging can't jump from awake to deep.** A transition no scorer should ever emit is now forbidden outright.",
+            ),
+        ),
+        Release(
+            version = "9.3.0",
+            title = uiString(R.string.l10n_app_changelog_water_and_caffeine_from_apple_health_5123b6b0),
+            date = "July 2026",
+            items = listOf(
+                "**Water and caffeine import themselves (#949).** Log a drink in Apple Health or Health Connect and it shows up in NOOP, kept in its own row so it can never overwrite what you typed by hand. iPhone will ask permission once for the two new data types.",
+                "**Effort is measured more honestly (#963, #983).** Every heart-rate sample is now weighted by its own gap rather than the window's first one, and a saved workout is scored against your measured resting heart rate instead of a hardcoded 60. Your Effort numbers will move — in either direction — including for past days.",
+                "**Oura days no longer spike to 90+ resting heart rate (#375).** A nap or a short fragment could outrank the real night and claim the whole day's numbers. Re-import your Oura history to correct days already stored.",
+                "**Sleep staging can't jump from awake to deep (#348).** A transition no scorer should ever emit is now forbidden outright, which is the part of a larger staging change that survived a clean benchmark.",
+                "**The Updates page scrolls, and its release row opens (#984).** Older entries were unreachable and tapping \"what's new\" did nothing but mark it read, so it looked like the entry had been deleted.",
+            ),
+        ),
+        Release(
             version = "9.2.2-dx-beta",
-            title = "The Coach follows your app language and stays readable on compact iPhones",
+            title = uiString(R.string.l10n_app_changelog_the_coach_follows_your_app_language_9b87ad5b),
             date = "July 2026",
             items = listOf(
                 "**The Coach now follows NOOP's selected language.** German, Spanish, French, Italian, Portuguese (Portugal), Russian and both Chinese variants use the same strict reply-language contract across normal chat, custom prompts, card reads, check-ins and proactive messages.",
@@ -50,7 +74,7 @@ object AppChangelog {
         ),
         Release(
             version = "9.2.1 DX Beta",
-            title = "A coach that remembers, privacy presets that stay simple",
+            title = uiString(R.string.l10n_app_changelog_a_coach_that_remembers_privacy_presets_73036e50),
             date = "July 2026",
             items = listOf(
                 "**The coach now has real long-term memory.** An on-device semantic index lets it recall past conversations and journal entries by meaning, not just exact wording — nothing leaves your device, and it stays off until you turn it on.",

@@ -827,7 +827,7 @@ public enum SleepStager {
     /// re-onset (#531): a daytime block the strap itself scored predominantly "asleep" is KEPT even on a
     /// borderline HR dip. Default empty keeps pure-function callers/tests free of it; IntelligenceEngine
     /// passes the night window's persisted band state. It can only RESCUE a real-sleep block, never fabricate.
-    /// `useSleepStagerV2` (V7 / #690): which recipe stages an accepted night — the cardiorespiratory
+    /// `useSleepStagerV2` (7.0.0; default ON since #277/#351): which recipe stages an accepted night — the cardiorespiratory
     /// `SleepStagerV2.stageSession` when true, V1's `stageSession` when false. DETECTION is unchanged
     /// (same accepted windows); only the per-epoch hypnogram differs.
     ///

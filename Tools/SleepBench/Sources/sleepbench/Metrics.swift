@@ -48,6 +48,45 @@ func onsetAndFinalWake(_ labels: [String]) -> (onset: Int?, final: Int?) {
     (labels.firstIndex(where: { $0 != "wake" }), labels.lastIndex(where: { $0 != "wake" }))
 }
 
+// MARK: - Stage-fraction calibration
+
+/// Each stage's share of the night, as a percentage of the session's epochs.
+///
+/// This is the quantity Cohen's kappa does NOT constrain. Kappa scores whether the predicted label at an
+/// epoch matches the reference label at that epoch; a recipe can raise kappa while systematically shifting
+/// how much of the night it calls wake, because the epochs it newly gets right can outnumber the epochs it
+/// newly mislabels. PR #348 did exactly that (kappa up on all three benchmarks, held-out gap −0.027) and
+/// PR #437 reverted it two days later for re-scoring a healthy night from 6% to 23% awake. Every stage in
+/// `stageOrder` is present in the result, at 0 when the hypnogram never uses it, so a stage a recipe stops
+/// emitting altogether shows up as a bias rather than as a missing row.
+func stagePercentages(_ labels: [String]) -> [String: Double] {
+    var pct = [String: Double](uniqueKeysWithValues: stageOrder.map { ($0, 0.0) })
+    guard !labels.isEmpty else { return pct }
+    for l in labels { pct[l, default: 0] += 1 }
+    for k in pct.keys { pct[k]! = pct[k]! / Double(labels.count) * 100 }
+    return pct
+}
+
+/// Signed per-stage calibration error in percentage points, `predicted% − reference%`.
+/// Positive means the recipe spends MORE of the night at that stage than the human did.
+func stageBias(ref: [String], pred: [String]) -> [String: Double] {
+    let r = stagePercentages(ref), p = stagePercentages(pred)
+    return [String: Double](uniqueKeysWithValues: stageOrder.map { ($0, p[$0]! - r[$0]!) })
+}
+
+/// Minutes from staged sleep onset (the first non-wake epoch) to the first REM epoch.
+///
+/// `nil` when the hypnogram has no sleep at all or never reaches REM — a night with no REM is a distinct
+/// outcome from a night whose REM arrives at minute zero, and collapsing the two would let a recipe that
+/// stops emitting REM look like one with a short latency. Callers report the `nil` count separately.
+/// REM before onset cannot occur (REM is not wake, so onset is at or before it), but the guard is kept so
+/// a caller passing a hand-built label array cannot produce a negative latency.
+func firstRemLatencyMinutes(_ labels: [String]) -> Double? {
+    guard let onset = labels.firstIndex(where: { $0 != "wake" }),
+          let rem = labels.firstIndex(of: "rem"), rem >= onset else { return nil }
+    return Double(rem - onset) * epochSeconds / 60.0
+}
+
 // MARK: - Agreement
 
 /// A square confusion matrix over `classes`, rows = reference, cols = prediction.
@@ -124,6 +163,17 @@ func sd(_ v: [Double]) -> Double {
     let m = mean(v)
     return (v.reduce(0) { $0 + ($1 - m) * ($1 - m) } / Double(v.count - 1)).squareRoot()
 }
+/// Nearest-rank percentile, `p` in 0...1. Used for the p10/p90 spread of a stage-fraction or latency
+/// distribution, where a mean alone hides the tail a regression shows up in first.
+func percentile(_ v: [Double], _ p: Double) -> Double {
+    guard !v.isEmpty else { return .nan }
+    let s = v.sorted()
+    let i = Int((Double(s.count) - 1) * p + 0.5)
+    return s[min(s.count - 1, max(0, i))]
+}
+/// Mean absolute value — the unsigned companion to a signed bias, so a recipe that is unbiased on average
+/// because it over- and under-calls in equal measure cannot pass as well calibrated.
+func mae(_ v: [Double]) -> Double { mean(v.map { abs($0) }) }
 /// Pearson correlation, plus the two-sided t statistic that goes with it.
 func pearson(_ x: [Double], _ y: [Double]) -> (r: Double, n: Int, t: Double) {
     let n = min(x.count, y.count)

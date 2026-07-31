@@ -655,6 +655,22 @@ extension WhoopStore {
         // point of this migration is that the data starts accruing NOW so a validated consumer is possible
         // LATER; landing a consumer at the same time would be scoring on evidence that does not exist yet.
         //
+        // CONSUMER STATUS — deliberately none, stated here so nobody has to re-derive it, and in the same
+        // shape as the `ppgWaveformSample` note above (v27). The writers are live on both platforms, but
+        // every `v18AuxSamples` call site on BOTH platforms is a TEST: no analytic, no score, no gate, no
+        // UI, no export reads a row. **Do NOT "clean up" the reader as dead code** — the rows are the point,
+        // and the reader is how they become reachable once a consumer is validated. The same applies to the
+        // four named columns added just below (`gravitySample.dynAccel`, `sleepStateSample.rawByte`,
+        // `skinTempSample.aux1Raw/aux2Raw`): they are SELECTed into their structs, and no consumer touches
+        // the properties, on purpose.
+        //
+        // Why the rows still matter even unread: before this migration these fields were not merely unread,
+        // they were DESTROYED. The strap trims its history the moment an offload is acked, so every one of
+        // them was unrecoverable. This migration converts permanent loss into retained-but-unread, which is
+        // the whole fix and is complete. Fifteen of the slots are unpinned bytes whose names deliberately
+        // assert nothing; wiring them to anything before a census would be exactly the overclaiming this
+        // project has already had to retract. The capture IS the deliverable.
+        //
         // The remaining fifteen v18 slots go to their OWN narrow table rather than fifteen more columns
         // (see `V18AuxCodec` for the wire format and the column-vs-blob tradeoff). Three reasons this is
         // a table and not another column on an existing row:

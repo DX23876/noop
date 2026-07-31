@@ -1,2950 +1,2944 @@
 {
-  "sourceLanguage" : "en",
-  "strings" : {
-    "–" : {
-
-    },
-    "/ %lld" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "/ %lld"
+  "sourceLanguage": "en",
+  "strings": {
+    "%@ br/min": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ Atemzüge/Min"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "/ %lld"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ br/min"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "/ %lld"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ resp/min"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "/%lld"
-          }
-        }
-      }
-    },
-    "%@ · %@s in / %@s out" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ · %@s ein / %@s aus"
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ resp/min"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ · %@s in / %@s out"
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ br/min"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ · %@s inhala / %@s exhala"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ вдохов/мин"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ · %@s inspire / %@s expire"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 次/分"
           }
         },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ · %@s dentro / %@s fuori"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 次/分"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ · %@ entra / %@ sai"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ · %@с вдох / %@с выдох"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ · 吸气 %@ 秒 / 呼气 %@ 秒"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ · 吸 %@ 秒 / 呼 %@ 秒"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ resp/min"
           }
         }
       }
     },
-    "%@ · %lld kcal" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ · %lld kcal"
+    "%@ pace": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ Tempo"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ · %lld kcal"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ pace"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ · %lld kcal"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ritmo %@"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ · %lld kcal"
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ritmo %@"
           }
         },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ · %lld kcal"
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ritmo"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ · %lld kcal"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ темп"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ · %lld ккал"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配速 %@"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ · %lld kcal"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配速 %@"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ · %lld kcal"
-          }
-        }
-      }
-    },
-    "%@ br/min" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ Atemzüge/Min"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ br/min"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ resp/min"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ resp/min"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ resp/min"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ br/min"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ вдохов/мин"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ 次/分"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ 次/分"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allure %@"
           }
         }
       }
     },
-    "%@ pace" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ Tempo"
+    "%@ · %@s in / %@s out": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %@s ein / %@s aus"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ pace"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %@s in / %@s out"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ritmo %@"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %@s inhala / %@s exhala"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Allure %@"
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %@s dentro / %@s fuori"
           }
         },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ritmo %@"
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %@ entra / %@ sai"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ ritmo"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %@с вдох / %@с выдох"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ темп"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · 吸气 %@ 秒 / 呼气 %@ 秒"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "配速 %@"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · 吸 %@ 秒 / 呼 %@ 秒"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "配速 %@"
-          }
-        }
-      }
-    },
-    "%lld" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %@s inspire / %@s expire"
           }
         }
       }
     },
-    "%lld breaths · %@" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld Atemzüge · %@"
+    "%@ · %lld kcal": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %lld kcal"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld breaths · %@"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %lld kcal"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld respiraciones · %@"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %lld kcal"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld respirations · %@"
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %lld kcal"
           }
         },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld respiri · %@"
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %lld kcal"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld respirações · %@"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %lld ккал"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld вдохов · %@"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %lld kcal"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld 次呼吸 · %@"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %lld kcal"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld 次呼吸 · %@"
-          }
-        }
-      }
-    },
-    "%lld seconds remaining in %@" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld Sekunden verbleibend in %@"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld seconds remaining in %2$@"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld segundos restantes en %@"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$lld secondes restantes dans %2$@"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$lld secondi rimanenti in %2$@"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$lld segundos restantes em %2$@"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Осталось %1$lld секунд, %2$@"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%2$@ 还剩 %1$lld 秒"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%2$@ 還剩 %1$lld 秒"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %lld kcal"
           }
         }
       }
     },
-    "✓" : {
-
-    },
-    "Allow access" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zugriff erlauben"
+    "%lld breaths · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Atemzüge · %@"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Allow access"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld breaths · %@"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Permitir acceso"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld respiraciones · %@"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Autoriser l'accès"
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld respiri · %@"
           }
         },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Consenti accesso"
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld respirações · %@"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Permitir o acesso"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld вдохов · %@"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Разрешить доступ"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 次呼吸 · %@"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "允许访问"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 次呼吸 · %@"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "允許存取"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld respirations · %@"
           }
         }
       }
     },
-    "as of %@" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stand: %@"
+    "%lld seconds remaining in %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Sekunden verbleibend in %@"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "as of %@"
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lld seconds remaining in %2$@"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "a fecha de %@"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld segundos restantes en %@"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "au %@"
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld secondi rimanenti in %2$@"
           }
         },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "al %@"
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld segundos restantes em %2$@"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "a partir de %@"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Осталось %1$lld секунд, %2$@"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "на %@"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%2$@ 还剩 %1$lld 秒"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "截至 %@"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%2$@ 還剩 %1$lld 秒"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "截至 %@"
-          }
-        }
-      }
-    },
-    "Box" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Box"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Box"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cuadrada"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Carré"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Box"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Caixa"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Квадрат"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "箱式"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "箱式"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld secondes restantes dans %2$@"
           }
         }
       }
     },
-    "bpm" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "bpm"
+    "Allow access": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zugriff erlauben"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "bpm"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow access"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ppm"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permitir acceso"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "bpm"
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Consenti accesso"
           }
         },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "bpm"
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permitir o acesso"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "bpm"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Разрешить доступ"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "уд/мин"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "允许访问"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "bpm"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "允許存取"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "bpm"
-          }
-        }
-      }
-    },
-    "Breathe" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Atmen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Breathe"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Respira"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Respirer"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Respira"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Respirar"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Дыхание"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "呼吸"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "呼吸"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autoriser l'accès"
           }
         }
       }
     },
-    "Breathe in" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Einatmen"
+    "Box": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Box"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Breathe in"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Box"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Inhala"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuadrada"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Inspirez"
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Box"
           }
         },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Inspira"
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Caixa"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Inspire"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Квадрат"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Вдох"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "箱式"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "吸气"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "箱式"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "吸氣"
-          }
-        }
-      }
-    },
-    "Breathe in for %lld seconds" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Einatmen für %lld Sekunden"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Breathe in for %lld seconds"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Inhala durante %lld segundos"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Inspirez pendant %lld secondes"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Inspira per %lld secondi"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Inspire durante %lld segundos"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Вдох на %lld секунд"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "吸气 %lld 秒"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "吸氣 %lld 秒"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carré"
           }
         }
       }
     },
-    "Breathe out" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ausatmen"
+    "Breathe": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atmen"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Breathe out"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Breathe"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Exhala"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Respira"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Expirez"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Respirer"
           }
         },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Espira"
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Respira"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Expire"
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Respirar"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Выдох"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Дыхание"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "呼气"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "呼吸"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "吐氣"
-          }
-        }
-      }
-    },
-    "Breathe out for %lld seconds" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ausatmen für %lld Sekunden"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Breathe out for %lld seconds"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Exhala durante %lld segundos"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Expirez pendant %lld secondes"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Espira per %lld secondi"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Expire durante %lld segundos"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Выдох на %lld секунд"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "呼气 %lld 秒"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "吐氣 %lld 秒"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "呼吸"
           }
         }
       }
     },
-    "cal" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "cal"
+    "Breathe in": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einatmen"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "cal"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Breathe in"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "cal"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inhala"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "cal"
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inspira"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "cal"
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inspire"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "кал"
-          }
-        }
-      }
-    },
-    "Charge" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ladung"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вдох"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Charge"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "吸气"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Carga"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "吸氣"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Charge"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Carica"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Carga"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Заряд"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "能量"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "能量"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inspirez"
           }
         }
       }
     },
-    "Coherence" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kohärenz"
+    "Breathe in for %lld seconds": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Einatmen für %lld Sekunden"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Coherence"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Breathe in for %lld seconds"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Coherencia"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inhala durante %lld segundos"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cohérence"
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inspira per %lld secondi"
           }
         },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Coerenza"
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inspire durante %lld segundos"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Coerência"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Вдох на %lld секунд"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Когерентность"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "吸气 %lld 秒"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "协调度"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "吸氣 %lld 秒"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "諧振"
-          }
-        }
-      }
-    },
-    "Done" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fertig"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Done"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Listo"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Terminé"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fatto"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Concluído"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Готово"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "完成"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "完成"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inspirez pendant %lld secondes"
           }
         }
       }
     },
-    "DONE" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "FERTIG"
+    "Breathe out": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausatmen"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "DONE"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Breathe out"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "LISTO"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exhala"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "TERMINÉ"
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Espira"
           }
         },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "FATTO"
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expire"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "CONCLUÍDO"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выдох"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ГОТОВО"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "呼气"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "完成"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "吐氣"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "完成"
-          }
-        }
-      }
-    },
-    "Effort" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Anstrengung"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Effort"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Esfuerzo"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Effort"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sforzo"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Esforço"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Усилие"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "消耗"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "消耗"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expirez"
           }
         }
       }
     },
-    "End" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ende"
+    "Breathe out for %lld seconds": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausatmen für %lld Sekunden"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "End"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Breathe out for %lld seconds"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Finalizar"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exhala durante %lld segundos"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Terminer"
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Espira per %lld secondi"
           }
         },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fine"
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expire durante %lld segundos"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fim"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выдох на %lld секунд"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Завершить"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "呼气 %lld 秒"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "结束"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "吐氣 %lld 秒"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "結束"
-          }
-        }
-      }
-    },
-    "End workout" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Workout beenden"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "End workout"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Finalizar entrenamiento"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Terminer l'entraînement"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Termina allenamento"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Terminar treino"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Завершить тренировку"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "结束锻炼"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "結束鍛鍊"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expirez pendant %lld secondes"
           }
         }
       }
     },
-    "Functional strength" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Funktionelles Krafttraining"
+    "Charge": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ladung"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Functional strength"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charge"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fuerza funcional"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carga"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Renforcement fonctionnel"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charge"
           }
         },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Forza funzionale"
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carica"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Força funcional"
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carga"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Функциональная сила"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Заряд"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "功能性力量"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "能量"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "功能性肌力"
-          }
-        }
-      }
-    },
-    "Grant Health access" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Health-Zugriff gewähren"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Grant Health access"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Conceder acceso a Salud"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Autoriser l'accès à Santé"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Concedi l'accesso a Salute"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Conceder acesso à saúde"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Разрешить доступ к Health"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "授予健康数据访问权限"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "授予「健康」存取權"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "能量"
           }
         }
       }
     },
-    "HEART RATE" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "HERZFREQUENZ"
+    "Coherence": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kohärenz"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "HEART RATE"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coherence"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "FRECUENCIA CARDÍACA"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coherencia"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "FRÉQUENCE CARDIAQUE"
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coerenza"
           }
         },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "FREQUENZA CARDIACA"
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coerência"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "FREQUÊNCIA CARDÍACA"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Когерентность"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ПУЛЬС"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "协调度"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "心率"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "諧振"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "心率"
-          }
-        }
-      }
-    },
-    "HR unavailable" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "HF nicht verfügbar"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "HR unavailable"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "FC no disponible"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "FC non disponible"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "FC non disponibile"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "RH indisponível"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ЧСС недоступна"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "心率不可用"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "無法取得心率"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cohérence"
           }
         }
       }
     },
-    "Live heart rate and energy, recorded on your wrist. Stays on device." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Live-Herzfrequenz und -Energie, aufgezeichnet an deinem Handgelenk. Bleibt auf dem Gerät."
+    "DONE": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FERTIG"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Live heart rate and energy, recorded on your wrist. Stays on device."
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DONE"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Frecuencia cardíaca y energía en vivo, registradas en tu muñeca. Se queda en el dispositivo."
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LISTO"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fréquence cardiaque et énergie en direct, enregistrées à votre poignet. Reste sur l'appareil."
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FATTO"
           }
         },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Frequenza cardiaca ed energia in diretta, registrate al polso. Restano sul dispositivo."
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CONCLUÍDO"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Frequência cardíaca e energia em direto, registadas no teu pulso. Permanece no dispositivo."
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ГОТОВО"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Пульс и энергия в реальном времени, записанные на запястье. Остаются на устройстве."
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完成"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "实时心率和能量，在你手腕上记录。数据留在设备上。"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完成"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "即時心率和能量消耗，記錄在你的手腕上。留在裝置上。"
-          }
-        }
-      }
-    },
-    "Open NOOP on your iPhone to sync" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Öffne NOOP auf deinem iPhone zum Synchronisieren"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open NOOP on your iPhone to sync"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Abre NOOP en tu iPhone para sincronizar"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ouvrez NOOP sur votre iPhone pour synchroniser"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Apri NOOP sul tuo iPhone per sincronizzare"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Abra o NOOP no teu iPhone para tincronizar"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Откройте NOOP на iPhone для синхронизации"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "在 iPhone 上打开 NOOP 以同步"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "在你的 iPhone 上打開 NOOP 以同步"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TERMINÉ"
           }
         }
       }
     },
-    "Pause" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pause"
+    "Done": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fertig"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pause"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pausar"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listo"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pause"
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fatto"
           }
         },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pausa"
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Concluído"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pausa"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Готово"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Пауза"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完成"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "暂停"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完成"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "暫停"
-          }
-        }
-      }
-    },
-    "PAUSED" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PAUSIERT"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PAUSED"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "EN PAUSA"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "EN PAUSE"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "IN PAUSA"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "PAUSADO"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ПАУЗА"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "已暂停"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "已暫停"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminé"
           }
         }
       }
     },
-    "Ready to breathe" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bereit zum Atmen"
+    "Effort": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anstrengung"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ready to breathe"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Effort"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Listo para respirar"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esfuerzo"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Prêt à respirer"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Effort"
           }
         },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pronto a respirare"
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sforzo"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pronto para respirar"
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esforço"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Готовы к дыханию"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Усилие"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "准备开始呼吸"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "消耗"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "準備好呼吸"
-          }
-        }
-      }
-    },
-    "RECORDING" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AUFNAHME"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "RECORDING"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "GRABANDO"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ENREGISTREMENT"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "REGISTRAZIONE"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "GRAVAÇÃO"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ЗАПИСЬ"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "记录中"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "記錄中"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "消耗"
           }
         }
       }
     },
-    "Relax" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Entspannen"
+    "End": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ende"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Relax"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Relájate"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finalizar"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Détente"
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fine"
           }
         },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rilassati"
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fim"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Descontrair"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Завершить"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Расслабьтесь"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "结束"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "放松"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "結束"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "放鬆"
-          }
-        }
-      }
-    },
-    "Reset" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Zurücksetzen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reset"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Restablecer"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Réinitialiser"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reimposta"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Repor"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Сбросить"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重置"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重設"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminer"
           }
         }
       }
     },
-    "Rest" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ruhe"
+    "End workout": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workout beenden"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rest"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End workout"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Descanso"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finalizar entrenamiento"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Repos"
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Termina allenamento"
           }
         },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Riposo"
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminar treino"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Descanso"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Завершить тренировку"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Отдых"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "结束锻炼"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "休息"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "結束鍛鍊"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "休息"
-          }
-        }
-      }
-    },
-    "REST" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "RUHE"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "REST"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "DESCANSO"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "REPOS"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "RIPOSO"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "DESCANSO"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ОТДЫХ"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "休息"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "休息"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminer l'entraînement"
           }
         }
       }
     },
-    "Restart" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Neu starten"
+    "Functional strength": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Funktionelles Krafttraining"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Restart"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Functional strength"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reiniciar"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fuerza funcional"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Redémarrer"
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forza funzionale"
           }
         },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Riavvia"
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Força funcional"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reiniciar"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Функциональная сила"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Перезапустить"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "功能性力量"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重新启动"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "功能性肌力"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重新啟動"
-          }
-        }
-      }
-    },
-    "Resume" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fortsetzen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Resume"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reanudar"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reprendre"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Riprendi"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Retomar"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Продолжить"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "继续"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "繼續"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renforcement fonctionnel"
           }
         }
       }
     },
-    "Round %lld of %lld" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Runde %lld von %lld"
+    "Grant Health access": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Health-Zugriff gewähren"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Round %lld of %lld"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grant Health access"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ronda %lld de %lld"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conceder acceso a Salud"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cycle %lld sur %lld"
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Concedi l'accesso a Salute"
           }
         },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Round %lld di %lld"
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conceder acesso à saúde"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ronda %lld de %lld"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Разрешить доступ к Health"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Раунд %lld из %lld"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "授予健康数据访问权限"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "第 %1$lld / %2$lld 轮"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "授予「健康」存取權"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "第 %lld 輪，共 %lld 輪"
-          }
-        }
-      }
-    },
-    "SEC" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SEK"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SEC"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SEG"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SEC"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SEC"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SEC"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "СЕК"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "秒"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "秒"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autoriser l'accès à Santé"
           }
         }
       }
     },
-    "Session done" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sitzung beendet"
+    "HEART RATE": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HERZFREQUENZ"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Session done"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HEART RATE"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sesión terminada"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FRECUENCIA CARDÍACA"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Séance terminée"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FRÉQUENCE CARDIAQUE"
           }
         },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sessione completata"
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FREQUENZA CARDIACA"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sessão concluída"
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FREQUÊNCIA CARDÍACA"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Сессия завершена"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ПУЛЬС"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "会话结束"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "心率"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "工作階段結束"
-          }
-        }
-      }
-    },
-    "stale · %@" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "veraltet · %@"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "stale · %@"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "desactualizado · %@"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "obsolète · %@"
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "obsoleto · %@"
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "obsoleto · %@"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "устарело · %@"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "已过期 · %@"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "過時 · %@"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "心率"
           }
         }
       }
     },
-    "Start" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Start"
+    "HR unavailable": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HF nicht verfügbar"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Start"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HR unavailable"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Iniciar"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FC no disponible"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Démarrer"
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FC non disponibile"
           }
         },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Avvia"
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "RH indisponível"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Iniciar"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ЧСС недоступна"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Старт"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "心率不可用"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "开始"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法取得心率"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "開始"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FC non disponible"
           }
         }
       }
     },
-    "Start session" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sitzung starten"
+    "Live heart rate and energy, recorded on your wrist. Stays on device.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live-Herzfrequenz und -Energie, aufgezeichnet an deinem Handgelenk. Bleibt auf dem Gerät."
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Start session"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live heart rate and energy, recorded on your wrist. Stays on device."
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Iniciar sesión"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frecuencia cardíaca y energía en vivo, registradas en tu muñeca. Se queda en el dispositivo."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Démarrer la séance"
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frequenza cardiaca ed energia in diretta, registrate al polso. Restano sul dispositivo."
           }
         },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Avvia sessione"
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frequência cardíaca e energia em direto, registadas no teu pulso. Permanece no dispositivo."
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Iniciar sessão"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пульс и энергия в реальном времени, записанные на запястье. Остаются на устройстве."
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Начать сессию"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "实时心率和能量，在你手腕上记录。数据留在设备上。"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "开始会话"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "即時心率和能量消耗，記錄在你的手腕上。留在裝置上。"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "開始工作階段"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fréquence cardiaque et énergie en direct, enregistrées à votre poignet. Reste sur l'appareil."
           }
         }
       }
     },
-    "Stop" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stopp"
+    "Open NOOP on your iPhone to sync": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öffne NOOP auf deinem iPhone zum Synchronisieren"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stop"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open NOOP on your iPhone to sync"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Detener"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abre NOOP en tu iPhone para sincronizar"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Arrêter"
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apri NOOP sul tuo iPhone per sincronizzare"
           }
         },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ferma"
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abra o NOOP no teu iPhone para tincronizar"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Parar"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Откройте NOOP на iPhone для синхронизации"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Стоп"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 iPhone 上打开 NOOP 以同步"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "停止"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在你的 iPhone 上打開 NOOP 以同步"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "停止"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrez NOOP sur votre iPhone pour synchroniser"
           }
         }
       }
     },
-    "Stop session" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sitzung beenden"
+    "PAUSED": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PAUSIERT"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stop session"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PAUSED"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Detener sesión"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EN PAUSA"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Arrêter la séance"
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IN PAUSA"
           }
         },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Termina sessione"
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PAUSADO"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Parar sessão"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ПАУЗА"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Остановить сессию"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已暂停"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "停止会话"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已暫停"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "停止工作階段"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "EN PAUSE"
           }
         }
       }
     },
-    "WORK" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AKTIV"
+    "Pause": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pause"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "WORK"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pause"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "TRABAJO"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pausar"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "TRAVAIL"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pause"
           }
         },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "LAVORO"
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pausa"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "TRABALHO"
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pausa"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "РАБОТА"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пауза"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "运动"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂停"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "運動"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暫停"
           }
         }
       }
     },
-    "Workout" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Workout"
+    "RECORDING": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AUFNAHME"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Workout"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "RECORDING"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Entrenamiento"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GRABANDO"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Entraînement"
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "REGISTRAZIONE"
           }
         },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Allenamento"
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GRAVAÇÃO"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Treinar"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ЗАПИСЬ"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Тренировка"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "记录中"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "锻炼"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "記錄中"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "鍛鍊"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ENREGISTREMENT"
           }
         }
       }
     },
-    "Workout saved" : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Workout gespeichert"
+    "REST": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "RUHE"
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Workout saved"
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "REST"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Entrenamiento guardado"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DESCANSO"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Entraînement enregistré"
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "RIPOSO"
           }
         },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Allenamento salvato"
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DESCANSO"
           }
         },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Treino salvo"
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ОТДЫХ"
           }
         },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Тренировка сохранена"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "休息"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "训练已保存"
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "休息"
           }
         },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "運動已保存"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "REPOS"
+          }
+        }
+      }
+    },
+    "Ready to breathe": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bereit zum Atmen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ready to breathe"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Listo para respirar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pronto a respirare"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pronto para respirar"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Готовы к дыханию"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "准备开始呼吸"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "準備好呼吸"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prêt à respirer"
+          }
+        }
+      }
+    },
+    "Relax": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entspannen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Relax"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Relájate"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rilassati"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Descontrair"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Расслабьтесь"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "放松"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "放鬆"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Détente"
+          }
+        }
+      }
+    },
+    "Reset": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zurücksetzen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restablecer"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réinitialiser"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reimposta"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repor"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сбросить"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重置"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重設"
+          }
+        }
+      }
+    },
+    "Rest": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ruhe"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rest"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Descanso"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repos"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Riposo"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Descanso"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Отдых"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "休息"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "休息"
+          }
+        }
+      }
+    },
+    "Restart": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neu starten"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restart"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reiniciar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redémarrer"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Riavvia"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reiniciar"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перезапустить"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新启动"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新啟動"
+          }
+        }
+      }
+    },
+    "Resume": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fortsetzen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resume"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reanudar"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Riprendi"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retomar"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Продолжить"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "继续"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "繼續"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reprendre"
+          }
+        }
+      }
+    },
+    "Round %lld of %lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Runde %lld von %lld"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Round %lld of %lld"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ronda %lld de %lld"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Round %lld di %lld"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ronda %lld de %lld"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Раунд %lld из %lld"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "第 %1$lld / %2$lld 轮"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "第 %lld 輪，共 %lld 輪"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cycle %lld sur %lld"
+          }
+        }
+      }
+    },
+    "SEC": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SEK"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SEC"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SEG"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SEC"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SEC"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "СЕК"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "秒"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "秒"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SEC"
+          }
+        }
+      }
+    },
+    "Session done": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sitzung beendet"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Session done"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sesión terminada"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sessione completata"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sessão concluída"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сессия завершена"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "会话结束"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "工作階段結束"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Séance terminée"
+          }
+        }
+      }
+    },
+    "Start": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Iniciar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Démarrer"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avvia"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Iniciar"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Старт"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开始"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "開始"
+          }
+        }
+      }
+    },
+    "Start session": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sitzung starten"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start session"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Iniciar sesión"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Démarrer la séance"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avvia sessione"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Iniciar sessão"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Начать сессию"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开始会话"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "開始工作階段"
+          }
+        }
+      }
+    },
+    "Stop": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stopp"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Detener"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ferma"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parar"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Стоп"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停止"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停止"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arrêter"
+          }
+        }
+      }
+    },
+    "Stop session": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sitzung beenden"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop session"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Detener sesión"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arrêter la séance"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Termina sessione"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parar sessão"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Остановить сессию"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停止会话"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停止工作階段"
+          }
+        }
+      }
+    },
+    "WORK": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AKTIV"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WORK"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TRABAJO"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LAVORO"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TRABALHO"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "РАБОТА"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "运动"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "運動"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TRAVAIL"
+          }
+        }
+      }
+    },
+    "Workout": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workout"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workout"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entrenamiento"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allenamento"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Treinar"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Тренировка"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "锻炼"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鍛鍊"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entraînement"
+          }
+        }
+      }
+    },
+    "Workout saved": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workout gespeichert"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workout saved"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entrenamiento guardado"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allenamento salvato"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Treino salvo"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Тренировка сохранена"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "训练已保存"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "運動已保存"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entraînement enregistré"
+          }
+        }
+      }
+    },
+    "as of %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stand: %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "as of %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "a fecha de %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "al %@"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "a partir de %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "на %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "截至 %@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "截至 %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "au %@"
+          }
+        }
+      }
+    },
+    "bpm": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "bpm"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "bpm"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ppm"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "bpm"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "bpm"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "bpm"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "уд/мин"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "bpm"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "bpm"
+          }
+        }
+      }
+    },
+    "cal": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "cal"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "cal"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "cal"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "кал"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "cal"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "cal"
+          }
+        }
+      }
+    },
+    "stale · %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "veraltet · %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "stale · %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "desactualizado · %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "obsoleto · %@"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "obsoleto · %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "устарело · %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已过期 · %@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "過時 · %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "obsolète · %@"
+          }
+        }
+      }
+    },
+    "%lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld"
+          }
+        }
+      }
+    },
+    "/ %lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "/ %lld"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "/ %lld"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "/ %lld"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "/%lld"
           }
         }
       }
     }
   },
-  "version" : "1.0"
+  "version": "1.0"
 }

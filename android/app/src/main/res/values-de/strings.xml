@@ -52,6 +52,16 @@
 
     <!-- Today screen: workouts feed header. Matches the iOS German entry for "Latest Workouts". -->
     <string name="today_latest_workouts">Neueste Workouts</string>
+    <string name="today_customize_title">Heute anpassen</string>
+    <string name="today_customize_action">Anpassen</string>
+    <string name="today_customize_description">Ordne sichtbare Elemente neu an oder verschiebe einen Abschnitt nach „Ausgeblendet“, ohne ihn zu löschen.</string>
+    <string name="today_customize_shown">ANGEZEIGT</string>
+    <string name="today_customize_hidden">AUSGEBLENDET</string>
+    <string name="today_customize_nothing_hidden">Nichts ausgeblendet</string>
+    <string name="today_customize_move_up">%1$s nach oben verschieben</string>
+    <string name="today_customize_move_down">%1$s nach unten verschieben</string>
+    <string name="today_customize_hide">%1$s ausblenden</string>
+    <string name="today_customize_show">%1$s anzeigen</string>
 
     <!-- First-run Terms gate (clickwrap). Wording kept identical to the iOS German entries in
          Localizable.xcstrings (PR #984) so both platforms present the same text. The German gate is
@@ -254,6 +264,7 @@
     <string name="l10n_backup_sync_screen_restore_3cbe6d6b">Wiederherstellen</string>
     <string name="l10n_backup_sync_screen_restore_from_a_backup_c28917c6">Aus einer Sicherung wiederherstellen…</string>
     <string name="l10n_backup_sync_screen_roughly_when_the_daily_backup_runs_71de04e1">Etwa wenn das tägliche Backup läuft (Best-Effort - das System kann es ein wenig rutschen).</string>
+    <string name="l10n_backup_sync_screen_these_backups_are_unencrypted_too_if_53e70fe8">Auch diese Sicherungen sind unverschlüsselt. Wenn dieser Ordner mit Drive, Dropbox oder iCloud synchronisiert wird, landet die lesbare Datei auch dort — zeigen Sie nur auf einen Dienst, dem Sie vertrauen.</string>
     <string name="l10n_backup_sync_screen_tip_a_desktop_drive_dropbox_app_2eaff1e3">Tipp: Eine Desktop Drive / Dropbox App synchronisiert einen ausgewählten Ordner automatisch. Am Telefon speichern Sie eine</string>
     <string name="l10n_backup_sync_screen_writes_a_fresh_dated_backup_to_bd964fc5">Schreibt ein neues datiertes Backup in Ihren Ordner einmal am Tag zu der Zeit unten, halten</string>
     <string name="l10n_breathe_screen_a_relaxation_rhythm_not_cardiac_control_5c2f10a8">Ein Entspannungsrhythmus, keine Herzsteuerung. Er taktet nie unter eine sichere Rate, und du kannst jederzeit aufhören. Wenn sich deine Herzfrequenz nicht beruhigt, sagen wir es klar.</string>
@@ -390,7 +401,15 @@
     <string name="l10n_devices_screen_body_location_probe_690_re_7def8c39">Körperpositions-Test (#690 RE)…</string>
     <string name="l10n_devices_screen_body_location_probe_result_690_60c5ee79">Ergebnis des Körperpositions-Tests (#690)</string>
     <string name="l10n_devices_screen_body_location_probe_explainer_a9363239">Sendet den nur lesenden Körperpositions-Befehl (0x54) und schreibt die vollständige Rohantwort des Bands ins Strap-Log, wobei der Datensatz (Revision / Position / Konfidenz / Status) auf der WHOOP 4.0 dekodiert wird. Es wird nichts auf das Band geschrieben, und Trageerkennung oder Bewertung werden nie verändert.</string>
+    <string name="l10n_devices_screen_delete_this_device_s_data_3cae7a2a">Daten dieses Geräts löschen…</string>
+    <string name="l10n_devices_screen_disconnect_ed28e068">Trennen</string>
     <string name="l10n_devices_screen_feature_flag_probe_761_re_21241d68">Feature-Flag-Test (#761 RE)…</string>
+    <string name="l10n_devices_screen_make_active_75690bb8">Aktiv setzen</string>
+    <string name="l10n_devices_screen_reboot_probe_4_0_re_828b3916">Reboot-Probe (4.0 RE)…</string>
+    <string name="l10n_devices_screen_reconnect_6988b16a">Erneut verbinden</string>
+    <string name="l10n_devices_screen_remove_e963907d">Entfernen</string>
+    <string name="l10n_devices_screen_rename_d3f4cb89">Umbenennen</string>
+    <string name="l10n_devices_screen_restart_strap_c976cd6c">Band neu starten…</string>
     <string name="l10n_devices_screen_stop_sync_4a1f2b6e">Sync stoppen</string>
     <string name="l10n_devices_screen_feature_flag_probe_result_761_c50ef4d4">Ergebnis des Feature-Flag-Tests (#761)</string>
     <string name="l10n_devices_screen_feature_flag_probe_explainer_58eec30f">Fragt das Band nach den NAMEN der Feature-Flags, die seine eigene Firmware kennt: START_FF_KEY_EXCHANGE (0x75), dann SEND_NEXT_FF (0x76), bis das Band das Ende meldet. Nur lesend — es wird kein Flag-Wert geschrieben, und die SET-Befehle werden von diesem Test nie gesendet. Die Liste wird hier angezeigt und ins Strap-Log geschrieben.</string>
@@ -484,6 +503,7 @@
     <string name="l10n_hydration_screen_kotlin_math_min_100_fraction_100_72f2dfde">%1$s%% des heutigen Ziels</string>
     <string name="l10n_hydration_screen_log_8bf95ea3">Protokoll</string>
     <string name="l10n_hydration_screen_logged_today_0071a46c">Heute erfasst</string>
+    <string name="l10n_hydration_screen_from_health_connect_4ad037a3">Aus Health Connect</string>
     <string name="l10n_hydration_screen_millilitres_ml_0fb0d2a4">Milliliter (ml)</string>
     <string name="l10n_hydration_screen_no_drinks_logged_yet_tap_sip_cc0d2f72">Noch keine Getränke erfasst. Tippe auf Schluck, Tasse oder Flasche, um zu starten.</string>
     <string name="l10n_hydration_screen_no_history_yet_933f417e">Noch kein Verlauf.</string>
@@ -856,6 +876,11 @@
     <string name="l10n_test_centre_screen_experimental_algorithms_e09581e2">Experimentelle Algorithmen</string>
     <string name="l10n_test_centre_screen_export_f3e4fadb">Exportieren</string>
     <string name="l10n_test_centre_screen_export_time_2ca90c2e">Ausfuhrzeit</string>
+    <string name="l10n_test_centre_screen_keep_last_exports_44bc65f5">Letzte Exporte behalten</string>
+    <string name="l10n_test_centre_screen_older_scheduled_exports_beyond_this_c75723fc">Ältere geplante Exporte über diese Anzahl hinaus werden automatisch entfernt, älteste zuerst.</string>
+    <string name="l10n_test_centre_screen_clear_scheduled_exports_54123329">Geplante Exporte löschen</string>
+    <string name="l10n_test_centre_screen_clear_scheduled_exports_36e93dd0">Geplante Exporte löschen?</string>
+    <string name="l10n_test_centre_screen_this_deletes_every_scheduled_strap_ea52c535">Dies löscht jede geplante Bandprotokoll- und Rohdaten-Erfassungsdatei, die NOOP gespeichert hat. Dies kann nicht rückgängig gemacht werden.</string>
     <string name="l10n_test_centre_screen_heads_up_this_test_mode_is_8b82ed69">Heads up: Dieser Testmodus ist ausgeschaltet, so dass der Bericht keine Erfassung dafür hat. Für a</string>
     <string name="l10n_test_centre_screen_hr_from_ppg_sub_lag_interpolation_a3ed1536">HR-from-PPG Sublag Interpolation (v26 gap-fill)</string>
     <string name="l10n_test_centre_screen_hrv_readiness_experimental_924f61bc">HRV-Bereitschaft (experimentell)</string>
@@ -1500,6 +1525,7 @@
     <string name="l10n_settings_screen_temperature_0a9062a9">Temperatur</string>
     <string name="l10n_settings_screen_test_centre_37b36828">Testzentrum</string>
     <string name="l10n_settings_screen_theme_a797e309">Design</string>
+    <string name="l10n_settings_screen_this_is_a_plain_unencrypted_archive_b0dfe63d">Das ist ein einfaches, unverschlüsseltes Archiv — wer die Datei bekommt, kann sie mit jedem Zip-Programm öffnen. Bewahren Sie sie an einem Ort auf, dem Sie vertrauen.</string>
     <string name="l10n_settings_screen_this_restarts_the_roughly_4_night_c610a93d">Das startet den etwa 4-nächtigen Aufbau für Ladung und deine HRV-Basislinie neu. Dein Verlauf bleibt. Nutze es, wenn eine schlechte erste Woche, etwa krank getragen, deine Basislinie verzerrt hat.</string>
     <string name="l10n_settings_screen_trend_charts_19085c81">Trenddiagramme</string>
     <string name="l10n_settings_screen_try_whoop_5_mg_protocol_probes_1d584653">WHOOP 5/MG-Protokolltests ausprobieren</string>
@@ -1772,4 +1798,22 @@
     <string name="battery_channel_name">Akku-Hinweise</string>
     <string name="battery_channel_desc">Hinweise, wenn der Strap-Akku schwach oder voll geladen ist.</string>
     <string name="l10n_app_changelog_battery_saver_quiets_the_gauges_translated_bdbe8650">Energiesparmodus beruhigt die Anzeigen, übersetzte Android-Benachrichtigungen und sofort geladene Diagramme</string>
+    <string name="l10n_health_screen_no_spo_import_or_health_value_408f8c55">Kein SpO₂-Import- oder Health-Wert</string>
+    <string name="l10n_health_screen_raw_counts_only_needs_an_import_d0e33552">Nur Rohwerte — Import erforderlich</string>
+    <string name="l10n_settings_screen_turn_deep_data_back_off_r22disable">Tiefe Daten wieder ausschalten</string>
+    <string name="l10n_settings_screen_r22disable_needs_bond">Benötigt die vollständig verschlüsselte Kopplung: Schließe zuerst die offizielle WHOOP-App und koppele das Band mit NOOP (eine Verbindung nur für den Live-Puls kann den Schreibvorgang nicht übertragen).</string>
+    <string name="l10n_settings_screen_r22disable_reason">Schreibt den Aus-Wert in alle 16 Flags und liest jedes einzeln zurück, sodass du siehst, was das Band tatsächlich speichert — nicht nur, dass es bestätigt hat. Der Aus-Wert ist von dem Flag abgeleitet, das NOOP für die Garmin-Übertragung bereits so ausschaltet; auf einem R22-Flag wurde er noch nie beobachtet. Deshalb testet NOOP zuerst ein einzelnes Flag und bricht ab, wenn das Band es ablehnt. Gelöschte Flags sind nicht dasselbe wie tatsächlich versiegende Tiefendaten: prüfe das mit einer anschließenden Synchronisierung.</string>
+    <string name="l10n_settings_screen_r22disable_running">R22-Flags werden gelöscht und einzeln zurückgelesen…</string>
+    <string name="l10n_settings_screen_r22disable_dismiss">Deaktivierungsbericht schließen</string>
+    <string name="l10n_settings_screen_r22disable_confirm_title">R22-Flags auf dem Band löschen?</string>
+    <string name="l10n_settings_screen_r22disable_confirm_body">Diesen Schalter auszuschalten stoppt nur, dass NOOP die Freischaltung sendet. Die bereits geschriebenen Flags bleiben auf dem Band, bis sie etwas löscht. NOOP kann jetzt den Aus-Wert in alle 16 schreiben und jedes zurücklesen, damit du siehst, was das Band tatsächlich speichert. Das Band muss verbunden und gekoppelt sein.</string>
+    <string name="l10n_settings_screen_r22disable_confirm_action">Flags auf dem Band löschen</string>
+    <string name="l10n_settings_screen_r22disable_confirm_cancel">Nur nicht mehr senden</string>
+    <string name="l10n_settings_screen_r22_accepted_all">✓ Band hat alle %1$d R22-Flags akzeptiert</string>
+    <string name="l10n_settings_screen_r22_accepted_partial">Band hat %1$d/%2$d R22-Flags akzeptiert…</string>
+    <string name="l10n_notifications_settings_screen_every_pattern_buzzes_the_same_on_34e873f6">Auf einer WHOOP 5/MG vibriert jedes Muster gleich — die Wiederholungszahl wird an dieses Band nicht gesendet. Deine Auswahl wird gespeichert und gilt für eine WHOOP 4.0.</string>
+    <string name="l10n_app_changelog_water_and_caffeine_from_apple_health_5123b6b0">Wasser und Koffein aus Apple Health, ein genaueres Effort-Ergebnis und ein Oura-Ruhepuls-Fix</string>
+    <string name="l10n_app_changelog_upstream_9_3_0_with_the_89c9eaa5">Upstream 9.3.0 – der Coach bleibt auf Heute, und es gibt einen Ort zum Anordnen</string>
+    <string name="l10n_app_changelog_the_coach_follows_your_app_language_9b87ad5b">Der Coach folgt deiner App-Sprache und bleibt auf kompakten iPhones lesbar</string>
+    <string name="l10n_app_changelog_a_coach_that_remembers_privacy_presets_73036e50">Ein Coach, der sich erinnert – und Datenschutz-Voreinstellungen, die einfach bleiben</string>
 </resources>

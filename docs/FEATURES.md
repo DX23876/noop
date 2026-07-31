@@ -130,10 +130,17 @@ sidebar. The Today tab hosts one of three interchangeable home-screen presentati
   Workouts and Data Sources — the same content as Control Center, restyled.
 - **Classic Today** (`TodayView.swift`) — the same screen macOS shows as Control Center (tight
   tile grid, no hero animation), reused verbatim as an iOS fallback. As of 2026-07-25 it has full
-  functional parity with Liquid Today (design stays its own): reorderable/hideable sections via the
-  same **Arrange Today** sheet and shared saved order, a live heart-rate badge over the HR trend
-  chart with a one-tap **Full day** link into the Deep Timeline, and Recovery Vitals as its own
-  movable section instead of being fixed inside Synthesis.
+  functional parity with Liquid Today (design stays its own): reorderable/hideable sections over a
+  shared saved order, a live heart-rate badge over the HR trend chart with a one-tap **Full day**
+  link into the Deep Timeline, and Recovery Vitals as its own movable section instead of being fixed
+  inside Synthesis.
+- **Customize Today** (`TodayCustomizationSheet.swift`) — one editor behind every Today layout
+  affordance on both Today screens, replacing the separate Arrange / Key Metrics / Your Cards sheets
+  (upstream #940, adopted 2026-07-31). A **Shown / Hidden** list with drag-to-reorder, Cancel/Save
+  over a draft so nothing is half-applied, and "Edit" rows that deep-link to the Key Metrics and
+  Your Cards child pages. Every section is a row, the Coach banner included — drag it anywhere or
+  move it to Hidden. The Key Metrics page also carries **Tiles per row** (2 or 3), **Detailed
+  tiles**, and the trend window.
 - **Heute** (`StrandiOS/Redesign/HeuteRedesignView.swift` and friends) — a from-scratch redesign on
   its own fixed green/blue/violet token set (`HeuteRedesignPalette`, independent of the selected
   chart style). **Its Settings toggle was removed (2026-07-25)** — the prototype never got past
@@ -436,6 +443,14 @@ source, read locally on this Mac:
 
 Sparse weekly series (weight, body fat) auto-widen to all history so a short window is never empty;
 a single reading is shown as a "Latest reading" value rather than an empty chart.
+
+**Water and caffeine import themselves** (upstream #949, adopted 2026-07-31). A drink logged in
+Apple Health — by a hydration app, a smart bottle, or by hand — lands in NOOP's hydration and
+caffeine logs without being typed in twice. Both are **read-only**: imported entries keep their own
+row and never overwrite what you entered yourself, and NOOP never writes either back. iPhone asks
+permission once for the two new data types, including for users who granted Health access before
+this version existed. The Coach's own `log_caffeine` tool writes through the same store, so a
+chat-logged intake and an imported one appear side by side.
 
 ---
 

@@ -19,5 +19,8 @@ let package = Package(
     ],
     targets: [
         .executableTarget(name: "sleepbench", dependencies: ["StrandAnalytics", "WhoopProtocol"]),
+        // The scoring primitives are pure functions over label arrays, so they are unit-testable without a
+        // database. `swift test` here needs no health data and no `--db` argument.
+        .testTarget(name: "sleepbenchTests", dependencies: ["sleepbench"]),
     ]
 )

@@ -16,8 +16,13 @@ enum PuffinExperiment {
     /// Separate, more-deliberate opt-in for the WHOOP 5/MG "R22" deep-data unlock — the one probe
     /// that WRITES a persistent feature flag to the strap (the `enable_r22_*` SET_CONFIG sequence the
     /// official app sends; documented by judes.club + Asherlc/dofek). Kept distinct from the read-only
-    /// probes above because it changes strap state, so it must be turned on explicitly and is still
-    /// fully reversible. Driven only from `BLEManager.enableWhoop5DeepData()`. (#174)
+    /// probes above because it changes strap state, so it must be turned on explicitly.
+    ///
+    /// Reversible, and now actually reversed by code rather than only in the comment: this key gates BOTH
+    /// `BLEManager.enableWhoop5DeepData()` and `BLEManager.disableWhoop5DeepData()`, and the send allowlist
+    /// consults `FeatureFlagWriteGate` so only the sixteen R22 keys — carrying either their enable value or
+    /// the off value — can travel through opcode 120. Note the pref itself writes NOTHING in either
+    /// direction; it only decides whether a send is permitted. (#174)
     static let deepDataKey = "noopWhoop5DeepData"
 
     static var deepDataEnabled: Bool { UserDefaults.standard.bool(forKey: deepDataKey) }

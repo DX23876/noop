@@ -753,7 +753,7 @@ Everything stored — memory, conversations, goal, plan, chart snapshots — is 
 
 | Route | Where |
 |---|---|
-| **Banner** | "Ask your Coach" — a reorderable `TodaySection.coach` card on both Today screens (classic's `CoachTodayRow`; Liquid's own banner, styled in its own chrome), movable via the same Arrange sheet as every other section |
+| **Banner** | "Ask your Coach" — a reorderable `TodaySection.coach` card on both Today screens (classic's `CoachTodayRow`; Liquid's own banner, styled in its own chrome), movable via the same **Customize Today** sheet as every other section — it is an ordinary Shown/Hidden row there, draggable to any position |
 | **Header icon** | Liquid Today only — a compact avatar/sparkle button in the header's icon cluster |
 | **Floating button** | Draggable, pinnable to any of 4 chrome-clear corners, lockable |
 | **More tab** | **AI Coach** opens Coach settings even while the feature is off; active Coach deep links use `MoreDestination.coach` |
