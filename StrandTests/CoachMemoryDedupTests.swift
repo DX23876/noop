@@ -141,13 +141,18 @@ final class CoachMemoryDedupTests: XCTestCase {
     }
 
     /// Superseding a fact must never DOWNGRADE its importance — a rephrasing saved with the default
-    /// `.normal` importance must not knock a `.pinned` fact out of `pinnedBlock`.
+    /// `.normal` importance must not knock a `.pinned` fact out of `pinnedBlock`. Superseding must
+    /// likewise not reset the user's confirmation: an `.injury` fact starts `.pendingConfirmation` and
+    /// only reaches `pinnedBlock` once confirmed (see `CoachMemoryVerificationTests`), so the restatement
+    /// would silently un-pin it if the supersede path touched `verification`.
     func testSupersedingNeverDowngradesPinnedImportance() {
         let memory = freshMemory()
         memory.add("Left knee pain when running downhill", category: .injury, importance: .pinned)
+        memory.confirm(try! XCTUnwrap(memory.facts.first).id)
         memory.add("Left knee pain when running downhill and after", category: .injury, importance: .normal)
         XCTAssertEqual(memory.facts.count, 1)
         XCTAssertEqual(memory.facts.first?.importance, .pinned)
+        XCTAssertEqual(memory.facts.first?.verification, .confirmed)
         XCTAssertTrue(memory.pinnedBlock.contains("downhill and after"))
     }
 
