@@ -116,18 +116,29 @@ xcodegen generate && xcodebuild -project Strand.xcodeproj -scheme Strand \
 | Workflow | Covers | Runner | Trigger |
 |---|---|---|---|
 | `swift-packages.yml` | `swift test` for **`Packages/**` only** (WhoopProtocol, WhoopStore, StrandAnalytics, StrandImport, StrandDesign, NoopLocalAccess) | macos-15 | **automatic** — PR + push touching `Packages/**` |
-| `app-build.yml` | **Compile-only** of the **app targets** (`Strand` macOS + `NOOPiOS` iOS). iOS leg needs **macos-26** (iOS 26 SDK / `glassEffect`). | macos-15 / macos-26 | **automatic** — PR + push touching `Strand/**`, `StrandiOS*/**`, `Packages/**`, or `project.yml`; also `workflow_dispatch` |
+| `app-build.yml` | Compile of the **app targets** (`Strand` macOS + `NOOPiOS` iOS) **plus `xcodebuild … test` (`StrandTests`) on the macOS leg only**. iOS leg needs **macos-26** (iOS 26 SDK / `glassEffect`). | macos-15 / macos-26 | **DISABLED at the GitHub level** (`disabled_manually`) — effectively `workflow_dispatch`-only. Its `pull_request`/`push` triggers are in the file but inert while the workflow is off. |
 | `android.yml` | `assembleFullDebug` + `testFullDebugUnitTest` | ubuntu | **automatic** — PR + push touching `android/**`; also `workflow_dispatch` |
 | `i18n-coverage.yml` | String/localization audit (EN/DE/FR/ES completeness) | — | **automatic** — every PR, and every push to `main` (so a release pushed straight to `main` is still audited, not just PRs) |
 | `sync-upstream.yml` | Pulls upstream `ryanbr/noop` and opens a sync PR | — | weekly cron (Monday 06:00 UTC) + `workflow_dispatch` |
 | `fork-testing-build.yml` / `fork-release.yml` | Staging / release builds (apk + mac + ios) | — | `workflow_dispatch` only |
 
-**Both `app-build.yml` and `android.yml` are live, path-filtered CI**, not on-demand-only — they run
-automatically on any PR/push that touches their respective paths. (`docs/CONTRIBUTING.md` currently
-still describes both as "disabled by design, build the app yourself" — that's stale; this table is
-the current state.) The real gap is narrower than "no CI at all": a compile error in app-target Swift
-outside those path filters, or a change your local (likely newer) Xcode tolerates but CI's pinned
-runner doesn't, can still slip through — see "Lessons from the fold-in" in
+**Read a workflow's trigger from `gh workflow list`, never from its `on:` block alone.** A workflow
+disabled in GitHub's UI keeps its `pull_request`/`push` triggers in the file while running for
+nobody, and nothing in the repo shows it. `app-build.yml` is in exactly that state — off since
+2026-07-21, matching `docs/CONTRIBUTING.md`'s "disabled by design, you build the app yourself".
+`android.yml` **is** live, path-filtered CI.
+
+**What that costs: `StrandTests` runs nowhere automatically.** `app-build.yml` is its only home
+(added #607, 2026-07-19), so while that workflow is off, app-target logic tests are only as good as
+the last person who ran them by hand. A real case: `CoachMemoryDedupTests` was broken on 2026-07-28
+by a deliberate `pinnedBlock` change and stayed red on `main` for days, unnoticed. **If you touch
+app-target Swift that no `Packages/**` test covers — anything under `Strand/AI/`, `Strand/Data/`,
+`Strand/Screens/` — run `xcodebuild -scheme Strand -destination 'platform=macOS' … test` locally, or
+dispatch `app-build.yml`. Nothing else will.** Better still, put new pure logic in `Packages/` where
+`swift-packages.yml` gates it automatically.
+
+The compile gap is narrower than "no CI at all": a change your local (likely newer) Xcode tolerates
+but CI's pinned runner doesn't can still slip through — see "Lessons from the fold-in" in
 [`docs/IOS.md`](docs/IOS.md) for a concrete case (a `String?` interpolated into a `LocalizedStringKey`
 that a bleeding-edge local Xcode silently accepted and the CI runner correctly rejected). Build the
 app yourself for anything non-trivial in `Strand/`/`StrandiOS*/` rather than relying on the git-push
