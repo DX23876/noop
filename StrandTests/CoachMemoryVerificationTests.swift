@@ -68,4 +68,176 @@ final class CoachMemoryVerificationTests: XCTestCase {
         XCTAssertEqual(CoachMemory.inferredCategory(for: "Likes quiet evening walks"),
                        .schedule)
     }
+
+    /// The summariser writes in the user's own language, so a classifier that only reads English and
+    /// German silently downgraded every distilled fact to `.preference` for six of the nine shipped
+    /// locales — losing both the health sensitivity and the confirmation requirement.
+    func testDistilledHealthLanguageIsRecognisedInEveryShippedLanguage() {
+        XCTAssertEqual(CoachMemory.inferredCategory(for: "Tiene una lesión en la rodilla"), .injury)
+        XCTAssertEqual(CoachMemory.inferredCategory(for: "Souffre d'une blessure au genou"), .injury)
+        XCTAssertEqual(CoachMemory.inferredCategory(for: "Ha un infortunio al ginocchio"), .injury)
+        XCTAssertEqual(CoachMemory.inferredCategory(for: "Tem uma lesão no joelho"), .injury)
+        XCTAssertEqual(CoachMemory.inferredCategory(for: "У него травма колена"), .injury)
+        XCTAssertEqual(CoachMemory.inferredCategory(for: "膝盖受伤了"), .injury)
+
+        XCTAssertEqual(CoachMemory.inferredCategory(for: "Toma medicamento para la tensión"), .physiology)
+        XCTAssertEqual(CoachMemory.inferredCategory(for: "Принимает лекарство ежедневно"), .physiology)
+    }
+
+    /// The dangerous half of a substring classifier: terms short enough to appear inside unrelated
+    /// words. These are the exact ones that had to be dropped, so nobody adds them back.
+    func testEverydayWordsAreNotMistakenForHealthOrGoalLanguage() {
+        XCTAssertNotEqual(CoachMemory.inferredCategory(for: "Has a high metabolic rate"), .goal,
+                          "\"meta\" must not match inside \"metabolic\"")
+        XCTAssertNotEqual(CoachMemory.inferredCategory(for: "Trains outdoors, but only in summer"), .goal,
+                          "\"but\" must not be a goal term")
+        XCTAssertNotEqual(CoachMemory.inferredCategory(for: "Prefers the outdoor track"), .injury,
+                          "\"dor\" must not match inside \"outdoor\"")
+    }
+
+    // MARK: - Confirmation: the only way a health fact ever frames a reply
+
+    /// `pinnedBlock` admits only confirmed facts, so without a confirmation path reachable from the
+    /// conversation, every injury the coach saves is barred from the block it was pinned for. This is
+    /// that path: the user stating it themselves.
+    func testAFactTheUserStatedThemselvesIsConfirmedImmediately() {
+        let memory = memory()
+        XCTAssertTrue(memory.add("Left knee is injured.",
+                                 category: .injury,
+                                 importance: .pinned,
+                                 source: .coachTool,
+                                 confirmedByUser: true))
+        let fact = try! XCTUnwrap(memory.facts.first)
+        XCTAssertEqual(fact.verification, .confirmed)
+        XCTAssertTrue(memory.pinnedBlock.contains("Left knee is injured."))
+    }
+
+    /// The restatement path is where a "yes, that's right" actually arrives — the coach re-saves a fact
+    /// it already holds. That branch never wrote `verification`, so confirmation could not land at all.
+    func testConfirmingARestatementOfAnExistingFactPromotesIt() {
+        let memory = memory()
+        XCTAssertTrue(memory.add("Left knee is injured.", category: .injury, importance: .pinned))
+        XCTAssertEqual(memory.facts.first?.verification, .pendingConfirmation)
+        XCTAssertTrue(memory.pinnedBlock.isEmpty, "premise: unconfirmed stays out of the block")
+
+        XCTAssertTrue(memory.add("Left knee is injured.",
+                                 category: .injury,
+                                 importance: .pinned,
+                                 source: .coachTool,
+                                 confirmedByUser: true))
+        XCTAssertEqual(memory.facts.count, 1, "a restatement must not stack a second fact")
+        XCTAssertEqual(memory.facts.first?.verification, .confirmed)
+        XCTAssertTrue(memory.pinnedBlock.contains("Left knee is injured."))
+    }
+
+    /// The other direction must never happen: the coach re-inferring a fact the user already confirmed
+    /// cannot quietly demote it back out of the always-relevant block.
+    func testARestatementWithoutConfirmationNeverDowngradesAConfirmedFact() {
+        let memory = memory()
+        XCTAssertTrue(memory.add("Left knee is injured.",
+                                 category: .injury,
+                                 importance: .pinned,
+                                 confirmedByUser: true))
+        XCTAssertTrue(memory.add("Left knee is injured.",
+                                 category: .injury,
+                                 importance: .pinned,
+                                 source: .coachTool,
+                                 confirmedByUser: false))
+        XCTAssertEqual(memory.facts.first?.verification, .confirmed)
+    }
+
+    /// An inference is still an inference — the flag has to be OPT-IN or it means nothing.
+    func testAnInferredHealthFactStillNeedsConfirmation() {
+        let memory = memory()
+        XCTAssertTrue(memory.add("Probably strained a calf.",
+                                 category: .injury,
+                                 source: .coachTool))
+        XCTAssertEqual(memory.facts.first?.verification, .pendingConfirmation)
+        XCTAssertTrue(memory.pinnedBlock.isEmpty)
+    }
+
+    // MARK: - Expiry
+
+    /// A day-granular expiry must cover the whole day the user named, not expire at its first second.
+    func testExpiryCoversTheWholeNamedDay() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Berlin")!
+        let expiry = try! XCTUnwrap(CoachMemory.expiryDate(from: "2026-08-20", calendar: calendar))
+
+        let noonThatDay = calendar.date(from: DateComponents(year: 2026, month: 8, day: 20, hour: 12))!
+        let nextMorning = calendar.date(from: DateComponents(year: 2026, month: 8, day: 21, hour: 9))!
+        XCTAssertGreaterThan(expiry, noonThatDay, "still valid at midday on its last day")
+        XCTAssertLessThan(expiry, nextMorning, "expired by the next morning")
+    }
+
+    /// Anything unparseable means "no expiry": a fact that outlives its date is a smaller error than one
+    /// that silently vanishes because a model wrote the date in a shape we don't read.
+    func testAMalformedExpiryMeansNoExpiry() {
+        XCTAssertNil(CoachMemory.expiryDate(from: nil))
+        XCTAssertNil(CoachMemory.expiryDate(from: ""))
+        XCTAssertNil(CoachMemory.expiryDate(from: "next Tuesday"))
+        XCTAssertNil(CoachMemory.expiryDate(from: "20.08.2026"))
+    }
+
+    func testAnExpiredFactStopsFramingReplies() {
+        let memory = memory()
+        let yesterday = Date().addingTimeInterval(-86_400)
+        XCTAssertTrue(memory.add("Travelling, no gym access.",
+                                 category: .schedule,
+                                 importance: .pinned,
+                                 confirmedByUser: true,
+                                 validUntil: yesterday))
+        XCTAssertTrue(memory.pinnedBlock.isEmpty, "an expired fact must leave the always-relevant block")
+        XCTAssertTrue(memory.relevantFacts(for: "gym access while travelling", limit: 8).isEmpty)
+    }
+
+    /// A restatement that mentions no expiry must not resurrect a fact indefinitely, but a new date
+    /// replaces the old one.
+    func testARestatementReplacesAnExpiryButNeverClearsIt() {
+        let memory = memory()
+        let soon = Date().addingTimeInterval(86_400)
+        let later = Date().addingTimeInterval(10 * 86_400)
+        XCTAssertTrue(memory.add("Travelling, no gym access.", category: .schedule, validUntil: soon))
+        XCTAssertTrue(memory.add("Travelling, no gym access.", category: .schedule))
+        XCTAssertEqual(memory.facts.first?.validUntil, soon, "silence must not clear the expiry")
+
+        XCTAssertTrue(memory.add("Travelling, no gym access.", category: .schedule, validUntil: later))
+        XCTAssertEqual(memory.facts.first?.validUntil, later)
+    }
+
+    // MARK: - Eviction order
+
+    /// An expired fact is invisible to every retrieval path, so it is the cheapest thing to lose — and
+    /// before `validUntil` was ever written, this arm could not fire at all.
+    func testEvictionDropsAnExpiredFactBeforeAnyLiveOne() {
+        let now = Date()
+        let live = CoachMemory.MemoryFact(text: "newest", createdAt: now)
+        let expired = CoachMemory.MemoryFact(text: "expired",
+                                             createdAt: now.addingTimeInterval(-100),
+                                             validUntil: now.addingTimeInterval(-1))
+        let oldest = CoachMemory.MemoryFact(text: "oldest", createdAt: now.addingTimeInterval(-1_000))
+        let index = try! XCTUnwrap(CoachMemory.evictionIndex(in: [live, expired, oldest], now: now))
+        XCTAssertEqual(index, 1)
+    }
+
+    func testEvictionOtherwiseDropsTheOldestUnpinnedFact() {
+        let now = Date()
+        let newest = CoachMemory.MemoryFact(text: "newest", createdAt: now)
+        let oldPinned = CoachMemory.MemoryFact(text: "old but pinned",
+                                              importance: .pinned,
+                                              createdAt: now.addingTimeInterval(-1_000))
+        let oldPlain = CoachMemory.MemoryFact(text: "old", createdAt: now.addingTimeInterval(-500))
+        let index = try! XCTUnwrap(CoachMemory.evictionIndex(in: [newest, oldPlain, oldPinned], now: now))
+        XCTAssertEqual(index, 1, "the pinned fact must survive being the oldest")
+    }
+
+    func testEvictionFallsBackToTheOldestWhenEverythingIsPinned() {
+        let now = Date()
+        let newest = CoachMemory.MemoryFact(text: "newest", importance: .pinned, createdAt: now)
+        let oldest = CoachMemory.MemoryFact(text: "oldest",
+                                            importance: .pinned,
+                                            createdAt: now.addingTimeInterval(-1_000))
+        XCTAssertEqual(CoachMemory.evictionIndex(in: [newest, oldest], now: now), 1)
+    }
+
 }

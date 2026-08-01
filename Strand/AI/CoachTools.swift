@@ -271,6 +271,20 @@ enum CoachTool: String, CaseIterable {
                         "enum": ["pinned", "normal"],
                         "description": "pinned = must frame every reply (injuries, hard constraints); "
                             + "normal = surfaced when relevant. Defaults to normal."
+                    ],
+                    "confirmed_by_user": [
+                        "type": "boolean",
+                        "description": "true ONLY when the user stated this themselves, or explicitly "
+                            + "agreed it is correct, in this conversation. false when you inferred it "
+                            + "from their data or from something they implied. An injury, goal or "
+                            + "physiology fact only frames later replies once it is confirmed, so pass "
+                            + "true when they confirm one you already saved. Defaults to false."
+                    ],
+                    "valid_until": [
+                        "type": "string",
+                        "description": "Optional date this fact stops being true, as yyyy-MM-dd. Use it "
+                            + "for anything temporary — an injury with an expected recovery date, a "
+                            + "travel period, a training block. Omit for open-ended facts."
                     ]
                 ],
                 "required": ["fact"]
@@ -794,10 +808,26 @@ extension AICoachEngine {
                 .flatMap(CoachMemory.Category.init(rawValue:)) ?? .other
             let importance = (input["importance"] as? String)
                 .flatMap(CoachMemory.Importance.init(rawValue:)) ?? .normal
-            return CoachMemory.shared.add(fact, category: category, importance: importance,
-                                          source: .coachTool)
-                ? "Remembered: \(fact)"
-                : "Nothing saved (the fact was empty)."
+            let confirmedByUser = (input["confirmed_by_user"] as? Bool) ?? false
+            let validUntil = CoachMemory.expiryDate(from: input["valid_until"] as? String)
+            guard CoachMemory.shared.add(fact,
+                                         category: category,
+                                         importance: importance,
+                                         source: .coachTool,
+                                         confirmedByUser: confirmedByUser,
+                                         validUntil: validUntil) else {
+                return "Nothing saved (the fact was empty)."
+            }
+            // Say which of the two states it landed in. A fact the coach INFERRED about an injury, goal
+            // or physiology is stored unconfirmed and is deliberately kept out of the block that frames
+            // every reply, so reporting a bare "Remembered" would tell the model it had achieved
+            // something it hasn't — and it would never think to ask the user to confirm.
+            let stored = CoachMemory.shared.firstMatch(fact)
+            if stored?.verification == .pendingConfirmation {
+                return "Saved, but UNCONFIRMED: \(fact). Ask the user to confirm it, then call "
+                    + "remember_fact again with confirmed_by_user set to true."
+            }
+            return "Remembered: \(fact)"
         case .updateFact:
             let old = (input["old"] as? String) ?? ""
             let new = (input["new"] as? String) ?? ""

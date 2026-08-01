@@ -546,6 +546,17 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
         return Self.context(from: safeHits, documents: safeDocuments)
     }
 
+    /// A journal answer, in the user's own language. These strings are written into the indexed document
+    /// text — which is both embedded by Nomic and handed to the model as `• [Journal] …` context — so a
+    /// hardcoded literal doesn't just read oddly in the other eight shipped languages, it embeds a token
+    /// the user's own questions will never match. Resolved once per process rather than per entry; the
+    /// catalog already carries "Yes"/"No" in every shipped language, so this adds no new strings.
+    ///
+    /// Changing this text changes `SemanticDocument.contentHash`, so every journal document is seen as
+    /// modified once after an update and re-embedded through the ordinary pending queue.
+    private static let yesLabel = String(localized: "Yes")
+    private static let noLabel = String(localized: "No")
+
     static func documents(facts: [CoachMemory.MemoryFact],
                           conversations: [CoachConversation],
                           journalEntries: [JournalEntry],
@@ -590,7 +601,7 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
             )
             let scope: SemanticConsentScope = isSensitive ? .sensitiveLogs : .personalLogs
             guard allowedScopes.contains(scope) else { continue }
-            let answer = entry.answeredYes ? "Ja" : "Nein"
+            let answer = entry.answeredYes ? Self.yesLabel : Self.noLabel
             let baseID = "\(entry.day)|\(SemanticHash.fnv1a64Hex(entry.question))"
             result += chunks(kind: .journalQuestion,
                              sourceID: baseID,

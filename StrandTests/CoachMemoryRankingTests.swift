@@ -89,4 +89,52 @@ final class CoachMemoryRankingTests: XCTestCase {
         XCTAssertEqual(ranked.first?.text, recent.text,
                        "the fresh, weaker-overlap fact should rank first now")
     }
+
+    // MARK: - Not saying the same thing twice
+
+    /// Two independent retrievers hold the same facts — this keyword ranking, and the on-device
+    /// semantic index, which stores each fact as a `[Memory]` document. Both run every turn, so without
+    /// this filter the same sentence goes on the wire twice, once bare and once behind a
+    /// "Confirmed memory:" prefix.
+    func testAFactAlreadyInTheContextIsNotRestated() {
+        let f = fact("left knee pain when running", daysAgo: 0, now: Date())
+        let context = """
+        RELEVANT LOCAL TEXT MEMORY (retrieved on device; treat as user-provided context):
+        • [Memory] Confirmed memory: left knee pain when running
+        """
+        XCTAssertTrue(CoachMemory.factsNotAlreadyInContext([f], context: context).isEmpty)
+    }
+
+    /// Matching is on the normalised form, so punctuation and casing differences between the two
+    /// renderings don't defeat it.
+    func testTheMatchIgnoresPunctuationAndCasing() {
+        let f = fact("Left knee pain, when running.", daysAgo: 0, now: Date())
+        let context = "• [Memory] Confirmed memory: left knee pain when running"
+        XCTAssertTrue(CoachMemory.factsNotAlreadyInContext([f], context: context).isEmpty)
+    }
+
+    func testAnUnrelatedFactSurvivesTheFilter() {
+        let f = fact("prefers a consistent bedtime", daysAgo: 0, now: Date())
+        let context = "• [Memory] Confirmed memory: left knee pain when running"
+        XCTAssertEqual(CoachMemory.factsNotAlreadyInContext([f], context: context).map(\.text), [f.text])
+    }
+
+    func testAnEmptyContextFiltersNothing() {
+        let f = fact("prefers a consistent bedtime", daysAgo: 0, now: Date())
+        XCTAssertEqual(CoachMemory.factsNotAlreadyInContext([f], context: "").count, 1)
+    }
+
+    /// End to end through the block the send path actually appends.
+    func testRelevantBlockSkipsWhatTheSemanticIndexAlreadySupplied() {
+        let now = Date()
+        let knee = fact("left knee pain when running", daysAgo: 0, now: now)
+        let sleep = fact("sleeps badly when running late", daysAgo: 0, now: now)
+        let memory = seededMemory([knee, sleep])
+
+        let context = "• [Memory] Confirmed memory: left knee pain when running"
+        let block = memory.relevantBlock(for: "running and my knee", limit: 8, alreadyInContext: context)
+        XCTAssertFalse(block.contains("left knee pain when running"),
+                       "the semantic index already supplied this one")
+        XCTAssertTrue(block.contains("sleeps badly when running late"))
+    }
 }

@@ -745,7 +745,10 @@ final class AICoachEngine: ObservableObject {
     • WRITE to the app — propose_plan, log_caffeine, log_journal, log_lab_marker; always say plainly \
     what you wrote.
     • REMEMBER across chats — remember_fact, update_fact, forget_fact, and search_past_conversations \
-    to pull earlier context back.
+    to pull earlier context back. An injury, goal or physiology fact only starts framing later replies \
+    once it is confirmed, so pass confirmed_by_user only when they told you themselves or agreed it is \
+    right — and when they confirm one you saved earlier, call remember_fact again with that flag. Give \
+    valid_until for anything temporary, so it retires itself instead of shaping advice months later.
     Cite the real numbers a tool returns; if one reports no data, say so rather than inventing figures. \
     Two tool calls and an answer you can stand behind beat one confident sentence you can't.
     """
@@ -4034,9 +4037,14 @@ final class AICoachEngine: ObservableObject {
     /// ride the system prompt), so memory scales without every prompt carrying all 40 facts.
     /// Chart-host messages (`flushPendingCharts` appends an empty assistant turn per chart) never go on
     /// the wire: Anthropic rejects empty content, so a follow-up question after a chart would 400.
+    ///
+    /// `context` is passed to the ranking so a fact the semantic index already retrieved isn't restated
+    /// here — the two retrievers hold the same facts and neither knew about the other.
     private func wireMessages(context: String) -> [(role: ChatMessage.Role, content: String)] {
         let question = messages.last(where: { $0.role == .user })?.text ?? ""
-        let relevant = memoryContextAllowed ? CoachMemory.shared.relevantBlock(for: question, limit: 8) : ""
+        let relevant = memoryContextAllowed
+            ? CoachMemory.shared.relevantBlock(for: question, limit: 8, alreadyInContext: context)
+            : ""
         let fullContext = relevant.isEmpty ? context : context + "\n\n" + relevant
         return Self.wirePairs(from: windowedMessages(), context: fullContext)
     }

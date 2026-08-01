@@ -176,21 +176,32 @@ final class CoachMemory: ObservableObject {
     ///
     /// Only matched against facts in the SAME category — dedup is category-scoped (see `isNearDuplicate`),
     /// so an "injury" restating a knee problem never collapses onto an unrelated "preference".
+    ///
+    /// `confirmedByUser` is what makes an `.injury` / `.goal` / `.physiology` fact usable at all. Those
+    /// categories are saved `.pendingConfirmation`, and `pinnedBlock` admits only `.confirmed` facts — so
+    /// without a way to say "the user stated this themselves", every health fact the coach saves is
+    /// permanently barred from the block it was pinned for. It applies on the near-duplicate path too:
+    /// the user confirming a fact the coach already holds arrives here as a restatement, and that path
+    /// used to leave `verification` untouched, which is exactly why a "yes, that's right" could never
+    /// land.
     @discardableResult
     func add(_ text: String,
              category: Category = .other,
              importance: Importance = .normal,
              source: Source = .user,
-             referenceID: String? = nil) -> Bool {
+             referenceID: String? = nil,
+             confirmedByUser: Bool = false,
+             validUntil: Date? = nil) -> Bool {
         let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty else { return false }
         let key = Self.normalize(clean)
         if let idx = facts.firstIndex(where: {
             $0.category == category && Self.isNearDuplicate(Self.normalize($0.text), key, category: category)
         }) {
-            // Supersede the near-duplicate: keep its id, refresh text/recency. Importance/category are
+            // Supersede the near-duplicate: keep its id, refresh text/recency. Importance/verification are
             // never DOWNGRADED by a restatement — a rephrasing of a pinned injury must not quietly demote
-            // it out of `pinnedBlock` just because the caller passed a looser importance this time.
+            // it out of `pinnedBlock` just because the caller passed a looser importance this time, and an
+            // already-confirmed fact must not fall back to a hypothesis because the coach re-inferred it.
             facts[idx].text = clean
             facts[idx].evidenceCount += 1
             facts[idx].evidence.append(Evidence(source: source,
@@ -200,32 +211,56 @@ final class CoachMemory: ObservableObject {
                 facts[idx].evidence.removeFirst(facts[idx].evidence.count - 20)
             }
             if importance == .pinned { facts[idx].importance = .pinned }
+            if confirmedByUser { facts[idx].verification = .confirmed }
+            // An expiry is only ever REPLACED by another expiry, never cleared by a restatement that
+            // simply didn't mention one — "I still can't run" shouldn't resurrect a fact indefinitely.
+            if let validUntil { facts[idx].validUntil = validUntil }
             facts[idx].createdAt = Date()
             facts.sort { $0.createdAt > $1.createdAt }
             return true
         }
         let needsConfirmation = category == .injury || category == .physiology || category == .goal
+        let verification: Verification
+        if confirmedByUser {
+            verification = .confirmed
+        } else {
+            verification = needsConfirmation ? .pendingConfirmation : .hypothesis
+        }
         let fact = MemoryFact(
             text: clean,
             category: category,
             importance: importance,
-            verification: needsConfirmation ? .pendingConfirmation : .hypothesis,
+            verification: verification,
             sensitivity: (category == .injury || category == .physiology) ? .health : .ordinary,
             source: source,
+            validUntil: validUntil,
             evidence: [Evidence(source: source, referenceID: referenceID, recordedAt: Date())]
         )
-        // Evict the OLDEST NON-pinned fact first when at the cap, so a pinned fact (injuries, hard
-        // constraints) never falls off just because it happens to be old.
         var updated = [fact] + facts
-        if updated.count > Self.maxFacts {
-            if let dropIdx = updated.lastIndex(where: { $0.importance != .pinned }) {
-                updated.remove(at: dropIdx)
-            } else {
-                updated.removeLast()   // every fact is pinned — nothing safe to keep, drop the oldest anyway
-            }
+        if updated.count > Self.maxFacts, let dropIdx = Self.evictionIndex(in: updated) {
+            updated.remove(at: dropIdx)
         }
         facts = updated
         return true
+    }
+
+    /// Which fact to drop when the cap is reached, in order of what costs least to lose:
+    ///
+    /// 1. the oldest **expired** fact — it is already invisible to every retrieval path, so it is
+    ///    occupying a slot while contributing nothing (before `validUntil` was ever written, this arm
+    ///    could not fire and dead facts sat in the store forever);
+    /// 2. otherwise the oldest **non-pinned** fact, so a pinned injury or hard constraint never falls
+    ///    off merely for being old;
+    /// 3. otherwise the oldest fact — everything is pinned and unexpired, and something has to give.
+    ///
+    /// Pure and static so the eviction order can be pinned by a test without a `UserDefaults` fixture.
+    /// `facts` is newest-first, so "oldest" is the LAST match.
+    static func evictionIndex(in facts: [MemoryFact], now: Date = Date()) -> Int? {
+        guard !facts.isEmpty else { return nil }
+        if let expired = facts.lastIndex(where: { $0.validUntil.map { $0 < now } ?? false }) {
+            return expired
+        }
+        return facts.lastIndex(where: { $0.importance != .pinned }) ?? facts.indices.last
     }
 
     /// Edit a fact's text in place (a model correction, or the user editing in settings).
@@ -331,8 +366,15 @@ final class CoachMemory: ObservableObject {
 
     /// The relevant-facts block for a specific question (used by the context builder). Empty when there's
     /// nothing beyond what `pinnedBlock` already carries.
-    func relevantBlock(for query: String, limit: Int) -> String {
-        let picked = relevantFacts(for: query, limit: limit).filter { $0.importance != .pinned }
+    ///
+    /// `alreadyInContext` is the context this block is about to be appended to. Two independent memory
+    /// retrievers run per turn — this keyword ranking, and the on-device semantic index, which stores the
+    /// same facts as `[Memory]` documents — so without the check the same sentence goes on the wire
+    /// twice, once bare and once behind a "Confirmed memory:" prefix. Deduplication belongs here rather
+    /// than in the semantic path because this block is the one that is appended last.
+    func relevantBlock(for query: String, limit: Int, alreadyInContext: String = "") -> String {
+        let ranked = relevantFacts(for: query, limit: limit).filter { $0.importance != .pinned }
+        let picked = Self.factsNotAlreadyInContext(ranked, context: alreadyInContext)
         guard !picked.isEmpty else { return "" }
         var lines = ["POSSIBLY-RELEVANT FACTS ABOUT THE USER (from memory):"]
         for f in picked {
@@ -346,6 +388,38 @@ final class CoachMemory: ObservableObject {
             }
         }
         return lines.joined(separator: "\n")
+    }
+
+    /// Parse a model- or user-supplied `yyyy-MM-dd` expiry into the INSTANT that day ends locally.
+    /// Retrieval tests `validUntil >= now`, so parsing to midnight would expire a fact at the very start
+    /// of the day the user named as its last valid one. Anything malformed yields nil, which means "no
+    /// expiry" — a fact that never expires is a far smaller error than one that silently vanishes
+    /// because a model wrote the date in a format we don't read.
+    static func expiryDate(from raw: String?, calendar: Calendar = .current) -> Date? {
+        guard let raw = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty,
+              raw.range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) != nil else { return nil }
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = calendar.timeZone
+        formatter.dateFormat = "yyyy-MM-dd"
+        guard let day = formatter.date(from: raw) else { return nil }
+        guard let next = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: day)) else {
+            return nil
+        }
+        return next.addingTimeInterval(-1)
+    }
+
+    /// The facts whose text does not already appear in `context`, compared on the normalised form so a
+    /// difference in punctuation or casing doesn't defeat the match. An empty context filters nothing.
+    /// Pure and static: the dedup rule is pinned by a test without an engine or a semantic index.
+    static func factsNotAlreadyInContext(_ facts: [MemoryFact], context: String) -> [MemoryFact] {
+        let haystack = normalize(context)
+        guard !haystack.isEmpty else { return facts }
+        return facts.filter { fact in
+            let needle = normalize(fact.text)
+            return needle.isEmpty || !haystack.contains(needle)
+        }
     }
 
     // MARK: - Text helpers
@@ -376,26 +450,57 @@ final class CoachMemory: ObservableObject {
     /// Conservative local classifier for facts distilled by the optional summariser, whose legacy
     /// output format carries text but no category. False negatives remain ordinary hypotheses; obvious
     /// health/injury and goal language is promoted to a category that requires user confirmation.
+    ///
+    /// The term lists cover every language the app ships (en, de, es, fr, it, pt, ru, zh). The
+    /// summariser writes in the user's own language, so an English-and-German-only list meant that for
+    /// six of the nine locales EVERY distilled fact fell through to `.preference` — a reported injury
+    /// then carried neither the health sensitivity nor the pending-confirmation flag its category
+    /// exists to set. Matching is substring-based over the normalised text, which is what makes the
+    /// Chinese terms work without word boundaries.
     static func inferredCategory(for text: String) -> Category {
         let normalized = normalize(text)
         let injuryTerms = [
             "injury", "injured", "pain", "ache", "sore", "diagnosed", "surgery",
             "verletzung", "verletzt", "schmerz", "operation", "entzündung",
+            "lesión", "lesion", "dolor", "lastimad", "cirugía", "cirugia",
+            "blessure", "blessé", "blesse", "douleur", "chirurgie",
+            "infortunio", "lesione", "dolore", "chirurgia",
+            "lesão", "lesao", "dores", "machucad",
+            "травма", "болит", "операц",
+            "受伤", "疼痛", "损伤", "手術", "手术",
         ]
         if injuryTerms.contains(where: normalized.contains) { return .injury }
         let physiologyTerms = [
             "allergy", "condition", "medication", "blood test", "lab result",
             "allergie", "erkrankung", "medikament", "blutwert", "laborwert",
+            "alergia", "medicación", "medicacion", "análisis de sangre", "analisis de sangre",
+            "médicament", "medicament", "analyse de sang", "maladie",
+            "allergia", "farmaco", "esame del sangue", "malattia",
+            "medicamento", "exame de sangue", "doença", "doenca",
+            "аллерг", "лекарств", "анализ крови", "заболевание",
+            "过敏", "药物", "藥物", "血液检查", "血液檢查",
         ]
         if physiologyTerms.contains(where: normalized.contains) { return .physiology }
         let goalTerms = [
             "goal", "target", "aims to", "training for", "ziel", "möchte erreichen",
             "trainiert für",
+            "objetivo", "entrenando para",
+            "objectif", "s entraîne pour", "s entraine pour",
+            "obiettivo", "si allena per",
+            "treinando para",
+            "цель", "готовится к",
+            "目标", "目標", "备战", "備戰",
         ]
         if goalTerms.contains(where: normalized.contains) { return .goal }
         let scheduleTerms = [
             "schedule", "weekday", "weekend", "morning", "evening",
             "zeitplan", "wochentag", "wochenende", "morgens", "abends",
+            "horario", "entre semana", "fin de semana", "mañana", "manana", "tarde", "noche",
+            "emploi du temps", "semaine", "week end", "matin", "soir",
+            "orario", "settimana", "fine settimana", "mattina", "di sera",
+            "horário", "fim de semana", "manhã", "manha", "noite",
+            "расписан", "будни", "выходн", "утром", "вечером",
+            "日程", "工作日", "周末", "週末", "早上", "晚上",
         ]
         if scheduleTerms.contains(where: normalized.contains) { return .schedule }
         return .preference

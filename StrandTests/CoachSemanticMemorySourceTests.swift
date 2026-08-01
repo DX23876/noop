@@ -34,7 +34,12 @@ final class CoachSemanticMemorySourceTests: XCTestCase {
 
         XCTAssertTrue(text.contains(user.text))
         XCTAssertFalse(text.contains(assistant.text))
-        XCTAssertTrue(text.contains("Eigene Abendroutine — Nein"))
+        // The answer label follows the app's language. It used to be a hardcoded "Ja"/"Nein" for all
+        // nine shipped languages — text that is both embedded by Nomic and handed to the model as
+        // context, so it embedded a token the user's own questions could never match. Asserted through
+        // the catalog rather than as a literal, so this pins the composition without re-pinning one
+        // language's spelling.
+        XCTAssertTrue(text.contains("Eigene Abendroutine — \(String(localized: "No"))"))
         XCTAssertTrue(text.contains("Sehr spät"))
         XCTAssertFalse(text.contains("250"))
         XCTAssertFalse(text.contains("CBD-Öl verwendet"))
