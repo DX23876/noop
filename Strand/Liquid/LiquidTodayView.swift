@@ -1322,8 +1322,27 @@ struct LiquidTodayView: View {
 
     /// A metric's spark values inside the chosen window, oldest → newest.
     private func windowedSpark(_ key: String) -> [Double] {
-        let cutoff = sparkWindowCutoffKey
-        return (kSparks[key] ?? []).filter { $0.0 >= cutoff }.map { $0.1 }
+        Self.windowedSpark(points: kSparks[key] ?? [], cutoffKey: sparkWindowCutoffKey,
+                           maxPoints: keyMetricsWindowDays)
+    }
+
+    /// The window rule behind every detailed tile's sparkline. Pure + static so it is testable with no
+    /// view and no clock (`LiquidSparkWindowTests`).
+    ///
+    /// The date window is the normal path and stays: it keeps a stale import from being read as a current
+    /// trend (#23). But it was the ONLY path, and a sparse series dies in it — someone who weighs
+    /// themselves every few weeks has fewer than two points inside 2/7/14 days, so the Weight tile drew
+    /// `Color.clear` while its number was right (`Repository.resolveWeightKg` takes the latest series
+    /// point regardless of date). `docs/FEATURES.md` promises the opposite: "Sparse series (e.g. weight)
+    /// fall back to all history so a tile never shows empty when data exists" — which classic Today gets
+    /// for free from its count-based `suffix` (`TodayView.windowedSpark`).
+    ///
+    /// So: window first, and only when it cannot draw a line (< 2 points) fall back to the last
+    /// `maxPoints` MEASUREMENTS of the full series. Dense metrics never reach the fallback.
+    static func windowedSpark(points: [(String, Double)], cutoffKey: String, maxPoints: Int) -> [Double] {
+        let windowed = points.filter { $0.0 >= cutoffKey }
+        if windowed.count >= 2 { return windowed.map { $0.1 } }
+        return Array(points.suffix(maxPoints)).map { $0.1 }
     }
 
     /// The Key-Metrics header's trailing label for the chosen detailed-graph window (Android twin).
@@ -1454,7 +1473,14 @@ struct LiquidTodayView: View {
                 .foregroundStyle(StrandPalette.textPrimary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-            LiquidTube(frac: frac ?? 0, tint: tint, height: 8, animated: false)
+            // A tile with no meaningful 0–100 fill (Weight is the only one) keeps a clear placeholder
+            // instead of a permanently empty tube beside filled ones — classic Today draws no bar there
+            // at all. Same equal-height idiom as the missing-sparkline branch below.
+            if let frac {
+                LiquidTube(frac: frac, tint: tint, height: 8, animated: false)
+            } else {
+                Color.clear.frame(height: 8)
+            }
             // #430 parity: DETAILED tiles grow the trend graph under the bar, tinted to the metric and
             // windowed to the editor's 2-day / 1-week / 2-week choice (the Android twin). A metric with no
             // windowed series keeps a clear placeholder of the same height so every tile in a detailed row
@@ -1505,11 +1531,16 @@ struct LiquidTodayView: View {
     private var lastWorkoutsSection: some View {
         VStack(spacing: NoopMetrics.space2) {
             sectionHead("LAST WORKOUTS", trailing: "\(workouts.count) total")
-            if let w = workouts.first {
-                // Opens THIS workout's detail directly as a sheet — not a push through the Workouts
-                // overview screen (see `workoutDetailTarget`'s doc comment).
-                Button { workoutDetailTarget = WorkoutDetailTarget(row: w) } label: { workoutCard(w) }
-                    .buttonStyle(LiquidPressStyle())
+            if workouts.isEmpty == false {
+                // Up to six, like classic Today (`TodayView.lastWorkoutsSection`) and the plural heading
+                // promise — this rendered `workouts.first` alone, so "1998 total" stood over one card.
+                // `WorkoutRow` isn't Identifiable, hence the offset key.
+                ForEach(Array(workouts.prefix(6).enumerated()), id: \.offset) { _, w in
+                    // Opens THIS workout's detail directly as a sheet — not a push through the Workouts
+                    // overview screen (see `workoutDetailTarget`'s doc comment).
+                    Button { workoutDetailTarget = WorkoutDetailTarget(row: w) } label: { workoutCard(w) }
+                        .buttonStyle(LiquidPressStyle())
+                }
             } else {
                 card {
                     Text("No workouts yet")
