@@ -1,8 +1,8 @@
 """Tests for whoop_spot_hrv.py — the spot-HRV DSP, on synthetic signals with KNOWN beats.
 
 These test the algorithm (peak detection, RR, RMSSD, glitch rejection) against signals whose ground truth
-we control — not strap frames. Stdlib only; run with `pytest test_whoop_spot_hrv.py` or
-`python3 -m pytest test_whoop_spot_hrv.py`.
+we control — not strap frames. Stdlib only; runs under either `python3 -m unittest` (the runner the
+README documents and the only one in requirements.txt) or pytest.
 """
 import math
 
@@ -77,6 +77,42 @@ def test_find_peaks_counts_beats():
     assert 9 <= len(pk) <= 11, len(pk)
 
 
+def test_find_peaks_enforces_min_dist_keeping_the_taller():
+    """Two maxima closer together than min_dist: only the taller survives.
+
+    Guards the spacing filter specifically. `test_find_peaks_counts_beats` above does not — its beats
+    are already well separated, so deleting the min_dist check entirely leaves it passing.
+    """
+    v = [0.0, 5.0, 0.0, 9.0, 0.0]           # maxima at 1 (5) and 3 (9), two samples apart
+    assert H.find_peaks(v, min_dist=3, min_prom=0.0) == [3]
+    assert H.find_peaks(v, min_dist=2, min_prom=0.0) == [1, 3]
+
+
+def test_find_peaks_enforces_min_prom():
+    """A local maximum below min_prom is not a peak.
+
+    Guards the prominence gate specifically — deleting it also leaves the beat-count test passing.
+    """
+    v = [0.0, 2.0, 0.0, 9.0, 0.0]
+    assert H.find_peaks(v, min_dist=1, min_prom=5.0) == [3]
+    assert H.find_peaks(v, min_dist=1, min_prom=1.0) == [1, 3]
+    # Strict `>`: a maximum sitting exactly ON the threshold is rejected. The docstring used to say
+    # `>= min_prom`, which is the opposite; the code was right and the doc has been corrected.
+    assert H.find_peaks([0.0, 5.0, 0.0], min_dist=1, min_prom=5.0) == []
+    assert H.find_peaks([0.0, 5.0, 0.0], min_dist=1, min_prom=4.9) == [1]
+
+
+def test_find_peaks_plateau_yields_one_index():
+    """A flat plateau is one peak, not one per sample.
+
+    The neighbour test is asymmetric on purpose (`> left`, `>= right`). Symmetric `>=` would emit a
+    duplicate for every plateau sample and inflate the beat count; symmetric `>` would drop plateaus
+    altogether. Nothing pinned that before, and the docstring described it wrongly as `>= neighbours`.
+    """
+    assert H.find_peaks([0.0, 5.0, 5.0, 0.0], min_dist=1, min_prom=0.0) == [1]
+    assert H.find_peaks([0.0, 5.0, 5.0, 5.0, 0.0], min_dist=1, min_prom=0.0) == [1]
+
+
 def test_spot_hrv_returns_none_on_too_few_samples():
     # too few samples → None (no false HRV)
     assert H.spot_hrv([0, 1, 2], [1.0, 2.0, 1.0], 24.0) is None
@@ -88,3 +124,16 @@ def test_spot_hrv_returns_none_on_flat_signal():
     t = [i / fs for i in range(120)]
     v = [50000.0] * 120
     assert H.spot_hrv(t, v, fs) is None
+
+
+# ── unittest collection ───────────────────────────────────────────────────────────────────────────
+# Same hook, and the same reason, as test_whoop_activity.py: this module is pytest-style (bare
+# `def test_*`, no unittest.TestCase), so `python3 -m unittest` collected NOTHING from it and exited 0
+# — which is indistinguishable from passing. All eight take no fixtures, so wrapping them is enough.
+def load_tests(loader, tests, pattern):    # noqa: ARG001 — unittest protocol signature
+    import unittest
+    suite = unittest.TestSuite(tests)
+    for name, fn in sorted(globals().items()):
+        if name.startswith("test_") and callable(fn):
+            suite.addTest(unittest.FunctionTestCase(fn, description=name))
+    return suite

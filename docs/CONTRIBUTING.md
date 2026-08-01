@@ -105,7 +105,7 @@ Strand/
 | Colors, fonts, motion, cards, charts | `Packages/StrandDesign` | No external UI deps; bridges AppKit/UIKit. |
 | CoreBluetooth, bonding, offload, live state | `Strand/BLE`, `Strand/Collect` | macOS-app layer — wraps the pure packages. |
 | A screen, sidebar item, menu-bar UI, automation | `Strand/Screens`, `Strand/App`, `Strand/System` | App layer. |
-| Capturing strap frames on Linux for protocol RE | `tools/linux-capture` | Python/bleak capture → `whoop-decode`; no Mac/CoreBluetooth. See its [README](../tools/linux-capture/README.md). |
+| Capturing strap frames on Linux for protocol RE | `Tools/linux-capture` | Python/bleak capture → `whoop-decode`; no Mac/CoreBluetooth. See its [README](../Tools/linux-capture/README.md). |
 
 **Rule of thumb:** the more "wire-level" or "math-level" a change is, the deeper into `Packages/` it
 should live, and the more it should be covered by a `swift test` suite that runs without an app, a
@@ -172,12 +172,12 @@ cd Packages/WhoopProtocol
 swift build && swift test                 # decoder + its tests, on Linux
 swift build --product whoop-decode        # the decode CLI → .build/debug/whoop-decode
 
-cd ../../tools/linux-capture
+cd ../../Tools/linux-capture
 python3 -m unittest -v                     # framing/reassembly tests (stdlib only, no bleak)
 ```
 
 Capturing from a real strap on Linux is documented in
-[`../tools/linux-capture/README.md`](../tools/linux-capture/README.md).
+[`../Tools/linux-capture/README.md`](../Tools/linux-capture/README.md).
 
 ### macOS app
 

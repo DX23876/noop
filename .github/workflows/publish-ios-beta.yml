@@ -21,6 +21,11 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: macos-26
     timeout-minutes: 60
+    # Exposed so the macOS and finalize jobs below attach to the SAME release without re-deriving the
+    # tag from the input (one place to be wrong is better than three).
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      version: ${{ steps.meta.outputs.version }}
 
     steps:
       - name: Checkout main
@@ -30,6 +35,7 @@ jobs:
           fetch-depth: 0
 
       - name: Validate release metadata
+        id: meta
         env:
           VERSION: ${{ inputs.version }}
         run: |
@@ -61,6 +67,10 @@ jobs:
           echo "TAG=v${VERSION}-dx-beta" >> "$GITHUB_ENV"
           echo "NOTES=$NOTES" >> "$GITHUB_ENV"
           echo "IPA=NOOP-ios-unsigned-v${VERSION}-dx-beta.ipa" >> "$GITHUB_ENV"
+
+          # Same two values as job outputs — $GITHUB_ENV is per-job and invisible to the jobs below.
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v${VERSION}-dx-beta" >> "$GITHUB_OUTPUT"
 
       - name: Select Xcode
         run: |
@@ -196,3 +206,90 @@ jobs:
           git add altstore-source.json
           git diff --cached --quiet || git commit -m "Release ${VERSION} DX Beta: publish sideload source"
           git push origin HEAD:main
+
+  # 9.3.0 DX Beta onwards the release carries a macOS build too — 9.2.1/9.2.2 were iOS-only, which left
+  # Mac users with no artifact at all for a fork whose reference platform IS macOS. Runs AFTER `publish`
+  # so the release already exists and this job only has to upload into it. macos-15 is deliberate: the
+  # macOS app targets macOS 13+ and needs no iOS 26 SDK, so it does not have to wait for a macos-26
+  # runner. Steps mirror fork-release.yml's proven macOS job rather than inventing a second recipe.
+  macos:
+    name: Build and attach macOS app
+    needs: publish
+    runs-on: macos-15
+    timeout-minutes: 40
+    env:
+      TAG: ${{ needs.publish.outputs.tag }}
+      VER: ${{ needs.publish.outputs.version }}
+
+    steps:
+      - name: Checkout the released commit
+        uses: actions/checkout@v5
+        with:
+          # The exact commit the release was tagged at, NOT `main`: `publish` pushes an
+          # altstore-source.json commit, so `main` has already moved on by the time this runs.
+          ref: ${{ github.sha }}
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build NOOP.app (macOS, unsigned, universal)
+        # #51: 'platform=macOS' on an Apple-Silicon runner resolves to the host arch and thins the binary
+        # to arm64-only (project.yml's ONLY_ACTIVE_ARCH: NO is set only under configs.Release, so a Debug
+        # build inherits the default YES). That shipped an arm64-only app that will not launch on Intel.
+        # The generic destination + explicit ARCHS/ONLY_ACTIVE_ARCH force a true universal build.
+        run: >-
+          xcodebuild -scheme Strand -configuration Debug
+          -destination 'generic/platform=macOS' ARCHS="x86_64 arm64" ONLY_ACTIVE_ARCH=NO
+          -derivedDataPath build/dd
+          CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+          build
+
+      - name: Verify universal binary
+        run: |
+          set -euo pipefail
+          APP=$(find build/dd/Build/Products -maxdepth 3 -name '*.app' -type d | head -1)
+          EXE=$(find "$APP/Contents/MacOS" -maxdepth 1 -type f ! -name '*.dylib' | head -1)
+          echo "archs: $(lipo -archs "$EXE")"
+          { lipo -archs "$EXE" | grep -qw x86_64 && lipo -archs "$EXE" | grep -qw arm64; } \
+            || { echo "::error::macOS binary is not universal (expected x86_64 + arm64)"; exit 1; }
+
+      - name: Package + attach
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          APP=$(find build/dd/Build/Products -maxdepth 3 -name '*.app' -type d | head -1)
+          test -n "$APP" || { echo "::error::.app not found"; exit 1; }
+          # #429: ad-hoc sign the BUNDLE so it has a stable per-build code identity. macOS 26 (Tahoe)
+          # will not bind a Bluetooth TCC grant to an UNSIGNED bundle, so users wedge at CBManagerState
+          # .unauthorized even after a fresh `tccutil reset` + approve. `--sign -` gives a real
+          # cdhash-based designated requirement TCC can grant to. No --entitlements / --options runtime:
+          # the app stays non-sandboxed so Bluetooth goes through plain TCC + the Info.plist usage string.
+          codesign --force --deep --sign - "$APP"
+          ZIP="NOOP-macos-v${VER}-dx-beta.zip"
+          ditto -c -k --keepParent "$APP" "$ZIP"
+          gh release upload "$TAG" "$ZIP" --repo "$GITHUB_REPOSITORY" --clobber
+          echo "Attached $ZIP ($(du -h "$ZIP" | cut -f1))"
+
+  # `publish` creates the release as a PRERELEASE so a half-uploaded release is never the newest thing
+  # users see. GitHub's releases/latest EXCLUDES prereleases, and the in-app update check reads exactly
+  # that endpoint — so a release left as a prerelease is invisible to every installed app. Flip it only
+  # once BOTH artifacts are attached.
+  finalize:
+    name: Mark the release latest
+    needs: [publish, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Promote out of prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.publish.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --prerelease=false --latest
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --json name,isPrerelease,isLatest,assets \
+            --jq '"\(.name) prerelease=\(.isPrerelease) latest=\(.isLatest) assets=\([.assets[].name]|join(", "))"'

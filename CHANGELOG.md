@@ -3216,7 +3216,7 @@ killed standard-0x2A37 live HR).
   rate as ground-truth — to a JSON file, with Export / Reveal actions. Read-only on the strap, off by
   default, and never touches WHOOP 4.0. This is how 5/MG owners can contribute the captures needed to
   decode recovery / strain / sleep.
-- **Dev tooling:** a headless Linux capture workbench (`tools/linux-capture/`, Python + bleak) and a
+- **Dev tooling:** a headless Linux capture workbench (`Tools/linux-capture/`, Python + bleak) and a
   `whoop-decode` CLI that decodes captures with the same `WhoopProtocol` decoder the apps ship — no
   second decoder to drift. Plus hardware-verified WHOOP 5.0 bonding/session notes in
   `docs/BLE_REVERSE_ENGINEERING.md` that confirm the v1.5 just-works-bond approach.

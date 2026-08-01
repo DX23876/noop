@@ -23,10 +23,14 @@ class HeaderAliasTests(unittest.TestCase):
         self.assertEqual(cg._norm_header("Herzfrequenzvariabilität (ms)"), "heart_rate_variability_ms")
         self.assertEqual(cg._norm_header("Hauttemperatur (Celsius)"), "skin_temp_celsius")
 
-    def test_english_header_passes_through(self):
+    def test_english_headers_map_to_canonical(self):
+        # Official English exports use title-case headers; without aliases, ground-truth fields
+        # like blood_oxygen_pct were invisible to correlate_ground_truth (#103 SpO₂ work).
         self.assertEqual(cg._norm_header("Heart rate variability (ms)"),
-                         "heart rate variability (ms)")  # English CSV already uses canonical-ish; the
-        # importer's own English path keys on these — the alias table only needs the localized forms.
+                         "heart_rate_variability_ms")
+        self.assertEqual(cg._norm_header("Blood oxygen %"), "blood_oxygen_pct")
+        self.assertEqual(cg._norm_header("Skin temp (celsius)"), "skin_temp_celsius")
+        self.assertEqual(cg._norm_header("Cycle start time"), "cycle_start_time")
 
     def test_bom_stripped(self):
         self.assertEqual(cg._norm_header("﻿Startzeit des Zyklus"), "cycle_start_time")
@@ -49,6 +53,20 @@ class CsvLoadingTests(unittest.TestCase):
         truth = cg.truth_values(rows)
         self.assertEqual(sorted(truth["hrv_ms"]), [92.0, 101.0])
         self.assertEqual(sorted(truth["resting_hr_bpm"]), [53.0, 54.0])
+
+    def test_load_english_cycles_spo2(self):
+        cycles = (
+            "Cycle start time,Blood oxygen %,Skin temp (celsius)\n"
+            "2026-07-15 23:25:58,95.82,34.24\n"
+            "2026-07-14 23:51:24,97.29,34.40\n"
+        )
+        folder = tempfile.mkdtemp()
+        with open(os.path.join(folder, "physiological_cycles.csv"), "w") as f:
+            f.write(cycles)
+        rows = cg.load_ground_truth(folder)
+        truth = cg.truth_values(rows)
+        self.assertEqual(sorted(truth["spo2_pct"]), [95.82, 97.29])
+        self.assertEqual(sorted(truth["skin_temp_c"]), [34.24, 34.40])
 
     def test_merges_cycles_and_sleep_on_cycle_start(self):
         cycles = "Startzeit des Zyklus,Herzfrequenzvariabilität (ms)\n2026-06-20 00:24:31,92\n"

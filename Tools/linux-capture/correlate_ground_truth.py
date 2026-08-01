@@ -42,6 +42,20 @@ SLEEP_FILES = {"sleeps.csv", "schlaf.csv", "sueno.csv", "sueños.csv"}
 # (German + Spanish subset that covers the physiologic/sleep numeric fields we correlate on). English
 # headers pass through unchanged, so an English export needs no alias.
 HEADER_ALIASES = {
+    # English (official app.whoop.com export — headers are title case; we lowercase first)
+    "cycle start time": "cycle_start_time",
+    "cycle end time": "cycle_end_time",
+    "recovery score %": "recovery_score_pct",
+    "resting heart rate (bpm)": "resting_heart_rate_bpm",
+    "heart rate variability (ms)": "heart_rate_variability_ms",
+    "skin temp (celsius)": "skin_temp_celsius",
+    "blood oxygen %": "blood_oxygen_pct",
+    "respiratory rate (rpm)": "respiratory_rate_rpm",
+    "asleep duration (min)": "asleep_duration_min",
+    "deep (sws) duration (min)": "deep_sws_duration_min",
+    "rem duration (min)": "rem_duration_min",
+    "sleep onset": "sleep_onset",
+    "wake onset": "wake_onset",
     # German
     "erholungswert %": "recovery_score_pct",
     "ruheherzfrequenz (schläge pro minute)": "resting_heart_rate_bpm",

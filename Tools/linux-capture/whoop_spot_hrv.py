@@ -52,7 +52,15 @@ def detrend(v, win):
 
 
 def find_peaks(v, min_dist, min_prom):
-    """Local maxima >= neighbours and >= min_prom, spaced >= min_dist (keep the taller on conflict)."""
+    """Local maxima strictly above min_prom, spaced >= min_dist (keep the taller on conflict).
+
+    The neighbour test is deliberately ASYMMETRIC — `v[i] > v[i-1] and v[i] >= v[i+1]` — so a flat
+    plateau yields ONE index (its left edge) instead of one per sample. Making it symmetric `>=`
+    would emit a duplicate peak for every plateau sample; making it symmetric `>` would drop
+    plateaus entirely. Both are pinned by tests.
+
+    `min_prom` is a strict `>`: a maximum sitting exactly ON the threshold is rejected.
+    """
     cand = [i for i in range(1, len(v) - 1) if v[i] > v[i - 1] and v[i] >= v[i + 1] and v[i] > min_prom]
     cand.sort(key=lambda i: -v[i])
     kept = []

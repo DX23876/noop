@@ -1,25 +1,25 @@
-# The Python test suites under tools/, which nothing ran.
+# The Python test suites under Tools/, which nothing ran.
 #
-# `tools/linux-capture` carries 212 tests across 8 files — the frame decoder, the HCI extractor, the
+# `Tools/linux-capture` carries 212 tests across 8 files — the frame decoder, the HCI extractor, the
 # activity and sync decoders, the spot-HRV path, and the SpO2 promote gate that #103 is waiting on. Every
 # one of them only ever executed when a contributor remembered to, which meant a decoder could regress and
 # the suite that would have caught it stayed green by never being run.
 #
 # Cheap to run: pure stdlib `unittest`, no dependencies, no fixtures to fetch, ubuntu rather than macOS.
-# Path-filtered so it only fires when tools/ changes.
+# Path-filtered so it only fires when the suites it runs change.
 name: Tools Python CI
 
 on:
   pull_request:
     branches: [main]
     paths:
-      - 'tools/**'
+      - 'Tools/linux-capture/**'
       - 'Tools/*.py'
       - '.github/workflows/tools-python.yml'
   push:
     branches: [main]
     paths:
-      - 'tools/**'
+      - 'Tools/linux-capture/**'
       - 'Tools/*.py'
       - '.github/workflows/tools-python.yml'
   workflow_dispatch:
@@ -47,7 +47,7 @@ jobs:
       # wrong working-directory or a renamed pattern would turn this job green while running no tests at
       # all. Checking a floor makes that fail loudly instead. Raise the floor when suites are added; do
       # not lower it to make a red run pass.
-      - name: Run tools/linux-capture tests
+      - name: Run Tools/linux-capture tests
         run: |
           set -o pipefail   # GitHub's default shell is `bash -e` WITHOUT pipefail: piping into tee
                             # would return tee's status and swallow a failing suite entirely.
@@ -58,7 +58,7 @@ jobs:
             echo "::error::expected at least 200 tests, collected ${ran:-0} — discovery is broken, not the suite"
             exit 1
           fi
-        working-directory: tools/linux-capture
+        working-directory: Tools/linux-capture
 
       # The Tools/ suites: the i18n audit that gates every PR's translations, and the What's New
       # generator (#878). Neither ran before — i18n-coverage.yml invokes `i18n_audit.py --ci` but never
