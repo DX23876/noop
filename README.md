@@ -7,7 +7,7 @@
 <p align="center"><b>Your WHOOP data, on your own devices, with a coach that remembers.</b></p>
 
 <p align="center">
-  <img alt="Current release" src="https://img.shields.io/badge/current%20beta-9.2.2%20DX%20Beta-C8902F?style=flat-square">
+  <img alt="Current release" src="https://img.shields.io/badge/current%20beta-9.3.0%20DX%20Beta-C8902F?style=flat-square">
   <img alt="Platforms" src="https://img.shields.io/badge/iOS%2017%2B%20%C2%B7%20macOS%2013%2B-234F9E?style=flat-square">
   <img alt="Straps" src="https://img.shields.io/badge/WHOOP-4.0%20%C2%B7%205.0%2FMG-234F9E?style=flat-square">
   <img alt="Privacy" src="https://img.shields.io/badge/no%20account%20%C2%B7%20no%20cloud-6B737B?style=flat-square">
@@ -80,20 +80,25 @@ beta that is signed only with the Apple ID you choose.
 The upstream base and the fork additions remain intentionally separated in code so upstream protocol,
 analytics and safety fixes can continue to be merged without rewriting the coaching layer.
 
-## Latest beta — 9.2.2 DX Beta
+## Latest beta — 9.3.0 DX Beta
 
-- **The Coach follows NOOP's selected language.** The same strict language contract now covers normal
-  chat, custom prompts, card reads, check-ins and proactive messages.
-- **Every fork-added Apple screen has caught up with upstream.** All 915 fork-specific strings ship in
-  English plus the complete eight-language Apple matrix.
-- **Compact-iPhone chat fixes.** The composer clears the floating navigation bar, and long answers stay
-  fully opaque while scrolling.
+Built on RyanBR's NOOP 9.3.0, with the Coach and its memory carried through the merge unchanged.
 
-Read the full [9.2.2 DX Beta notes](docs/releases/v9.2.2-dx-beta.md).
+- **Water and caffeine import themselves.** Log a drink in Apple Health and it appears in NOOP, in its
+  own row so it can never overwrite what you typed by hand. The Coach's caffeine logging writes to the
+  same place.
+- **Effort is measured more honestly.** Every heart-rate sample is weighted by its own gap, and a saved
+  workout is scored against your measured resting heart rate instead of a hardcoded 60. Expect Effort
+  numbers to move in either direction, including on past days.
+- **One place to customise Today.** Section order, Key Metrics and Your Cards moved out of three
+  separate sheets into a single editor with Cancel and Save. The Coach banner is an ordinary row in it.
+- **A packaged macOS build ships again**, universal and ad-hoc signed, alongside the unsigned iOS IPA.
+
+Read the full [9.3.0 DX Beta notes](docs/releases/v9.3.0-dx-beta.md).
 
 ## In development
 
-- **Android distribution.** The Android source is version-aligned with 9.2.2; a public Android beta
+- **Android distribution.** The Android source is version-aligned with 9.3.0; a public Android beta
   download will follow in a later rollout.
 - **More practical alert history.** The inbox will keep evolving around events that actually happened,
   rather than becoming a second copy of scheduled reminders.
@@ -114,18 +119,29 @@ https://raw.githubusercontent.com/DX23876/noop/main/altstore-source.json
 
 - **AltStore:** Browse → **+** → paste the source URL → add NOOP AI.
 - **SideStore:** Sources → **+ Add Source** → paste the same URL → install NOOP AI.
-- Prefer a direct file? Download `NOOP-ios-unsigned-v9.2.2-dx-beta.ipa` from the
-  [DX Beta prerelease](https://github.com/DX23876/noop/releases/tag/v9.2.2-dx-beta).
+- Prefer a direct file? Download `NOOP-ios-unsigned-v9.3.0-dx-beta.ipa` from the
+  [9.3.0 DX Beta release](https://github.com/DX23876/noop/releases/tag/v9.3.0-dx-beta).
 
 See [the iOS install guide](docs/IOS.md) for the free-Apple-ID limits, widget notes, and build-from-source
 instructions.
+
+### Mac — DX Beta
+
+From 9.3.0 the release carries a packaged macOS build: download
+`NOOP-macos-v9.3.0-dx-beta.zip` from the
+[9.3.0 DX Beta release](https://github.com/DX23876/noop/releases/tag/v9.3.0-dx-beta), unzip it, then
+**right-click → Open** the first time (it is ad-hoc signed, not notarised, so a double-click is blocked).
+
+The bundle is universal — Apple Silicon and Intel. Ad-hoc signing is what lets macOS bind the Bluetooth
+permission to the app; after an update macOS may ask you to re-approve Bluetooth, because the code
+identity changes with every build.
 
 ### Platform status
 
 | Platform | Status | Distribution |
 |---|---|---|
-| iOS / iPadOS | 9.2.2 DX Beta | AltStore, SideStore, or build from source |
-| macOS | Source build | Build with Xcode; a packaged beta follows separately |
+| iOS / iPadOS | 9.3.0 DX Beta | AltStore, SideStore, or build from source |
+| macOS | 9.3.0 DX Beta | Packaged `.zip` in the release, or build with Xcode |
 | Android | Distribution in progress | Source version aligned; public beta follows later |
 
 ## The NOOP foundation retained
