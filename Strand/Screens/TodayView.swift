@@ -37,23 +37,6 @@ private struct HeroRingRowWidthKey: PreferenceKey {
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
 }
 
-/// #829 follow-up: the Today HR chart's frame in the day-swipe gesture's coordinate space, published by a
-/// zero-impact background reader on the chart. The page-level day-swipe uses it as a MASK: a drag that
-/// STARTS inside this frame belongs to the chart's own pinch/pan/double-tap gestures, so a chart pan can
-/// never also flip the day underneath it. Both the gesture's locations and this frame are measured in the
-/// SAME named space, so plain rect containment is layout-direction safe (no leading/trailing or
-/// alignment-guide math to break under RTL). The frame is content-relative (the named space scrolls with
-/// the content), so scrolling never churns the preference; it only re-publishes on a real layout change.
-/// When the chart leaves the tree (the sparse-day empty card) no view emits, the value falls back to
-/// `.null`, and `.null.contains(_:)` is always false, so the mask disarms itself.
-private struct HRChartFrameKey: PreferenceKey {
-    static var defaultValue: CGRect = .null
-    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
-        let next = nextValue()
-        if !next.isNull { value = next }
-    }
-}
-
 // MARK: - Active-workout-in-progress indicator (Today)
 //
 // A "workout in progress" card the Today dashboard shows whenever a manual workout is active. Tapping it
@@ -328,11 +311,10 @@ struct TodayView: View {
     // shows NO activity icon. A lightweight on-device readout that rides alongside the @57 step counter.
     @State private var stepActivityClassToday: Int?
 
-    // Today's heart rate as 5-minute bucket means (midnight → now), for the 24h trend chart.
+    // Today's heart rate as 5-minute bucket means (midnight → now), drawn as the live-HR card's trace.
     @State private var hrPoints: [TrendPoint] = []
 
-    // The night's sleep session overlapping the HR window, shaded as a band on the HR chart and
-    // used to anchor the recovery marker at wake time (WHOOP-style Overview HR annotations).
+    // The night's sleep session overlapping the HR window. Feeds the sleep read-outs elsewhere on Today.
     @State private var sleepToday: CachedSleepSession?
 
     // TODAY's in-progress Effort (NOOP 0–100 axis), recomputed over the day's HR (local-midnight→now)
@@ -342,27 +324,11 @@ struct TodayView: View {
     // any navigated past day (those use the stored value).
     @State private var liveTodayStrain: Double?
 
-    // The HR chart's x-axis window. Today → midnight…now; a navigated PAST day → the full calendar
-    // day (midnight…next midnight) so a morning with no banked data reads as empty space rather than
-    // the axis silently starting at the first sample (#overview-hr gap clarity).
-    @State private var hrAxis: ClosedRange<Date>?
-
-    // #829 - the Today HR chart's pinch/drag ZOOM window. nil falls back to the full `hrAxis` day (the
-    // chart uses its xRange). Unlike the Deep Timeline, this never re-reads the DB: the day's 5-minute
-    // buckets are already loaded, so pinch/pan only narrows the visible x-domain over the points in hand,
-    // which keeps it cheap (no per-frame query) and never touches the read layer. A double-tap on the
-    // chart (or the Reset link below it) drops it back to nil. Cleared on day change / fresh load so a new
-    // day always opens at full scale, never inheriting the prior day's zoom. `zoomBounds: hrAxis` clamps
-    // it to the loaded day, and a non-nil bound also tells OverviewHRChart to keep full point resolution.
-    @State private var hrZoomDomain: ClosedRange<Date>?
-    /// Reduce Motion gates the Today HR reset animation (the pinch/pan frames are never animated).
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    // #829 follow-up: the HR chart's frame in the day-swipe coordinate space (see HRChartFrameKey). The
-    // day-swipe gesture skips any drag that STARTS inside it, giving the chart's pinch/pan/double-tap
-    // exclusive ownership of touches over the chart. `.null` (no chart on screen) contains nothing, so
-    // the swipe behaves exactly as before wherever the chart isn't.
-    @State private var hrChartFrame: CGRect = .null
+    // True while a finger (or the pointer) is scrubbing the live-HR thread, plus the moment the last
+    // scrub let go. The day-swipe consults both so a scrub along the curve can never also flip the day
+    // (see `daySwipeGesture`) — the same suppression `LiquidTodayView` uses for the same shared card.
+    @State private var hrScrubbing = false
+    @State private var hrScrubEndedAt = Date.distantPast
 
     // Day navigation, 0 = today (the logical day), 1 = yesterday, … The DayNavBar chevrons and date
     // jump drive this, and every day-scoped read-out (hero synthesis, the Key-Metrics tiles, the HR
@@ -1083,11 +1049,10 @@ struct TodayView: View {
     private static let dayNavHints = ["Swipe", "Tap"]
     #endif
 
-    /// #829 follow-up: the named coordinate space the day-swipe drag and the HR-chart frame reader share,
-    /// declared on the scaffold's content stack (the view the swipe gesture is attached to), so the mask's
-    /// containment check compares like with like. Content-relative, so it is scroll-position independent.
-    /// OUTSIDE the iOS conditional: the `.coordinateSpace` modifier and the chart's frame reader compile
-    /// on macOS too (only iOS consults the mask), so the constant must exist on both platforms.
+    /// The named coordinate space the day-swipe drag measures in, declared on the scaffold's content stack
+    /// (the view the swipe gesture is attached to). Content-relative, so it is scroll-position independent.
+    /// OUTSIDE the iOS conditional: the `.coordinateSpace` modifier compiles on macOS too (only iOS attaches
+    /// the swipe), so the constant must exist on both platforms.
     private static let daySwipeSpace = "todayDaySwipeSpace"
     #if os(iOS)
 
@@ -1095,15 +1060,17 @@ struct TodayView: View {
     /// day, swipe left to the older one. Gated so it only fires on a clearly-horizontal drag past a small
     /// threshold (vertical scrolling keeps winning), and clamped to `0 ... earliestDayOffset` so it can't
     /// reach a future day or step older than the earliest banked day. Mirrors the chevron bounds exactly.
-    /// #829 follow-up: measured in the named `daySwipeSpace` and MASKED over the HR chart, a drag that
-    /// starts inside the chart's frame belongs to the chart's pinch/pan/double-tap, never a day flip.
+    /// The live-HR thread's scrub wins over the swipe: `hrScrubbing` / `hrScrubEndedAt` suppress a day
+    /// flip while a finger is on the curve and for a beat after it lifts.
     private var daySwipeGesture: some Gesture {
         DragGesture(minimumDistance: 24, coordinateSpace: .named(Self.daySwipeSpace))
             .onEnded { value in
-                // #829 follow-up: the chart owns every touch that starts within its frame (its pan is the
-                // same horizontal drag). startLocation and hrChartFrame share the daySwipeSpace coordinate
-                // space, so this containment check is layout-direction safe with no RTL special-casing.
-                guard !hrChartFrame.contains(value.startLocation) else { return }
+                // The HR thread's scrub recogniser (minimumDistance 2) engages long before this 24pt one
+                // ends, so by the time we get here `hrScrubbing` is already true for a scrub. The short
+                // grace window covers the release, where the scrub has just cleared the flag but this
+                // gesture's own onEnded is still in flight. (Ported from LiquidTodayView.daySwipeGesture,
+                // which guards the same shared card.)
+                guard !hrScrubbing, Date().timeIntervalSince(hrScrubEndedAt) > 0.4 else { return }
                 let dx = value.translation.width
                 let dy = value.translation.height
                 // Horizontal-dominant and far enough to count as a deliberate day flip.
@@ -1415,11 +1382,9 @@ struct TodayView: View {
             // the HR chart's frame (see daySwipeGesture), the chart's own pinch/pan owns that region.
             .gesture(daySwipeGesture)
             #endif
-            // #829 follow-up: the shared space the day-swipe drag + the HR-chart frame reader both measure
-            // in (see daySwipeSpace). Declared on BOTH platforms so the chart's `.named` frame lookup is
-            // always defined; only iOS reads it (the swipe is iOS-only, macOS never consults the mask).
+            // The space the day-swipe drag measures in (see daySwipeSpace). Declared on BOTH platforms so
+            // the name is always defined; only iOS reads it (the swipe is iOS-only).
             .coordinateSpace(name: Self.daySwipeSpace)
-            .onPreferenceChange(HRChartFrameKey.self) { hrChartFrame = $0 }
             // #755: mirror `LiveState.backfilling` into `liveBackfillingFlag` WITHOUT TodayView observing
             // LiveState (which would re-flood `body` ~1 Hz, see the top-of-type note). The bridge is a
             // zero-size leaf in `.background` (no layout impact) that owns the observation and pushes only
@@ -3113,72 +3078,39 @@ struct TodayView: View {
 
     // MARK: HEART RATE, today's continuous HR, off the strap's own ~1Hz history.
 
-    /// A full-width 24-hour heart-rate trend, plotted from 5-minute bucket means of the strap's
-    /// `hrSample` history (offloaded even while the app was closed, so the day reads continuously).
-    /// When there are fewer than two buckets it shows an explicit calibrating/empty card rather than
-    /// vanishing , a sparse day used to render NOTHING, which read as a frozen graph (#863). Mirrored on
-    /// Android (TodayScreen.kt HeartRateTrendCard).
+    /// The day's heart rate as the SAME live-HR card Liquid Today draws (`LiquidLiveHR`): the current bpm
+    /// over a scrubbable 5-minute trace of the strap's `hrSample` history (offloaded even while the app was
+    /// closed, so the day reads continuously), with Min/Avg/Max under it. Classic used to draw its own
+    /// larger `OverviewHRChart` here with a pinch-zoom (#829) and sleep / workout / Charge / Effort marker
+    /// layers; that whole-day reading now lives in ONE place, the Deep Timeline behind `fullDayLink` and a
+    /// tap on the bpm read-out, so the two Today screens no longer answer "where is my heart rate" two
+    /// different ways. When there are fewer than two buckets it shows an explicit calibrating/empty card
+    /// rather than vanishing , a sparse day used to render NOTHING, which read as a frozen graph (#863).
+    /// Mirrored on Android (TodayScreen.kt HeartRateTrendCard), which keeps its own trend chart.
     @ViewBuilder
     private var heartRateTrendSection: some View {
         if hrPoints.count > 1 {
-            let v = hrPoints.map(\.value)
             VStack(alignment: .leading, spacing: NoopMetrics.gap) {
                 SectionHeader("Heart Rate", overline: "\(selectedDayOverline)")
-                // The current LIVE bpm, isolated so its ~1 Hz tick re-renders only this row, never the
-                // chart below (see the `LiveState` note at the top of this type). Today only — a "live"
-                // number would be a false statement while looking at a past day's banked trend.
-                if selectedDayOffset == 0 {
-                    HStack {
-                        Spacer()
-                        TodayLiveHRBadge()
-                    }
+                NoopCard(tint: StrandPalette.metricRose) {
+                    // A leaf that owns its own LiveState, so the ~1 Hz HR tick re-renders only this card,
+                    // never the rest of Today (see the `LiveState` note at the top of this type).
+                    LiquidLiveHR(tint: StrandPalette.metricRose,
+                                 fallback: hrPoints.map(\.value),
+                                 fallbackTimes: hrPoints.map(\.date),
+                                 // Points in hand means the load has settled, which is exactly the gate
+                                 // Liquid's `dataLoaded` expresses; the thread itself still stands down
+                                 // under Reduce Motion / Low Power.
+                                 animated: true,
+                                 // Today only — a "live" number would be a false statement while looking
+                                 // at a past day's banked trend (the gate the old live badge carried).
+                                 showsLive: selectedDayOffset == 0,
+                                 headerRoute: .fullDayChart,
+                                 onScrubChange: { active in
+                                     hrScrubbing = active
+                                     if !active { hrScrubEndedAt = Date() }
+                                 })
                 }
-                ChartCard(
-                    title: "Beats per minute",
-                    subtitle: selectedDayOffset == 0 ? String(localized: "5-minute average · since midnight") : String(localized: "5-minute average · selected day"),
-                    trailing: v.last.map { String(localized: "\(Int($0.rounded())) bpm") },
-                    tint: StrandPalette.metricRose
-                ) {
-                    OverviewHRChart(
-                        points: hrPoints,
-                        sleep: sleepSpan,
-                        workouts: workoutSpans,
-                        recovery: recoveryMarker,
-                        effort: effortMarker,
-                        gradient: Gradient(colors: [StrandPalette.metricRose.opacity(0.55), StrandPalette.metricRose]),
-                        valueRange: hrRange(v),
-                        xRange: hrAxis,
-                        height: NoopMetrics.chartHeight,
-                        // #829 - pinch/drag zoom over the loaded day. The bound window narrows the visible
-                        // x-domain only (no DB re-read); zoomBounds clamps it to the loaded day and keeps the
-                        // points at full resolution while zoomed.
-                        zoomDomain: $hrZoomDomain,
-                        zoomBounds: hrAxis,
-                        valueFormat: { String(localized: "\(Int($0.rounded())) bpm") },
-                        dateFormat: { Self.hrTimeFmt.string(from: $0) }
-                    )
-                    // #829 follow-up: publish the chart's frame (in the shared day-swipe space) so the
-                    // page-level day-swipe can mask itself over the chart, giving the pinch/pan/double-tap
-                    // exclusive ownership of touches that start here. Zero-impact reader: a clear
-                    // background adds no visual and no intrinsic size, and the frame is content-relative,
-                    // so scrolling never re-publishes it (mirrors the HeroRingRowWidthKey pattern).
-                    .background(
-                        GeometryReader { geo in
-                            Color.clear.preference(key: HRChartFrameKey.self,
-                                                   value: geo.frame(in: .named(Self.daySwipeSpace)))
-                        }
-                    )
-                } footer: {
-                    ChartFooter([
-                        ("Min", "\(Int((v.min() ?? 0).rounded()))"),
-                        ("Avg", "\(Int((v.reduce(0, +) / Double(v.count)).rounded()))"),
-                        ("Max", "\(Int((v.max() ?? 0).rounded()))"),
-                    ])
-                }
-                // #829 - pinch/drag hint + Reset, OUTSIDE the card (the card force-fits its chart() closure
-                // to chartHeight, so an in-card hint would be squashed; the Deep Timeline places its hint
-                // outside the card for the same reason).
-                hrZoomHint
                 fullDayLink
             }
         } else {
@@ -3216,48 +3148,13 @@ struct TodayView: View {
         }
     }
 
-    /// #829 - the affordance row under the Today HR chart: teaches pinch/drag, and (once zoomed) shows a
-    /// Reset link beside it that mirrors the chart's own double-tap reset. Decorative icon hidden from
-    /// VoiceOver; the Reset button stays a real focusable control. Only the wording differs by platform
-    /// (macOS has drag-pan + double-tap here, no pinch).
-    @ViewBuilder private var hrZoomHint: some View {
-        HStack(spacing: NoopMetrics.space2) {
-            Image(systemName: hrZoomDomain == nil
-                  ? "arrow.up.left.and.arrow.down.right"
-                  : "arrow.down.right.and.arrow.up.left")
-                .font(StrandFont.footnote.weight(.semibold))
-                .accessibilityHidden(true)
-            #if os(macOS)
-            Text(hrZoomDomain == nil ? "Drag to pan · double-tap to reset" : "Zoomed in · drag to pan")
-            #else
-            Text(hrZoomDomain == nil ? "Pinch to zoom · drag to pan" : "Zoomed in · drag to pan")
-            #endif
-            Spacer()
-            if hrZoomDomain != nil {
-                Button("Reset") { resetHrZoom() }
-                    .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.accent)
-                    .buttonStyle(.plain)
-            }
-        }
-        .font(StrandFont.footnote)
-        .foregroundStyle(StrandPalette.textTertiary)
-        .padding(.top, NoopMetrics.space1 / 2)
-    }
-
-    /// Drop the Today HR zoom back to the full day, snapping when Reduce Motion is on (#829).
-    private func resetHrZoom() {
-        withAnimation(NoopMotion.gated(StrandMotion.interactive, reduced: reduceMotion)) {
-            hrZoomDomain = nil
-        }
-    }
-
     /// One-tap route into the Deep Timeline ("Ganzer Tag" / full-day view), the twin of Liquid Today's
-    /// "Full day" link under its own HR card. A discrete row rather than wrapping the whole `ChartCard` in
-    /// a `NavigationLink` — the chart already owns pinch/pan/double-tap over that whole area, and a
-    /// card-wide link would swallow those gestures as taps (same reasoning `LiquidTodayView.heartRateSection`
-    /// documents for its own footer link). `TabRoute.fullDayChart` always opens on today, with its own
-    /// day navigation, regardless of which day this Today screen currently has selected.
+    /// "Full day" link under its own HR card, and the visible partner of the card's own linked read-out.
+    /// A discrete row rather than wrapping the whole card in a `NavigationLink` — the thread inside owns a
+    /// scrub drag over that area, and a card-wide link would swallow it as a tap (the same reasoning
+    /// `LiquidTodayView.heartRateSection` documents for its own footer link). `TabRoute.fullDayChart`
+    /// always opens on today, with its own day navigation, regardless of which day this Today screen
+    /// currently has selected.
     private var fullDayLink: some View {
         NavigationLink(value: TabRoute.fullDayChart) {
             HStack(spacing: 4) {
@@ -3270,92 +3167,6 @@ struct TodayView: View {
         }
         .buttonStyle(.plain)
         .accessibilityHint("Opens the full-day heart rate timeline")
-    }
-
-    /// #829 - keep a Today HR zoom window valid as the loaded axis changes across reloads. Pure +
-    /// unit-testable so the rule can't drift. nil zoom stays nil. When the day's START moves (a day step =
-    /// a genuinely different day), the zoom is dropped (nil) so the new day opens at full scale. When only
-    /// the END extended on the SAME day (today's window growing toward `now`), the existing zoom is kept but
-    /// re-clamped into the grown bounds preserving its span, so a live refresh never yanks the user out of
-    /// their zoom and the window can never sit outside the day. `oldAxis == nil` (first load) keeps the zoom
-    /// re-clamped into the new bounds. Reuses `OverviewHRChart.panned(deltaSeconds: 0)` as the pure clamp.
-    static func reclampHrZoom(_ zoom: ClosedRange<Date>?,
-                              oldAxis: ClosedRange<Date>?,
-                              newAxis: ClosedRange<Date>) -> ClosedRange<Date>? {
-        guard let zoom else { return nil }
-        // A moved start means we stepped to a different day, so open it un-zoomed.
-        if let oldAxis, oldAxis.lowerBound != newAxis.lowerBound { return nil }
-        // Same day (or first load): re-clamp the kept window into the current bounds, span preserved.
-        return OverviewHRChart.panned(zoom, deltaSeconds: 0, bounds: newAxis)
-    }
-
-    /// Padded HR axis range so the line never sits flush against an edge (mirrors MetricExplorer.valueRange).
-    private func hrRange(_ v: [Double]) -> ClosedRange<Double> {
-        guard let lo = v.min(), let hi = v.max() else { return 40...120 }
-        if hi <= lo { return (lo - 5)...(hi + 5) }
-        let span = hi - lo
-        return (lo - span * 0.12)...(hi + span * 0.12)
-    }
-
-    // MARK: Overview HR markers (sleep band · workout glyphs · Charge / Effort)
-
-    /// The HR chart's x-window, derived from the loaded points (used to scope workout glyphs).
-    private var hrWindow: ClosedRange<Date>? {
-        guard let lo = hrPoints.first?.date, let hi = hrPoints.last?.date, lo < hi else { return nil }
-        return lo...hi
-    }
-
-    /// "H:MM" for a duration in seconds (e.g. a 6h06m night → "6:06").
-    private func hoursMinutes(_ seconds: Int) -> String {
-        let h = max(0, seconds) / 3600, m = (max(0, seconds) % 3600) / 60
-        return "\(h):\(String(format: "%02d", m))"
-    }
-
-    /// Last night's sleep as a shaded band, labelled with its duration.
-    private var sleepSpan: OverviewHRChart.SleepSpan? {
-        guard let s = sleepToday else { return nil }
-        // Use the EFFECTIVE onset so a hand-corrected bedtime shows the same band/duration here as on
-        // the Sleep tab (not the detected onset). (#318)
-        return .init(
-            start: Date(timeIntervalSince1970: TimeInterval(s.effectiveStartTs)),
-            end: Date(timeIntervalSince1970: TimeInterval(s.endTs)),
-            label: hoursMinutes(s.endTs - s.effectiveStartTs)
-        )
-    }
-
-    /// Each workout overlapping the HR window, as a sport glyph anchored at its HR peak.
-    private var workoutSpans: [OverviewHRChart.WorkoutSpan] {
-        guard let win = hrWindow else { return [] }
-        return workouts.compactMap { w in
-            let start = Date(timeIntervalSince1970: TimeInterval(w.startTs))
-            let end = Date(timeIntervalSince1970: TimeInterval(w.endTs))
-            guard end >= win.lowerBound, start <= win.upperBound else { return nil }
-            return .init(start: start, end: end, symbol: sportSymbol(w.sport))
-        }
-    }
-
-    /// "Charge" marker (NOOP's name for recovery) at wake time (sleep end), else at the window start.
-    /// Hidden while calibrating.
-    private var recoveryMarker: OverviewHRChart.EdgeMarker? {
-        guard let rec = displayDay?.recovery else { return nil }
-        let at = sleepToday.map { Date(timeIntervalSince1970: TimeInterval($0.endTs)) }
-            ?? hrPoints.first?.date
-        guard let date = at else { return nil }
-        return .init(date: date, label: String(localized: "\(Int(rec.rounded()))% Charge"),
-                     color: StrandPalette.recoveryColor(rec), alignment: .leading)
-    }
-
-    /// "Effort" marker pinned to the right edge (latest HR sample). Routed through the SAME formatter
-    /// as the Effort tile (`UnitFormatter.effortDisplay`) so it honours the 0–100 / WHOOP-0–21 scale
-    /// preference (#268) and reads identically, the stored strain is on the 0–100 axis, so a morning
-    /// "21.2" is 21.2-of-100, not WHOOP's near-max 21-of-21.
-    private var effortMarker: OverviewHRChart.EdgeMarker? {
-        // #1001: the resolved Effort, not the daily row. Reading `displayDay.strain` here put the badge a
-        // whole active morning behind the hero ring, which resolves through the same `effortStrain`.
-        guard let strain = effortStrain(displayDay), let date = hrPoints.last?.date else { return nil }
-        return .init(date: date,
-                     label: String(localized: "\(UnitFormatter.effortDisplay(strain, scale: effortScale)) Effort"),
-                     color: StrandPalette.effortTint(fraction: strain / StrainScorer.maxStrain), alignment: .trailing)
     }
 
     // MARK: (b) METRICS, one uniform grid of 104pt StatTiles, every cell filled.
@@ -4169,9 +3980,7 @@ struct TodayView: View {
     /// #932: restore the day-scoped outputs from a same-(seq, day) cache on a re-mount, so the selected day
     /// repaints from memory without re-running the heavy HR reads. The Rest-tile spark is restored here
     /// (this pass owns `sparks["sleep_performance"]`, see loadDayScoped) BEFORE any history-wide restore
-    /// merges the other keys around it, same ordering as a genuine load. The zoom is NOT cached (it is the
-    /// user's transient gesture state): it is re-clamped against the restored axis exactly like a genuine
-    /// load, which on the fresh-mount hit path is the nil → nil no-op (a re-mount resets `@State`).
+    /// merges the other keys around it, same ordering as a genuine load.
     private func restoreDayScoped(_ c: TodayDayScopedCache) {
         sparks["sleep_performance"] = c.restSpark
         restScore = c.restScore
@@ -4180,8 +3989,6 @@ struct TodayView: View {
         hrPoints = c.hrPoints
         stepActivityClassToday = c.stepActivityClassToday
         liveTodayStrain = c.liveTodayStrain
-        hrZoomDomain = Self.reclampHrZoom(hrZoomDomain, oldAxis: hrAxis, newAxis: c.hrAxis)
-        hrAxis = c.hrAxis
         sleepToday = c.sleepToday
     }
 
@@ -4218,11 +4025,9 @@ struct TodayView: View {
         // only the day-level merged caches, never raw rows), so a TODAY snapshot goes quietly stale against
         // the live stream. Today hits are therefore AGE-GATED (`todayCacheMaxAge`): rapid sidebar switching,
         // the measured #932 pain, stays cached, while an older re-mount pays one genuine reload. A navigated
-        // PAST day is immutable at a given seq, so past-day hits carry no age limit. On a today hit the
-        // restored axis end is also re-extended to the current now (the cached end is the PREVIOUS load's
-        // now), the reclamp's designed same-day end-extension, so the in-progress framing stays honest
-        // without a query. Both key halves are captured HERE, before any await, so the snapshot at the tail
-        // is keyed by the state this pass actually loaded for.
+        // PAST day is immutable at a given seq, so past-day hits carry no age limit. Both key halves are
+        // captured HERE, before any await, so the snapshot at the tail is keyed by the state this pass
+        // actually loaded for.
         let loadSeq = repo.refreshSeq
         let loadDayKey = selectedDayKey
         if repo.todayDayScopedLoadedSeq == loadSeq,
@@ -4230,14 +4035,6 @@ struct TodayView: View {
            let cached = repo.todayDayScopedCache,
            selectedDayOffset != 0 || Date().timeIntervalSince(cached.bankedAt) < Self.todayCacheMaxAge {
             restoreDayScoped(cached)
-            if selectedDayOffset == 0, let axis = hrAxis {
-                let nowEnd = Date()
-                if nowEnd > axis.upperBound {
-                    let extended = axis.lowerBound ... nowEnd
-                    hrZoomDomain = Self.reclampHrZoom(hrZoomDomain, oldAxis: axis, newAxis: extended)
-                    hrAxis = extended
-                }
-            }
             return
         }
         #if DEBUG
@@ -4344,17 +4141,6 @@ struct TodayView: View {
             liveStrainLocal = nil
         }
         liveTodayStrain = liveStrainLocal
-        // Pin the chart axis to the loaded window, today midnight→now, a past day the full 24h, so
-        // a gap (e.g. a morning the strap wasn't banking) shows as empty space, not a late start.
-        let newAxis = Date(timeIntervalSince1970: TimeInterval(windowStart))
-            ... Date(timeIntervalSince1970: TimeInterval(windowEnd))
-        // #829 - keep the HR zoom VALID across reloads. The window changes on a day step (a whole new day)
-        // and, on today, each refresh nudges the end to a fresh `now`. A day step clears the zoom so the new
-        // day opens at full scale; a same-day end-extension keeps the user's zoom but RE-CLAMPS it into the
-        // grown bounds (preserving its span) so a live sync never yanks them out of their zoom yet the window
-        // can never sit outside the day. `panned(deltaSeconds: 0)` is the pure re-clamp.
-        hrZoomDomain = Self.reclampHrZoom(hrZoomDomain, oldAxis: hrAxis, newAxis: newAxis)
-        hrAxis = newAxis
 
         // Sleep session overlapping the window. Uses `allSleepSessions` (BOTH the imported and the
         // on-device COMPUTED source), a Bluetooth-only user's sleep lives under the computed source,
@@ -4362,8 +4148,7 @@ struct TodayView: View {
         // displayed window, then resolve the day's bridged MAIN-night span via `SleepView.mainNightSpan`
         // (offloaded to the Sleep tab hero and `AnalyticsEngine`'s daily total), not an ad hoc "longest
         // single block" pick — that could disagree with the Sleep tab and the Coupled view's bed→wake
-        // read for a night stored as more than one block (#294). Drives the HR sleep band + the recovery
-        // marker's wake anchor.
+        // read for a night stored as more than one block (#294).
         let overlapping = await repo.allSleepSessions(days: selectedDayOffset + 2)
             .filter { $0.endTs > windowStart && $0.startTs < windowEnd }
         let habitualMidsleepSecLocal = await repo.habitualMidsleepSec()
@@ -4392,7 +4177,6 @@ struct TodayView: View {
             hrPoints: hrPointsLocal,
             stepActivityClassToday: stepClassLocal,
             liveTodayStrain: liveStrainLocal,
-            hrAxis: newAxis,
             sleepToday: sleepTodayLocal,
             bankedAt: Date())
         repo.todayDayScopedLoadedSeq = loadSeq
@@ -4768,7 +4552,7 @@ struct TodayHistoryWideCache {
 
 /// #849/#932: an in-memory snapshot of everything `loadDayScoped()` computes for ONE viewed day: the Rest
 /// score + its tile spark, the provenance winners, the selected day's 5-minute HR buckets, the day's step
-/// activity class, the live Effort, the pinned chart axis and the overlapping sleep band. Held on the
+/// activity class, the live Effort and the overlapping sleep band. Held on the
 /// long-lived `Repository` (NOT TodayView's `@State`), keyed by the (`refreshSeq`, viewed-day key) it was
 /// built at, so a Today RE-MOUNT with unchanged data (macOS cold-mounts the screen on every sidebar switch)
 /// can RESTORE these values without re-running the heavy `hrBuckets`/`hrSamples` reads, 170k+ HR rows/day
@@ -4784,7 +4568,6 @@ struct TodayDayScopedCache {
     let hrPoints: [TrendPoint]
     let stepActivityClassToday: Int?
     let liveTodayStrain: Double?
-    let hrAxis: ClosedRange<Date>
     let sleepToday: CachedSleepSession?
     /// When the snapshot was banked. TODAY hits are age-gated on this (`todayCacheMaxAge`): live banking
     /// does not bump `refreshSeq`, so an unbounded today snapshot would drift behind the 1Hz stream.
