@@ -1451,11 +1451,9 @@ final class AICoachEngine: ObservableObject {
                 allowedScopes: semanticAllowedScopes
             )
             // Queue the just-added user turn immediately, but do not start another model operation.
-            await CoachSemanticMemory.shared.reconcile(
-                conversations: conversations,
-                journalEntries: semanticJournalEntries,
-                allowedScopes: semanticAllowedScopes
-            )
+            // Only the conversations changed since the reconcile inside `retrieve` a moment ago — this
+            // used to be a second FULL reconcile of every source, doubling that work on every message.
+            await CoachSemanticMemory.shared.conversationsChanged(conversations)
         } else {
             semanticRetrieval = CoachSemanticRetrieval(context: "", mode: .unavailable)
         }

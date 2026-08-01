@@ -45,6 +45,61 @@ final class CoachSemanticMemorySourceTests: XCTestCase {
         XCTAssertFalse(text.contains("CBD-Öl verwendet"))
     }
 
+    // MARK: - Incremental reconcile
+
+    /// The reconcile runs on the send path, before every request. It used to UPSERT every document of
+    /// the whole retained history each time; these pin that it now writes only what changed.
+    func testAReconcileOverUnchangedSourcesHasNothingToWrite() {
+        let documents = CoachSemanticMemory.documents(
+            facts: [CoachMemory.MemoryFact(text: "Linkes Knie ist verletzt.", category: .injury)],
+            conversations: [],
+            journalEntries: [],
+            proposals: [],
+            allowedScopes: [.memory]
+        )
+        XCTAssertFalse(documents.isEmpty, "premise: there is something to reconcile")
+
+        let first = CoachSemanticMemory.delta(of: documents, since: [:])
+        XCTAssertEqual(first.changed.count, documents.count, "a cold start writes everything")
+        XCTAssertTrue(first.idsChanged)
+
+        let second = CoachSemanticMemory.delta(of: documents, since: first.hashes)
+        XCTAssertTrue(second.changed.isEmpty, "nothing changed, so nothing may be enqueued")
+        XCTAssertFalse(second.idsChanged, "and no full-table scan for deletions either")
+        XCTAssertEqual(second.hashes, first.hashes)
+    }
+
+    /// Ids are held fixed so this measures an EDIT, not two unrelated facts: a document is keyed by its
+    /// fact id, and a fresh id is simply a new document.
+    func testOnlyTheEditedDocumentIsWritten() {
+        let runs = UUID(), swims = UUID()
+        let documents = { (runsText: String) in
+            CoachSemanticMemory.documents(
+                facts: [CoachMemory.MemoryFact(id: runs, text: runsText, category: .schedule),
+                        CoachMemory.MemoryFact(id: swims, text: "Swims on Fridays.", category: .schedule)],
+                conversations: [], journalEntries: [], proposals: [], allowedScopes: [.memory])
+        }
+
+        let baseline = CoachSemanticMemory.delta(of: documents("Runs on Tuesdays."), since: [:]).hashes
+        let delta = CoachSemanticMemory.delta(of: documents("Runs on Wednesdays."), since: baseline)
+        XCTAssertEqual(delta.changed.count, 1, "only the edited fact may be re-enqueued")
+        XCTAssertTrue(try! XCTUnwrap(delta.changed.first).text.contains("Wednesdays"))
+        XCTAssertFalse(delta.idsChanged, "an edit in place orphans nothing, so no deletion scan")
+    }
+
+    /// A document that disappears has to force the deletion scan even though nothing was rewritten.
+    func testARemovedDocumentStillTriggersTheDeletionScan() {
+        let before = CoachSemanticMemory.documents(
+            facts: [CoachMemory.MemoryFact(text: "Runs on Tuesdays.", category: .schedule),
+                    CoachMemory.MemoryFact(text: "Swims on Fridays.", category: .schedule)],
+            conversations: [], journalEntries: [], proposals: [], allowedScopes: [.memory])
+        let baseline = CoachSemanticMemory.delta(of: before, since: [:]).hashes
+
+        let delta = CoachSemanticMemory.delta(of: Array(before.prefix(1)), since: baseline)
+        XCTAssertTrue(delta.changed.isEmpty, "the surviving document is unchanged")
+        XCTAssertTrue(delta.idsChanged)
+    }
+
     func testSensitiveJournalNeedsItsOwnScopeAndFactsKeepPriority() {
         let fact = CoachMemory.MemoryFact(text: "Linkes Knie ist verletzt.",
                                           category: .injury,

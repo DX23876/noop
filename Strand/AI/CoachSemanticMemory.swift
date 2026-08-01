@@ -80,6 +80,17 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
     private let store: SemanticIndexStore?
     private let provider: (any TextEmbeddingProvider)?
     private var liveDocuments: [String: SemanticDocument] = [:]
+    /// Meaningful words per live document, for the keyword arm of retrieval. Held beside the documents
+    /// because `lexicalHits` used to tokenise every document on every question — the same text, the same
+    /// tokens, thousands of times per session. Rebuilt whenever `liveDocuments` is.
+    private var liveTokens: [String: Set<String>] = [:]
+    /// What this process last handed to the store, as `documentID → contentHash`, so a reconcile can
+    /// write only what changed. Deliberately in-memory: on a cold start nothing is known to be
+    /// enqueued, the first reconcile writes everything, and SQLite's own UPSERT keeps that idempotent.
+    private var enqueuedHashes: [String: String] = [:]
+    /// The scope set the last successful reconcile was built for. A revocation has to force the deletes
+    /// even when no document text changed.
+    private var lastAllowedScopes: Set<SemanticConsentScope>?
     private var activeWork: Task<Void, Never>?
     private var indexingActivityCount = 0
 
@@ -129,6 +140,11 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
 
     /// Reconcile canonical sources into the queue without loading Nomic. Missing sources and revoked
     /// scopes are removed before any future search can observe them.
+    ///
+    /// This runs on the send path, before the request goes out, so it is deliberately incremental. It
+    /// used to rebuild every document and then UPSERT **all** of them — the whole retained history, up
+    /// to 50 conversations of 200 messages each — plus a full-table scan to find deletions, on every
+    /// single message. The reconciliation is the same; only the rows that actually changed are written.
     func reconcile(conversations: [CoachConversation],
                    journalEntries: [JournalEntry],
                    allowedScopes: Set<SemanticConsentScope>) async {
@@ -137,29 +153,54 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
             try? await store.remove(scopes: Set(SemanticConsentScope.allCases).subtracting(allowedScopes))
             if allowedScopes.isEmpty { try? await store.clear() }
             liveDocuments = [:]
+            liveTokens = [:]
+            enqueuedHashes = [:]
+            lastAllowedScopes = allowedScopes
             await unload()
             await refreshStatus()
             return
         }
 
-        let documents = Self.documents(
-            facts: CoachMemory.shared.facts,
-            conversations: conversations,
-            journalEntries: journalEntries,
-            proposals: CoachPlanStore.shared.proposals,
-            allowedScopes: allowedScopes
-        )
+        // Snapshot on the main actor, then build off it: assembling and chunking every document is pure
+        // CPU proportional to the WHOLE history, and it sits between the user's tap and the request.
+        let facts = CoachMemory.shared.facts
+        let proposals = CoachPlanStore.shared.proposals
+        let documents = await Task.detached(priority: .userInitiated) {
+            Self.documents(facts: facts,
+                           conversations: conversations,
+                           journalEntries: journalEntries,
+                           proposals: proposals,
+                           allowedScopes: allowedScopes)
+        }.value
+
         liveDocuments = Dictionary(documents.map { ($0.documentID, $0) },
                                    uniquingKeysWith: { first, _ in first })
+        // Tokens for the keyword arm, computed once per document version rather than per question.
+        liveTokens = liveDocuments.mapValues { CoachMemory.tokens($0.text) }
+
+        let delta = Self.delta(of: Array(liveDocuments.values), since: enqueuedHashes)
+        let hashes = delta.hashes
+        let changed = delta.changed
+        let scopesChanged = lastAllowedScopes != allowedScopes
+        let idsChanged = delta.idsChanged
+
         do {
-            try await store.remove(scopes: Set(SemanticConsentScope.allCases).subtracting(allowedScopes))
-            try await store.enqueue(documents)
-            try await store.removeDocuments(notIn: Set(liveDocuments.keys),
-                                              sourceKinds: Self.indexedKinds)
-            if let provider {
+            if scopesChanged {
+                try await store.remove(scopes: Set(SemanticConsentScope.allCases)
+                    .subtracting(allowedScopes))
+            }
+            if !changed.isEmpty { try await store.enqueue(changed) }
+            if idsChanged || scopesChanged {
+                try await store.removeDocuments(notIn: Set(hashes.keys),
+                                                sourceKinds: Self.indexedKinds)
+            }
+            if let provider, !changed.isEmpty || scopesChanged {
                 try await store.invalidate(modelID: provider.modelID, dimensions: provider.dimensions)
             }
             try await store.setState(nil, for: Self.lastErrorStateKey)
+            // Only once the writes landed: a throw must not leave us believing rows were enqueued.
+            enqueuedHashes = hashes
+            lastAllowedScopes = allowedScopes
         } catch {
             try? await store.setState(error.localizedDescription, for: Self.lastErrorStateKey)
         }
@@ -169,38 +210,29 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
     /// Immediate queue update for remember/edit/forget. This deliberately stops after SQLite metadata;
     /// it never prepares the model just because a fact changed.
     func memoryFactsChanged(_ facts: [CoachMemory.MemoryFact]) async {
-        guard let store else { return }
+        // The store is only touched inside `applyKindUpdate`; without one there is nothing to update.
+        guard store != nil else { return }
         let allowed = UserDefaults.standard.bool(forKey: "ai.dataConsent")
             && ToolConsent.load().enabled.contains(.memory)
         guard allowed, isEnabled, CoachFeaturePrefs.isEnabled else {
-            try? await store.removeDocuments(notIn: [], sourceKinds: [.memoryFact])
-            liveDocuments = liveDocuments.filter { $0.value.sourceKind != .memoryFact }
-            await refreshStatus()
+            await applyKindUpdate([], kinds: [.memoryFact])
             return
         }
-        let changed = Self.memoryDocuments(facts)
-        liveDocuments = liveDocuments.filter { $0.value.sourceKind != .memoryFact }
-        for document in changed { liveDocuments[document.documentID] = document }
-        try? await store.enqueue(changed)
-        try? await store.removeDocuments(notIn: Set(changed.map(\.documentID)),
-                                         sourceKinds: [.memoryFact])
-        await refreshStatus()
+        await applyKindUpdate(Self.memoryDocuments(facts), kinds: [.memoryFact])
     }
 
     /// Queue-only journal refresh used after a native answer is written or removed. The caller passes
     /// the merged canonical journal, so deleting a native override correctly reveals an imported row
     /// when one exists instead of blindly deleting that source.
     func journalEntriesChanged(_ entries: [JournalEntry]) async {
-        guard let store else { return }
+        guard store != nil else { return }
         let consent = ToolConsent.load()
         let masterAllowed = UserDefaults.standard.bool(forKey: "ai.dataConsent")
         let scopes = masterAllowed ? Self.allowedScopes(for: consent) : []
         let allowedJournalScopes = scopes.intersection([.personalLogs, .sensitiveLogs])
         let kinds: Set<SemanticSourceKind> = [.journalQuestion, .journalNote]
         guard !allowedJournalScopes.isEmpty, isEnabled, CoachFeaturePrefs.isEnabled else {
-            try? await store.removeDocuments(notIn: [], sourceKinds: kinds)
-            liveDocuments = liveDocuments.filter { !kinds.contains($0.value.sourceKind) }
-            await refreshStatus()
+            await applyKindUpdate([], kinds: kinds)
             return
         }
         let changed = Self.documents(facts: [],
@@ -208,25 +240,19 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
                                      journalEntries: entries,
                                      proposals: [],
                                      allowedScopes: allowedJournalScopes)
-        liveDocuments = liveDocuments.filter { !kinds.contains($0.value.sourceKind) }
-        for document in changed { liveDocuments[document.documentID] = document }
-        try? await store.enqueue(changed)
-        try? await store.removeDocuments(notIn: Set(changed.map(\.documentID)),
-                                         sourceKinds: kinds)
-        await refreshStatus()
+        await applyKindUpdate(changed, kinds: kinds)
     }
 
     /// Same no-model queue update for chat titles, summaries and the user's own turns. Assistant turns
     /// are never passed into `documents`, so they cannot accidentally enter the semantic index.
     func conversationsChanged(_ conversations: [CoachConversation]) async {
-        guard let store else { return }
+        // The store is only touched inside `applyKindUpdate`; without one there is nothing to update.
+        guard store != nil else { return }
         let allowed = UserDefaults.standard.bool(forKey: "ai.dataConsent")
             && ToolConsent.load().enabled.contains(.memory)
         let kinds: Set<SemanticSourceKind> = [.conversationTitle, .conversationSummary, .userMessage]
         guard allowed, isEnabled, CoachFeaturePrefs.isEnabled else {
-            try? await store.removeDocuments(notIn: [], sourceKinds: kinds)
-            liveDocuments = liveDocuments.filter { !kinds.contains($0.value.sourceKind) }
-            await refreshStatus()
+            await applyKindUpdate([], kinds: kinds)
             return
         }
         let changed = Self.documents(facts: [],
@@ -234,26 +260,20 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
                                      journalEntries: [],
                                      proposals: [],
                                      allowedScopes: [.memory])
-        liveDocuments = liveDocuments.filter { !kinds.contains($0.value.sourceKind) }
-        for document in changed { liveDocuments[document.documentID] = document }
-        try? await store.enqueue(changed)
-        try? await store.removeDocuments(notIn: Set(changed.map(\.documentID)),
-                                         sourceKinds: kinds)
-        await refreshStatus()
+        await applyKindUpdate(changed, kinds: kinds)
     }
 
     /// Queue-only update for recommendation outcomes and derived habit hypotheses. Rejections,
     /// non-completion and the three post-completion effect choices remain distinct in the source text.
     /// As with journal/chat changes, this method never prepares or loads the embedding model.
     func recommendationsChanged(_ proposals: [PlanProposal]) async {
-        guard let store else { return }
+        // The store is only touched inside `applyKindUpdate`; without one there is nothing to update.
+        guard store != nil else { return }
         let allowed = UserDefaults.standard.bool(forKey: "ai.dataConsent")
             && ToolConsent.load().enabled.contains(.patterns)
         let kinds: Set<SemanticSourceKind> = [.recommendationFeedback, .habitHypothesis]
         guard allowed, isEnabled, CoachFeaturePrefs.isEnabled else {
-            try? await store.removeDocuments(notIn: [], sourceKinds: kinds)
-            liveDocuments = liveDocuments.filter { !kinds.contains($0.value.sourceKind) }
-            await refreshStatus()
+            await applyKindUpdate([], kinds: kinds)
             return
         }
         let changed = Self.documents(facts: [],
@@ -261,11 +281,52 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
                                      journalEntries: [],
                                      proposals: proposals,
                                      allowedScopes: [.patterns])
+        await applyKindUpdate(changed, kinds: kinds)
+    }
+
+    /// What a reconcile actually has to write, given what was last enqueued.
+    ///
+    /// This is the whole of the incremental behaviour, kept pure so it can be pinned by a test without a
+    /// store, a model or a disk: a reconcile over unchanged sources must come out with nothing to write.
+    /// `contentHash` re-hashes the text on every read, so each document's is taken exactly once here.
+    nonisolated static func delta(
+        of documents: [SemanticDocument],
+        since enqueuedHashes: [String: String]
+    ) -> (changed: [SemanticDocument], hashes: [String: String], idsChanged: Bool) {
+        var hashes: [String: String] = [:]
+        hashes.reserveCapacity(documents.count)
+        var changed: [SemanticDocument] = []
+        for document in documents {
+            let hash = document.contentHash
+            hashes[document.documentID] = hash
+            if enqueuedHashes[document.documentID] != hash { changed.append(document) }
+        }
+        // Deletions need the full scan only when the live SET changed; an edit alone can't orphan a row.
+        return (changed, hashes, Set(hashes.keys) != Set(enqueuedHashes.keys))
+    }
+
+    /// Replace every live document of `kinds` with `documents`, in the store and in the caches that
+    /// mirror it. The four "one source changed" entry points above all do exactly this — including
+    /// their consent-revoked branches, which are the same call with an empty set.
+    ///
+    /// The bookkeeping is the point of having one copy: `liveTokens` must follow `liveDocuments` or the
+    /// keyword arm ranks against stale text, and `enqueuedHashes` must forget these ids or the next
+    /// reconcile would trust a hash for a row this method just deleted.
+    private func applyKindUpdate(_ documents: [SemanticDocument],
+                                 kinds: Set<SemanticSourceKind>) async {
+        guard let store else { return }
         liveDocuments = liveDocuments.filter { !kinds.contains($0.value.sourceKind) }
-        for document in changed { liveDocuments[document.documentID] = document }
-        try? await store.enqueue(changed)
-        try? await store.removeDocuments(notIn: Set(changed.map(\.documentID)),
-                                         sourceKinds: kinds)
+        liveTokens = liveTokens.filter { liveDocuments[$0.key] != nil }
+        for document in documents {
+            liveDocuments[document.documentID] = document
+            liveTokens[document.documentID] = CoachMemory.tokens(document.text)
+        }
+        for (id, hash) in enqueuedHashes where liveDocuments[id]?.contentHash != hash {
+            enqueuedHashes[id] = nil
+        }
+        if !documents.isEmpty { try? await store.enqueue(documents) }
+        try? await store.removeDocuments(notIn: Set(documents.map(\.documentID)), sourceKinds: kinds)
+        for document in documents { enqueuedHashes[document.documentID] = document.contentHash }
         await refreshStatus()
     }
 
@@ -284,9 +345,15 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
         }
     }
 
-    /// Indexes the high-priority backlog, embeds the question and fuses semantic with exact keyword
-    /// ranking. If the model misses the 2.5-second turn budget, the caller gets keyword retrieval now
-    /// while the warm-up continues for the next question.
+    /// Embeds the question, searches, and fuses semantic with exact keyword ranking. If the model misses
+    /// the 2.5-second turn budget, the caller gets keyword retrieval now while the warm-up continues for
+    /// the next question.
+    ///
+    /// The question is embedded FIRST and the indexing backlog is worked afterwards, in the background.
+    /// It used to be the other way round — up to 64 documents embedded inside the same 2.5-second race,
+    /// before the question itself was even looked at — so on a cold model or with any backlog the race
+    /// was lost by construction: the user waited the full budget and still got the keyword fallback.
+    /// Searching an index that is a few documents behind is a far better trade than not searching at all.
     func retrieve(question: String,
                   conversations: [CoachConversation],
                   journalEntries: [JournalEntry],
@@ -294,9 +361,7 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
         await reconcile(conversations: conversations,
                         journalEntries: journalEntries,
                         allowedScopes: allowedScopes)
-        let lexical = Self.lexicalHits(question: question,
-                                       documents: Array(liveDocuments.values),
-                                       allowedScopes: allowedScopes)
+        let lexical = lexicalHits(question: question, allowedScopes: allowedScopes)
         guard isEnabled, CoachFeaturePrefs.isEnabled, let provider, let store else {
             return finish(handoffContext(from: Array(lexical.prefix(8)),
                                          requestedScopes: allowedScopes),
@@ -304,12 +369,7 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
         }
 
         let race = SemanticSearchRace()
-        Task { [weak self] in
-                guard let self else {
-                    await race.resolve(nil)
-                    return
-                }
-                await self.processPending(limit: 64)
+        Task {
                 do {
                     let vector = try await provider.embedQuery(question)
                     let hits = try await store.search(vector: vector,
@@ -327,6 +387,13 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
             await race.resolve(nil)
         }
         let semantic = await race.wait()
+        // Whichever way the race went, the backlog still needs working — after the answer is under way,
+        // never in front of it.
+        activeWork?.cancel()
+        activeWork = Task { [weak self] in
+            guard let self else { return }
+            await self.processPending(limit: 64)
+        }
 
         guard let semantic else {
             await refreshStatus()
@@ -554,10 +621,10 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
     ///
     /// Changing this text changes `SemanticDocument.contentHash`, so every journal document is seen as
     /// modified once after an update and re-embedded through the ordinary pending queue.
-    private static let yesLabel = String(localized: "Yes")
-    private static let noLabel = String(localized: "No")
+    nonisolated private static let yesLabel = String(localized: "Yes")
+    nonisolated private static let noLabel = String(localized: "No")
 
-    static func documents(facts: [CoachMemory.MemoryFact],
+    nonisolated static func documents(facts: [CoachMemory.MemoryFact],
                           conversations: [CoachConversation],
                           journalEntries: [JournalEntry],
                           proposals: [PlanProposal],
@@ -664,7 +731,7 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
         return result
     }
 
-    private static func memoryDocuments(_ facts: [CoachMemory.MemoryFact],
+    nonisolated private static func memoryDocuments(_ facts: [CoachMemory.MemoryFact],
                                         now: Date = Date()) -> [SemanticDocument] {
         facts
             .filter { $0.validFrom <= now && ($0.validUntil == nil || $0.validUntil! >= now) }
@@ -689,7 +756,7 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
     /// Conservative word chunks plus a 24-word overlap. 192 natural-language words leave generous
     /// room for subword expansion and the task prefix; the provider remains the final authority and
     /// enforces the hard 384-token ceiling with Nomic's own tokenizer.
-    private static func chunks(kind: SemanticSourceKind,
+    nonisolated private static func chunks(kind: SemanticSourceKind,
                                sourceID: String,
                                text: String,
                                updatedAt: Date,
@@ -718,15 +785,19 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
         return result
     }
 
-    private static func lexicalHits(question: String,
-                                    documents: [SemanticDocument],
-                                    allowedScopes: Set<SemanticConsentScope>) -> [SemanticHit] {
+    /// The exact-keyword arm. Tokens come from `liveTokens`, computed once when a document is built;
+    /// this used to re-tokenise the entire index — the same text producing the same words — on every
+    /// single question. Falls back to tokenising in place for any document the cache hasn't seen, so a
+    /// stale cache can only cost time, never a missed hit.
+    private func lexicalHits(question: String,
+                             allowedScopes: Set<SemanticConsentScope>) -> [SemanticHit] {
         let queryTokens = CoachMemory.tokens(question)
         guard !queryTokens.isEmpty else { return [] }
-        return documents
+        return liveDocuments.values
             .filter { allowedScopes.contains($0.consentScope) }
             .compactMap { document -> (SemanticHit, Int)? in
-                let overlap = CoachMemory.tokens(document.text).intersection(queryTokens).count
+                let tokens = liveTokens[document.documentID] ?? CoachMemory.tokens(document.text)
+                let overlap = tokens.intersection(queryTokens).count
                 guard overlap > 0 else { return nil }
                 return (SemanticHit(documentID: document.documentID,
                                     sourceKind: document.sourceKind,
@@ -765,7 +836,7 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
         return lines.joined(separator: "\n")
     }
 
-    private static func dayDate(_ day: String) -> Date {
+    nonisolated private static func dayDate(_ day: String) -> Date {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -774,7 +845,7 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
         return formatter.date(from: day) ?? .distantPast
     }
 
-    private static func isRecentDay(_ day: String, days: Int) -> Bool {
+    nonisolated private static func isRecentDay(_ day: String, days: Int) -> Bool {
         dayDate(day) >= Date().addingTimeInterval(-Double(days) * 86_400)
     }
 }
