@@ -98,8 +98,9 @@ Read the full [9.3.0 DX Beta notes](docs/fork/releases/v9.3.0-dx-beta.md).
 
 ## In development
 
-- **Android distribution.** The Android source is version-aligned with 9.3.0; a public Android beta
-  download will follow in a later rollout.
+- **Android is undecided.** The Android source still builds and is version-aligned with 9.3.0, but
+  this fork focuses on iOS and macOS and no longer keeps Android at feature parity. Whether a public
+  Android build ever ships is genuinely open — treat it as source you can build, not a promise.
 - **More practical alert history.** The inbox will keep evolving around events that actually happened,
   rather than becoming a second copy of scheduled reminders.
 
@@ -142,7 +143,7 @@ identity changes with every build.
 |---|---|---|
 | iOS / iPadOS | 9.3.0 DX Beta | AltStore, SideStore, or build from source |
 | macOS | 9.3.0 DX Beta | Packaged `.zip` in the release, or build with Xcode |
-| Android | Distribution in progress | Source version aligned; public beta follows later |
+| Android | Undecided | Source builds and is version-aligned; no public build planned |
 
 ## The NOOP foundation retained
 
