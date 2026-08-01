@@ -81,9 +81,17 @@ struct ChatMessage: Identifiable, Equatable, Codable {
     /// Why this message exists — see `Origin`. Defaulted on decode, so every stored transcript keeps
     /// loading and simply reads as ordinary replies.
     let origin: Origin
+    /// Facts this reply wrote to `CoachMemory`, so the transcript can show what was saved and let the
+    /// user confirm, edit or undo it right there. Remembering used to be entirely silent — the only
+    /// trace was a "Memory" label inside the collapsed evidence chain, which named the tool but never
+    /// the fact, and the sole way to act on it was three levels deep in settings. Ids, not text: the
+    /// fact is the store's to own, so an edit made later never leaves a stale copy in the transcript.
+    /// Empty for user turns, for replies that wrote nothing, and for transcripts predating this field.
+    let memoryWrites: [UUID]
 
     init(id: UUID = UUID(), role: Role, text: String, date: Date = Date(),
-         toolsUsed: [String] = [], localContextUsed: [LocalContextCategory] = [], origin: Origin = .reply) {
+         toolsUsed: [String] = [], localContextUsed: [LocalContextCategory] = [], origin: Origin = .reply,
+         memoryWrites: [UUID] = []) {
         self.id = id
         self.role = role
         self.text = text
@@ -91,9 +99,12 @@ struct ChatMessage: Identifiable, Equatable, Codable {
         self.toolsUsed = toolsUsed
         self.localContextUsed = localContextUsed
         self.origin = origin
+        self.memoryWrites = memoryWrites
     }
 
-    private enum CodingKeys: String, CodingKey { case id, role, text, date, toolsUsed, localContextUsed, origin }
+    private enum CodingKeys: String, CodingKey {
+        case id, role, text, date, toolsUsed, localContextUsed, origin, memoryWrites
+    }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -104,6 +115,7 @@ struct ChatMessage: Identifiable, Equatable, Codable {
         toolsUsed = try c.decodeIfPresent([String].self, forKey: .toolsUsed) ?? []
         localContextUsed = try c.decodeIfPresent([LocalContextCategory].self, forKey: .localContextUsed) ?? []
         origin = try c.decodeIfPresent(Origin.self, forKey: .origin) ?? .reply
+        memoryWrites = try c.decodeIfPresent([UUID].self, forKey: .memoryWrites) ?? []
     }
 
     /// Pure: unique tool names from `toolsUsed`, in FIRST-call order — a tool called twice across rounds
@@ -1405,6 +1417,9 @@ final class AICoachEngine: ObservableObject {
         // while keeping the fork's richer clear-error + card-suggestion reset.
         appendMessage(ChatMessage(role: .user, text: trimmed))
         cardSuggestions = []   // the card's follow-up chips belong to the moment after its read (#P11)
+        // A memory write belongs to the reply that made it. Anything left over from a turn that errored
+        // out before its message was built must not be attributed to this one.
+        memoryWrites = []
         sending = true
         defer { sending = false }
 
@@ -1507,14 +1522,17 @@ final class AICoachEngine: ObservableObject {
                         messages[idx] = ChatMessage(id: replyId, role: .assistant,
                                                     text: String(localized: "(no reply)"),
                                                     date: startedAt, toolsUsed: reply.toolsUsed,
-                                                    localContextUsed: messages[idx].localContextUsed)
+                                                    localContextUsed: messages[idx].localContextUsed,
+                                                    memoryWrites: takeMemoryWrites())
                     } else {
                         messages.remove(at: idx)
                     }
-                } else if let idx = messages.firstIndex(where: { $0.id == replyId }), !reply.toolsUsed.isEmpty {
+                } else if let idx = messages.firstIndex(where: { $0.id == replyId }),
+                          !reply.toolsUsed.isEmpty || !memoryWrites.isEmpty {
                     messages[idx] = ChatMessage(id: replyId, role: .assistant, text: messages[idx].text,
                                                 date: startedAt, toolsUsed: reply.toolsUsed,
-                                                localContextUsed: messages[idx].localContextUsed)
+                                                localContextUsed: messages[idx].localContextUsed,
+                                                memoryWrites: takeMemoryWrites())
                 }
                 flushPendingCharts()
             } catch let e as AICoachError {
@@ -1537,7 +1555,8 @@ final class AICoachEngine: ObservableObject {
             let clean = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
             appendMessage(ChatMessage(role: .assistant,
                                       text: clean.isEmpty ? String(localized: "(no reply)") : clean,
-                                      toolsUsed: reply.toolsUsed, localContextUsed: localContextUsed))
+                                      toolsUsed: reply.toolsUsed, localContextUsed: localContextUsed,
+                                      memoryWrites: takeMemoryWrites()))
             flushPendingCharts()
         } catch let e as AICoachError {
             discardPendingCharts(); setError(e)
@@ -1573,6 +1592,19 @@ final class AICoachEngine: ObservableObject {
 
     /// Charts requested via the `plot_metric` tool during the current turn, flushed into the transcript
     /// once the reply is done so they appear BELOW the coach's explanation rather than mid-stream.
+    /// Fact ids written by the memory tools during the turn currently in flight, drained onto the reply
+    /// that caused them (`takeMemoryWrites`). Not `private`: `runCoachTool` lives in CoachTools.swift.
+    var memoryWrites: [UUID] = []
+
+    /// Hand the accumulated writes to the message being built and reset for the next turn. Deduplicated
+    /// in first-write order — a fact restated across two tool rounds is still one thing that happened.
+    func takeMemoryWrites() -> [UUID] {
+        var seen = Set<UUID>()
+        let drained = memoryWrites.filter { seen.insert($0).inserted }
+        memoryWrites = []
+        return drained
+    }
+
     private var pendingCharts: [CoachChartArtifact] = []
 
     /// Handle a `plot_metric` tool call: build the chart and queue it, returning a text confirmation the
@@ -2352,6 +2384,7 @@ final class AICoachEngine: ObservableObject {
         guard isConfigured, dataConsent, !sending else { return }
         guard let key = resolvedKey else { return }
         clearError()
+        memoryWrites = []
         sending = true
         defer { sending = false }
 
@@ -2371,7 +2404,8 @@ final class AICoachEngine: ObservableObject {
             let clean = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
             if !clean.isEmpty {
                 appendMessage(ChatMessage(role: .assistant, text: "Today's brief\n\n" + clean,
-                                          toolsUsed: reply.toolsUsed, origin: .brief))
+                                          toolsUsed: reply.toolsUsed, origin: .brief,
+                                          memoryWrites: takeMemoryWrites()))
                 // Stamp only on genuine success, so a network failure doesn't burn the day's slot — a
                 // retry (reopening the conversation after a day boundary) can still land one.
                 UserDefaults.standard.set(Repository.logicalDayKey(Date()), forKey: Self.lastBriefDayKey)
@@ -2428,6 +2462,7 @@ final class AICoachEngine: ObservableObject {
         guard isConfigured, dataConsent, !sending else { return }
         guard let key = resolvedKey else { return }
         clearError()
+        memoryWrites = []
         sending = true
         defer { sending = false }
 
@@ -2450,7 +2485,8 @@ final class AICoachEngine: ObservableObject {
             let clean = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
             if !clean.isEmpty {
                 messages.append(ChatMessage(role: .assistant, text: "Check-in\n\n" + clean,
-                                            toolsUsed: reply.toolsUsed, origin: .checkIn))
+                                            toolsUsed: reply.toolsUsed, origin: .checkIn,
+                                            memoryWrites: takeMemoryWrites()))
                 UserDefaults.standard.set(Repository.logicalDayKey(Date()), forKey: Self.lastCheckInDayKey)
             }
         } catch let e as AICoachError {
@@ -2657,6 +2693,7 @@ final class AICoachEngine: ObservableObject {
         guard isConfigured, dataConsent, !sending else { return }
         guard let key = resolvedKey else { return }
         clearError()
+        memoryWrites = []
         sending = true
         defer { sending = false }
 
@@ -2675,7 +2712,8 @@ final class AICoachEngine: ObservableObject {
             let clean = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
             if !clean.isEmpty {
                 messages.append(ChatMessage(role: .assistant, text: prefix + "\n\n" + clean,
-                                            toolsUsed: reply.toolsUsed, origin: origin))
+                                            toolsUsed: reply.toolsUsed, origin: origin,
+                                            memoryWrites: takeMemoryWrites()))
                 UserDefaults.standard.set(Repository.logicalDayKey(Date()), forKey: stampKey)
             }
         } catch let e as AICoachError {
@@ -2732,6 +2770,7 @@ final class AICoachEngine: ObservableObject {
         pendingCardContext = nil
         guard isConfigured, dataConsent, !sending else { return }
         clearError()
+        memoryWrites = []
         sending = true
         defer { sending = false }
 

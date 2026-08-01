@@ -45,6 +45,33 @@ final class ChatMessageCodableTests: XCTestCase {
         XCTAssertEqual(decoded.localContextUsed, [])
     }
 
+    // MARK: - memoryWrites — the per-reply memory receipt
+
+    func testMemoryWritesRoundTripThroughEncoding() throws {
+        let saved = [UUID(), UUID()]
+        let message = ChatMessage(role: .assistant, text: "Noted.",
+                                  toolsUsed: ["remember_fact"],
+                                  memoryWrites: saved)
+        let data = try encoder.encode(message)
+        XCTAssertEqual(try decoder.decode(ChatMessage.self, from: data).memoryWrites, saved)
+    }
+
+    /// Same back-compat contract `toolsUsed` established: a transcript saved before the receipt existed
+    /// has no such key and must decode to an empty list rather than throwing.
+    func testPreExistingTranscriptWithoutMemoryWritesKeyDecodesToEmptyList() throws {
+        let legacyJSON = """
+        {"id":"\(UUID().uuidString)","role":"assistant","text":"Old reply.","date":719528400,\
+        "toolsUsed":["get_readiness"]}
+        """
+        let decoded = try decoder.decode(ChatMessage.self, from: Data(legacyJSON.utf8))
+        XCTAssertEqual(decoded.toolsUsed, ["get_readiness"])
+        XCTAssertTrue(decoded.memoryWrites.isEmpty)
+    }
+
+    func testAReplyThatSavedNothingCarriesNoReceipt() {
+        XCTAssertTrue(ChatMessage(role: .assistant, text: "Just an answer.").memoryWrites.isEmpty)
+    }
+
     // MARK: - uniqueTools(from:) — the evidence chain's dedup/ordering (P6)
 
     func testUniqueToolsPreservesFirstCallOrder() {

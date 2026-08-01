@@ -639,6 +639,18 @@ protocol ToolCallingClient {
 
 extension AICoachEngine {
 
+    /// The "did you mean…?" tail on a failed `forget_fact` / `update_fact`. The match those tools use is
+    /// deliberately strict — deleting the wrong memory is the costlier error — but a bare "no matching
+    /// fact found" left the model with nowhere to go, so a phrasing that missed by one word simply
+    /// failed. Naming near misses is not acting on them; the destructive path keeps its strict rule.
+    static func nearMissHint(for query: String) -> String {
+        let candidates = CoachMemory.shared.candidates(for: query)
+        guard !candidates.isEmpty else { return "" }
+        let list = candidates.map { "\"\($0.text)\"" }.joined(separator: ", ")
+        return " Close, but not close enough to act on: \(list). "
+            + "Ask the user which one they mean, then call the tool again with that exact wording."
+    }
+
     /// The tools offered to the model, honouring per-purpose consent (`toolConsent`, #coach-tool-consent):
     /// a tool whose `CoachPurpose` group isn't enabled is left OUT of the offered list entirely, rather
     /// than offered and then refused — the model never spends a round discovering it can't call something.
@@ -823,6 +835,7 @@ extension AICoachEngine {
             // every reply, so reporting a bare "Remembered" would tell the model it had achieved
             // something it hasn't — and it would never think to ask the user to confirm.
             let stored = CoachMemory.shared.firstMatch(fact)
+            if let stored { memoryWrites.append(stored.id) }
             if stored?.verification == .pendingConfirmation {
                 return "Saved, but UNCONFIRMED: \(fact). Ask the user to confirm it, then call "
                     + "remember_fact again with confirmed_by_user set to true."
@@ -833,14 +846,16 @@ extension AICoachEngine {
             let new = (input["new"] as? String) ?? ""
             guard let match = CoachMemory.shared.firstMatch(old) else {
                 return "No matching fact found to update; use remember_fact to add it instead."
+                    + Self.nearMissHint(for: old)
             }
+            memoryWrites.append(match.id)
             return CoachMemory.shared.update(match.id, text: new)
                 ? "Updated to: \(new)"
                 : "Nothing updated (the new text was empty)."
         case .forgetFact:
             let fact = (input["fact"] as? String) ?? ""
             guard let match = CoachMemory.shared.firstMatch(fact) else {
-                return "No matching fact found to forget."
+                return "No matching fact found to forget." + Self.nearMissHint(for: fact)
             }
             CoachMemory.shared.remove(match.id)
             return "Forgotten: \(match.text)"

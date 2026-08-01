@@ -76,6 +76,13 @@ struct CoachView: View {
     @ObservedObject private var planStore = CoachPlanStore.shared
     /// The coach's identity (#R9) — avatar + name shown in the header, updated live from settings.
     @ObservedObject private var identityStore = CoachIdentityStore.shared
+    /// Drives the per-reply memory receipt: what a turn saved, and the controls to confirm, correct or
+    /// undo it. Observed so confirming a fact here updates the row without leaving the chat.
+    @ObservedObject private var memory = CoachMemory.shared
+    /// The fact being corrected from a receipt, and its draft text (same alert shape as the settings
+    /// list, so a correction reads the same wherever it's made).
+    @State private var editingFactID: UUID?
+    @State private var editingFactText: String = ""
     /// Live Sessions (silent guardian) beta gate — the SAME key `LiquidTodayView`/Settings read. Hides
     /// the action row's "Live Session" chip when the user has turned the feature off, so the chip never
     /// looks tappable for something it can't actually open (#P3).
@@ -204,6 +211,23 @@ struct CoachView: View {
                   !UserDefaults.standard.bool(forKey: Self.goalOnboardingAskedKey) else { return }
             activeSheet = .goalOnboarding
         }
+        // Correcting a fact straight from its receipt. Same alert shape as the settings list, and an edit
+        // made here counts as the user's own wording, so it confirms the fact as well.
+        .alert("Edit fact", isPresented: editingFactBinding) {
+            TextField("Fact", text: $editingFactText)
+            Button("Cancel", role: .cancel) { editingFactID = nil }
+            Button("Save") {
+                if let id = editingFactID {
+                    memory.update(id, text: editingFactText, confirmedByUser: true)
+                }
+                editingFactID = nil
+            }
+        }
+    }
+
+    /// Drives the edit-fact alert from `editingFactID` without a separate bool.
+    private var editingFactBinding: Binding<Bool> {
+        Binding(get: { editingFactID != nil }, set: { if !$0 { editingFactID = nil } })
     }
 
     /// Set once the goal onboarding has been offered — saved or skipped — so it never nags twice.
@@ -605,6 +629,7 @@ struct CoachView: View {
                     // text, not with the avatar (#R10).
                     VStack(alignment: .leading, spacing: 4) {
                         evidenceChain(for: message)
+                        memoryReceipt(for: message)
 
                         // Visible, not just a long-press away — the context menu above still works too.
                         if isLastAssistant(message) {
@@ -637,6 +662,81 @@ struct CoachView: View {
                         }
                     }
                     .padding(.leading, Self.assistantAvatarSize + 8)
+                }
+            }
+        }
+    }
+
+    // MARK: - Memory receipt: what this reply saved, and how to take it back
+
+    /// What a reply wrote to memory, shown under it with the controls to act on it.
+    ///
+    /// Remembering used to happen in silence. The only trace was a "Memory" entry inside the collapsed
+    /// evidence chain, which named the tool but never the fact — and the sole way to confirm, correct or
+    /// undo it was a collapsed card three levels deep in settings. That mattered most for exactly the
+    /// facts a coach must not get wrong: an injury, goal or physiology fact is saved unconfirmed, and an
+    /// unconfirmed fact is barred from the block that frames every reply, so it sat there doing nothing
+    /// while the user had no idea it existed.
+    ///
+    /// Facts are looked up by id, so a row disappears when the fact is forgotten and re-reads its text
+    /// after an edit — the transcript never holds a stale copy. A row is shown for a message that saved
+    /// something whether or not it was the last one, because scrolling back to check what the coach took
+    /// away from a conversation is the whole point.
+    @ViewBuilder
+    private func memoryReceipt(for message: ChatMessage) -> some View {
+        let saved = message.memoryWrites.compactMap { id in memory.facts.first(where: { $0.id == id }) }
+        if !saved.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(saved) { fact in
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Image(systemName: "brain")
+                            .font(StrandFont.caption)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 2) {
+                            // Says which of the two states it landed in, because they mean different
+                            // things to the user: one is done, the other is waiting on them.
+                            Text(fact.verification == .pendingConfirmation
+                                 ? String(localized: "Saved, pending your confirmation: \(fact.text)")
+                                 : String(localized: "Saved to memory: \(fact.text)"))
+                                .font(StrandFont.caption)
+                                .foregroundStyle(StrandPalette.textTertiary)
+                                .fixedSize(horizontal: false, vertical: true)
+
+                            HStack(spacing: 12) {
+                                if fact.verification != .confirmed {
+                                    Button {
+                                        memory.confirm(fact.id)
+                                    } label: {
+                                        Label("That's right", systemImage: "checkmark.seal")
+                                            .font(StrandFont.caption)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .foregroundStyle(StrandPalette.accent)
+                                    .accessibilityLabel("Confirm: \(fact.text)")
+                                }
+                                Button {
+                                    editingFactText = fact.text
+                                    editingFactID = fact.id
+                                } label: {
+                                    Label("Edit", systemImage: "pencil")
+                                        .font(StrandFont.caption)
+                                }
+                                .buttonStyle(.plain)
+                                .foregroundStyle(StrandPalette.textTertiary)
+                                .accessibilityLabel("Edit: \(fact.text)")
+                                Button {
+                                    memory.remove(fact.id)
+                                } label: {
+                                    Label("Forget", systemImage: "xmark.circle")
+                                        .font(StrandFont.caption)
+                                }
+                                .buttonStyle(.plain)
+                                .foregroundStyle(StrandPalette.textTertiary)
+                                .accessibilityLabel("Forget: \(fact.text)")
+                            }
+                        }
+                    }
                 }
             }
         }

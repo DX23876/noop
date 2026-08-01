@@ -84,6 +84,14 @@ struct CoachSettingsView: View {
     /// session's toggle; `refreshCheckInAuthorization` below also catches a revocation from any time.
     private var coachingNeedsAttention: Bool { checkInOn && checkInDenied }
 
+    /// A fact the coach saved but can't rely on until the user says it's right. An injury, goal or
+    /// physiology fact is stored unconfirmed and is barred from the block that frames every reply, so
+    /// one sitting here unanswered is a memory doing nothing — and until this badge existed there was
+    /// nothing anywhere to say so.
+    private var memoryNeedsAttention: Bool {
+        memory.facts.contains { $0.verification == .pendingConfirmation }
+    }
+
     /// Re-check authorization whenever the Coaching subpage appears, so a permission revoked in iOS
     /// Settings since the toggle was last touched still surfaces as "needs attention" instead of staying
     /// silently broken.
@@ -120,6 +128,18 @@ struct CoachSettingsView: View {
     /// In-place fact editing: the fact being edited + its working text.
     @State private var editingFactID: UUID?
     @State private var editingFactText: String = ""
+    /// Adding a fact by hand. The user knows their own constraints better than the coach infers them,
+    /// and until now `add` was reachable only by the model.
+    @State private var addingFact = false
+    @State private var newFactText: String = ""
+    @State private var newFactCategory: CoachMemory.Category = .other
+    /// Which facts have their provenance row open — per fact, so opening one doesn't open all of them.
+    @State private var expandedFactIDs: Set<UUID> = []
+    /// Guards "Forget everything", which drops up to 40 facts irreversibly and used to fire on the tap.
+    /// Two steps, not one: nothing here is recoverable, so the first asks and the second says what is
+    /// actually being lost before it goes.
+    @State private var showForgetAllConfirm = false
+    @State private var showForgetAllFinalConfirm = false
     /// What the last "Summarise this chat now" tap actually did. Repeat taps on an already-processed
     /// chat are a no-op by design (they'd otherwise re-distil the same facts into duplicate memory
     /// entries), and a button that silently does nothing reads as a broken button — so it says so.
@@ -178,6 +198,61 @@ struct CoachSettingsView: View {
                         memory.update(id, text: editingFactText, confirmedByUser: true)
                     }
                     editingFactID = nil
+                }
+            }
+            .sheet(isPresented: $addingFact) { addFactSheet }
+        }
+    }
+
+    /// Adding a fact by hand. Saved as the user's own words, so it is confirmed on the spot and can
+    /// frame every reply the moment it's pinned — unlike an inference, which has to be asked about.
+    private var addFactSheet: some View {
+        NavigationStack {
+            subpageScaffold {
+                NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("One short sentence the coach should know about you — a constraint, an injury, how you like to train.")
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        TextField("Fact", text: $newFactText, axis: .vertical)
+                            .textFieldStyle(.plain)
+                            .font(StrandFont.body)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                            .lineLimit(1...4)
+                            .padding(8)
+                            .background(StrandPalette.surfaceInset,
+                                        in: RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: CoachRadius.field, style: .continuous)
+                                .strokeBorder(StrandPalette.hairline, lineWidth: 1))
+                            .accessibilityLabel("Fact")
+                        Picker("Category", selection: $newFactCategory) {
+                            ForEach(CoachMemory.Category.allCases, id: \.self) { category in
+                                Text(LocalizedStringKey(category.label)).tag(category)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .tint(StrandPalette.accent)
+                    }
+                }
+            }
+            .navigationTitle("Add a fact")
+            #if !os(macOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { addingFact = false }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        memory.add(newFactText,
+                                   category: newFactCategory,
+                                   source: .user,
+                                   confirmedByUser: true)
+                        addingFact = false
+                    }
+                    .disabled(newFactText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
         }
@@ -297,6 +372,7 @@ struct CoachSettingsView: View {
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                             Spacer(minLength: 8)
+                            attentionBadge(memoryNeedsAttention)
                             Image(systemName: "chevron.right")
                                 .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                                 .accessibilityHidden(true)
@@ -304,6 +380,7 @@ struct CoachSettingsView: View {
                     }
                 }
                 .accessibilityElement(children: .combine)
+                .accessibilityValue(memoryNeedsAttention ? "Needs attention" : "")
 
                 NavigationLink { privacySubpage } label: {
                     NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
@@ -2034,11 +2111,13 @@ struct CoachSettingsView: View {
                         VStack(alignment: .leading, spacing: 1) {
                             Text("Coach memory")
                                 .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                            // What these facts actually DO, rather than the old blanket claim that the
+                            // coach "uses these in every reply" — which held for none of them: a normal
+                            // fact rides only when it matches the question, and an unconfirmed one is
+                            // barred from the always-on block however it was pinned.
                             Text(memory.facts.isEmpty
                                  ? String(localized: "What the coach remembers about you, across conversations.")
-                                 : (memory.facts.count == 1
-                                    ? String(localized: "1 remembered fact. The coach uses these in every reply.")
-                                    : String(localized: "\(memory.facts.count) remembered facts. The coach uses these in every reply.")))
+                                 : memoryReachSummary)
                                 .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                                 .fixedSize(horizontal: false, vertical: true)
                             HStack(spacing: 7) {
@@ -2061,89 +2140,275 @@ struct CoachSettingsView: View {
 
                 if memoryExpanded {
                     if !memory.facts.isEmpty {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Remembered").strandOverline()
-                            ForEach(memory.facts) { fact in
-                                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                    Image(systemName: fact.category.symbol)
-                                        .font(StrandFont.footnote)
-                                        .foregroundStyle(StrandPalette.textTertiary)
-                                        .accessibilityHidden(true)
-                                    if fact.importance == .pinned {
-                                        Image(systemName: "pin.fill")
-                                            .font(.system(size: 9))
-                                            .foregroundStyle(StrandPalette.accent)
-                                            .accessibilityLabel("Pinned")
-                                    }
-                                    Text(fact.text)
-                                        .font(StrandFont.footnote)
-                                        .foregroundStyle(StrandPalette.textSecondary)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                    if fact.verification != .confirmed {
-                                        Text(LocalizedStringKey(fact.verification.label))
-                                            .font(StrandFont.caption)
-                                            .foregroundStyle(StrandPalette.textTertiary)
-                                    }
-                                    Spacer(minLength: 8)
-                                    if fact.verification != .confirmed {
-                                        Button {
-                                            memory.confirm(fact.id)
-                                        } label: {
-                                            Image(systemName: "checkmark.seal")
-                                                .foregroundStyle(StrandPalette.accent)
-                                        }
-                                        .buttonStyle(.plain)
-                                        .accessibilityLabel("Confirm: \(fact.text)")
-                                    }
-                                    Button {
-                                        editingFactText = fact.text
-                                        editingFactID = fact.id
-                                    } label: {
-                                        Image(systemName: "pencil")
-                                            .foregroundStyle(StrandPalette.textTertiary)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .accessibilityLabel("Edit: \(fact.text)")
-                                    Button {
-                                        memory.remove(fact.id)
-                                    } label: {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .foregroundStyle(StrandPalette.textTertiary)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .accessibilityLabel("Forget: \(fact.text)")
+                        VStack(alignment: .leading, spacing: 10) {
+                            // Grouped by what a fact IS, in the order that matches how much it needs the
+                            // user: anything waiting on them first, then what frames every reply, then
+                            // the rest. A flat 40-row list gave all of them the same weight.
+                            ForEach(memoryGroups, id: \.title) { group in
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(LocalizedStringKey(group.title)).strandOverline()
+                                    ForEach(group.facts) { fact in factRow(fact) }
                                 }
                             }
-                            HStack {
-                                Spacer()
-                                Button {
-                                    memory.clearAll()
-                                } label: {
-                                    Label("Forget everything", systemImage: "trash")
-                                        .font(StrandFont.footnote)
-                                        .labelStyle(.titleAndIcon)
-                                }
-                                .buttonStyle(.plain)
-                                .foregroundStyle(StrandPalette.accent)
-                                .accessibilityLabel("Forget all remembered facts")
-                            }
+                            memoryListActions
                         }
                     } else {
                         // Expanding onto nothing at all reads as a broken control (#coach-bugs): an empty
                         // memory is a normal state and has to SAY it's empty, and say how it fills.
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: 8) {
                             Text("Memory is empty").strandOverline()
-                            Text("The coach hasn't saved anything about you yet. It adds a fact when you tell it something durable — an injury, a constraint, how you like to train — and \"Summarise past chats\" below distils older conversations into facts too.")
+                            Text("The coach hasn't saved anything about you yet. It adds a fact when you tell it something durable — an injury, a constraint, how you like to train — and \"Summarise past chats\" below distils older conversations into facts too. You can also add one yourself.")
                                 .font(StrandFont.footnote)
                                 .foregroundStyle(StrandPalette.textTertiary)
                                 .fixedSize(horizontal: false, vertical: true)
+                            addFactButton
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .accessibilityElement(children: .combine)
                     }
                 }
             }
         }
+    }
+
+    /// The card's one-line honesty about how these facts reach the model. Split by actual reach rather
+    /// than by a bare count, which never told anyone whether any of them were being used at all.
+    private var memoryReachSummary: String {
+        let reach = CoachMemory.reach(of: memory.facts)
+        var parts: [String] = []
+        if reach.alwaysOn > 0 {
+            parts.append(String(localized: "\(reach.alwaysOn) frame every reply"))
+        }
+        if reach.whenRelevant > 0 {
+            parts.append(String(localized: "\(reach.whenRelevant) come up when they're relevant"))
+        }
+        if reach.awaitingConfirmation > 0 {
+            parts.append(String(localized: "\(reach.awaitingConfirmation) waiting for you to confirm"))
+        }
+        if reach.expired > 0 {
+            parts.append(String(localized: "\(reach.expired) expired"))
+        }
+        guard !parts.isEmpty else {
+            return String(localized: "What the coach remembers about you, across conversations.")
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    /// One section per kind of fact. Unconfirmed first (they're waiting on the user), then the ones that
+    /// frame every reply, then everything else by category, then expired — so the list leads with what
+    /// needs the user rather than treating all forty rows as equals.
+    private var memoryGroups: [(title: String, facts: [CoachMemory.MemoryFact])] {
+        let all = memory.facts
+        let pending = all.filter { $0.verification == .pendingConfirmation && memory.isActive($0) }
+        let expired = all.filter { !memory.isActive($0) }
+        let alwaysOn = all.filter {
+            memory.isActive($0) && $0.importance == .pinned && $0.verification == .confirmed
+        }
+        let handled = Set(pending.map(\.id)).union(expired.map(\.id)).union(alwaysOn.map(\.id))
+        let rest = all.filter { !handled.contains($0.id) }
+
+        var groups: [(String, [CoachMemory.MemoryFact])] = []
+        if !pending.isEmpty { groups.append(("Waiting for your confirmation", pending)) }
+        if !alwaysOn.isEmpty { groups.append(("Frames every reply", alwaysOn)) }
+        for category in CoachMemory.Category.allCases {
+            let inCategory = rest.filter { $0.category == category }
+            if !inCategory.isEmpty { groups.append((category.label, inCategory)) }
+        }
+        if !expired.isEmpty { groups.append(("Expired", expired)) }
+        return groups
+    }
+
+    @ViewBuilder
+    private func factRow(_ fact: CoachMemory.MemoryFact) -> some View {
+        let isExpanded = expandedFactIDs.contains(fact.id)
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Image(systemName: fact.category.symbol)
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .accessibilityHidden(true)
+                Text(fact.text)
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(memory.isActive(fact)
+                                     ? StrandPalette.textSecondary : StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 8)
+                if fact.verification != .confirmed {
+                    Button {
+                        memory.confirm(fact.id)
+                    } label: {
+                        Image(systemName: "checkmark.seal")
+                            .foregroundStyle(StrandPalette.accent)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Confirm: \(fact.text)")
+                }
+                // Pinning was the model's decision alone: `importance` had no control anywhere, so a
+                // user who knew a constraint must frame every reply couldn't say so.
+                Button {
+                    memory.setImportance(fact.id, fact.importance == .pinned ? .normal : .pinned)
+                } label: {
+                    Image(systemName: fact.importance == .pinned ? "pin.fill" : "pin")
+                        .foregroundStyle(fact.importance == .pinned
+                                         ? StrandPalette.accent : StrandPalette.textTertiary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(fact.importance == .pinned
+                                    ? "Unpin: \(fact.text)" : "Pin: \(fact.text)")
+                Button {
+                    editingFactText = fact.text
+                    editingFactID = fact.id
+                } label: {
+                    Image(systemName: "pencil")
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Edit: \(fact.text)")
+                Button {
+                    memory.remove(fact.id)
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Forget: \(fact.text)")
+            }
+
+            // Provenance was recorded from the start — where a fact came from, how many times it's been
+            // observed, what it used to say — and shown nowhere, so "why does the coach think this?" had
+            // no answer. Behind a disclosure: it's the second question, not the first.
+            Button {
+                withAnimation(StrandMotion.fade) {
+                    if isExpanded { expandedFactIDs.remove(fact.id) } else { expandedFactIDs.insert(fact.id) }
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Text(isExpanded ? "Hide details" : "Details")
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .accessibilityHidden(true)
+                }
+                .font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textTertiary)
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded { factProvenance(fact) }
+        }
+    }
+
+    @ViewBuilder
+    private func factProvenance(_ fact: CoachMemory.MemoryFact) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            factSourceLine(fact.source)
+            Text("First saved \(fact.createdAt.formatted(date: .abbreviated, time: .omitted))")
+            Text("\(fact.evidenceCount) observation(s)")
+            if let previous = fact.revisions.last?.previousText {
+                Text("Previously: \(previous)")
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let until = fact.validUntil {
+                Text(memory.isActive(fact)
+                     ? String(localized: "Expires \(until.formatted(date: .abbreviated, time: .omitted))")
+                     : String(localized: "Expired \(until.formatted(date: .abbreviated, time: .omitted))"))
+            }
+            if fact.sensitivity == .health {
+                Text("Treated as health information.")
+            }
+            // The expiry is editable here rather than only by the coach: a fact the user knows is over
+            // shouldn't need a conversation to retire.
+            HStack(spacing: 12) {
+                if fact.validUntil != nil {
+                    Button("Remove expiry") { memory.setValidUntil(fact.id, nil) }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(StrandPalette.accent)
+                }
+                Button("Expire today") { memory.setValidUntil(fact.id, Date()) }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(StrandPalette.accent)
+            }
+            .font(StrandFont.caption)
+            .padding(.top, 2)
+        }
+        .font(StrandFont.caption)
+        .foregroundStyle(StrandPalette.textTertiary)
+        .padding(.leading, 22)
+    }
+
+    /// Where a fact came from, in the user's terms — literal `Text` per case for the i18n scanner.
+    @ViewBuilder
+    private func factSourceLine(_ source: CoachMemory.Source) -> some View {
+        switch source {
+        case .user:                Text("You told the coach this.")
+        case .coachTool:           Text("The coach saved this during a conversation.")
+        case .conversationSummary: Text("Distilled from a past conversation.")
+        case .legacy:              Text("Saved before the coach recorded where facts came from.")
+        }
+    }
+
+    private var addFactButton: some View {
+        Button {
+            newFactText = ""
+            newFactCategory = .other
+            addingFact = true
+        } label: {
+            Label("Add a fact", systemImage: "plus.circle")
+                .font(StrandFont.footnote)
+                .labelStyle(.titleAndIcon)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(StrandPalette.accent)
+        .accessibilityLabel("Add a fact to coach memory")
+    }
+
+    private var memoryListActions: some View {
+        HStack {
+            addFactButton
+            Spacer()
+            Button {
+                showForgetAllConfirm = true
+            } label: {
+                Label("Forget everything", systemImage: "trash")
+                    .font(StrandFont.footnote)
+                    .labelStyle(.titleAndIcon)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(StrandPalette.accent)
+            .accessibilityLabel("Forget all remembered facts")
+            // Up to 40 facts, gone for good, on a single tap — the only other irreversible control on
+            // this screen ("Forget saved key") has asked first all along.
+            .confirmationDialog("Forget everything the coach remembers?",
+                                isPresented: $showForgetAllConfirm,
+                                titleVisibility: .visible) {
+                Button("Forget everything", role: .destructive) { showForgetAllFinalConfirm = true }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("\(memory.facts.count) fact(s) will be deleted. This can't be undone — the coach will have to learn them again.")
+            }
+        }
+        // The second ask, on the enclosing row rather than on the button: two presentations from one
+        // view fight over the same slot, and the first has to be gone before this one arrives.
+        //
+        // It is not a repeat of the first. Nothing here is recoverable — there is no archive for facts
+        // as there is for conversations — so the last step names what is actually at stake rather than
+        // asking the same question twice: the facts that frame every reply are injuries and hard
+        // constraints, the ones the coach cannot rebuild from data and the user would have to remember
+        // to say again.
+        .alert("Really forget everything?", isPresented: $showForgetAllFinalConfirm) {
+            Button("Forget permanently", role: .destructive) { memory.clearAll() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(forgetAllFinalWarning)
+        }
+    }
+
+    /// The last warning before the memory is gone. Leads with the always-on facts when there are any,
+    /// because those are the costly half — a preference the coach can pick up again from the next
+    /// conversation, an injury it cannot.
+    private var forgetAllFinalWarning: String {
+        let alwaysOn = CoachMemory.reach(of: memory.facts).alwaysOn
+        guard alwaysOn > 0 else {
+            return String(localized: "There is no undo, and no archive. The coach starts again from nothing.")
+        }
+        return String(localized: "\(alwaysOn) of them frame every reply — injuries and hard constraints you'd have to tell the coach again. There is no undo, and no archive.")
     }
 
     // MARK: - System prompt

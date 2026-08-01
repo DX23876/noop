@@ -240,4 +240,89 @@ final class CoachMemoryVerificationTests: XCTestCase {
         XCTAssertEqual(CoachMemory.evictionIndex(in: [newest, oldest], now: now), 1)
     }
 
+    // MARK: - What the settings card is allowed to claim
+
+    /// The card used to say the coach "uses these in every reply", which was true of none of them. These
+    /// are the four states it now distinguishes.
+    func testReachCountsWhatActuallyGetsSent() {
+        let now = Date()
+        let alwaysOn = CoachMemory.MemoryFact(text: "pinned and confirmed",
+                                              importance: .pinned,
+                                              createdAt: now,
+                                              verification: .confirmed)
+        let pinnedButUnconfirmed = CoachMemory.MemoryFact(text: "pinned, not confirmed",
+                                                          importance: .pinned,
+                                                          createdAt: now,
+                                                          verification: .pendingConfirmation)
+        let ordinary = CoachMemory.MemoryFact(text: "ordinary", createdAt: now, verification: .confirmed)
+        let expired = CoachMemory.MemoryFact(text: "over",
+                                             createdAt: now,
+                                             verification: .confirmed,
+                                             validUntil: now.addingTimeInterval(-1))
+
+        let reach = CoachMemory.reach(of: [alwaysOn, pinnedButUnconfirmed, ordinary, expired], now: now)
+        XCTAssertEqual(reach.alwaysOn, 1, "only pinned AND confirmed frames every reply")
+        XCTAssertEqual(reach.whenRelevant, 2, "a pinned-but-unconfirmed fact is not always-on")
+        XCTAssertEqual(reach.awaitingConfirmation, 1)
+        XCTAssertEqual(reach.expired, 1, "an expired fact is counted apart, not as reaching anything")
+    }
+
+    // MARK: - Near misses on the destructive tools
+
+    /// `firstMatch` applies `.injury`'s thresholds to every category, so a phrasing that misses by a word
+    /// finds nothing and the tool used to answer with a dead end. Candidates give the coach something to
+    /// ask about — without loosening the rule on the path that actually deletes.
+    func testCandidatesOfferWhatTheStrictMatchRefuses() {
+        let memory = memory()
+        XCTAssertTrue(memory.add("Runs on weekday mornings before work", category: .preference))
+
+        XCTAssertNil(memory.firstMatch("runs in the mornings"),
+                     "premise: the strict match still refuses this")
+        XCTAssertEqual(memory.candidates(for: "runs in the mornings").map(\.text),
+                       ["Runs on weekday mornings before work"])
+    }
+
+    /// A candidate is a near miss, not a free-for-all: an unrelated fact must not be offered.
+    func testCandidatesStayEmptyForAnUnrelatedQuery() {
+        let memory = memory()
+        XCTAssertTrue(memory.add("Runs on weekday mornings before work", category: .preference))
+        XCTAssertTrue(memory.candidates(for: "lactose intolerance diagnosis").isEmpty)
+    }
+
+    /// What `firstMatch` already found is not a "did you mean" — it is the answer.
+    func testCandidatesExcludeTheExactMatch() {
+        let memory = memory()
+        XCTAssertTrue(memory.add("Runs on weekday mornings before work", category: .preference))
+        XCTAssertNotNil(memory.firstMatch("Runs on weekday mornings before work"), "premise")
+        XCTAssertTrue(memory.candidates(for: "Runs on weekday mornings before work").isEmpty)
+    }
+
+    // MARK: - The user's own controls
+
+    func testPinningIsReachableWithoutTheModel() {
+        let memory = memory()
+        XCTAssertTrue(memory.add("No gym on Wednesdays.", category: .schedule, confirmedByUser: true))
+        let id = try! XCTUnwrap(memory.facts.first?.id)
+        XCTAssertTrue(memory.pinnedBlock.isEmpty, "premise: not pinned yet")
+
+        memory.setImportance(id, .pinned)
+        XCTAssertTrue(memory.pinnedBlock.contains("No gym on Wednesdays."))
+
+        memory.setImportance(id, .normal)
+        XCTAssertTrue(memory.pinnedBlock.isEmpty)
+    }
+
+    /// The user correcting their own memory may clear an expiry outright — unlike a coach restatement,
+    /// which can only ever replace one.
+    func testTheUserCanRetireAndReviveAFact() {
+        let memory = memory()
+        XCTAssertTrue(memory.add("Travelling, no gym access.", category: .schedule, confirmedByUser: true))
+        let fact = try! XCTUnwrap(memory.facts.first)
+
+        memory.setValidUntil(fact.id, Date().addingTimeInterval(-1))
+        XCTAssertFalse(memory.isActive(try! XCTUnwrap(memory.facts.first)))
+
+        memory.setValidUntil(fact.id, nil)
+        XCTAssertTrue(memory.isActive(try! XCTUnwrap(memory.facts.first)))
+    }
 }

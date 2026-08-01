@@ -285,6 +285,85 @@ final class CoachMemory: ObservableObject {
         facts[idx].evidenceCount += 1
     }
 
+    /// Pin or unpin a fact. Only pinned AND confirmed facts ride every prompt, so this is the user's own
+    /// half of that decision — until now `importance` could only ever be set by the model, and someone
+    /// who knew perfectly well that a constraint must frame every reply had no way to say so.
+    func setImportance(_ id: UUID, _ importance: Importance) {
+        guard let idx = facts.firstIndex(where: { $0.id == id }) else { return }
+        facts[idx].importance = importance
+    }
+
+    /// Set or clear a fact's expiry from the UI. Clearing (nil) is deliberately possible here even
+    /// though a coach restatement can't do it: the user correcting their own memory is not the same as
+    /// a model failing to repeat a date.
+    func setValidUntil(_ id: UUID, _ date: Date?) {
+        guard let idx = facts.firstIndex(where: { $0.id == id }) else { return }
+        facts[idx].validUntil = date
+    }
+
+    /// Whether a fact is currently in force. Retrieval already applies this rule; the UI needs it too,
+    /// so an expired fact can be shown as retired rather than silently doing nothing.
+    func isActive(_ fact: MemoryFact, now: Date = Date()) -> Bool {
+        fact.validFrom <= now && (fact.validUntil.map { $0 >= now } ?? true)
+    }
+
+    /// How the stored facts actually reach the model, counted for the settings card. The card used to
+    /// claim the coach "uses these in every reply", which holds for none of them: a normal fact rides
+    /// only when it overlaps the question, and an unconfirmed one is barred from the always-on block
+    /// however it was pinned.
+    struct Reach: Equatable {
+        /// Pinned AND confirmed AND in force — the facts that genuinely frame every reply.
+        var alwaysOn = 0
+        /// In force, but surfaced only when they match the question.
+        var whenRelevant = 0
+        /// Saved but waiting for the user to confirm before they can be relied on.
+        var awaitingConfirmation = 0
+        /// Past their expiry: kept and visible, but no longer sent anywhere.
+        var expired = 0
+    }
+
+    /// Pure and static so the card's arithmetic is testable without a `UserDefaults` fixture.
+    static func reach(of facts: [MemoryFact], now: Date = Date()) -> Reach {
+        var reach = Reach()
+        for fact in facts {
+            let active = fact.validFrom <= now && (fact.validUntil.map { $0 >= now } ?? true)
+            guard active else { reach.expired += 1; continue }
+            if fact.verification == .pendingConfirmation { reach.awaitingConfirmation += 1 }
+            if fact.importance == .pinned && fact.verification == .confirmed {
+                reach.alwaysOn += 1
+            } else {
+                reach.whenRelevant += 1
+            }
+        }
+        return reach
+    }
+
+    /// Facts that ALMOST match `query` — the ones `firstMatch` deliberately refuses.
+    ///
+    /// `firstMatch` applies `.injury`'s thresholds to every category because handing `forget_fact` the
+    /// wrong fact is the costlier error. The side effect is that "forget that I run in the mornings"
+    /// often finds nothing, and the tool answered with a flat dead end that gave the model nothing to
+    /// work with. These candidates let it ask "did you mean…?" instead — naming them is not deleting
+    /// them, so the strict threshold on the destructive path is untouched.
+    func candidates(for query: String, limit: Int = 3) -> [MemoryFact] {
+        let key = Self.normalize(query)
+        guard !key.isEmpty else { return [] }
+        let qTokens = Self.tokens(query)
+        guard !qTokens.isEmpty else { return [] }
+        return facts
+            .filter { !Self.isNearDuplicate(Self.normalize($0.text), key, category: .injury) }
+            .map { fact -> (MemoryFact, Double) in
+                let tokens = Self.tokens(fact.text)
+                let shared = Double(tokens.intersection(qTokens).count)
+                let smaller = Double(min(tokens.count, qTokens.count))
+                return (fact, smaller > 0 ? shared / smaller : 0)
+            }
+            .filter { $0.1 >= 0.5 }
+            .sorted { $0.1 > $1.1 }
+            .prefix(limit)
+            .map(\.0)
+    }
+
     /// Find a fact whose text near-matches `query` (for the model's forget/update-by-text tools). The
     /// tools don't supply a category to match against, so this uses the STRICTEST thresholds (`.injury`'s)
     /// regardless of the candidate's own category — handing `forget_fact`/`update_fact` the wrong fact is
