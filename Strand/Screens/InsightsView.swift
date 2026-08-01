@@ -203,6 +203,10 @@ struct InsightsView: View {
     /// prior answers move to their real date. Local CALENDAR day (matches the journal's `localDayKey`).
     @State private var currentDayKey = Repository.localDayKey(Date())
 
+    /// The pending, debounced full reload behind `scheduleDerivedReload()`. One at a time: a further
+    /// journal change replaces it rather than stacking another full-history read behind the first.
+    @State private var derivedReload: Task<Void, Never>?
+
     var body: some View {
         ScreenScaffold(title: "Insights", subtitle: "Interrogate what affects what.",
                        // PERF (scroll): lazy column, byte-identical layout (LazyVStack == eager VStack
@@ -226,7 +230,7 @@ struct InsightsView: View {
                                    answers: dayAnswers,
                                    numericAnswers: dayNumeric,
                                    dayOffset: $journalDayOffset,
-                                   onChanged: { Task { await load() } })
+                                   onChanged: { journalChanged() })
                     // Mind, daily mood check-in + mood↔body correlations.
                     // Self-contained (owns its own load/state); sits with the
                     // journal card so the two daily-logging surfaces read as one
@@ -261,17 +265,20 @@ struct InsightsView: View {
         // (behaviours / outcomeByKey change only at load, which calls
         //  recomputeRanked() directly, so keying on `outcome` is sufficient.)
         .onChangeCompat(of: outcome) { _ in recomputeRanked() }
+        // The journal day pills only change WHICH day is shown — the behaviours, series and rankings are
+        // history-wide and identical for every day. So a day switch re-reads that one day's answers and
+        // nothing else. (The card no longer calls `onChanged` for this; that means "an answer changed".)
+        .onChangeCompat(of: journalDayOffset) { _ in Task { await reloadJournalDay() } }
         // Refresh the day anchor on appear and whenever the app returns to the foreground; if the date has
         // advanced this bumps the `.task(id:)` key and the journal reloads for the new logical day (#860).
         .onAppear {
             refreshCurrentDayKey()
             // #656: honour a day the Today journal widget deep-linked to (tapping a bar opens the journal
-            // at THAT day). Consumed once on arrival, then cleared. Reload explicitly — setting the offset
-            // here doesn't run the pill's onChanged, and the `.task` keys on the day-key, not the offset.
+            // at THAT day). Consumed once on arrival, then cleared. The offset change is what reloads that
+            // day's answers (the `.onChangeCompat` above); the `.task` keys on the day-key, not the offset.
             if let day = router.pendingJournalDayOffset {
                 journalDayOffset = day
                 router.pendingJournalDayOffset = nil
-                Task { await load() }
             }
         }
         .onChangeCompat(of: scenePhase) { phase in
@@ -322,6 +329,60 @@ struct InsightsView: View {
         .accessibilityLabel("What moves you. Ranked patterns in your own data, and your dose-response.")
     }
 
+    // MARK: - Journal changes
+
+    /// A journal write, or a day-pill switch, from the logging card.
+    ///
+    /// This used to be `Task { await load() }` — the FULL load (whole journal history, the imported
+    /// journal a second time, four metric series, every workout, then the ranker and the correlations,
+    /// all on the @MainActor) for one toggled chip. The chip's state cannot repaint until that returns,
+    /// so a tap looked ignored until the screen was left and re-entered, where the #833 cache restored
+    /// the finished result. Split in two: the selected day's answers reload immediately, and the
+    /// derived analysis follows once the tapping stops.
+    private func journalChanged() {
+        Task { await reloadJournalDay() }
+        scheduleDerivedReload()
+    }
+
+    /// Re-read ONLY the selected day's native answers — two single-day queries — and keep the #833
+    /// cache in step with them.
+    ///
+    /// Patching the cache is not optional: `load(allowCache:)` restores `dayAnswers` from it wholesale
+    /// on the next re-mount, so a day reload that skipped it would resurrect pre-tap answers the moment
+    /// the user came back to the screen.
+    @MainActor
+    private func reloadJournalDay() async {
+        let selectedDayKey = Repository.localDayKey(
+            Calendar.current.date(byAdding: .day, value: -journalDayOffset, to: Date()) ?? Date())
+        let answers = await repo.nativeJournalAnswers(day: selectedDayKey)
+        let numeric = await repo.nativeJournalNumeric(day: selectedDayKey)
+        dayAnswers = answers
+        dayNumeric = numeric
+        if let c = repo.insightsCache {
+            repo.insightsCache = InsightsLoadCache(
+                behaviours: c.behaviours,
+                importedQuestions: c.importedQuestions,
+                dayAnswers: answers,
+                journalDayOffset: journalDayOffset,
+                outcomeByKey: c.outcomeByKey,
+                seriesByKey: c.seriesByKey,
+                activityCosts: c.activityCosts,
+                numericJournalByKey: c.numericJournalByKey)
+        }
+    }
+
+    /// Refresh the derived half — behaviours, the ranked effects, the correlations — once the user has
+    /// stopped changing answers. Each call replaces the pending one, so logging ten items runs the
+    /// heavy load once, after the last of them, instead of ten times while they tap.
+    private func scheduleDerivedReload() {
+        derivedReload?.cancel()
+        derivedReload = Task {
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            guard !Task.isCancelled else { return }
+            await load()
+        }
+    }
+
     // MARK: - Load
 
     /// Load the journal + outcome series + activity costs.
@@ -350,7 +411,13 @@ struct InsightsView: View {
         // journalEntries() is the imported ∪ native union (native wins per day+question). A numeric
         // log writes answeredYes=true too (#322), so a numeric item lands in the with/without split
         // here unchanged, on top of the numeric series read below.
-        let entries = await repo.journalEntries()
+        // One pass over the journal, not two: `journalEntries()` reads the imported rows and the native
+        // rows and merges them, and `importedJournalEntries()` (needed below for the catalog's exact
+        // question strings) then re-read the imported half a second time. Merging here with the same
+        // `mergeJournal` the repository uses keeps one merge rule while halving the read.
+        let imported = await repo.importedJournalEntries()
+        let entries = Repository.mergeJournal(imported: imported,
+                                              native: await repo.nativeJournalEntries())
         var byBehaviour: [String: Set<String>] = [:]
         var numericByBehaviour: [String: [String: Double]] = [:]
         for e in entries where e.answeredYes {
@@ -367,7 +434,6 @@ struct InsightsView: View {
         // The logging card's inputs: the export's exact question strings (so logged days join
         // imported history) and the selected day's native chip state, a targeted read, since the
         // merged list carries no deviceId to filter on.
-        let imported = await repo.importedJournalEntries()
         let importedQs = NSOrderedSet(array: imported.map(\.question)).array as? [String] ?? []
         let selectedDayKey = Repository.localDayKey(
             Calendar.current.date(byAdding: .day, value: -journalDayOffset, to: Date()) ?? Date())

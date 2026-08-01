@@ -185,4 +185,49 @@ final class JournalLogicTests: XCTestCase {
         XCTAssertNotEqual(key, "recovery")
         XCTAssertNotEqual(key, "hrv")
     }
+
+    // MARK: - Optimistic chip state
+    //
+    // The card renders from the PARENT's loaded answers, which arrive only after its reload. Reported
+    // as "the button keeps its colour, nothing happens" — the write landed, the chip could not say so.
+    // The overlay is what lets a tap paint immediately; these pin when it wins and when it retires, so
+    // it can never mask what was actually stored.
+
+    private let q = "Did you drink any alcohol?"
+
+    func testOverlayWinsOverTheParentAnswer() {
+        let effective = JournalLogCard.effectiveAnswer(question: q, parent: [q: false], pending: [q: true])
+        XCTAssertEqual(effective, true)
+    }
+
+    func testOverlayCanClearAnAnswerTheParentStillHolds() {
+        // The tri-state clear: re-tapping a filled chip. `.some(nil)` is "cleared", which is NOT the
+        // same as having no overlay entry at all.
+        let effective = JournalLogCard.effectiveAnswer(question: q, parent: [q: true], pending: [q: nil])
+        XCTAssertNil(effective)
+    }
+
+    func testAQuestionWithoutAnOverlayReadsTheParent() {
+        let effective = JournalLogCard.effectiveAnswer(question: q, parent: [q: true], pending: [:])
+        XCTAssertEqual(effective, true)
+        XCTAssertNil(JournalLogCard.effectiveAnswer(question: "unlogged", parent: [q: true], pending: [:]))
+    }
+
+    func testOverlayRetiresOnceTheParentAgrees() {
+        // The rule the card applies when a reload lands: drop what the parent now confirms, keep what
+        // it doesn't, so a slower reload still in flight can't flip a chip back under the user.
+        let pending: [String: Bool?] = [q: true, "Any caffeine?": false]
+        let parent: [String: Bool] = [q: true]
+        let remaining = pending.filter { question, value in parent[question] != value }
+        XCTAssertEqual(Array(remaining.keys), ["Any caffeine?"])
+    }
+
+    func testNumericOverlayMirrorsTheBooleanRule() {
+        XCTAssertEqual(JournalLogCard.effectiveNumeric(question: "Caffeine (mg)",
+                                                       parent: ["Caffeine (mg)": 80], pending: ["Caffeine (mg)": 160]), 160)
+        XCTAssertNil(JournalLogCard.effectiveNumeric(question: "Caffeine (mg)",
+                                                     parent: ["Caffeine (mg)": 80], pending: ["Caffeine (mg)": nil]))
+        XCTAssertEqual(JournalLogCard.effectiveNumeric(question: "Caffeine (mg)",
+                                                       parent: ["Caffeine (mg)": 80], pending: [:]), 80)
+    }
 }

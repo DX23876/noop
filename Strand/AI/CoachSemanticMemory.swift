@@ -225,6 +225,18 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
     /// the merged canonical journal, so deleting a native override correctly reveals an imported row
     /// when one exists instead of blindly deleting that source.
     func journalEntriesChanged(_ entries: [JournalEntry]) async {
+        await journalEntriesChanged { entries }
+    }
+
+    /// The same refresh, taking the journal as a closure so the read happens ONLY on the path that
+    /// consumes it.
+    ///
+    /// Reading the merged journal means every imported source id plus the native rows over 4000 days,
+    /// and the caller cannot know whether any of it will be used: with the index off, or journal scopes
+    /// unconsented, this method wants no entries at all — it only purges. Passing the array had every
+    /// caller pay that read up front regardless, which on the journal-write path was the bulk of a
+    /// user-visible stall. Behaviour is otherwise identical to the array form.
+    func journalEntriesChanged(_ provide: () async -> [JournalEntry]) async {
         guard store != nil else { return }
         let consent = ToolConsent.load()
         let masterAllowed = UserDefaults.standard.bool(forKey: "ai.dataConsent")
@@ -237,7 +249,7 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
         }
         let changed = Self.documents(facts: [],
                                      conversations: [],
-                                     journalEntries: entries,
+                                     journalEntries: await provide(),
                                      proposals: [],
                                      allowedScopes: allowedJournalScopes)
         await applyKindUpdate(changed, kinds: kinds)

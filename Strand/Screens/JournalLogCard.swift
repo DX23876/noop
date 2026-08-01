@@ -39,6 +39,14 @@ struct JournalLogCard: View {
         self.onChanged = onChanged
     }
 
+    /// Optimistic overlay over `answers` / `numericAnswers`: question → the value this card just wrote
+    /// (an inner `nil` means "cleared"). The parent's dictionaries are the truth, but they arrive only
+    /// after its reload, so without this the chip could not repaint on tap however fast the write was —
+    /// the reported "the button keeps its colour, nothing happened". Each entry is dropped as soon as
+    /// the parent confirms it, so the overlay can never outlive the reload or mask what was stored.
+    @State private var pendingAnswers: [String: Bool?] = [:]
+    @State private var pendingNumeric: [String: Double?] = [:]
+
     @State private var customDraft = ""
     @State private var customIsNumeric = false
     @State private var customGroup: JournalGroup = .other
@@ -131,6 +139,38 @@ struct JournalLogCard: View {
             }
         }
         .sheet(item: $renaming) { item in renameSheet(item) }
+        // Retire an optimistic entry the moment the parent's reload agrees with it. Entries that don't
+        // agree stay: a slower reload still in flight must not flip the chip back under the user.
+        .onChangeCompat(of: answers) { parent in
+            pendingAnswers = pendingAnswers.filter { q, v in parent[q] != v }
+        }
+        .onChangeCompat(of: numericAnswers) { parent in
+            pendingNumeric = pendingNumeric.filter { q, v in parent[q] != v }
+        }
+        // A different day is a different set of answers entirely — nothing pending applies to it.
+        .onChangeCompat(of: dayOffset) { _ in
+            pendingAnswers = [:]
+            pendingNumeric = [:]
+        }
+    }
+
+    // MARK: - Optimistic state
+
+    /// The answer to show: what this card just wrote, else what the parent loaded. Pure, so the rule
+    /// is pinned in `JournalLogicTests` rather than only observable by tapping a chip.
+    static func effectiveAnswer(question: String,
+                                parent: [String: Bool],
+                                pending: [String: Bool?]) -> Bool? {
+        if let overlay = pending[question] { return overlay }
+        return parent[question]
+    }
+
+    /// The numeric twin of `effectiveAnswer`.
+    static func effectiveNumeric(question: String,
+                                 parent: [String: Double],
+                                 pending: [String: Double?]) -> Double? {
+        if let overlay = pending[question] { return overlay }
+        return parent[question]
     }
 
     // MARK: - Group block
@@ -188,7 +228,8 @@ struct JournalLogCard: View {
     // MARK: - Numeric field
 
     private func numericField(_ item: JournalCatalogItem) -> some View {
-        let current = numericAnswers[item.canonical]
+        let current = Self.effectiveNumeric(question: item.canonical,
+                                            parent: numericAnswers, pending: pendingNumeric)
         return HStack(spacing: 6) {
             stepperButton("minus", q: item.canonical, current: current)
             NumericLogField(
@@ -204,6 +245,7 @@ struct JournalLogCard: View {
             stepperButton("plus", q: item.canonical, current: current)
             if current != nil {
                 Button {
+                    pendingNumeric.updateValue(nil, forKey: item.canonical)
                     Task { await repo.clearJournalAnswer(day: dayKey, question: item.canonical); onChanged() }
                 } label: {
                     Image(systemName: "xmark.circle.fill")
@@ -231,6 +273,7 @@ struct JournalLogCard: View {
     }
 
     private func commitNumeric(_ q: String, value: Double) {
+        pendingNumeric.updateValue(value, forKey: q)
         Task {
             await repo.saveJournalNumeric(day: dayKey, question: q, value: value)
             onChanged()
@@ -348,10 +391,10 @@ struct JournalLogCard: View {
     // MARK: - Controls
 
     private func dayPill(_ label: LocalizedStringKey, offset: Int) -> some View {
-        pillButton(label, selected: dayOffset == offset) {
-            dayOffset = offset
-            onChanged()   // reload the selected day's answers
-        }
+        // The host observes `dayOffset` and re-reads that day's answers itself, so this does NOT call
+        // `onChanged` — that callback means "an answer was written", and firing it here would also
+        // schedule the host's derived reload for a switch that changes no history at all.
+        pillButton(label, selected: dayOffset == offset) { dayOffset = offset }
     }
 
     /// The bounded day-picker range (#656): Tomorrow (-1) plus today and the 6 prior days, chronological
@@ -371,8 +414,14 @@ struct JournalLogCard: View {
     }
 
     private func answerPill(_ label: LocalizedStringKey, q: String, value: Bool) -> some View {
-        let selected = answers[q] == value
+        let selected = Self.effectiveAnswer(question: q, parent: answers, pending: pendingAnswers) == value
         return pillButton(label, selected: selected) {
+            // Paint first: the write and the parent's reload are both async, and the chip is the only
+            // feedback that the tap registered.
+            // updateValue, not `pendingAnswers[q] = …`: assigning nil through the subscript of a
+            // dictionary with an Optional value REMOVES the key, which is the opposite of recording
+            // "the user just cleared this".
+            pendingAnswers.updateValue(selected ? nil : value, forKey: q)
             Task {
                 // Tri-state: re-tapping the filled chip clears the answer (natural-key delete,
                 // scoped to "noop-journal", imported rows can never be removed this way).

@@ -2144,6 +2144,19 @@ final class Repository: ObservableObject {
         return rows
     }
 
+    /// Native journal rows only ("noop-journal"). The other half of `journalEntries()`: a caller that
+    /// needs BOTH the merged union and the imported rows on their own (Insights does — it feeds the
+    /// catalog the export's exact question strings) can read each side once and merge with
+    /// `mergeJournal`, instead of calling `journalEntries()` and `importedJournalEntries()` and reading
+    /// every imported row twice.
+    func nativeJournalEntries(days: Int = 4000) async -> [JournalEntry] {
+        guard let store = await ensureStore() else { return [] }
+        let now = Date()
+        let from = Self.dayString(now.addingTimeInterval(-Double(days) * 86_400))
+        let to = Self.dayString(now.addingTimeInterval(86_400))
+        return (try? await store.journalEntries(deviceId: Self.journalDeviceId, from: from, to: to)) ?? []
+    }
+
     /// One day's native answers (question → answeredYes) for the logging card's chip state. A
     /// targeted read , the merged list carries no deviceId, so it can't distinguish native rows.
     func nativeJournalAnswers(day: String) async -> [String: Bool] {
@@ -2185,13 +2198,42 @@ final class Repository: ObservableObject {
         return byKey.values.sorted { ($0.day, $0.question) < ($1.day, $1.question) }
     }
 
+    /// Coalesces the semantic index refresh that follows journal writes. One task, replaced on every
+    /// write, so a burst of chip taps costs ONE pass instead of one per tap.
+    private var journalIndexTask: Task<Void, Never>?
+
+    /// Re-index the journal AFTER the write, off the caller's await.
+    ///
+    /// This used to be `await CoachSemanticMemory.shared.journalEntriesChanged(await journalEntries())`
+    /// inline in each writer below — so a single tap on a Yes/No chip read the whole 4000-day journal
+    /// across every imported source id, merged it, and (with the index on) rebuilt every journal
+    /// document before the caller's `await` returned. Both types are @MainActor, so that ran on the
+    /// main thread with the UI waiting on it: the chip could not repaint until it finished, which is
+    /// exactly the "my taps do nothing" report. The index still has to follow a write — it just has no
+    /// business being in front of the user.
+    ///
+    /// The history read moved INTO the closure so it is skipped entirely when the index is off or
+    /// unconsented (`journalEntriesChanged` guards before calling it). The purge that runs in that case
+    /// is deliberately still performed — a revoked consent must clear indexed journal rows even when
+    /// this process never indexed any — it is just no longer paid per tap.
+    private func scheduleJournalIndexRefresh() {
+        journalIndexTask?.cancel()
+        journalIndexTask = Task { [weak self] in
+            // Long enough to absorb a run of taps, short enough that the coach is never meaningfully
+            // behind what the user just logged.
+            try? await Task.sleep(nanoseconds: 800_000_000)
+            guard !Task.isCancelled, let self else { return }
+            await CoachSemanticMemory.shared.journalEntriesChanged { await self.journalEntries() }
+        }
+    }
+
     /// Write one native answer (day per the importer's wake-day convention).
     func saveJournalAnswer(day: String, question: String, answeredYes: Bool, notes: String? = nil) async {
         guard let store = await ensureStore() else { return }
         _ = try? await store.upsertJournal(
             [JournalEntry(day: day, question: question, answeredYes: answeredYes, notes: notes)],
             deviceId: Self.journalDeviceId)
-        await CoachSemanticMemory.shared.journalEntriesChanged(await journalEntries())
+        scheduleJournalIndexRefresh()
     }
 
     /// Write one native NUMERIC answer (#322): stores the value AND answeredYes=true, so the existing
@@ -2203,7 +2245,7 @@ final class Repository: ObservableObject {
             [JournalEntry(day: day, question: question, answeredYes: true, notes: notes,
                           numericValue: value)],
             deviceId: Self.journalDeviceId)
-        await CoachSemanticMemory.shared.journalEntriesChanged(await journalEntries())
+        scheduleJournalIndexRefresh()
     }
 
     /// Per-question numeric series (question → [day: value]) over the imported ∪ native union, native
@@ -2224,7 +2266,7 @@ final class Repository: ObservableObject {
     func clearJournalAnswer(day: String, question: String) async {
         guard let store = await ensureStore() else { return }
         _ = try? await store.deleteJournal(deviceId: Self.journalDeviceId, day: day, question: question)
-        await CoachSemanticMemory.shared.journalEntriesChanged(await journalEntries())
+        scheduleJournalIndexRefresh()
     }
 
     /// All workouts (Whoop + Apple Health + on-device detected bouts), newest first.
