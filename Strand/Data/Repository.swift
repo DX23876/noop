@@ -167,15 +167,26 @@ final class Repository: ObservableObject {
         computedDeviceId == canonicalComputedId ? [computedDeviceId] : [computedDeviceId, canonicalComputedId]
     }
 
-    /// Every namespace that can own a sleep row currently visible in the app. Computed rows keep their
-    /// established precedence over imported rows; within each side the active source comes first.
+    /// Every namespace that can own a sleep row currently visible in the app, in the order a write probes
+    /// them.
     ///
     /// `CachedSleepSession` intentionally has no device id, so a write that starts from a merged Sleep-tab
-    /// row must resolve its owner against this same active-plus-canonical union used for reads. Otherwise a
+    /// row must resolve its owner across the same active-plus-canonical union the reads use. Otherwise a
     /// historical night under the canonical source after a strap re-add looks editable but its save is a
     /// no-op.
+    ///
+    /// Order is STRICTLY ADDITIVE over the pre-union behaviour: the ACTIVE strap's two namespaces keep the
+    /// exact order they were probed in before (computed, then imported), and the canonical pair is appended
+    /// only as a fallback that previously was not probed at all. Probing a canonical namespace ahead of the
+    /// active imported one would demote a live row below a historical twin and could redirect an edit to a
+    /// coincidental same-`detectedStartTs` row — the failure the single-fallback chain was written to avoid.
     private var sleepOwnerIds: [String] {
-        computedReadIds + importedReadIds
+        var ids: [String] = []
+        for id in [computedDeviceId, deviceId, canonicalComputedId, canonicalDeviceId]
+        where !ids.contains(id) {
+            ids.append(id)
+        }
+        return ids
     }
 
     /// True when the ACTIVE strap is an Oura ring, resolved from its registry id prefix against the canonical
@@ -876,16 +887,23 @@ final class Repository: ObservableObject {
         return byDay.values.sorted { $0.day < $1.day }
     }
 
+    /// The LOCAL wake-day a sleep session belongs to, keyed exactly as `DailyMetric.day` is.
+    ///
+    /// The zone offset is resolved AT the session's own end instant, never at "now": a single current-zone
+    /// offset applied across history mis-keys any night recorded under the other side of a DST switch, which
+    /// is the mis-attribution the local-day keying fixed (the Swift half of #406; mirrors the Android #304
+    /// fix pinned by MergeSleepLocalDayTest). One definition so every consumer , `userEditedDays`,
+    /// `mergeSleep` and the edited-day overlay , keys identically and cannot drift apart.
+    nonisolated static func sleepEndDayKey(_ s: CachedSleepSession) -> String {
+        let offsetSec = TimeZone.current.secondsFromGMT(for: Date(timeIntervalSince1970: TimeInterval(s.endTs)))
+        return AnalyticsEngine.dayString(s.endTs, offsetSec: offsetSec)
+    }
+
     /// The set of LOCAL wake-days that carry a user-edited sleep session , keyed exactly as
     /// `DailyMetric.day` is (the engine's cached-offset local-day keyer, matching `mergeSleep.endDay`).
     /// Drives the H5 edit-merge precedence in `mergeDaily`.
     nonisolated static func userEditedDays(_ sessions: [CachedSleepSession]) -> Set<String> {
-        var days = Set<String>()
-        for s in sessions where s.userEdited {
-            let offsetSec = TimeZone.current.secondsFromGMT(for: Date(timeIntervalSince1970: TimeInterval(s.endTs)))
-            days.insert(AnalyticsEngine.dayString(s.endTs, offsetSec: offsetSec))
-        }
-        return days
+        Set(sessions.filter(\.userEdited).map(sleepEndDayKey))
     }
 
     /// Resolves a night's debt after a manual edit. The exported debt remains the baseline, adjusted by
@@ -912,21 +930,26 @@ final class Repository: ObservableObject {
     nonisolated static func applyingEditedSleepSessions(_ sessions: [CachedSleepSession],
                                                         to days: [DailyMetric]) -> [DailyMetric] {
         guard sessions.contains(where: \.userEdited) else { return days }
+        // Scalar current-zone offset for the ANALYTICS calls only (the main-night pick and the habitual
+        // learner read a local time-of-day, matching every other caller of these APIs). Day KEYS must not
+        // use it , see `sleepEndDayKey`.
         let offsetSec = TimeZone.current.secondsFromGMT()
         let habitualBlocks = sessions.compactMap { session -> SleepStageTotals.HistoryBlock? in
             let start = session.effectiveStartTs, end = session.endTs
             guard end > start else { return nil }
             let midpoint = start + (end - start) / 2
+            let midpointOffsetSec = TimeZone.current.secondsFromGMT(
+                for: Date(timeIntervalSince1970: TimeInterval(midpoint)))
             return SleepStageTotals.HistoryBlock(
                 start: start,
                 end: end,
-                dayKey: AnalyticsEngine.dayString(midpoint, offsetSec: offsetSec)
+                dayKey: AnalyticsEngine.dayString(midpoint, offsetSec: midpointOffsetSec)
             )
         }
         let habitualMidsleepSec = SleepStageTotals.habitualMidsleepSec(habitualBlocks, offsetSec: offsetSec)
-        let sessionsByDay = Dictionary(grouping: sessions) { session in
-            AnalyticsEngine.dayString(session.endTs, offsetSec: offsetSec)
-        }
+        // Grouped through the SHARED keyer so this overlay lands on the same `DailyMetric.day` that
+        // `userEditedDays` (which decides where the debt correction applies) and `mergeSleep` resolved.
+        let sessionsByDay = Dictionary(grouping: sessions, by: sleepEndDayKey)
 
         return days.map { daily in
             guard let daySessions = sessionsByDay[daily.day], daySessions.contains(where: \.userEdited) else {
@@ -977,10 +1000,7 @@ final class Repository: ObservableObject {
     /// across a midnight boundary for non-UTC users (the Swift half of #406; mirrors the Android #304 fix
     /// pinned by MergeSleepLocalDayTest).
     nonisolated private static func mergeSleep(imported: [CachedSleepSession], computed: [CachedSleepSession]) -> [CachedSleepSession] {
-        func endDay(_ s: CachedSleepSession) -> String {
-            let offsetSec = TimeZone.current.secondsFromGMT(for: Date(timeIntervalSince1970: TimeInterval(s.endTs)))
-            return AnalyticsEngine.dayString(s.endTs, offsetSec: offsetSec)
-        }
+        let endDay = sleepEndDayKey
         // #715, preserve EVERY session (a day with a main night + a nap must keep both); imported still
         // wins per end-day. Shared, unit-tested grouping (WhoopStore.SleepMerge / SleepMergeTests) replaces
         // the old per-day dictionary that silently dropped a second same-day session.

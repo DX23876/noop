@@ -370,15 +370,14 @@ fun SleepScreen(
     val night = remember(nightOffset, navDays, days, habitualMidsleep, motionByStart) {
         selectNight(navDays, days, nightOffset, habitualMidsleep, motionByStart)
     }
-    // The read-side union may hold an imported sleep under the canonical owner and an edited one
-    // under the active strap. Resolve every edited session against the same UTC/local day keys the
-    // hero uses, so its exported debt never masks the corrected duration.
-    val editedDays = remember(sleeps, days) {
-        sleeps.asSequence().filter { it.userEdited }.map { sleep ->
-            val utcDay = AnalyticsEngine.dayString(sleep.endTs)
-            val localDay = localDayString(sleep.endTs)
-            listOf(utcDay, localDay).firstOrNull { candidate -> days.any { it.day == candidate } } ?: utcDay
-        }.toSet()
+    // The read-side union may hold an imported sleep under the canonical owner and an edited one under
+    // the active strap, so the edited night must resolve to the SAME day key the daily rows carry or its
+    // exported debt masks the corrected duration. Keyed by LOCAL wake-day with the offset taken at the
+    // session's own end instant , the canonical `WhoopRepository.mergeSleep.endDay` rule (#304, pinned by
+    // MergeSleepLocalDayTest) and the twin of Swift `Repository.sleepEndDayKey`. A UTC key would re-open
+    // #304 for every UTC+ user who wakes after local midnight but before UTC midnight.
+    val editedDays = remember(sleeps) {
+        sleeps.asSequence().filter { it.userEdited }.map { localDayString(it.endTs) }.toSet()
     }
 
     // The HERO follows the selected night (its stage breakdown comes from that day's row); the
