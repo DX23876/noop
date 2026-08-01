@@ -18,6 +18,15 @@
   <img src="docs/assets/banner.svg" alt="NOOP — your strap, your data, your machine" width="640">
 </p>
 
+<p align="center">
+  <img src="docs/assets/screenshots/today.png" width="248" alt="Today screen with a proposed session, the coach row, and the Charge, Effort and Rest rings">
+  <img src="docs/assets/screenshots/coach-brief.png" width="248" alt="The coach's daily brief, followed by the five data sources it was grounded in">
+  <img src="docs/assets/screenshots/coach-memory.png" width="248" alt="Memory settings: an on-device semantic index with rebuild and delete controls">
+</p>
+<p align="center">
+  <sub>Today · the daily brief and the sources behind it · memory that runs on the phone</sub>
+</p>
+
 ---
 
 <!--
@@ -103,6 +112,55 @@ Read the full [9.3.0 DX Beta notes](docs/fork/releases/v9.3.0-dx-beta.md).
   Android build ever ships is genuinely open — treat it as source you can build, not a promise.
 - **More practical alert history.** The inbox will keep evolving around events that actually happened,
   rather than becoming a second copy of scheduled reminders.
+
+## A look inside
+
+<table>
+  <tr>
+    <td width="33%" valign="top">
+      <img src="docs/assets/screenshots/coach-settings.png" width="240" alt="Coach settings with the Enable AI Coach switch and sections for connection, goal, coaching, memory and privacy">
+      <br><sub><b>The coach, in one place.</b> Nothing reaches a provider until you switch it on, and sharing your metrics stays a separate decision after that.</sub>
+    </td>
+    <td width="33%" valign="top">
+      <img src="docs/assets/screenshots/coach-connection.png" width="240" alt="Connection and model settings: provider, coaching model, API key, background models and usage counters">
+      <br><sub><b>Your provider, your key, your model.</b> Cheaper background models for summaries are optional, and the token count is tallied on the device.</sub>
+    </td>
+    <td width="33%" valign="top">
+      <img src="docs/assets/screenshots/coach-entry.png" width="240" alt="Coaching settings for coach entry points, morning suggestion, proactive messages, daily check-in and plan reminders">
+      <br><sub><b>Where it may appear, and whether it may speak first.</b> Banner, header icon or floating button — and proactive messages can be silenced entirely.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <img src="docs/assets/screenshots/coach-identity.png" width="240" alt="Coach identity screen with the ready-made coaches Svea and Marv, a name field, picture choices and a tone picker">
+      <br><sub><b>Two ready-made coaches, or your own.</b> Name, picture and tone are yours to set; the picture never leaves the phone.</sub>
+    </td>
+    <td valign="top">
+      <img src="docs/assets/screenshots/goal-wizard.png" width="240" alt="Goal wizard asking what kind of goal, with running, training frequency, sleep, strength, body weight, stress, recovery and free-form options">
+      <br><sub><b>One goal at a time.</b> Picked from what your data can actually track, then checked for feasibility before it becomes a plan.</sub>
+    </td>
+    <td valign="top">
+      <img src="docs/assets/screenshots/coach-privacy.png" width="240" alt="Privacy and data screen with a data-sharing switch, per-purpose data access and the coach's instructions">
+      <br><sub><b>Grant by grant.</b> What the coach may read, log and remember — and the instructions it runs on, in plain text you can edit.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <img src="docs/assets/screenshots/activity-status.png" width="240" alt="Activity status sheet offering active, sick, injured or on break, with a validity period">
+      <br><sub><b>Sick, injured, on a break.</b> Say so once and the app stops proposing training until the period you chose runs out.</sub>
+    </td>
+    <td valign="top">
+      <img src="docs/assets/screenshots/today-detail.png" width="240" alt="Today screen scrolled to recent workouts, a live beat-by-beat heart rate card, and HRV, resting heart rate and respiratory rate">
+      <br><sub><b>Recent sessions and a live pulse.</b> Beat by beat while the strap is connected, with the night's vitals directly below.</sub>
+    </td>
+    <td valign="top">
+      <img src="docs/assets/screenshots/more-tab.png" width="240" alt="The More tab listing analysis, body and data screens">
+      <br><sub><b>Everything else.</b> Insights, journal, biomarkers, intervals and the import screens, one tap from the tab bar.</sub>
+    </td>
+  </tr>
+</table>
+
+<sub>Screenshots: 9.3.0 DX Beta on iPhone, English interface, light appearance.</sub>
 
 ## Download and install
 
