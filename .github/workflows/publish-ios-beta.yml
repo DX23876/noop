@@ -290,6 +290,13 @@ jobs:
         run: |
           set -euo pipefail
           gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --prerelease=false --latest
+
+          # `gh release view --json` has no isLatest field (it turned this step red on 9.3.0 even though
+          # the edit above had already succeeded). Ask the API what releases/latest actually resolves to
+          # instead — that is the endpoint the in-app update check reads, so it is the honest assertion.
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" \
-            --json name,isPrerelease,isLatest,assets \
-            --jq '"\(.name) prerelease=\(.isPrerelease) latest=\(.isLatest) assets=\([.assets[].name]|join(", "))"'
+            --json name,isPrerelease,isDraft,assets \
+            --jq '"\(.name) prerelease=\(.isPrerelease) draft=\(.isDraft) assets=\([.assets[].name]|join(", "))"'
+          LATEST=$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq .tag_name)
+          echo "releases/latest -> $LATEST"
+          [ "$LATEST" = "$TAG" ] || { echo "::error::releases/latest is $LATEST, expected $TAG"; exit 1; }
