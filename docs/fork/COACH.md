@@ -187,9 +187,9 @@ Real mutations to real app data — the same stores the UI writes.
 
 | Tool | Params | Effect |
 |---|---|---|
-| `remember_fact` | `fact`, `category`, `importance` | Saves a durable fact (near-dup aware) |
-| `update_fact` | `old`, `new` | Rewrites a fact in place |
-| `forget_fact` | `fact` | Deletes a fact |
+| `remember_fact` | `fact`, `category`, `importance`, `confirmed_by_user`, `valid_until` | Saves a durable fact (near-dup aware). Reports back when the fact landed **unconfirmed**, so the coach knows to ask |
+| `update_fact` | `old`, `new` | Rewrites a fact in place; names near misses when nothing matched |
+| `forget_fact` | `fact` | Deletes a fact; names near misses when nothing matched |
 
 ### Visual
 
@@ -370,48 +370,102 @@ limits describe normal retention, not a fabricated fixed MB claim.
 struct MemoryFact {
     let id: UUID
     var text: String
-    var category: Category    // goal | injury | preference | physiology | schedule | other
-    var importance: Importance // pinned | normal
+    var category: Category         // goal | injury | preference | physiology | schedule | other
+    var importance: Importance     // pinned | normal
     var createdAt: Date
+    var verification: Verification // hypothesis | pendingConfirmation | confirmed
+    var sensitivity: Sensitivity   // ordinary | health
+    var source: Source             // user | coachTool | conversationSummary | legacy
+    var validFrom: Date
+    var validUntil: Date?          // nil = open-ended
+    var evidenceCount: Int
+    var evidence: [Evidence]       // per observation: source, reference, when
+    var revisions: [Revision]      // previous wordings, capped at 20
 }
 ```
 
-Decoding is back-compatible: facts saved before categories existed decode as `.other` / `.normal`,
-so an upgrade never drops your memory.
+Decoding is back-compatible throughout: a fact saved before categories existed decodes as
+`.other` / `.normal`, one saved before provenance existed decodes as `.legacy` / `.confirmed`, and a
+missing `validUntil` simply means the fact doesn't expire. An upgrade never drops your memory.
+
+### The confirmation lifecycle
+
+This is the part that decides whether a fact ever reaches the model at all.
+
+- A fact in a health-adjacent category — `injury`, `physiology`, `goal` — is saved
+  **`pendingConfirmation`**; the rest start as a `hypothesis`.
+- **`pinnedBlock` admits only `confirmed` facts**, so an unconfirmed injury does *not* frame every
+  reply no matter how it was pinned. It can still surface through `relevantBlock`, flagged as
+  unconfirmed, which is what tells the coach to ask rather than assume.
+- Three things confirm a fact: the user saying so in the chat (`remember_fact` with
+  `confirmed_by_user`, which also promotes a fact the coach already holds), the receipt under the
+  reply that saved it, and the Memory list in settings. Adding a fact by hand is confirmed on the
+  spot — the user typed it.
+- `validUntil` retires a fact on its own. `remember_fact` takes a `valid_until` day for anything
+  temporary; the settings list can set or clear one. An expired fact leaves every retrieval path,
+  stays visible under **Expired**, and is the first thing evicted at the cap.
 
 ### Retrieval — the interesting part
 
 Dumping 40 facts into every prompt is the naive approach: expensive, unfocused, and it crowds small
 context windows. Instead:
 
-- **`pinnedBlock`** — your training goal + every `.pinned` fact. Goes in the *system prompt* only
+- **`pinnedBlock`** — every `.pinned`, `.confirmed`, in-force fact. Goes in the *system prompt* only
   while Data access and the separate Memory purpose are enabled. This is for things that must frame
-  every reply: a serious injury, a hard constraint.
-- **`relevantBlock(for:limit:)`** — ranks the `.normal` facts against the **current question** and
-  takes the top few (default 8, minus whatever pinned already took). Goes into the *turn's context*.
+  every reply: a serious injury, a hard constraint. (The training goal has its own structured model
+  and is injected separately by `goalBlock`.)
+- **`relevantBlock(for:limit:alreadyInContext:)`** — ranks the remaining facts against the **current
+  question** and takes the top few (default 8, minus whatever pinned already took). Goes into the
+  *turn's context*.
 
 The ranking is deliberately deterministic and on-device — no embeddings, no extra API call:
 
 ```
-score = |tokens(fact) ∩ tokens(question)|     // keyword overlap, stopwords removed, ≥3 chars
-tie-break = createdAt (newer wins)
+overlap = |tokens(fact) ∩ tokens(question)|   // stopwords removed, ≥3 chars
+score   = overlap · exp(-ln2 · ageDays / 30)  // a real 30-day half-life, not a tiebreak
 ```
 
-Boring, cheap, debuggable, and good enough: a question about sleep surfaces the sleep facts.
+Zero overlap scores zero **whatever** its age: decay discounts an already-relevant fact, it never
+manufactures relevance. A zero-scoring fact stays local rather than riding along because it happened
+to be recent. Boring, cheap, debuggable, and good enough: a question about sleep surfaces the sleep
+facts.
+
+`alreadyInContext` is the other half. The semantic index (§ below) holds the same facts as `[Memory]`
+documents and runs on the same turn, so the block skips any fact whose text the context already
+carries — otherwise one sentence goes on the wire twice.
 
 ### Writing — self-healing
 
 - **`add`** does **near-duplicate detection**, not exact-string matching. Texts are normalised
-  (lowercased, punctuation stripped, single-spaced) and treated as duplicates when equal, or when
-  one contains the other *and* they're within 60 % of each other's length. A near-dup **supersedes**
-  the old fact in place (keeping its id, refreshing the text and timestamp) rather than stacking a
-  rephrasing and burning a slot.
+  (lowercased, punctuation stripped, single-spaced) and treated as duplicates when equal, when one
+  contains the other at a close enough length ratio, or when their meaningful words almost entirely
+  overlap. The thresholds are **per category** (`thresholds(for:)`): `.injury` / `.goal` need
+  near-medical precision (0.85 overlap, 0.80 containment, ≥5 tokens) because an ACL tear and a
+  meniscus tear share a lot of vocabulary and are different facts; `.preference` / `.schedule` /
+  `.other` collapse more readily (0.65 / 0.65 / ≥3), where losing a rephrasing costs nothing.
+- A near-dup **supersedes** the old fact in place — same id, refreshed text and timestamp, one more
+  observation — rather than stacking a rephrasing and burning a slot. It never *downgrades*: a
+  restatement can't unpin a pinned fact, un-confirm a confirmed one, or clear an expiry it didn't
+  mention.
 - **`update` / `remove`** are exposed to the model as `update_fact` / `forget_fact`, so a correction
-  rewrites the stale fact instead of coexisting with a contradiction.
-- Eviction is FIFO at the 40 cap.
+  rewrites the stale fact instead of coexisting with a contradiction. Both match at `.injury`'s
+  strictest thresholds regardless of category — deleting the wrong memory is the costlier error — and
+  when that finds nothing the tool result names the **near misses** so the coach can ask which was
+  meant instead of giving up.
+- Eviction at the 40 cap takes the oldest **expired** fact first, then the oldest **non-pinned** one,
+  and only then the oldest fact outright.
 
-Everything is visible and editable in `CoachSettingsView`'s Memory subpage — category icon, pinned
-marker, inline edit, delete, forget-all.
+Everything is visible and editable in `CoachSettingsView`'s Memory subpage: grouped by what needs the
+user first (awaiting confirmation, then always-on, then by category, then expired), with confirm, pin,
+edit, expire, delete and add-by-hand. **Forget-all asks twice**: nothing here is recoverable — facts have
+no archive as conversations do — so the first step asks and the second names what is actually at stake
+(how many of them frame every reply: injuries and hard constraints the user would have to say again)
+rather than posing the same question a second time. Each row discloses its provenance —
+where the fact came from, when it was first saved, how many observations back it, what it used to say.
+A hub badge marks the subpage when something is waiting to be confirmed.
+
+Facts also leave a **receipt in the chat**: the reply that saved one carries its id, and the
+transcript renders it under that reply with confirm / edit / forget. Remembering is never silent.
 
 ### Cross-conversation recall
 
@@ -719,7 +773,18 @@ Git. The finished iOS app embeds both and needs no model download at runtime.
 
 The provider is not loaded during an ordinary fresh launch. Opening Coach starts an asynchronous warm-up
 and indexes high-priority pending text first. A question waits at most 2.5 seconds for semantic retrieval;
-keyword retrieval answers that turn if Nomic is still starting. The model unloads after 120 seconds idle,
+keyword retrieval answers that turn if Nomic is still starting.
+
+Within that budget the **question is embedded first** and the indexing backlog is worked afterwards, in
+the background. The reverse order — draining up to 64 documents before looking at the question — lost the
+race by construction on a cold model or with any backlog: the user paid the full 2.5 seconds and still got
+the keyword fallback. Searching an index a few documents behind beats not searching at all.
+
+The reconcile that precedes retrieval is **incremental**: canonical sources are rebuilt off the main
+actor, and only documents whose text actually changed are enqueued, with the deletion scan run only when
+the live document set changed. Document tokens for the keyword arm are cached beside the documents rather
+than recomputed per question. This matters because the whole path sits between the user's tap and the
+request going out. The model unloads after 120 seconds idle,
 on memory or serious thermal pressure, when Coach is disabled, or when consent is withdrawn. A
 best-effort `BGProcessingTask` handles remaining work near night-time while charging; iOS may decline or
 delay it, so a 24-hour foreground catch-up and Coach-open indexing remain authoritative.
