@@ -516,7 +516,9 @@ fun SettingsScreen(
     var continuousHrv by remember { mutableStateOf(NoopPrefs.continuousHrv(context)) }
 
     // "Overnight only" (#927): arm the continuous stream only inside the nightly quiet-hours window
-    // instead of 24/7. Default OFF so existing users keep the always-on behaviour. Local mirror.
+    // instead of 24/7. Defaults ON for fresh installs (#1008); existing installs are pinned to OFF by
+    // NoopPrefs.migrateContinuousHrvOvernightDefault() at launch, so they keep always-on. Local mirror,
+    // read through NoopPrefs so it cannot disagree with what the BLE client acts on.
     var continuousHrvOvernight by remember { mutableStateOf(NoopPrefs.continuousHrvOvernight(context)) }
 
     // #477 Power saving: battery-adaptive strap-sync cadence + optional HRV-capture pause. Local mirrors.

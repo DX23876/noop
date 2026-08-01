@@ -1072,7 +1072,7 @@ public enum SleepStager {
     static func efficiency(start: Int, end: Int, stages: [StageSegment]) -> Double {
         let inBed = Double(end - start)
         if inBed <= 0 { return 0 }
-        let wake = stages.filter { $0.stage == "wake" }.reduce(0.0) { $0 + Double($1.end - $1.start) }
+        let wake = stages.filter { SleepStageVocabulary.isWake($0.stage) }.reduce(0.0) { $0 + Double($1.end - $1.start) }
         let asleep = max(0.0, inBed - wake)
         return min(1.0, asleep / inBed)
     }
@@ -2188,7 +2188,7 @@ public enum SleepStager {
 
         var waso = 0.0
         var disturbances = 0
-        for s in segs where s.stage == "wake" {
+        for s in segs where SleepStageVocabulary.isWake(s.stage) {
             let w0 = max(Double(s.start), onset)
             let w1 = min(Double(s.end), sptEnd)
             if w1 > w0 { waso += (w1 - w0); disturbances += 1 }

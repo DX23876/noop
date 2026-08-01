@@ -35,6 +35,10 @@ struct StrandiOSApp: App {
         // independent entry toggles (banner/header-icon/floating-button). No-op after the first launch
         // that has them. Must run before any Today/RootTabView reads its @AppStorage default.
         CoachEntryPrefs.migrateIfNeeded()
+
+        // #1008: pin the pre-change Overnight-only default for existing installs before
+        // anything reads it. Idempotent; a no-op on fresh installs and after the first launch.
+        PuffinExperiment.migrateContinuousHrvOvernightDefault()
         #if DEBUG
         // DEBUG-only promo-screenshot harness: when launched with `--demo-hour <Int>`, pin Today to that
         // hour's day-cycle scene + a per-hour stat frame. No-op (active stays nil) when the arg is absent.

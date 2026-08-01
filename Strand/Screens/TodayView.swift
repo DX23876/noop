@@ -3051,17 +3051,12 @@ struct TodayView: View {
         // `--demo-hour` frame is active. Charge/Rest are intentionally left at their seeded values.
         if let f = DemoDayHarness.active { return f.effort }
         #endif
-        if selectedDayOffset == 0, let live = liveTodayStrain {
-            // Effort accrues over a day and must never visibly DROP. The in-progress recompute (raw day
-            // HR, midnight→now) can UNDER-read when today's HR is sparse or a logged workout's load isn't
-            // in the raw stream, e.g. a 5/MG user who trained this morning saw today's real 38.3 get
-            // replaced by a live 0 (#489/#506). Floor at the day's already-earned Effort. `d` (displayDay)
-            // for today is ALWAYS today's row or nil, never a prior day, so this can't resurrect a stale
-            // day; it only stops the gauge dropping below what's already been counted today.
-            if let stored = d?.strain { return Swift.max(live, stored) }
-            return live
-        }
-        return d?.strain
+        // The never-drop floor and the live/stored preference both live in `StrainScorer.effectiveEffort`
+        // (#1001), shared with the Kotlin twin so the two platforms cannot resolve Effort differently.
+        // `d` (displayDay) for today is ALWAYS today's row or nil, never a prior day, so the floor cannot
+        // resurrect a stale day; it only stops a read-out dropping below what today has already earned.
+        return StrainScorer.effectiveEffort(live: selectedDayOffset == 0 ? liveTodayStrain : nil,
+                                            stored: d?.strain)
     }
 
     /// When TODAY's Effort scores a genuine near-zero, there's enough HR to score, but it never
@@ -3355,7 +3350,9 @@ struct TodayView: View {
     /// preference (#268) and reads identically, the stored strain is on the 0–100 axis, so a morning
     /// "21.2" is 21.2-of-100, not WHOOP's near-max 21-of-21.
     private var effortMarker: OverviewHRChart.EdgeMarker? {
-        guard let strain = displayDay?.strain, let date = hrPoints.last?.date else { return nil }
+        // #1001: the resolved Effort, not the daily row. Reading `displayDay.strain` here put the badge a
+        // whole active morning behind the hero ring, which resolves through the same `effortStrain`.
+        guard let strain = effortStrain(displayDay), let date = hrPoints.last?.date else { return nil }
         return .init(date: date,
                      label: String(localized: "\(UnitFormatter.effortDisplay(strain, scale: effortScale)) Effort"),
                      color: StrandPalette.effortTint(fraction: strain / StrainScorer.maxStrain), alignment: .trailing)
@@ -3551,12 +3548,15 @@ struct TodayView: View {
         case .effort:
             // Unscored TODAY → a short "building" hint instead of the "of N" axis caption, so a
             // fresh user reads "coming" not "broken" (#527); a scored day keeps "of N".
+            // #1001: resolve through `effortStrain` so this tile shows the hero ring's figure. Reading
+            // `d.strain` straight off the daily row left it behind by the whole morning on an active day.
+            let effort = effortStrain(d)
             StatTile(
                 label: "Effort",
-                value: d?.strain.map { UnitFormatter.effortDisplay($0, scale: effortScale) } ?? "—",
-                caption: d?.strain != nil ? String(localized: "of \(UnitFormatter.effortScaleMax(effortScale))")
-                                          : (buildingHint(.effort) ?? String(localized: "of \(UnitFormatter.effortScaleMax(effortScale))")),
-                accent: d?.strain.map { StrandPalette.effortTint(fraction: $0 / StrainScorer.maxStrain) } ?? StrandPalette.textPrimary,
+                value: effort.map { UnitFormatter.effortDisplay($0, scale: effortScale) } ?? "—",
+                caption: effort != nil ? String(localized: "of \(UnitFormatter.effortScaleMax(effortScale))")
+                                       : (buildingHint(.effort) ?? String(localized: "of \(UnitFormatter.effortScaleMax(effortScale))")),
+                accent: effort.map { StrandPalette.effortTint(fraction: $0 / StrainScorer.maxStrain) } ?? StrandPalette.textPrimary,
                 sparkline: keyMetricsDetailed ? windowedSpark("strain") : nil,
                 sparkColor: StrandPalette.strain066,
                 // Inline ⓘ in the tile header (not a corner overlay) so it never sits over the value (#495).

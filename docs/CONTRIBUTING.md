@@ -87,8 +87,7 @@ Strand/
 │   ├── StrandImport/           # WHOOP CSV + Apple Health importers
 │   └── StrandDesign/           # SwiftUI design system (palette, components, charts)
 ├── Tools/
-│   └── Backfill/               # `swift run backfill` — re-runs importers into the on-device DB
-├── tools/
+│   ├── Backfill/               # `swift run backfill` — re-runs importers into the on-device DB
 │   └── linux-capture/          # Headless Linux capture workbench (Python/bleak + whoop-decode)
 ├── Fixtures/                   # Sample WHOOP export used by tests
 └── android/                    # Android client — full shipped app (Kotlin/Gradle, separate module)

@@ -1154,7 +1154,7 @@ object SleepStager {
     internal fun efficiency(start: Long, end: Long, stages: List<StageSegment>): Double {
         val inBed = (end - start).toDouble()
         if (inBed <= 0) return 0.0
-        val wake = stages.filter { it.stage == "wake" }.sumOf { (it.end - it.start).toDouble() }
+        val wake = stages.filter { SleepStageVocabulary.isWake(it.stage) }.sumOf { (it.end - it.start).toDouble() }
         val asleep = maxOf(0.0, inBed - wake)
         return minOf(1.0, asleep / inBed)
     }
@@ -2375,7 +2375,7 @@ object SleepStager {
         var waso = 0.0
         var disturbances = 0
         for (s in segs) {
-            if (s.stage != "wake") continue
+            if (!SleepStageVocabulary.isWake(s.stage)) continue
             val w0 = maxOf(s.start.toDouble(), onset)
             val w1 = minOf(s.end.toDouble(), sptEnd)
             if (w1 > w0) {

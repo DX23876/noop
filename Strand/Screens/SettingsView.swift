@@ -58,9 +58,14 @@ struct SettingsView: View {
 
     /// #927 "Overnight only" refinement of Continuous HRV capture (off by default): arm the stream only
     /// inside the nightly quiet-hours window instead of 24/7. Composed with the base toggle (base on +
-    /// this off = ALWAYS, the pre-#927 behaviour) so existing users see no change and need no migration.
-    /// See [PuffinExperiment.continuousHrvOvernightOnlyKey].
-    @AppStorage(PuffinExperiment.continuousHrvOvernightOnlyKey) private var continuousHrvOvernightOnly = false
+    /// this off = ALWAYS, the pre-#927 behaviour); existing installs are pinned to OFF by
+    /// `PuffinExperiment.migrateContinuousHrvOvernightDefault()` at launch, so they still see no change.
+    ///
+    /// The `@AppStorage` default MUST match `PuffinExperiment.continuousHrvOvernightOnlyEnabled` (#1008).
+    /// They read the same key by different routes, so a mismatch shows the toggle OFF on a fresh install
+    /// while capture is actually overnight-only — and a user "correcting" that would write an explicit
+    /// false and get the 24/7 behaviour they were trying to avoid.
+    @AppStorage(PuffinExperiment.continuousHrvOvernightOnlyKey) private var continuousHrvOvernightOnly = true
 
     // #477 Power saving (parity with Android). Battery-adaptive sync cadence + an HRV-pause sub-option.
     @AppStorage(PuffinExperiment.powerSavingKey) private var powerSavingEnabled = false

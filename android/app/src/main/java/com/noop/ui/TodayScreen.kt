@@ -887,6 +887,15 @@ fun TodayScreen(
         }
     }
 
+    // #1001: Effort resolved ONCE for the whole screen, so the Key Metrics tile and the HR chart's edge
+    // badge show what the hero ring shows. Both used to read `displayMetric.strain` straight off the daily
+    // row, which only refreshes when the heavy daily pass runs — so an active morning read 2.3 on the ring
+    // and 0.5 in the other two. The ring resolves the same way from the same rule (see ScoreHeroRow).
+    val effortForDay = StrainScorer.effectiveEffort(
+        live = if (selectedDayOffset == 0) liveTodayStrain else null,
+        stored = displayMetric?.strain,
+    )
+
     // Recovery cold-start: recovery is null until the HRV baseline crosses the seed gate
     // (Baselines.minNightsSeed valid nights). Show honest "calibrating, N of 4 nights" progress
     // instead of a bare "No Data" so a new BLE-only user knows scores are coming, not broken. (PR #85)
@@ -1384,11 +1393,9 @@ fun TodayScreen(
                             // near-zero (HR present but never crossed the cardio zone). Effort accrues over
                             // a day and must never visibly drop: floor the in-progress value at the day's
                             // already-earned strain (#489/#506).
-                            val todayEffort = if (selectedDayOffset == 0) {
-                                val liveStrain = liveTodayStrain
-                                val stored = displayMetric?.strain
-                                if (liveStrain != null && stored != null) maxOf(liveStrain, stored) else (liveStrain ?: stored)
-                            } else null
+                            // #1001: the shared resolution, not a fourth hand-rolled copy of it. Stays null
+                            // for a navigated past day so the caption is a TODAY-only explanation.
+                            val todayEffort = if (selectedDayOffset == 0) effortForDay else null
                             if (todayEffort != null && todayEffort < 1.0) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 2.dp),
@@ -1467,6 +1474,7 @@ fun TodayScreen(
                                     spo2CarryDay = lastSpo2Day,
                                     unitSystem = unitSystem,
                                     effortScale = effortScale,
+                                    effortForDay = effortForDay,   // #1001: same figure as the hero ring
                                     latestWeightKg = weightKg,
                                     profileWeightKg = profileWeightKg,
                                     importedStepsForDay = importedStepsForDay,
@@ -1499,7 +1507,7 @@ fun TodayScreen(
                             modifier = Modifier.fillMaxWidth().staggeredAppear(stagger),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            HeartRateTrendCard(viewModel, days, selectedDay, todayDate, displayMetric, effortScale)
+                            HeartRateTrendCard(viewModel, days, selectedDay, todayDate, displayMetric, effortScale, effortForDay)
                         }
                         // The three hero vitals, HRV / Resting HR / Respiratory. Carried day (#543).
                         TodaySection.RECOVERY_VITALS -> Box(modifier = Modifier.fillMaxWidth().staggeredAppear(stagger)) {
@@ -2337,10 +2345,8 @@ private fun ScoreHeroRow(
     // (#489/#506: a live under-read replaced today's real Effort with 0). The effective value drives the
     // gauge number AND the has-data / "No Data" branch, so the ring only reads "No Data" when neither
     // exists. Mirrors the iOS live-Effort gauge. (#402)
-    val strain = run {
-        val live = liveTodayStrain; val stored = day?.strain
-        if (live != null && stored != null) maxOf(live, stored) else (live ?: stored)
-    }
+    // #1001: the shared rule, so this ring and the Key Metrics tile / chart badge cannot disagree.
+    val strain = StrainScorer.effectiveEffort(live = liveTodayStrain, stored = day?.strain)
     // Effort honours the 0–100 / WHOOP-0–21 toggle (#313). The stored strain is on NOOP's 0–100 Effort
     // axis; render it on the user's selected scale so the arc and centre number match the app's Effort.
     val effortOutOf = if (effortScale == EffortScale.WHOOP) 21.0 else 100.0
@@ -4224,6 +4230,10 @@ private fun MetricGrid(
     spo2CarryDay: DailyMetric? = null,
     unitSystem: UnitSystem = UnitSystem.METRIC,
     effortScale: EffortScale = EffortScale.HUNDRED,
+    // #1001: the day's resolved Effort (live-preferring for today, floored at the stored row). Threaded
+    // like caloriesForDay/importedStepsForDay because, like those, it is not simply the DailyMetric column
+    // — reading `d.strain` here is what left this tile behind the hero ring on an active morning.
+    effortForDay: Double? = null,
     latestWeightKg: Double? = null,
     profileWeightKg: Double = 75.0,
     importedStepsForDay: Int? = null,
@@ -4282,13 +4292,15 @@ private fun MetricGrid(
         },
         KeyMetric.EFFORT to KeyTileData(
             label = uiString(R.string.l10n_today_screen_strain_79fe380e),
-            value = d?.strain?.let { UnitFormatter.effortDisplay(it, effortScale) } ?: NO_DATA,
+            // #1001: the resolved Effort, falling back to the stored column only when the caller passes
+            // none (previews/tests). Reading `d.strain` here is what left this tile behind the hero ring.
+            value = (effortForDay ?: d?.strain)?.let { UnitFormatter.effortDisplay(it, effortScale) } ?: NO_DATA,
             // #492: Strain/Effort is a load index (0–21 WHOOP / 0–100 NOOP), NOT a percentage — the "%"
             // was wrong (esp. on the 0–21 scale). Recovery/Rest ARE 0–100 % and keep it. iOS shows the
             // strain axis as an "of 21"/"of 100" caption with no % (TodayView effort tile); match that.
             unit = "",
-            tint = d?.strain?.let { Palette.effortTint(it / StrainScorer.maxStrain) } ?: Palette.effortColor,
-            frac = d?.strain?.let { (it / 100.0).coerceIn(0.0, 1.0) },
+            tint = (effortForDay ?: d?.strain)?.let { Palette.effortTint(it / StrainScorer.maxStrain) } ?: Palette.effortColor,
+            frac = (effortForDay ?: d?.strain)?.let { (it / 100.0).coerceIn(0.0, 1.0) },
             spark = w.strain,
         ),
         KeyMetric.REST to KeyTileData(
@@ -4606,6 +4618,9 @@ private fun HeartRateTrendCard(
     today: LocalDate,
     displayMetric: DailyMetric? = null,
     effortScale: EffortScale = EffortScale.HUNDRED,
+    // #1001: the day's resolved Effort for the chart's edge badge. It read `displayMetric.strain` — the
+    // daily row — so on an active morning the badge trailed the hero ring by the whole morning's load.
+    effortForDay: Double? = null,
 ) {
     // "Today" here is the LOGICAL day (rolls at 04:00 local), so in the small hours after midnight the
     // trend keeps the evening's curve, window start at the logical day's own midnight, "since midnight"
@@ -4818,7 +4833,7 @@ private fun HeartRateTrendCard(
                         sleep = sleepToday,
                         workouts = workoutsToday,
                         recovery = displayMetric?.recovery,
-                        strain = displayMetric?.strain,
+                        strain = effortForDay ?: displayMetric?.strain,   // #1001
                         effortScale = effortScale,
                         timeTicks = timeTicks,
                         modifier = Modifier

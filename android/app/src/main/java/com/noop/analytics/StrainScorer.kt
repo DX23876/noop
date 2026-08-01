@@ -172,6 +172,29 @@ object StrainScorer {
     const val maxSampleGapMin: Double = 2.0
 
     /**
+     * The one Effort figure every read-out on Today must show (#1001).
+     *
+     * Effort has two sources. [stored] is the daily row, rewritten only when the heavy daily pass runs.
+     * [live] is today's in-progress recompute over the raw HR stream (local midnight → now), which exists
+     * precisely because the stored row lags — early in the day it still holds yesterday's Effort or a
+     * stale 0.0 (#402). Past days have no live value and use the row.
+     *
+     * Taking the MAX rather than preferring [live] is not a tie-break: Effort accrues over a day and must
+     * never visibly DROP. The live recompute can UNDER-read when today's HR is sparse, or when a logged
+     * workout's load is not in the raw stream — a 5/MG user who trained in the morning had a real 38.3
+     * replaced by a live 0 (#489/#506). Flooring at what is already earned is what stops that.
+     *
+     * Shared so the hero ring, the Key Metrics tile and the chart's edge badge cannot drift apart: they
+     * each resolved Effort themselves, and only the ring knew about [live], so an active morning showed
+     * 2.3 on the ring and 0.5 in the other two until the daily pass caught up (#1001).
+     */
+    fun effectiveEffort(live: Double?, stored: Double?): Double? {
+        if (live == null) return stored
+        if (stored == null) return live
+        return kotlin.math.max(live, stored)
+    }
+
+    /**
      * Infer per-sample duration (minutes) from the first two timestamps. Falls
      * back to 1 s when fewer than two samples or coincident timestamps.
      *

@@ -9,13 +9,13 @@ import com.noop.data.SleepSession
 import com.noop.data.WhoopRepository
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.zip.ZipInputStream
+import com.noop.analytics.SleepStageVocabulary
 
 /**
  * Offline file-import of a user's OWN Oura / Fitbit / Garmin data export — fully offline, no cloud
@@ -785,7 +785,7 @@ object WearableExportImporter {
         var asleep = 0L
         for (i in 0 until arr.length()) {
             val o = arr.optJSONObject(i) ?: continue
-            if (o.optString("stage") == "wake") continue
+            if (SleepStageVocabulary.isWake(o.optString("stage"))) continue
             asleep += (o.optLong("end") - o.optLong("start")).coerceAtLeast(0)
         }
         return minOf(100.0, asleep.toDouble() / (end - start) * 100.0)
@@ -803,7 +803,7 @@ object WearableExportImporter {
         val isZip = head.size >= 2 && head[0] == 'P'.code.toByte() && head[1] == 'K'.code.toByte()
 
         if (!isZip) {
-            val bytes = context.contentResolver.openInputStream(uri)?.use { readCapped(it, MAX_ENTRY_BYTES) }
+            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readCapped(MAX_ENTRY_BYTES, what = "Entry") }
                 ?: throw IllegalStateException("Couldn't open the selected file.")
             val name = displayName(context, uri)?.lowercase() ?: "export.json"
             // A single file is one entry — the aggregate budget can't trip here.
@@ -833,7 +833,7 @@ object WearableExportImporter {
                 val path = entry.name.lowercase()
                 val base = last(path)
                 if (!entry.isDirectory && (base.endsWith(".json") || base.endsWith(".csv"))) {
-                    val bytes = runCatching { readCapped(zin, MAX_ENTRY_BYTES) }.getOrNull()
+                    val bytes = runCatching { zin.readCapped(MAX_ENTRY_BYTES, what = "Entry") }.getOrNull()
                     // First-wins dedup (was last-wins overwrite) so the running `total` matches the retained
                     // bytes exactly; mirrors the Swift zip loader's `if result[path] == nil` guard.
                     if (bytes != null && bytes.isNotEmpty() && isWellnessFile(base, bytes) && !out.containsKey(path)) {
@@ -863,19 +863,6 @@ object WearableExportImporter {
         return hints.any { name.contains(it) }
     }
 
-    private fun readCapped(input: InputStream, cap: Long): ByteArray {
-        val buffer = ByteArrayOutputStream(64 * 1024)
-        val chunk = ByteArray(64 * 1024)
-        var total = 0L
-        while (true) {
-            val n = input.read(chunk)
-            if (n < 0) break
-            total += n
-            if (total > cap) throw IllegalStateException("Entry exceeds $cap bytes")
-            buffer.write(chunk, 0, n)
-        }
-        return buffer.toByteArray()
-    }
 
     // ------------------------------------------------------------------------
     // Helpers
