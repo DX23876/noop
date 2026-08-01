@@ -7,7 +7,7 @@ enum AppChangelog {
 
     /// Bump this when you add a release below. The "What's New" sheet shows automatically when the
     /// stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
-    static let currentVersion = "9.3.0-dx-beta"
+    static let currentVersion = "9.3.1-dx-beta"
 
     struct Release: Identifiable {
         let version: String
@@ -19,6 +19,18 @@ enum AppChangelog {
 
     /// Newest first.
     static let releases: [Release] = [
+        Release(
+            version: "9.3.1-dx-beta",
+            title: "Coach memory you can see and confirm, and a live heart rate on both Today screens",
+            date: "August 2026",
+            items: [
+                "**When the coach remembers something, you see it happen.** A receipt appears under the reply — the fact it saved, with That's right, Edit and Forget. Health facts it saved on its own used to be barred from every later reply until you found a card three levels deep in settings; now confirming one takes a tap.",
+                "**Memory settings you can actually work with.** Facts are grouped by what they are, show where they came from and when they were first saved, and can be pinned, typed in by hand or given an expiry date. \"Forget everything\" asks before it drops forty facts.",
+                "**The coach starts answering sooner.** Your question is embedded before the indexing backlog is worked instead of behind it, and the index now re-reads only what actually changed. Nothing about what it retrieves changed — only what it costs.",
+                "**Live heart rate on the classic Today screen too.** The same beat-by-beat card the redesigned Today draws, with min, average and max, and a tap that opens the full day.",
+                "**The Weight tile draws its trend again, and Last Workouts shows six of them.** A tile whose measurements are weeks apart falls back to your recent readings instead of showing an empty graph.",
+            ]
+        ),
         Release(
             version: "9.3.0-dx-beta",
             title: "Upstream 9.3.0, with the Coach still on Today and one place to arrange it",

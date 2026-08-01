@@ -1801,4 +1801,5 @@
     <string name="l10n_app_changelog_upstream_9_3_0_with_the_89c9eaa5">Upstream 9.3.0, con el Coach todavía en Hoy y un solo lugar para organizarlo</string>
     <string name="l10n_app_changelog_the_coach_follows_your_app_language_9b87ad5b">El Coach sigue el idioma de la app y se mantiene legible en iPhones compactos</string>
     <string name="l10n_app_changelog_a_coach_that_remembers_privacy_presets_73036e50">Un coach que recuerda y ajustes de privacidad que siguen siendo simples</string>
+    <string name="l10n_app_changelog_coach_memory_you_can_see_and_4c8584af">Memoria del Coach que puedes ver y confirmar, y pulso en vivo en ambas pantallas de Hoy</string>
 </resources>

@@ -1729,4 +1729,5 @@
     <string name="l10n_app_changelog_upstream_9_3_0_with_the_89c9eaa5">上游 9.3.0：教练仍在「今天」，并有统一的排列入口</string>
     <string name="l10n_app_changelog_the_coach_follows_your_app_language_9b87ad5b">教练跟随应用语言，并在小屏 iPhone 上保持易读</string>
     <string name="l10n_app_changelog_a_coach_that_remembers_privacy_presets_73036e50">会记忆的教练，以及依然简单的隐私预设</string>
+    <string name="l10n_app_changelog_coach_memory_you_can_see_and_4c8584af">可见且可确认的教练记忆，两个「今天」页面都有实时心率</string>
 </resources>

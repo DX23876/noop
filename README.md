@@ -7,7 +7,7 @@
 <p align="center"><b>Your WHOOP data, on your own devices, with a coach that remembers.</b></p>
 
 <p align="center">
-  <img alt="Current release" src="https://img.shields.io/badge/current%20beta-9.3.0%20DX%20Beta-C8902F?style=flat-square">
+  <img alt="Current release" src="https://img.shields.io/badge/current%20beta-9.3.1%20DX%20Beta-C8902F?style=flat-square">
   <img alt="Platforms" src="https://img.shields.io/badge/iOS%2017%2B%20%C2%B7%20macOS%2013%2B-234F9E?style=flat-square">
   <img alt="Straps" src="https://img.shields.io/badge/WHOOP-4.0%20%C2%B7%205.0%2FMG-234F9E?style=flat-square">
   <img alt="Privacy" src="https://img.shields.io/badge/no%20account%20%C2%B7%20no%20cloud-6B737B?style=flat-square">
@@ -89,25 +89,26 @@ beta that is signed only with the Apple ID you choose.
 The upstream base and the fork additions remain intentionally separated in code so upstream protocol,
 analytics and safety fixes can continue to be merged without rewriting the coaching layer.
 
-## Latest beta — 9.3.0 DX Beta
+## Latest beta — 9.3.1 DX Beta
 
-Built on RyanBR's NOOP 9.3.0, with the Coach and its memory carried through the merge unchanged.
+A coach-memory release, on top of nine upstream commits landed after RyanBR's 9.3.0 tag.
 
-- **Water and caffeine import themselves.** Log a drink in Apple Health and it appears in NOOP, in its
-  own row so it can never overwrite what you typed by hand. The Coach's caffeine logging writes to the
-  same place.
-- **Effort is measured more honestly.** Every heart-rate sample is weighted by its own gap, and a saved
-  workout is scored against your measured resting heart rate instead of a hardcoded 60. Expect Effort
-  numbers to move in either direction, including on past days.
-- **One place to customise Today.** Section order, Key Metrics and Your Cards moved out of three
-  separate sheets into a single editor with Cancel and Save. The Coach banner is an ordinary row in it.
-- **A packaged macOS build ships again**, universal and ad-hoc signed, alongside the unsigned iOS IPA.
+- **When the coach remembers something, you see it happen.** A receipt under the reply names the fact
+  and offers That's right, Edit and Forget. Health facts it saved on its own were previously barred
+  from every later reply until you found a card three levels deep in settings.
+- **Memory settings you can work with.** Facts grouped by what they are, with their source, first-seen
+  date and observation count; pin one, add your own, or give one an expiry date. "Forget everything"
+  asks first.
+- **The coach starts answering sooner.** Your question is embedded before the indexing backlog rather
+  than behind it, and the index re-reads only what actually changed. What it retrieves is unchanged.
+- **Live heart rate on the classic Today screen too**, while Liquid Today's Weight tile draws its trend
+  again and Last Workouts shows six sessions instead of one.
 
-Read the full [9.3.0 DX Beta notes](docs/fork/releases/v9.3.0-dx-beta.md).
+Read the full [9.3.1 DX Beta notes](docs/fork/releases/v9.3.1-dx-beta.md).
 
 ## In development
 
-- **Android is undecided.** The Android source still builds and is version-aligned with 9.3.0, but
+- **Android is undecided.** The Android source still builds and is version-aligned with 9.3.1, but
   this fork focuses on iOS and macOS and no longer keeps Android at feature parity. Whether a public
   Android build ever ships is genuinely open — treat it as source you can build, not a promise.
 - **More practical alert history.** The inbox will keep evolving around events that actually happened,
@@ -160,7 +161,7 @@ Read the full [9.3.0 DX Beta notes](docs/fork/releases/v9.3.0-dx-beta.md).
   </tr>
 </table>
 
-<sub>Screenshots: 9.3.0 DX Beta on iPhone, English interface, light appearance.</sub>
+<sub>Screenshots: 9.3.1 DX Beta on iPhone, English interface, light appearance.</sub>
 
 ## Download and install
 
@@ -178,8 +179,8 @@ https://raw.githubusercontent.com/DX23876/noop/main/altstore-source.json
 
 - **AltStore:** Browse → **+** → paste the source URL → add NOOP AI.
 - **SideStore:** Sources → **+ Add Source** → paste the same URL → install NOOP AI.
-- Prefer a direct file? Download `NOOP-ios-unsigned-v9.3.0-dx-beta.ipa` from the
-  [9.3.0 DX Beta release](https://github.com/DX23876/noop/releases/tag/v9.3.0-dx-beta).
+- Prefer a direct file? Download `NOOP-ios-unsigned-v9.3.1-dx-beta.ipa` from the
+  [9.3.1 DX Beta release](https://github.com/DX23876/noop/releases/tag/v9.3.1-dx-beta).
 
 See [the iOS install guide](docs/IOS.md) for the free-Apple-ID limits, widget notes, and build-from-source
 instructions.
@@ -187,8 +188,8 @@ instructions.
 ### Mac — DX Beta
 
 From 9.3.0 the release carries a packaged macOS build: download
-`NOOP-macos-v9.3.0-dx-beta.zip` from the
-[9.3.0 DX Beta release](https://github.com/DX23876/noop/releases/tag/v9.3.0-dx-beta), unzip it, then
+`NOOP-macos-v9.3.1-dx-beta.zip` from the
+[9.3.1 DX Beta release](https://github.com/DX23876/noop/releases/tag/v9.3.1-dx-beta), unzip it, then
 **right-click → Open** the first time (it is ad-hoc signed, not notarised, so a double-click is blocked).
 
 The bundle is universal — Apple Silicon and Intel. Ad-hoc signing is what lets macOS bind the Bluetooth
@@ -199,8 +200,8 @@ identity changes with every build.
 
 | Platform | Status | Distribution |
 |---|---|---|
-| iOS / iPadOS | 9.3.0 DX Beta | AltStore, SideStore, or build from source |
-| macOS | 9.3.0 DX Beta | Packaged `.zip` in the release, or build with Xcode |
+| iOS / iPadOS | 9.3.1 DX Beta | AltStore, SideStore, or build from source |
+| macOS | 9.3.1 DX Beta | Packaged `.zip` in the release, or build with Xcode |
 | Android | Undecided | Source builds and is version-aligned; no public build planned |
 
 ## The NOOP foundation retained

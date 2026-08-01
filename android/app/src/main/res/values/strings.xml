@@ -1827,4 +1827,5 @@
     <string name="l10n_app_changelog_upstream_9_3_0_with_the_89c9eaa5">Upstream 9.3.0, with the Coach still on Today and one place to arrange it</string>
     <string name="l10n_app_changelog_the_coach_follows_your_app_language_9b87ad5b">The Coach follows your app language and stays readable on compact iPhones</string>
     <string name="l10n_app_changelog_a_coach_that_remembers_privacy_presets_73036e50">A coach that remembers, privacy presets that stay simple</string>
+    <string name="l10n_app_changelog_coach_memory_you_can_see_and_4c8584af">Coach memory you can see and confirm, and a live heart rate on both Today screens</string>
 </resources>
