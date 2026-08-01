@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# commit-msg — refuse any commit message that identifies the assistant that helped write it.
+#
+# NOOP is an anonymous project (see "What NOOP is" in CLAUDE.md): the fork publishes build-from-source
+# and sideload artifacts under one identity, DX23876. An AI co-author trailer breaks that in the one
+# place it can never be taken back — a pushed commit message, which is mirrored, cached and quoted by
+# GitHub long after any local edit.
+#
+# This exists because the convention alone kept failing. It had been written down, and commits carrying
+# `Co-Authored-By: Claude …` still reached origin/main more than once. A rule that is only a sentence in
+# a file is advisory; this makes it mechanical. `.github/workflows/source-hygiene.yml` runs the same
+# check on the server for anything that bypasses the hook (--no-verify, a different clone, the web UI).
+#
+# Enable once per clone (hooks are not cloned by git):
+#   git config core.hooksPath .githooks
+#
+# Scope: the ASSISTANT's identity, not the subject matter. "Anthropic" as an API provider is a real
+# feature of this app (Strand/AI/AIProvider.swift), so a message may freely say "add Anthropic
+# streaming". Only authorship attribution and tool watermarks are rejected.
+set -euo pipefail
+
+MSG_FILE="${1:?usage: commit-msg <file>}"
+[ -f "$MSG_FILE" ] || { echo "commit-msg: no such file: $MSG_FILE" >&2; exit 1; }
+
+# Strip comment lines git adds to the template so a commented-out example can't trip the hook.
+BODY="$(grep -v '^#' "$MSG_FILE" || true)"
+
+fail() {
+  echo "" >&2
+  echo "  ✖ commit rejected: the message identifies an AI assistant as an author." >&2
+  echo "" >&2
+  echo "    $1" >&2
+  echo "" >&2
+  echo "    NOOP commits stand alone under one identity. Drop the trailer and commit again." >&2
+  echo "    (Genuinely need to bypass? git commit --no-verify — but source-hygiene.yml will" >&2
+  echo "     still fail the push, so fix the message instead.)" >&2
+  echo "" >&2
+  exit 1
+}
+
+# 1. Co-authored-by / Signed-off-by naming an assistant or its vendor domain.
+if printf '%s' "$BODY" | grep -qiE '^[[:space:]]*(co-authored-by|signed-off-by)[[:space:]]*:.*(claude|anthropic|copilot|chatgpt|openai|gemini|cursor)'; then
+  fail "found a Co-authored-by/Signed-off-by trailer naming an assistant."
+fi
+
+# 2. Session / conversation backlinks (`Claude-Session: https://claude.ai/code/…`) — these leak more
+#    than a name: the URL is a handle for the whole transcript.
+if printf '%s' "$BODY" | grep -qiE '^[[:space:]]*(claude|assistant|ai)-session[[:space:]]*:|https?://claude\.ai/'; then
+  fail "found a session backlink (e.g. 'Claude-Session:' or a claude.ai URL)."
+fi
+
+# 3. Tool watermarks ("🤖 Generated with Claude Code", "Co-created with ChatGPT", …). Anchored on the
+#    generated/created verb so prose like "generated the fixture with a script" is unaffected.
+if printf '%s' "$BODY" | grep -qiE '(generated|created|written|authored)[[:space:]]+(with|by)[[:space:]]+\[?(claude|chatgpt|copilot|gemini|cursor)'; then
+  fail "found a tool watermark (e.g. 'Generated with Claude Code')."
+fi
+
+exit 0

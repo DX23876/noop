@@ -1,6 +1,6 @@
 # NOOP AI — for nerds 🤓
 
-👈 Looking for the friendly tour? **[Back to the README](../README.md)**
+👈 Looking for the friendly tour? **[Back to the README](../../README.md)**
 
 This is the technical deep-dive: the fork rationale, the full 25-tool table, token-cost mechanics,
 the architecture, build/signing minutiae, and where this fork stands relative to upstream today. If
@@ -141,8 +141,8 @@ versus a proactive hint versus a status reminder, each rendered and actioned dif
 bell. It's the mechanism behind what the README sells as "the coach decides what reaches you, and
 how"; see `docs/COACH.md` §11a for the full mapping.
 
-Deeper: [`ARCHITECTURE.md`](ARCHITECTURE.md) · [`ANALYTICS.md`](ANALYTICS.md) ·
-[`PROTOCOL.md`](PROTOCOL.md)
+Deeper: [`ARCHITECTURE.md`](../ARCHITECTURE.md) · [`ANALYTICS.md`](../ANALYTICS.md) ·
+[`PROTOCOL.md`](../PROTOCOL.md)
 
 ## Quickstart: the signing fine print
 
@@ -189,19 +189,19 @@ need adding by hand.
 **This fork**
 - [`COACH.md`](COACH.md) — the coach in full: tools, goal gates, the plan book, memory, providers,
   architecture.
-- [`IOS.md`](IOS.md) — iOS build + HealthKit details.
+- [`IOS.md`](../IOS.md) — iOS build + HealthKit details.
 - [`DETAILS.md`](DETAILS.md) — this page.
 
 **Inherited from upstream** (still accurate, except `FEATURES.md`, which now also documents this
 fork's own additions — Heute, App icon colors — alongside the inherited content)
-- [`FEATURES.md`](FEATURES.md) — the full feature guide for NOOP itself.
-- [`ARCHITECTURE.md`](ARCHITECTURE.md) — how the whole thing fits together.
-- [`ANALYTICS.md`](ANALYTICS.md) — the recovery/strain/sleep maths, with citations.
-- [`PROTOCOL.md`](PROTOCOL.md) — the WHOOP BLE protocol.
-- [`PRIVACY_SECURITY.md`](PRIVACY_SECURITY.md) — the data posture in detail.
-- [`BUILD.md`](BUILD.md) — full build + signing.
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) — the BLE safety contract and design-system rules.
-- [`../CHANGELOG.md`](../CHANGELOG.md) — upstream release history.
+- [`FEATURES.md`](../FEATURES.md) — the full feature guide for NOOP itself.
+- [`ARCHITECTURE.md`](../ARCHITECTURE.md) — how the whole thing fits together.
+- [`ANALYTICS.md`](../ANALYTICS.md) — the recovery/strain/sleep maths, with citations.
+- [`PROTOCOL.md`](../PROTOCOL.md) — the WHOOP BLE protocol.
+- [`PRIVACY_SECURITY.md`](../PRIVACY_SECURITY.md) — the data posture in detail.
+- [`BUILD.md`](../BUILD.md) — full build + signing.
+- [`CONTRIBUTING.md`](../CONTRIBUTING.md) — the BLE safety contract and design-system rules.
+- [`../CHANGELOG.md`](../../CHANGELOG.md) — upstream release history.
 
 ## Attribution, in full
 
@@ -214,8 +214,8 @@ protocol-documentation work:
 - **`groue/GRDB.swift`** — SQLite persistence. · **`weichsel/ZIPFoundation`** — export unzipping.
 
 NOOP contains no WHOOP proprietary code, firmware, logos, or assets. Full detail in
-[`../ATTRIBUTION.md`](../ATTRIBUTION.md).
+[`../ATTRIBUTION.md`](../../ATTRIBUTION.md).
 
 ---
 
-👈 **[Back to the README](../README.md)**
+👈 **[Back to the README](../../README.md)**

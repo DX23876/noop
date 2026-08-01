@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - Heute-Screen redesign palette (docs/design/design-spec.md, docs/design/mockup-heute.html)
+// MARK: - Heute-Screen redesign palette (docs/fork/design/design-spec.md, docs/fork/design/mockup-heute.html)
 //
 // A SEPARATE, additive token set — `StrandPalette` is untouched. Two reasons this can't just reuse
 // `StrandPalette`:

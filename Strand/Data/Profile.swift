@@ -179,7 +179,7 @@ final class ProfileStore: ObservableObject {
     /// successful HealthKit sync overwrites the profile weight with the freshest Health reading, not just
     /// once when the field was never set. Still ignores unrealistic readings (<10 kg). Known tradeoff: a
     /// manual edit not yet written back to Health (e.g. app killed mid-write) can be reverted by the next
-    /// sync — accepted explicitly per the user's choice, not engineered around (see docs/decisions.md).
+    /// sync — accepted explicitly per the user's choice, not engineered around (see docs/fork/decisions.md).
     func applyHealthWeight(kg: Double) {
         guard kg > 10 else { return }
         weightKg = kg

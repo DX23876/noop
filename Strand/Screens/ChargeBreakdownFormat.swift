@@ -23,7 +23,7 @@ enum ChargeBreakdownFormat {
     /// The ordered "What shaped it" Charge drivers for a displayed Charge row, PLUS the confidence tier,
     /// composed from the SAME folded HRV/RHR/resp baselines the engine scored with. Extracted verbatim from
     /// `TodayView.chargeBreakdown()` so classic Today and the Heute redesign share ONE composition and can't
-    /// drift (the P5 shared-selector principle — see docs/decisions.md). PURE: it folds the passed `days`
+    /// drift (the P5 shared-selector principle — see docs/fork/decisions.md). PURE: it folds the passed `days`
     /// history and surfaces `RecoveryScorer.chargeDrivers` + `ScoreConfidence.charge` verbatim; it never
     /// recomputes a score or reads a store. `row` is the row the ring shows (today's own or the carried
     /// last-scored day); `restScore` is the merged Rest composite (0…100) the Rest ring reads, so the

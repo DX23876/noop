@@ -1,7 +1,7 @@
 # The Coach — in full
 
 Everything NOOP AI adds on top of [ryanbr/noop](https://github.com/ryanbr/noop) lives here. The
-[README](../README.md) has the friendly tour; this is the technical one.
+[README](../../README.md) has the friendly tour; this is the technical one.
 
 **Design rule for every line of it:** additive, in its own file, never a rewrite of upstream logic.
 That's what keeps `git merge upstream/main` a non-event (upstream `9.0.0` and `9.0.1` both merged

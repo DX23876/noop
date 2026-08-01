@@ -39,7 +39,7 @@ A configurable identity and coaching style, streaming replies, model-specific hi
 26 consent-gated tools that can read local summaries, explain readiness, draw charts, propose plans
 and write only the logs you explicitly request. Provider connections support Anthropic, OpenAI,
 Gemini, OpenRouter and custom OpenAI-compatible endpoints with your own key; tool calling is enabled
-where the selected provider and model support it. [Coach architecture →](docs/COACH.md)
+where the selected provider and model support it. [Coach architecture →](docs/fork/COACH.md)
 
 ### 🧠 Private long-term memory on the device
 
@@ -94,7 +94,7 @@ Built on RyanBR's NOOP 9.3.0, with the Coach and its memory carried through the 
   separate sheets into a single editor with Cancel and Save. The Coach banner is an ordinary row in it.
 - **A packaged macOS build ships again**, universal and ad-hoc signed, alongside the unsigned iOS IPA.
 
-Read the full [9.3.0 DX Beta notes](docs/releases/v9.3.0-dx-beta.md).
+Read the full [9.3.0 DX Beta notes](docs/fork/releases/v9.3.0-dx-beta.md).
 
 ## In development
 
@@ -180,7 +180,7 @@ open Strand.xcodeproj
 
 - [iOS install and build guide](docs/IOS.md)
 - [Build and signing guide](docs/BUILD.md)
-- [Coach guide](docs/COACH.md)
+- [Coach guide](docs/fork/COACH.md)
 - [Feature reference](docs/FEATURES.md)
 - [Privacy and security](docs/PRIVACY_SECURITY.md)
 - [Contributing](docs/CONTRIBUTING.md)

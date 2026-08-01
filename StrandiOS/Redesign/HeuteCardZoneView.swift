@@ -2,11 +2,11 @@ import SwiftUI
 import StrandDesign
 import StrandAnalytics
 
-// MARK: - Basiskarte + Notification-Karten (docs/feature-spec.md §2, §3; docs/design/design-spec.md §3)
+// MARK: - Basiskarte + Notification-Karten (docs/fork/feature-spec.md §2, §3; docs/fork/design/design-spec.md §3)
 //
 // A fixed, never-dismissable base card sits behind a stack of ephemeral, individually-swipeable
 // notification cards. No existing swipe-to-dismiss precedent exists anywhere in the repo (checked) —
-// the drag physics below are transcribed from docs/design/mockup-heute.html's vanilla-JS implementation,
+// the drag physics below are transcribed from docs/fork/design/mockup-heute.html's vanilla-JS implementation,
 // which is more precise than design-spec §3's prose.
 //
 // `NotificationCardItem` + the real-source mapping (`HeuteSuggestionCards`) live in `Strand/Data/` so

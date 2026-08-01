@@ -180,7 +180,7 @@ never changes what number you see for the same day.
 A calm, newest-first log of what's new — tap the bell (badged with the unread count) to open it. Three
 kinds of row, each behaving differently rather than all looking like the same generic notification:
 
-- **Needs a decision** — a session the coach proposed (see [docs/COACH.md](COACH.md) §11a), with
+- **Needs a decision** — a session the coach proposed (see [docs/fork/COACH.md](fork/COACH.md) §11a), with
   **Accept / Change / Decline** right there. Once it's decided elsewhere (e.g. from the Today card
   first), the row shows the outcome instead of stale buttons.
 - **A hint, nothing to decide** — release notes, "new data arrived" readings, and the coach's proactive

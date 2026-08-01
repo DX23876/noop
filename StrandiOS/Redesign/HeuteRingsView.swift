@@ -1,7 +1,7 @@
 import SwiftUI
 import StrandDesign
 
-// MARK: - Drei Ringe (docs/feature-spec.md §2 references Charge/Effort/Rest; docs/design/design-spec.md §2)
+// MARK: - Drei Ringe (docs/fork/feature-spec.md §2 references Charge/Effort/Rest; docs/fork/design/design-spec.md §2)
 //
 // Three `GlowRing`s (StrandDesign, reused as-is — not rebuilt) side by side, on a fixed-colour tile with
 // a soft radial glow behind it. Colours come from `HeuteRedesignPalette`, NOT `StrandPalette.chargeColor`

@@ -45,6 +45,8 @@ jobs:
           - StrandImport
           - StrandDesign
           - NoopLocalAccess
+          # Fork-only: the coach's on-device semantic index. It shipped with tests that no CI ran.
+          - SemanticMemory
     steps:
       - name: Checkout
         uses: actions/checkout@v5

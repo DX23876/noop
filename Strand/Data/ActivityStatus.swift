@@ -1,12 +1,12 @@
 import Foundation
 
 /// Manual, user-set day-level activity status — independent of the computed Charge/Effort/Rest scores.
-/// docs/feature-spec.md §1.
+/// docs/fork/feature-spec.md §1.
 struct ActivityStatus: Codable, Equatable {
     enum State: String, Codable, CaseIterable {
         case active, sick, injured, onBreak
 
-        /// Status-chip / sheet label (docs/design/mockup-heute.html `.opt b`).
+        /// Status-chip / sheet label (docs/fork/design/mockup-heute.html `.opt b`).
         var displayName: String {
             switch self {
             case .active:  return String(localized: "Active", comment: "ActivityStatus label")
@@ -16,7 +16,7 @@ struct ActivityStatus: Codable, Equatable {
             }
         }
 
-        /// Sheet-row subtitle (docs/design/mockup-heute.html `.opt span`).
+        /// Sheet-row subtitle (docs/fork/design/mockup-heute.html `.opt span`).
         var subtitle: String {
             switch self {
             case .active:  return String(localized: "Normal training", comment: "ActivityStatus sheet subtitle")

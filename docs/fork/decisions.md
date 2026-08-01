@@ -6,7 +6,7 @@ rationale, ideas deliberately rejected, known tech debt, and planned future stag
 answer "why is X built this way" or "what's worth improving" by reading this file instead of
 reconstructing it from git log or commit history. Its entries below happen to all be redesign-dated
 so far, but that's a starting point, not a scope limit; add non-redesign decisions here too rather
-than starting a separate file (see [`CLAUDE.md`](../CLAUDE.md) § Documentation & session workflow).
+than starting a separate file (see [`CLAUDE.md`](../../CLAUDE.md) § Documentation & session workflow).
 One row per decision. Supersedes any conflicting rows in `redesign-prompts.md` (the original handoff
 doc, kept for its screen specs but written against an upstream-close fork whose assumptions no longer
 hold).

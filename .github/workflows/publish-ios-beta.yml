@@ -50,7 +50,9 @@ jobs:
           SOURCE_VERSION=$(grep -m1 'MARKETING_VERSION:' project.yml | sed -E 's/.*"([^"]+)".*/\1/')
           ANDROID_VERSION=$(grep -m1 'versionName = ' android/app/build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/')
           BUILD=$(grep -m1 'CURRENT_PROJECT_VERSION:' project.yml | sed -E 's/.*"([0-9]+)".*/\1/')
-          NOTES="docs/releases/v${VERSION}-dx-beta.md"
+          # Fork-only docs live under docs/fork/ so upstream's docs/ tree stays recognisable in a
+          # sync PR; the DX Beta notes moved with them.
+          NOTES="docs/fork/releases/v${VERSION}-dx-beta.md"
 
           [[ "$SOURCE_VERSION" == "$VERSION" ]] || {
             echo "project.yml is $SOURCE_VERSION, not requested $VERSION" >&2; exit 1;

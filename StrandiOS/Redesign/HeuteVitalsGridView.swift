@@ -3,7 +3,7 @@ import Charts
 import StrandDesign
 import WhoopStore
 
-// MARK: - Vitalwerte-Raster + Bearbeitungsmodus (docs/feature-spec.md §4; docs/design/design-spec.md §4)
+// MARK: - Vitalwerte-Raster + Bearbeitungsmodus (docs/fork/feature-spec.md §4; docs/fork/design/design-spec.md §4)
 //
 // Tiles render from `VitalTileConfigStore` (already built) — never hardcoded, so a new metric only
 // needs an id appended to `VitalGridMetric.available` (Strand/Data/VitalTileConfig.swift). The wide

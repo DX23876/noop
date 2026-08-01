@@ -38,3 +38,64 @@ jobs:
       # point — fix the comment instead.
       - name: Detached doc comments (regression gate)
         run: python3 Tools/doc_comment_lint.py
+
+  # NOOP is an anonymous project, and a pushed commit message is the one place that cannot be taken
+  # back — GitHub mirrors, caches and quotes it long after any local edit. The convention "no AI
+  # co-author trailer" was written down and still failed repeatedly, so it is mechanical now:
+  # .githooks/commit-msg blocks it before the commit exists, and this job is the net for whatever
+  # bypasses the hook (--no-verify, a fresh clone with no core.hooksPath, the GitHub web editor).
+  #
+  # Deliberately scoped to the commits this push/PR ADDS. History already carries such trailers —
+  # including three commits that came from upstream, where they are ryanbr's to keep — and a job that
+  # audits all of history would be permanently red and therefore ignored.
+  commit-attribution:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: No AI authorship in new commit messages
+        env:
+          # For a PR, the range is base..head. For a push to main, GitHub gives before..after; on the
+          # first push of a branch `before` is all-zeroes, in which case fall back to the single commit.
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          # `git log <range>` cannot express "just this commit" as a range, so pass --max-count instead
+          # of appending -1 to the string — git would read the trailing "-1" as a pathspec and abort.
+          if [ -z "${BASE:-}" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            RANGE=(--max-count=1 "$HEAD_SHA")
+          else
+            RANGE=("$BASE..$HEAD_SHA")
+          fi
+          echo "auditing: ${RANGE[*]}"
+
+          # -z NUL-terminates each commit so a multi-line body cannot be misattributed to its
+          # neighbour, and suppresses the newline git otherwise appends after every entry (which would
+          # arrive glued to the FRONT of the next sha). %x1f separates the sha from the message.
+          bad=0
+          while IFS= read -r -d '' entry; do
+            sha=${entry%%$'\x1f'*}
+            msg=${entry#*$'\x1f'}
+            hit=""
+            grep -qiE '^[[:space:]]*(co-authored-by|signed-off-by)[[:space:]]*:.*(claude|anthropic|copilot|chatgpt|openai|gemini|cursor)' <<<"$msg" \
+              && hit="AI co-author trailer"
+            grep -qiE '^[[:space:]]*(claude|assistant|ai)-session[[:space:]]*:|https?://claude\.ai/' <<<"$msg" \
+              && hit="${hit:+$hit; }session backlink"
+            grep -qiE '(generated|created|written|authored)[[:space:]]+(with|by)[[:space:]]+\[?(claude|chatgpt|copilot|gemini|cursor)' <<<"$msg" \
+              && hit="${hit:+$hit; }tool watermark"
+            if [ -n "$hit" ]; then
+              echo "::error::${sha:0:9} — $hit"
+              bad=1
+            fi
+          done < <(git log -z --format="%H%x1f%B" "${RANGE[@]}")
+
+          if [ "$bad" -ne 0 ]; then
+            echo "::error::NOOP commits carry no AI authorship. Amend the message(s) and force-push."
+            exit 1
+          fi
+          echo "no AI authorship found in the new commits"

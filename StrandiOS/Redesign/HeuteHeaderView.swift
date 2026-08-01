@@ -1,7 +1,7 @@
 import SwiftUI
 import StrandDesign
 
-// MARK: - Kopfzeile (docs/feature-spec.md §1, §5; docs/design/design-spec.md §1)
+// MARK: - Kopfzeile (docs/fork/feature-spec.md §1, §5; docs/fork/design/design-spec.md §1)
 //
 // Greeting + date on the left, three 30×30pt chips on the right: activity-status (tap once to expand
 // and reveal the label + a warning ring for the three exception states, tap again to open the status
@@ -95,7 +95,7 @@ struct HeuteHeaderView: View {
 
 /// One tap opens the status sheet directly (on-device feedback: the mockup's original two-stage "tap to
 /// reveal the label, tap again to open the sheet" read as needing two taps to do one thing — deliberately
-/// diverges from `docs/design/mockup-heute.html` `.statuschip` here). `expanded` still drives the
+/// diverges from `docs/fork/design/mockup-heute.html` `.statuschip` here). `expanded` still drives the
 /// 30pt-disc → 118pt-capsule widen + label reveal + warning-colour ring, now set alongside `showSheet`
 /// rather than gating it, so the chip still widens (matching the mockup's visual) at the same moment the
 /// sheet comes up, and collapses back on dismiss.
@@ -159,7 +159,7 @@ struct ActivityStatusChip: View {
 
 /// The Aktivitätsstatus bottom sheet: four state rows (icon + title + subtitle + radio) then a duration
 /// pill row mapping 1:1 onto `ActivityStatus.Duration`, an optional date picker, and "Apply".
-/// docs/design/mockup-heute.html `#sheet`.
+/// docs/fork/design/mockup-heute.html `#sheet`.
 struct ActivityStatusSheet: View {
     @Binding var status: ActivityStatus
     @Environment(\.dismiss) private var dismiss

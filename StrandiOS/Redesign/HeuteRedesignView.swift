@@ -3,7 +3,7 @@ import StrandDesign
 import StrandAnalytics
 import WhoopStore
 
-// MARK: - Finale Zusammensetzung (docs/design/design-spec.md §5)
+// MARK: - Finale Zusammensetzung (docs/fork/design/design-spec.md §5)
 //
 // Assembles the four parts with the spacing table from design-spec §5 and loads real data from
 // `Repository`. `status` is owned HERE (not inside `ActivityStatusChip`) and threaded to both the
