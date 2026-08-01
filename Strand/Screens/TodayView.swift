@@ -2945,8 +2945,7 @@ struct TodayView: View {
                 } else if watchNeedsMoreData(key) {
                     SourceBadge("Needs more data", tint: StrandPalette.textTertiary)
                         .accessibilityLabel("Apple Watch. Needs more data to score this yet.")
-                } else if ringHasValue(key), let label = provenanceLabel(key),
-                          label.caseInsensitiveCompare("Whoop") != .orderedSame {
+                } else if ringHasValue(key), let label = provenanceLabel(key) {
                     SourceBadge("\(label)", tint: provenanceTint(key))
                         .accessibilityLabel("Source: \(label)")
                 }
