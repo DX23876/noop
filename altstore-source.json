@@ -20,6 +20,15 @@
       "screenshotURLs": [],
       "versions": [
         {
+          "version": "9.3.0",
+          "buildVersion": "215",
+          "date": "2026-08-01",
+          "localizedDescription": "NOOP AI 9.3.0 DX Beta. See the release notes for what changed.",
+          "downloadURL": "https://github.com/DX23876/noop/releases/download/v9.3.0-dx-beta/NOOP-ios-unsigned-v9.3.0-dx-beta.ipa",
+          "size": 357259080,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "9.2.2",
           "buildVersion": "214",
           "date": "2026-07-29",
@@ -48,12 +57,12 @@
           "NSHealthUpdateUsageDescription": "NOOP writes the metrics it computes from your strap back into Apple Health, on-device and only when you allow it."
         }
       },
-      "version": "9.2.2",
-      "buildVersion": "214",
-      "versionDate": "2026-07-29",
-      "versionDescription": "NOOP AI 9.2.2 DX Beta. See the release notes for what changed.",
-      "downloadURL": "https://github.com/DX23876/noop/releases/download/v9.2.2-dx-beta/NOOP-ios-unsigned-v9.2.2-dx-beta.ipa",
-      "size": 357177472
+      "version": "9.3.0",
+      "buildVersion": "215",
+      "versionDate": "2026-08-01",
+      "versionDescription": "NOOP AI 9.3.0 DX Beta. See the release notes for what changed.",
+      "downloadURL": "https://github.com/DX23876/noop/releases/download/v9.3.0-dx-beta/NOOP-ios-unsigned-v9.3.0-dx-beta.ipa",
+      "size": 357259080
     }
   ]
 }
