@@ -218,7 +218,10 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
             await applyKindUpdate([], kinds: [.memoryFact])
             return
         }
-        await applyKindUpdate(Self.memoryDocuments(facts), kinds: [.memoryFact])
+        let changed = await Task.detached(priority: .userInitiated) {
+            Self.memoryDocuments(facts)
+        }.value
+        await applyKindUpdate(changed, kinds: [.memoryFact])
     }
 
     /// Queue-only journal refresh used after a native answer is written or removed. The caller passes
@@ -247,11 +250,14 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
             await applyKindUpdate([], kinds: kinds)
             return
         }
-        let changed = Self.documents(facts: [],
-                                     conversations: [],
-                                     journalEntries: await provide(),
-                                     proposals: [],
-                                     allowedScopes: allowedJournalScopes)
+        // Off the main actor, for the reason `reconcile` already states: assembling and chunking these
+        // documents is pure CPU proportional to the WHOLE journal, and this runs while the user is
+        // tapping chips. It was inline here, so a long logging session paid for it between taps.
+        let entries = await provide()
+        let changed = await Task.detached(priority: .userInitiated) {
+            Self.documents(facts: [], conversations: [], journalEntries: entries,
+                           proposals: [], allowedScopes: allowedJournalScopes)
+        }.value
         await applyKindUpdate(changed, kinds: kinds)
     }
 
@@ -267,11 +273,12 @@ final class CoachSemanticMemory: ObservableObject, SemanticMemoryCoordinator {
             await applyKindUpdate([], kinds: kinds)
             return
         }
-        let changed = Self.documents(facts: [],
-                                     conversations: conversations,
-                                     journalEntries: [],
-                                     proposals: [],
-                                     allowedScopes: [.memory])
+        // Detached for the same reason as the journal path above: this runs on every sent message, and
+        // the build walks every indexed conversation.
+        let changed = await Task.detached(priority: .userInitiated) {
+            Self.documents(facts: [], conversations: conversations, journalEntries: [],
+                           proposals: [], allowedScopes: [.memory])
+        }.value
         await applyKindUpdate(changed, kinds: kinds)
     }
 

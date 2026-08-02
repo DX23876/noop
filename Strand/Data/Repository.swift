@@ -2219,9 +2219,12 @@ final class Repository: ObservableObject {
     private func scheduleJournalIndexRefresh() {
         journalIndexTask?.cancel()
         journalIndexTask = Task { [weak self] in
-            // Long enough to absorb a run of taps, short enough that the coach is never meaningfully
-            // behind what the user just logged.
-            try? await Task.sleep(nanoseconds: 800_000_000)
+            // Five seconds, not one: filling in a whole journal means a run of taps with normal pauses
+            // between them — finding the next switch, scrolling — and at 800 ms every one of those
+            // pauses started another pass over the full history. The index is allowed to lag: the coach
+            // reconciles everything when it opens (`AICoach` → `prewarm` → `reconcile`), so this path is
+            // freshness for an already-open coach, not the thing that keeps the index correct.
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
             guard !Task.isCancelled, let self else { return }
             await CoachSemanticMemory.shared.journalEntriesChanged { await self.journalEntries() }
         }

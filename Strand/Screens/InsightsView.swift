@@ -359,7 +359,10 @@ struct InsightsView: View {
     /// Debounced rather than immediate, and deliberately not dropped altogether: leaving it to the next
     /// visit would show visibly stale rankings underneath the chips the user is still tapping.
     private func journalChanged() {
-        derivedDirty = true
+        // Only when it actually changes. Assigning `true` over `true` is still a write to this view's
+        // @State, i.e. an invalidation of the whole screen — on every tap, which is exactly what moving
+        // the answers into the card was meant to stop.
+        if !derivedDirty { derivedDirty = true }
         derivedReload?.cancel()
         derivedReload = Task {
             try? await Task.sleep(nanoseconds: 3_000_000_000)

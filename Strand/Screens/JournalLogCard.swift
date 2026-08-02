@@ -58,6 +58,14 @@ struct JournalLogCard: View {
     @State private var answers: [String: Bool] = [:]
     @State private var numericAnswers: [String: Double] = [:]
 
+    /// The resolved catalog, bucketed by group — memoized.
+    ///
+    /// `resolvedItems` merges the imported questions with the saved catalog and the starters and sorts
+    /// the result; computing it in `body` meant redoing that merge on every chip tap, when its inputs
+    /// (the imported set, the catalog itself, and edit mode) had not moved at all. Refreshed by
+    /// `refreshGrouped()` exactly when one of them does.
+    @State private var grouped: [JournalGroup: [JournalCatalogItem]] = [:]
+
     @State private var customDraft = ""
     @State private var customIsNumeric = false
     @State private var customGroup: JournalGroup = .other
@@ -95,9 +103,6 @@ struct JournalLogCard: View {
     }
 
     var body: some View {
-        // Resolved once per render and handed down, rather than re-merged inside every group block.
-        let grouped = Self.itemsByGroup(catalog.resolvedItems(imported: importedQuestions,
-                                                              includeHidden: editing))
         let collapsed = collapsedGroups
         return VStack(alignment: .leading, spacing: NoopMetrics.gap) {
             HStack(alignment: .center) {
@@ -156,6 +161,18 @@ struct JournalLogCard: View {
         // The selected day's answers, re-read on arrival, on a pill switch, and on a calendar-day
         // rollover. Two single-day queries — nothing here depends on the host's history load.
         .task(id: JournalDayKey(offset: dayOffset, anchor: dayAnchor)) { await loadDay() }
+        // The catalog memo's inputs, and only those: the host's imported questions (they arrive after
+        // its history read), edit mode (it reveals hidden items), and the catalog's own contents
+        // (rename / regroup / retype / add / remove / restore all write `items`).
+        .onAppear { refreshGrouped() }
+        .onChangeCompat(of: importedQuestions) { _ in refreshGrouped() }
+        .onChangeCompat(of: editing) { _ in refreshGrouped() }
+        .onChangeCompat(of: catalog.items) { _ in refreshGrouped() }
+    }
+
+    private func refreshGrouped() {
+        grouped = Self.itemsByGroup(catalog.resolvedItems(imported: importedQuestions,
+                                                          includeHidden: editing))
     }
 
     // MARK: - The selected day
