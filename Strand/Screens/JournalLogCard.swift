@@ -13,6 +13,13 @@ import StrandDesign
 /// numeric value (with a unit) instead of a toggle; and custom items can be renamed / regrouped /
 /// converted / reordered in edit mode. The stored KEY (`canonical`) never changes on a rename, so all
 /// history, logged and imported, stays joined under the original question.
+/// `.task(id:)` key for the card's day read: which pill is selected, plus the host's live "today", so a
+/// midnight rollover under an open screen re-reads too.
+private struct JournalDayKey: Equatable {
+    let offset: Int
+    let anchor: String
+}
+
 struct JournalLogCard: View {
     @EnvironmentObject var repo: Repository
     /// The journal catalog is single-user state owned here (UserDefaults-backed), so hosting the card
@@ -20,32 +27,36 @@ struct JournalLogCard: View {
     @StateObject private var catalog = JournalCatalogStore()
 
     /// Distinct imported question strings (from InsightsView's load), adopted into the catalog so
-    /// logged answers and imported history group under the same behaviour.
+    /// logged answers and imported history group under the same behaviour. Arrives late (it needs the
+    /// host's history read) — until then the catalog's own starters and custom items carry the card.
     let importedQuestions: [String]
-    /// question → answeredYes for the selected day, native rows only (drives the chip state).
-    let answers: [String: Bool]
-    /// question → numeric value for the selected day, native rows only (drives the numeric fields).
-    let numericAnswers: [String: Double]
+    /// #860 item 4: the host's live "today" key. The pills are relative to the current date, so when the
+    /// calendar day rolls over under a screen that stayed open, this changes and the day below is re-read
+    /// — otherwise yesterday's answers would sit under a pill that now says "Today".
+    let dayAnchor: String
     @Binding var dayOffset: Int            // -1 = tomorrow, 0 = today, 1 = yesterday
-    let onChanged: () -> Void              // parent re-runs load() after a write
+    /// "The journal history changed" — the host refreshes its derived analysis when it suits it. NOT a
+    /// request to reload this card: the answers below are this card's own.
+    let onChanged: () -> Void
 
-    init(importedQuestions: [String], answers: [String: Bool],
-         numericAnswers: [String: Double] = [:], dayOffset: Binding<Int>,
+    init(importedQuestions: [String], dayAnchor: String, dayOffset: Binding<Int>,
          onChanged: @escaping () -> Void) {
         self.importedQuestions = importedQuestions
-        self.answers = answers
-        self.numericAnswers = numericAnswers
+        self.dayAnchor = dayAnchor
         self._dayOffset = dayOffset
         self.onChanged = onChanged
     }
 
-    /// Optimistic overlay over `answers` / `numericAnswers`: question → the value this card just wrote
-    /// (an inner `nil` means "cleared"). The parent's dictionaries are the truth, but they arrive only
-    /// after its reload, so without this the chip could not repaint on tap however fast the write was —
-    /// the reported "the button keeps its colour, nothing happened". Each entry is dropped as soon as
-    /// the parent confirms it, so the overlay can never outlive the reload or mask what was stored.
-    @State private var pendingAnswers: [String: Bool?] = [:]
-    @State private var pendingNumeric: [String: Double?] = [:]
+    /// The selected day's answers, owned HERE.
+    ///
+    /// They used to be `let`s from InsightsView's `@State`, which made every chip tap a state change on
+    /// the host — and re-evaluating that host means its whole body: the experiment snapshot, the ranked
+    /// effects, the correlations, every card on the screen. The card only ever needs one day of native
+    /// rows, and both reads are single-day and index-backed (`journal` is keyed by
+    /// (deviceId, day, question)), so it reads them itself. A tap now repaints this card and nothing
+    /// else, and the card no longer waits for the host's full history load to render at all.
+    @State private var answers: [String: Bool] = [:]
+    @State private var numericAnswers: [String: Double] = [:]
 
     @State private var customDraft = ""
     @State private var customIsNumeric = false
@@ -63,16 +74,14 @@ struct JournalLogCard: View {
             Calendar.current.date(byAdding: .day, value: -dayOffset, to: Date()) ?? Date())
     }
 
-    /// The resolved, grouped catalog for the current imported set. Hidden items included only while
-    /// editing (so they can be restored in place).
-    private var resolved: [JournalCatalogItem] {
-        catalog.resolvedItems(imported: importedQuestions, includeHidden: editing)
-    }
-
-    /// Items grouped by their group, each group ordered by sortIndex then display.
-    private func items(in group: JournalGroup) -> [JournalCatalogItem] {
-        resolved.filter { $0.group == group }
-            .sorted { ($0.sortIndex, $0.display) < ($1.sortIndex, $1.display) }
+    /// The resolved catalog bucketed by group, each group ordered by sortIndex then display.
+    ///
+    /// One pass, not six: `resolvedItems` merges the imported questions with the saved catalog and the
+    /// starters, and the old `items(in:)` re-ran that whole merge for every one of the six groups on
+    /// every render. Same items, same order — see `JournalLogicTests`.
+    static func itemsByGroup(_ resolved: [JournalCatalogItem]) -> [JournalGroup: [JournalCatalogItem]] {
+        Dictionary(grouping: resolved, by: \.group)
+            .mapValues { $0.sorted { ($0.sortIndex, $0.display) < ($1.sortIndex, $1.display) } }
     }
 
     private var collapsedGroups: Set<String> {
@@ -86,7 +95,11 @@ struct JournalLogCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+        // Resolved once per render and handed down, rather than re-merged inside every group block.
+        let grouped = Self.itemsByGroup(catalog.resolvedItems(imported: importedQuestions,
+                                                              includeHidden: editing))
+        let collapsed = collapsedGroups
+        return VStack(alignment: .leading, spacing: NoopMetrics.gap) {
             HStack(alignment: .center) {
                 SectionHeader("Journal", overline: "Log")
                 Spacer()
@@ -130,7 +143,8 @@ struct JournalLogCard: View {
                         .fixedSize(horizontal: false, vertical: true)
 
                     ForEach(JournalGroup.displayOrder, id: \.self) { group in
-                        groupBlock(group)
+                        groupBlock(group, items: grouped[group] ?? [],
+                                   collapsed: collapsed.contains(group.rawValue))
                     }
 
                     Divider().overlay(StrandPalette.hairline)
@@ -139,47 +153,31 @@ struct JournalLogCard: View {
             }
         }
         .sheet(item: $renaming) { item in renameSheet(item) }
-        // Retire an optimistic entry the moment the parent's reload agrees with it. Entries that don't
-        // agree stay: a slower reload still in flight must not flip the chip back under the user.
-        .onChangeCompat(of: answers) { parent in
-            pendingAnswers = pendingAnswers.filter { q, v in parent[q] != v }
-        }
-        .onChangeCompat(of: numericAnswers) { parent in
-            pendingNumeric = pendingNumeric.filter { q, v in parent[q] != v }
-        }
-        // A different day is a different set of answers entirely — nothing pending applies to it.
-        .onChangeCompat(of: dayOffset) { _ in
-            pendingAnswers = [:]
-            pendingNumeric = [:]
-        }
+        // The selected day's answers, re-read on arrival, on a pill switch, and on a calendar-day
+        // rollover. Two single-day queries — nothing here depends on the host's history load.
+        .task(id: JournalDayKey(offset: dayOffset, anchor: dayAnchor)) { await loadDay() }
     }
 
-    // MARK: - Optimistic state
+    // MARK: - The selected day
 
-    /// The answer to show: what this card just wrote, else what the parent loaded. Pure, so the rule
-    /// is pinned in `JournalLogicTests` rather than only observable by tapping a chip.
-    static func effectiveAnswer(question: String,
-                                parent: [String: Bool],
-                                pending: [String: Bool?]) -> Bool? {
-        if let overlay = pending[question] { return overlay }
-        return parent[question]
-    }
-
-    /// The numeric twin of `effectiveAnswer`.
-    static func effectiveNumeric(question: String,
-                                 parent: [String: Double],
-                                 pending: [String: Double?]) -> Double? {
-        if let overlay = pending[question] { return overlay }
-        return parent[question]
+    private func loadDay() async {
+        let key = dayKey
+        let a = await repo.nativeJournalAnswers(day: key)
+        let n = await repo.nativeJournalNumeric(day: key)
+        // The day may have moved on while those were in flight (a fast pill tap); only the read that
+        // still matches the shown day may paint.
+        guard key == dayKey else { return }
+        answers = a
+        numericAnswers = n
     }
 
     // MARK: - Group block
 
-    @ViewBuilder private func groupBlock(_ group: JournalGroup) -> some View {
-        let groupItems = items(in: group)
+    @ViewBuilder private func groupBlock(_ group: JournalGroup,
+                                         items groupItems: [JournalCatalogItem],
+                                         collapsed: Bool) -> some View {
         // Empty groups hidden outside edit mode; in edit mode all six show so items can be moved in.
         if !groupItems.isEmpty || editing {
-            let collapsed = collapsedGroups.contains(group.rawValue)
             VStack(alignment: .leading, spacing: 8) {
                 Button { toggleCollapsed(group) } label: {
                     HStack(spacing: 6) {
@@ -228,8 +226,7 @@ struct JournalLogCard: View {
     // MARK: - Numeric field
 
     private func numericField(_ item: JournalCatalogItem) -> some View {
-        let current = Self.effectiveNumeric(question: item.canonical,
-                                            parent: numericAnswers, pending: pendingNumeric)
+        let current = numericAnswers[item.canonical]
         return HStack(spacing: 6) {
             stepperButton("minus", q: item.canonical, current: current)
             NumericLogField(
@@ -245,8 +242,10 @@ struct JournalLogCard: View {
             stepperButton("plus", q: item.canonical, current: current)
             if current != nil {
                 Button {
-                    pendingNumeric.updateValue(nil, forKey: item.canonical)
-                    Task { await repo.clearJournalAnswer(day: dayKey, question: item.canonical); onChanged() }
+                    let day = dayKey
+                    numericAnswers[item.canonical] = nil
+                    answers[item.canonical] = nil     // a numeric log also carries answeredYes
+                    Task { await repo.clearJournalAnswer(day: day, question: item.canonical); onChanged() }
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(StrandFont.footnote)
@@ -273,9 +272,11 @@ struct JournalLogCard: View {
     }
 
     private func commitNumeric(_ q: String, value: Double) {
-        pendingNumeric.updateValue(value, forKey: q)
+        let day = dayKey
+        numericAnswers[q] = value
+        answers[q] = true            // #322: a numeric log stores answeredYes = true alongside the value
         Task {
-            await repo.saveJournalNumeric(day: dayKey, question: q, value: value)
+            await repo.saveJournalNumeric(day: day, question: q, value: value)
             onChanged()
         }
     }
@@ -414,21 +415,19 @@ struct JournalLogCard: View {
     }
 
     private func answerPill(_ label: LocalizedStringKey, q: String, value: Bool) -> some View {
-        let selected = Self.effectiveAnswer(question: q, parent: answers, pending: pendingAnswers) == value
+        let selected = answers[q] == value
         return pillButton(label, selected: selected) {
-            // Paint first: the write and the parent's reload are both async, and the chip is the only
-            // feedback that the tap registered.
-            // updateValue, not `pendingAnswers[q] = …`: assigning nil through the subscript of a
-            // dictionary with an Optional value REMOVES the key, which is the opposite of recording
-            // "the user just cleared this".
-            pendingAnswers.updateValue(selected ? nil : value, forKey: q)
+            // Paint first, write second: the state this chip draws from is right here, so the tap can
+            // never look ignored while the write is in flight.
+            let day = dayKey
+            if selected { answers[q] = nil } else { answers[q] = value }
             Task {
                 // Tri-state: re-tapping the filled chip clears the answer (natural-key delete,
                 // scoped to "noop-journal", imported rows can never be removed this way).
                 if selected {
-                    await repo.clearJournalAnswer(day: dayKey, question: q)
+                    await repo.clearJournalAnswer(day: day, question: q)
                 } else {
-                    await repo.saveJournalAnswer(day: dayKey, question: q, answeredYes: value)
+                    await repo.saveJournalAnswer(day: day, question: q, answeredYes: value)
                 }
                 onChanged()
             }

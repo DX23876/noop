@@ -41,11 +41,6 @@ private struct InsightsLoadKey: Equatable {
 struct InsightsLoadCache {
     let behaviours: [String: Set<String>]
     let importedQuestions: [String]
-    let dayAnswers: [String: Bool]
-    /// The journal day offset the `dayAnswers` were read for (0 = today, 1 = yesterday, -1 = tomorrow). The
-    /// restore guards on it so a re-mount, which resets `journalDayOffset` to 0, only reuses the cache when
-    /// the cached answers match that reset day, otherwise it falls through to a fresh read (#833).
-    let journalDayOffset: Int
     let outcomeByKey: [String: [String: Double]]
     let seriesByKey: [String: [(day: String, value: Double)]]
     let activityCosts: [ActivityCost]
@@ -187,74 +182,93 @@ struct InsightsView: View {
 
     /// Distinct imported question strings, so the card adopts the export's exact wording.
     @State private var importedQuestions: [String] = []
-    /// The selected day's native answers (question → answeredYes), drives the chip state.
-    @State private var dayAnswers: [String: Bool] = [:]
-    /// The selected day's native numeric values (question → value), drives the numeric fields (#322).
-    @State private var dayNumeric: [String: Double] = [:]
     /// -1 = tomorrow (log ahead), 0 = today, 1 = yesterday (late logging).
     @State private var journalDayOffset = 0
     /// #860 item 4: today's local calendar-day key, captured on appear and refreshed on foreground. The
-    /// journal day chips ("Today"/"Yesterday"/"Tomorrow") are relative to the CURRENT date, but the
-    /// answers (`dayAnswers`) and the resolved day key are derived from `Date()` only inside `load()`,
-    /// which re-runs on `repo.refreshSeq`. A day can pass with the screen alive and no data refresh (the
-    /// app simply backgrounded overnight), so without re-keying on this the previous day's answers stayed
-    /// pinned under "Today" instead of the new day starting blank. Folding it into the `.task(id:)` key
-    /// re-runs the load the moment the date rolls over, so "Today" always resolves to the live day and
-    /// prior answers move to their real date. Local CALENDAR day (matches the journal's `localDayKey`).
+    /// journal day chips ("Today"/"Yesterday"/"Tomorrow") are relative to the CURRENT date, but the day a
+    /// read resolves to is derived from `Date()` at read time. A day can pass with the screen alive and no
+    /// data refresh (the app simply backgrounded overnight), so without re-keying on this the previous
+    /// day's answers stayed pinned under "Today" instead of the new day starting blank. It keys the
+    /// `.task(id:)` here AND is handed to the logging card, which re-reads its day on it for the same
+    /// reason. Local CALENDAR day (matches the journal's `localDayKey`).
     @State private var currentDayKey = Repository.localDayKey(Date())
 
     /// The pending, debounced full reload behind `scheduleDerivedReload()`. One at a time: a further
     /// journal change replaces it rather than stacking another full-history read behind the first.
     @State private var derivedReload: Task<Void, Never>?
 
+    /// A journal write happened and the derived half (behaviours, rankings, correlations) has not caught
+    /// up yet. Cleared by the reload; if the screen goes away first, `onDisappear` runs it there.
+    @State private var derivedDirty = false
+
+    /// Memoized experiment state — see `recomputeExperiment()`. Both were computed properties walking the
+    /// whole history on every render.
+    @State private var experimentCandidates: [String] = []
+    @State private var activeExperimentSnapshot: ExperimentSnapshot?
+
+    /// The sections are siblings in the scaffold's `LazyVStack` (spacing 20) rather than children of an
+    /// inner `VStack(spacing: NoopMetrics.sectionSpacing)`. This bottom padding makes up the difference,
+    /// so the rhythm between sections is what it was before they were unwrapped.
+    private var sectionGap: CGFloat { max(0, NoopMetrics.sectionSpacing - 20) }
+
     var body: some View {
         ScreenScaffold(title: "Insights", subtitle: "Interrogate what affects what.",
-                       // PERF (scroll): lazy column, byte-identical layout (LazyVStack == eager VStack
-                       // alignment/spacing/header). The content is one inner eager VStack, so any nested
-                       // staggered reveals are unchanged; this only defers building that stack on scroll-in.
+                       // PERF (scroll): the sections below are DIRECT children of the scaffold's
+                       // LazyVStack, not one inner eager VStack. Wrapped, `lazy: true` bought nothing
+                       // here — a single child is built whole, so every chart, effect card and
+                       // staggered reveal was constructed on every render whether on screen or not.
+                       // As siblings they materialise on scroll-in, which is what the flag is for.
                        lazy: true,
                        // Liquid finish: the same full-bleed day-of-sky backdrop Today + the other liquid
                        // tabs carry, so Insights sits in one atmosphere ("the options change, not the page").
                        // Static + non-interactive; the cards below sit on the opaque canvas and stay legible.
                        topBackground: liquidScaffoldSky()) {
+            // v5: a single row into the "What moves you" hub, the lag-aware ranked-effect feed
+            // + alcohol/caffeine dose-response. Reachable as its own destination too; this is the
+            // honest in-Insights entry point.
+            whatMovesYouLink
+                .padding(.bottom, sectionGap)
+            // Native logging, always reachable: the account-free way into Insights — and deliberately
+            // OUTSIDE the `loaded` gate. The card reads the one day it shows by itself, so it is usable
+            // while the history read behind the analysis below is still running. It used to sit under
+            // that gate and wait for every series and workout in the database first.
+            JournalLogCard(importedQuestions: importedQuestions,
+                           dayAnchor: currentDayKey,
+                           dayOffset: $journalDayOffset,
+                           onChanged: { journalChanged() })
+                .padding(.bottom, sectionGap)
+            // Mind, daily mood check-in + mood↔body correlations.
+            // Self-contained (owns its own load/state); sits with the
+            // journal card so the two daily-logging surfaces read as one
+            // "log today" block above the derived insights.
+            MindSection()
+                .padding(.bottom, sectionGap)
+            // Caffeine window (#526), log an intake + a rough on-device "still active" hint.
+            // Self-contained (owns its own UserDefaults-backed store); sits in the same
+            // "log today" block. Opt-in: shows nothing until the user logs an intake.
+            CaffeineLogCard()
+                .padding(.bottom, sectionGap)
             if !loaded {
                 ComingSoon(what: "Reading your journal and outcomes…")
             } else {
-                VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
-                    // v5: a single row into the "What moves you" hub, the lag-aware ranked-effect feed
-                    // + alcohol/caffeine dose-response. Reachable as its own destination too; this is the
-                    // honest in-Insights entry point.
-                    whatMovesYouLink
-                    // Native logging, always reachable: the account-free way into Insights.
-                    JournalLogCard(importedQuestions: importedQuestions,
-                                   answers: dayAnswers,
-                                   numericAnswers: dayNumeric,
-                                   dayOffset: $journalDayOffset,
-                                   onChanged: { journalChanged() })
-                    // Mind, daily mood check-in + mood↔body correlations.
-                    // Self-contained (owns its own load/state); sits with the
-                    // journal card so the two daily-logging surfaces read as one
-                    // "log today" block above the derived insights.
-                    MindSection()
-                    // Caffeine window (#526), log an intake + a rough on-device "still active" hint.
-                    // Self-contained (owns its own UserDefaults-backed store); sits in the same
-                    // "log today" block. Opt-in: shows nothing until the user logs an intake.
-                    CaffeineLogCard()
-                    experimentSection
-                    if behaviours.isEmpty {
-                        // No journal yet, explain, without dead-ending on a paid export.
-                        NoopCard {
-                            Text("Log behaviours above. After a few days of answers, NOOP ranks how each one moves your charge, HRV and rest. Importing a WHOOP export (which includes its journal) backfills history instantly.")
-                                .font(StrandFont.subhead)
-                                .foregroundStyle(StrandPalette.textSecondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                    } else {
-                        behaviourSection
+                experimentSection
+                    .padding(.bottom, sectionGap)
+                if behaviours.isEmpty {
+                    // No journal yet, explain, without dead-ending on a paid export.
+                    NoopCard {
+                        Text("Log behaviours above. After a few days of answers, NOOP ranks how each one moves your charge, HRV and rest. Importing a WHOOP export (which includes its journal) backfills history instantly.")
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    activityCostSection
-                    relationshipsSection
+                    .padding(.bottom, sectionGap)
+                } else {
+                    behaviourSection
+                        .padding(.bottom, sectionGap)
                 }
+                activityCostSection
+                    .padding(.bottom, sectionGap)
+                relationshipsSection
             }
         }
         // #860 item 4: key on the data-refresh seq AND today's day-key, so the journal re-loads both on a
@@ -265,10 +279,17 @@ struct InsightsView: View {
         // (behaviours / outcomeByKey change only at load, which calls
         //  recomputeRanked() directly, so keying on `outcome` is sufficient.)
         .onChangeCompat(of: outcome) { _ in recomputeRanked() }
-        // The journal day pills only change WHICH day is shown — the behaviours, series and rankings are
-        // history-wide and identical for every day. So a day switch re-reads that one day's answers and
-        // nothing else. (The card no longer calls `onChanged` for this; that means "an answer changed".)
-        .onChangeCompat(of: journalDayOffset) { _ in Task { await reloadJournalDay() } }
+        // The experiment memo's other inputs are its own controls: the picked behaviour and outcome, the
+        // start day, and the two window lengths. (behaviours / outcomeByKey change only at load, which
+        // recomputes it directly.)
+        .onChangeCompat(of: experimentBehaviour) { _ in recomputeExperiment() }
+        .onChangeCompat(of: experimentOutcomeRaw) { _ in recomputeExperiment() }
+        .onChangeCompat(of: experimentStartedDay) { _ in recomputeExperiment() }
+        .onChangeCompat(of: experimentDurationDays) { _ in recomputeExperiment() }
+        .onChangeCompat(of: experimentBaselineDays) { _ in recomputeExperiment() }
+        // A day switch needs nothing from here at all: the card re-reads that day itself, and the
+        // behaviours, series and rankings are history-wide and identical for every day.
+        .onDisappear { flushDerivedReloadIfNeeded() }
         // Refresh the day anchor on appear and whenever the app returns to the foreground; if the date has
         // advanced this bumps the `.task(id:)` key and the journal reloads for the new logical day (#860).
         .onAppear {
@@ -331,56 +352,30 @@ struct InsightsView: View {
 
     // MARK: - Journal changes
 
-    /// A journal write, or a day-pill switch, from the logging card.
+    /// The logging card wrote something. It has already repainted itself — it owns the day it shows —
+    /// so this concerns only the DERIVED half: behaviours, the ranked effects, the correlations and the
+    /// experiment's compliance.
     ///
-    /// This used to be `Task { await load() }` — the FULL load (whole journal history, the imported
-    /// journal a second time, four metric series, every workout, then the ranker and the correlations,
-    /// all on the @MainActor) for one toggled chip. The chip's state cannot repaint until that returns,
-    /// so a tap looked ignored until the screen was left and re-entered, where the #833 cache restored
-    /// the finished result. Split in two: the selected day's answers reload immediately, and the
-    /// derived analysis follows once the tapping stops.
+    /// Debounced rather than immediate, and deliberately not dropped altogether: leaving it to the next
+    /// visit would show visibly stale rankings underneath the chips the user is still tapping.
     private func journalChanged() {
-        Task { await reloadJournalDay() }
-        scheduleDerivedReload()
-    }
-
-    /// Re-read ONLY the selected day's native answers — two single-day queries — and keep the #833
-    /// cache in step with them.
-    ///
-    /// Patching the cache is not optional: `load(allowCache:)` restores `dayAnswers` from it wholesale
-    /// on the next re-mount, so a day reload that skipped it would resurrect pre-tap answers the moment
-    /// the user came back to the screen.
-    @MainActor
-    private func reloadJournalDay() async {
-        let selectedDayKey = Repository.localDayKey(
-            Calendar.current.date(byAdding: .day, value: -journalDayOffset, to: Date()) ?? Date())
-        let answers = await repo.nativeJournalAnswers(day: selectedDayKey)
-        let numeric = await repo.nativeJournalNumeric(day: selectedDayKey)
-        dayAnswers = answers
-        dayNumeric = numeric
-        if let c = repo.insightsCache {
-            repo.insightsCache = InsightsLoadCache(
-                behaviours: c.behaviours,
-                importedQuestions: c.importedQuestions,
-                dayAnswers: answers,
-                journalDayOffset: journalDayOffset,
-                outcomeByKey: c.outcomeByKey,
-                seriesByKey: c.seriesByKey,
-                activityCosts: c.activityCosts,
-                numericJournalByKey: c.numericJournalByKey)
-        }
-    }
-
-    /// Refresh the derived half — behaviours, the ranked effects, the correlations — once the user has
-    /// stopped changing answers. Each call replaces the pending one, so logging ten items runs the
-    /// heavy load once, after the last of them, instead of ten times while they tap.
-    private func scheduleDerivedReload() {
+        derivedDirty = true
         derivedReload?.cancel()
         derivedReload = Task {
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
             guard !Task.isCancelled else { return }
             await load()
+            derivedDirty = false
         }
+    }
+
+    /// Run a pending derived refresh when the screen goes away, so the work happens while nobody is
+    /// looking at it and the next visit finds the cache current.
+    private func flushDerivedReloadIfNeeded() {
+        guard derivedDirty else { return }
+        derivedReload?.cancel()
+        derivedDirty = false
+        Task { await load() }
     }
 
     // MARK: - Load
@@ -401,8 +396,7 @@ struct InsightsView: View {
         if allowCache,
            repo.insightsLoadedSeq == repo.refreshSeq,
            repo.insightsLoadedDayKey == currentDayKey,
-           let cached = repo.insightsCache,
-           cached.journalDayOffset == journalDayOffset {
+           let cached = repo.insightsCache {
             restoreFromCache(cached)
             return
         }
@@ -416,74 +410,37 @@ struct InsightsView: View {
         // question strings) then re-read the imported half a second time. Merging here with the same
         // `mergeJournal` the repository uses keeps one merge rule while halving the read.
         let imported = await repo.importedJournalEntries()
-        let entries = Repository.mergeJournal(imported: imported,
-                                              native: await repo.nativeJournalEntries())
-        var byBehaviour: [String: Set<String>] = [:]
-        var numericByBehaviour: [String: [String: Double]] = [:]
-        for e in entries where e.answeredYes {
-            byBehaviour[e.question, default: []].insert(e.day)
-        }
-        // #322: per-question numeric series (question → [day: value]) for numeric journal items. A
-        // numeric series is the same [day: value] shape a metric outcome is, so the effect ranker can
-        // consume it directly (dose-response lands in the v5 hub). Additive: yes/no-only journals
-        // never populate this, so the boolean effect cards are untouched.
-        for e in entries {
-            if let v = e.numericValue { numericByBehaviour[e.question, default: [:]][e.day] = v }
-        }
-
-        // The logging card's inputs: the export's exact question strings (so logged days join
-        // imported history) and the selected day's native chip state, a targeted read, since the
-        // merged list carries no deviceId to filter on.
-        let importedQs = NSOrderedSet(array: imported.map(\.question)).array as? [String] ?? []
-        let selectedDayKey = Repository.localDayKey(
-            Calendar.current.date(byAdding: .day, value: -journalDayOffset, to: Date()) ?? Date())
-        let nativeAnswers = await repo.nativeJournalAnswers(day: selectedDayKey)
-        let nativeNumeric = await repo.nativeJournalNumeric(day: selectedDayKey)
+        let native = await repo.nativeJournalEntries()
 
         // Daily metrics for the strap-only outcome fallback (merged, imported-wins). The view is
         // MainActor-isolated, so reading the published cache here is on the right actor.
         let mergedDays = repo.days
 
-        // Outcome series (Whoop) → both [day:value] dictionaries and ordered series. The imported
-        // metricSeries only exists after a CSV import; fill the days it doesn't cover from the
-        // merged daily metrics so an account-free user's logging still gets effects
-        // (recovery/hrv/rhr have daily columns; sleep_performance stays import-only).
-        var byKey: [String: [String: Double]] = [:]
-        var seriesMap: [String: [(day: String, value: Double)]] = [:]
+        // Outcome series (Whoop), read here; the shaping below happens off this actor.
+        var rawSeries: [String: [(day: String, value: Double)]] = [:]
         for key in outcomeKeys {
-            let s = await repo.series(key: key, source: "my-whoop")
-            var dict: [String: Double] = [:]
-            for row in s { dict[row.day] = row.value }
-            for d in mergedDays where dict[d.day] == nil {
-                if let v = Self.dailyOutcome(key: key, day: d) { dict[d.day] = v }
-            }
-            byKey[key] = dict
-            seriesMap[key] = dict.sorted { $0.key < $1.key }.map { (day: $0.key, value: $0.value) }
+            rawSeries[key] = await repo.series(key: key, source: "my-whoop").map { (day: $0.day, value: $0.value) }
         }
+        let workouts = await repo.workoutRows()
 
-        // #322: fold each numeric journal item's series into the same day→value maps the effect ranker
-        // consumes, under a namespaced "journal.numeric:<question>" key so it never collides with the
-        // four fixed metric outcomes. This makes a numeric journal series (caffeine mg, alcohol units)
-        // a first-class series the ranker/correlations can consume, exactly like a metric outcome; the
-        // four boolean effect cards key on Outcome.key only, so they are untouched.
-        for (question, series) in numericByBehaviour {
-            let namespaced = Self.numericJournalKey(question)
-            byKey[namespaced] = series
-            seriesMap[namespaced] = series.sorted { $0.key < $1.key }.map { (day: $0.key, value: $0.value) }
-        }
-
-        // Activity Cost (#439): shape the engine's inputs in the VIEW, not the engine. From the loaded
-        // sessions build [sport: Set<localDayKey>], collapsing detected/"Activity" into one bucket via
-        // displaySport, keeping manual/imported labels, keyed by the LOCAL calendar day the session
-        // STARTED (the same local-day calendar DailyMetric.day uses, so the engine's D+1 alignment is
-        // honest). The recovery side is [localDayKey: Charge] off the merged DailyMetric.recovery.
-        let costs = Self.computeActivityCosts(workouts: await repo.workoutRows(), days: mergedDays)
+        // Everything above is a read; everything below is pure shaping over the values it returned —
+        // merging, bucketing, four dictionaries with their sorts, and the activity-cost inputs. It used
+        // to run inline here, i.e. on the main actor, proportional to the whole history. Detached, the
+        // main thread only assigns the finished result.
+        let shaped = await Task.detached(priority: .userInitiated) {
+            Self.shape(imported: imported, native: native, mergedDays: mergedDays,
+                       rawSeries: rawSeries, workouts: workouts)
+        }.value
+        let byBehaviour = shaped.behaviours
+        let numericByBehaviour = shaped.numericJournalByKey
+        let importedQs = shaped.importedQuestions
+        let byKey = shaped.outcomeByKey
+        let seriesMap = shaped.seriesByKey
+        let costs = shaped.activityCosts
 
         await MainActor.run {
             self.behaviours = byBehaviour
             self.importedQuestions = importedQs
-            self.dayAnswers = nativeAnswers
-            self.dayNumeric = nativeNumeric
             self.outcomeByKey = byKey
             self.seriesByKey = seriesMap
             self.numericJournalByKey = numericByBehaviour
@@ -492,6 +449,7 @@ struct InsightsView: View {
             // Seed the memoized derived state from the freshly loaded inputs.
             self.recomputeRanked()
             self.recomputeRelationships()
+            self.recomputeExperiment()
             // #833: snapshot what we just read onto the long-lived `repo`, keyed by the seq + dayKey we
             // loaded for, so a later same-state re-mount restores it in-memory instead of re-querying. This
             // ALSO runs on the direct (non-cached) write-then-reload sites, so the cache always reflects the
@@ -499,8 +457,6 @@ struct InsightsView: View {
             self.repo.insightsCache = InsightsLoadCache(
                 behaviours: byBehaviour,
                 importedQuestions: importedQs,
-                dayAnswers: nativeAnswers,
-                journalDayOffset: self.journalDayOffset,
                 outcomeByKey: byKey,
                 seriesByKey: seriesMap,
                 activityCosts: costs,
@@ -510,6 +466,73 @@ struct InsightsView: View {
         }
     }
 
+    /// Everything `load()` computes from what it read — pure, so it can run off the main actor and its
+    /// result is exactly the snapshot the #833 cache stores.
+    ///
+    /// The steps are the ones that were inline in `load()`, unchanged in order and in rule: merge the
+    /// imported and native journal (native wins per day+question), split it into behaviour days and
+    /// per-question numeric series, build each outcome's day→value dictionary (filling days the imported
+    /// series doesn't cover from the merged daily metrics) plus its sorted series, fold the numeric
+    /// journal series in under their namespaced keys, and shape the activity-cost inputs.
+    nonisolated static func shape(imported: [JournalEntry],
+                                  native: [JournalEntry],
+                                  mergedDays: [DailyMetric],
+                                  rawSeries: [String: [(day: String, value: Double)]],
+                                  workouts: [WorkoutRow]) -> InsightsLoadCache {
+        let entries = Repository.mergeJournal(imported: imported, native: native)
+        var byBehaviour: [String: Set<String>] = [:]
+        var numericByBehaviour: [String: [String: Double]] = [:]
+        // Only "yes" answers count as the behaviour occurring. A numeric log writes answeredYes=true too
+        // (#322), so a numeric item lands in the with/without split here unchanged.
+        for e in entries where e.answeredYes {
+            byBehaviour[e.question, default: []].insert(e.day)
+        }
+        for e in entries {
+            if let v = e.numericValue { numericByBehaviour[e.question, default: [:]][e.day] = v }
+        }
+
+        // The logging card's inputs: the export's exact question strings, so logged days join imported
+        // history under one behaviour.
+        let importedQs = NSOrderedSet(array: imported.map(\.question)).array as? [String] ?? []
+
+        // The imported metricSeries only exists after a CSV import; fill the days it doesn't cover from
+        // the merged daily metrics so an account-free user's logging still gets effects
+        // (recovery/hrv/rhr have daily columns; sleep_performance stays import-only).
+        var byKey: [String: [String: Double]] = [:]
+        var seriesMap: [String: [(day: String, value: Double)]] = [:]
+        for (key, rows) in rawSeries {
+            var dict: [String: Double] = [:]
+            for row in rows { dict[row.day] = row.value }
+            for d in mergedDays where dict[d.day] == nil {
+                if let v = dailyOutcome(key: key, day: d) { dict[d.day] = v }
+            }
+            byKey[key] = dict
+            seriesMap[key] = dict.sorted { $0.key < $1.key }.map { (day: $0.key, value: $0.value) }
+        }
+
+        // #322: fold each numeric journal item's series into the same day→value maps the effect ranker
+        // consumes, under a namespaced "journal.numeric:<question>" key so it never collides with the
+        // four fixed metric outcomes. The four boolean effect cards key on Outcome.key only, so they are
+        // untouched.
+        for (question, series) in numericByBehaviour {
+            let namespaced = numericJournalKey(question)
+            byKey[namespaced] = series
+            seriesMap[namespaced] = series.sorted { $0.key < $1.key }.map { (day: $0.key, value: $0.value) }
+        }
+
+        // Activity Cost (#439): shape the engine's inputs in the VIEW, not the engine. Sessions become
+        // [sport: Set<localDayKey>] keyed by the LOCAL calendar day the session STARTED (the same
+        // calendar DailyMetric.day uses, so the engine's D+1 alignment is honest).
+        let costs = computeActivityCosts(workouts: workouts, days: mergedDays)
+
+        return InsightsLoadCache(behaviours: byBehaviour,
+                                 importedQuestions: importedQs,
+                                 outcomeByKey: byKey,
+                                 seriesByKey: seriesMap,
+                                 activityCosts: costs,
+                                 numericJournalByKey: numericByBehaviour)
+    }
+
     /// #833: restore the loaded snapshot from a same-state `repo` cache on a re-mount, so the screen repaints
     /// from memory without re-running the heavy load. Sets the same `@State` and re-seeds the same memoized
     /// derived state as the first-load `MainActor.run` block above, byte-identical screen, no store queries.
@@ -517,12 +540,6 @@ struct InsightsView: View {
     private func restoreFromCache(_ c: InsightsLoadCache) {
         behaviours = c.behaviours
         importedQuestions = c.importedQuestions
-        dayAnswers = c.dayAnswers
-        // Numeric journal rows are native-only (imported WHOOP rows never carry a numericValue), so the
-        // selected day's numeric fields can be derived from the cached per-question series (#322).
-        let selectedDayKey = Repository.localDayKey(
-            Calendar.current.date(byAdding: .day, value: -c.journalDayOffset, to: Date()) ?? Date())
-        dayNumeric = c.numericJournalByKey.compactMapValues { $0[selectedDayKey] }
         outcomeByKey = c.outcomeByKey
         seriesByKey = c.seriesByKey
         numericJournalByKey = c.numericJournalByKey
@@ -530,12 +547,13 @@ struct InsightsView: View {
         loaded = true
         recomputeRanked()
         recomputeRelationships()
+        recomputeExperiment()
     }
 
     /// The merged DailyMetric column backing an outcome key, for days the imported metricSeries
     /// doesn't cover (strap-only users). sleep_performance has no daily column, so it stays
     /// import-only, never seeded here.
-    private static func dailyOutcome(key: String, day d: DailyMetric) -> Double? {
+    nonisolated private static func dailyOutcome(key: String, day d: DailyMetric) -> Double? {
         switch key {
         case "recovery": return d.recovery
         case "hrv":      return d.avgHrv
@@ -553,7 +571,7 @@ struct InsightsView: View {
 
     // `internal` (not private) so the Workouts post-log note (#439) reuses the exact same input
     // shaping rather than duplicating it, one source of truth for [sport: days] / [day: Charge].
-    static func computeActivityCosts(workouts: [WorkoutRow], days: [DailyMetric]) -> [ActivityCost] {
+    nonisolated static func computeActivityCosts(workouts: [WorkoutRow], days: [DailyMetric]) -> [ActivityCost] {
         // Local-day offset so the activity day key lands on the SAME calendar as DailyMetric.day
         // (which IntelligenceEngine/WhoopImporter both bucket by local midnight, #277).
         let tzOffset = TimeZone.current.secondsFromGMT()
@@ -808,7 +826,18 @@ struct InsightsView: View {
     /// Triage fix (a)/(b): we do NOT route this through `mergeCatalog`, which would inject
     /// the whole starter catalog (and re-surface hidden behaviours) as eligible, so the
     /// empty-state guard is real and only behaviours with history can be tested.
-    private var experimentCandidates: [String] {
+    /// Memoized like `ranked` / `relationships` above, and for the same reason: both of these walked the
+    /// full history on EVERY body evaluation — the snapshot sorts the outcome series' day keys twice,
+    /// the candidate list sorts and de-duplicates the behaviour set. On a multi-year journal that is
+    /// thousands of strings per render, on a screen that re-renders whenever anything on it changes.
+    /// Recomputed exactly where their inputs change: after a load / cache restore, and on the experiment
+    /// controls themselves.
+    private func recomputeExperiment() {
+        experimentCandidates = computeExperimentCandidates()
+        activeExperimentSnapshot = computeExperimentSnapshot()
+    }
+
+    private func computeExperimentCandidates() -> [String] {
         let saved = experimentBehaviour.trimmingCharacters(in: .whitespacesAndNewlines)
         let hidden = Set(catalog.hiddenQuestions.map { $0.trimmingCharacters(in: .whitespaces).lowercased() })
         // Logged behaviours first (most relevant), then imported wording, then the saved
@@ -852,7 +881,7 @@ struct InsightsView: View {
         )
     }
 
-    private var activeExperimentSnapshot: ExperimentSnapshot? {
+    private func computeExperimentSnapshot() -> ExperimentSnapshot? {
         guard !experimentStartedDay.isEmpty,
               let outcome = Outcome(rawValue: experimentOutcomeRaw),
               let behavior = resolvedExperimentBehaviour
@@ -1009,7 +1038,7 @@ struct InsightsView: View {
 
     /// The namespaced outcome key a numeric journal item's series is folded under (#322). Prefixed so
     /// it can never collide with a fixed metric outcome key. Pure + tested (mirrors Android).
-    static func numericJournalKey(_ question: String) -> String { "journal.numeric:" + question }
+    nonisolated static func numericJournalKey(_ question: String) -> String { "journal.numeric:" + question }
 
     private struct ExperimentSnapshot {
         let behavior: String

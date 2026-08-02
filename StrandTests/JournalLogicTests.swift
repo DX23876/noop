@@ -186,48 +186,51 @@ final class JournalLogicTests: XCTestCase {
         XCTAssertNotEqual(key, "hrv")
     }
 
-    // MARK: - Optimistic chip state
+    // MARK: - Grouping the catalog
     //
-    // The card renders from the PARENT's loaded answers, which arrive only after its reload. Reported
-    // as "the button keeps its colour, nothing happens" — the write landed, the chip could not say so.
-    // The overlay is what lets a tap paint immediately; these pin when it wins and when it retires, so
-    // it can never mask what was actually stored.
+    // The card buckets the resolved catalog ONCE per render and hands each group its slice. It used to
+    // call `resolvedItems` — the full merge of imported questions, saved items and starters — inside
+    // every one of the six group blocks, on every render. These pin that the cheaper shape is the same
+    // shape: same items, same per-group order.
 
-    private let q = "Did you drink any alcohol?"
-
-    func testOverlayWinsOverTheParentAnswer() {
-        let effective = JournalLogCard.effectiveAnswer(question: q, parent: [q: false], pending: [q: true])
-        XCTAssertEqual(effective, true)
+    @MainActor
+    func testItemsByGroupKeepsEveryItemExactlyOnce() {
+        let store = JournalCatalogStore()
+        store.items = []
+        let resolved = store.resolvedItems(imported: ["Did you drink any alcohol?", "Any caffeine?"])
+        let grouped = JournalLogCard.itemsByGroup(resolved)
+        let flattened = grouped.values.flatMap { $0 }
+        XCTAssertEqual(flattened.count, resolved.count)
+        XCTAssertEqual(Set(flattened.map(\.canonical)), Set(resolved.map(\.canonical)))
     }
 
-    func testOverlayCanClearAnAnswerTheParentStillHolds() {
-        // The tri-state clear: re-tapping a filled chip. `.some(nil)` is "cleared", which is NOT the
-        // same as having no overlay entry at all.
-        let effective = JournalLogCard.effectiveAnswer(question: q, parent: [q: true], pending: [q: nil])
-        XCTAssertNil(effective)
+    @MainActor
+    func testItemsByGroupPutsEachItemUnderItsOwnGroup() {
+        let store = JournalCatalogStore()
+        store.items = []
+        store.addCustom("Sauna", kind: .bool, group: .lifestyle)
+        store.addCustom("Water (L)", kind: .numeric(unitLabel: "L"), group: .nutrition)
+        let grouped = JournalLogCard.itemsByGroup(store.resolvedItems(imported: []))
+        XCTAssertTrue(grouped[.lifestyle]?.contains { $0.canonical == "Sauna" } ?? false)
+        XCTAssertTrue(grouped[.nutrition]?.contains { $0.canonical == "Water (L)" } ?? false)
+        XCTAssertFalse(grouped[.lifestyle]?.contains { $0.canonical == "Water (L)" } ?? false)
     }
 
-    func testAQuestionWithoutAnOverlayReadsTheParent() {
-        let effective = JournalLogCard.effectiveAnswer(question: q, parent: [q: true], pending: [:])
-        XCTAssertEqual(effective, true)
-        XCTAssertNil(JournalLogCard.effectiveAnswer(question: "unlogged", parent: [q: true], pending: [:]))
-    }
-
-    func testOverlayRetiresOnceTheParentAgrees() {
-        // The rule the card applies when a reload lands: drop what the parent now confirms, keep what
-        // it doesn't, so a slower reload still in flight can't flip a chip back under the user.
-        let pending: [String: Bool?] = [q: true, "Any caffeine?": false]
-        let parent: [String: Bool] = [q: true]
-        let remaining = pending.filter { question, value in parent[question] != value }
-        XCTAssertEqual(Array(remaining.keys), ["Any caffeine?"])
-    }
-
-    func testNumericOverlayMirrorsTheBooleanRule() {
-        XCTAssertEqual(JournalLogCard.effectiveNumeric(question: "Caffeine (mg)",
-                                                       parent: ["Caffeine (mg)": 80], pending: ["Caffeine (mg)": 160]), 160)
-        XCTAssertNil(JournalLogCard.effectiveNumeric(question: "Caffeine (mg)",
-                                                     parent: ["Caffeine (mg)": 80], pending: ["Caffeine (mg)": nil]))
-        XCTAssertEqual(JournalLogCard.effectiveNumeric(question: "Caffeine (mg)",
-                                                       parent: ["Caffeine (mg)": 80], pending: [:]), 80)
+    @MainActor
+    func testItemsByGroupOrdersBySortIndexThenDisplay() {
+        // The old per-group `filter().sorted()` ordered by (sortIndex, display); the bucketed form has to
+        // reproduce it, or a rename would visibly reshuffle a group.
+        let store = JournalCatalogStore()
+        store.items = [
+            JournalCatalogItem(canonical: "b", displayName: nil, kind: .bool, group: .other,
+                               sortIndex: 2, hidden: false, custom: true),
+            JournalCatalogItem(canonical: "a", displayName: nil, kind: .bool, group: .other,
+                               sortIndex: 2, hidden: false, custom: true),
+            JournalCatalogItem(canonical: "c", displayName: nil, kind: .bool, group: .other,
+                               sortIndex: 1, hidden: false, custom: true),
+        ]
+        let grouped = JournalLogCard.itemsByGroup(store.resolvedItems(imported: []))
+        let others = (grouped[.other] ?? []).filter { ["a", "b", "c"].contains($0.canonical) }
+        XCTAssertEqual(others.map(\.canonical), ["c", "a", "b"])
     }
 }
