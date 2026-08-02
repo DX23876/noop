@@ -269,7 +269,7 @@ struct HRVSnapshotView: View {
                         .padding(.horizontal, 8)
                 }
                 .buttonStyle(.bordered)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("hrv")
                 .disabled(saved)
             }
         }

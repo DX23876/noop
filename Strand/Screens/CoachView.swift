@@ -87,9 +87,9 @@ struct CoachView: View {
     /// the action row's "Live Session" chip when the user has turned the feature off, so the chip never
     /// looks tappable for something it can't actually open (#P3).
     @AppStorage(LiveSessionPrefs.betaKey) private var liveSessionsBeta = true
-    /// Apple Health-style leading-icon coloring (SettingsView's "App icon colors") — same switch that
+    /// Apple-inspired leading-icon coloring (SettingsView's "Apple-inspired colors") — same switch that
     /// recolors the More tab and Coach's submenus. See `CoachIconColors`.
-    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = true
+    @AppStorage(AppleInspiredColorsPrefs.enabledKey) private var appleHealthColors = AppleInspiredColorsPrefs.defaultEnabled
     #if os(iOS)
     /// Extra clearance the composer needs to clear RootTabView's floating tab bar, which is drawn on
     /// top of pushed content and isn't part of this screen's own safe area. Zero everywhere else: a

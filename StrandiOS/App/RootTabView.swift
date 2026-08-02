@@ -630,57 +630,36 @@ enum MoreDestination: Hashable {
 
 
 /// One tappable destination row in the More index. A `NavigationLink` whose label is the standard app row:
-/// the SF Symbol icon tinted `StrandPalette.accent`, the title in the body text colour, a `Spacer`, and a
+/// the SF Symbol icon tinted by its semantic Apple-inspired role, the title in the body text colour, a `Spacer`, and a
 /// trailing `chevron.right` in `textTertiary`. ~44pt min height + the card's row insets keep the whole row a
 /// comfortable tap target.
 struct MoreRow: View {
     let title: LocalizedStringKey
     let icon: String
     let route: MoreDestination
-    /// The dedicated settings entry needs a concrete destination: a value-based link is restored from
-    /// the More tab's path during tab/scene restoration, before SwiftUI has registered this stack's
-    /// `MoreDestination` resolver, which causes the repeated "no matching navigationDestination" fault.
-    @EnvironmentObject private var coach: AICoachEngine
-
-    /// Single global switch (Settings → Appearance), OFF by default so every row stays the plain
-    /// `StrandPalette.accent` blue exactly as before. ON recolors every row at once to
-    /// `MoreRowAppleHealthColors`' Apple Health-style palette — never per-row, never persisted per icon.
-    /// Read directly here (rather than threaded through `init`) so all 25 `MoreRow(...)` call sites in
-    /// `moreTab` stay untouched.
-    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = true
 
     init(_ title: LocalizedStringKey, _ icon: String, _ route: MoreDestination) {
         self.title = title; self.icon = icon; self.route = route
     }
 
-    private var tint: Color {
-        appleHealthColors ? MoreRowAppleHealthColors.color(for: String(describing: route)) : StrandPalette.accent
-    }
-
     var body: some View {
-        if route == .coachSettings {
-            NavigationLink {
-                CoachSettingsView().environmentObject(coach)
-            } label: {
-                rowLabel
-            }
-            .buttonStyle(.plain)
-        } else {
-            NavigationLink(value: route) {
-                rowLabel
-            }
-            .buttonStyle(.plain)
+        // Every More row must push through the NavigationStack's bound path. A closure-based special
+        // case for Coach Settings bypassed `tabPaths[3]`; after popping it, SwiftUI's internal stack and
+        // the binding disagreed, so later value links (Workouts, Health, Biomarkers, …) were ignored.
+        NavigationLink(value: route) {
+            rowLabel
         }
+        .buttonStyle(.plain)
     }
 
     private var rowLabel: some View {
             HStack(spacing: 14) {
-                // Pin the icon to the accent explicitly. A plain inherited tint gets re-resolved by iOS to
-                // its default blue a beat after first render — so the icons flashed green→blue (#184). The
-                // explicit foregroundStyle on the image overrides that; the title keeps the primary colour.
+                // Pin the semantic colour directly. A plain inherited tint gets re-resolved by iOS to its
+                // default blue a beat after first render — so the icons flashed green→blue (#184). The
+                // explicit foreground style prevents that; the title keeps the primary text colour.
                 Image(systemName: icon)
                     .font(.system(size: 17, weight: .regular))
-                    .foregroundStyle(tint)
+                    .appleInspiredForeground(String(describing: route))
                     .frame(width: 26, alignment: .center)
                 Text(title)
                     .font(StrandFont.body)

@@ -66,11 +66,16 @@ struct BackupSyncView: View {
     private var folderCard: some View {
         StrandCard(padding: 20) {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Backup folder")
-                    .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                HStack(spacing: 10) {
+                    Image(systemName: "folder.fill")
+                        .appleInspiredForeground("backupSync")
+                        .accessibilityHidden(true)
+                    Text("Backup folder")
+                        .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                }
                 Text(folderLabel.map { String(localized: "Saving to: \($0)") }
                      ?? String(localized: "No folder chosen yet. Pick one your cloud app already syncs, or any local folder."))
-                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 Text("Tip: choose a folder in iCloud Drive and your backups sync to all your Apple devices automatically, no account setup needed.")
                     .font(StrandFont.caption).foregroundStyle(StrandPalette.accent)
@@ -108,15 +113,20 @@ struct BackupSyncView: View {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .center, spacing: 16) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Daily auto-backup")
-                            .font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
+                        HStack(spacing: 8) {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .appleInspiredForeground("backupSync")
+                                .accessibilityHidden(true)
+                            Text("Daily auto-backup")
+                                .font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
+                        }
                         Text("Backs up to your folder about once a day and keeps the latest \(keep). On this platform it runs when you next open NOOP.")
-                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 0)
                     Toggle("Daily auto-backup", isOn: $auto)
-                        .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                        .labelsHidden().toggleStyle(.switch).appleInspiredTint("backupSync")
                         .disabled(folderLabel == nil)
                         .onChangeCompat(of: auto) { on in FolderBackup.autoEnabled = on }
                 }
@@ -127,14 +137,14 @@ struct BackupSyncView: View {
                         Text("Keep last snapshots")
                             .font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
                         Text("Older backups beyond this many are pruned, oldest first (≈ that many days). If data ever corrupts, restore the newest.")
-                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 0)
                     Picker("Keep last snapshots", selection: $keep) {
                         ForEach(FolderBackup.keepOptions, id: \.self) { n in Text("\(n)").tag(n) }
                     }
-                    .labelsHidden().pickerStyle(.menu).tint(StrandPalette.accent)
+                    .labelsHidden().pickerStyle(.menu).appleInspiredTint("backupSync")
                     .onChangeCompat(of: keep) { n in FolderBackup.keepCount = n }
                 }
                 Text(lastMs > 0 ? "Last backup: \(relativeTime(lastMs))" : "No backup yet.")
@@ -149,10 +159,15 @@ struct BackupSyncView: View {
     private var restoreCard: some View {
         StrandCard(padding: 20) {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Restore")
-                    .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                HStack(spacing: 10) {
+                    Image(systemName: "arrow.uturn.backward.circle.fill")
+                        .appleInspiredForeground("backupSync")
+                        .accessibilityHidden(true)
+                    Text("Restore")
+                        .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                }
                 Text("Replace this device's data with one of the backups in your folder. This overwrites current data, so back up first if you're unsure.")
-                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 NoopButton("Restore from a backup…", systemImage: "arrow.uturn.backward", kind: .secondary) {
                     openRestorePicker()

@@ -345,7 +345,7 @@ struct SettingsView: View {
                         .multilineTextAlignment(.trailing)
                         .font(StrandFont.body)
                         .foregroundStyle(StrandPalette.textPrimary)
-                        .tint(StrandPalette.accent)
+                        .appleInspiredTint("settings.controls")
                         #if os(iOS)
                         .textInputAutocapitalization(.words)
                         .autocorrectionDisabled()
@@ -390,7 +390,7 @@ struct SettingsView: View {
                                    in: ProfileStore.dateOfBirthRange,
                                    displayedComponents: .date)
                             .labelsHidden()
-                            .tint(StrandPalette.accent)
+                            .appleInspiredTint("settings.controls")
                             .accessibilityLabel("Date of birth, age \(profile.age) years")
                     }
                 }
@@ -407,7 +407,7 @@ struct SettingsView: View {
                     // the labels are long (German "Nicht-binär") or Text Size is enlarged — the oversized
                     // Settings screen users reported. A menu is a compact button that fits any label length.
                     .pickerStyle(.menu)
-                    .tint(StrandPalette.accent)
+                    .appleInspiredTint("settings.controls")
                     .accessibilityLabel("Sex")
                 }
                 rowDivider
@@ -447,7 +447,7 @@ struct SettingsView: View {
                 }
                 Text("Optional: adds your VO₂max estimate. The Fitness Age itself doesn't need it. Measure around your middle, at the navel.")
                     .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 rowDivider
                 FormRow(label: "Max heart rate") {
@@ -489,7 +489,7 @@ struct SettingsView: View {
                 }
                 Text("Counter ticks per step. Leave at 1.0 unless your steps run high. On a WHOOP 5/MG they can run very high (10× or more), so this goes up to 30. Walk a known 1,000 steps and divide NOOP's count by the real count to get your value.")
                     .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 rowDivider
                 // Tap-through to the WHOOP 4.0 steps-ESTIMATE calibration (a SEPARATE thing from the
@@ -516,7 +516,7 @@ struct SettingsView: View {
                 .accessibilityLabel("Steps estimate calibration. \(stepsCalibrationSummary). Opens the calibration screen.")
                 Text("For a WHOOP 4.0, which sends no step count: NOOP estimates steps from motion, calibrated to your phone. Tap to see how close it is and adjust it.")
                     .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -688,7 +688,7 @@ struct SettingsView: View {
                     }
                     .labelsHidden()
                     .pickerStyle(.menu)
-                    .tint(StrandPalette.accent)
+                    .appleInspiredTint("settings.controls")
                     .accessibilityLabel("Measurement system")
                 }
                 rowDivider
@@ -702,7 +702,7 @@ struct SettingsView: View {
                     }
                     .labelsHidden()
                     .pickerStyle(.menu)
-                    .tint(StrandPalette.accent)
+                    .appleInspiredTint("settings.controls")
                     .accessibilityLabel("Temperature unit")
                 }
                 rowDivider
@@ -715,7 +715,7 @@ struct SettingsView: View {
                     }
                     .labelsHidden()
                     .pickerStyle(.menu)
-                    .tint(StrandPalette.accent)
+                    .appleInspiredTint("settings.controls")
                     .accessibilityLabel("Effort scale")
                 }
             }
@@ -770,7 +770,7 @@ struct SettingsView: View {
                     }
                     .labelsHidden()
                     .pickerStyle(.menu)
-                    .tint(StrandPalette.accent)
+                    .appleInspiredTint("settings.controls")
                     .accessibilityLabel("Theme")
                 }
                 rowDivider   // #79: the segmented rows sat flush against each other (missing separator)
@@ -785,7 +785,7 @@ struct SettingsView: View {
                     }
                     .labelsHidden()
                     .pickerStyle(.menu)
-                    .tint(StrandPalette.accent)
+                    .appleInspiredTint("settings.controls")
                     .accessibilityLabel("Chart colours")
                 }
                 rowDivider
@@ -799,7 +799,7 @@ struct SettingsView: View {
                     }
                     .labelsHidden()
                     .pickerStyle(.menu)
-                    .tint(StrandPalette.accent)
+                    .appleInspiredTint("settings.controls")
                     .accessibilityLabel("Trend chart style")
                 }
                 #if os(iOS)
@@ -811,7 +811,7 @@ struct SettingsView: View {
                     }
                     .labelsHidden()
                     .pickerStyle(.menu)
-                    .tint(StrandPalette.accent)
+                    .appleInspiredTint("settings.controls")
                     .accessibilityLabel("App icon")
                     .onChangeCompat(of: useNavyIcon) { applyAppIcon($0) }
                 }
@@ -826,10 +826,10 @@ struct SettingsView: View {
                         .foregroundStyle(StrandPalette.textPrimary)
                 }
                 .toggleStyle(.switch)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("settings.controls")
                 Text("Shows a soft sunrise, day, dusk and night scene behind the Today screen. Turn it off for a plain dark canvas. Your cards stay exactly as readable.")
                     .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -843,11 +843,11 @@ struct SettingsView: View {
                         .foregroundStyle(showDayCycleBackground ? StrandPalette.textPrimary : StrandPalette.textTertiary)
                 }
                 .toggleStyle(.switch)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("settings.controls")
                 .disabled(!showDayCycleBackground)
                 Text("Extends the sky behind the whole Today screen, so lowering Card transparency lets it show through every card. Needs the day-cycle background on.")
                     .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -860,10 +860,10 @@ struct SettingsView: View {
                         .foregroundStyle(StrandPalette.textPrimary)
                 }
                 .toggleStyle(.switch)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("settings.controls")
                 Text("Lets the coach tile on Today pulse gently, so the one thing that talks back has a pulse. Turn it off to keep it perfectly still.")
                     .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -886,10 +886,10 @@ struct SettingsView: View {
                     ),
                     in: 0...100, step: 1
                 )
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("settings.controls")
                 Text("How see-through the cards (Heart Rate, Key Metrics, Recovery Vitals, …) are. Left = solid, right = clear.")
                     .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -901,28 +901,22 @@ struct SettingsView: View {
         }
     }
 
-    /// Single global switch for leading row/section icons across the app: the iOS "More" tab
-    /// (`RootTabView.MoreRow`), Coach's chat header and every one of its submenus, JourneyView, and
-    /// SettingsView's own section headers. ON (default) recolors all of them to an Apple Health-style
-    /// palette (`MoreRowAppleHealthColors` / `CoachIconColors` / `SettingsIconColors`); OFF keeps every
-    /// one of those icons plain `StrandPalette.accent` blue. Purely functional icons (chevrons,
-    /// checkmarks, state icons like `bell`/`bell.badge.fill`) are unaffected either way. Same key every
-    /// consumer reads via its own `@AppStorage`, so flipping this here updates all of them live — no
-    /// per-icon choice, on-device feedback was explicit that one switch for all icons is what's wanted.
-    @AppStorage("noop.moreRowAppleHealthColors") private var moreRowAppleHealthColors = true
+    /// One preference for leading identity icons and primary controls. Data visualisations, functional
+    /// glyphs, warnings, and destructive actions retain their own semantic colours.
+    @AppStorage(AppleInspiredColorsPrefs.enabledKey) private var appleInspiredColors = AppleInspiredColorsPrefs.defaultEnabled
 
     private var appIconColorSection: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Toggle(isOn: $moreRowAppleHealthColors) {
-                Text("App icon colors")
+            Toggle(isOn: $appleInspiredColors) {
+                Text("Apple-inspired colors")
                     .font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.textPrimary)
             }
             .toggleStyle(.switch)
-            .tint(StrandPalette.accent)
-            Text("Recolors the leading icons across the app — the More tab, Chat and its submenus, Journey, and Settings — to match Apple Health's palette. Off keeps them plain blue.")
+            .appleInspiredTint("settings.appearance")
+            Text("Colors leading interface icons and primary controls to match Apple Health's palette. Charts, health data, warnings, and destructive actions stay unchanged. Off keeps the existing blue controls.")
                 .font(StrandFont.caption)
-                .foregroundStyle(StrandPalette.textTertiary)
+                .foregroundStyle(StrandPalette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -1002,7 +996,7 @@ struct SettingsView: View {
                 }
                 Text("Grab this when you report a bug. It tells me what the app saw. (The full live log is also on the Live screen.)")
                     .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Divider().overlay(StrandPalette.hairline)
@@ -1014,11 +1008,11 @@ struct SettingsView: View {
                         .foregroundStyle(StrandPalette.textPrimary)
                 }
                 .toggleStyle(.switch)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("settings.controls")
                 .onChangeCompat(of: continuousHrvEnabled) { on in model.ble.setKeepRealtimeForData(on) }
                 Text("Keeps the detailed beat-to-beat heart-rate stream running all day and night, not just while a live screen is open, so NOOP captures much more for overnight HRV, recovery and sleep. Uses more battery: your strap streams heart rate continuously while connected.")
                     .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 // #927 Overnight only: window-gate the continuous stream to the nightly quiet-hours
@@ -1031,13 +1025,13 @@ struct SettingsView: View {
                             .foregroundStyle(StrandPalette.textPrimary)
                     }
                     .toggleStyle(.switch)
-                    .tint(StrandPalette.accent)
+                    .appleInspiredTint("settings.controls")
                     .onChangeCompat(of: continuousHrvOvernightOnly) { _ in
                         model.ble.setKeepRealtimeForData(PuffinExperiment.keepRealtimeForDataEnabled)
                     }
                     Text("Runs the continuous HRV stream only during your quiet hours window (22:00–07:00 by default), roughly halving the battery cost. Daytime Stress readings will be sparser. Note: continuous background HRV capture (including daytime naps) is paused outside this window. For on-demand daytime HRV readings (including naps), use the \"Take an HRV reading\" button on the Live screen.")
                         .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textTertiary)
+                        .foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
@@ -1055,7 +1049,7 @@ struct SettingsView: View {
                     }
                     .labelsHidden()
                     .pickerStyle(.menu)
-                    .tint(StrandPalette.accent)
+                    .appleInspiredTint("settings.controls")
                     .accessibilityLabel("HRV window")
                     .onChangeCompat(of: hrvWindowRaw) { _ in
                         // #201: the new window shifts every night's avgHrv, so the HRV baseline must reflect it
@@ -1071,7 +1065,7 @@ struct SettingsView: View {
                 }
                 Text("Whole night is NOOP's default measure; Deep sleep pools HRV over slow-wave sleep only, reading lower and matching WHOOP. Switching re-scores your recent nights over the new window and takes effect right away once you have a few nights of data.")
                     .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 // MARK: Strap name — rename the WHOOP 4.0's BLE advertising name (Harvard command set).
@@ -1089,10 +1083,10 @@ struct SettingsView: View {
                         .foregroundStyle(StrandPalette.textPrimary)
                 }
                 .toggleStyle(.switch)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("settings.controls")
                 Text("Shows your live heart rate on the Lock Screen and in the Dynamic Island while the strap is connected. Turn it off to keep your live HR out of the Dynamic Island. (Any one already showing clears within a moment.)")
                     .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 #endif
             }
@@ -1113,11 +1107,11 @@ struct SettingsView: View {
                         .foregroundStyle(StrandPalette.textPrimary)
                 }
                 .toggleStyle(.switch)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("settings.controls")
                 .onChangeCompat(of: powerSavingEnabled) { _ in model.applyPowerSaving() }
                 Text("Slows background strap-sync (every 45 min instead of 15) while your strap's battery is low. No data loss — the strap banks everything, so sync just batches into larger, less frequent pulls.")
                     .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 if powerSavingEnabled {
@@ -1136,7 +1130,7 @@ struct SettingsView: View {
                         in: 10...30, step: 5,
                         onEditingChanged: { editing in if !editing { model.applyPowerSaving() } }
                     )
-                    .tint(StrandPalette.accent)
+                    .appleInspiredTint("settings.controls")
 
                     Divider().overlay(StrandPalette.hairline)
                     // HRV pause: a sub-option, ON by default when the master is on (stored inverted).
@@ -1146,11 +1140,11 @@ struct SettingsView: View {
                             .foregroundStyle(StrandPalette.textPrimary)
                     }
                     .toggleStyle(.switch)
-                    .tint(StrandPalette.accent)
+                    .appleInspiredTint("settings.controls")
                     .onChangeCompat(of: pauseHrvDisabled) { _ in model.applyPowerSaving() }
                     Text("While your strap's battery is low, stop the always-on background HRV stream — the biggest continuous drain on the strap. A Live screen still shows heart rate, and it re-arms automatically once the strap is charged.")
                         .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textTertiary)
+                        .foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -1190,7 +1184,7 @@ struct SettingsView: View {
             }
             Text("Changes the Bluetooth name your WHOOP 4.0 advertises (what you see when pairing). The strap reboots to apply, so the new name appears the next time it connects. WHOOP 4.0 only.")
                 .font(StrandFont.caption)
-                .foregroundStyle(StrandPalette.textTertiary)
+                .foregroundStyle(StrandPalette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -1240,7 +1234,7 @@ struct SettingsView: View {
 
                 Text("Restarts the roughly 4-night build-up for Charge and your HRV baseline from tonight. Use it if a bad first week set your baseline off. Your history stays.")
                     .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -1308,12 +1302,12 @@ struct SettingsView: View {
                         .foregroundStyle(StrandPalette.textPrimary)
                 }
                 .toggleStyle(.switch)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("settings.controls")
                 .accessibilityHint("Adds a water-log card to your dashboard")
 
                 Text("Adds a simple fluid log with a daily goal that adjusts to your effort. Tap to add a sip, cup or bottle and watch a progress ring fill. On \(Platform.deviceNounPhrase) only. Nothing is synced.")
                     .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Divider().overlay(StrandPalette.hairline)
@@ -1324,12 +1318,12 @@ struct SettingsView: View {
                         .foregroundStyle(StrandPalette.textPrimary)
                 }
                 .toggleStyle(.switch)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("settings.controls")
                 .accessibilityHint("Offers to save a workout when it spots sustained elevated heart rate")
 
                 Text("After a sync, NOOP looks over your recent heart rate for a sustained, raised stretch that looks like exercise and offers to save it. It only ever suggests. Nothing is saved until you tap Save, and you can dismiss any suggestion. Deliberately conservative, so the odd workout may be missed. On \(Platform.deviceNounPhrase) only.")
                     .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Divider().overlay(StrandPalette.hairline)
@@ -1340,12 +1334,12 @@ struct SettingsView: View {
                         .foregroundStyle(StrandPalette.textPrimary)
                 }
                 .toggleStyle(.switch)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("settings.controls")
                 .accessibilityHint("Show a Today card reminding you to log your journal")
 
                 Text("Show a Today card reminding you to log your journal")
                     .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Divider().overlay(StrandPalette.hairline)
@@ -1356,12 +1350,12 @@ struct SettingsView: View {
                         .foregroundStyle(StrandPalette.textPrimary)
                 }
                 .toggleStyle(.switch)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("settings.controls")
                 .accessibilityHint("Stops the screen dimming while a workout is recording")
 
                 Text("Holds the screen awake while you're recording a workout, so your live heart rate stays visible without the device dimming. Only applies during a recording. The screen sleeps normally the rest of the time. Leaving it on does use a bit more battery, and means your unlocked screen stays visible for the whole workout, so flip it off if that's a concern.")
                     .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -1411,10 +1405,10 @@ struct SettingsView: View {
                     .foregroundStyle(StrandPalette.textPrimary)
             }
             .toggleStyle(.switch)
-            .tint(StrandPalette.accent)
+            .appleInspiredTint("settings.controls")
             Text("Replaces the Today tab with the prototype redesign. Turn it off any time to return to the classic dashboard. Reads the same live data from your strap.")
                 .font(StrandFont.caption)
-                .foregroundStyle(StrandPalette.textTertiary)
+                .foregroundStyle(StrandPalette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -1436,7 +1430,7 @@ struct SettingsView: View {
                         .foregroundStyle(StrandPalette.textPrimary)
                 }
                 .toggleStyle(.switch)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("settings.controls")
                 Text("Silence-first strap coaching during workouts.")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
@@ -1462,10 +1456,10 @@ struct SettingsView: View {
                         .foregroundStyle(StrandPalette.textPrimary)
                 }
                 .toggleStyle(.switch)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("settings.controls")
                 Text("A transparent cardiorespiratory recipe that recovers deep and REM better than the older V1 staging, and is now the default. It only changes how already-detected nights are split into stages (detection and scores are unchanged); turn it off to fall back to V1. Takes effect on the next nights staged.")
                     .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Divider().overlay(StrandPalette.hairline)
@@ -1477,10 +1471,10 @@ struct SettingsView: View {
                         .foregroundStyle(StrandPalette.textPrimary)
                 }
                 .toggleStyle(.switch)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("settings.controls")
                 Text("Reviews each scored wake block for real evidence of getting up (walking cadence, a change in body position) instead of just a heart-rate rise. A wake block with no locomotion and a stable posture — a hot night, a brief turn-over — is folded back into light sleep; a real get-up is left alone. Self-checks how much motion detail your strap actually recorded and stays off on a night that's too sparse to trust (older WHOOP 4.0 firmware, mainly). Off by default; takes effect on the next nights staged.")
                     .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -1554,10 +1548,10 @@ struct SettingsView: View {
                         .foregroundStyle(StrandPalette.textPrimary)
                 }
                 .toggleStyle(.switch)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("settings.controls")
                 Text("On a 5/MG connection NOOP will send a puffin realtime-stream request after the handshake, and log what comes back. If you have a 5/MG strap, turning this on and sharing your strap log helps map the protocol. No effect on WHOOP 4.0.")
                     .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Divider().overlay(StrandPalette.hairline)
@@ -1569,14 +1563,14 @@ struct SettingsView: View {
                         .foregroundStyle(StrandPalette.textPrimary)
                 }
                 .toggleStyle(.switch)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("settings.controls")
                 // #174: turning the switch OFF used to write nothing — it only hid the enable button, so the
                 // strap kept every flag the enable sequence set while the UI implied it had been undone.
                 // Now it offers the real undo. Turning it ON still writes nothing until the button is tapped.
                 .onChangeCompat(of: deepDataEnabled) { on in if !on { confirmingDeepDataDisable = true } }
                 Text("WHOOP 5/MG straps hand a fresh app only live heart rate. The official app switches on the deeper streams (high-rate HR + motion + history) by writing a set of feature flags, a sequence two independent projects have documented. With this on, the button below sends that exact sequence to your strap. Unlike everything else here it does write to the strap — and it is reversible: \u{201C}Turn deep data back off\u{201D} writes the off value to the same flags and then reads every one of them back, so you see what the strap actually stores rather than just that it acked. Experimental: it may do nothing on your firmware. iPhone/Android only. A Mac can't write to a 5/MG.")
                     .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 if deepDataEnabled {
@@ -1621,7 +1615,7 @@ struct SettingsView: View {
                     } else if live.r22FlagsAccepted >= r22FlagCount {
                         Text("Flags accepted, but the enable sequence doesn't start a separate live stream. The deep records arrive as part of the normal history sync (#494).")
                             .font(StrandFont.caption)
-                            .foregroundStyle(StrandPalette.textTertiary)
+                            .foregroundStyle(StrandPalette.textSecondary)
                     }
 
                 }
@@ -1662,11 +1656,11 @@ struct SettingsView: View {
                         .foregroundStyle(StrandPalette.textPrimary)
                 }
                 .toggleStyle(.switch)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("settings.controls")
                 .onChangeCompat(of: broadcastHrEnabled) { on in model.ble.setBroadcastHr(on) }
                 Text("Makes your WHOOP 5.0/MG advertise its heart rate as a standard Bluetooth HR sensor, so a Garmin (Edge/watch), Zwift or gym equipment can use it during a workout. Applied on the next connection (and immediately if connected); writes the strap's whoop_live_hr_in_adv_ind_pkt flag. Reversible. iPhone-side only. A Mac can't write to a 5/MG.")
                     .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 // #573: leaving broadcast on keeps the strap radio advertising continuously, which drains
@@ -1691,10 +1685,10 @@ struct SettingsView: View {
                         .foregroundStyle(StrandPalette.textPrimary)
                 }
                 .toggleStyle(.switch)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("settings.controls")
                 Text("Saves every raw 5/MG frame (with a timestamp and the live heart rate) to a JSON file you can share to help map the biometric layout. This only records frames the strap already sent (it never writes to your strap), so it is safe to leave on. Export the file and attach it to a protocol-mapping issue.")
                     .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 if puffinCapture {
@@ -1704,7 +1698,7 @@ struct SettingsView: View {
                         .foregroundStyle(StrandPalette.textPrimary)
                     Text("Mark the start of each physical phase while wearing or handling the strap. NOOP aligns the marker to the timestamp inside delayed history buffers, then the offline analyzer compares block activation, header bytes and raw ADC changes. It does not assume a wavelength or calculate SpO₂/BP.")
                         .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textTertiary)
+                        .foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                     HStack(spacing: NoopMetrics.space3) {
                         NoopButton("Mark phase…", systemImage: "flag.fill", kind: .primary) {
@@ -1748,7 +1742,7 @@ struct SettingsView: View {
                     }
                     Text("Saves the raw capture and the strap log together as a matched pair. Attach both to a protocol-mapping issue.")
                         .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textTertiary)
+                        .foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -1794,7 +1788,7 @@ struct SettingsView: View {
 
                 Text("Dumps the last 24 hours of decoded per-sample sensor streams (heart rate, R-R, motion, steps, SpO₂, skin temperature, respiration, events) to a single CSV. All on \(Platform.deviceNounPhrase), nothing uploaded. Share it to help prototype and test sleep, activity and strength algorithms.")
                     .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -2019,8 +2013,10 @@ struct SettingsView: View {
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "externaldrive.fill.badge.icloud")
+                            .appleInspiredForeground("backupSync")
                             .accessibilityHidden(true)
                         Text("Backup & Sync to a folder…")
+                            .foregroundStyle(StrandPalette.textPrimary)
                         Spacer(minLength: 0)
                         Image(systemName: "chevron.right")
                             .font(StrandFont.caption)
@@ -2028,7 +2024,6 @@ struct SettingsView: View {
                             .accessibilityHidden(true)
                     }
                     .font(StrandFont.subhead)
-                    .foregroundStyle(StrandPalette.accent)
                 }
                 .buttonStyle(LiquidPressStyle())
                 .accessibilityLabel("Open Backup and Sync to a folder")
@@ -2144,7 +2139,7 @@ struct SettingsView: View {
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: "questionmark.circle")
-                            .foregroundStyle(StrandPalette.accent)
+                            .appleInspiredForeground("intelligence")
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 1) {
                             Text("How NOOP works")
@@ -2152,7 +2147,7 @@ struct SettingsView: View {
                                 .foregroundStyle(StrandPalette.textPrimary)
                             Text("Sleep sorting, scores, recording, and where your numbers come from.")
                                 .font(StrandFont.footnote)
-                                .foregroundStyle(StrandPalette.textTertiary)
+                                .foregroundStyle(StrandPalette.textSecondary)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         Spacer()
@@ -2173,7 +2168,7 @@ struct SettingsView: View {
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: "questionmark.circle")
-                            .foregroundStyle(StrandPalette.accent)
+                            .appleInspiredForeground("intelligence")
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 1) {
                             Text("How your scores work")
@@ -2181,7 +2176,7 @@ struct SettingsView: View {
                                 .foregroundStyle(StrandPalette.textPrimary)
                             Text("Charge, Effort and Rest (and how they differ from WHOOP).")
                                 .font(StrandFont.footnote)
-                                .foregroundStyle(StrandPalette.textTertiary)
+                                .foregroundStyle(StrandPalette.textSecondary)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         Spacer()
@@ -2205,7 +2200,7 @@ struct SettingsView: View {
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: "applewatch")
-                            .foregroundStyle(StrandPalette.accent)
+                            .appleInspiredForeground("appleHealth")
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 1) {
                             Text("About Apple Watch data")
@@ -2213,7 +2208,7 @@ struct SettingsView: View {
                                 .foregroundStyle(StrandPalette.textPrimary)
                             Text("Use NOOP with just an Apple Watch. What it's great at, and where it's lighter than a strap.")
                                 .font(StrandFont.footnote)
-                                .foregroundStyle(StrandPalette.textTertiary)
+                                .foregroundStyle(StrandPalette.textSecondary)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         Spacer()
@@ -2235,7 +2230,7 @@ struct SettingsView: View {
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: "internaldrive")
-                            .foregroundStyle(StrandPalette.accent)
+                            .appleInspiredForeground("backupSync")
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 1) {
                             Text("Storage")
@@ -2243,7 +2238,7 @@ struct SettingsView: View {
                                 .foregroundStyle(StrandPalette.textPrimary)
                             Text("Where NOOP's on-device space is going, and a one-tap clean-up.")
                                 .font(StrandFont.footnote)
-                                .foregroundStyle(StrandPalette.textTertiary)
+                                .foregroundStyle(StrandPalette.textSecondary)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         Spacer()
@@ -2333,14 +2328,14 @@ struct SettingsView: View {
 
                     Text("Checks the project's home (GitHub) for the latest version when you tap. Nothing else is sent.")
                         .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.textTertiary)
+                        .foregroundStyle(StrandPalette.textSecondary)
                 }
 
                 // Project home — NOOP's code, releases, issues and wiki live on GitHub.
                 Link(destination: URL(string: "https://github.com/ryanbr/noop")!) {
                     HStack(spacing: 10) {
                         Image(systemName: "chevron.left.forwardslash.chevron.right")
-                            .foregroundStyle(StrandPalette.accent)
+                            .appleInspiredForeground("settings.about")
                             .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 1) {
                             Text("Project home & source")
@@ -2396,7 +2391,7 @@ struct SettingsView: View {
 
                 Text("Open-source BLE reverse-engineering work. Thank you.")
                     .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
             }
         }
     }
@@ -2405,7 +2400,7 @@ struct SettingsView: View {
         HStack(spacing: 8) {
             Image(systemName: "chevron.right")
                 .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(StrandPalette.accent)
+                .foregroundStyle(StrandPalette.textTertiary)
                 .accessibilityHidden(true)
             Text(repo)
                 .font(StrandFont.mono(12))
@@ -2427,7 +2422,7 @@ struct SettingsView: View {
         } label: {
             HStack(spacing: 10) {
                 Image(systemName: "stethoscope")
-                    .foregroundStyle(StrandPalette.accent)
+                    .appleInspiredForeground("testCentre")
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 1) {
                     Text("Diagnostics")
@@ -2435,7 +2430,7 @@ struct SettingsView: View {
                         .foregroundStyle(StrandPalette.textPrimary)
                     Text("Device, iOS build, Data Protection and sideload status, for bug reports.")
                         .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.textTertiary)
+                        .foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
@@ -2459,7 +2454,7 @@ struct SettingsView: View {
         return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
                 Image(systemName: "iphone.gen3")
-                    .foregroundStyle(StrandPalette.accent)
+                    .appleInspiredForeground("deviceSetup")
                     .accessibilityHidden(true)
                 Text("Using NOOP on iPhone")
                     .font(StrandFont.subhead.weight(.semibold))
@@ -2603,11 +2598,9 @@ private struct SettingsSection<Content: View>: View {
     let blurb: LocalizedStringKey
     @ViewBuilder var content: () -> Content
 
-    /// Apple Health-style leading-icon coloring ("App icon colors") — same switch that recolors the
-    /// More tab and Coach's screens. Keyed directly on `icon` (see `SettingsIconColors`): every one of
+    /// Apple-inspired leading-icon colouring — the same switch that recolours the More tab and Coach.
+    /// Keyed directly on `icon` (see `SettingsIconColors`): every one of
     /// this struct's 15 call sites already uses a distinct SF Symbol, so the glyph itself is a stable key.
-    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = true
-
     var body: some View {
         StrandCard(padding: 20, tint: StrandPalette.accent) {
             VStack(alignment: .leading, spacing: NoopMetrics.space4) {
@@ -2615,8 +2608,7 @@ private struct SettingsSection<Content: View>: View {
                     Text("Settings").strandOverline()
                     HStack(spacing: NoopMetrics.space2 + 2) {
                         Image(systemName: icon)
-                            .foregroundStyle(appleHealthColors
-                                            ? SettingsIconColors.color(for: icon) : StrandPalette.accent)
+                            .appleInspiredForeground(icon)
                             .accessibilityHidden(true)
                         Text(title)
                             .font(StrandFont.title2)
@@ -2853,7 +2845,7 @@ struct StepsCalibrationSheet: View {
                     .fixedSize(horizontal: false, vertical: true)
                 Text("On the days your phone also counted steps, NOOP learns how much your motion maps to steps, then applies that to the strap-only days. The more matching days it has, the more it trusts the estimate.")
                     .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -2948,7 +2940,7 @@ struct StepsCalibrationSheet: View {
                         .foregroundStyle(StrandPalette.accent)
                     Text("These are the days where your phone also counted steps, so NOOP can learn how your motion maps to steps. Or set the coefficient manually below.")
                         .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.textTertiary)
+                        .foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -2964,7 +2956,7 @@ struct StepsCalibrationSheet: View {
                 if comparison.isEmpty {
                     Text("No days yet where both NOOP and your phone counted steps. Once your phone logs a few days alongside the strap, they'll appear here so you can see how close the estimate is.")
                         .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.textTertiary)
+                        .foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
                     // Column header.
@@ -3000,7 +2992,7 @@ struct StepsCalibrationSheet: View {
                     }
                     Text("These days are excluded from the estimate (your phone's real count is shown instead). They're here only so you can judge the estimate's accuracy.")
                         .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textTertiary)
+                        .foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, 2)
                 }
@@ -3016,7 +3008,7 @@ struct StepsCalibrationSheet: View {
                 Text("Adjust manually").strandOverline()
                 Text("Override the automatic fit with your own steps-per-motion value. Useful if your phone has no step history to learn from, or the estimate runs consistently high or low. Set it back to auto by dragging to the far left.")
                     .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -3039,7 +3031,7 @@ struct StepsCalibrationSheet: View {
                     // Commit on release — snap a tiny drag back to 0 (auto) so "auto" is reachable.
                     if !editing { profile.stepsManualCoefficient = draftManual < 0.5 ? 0 : draftManual }
                 }
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("settings.controls")
                 .accessibilityValue(draftManual > 0
                                     ? "\(String(format: "%.1f", draftManual)) steps per motion unit"
                                     : "Automatic")
@@ -3058,7 +3050,7 @@ struct StepsCalibrationSheet: View {
                 if draftManual > 0 {
                     Text("Takes effect on the next analytics pass (after the next sync).")
                         .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textTertiary)
+                        .foregroundStyle(StrandPalette.textSecondary)
                 }
             }
         }

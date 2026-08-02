@@ -129,7 +129,7 @@ struct WhatsNewView: View {
                 Text("Got it").frame(minWidth: 120).padding(.vertical, 4)
             }
             .buttonStyle(.borderedProminent)
-            .tint(StrandPalette.accent)
+            .appleInspiredTint("updates")
             .keyboardShortcut(.defaultAction)
         }
         .padding(16)

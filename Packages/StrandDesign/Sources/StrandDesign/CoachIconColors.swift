@@ -11,9 +11,8 @@ import SwiftUI
 // icons whose GLYPH changes with state, e.g. `lock`/`lock.open.fill`; an icon whose glyph is fixed but
 // whose EMPHASIS is state-modulated, e.g. accent-vs-muted, still gets its accent branch recolored).
 // Gated behind the same single switch `MoreRowAppleHealthColors` reads (`SettingsView`'s
-// `noop.moreRowAppleHealthColors`, labeled "App icon colors" — one switch recolors the More tab AND
-// Chat AND its submenus together), ON by default; turning it off keeps every icon `StrandPalette.accent`
-// instead.
+// "Apple-inspired colors"). The mapping itself lives in `AppleInspiredColors`, which keeps Coach's
+// violet/pink identity aligned across navigation icons and primary controls.
 //
 // Keyed by a short semantic id per call site (`"coach.settings.connection"`, not the raw SF Symbol
 // name) because the same symbol appears at multiple call sites with different meaning — e.g.
@@ -22,67 +21,6 @@ import SwiftUI
 // glyph.
 public enum CoachIconColors {
     public static func color(for id: String) -> Color {
-        switch id {
-        // CoachView — chat header + empty states
-        case "chat.header.newChat":  return .systemGreen
-        case "chat.header.menu":     return .systemGray
-        case "chat.notConnected":    return .systemPurple
-
-        // CoachSettingsView — hub rows
-        case "coach.settings.connection":  return .systemBlue
-        case "coach.settings.goalJourney": return .systemOrange
-        case "coach.settings.coaching":    return .systemGreen
-        case "coach.settings.memory":      return .systemIndigo
-        case "coach.settings.privacy":     return .systemTeal
-
-        // CoachInfoView — "how it works" sections
-        case "coach.info.howItWorks":       return .systemPurple
-        case "coach.info.whatIsShared":     return .systemTeal
-        case "coach.info.providerModel":    return .systemBlue
-        case "coach.info.whyModelMatters":  return .systemIndigo
-        case "coach.info.limits":           return .systemRed
-
-        // CoachGoalJourneyView
-        case "coach.goalJourney.newGoal":  return .systemOrange
-        case "coach.goalJourney.progress": return .systemGreen
-        // CoachGoalJourneyView — per-goal card icon, keyed by CoachGoal.Kind.rawValue
-        case "coach.goal.run":         return .systemGreen
-        case "coach.goal.consistency": return .systemOrange
-        case "coach.goal.sleep":       return .systemIndigo
-        case "coach.goal.strength":    return .systemRed
-        case "coach.goal.weight":      return .systemTeal
-        case "coach.goal.stress":      return .systemYellow
-        case "coach.goal.recovery":    return .systemPink
-        case "coach.goal.custom":      return .systemPurple
-
-        // CoachSettingsView — one level deeper than the hub, inside its 5 subpages
-        case "coach.settings.presets":       return .systemPurple
-        case "coach.settings.verbosity":     return .systemTeal
-        case "coach.settings.proactive":     return .systemOrange
-        case "coach.settings.dataAccess":    return .systemBlue
-        case "coach.settings.howItWorks":    return .systemIndigo
-        case "coach.settings.entry":         return .systemGreen
-        case "coach.settings.autoSummarize": return .systemCyan
-        case "coach.settings.usage":         return .systemBrown
-        case "coach.settings.memoryBar":     return .systemIndigo
-        case "coach.settings.systemPrompt":  return .systemGray
-        // CoachSettingsView — quick-preset row icon, keyed by CoachPreset.rawValue
-        case "coach.preset.focused":    return .systemBlue
-        case "coach.preset.supportive": return .systemPink
-        case "coach.preset.onDemand":   return .systemGray
-        // CoachSettingsView — persona row icon, keyed by CoachPersona.rawValue
-        case "coach.persona.guardian":  return .systemTeal
-        case "coach.persona.friend":    return .systemPink
-        case "coach.persona.commander": return .systemRed
-
-        // CoachInfoView — CoachFirstUseSheet (the sibling struct in the same file; the "how it works"
-        // sections above are a DIFFERENT struct, CoachInfoView itself)
-        case "coach.firstUse.model":       return .systemBlue
-        case "coach.firstUse.support":     return .systemTeal
-        case "coach.firstUse.notMedical":  return .systemRed
-        case "coach.firstUse.dataConsent": return .systemGreen
-
-        default: return .systemBlue
-        }
+        AppleInspiredColors.color(for: id)
     }
 }

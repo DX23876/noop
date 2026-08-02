@@ -15,30 +15,6 @@ import SwiftUI
 // meaning, unlike Coach's screens), so the icon name alone is already a stable, unique key.
 public enum SettingsIconColors {
     public static func color(for id: String) -> Color {
-        switch id {
-        // JourneyView — the goal-header icon reuses `CoachIconColors`' `coach.goal.*` cases directly
-        // (same goal, same color as its CoachGoalJourneyView card), so only the "next suggestion" arrow
-        // needs its own id here.
-        case "journey.nextStep": return .systemGreen
-
-        // SettingsView — SettingsSection, keyed by its own `icon` SF Symbol name
-        case "person.crop.circle":              return .systemBlue     // Photo and name
-        case "person.fill":                     return .systemIndigo   // Profile
-        case "ruler":                           return .systemOrange   // Units
-        case "circle.lefthalf.filled":          return .systemPurple   // Appearance
-        case "antenna.radiowaves.left.and.right": return .systemGreen  // Strap
-        case "battery.25":                      return .systemYellow  // Power saving
-        case "heart.text.square":               return .systemRed     // Recovery
-        case "testtube.2":                      return .systemTeal    // Test Centre
-        case "drop.fill":                       return .systemCyan    // Features
-        case "shield.lefthalf.filled":          return .systemIndigo  // Live Sessions (experimental)
-        case "bed.double.fill":                 return .systemIndigo  // Sleep staging
-        case "flask.fill":                      return .systemPurple  // WHOOP 5 / MG (experimental)
-        case "doc.text.magnifyingglass":        return .systemGray    // Diagnostics
-        case "externaldrive.fill":              return .systemBlue    // Backup & restore
-        case "info.circle.fill":                return .systemGray    // About
-
-        default: return .systemBlue
-        }
+        AppleInspiredColors.color(for: id)
     }
 }

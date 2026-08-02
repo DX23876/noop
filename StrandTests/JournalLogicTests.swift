@@ -216,14 +216,27 @@ final class JournalLogicTests: XCTestCase {
     func testFoldedDayKeepsOneRealRowAndNeverOrsTheAnswers() {
         // Both wordings answered the same day, and they disagree. The result is ONE of them verbatim —
         // never "yes because somewhere it said yes".
-        let map = [JournalCatalogStore.norm("Alcohol?"): "Did you drink any alcohol?"]
+        let target = "Did you drink any alcohol?"
+        let items = alias(target, ["Alcohol?"])
         let folded = JournalMerge.fold(
-            imported: [e("2026-06-09", "Did you drink any alcohol?", false),
+            imported: [e("2026-06-09", target, false),
                        e("2026-06-09", "Alcohol?", true)],
-            native: [], aliases: map)
+            native: [], aliases: JournalCatalogStore.aliasMap(items),
+            aliasOrder: JournalCatalogStore.aliasOrder(items))
         XCTAssertEqual(folded.count, 1)
-        XCTAssertEqual(folded[0].question, "Did you drink any alcohol?")
+        XCTAssertEqual(folded[0].question, target)
         XCTAssertFalse(folded[0].answeredYes, "the target's own row outranks a folded wording")
+    }
+
+    func testFoldDayTargetOutranksTheFirstAliasToo() {
+        // Alias positions are zero-based. The read rank reserves zero for the target and offsets every
+        // alias by one; otherwise the first alias ties the target and alphabetical order picks a winner.
+        let target = "Did you drink any alcohol?"
+        let items = alias(target, ["Alcohol?"])
+        let folded = JournalMerge.foldDay([target: false, "Alcohol?": true],
+                                          aliases: JournalCatalogStore.aliasMap(items),
+                                          aliasOrder: JournalCatalogStore.aliasOrder(items))
+        XCTAssertEqual(folded[target], false)
     }
 
     func testNativeBeatsImportedAcrossAMerge() {
@@ -290,42 +303,117 @@ final class JournalLogicTests: XCTestCase {
         XCTAssertEqual(map[JournalCatalogStore.norm("Any booze?")], "Did you drink any alcohol?")
     }
 
-    // MARK: - Finding the candidates
+    // MARK: - Reading the model's duplicate reply
+    //
+    // Word-overlap scoring used to live in `JournalMerge` and is gone; the model finds the groups now
+    // (`JournalDuplicateReviewer`). What is pinned here is everything AROUND the one request — the
+    // prompt, the parse, and above all the validation, since the reply is the only part of this feature
+    // the app does not control.
 
-    func testAShorteningIsACandidateButAnUnrelatedQuestionIsNot() {
-        let questions = ["Did you take magnesium?", "Magnesium?", "Did you drink any alcohol?"]
-        let candidates = JournalMerge.candidates(questions: questions,
-                                                 counts: ["Did you take magnesium?": 88, "Magnesium?": 9])
+    /// The questions actually sent, and the array every index in the reply is resolved against.
+    private let catalogFixture = [
+        "Alkohol konsumiert?",                // 1
+        "Did you drink any alcohol?",         // 2
+        "Did you take magnesium?",            // 3
+        "Ein Magnesiumpräparat eingenommen?", // 4
+        "Ein Zinkpräparat eingenommen?",      // 5
+    ]
+
+    func testTheModelSeesEveryQuestionOnceAndNothingElse() {
+        let list = AICoachEngine.journalQuestionList(
+            ["  Did you drink any alcohol?  ", "", "Did you drink any alcohol?", "Alkohol konsumiert?"])
+        XCTAssertEqual(list, ["Alkohol konsumiert?", "Did you drink any alcohol?"],
+                       "the indexed list is trimmed, deduped and stably sorted")
+        XCTAssertEqual(list, AICoachEngine.journalQuestionList(list.reversed()),
+                       "visible catalog order cannot change what a cached model index names")
+
+        let promptList = AICoachEngine.journalQuestionList(catalogFixture)
+        let prompt = AICoachEngine.journalDuplicatePrompt(promptList)
+        for (i, q) in promptList.enumerated() {
+            XCTAssertTrue(prompt.contains("\(i + 1). \(q)"), "every question is numbered from 1")
+        }
+    }
+
+    func testAWellFormedReplyBecomesTheGroupItNames() {
+        let candidates = AICoachEngine.journalDuplicateCandidates(
+            from: "GROUP 1,2\nKEEP 2\nGROUP 3,4\nKEEP 3",
+            questions: catalogFixture,
+            counts: ["Did you drink any alcohol?": 40, "Alkohol konsumiert?": 4])
+        XCTAssertEqual(candidates.count, 2)
+        XCTAssertEqual(candidates[0].questions,
+                       ["Alkohol konsumiert?", "Did you drink any alcohol?"],
+                       "the group with the most answers behind it is offered first")
+        XCTAssertEqual(candidates[0].suggestedTarget, "Did you drink any alcohol?")
+        XCTAssertEqual(candidates[1].suggestedTarget, "Did you take magnesium?",
+                       "KEEP names the survivor, even when it is not the longest history")
+    }
+
+    func testAnIndexOutsideTheListIsDroppedWithoutTakingTheReplyWithIt() {
+        // The containment that matters: the reply is numbers, resolved against our own array, so a
+        // model that invents one loses that group and nothing more.
+        let candidates = AICoachEngine.journalDuplicateCandidates(
+            from: "GROUP 4,999\nKEEP 999\nGROUP 1,2\nKEEP 1",
+            questions: catalogFixture, counts: [:])
         XCTAssertEqual(candidates.count, 1)
-        XCTAssertEqual(Set(candidates[0].questions), ["Did you take magnesium?", "Magnesium?"])
-        XCTAssertEqual(candidates[0].suggestedTarget, "Did you take magnesium?",
-                       "the wording with the most answers survives, so the smaller history moves")
+        XCTAssertEqual(candidates[0].questions, ["Alkohol konsumiert?", "Did you drink any alcohol?"])
+        XCTAssertEqual(candidates[0].suggestedTarget, "Alkohol konsumiert?")
     }
 
-    func testDifferentOpenersAroundTheSameWordsAreACandidate() {
-        // The WHOOP re-wording case: the opener and the verb form change, the meaning does not.
-        let candidates = JournalMerge.candidates(
-            questions: ["Did you use a sauna?", "Have you used a sauna?"], counts: [:])
-        XCTAssertEqual(candidates.count, 1)
+    func testARepliedGroupThatSurvivesAloneIsNotAGroup() {
+        // One valid index left, and a question claimed twice: neither is a duplicate to offer.
+        XCTAssertTrue(AICoachEngine.journalDuplicateCandidates(
+            from: "GROUP 1,999", questions: catalogFixture, counts: [:]).isEmpty)
+        let repeated = AICoachEngine.journalDuplicateCandidates(
+            from: "GROUP 1,2\nGROUP 2,3", questions: catalogFixture, counts: [:])
+        XCTAssertEqual(repeated.count, 1, "the first group claims question 2; the second is left with one")
     }
 
-    func testTheSuffixTrimIsBluntButNotIndiscriminate() {
-        // It exists so "use"/"used" and "stress"/"stressed" meet; it must not drag unrelated
-        // questions together on the way.
-        XCTAssertEqual(JournalMerge.stem("used"), JournalMerge.stem("use"))
-        XCTAssertEqual(JournalMerge.stem("stressed"), JournalMerge.stem("stress"))
-        XCTAssertEqual(JournalMerge.stem("sauna"), "sauna")
-        XCTAssertTrue(JournalMerge.candidates(
-            questions: ["Did you feel stressed?", "Did you read before bed?"], counts: [:]).isEmpty)
+    func testSilenceIsSuccessButProseAndBrokenGroupsAreInvalid() {
+        XCTAssertEqual(AICoachEngine.journalDuplicateReview(
+            from: "", questions: catalogFixture, counts: [:]), .noDuplicates)
+        for reply in ["I could not find any duplicates in this list.", "GROUP\nKEEP 1", "KEEP 2"] {
+            XCTAssertEqual(AICoachEngine.journalDuplicateReview(
+                from: reply, questions: catalogFixture, counts: [:]), .invalid,
+                           "an unparseable reply is not presented or cached as no duplicates: \(reply)")
+        }
     }
 
-    func testADismissedPairIsNotProposedAgain() {
-        let pair = JournalMerge.pairKey("Magnesium?", "Did you take magnesium?")
-        let candidates = JournalMerge.candidates(questions: ["Did you take magnesium?", "Magnesium?"],
-                                                 counts: [:], dismissed: [pair])
-        XCTAssertTrue(candidates.isEmpty)
-        XCTAssertEqual(pair, JournalMerge.pairKey("Did you take magnesium?", "Magnesium?"),
+    func testTheParseIsLenientAboutHowTheNumbersAreWritten() {
+        let groups = AICoachEngine.parseJournalDuplicateGroups("group: 1, 2\nKeep:  2\nGROUP 3 and 4")
+        XCTAssertEqual(groups.count, 2)
+        XCTAssertEqual(groups[0].indices, [1, 2])
+        XCTAssertEqual(groups[0].keep, 2)
+        XCTAssertEqual(groups[1].indices, [3, 4])
+        XCTAssertNil(groups[1].keep)
+    }
+
+    func testADismissedPairKillsTheGroupItAppearsIn() {
+        let pair = JournalMerge.pairKey("Alkohol konsumiert?", "Did you drink any alcohol?")
+        XCTAssertEqual(pair, JournalMerge.pairKey("Did you drink any alcohol?", "Alkohol konsumiert?"),
                        "the key is order-independent, so dismissing sticks either way round")
+        XCTAssertEqual(AICoachEngine.journalDuplicateReview(
+            from: "GROUP 1,2", questions: catalogFixture, counts: [:], dismissed: [pair]),
+                       .candidates([]),
+                       "a valid cached reply stays valid after the user dismisses its only group")
+    }
+
+    func testTheSurvivorFallsBackToTheLongestHistoryWhenKeepIsMissing() {
+        let candidates = AICoachEngine.journalDuplicateCandidates(
+            from: "GROUP 3,4", questions: catalogFixture,
+            counts: ["Ein Magnesiumpräparat eingenommen?": 12, "Did you take magnesium?": 88])
+        XCTAssertEqual(candidates.first?.suggestedTarget, "Did you take magnesium?",
+                       "a sloppy reply costs a default, not the group")
+    }
+
+    func testTheCatalogFingerprintIgnoresOrderButNotContent() {
+        let a = AICoachEngine.journalCatalogFingerprint(catalogFixture)
+        XCTAssertEqual(a, AICoachEngine.journalCatalogFingerprint(catalogFixture.reversed()),
+                       "reordering the catalog does not change what the model would be asked, so it "
+                       + "must not buy a second request")
+        XCTAssertNotEqual(a, AICoachEngine.journalCatalogFingerprint(catalogFixture + ["Sauna?"]))
+        XCTAssertNotEqual(AICoachEngine.journalCatalogFingerprint(["ab", "c"]),
+                          AICoachEngine.journalCatalogFingerprint(["a", "bc"]),
+                          "the separator is what keeps concatenations apart")
     }
 
     // MARK: - Grouping the catalog

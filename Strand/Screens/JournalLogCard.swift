@@ -22,6 +22,9 @@ private struct JournalDayKey: Equatable {
 
 struct JournalLogCard: View {
     @EnvironmentObject var repo: Repository
+    /// Only for the duplicate review, which is a Coach feature end to end. Injected at both app roots
+    /// (`StrandApp` / `StrandiOSApp`), so this resolves wherever the card is hosted.
+    @EnvironmentObject var coach: AICoachEngine
     /// The journal catalog is single-user state owned here (UserDefaults-backed), so hosting the card
     /// needs no app-level injection.
     @StateObject private var catalog = JournalCatalogStore()
@@ -70,10 +73,28 @@ struct JournalLogCard: View {
     @State private var duplicateCandidates: [JournalMerge.Candidate] = []
     @State private var duplicateCounts: [String: Int] = [:]
     @State private var showingDuplicates = false
+    /// Where the review stands. The scan is one request to the user's own provider, so the sheet says
+    /// which of these it is instead of leaving an empty list to be read as "nothing found".
+    @State private var duplicateScan: DuplicateScanState = .idle
+    /// The survivor the user picked per group, overriding the model's `KEEP`.
+    @State private var duplicateTargets: [String: String] = [:]
     /// Pairs the user has waved away, newline-joined so the list stops proposing them every time.
     @AppStorage("journal.dismissedDuplicatePairs") private var dismissedPairsRaw = ""
     private var dismissedPairs: Set<String> {
         Set(dismissedPairsRaw.split(separator: "\n").map(String.init))
+    }
+    /// The catalog the last reply was bought for, and the reply itself. Re-opening an unchanged list
+    /// re-derives the groups from this instead of spending a second request; the derivation is pure, so
+    /// dismissals and answer counts still apply freshly.
+    @AppStorage("journal.duplicateScanFingerprint") private var duplicateScanFingerprint = ""
+    @AppStorage("journal.duplicateScanReply") private var duplicateScanReply = ""
+
+    enum DuplicateScanState: Equatable {
+        case idle
+        case running
+        case done
+        /// The request produced no usable answer — no key, no network, or nothing parseable.
+        case failed
     }
 
     @State private var customDraft = ""
@@ -154,10 +175,10 @@ struct JournalLogCard: View {
                          ? "Logging ahead for tomorrow: today's activities inform tomorrow's recovery, just as yesterday's are reflected in today's. Tomorrow's answers line up with tomorrow's morning."
                          : "Answers are about the night and day leading into this morning, the same attribution a WHOOP export uses, so logged and imported days line up.")
                         .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.textTertiary)
+                        .foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    if editing, !duplicateCandidates.isEmpty {
+                    if editing, duplicateReviewAvailable {
                         duplicatesRow
                     }
 
@@ -173,7 +194,6 @@ struct JournalLogCard: View {
         }
         .sheet(item: $renaming) { item in renameSheet(item) }
         .sheet(isPresented: $showingDuplicates) { duplicatesSheet }
-        .task(id: editing) { await refreshDuplicates() }
         // The selected day's answers, re-read on arrival, on a pill switch, and on a calendar-day
         // rollover. Two single-day queries — nothing here depends on the host's history load.
         .task(id: JournalDayKey(offset: dayOffset, anchor: dayAnchor)) { await loadDay() }
@@ -193,21 +213,29 @@ struct JournalLogCard: View {
 
     // MARK: - Duplicate questions (WHOOP re-wordings)
 
-    /// The row that opens the review. Only in edit mode, and only when there is something to review —
-    /// a tidy catalog never sees it.
+    /// The review exists only with the Coach on and configured, because the Coach's cheap model IS the
+    /// detection — see `JournalDuplicateReviewer`. Without it there is no row, no sheet and no greyed
+    /// affordance: the edit menu looks exactly as it did before this feature, rather than advertising
+    /// something the user cannot reach from here.
+    private var duplicateReviewAvailable: Bool {
+        CoachFeaturePrefs.isEnabled && coach.isConfigured
+    }
+
+    /// The row that opens the review. It can no longer promise a count — nothing has been compared
+    /// yet — so it names the action, and tapping it is what authorises the one request.
     private var duplicatesRow: some View {
         Button { showingDuplicates = true } label: {
             HStack(spacing: 8) {
                 Image(systemName: "arrow.triangle.merge")
                     .font(StrandFont.body)
-                    .foregroundStyle(StrandPalette.accent)
+                    .appleInspiredForeground("journal")
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Possible duplicates (\(duplicateCandidates.count))")
+                    Text("Find duplicate questions")
                         .font(StrandFont.subhead)
                         .foregroundStyle(StrandPalette.textPrimary)
-                    Text("A WHOOP export can carry several wordings for the same habit, which splits its history.")
+                    Text("A WHOOP export can carry several wordings for the same habit, which splits its history. Your coach model compares the wordings — no answers or dates are sent.")
                         .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.textTertiary)
+                        .foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
@@ -219,30 +247,99 @@ struct JournalLogCard: View {
         .buttonStyle(.plain)
     }
 
-    /// Recompute the candidate list: every question currently in the catalog, weighed by how many
-    /// answers each wording actually holds. Cheap to run (one grouped query + a pure comparison), so it
-    /// refreshes whenever edit mode opens or a merge changes the catalog.
-    private func refreshDuplicates() async {
-        guard editing else { duplicateCandidates = []; return }
+    /// Load the review: one request to the cheap model, or none at all when the catalog has not moved
+    /// since the last one.
+    ///
+    /// `force` is the explicit re-scan, the only path that spends a second request on an unchanged
+    /// list — the user asking again is the one reason to distrust the cached answer.
+    private func loadDuplicates(force: Bool = false) async {
+        guard duplicateReviewAvailable else { duplicateCandidates = []; return }
         let counts = await repo.journalQuestionCounts()
-        let questions = catalog.resolvedItems(imported: importedQuestions, includeHidden: true)
-            .map(\.canonical)
-        duplicateCandidates = JournalMerge.candidates(questions: questions,
-                                                      counts: counts,
-                                                      dismissed: dismissedPairs)
+        let list = AICoachEngine.journalQuestionList(
+            catalog.resolvedItems(imported: importedQuestions).map(\.canonical))
         duplicateCounts = counts
+
+        let fingerprint = AICoachEngine.journalCatalogFingerprint(list)
+        // With fewer than two visible questions there is nothing to compare. This is a successful
+        // local result, not a provider failure, and must never spend an API request.
+        if list.count < 2 {
+            duplicateCandidates = []
+            duplicateTargets = [:]
+            duplicateScanReply = ""
+            duplicateScanFingerprint = fingerprint
+            duplicateScan = .done
+            return
+        }
+        if !force, fingerprint == duplicateScanFingerprint {
+            if applyDuplicateReply(duplicateScanReply, list: list, counts: counts) { return }
+            // A development build may have cached an answer before invalid replies were distinguished.
+            // Forget it and make one clean request rather than pinning the review to a false empty state.
+            duplicateScanFingerprint = ""
+            duplicateScanReply = ""
+        }
+
+        duplicateCandidates = []
+        duplicateScan = .running
+        guard let reply = await coach.journalDuplicateReply(for: list) else {
+            duplicateScan = .failed
+            return
+        }
+        guard applyDuplicateReply(reply, list: list, counts: counts) else { return }
+        duplicateScanReply = reply
+        duplicateScanFingerprint = fingerprint
+    }
+
+    /// Derive the groups from a reply — the pure half, so it also runs on the cached reply and picks up
+    /// dismissals and answer counts as they are now.
+    @discardableResult
+    private func applyDuplicateReply(_ reply: String, list: [String], counts: [String: Int]) -> Bool {
+        switch AICoachEngine.journalDuplicateReview(from: reply,
+                                                    questions: list,
+                                                    counts: counts,
+                                                    dismissed: dismissedPairs) {
+        case let .candidates(candidates):
+            duplicateCandidates = candidates
+        case .noDuplicates:
+            duplicateCandidates = []
+        case .invalid:
+            duplicateCandidates = []
+            duplicateScan = .failed
+            return false
+        }
+        duplicateTargets = duplicateTargets.filter { id, _ in
+            duplicateCandidates.contains { $0.id == id }
+        }
+        duplicateScan = .done
+        return true
+    }
+
+    /// The survivor for a group: the user's pick if they made one, otherwise the model's `KEEP`.
+    private func target(for candidate: JournalMerge.Candidate) -> String {
+        duplicateTargets[candidate.id].flatMap { candidate.questions.contains($0) ? $0 : nil }
+            ?? candidate.suggestedTarget
     }
 
     private func applyMerge(_ candidate: JournalMerge.Candidate, target: String) {
         for question in candidate.questions where question != target {
             catalog.merge(question, into: target)
         }
+        // Settled — drop the group locally. Acting on a group CHANGES the catalog, so re-running the
+        // scan here would miss the cache and buy a second reply to answer what the user just answered.
+        duplicateCandidates.removeAll { $0.id == candidate.id }
+        duplicateTargets[candidate.id] = nil
+        finishDuplicateAction()
+    }
+
+    /// What every catalog change here shares: the shown day re-reads through the new catalog, the
+    /// answer counts catch up, and the host re-ranks its analysis on the changed history. No new
+    /// request — the groups were adjusted in place above.
+    private func finishDuplicateAction() {
         repo.journalAliasesChanged()
         refreshGrouped()
         Task {
-            await loadDay()          // the shown day now reads through the merge
-            await refreshDuplicates()
-            onChanged()              // the derived analysis has to re-rank on the joined history
+            await loadDay()
+            duplicateCounts = await repo.journalQuestionCounts()
+            onChanged()
         }
     }
 
@@ -250,24 +347,41 @@ struct JournalLogCard: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
-                    Text("These questions look like the same habit written differently. Merging joins their history so an effect is ranked on all of it, and never deletes an answer — separate them again at any time.")
+                    Text("Your coach model read the question wordings and grouped the ones it takes for the same habit. Merging joins their history so an effect is ranked on all of it, and never deletes an answer — separate them again at any time. Check each group before merging.")
                         .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.textTertiary)
+                        .foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
 
                     ForEach(duplicateCandidates) { candidate in
                         candidateCard(candidate)
                     }
 
-                    if duplicateCandidates.isEmpty {
+                    switch duplicateScan {
+                    case .running:
+                        HStack(spacing: 8) {
+                            ProgressView()
+                            Text("Comparing your questions…")
+                                .font(StrandFont.subhead)
+                                .foregroundStyle(StrandPalette.textSecondary)
+                        }
+                    case .failed:
+                        // Named, not silent: an empty list here would read as "nothing found", which is
+                        // the one thing this state does NOT mean.
+                        Text("The coach model could not be reached, so nothing was compared. Check the connection or your provider in Coach settings, then try again.")
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    case .done where duplicateCandidates.isEmpty:
                         Text("Nothing left to review.")
                             .font(StrandFont.subhead)
                             .foregroundStyle(StrandPalette.textSecondary)
+                    case .idle, .done:
+                        EmptyView()
                     }
                 }
                 .padding(NoopMetrics.space4)
             }
-            .navigationTitle("Possible duplicates")
+            .navigationTitle("Duplicate questions")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -275,39 +389,29 @@ struct JournalLogCard: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { showingDuplicates = false }
                 }
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Check again") { Task { await loadDuplicates(force: true) } }
+                        .disabled(duplicateScan == .running)
+                }
             }
+            .task { await loadDuplicates() }
         }
     }
 
     private func candidateCard(_ candidate: JournalMerge.Candidate) -> some View {
-        NoopCard {
+        let kept = target(for: candidate)
+        return NoopCard {
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(candidate.questions, id: \.self) { question in
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Image(systemName: question == candidate.suggestedTarget
-                              ? "largecircle.fill.circle" : "circle")
-                            .font(StrandFont.footnote)
-                            .foregroundStyle(question == candidate.suggestedTarget
-                                             ? StrandPalette.accent : StrandPalette.textTertiary)
-                        Text(verbatim: question)      // data, not a UI literal
-                            .font(StrandFont.subhead)
-                            .foregroundStyle(StrandPalette.textPrimary)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Spacer(minLength: 8)
-                        Text("\(duplicateCounts[question] ?? 0)")
-                            .font(StrandFont.number(13))
-                            .foregroundStyle(StrandPalette.textTertiary)
-                            .accessibilityLabel("\(duplicateCounts[question] ?? 0) answers")
-                    }
+                    candidateRow(question, in: candidate, kept: kept)
                 }
-                // The wording with the most answers survives, so the smaller history is the one that
-                // moves — and it is named, not implied.
-                Text("Keeps: \(candidate.suggestedTarget)")
+                // Which history moves is named, not implied — and it is now a choice, so say that too.
+                Text("Keeps: \(kept). Tap another wording to keep that one instead.")
                     .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 10) {
-                    Button("Merge") { applyMerge(candidate, target: candidate.suggestedTarget) }
+                    Button("Merge") { applyMerge(candidate, target: kept) }
                         .buttonStyle(.borderedProminent)
                     Button("Not the same") { dismiss(candidate) }
                         .buttonStyle(.bordered)
@@ -316,17 +420,40 @@ struct JournalLogCard: View {
         }
     }
 
+    /// One wording in a group: tap to make it the survivor. Removing or hiding questions remains in
+    /// the ordinary edit controls, separate from the focused merge / reject decision here.
+    private func candidateRow(_ question: String,
+                              in candidate: JournalMerge.Candidate,
+                              kept: String) -> some View {
+        let isKept = question == kept
+        return Button {
+            duplicateTargets[candidate.id] = question
+        } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Image(systemName: isKept ? "largecircle.fill.circle" : "circle")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(isKept ? StrandPalette.accent : StrandPalette.textTertiary)
+                Text(verbatim: question)      // data, not a UI literal
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 8)
+                Text("\(duplicateCounts[question] ?? 0)")
+                    .font(StrandFont.number(13))
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .accessibilityLabel("\(duplicateCounts[question] ?? 0) answers")
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isKept ? [.isSelected] : [])
+    }
+
     /// Undo one merge. The rows were never touched, so this is the same three steps as a merge — the
     /// question simply reads as itself again.
     private func unmerge(_ alias: String) {
         catalog.unmerge(alias)
-        repo.journalAliasesChanged()
-        refreshGrouped()
-        Task {
-            await loadDay()
-            await refreshDuplicates()
-            onChanged()
-        }
+        finishDuplicateAction()
     }
 
     private func dismiss(_ candidate: JournalMerge.Candidate) {
@@ -335,7 +462,10 @@ struct JournalLogCard: View {
             for b in candidate.questions.dropFirst(i + 1) { pairs.insert(JournalMerge.pairKey(a, b)) }
         }
         dismissedPairsRaw = pairs.sorted().joined(separator: "\n")
-        Task { await refreshDuplicates() }
+        // Gone from view now, and gone from the next derivation too: the dismissal is applied to the
+        // cached reply, so re-opening does not put the same rejected group back.
+        duplicateCandidates.removeAll { $0.id == candidate.id }
+        duplicateTargets[candidate.id] = nil
     }
 
     // MARK: - The selected day
@@ -529,7 +659,7 @@ struct JournalLogCard: View {
                 .textFieldStyle(.roundedBorder)
             Text("History stays under the original question so WHOOP imports still line up.")
                 .font(StrandFont.footnote)
-                .foregroundStyle(StrandPalette.textTertiary)
+                .foregroundStyle(StrandPalette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             HStack {
                 Button("Cancel") { renaming = nil }

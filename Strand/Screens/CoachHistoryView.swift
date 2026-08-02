@@ -124,7 +124,7 @@ struct CoachHistoryView: View {
                     Button { coach.setArchived(convo.id, false) } label: {
                         Label("Unarchive", systemImage: "tray.and.arrow.up")
                     }
-                    .tint(StrandPalette.accent)
+                    .appleInspiredTint("coach")
                 } else {
                     Button { coach.setArchived(convo.id, true) } label: {
                         Label("Archive", systemImage: "archivebox")
@@ -134,7 +134,7 @@ struct CoachHistoryView: View {
                 Button { beginRename(convo) } label: {
                     Label("Rename", systemImage: "pencil")
                 }
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("coach")
             }
             .contextMenu {
                 Button { beginRename(convo) } label: { Label("Rename", systemImage: "pencil") }

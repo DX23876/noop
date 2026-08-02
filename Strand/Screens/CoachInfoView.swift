@@ -27,9 +27,9 @@ struct CoachFirstUseSheet: View {
     let onAcknowledge: () -> Void
     @State private var showInfo = false
 
-    /// Apple Health-style leading-icon coloring (SettingsView's "App icon colors") — same switch that
+    /// Apple-inspired leading-icon coloring (SettingsView's "Apple-inspired colors") — same switch that
     /// recolors the More tab and the rest of Coach's screens. See `CoachIconColors`.
-    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = true
+    @AppStorage(AppleInspiredColorsPrefs.enabledKey) private var appleHealthColors = AppleInspiredColorsPrefs.defaultEnabled
 
     var body: some View {
         NavigationStack {
@@ -124,9 +124,9 @@ struct CoachInfoView: View {
     @EnvironmentObject var coach: AICoachEngine
     @Environment(\.dismiss) private var dismiss
 
-    /// Apple Health-style leading-icon coloring (SettingsView's "App icon colors") — same switch that
+    /// Apple-inspired leading-icon coloring (SettingsView's "Apple-inspired colors") — same switch that
     /// recolors the More tab and the rest of Coach's screens. See `CoachIconColors`.
-    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = true
+    @AppStorage(AppleInspiredColorsPrefs.enabledKey) private var appleHealthColors = AppleInspiredColorsPrefs.defaultEnabled
 
     private var providerName: String { coach.provider.displayName }
 

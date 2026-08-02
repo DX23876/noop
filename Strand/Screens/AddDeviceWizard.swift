@@ -456,7 +456,7 @@ struct AddDeviceWizard: View {
                         .padding(.vertical, 6)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("deviceSetup")
                 .accessibilityLabel("Scan for \(typeTitle(type))")
             }
         }
@@ -614,7 +614,7 @@ struct AddDeviceWizard: View {
                 .padding(.vertical, 6)
         }
         .buttonStyle(.borderedProminent)
-        .tint(StrandPalette.accent)
+        .appleInspiredTint("deviceSetup")
         .disabled(!ouraConsented)
         .accessibilityHint("Continue to get your ring ready")
 
@@ -695,7 +695,7 @@ struct AddDeviceWizard: View {
                 .padding(.vertical, 6)
         }
         .buttonStyle(.borderedProminent)
-        .tint(StrandPalette.accent)
+        .appleInspiredTint("deviceSetup")
         .accessibilityLabel("Scan for your Oura ring")
     }
 
@@ -740,7 +740,7 @@ struct AddDeviceWizard: View {
         }
         Text("NOOP stores this key only on this device, in the same place it stores your paired bands.")
             .font(StrandFont.footnote)
-            .foregroundStyle(StrandPalette.textTertiary)
+            .foregroundStyle(StrandPalette.textSecondary)
             .fixedSize(horizontal: false, vertical: true)
 
         Button {
@@ -753,7 +753,7 @@ struct AddDeviceWizard: View {
                 .padding(.vertical, 6)
         }
         .buttonStyle(.borderedProminent)
-        .tint(StrandPalette.accent)
+        .appleInspiredTint("deviceSetup")
         .disabled(ouraKeyBytes == nil)
         .accessibilityLabel("Scan for your Oura ring")
 
@@ -823,7 +823,7 @@ struct AddDeviceWizard: View {
                 }
                 Text("Beta. * is an on-device estimate. Skin temp is a trend versus your own baseline, steps are a raw motion count, and HRV needs you to be still. No Oura Readiness or SpO2 percentage comes off the ring (import an Oura file for those).")
                     .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(16)
@@ -852,11 +852,11 @@ struct AddDeviceWizard: View {
                         .padding(.vertical, 6)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("deviceSetup")
                 .accessibilityLabel("Connect to this ring")
                 Text("Both NOOP and the Oura app can use a ring you own by key, but only one can hold the Bluetooth link at a time.")
                     .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
                 // Destructive (key install): raise the SECOND irreversible "Take over this ring?" confirm.
@@ -885,7 +885,7 @@ struct AddDeviceWizard: View {
     @ViewBuilder private var ouraAdoptingFace: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 12) {
-                ProgressView().tint(StrandPalette.accent)
+                ProgressView().appleInspiredTint("deviceSetup")
                 Text("Taking over your ring")
                     .font(StrandFont.headline)
                     .foregroundStyle(StrandPalette.textPrimary)
@@ -926,7 +926,7 @@ struct AddDeviceWizard: View {
                         .padding(.vertical, 6)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("deviceSetup")
                 .accessibilityLabel("Try again")
 
                 Button {
@@ -1135,7 +1135,7 @@ struct AddDeviceWizard: View {
 
             Button("Add") { askMakeActive = true }
                 .buttonStyle(.borderedProminent)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("deviceSetup")
                 .frame(maxWidth: .infinity)
                 .disabled(nameDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 .padding(.top, 4)
@@ -1472,7 +1472,7 @@ struct AddDeviceWizard: View {
                 .accessibilityHidden(true)
             Text("WHOOP is NOOP's primary, fully-supported band. Other heart-rate straps stream live heart rate and HRV, but not WHOOP's deeper sleep and recovery data.")
                 .font(StrandFont.footnote)
-                .foregroundStyle(StrandPalette.textTertiary)
+                .foregroundStyle(StrandPalette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.top, 10)
@@ -1622,7 +1622,7 @@ private struct OuraPickList: View {
                     }
                     Button("Use file import") { onUseImport() }
                         .buttonStyle(.borderedProminent)
-                        .tint(StrandPalette.accent)
+                        .appleInspiredTint("deviceSetup")
                         .accessibilityLabel("Use file import for Oura")
                 }
                 .padding(16)
@@ -1633,7 +1633,7 @@ private struct OuraPickList: View {
                     SearchingCard()
                     Text("Not showing up? Make sure you reset the ring in the Oura app and force-quit it, then tap Rescan. A ring still owned by Oura will not list here.")
                         .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.textTertiary)
+                        .foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             } else {
@@ -1675,7 +1675,7 @@ private struct SearchingCard: View {
     var whoopHint: Bool = false
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            ProgressView().tint(StrandPalette.accent)
+            ProgressView().appleInspiredTint("deviceSetup")
             Text("Searching…")
                 .font(StrandFont.body)
                 .foregroundStyle(StrandPalette.textPrimary)

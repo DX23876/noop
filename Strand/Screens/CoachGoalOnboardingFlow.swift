@@ -103,7 +103,7 @@ struct CoachGoalOnboardingFlow: View {
     private var progressBar: some View {
         let fraction = Double(draft.step.rawValue + 1) / Double(Step.allCases.count)
         return ProgressView(value: fraction)
-            .tint(StrandPalette.accent)
+            .appleInspiredTint("coach")
             .padding(.horizontal, 16).padding(.top, 8)
             .accessibilityLabel("Step \(draft.step.rawValue + 1) of \(Step.allCases.count)")
     }
@@ -148,7 +148,7 @@ struct CoachGoalOnboardingFlow: View {
                 .font(StrandFont.body).foregroundStyle(StrandPalette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             Text("Entirely optional. Everything else works without a goal, and you can change or drop it any time.")
-                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -192,10 +192,10 @@ struct CoachGoalOnboardingFlow: View {
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                 }
             }
-            .toggleStyle(.switch).tint(StrandPalette.accent)
+            .toggleStyle(.switch).appleInspiredTint("coach")
             if draft.hasTargetDate {
                 DatePicker("Target date", selection: $draft.targetDate, in: Date()..., displayedComponents: .date)
-                    .datePickerStyle(.compact).tint(StrandPalette.accent).labelsHidden()
+                    .datePickerStyle(.compact).appleInspiredTint("coach").labelsHidden()
                     .accessibilityLabel("Target date")
             }
         }
@@ -204,7 +204,7 @@ struct CoachGoalOnboardingFlow: View {
     private var whyStep: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Pick what's driving this — the coach uses it to shape its advice, not just decorate the screen.")
-                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             LazyVGrid(columns: twoColumns, spacing: 8) {
                 ForEach(CoachGoal.MotivationTag.allCases) { tag in
@@ -222,11 +222,11 @@ struct CoachGoalOnboardingFlow: View {
                     Text(draft.shareMotivation
                          ? "Sent to your AI provider along with the rest of your context."
                          : "Stays on this device. The coach won't see it.")
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .toggleStyle(.switch).tint(StrandPalette.accent)
+            .toggleStyle(.switch).appleInspiredTint("coach")
             .disabled(draft.motivation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
     }

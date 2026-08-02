@@ -101,7 +101,7 @@ struct AutomationsView: View {
                     Button {
                         model.runMacAction(behavior.doubleTapAction, shortcut: behavior.doubleTapShortcut)
                     } label: { Label("Test action", systemImage: "play.fill") }
-                    .buttonStyle(.bordered).tint(StrandPalette.accent)
+                    .buttonStyle(.bordered).appleInspiredTint("automations")
                     .disabled(behavior.doubleTapAction == .none)
                     Spacer()
                     // Live-observing leaf: re-renders on its own when the strap's bond state flips, so a
@@ -333,7 +333,7 @@ struct AutomationsView: View {
                         Button {
                             router.openRhythm()
                         } label: { Label("Open", systemImage: "waveform.path") }
-                        .buttonStyle(.bordered).tint(StrandPalette.accent)
+                        .buttonStyle(.bordered).appleInspiredTint("automations")
                     }
                     .frame(minHeight: 42).padding(.vertical, 4)
                 }
@@ -486,7 +486,7 @@ private struct Section2<Content: View>: View {
                     }
                     HStack(spacing: 10) {
                         Image(systemName: icon)
-                            .foregroundStyle(active ? StrandPalette.accent : StrandPalette.textSecondary)
+                            .appleInspiredForeground("automations")
                             .accessibilityHidden(true)
                         Text(title).font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
                     }
@@ -507,11 +507,11 @@ private struct ToggleRow: View {
         HStack(alignment: .center, spacing: 16) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(label).font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
-                Text(help).font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                Text(help).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer()
-            Toggle("", isOn: $isOn).labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+            Toggle("", isOn: $isOn).labelsHidden().toggleStyle(.switch).appleInspiredTint("automations")
                 .accessibilityLabel(label)
         }
         .frame(minHeight: 42).padding(.vertical, 4)

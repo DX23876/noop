@@ -59,10 +59,10 @@ struct NoopButtonAppearance {
     let label: Color
     let border: Color?        // nil = no hairline edge
 
-    init(_ kind: NoopButtonKind) {
+    init(_ kind: NoopButtonKind, accent: Color = StrandPalette.accent) {
         switch kind {
         case .primary:
-            fill = StrandPalette.accent
+            fill = accent
             label = StrandPalette.goldDeepText   // designated crisp white for text on accent fills
             border = nil
         case .secondary:
@@ -71,7 +71,7 @@ struct NoopButtonAppearance {
             border = StrandPalette.hairline
         case .tertiary:
             fill = nil
-            label = StrandPalette.accent
+            label = accent
             border = nil
         case .destructive:
             fill = StrandPalette.statusCritical
@@ -111,6 +111,7 @@ public struct NoopButtonStyle: ButtonStyle {
     private let fullWidth: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.appleInspiredControlColor) private var interfaceColor
 
     public init(_ kind: NoopButtonKind = .primary, fullWidth: Bool = false) {
         self.kind = kind
@@ -118,7 +119,7 @@ public struct NoopButtonStyle: ButtonStyle {
     }
 
     public func makeBody(configuration: Configuration) -> some View {
-        let appearance = NoopButtonAppearance(kind)
+        let appearance = NoopButtonAppearance(kind, accent: interfaceColor ?? StrandPalette.accent)
         let pressed = configuration.isPressed
         // Reduce Motion: no scale, dim only. Otherwise subtle scale + dim.
         let scale: CGFloat = (pressed && !reduceMotion) ? NoopButtonMetrics.pressedScale : 1

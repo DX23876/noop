@@ -154,7 +154,7 @@ struct ScoringGuideView: View {
                 Text("Got it").frame(minWidth: 120).padding(.vertical, 4)
             }
             .buttonStyle(.borderedProminent)
-            .tint(StrandPalette.accent)
+            .appleInspiredTint("intelligence")
             .keyboardShortcut(.defaultAction)
         }
         .padding(16)

@@ -53,7 +53,7 @@ struct MorningSuggestionCard: View {
         case .generating:
             NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
                 HStack(spacing: 10) {
-                    ProgressView().controlSize(.small).tint(StrandPalette.accent)
+                    ProgressView().controlSize(.small).appleInspiredTint("coach")
                     Text("Working out today's session…")
                         .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
                     Spacer(minLength: 0)

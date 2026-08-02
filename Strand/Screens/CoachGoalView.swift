@@ -132,7 +132,7 @@ struct CoachGoalEditorView: View {
                     .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                 // Single literal — see the localization note above.
                 Text("With a target and a date I can tell you where you stand, not just how you slept. Entirely optional — everything else works without it.")
-                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -151,12 +151,12 @@ struct CoachGoalEditorView: View {
             if kind == .weight {
                 // Single literal — see the localization note above.
                 Text("I'll track your weight and plan your training around it — but I have no nutrition data, and that's where most of weight change is decided. I won't pretend otherwise.")
-                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             } else if !kind.isQuantified {
                 // Single literal — see the localization note above.
                 Text("I can hold this goal and shape your training around it, but I can't measure it from your strap — so I won't invent progress numbers for it.")
-                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -180,11 +180,11 @@ struct CoachGoalEditorView: View {
                             .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
                     }
                 }
-                .toggleStyle(.switch).tint(StrandPalette.accent)
+                .toggleStyle(.switch).appleInspiredTint("coach")
                 if hasTargetDate {
                     DatePicker("Target date", selection: $targetDate, in: Date()..., displayedComponents: .date)
                         .datePickerStyle(.compact)
-                        .tint(StrandPalette.accent)
+                        .appleInspiredTint("coach")
                         .labelsHidden()
                         .accessibilityLabel("Target date")
                 }
@@ -237,7 +237,7 @@ struct CoachGoalEditorView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("What are you really after?").strandOverline()
                     Text("Pick what's driving this — the coach uses it to shape its advice, not just decorate the screen.")
-                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                     LazyVGrid(columns: twoColumns, spacing: 8) {
                         ForEach(CoachGoal.MotivationTag.allCases) { tag in
@@ -258,11 +258,11 @@ struct CoachGoalEditorView: View {
                         Text(shareMotivation
                              ? "Sent to your AI provider along with the rest of your context."
                              : "Stays on this device. The coach won't see it.")
-                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                .toggleStyle(.switch).tint(StrandPalette.accent)
+                .toggleStyle(.switch).appleInspiredTint("coach")
                 .disabled(motivation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }

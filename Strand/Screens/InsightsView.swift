@@ -1579,9 +1579,17 @@ private func insightsPreviewRepo() -> Repository {
     return repo
 }
 
+/// The journal card reads the coach for its duplicate review, and `@EnvironmentObject` is a hard
+/// requirement — both app roots inject it, so the preview has to as well or it traps on appear.
+@MainActor
+private func insightsPreviewCoach() -> AICoachEngine {
+    AICoachEngine(repo: insightsPreviewRepo())
+}
+
 #Preview("Insights") {
     InsightsView()
         .environmentObject(insightsPreviewRepo())
+        .environmentObject(insightsPreviewCoach())
         .environmentObject(NavRouter())
         .frame(width: 920, height: 900)
         .preferredColorScheme(.dark)

@@ -928,7 +928,7 @@ private struct ReadinessChecklistCard: View {
                     // from stored data. Spinner while it runs.
                     if let onRefresh {
                         if refreshing {
-                            ProgressView().controlSize(.small).tint(StrandPalette.accent)
+                            ProgressView().controlSize(.small).appleInspiredTint("health")
                         } else {
                             Button(action: onRefresh) {
                                 Image(systemName: "arrow.clockwise")

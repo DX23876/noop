@@ -11,9 +11,9 @@ struct CoachSettingsView: View {
     @EnvironmentObject var coach: AICoachEngine
     @Environment(\.dismiss) private var dismiss
 
-    /// Apple Health-style leading-icon coloring (SettingsView's "App icon colors") — same switch that
+    /// Apple-inspired leading-icon coloring (SettingsView's "Apple-inspired colors") — same switch that
     /// recolors the More tab and the rest of Coach's screens. See `CoachIconColors`.
-    @AppStorage("noop.moreRowAppleHealthColors") private var appleHealthColors = true
+    @AppStorage(AppleInspiredColorsPrefs.enabledKey) private var appleHealthColors = AppleInspiredColorsPrefs.defaultEnabled
 
     /// Pending key text (never persisted here, handed to `setKey`).
     @State private var keyDraft: String = ""
@@ -213,7 +213,7 @@ struct CoachSettingsView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("One short sentence the coach should know about you — a constraint, an injury, how you like to train.")
                             .font(StrandFont.footnote)
-                            .foregroundStyle(StrandPalette.textTertiary)
+                            .foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                         TextField("Fact", text: $newFactText, axis: .vertical)
                             .textFieldStyle(.plain)
@@ -232,7 +232,7 @@ struct CoachSettingsView: View {
                             }
                         }
                         .pickerStyle(.menu)
-                        .tint(StrandPalette.accent)
+                        .appleInspiredTint("coach")
                     }
                 }
             }
@@ -290,7 +290,7 @@ struct CoachSettingsView: View {
                                 Text("Connection & model")
                                     .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                                 Text("Provider, API key and which model answers.")
-                                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                             Spacer(minLength: 8)
@@ -316,7 +316,7 @@ struct CoachSettingsView: View {
                                 Text("Goal & Journey")
                                     .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                                 Text("Set a target and see your progress.")
-                                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                             Spacer(minLength: 8)
@@ -342,7 +342,7 @@ struct CoachSettingsView: View {
                                 Text("Coaching")
                                     .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                                 Text("Style, how you open Coach, and daily check-ins.")
-                                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                             Spacer(minLength: 8)
@@ -368,7 +368,7 @@ struct CoachSettingsView: View {
                                 Text("Memory")
                                     .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                                 Text("What the coach remembers, and chat summaries.")
-                                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                             Spacer(minLength: 8)
@@ -394,7 +394,7 @@ struct CoachSettingsView: View {
                                 Text("Privacy & data")
                                     .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                                 Text("What's shared, and the coach's instructions.")
-                                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                             Spacer(minLength: 8)
@@ -477,7 +477,7 @@ struct CoachSettingsView: View {
                         Text("Background models")
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                         Text("Optional cheaper models for chat summaries or a manually requested card read. You do not need to choose one for normal coaching, tools or saved facts.")
-                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 8)
@@ -634,7 +634,7 @@ struct CoachSettingsView: View {
                 }
             }
             Text(caption)
-                .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -715,7 +715,7 @@ struct CoachSettingsView: View {
                         Text("Quick presets")
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                         Text("Sets persona, voice, emoji, proactive messages, and reply length together — tweak any of them below afterward.")
-                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
@@ -734,7 +734,7 @@ struct CoachSettingsView: View {
                                 Text(LocalizedStringKey(preset.title))
                                     .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                                 Text(LocalizedStringKey(preset.subtitle))
-                                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                             Spacer(minLength: 8)
@@ -789,12 +789,12 @@ struct CoachSettingsView: View {
                     Text(coach.allowEmoji
                          ? "On: the coach may use the odd, well-placed emoji."
                          : "Off: replies are plain text only.")
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
                 Toggle("", isOn: $coach.allowEmoji)
-                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                    .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
                     .accessibilityLabel("Emoji in replies")
             }
         }
@@ -814,7 +814,7 @@ struct CoachSettingsView: View {
                         Text("Reply length")
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                         Text(LocalizedStringKey(coach.verbosity.blurb))
-                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 8)
@@ -848,7 +848,7 @@ struct CoachSettingsView: View {
                         Text("Proactive messages")
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                         Text(LocalizedStringKey(coach.proactiveLevel.blurb))
-                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 8)
@@ -867,7 +867,7 @@ struct CoachSettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityLabel(Self.proactiveLevelReadout(coach.proactiveLevel))
                 Text("The coach only reaches out on a real milestone or a run of missed sessions — never chatter. Each message uses your provider (and your tokens).")
-                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -897,7 +897,7 @@ struct CoachSettingsView: View {
                             .foregroundStyle(StrandPalette.textPrimary)
                         Text("Nomic finds related local text without uploading it. Health measurements still use exact local queries.")
                             .font(StrandFont.footnote)
-                            .foregroundStyle(StrandPalette.textTertiary)
+                            .foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 8)
@@ -913,7 +913,7 @@ struct CoachSettingsView: View {
                     ))
                     .labelsHidden()
                     .toggleStyle(.switch)
-                    .tint(StrandPalette.accent)
+                    .appleInspiredTint("coach")
                     .accessibilityLabel("Semantic memory")
                 }
 
@@ -953,7 +953,7 @@ struct CoachSettingsView: View {
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textSecondary)
                     ProgressView(value: semanticMemory.status.completionFraction)
-                        .tint(StrandPalette.accent)
+                        .appleInspiredTint("coach")
                         .accessibilityLabel("Semantic memory indexing progress")
                         .accessibilityValue("\(semanticMemory.status.completionPercentage) percent")
                 }
@@ -1024,7 +1024,7 @@ struct CoachSettingsView: View {
                         Text("Data access")
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                         Text("Choose what the coach can fetch, log and remember.")
-                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 8)
@@ -1070,7 +1070,7 @@ struct CoachSettingsView: View {
                     .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 Text("Your provider cannot browse your database, request a new permission, or receive raw sensor streams. Nomic searches approved text locally; it never receives numerical health histories. Long-term questions use compact aggregates only when Deep insights is allowed. Sensitive journal answers always need their own separate switch.")
-                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -1092,7 +1092,7 @@ struct CoachSettingsView: View {
                 // The menu retains the simple choice without making the labels tiny or truncated.
                 .pickerStyle(.menu)
                 Text(dataAccessModeDetail)
-                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 if !dataAccessExpertMode && CoachDataAccessMode.current(for: coach.toolConsent.enabled) != .expert {
                     Button("Fine-tune access") { dataAccessExpertMode = true }
@@ -1141,11 +1141,11 @@ struct CoachSettingsView: View {
                     Text(coachFeatureEnabled
                          ? "Coach entry points and optional check-ins are available. Data sharing is still a separate choice."
                          : "Off by default. Turn this on after you choose to use a provider; chats and local data stay saved.")
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .tint(StrandPalette.accent)
+            .appleInspiredTint("coach")
             .onChangeCompat(of: coachFeatureEnabled) { enabled in
                 Task {
                     if enabled { await coach.prepareSemanticMemory() }
@@ -1178,12 +1178,12 @@ struct CoachSettingsView: View {
                     Text("Core biometrics")
                         .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                     Text("Charge, sleep detail, readiness and charge drivers.")
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
                 Toggle("", isOn: purposeBinding(.coreBiometrics))
-                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                    .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
                     .accessibilityLabel("Let the coach fetch core biometrics")
             }
         }
@@ -1202,12 +1202,12 @@ struct CoachSettingsView: View {
                     Text("Long-term trend")
                         .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                     Text("A compact local trend across months or years")
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
                 Toggle("", isOn: purposeBinding(.longHistory))
-                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                    .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
                     .accessibilityLabel("Long-term trend")
             }
         }
@@ -1224,12 +1224,12 @@ struct CoachSettingsView: View {
                     Text("Workouts")
                         .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                     Text("Recent workouts, zone minutes and session outlook.")
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
                 Toggle("", isOn: purposeBinding(.workouts))
-                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                    .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
                     .accessibilityLabel("Let the coach fetch workouts")
             }
         }
@@ -1247,12 +1247,12 @@ struct CoachSettingsView: View {
                     Text("Planning")
                         .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                     Text("Suggesting sessions and checking what you actually did.")
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
                 Toggle("", isOn: purposeBinding(.planning))
-                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                    .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
                     .accessibilityLabel("Let the coach suggest and review sessions")
             }
         }
@@ -1269,12 +1269,12 @@ struct CoachSettingsView: View {
                     Text("Stress")
                         .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                     Text("Today's derived stress index.")
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
                 Toggle("", isOn: purposeBinding(.stress))
-                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                    .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
                     .accessibilityLabel("Let the coach fetch the stress index")
             }
         }
@@ -1291,12 +1291,12 @@ struct CoachSettingsView: View {
                     Text("Logging")
                         .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                     Text("Reading and logging caffeine, journal entries and Lab Book markers.")
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
                 Toggle("", isOn: purposeBinding(.logs))
-                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                    .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
                     .accessibilityLabel("Let the coach read and log your entries")
             }
         }
@@ -1315,12 +1315,12 @@ struct CoachSettingsView: View {
                     Text("Sensitive journal")
                         .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                     Text("Sexual, relationship, illness and cannabis entries need an extra choice.")
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
                 Toggle("", isOn: purposeBinding(.sensitiveLogs))
-                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                    .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
                     .accessibilityLabel("Sensitive journal")
             }
         }
@@ -1337,12 +1337,12 @@ struct CoachSettingsView: View {
                     Text("Memory tools")
                         .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                     Text("Saving, correcting and forgetting facts, and searching past chats.")
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
                 Toggle("", isOn: purposeBinding(.memory))
-                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                    .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
                     .accessibilityLabel("Let the coach save and search memory")
             }
         }
@@ -1362,7 +1362,7 @@ struct CoachSettingsView: View {
                         Text("How Coach works")
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                         Text("What runs on \(Platform.deviceNounPhrase), what's sent, and why the model matters.")
-                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 8)
@@ -1386,7 +1386,7 @@ struct CoachSettingsView: View {
                  ? "The coach works with your data on purpose — that's what makes it personal. With a Custom server you point it at, nothing leaves \(Platform.deviceNounPhrase) at all. NOOP only ever sends what a request needs — a summary of the relevant metrics, never raw sensor data."
                  : "The coach works with your data on purpose — that's what makes it personal. The real privacy question is your provider (\(coach.provider.displayName)): they receive what you send, so choose one you trust. NOOP only ever sends what a request needs — a summary of the relevant metrics, never raw sensor data or unrelated personal details.")
                 .font(StrandFont.footnote)
-                .foregroundStyle(StrandPalette.textTertiary)
+                .foregroundStyle(StrandPalette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         } icon: {
             Image(systemName: "checkmark.shield")
@@ -1405,11 +1405,11 @@ struct CoachSettingsView: View {
                         Text("Show Coach on Today")
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                         Text("Turn off to hide the Coach card and floating button. Per-metric “Ask coach” and the AI that writes your card summaries keep working.")
-                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("coach")
 
                 if coachUIEnabled {
                     Divider().overlay(StrandPalette.hairline)
@@ -1420,12 +1420,12 @@ struct CoachSettingsView: View {
                                 Text("Show coach avatar")
                                     .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                                 Text("Use your coach’s picture on the Today entry instead of a plain icon.")
-                                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                         }
                     }
-                    .tint(StrandPalette.accent)
+                    .appleInspiredTint("coach")
                 }
             }
         }
@@ -1447,7 +1447,7 @@ struct CoachSettingsView: View {
                         Text("Coach entry")
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                         Text("How you open Coach from Today — pick any combination.")
-                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 8)
@@ -1522,7 +1522,7 @@ struct CoachSettingsView: View {
             Text(corner == .custom
                  ? String(localized: "Dragged freely — tap a corner to pin it. Corners stay clear of the tab bar and header.")
                  : String(localized: "Pinned: \(corner.label.localizedCatalogValue). Drag the button anytime to place it freely."))
-                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
 
             Toggle(isOn: $fabLocked) {
@@ -1530,12 +1530,12 @@ struct CoachSettingsView: View {
                     Text("Lock position")
                         .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                     Text("Stops the button moving if you brush it. Tapping still opens Coach.")
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .toggleStyle(.switch)
-            .tint(StrandPalette.accent)
+            .appleInspiredTint("coach")
         }
     }
     #endif
@@ -1557,17 +1557,17 @@ struct CoachSettingsView: View {
                         Text(coach.autoSummarize
                              ? "On: when you move on from a chat, a cheap model distils it so the coach remembers it later. Sends that chat to your provider."
                              : "Off: past chats aren't summarised; the coach only recalls saved facts.")
-                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 8)
                     Toggle("", isOn: $coach.autoSummarize)
-                        .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                        .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
                         .accessibilityLabel("Summarise past chats automatically")
                 }
 
                 Text("Optional: turning this on sends a finished chat to your provider. Without it, saved facts and local chat history still remain on your device.")
-                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 HStack {
@@ -1673,7 +1673,7 @@ struct CoachSettingsView: View {
                             .foregroundStyle(StrandPalette.textSecondary)
                     }
                     Text("Counted on-device from what your provider reports back — not every request format reports usage, so this may undercount rather than overcount.")
-                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .accessibilityElement(children: .combine)
@@ -1725,7 +1725,7 @@ struct CoachSettingsView: View {
                                     .foregroundStyle(StrandPalette.textSecondary)
                             }
                             Text("Lifetime for this key, straight from OpenRouter — not a weekly or monthly figure.")
-                                .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                                .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     case .failed(let message):
@@ -1851,12 +1851,12 @@ struct CoachSettingsView: View {
                     Text(coach.dataConsent
                          ? "On: your charge, rest, HRV and workouts are shared with the provider for tailored coaching."
                          : "Off: the coach answers generally and sends none of your metrics.")
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
                 Toggle("", isOn: $coach.dataConsent)
-                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                    .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
                     .accessibilityLabel("Let the coach use my data")
             }
         }
@@ -1874,12 +1874,12 @@ struct CoachSettingsView: View {
                     Text(coach.includeOnDeviceSignals
                          ? "On: a short summary of your strongest patterns and logged health numbers is added. Summaries only, never raw readings."
                          : "Off: only your core metrics are shared, not your patterns or Lab Book.")
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
                 Toggle("", isOn: $coach.includeOnDeviceSignals)
-                    .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                    .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
                     .accessibilityLabel("Also share my patterns and Lab Book with the coach")
             }
         }
@@ -1900,7 +1900,7 @@ struct CoachSettingsView: View {
                         Text("Coaching style")
                             .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                         Text(LocalizedStringKey(coach.persona.subtitle))
-                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 8)
@@ -1939,17 +1939,17 @@ struct CoachSettingsView: View {
                         Text(morningSuggestionOn
                              ? "On: opening Today generates one workout suggestion a day to accept, change or decline."
                              : "Off: the coach suggests a session only when you ask in chat.")
-                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 8)
                     Toggle("", isOn: $morningSuggestionOn)
-                        .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                        .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
                         .accessibilityLabel("Morning suggestion on Today")
                 }
                 if !(coach.isConfigured && coach.dataConsent) {
                     Text("Needs a connected provider and data access, so the coach has something to suggest from.")
-                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -1972,12 +1972,12 @@ struct CoachSettingsView: View {
                         Text(checkInOn
                              ? "On: a daily reminder to open your coaching brief."
                              : "Off: the coach only responds when you ask.")
-                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 8)
                     Toggle("", isOn: $checkInOn)
-                        .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                        .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
                         .accessibilityLabel("Daily coach check-in")
                         .onChangeCompat(of: checkInOn) { on in
                             CoachCheckIn.setEnabled(on) { outcome in
@@ -2064,12 +2064,12 @@ struct CoachSettingsView: View {
                         Text(planReminderOn
                              ? "On: a reminder at the time you set for a planned session."
                              : "Off: sessions with a time don't remind you.")
-                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 8)
                     Toggle("", isOn: $planReminderOn)
-                        .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                        .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
                         .accessibilityLabel("Plan session reminders")
                         .onChangeCompat(of: planReminderOn) { on in
                             PlanReminder.setEnabled(on) { outcome in
@@ -2118,7 +2118,7 @@ struct CoachSettingsView: View {
                             Text(memory.facts.isEmpty
                                  ? String(localized: "What the coach remembers about you, across conversations.")
                                  : memoryReachSummary)
-                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                                 .fixedSize(horizontal: false, vertical: true)
                             HStack(spacing: 7) {
                                 Label(CoachMemoryFootprint.formatted(footprint.totalBytes), systemImage: "internaldrive")
@@ -2159,7 +2159,7 @@ struct CoachSettingsView: View {
                             Text("Memory is empty").strandOverline()
                             Text("The coach hasn't saved anything about you yet. It adds a fact when you tell it something durable — an injury, a constraint, how you like to train — and \"Summarise past chats\" below distils older conversations into facts too. You can also add one yourself.")
                                 .font(StrandFont.footnote)
-                                .foregroundStyle(StrandPalette.textTertiary)
+                                .foregroundStyle(StrandPalette.textSecondary)
                                 .fixedSize(horizontal: false, vertical: true)
                             addFactButton
                         }
@@ -2434,7 +2434,7 @@ struct CoachSettingsView: View {
                             Text(coach.hasCustomSystemPrompt
                                  ? "Customised. Your edited instructions frame every reply."
                                  : "Edit how the coach thinks and talks. Takes effect on your next message.")
-                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         Spacer(minLength: 8)
@@ -2538,7 +2538,7 @@ struct CoachSettingsView: View {
                 }
             }
             .pickerStyle(.menu)
-            .tint(StrandPalette.accent)
+            .appleInspiredTint("coach")
             .accessibilityLabel("Provider")
         }
 
@@ -2786,7 +2786,7 @@ struct CoachSettingsView: View {
                  ? "Coach talks only to the server URL you set. Point it at a local model (Ollama, LM Studio, llama.cpp) to keep everything on your own machine. Data sharing is a separate, off-by-default choice you make after connecting, under Privacy & data."
                  : "This is the only feature that leaves \(Platform.deviceNounPhrase), and only once you turn it on. Sending a summary of your metrics to \(coach.provider.displayName) using your own key is a separate, off-by-default choice under Privacy & data, once you're connected.")
                 .font(StrandFont.footnote)
-                .foregroundStyle(StrandPalette.textTertiary)
+                .foregroundStyle(StrandPalette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         } icon: {
             Image(systemName: "lock.shield")

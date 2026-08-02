@@ -179,7 +179,7 @@ struct SmartAlarmView: View {
                     Text("Morning").strandOverline()
                     HStack(spacing: 10) {
                         Image(systemName: "alarm.fill")
-                            .foregroundStyle(StrandPalette.accent)
+                            .appleInspiredForeground("alarms")
                             .accessibilityHidden(true)
                         Text("Strap wake-alarm")
                             .font(StrandFont.title2)
@@ -194,12 +194,12 @@ struct SmartAlarmView: View {
                             .foregroundStyle(StrandPalette.textPrimary)
                         Text("Arms the strap to buzz at your wake time, even if NOOP is closed. Sends the exact alarm command the official app sends, confirmed buzzing on a real WHOOP 4.0 (community wire capture + on-device test, #535). Keep a backup alarm for anything you truly can't miss.")
                             .font(StrandFont.footnote)
-                            .foregroundStyle(StrandPalette.textTertiary)
+                            .foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer()
                     Toggle("", isOn: $behavior.smartAlarmEnabled)
-                        .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                        .labelsHidden().toggleStyle(.switch).appleInspiredTint("alarms")
                         .accessibilityLabel("Wake me with a strap buzz")
                 }
                 .frame(minHeight: 42)
@@ -235,12 +235,12 @@ struct SmartAlarmView: View {
                         // must NOT show here (#864 honesty). Keep the 5/MG-unconfirmed caveat.
                         Text("Armed on the strap itself with the experimental 5/MG command. A strap-driven wake is still unconfirmed on 5/MG on our side (confirmed only on WHOOP 4.0), so keep a backup alarm for anything you truly can't miss.")
                             .font(StrandFont.footnote)
-                            .foregroundStyle(StrandPalette.textTertiary)
+                            .foregroundStyle(StrandPalette.textSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     } else {
                         Text("Armed on the strap itself, so it can buzz at your wake time even if your phone is asleep or NOOP is closed. Sends the exact alarm command the official app sends, confirmed buzzing on a real WHOOP 4.0 (community wire capture + on-device test, #535). Keep a backup alarm for anything you truly can't miss.")
                             .font(StrandFont.footnote)
-                            .foregroundStyle(StrandPalette.textTertiary)
+                            .foregroundStyle(StrandPalette.textSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
@@ -274,12 +274,12 @@ struct SmartAlarmView: View {
                             .foregroundStyle(StrandPalette.textPrimary)
                         Text("A calm evening reminder, timed from your wake time and usual sleep need. It's a suggestion, not an alarm.")
                             .font(StrandFont.footnote)
-                            .foregroundStyle(StrandPalette.textTertiary)
+                            .foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer()
                     Toggle("", isOn: $windDownOn)
-                        .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                        .labelsHidden().toggleStyle(.switch).appleInspiredTint("alarms")
                         .accessibilityLabel("Remind me to wind down")
                         .onChangeCompat(of: windDownOn) { on in
                             WindDownNudge.setEnabled(on) { outcome in
@@ -303,7 +303,7 @@ struct SmartAlarmView: View {
                                 .foregroundStyle(StrandPalette.textPrimary)
                             Text("The nudge fires \(WindDownNudge.sleepNeedMinutes / 60)h \(WindDownNudge.leadMinutes)m before this.")
                                 .font(StrandFont.footnote)
-                                .foregroundStyle(StrandPalette.textTertiary)
+                                .foregroundStyle(StrandPalette.textSecondary)
                         }
                         Spacer()
                         DatePicker("", selection: wakeBinding, displayedComponents: .hourAndMinute)
@@ -332,12 +332,12 @@ struct SmartAlarmView: View {
                     .foregroundStyle(StrandPalette.textPrimary)
                 Text("Set a wake time for specific days (a lie-in at the weekend, say). Days you leave alone use the time above.")
                     .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer()
             Toggle("", isOn: $perDayOn)
-                .labelsHidden().toggleStyle(.switch).tint(StrandPalette.accent)
+                .labelsHidden().toggleStyle(.switch).appleInspiredTint("alarms")
                 .accessibilityLabel("Different wake time per day")
                 .onChangeCompat(of: perDayOn) { on in
                     // Turning the section OFF clears every override (so the nudge reverts to the single time);

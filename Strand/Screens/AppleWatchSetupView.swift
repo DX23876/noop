@@ -97,7 +97,7 @@ struct AppleWatchSetupView: View {
                     Text("Continue").frame(minWidth: 120).padding(.vertical, 4)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("health")
                 .keyboardShortcut(.defaultAction)
                 .accessibilityHint("Goes to the Apple Health permission step")
             }
@@ -108,7 +108,7 @@ struct AppleWatchSetupView: View {
                     withAnimation(.easeInOut(duration: 0.2)) { step = .intro }
                 }
                 .buttonStyle(.bordered)
-                .tint(StrandPalette.accent)
+                .appleInspiredTint("health")
                 Spacer()
                 #if os(iOS)
                 if health.auth == .authorized {
@@ -118,7 +118,7 @@ struct AppleWatchSetupView: View {
                         Text("Done").frame(minWidth: 120).padding(.vertical, 4)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(StrandPalette.accent)
+                    .appleInspiredTint("health")
                     .keyboardShortcut(.defaultAction)
                 } else {
                     Button("Not now") { onClose() }
@@ -128,7 +128,7 @@ struct AppleWatchSetupView: View {
                 #else
                 Button("Close") { onClose() }
                     .buttonStyle(.bordered)
-                    .tint(StrandPalette.accent)
+                    .appleInspiredTint("health")
                 #endif
             }
             .padding(16)
@@ -167,7 +167,7 @@ struct AppleWatchSetupView: View {
 
             Text("Want the full breakdown of every metric and how sure NOOP is about each one? The \u{201C}About Apple Watch data\u{201D} page in Settings has the honest table.")
                 .font(StrandFont.footnote)
-                .foregroundStyle(StrandPalette.textTertiary)
+                .foregroundStyle(StrandPalette.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 4)
         }
@@ -269,7 +269,7 @@ struct AppleWatchSetupView: View {
                         .fixedSize(horizontal: false, vertical: true)
                     Text("You can still bring your data in by importing a Health export from Data Sources. A build from the App Store, or one signed with a paid Apple Developer account, connects directly.")
                         .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textTertiary)
+                        .foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
 
                 case .unknown, .denied:
@@ -289,7 +289,7 @@ struct AppleWatchSetupView: View {
                     if health.auth == .denied {
                         Text("If you don't see the prompt, turn NOOP on under Settings › Health › Data Access & Devices.")
                             .font(StrandFont.footnote)
-                            .foregroundStyle(StrandPalette.textTertiary)
+                            .foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
@@ -300,7 +300,7 @@ struct AppleWatchSetupView: View {
                         .fixedSize(horizontal: false, vertical: true)
                     Text("You can change what you share any time in Settings › Health › Data Access & Devices.")
                         .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.textTertiary)
+                        .foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 

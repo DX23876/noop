@@ -671,7 +671,7 @@ struct MetricDetailView: View {
                             ComingSoon(what: "\(fitnessReadyLeadCopy(rhrDays: repo.days.suffix(7).compactMap { $0.restingHr }.count, hasAge: profile.age > 0, hasSex: !profile.sex.isEmpty))", symbol: "figure.run")
                             // Force the weekly recompute NOW from stored data (works offline), then re-read.
                             if refreshing {
-                                ProgressView().controlSize(.small).tint(StrandPalette.accent)
+                                ProgressView().controlSize(.small).appleInspiredTint("dataSources")
                             } else {
                                 Button {
                                     guard !refreshing else { return }

@@ -286,7 +286,7 @@ private struct WelcomeStep: View {
                     .opacity(appear ? 1 : 0)
                 Text("A private window into your recovery, sleep and strain. Read straight from your strap, kept only on \(Platform.deviceNounPhrase).")
                     .font(StrandFont.body)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 420)
                     .opacity(appear ? 1 : 0)
@@ -477,7 +477,7 @@ private struct BluetoothStep: View {
 
                 Text("When the system prompt appears, choose Allow so NOOP can find your strap.")
                     .font(StrandFont.subhead)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 460)
             }
@@ -578,7 +578,7 @@ private struct ScanStep: View {
                     // and pair a heart-rate strap or import data afterwards (in Devices / Data Sources).
                     Text("No WHOOP? You can still continue. Pair a heart-rate strap (Polar, Wahoo, Coospo, Garmin HRM…) or a gym machine under Devices, or import from WHOOP, Apple Health, Oura, Fitbit, Garmin and more under Data Sources. You can do either any time.")
                         .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.textTertiary)
+                        .foregroundStyle(StrandPalette.textSecondary)
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: 360)
@@ -744,7 +744,7 @@ private struct ProfileStep: View {
                             FieldRow(label: String(localized: "Date of birth"),
                                      value: String(localized: "\(profile.age) yrs"))
                         }
-                        .tint(StrandPalette.accent)
+                        .appleInspiredTint("health")
 
                         Divider().overlay(StrandPalette.hairline)
 
@@ -857,7 +857,7 @@ private struct ImportStep: View {
                 if model.hasActiveImport {
                     ProgressView()
                         .controlSize(.small)
-                        .tint(StrandPalette.accent)
+                        .appleInspiredTint("health")
                 }
 
                 // Show the summary for the source the user last imported, styled off the typed
@@ -1066,7 +1066,7 @@ private struct AppearanceStep: View {
                     .frame(maxWidth: 320)
                 Text("System follows your \(Platform.deviceNoun)'s light or dark setting.")
                     .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .multilineTextAlignment(.center)
             }
             .frame(maxWidth: 460)

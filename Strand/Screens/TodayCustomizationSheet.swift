@@ -158,7 +158,7 @@ struct TodayCustomizationSheet: View {
             }
         }
         .interactiveDismissDisabled(isDirty)
-        .tint(StrandPalette.accent)
+        .appleInspiredTint("dashboardEditor")
         #if os(macOS)
         .frame(
             minWidth: NoopMetrics.editorSheetMinWidth,

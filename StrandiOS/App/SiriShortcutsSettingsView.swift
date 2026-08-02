@@ -23,7 +23,7 @@ struct SiriShortcutsSettingsView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 10) {
                     Image(systemName: "mic.fill")
-                        .foregroundStyle(StrandPalette.accent)
+                        .appleInspiredForeground("siriShortcuts")
                         .accessibilityHidden(true)
                     Text("Ready-made actions")
                         .font(StrandFont.headline)
@@ -31,7 +31,7 @@ struct SiriShortcutsSettingsView: View {
                 }
                 Text("Buzz your strap or mark a moment from Siri, Spotlight, the Shortcuts app, or a Back-Tap / automation. No setup needed.")
                     .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 SiriTipView(intent: BuzzStrapIntent(), isVisible: .constant(true))
                     .siriTipViewStyle(.dark)
@@ -46,7 +46,7 @@ struct SiriShortcutsSettingsView: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
                     Image(systemName: "square.stack.3d.up.fill")
-                        .foregroundStyle(StrandPalette.accent)
+                        .appleInspiredForeground("siriShortcuts")
                         .accessibilityHidden(true)
                     Text("Build your own")
                         .font(StrandFont.headline)
@@ -54,7 +54,7 @@ struct SiriShortcutsSettingsView: View {
                 }
                 Text("Wire NOOP's actions into a Back-Tap, a focus automation, or a longer Shortcut. For example, double-tap the back of your iPhone to buzz the strap.")
                     .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
+                    .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 ShortcutsLink()
             }

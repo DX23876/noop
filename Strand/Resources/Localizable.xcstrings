@@ -1089,6 +1089,7 @@
       }
     },
     "%@ Effort": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -1419,6 +1420,7 @@
       }
     },
     "%@ br/min": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -1807,6 +1809,7 @@
       }
     },
     "%@ in bed · %@ efficiency · stages approximate (on-device)": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -2091,6 +2094,7 @@
       }
     },
     "%@ is free and always will be. If it's useful to you, you can chip in to help with development and testing costs. Totally optional.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -2623,6 +2627,7 @@
       }
     },
     "%@ pace": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -3375,6 +3380,7 @@
       }
     },
     "%@ · %@s in / %@s out": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -3427,6 +3433,7 @@
       }
     },
     "%@ · %lld kcal": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -3867,6 +3874,7 @@
       }
     },
     "%@ – %@": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -3925,6 +3933,7 @@
       }
     },
     "%@ – %@  ·  %lld days": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -3983,6 +3992,7 @@
       }
     },
     "%@ – %@  ·  1 day": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -4447,6 +4457,7 @@
       }
     },
     "%@+ downloads so far, %lld donors.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -7980,6 +7991,7 @@
       }
     },
     "%lld breaths · %@": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -8195,16 +8207,16 @@
     },
     "%lld come up when they're relevant": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld come up when they're relevant"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "%lld kommen auf, wenn sie relevant sind"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld come up when they're relevant"
           }
         },
         "es": {
@@ -9017,16 +9029,16 @@
     },
     "%lld expired": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld expired"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "%lld abgelaufen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld expired"
           }
         },
         "es": {
@@ -9075,16 +9087,16 @@
     },
     "%lld fact(s) will be deleted. This can't be undone — the coach will have to learn them again.": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld fact(s) will be deleted. This can't be undone — the coach will have to learn them again."
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "%lld Fakt(en) werden gelöscht. Das lässt sich nicht rückgängig machen — der Coach muss sie neu lernen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld fact(s) will be deleted. This can't be undone — the coach will have to learn them again."
           }
         },
         "es": {
@@ -9133,16 +9145,16 @@
     },
     "%lld frame every reply": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld frame every reply"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "%lld prägen jede Antwort"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld frame every reply"
           }
         },
         "es": {
@@ -10460,16 +10472,16 @@
     },
     "%lld observation(s)": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld observation(s)"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "%lld Beobachtung(en)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld observation(s)"
           }
         },
         "es": {
@@ -10855,16 +10867,16 @@
     },
     "%lld of them frame every reply — injuries and hard constraints you'd have to tell the coach again. There is no undo, and no archive.": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld of them frame every reply — injuries and hard constraints you'd have to tell the coach again. There is no undo, and no archive."
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "%lld davon prägen jede Antwort — Verletzungen und harte Einschränkungen, die du dem Coach erneut sagen müsstest. Es gibt kein Zurück und kein Archiv."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld of them frame every reply — injuries and hard constraints you'd have to tell the coach again. There is no undo, and no archive."
           }
         },
         "es": {
@@ -11910,6 +11922,7 @@
       }
     },
     "%lld remembered facts. The coach uses these in every reply.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -12752,16 +12765,16 @@
     },
     "%lld waiting for you to confirm": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld waiting for you to confirm"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "%lld warten auf deine Bestätigung"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld waiting for you to confirm"
           }
         },
         "es": {
@@ -13401,6 +13414,7 @@
       }
     },
     "%lld%% Charge": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -14197,6 +14211,7 @@
       }
     },
     "%lld–%lld%@ · step %lld": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -15105,6 +15120,7 @@
       }
     },
     "0–%@ scale": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -15157,6 +15173,7 @@
       }
     },
     "0–100": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -15209,6 +15226,7 @@
       }
     },
     "0–21": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -16567,6 +16585,7 @@
       }
     },
     "1 remembered fact. The coach uses these in every reply.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -19485,6 +19504,7 @@
       }
     },
     "A WHOOP membership runs $300–480 a year, for life. NOOP does this for free: one person, no servers, no subscription.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -19693,6 +19713,7 @@
       }
     },
     "A bulk markers CSV import (date, marker, value, unit) lands with the file importers in Data Sources, same as nutrition and lifting. For now, add readings one at a time above. Everything you import stays on %@.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -20589,6 +20610,7 @@
       }
     },
     "A few more days of wear, plus the basics below, and we can show your Fitness Age.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -20641,6 +20663,7 @@
       }
     },
     "A few more nights of data and your readiness read will sharpen.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -22784,6 +22807,7 @@
       }
     },
     "A transparent cardiorespiratory recipe that recovers deep and REM better than the default staging. Opt-in and experimental: it only changes how already-detected nights are split into stages (detection and scores are unchanged), and the default staging stays in place if you leave this off. Takes effect on the next nights staged.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -23072,6 +23096,7 @@
       }
     },
     "ADVANCED": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -24790,6 +24815,7 @@
       }
     },
     "Active": {
+      "comment": "ActivityStatus label",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -25560,6 +25586,7 @@
       }
     },
     "Acute (7-day) vs chronic (28-day) training load. 0.8–1.3 is the sweet spot.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -25832,6 +25859,7 @@
       }
     },
     "Add a custom question…": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -25937,16 +25965,16 @@
     },
     "Add a fact": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Add a fact"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Fakt hinzufügen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add a fact"
           }
         },
         "es": {
@@ -25995,16 +26023,16 @@
     },
     "Add a fact to coach memory": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Add a fact to coach memory"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Einen Fakt zum Coach-Gedächtnis hinzufügen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add a fact to coach memory"
           }
         },
         "es": {
@@ -27676,6 +27704,7 @@
       }
     },
     "Age": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -27734,6 +27763,7 @@
       }
     },
     "Age, %lld years": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -28572,6 +28602,7 @@
       }
     },
     "Allow access": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -29863,6 +29894,7 @@
       }
     },
     "Any amount helps. Thank you, genuinely.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -30135,6 +30167,7 @@
       }
     },
     "App icon colors": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -31227,6 +31260,7 @@
       }
     },
     "Armed on the strap itself, so it can buzz at your wake time even if your phone is asleep or NOOP is closed. We send the same alarm command the official app sends, but a strap-driven wake-up hasn't been confirmed on our side yet, so please keep a backup alarm for now.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -31307,6 +31341,7 @@
       }
     },
     "Arms the strap to buzz at your wake time, even if NOOP is closed. Still experimental on WHOOP 4.0, so keep a backup alarm until you've confirmed it wakes you.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -31359,6 +31394,7 @@
       }
     },
     "Arrange Today": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -31393,6 +31429,7 @@
       }
     },
     "Arrange Today sections": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -31625,6 +31662,7 @@
       }
     },
     "Ask about your charge, effort, rest and workouts, grounded in your own numbers.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -32143,6 +32181,7 @@
       }
     },
     "Ask your first question": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -33852,6 +33891,7 @@
       }
     },
     "Average HR must be 25–250 bpm.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -39481,6 +39521,7 @@
       }
     },
     "Box": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -39695,6 +39736,7 @@
       }
     },
     "Breathe in": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -39747,6 +39789,7 @@
       }
     },
     "Breathe in for %lld seconds": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -39955,6 +39998,7 @@
       }
     },
     "Breathe out": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -40007,6 +40051,7 @@
       }
     },
     "Breathe out for %lld seconds": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -40451,6 +40496,7 @@
       }
     },
     "Broadcast heart rate": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -40503,6 +40549,7 @@
       }
     },
     "Broadcast heart rate (Garmin/ANT)": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -43119,6 +43166,7 @@
       }
     },
     "CONTROL CENTER": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -43859,7 +43907,6 @@
       }
     },
     "Calibrating, %lld of %lld": {
-      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -44722,6 +44769,7 @@
       }
     },
     "Calories must be 0–20,000.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -45266,6 +45314,7 @@
       }
     },
     "Cardiovascular load for the day, on a 0–100 scale (was 0–21).": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -45924,6 +45973,7 @@
       }
     },
     "Charge %@%%": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -47016,6 +47066,7 @@
       }
     },
     "Charge weighs your HRV against your personal baseline (~55%%), resting heart rate (~20%%), rest quality (~15%%), respiration (~5%%) and skin-temperature deviation (~5%%). Effort is a 0–%@ cardiovascular load from time in heart-rate zones. Rest is staged from movement and heart rate. Everything is computed here from the strap's raw data. It works for any day NOOP collected raw streams.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -47543,6 +47594,7 @@
       }
     },
     "Charge, Effort, Rest, HRV, resting and live heart rate, and strap battery at a glance.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -49675,6 +49727,7 @@
       }
     },
     "Choose which tiles show on your Control Center and reorder them with the arrows.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -50809,6 +50862,7 @@
       }
     },
     "Close Support": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -51668,6 +51722,7 @@
       }
     },
     "Coach is thinking…": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -52132,6 +52187,7 @@
       }
     },
     "Coach talks only to the server URL you set. Point it at a local model (Ollama, LM Studio, llama.cpp) to keep everything on your own machine. Nothing is sent until you ask.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -52585,6 +52641,7 @@
       }
     },
     "Coherence": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -53181,6 +53238,7 @@
       }
     },
     "Coming soon": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -55838,6 +55896,7 @@
       }
     },
     "Connected; strap history sync is experimental on this strap": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -56770,6 +56829,7 @@
       }
     },
     "Copied!": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -56886,6 +56946,7 @@
       }
     },
     "Copy %@ address": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -56944,6 +57005,7 @@
       }
     },
     "Copy address": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -60530,6 +60592,7 @@
       }
     },
     "Daily 0–3 proxy": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -61890,6 +61953,7 @@
       }
     },
     "Day 1: bright light %@–%@, lights-out around %@.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -61948,7 +62012,6 @@
       }
     },
     "Day Strain": {
-      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -63646,6 +63709,7 @@
       }
     },
     "Delete this custom question": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -64232,13 +64296,13 @@
     },
     "Details": {
       "localizations": {
-        "en": {
+        "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Details"
           }
         },
-        "de": {
+        "en": {
           "stringUnit": {
             "state": "translated",
             "value": "Details"
@@ -65724,16 +65788,16 @@
     },
     "Distilled from a past conversation.": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Distilled from a past conversation."
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Aus einem früheren Gespräch destilliert."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Distilled from a past conversation."
           }
         },
         "es": {
@@ -65839,6 +65903,7 @@
       }
     },
     "Don't ask about donations again": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -65891,6 +65956,7 @@
       }
     },
     "Don't ask again": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -65943,6 +66009,7 @@
       }
     },
     "Don't buzz when the strap is off your wrist.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -66163,6 +66230,7 @@
       }
     },
     "Donate": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -66215,6 +66283,7 @@
       }
     },
     "Donate or get in touch. Totally optional.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -66267,6 +66336,7 @@
       }
     },
     "Donation QR code": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -66377,6 +66447,7 @@
       }
     },
     "Done customising dashboard": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -66429,6 +66500,7 @@
       }
     },
     "Done editing Key Metrics": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -67245,6 +67317,7 @@
       }
     },
     "Drag to pan · double-tap to reset": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -67349,6 +67422,7 @@
       }
     },
     "Drag to reorder. Toggle a card on or off. Cards with no value yet show a dash.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -68447,6 +68521,7 @@
       }
     },
     "Each line min–max normalized within %@ · %@": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -70289,6 +70364,7 @@
       }
     },
     "Effort (0–100)": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -70608,6 +70684,7 @@
       }
     },
     "Email %@": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -71348,6 +71425,7 @@
       }
     },
     "Enjoying NOOP?": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -73051,6 +73129,7 @@
       }
     },
     "Every release, mirrored. A fallback if GitHub is ever down.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -74168,6 +74247,7 @@
       }
     },
     "Experimental sleep staging (V2)": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -74330,6 +74410,7 @@
       }
     },
     "Experimental · Sleep staging": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -74800,16 +74881,16 @@
     },
     "Expire today": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Expire today"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Heute ablaufen lassen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expire today"
           }
         },
         "es": {
@@ -74858,16 +74939,16 @@
     },
     "Expired": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Expired"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Abgelaufen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expired"
           }
         },
         "es": {
@@ -74916,16 +74997,16 @@
     },
     "Expired %@": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Expired %@"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Abgelaufen am %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expired %@"
           }
         },
         "es": {
@@ -74974,16 +75055,16 @@
     },
     "Expires %@": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Expires %@"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Läuft ab am %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expires %@"
           }
         },
         "es": {
@@ -78019,16 +78100,16 @@
     },
     "First saved %@": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "First saved %@"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Zuerst gespeichert %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "First saved %@"
           }
         },
         "es": {
@@ -78738,16 +78819,16 @@
     },
     "Forget": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Forget"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Vergessen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forget"
           }
         },
         "es": {
@@ -78940,16 +79021,16 @@
     },
     "Forget everything the coach remembers?": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Forget everything the coach remembers?"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Alles vergessen, woran sich der Coach erinnert?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forget everything the coach remembers?"
           }
         },
         "es": {
@@ -79056,16 +79137,16 @@
     },
     "Forget permanently": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Forget permanently"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Endgültig vergessen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forget permanently"
           }
         },
         "es": {
@@ -79171,6 +79252,7 @@
       }
     },
     "Forget the saved key and disconnect": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -79508,16 +79590,16 @@
     },
     "Frames every reply": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Frames every reply"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Prägt jede Antwort"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frames every reply"
           }
         },
         "es": {
@@ -80312,6 +80394,7 @@
       }
     },
     "Functional strength": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -80624,6 +80707,7 @@
       }
     },
     "Get in touch": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -82107,6 +82191,7 @@
       }
     },
     "Grant Health access": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -82811,6 +82896,7 @@
       }
     },
     "HR %@ · Effort %@": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -83083,6 +83169,7 @@
       }
     },
     "HR Zones 1–3": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -83193,6 +83280,7 @@
       }
     },
     "HR Zones 4–5": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -83523,6 +83611,7 @@
       }
     },
     "HR unavailable": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -86819,6 +86908,7 @@
       }
     },
     "Help & Contact": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -87249,16 +87339,16 @@
     },
     "Hide details": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hide details"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Details ausblenden"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide details"
           }
         },
         "es": {
@@ -87480,6 +87570,7 @@
       }
     },
     "Hide this question": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -88776,6 +88867,7 @@
       }
     },
     "How NOOP splits a night into light / deep / REM. This is a separate, opt-in recipe. Your default staging is unchanged unless you turn it on.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -90507,6 +90599,7 @@
       }
     },
     "How to read this: HRV, Resting HR, Sleep duration, Respiratory rate and Skin temperature are measured from the strap (skin temp is shown as the deviation from your own baseline). Workouts is the count of activities you logged or that were detected. Recovery, Strain and Stress are NOOP's own on-device scores, not clinical measures: Recovery is a daily readiness composite (HRV, resting HR, sleep and skin-temp trend), Strain is cardiovascular load derived from heart rate, and Stress is a 0–3 autonomic-load index from resting HR and HRV.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -91325,6 +91418,7 @@
       }
     },
     "I have read and accept these terms, and I'm using NOOP with my own device and my own data, at my own risk.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -91436,6 +91530,7 @@
       }
     },
     "I keep this project anonymous, so crypto is the only way to chip in: no Patreon, no PayPal, no name attached. Quick, global, and private for both of us.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -92188,6 +92283,7 @@
       }
     },
     "If it's saving you a subscription, a suggested $50+ (a fraction of a year of WHOOP) genuinely keeps the project alive. Anything is appreciated. Crypto only; the project stays anonymous.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -95360,16 +95456,16 @@
     },
     "Injury": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Injury"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Verletzung"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Injury"
           }
         },
         "es": {
@@ -96744,6 +96840,7 @@
       }
     },
     "It's a notebook, not a lab. NOOP lines up the numbers you enter. It doesn't test, read, or judge them. Not medical advice.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -98934,6 +99031,7 @@
       }
     },
     "Lab Book is a private notebook, not a medical service. NOOP stores and lines up the numbers you enter. It doesn't test, read, diagnose, or advise. Your records never leave %@; there's no account or cloud, so it isn't \"HIPAA-covered.\" Always rely on your doctor or pharmacist to interpret results.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -101028,6 +101126,7 @@
       }
     },
     "Later": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -103864,6 +103963,7 @@
       }
     },
     "Live heart rate and energy, recorded on your wrist. Stays on device.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -106898,6 +106998,7 @@
       }
     },
     "Looks like a workout around %@–%@ (avg HR %lld, %lld min). Save it?": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -107014,6 +107115,7 @@
       }
     },
     "Looks like a workout on %@ around %@–%@ (avg HR %lld, %lld min). Save it?": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -107130,6 +107232,7 @@
       }
     },
     "Looks like a workout yesterday around %@–%@ (avg HR %lld, %lld min). Save it?": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -111607,6 +111710,7 @@
       }
     },
     "Min–max normalized · sparse series widened past %@ · %@": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -111665,6 +111769,7 @@
       }
     },
     "Mirror at noop dot fans, a fallback if GitHub is down": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -111717,6 +111822,7 @@
       }
     },
     "Mirror: noop.fans": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -112345,6 +112451,7 @@
       }
     },
     "Moderate": {
+      "comment": "PlanProposal intent",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -113403,6 +113510,7 @@
       }
     },
     "Move %@ down": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -113455,6 +113563,7 @@
       }
     },
     "Move %@ up": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -113964,6 +114073,7 @@
       }
     },
     "My Dashboard": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -114508,6 +114618,7 @@
       }
     },
     "NOOP Charge": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -115081,6 +115192,7 @@
       }
     },
     "NOOP gives you three daily scores (Charge, Effort and Rest), each on a 0–100 scale. They're built from your strap's raw signals using published, peer-reviewed sport science, and computed entirely on your device. They are NOT WHOOP's scores: we don't have WHOOP's private algorithms and don't pretend to. They aim at the same three questions using open science, so they'll usually track WHOOP's in direction, but won't match number-for-number. And that's the point.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -115226,6 +115338,7 @@
       }
     },
     "NOOP is free and always will be, nothing is locked. It cost real money and a lot of unpaid hours to build, and there's a Windows app, an Android app and an iOS app I want to ship next. If it's useful to you and you want to help with the development and testing costs, even a few quid in crypto genuinely keeps it moving, and honestly it keeps me motivated to keep building.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -116397,6 +116510,7 @@
       }
     },
     "NOOP stores and lines up the numbers you enter yourself. It does not test you, read your results, give medical advice, or diagnose anything.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -122460,6 +122574,7 @@
       }
     },
     "No photo → person.crop.circle fallback": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -124801,6 +124916,7 @@
       }
     },
     "Not affiliated with, endorsed by, or connected to WHOOP. Interoperability software for hardware you own and your own data. Use it only with a device you own, and not in breach of any agreement that applies to you. Not a medical device.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -127567,6 +127683,7 @@
       }
     },
     "Nothing's flagging. Train to feel - your body's holding steady.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -131180,6 +131297,7 @@
       }
     },
     "One of your signals is flagging. You can train, but keep it controlled and bank the recovery.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -131291,16 +131409,16 @@
     },
     "One short sentence the coach should know about you — a constraint, an injury, how you like to train.": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "One short sentence the coach should know about you — a constraint, an injury, how you like to train."
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Ein kurzer Satz, den der Coach über dich wissen sollte — eine Einschränkung, eine Verletzung, wie du gern trainierst."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One short sentence the coach should know about you — a constraint, an injury, how you like to train."
           }
         },
         "es": {
@@ -131730,6 +131848,7 @@
       }
     },
     "Only when worn": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -132048,6 +132167,7 @@
       }
     },
     "Open NOOP on your iPhone to sync": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -133697,6 +133817,7 @@
       }
     },
     "Optional. Add a photo for the avatar in the top-left. Stored only on %@. NOOP is offline, so it's never uploaded.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -134779,6 +134900,7 @@
       }
     },
     "Overlay 2–4 signals": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -135259,6 +135381,7 @@
       }
     },
     "PAUSED": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -137440,16 +137563,16 @@
     },
     "Physiology": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Physiology"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Physiologie"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Physiology"
           }
         },
         "es": {
@@ -138406,16 +138529,16 @@
     },
     "Pin: %@": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pin: %@"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Anheften: %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pin: %@"
           }
         },
         "es": {
@@ -138463,6 +138586,7 @@
       }
     },
     "Pinch to zoom · drag to pan": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -139234,6 +139358,7 @@
       }
     },
     "Please read and accept the points below.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -139973,16 +140098,16 @@
     },
     "Preference": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Preference"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Vorliebe"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preference"
           }
         },
         "es": {
@@ -140447,16 +140572,16 @@
     },
     "Previously: %@": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Previously: %@"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Vorher: %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Previously: %@"
           }
         },
         "es": {
@@ -140950,6 +141075,7 @@
       }
     },
     "Profile photo": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -142207,6 +142333,7 @@
       }
     },
     "Questions, feedback, bugs: %@": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -144786,6 +144913,7 @@
       }
     },
     "Read your heart rate, HRV, blood oxygen, respiratory rate, sleep, steps and energy straight from Apple Health, and write NOOP's strap data back: sleep with full stages, continuous heart rate, workouts, and nightly vitals. Everything stays on %@.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -144872,6 +145000,7 @@
       }
     },
     "Read your heart rate, HRV, blood oxygen, respiratory rate, sleep, steps and energy straight from Apple Health, and write NOOP's strap-derived metrics back. Everything stays on %@.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -146162,6 +146291,7 @@
       }
     },
     "Ready to breathe": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -146429,16 +146559,16 @@
     },
     "Really forget everything?": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Really forget everything?"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Wirklich alles vergessen?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Really forget everything?"
           }
         },
         "es": {
@@ -147162,6 +147292,7 @@
       }
     },
     "Recolors the leading icons across the app — the More tab, Chat and its submenus, Journey, and Settings — to match Apple Health's palette. Off keeps them plain blue.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -149938,6 +150069,7 @@
       }
     },
     "Relax": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -150198,6 +150330,7 @@
       }
     },
     "Remembered": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -150632,6 +150765,7 @@
       }
     },
     "Remove a question to tidy your list. Custom questions are deleted; the built-in ones are hidden and can be restored below.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -150737,16 +150871,16 @@
     },
     "Remove expiry": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remove expiry"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Ablaufdatum entfernen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove expiry"
           }
         },
         "es": {
@@ -151274,6 +151408,7 @@
       }
     },
     "Removes this recorded sleep and recomputes the day without it. This can't be undone.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -152661,6 +152796,7 @@
       }
     },
     "Reset Key Metrics to default": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -152817,6 +152953,7 @@
       }
     },
     "Reset dashboard cards to default": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -153460,6 +153597,7 @@
       }
     },
     "Rest": {
+      "comment": "PlanProposal intent",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -155135,6 +155273,7 @@
       }
     },
     "Resume": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -156303,6 +156442,7 @@
       }
     },
     "Round %lld of %lld": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -157083,6 +157223,7 @@
       }
     },
     "Runs the stream only during your quiet hours window (22:00 to 07:00 by default), roughly halving the battery cost. Daytime Stress readings will be sparser, since Stress reads this live stream.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -157343,6 +157484,7 @@
       }
     },
     "SEC": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -158419,6 +158561,7 @@
       }
     },
     "Same cardiovascular-load idea as WHOOP's Day Strain (0–21). We rescaled the top of the ladder from 21 to 100 so all three scores share one scale. The rungs didn't move, so a 100 is as rare as a 21.0 was.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -159380,16 +159523,16 @@
     },
     "Saved before the coach recorded where facts came from.": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Saved before the coach recorded where facts came from."
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Gespeichert, bevor der Coach die Herkunft von Fakten festhielt."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved before the coach recorded where facts came from."
           }
         },
         "es": {
@@ -159548,16 +159691,16 @@
     },
     "Saved to memory: %@": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Saved to memory: %@"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Im Gedächtnis gespeichert: %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved to memory: %@"
           }
         },
         "es": {
@@ -159606,16 +159749,16 @@
     },
     "Saved, pending your confirmation: %@": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Saved, pending your confirmation: %@"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Gespeichert, wartet auf deine Bestätigung: %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved, pending your confirmation: %@"
           }
         },
         "es": {
@@ -160423,6 +160566,7 @@
       }
     },
     "Scan with any %@ wallet": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -160592,16 +160736,16 @@
     },
     "Schedule": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Schedule"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Zeitplan"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schedule"
           }
         },
         "es": {
@@ -163955,6 +164099,7 @@
       }
     },
     "Several signals are down at once. Treat today as recovery - easy movement, real sleep tonight.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -164778,6 +164923,7 @@
       }
     },
     "Show %@ donation address": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -164836,6 +164982,7 @@
       }
     },
     "Show & reorder": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -168884,6 +169031,7 @@
       }
     },
     "Sleep quality": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -169340,6 +169488,7 @@
       }
     },
     "Sleep-debt ledger": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -170784,6 +170933,7 @@
       }
     },
     "Squarer tiles with a trend graph under the bar.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -171148,6 +171298,7 @@
       }
     },
     "Start %@": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -174392,6 +174543,7 @@
       }
     },
     "Strap accepted %lld/15 R22 flags…": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -174496,6 +174648,7 @@
       }
     },
     "Strap accepted all 15 R22 flags": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -176330,6 +176483,7 @@
       }
     },
     "Stress %@ of 3, %@": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -177767,6 +177921,7 @@
       }
     },
     "Support": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -177825,6 +177980,7 @@
       }
     },
     "Support NOOP": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -177936,6 +178092,7 @@
       }
     },
     "Support NOOP. It's free; donations are optional and help development.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -177988,6 +178145,7 @@
       }
     },
     "Support NOOP: donate or get in touch": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -178040,6 +178198,7 @@
       }
     },
     "Support the build": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -178156,6 +178315,7 @@
       }
     },
     "Suppress auto-nudges overnight (10pm–7am).": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -179024,6 +179184,7 @@
       }
     },
     "Syncing strap history, %lld chunks": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -181974,16 +182135,16 @@
     },
     "That's right": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "That's right"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Stimmt"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That's right"
           }
         },
         "es": {
@@ -182059,6 +182220,7 @@
       }
     },
     "That's why a watch-only Charge starts out “Calibrating”. NOOP needs about seven nights of your HRV to learn what normal looks like for you. Until it has them it withholds the score rather than guess. Once the baseline is set, your Charge appears with its confidence, on the same 0–100 scale as a strap's.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -182782,6 +182944,7 @@
       }
     },
     "The coach hasn't saved anything about you yet. It adds a fact when you tell it something durable — an injury, a constraint, how you like to train — and \"Summarise past chats\" below distils older conversations into facts too.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -182841,16 +183004,16 @@
     },
     "The coach hasn't saved anything about you yet. It adds a fact when you tell it something durable — an injury, a constraint, how you like to train — and \"Summarise past chats\" below distils older conversations into facts too. You can also add one yourself.": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The coach hasn't saved anything about you yet. It adds a fact when you tell it something durable — an injury, a constraint, how you like to train — and \"Summarise past chats\" below distils older conversations into facts too. You can also add one yourself."
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Der Coach hat noch nichts über dich gespeichert. Er legt einen Fakt an, wenn du ihm etwas Dauerhaftes sagst — eine Verletzung, eine Einschränkung, wie du gern trainierst — und „Frühere Chats zusammenfassen“ unten destilliert auch ältere Gespräche zu Fakten. Du kannst auch selbst einen hinzufügen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The coach hasn't saved anything about you yet. It adds a fact when you tell it something durable — an injury, a constraint, how you like to train — and \"Summarise past chats\" below distils older conversations into facts too. You can also add one yourself."
           }
         },
         "es": {
@@ -183132,16 +183295,16 @@
     },
     "The coach saved this during a conversation.": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "The coach saved this during a conversation."
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Der Coach hat das in einem Gespräch gespeichert."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The coach saved this during a conversation."
           }
         },
         "es": {
@@ -183670,6 +183833,7 @@
       }
     },
     "The line is each waking hour's 0–3 proxy, scored against your own calm hours today. The bar below splits your day into calm, moderate and high stress time.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -184795,16 +184959,16 @@
     },
     "There is no undo, and no archive. The coach starts again from nothing.": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "There is no undo, and no archive. The coach starts again from nothing."
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Es gibt kein Zurück und kein Archiv. Der Coach fängt wieder bei null an."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There is no undo, and no archive. The coach starts again from nothing."
           }
         },
         "es": {
@@ -185176,6 +185340,7 @@
       }
     },
     "These are experimental probes, off by default. The fuller WHOOP 5/MG controls and the raw-sensor CSV export still live in Settings under Diagnostics.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -185882,6 +186047,7 @@
       }
     },
     "Thinking": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -186985,6 +187151,7 @@
       }
     },
     "This is the only feature that leaves %@. It sends a summary of your metrics to %@ using your own key. Nothing is sent until you ask.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -188032,6 +188199,7 @@
       }
     },
     "This stands on community reverse-engineering. Huge thanks:": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -190371,6 +190539,7 @@
       }
     },
     "Today's value is your recorded daily stress score (0–3).": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -191893,6 +192062,7 @@
       }
     },
     "Training load": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -192003,6 +192173,7 @@
       }
     },
     "Training variety": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -192224,16 +192395,16 @@
     },
     "Treated as health information.": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Treated as health information."
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Wird als Gesundheitsinformation behandelt."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Treated as health information."
           }
         },
         "es": {
@@ -194964,16 +195135,16 @@
     },
     "Unpin: %@": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Unpin: %@"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Loslösen: %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unpin: %@"
           }
         },
         "es": {
@@ -198136,6 +198307,7 @@
       }
     },
     "WHOOP 5 / MG": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -198558,6 +198730,7 @@
       }
     },
     "WHOOP 5/MG straps hand a fresh app only live heart rate. The official app switches on the deeper streams (high-rate HR + motion + history) by writing a set of feature flags, a sequence two independent projects have documented. With this on, the button below sends that exact sequence to your strap. Unlike everything else here it does write to the strap, but it's reversible (it only changes which data the strap chooses to emit) and is the same thing the official app does. Experimental: it may do nothing on your firmware. iPhone/Android only. A Mac can't write to a 5/MG.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -199738,16 +199911,16 @@
     },
     "Waiting for your confirmation": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Waiting for your confirmation"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Wartet auf deine Bestätigung"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for your confirmation"
           }
         },
         "es": {
@@ -200933,6 +201106,7 @@
       }
     },
     "We compare today's resting heart rate and HRV to your own 30-day baseline. A higher-than-usual resting HR and a lower-than-usual HRV both push the score up, classic signs the body is activated. The combined shift is mapped onto a 0–3 scale: 0 is calm, 1.5 sits at your baseline, 3 is highly activated.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -207254,6 +207428,7 @@
       }
     },
     "Workout saved": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -207851,6 +208026,7 @@
       }
     },
     "Writes a timestamped copy of your strap log to NOOP's folder in the Files app, once a day. Handy for a bug report without remembering to grab it. On iPhone it fires when iOS next wakes NOOP near your chosen time, not guaranteed to the minute (keep NOOP open overnight for the best chance). Everything stays on %@; nothing is uploaded.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -207903,6 +208079,7 @@
       }
     },
     "Writes a timestamped copy of your strap log to your Documents folder, once a day. Handy for a bug report without remembering to grab it. On Mac it runs while NOOP is open (and catches up on launch if the time passed while it was closed). Everything stays on %@; nothing is uploaded.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -209108,16 +209285,16 @@
     },
     "You told the coach this.": {
       "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "You told the coach this."
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
             "value": "Das hast du dem Coach gesagt."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You told the coach this."
           }
         },
         "es": {
@@ -210345,6 +210522,7 @@
       }
     },
     "Your Charge (recovery) on the watch face, with Effort and Rest in the rectangular card.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -211085,6 +211263,7 @@
       }
     },
     "Your cardiovascular load. NOOP turns every second of heart rate into a training-impulse using heart-rate-reserve zones (Karvonen), weights time in harder zones more heavily (Edwards / Banister), and places it on a logarithmic 0–100 scale, so easy days sit low and an all-out day approaches 100, which stays genuinely rare. A long walk with little cardio still counts, through a steps / active-energy floor.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -213288,6 +213467,7 @@
       }
     },
     "Your signals are aligned and your load is supported. A harder session is well backed today.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -214277,6 +214457,7 @@
       }
     },
     "Zone %lld: %lld–%lld bpm (%lld–%lld%% max HR)": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -214393,6 +214574,7 @@
       }
     },
     "Zoomed in · drag to pan": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -214712,6 +214894,7 @@
       }
     },
     "a strong night, supporting recovery": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -214764,6 +214947,7 @@
       }
     },
     "a touch below baseline": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -214816,6 +215000,7 @@
       }
     },
     "a typical night": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -215082,6 +215267,7 @@
       }
     },
     "above baseline, limiting recovery": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -215134,6 +215320,7 @@
       }
     },
     "above baseline, supporting recovery": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -215186,6 +215373,7 @@
       }
     },
     "above your baseline - well recovered": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -215724,6 +215912,7 @@
       }
     },
     "at or below baseline": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -216042,6 +216231,7 @@
       }
     },
     "below a good night, limiting recovery": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -216094,6 +216284,7 @@
       }
     },
     "below baseline, limiting recovery": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -216146,6 +216337,7 @@
       }
     },
     "below baseline, supporting recovery": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -216418,6 +216610,7 @@
       }
     },
     "building fast (acute:chronic %@) - watch fatigue": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -216528,6 +216721,7 @@
       }
     },
     "cal": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -216800,6 +216994,7 @@
       }
     },
     "cooler than baseline, limiting recovery": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -217470,6 +217665,7 @@
       }
     },
     "e.g. 2.0–5.0 (your report's own range)": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -218118,6 +218314,7 @@
       }
     },
     "elevated - overtraining or illness can do this": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -218690,6 +218887,7 @@
       }
     },
     "hide": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -219014,6 +219212,7 @@
       }
     },
     "in the sweet spot (acute:chronic %@)": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -219066,6 +219265,7 @@
       }
     },
     "in your normal range": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -220020,6 +220220,7 @@
       }
     },
     "low - similar strain every day raises strain/illness risk": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -220888,6 +221089,7 @@
       }
     },
     "near baseline": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -222992,6 +223194,7 @@
       }
     },
     "out of 100": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -223542,6 +223745,7 @@
       }
     },
     "ramping down (acute:chronic %@) - room to build": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -223808,6 +224012,7 @@
       }
     },
     "running a little high": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -223964,6 +224169,7 @@
       }
     },
     "show": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -224224,6 +224430,7 @@
       }
     },
     "slightly raised vs baseline": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -224380,6 +224587,7 @@
       }
     },
     "spiking (acute:chronic %@) - higher injury risk": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -224490,6 +224698,7 @@
       }
     },
     "stale · %@": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -224814,6 +225023,7 @@
       }
     },
     "strain (0–21)": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -224976,6 +225186,7 @@
       }
     },
     "suppressed - a sign of autonomic fatigue": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -226282,6 +226493,7 @@
       }
     },
     "up vs baseline - sometimes an early sign of getting sick": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -227056,6 +227268,7 @@
       }
     },
     "vs typical —": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -227166,6 +227379,7 @@
       }
     },
     "warmer than baseline, limiting recovery": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -228404,6 +228618,7 @@
       }
     },
     "· ~day %lld–%lld": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -229001,6 +229216,630 @@
           "stringUnit": {
             "state": "translated",
             "value": "✓"
+          }
+        }
+      }
+    },
+    "%lld answers": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Antworten"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld respuestas"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld réponses"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld risposte"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld respostas"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld ответов"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 个回答"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 個回答"
+          }
+        }
+      }
+    },
+    "A WHOOP export can carry several wordings for the same habit, which splits its history. Your coach model compares the wordings — no answers or dates are sent.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein WHOOP-Export kann mehrere Formulierungen für dieselbe Gewohnheit enthalten, wodurch deren Verlauf aufgeteilt wird. Dein Coach-Modell vergleicht die Formulierungen – es werden keine Antworten oder Datumsangaben gesendet."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Una exportación de WHOOP puede contener varias formulaciones para el mismo hábito, lo que divide su historial. El modelo de tu coach compara las formulaciones; no se envían respuestas ni fechas."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un export WHOOP peut contenir plusieurs formulations pour une même habitude, ce qui divise son historique. Le modèle de votre coach compare les formulations ; aucune réponse ni date n’est envoyée."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un’esportazione WHOOP può contenere più formulazioni per la stessa abitudine, dividendone la cronologia. Il modello del coach confronta le formulazioni; non vengono inviate risposte né date."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uma exportação WHOOP pode conter várias formulações para o mesmo hábito, dividindo o respetivo histórico. O modelo do coach compara as formulações; não são enviadas respostas nem datas."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Экспорт WHOOP может содержать несколько формулировок одной привычки, из-за чего её история разделяется. Модель тренера сравнивает формулировки; ответы и даты не отправляются."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WHOOP 导出中可能包含同一习惯的多种表述，导致其历史记录被拆分。教练模型只会比较问题表述，不会发送回答或日期。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WHOOP 匯出中可能包含同一習慣的多種表述，導致其歷史記錄被拆分。教練模型只會比較問題表述，不會傳送回答或日期。"
+          }
+        }
+      }
+    },
+    "Check again": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erneut prüfen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comprobar de nuevo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vérifier à nouveau"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Controlla di nuovo"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verificar novamente"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Проверить снова"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新检查"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新檢查"
+          }
+        }
+      }
+    },
+    "Comparing your questions…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deine Fragen werden verglichen …"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comparando tus preguntas…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comparaison de vos questions…"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confronto delle domande…"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A comparar as suas perguntas…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сравниваем вопросы…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在比较问题…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在比較問題…"
+          }
+        }
+      }
+    },
+    "Duplicate questions": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Doppelte Fragen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preguntas duplicadas"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Questions en double"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Domande duplicate"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Perguntas duplicadas"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Повторяющиеся вопросы"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重复问题"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重複問題"
+          }
+        }
+      }
+    },
+    "Find duplicate questions": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Doppelte Fragen finden"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Buscar preguntas duplicadas"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rechercher les questions en double"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trova domande duplicate"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Encontrar perguntas duplicadas"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Найти повторяющиеся вопросы"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查找重复问题"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尋找重複問題"
+          }
+        }
+      }
+    },
+    "Keeps: %@. Tap another wording to keep that one instead.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beibehalten: %@. Tippe auf eine andere Formulierung, um stattdessen diese zu behalten."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se conserva: %@. Toca otra formulación para conservarla en su lugar."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conservé : %@. Touchez une autre formulation pour la conserver à la place."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Viene mantenuta: %@. Tocca un’altra formulazione per mantenere quella."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mantém: %@. Toque noutra formulação para a manter em alternativa."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Будет сохранено: %@. Нажмите другую формулировку, чтобы сохранить её."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保留：%@。轻点其他表述即可改为保留该表述。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保留：%@。點一下其他表述即可改為保留該表述。"
+          }
+        }
+      }
+    },
+    "Not the same": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht dasselbe"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No son iguales"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pas identiques"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non sono uguali"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não são iguais"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Это разные вопросы"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "并不相同"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "並不相同"
+          }
+        }
+      }
+    },
+    "Nothing left to review.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nichts mehr zu prüfen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No queda nada por revisar."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il ne reste rien à vérifier."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non resta nulla da controllare."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não há mais nada para rever."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Больше нечего проверять."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有需要检查的内容。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "沒有需要檢查的內容。"
+          }
+        }
+      }
+    },
+    "Separate": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trennen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Separar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Séparer"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Separa"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Separar"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Разделить"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分开"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分開"
+          }
+        }
+      }
+    },
+    "The coach model could not be reached, so nothing was compared. Check the connection or your provider in Coach settings, then try again.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Coach-Modell konnte nicht erreicht werden, daher wurde nichts verglichen. Prüfe die Verbindung oder deinen Anbieter in den Coach-Einstellungen und versuche es erneut."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo contactar con el modelo del coach, por lo que no se comparó nada. Comprueba la conexión o el proveedor en los ajustes del Coach y vuelve a intentarlo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le modèle du coach est resté inaccessible, donc aucune comparaison n’a été effectuée. Vérifiez la connexion ou votre fournisseur dans les réglages du Coach, puis réessayez."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non è stato possibile raggiungere il modello del coach, quindi non è stato confrontato nulla. Controlla la connessione o il provider nelle impostazioni del Coach e riprova."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível contactar o modelo do coach, por isso nada foi comparado. Verifique a ligação ou o fornecedor nas definições do Coach e tente novamente."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось связаться с моделью тренера, поэтому сравнение не выполнено. Проверьте подключение или поставщика в настройках тренера и повторите попытку."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法连接教练模型，因此未进行比较。请检查网络连接或“教练”设置中的提供商，然后重试。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無法連接教練模型，因此未進行比較。請檢查網絡連線或「教練」設定中的供應商，然後再試一次。"
+          }
+        }
+      }
+    },
+    "Your coach model read the question wordings and grouped the ones it takes for the same habit. Merging joins their history so an effect is ranked on all of it, and never deletes an answer — separate them again at any time. Check each group before merging.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dein Coach-Modell hat die Formulierungen gelesen und diejenigen gruppiert, die es für dieselbe Gewohnheit hält. Durch das Zusammenführen wird ihr Verlauf verbunden, sodass ein Effekt anhand aller Daten bewertet wird; dabei wird keine Antwort gelöscht. Du kannst sie jederzeit wieder trennen. Prüfe jede Gruppe vor dem Zusammenführen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El modelo de tu coach leyó las formulaciones y agrupó las que considera el mismo hábito. Al unirlas, se combina su historial para valorar un efecto con todos los datos, sin eliminar ninguna respuesta. Puedes volver a separarlas cuando quieras. Revisa cada grupo antes de unirlo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le modèle de votre coach a lu les formulations et regroupé celles qu’il considère comme une même habitude. La fusion réunit leur historique afin d’évaluer un effet sur l’ensemble des données, sans jamais supprimer de réponse. Vous pouvez les séparer à tout moment. Vérifiez chaque groupe avant de le fusionner."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il modello del coach ha letto le formulazioni e raggruppato quelle che considera la stessa abitudine. L’unione combina la cronologia per valutare un effetto su tutti i dati, senza eliminare alcuna risposta. Puoi separarle di nuovo in qualsiasi momento. Controlla ogni gruppo prima di unirlo."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O modelo do coach leu as formulações e agrupou as que considera o mesmo hábito. A união combina o respetivo histórico para avaliar um efeito com todos os dados, sem eliminar qualquer resposta. Pode voltar a separá-las a qualquer momento. Verifique cada grupo antes de o unir."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Модель тренера прочитала формулировки и сгруппировала те, которые считает одной привычкой. Объединение связывает их историю, чтобы оценивать эффект по всем данным, не удаляя ни одного ответа. Их можно снова разделить в любое время. Проверяйте каждую группу перед объединением."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "教练模型读取了问题表述，并将它认为属于同一习惯的问题分组。合并会连接它们的历史记录，让效果基于全部数据进行排名，但不会删除任何回答；你可以随时再次分开。请在合并前检查每个分组。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "教練模型讀取了問題表述，並將它認為屬於同一習慣的問題分組。合併會連接它們的歷史記錄，讓效果根據全部資料進行排名，但不會刪除任何回答；你可以隨時再次分開。請在合併前檢查每個群組。"
           }
         }
       }

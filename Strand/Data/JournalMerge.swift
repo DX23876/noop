@@ -48,8 +48,9 @@ enum JournalMerge {
                 // Negative index so that, all else equal, the LAST row wins — `mergeJournal`'s
                 // last-write-wins within a list (two imported source ids can carry the same day and
                 // question), preserved.
+                let aliasRank = aliasOrder[key].map { $0 + 1 } ?? Int.max - 1
                 let rank = (isNative ? 0 : 1,
-                            target == nil ? 0 : (aliasOrder[key] ?? Int.max - 1),
+                            target == nil ? 0 : aliasRank,
                             -index)
                 if let existing = best[bucket], existing.rank <= rank { continue }
                 let folded = target == nil ? entry : JournalEntry(day: entry.day,
@@ -75,7 +76,7 @@ enum JournalMerge {
             let key = JournalCatalogStore.norm(question)
             let target = aliases[key]
             let resolved = target ?? question
-            let candidate = target == nil ? 0 : (aliasOrder[key] ?? Int.max - 1)
+            let candidate = target == nil ? 0 : aliasOrder[key].map { $0 + 1 } ?? Int.max - 1
             if let held = rank[resolved], held <= candidate { continue }
             out[resolved] = value
             rank[resolved] = candidate
@@ -89,110 +90,32 @@ enum JournalMerge {
         aliases[JournalCatalogStore.norm(question)] ?? question
     }
 
-    // MARK: - Finding duplicates worth offering
+    // MARK: - The merges offered for review
 
-    /// Two questions to offer as one, with the similarity that suggested them.
+    /// Two or more wordings to offer as one question.
+    ///
+    /// Finding them is NOT done here. Word-overlap scoring used to live in this file and was removed:
+    /// it failed at both ends of the same limit. "Ein Magnesiumpräparat eingenommen?" and "Ein
+    /// Zinkpräparat eingenommen?" share only their German frame, and a tokeniser with an English-only
+    /// stopword list counted `ein`/`eingenommen` as agreement — two different supplements scored as a
+    /// duplicate. Meanwhile "Alkohol konsumiert?" and "Did you drink any alcohol?" share not one
+    /// token, so the real duplicate scored zero. No weighting fixes both: telling magnesium from zinc
+    /// takes knowing what they are, which is what `AICoachEngine.journalDuplicateCandidates`
+    /// (`Strand/AI/JournalDuplicateReviewer.swift`) asks a model for.
     struct Candidate: Equatable, Identifiable {
         let questions: [String]
-        /// The wording proposed as the survivor — the one with the most stored answers.
+        /// The wording proposed as the survivor. The user can pick a different one before merging.
         let suggestedTarget: String
-        let similarity: Double
         var id: String { questions.joined(separator: "\u{1F}") }
     }
 
-    /// Jaccard at or above this, on the comparison tokens below, makes a pair a candidate.
-    static let jaccardThreshold = 0.5
-    /// …or the shorter question's tokens being this contained in the longer one's ("Magnesium?" inside
-    /// "Did you take magnesium?"), which similarity alone would miss.
-    static let containmentThreshold = 0.8
-
-    /// Interrogative openers that carry no meaning for the comparison: WHOOP's re-wordings differ
-    /// mostly in these ("Did you drink…" / "Have you had…"), which is exactly the noise to drop.
-    private static let openers = ["did you", "have you", "do you", "any", "were you", "was your"]
-
-    /// The tokens two questions are compared on: `CoachMemory.tokens` (lowercased, letters/digits,
-    /// ≥ 3 characters, stopwords removed — the same tokeniser the coach's own duplicate check uses)
-    /// over the question with its opener and question mark removed.
-    static func comparisonTokens(_ question: String) -> Set<String> {
-        var s = JournalCatalogStore.norm(question)
-        s = s.replacingOccurrences(of: "?", with: " ")
-        for opener in openers where s.hasPrefix(opener + " ") {
-            s = String(s.dropFirst(opener.count + 1))
-            break
-        }
-        return Set(CoachMemory.tokens(s).map(stem))
-    }
-
-    /// Crude, deliberate suffix trim so a re-worded question still matches: "Did you **use** a sauna?"
-    /// against "Have you **used** a sauna?". WHOOP's re-wordings change the verb form as often as the
-    /// opener, and without this such a pair scores far below any sane threshold.
-    ///
-    /// Not a real stemmer, and not trying to be: it only strips -ing / -ed and then a trailing -s, in
-    /// that order, so that "stress" and "stressed" land on the same string. It never touches a word
-    /// short enough for the trim to change its meaning, and false friends cost only a proposal the
-    /// user declines.
-    static func stem(_ token: String) -> String {
-        var t = token
-        if t.count > 4, t.hasSuffix("ing") { t = String(t.dropLast(3)) }
-        else if t.count > 3, t.hasSuffix("ed") { t = String(t.dropLast(2)) }
-        // The trailing -e matters: "used" trims to "us", and only dropping the e from "use" lands them
-        // on the same string. The output is a bucket, never shown to anyone.
-        if t.count > 2, t.hasSuffix("e") { t = String(t.dropLast()) }
-        if t.count > 3, t.hasSuffix("s") { t = String(t.dropLast()) }
-        return t
-    }
-
-    /// How alike two questions read, 0…1. Jaccard, lifted to the containment score when one question
-    /// is a shortening of the other.
-    static func similarity(_ a: String, _ b: String) -> Double {
-        let ta = comparisonTokens(a), tb = comparisonTokens(b)
-        guard !ta.isEmpty, !tb.isEmpty else { return 0 }
-        let shared = Double(ta.intersection(tb).count)
-        let jaccard = shared / Double(ta.union(tb).count)
-        let containment = shared / Double(min(ta.count, tb.count))
-        return containment >= containmentThreshold ? max(jaccard, containment) : jaccard
-    }
-
-    /// Group the catalog's questions into merge candidates, most similar first.
-    ///
-    /// Only offers, never decides: the thresholds are deliberately generous because a proposal costs
-    /// a glance, while a wrong automatic merge would quietly reshape the analysis. `dismissed` holds
-    /// pairs the user has already waved away (`pairKey`), `counts` the stored answers per question —
-    /// the wording with the most of them is proposed as the survivor, so the smaller history is the
-    /// one that moves.
-    static func candidates(questions: [String],
-                           counts: [String: Int],
-                           dismissed: Set<String> = []) -> [Candidate] {
-        let cleaned = questions
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-        var groups: [[String]] = []
-        var placed = Set<String>()
-
-        for (i, a) in cleaned.enumerated() {
-            if placed.contains(JournalCatalogStore.norm(a)) { continue }
-            var group = [a]
-            for b in cleaned.dropFirst(i + 1) {
-                let bKey = JournalCatalogStore.norm(b)
-                guard !placed.contains(bKey), !dismissed.contains(pairKey(a, b)) else { continue }
-                guard similarity(a, b) >= jaccardThreshold else { continue }
-                group.append(b)
-                placed.insert(bKey)
-            }
-            if group.count > 1 {
-                placed.insert(JournalCatalogStore.norm(a))
-                groups.append(group)
-            }
-        }
-
-        return groups.map { group in
-            let target = group.max { lhs, rhs in
-                (counts[lhs] ?? 0, rhs) < (counts[rhs] ?? 0, lhs)
-            } ?? group[0]
-            let worst = group.dropFirst().map { similarity(group[0], $0) }.min() ?? 0
-            return Candidate(questions: group, suggestedTarget: target, similarity: worst)
-        }
-        .sorted { ($0.similarity, $1.id) > ($1.similarity, $0.id) }
+    /// The wording proposed as the survivor of a group: the one carrying the most stored answers, so
+    /// the smaller history is the one that moves. Ties break on the wording itself, so the suggestion
+    /// is stable across runs rather than dependent on dictionary order.
+    static func suggestedTarget(for group: [String], counts: [String: Int]) -> String {
+        // `max` only returns nil on an empty group, which no caller produces — but a helper reached
+        // from a model reply is the wrong place to trap on it.
+        group.max { lhs, rhs in (counts[lhs] ?? 0, rhs) < (counts[rhs] ?? 0, lhs) } ?? group.first ?? ""
     }
 
     /// Order-independent key for "these two were offered together", so dismissing a pair sticks
@@ -200,5 +123,17 @@ enum JournalMerge {
     static func pairKey(_ a: String, _ b: String) -> String {
         let x = JournalCatalogStore.norm(a), y = JournalCatalogStore.norm(b)
         return x < y ? x + "\u{1F}" + y : y + "\u{1F}" + x
+    }
+
+    /// Whether the user has already waved away any pair inside this group. One dismissed pair kills the
+    /// whole group rather than shrinking it: the group is a claim that all of these are one habit, and
+    /// re-offering it minus the pair would put the same rejected question back in front of the user
+    /// under a slightly different heading.
+    static func isDismissed(_ group: [String], dismissed: Set<String>) -> Bool {
+        guard !dismissed.isEmpty else { return false }
+        for (i, a) in group.enumerated() {
+            for b in group.dropFirst(i + 1) where dismissed.contains(pairKey(a, b)) { return true }
+        }
+        return false
     }
 }
