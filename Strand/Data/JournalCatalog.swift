@@ -183,6 +183,9 @@ final class JournalCatalogStore: ObservableObject {
     func resolvedItems(imported: [String], includeHidden: Bool = false) -> [JournalCatalogItem] {
         var byKey: [String: JournalCatalogItem] = [:]
         for it in items { byKey[Self.norm(it.canonical)] = it }
+        // A merged-away wording is not a row of its own any more: it reads as its target, which is in
+        // this list already. Dropping it here is the whole visible half of a merge.
+        let aliased = Set(aliasMap().keys)
 
         var out: [JournalCatalogItem] = []
         var seen = Set<String>()
@@ -190,7 +193,7 @@ final class JournalCatalogStore: ObservableObject {
         for q in imported + Self.starterQuestions {
             let t = q.trimmingCharacters(in: .whitespacesAndNewlines)
             let key = Self.norm(q)
-            guard !t.isEmpty, seen.insert(key).inserted else { continue }
+            guard !t.isEmpty, !aliased.contains(key), seen.insert(key).inserted else { continue }
             if let saved = byKey[key] {
                 out.append(saved)
             } else {
@@ -201,12 +204,103 @@ final class JournalCatalogStore: ObservableObject {
             }
         }
         // Custom items (present only in `items`, never in imported/starter) come after the merge.
-        for it in items where it.custom && !seen.contains(Self.norm(it.canonical)) {
+        for it in items where it.custom && !seen.contains(Self.norm(it.canonical))
+            && !aliased.contains(Self.norm(it.canonical)) {
             seen.insert(Self.norm(it.canonical))
             out.append(it)
         }
         if !includeHidden { out.removeAll { $0.hidden } }
         return out
+    }
+
+    // MARK: - Merging duplicate questions (v3)
+
+    /// `norm(folded question) → the canonical it now reads as`, for every merge in the catalog.
+    ///
+    /// Keyed on `norm` so a folded wording matches however the export cased or spaced it, exactly like
+    /// every other identity check here. A target never maps to itself, and the map is empty until the
+    /// user merges something, so every read path below is a no-op on an untouched catalog.
+    func aliasMap() -> [String: String] {
+        Self.aliasMap(items)
+    }
+
+    nonisolated static func aliasMap(_ items: [JournalCatalogItem]) -> [String: String] {
+        var out: [String: String] = [:]
+        for item in items {
+            for alias in item.aliases {
+                let key = norm(alias)
+                guard !key.isEmpty, key != norm(item.canonical) else { continue }
+                out[key] = item.canonical
+            }
+        }
+        return out
+    }
+
+    /// `norm(folded question) → its position in its target's alias list`, i.e. the order the user
+    /// merged them in. That order is the last tie-break when two folded wordings answer the same day,
+    /// so it has to be carried alongside the map itself.
+    nonisolated static func aliasOrder(_ items: [JournalCatalogItem]) -> [String: Int] {
+        var out: [String: Int] = [:]
+        for item in items {
+            for (index, alias) in item.aliases.enumerated() {
+                out[norm(alias)] = index
+            }
+        }
+        return out
+    }
+
+    /// The persisted catalog's alias map, without an instance.
+    ///
+    /// `Repository` folds journal reads through this, and the catalog store is owned by a view
+    /// (`@StateObject` on the logging card) — so the map has to be readable from the persisted blob
+    /// rather than from whichever instance happens to exist.
+    nonisolated static func persistedItems(_ defaults: UserDefaults = .standard) -> [JournalCatalogItem] {
+        guard let blob = defaults.data(forKey: K.items),
+              let decoded = try? JSONDecoder().decode([JournalCatalogItem].self, from: blob) else { return [] }
+        return decoded
+    }
+
+    /// Fold `source` into `target`: the two read as one question from here on.
+    ///
+    /// Metadata only — not one journal row moves. `target` materialises as a saved item if it was a
+    /// plain starter/imported question, and inherits any aliases `source` had already collected (a
+    /// chain must not strand the questions behind it). Self-merges and duplicates are ignored.
+    func merge(_ source: String, into target: String) {
+        let sourceKey = Self.norm(source)
+        let targetKey = Self.norm(target)
+        let trimmed = source.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, sourceKey != targetKey else { return }
+
+        // Anything already folded onto the source has to come along, or it would point at a question
+        // that no longer appears anywhere.
+        var carried: [String] = []
+        if let idx = items.firstIndex(where: { Self.norm($0.canonical) == sourceKey }) {
+            carried = items[idx].aliases
+            items[idx].aliases = []
+        }
+
+        edit(target) { item in
+            for candidate in [trimmed] + carried {
+                let key = Self.norm(candidate)
+                guard key != Self.norm(item.canonical),
+                      !item.aliases.contains(where: { Self.norm($0) == key }) else { continue }
+                item.aliases.append(candidate)
+            }
+        }
+    }
+
+    /// Undo one merge: `source` reads as its own question again, with all of its rows — they never
+    /// went anywhere.
+    func unmerge(_ source: String) {
+        let key = Self.norm(source)
+        for idx in items.indices {
+            items[idx].aliases.removeAll { Self.norm($0) == key }
+        }
+    }
+
+    /// The questions folded onto `canonical`, verbatim, for the disclosure row that offers "Separate".
+    func aliases(of canonical: String) -> [String] {
+        item(for: canonical)?.aliases ?? []
     }
 
     // MARK: - Item lookup / edits (v2)
@@ -351,6 +445,16 @@ struct JournalCatalogItem: Equatable, Codable, Identifiable {
     var hidden: Bool
     /// True for a user-added question (deletable); false for a starter/imported one (hideable only).
     var custom: Bool
+    /// Other question strings the user has folded ONTO this one, verbatim, in the order they were
+    /// merged (that order is the tie-break when two of them answer the same day).
+    ///
+    /// A WHOOP export carries several wordings for the same habit — WHOOP re-worded its journal
+    /// questions over the years and the importer keeps `question_text` verbatim on purpose — and the
+    /// question string is the key everywhere: the `journal` table's primary key, `byBehaviour` in
+    /// Insights, the coach's pattern analyser. Two wordings therefore read as two habits, each with
+    /// half the history. An alias folds them at READ time only: no row is rewritten, moved or deleted,
+    /// and removing the alias restores the split exactly.
+    var aliases: [String]
 
     var id: String { canonical }
 
@@ -360,7 +464,7 @@ struct JournalCatalogItem: Equatable, Codable, Identifiable {
     }
 
     init(canonical: String, displayName: String?, kind: JournalKind, group: JournalGroup,
-         sortIndex: Int, hidden: Bool, custom: Bool) {
+         sortIndex: Int, hidden: Bool, custom: Bool, aliases: [String] = []) {
         self.canonical = canonical
         self.displayName = displayName
         self.kind = kind
@@ -368,5 +472,21 @@ struct JournalCatalogItem: Equatable, Codable, Identifiable {
         self.sortIndex = sortIndex
         self.hidden = hidden
         self.custom = custom
+        self.aliases = aliases
+    }
+
+    /// `aliases` decodes as empty for every catalog blob written before merging existed — the same
+    /// back-compat shape `ChatMessage.memoryWrites` uses, so an existing `journal.catalog.v2` loads
+    /// unchanged instead of being discarded.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        canonical = try c.decode(String.self, forKey: .canonical)
+        displayName = try c.decodeIfPresent(String.self, forKey: .displayName)
+        kind = try c.decode(JournalKind.self, forKey: .kind)
+        group = try c.decode(JournalGroup.self, forKey: .group)
+        sortIndex = try c.decode(Int.self, forKey: .sortIndex)
+        hidden = try c.decode(Bool.self, forKey: .hidden)
+        custom = try c.decode(Bool.self, forKey: .custom)
+        aliases = try c.decodeIfPresent([String].self, forKey: .aliases) ?? []
     }
 }

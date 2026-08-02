@@ -504,14 +504,18 @@ final class CoachMemory: ObservableObject {
     // MARK: - Text helpers
 
     /// Very small stopword set so keyword overlap keys on the meaningful words.
-    private static let stopwords: Set<String> = [
+    nonisolated private static let stopwords: Set<String> = [
         "the", "a", "an", "and", "or", "but", "to", "of", "in", "on", "for", "with", "my", "me", "i",
         "is", "are", "was", "were", "be", "do", "does", "did", "how", "what", "why", "when", "should",
         "about", "your", "you", "this", "that", "it", "at", "as", "so", "if", "can", "will", "im"
     ]
 
     /// Lowercased, punctuation-stripped word tokens ≥ 3 chars, stopwords removed.
-    static func tokens(_ s: String) -> Set<String> {
+    ///
+    /// `nonisolated` because it is pure and shared: the journal's duplicate finder compares question
+    /// wordings with the very same tokeniser this file's own near-duplicate check uses, and it has no
+    /// business hopping to the main actor to split a string.
+    nonisolated static func tokens(_ s: String) -> Set<String> {
         let lowered = s.lowercased()
         let parts = lowered.split { !$0.isLetter && !$0.isNumber }
         return Set(parts.map(String.init).filter { $0.count >= 3 && !stopwords.contains($0) })

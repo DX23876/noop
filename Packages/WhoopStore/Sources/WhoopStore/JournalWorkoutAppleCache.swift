@@ -230,6 +230,28 @@ extension WhoopStore {
         }
     }
 
+    /// How many answers each distinct question holds, across the given sources.
+    ///
+    /// For the duplicate review, which needs the weight behind each wording ("412 answers" vs "87") to
+    /// propose the survivor. Counted in SQL rather than by reading every row into memory: a multi-year
+    /// import is tens of thousands of rows and the caller only wants a tally per question.
+    public func journalQuestionCounts(deviceIds: [String]) async throws -> [String: Int] {
+        guard !deviceIds.isEmpty else { return [:] }
+        let placeholders = Array(repeating: "?", count: deviceIds.count).joined(separator: ",")
+        return try syncRead { db in
+            var out: [String: Int] = [:]
+            let rows = try Row.fetchAll(db, sql: """
+                SELECT question, COUNT(*) AS n FROM journal
+                WHERE deviceId IN (\(placeholders))
+                GROUP BY question
+                """, arguments: StatementArguments(deviceIds))
+            // Summed across sources on the Swift side: the same question can be banked under the
+            // active strap id AND the canonical one.
+            for row in rows { out[row["question"], default: 0] += row["n"] as Int }
+            return out
+        }
+    }
+
     /// Workouts overlapping [from, to] (by startTs), oldest first.
     public func workouts(deviceId: String, from: Int, to: Int, limit: Int) async throws -> [WorkoutRow] {
         try syncRead { db in

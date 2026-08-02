@@ -186,6 +186,148 @@ final class JournalLogicTests: XCTestCase {
         XCTAssertNotEqual(key, "hrv")
     }
 
+    // MARK: - Merging duplicate WHOOP wordings
+    //
+    // A WHOOP export carries several wordings for the same habit, and the question string is the key
+    // everywhere — the journal's primary key, `byBehaviour`, the coach's analyser — so two wordings
+    // read as two habits with half the history each. Merging folds them at READ time: these pin that
+    // nothing is invented, nothing is lost, and the winner on a contested day is predictable.
+
+    private func alias(_ target: String, _ folded: [String]) -> [JournalCatalogItem] {
+        [JournalCatalogItem(canonical: target, displayName: nil, kind: .bool, group: .other,
+                            sortIndex: 0, hidden: false, custom: false, aliases: folded)]
+    }
+
+    func testAliasMapIsKeyedLikeEveryOtherIdentityCheck() {
+        let items = alias("Did you drink any alcohol?", ["  HAVE you had ALCOHOL? \n"])
+        let map = JournalCatalogStore.aliasMap(items)
+        XCTAssertEqual(map[JournalCatalogStore.norm("Have you had alcohol?")], "Did you drink any alcohol?")
+        XCTAssertTrue(JournalCatalogStore.aliasMap([]).isEmpty)
+    }
+
+    func testAnUntouchedCatalogFoldsExactlyLikeMergeJournal() {
+        // The zero-merge path must be the old behaviour, not merely similar to it.
+        let imported = [e("2026-06-09", "Did you drink any alcohol?", false)]
+        let native = [e("2026-06-09", "Did you drink any alcohol?", true)]
+        XCTAssertEqual(JournalMerge.fold(imported: imported, native: native, aliases: [:]),
+                       Repository.mergeJournal(imported: imported, native: native))
+    }
+
+    func testFoldedDayKeepsOneRealRowAndNeverOrsTheAnswers() {
+        // Both wordings answered the same day, and they disagree. The result is ONE of them verbatim —
+        // never "yes because somewhere it said yes".
+        let map = [JournalCatalogStore.norm("Alcohol?"): "Did you drink any alcohol?"]
+        let folded = JournalMerge.fold(
+            imported: [e("2026-06-09", "Did you drink any alcohol?", false),
+                       e("2026-06-09", "Alcohol?", true)],
+            native: [], aliases: map)
+        XCTAssertEqual(folded.count, 1)
+        XCTAssertEqual(folded[0].question, "Did you drink any alcohol?")
+        XCTAssertFalse(folded[0].answeredYes, "the target's own row outranks a folded wording")
+    }
+
+    func testNativeBeatsImportedAcrossAMerge() {
+        // The user's own answer is their most recent statement, whichever wording carries it — the
+        // same precedence mergeJournal already applies within one question.
+        let map = [JournalCatalogStore.norm("Alcohol?"): "Did you drink any alcohol?"]
+        let folded = JournalMerge.fold(
+            imported: [e("2026-06-09", "Did you drink any alcohol?", false)],
+            native: [e("2026-06-09", "Alcohol?", true)],
+            aliases: map)
+        XCTAssertEqual(folded.count, 1)
+        XCTAssertTrue(folded[0].answeredYes)
+        XCTAssertEqual(folded[0].question, "Did you drink any alcohol?", "renamed onto the target")
+    }
+
+    func testEarlierMergeWinsBetweenTwoFoldedWordings() {
+        let target = "Did you drink any alcohol?"
+        let map = [JournalCatalogStore.norm("Alcohol?"): target,
+                   JournalCatalogStore.norm("Any booze?"): target]
+        let order = JournalCatalogStore.aliasOrder(alias(target, ["Alcohol?", "Any booze?"]))
+        let folded = JournalMerge.fold(imported: [e("2026-06-09", "Any booze?", false),
+                                                  e("2026-06-09", "Alcohol?", true)],
+                                       native: [], aliases: map, aliasOrder: order)
+        XCTAssertEqual(folded.count, 1)
+        XCTAssertTrue(folded[0].answeredYes, "the first-merged wording wins the tie")
+    }
+
+    func testFoldingLosesNoDayAndTouchesNoUnmergedRow() {
+        let map = [JournalCatalogStore.norm("Alcohol?"): "Did you drink any alcohol?"]
+        let input = [e("2026-06-09", "Alcohol?", true),
+                     e("2026-06-10", "Did you drink any alcohol?", false),
+                     e("2026-06-11", "Did you take magnesium?", true)]
+        let folded = JournalMerge.fold(imported: input, native: [], aliases: map)
+        XCTAssertEqual(Set(folded.map(\.day)), Set(input.map(\.day)), "no day disappears")
+        XCTAssertEqual(folded.first { $0.day == "2026-06-11" }?.question, "Did you take magnesium?",
+                       "an unmerged question is passed through untouched")
+    }
+
+    @MainActor
+    func testMergedWordingLeavesTheListAndComesBackOnSeparate() {
+        let store = JournalCatalogStore()
+        store.items = []
+        let target = "Did you drink any alcohol?"
+        store.merge("Alcohol?", into: target)
+        let merged = store.resolvedItems(imported: ["Alcohol?", target])
+        XCTAssertFalse(merged.contains { $0.canonical == "Alcohol?" })
+        XCTAssertTrue(merged.contains { $0.canonical == target })
+
+        store.unmerge("Alcohol?")
+        let separated = store.resolvedItems(imported: ["Alcohol?", target])
+        XCTAssertTrue(separated.contains { $0.canonical == "Alcohol?" }, "nothing was destroyed")
+    }
+
+    @MainActor
+    func testMergingACollectorCarriesItsOwnAliasesAlong() {
+        // A → B, then B → C. Without carrying A over it would point at a question that is no longer
+        // anywhere, and its history would drop out of the fold entirely.
+        let store = JournalCatalogStore()
+        store.items = []
+        store.merge("Alcohol?", into: "Any booze?")
+        store.merge("Any booze?", into: "Did you drink any alcohol?")
+        let map = store.aliasMap()
+        XCTAssertEqual(map[JournalCatalogStore.norm("Alcohol?")], "Did you drink any alcohol?")
+        XCTAssertEqual(map[JournalCatalogStore.norm("Any booze?")], "Did you drink any alcohol?")
+    }
+
+    // MARK: - Finding the candidates
+
+    func testAShorteningIsACandidateButAnUnrelatedQuestionIsNot() {
+        let questions = ["Did you take magnesium?", "Magnesium?", "Did you drink any alcohol?"]
+        let candidates = JournalMerge.candidates(questions: questions,
+                                                 counts: ["Did you take magnesium?": 88, "Magnesium?": 9])
+        XCTAssertEqual(candidates.count, 1)
+        XCTAssertEqual(Set(candidates[0].questions), ["Did you take magnesium?", "Magnesium?"])
+        XCTAssertEqual(candidates[0].suggestedTarget, "Did you take magnesium?",
+                       "the wording with the most answers survives, so the smaller history moves")
+    }
+
+    func testDifferentOpenersAroundTheSameWordsAreACandidate() {
+        // The WHOOP re-wording case: the opener and the verb form change, the meaning does not.
+        let candidates = JournalMerge.candidates(
+            questions: ["Did you use a sauna?", "Have you used a sauna?"], counts: [:])
+        XCTAssertEqual(candidates.count, 1)
+    }
+
+    func testTheSuffixTrimIsBluntButNotIndiscriminate() {
+        // It exists so "use"/"used" and "stress"/"stressed" meet; it must not drag unrelated
+        // questions together on the way.
+        XCTAssertEqual(JournalMerge.stem("used"), JournalMerge.stem("use"))
+        XCTAssertEqual(JournalMerge.stem("stressed"), JournalMerge.stem("stress"))
+        XCTAssertEqual(JournalMerge.stem("sauna"), "sauna")
+        XCTAssertTrue(JournalMerge.candidates(
+            questions: ["Did you feel stressed?", "Did you read before bed?"], counts: [:]).isEmpty)
+    }
+
+    func testADismissedPairIsNotProposedAgain() {
+        let pair = JournalMerge.pairKey("Magnesium?", "Did you take magnesium?")
+        let candidates = JournalMerge.candidates(questions: ["Did you take magnesium?", "Magnesium?"],
+                                                 counts: [:], dismissed: [pair])
+        XCTAssertTrue(candidates.isEmpty)
+        XCTAssertEqual(pair, JournalMerge.pairKey("Did you take magnesium?", "Magnesium?"),
+                       "the key is order-independent, so dismissing sticks either way round")
+    }
+
     // MARK: - Grouping the catalog
     //
     // The card buckets the resolved catalog ONCE per render and hands each group its slice. It used to

@@ -2119,7 +2119,51 @@ final class Repository: ObservableObject {
     /// then delete imported rows. A separate device id keeps the two streams independent.
     static let journalDeviceId = "noop-journal"
 
+    /// The questions the user has merged, as `norm(folded) → target` plus the merge order, refreshed
+    /// from the persisted catalog. Cached because every journal read consults it; the catalog is
+    /// edited from the UI, which calls `journalAliasesChanged()` below.
+    private var journalAliasCache: (map: [String: String], order: [String: Int])?
+
+    private func journalAliases() -> (map: [String: String], order: [String: Int]) {
+        if let journalAliasCache { return journalAliasCache }
+        let items = JournalCatalogStore.persistedItems()
+        let fresh = (JournalCatalogStore.aliasMap(items), JournalCatalogStore.aliasOrder(items))
+        journalAliasCache = fresh
+        return fresh
+    }
+
+    /// Called by the catalog UI after a merge / un-merge so the next read folds by the new rule.
+    func journalAliasesChanged() {
+        journalAliasCache = nil
+        journalItemsCache = nil
+    }
+
+    private var journalItemsCache: [JournalCatalogItem]?
+
+    /// Every wording a question reads as, verbatim: itself, its merge target, and everything folded
+    /// onto that target. The `journal` primary key stores the exact string, so a delete has to name
+    /// each one.
+    private func journalWordings(of question: String) -> [String] {
+        let items = journalItemsCache ?? {
+            let fresh = JournalCatalogStore.persistedItems()
+            journalItemsCache = fresh
+            return fresh
+        }()
+        let target = JournalMerge.writeTarget(question, aliases: journalAliases().map)
+        let targetKey = JournalCatalogStore.norm(target)
+        var out = [question, target]
+        if let item = items.first(where: { JournalCatalogStore.norm($0.canonical) == targetKey }) {
+            out += item.aliases
+        }
+        var seen = Set<String>()
+        return out.filter { seen.insert(JournalCatalogStore.norm($0)).inserted }
+    }
+
     /// Logged behaviours (imported WHOOP journal ∪ native noop-journal) for correlation insights.
+    ///
+    /// Merged questions are folded HERE, at the one door the journal comes through, so Insights, the
+    /// coach's pattern analyser and the logging card can never disagree about what counts as one
+    /// behaviour. Nothing on disk changes — see `JournalMerge.fold` for the precedence rules.
     func journalEntries(days: Int = 4000) async -> [JournalEntry] {
         guard let store = await ensureStore() else { return [] }
         let now = Date()
@@ -2129,7 +2173,9 @@ final class Repository: ObservableObject {
         for id in importedReadIds { imported += (try? await store.journalEntries(deviceId: id, from: from, to: to)) ?? [] }
         let native = (try? await store.journalEntries(deviceId: Self.journalDeviceId,
                                                       from: from, to: to)) ?? []
-        return Self.mergeJournal(imported: imported, native: native)
+        let aliases = journalAliases()
+        return JournalMerge.fold(imported: imported, native: native,
+                                 aliases: aliases.map, aliasOrder: aliases.order)
     }
 
     /// Imported journal rows only (used by the logging card to adopt the export's exact question
@@ -2141,7 +2187,19 @@ final class Repository: ObservableObject {
         let to = Self.dayString(now.addingTimeInterval(86_400))
         var rows: [JournalEntry] = []
         for id in importedReadIds { rows += (try? await store.journalEntries(deviceId: id, from: from, to: to)) ?? [] }
-        return rows
+        // Folded here too: this list is what the catalog adopts as its question wordings, so a merged
+        // wording must not come back in through the side door and re-appear as its own row.
+        let aliases = journalAliases()
+        return JournalMerge.fold(imported: rows, native: [],
+                                 aliases: aliases.map, aliasOrder: aliases.order)
+    }
+
+    /// Answers per question wording, across the imported sources AND the native one — the weight
+    /// behind each candidate in the duplicate review. Counted in SQL (`GROUP BY question`).
+    func journalQuestionCounts() async -> [String: Int] {
+        guard let store = await ensureStore() else { return [:] }
+        return (try? await store.journalQuestionCounts(
+            deviceIds: importedReadIds + [Self.journalDeviceId])) ?? [:]
     }
 
     /// Native journal rows only ("noop-journal"). The other half of `journalEntries()`: a caller that
@@ -2154,7 +2212,10 @@ final class Repository: ObservableObject {
         let now = Date()
         let from = Self.dayString(now.addingTimeInterval(-Double(days) * 86_400))
         let to = Self.dayString(now.addingTimeInterval(86_400))
-        return (try? await store.journalEntries(deviceId: Self.journalDeviceId, from: from, to: to)) ?? []
+        let rows = (try? await store.journalEntries(deviceId: Self.journalDeviceId, from: from, to: to)) ?? []
+        let aliases = journalAliases()
+        return JournalMerge.fold(imported: [], native: rows,
+                                 aliases: aliases.map, aliasOrder: aliases.order)
     }
 
     /// One day's native answers (question → answeredYes) for the logging card's chip state. A
@@ -2163,8 +2224,10 @@ final class Repository: ObservableObject {
         guard let store = await ensureStore() else { return [:] }
         let rows = (try? await store.journalEntries(deviceId: Self.journalDeviceId,
                                                     from: day, to: day)) ?? []
-        return Dictionary(rows.map { ($0.question, $0.answeredYes) },
-                          uniquingKeysWith: { _, last in last })
+        let answers = Dictionary(rows.map { ($0.question, $0.answeredYes) },
+                                 uniquingKeysWith: { _, last in last })
+        let aliases = journalAliases()
+        return JournalMerge.foldDay(answers, aliases: aliases.map, aliasOrder: aliases.order)
     }
 
     /// One day's native numeric values (question → value) for the logging card's numeric fields.
@@ -2175,7 +2238,8 @@ final class Repository: ObservableObject {
                                                     from: day, to: day)) ?? []
         var out: [String: Double] = [:]
         for r in rows { if let v = r.numericValue { out[r.question] = v } }
-        return out
+        let aliases = journalAliases()
+        return JournalMerge.foldDay(out, aliases: aliases.map, aliasOrder: aliases.order)
     }
 
     /// Distinct local-day keys (yyyy-MM-dd) in the inclusive range [from, to] that carry at least one
@@ -2233,6 +2297,9 @@ final class Repository: ObservableObject {
     /// Write one native answer (day per the importer's wake-day convention).
     func saveJournalAnswer(day: String, question: String, answeredYes: Bool, notes: String? = nil) async {
         guard let store = await ensureStore() else { return }
+        // A merged-away wording is not somewhere new answers should land: write under the question the
+        // user actually sees. The old rows stay exactly where they are.
+        let question = JournalMerge.writeTarget(question, aliases: journalAliases().map)
         _ = try? await store.upsertJournal(
             [JournalEntry(day: day, question: question, answeredYes: answeredYes, notes: notes)],
             deviceId: Self.journalDeviceId)
@@ -2244,6 +2311,7 @@ final class Repository: ObservableObject {
     /// while the value is carried for dose-response. Day per the importer's wake-day convention.
     func saveJournalNumeric(day: String, question: String, value: Double, notes: String? = nil) async {
         guard let store = await ensureStore() else { return }
+        let question = JournalMerge.writeTarget(question, aliases: journalAliases().map)
         _ = try? await store.upsertJournal(
             [JournalEntry(day: day, question: question, answeredYes: true, notes: notes,
                           numericValue: value)],
@@ -2268,7 +2336,14 @@ final class Repository: ObservableObject {
     /// Clear one native answer (never touches imported rows , scoped to the dedicated source id).
     func clearJournalAnswer(day: String, question: String) async {
         guard let store = await ensureStore() else { return }
-        _ = try? await store.deleteJournal(deviceId: Self.journalDeviceId, day: day, question: question)
+        // Clearing a merged question clears the native row under EVERY wording it reads as — otherwise
+        // a folded-away row would surface again the moment the target's row was gone, and the chip
+        // would refuse to empty. Verbatim wordings, because that is what the primary key stores.
+        // Imported rows are never touched: this is scoped to "noop-journal" as it always was.
+        for wording in journalWordings(of: question) {
+            _ = try? await store.deleteJournal(deviceId: Self.journalDeviceId, day: day,
+                                               question: wording)
+        }
         scheduleJournalIndexRefresh()
     }
 

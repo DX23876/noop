@@ -66,6 +66,16 @@ struct JournalLogCard: View {
     /// `refreshGrouped()` exactly when one of them does.
     @State private var grouped: [JournalGroup: [JournalCatalogItem]] = [:]
 
+    /// Merge candidates for the review sheet, and the per-wording answer counts behind them.
+    @State private var duplicateCandidates: [JournalMerge.Candidate] = []
+    @State private var duplicateCounts: [String: Int] = [:]
+    @State private var showingDuplicates = false
+    /// Pairs the user has waved away, newline-joined so the list stops proposing them every time.
+    @AppStorage("journal.dismissedDuplicatePairs") private var dismissedPairsRaw = ""
+    private var dismissedPairs: Set<String> {
+        Set(dismissedPairsRaw.split(separator: "\n").map(String.init))
+    }
+
     @State private var customDraft = ""
     @State private var customIsNumeric = false
     @State private var customGroup: JournalGroup = .other
@@ -147,6 +157,10 @@ struct JournalLogCard: View {
                         .foregroundStyle(StrandPalette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
 
+                    if editing, !duplicateCandidates.isEmpty {
+                        duplicatesRow
+                    }
+
                     ForEach(JournalGroup.displayOrder, id: \.self) { group in
                         groupBlock(group, items: grouped[group] ?? [],
                                    collapsed: collapsed.contains(group.rawValue))
@@ -158,6 +172,8 @@ struct JournalLogCard: View {
             }
         }
         .sheet(item: $renaming) { item in renameSheet(item) }
+        .sheet(isPresented: $showingDuplicates) { duplicatesSheet }
+        .task(id: editing) { await refreshDuplicates() }
         // The selected day's answers, re-read on arrival, on a pill switch, and on a calendar-day
         // rollover. Two single-day queries — nothing here depends on the host's history load.
         .task(id: JournalDayKey(offset: dayOffset, anchor: dayAnchor)) { await loadDay() }
@@ -173,6 +189,153 @@ struct JournalLogCard: View {
     private func refreshGrouped() {
         grouped = Self.itemsByGroup(catalog.resolvedItems(imported: importedQuestions,
                                                           includeHidden: editing))
+    }
+
+    // MARK: - Duplicate questions (WHOOP re-wordings)
+
+    /// The row that opens the review. Only in edit mode, and only when there is something to review —
+    /// a tidy catalog never sees it.
+    private var duplicatesRow: some View {
+        Button { showingDuplicates = true } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.triangle.merge")
+                    .font(StrandFont.body)
+                    .foregroundStyle(StrandPalette.accent)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Possible duplicates (\(duplicateCandidates.count))")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                    Text("A WHOOP export can carry several wordings for the same habit, which splits its history.")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(StrandPalette.textTertiary)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Recompute the candidate list: every question currently in the catalog, weighed by how many
+    /// answers each wording actually holds. Cheap to run (one grouped query + a pure comparison), so it
+    /// refreshes whenever edit mode opens or a merge changes the catalog.
+    private func refreshDuplicates() async {
+        guard editing else { duplicateCandidates = []; return }
+        let counts = await repo.journalQuestionCounts()
+        let questions = catalog.resolvedItems(imported: importedQuestions, includeHidden: true)
+            .map(\.canonical)
+        duplicateCandidates = JournalMerge.candidates(questions: questions,
+                                                      counts: counts,
+                                                      dismissed: dismissedPairs)
+        duplicateCounts = counts
+    }
+
+    private func applyMerge(_ candidate: JournalMerge.Candidate, target: String) {
+        for question in candidate.questions where question != target {
+            catalog.merge(question, into: target)
+        }
+        repo.journalAliasesChanged()
+        refreshGrouped()
+        Task {
+            await loadDay()          // the shown day now reads through the merge
+            await refreshDuplicates()
+            onChanged()              // the derived analysis has to re-rank on the joined history
+        }
+    }
+
+    private var duplicatesSheet: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
+                    Text("These questions look like the same habit written differently. Merging joins their history so an effect is ranked on all of it, and never deletes an answer — separate them again at any time.")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    ForEach(duplicateCandidates) { candidate in
+                        candidateCard(candidate)
+                    }
+
+                    if duplicateCandidates.isEmpty {
+                        Text("Nothing left to review.")
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                    }
+                }
+                .padding(NoopMetrics.space4)
+            }
+            .navigationTitle("Possible duplicates")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") { showingDuplicates = false }
+                }
+            }
+        }
+    }
+
+    private func candidateCard(_ candidate: JournalMerge.Candidate) -> some View {
+        NoopCard {
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(candidate.questions, id: \.self) { question in
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Image(systemName: question == candidate.suggestedTarget
+                              ? "largecircle.fill.circle" : "circle")
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(question == candidate.suggestedTarget
+                                             ? StrandPalette.accent : StrandPalette.textTertiary)
+                        Text(verbatim: question)      // data, not a UI literal
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.textPrimary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 8)
+                        Text("\(duplicateCounts[question] ?? 0)")
+                            .font(StrandFont.number(13))
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .accessibilityLabel("\(duplicateCounts[question] ?? 0) answers")
+                    }
+                }
+                // The wording with the most answers survives, so the smaller history is the one that
+                // moves — and it is named, not implied.
+                Text("Keeps: \(candidate.suggestedTarget)")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 10) {
+                    Button("Merge") { applyMerge(candidate, target: candidate.suggestedTarget) }
+                        .buttonStyle(.borderedProminent)
+                    Button("Not the same") { dismiss(candidate) }
+                        .buttonStyle(.bordered)
+                }
+            }
+        }
+    }
+
+    /// Undo one merge. The rows were never touched, so this is the same three steps as a merge — the
+    /// question simply reads as itself again.
+    private func unmerge(_ alias: String) {
+        catalog.unmerge(alias)
+        repo.journalAliasesChanged()
+        refreshGrouped()
+        Task {
+            await loadDay()
+            await refreshDuplicates()
+            onChanged()
+        }
+    }
+
+    private func dismiss(_ candidate: JournalMerge.Candidate) {
+        var pairs = dismissedPairs
+        for (i, a) in candidate.questions.enumerated() {
+            for b in candidate.questions.dropFirst(i + 1) { pairs.insert(JournalMerge.pairKey(a, b)) }
+        }
+        dismissedPairsRaw = pairs.sorted().joined(separator: "\n")
+        Task { await refreshDuplicates() }
     }
 
     // MARK: - The selected day
@@ -316,6 +479,15 @@ struct JournalLogCard: View {
                         Button("Change to Yes/No") { catalog.setKind(item.canonical, to: .bool) }
                     } else {
                         Button("Change to Number") { catalog.setKind(item.canonical, to: .numeric(unitLabel: nil)) }
+                    }
+                    // Every merge is undoable from the question it was merged into, and the wordings
+                    // are named verbatim so it is obvious which history comes back out.
+                    if !item.aliases.isEmpty {
+                        Menu("Separate") {
+                            ForEach(item.aliases, id: \.self) { alias in
+                                Button { unmerge(alias) } label: { Text(verbatim: alias) }
+                            }
+                        }
                     }
                 } label: {
                     Image(systemName: "slider.horizontal.3")
