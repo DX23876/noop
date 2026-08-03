@@ -32,6 +32,18 @@ enum AppChangelog {
             ]
         ),
         Release(
+            version: "9.3.1",
+            title: "Widgets stop inventing numbers, naps count toward sleep debt, and the Android status chips speak your language",
+            date: "August 2026",
+            items: [
+                "**iPhone widgets showed made-up numbers (#887).** A Home Screen widget that could not read your data fell back to the gallery sample. It now shows dashes when there is nothing to show, and sample values appear only in the widget gallery.",
+                "**Naps count toward sleep debt (#1041).** A separately-recorded nap now repays debt with its actual asleep minutes. Rest and the sleep headline still describe the main night only.",
+                "**Manual workouts on a second or re-added strap get their Avg HR back (#836).** The workout now reads heart rate under the active strap identity.",
+                "**A connected strap no longer says it is disconnected (#612).** Connected-without-data is represented honestly, with translated Android status chips.",
+                "**Effort agrees with itself on Today (#1001).** The hero ring, Key Metrics tile and chart badge now use the same current-day value.",
+            ]
+        ),
+        Release(
             version: "9.3.0-dx-beta",
             title: "Upstream 9.3.0, with the Coach still on Today and one place to arrange it",
             date: "July 2026",

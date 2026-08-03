@@ -1241,6 +1241,12 @@ fun TodayScreen(
             // hero. So on Android it's dismissible-into-the-inbox (restorable) like the calibrating note: a
             // small × tucks it into Updates so it isn't a fixed fixture between the header and the hero.
             if (selectedDayOffset == 0 && scoreState is ScoreState.CarriedLastNight && !carriedSleepDismissed) {
+                // Resolved HERE, not in the onClick below: dismissTodayCard runs from a non-composable
+                // lambda, and what it stores is what the Updates inbox later shows. Passing the raw
+                // `scoreState.title`/`.detail` filed the dismissed card in English while the card itself
+                // rendered localized — the same strings reaching a second sink. (#612)
+                val carriedTitle = scoreStateTitle(scoreState)
+                val carriedDetail = scoreStateDetail(scoreState)
                 Box(modifier = Modifier.fillMaxWidth()) {
                     ScoreStateNote(scoreState)
                     if (updateStore != null) {
@@ -1249,8 +1255,8 @@ fun TodayScreen(
                             onClick = {
                                 dismissTodayCard(
                                     CARD_CARRIED_SLEEP,
-                                    scoreState.title,
-                                    scoreState.detail,
+                                    carriedTitle,
+                                    carriedDetail,
                                 )
                             },
                         )
@@ -1409,8 +1415,7 @@ fun TodayScreen(
                                         modifier = Modifier.size(Metrics.iconSmall),
                                     )
                                     Text(
-                                        uiString(R.string.l10n_today_screen_no_cardio_load_yet_effort_builds_e952006c) +
-                                            "zone (around 50% of your heart-rate reserve). A calm day honestly reads near zero.",
+                                        uiString(R.string.l10n_today_screen_no_cardio_load_yet_effort_builds_e952006c),
                                         style = NoopType.footnote,
                                         color = Palette.textTertiary,
                                     )
@@ -4114,6 +4119,39 @@ private fun ContributorBar(label: String, readout: String, fraction: Double?, co
 
 // ── COMPONENT 2, explained score states ─────────────────────────────────────────────────────────────
 
+/** The score-state title, LOCALIZED — same split as [recordingTitle] and for the same reason:
+ *  [ScoreState.title] is the English parity contract asserted verbatim against Swift in
+ *  `TodayExplainabilityTest`, so the resource lookup lives here rather than in the pure mapper. */
+@Composable
+private fun scoreStateTitle(state: ScoreState): String = when (state) {
+    is ScoreState.Scored -> ""
+    is ScoreState.Calibrating -> uiString(R.string.score_state_title_calibrating)
+    is ScoreState.CarriedLastNight ->
+        if (state.stale) uiString(R.string.score_state_title_latest_sleep, state.dateLabel)
+        else uiString(R.string.score_state_title_last_night, state.dateLabel)
+    ScoreState.NeedsStrap -> uiString(R.string.score_state_title_needs_strap)
+}
+
+/** The score-state detail line, LOCALIZED.
+ *
+ *  The calibrating countdown becomes a real `<plurals>`. Kotlin picked the noun with
+ *  `if (nightsRemaining == 1) "night" else "nights"`, which bakes in English's TWO categories — the
+ *  exact hand-rolling [uiPlural]'s doc warns about. `getQuantityString` applies the LOCALE's own rules
+ *  instead. (Swift splits the same sentence into two catalogue keys, so it shares the assumption; both
+ *  values here come from those keys. The one-forms carry `%1$d` where the Swift copy spelled the number
+ *  out — pt-PT said "mais uma noite" — because `i18n_audit` requires every quantity form of a plural to
+ *  share its siblings' placeholders, the check that catches a `%1$d` dropped from just one form.) */
+@Composable
+private fun scoreStateDetail(state: ScoreState): String = when (state) {
+    is ScoreState.Scored -> ""
+    is ScoreState.Calibrating ->
+        uiPlural(R.plurals.score_state_detail_calibrating, state.nightsRemaining, state.nightsRemaining)
+    is ScoreState.CarriedLastNight ->
+        if (state.stale) uiString(R.string.score_state_detail_carried_stale)
+        else uiString(R.string.score_state_detail_carried_fresh)
+    ScoreState.NeedsStrap -> uiString(R.string.score_state_detail_needs_strap)
+}
+
 /** The honest score-state note shown in the Today flow when there is no own number to render, the
  *  state title + one what-to-do line, no fabricated value. [ScoreState.Scored] renders nothing (the
  *  tiles carry the real number). The whole card is the spec's "never a bare blank". Mirrors the iOS
@@ -4131,11 +4169,16 @@ private fun ScoreStateNote(state: ScoreState, restartCause: String? = null) {
         ScoreState.NeedsStrap -> Palette.statusWarning
         else -> Palette.textTertiary
     }
+    // Resolved before the Row: `semantics { }` is not a composable scope, so uiString/uiPlural cannot be
+    // called inside it, and reading them once keeps the card and its a11y label on one string.
+    val title = scoreStateTitle(state)
+    val detail = scoreStateDetail(state)
+    val noteA11y = uiString(R.string.l10n_today_screen_state_title_state_detail_f5380609, title, detail)
     NoopCard {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .semantics { contentDescription = uiString(R.string.l10n_today_screen_state_title_state_detail_f5380609, state.title, state.detail) },
+                .semantics { contentDescription = noteA11y },
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.Top,
         ) {
@@ -4148,8 +4191,8 @@ private fun ScoreStateNote(state: ScoreState, restartCause: String? = null) {
                     .size(Metrics.iconSmall),
             )
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(state.title, style = NoopType.headline, color = Palette.textPrimary)
-                Text(state.detail, style = NoopType.subhead, color = Palette.textSecondary)
+                Text(title, style = NoopType.headline, color = Palette.textPrimary)
+                Text(detail, style = NoopType.subhead, color = Palette.textSecondary)
                 // #731: when the countdown restarted because the user tapped "Recalibrate
                 // baseline", say so - otherwise the natural response to a fresh countdown is to
                 // tap it again, resetting it once more. null (no line) if never recalibrated.
@@ -4163,12 +4206,50 @@ private fun ScoreStateNote(state: ScoreState, restartCause: String? = null) {
 
 // ── COMPONENT 3, recording status ───────────────────────────────────────────────────────────────────
 
+/** The chip's status word, LOCALIZED.
+ *
+ *  [RecordingState.title] stays the English parity contract — it is asserted verbatim against the Swift
+ *  twin in `TodayExplainabilityTest` and must not become resource-backed, which would drag a `Context`
+ *  into a pure mapper and break those tests. So the resource lookup lives HERE, at the render site,
+ *  exactly like the Swift side: `RecordingState.label` is a `LocalizedStringKey`, so its literals are
+ *  catalogue KEYS that SwiftUI resolves. Kotlin's are plain `String`, so rendering `state.title`
+ *  directly shipped English to every locale — the chip read "Not recording. Strap not connected."
+ *  on a German phone while the iPhone read "Strap nicht verbunden. Tippe zum Verbinden."
+ *
+ *  Invisible to `i18n_audit`: the literals sit in a sealed-class getter, not a Compose call argument,
+ *  so the scanner never saw them. Translations here are the Swift catalogue's own, copied 1:1.
+ */
+@Composable
+private fun recordingTitle(state: RecordingState): String = when (state) {
+    RecordingState.Recording -> uiString(R.string.recording_chip_title_recording)
+    is RecordingState.LastSynced -> uiString(R.string.recording_chip_title_last_synced, state.minutesAgo)
+    RecordingState.NotRecording -> uiString(R.string.recording_chip_title_not_recording)
+    // Both connected states share the same word, as they do on Swift.
+    RecordingState.HistoryExperimental, RecordingState.ConnectedNoData ->
+        uiString(R.string.recording_chip_title_connected)
+}
+
+/** The chip's one-line detail, LOCALIZED. Same split as [recordingTitle]. */
+@Composable
+private fun recordingDetail(state: RecordingState): String = when (state) {
+    RecordingState.Recording -> uiString(R.string.recording_chip_detail_recording)
+    is RecordingState.LastSynced -> uiString(R.string.recording_chip_detail_last_synced)
+    RecordingState.NotRecording -> uiString(R.string.recording_chip_detail_not_recording)
+    RecordingState.HistoryExperimental -> uiString(R.string.recording_chip_detail_history_experimental)
+    RecordingState.ConnectedNoData -> uiString(R.string.recording_chip_detail_connected_no_data)
+}
+
 /** The Today/Live recording chip: a tinted StatePill with the status word (a pulsing dot while live),
  *  plus the one-line what-it-means below. Honest, never claims "Recording" without a live stream.
  *  Tapping a not-recording chip routes to connect (Settings). Mirrors the iOS RecordingStatusChip. */
 @Composable
 private fun RecordingStatusChip(state: RecordingState, onConnect: () -> Unit) {
     val clickable = state is RecordingState.NotRecording || state is RecordingState.LastSynced
+    // Resolved BEFORE the Row: `semantics { }` is not a composable scope, so uiString cannot be called
+    // inside it. Reading them once also keeps the pill, the detail line and the a11y label on one string.
+    val title = recordingTitle(state)
+    val detail = recordingDetail(state)
+    val chipA11y = uiString(R.string.l10n_today_screen_state_title_state_detail_f5380609, title, detail)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -4183,18 +4264,18 @@ private fun RecordingStatusChip(state: RecordingState, onConnect: () -> Unit) {
                     Modifier
                 },
             )
-            .semantics { contentDescription = uiString(R.string.l10n_today_screen_state_title_state_detail_f5380609, state.title, state.detail) },
+            .semantics { contentDescription = chipA11y },
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         StatePill(
-            title = state.title,
+            title = title,
             tone = state.tone,
             showsDot = true,
             pulsing = state is RecordingState.Recording,
         )
         Text(
-            state.detail,
+            detail,
             style = NoopType.footnote,
             color = Palette.textTertiary,
             modifier = Modifier.weight(1f),

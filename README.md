@@ -91,7 +91,9 @@ analytics and safety fixes can continue to be merged without rewriting the coach
 
 ## Latest beta — 9.3.1 DX Beta
 
-A coach-memory release, on top of nine upstream commits landed after RyanBR's 9.3.0 tag.
+A coach-memory release, now reconciled with RyanBR's complete upstream 9.3.1 line. The merge also
+brings the latest widget truthfulness and score rings, nap-aware sleep debt, safer BLE teardown,
+HealthKit write-back after an offload, custom AI gateway authentication and the newest protocol work.
 
 - **When the coach remembers something, you see it happen.** A receipt under the reply names the fact
   and offers That's right, Edit and Forget. Health facts it saved on its own were previously barred

@@ -386,6 +386,8 @@ private struct HeuteVitalTile: View {
     /// The shared trend window (days) — trims the tile's trailing sparkline history.
     var windowDays: Int = 14
     let editing: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ObservedObject private var motion = NoopMotionState.shared
     /// True while THIS tile is the one currently being dragged — freezes its own wiggle so it reads as
     /// "picked up" rather than still trembling under the finger (on-device bug report: dragging felt
     /// jittery because every tile, including the one being moved, kept wiggling through the gesture).
@@ -467,7 +469,7 @@ private struct HeuteVitalTile: View {
         // entirely and the rotation simply stops being computed, snapping back with a short, ordinary,
         // non-repeating animation.
         Group {
-            if editing && !isDragging {
+            if editing && !isDragging && !motion.poseStill(reduceMotion) {
                 TimelineView(.animation) { context in
                     tileStack.rotationEffect(.degrees(wiggleAngle(at: context.date)))
                 }

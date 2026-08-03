@@ -97,6 +97,12 @@ The canonical `NOOPiOS` build embeds `NOOPiOSWidgets`, `NOOPWatch` and
 `NOOP-ios-full-unsigned-v<VERSION>-dx-beta.ipa`; the existing AltStore source continues to point to
 the separately thinned `NOOP-ios-unsigned-v<VERSION>-dx-beta.ipa`.
 
+The full build includes RyanBR's 9.3.1 widget corrections: a widget without readable shared data shows
+dashes instead of gallery sample values, and the system widgets present Charge, Effort and Rest as
+score rings. The Watch app requests the newest phone snapshot on activation and reconnection, while
+the application-context transfer remains the background fallback. The Watch app and its complication
+share the received snapshot inside the Watch container; the phone-to-Watch hop uses WatchConnectivity.
+
 For a direct development install, Xcode can provision the complete build with the Apple team available
 to your account; a Personal Team install expires after seven days and must then be rebuilt. Run
 `xcodegen generate`, then:

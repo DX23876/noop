@@ -763,7 +763,8 @@ struct TodayView: View {
         if live.connected && live.historySyncExperimental { return .historyExperimental }
         return RecordingState.resolve(connected: live.connected,
                                       heartRate: live.heartRate,
-                                      lastSyncedAt: live.lastSyncedAt)
+                                      lastSyncedAt: live.lastSyncedAt,
+                                      sustainedEmptyOffload: live.sustainedEmptyOffload)
     }
 
     // MARK: Component 4, provenance badge (the real per-day merge winner)
@@ -4632,6 +4633,13 @@ private struct RecordingStatusLight: View {
     /// Drives the syncing pulse; toggled in `.task` while an offload runs (never during body eval).
     @State private var pulsing = false
 
+    /// This `repeatForever` ring had NO motion gate of any kind — it pulsed under system Reduce
+    /// Motion too, which was already a bug (the Android twin's ConnectionDot had the same one, fixed
+    /// in #911). It also ran precisely while the strap was offloading history, i.e. while the app was
+    /// already busy. Gated on all three quiet signals now.
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ObservedObject private var motion = NoopMotionState.shared
+
     /// Colour for the light: green recording, amber last-synced, red not recording, accent for
     /// experimental history. Mirrors the prior `TodayView.recordingHue` semantics verbatim.
     private func hue(_ state: RecordingState) -> Color {
@@ -4640,6 +4648,7 @@ private struct RecordingStatusLight: View {
         case .lastSynced:          return StrandPalette.statusWarning
         case .notRecording:        return StrandPalette.statusCritical
         case .historyExperimental: return StrandPalette.accent
+        case .connectedNoData:     return StrandPalette.accent
         }
     }
 
@@ -4705,10 +4714,12 @@ private struct RecordingStatusLight: View {
         .buttonStyle(.plain)
         .disabled(state == nil && !syncing)
         .accessibilityLabel(accessibilityLabel(state: state, syncing: syncing))
-        // Run the repeating pulse only while syncing; the `.task(id:)` auto-cancels when the flag flips,
-        // so there is no timer left running once the offload ends (or Today goes away).
+        // Run the repeating pulse only while syncing AND nothing is asking for quiet motion; the
+        // `.task(id:)` auto-cancels when the flag flips, so there is no timer left running once the
+        // offload ends (or Today goes away). Without the pulse the steady accent dot still says
+        // "syncing" — the information survives, only the loop stops.
         .task(id: syncing) {
-            guard syncing else { pulsing = false; return }
+            guard syncing, !motion.poseStill(reduceMotion) else { pulsing = false; return }
             withAnimation(.easeOut(duration: 1.1).repeatForever(autoreverses: false)) { pulsing = true }
         }
     }
@@ -4989,6 +5000,11 @@ enum RecordingState: Equatable {
     /// offload yet. NOT the WHOOP-4 "not recording" failure: the link is live, history sync is just
     /// experimental on 5.0. Surfaced from `LiveState.historySyncExperimental`, overriding the mapper.
     case historyExperimental
+    /// #612, connected with no live HR AND no evidence data is actually flowing — either this is the
+    /// strap's first-ever pairing (never once synced) or a WHOOP-4/generic strap whose last several
+    /// offloads all came back empty (`LiveState.sustainedEmptyOffload`). Distinct from `.notRecording`:
+    /// the link genuinely IS up, so claiming "Strap not connected" would be false.
+    case connectedNoData
 
     /// The chip's short label. Verbatim spec copy; the dynamic "Xm" goes into the LocalizedStringKey slot.
     var label: LocalizedStringKey {
@@ -4997,6 +5013,7 @@ enum RecordingState: Equatable {
         case .lastSynced(let mins):      return "Last synced \(mins)m ago"
         case .notRecording:              return "Not recording"
         case .historyExperimental:       return "Connected"
+        case .connectedNoData:           return "Connected"
         }
     }
 
@@ -5007,6 +5024,7 @@ enum RecordingState: Equatable {
         case .lastSynced:          return "Reconnect to pull the latest."
         case .notRecording:        return "Strap not connected. Tap to connect."
         case .historyExperimental: return "History sync is experimental on 5.0."
+        case .connectedNoData:     return "No live heart rate or synced history yet this session."
         }
     }
 
@@ -5021,20 +5039,28 @@ enum RecordingState: Equatable {
             return String(localized: "Not recording. Strap not connected. Tap to connect.")
         case .historyExperimental:
             return String(localized: "Connected. History sync is experimental on 5.0.")
+        case .connectedNoData:
+            return String(localized: "Connected. No live heart rate or synced history yet this session.")
         }
     }
 
     /// PURE mapper (unit-testable), `recording` IFF (connected AND a live heart-rate sample is currently
     /// present). A connection with no live HR yet (handshaking, no PPG, strap off the wrist) is honestly
-    /// NOT recording. Otherwise, if a last-sync time is known, reads "Last synced Xm ago"; else "Not
-    /// recording". `lastSyncedAt` / `now` are unix seconds; the minute count clamps at >= 0 (strap-clock
-    /// skew can't read negative) and uses ceil so a 30-second-old sync reads "1m ago" rather than "0m ago".
-    /// Mirror EXACTLY in Kotlin.
+    /// NOT recording — but a genuinely connected strap that has never once synced, or one whose recent
+    /// offloads are a SUSTAINED streak of empty (`sustainedEmptyOffload`, #612), still IS connected, so
+    /// it reads `.connectedNoData` rather than the false "Strap not connected". Otherwise, if a last-sync
+    /// time is known, reads "Last synced Xm ago"; else "Not recording". `lastSyncedAt` / `now` are unix
+    /// seconds; the minute count clamps at >= 0 (strap-clock skew can't read negative) and uses ceil so a
+    /// 30-second-old sync reads "1m ago" rather than "0m ago". Mirror EXACTLY in Kotlin.
     static func resolve(connected: Bool,
                         heartRate: Int?,
                         lastSyncedAt: TimeInterval?,
+                        sustainedEmptyOffload: Bool = false,
                         now: TimeInterval = Date().timeIntervalSince1970) -> RecordingState {
         if connected && heartRate != nil { return .recording }
+        if connected && heartRate == nil && (lastSyncedAt == nil || sustainedEmptyOffload) {
+            return .connectedNoData
+        }
         if let at = lastSyncedAt {
             let secs = max(0, now - at)
             let mins = Int((secs / 60).rounded(.up))

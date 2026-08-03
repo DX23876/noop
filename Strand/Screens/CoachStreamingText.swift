@@ -83,16 +83,21 @@ private struct CoachStreamRenderer: TextRenderer, Animatable {
 /// text on systems without `TextRenderer`, where it is the only "still writing" cue the bubble has.
 struct CoachStreamCaret: View {
     var animated: Bool = true
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ObservedObject private var motion = NoopMotionState.shared
     @State private var on = true
+
+    private var shouldAnimate: Bool { animated && !motion.poseStill(reduceMotion) }
 
     var body: some View {
         RoundedRectangle(cornerRadius: 1, style: .continuous)
             .fill(StrandPalette.accent)
             .frame(width: 2, height: 15)
             .opacity(on ? 1 : 0.15)
-            .animation(animated ? .easeInOut(duration: 0.6).repeatForever(autoreverses: true) : nil,
+            .animation(shouldAnimate ? .easeInOut(duration: 0.6).repeatForever(autoreverses: true) : nil,
                        value: on)
-            .onAppear { if animated { on.toggle() } }
+            .onAppear { if shouldAnimate { on.toggle() } }
+            .onChangeCompat(of: shouldAnimate) { enabled in on = !enabled }
             .accessibilityHidden(true)
     }
 }

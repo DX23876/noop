@@ -13,6 +13,7 @@ struct PlanTodayCard: View {
     @ObservedObject private var store = CoachPlanStore.shared
     @Binding var showPlan: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ObservedObject private var motion = NoopMotionState.shared
     /// Drives the ambient breathe when the session is approaching or due. Left false under Reduce Motion.
     @State private var pulsing = false
 
@@ -89,7 +90,7 @@ struct PlanTodayCard: View {
                     // suppressed under Reduce Motion (pulsing stays false), leaving just the colour change.
                     .scaleEffect(pulsing ? 0.985 : 1.0)
                     .opacity(pulsing ? 0.9 : 1.0)
-                    .animation(StrandMotion.breathe(reduced: reduceMotion), value: pulsing)
+        .animation(StrandMotion.breathe(reduced: motion.poseStill(reduceMotion)), value: pulsing)
                 }
             }
             .buttonStyle(.plain)

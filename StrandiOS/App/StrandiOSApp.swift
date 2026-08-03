@@ -66,11 +66,17 @@ struct StrandiOSApp: App {
         let model = AppModel()
         SemanticMemoryBackgroundTask.attach(coach: model.coach)
         _model = StateObject(wrappedValue: model)
-        _health = StateObject(wrappedValue: HealthKitBridge(
+        let bridge = HealthKitBridge(
             repo: model.repo,
             appleDeviceId: model.appleDeviceId,
             noopDeviceId: model.deviceId
-        ))
+        )
+        _health = StateObject(wrappedValue: bridge)
+        // #1021: publish to Apple Health when an offload lands, not only on foreground entry - the
+        // scenePhase pass below starts the offload and wrote to Health in parallel with it, so a night
+        // synced on open only reached Health at the next launch. Weak so the scene owns the bridge's
+        // lifetime; the bridge no-ops unless Health was authorized.
+        model.healthWriteBack = { [weak bridge] in await bridge?.writeBackAfterNewData() }
     }
 
     var body: some Scene {

@@ -342,6 +342,7 @@ struct HeuteBatteryChip: View {
     @EnvironmentObject private var live: LiveState
     @EnvironmentObject private var router: NavRouter
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ObservedObject private var motion = NoopMotionState.shared
     @State private var blinkOn = true
 
     var body: some View {
@@ -402,7 +403,7 @@ struct HeuteBatteryChip: View {
     }
 
     private func startBlinkIfNeeded() {
-        guard isCritical, !reduceMotion else { blinkOn = true; return }
+        guard isCritical, !motion.poseStill(reduceMotion) else { blinkOn = true; return }
         // Faster than `StrandMotion.breathe` (3.2s, ambient) — a low-battery blink needs to actually
         // read as an alert, so this matches `StrandMotion.pulse`'s own 0.6s duration, repeated
         // (`Animation` doesn't expose its duration back out, so the value is duplicated here).

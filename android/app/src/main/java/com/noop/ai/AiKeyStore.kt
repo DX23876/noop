@@ -23,6 +23,7 @@ object AiKeyStore {
     private const val KEY_KEY_OWNER = "key_provider"
     private const val KEY_CONSENT = "data_consent"
     private const val KEY_CUSTOM_URL = "custom_base_url"
+    private const val KEY_CUSTOM_AUTH_HEADER = "custom_auth_header"
     private const val KEY_CUSTOM_CONNECTED = "custom_connected"
 
     /** Per-provider model preference key, so each provider remembers its own last model. */
@@ -145,6 +146,15 @@ object AiKeyStore {
     /** Read the Custom provider's base URL, or empty string if unset. */
     fun readCustomBaseUrl(ctx: Context): String =
         prefs(ctx).getString(KEY_CUSTOM_URL, null)?.trim().orEmpty()
+
+    /** Persist which header the Custom provider should use when an API key is present. */
+    fun saveCustomAuthHeader(ctx: Context, header: CustomAiAuthHeader) {
+        prefs(ctx).edit().putString(KEY_CUSTOM_AUTH_HEADER, header.name).apply()
+    }
+
+    /** Read the Custom provider auth header. Defaults to Bearer for existing local setups. */
+    fun readCustomAuthHeader(ctx: Context): CustomAiAuthHeader =
+        CustomAiAuthHeader.fromName(prefs(ctx).getString(KEY_CUSTOM_AUTH_HEADER, null))
 
     /**
      * Persist whether the user has committed the Custom provider (entered a URL and tapped

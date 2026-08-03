@@ -50,6 +50,18 @@ object AppChangelog {
             ),
         ),
         Release(
+            version = "9.3.1",
+            title = uiString(R.string.l10n_app_changelog_widgets_stop_inventing_numbers_naps_count_4f7491bb),
+            date = "August 2026",
+            items = listOf(
+                "**iPhone widgets showed made-up numbers (#887).** A Home Screen widget that could not read your data fell back to the gallery sample. It now shows dashes when there is nothing to show, and sample values appear only in the widget gallery.",
+                "**Naps count toward sleep debt (#1041).** A separately-recorded nap now repays debt with its actual asleep minutes. Rest and the sleep headline still describe the main night only.",
+                "**Manual workouts on a second or re-added strap get their Avg HR back (#836).** The workout now reads heart rate under the active strap identity.",
+                "**A connected strap no longer says it is disconnected (#612).** Connected-without-data is represented honestly, with translated Android status chips.",
+                "**Effort agrees with itself on Today (#1001).** The hero ring, Key Metrics tile and chart badge now use the same current-day value.",
+            ),
+        ),
+        Release(
             version = "9.3.0-dx-beta",
             title = uiString(R.string.l10n_app_changelog_upstream_9_3_0_with_the_89c9eaa5),
             date = "July 2026",

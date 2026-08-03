@@ -416,6 +416,9 @@ final class AICoachEngine: ObservableObject {
     @Published var customBaseURL: String {
         didSet { UserDefaults.standard.set(customBaseURL, forKey: AIProvider.customBaseURLKey) }
     }
+    @Published var customAuthHeader: CustomAIAuthHeader {
+        didSet { UserDefaults.standard.set(customAuthHeader.rawValue, forKey: AIProvider.customAuthHeaderKey) }
+    }
     /// Whether the user has committed the Custom provider (tapped Connect with a base URL). Lets the
     /// keyless local path reach the chat without a stored key, while avoiding a flip mid-typing.
     @Published var customConnected: Bool {
@@ -889,6 +892,7 @@ final class AICoachEngine: ObservableObject {
 
         self.dataConsent = UserDefaults.standard.bool(forKey: Self.consentKey)
         self.customBaseURL = UserDefaults.standard.string(forKey: AIProvider.customBaseURLKey) ?? ""
+        self.customAuthHeader = AIProvider.customAuthHeader
         self.customConnected = UserDefaults.standard.bool(forKey: Self.customConnectedKey)
         self.explicitlyDisconnected = UserDefaults.standard.bool(forKey: Self.explicitlyDisconnectedKey)
         self.toolConsent = ToolConsent.load()

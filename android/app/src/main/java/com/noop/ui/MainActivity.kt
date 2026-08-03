@@ -214,14 +214,33 @@ object NoopPrefs {
     const val KEY_ANALYZE_WATERMARK = "noop.analyzeWatermark"
 
     /** "Power saving" (#477): when on, NOOP stretches its periodic strap-sync cadence (15 → 45 min) while
-     *  the phone is discharging at/below [KEY_POWER_SAVING_BATTERY_PCT] OR the OS Battery Saver is on.
+     *  the STRAP is discharging at/below [KEY_POWER_SAVING_BATTERY_PCT].
+     *
+     *  This doc used to say "the phone is discharging … OR the OS Battery Saver is on". Both were wrong:
+     *  `WhoopBleClient.nextBackfillDelayMs` reads `batteryPctAndCharging()`, which is the connected
+     *  STRAP's battery, and nothing on that path touches PowerManager. The intent is deliberate and
+     *  documented at that function — the levers reduce what the STRAP transmits, so they extend the
+     *  strap's life — but the description here promised a phone-battery behaviour that does not exist,
+     *  which is exactly what a triager reaches for on a phone-drain report like #1005.
+     *
      *  Benign — the strap banks to flash meanwhile, so sync just batches; no data loss, no link risk.
      *  Default OFF. Drives [com.noop.ble.WhoopBleClient.setLowBatteryOffloadThrottle] via [AppViewModel]. */
     const val KEY_POWER_SAVING = "noop.powerSaving"
     /** Battery-% threshold for [KEY_POWER_SAVING] (10/15/20/25/30). Default 20. */
     const val KEY_POWER_SAVING_BATTERY_PCT = "noop.powerSavingBatteryPct"
-    /** "Pause HRV capture in Battery Saver" (#477): when on, NOOP releases the held-open background
-     *  continuous-HRV stream while the OS Battery Saver is on (a Live screen still arms it on demand).
+    /** "Pause HRV capture when the strap is low" (#477): when on, NOOP releases the held-open background
+     *  continuous-HRV stream while the STRAP is discharging at/below [KEY_POWER_SAVING_BATTERY_PCT]
+     *  (a Live screen still arms it on demand).
+     *
+     *  Named "in Battery Saver" here and described as keying on the OS Battery Saver, which it does not:
+     *  `reconcileRealtime` gates on `idleThrottleActive(strap battery, …)`. Same correction as
+     *  [KEY_POWER_SAVING] above.
+     *
+     *  The SHIPPED COPY was always right — `power_saving_hrv_pause_desc` says "while your strap's battery
+     *  is low", `power_saving_kick_in` reads "Kick in at (strap battery)", and the label is just "Pause
+     *  HRV capture" with no mention of Battery Saver. So no user was ever misled; the wrong description
+     *  lived only here, where a maintainer triaging a battery report would read it. Which is what
+     *  happened on #1005.
      *  A sub-option of [KEY_POWER_SAVING] — only effective while the master is on. Default ON (so enabling
      *  Power saving pauses capture by default; the user can turn it off). Drives
      *  [com.noop.ble.WhoopBleClient.setPauseCaptureOnPowerSave] via [AppViewModel]. */

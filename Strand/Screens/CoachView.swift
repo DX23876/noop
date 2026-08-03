@@ -43,6 +43,7 @@ struct CoachView: View {
     /// movement that setting exists to stop. Nothing here is load-bearing: without the animation the
     /// same state change simply happens at once.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ObservedObject private var motion = NoopMotionState.shared
     /// At the accessibility text sizes, five lines of composer is a couple of words — long enough to
     /// type into, far too short to read back what you wrote before sending it.
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -261,8 +262,8 @@ struct CoachView: View {
                     // Presence while a reply is being written: the avatar breathes instead of the header
                     // growing a "Thinking…" line that shifts the whole transcript down. Reduce Motion holds
                     // it still — this is self-starting, repeating movement.
-                    .scaleEffect(breathing && !reduceMotion ? 1.06 : 1)
-                    .animation(reduceMotion ? nil
+                    .scaleEffect(breathing && !motion.poseStill(reduceMotion) ? 1.06 : 1)
+                    .animation(motion.poseStill(reduceMotion) ? nil
                                : .easeInOut(duration: 1.1).repeatForever(autoreverses: true),
                                value: breathing)
             }

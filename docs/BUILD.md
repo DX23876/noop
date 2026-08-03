@@ -273,7 +273,9 @@ release note under `docs/releases/`, builds `NOOPiOS` in Release without a signi
 packages both a complete unsigned IPA and a phone/iPad-only AltStore IPA, uploads both to a GitHub
 prerelease, and updates `altstore-source.json` with only the AltStore IPA's real release URL and file
 size. The complete artifact retains `PlugIns/NOOPWidgets.appex`, `Watch/NOOPWatch.app`, and the nested
-Watch complication; the AltStore copy removes both `PlugIns/` and `Watch/` after the build.
+Watch complication; the AltStore copy removes both `PlugIns/` and `Watch/` after the build. This is a
+fork packaging decision retained after the RyanBR 9.3.1 merge: upstream's widget data-sharing fix is
+present in source and in the Full IPA, while the generic AltStore artifact remains extension-free.
 
 The workflow needs repository Actions permissions set to **Read and write** and permission for the
 GitHub Actions bot to push its manifest-only commit to `main`. It never receives an Apple certificate,

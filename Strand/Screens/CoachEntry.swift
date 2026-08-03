@@ -337,6 +337,7 @@ struct CoachTodayTile: View {
     /// The user's switch for the pulse (Settings → Appearance). See `CoachTilePrefs`.
     @AppStorage(CoachTilePrefs.breathingKey) private var breathingEnabled = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ObservedObject private var motion = NoopMotionState.shared
     /// Flipped once on appear to start the endless breath.
     @State private var breathing = false
 
@@ -346,7 +347,7 @@ struct CoachTodayTile: View {
 
     /// Two independent conditions, both of which must hold: the user's own preference, and Reduce Motion.
     /// A system-level "less movement please" outranks a per-feature default.
-    private var breathes: Bool { breathingEnabled && !reduceMotion }
+    private var breathes: Bool { breathingEnabled && !motion.poseStill(reduceMotion) }
 
     var body: some View {
         Button { isPresented = true } label: {
