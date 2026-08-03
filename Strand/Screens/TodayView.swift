@@ -187,6 +187,7 @@ struct TodayView: View {
     /// Coach: the AI engine (injected at the app root) + the full-screen chat presentation, so the classic
     /// Today matches the liquid one's prominent Coach entry instead of burying it under More.
     @EnvironmentObject var coach: AICoachEngine
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var showCoach = false
     @State private var showPlan = false
     /// The full-width coach banner (`CoachTodayRow`), rendered as the reorderable `.coach` section.
@@ -470,7 +471,7 @@ struct TodayView: View {
     private var grid: [GridItem] {
         #if os(iOS)
         Array(repeating: GridItem(.flexible(), spacing: NoopMetrics.gap),
-              count: KeyMetricPrefs.columns(keyMetricsColumnsRaw))
+              count: dynamicTypeSize.isAccessibilitySize ? 1 : KeyMetricPrefs.columns(keyMetricsColumnsRaw))
         #else
         [GridItem(.adaptive(minimum: 150), spacing: NoopMetrics.gap)]
         #endif
@@ -3202,7 +3203,7 @@ struct TodayView: View {
                     // and holds up as text scales because it clears the tallest tile layout.
                     keyMetricTile(metric)
                         .frame(maxWidth: .infinity)
-                        .frame(height: NoopMetrics.keyMetricTileHeight)
+                        .frame(height: dynamicTypeSize.isAccessibilitySize ? nil : NoopMetrics.keyMetricTileHeight)
                 }
             }
             if metricsHasOverflow {

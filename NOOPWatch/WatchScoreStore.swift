@@ -29,6 +29,9 @@ final class WatchScoreStore: NSObject, ObservableObject, WCSessionDelegate {
     /// The key the complication also reads. The single source of truth lives in the shared contract.
     static let storageKey = WatchScoreSnapshot.storageKey
 
+    /// Prevent duplicate immediate requests when activation and reachability callbacks arrive together.
+    private var requestedLatestForCurrentReachability = false
+
     override init() {
         super.init()
         // Show the last-known snapshot straight away (honest about its age via the glance's "as of").
@@ -78,8 +81,24 @@ final class WatchScoreStore: NSObject, ObservableObject, WCSessionDelegate {
     /// Decode a WatchScoreSnapshot out of a WatchConnectivity payload. The phone encodes the Codable
     /// snapshot to Data under "snapshot"; we tolerate a missing/garbled payload by simply ignoring it.
     private func decode(from payload: [String: Any]) -> WatchScoreSnapshot? {
-        guard let data = payload["snapshot"] as? Data else { return nil }
+        guard let data = payload[WatchScoreSnapshot.contextKey] as? Data else { return nil }
         return try? JSONDecoder().decode(WatchScoreSnapshot.self, from: data)
+    }
+
+    /// Ask the companion for its cached latest state. `updateApplicationContext` remains the durable
+    /// background path; this immediate request closes the fresh-install/relaunch gap when both apps are
+    /// reachable and avoids waiting for the phone's next dashboard refresh.
+    private func requestLatestIfReachable(_ session: WCSession) {
+        guard session.activationState == .activated, session.isReachable,
+              !requestedLatestForCurrentReachability else { return }
+        requestedLatestForCurrentReachability = true
+        session.sendMessage([WatchScoreSnapshot.requestLatestKey: true]) { [weak self] reply in
+            guard let self, let snap = self.decode(from: reply) else { return }
+            self.apply(snap)
+        } errorHandler: { [weak self] _ in
+            // A later reachability transition may retry; application context still provides fallback.
+            self?.requestedLatestForCurrentReachability = false
+        }
     }
 
     // MARK: WCSessionDelegate
@@ -92,6 +111,7 @@ final class WatchScoreStore: NSObject, ObservableObject, WCSessionDelegate {
         if let snap = decode(from: session.receivedApplicationContext) {
             apply(snap)
         }
+        requestLatestIfReachable(session)
     }
 
     /// The phone calls `updateApplicationContext` whenever its dashboard refreshes. Latest-state only, so
@@ -102,8 +122,11 @@ final class WatchScoreStore: NSObject, ObservableObject, WCSessionDelegate {
         }
     }
 
-    // Required by the protocol on watchOS even though they are phone-side concerns. No-ops here.
-    #if os(watchOS)
-    func sessionReachabilityDidChange(_ session: WCSession) {}
-    #endif
+    func sessionReachabilityDidChange(_ session: WCSession) {
+        if session.isReachable {
+            requestLatestIfReachable(session)
+        } else {
+            requestedLatestForCurrentReachability = false
+        }
+    }
 }

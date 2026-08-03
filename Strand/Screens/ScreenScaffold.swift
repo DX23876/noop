@@ -46,9 +46,8 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
             Color.clear.frame(height: 0).id(screenScaffoldTopAnchorID)
             column
             #if os(iOS)
-            // Unified side margins matching the liquid home (16pt) so every page's cards + header line up
-            // to the same edges (2026-07-02); macOS keeps the classic 28 in the #else branch.
-            .padding(.horizontal, 16)
+            // One shared page gutter keeps every screen aligned with Today and the grouped lists.
+            .padding(.horizontal, NoopMetrics.screenHPadding)
             .padding(.top, 24)
             // The tab bar floats over the scroll content, so the last card sat hidden behind it.
             // Reserve extra bottom scroll room so every screen's final card clears the floating bar.
@@ -126,9 +125,7 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
         return HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 if let title {
-                    // Match the liquid home's title face (SF Rounded 28) so every page's header reads
-                    // identically (2026-07-02 cohesion pass).
-                    Text(title).font(StrandFont.rounded(28)).foregroundStyle(titleColor)
+                    Text(title).font(StrandFont.title1).foregroundStyle(titleColor)
                 }
                 if let subtitle {
                     Text(subtitle).font(StrandFont.subhead).foregroundStyle(subtitleColor)

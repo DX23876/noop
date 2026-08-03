@@ -30,6 +30,7 @@ public struct FrostedCardSurface: View {
     public var cornerRadius: CGFloat
     public var washStrength: Double
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     // "Card transparency" setting (reactive): fades the whole glass surface toward the background. 100 =
     // solid (default). Reading it here makes every card update live when the Settings slider moves.
     @AppStorage(CardAppearancePrefs.opacityKey) private var cardOpacityPercent = CardAppearancePrefs.defaultPercent
@@ -42,7 +43,7 @@ public struct FrostedCardSurface: View {
 
     public var body: some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-        let op = max(0.0, min(1.0, Double(cardOpacityPercent) / 100.0))
+        let op = reduceTransparency ? 1.0 : max(0.0, min(1.0, Double(cardOpacityPercent) / 100.0))
         // Base fill: tinted cards deepen into the 150° navy bevel (#15243C → #0B1424,
         // = surfaceOverlay → cardFillBottom); neutral cards sit on the flat raised
         // surface. The 150° axis ≈ top-trailing → bottom-leading.

@@ -106,5 +106,7 @@ final class WatchScoreSnapshotTests: XCTestCase {
         // has none), so this only pins the canonical UPSTREAM fallback, not the real cross-target value.
         XCTAssertEqual(WatchScoreSnapshot.appGroupId, "group.com.noopapp.noop")
         XCTAssertEqual(WatchScoreSnapshot.storageKey, "latestWatchSnapshot")
+        XCTAssertEqual(WatchScoreSnapshot.contextKey, "snapshot")
+        XCTAssertEqual(WatchScoreSnapshot.requestLatestKey, "requestLatest")
     }
 }

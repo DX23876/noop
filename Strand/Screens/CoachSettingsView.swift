@@ -209,7 +209,7 @@ struct CoachSettingsView: View {
     private var addFactSheet: some View {
         NavigationStack {
             subpageScaffold {
-                NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+                NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("One short sentence the coach should know about you — a constraint, an injury, how you like to train.")
                             .font(StrandFont.footnote)
@@ -279,7 +279,7 @@ struct CoachSettingsView: View {
                 connectedHeader
 
                 NavigationLink { connectionSubpage } label: {
-                    NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+                    NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
                         HStack(spacing: 10) {
                             Image(systemName: "key.fill")
                                 .foregroundStyle(appleHealthColors
@@ -305,7 +305,7 @@ struct CoachSettingsView: View {
                 .accessibilityValue(connectionNeedsAttention ? "Needs attention" : "")
 
                 NavigationLink { goalJourneySubpage } label: {
-                    NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+                    NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
                         HStack(spacing: 10) {
                             Image(systemName: "target")
                                 .foregroundStyle(appleHealthColors
@@ -331,7 +331,7 @@ struct CoachSettingsView: View {
                 .accessibilityValue(goalNeedsAttention ? "Needs attention" : "")
 
                 NavigationLink { coachingSubpage } label: {
-                    NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+                    NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
                         HStack(spacing: 10) {
                             Image(systemName: "bubble.left.and.bubble.right")
                                 .foregroundStyle(appleHealthColors
@@ -357,7 +357,7 @@ struct CoachSettingsView: View {
                 .accessibilityValue(coachingNeedsAttention ? "Needs attention" : "")
 
                 NavigationLink { memorySubpage } label: {
-                    NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+                    NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
                         HStack(spacing: 10) {
                             Image(systemName: "brain")
                                 .foregroundStyle(appleHealthColors
@@ -383,7 +383,7 @@ struct CoachSettingsView: View {
                 .accessibilityValue(memoryNeedsAttention ? "Needs attention" : "")
 
                 NavigationLink { privacySubpage } label: {
-                    NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+                    NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
                         HStack(spacing: 10) {
                             Image(systemName: "lock.shield")
                                 .foregroundStyle(appleHealthColors
@@ -470,7 +470,7 @@ struct CoachSettingsView: View {
     /// placeholder shows exactly which model that fallback resolves to.
     @ViewBuilder
     private var backgroundModelsSection: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+        NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 2) {
@@ -704,7 +704,7 @@ struct CoachSettingsView: View {
     /// writes into the stores those controls already read from, so every row below still shows the result
     /// and stays individually editable afterward.
     private var presetBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+        NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
                     Image(systemName: "wand.and.stars")
@@ -754,7 +754,7 @@ struct CoachSettingsView: View {
     /// pushing the full editor.
     private var identityBar: some View {
         NavigationLink { CoachIdentityEditor() } label: {
-            NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
                 HStack(spacing: 10) {
                     CoachAvatarView(size: 34)
                     VStack(alignment: .leading, spacing: 1) {
@@ -778,7 +778,7 @@ struct CoachSettingsView: View {
     /// Emoji in coach replies (#P14 7.3) — off by default (matches the careful voice from P13); a plain
     /// opt-in toggle, same shape as the other binary settings on this page.
     private var emojiBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+        NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
             HStack(spacing: 10) {
                 Image(systemName: coach.allowEmoji ? "face.smiling.fill" : "face.smiling")
                     .foregroundStyle(coach.allowEmoji ? StrandPalette.accent : StrandPalette.textTertiary)
@@ -803,7 +803,7 @@ struct CoachSettingsView: View {
     /// Reply length — concise / normal / detailed. Same segmented-picker shape as `proactiveBar`; `normal`
     /// leaves today's replies unchanged, the other two steer via a prompt clause (`CoachVerbosity`).
     private var verbosityBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+        NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
                     Image(systemName: "text.alignleft")
@@ -836,7 +836,7 @@ struct CoachSettingsView: View {
     /// How chatty the coach is UNPROMPTED (#P10 10.4) — proactive messages cost tokens, so this is a
     /// user dial: off / only important / normal.
     private var proactiveBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+        NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
                     Image(systemName: "bell.badge")
@@ -883,7 +883,7 @@ struct CoachSettingsView: View {
     }
 
     private var semanticMemoryBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+        NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
                     Image(systemName: semanticMemory.status.isModelLoaded
@@ -1014,7 +1014,7 @@ struct CoachSettingsView: View {
     /// the master `dataConsent` switch, so it only shows once there's something to narrow.
     private var dataAccessRow: some View {
         NavigationLink { dataAccessSubpage } label: {
-            NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
                 HStack(spacing: 10) {
                     Image(systemName: "switch.2")
                         .foregroundStyle(appleHealthColors
@@ -1061,7 +1061,7 @@ struct CoachSettingsView: View {
     /// Explains the boundary before showing switches. The provider receives only values returned through
     /// these locally checked paths; it cannot browse the database or raise its own permission level.
     private var dataAccessExplanationBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+        NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
             VStack(alignment: .leading, spacing: 8) {
                 Label("How this access is used", systemImage: "lock.shield")
                     .font(StrandFont.subhead)
@@ -1078,7 +1078,7 @@ struct CoachSettingsView: View {
     }
 
     private var dataAccessModeBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+        NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Privacy level")
                     .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
@@ -1133,7 +1133,7 @@ struct CoachSettingsView: View {
     /// Global feature opt-in. It intentionally lives at the top of the settings hub, not under the
     /// appearance-only Today controls, because this governs the whole Coach rather than one entry point.
     private var coachFeatureBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+        NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
             Toggle(isOn: $coachFeatureEnabled) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Enable AI Coach")
@@ -1168,7 +1168,7 @@ struct CoachSettingsView: View {
     }
 
     private var coreBiometricsAccessBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+        NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
             HStack(spacing: 10) {
                 Image(systemName: "heart.text.square")
                     .foregroundStyle(coach.toolConsent.enabled.contains(.coreBiometrics)
@@ -1192,7 +1192,7 @@ struct CoachSettingsView: View {
     /// Deep time-series reads have their own opt-in: normal day-to-day coaching never needs a multi-year
     /// inventory, and a local routing match is not permission to examine it.
     private var longHistoryAccessBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+        NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
             HStack(spacing: 10) {
                 Image(systemName: "chart.xyaxis.line")
                     .foregroundStyle(coach.toolConsent.enabled.contains(.longHistory)
@@ -1214,7 +1214,7 @@ struct CoachSettingsView: View {
     }
 
     private var workoutsAccessBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+        NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
             HStack(spacing: 10) {
                 Image(systemName: "figure.run")
                     .foregroundStyle(coach.toolConsent.enabled.contains(.workouts)
@@ -1236,7 +1236,7 @@ struct CoachSettingsView: View {
     }
 
     private var planningAccessBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+        NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
             HStack(spacing: 10) {
                 Image(systemName: coach.toolConsent.enabled.contains(.planning)
                      ? "calendar.badge.clock" : "calendar")
@@ -1259,7 +1259,7 @@ struct CoachSettingsView: View {
     }
 
     private var stressAccessBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+        NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
             HStack(spacing: 10) {
                 Image(systemName: "bolt.heart")
                     .foregroundStyle(coach.toolConsent.enabled.contains(.stress)
@@ -1281,7 +1281,7 @@ struct CoachSettingsView: View {
     }
 
     private var logsAccessBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+        NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
             HStack(spacing: 10) {
                 Image(systemName: "list.bullet.clipboard")
                     .foregroundStyle(coach.toolConsent.enabled.contains(.logs)
@@ -1305,7 +1305,7 @@ struct CoachSettingsView: View {
     /// A second affirmative choice for journal labels that can reveal sexual, relationship, illness or
     /// cannabis information. This never broadens ordinary Logs; it unlocks only the dedicated reader.
     private var sensitiveLogsAccessBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+        NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
             HStack(spacing: 10) {
                 Image(systemName: "lock.heart")
                     .foregroundStyle(coach.toolConsent.enabled.contains(.sensitiveLogs)
@@ -1327,7 +1327,7 @@ struct CoachSettingsView: View {
     }
 
     private var memoryToolsAccessBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+        NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
             HStack(spacing: 10) {
                 Image(systemName: "brain.head.profile")
                     .foregroundStyle(coach.toolConsent.enabled.contains(.memory)
@@ -1352,7 +1352,7 @@ struct CoachSettingsView: View {
     /// so the transparency story is one tap from where consent is granted.
     private var howItWorksRow: some View {
         Button { showCoachInfo = true } label: {
-            NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
                 HStack(spacing: 10) {
                     Image(systemName: "info.circle")
                         .foregroundStyle(appleHealthColors
@@ -1398,7 +1398,7 @@ struct CoachSettingsView: View {
     // MARK: - Coach UI master switch (#R7) — hides the home-surface entry points, keeps card/background AI
 
     private var coachVisibilityBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+        NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
             VStack(alignment: .leading, spacing: 8) {
                 Toggle(isOn: $coachUIEnabled) {
                     VStack(alignment: .leading, spacing: 1) {
@@ -1436,7 +1436,7 @@ struct CoachSettingsView: View {
     @ViewBuilder private var coachEntryBar: some View {
         #if os(iOS)
         if coachUIEnabled {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+        NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
                     Image(systemName: "hand.tap")
@@ -1543,7 +1543,7 @@ struct CoachSettingsView: View {
     // MARK: - Memory maintenance (cheap-model summaries)
 
     private var memoryMaintenanceBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+        NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
                     Image(systemName: "arrow.triangle.2.circlepath")
@@ -1609,7 +1609,7 @@ struct CoachSettingsView: View {
     private var tokenUsageBar: some View {
         if let turn = usage.lastTurn, !turn.rounds.isEmpty {
             let cached = turn.cacheReadTokens > 0
-            NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 10) {
                         // Icon AND word — never colour alone.
@@ -1647,7 +1647,7 @@ struct CoachSettingsView: View {
     @ViewBuilder
     private var cumulativeUsageBar: some View {
         if usage.dayQuestionCount > 0 {
-            NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 10) {
                         Image(systemName: "chart.bar.fill")
@@ -1688,7 +1688,7 @@ struct CoachSettingsView: View {
     @ViewBuilder
     private var openRouterBalanceBar: some View {
         if coach.provider == .openRouter && coach.hasKey {
-            NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+            NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
                 VStack(alignment: .leading, spacing: 8) {
                     Button {
                         Task { await coach.checkOpenRouterBalance() }
@@ -1840,7 +1840,7 @@ struct CoachSettingsView: View {
     // MARK: - Consent
 
     private var consentBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+        NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
             HStack(spacing: 10) {
                 Image(systemName: coach.dataConsent ? "lock.open.fill" : "lock.fill")
                     .foregroundStyle(coach.dataConsent ? StrandPalette.accent : StrandPalette.textTertiary)
@@ -1863,7 +1863,7 @@ struct CoachSettingsView: View {
     }
 
     private var onDeviceSignalsBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+        NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
             HStack(spacing: 10) {
                 Image(systemName: coach.includeOnDeviceSignals ? "checklist.checked" : "checklist")
                     .foregroundStyle(coach.includeOnDeviceSignals ? StrandPalette.accent : StrandPalette.textTertiary)
@@ -1888,7 +1888,7 @@ struct CoachSettingsView: View {
     // MARK: - Persona
 
     private var personaBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+        NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 10) {
                     Image(systemName: coach.persona.symbol)
@@ -1927,7 +1927,7 @@ struct CoachSettingsView: View {
     /// async gate. Gated on a configured coach with data consent, so the card never has to render a
     /// no-key state.
     private var morningSuggestionBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+        NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 10) {
                     Image(systemName: morningSuggestionOn ? "sun.max.fill" : "sun.max")
@@ -1960,7 +1960,7 @@ struct CoachSettingsView: View {
     // MARK: - Daily check-in
 
     private var checkInBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+        NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 10) {
                     Image(systemName: checkInOn ? "bell.badge.fill" : "bell")
@@ -2052,7 +2052,7 @@ struct CoachSettingsView: View {
     /// keep, made real. On-device only; no AI call fires it, and no notification exists until a session
     /// actually has a time (`PlanReminder.schedule` no-ops otherwise).
     private var planReminderBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+        NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 10) {
                     Image(systemName: planReminderOn ? "bell.badge.fill" : "bell")
@@ -2097,7 +2097,7 @@ struct CoachSettingsView: View {
 
     private var memoryBar: some View {
         let footprint = CoachMemoryFootprint.estimate(conversations: coach.conversations, facts: memory.facts)
-        return NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+        return NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
             VStack(alignment: .leading, spacing: memoryExpanded ? 10 : 0) {
                 Button {
                     withAnimation(StrandMotion.fade) { memoryExpanded.toggle() }
@@ -2414,7 +2414,7 @@ struct CoachSettingsView: View {
     // MARK: - System prompt
 
     private var systemPromptBar: some View {
-        NoopCard(padding: 14, tint: StrandPalette.chargeColor) {
+        NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
             VStack(alignment: .leading, spacing: promptExpanded ? 10 : 0) {
                 Button {
                     withAnimation(StrandMotion.fade) {

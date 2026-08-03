@@ -41,7 +41,8 @@ public enum AppleInspiredColors {
              "notifications": return .purple
         case "intelligence", "labBook", "sleep", "settings.sleep", "coach.settings.memory": return .indigo
         case "goalJourney", "alarms", "settings.units", "training", "caffeine": return .orange
-        case "insights", "journal", "coach.settings.usage": return .brown
+        case "insights", "journal": return .orange
+        case "coach.settings.usage": return .brown
         case "explore", "fusedRecord", "backupSync", "shortcutsExport", "settings.profile", "settings.controls",
              "dashboardEditor", "keyMetricsEditor", "updates": return .blue
         case "compare", "dataSources", "settings", "settings.diagnostics", "settings.about",

@@ -39,6 +39,10 @@ struct LiquidTodayView: View {
     /// alongside the other stores; this view just wasn't declaring it yet.
     @EnvironmentObject var updateStore: UpdateStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .title3) private var wideMetricValueSize: CGFloat = 20
+    @ScaledMetric(relativeTo: .headline) private var compactMetricValueSize: CGFloat = 17
     /// Low Power Mode poses the sky still too — the behaviour the comment on the sky branch below
     /// has always described. There is no environment key for it, hence the shared monitor.
     @ObservedObject private var powerMonitor = LiquidPowerMonitor.shared
@@ -125,7 +129,9 @@ struct LiquidTodayView: View {
     @AppStorage("today.keyMetricsWindowDays") private var keyMetricsWindowDays = 14
     /// Tiles per row (2 or 3; 3 = the original layout). Set on the Key Metrics page of the customization sheet.
     @AppStorage(KeyMetricPrefs.columnsKey) private var keyMetricsColumnsRaw = 3
-    private var keyMetricsColumns: Int { KeyMetricPrefs.columns(keyMetricsColumnsRaw) }
+    private var keyMetricsColumns: Int {
+        dynamicTypeSize.isAccessibilitySize ? 1 : KeyMetricPrefs.columns(keyMetricsColumnsRaw)
+    }
     @State private var kSparks: [String: [(String, Double)]] = [:]
     private var enabledKeyMetrics: [KeyMetric] { KeyMetricPrefs.decodeEnabled(keyMetricsRaw) }
 
@@ -184,7 +190,10 @@ struct LiquidTodayView: View {
     /// session-start row, the metric tiles and the `card` helper — in lockstep with the frosted cards.
     /// Content sits above the surface so it stays readable. Mirrors Kotlin `NoopPrefs.cardOpacityPercent`.
     @AppStorage(CardAppearancePrefs.opacityKey) private var cardOpacityPercent = CardAppearancePrefs.defaultPercent
-    private var cardOpacity: Double { max(0, min(1, Double(cardOpacityPercent) / 100)) }
+    private var cardOpacity: Double {
+        reduceTransparency ? 1 : max(0, min(1, Double(cardOpacityPercent) / 100))
+    }
+    private var translucentCardFillOpacity: Double { reduceTransparency ? 1 : 0.72 }
     /// "Sky behind cards" (default OFF): extend the day-cycle sky behind the WHOLE scroll so the
     /// Card-transparency slider reveals it under every card. User-toggleable. Mirrors Kotlin `NoopPrefs.skyBehindCards`.
     @AppStorage(SkyBehindCardsPrefs.enabledKey) private var skyBehindCards = false
@@ -422,7 +431,7 @@ struct LiquidTodayView: View {
                     PlanTodayCard(showPlan: $showPlan)
                     Color.clear.frame(height: 90) // floating tab-bar clearance
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, NoopMetrics.screenHPadding)
                 .padding(.top, 30) // sit the title lower into the sky, not jammed under the status bar
             }
             #if os(macOS)
@@ -718,7 +727,7 @@ struct LiquidTodayView: View {
                     .font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.onDarkPrimary)
                 Text("BETA")
-                    .font(StrandFont.overlineScaled(8.5)).tracking(1.2)
+                    .font(StrandFont.overlineScaled(8.5)).tracking(StrandFont.overlineTracking)
                     .foregroundStyle(StrandPalette.onDarkSecondary)
                     .padding(.horizontal, 8).padding(.vertical, 2.5)
                     .background(Capsule().fill(.white.opacity(0.05))
@@ -784,10 +793,10 @@ struct LiquidTodayView: View {
         // metric tiles, which take a lighter fill instead. `heroFill` stays under the glass so the vessels
         // keep the dark backing their on-dark text and colours were tuned against.
         .background(
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
+            RoundedRectangle(cornerRadius: NoopMetrics.heroRadius, style: .continuous)
                 .fill(heroFill)
-                .liquidGlass(in: RoundedRectangle(cornerRadius: 30, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous)
+                .liquidGlass(in: RoundedRectangle(cornerRadius: NoopMetrics.heroRadius, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: NoopMetrics.heroRadius, style: .continuous)
                     .strokeBorder(.white.opacity(0.14), lineWidth: 1))
                 .shadow(color: .black.opacity(0.6), radius: 30, y: 16)
                 .opacity(cardOpacity)
@@ -859,14 +868,15 @@ struct LiquidTodayView: View {
     private var yourCardsSection: some View {
         VStack(spacing: NoopMetrics.space2) {
             HStack {
-                Text("YOUR CARDS").font(StrandFont.overline).tracking(1.6)
+                Text("YOUR CARDS").font(StrandFont.overline).tracking(StrandFont.overlineTracking)
                     .foregroundStyle(StrandPalette.textTertiary)
                 Spacer()
                 Button { customizationDestination = .yourCards } label: {
                     // #492 item 4 parity: unify the Your Cards / Key Metrics edit affordance to "EDIT" across
                     // platforms (Android #563). Reuse the localized "Edit" key, uppercased at display, so this
                     // stays translated (BEARBEITEN / MODIFIER / …) without a new literal.
-                    Text(String(localized: "Edit").uppercased()).font(StrandFont.overlineScaled(11)).tracking(1.0)
+                    Text(String(localized: "Edit").uppercased()).font(StrandFont.overlineScaled(11))
+                        .tracking(StrandFont.overlineTracking)
                         .foregroundStyle(StrandPalette.accent)
                 }
                 .buttonStyle(.plain)
@@ -956,7 +966,8 @@ struct LiquidTodayView: View {
                 HStack(spacing: 12) {
                     LiquidVessel(value: frac, tint: tint, animated: false).frame(width: 30, height: 30)
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(title.uppercased()).font(StrandFont.overlineScaled(11)).tracking(1.0)
+                        Text(title.uppercased()).font(StrandFont.overlineScaled(11))
+                            .tracking(StrandFont.overlineTracking)
                             .foregroundStyle(StrandPalette.textPrimary)
                         Text(sub).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                     }
@@ -1091,7 +1102,7 @@ struct LiquidTodayView: View {
             card {
                     VStack(alignment: .leading, spacing: NoopMetrics.space2) {
                         HStack(spacing: 6) {
-                            Text("SYNTHESIS").font(StrandFont.overline).tracking(1.6)
+                            Text("SYNTHESIS").font(StrandFont.overline).tracking(StrandFont.overlineTracking)
                                 .foregroundStyle(StrandPalette.textSecondary)
                                 .layoutPriority(-1)   // the pill keeps its width; the overline yields first
                             Spacer(minLength: 4)
@@ -1282,7 +1293,7 @@ struct LiquidTodayView: View {
         return card {
             VStack(alignment: .leading, spacing: NoopMetrics.space3) {
                 HStack {
-                    Text("RECOVERY VITALS").font(StrandFont.overline).tracking(1.6)
+                    Text("RECOVERY VITALS").font(StrandFont.overline).tracking(StrandFont.overlineTracking)
                         .foregroundStyle(StrandPalette.textSecondary)
                     Spacer()
                     if let line = vitalsProvenanceLine {
@@ -1367,7 +1378,7 @@ struct LiquidTodayView: View {
                 Button { customizationDestination = .keyMetrics } label: {
                     Text(String(localized: "Edit").uppercased())
                         .font(StrandFont.overlineScaled(11))
-                        .tracking(1.0)
+                        .tracking(StrandFont.overlineTracking)
                         .foregroundStyle(StrandPalette.accent)
                 }
                 .buttonStyle(.plain)
@@ -1464,11 +1475,13 @@ struct LiquidTodayView: View {
                        key: String? = nil, detailMetric: MetricDescriptor? = nil) -> some View {
         // Two columns means ~50pt more width per tile — spend it on legibility (a bigger number, a taller
         // trend) instead of leaving it as empty card.
-        let wide = keyMetricsColumns == 2
+        let wide = keyMetricsColumns <= 2
         let tile = VStack(alignment: .leading, spacing: 6) {
-            Text(label.uppercased()).font(StrandFont.overlineScaled(wide ? 10 : 9)).tracking(1.2)
+            Text(label.uppercased())
+                .font(dynamicTypeSize.isAccessibilitySize ? StrandFont.overline : StrandFont.overlineScaled(wide ? 10 : 9))
+                .tracking(StrandFont.overlineTracking)
                 .foregroundStyle(StrandPalette.textTertiary)
-            (Text(value).font(StrandFont.number(wide ? 20 : 17))
+            (Text(value).font(StrandFont.number(wide ? wideMetricValueSize : compactMetricValueSize))
                 + Text(unit.isEmpty ? "" : " \(unit)").font(StrandFont.caption))
                 .foregroundStyle(StrandPalette.textPrimary)
                 .lineLimit(1)
@@ -1507,7 +1520,7 @@ struct LiquidTodayView: View {
         // animated sky is exactly the scroll-stutter this file spends its PERF comments avoiding.
         .background(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(StrandPalette.surfaceRaised.opacity(0.72))
+                .fill(StrandPalette.surfaceRaised.opacity(translucentCardFillOpacity))
                 .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous)
                     .strokeBorder(StrandPalette.hairline, lineWidth: 1))
                 .opacity(cardOpacity)
@@ -1601,7 +1614,8 @@ struct LiquidTodayView: View {
 
     private func sectionHead(_ title: String, trailing: String) -> some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(LocalizedStringKey(title)).font(StrandFont.overline).tracking(1.6).foregroundStyle(StrandPalette.textTertiary)
+            Text(LocalizedStringKey(title)).font(StrandFont.overline).tracking(StrandFont.overlineTracking)
+                .foregroundStyle(StrandPalette.textSecondary)
             Spacer()
             Text(LocalizedStringKey(trailing)).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
         }
@@ -1614,9 +1628,9 @@ struct LiquidTodayView: View {
             .padding(18)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                RoundedRectangle(cornerRadius: 26, style: .continuous)
-                    .fill(StrandPalette.surfaceRaised.opacity(0.72))
-                    .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous)
+                RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous)
+                    .fill(StrandPalette.surfaceRaised.opacity(translucentCardFillOpacity))
+                    .overlay(RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous)
                         .strokeBorder(StrandPalette.hairline, lineWidth: 1))
                     .opacity(cardOpacity)
             )
@@ -2114,7 +2128,7 @@ private struct HeroScoreCell: View {
                     HStack(spacing: 3) {
                         // #74: one line, shrink-to-fit rather than wrap under large Dynamic Type (mirrors the
                         // score number above) so CHARGE/EFFORT/REST never grow the hero card to two lines.
-                        Text(label.uppercased()).font(StrandFont.overline).tracking(1.6)
+                        Text(label.uppercased()).font(StrandFont.overline).tracking(StrandFont.overlineTracking)
                             .lineLimit(1).minimumScaleFactor(0.7)
                         Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).opacity(0.6)
                     }

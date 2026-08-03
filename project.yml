@@ -304,11 +304,8 @@ targets:
       properties:
         com.apple.developer.healthkit: true
         com.apple.developer.healthkit.access: []
-        # NOOP AI fork: the app-group entitlement is dropped — a FREE Apple ID cannot provision App
-        # Groups, and with the widget/watch embeds removed (below) nothing shares data across targets.
-        # WidgetSnapshot's UserDefaults(suiteName:) tolerates the missing group (unshared container).
-        # Restore the `com.apple.security.application-groups: [$(APP_GROUP_ID)]` property alongside the
-        # widget/watch dependencies when building with a paid team.
+        com.apple.security.application-groups:
+          - $(APP_GROUP_ID)
     settings:
       base:
         # NOOP AI fork: the prefix comes from $(BUNDLE_ID_PREFIX) (Config/BundleId.xcconfig), so set your
@@ -334,14 +331,11 @@ targets:
       - package: ZIPFoundation
       - framework: Vendor/Nomic/llama.xcframework
         embed: true
-      # NOOP AI fork: the widget extension + embedded watch app are NOT built into the iPhone app.
-      # A free Apple ID gets no App Groups and only 10 app ids / 7 days, so each extra embedded target
-      # (each its own app id + the shared group) makes free-account signing fail — the same reason the
-      # upstream fork-release CI strips Watch/ and PlugIns/ from the sideload .ipa. The home-screen
-      # widget and watch app are the only loss; the main app is unaffected. Building with a paid team?
-      # Restore the two target dependencies below (and the app-group entitlement above):
-      #   - target: NOOPiOSWidgets
-      #   - target: NOOPWatch
+      # The canonical Apple build is complete. Release packaging derives the free-Apple-ID
+      # AltStore/SideStore IPA from this bundle by stripping PlugIns/ and Watch/ from a staged copy;
+      # the full unsigned IPA and source builds retain widgets, Live Activities, Watch and complications.
+      - target: NOOPiOSWidgets
+      - target: NOOPWatch
 
   NOOPiOSTests:
     type: bundle.unit-test
@@ -393,7 +387,7 @@ targets:
           - $(APP_GROUP_ID)
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).noop.widgets
+        PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).noopai.widgets
         PRODUCT_NAME: NOOPWidgets
         GENERATE_INFOPLIST_FILE: NO
         TARGETED_DEVICE_FAMILY: "1,2"
@@ -435,7 +429,7 @@ targets:
         # Pairs this watch app to the iPhone companion (must match NOOPiOS PRODUCT_BUNDLE_IDENTIFIER).
         # Built from the same $(BUNDLE_ID_PREFIX) rather than $(PRODUCT_BUNDLE_IDENTIFIER) because that
         # build setting would resolve to THIS target's own id, not NOOPiOS's.
-        WKCompanionAppBundleIdentifier: $(BUNDLE_ID_PREFIX).noop
+        WKCompanionAppBundleIdentifier: $(BUNDLE_ID_PREFIX).noopai
         NSHealthShareUsageDescription: "NOOP reads your heart rate from the Watch sensor to show a live readout on your wrist. It stays on your device."
         NSHealthUpdateUsageDescription: "NOOP records a basic workout session on your Watch for a higher-fidelity heart rate. The session stays on your device."
     entitlements:
@@ -447,7 +441,7 @@ targets:
           - $(APP_GROUP_ID)
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).noop.watch
+        PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).noopai.watch
         # The bundle FILE is NOOPWatch.app so it doesn't collide with the iPhone app's NOOP.app when it is
         # embedded at NOOP.app/Watch/NOOPWatch.app. The user still sees "NOOP" on the wrist via the
         # CFBundleName / CFBundleDisplayName above.
@@ -497,7 +491,7 @@ targets:
           - $(APP_GROUP_ID)
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).noop.watch.complications
+        PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).noopai.watch.complications
         PRODUCT_NAME: NOOPWatchComplications
         GENERATE_INFOPLIST_FILE: NO
         TARGETED_DEVICE_FAMILY: "4"

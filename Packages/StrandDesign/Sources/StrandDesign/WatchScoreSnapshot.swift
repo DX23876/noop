@@ -15,6 +15,14 @@ import Foundation
 /// cal marker), NEVER a fabricated number. A score that simply has not been computed yet is also `nil`
 /// but with its flag false (missing data, not mid-calibration) and reads as a plain dash.
 public struct WatchScoreSnapshot: Codable, Equatable, Sendable {
+    // MARK: - WatchConnectivity contract
+
+    /// Dictionary key carrying the encoded snapshot in application-context and message replies.
+    /// Both companion apps use this shared constant so the wire contract cannot drift.
+    public static let contextKey = "snapshot"
+    /// Dictionary key the watch sends when it needs the latest phone snapshot immediately.
+    public static let requestLatestKey = "requestLatest"
+
     /// Charge (recovery), 0 to 100. `nil` when there is no earned number for the day.
     public var charge: Double?
     /// True when Charge is still calibrating (the baseline is not usable yet). When true, `charge` is
@@ -69,10 +77,9 @@ public struct WatchScoreSnapshot: Codable, Equatable, Sendable {
 
     // MARK: - Shared app group transport
     //
-    // The watch app + its complication read the latest snapshot from the shared app group's
-    // UserDefaults under this key. The phone side writes the same key on its own UserDefaults view of
-    // the group too (belt and braces alongside updateApplicationContext), so a freshly launched watch
-    // reads the last known value immediately.
+    // The watch app + its complication read the latest snapshot from their watch-side shared app group.
+    // The phone keeps its own cache under the same key so it can answer a watch request immediately;
+    // WatchConnectivity, not the app group, crosses the physical device boundary.
 
     /// The shared app group both the watch app and its complication read the snapshot from. Injected
     /// from the `APP_GROUP_ID` build setting (see project.yml) via the `AppGroupIdentifier` Info.plist

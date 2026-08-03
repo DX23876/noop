@@ -573,12 +573,12 @@ struct RootTabView: View {
                 // Zero internal padding so each MoreRow owns its own comfortable insets + height; the rows
                 // supply their own hairline separators (drawn at the bottom of every row but the last via the
                 // divider overlay) so the group reads as one continuous grouped list, matching Settings/Health.
-                NoopCard(padding: 0) {
+                NoopCard(padding: 0, cornerRadius: NoopMetrics.groupedRadius) {
                     VStack(spacing: 0) { rows() }
                         // Clip the rows column to the card's rounded shape so the last row's bottom hairline is
                         // trimmed inside the corners (the card draws its surface in the BACKGROUND and doesn't
                         // clip content itself, so without this the final divider would run past the rounded edge).
-                        .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: NoopMetrics.groupedRadius, style: .continuous))
                 }
             }
         }
@@ -701,6 +701,8 @@ private struct QuickActionSheet: View {
     /// Live Sessions (silent guardian) beta gate — the SAME key Settings and the macOS Today row read.
     /// Off removes the row entirely, exactly as it used to remove the Today Start-session entry.
     @AppStorage(LiveSessionPrefs.betaKey) private var liveSessionsBeta = true
+    @AppStorage(AppleInspiredColorsPrefs.enabledKey)
+    private var appleInspiredColors = AppleInspiredColorsPrefs.defaultEnabled
 
     var body: some View {
         VStack(spacing: 0) {
@@ -713,16 +715,17 @@ private struct QuickActionSheet: View {
 
             Text("QUICK ACTIONS")
                 .font(StrandFont.overline)
-                .tracking(1.6)
-                .foregroundStyle(StrandPalette.textTertiary)
+                .tracking(StrandFont.overlineTracking)
+                .foregroundStyle(StrandPalette.textSecondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 16)
+                .padding(.horizontal, NoopMetrics.screenHPadding)
                 .padding(.bottom, 10)
 
             VStack(spacing: 8) {
                 row("Live HR", icon: "waveform.path.ecg", tint: StrandPalette.metricRose) { onPick(.live) }
                 row("Start workout", icon: "figure.run", tint: StrandPalette.effortColor) { onPick(.workout) }
-                row("Log journal", icon: "square.and.pencil", tint: StrandPalette.accent) { onPick(.journal) }
+                row("Log journal", icon: "square.and.pencil",
+                    tint: AppleInspiredColors.color(for: "journal", enabled: appleInspiredColors)) { onPick(.journal) }
                 row("Breathe", icon: "wind", tint: StrandPalette.restColor) { onPick(.breathe) }
                 if liveSessionsBeta {
                     // A Live Session is NOT a breathing exercise — it is quiet strap coaching against
@@ -732,7 +735,7 @@ private struct QuickActionSheet: View {
                         subtitle: "Quiet strap coaching against today's Charge") { onPick(.liveSession) }
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, NoopMetrics.screenHPadding)
 
             Spacer(minLength: 0)
         }
@@ -836,7 +839,7 @@ private struct FloatingTabBar: View {
         }
         .padding(.vertical, 7)
         .padding(.horizontal, 8)
-        .liquidGlass(in: Capsule())
+        .liquidGlass(in: Capsule(), interactive: true)
         // Over the liquid Today the sky ends at ~340pt, so the bar floats on flat opaque surfaceBase —
         // a blur material has nothing to dissolve and hardens into a solid lozenge (2026-07-02:
         // "clips into a solid shape"). A faint translucent scrim INSIDE the same Capsule keeps the pill
@@ -868,7 +871,7 @@ private struct FloatingTabBar: View {
                 Image(systemName: item.icon)
                     .font(.system(size: 18, weight: active ? .semibold : .regular))
                 Text(item.title)
-                    .font(.system(size: 10, weight: active ? .semibold : .medium))
+                    .font(.caption2.weight(active ? .semibold : .medium))
             }
             .foregroundStyle(active ? StrandPalette.accent : StrandPalette.textSecondary)
             .frame(maxWidth: .infinity)

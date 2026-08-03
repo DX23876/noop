@@ -333,7 +333,7 @@ struct InsightsView: View {
                             .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
                             .foregroundStyle(StrandPalette.textPrimary)
                         Text("Ranked, lag-aware: which of your habits actually move your Charge, plus your personal alcohol/caffeine dose-response.")
-                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 8)

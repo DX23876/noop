@@ -7,6 +7,7 @@
 //  one shared tilt source. Colours come from StrandDesign tokens at the call site.
 
 import SwiftUI
+import StrandDesign
 
 // MARK: - Renderers (pure GraphicsContext drawing)
 
@@ -398,6 +399,33 @@ struct LiquidThread: View {
 
 // MARK: - Shared liquid components (cross-platform: used by Today AND the other liquid screens on iOS + mac)
 
+private struct LiquidGlassModifier<S: Shape>: ViewModifier {
+    let shape: S
+    let interactive: Bool
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if reduceTransparency {
+            content.background(StrandPalette.surfaceRaised, in: shape)
+        } else {
+            #if os(iOS)
+            if #available(iOS 26.0, *) {
+                if interactive {
+                    content.glassEffect(.regular.interactive(), in: shape)
+                } else {
+                    content.glassEffect(.regular, in: shape)
+                }
+            } else {
+                content.background(.ultraThinMaterial, in: shape)
+            }
+            #else
+            content.background(.ultraThinMaterial, in: shape)
+            #endif
+        }
+    }
+}
+
 extension View {
     /// A light selection/impact haptic, available only where `sensoryFeedback` is (iOS 17 / macOS 14);
     /// a no-op below that so the liquid primitives still compile on the macOS 13 deployment target.
@@ -466,16 +494,8 @@ extension View {
     /// older ones. Deliberately used SPARINGLY: each glass surface is its own blur pass, and Today draws a
     /// live animated sky underneath, so this belongs on the floating chrome and the one hero surface, not on
     /// every card and tile (those take a lighter fill instead).
-    @ViewBuilder func liquidGlass(in shape: some Shape) -> some View {
-        #if os(iOS)
-        if #available(iOS 26.0, *) {
-            self.glassEffect(.regular, in: shape)
-        } else {
-            self.background(.ultraThinMaterial, in: shape)
-        }
-        #else
-        self.background(.ultraThinMaterial, in: shape)
-        #endif
+    func liquidGlass<S: Shape>(in shape: S, interactive: Bool = false) -> some View {
+        modifier(LiquidGlassModifier(shape: shape, interactive: interactive))
     }
 }
 

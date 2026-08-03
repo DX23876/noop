@@ -1,1296 +1,1299 @@
 {
-  "sourceLanguage": "en",
-  "strings": {
-    "%@ %lld": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ %lld"
+  "sourceLanguage" : "en",
+  "strings" : {
+    "%@ %lld" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ %lld"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ %lld"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ %lld"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ %lld"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ %2$lld"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ %lld"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ %2$lld"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ %2$lld"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ %lld"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ %2$lld"
-          }
-        }
-      }
-    },
-    "%@ calibrating": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ wird kalibriert"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ calibrating"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ a calibrar"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ калибруется"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Calibración %1$@"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Étalonnage %1$@"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ %lld"
           }
         }
       }
     },
-    "%@ unavailable": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ nicht verfügbar"
+    "%@ calibrating" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ wird kalibriert"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ unavailable"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ calibrating"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ indisponível"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calibración %1$@"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ недоступно"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Étalonnage %1$@"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ no disponible"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ a calibrar"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ non disponible"
-          }
-        }
-      }
-    },
-    "Charge": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ladung"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Charge"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Carga"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Charge"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Carica"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Carga"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Заряд"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "能量"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "能量"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ калибруется"
           }
         }
       }
     },
-    "Charge %lld out of 100": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ladung %lld von 100"
+    "%@ unavailable" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ nicht verfügbar"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Charge %lld out of 100"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ unavailable"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Carregue %lld de 100"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ no disponible"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Заряд %lld из 100"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ non disponible"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Carga %1$lld de 100"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ indisponível"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Chargez %1$lld sur 100"
-          }
-        }
-      }
-    },
-    "Charge %lld · %lld bpm%@": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ladung %lld · %lld bpm%@"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Charge %lld · %lld bpm%@"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Carregar %lld · %lld bpm%@"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Заряд %lld · %lld уд/мин%@"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Carga %1$lld · %2$lld bpm%3$@"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Charger %1$lld · %2$lld bpm%3$@"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ недоступно"
           }
         }
       }
     },
-    "Charge %lld%@": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ladung %lld%@"
+    "a while ago" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "vor einer Weile"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Charge %lld%@"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "a while ago"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Carregar %lld%@"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "hace un tiempo"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Заряд %lld%@"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il y a longtemps"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Carga %1$lld%2$@"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "há um tempo atrás"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Charger %1$lld%2$@"
-          }
-        }
-      }
-    },
-    "Charge calibrating": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ladung wird kalibriert"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Charge calibrating"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Calibração de carga"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Заряд калибруется"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Calibración de carga"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Étalonnage des charges"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "некоторое время назад"
           }
         }
       }
     },
-    "Charge calibrating, needs more data": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ladung wird kalibriert, mehr Daten nötig"
+    "cal" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "cal"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Charge calibrating, needs more data"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "cal"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Calibração de carga, necessita de mais dados"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "cal"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Заряд калибруется, нужно больше данных"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "cal"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Calibración de carga, necesita más datos"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "cal"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Étalonnage de charge, besoin de plus de données"
-          }
-        }
-      }
-    },
-    "Charge out of date, last synced %@. Open NOOP on iPhone.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ladung veraltet, zuletzt synchronisiert %@. Öffne NOOP auf dem iPhone."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Charge out of date, last synced %@. Open NOOP on iPhone."
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Carga desatualizada, última sincronização %@. Abra o NOOP no iPhone."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Заряд устарел, последняя синхронизация %@. Откройте NOOP на iPhone."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Carga fuera de la fecha, última sincronizada %1$@. Abrir NOOP en iPhone."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Charge hors date, dernière synchronisation %1$@. Ouvrez NOOP sur iPhone."
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "кал"
           }
         }
       }
     },
-    "Charge stale · %@": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ladung veraltet · %@"
+    "Charge" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ladung"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Charge stale · %@"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Carga obsoleta · %@"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Заряд устарел · %@"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Estabilización de carga · %1$@"
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carica"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Intervalle de charge · %1$@"
-          }
-        }
-      }
-    },
-    "Charge unavailable": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ladung nicht verfügbar"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Charge unavailable"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Заряд"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Carga indisponível"
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "能量"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Заряд недоступен"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Carga no disponible"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Frais non disponibles"
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "能量"
           }
         }
       }
     },
-    "Charge · %@": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ladung · %@"
+    "Charge –" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ladung –"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Charge · %@"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge –"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cobrar · %@"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga –"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Заряд · %@"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frais –"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Carga · %1$@"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cobrar -"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Charge · %1$@"
-          }
-        }
-      }
-    },
-    "Charge · cal": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ladung · cal"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Charge · cal"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Carregar · cal"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Заряд · кал"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Carga · cal"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Charge"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Заряд –"
           }
         }
       }
     },
-    "Charge –": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ladung –"
+    "Charge · %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ladung · %@"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Charge –"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge · %@"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cobrar -"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga · %1$@"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Заряд –"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge · %1$@"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Carga –"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cobrar · %@"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Frais –"
-          }
-        }
-      }
-    },
-    "Effort": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Anstrengung"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Effort"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Esfuerzo"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Effort"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sforzo"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Esforço"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Усилие"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "消耗"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "消耗"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Заряд · %@"
           }
         }
       }
     },
-    "NOOP Charge": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP Ladung"
+    "Charge · cal" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ladung · cal"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP Charge"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge · cal"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Carga de NOOP"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga · cal"
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Carica NOOP"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Carga NOOP"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carregar · cal"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP Заряд"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP 能量"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP 能量"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Charge NOOP"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Заряд · кал"
           }
         }
       }
     },
-    "NOOP · open on iPhone": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP · auf iPhone öffnen"
+    "Charge %lld · %lld bpm%@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ladung %lld · %lld bpm%@"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP · open on iPhone"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge %lld · %lld bpm%@"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP · abrir no iPhone"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga %1$lld · %2$lld bpm%3$@"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP · откройте на iPhone"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charger %1$lld · %2$lld bpm%3$@"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP · abierto en iPhone"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carregar %lld · %lld bpm%@"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP · ouvert sur iPhone"
-          }
-        }
-      }
-    },
-    "NOOP. %@, %@, %@.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP. %@, %@, %@."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP. %@, %@, %@."
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NÃO. %@, %@, %@."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP. %@, %@, %@."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP. %1$@, %2$@, %3$@."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "- Oui. %1$@, %2$@, %3$@."
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Заряд %lld · %lld уд/мин%@"
           }
         }
       }
     },
-    "NOOP. No data yet, open NOOP on your iPhone to sync.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP. Noch keine Daten, öffne NOOP auf deinem iPhone zum Synchronisieren."
+    "Charge %lld out of 100" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ladung %lld von 100"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP. No data yet, open NOOP on your iPhone to sync."
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge %lld out of 100"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NÃO. Ainda não há dados, abra o NOOP no teu iPhone para tincronizar."
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga %1$lld de 100"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP. Данных пока нет, откройте NOOP на iPhone для синхронизации."
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chargez %1$lld sur 100"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP. Aún no hay datos, abra NOOP en su iPhone para sincronizar."
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carregue %lld de 100"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "- Oui. Pas encore de données, ouvrez NOOP sur votre iPhone pour synchroniser."
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Заряд %lld из 100"
           }
         }
       }
     },
-    "NOOP. Scores out of date, last synced %@. Open NOOP on iPhone to refresh.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP. Werte veraltet, zuletzt synchronisiert %@. Öffne NOOP auf dem iPhone zum Aktualisieren."
+    "Charge %lld%@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ladung %lld%@"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP. Scores out of date, last synced %@. Open NOOP on iPhone to refresh."
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge %lld%@"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NÃO. Pontuações desatualizadas, última sincronização %@. Abra o NOOP no iPhone para atualizar."
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga %1$lld%2$@"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP. Показатели устарели, последняя синхронизация %@. Откройте NOOP на iPhone, чтобы обновить."
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charger %1$lld%2$@"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP. Resultados fuera de la fecha, último sincronizado %1$@. Abra NOOP en iPhone para refrescarse."
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carregar %lld%@"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "- Oui. Les scores sont dépassés, le dernier %1$@ synchronisé. Ouvrez NOOP sur iPhone pour vous rafraîchir."
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Заряд %lld%@"
           }
         }
       }
     },
-    "No data, open NOOP on iPhone": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Keine Daten, öffne NOOP auf dem iPhone"
+    "Charge calibrating" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ladung wird kalibriert"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No data, open NOOP on iPhone"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge calibrating"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sem dados, abra o NOOP no iPhone"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calibración de carga"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Нет данных, откройте NOOP на iPhone"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Étalonnage des charges"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No hay datos, abra NOOP en iPhone"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calibração de carga"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pas de données, ouvrir NOOP sur iPhone"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Заряд калибруется"
           }
         }
       }
     },
-    "Open NOOP": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NOOP öffnen"
+    "Charge calibrating, needs more data" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ladung wird kalibriert, mehr Daten nötig"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open NOOP"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge calibrating, needs more data"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Abrir NOOP"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calibración de carga, necesita más datos"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Открыть NOOP"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Étalonnage de charge, besoin de plus de données"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open NOOP"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calibração de carga, necessita de mais dados"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ouvrir NOOP"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Заряд калибруется, нужно больше данных"
           }
         }
       }
     },
-    "Rest": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ruhe"
+    "Charge out of date, last synced %@. Open NOOP on iPhone." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ladung veraltet, zuletzt synchronisiert %@. Öffne NOOP auf dem iPhone."
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rest"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge out of date, last synced %@. Open NOOP on iPhone."
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Descanso"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga fuera de la fecha, última sincronizada %1$@. Abrir NOOP en iPhone."
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Repos"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge hors date, dernière synchronisation %1$@. Ouvrez NOOP sur iPhone."
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Riposo"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga desatualizada, última sincronização %@. Abra o NOOP no iPhone."
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Descanso"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Отдых"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "休息"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "休息"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Заряд устарел, последняя синхронизация %@. Откройте NOOP на iPhone."
           }
         }
       }
     },
-    "Your Charge (recovery) on the watch face, with Effort and Rest in the rectangular card.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Deine Ladung (Erholung) auf dem Zifferblatt, mit Anstrengung und Ruhe in der rechteckigen Karte."
+    "Charge stale · %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ladung veraltet · %@"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Your Charge (recovery) on the watch face, with Effort and Rest in the rectangular card."
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge stale · %@"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tu Carga (recuperación) en la esfera del reloj, con Esfuerzo y Descanso en la tarjeta rectangular."
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estabilización de carga · %1$@"
           }
         },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "La tua Carica (recupero) sul quadrante, con Sforzo e Riposo nella scheda rettangolare."
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Intervalle de charge · %1$@"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "A tua Carga (recuperação) no mostrador do relógio, com Esforço e Descanso no cartão rectangular."
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga obsoleta · %@"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ваш заряд (восстановление) на циферблате, с показателями «Усилие» и «Отдых» в прямоугольной карточке."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "表盘上显示你的能量（恢复），矩形卡片中显示消耗和休息。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "錶面上顯示你的能量（恢復），矩形卡片中則是消耗與休息。"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Votre charge (récupération) sur le cadran, avec l'effort et le repos dans la carte rectangulaire."
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Заряд устарел · %@"
           }
         }
       }
     },
-    "a while ago": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "vor einer Weile"
+    "Charge unavailable" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ladung nicht verfügbar"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "a while ago"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge unavailable"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "há um tempo atrás"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga no disponible"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "некоторое время назад"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frais non disponibles"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "hace un tiempo"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga indisponível"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Il y a longtemps"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Заряд недоступен"
           }
         }
       }
     },
-    "cal": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "cal"
+    "Effort" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anstrengung"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "cal"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effort"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "cal"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esfuerzo"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "кал"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effort"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "cal"
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sforzo"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "cal"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esforço"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Усилие"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "消耗"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "消耗"
           }
         }
       }
     },
-    "old": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "alt"
+    "No data, open NOOP on iPhone" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Daten, öffne NOOP auf dem iPhone"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "old"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No data, open NOOP on iPhone"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "old"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hay datos, abra NOOP en iPhone"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "устарело"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas de données, ouvrir NOOP sur iPhone"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "viejo"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sem dados, abra o NOOP no iPhone"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "vieux"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нет данных, откройте NOOP на iPhone"
           }
         }
       }
     },
-    "open iPhone": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "iPhone öffnen"
+    "NOOP" : {
+
+    },
+    "NOOP · open on iPhone" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP · auf iPhone öffnen"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "open iPhone"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP · open on iPhone"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "abra o iPhone"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP · abierto en iPhone"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "открыть iPhone"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP · ouvert sur iPhone"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "iPhone abierto"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP · abrir no iPhone"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ouvrir un iPhone"
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP · откройте на iPhone"
           }
         }
       }
     },
-    "stale": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "veraltet"
+    "NOOP Charge" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP Ladung"
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "stale"
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP Charge"
           }
         },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "stale"
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga de NOOP"
           }
         },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "устарело"
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge NOOP"
           }
         },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "stale"
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carica NOOP"
           }
         },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stable"
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carga NOOP"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP Заряд"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 能量"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 能量"
+          }
+        }
+      }
+    },
+    "NOOP. %@, %@, %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP. %@, %@, %@."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP. %@, %@, %@."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP. %1$@, %2$@, %3$@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "- Oui. %1$@, %2$@, %3$@."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NÃO. %@, %@, %@."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP. %@, %@, %@."
+          }
+        }
+      }
+    },
+    "NOOP. No data yet, open NOOP on your iPhone to sync." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP. Noch keine Daten, öffne NOOP auf deinem iPhone zum Synchronisieren."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP. No data yet, open NOOP on your iPhone to sync."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP. Aún no hay datos, abra NOOP en su iPhone para sincronizar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "- Oui. Pas encore de données, ouvrez NOOP sur votre iPhone pour synchroniser."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NÃO. Ainda não há dados, abra o NOOP no teu iPhone para tincronizar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP. Данных пока нет, откройте NOOP на iPhone для синхронизации."
+          }
+        }
+      }
+    },
+    "NOOP. Scores out of date, last synced %@. Open NOOP on iPhone to refresh." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP. Werte veraltet, zuletzt synchronisiert %@. Öffne NOOP auf dem iPhone zum Aktualisieren."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP. Scores out of date, last synced %@. Open NOOP on iPhone to refresh."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP. Resultados fuera de la fecha, último sincronizado %1$@. Abra NOOP en iPhone para refrescarse."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "- Oui. Les scores sont dépassés, le dernier %1$@ synchronisé. Ouvrez NOOP sur iPhone pour vous rafraîchir."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NÃO. Pontuações desatualizadas, última sincronização %@. Abra o NOOP no iPhone para atualizar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP. Показатели устарели, последняя синхронизация %@. Откройте NOOP на iPhone, чтобы обновить."
+          }
+        }
+      }
+    },
+    "old" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "alt"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "old"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "viejo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "vieux"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "old"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "устарело"
+          }
+        }
+      }
+    },
+    "open iPhone" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iPhone öffnen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "open iPhone"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iPhone abierto"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir un iPhone"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "abra o iPhone"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "открыть iPhone"
+          }
+        }
+      }
+    },
+    "Open NOOP" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP öffnen"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open NOOP"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open NOOP"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir NOOP"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir NOOP"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Открыть NOOP"
+          }
+        }
+      }
+    },
+    "Rest" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ruhe"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rest"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descanso"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Repos"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Riposo"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descanso"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отдых"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "休息"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "休息"
+          }
+        }
+      }
+    },
+    "stale" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "veraltet"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "stale"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "stale"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stable"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "stale"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "устарело"
+          }
+        }
+      }
+    },
+    "Your Charge (recovery) on the watch face, with Effort and Rest in the rectangular card." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Ladung (Erholung) auf dem Zifferblatt, mit Anstrengung und Ruhe in der rechteckigen Karte."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your Charge (recovery) on the watch face, with Effort and Rest in the rectangular card."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu Carga (recuperación) en la esfera del reloj, con Esfuerzo y Descanso en la tarjeta rectangular."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre charge (récupération) sur le cadran, avec l'effort et le repos dans la carte rectangulaire."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La tua Carica (recupero) sul quadrante, con Sforzo e Riposo nella scheda rettangolare."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A tua Carga (recuperação) no mostrador do relógio, com Esforço e Descanso no cartão rectangular."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваш заряд (восстановление) на циферблате, с показателями «Усилие» и «Отдых» в прямоугольной карточке."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "表盘上显示你的能量（恢复），矩形卡片中显示消耗和休息。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "錶面上顯示你的能量（恢復），矩形卡片中則是消耗與休息。"
           }
         }
       }
     }
   },
-  "version": "1.0"
+  "version" : "1.0"
 }

@@ -29,6 +29,6 @@
 	<key>WKApplication</key>
 	<true/>
 	<key>WKCompanionAppBundleIdentifier</key>
-	<string>$(BUNDLE_ID_PREFIX).noop</string>
+	<string>$(BUNDLE_ID_PREFIX).noopai</string>
 </dict>
 </plist>

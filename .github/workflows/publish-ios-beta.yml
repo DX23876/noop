@@ -69,6 +69,7 @@ jobs:
           echo "TAG=v${VERSION}-dx-beta" >> "$GITHUB_ENV"
           echo "NOTES=$NOTES" >> "$GITHUB_ENV"
           echo "IPA=NOOP-ios-unsigned-v${VERSION}-dx-beta.ipa" >> "$GITHUB_ENV"
+          echo "FULL_IPA=NOOP-ios-full-unsigned-v${VERSION}-dx-beta.ipa" >> "$GITHUB_ENV"
 
           # Same two values as job outputs — $GITHUB_ENV is per-job and invisible to the jobs below.
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
@@ -120,7 +121,7 @@ jobs:
           CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
           DEVELOPMENT_TEAM="" build
 
-      - name: Package unsigned IPA
+      - name: Package AltStore and Full unsigned IPAs
         run: |
           set -euo pipefail
           APP=$(find "$RUNNER_TEMP/noop-dd/Build/Products/Release-iphoneos" -maxdepth 1 -name '*.app' -type d | head -1)
@@ -141,21 +142,19 @@ jobs:
           }
           echo "Bundled model: $(basename "$MODEL") ($(du -h "$MODEL" | cut -f1))"
 
-          # project.yml deliberately does not embed the widget extension or the Watch app into NOOPiOS: a
-          # free Apple ID only gets 10 app ids / 7 days and no App Groups, and each extra embedded target
-          # (its own app id + the shared group) makes free-account signing fail. Neither PlugIns/ nor
-          # Watch/ is expected to exist in this build — the rm -rf below is defensive, not a strip step.
-          rm -rf "$APP/Watch" Payload
-          mkdir Payload
-          cp -R "$APP" Payload/
-          zip -qry "$IPA" Payload
-          echo "Packaged $IPA ($(du -h "$IPA" | cut -f1))"
+          # Scrub the complete bundle first, including the nested Watch and Widget executables. The
+          # packager then preserves that bundle as the Full IPA and strips extensions only from a copy
+          # used by AltStore/SideStore with free Apple IDs.
+          Tools/anonymize-ios-app.sh "$APP"
+          Tools/package-ios-ipas.sh "$APP" "$IPA" "$FULL_IPA"
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.IPA }}
-          path: ${{ env.IPA }}
+          name: NOOP-iOS-${{ env.VERSION }}
+          path: |
+            ${{ env.IPA }}
+            ${{ env.FULL_IPA }}
           retention-days: 30
 
       - name: Create or refresh prerelease
@@ -170,7 +169,7 @@ jobs:
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
               --prerelease --title "NOOP AI $VERSION DX Beta" --notes-file "$BODY"
           fi
-          gh release upload "$TAG" "$IPA" --repo "$GITHUB_REPOSITORY" --clobber
+          gh release upload "$TAG" "$IPA" "$FULL_IPA" --repo "$GITHUB_REPOSITORY" --clobber
 
       - name: Publish DX Beta to AltStore and SideStore source
         env:

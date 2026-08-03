@@ -7,10 +7,14 @@ import SwiftUI
 
 public enum NoopMetrics {
     public static let cardRadius: CGFloat = 22   // Apple x WHOOP rounded cards — matches the liquid home card (LiquidTodayView.card)   // Apple x WHOOP: rounded cards
+    /// Compact continuous radius for grouped lists and settings sections.
+    public static let groupedRadius: CGFloat = 17
+    /// Generous radius reserved for a screen's primary hero surface.
+    public static let heroRadius: CGFloat = 30
     public static let cardPadding: CGFloat = 16  // Apple x WHOOP: roomier card interior
     public static let gap: CGFloat = 12          // gap between cards
     public static let sectionGap: CGFloat = 22   // Apple x WHOOP: breathing room (not cramped)
-    public static let screenPadding: CGFloat = 18
+    public static let screenPadding: CGFloat = 16
     public static let tileHeight: CGFloat = 96   // Design Reset: tighter metric tile
     // Key Metrics grid: one fixed height every tile snaps to, so a sparkline-and-caption tile and a
     // plain value tile read the same. maxHeight: .infinity can't equalise them inside a LazyVGrid (the
@@ -39,7 +43,7 @@ public enum NoopMetrics {
 
     // MARK: Named layout constants — the canonical margins/heights screens compose with.
     /// Horizontal page margin (the gutter on the left/right edge of a screen). Use via `.screenPadding()`.
-    public static let screenHPadding: CGFloat = 20
+    public static let screenHPadding: CGFloat = 16
     /// Vertical gap between top-level page sections.
     public static let sectionSpacing: CGFloat = 24
     /// Interior padding inside a card's content (matches `cardPadding`).
@@ -93,12 +97,15 @@ public extension View {
 public struct NoopCard<Content: View>: View {
     private let padding: CGFloat
     private let tint: Color?
+    private let cornerRadius: CGFloat
     @ViewBuilder private let content: () -> Content
     #if os(macOS)
     @State private var hover = false
     #endif
-    public init(padding: CGFloat = NoopMetrics.cardPadding, tint: Color? = nil, @ViewBuilder content: @escaping () -> Content) {
-        self.padding = padding; self.tint = tint; self.content = content
+    public init(padding: CGFloat = NoopMetrics.cardPadding, tint: Color? = nil,
+                cornerRadius: CGFloat = NoopMetrics.cardRadius,
+                @ViewBuilder content: @escaping () -> Content) {
+        self.padding = padding; self.tint = tint; self.cornerRadius = cornerRadius; self.content = content
     }
     public var body: some View {
         content()
@@ -118,15 +125,15 @@ public struct NoopCard<Content: View>: View {
     // count on every card, which multiplies across long scrolling lists. macOS adds the
     // hover emphasis border on top (with the #104 animation scoping) unchanged.
     @ViewBuilder private var cardSurface: some View {
-        let shape = RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         #if os(macOS)
-        FrostedCardSurface(tint: tint, cornerRadius: NoopMetrics.cardRadius)
+        FrostedCardSurface(tint: tint, cornerRadius: cornerRadius)
             .overlay(
                 shape.strokeBorder(StrandPalette.hairlineStrong, lineWidth: 1).opacity(hover ? 1 : 0)
             )
             .animation(.easeOut(duration: 0.16), value: hover)
         #else
-        FrostedCardSurface(tint: tint, cornerRadius: NoopMetrics.cardRadius)
+        FrostedCardSurface(tint: tint, cornerRadius: cornerRadius)
         #endif
     }
 }
@@ -155,6 +162,8 @@ public struct SectionHeader: View {
 // MARK: - Metric tile (UNIFORM fixed height)
 
 public struct StatTile<Accessory: View>: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .title2) private var valueFontSize: CGFloat = 26
     let label: LocalizedStringKey, value: String
     var caption: String? = nil
     var accent: Color = StrandPalette.textPrimary
@@ -191,7 +200,8 @@ public struct StatTile<Accessory: View>: View {
                 }
                 Spacer(minLength: 4)
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(value).font(StrandFont.number(26)).foregroundStyle(accent).lineLimit(1).minimumScaleFactor(0.6)
+                    Text(value).font(StrandFont.number(valueFontSize)).foregroundStyle(accent)
+                        .lineLimit(1).minimumScaleFactor(0.6)
                     Spacer(minLength: 0)
                     // Trend chip — the delta as a tinted pill with a direction arrow.
                     if let delta { TrendChip(text: delta, color: deltaColor) }
@@ -206,7 +216,8 @@ public struct StatTile<Accessory: View>: View {
                 }
                 #endif
                 if let caption {
-                    Text(caption).font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary).lineLimit(1)
+                    Text(caption).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
                         .padding(.top, 2)
                 }
             }

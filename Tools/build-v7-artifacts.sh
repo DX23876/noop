@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# One-shot v7.0.0 release-artifact build: mac universal + iOS unsigned + Android full,
-# each anonymized + leak-checked. Writes dist/NOOP-v7.0.0-{macos.zip,.ipa,.apk}.
+# One-shot release-artifact build: mac universal + iOS AltStore/Full unsigned + Android full,
+# each anonymized + leak-checked. Writes both iOS variants through package-ios-ipas.sh.
 set -uo pipefail
 cd ~/Documents/Strand
 
@@ -63,25 +63,16 @@ rm -rf build/ios-dd
 # The destination lets each target build for its own platform; output still lands in Release-iphoneos.
 xcodebuild -scheme NOOPiOS -configuration Release -destination 'generic/platform=iOS' \
   -derivedDataPath build/ios-dd CODE_SIGNING_ALLOWED=NO build >/tmp/v7a-ios.log 2>&1
-IOSAPP="build/ios-dd/Build/Products/Release-iphoneos/NOOP.app"
+IOSAPP="$(find build/ios-dd/Build/Products/Release-iphoneos -maxdepth 1 -name '*.app' -type d | head -1)"
 if [ -d "$IOSAPP" ]; then
   echo "  built."
   Tools/anonymize-ios-app.sh "$IOSAPP" 2>&1 | sed 's/^/  /'
   LEAK=$(grep -rl "$HOMEPATH" "$IOSAPP/" 2>/dev/null | head -1)
   if [ -n "$LEAK" ]; then echo "  ✗ LEAK in $LEAK"; else echo "  ✓ no home-path leak"; fi
-  STAGE="build/ios-stage"; rm -rf "$STAGE"; mkdir -p "$STAGE/Payload"
-  cp -R "$IOSAPP" "$STAGE/Payload/"
-  # Strip the embedded watchOS app from the SIDELOAD payload only. Re-signing a nested watch app + its
-  # complication under a free Apple ID is an Apple limitation that crashes AltStore / SideStore mid-install
-  # with InvalidCompanionAppBundleIdentifier (the v7.2.0 regression). Build-from-source still ships the watch
-  # ($IOSAPP, already anonymized + leak-checked, is untouched); only this staged copy is thinned. The iOS app
-  # has no runtime dependency on the watch bundle and the IPA is unsigned, so there is no signature to break.
-  if [ -d "$STAGE/Payload/NOOP.app/Watch" ]; then
-    rm -rf "$STAGE/Payload/NOOP.app/Watch"
-    echo "  ✓ stripped embedded watch app from the sideload IPA (free-Apple-ID install fix; #751 mp3geek)"
-  fi
-  ( cd "$STAGE" && zip -qry "$OLDPWD/$DIST/NOOP-v$VER.ipa" Payload )
-  [ -f "$DIST/NOOP-v$VER.ipa" ] && ok_ios=1 && echo "  ✓ dist/NOOP-v$VER.ipa ($(( $(stat -f '%z' "$DIST/NOOP-v$VER.ipa")/1024/1024 ))MB)"
+  LITE_IPA="$DIST/NOOP-ios-unsigned-v$VER.ipa"
+  FULL_IPA="$DIST/NOOP-ios-full-unsigned-v$VER.ipa"
+  Tools/package-ios-ipas.sh "$IOSAPP" "$LITE_IPA" "$FULL_IPA"
+  [ -f "$LITE_IPA" ] && [ -f "$FULL_IPA" ] && ok_ios=1
 else echo "  ✗ iOS build FAILED"; grep -E 'error:' /tmp/v7a-ios.log | sed 's#.*Strand/##' | sort -u | head; fi
 
 # ── Android full release ───────────────────────────────────────────────────────
@@ -96,5 +87,5 @@ else echo "  ✗ Android build FAILED"; grep -iE 'error|FAILURE|what went wrong'
 
 echo ""
 echo "═══ ARTIFACT SUMMARY ═══  mac=$ok_mac ios=$ok_ios apk=$ok_apk"
-ls -la "$DIST"/NOOP-v$VER* 2>/dev/null
+ls -la "$DIST"/*v$VER* 2>/dev/null
 echo "═══ V7 ARTIFACTS DONE ═══"

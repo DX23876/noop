@@ -270,8 +270,10 @@ The repository's **Publish unsigned iOS beta** GitHub Action is intentionally ma
 from `main` with the numeric version already committed in `project.yml` and
 `android/app/build.gradle.kts`, plus the beta sequence number. It validates the matching English
 release note under `docs/releases/`, builds `NOOPiOS` in Release without a signing team or certificate,
-strips the embedded Watch app, uploads the unsigned IPA to a GitHub prerelease, and updates
-`altstore-source.json` with the real release URL and file size.
+packages both a complete unsigned IPA and a phone/iPad-only AltStore IPA, uploads both to a GitHub
+prerelease, and updates `altstore-source.json` with only the AltStore IPA's real release URL and file
+size. The complete artifact retains `PlugIns/NOOPWidgets.appex`, `Watch/NOOPWatch.app`, and the nested
+Watch complication; the AltStore copy removes both `PlugIns/` and `Watch/` after the build.
 
 The workflow needs repository Actions permissions set to **Read and write** and permission for the
 GitHub Actions bot to push its manifest-only commit to `main`. It never receives an Apple certificate,

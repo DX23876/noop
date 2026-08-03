@@ -220,17 +220,13 @@ final class WatchSessionBridge: NSObject, ObservableObject {
             let data = try JSONEncoder().encode(snap)
             // updateApplicationContext replaces any previous context, so the watch always gets exactly
             // the latest snapshot and never a queued backlog.
-            try session.updateApplicationContext([Self.contextKey: data])
+            try session.updateApplicationContext([WatchScoreSnapshot.contextKey: data])
         } catch {
             // A failed context update is non-fatal: the app-group mirror above still carries the latest
             // value, and the next dashboard refresh will try again.
         }
     }
 
-    /// The key the encoded snapshot rides under inside the application context dictionary.
-    static let contextKey = "snapshot"
-    /// The message key the watch sends on launch to ask for the latest snapshot right now.
-    static let requestLatestKey = "requestLatest"
 }
 
 // MARK: - WCSessionDelegate
@@ -263,14 +259,14 @@ extension WatchSessionBridge: WCSessionDelegate {
     nonisolated func session(_ session: WCSession,
                              didReceiveMessage message: [String: Any],
                              replyHandler: @escaping ([String: Any]) -> Void) {
-        guard message[Self.requestLatestKey] != nil else {
+        guard message[WatchScoreSnapshot.requestLatestKey] != nil else {
             replyHandler([:])
             return
         }
         // Read the last value we mirrored into the shared group and hand it straight back. Done off the
         // main actor since the request arrives on WC's queue; the app-group read is process-safe.
         if let snap = WatchScoreSnapshot.load(), let data = try? JSONEncoder().encode(snap) {
-            replyHandler([Self.contextKey: data])
+            replyHandler([WatchScoreSnapshot.contextKey: data])
         } else {
             replyHandler([:])
         }

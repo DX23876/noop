@@ -2591,7 +2591,7 @@ private struct SettingsDisclosureGroup<Content: View>: View {
 // MARK: - Section card
 
 /// A grouped settings card: a "Settings" overline + icon + title header, an explanatory blurb,
-/// then content. A faint accent-blue wash anchors the card to NOOP's neutral chrome (WHOOP skin).
+/// then content. The section surface stays neutral; the leading SF Symbol carries its semantic colour.
 private struct SettingsSection<Content: View>: View {
     let icon: String
     let title: LocalizedStringKey
@@ -2602,7 +2602,7 @@ private struct SettingsSection<Content: View>: View {
     /// Keyed directly on `icon` (see `SettingsIconColors`): every one of
     /// this struct's 15 call sites already uses a distinct SF Symbol, so the glyph itself is a stable key.
     var body: some View {
-        StrandCard(padding: 20, tint: StrandPalette.accent) {
+        StrandCard(padding: 20, cornerRadius: NoopMetrics.groupedRadius) {
             VStack(alignment: .leading, spacing: NoopMetrics.space4) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Settings").strandOverline()

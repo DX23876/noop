@@ -12,13 +12,16 @@ import StrandDesign
 //
 // Opt-out via `PuffinExperiment.journalReminderKey` (default ON — the same key also gates the Android
 // morning sleep sheet twin). Read-only: it never writes a journal entry. Twin of Android
-// `JournalReminderCard` (android/.../ui/JournalReminder.kt). Design-Reset compliant — a flat accent-tinted
-// NoopCard, NoopMetrics / StrandPalette / StrandFont tokens, matching the other Today cards.
+// `JournalReminderCard` (android/.../ui/JournalReminder.kt). Design-Reset compliant — a neutral grouped
+// card whose journal symbol and actionable state carry the semantic warm-orange accent.
 
 struct JournalReminderCard: View {
 
     @EnvironmentObject var repo: Repository
     @EnvironmentObject var router: NavRouter
+    @AppStorage(AppleInspiredColorsPrefs.enabledKey)
+    private var appleInspiredColors = AppleInspiredColorsPrefs.defaultEnabled
+    private var journalColor: Color { AppleInspiredColors.color(for: "journal", enabled: appleInspiredColors) }
 
     /// Default ON so the reminder works out of the box; the Settings toggle / this key opt out.
     @AppStorage(PuffinExperiment.journalReminderKey) private var reminderEnabled = true
@@ -56,12 +59,12 @@ struct JournalReminderCard: View {
         // and nested SwiftUI buttons don't work — so header + subtitle carry their own onTapGesture (→
         // today) and the bars carry theirs. The regions are non-overlapping in the VStack, so a tap lands
         // on exactly one. Tapping a bar does NOT set today, so a bar's day always wins.
-        return NoopCard(tint: StrandPalette.accent) {
+        return NoopCard(cornerRadius: NoopMetrics.groupedRadius) {
             VStack(alignment: .leading, spacing: NoopMetrics.space3) {
                 HStack(spacing: NoopMetrics.space2) {
                     Image(systemName: "book.closed")
                         .font(.system(size: 18))
-                        .foregroundStyle(StrandPalette.accent)
+                        .foregroundStyle(journalColor)
                         .accessibilityHidden(true)
                     Text(String(localized: "Journal"))
                         .font(StrandFont.headline)
@@ -90,12 +93,12 @@ struct JournalReminderCard: View {
                             .frame(height: 22)                    // taller invisible tap target
                             .overlay {
                                 RoundedRectangle(cornerRadius: 3)
-                                    .fill(isLogged ? StrandPalette.accent : StrandPalette.textTertiary.opacity(0.22))
+                                    .fill(isLogged ? journalColor : StrandPalette.textTertiary.opacity(0.22))
                                     .frame(height: 10)
                                     .overlay {
                                         if off == 0, !isLogged {
                                             RoundedRectangle(cornerRadius: 3)
-                                                .strokeBorder(StrandPalette.accent, lineWidth: 1)
+                                                .strokeBorder(journalColor, lineWidth: 1)
                                         }
                                     }
                             }
@@ -107,7 +110,7 @@ struct JournalReminderCard: View {
                 }
                 Text(subtitle)
                     .font(StrandFont.footnote)
-                    .foregroundStyle((!todayLogged || hasMissed) ? StrandPalette.accent : StrandPalette.textSecondary)
+                    .foregroundStyle((!todayLogged || hasMissed) ? journalColor : StrandPalette.textSecondary)
                     .contentShape(Rectangle())
                     .onTapGesture { router.openJournal() }
                     .accessibilityAddTraits(.isButton)   // it opens the journal — announce it as one

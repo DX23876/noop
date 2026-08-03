@@ -167,7 +167,7 @@ struct JournalLogCard: View {
                     .onChangeCompat(of: dayOffset) { _ in proxy.scrollTo(dayOffset, anchor: .center) }
                 }
             }
-            NoopCard(tint: StrandPalette.restColor) {
+            NoopCard(cornerRadius: NoopMetrics.groupedRadius) {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(editing
                          ? "Rename, regroup, or remove an item to tidy your list. Renaming keeps the original question behind the scenes, so a WHOOP import still lines up. Custom items are deleted; built-in ones are hidden and can be restored below."
@@ -400,7 +400,7 @@ struct JournalLogCard: View {
 
     private func candidateCard(_ candidate: JournalMerge.Candidate) -> some View {
         let kept = target(for: candidate)
-        return NoopCard {
+        return NoopCard(cornerRadius: NoopMetrics.groupedRadius) {
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(candidate.questions, id: \.self) { question in
                     candidateRow(question, in: candidate, kept: kept)
