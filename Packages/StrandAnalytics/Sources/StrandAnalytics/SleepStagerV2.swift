@@ -113,7 +113,7 @@ public enum SleepStagerV2 {
         // assumes its callers pass roughly-sorted streams; we make no such assumption here).
         let gravS = grav.sorted { $0.ts < $1.ts }
         let hrS = hr.sorted { $0.ts < $1.ts }
-        let rrS = rr.sorted { $0.ts < $1.ts }
+        let rrS = rr.sortedByTsStable()   // stable: keeps #823 emission order within a second
 
         let feats = features(start: start, end: end, grav: gravS, hr: hrS, rr: rrS)
         if feats.isEmpty { return [StageSegment(start: start, end: end, stage: "light")] }

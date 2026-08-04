@@ -914,7 +914,7 @@ public enum SleepStager {
         if grav.count < 2 { return [] }
 
         let hrS = hr.sorted { $0.ts < $1.ts }
-        let rrS = rr.sorted { $0.ts < $1.ts }
+        let rrS = rr.sortedByTsStable()   // stable: keeps #823 emission order within a second
         let respS = resp.sorted { $0.ts < $1.ts }
 
         let baseline = hrBaseline(hrS)

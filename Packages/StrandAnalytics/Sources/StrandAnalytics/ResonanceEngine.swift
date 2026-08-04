@@ -119,9 +119,19 @@ public enum ResonanceEngine {
 
         // Steady window: from startTs + transient to endTs.
         let windowStart = sample.startTs + transientDropSeconds
+        // STABLE sort: cleanRR below feeds RMSSD, which is all successive differences, so the order of
+        // same-second beats changes the score. Kotlin's twin uses sortedBy, stable by contract. (#823)
+        // STABLE sort: cleanRR below feeds RMSSD, which is all successive differences, so the order of
+        // same-second beats changes the score. Swift's sorted(by:) is NOT guaranteed stable; decorating
+        // with the offset makes the comparator total. Kotlin's twin uses sortedBy, stable by contract.
+        // Spelled out here rather than reusing WhoopProtocol's Array<RRInterval>.sortedByTsStable: this
+        // file is deliberately DB-free and takes pure inputs, and one shared comparator is not worth the
+        // module dependency. Keep the two in step. (#823)
         let steady = sample.rr
             .filter { $0.ts >= windowStart && $0.ts <= sample.endTs }
-            .sorted { $0.ts < $1.ts }
+            .enumerated()
+            .sorted { ($0.element.ts, $0.offset) < ($1.element.ts, $1.offset) }
+            .map(\.element)
 
         // Clean R-R (range + Malik) for both the RMSSD and the swing, so ectopic beats can't fabricate
         // an RSA swing. Cleaning operates on the rrMs values; we keep ts alongside for cycle bucketing.
