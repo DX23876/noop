@@ -108,8 +108,9 @@ public enum StrandFont {
         .system(size: size, weight: weight, design: .monospaced)
     }
 
-    /// Restrained tracking for compact section overlines.
-    public static let overlineTracking: CGFloat = 0.8
+    /// Restrained but legible tracking for compact section overlines. The extra fraction of a point
+    /// restores the precise, instrument-like rhythm without returning to the older wide 1.4pt spacing.
+    public static let overlineTracking: CGFloat = 1.0
 }
 
 // MARK: - Text helpers

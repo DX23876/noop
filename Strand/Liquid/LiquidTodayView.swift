@@ -189,6 +189,9 @@ struct LiquidTodayView: View {
     private let liquidHeart = Color(.sRGB, red: 1, green: 107 / 255, blue: 129 / 255, opacity: 1)
     /// Hero card fill: a translucent near-black so it floats over the sky (mock rgba(13,14,20,.78)).
     private let heroFill = Color(.sRGB, red: 13 / 255, green: 14 / 255, blue: 20 / 255, opacity: 0.80)
+    /// Slightly tighter than the app-wide 30pt hero radius. Liquid Today's three 96pt vessels already
+    /// provide the soft focal shape, so 28pt keeps the surrounding card visually proportional.
+    private let liquidHeroRadius: CGFloat = 28
     /// "Card transparency" (0–100, default 100): fades every liquid card surface here — the hero, the
     /// session-start row, the metric tiles and the `card` helper — in lockstep with the frosted cards.
     /// Content sits above the surface so it stays readable. Mirrors Kotlin `NoopPrefs.cardOpacityPercent`.
@@ -426,7 +429,7 @@ struct LiquidTodayView: View {
                         case .dataSources: dataSourcesSection
                         }
                         }
-                        .padding(.top, section.isMajorSection ? NoopMetrics.space2 : 0)
+                        .padding(.top, section.isMajorSection ? NoopMetrics.space1 : 0)
                     }
                     // The committed "next up" session sits BELOW the metric sections on purpose: once
                     // accepted it's an ambient reminder, not a demand for the top of the screen. It draws
@@ -796,10 +799,10 @@ struct LiquidTodayView: View {
         // metric tiles, which take a lighter fill instead. `heroFill` stays under the glass so the vessels
         // keep the dark backing their on-dark text and colours were tuned against.
         .background(
-            RoundedRectangle(cornerRadius: NoopMetrics.heroRadius, style: .continuous)
+            RoundedRectangle(cornerRadius: liquidHeroRadius, style: .continuous)
                 .fill(heroFill)
-                .liquidGlass(in: RoundedRectangle(cornerRadius: NoopMetrics.heroRadius, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: NoopMetrics.heroRadius, style: .continuous)
+                .liquidGlass(in: RoundedRectangle(cornerRadius: liquidHeroRadius, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: liquidHeroRadius, style: .continuous)
                     .strokeBorder(.white.opacity(0.14), lineWidth: 1))
                 .shadow(color: .black.opacity(0.6), radius: 30, y: 16)
                 .opacity(cardOpacity)
@@ -1395,8 +1398,8 @@ struct LiquidTodayView: View {
             // shouldn't hold a PRIME slot and push real numbers below the fold.
             let ordered = enabledKeyMetrics.filter { keyMetricHasValue($0, hrv: hrv, rhr: rhr) }
                 + enabledKeyMetrics.filter { !keyMetricHasValue($0, hrv: hrv, rhr: rhr) }
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10),
-                                     count: keyMetricsColumns), spacing: 10) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8),
+                                     count: keyMetricsColumns), spacing: 8) {
                 ForEach(ordered) { metric in
                     ktileFor(metric, hrv: hrv, rhr: rhr)
                 }
@@ -1515,16 +1518,16 @@ struct LiquidTodayView: View {
                 }
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 13)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 11)
         .frame(maxWidth: .infinity, alignment: .leading)
         // Softer, rounder, and a lighter fill than the old solid surfaceRaised, so the sky reads through the
         // grid and the screen breathes. Deliberately NOT glassEffect per tile: ten blur passes over a live
         // animated sky is exactly the scroll-stutter this file spends its PERF comments avoiding.
         .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .fill(StrandPalette.surfaceRaised.opacity(translucentCardFillOpacity))
-                .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .strokeBorder(StrandPalette.hairline, lineWidth: 1))
                 .opacity(cardOpacity)
         )
@@ -1628,7 +1631,7 @@ struct LiquidTodayView: View {
 
     private func card<V: View>(@ViewBuilder _ content: () -> V) -> some View {
         content()
-            .padding(18)
+            .padding(NoopMetrics.cardPadding)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous)

@@ -155,6 +155,14 @@ struct ActiveWorkoutIndicatorSection: View {
 }
 
 struct TodayView: View {
+    // Classic Today carries denser explanatory content than Liquid, so it keeps more room inside each
+    // card while tightening the repeated outer rhythm. These are deliberately local: changing the shared
+    // metrics would resize every screen that composes NoopCard / ScreenScaffold.
+    private static let classicSectionSpacing: CGFloat = NoopMetrics.space4
+    private static let classicKeyMetricTileHeight: CGFloat = 116
+    private static let classicHeaderControlSize: CGFloat = 34
+    private static let classicHeaderHitSize: CGFloat = 36
+
     @EnvironmentObject var repo: Repository
     // PERF (scroll stutter): TodayView deliberately does NOT observe `LiveState` directly. A connected
     // strap publishes `LiveState` ~1 Hz (heart rate + each R-R packet), and an `@EnvironmentObject live`
@@ -1137,7 +1145,9 @@ struct TodayView: View {
 
             Spacer(minLength: 8)
 
-            // Uniform 36pt+ icon cluster: the merged recording/sync-status light (#245, now carrying both
+            // Compact icon cluster: the visible circles are 34pt while their existing 36pt layout / hit
+            // frames stay intact. This trims the chrome without making the controls harder to reach.
+            // The merged recording/sync-status light (#245, now carrying both
             // the connection dot and the sync-status text as one indicator instead of two), updates bell,
             // quick-add (+), menu.
             // Coach entry (#R-header-coach) moved OUT of this cluster into its own row lower on Today
@@ -1154,11 +1164,15 @@ struct TodayView: View {
                 // Updates bell.
                 Button { showUpdatesInbox = true } label: {
                     Image(systemName: updateStore.unreadCount > 0 ? "bell.badge" : "bell")
-                        .font(.system(size: 15, weight: .medium))
+                        .font(.system(size: 14, weight: .medium))
                         .symbolRenderingMode(.hierarchical)
                         .foregroundStyle(StrandPalette.textSecondary)
-                        .frame(width: 36, height: 36)
-                        .background(Circle().fill(StrandPalette.surfaceInset))
+                        .frame(width: Self.classicHeaderHitSize, height: Self.classicHeaderHitSize)
+                        .background(
+                            Circle().fill(StrandPalette.surfaceInset)
+                                .frame(width: Self.classicHeaderControlSize,
+                                       height: Self.classicHeaderControlSize)
+                        )
                         .overlay(alignment: .topTrailing) {
                             if updateStore.unreadCount > 0 {
                                 Text("\(min(updateStore.unreadCount, 99))")
@@ -1179,10 +1193,14 @@ struct TodayView: View {
                 // same persisted layout, as Liquid Today's own customization button.
                 Button { customizationDestination = .today } label: {
                     Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(StrandPalette.textSecondary)
-                        .frame(width: 36, height: 36)
-                        .background(Circle().fill(StrandPalette.surfaceInset))
+                        .frame(width: Self.classicHeaderHitSize, height: Self.classicHeaderHitSize)
+                        .background(
+                            Circle().fill(StrandPalette.surfaceInset)
+                                .frame(width: Self.classicHeaderControlSize,
+                                       height: Self.classicHeaderControlSize)
+                        )
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
@@ -1190,10 +1208,14 @@ struct TodayView: View {
                 // Quick-action + (the accented primary, gold, same 36 size as the rest).
                 Button { router.requestQuickActions() } label: {
                     Image(systemName: "plus")
-                        .font(.system(size: 17, weight: .bold))
+                        .font(.system(size: 16, weight: .bold))
                         .foregroundStyle(StrandPalette.goldDeepText)
-                        .frame(width: 36, height: 36)
-                        .background(Circle().fill(StrandPalette.accent))
+                        .frame(width: Self.classicHeaderHitSize, height: Self.classicHeaderHitSize)
+                        .background(
+                            Circle().fill(StrandPalette.accent)
+                                .frame(width: Self.classicHeaderControlSize,
+                                       height: Self.classicHeaderControlSize)
+                        )
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
@@ -1201,7 +1223,9 @@ struct TodayView: View {
                 .accessibilityHint("Start a workout, log your journal, or breathe")
                 // Menu (Settings), the avatar, same 36 size.
                 Button { showSettings = true } label: {
-                    ProfileAvatarView(imageData: profile.avatarImageData, size: 36)
+                    ProfileAvatarView(imageData: profile.avatarImageData,
+                                      size: Self.classicHeaderControlSize)
+                        .frame(width: Self.classicHeaderHitSize, height: Self.classicHeaderHitSize)
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
@@ -1297,7 +1321,7 @@ struct TodayView: View {
                        // lag regression; removing the flatten restores native layer caching.
                        topBackground: showDayCycleBackground
                            ? AnyView(SceneScreenBackground(hour: demoSceneHour)) : nil) {
-            VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
+            VStack(alignment: .leading, spacing: Self.classicSectionSpacing) {
                 #if os(iOS)
                 // Compact top bar: profile/settings (left) · ‹ Today › day-nav (centre, bold) · strap
                 // battery (right). Replaces the big title + the full-width day-nav pill (WHOOP-style).
@@ -3204,7 +3228,8 @@ struct TodayView: View {
                     // and holds up as text scales because it clears the tallest tile layout.
                     keyMetricTile(metric)
                         .frame(maxWidth: .infinity)
-                        .frame(height: dynamicTypeSize.isAccessibilitySize ? nil : NoopMetrics.keyMetricTileHeight)
+                        .frame(height: dynamicTypeSize.isAccessibilitySize
+                               ? nil : Self.classicKeyMetricTileHeight)
                 }
             }
             if metricsHasOverflow {
