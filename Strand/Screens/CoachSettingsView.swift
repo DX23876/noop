@@ -11,6 +11,15 @@ struct CoachSettingsView: View {
     @EnvironmentObject var coach: AICoachEngine
     @Environment(\.dismiss) private var dismiss
 
+    /// The chat presents settings as a standalone sheet, so this view normally owns its NavigationStack.
+    /// More already supplies a bound stack; nesting another one there makes SwiftUI update two navigation
+    /// authorities in the same frame and leaves the More path unable to accept later pushes.
+    private let usesHostNavigation: Bool
+
+    init(usesHostNavigation: Bool = false) {
+        self.usesHostNavigation = usesHostNavigation
+    }
+
     /// Apple-inspired leading-icon coloring (SettingsView's "Apple-inspired colors") — same switch that
     /// recolors the More tab and the rest of Coach's screens. See `CoachIconColors`.
     @AppStorage(AppleInspiredColorsPrefs.enabledKey) private var appleHealthColors = AppleInspiredColorsPrefs.defaultEnabled
@@ -147,61 +156,70 @@ struct CoachSettingsView: View {
 
     private let customModelTag = "__custom__"
 
+    @ViewBuilder
     var body: some View {
-        NavigationStack {
-            Group {
-                if coach.isConfigured {
-                    hub
-                } else {
-                    ScrollView {
-                        VStack(spacing: 16) {
-                            coachFeatureBar
-                            setupCard
-                            privacyFootnote
-                        }
-                        .padding(16)
+        if usesHostNavigation {
+            settingsContent
+        } else {
+            NavigationStack { settingsContent }
+        }
+    }
+
+    private var settingsContent: some View {
+        Group {
+            if coach.isConfigured {
+                hub
+            } else {
+                ScrollView {
+                    VStack(spacing: 16) {
+                        coachFeatureBar
+                        setupCard
+                        privacyFootnote
                     }
-                    .background(StrandPalette.surfaceBase.ignoresSafeArea())
+                    .padding(16)
                 }
+                .background(StrandPalette.surfaceBase.ignoresSafeArea())
             }
-            // Drop an explicit "Custom…" pick made on the OLD provider — otherwise `customModel` stays
-            // true after switching away and forces the free-text field open even though the new
-            // provider's model list is perfectly valid. `isCustomModelSelected` still catches the new
-            // provider's own empty-list moment on its own.
-            //
-            // Single-param closure, not the two-param `{ _, _ in }` form: this view is shared with the
-            // macOS `Strand` target (deploymentTarget 13.0 in project.yml), and that form needs macOS 14
-            // (see ScreenScaffold.swift's `#if os(iOS)` guard around its own two-param onChange).
-            .onChange(of: coach.provider) { _ in customModel = false }
-            .onChangeCompat(of: coachFeatureEnabled) { enabled in
-                // Existing chats, memory and all health data stay on device. Only future Coach surfaces
-                // and automation stop; turning it back on restores the person's saved preferences.
-                if !enabled {
-                    checkInOn = false
-                    CoachCheckIn.setEnabled(false)
-                }
+        }
+        // Drop an explicit "Custom…" pick made on the OLD provider — otherwise `customModel` stays
+        // true after switching away and forces the free-text field open even though the new
+        // provider's model list is perfectly valid. `isCustomModelSelected` still catches the new
+        // provider's own empty-list moment on its own.
+        //
+        // Single-param closure, not the two-param `{ _, _ in }` form: this view is shared with the
+        // macOS `Strand` target (deploymentTarget 13.0 in project.yml), and that form needs macOS 14
+        // (see ScreenScaffold.swift's `#if os(iOS)` guard around its own two-param onChange).
+        .onChange(of: coach.provider) { _ in customModel = false }
+        .onChangeCompat(of: coachFeatureEnabled) { enabled in
+            // Existing chats, memory and all health data stay on device. Only future Coach surfaces
+            // and automation stop; turning it back on restores the person's saved preferences.
+            if !enabled {
+                checkInOn = false
+                CoachCheckIn.setEnabled(false)
             }
-            .navigationTitle("Coach settings")
-            #if !os(macOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            .toolbar {
+        }
+        .navigationTitle("Coach settings")
+        #if !os(macOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
+        .toolbar {
+            if !usesHostNavigation {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
                 }
             }
-            .alert("Edit fact", isPresented: editingBinding) {
-                TextField("Fact", text: $editingFactText)
-                Button("Cancel", role: .cancel) { editingFactID = nil }
-                Button("Save") {
-                    if let id = editingFactID {
-                        memory.update(id, text: editingFactText, confirmedByUser: true)
-                    }
-                    editingFactID = nil
-                }
-            }
-            .sheet(isPresented: $addingFact) { addFactSheet }
         }
+        .alert("Edit fact", isPresented: editingBinding) {
+            TextField("Fact", text: $editingFactText)
+            Button("Cancel", role: .cancel) { editingFactID = nil }
+            Button("Save") {
+                if let id = editingFactID {
+                    memory.update(id, text: editingFactText, confirmedByUser: true)
+                }
+                editingFactID = nil
+            }
+        }
+        .sheet(isPresented: $addingFact) { addFactSheet }
     }
 
     /// Adding a fact by hand. Saved as the user's own words, so it is confirmed on the spot and can

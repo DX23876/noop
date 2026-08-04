@@ -600,7 +600,9 @@ enum MoreDestination: Hashable {
         case .insightsHub:     InsightsHubView()
         case .intelligence:    IntelligenceView()
         case .coach:           CoachView()
-        case .coachSettings:   CoachSettingsView()
+        // More already owns the bound NavigationStack. Reuse it so opening Coach settings performs one
+        // path update, not a nested NavigationAuthority update that poisons every later More-row tap.
+        case .coachSettings:   CoachSettingsView(usesHostNavigation: true)
         case .goalJourney:     CoachGoalJourneyScreen()
         case .insights:        InsightsView()
         case .explore:         MetricExplorerView()
