@@ -2,7 +2,7 @@
   "sourceLanguage" : "en",
   "strings" : {
     "–" : {
-
+      "shouldTranslate" : false
     },
     "/ %lld" : {
       "localizations" : {
@@ -409,7 +409,7 @@
       }
     },
     "✓" : {
-
+      "shouldTranslate" : false
     },
     "Allow access" : {
       "localizations" : {

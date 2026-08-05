@@ -69,7 +69,7 @@ which changes what validates a change:
 | `app-build.yml` | Compile of `Strand` (macOS) + `NOOPiOS` (iOS), **plus `StrandTests` on the macOS leg only** | PR + push touching `Strand/**`, `StrandiOS*/**`, `Packages/**`, `project.yml` |
 | `tools-python.yml` | The `Tools/linux-capture` Python suite (≥200 tests) | PR + push touching `Tools/**` |
 | `source-hygiene.yml` | Detached doc comments + **commit attribution** (above) | every PR and push to `main` |
-| `i18n-coverage.yml` | EN/DE/FR/ES completeness | every PR and push to `main` |
+| `i18n-coverage.yml` | EN source + DE/ES/FR/PT-PT complete (zero-tolerance); IT/RU/ZH-Hans/ZH-Hant ratcheted (see "Localization" below) | every PR and push to `main` |
 | `android.yml` | `assembleFullDebug` + unit tests | PR + push touching `android/**` |
 | `publish-ios-beta.yml` | Cuts a DX Beta release: unsigned IPA + universal macOS zip, updates the AltStore source, marks it latest | `workflow_dispatch` |
 | `sync-upstream.yml` | Opens a sync PR from `ryanbr/noop` | weekly cron + dispatch |
@@ -82,6 +82,37 @@ red `main` is not a background condition to work around.
 and no `gh repo set-default`, so a bare `gh run list` silently answers about **`ryanbr/noop`** —
 where `app-build.yml` is disabled and the last run is old. Reading the upstream answer as the fork's
 is an easy and very misleading mistake.
+
+### Localization
+
+**The fork ships exactly the locale set `ryanbr/noop` ships, on both platforms — never a narrower
+one.** Apple (all four String Catalogs — `Strand/`, `Packages/StrandDesign/`, `NOOPWatch/`,
+`NOOPWatchComplications/`): `en` source + `de, es, fr, it, pt-PT, ru, zh-Hans, zh-Hant`. Android
+(`values-<lang>/`): `de, es, fr, pt-rPT, zh`. Don't hardcode this list anywhere else — `LANGS` in
+`Tools/i18n_audit.py` is the single source of truth, so if upstream ever adds a locale, updating that
+constant (and running the importer/extractor for it) is the whole change.
+
+Two tiers, not one, because `i18n-coverage.yml` runs on **every** push/PR against the **whole tree**,
+not a diff — a lingering gap fails every subsequent push regardless of what it touches:
+
+- **DE, ES, FR, PT-PT: zero tolerance.** `LANGS` in `Tools/i18n_audit.py` holds these at 100%
+  complete, no exceptions. A new string — anywhere, including `StrandDesign` and the Watch targets —
+  ships translated into all four in the SAME PR, or `main` goes red on the very next unrelated push.
+- **IT, RU, ZH-Hans, ZH-Hant (plus Android's single `zh`): ratcheted, not gated.** A pre-existing
+  backlog is grandfathered per catalog/locale in `Tools/i18n_extra_locale_baseline.txt`. That number
+  may only shrink — the file's own header says so ("Ratchet DOWN as translations land — never up") —
+  so a new string doesn't strictly need these four translated, but every one that ships without them
+  eats into the tolerated gap. If the backlog for a target is already at zero (several are), a single
+  untranslated new string reopens a FAIL there immediately.
+
+Before pushing a change that adds UI copy — app screens, `StrandDesign`, or a Watch target — run the
+exact CI check locally:
+```bash
+python3 Tools/i18n_audit.py --ci origin/main
+```
+Translating into DE/ES/FR/PT-PT is mandatory. Translating into IT/RU/ZH-Hans/ZH-Hant/`zh` too is
+appreciated and keeps the ratchet file honest, but isn't gating by itself — check the tool's own
+output, not this paragraph, for the current per-target allowance before deciding whether to bother.
 
 ## Documentation & session workflow
 
@@ -207,5 +238,5 @@ update for free) — never hardcode hex at a call site.
 7. All trend charts go through Swift Charts.
 8. iOS 26 Liquid Glass (`glassEffect`, `.navigationTransition(.zoom)`, Material) is the design language.
 
-**Localization:** EN is the source locale; DE, FR and ES are kept complete. New strings ship with all
-four.
+**Localization:** see the project-wide "Localization" section above (DE/ES/FR/PT-PT are zero-tolerance
+for any new string, redesign included).
