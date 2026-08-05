@@ -32,8 +32,9 @@ struct AnthropicClient: AIProviderClient {
         let json = try await performRequest(req, session: session)
         guard let content = json["content"] as? [[String: Any]],
               let first = content.first,
-              let text = first["text"] as? String else {
-            throw AICoachError.decode
+              let text = (first["text"] as? String)?
+                  .trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else {
+            throw emptyReplyError(json)   // #1074: surface the provider's real error if the 200 body has one
         }
         return text
     }

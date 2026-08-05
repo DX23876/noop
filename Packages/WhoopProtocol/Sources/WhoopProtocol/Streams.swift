@@ -10,10 +10,46 @@ public struct HRSample: Equatable, Codable {
     public init(ts: Int, bpm: Int) { self.ts = ts; self.bpm = bpm }
 }
 
+/// WHICH sensor channel produced an R-R interval (#1071).
+///
+/// A WHOOP strap has ONE beat source, so its rows carry no channel (nil) and nothing here changes for
+/// them. An Oura ring has more than one: the green-quality tag (0x80) and the SpO2 tag (0x6E) both
+/// decode to R-R and both were stored, so the table held roughly TWO complete copies of every night —
+/// not duplicate rows to de-duplicate, but the SAME heartbeats measured twice. Labelling the channel is
+/// what lets scoring read one copy while both stay on disk as each other's cross-check.
+///
+/// The raw values are the DURABLE, cross-platform storage codes for `rrInterval.srcChannel` and must
+/// stay in lockstep with Kotlin `RrSourceChannel` — they are written to SQLite and cross the `.noopbak`
+/// boundary, so they are a wire format, not an implementation detail. Never renumber a case; only append.
+public enum RRSourceChannel: Int, Equatable, Codable, Sendable, CaseIterable {
+    /// Oura 0x80 `green_ibi_quality_event` — the green-LED beat train, gated on the ring's own
+    /// `quality == 1` flag and a 300-2000 ms physiological window, running the whole night.
+    case greenQuality = 1
+    /// Oura 0x6E `spo2_ibi_and_amplitude_event` — the SpO2/red-channel beat train, on an 8 ms
+    /// quantisation grid with no quality gate, and present ONLY while SpO2 measurement is running.
+    case spo2Ibi = 2
+    /// Oura 0x60 `ibi_and_amplitude_event` — the bit-packed IBI+amplitude family.
+    case ibiAmplitude = 3
+    /// Oura 0x44 `ibi_event` — the SAME bit-packed layout family as 0x60, decoded by the same routine,
+    /// but a DIFFERENT tag on the wire.
+    ///
+    /// Split out (#1071 follow-up) because both tags used to stamp `ibiAmplitude`, which made them
+    /// indistinguishable once stored: a capture showing that channel over-covering its own wall-clock
+    /// could not say whether one tag repeats beats or two tags report the same beats to each other. That
+    /// is the question the channel choice for scoring rests on, and no stored night could answer it.
+    /// Labelling only — both are read exactly as before.
+    case ibiBare = 4
+}
+
 public struct RRInterval: Equatable, Codable {
     public let ts: Int          // wall-clock unix seconds
     public let rrMs: Int
-    public init(ts: Int, rrMs: Int) { self.ts = ts; self.rrMs = rrMs }
+    /// The sensor channel this beat came from, or nil when the source does not distinguish one (every
+    /// WHOOP row, and every row written before the column existed). See `RRSourceChannel`.
+    public let srcChannel: RRSourceChannel?
+    public init(ts: Int, rrMs: Int, srcChannel: RRSourceChannel? = nil) {
+        self.ts = ts; self.rrMs = rrMs; self.srcChannel = srcChannel
+    }
 }
 
 public extension Array where Element == RRInterval {

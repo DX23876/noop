@@ -363,7 +363,32 @@ interface WhoopDao : DeviceRegistryDao {
         // Byte-parity twin of Swift Reads.swift rrIntervals; both are SQLite, so NULL ordering matches.
         // Note this no longer matches the PK index (ts, rrMs, seq), so SQLite sorts; see the PR for why
         // that is acceptable at this query's size rather than adding a covering index.
+        //
+        // #1071: ONE optical channel. An Oura ring measures the same heartbeats on more than one tag and
+        // all of them are stored, so an unfiltered read returned roughly TWO complete copies of a night —
+        // 2.06x the beats the measured HR curve allows. That leaves meanNN (and resting HR) correct and
+        // destroys every statistic built on successive differences: RMSSD, and a ~200 ms nocturnal SDNN
+        // where a healthy adult asleep is 40-100 ms.
+        //
+        // The predicate EXCLUDES the one channel proven redundant (SPO2_IBI, 0x6E) rather than
+        // whitelisting the one preferred (GREEN_QUALITY, 0x80), which matters for what it does NOT drop:
+        //   - NULL is kept. Every WHOOP row is NULL by construction (one beat source), as is every row
+        //     written before v26. A whitelist would delete every WHOOP night from scoring.
+        //   - IBI_AMPLITUDE (0x60/0x44) is kept. It does not fire on the Gen-3 hardware this was measured
+        //     on, so there is no evidence it duplicates green — and dropping a ring's ONLY beat source on
+        //     an untested assumption is the more expensive mistake. If a capture ever shows 0x60 and 0x80
+        //     firing together, that is a second exclusion here, decided on that evidence.
+        // 0x6E is the one excluded because it is the demonstrated duplicate AND the worse measurement of
+        // the two: quantised to an 8 ms grid, no quality gate, and running only while an SpO2 measurement
+        // is on — so scoring off it would make HRV coverage a function of the SpO2 duty cycle.
+        //
+        // Rows are FILTERED, never deleted: the 0x6E stream stays on disk as the cross-check on green.
+        // Every R-R consumer reads through this one query, so the `hrv diag` trace moves with the scores
+        // rather than reporting a coverage nobody can reproduce. The literal 2 is RrSourceChannel.SPO2_IBI
+        // .code — a Room @Query is a compile-time constant string and cannot reference it; RrChannelTest
+        // pins the two together.
         "SELECT * FROM rrInterval WHERE deviceId = :deviceId AND ts >= :from AND ts <= :to " +
+            "AND (srcChannel IS NULL OR srcChannel <> 2) " +
             "ORDER BY ts ASC, ord ASC, rrMs ASC, seq ASC LIMIT :limit"
     )
     suspend fun rrIntervals(deviceId: String, from: Long, to: Long, limit: Int): List<RrInterval>
@@ -715,6 +740,19 @@ interface WhoopDao : DeviceRegistryDao {
      *  badges that were materializing the row list for `.size`. */
     @Query("SELECT COUNT(*) FROM workout WHERE deviceId = :deviceId AND startTs >= :from AND startTs <= :to")
     suspend fun workoutsCount(deviceId: String, from: Long, to: Long): Int
+
+    /**
+     * #1058: sum per-session `steps` over one source's workouts whose startTs is in [from, to). Used to
+     * recompute an activity-file day's step total from ALL its sessions, so a second file on the same day
+     * ADDS rather than clobbers — and re-importing a file is idempotent (its row's steps are replaced, not
+     * re-added, by [upsertWorkouts]). Returns 0 when no session in the range carried steps. Byte-parity
+     * with Swift WhoopStore `sumWorkoutSteps`.
+     */
+    @Query(
+        "SELECT COALESCE(SUM(steps), 0) FROM workout " +
+            "WHERE deviceId = :deviceId AND steps IS NOT NULL AND startTs >= :from AND startTs < :to"
+    )
+    suspend fun sumWorkoutSteps(deviceId: String, from: Long, to: Long): Int
 
     /**
      * Apple-Health daily aggregates for days in [from, to] (lexicographic compare), oldest first.

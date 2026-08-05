@@ -180,4 +180,16 @@ class SleepEditGuardTest {
         assertNull(SleepEditGuard.clampedEditWindow(5_000, 4_000, nowTs = 10_000))
         assertNull(SleepEditGuard.clampedEditWindow(5_000, 5_000, nowTs = 10_000))
     }
+
+    @Test
+    fun oneDayWindowIsAllowedButMultiDayWindowIsRefused() {
+        val now = ts(2026, 7, 17, 8, 0)
+        val bed = ts(2026, 7, 16, 8, 0)
+        assertEquals(bed to now, SleepEditGuard.clampedEditWindow(bed, now, nowTs = now))
+        assertNull(SleepEditGuard.clampedEditWindow(
+            ts(2026, 7, 16, 23, 0),
+            ts(2026, 7, 18, 7, 0),
+            nowTs = ts(2026, 7, 18, 8, 0),
+        ))
+    }
 }

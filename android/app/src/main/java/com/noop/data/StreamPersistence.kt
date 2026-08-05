@@ -22,7 +22,10 @@ object StreamPersistence {
     /** Convert a decoded protocol [Streams] batch into the Room [StreamBatch] insert shape. */
     fun toBatch(streams: Streams): StreamBatch = StreamBatch(
         hr = streams.hr.map { HrRow(it.ts.toLong(), it.bpm) },
-        rr = streams.rr.map { RrRow(it.ts.toLong(), it.rrMs) },
+        // `srcChannel` (#1071) rides through unchanged: which optical channel measured the beat is
+        // decided by the decoder and must survive to the row, or the two Oura channels become
+        // indistinguishable and every night is stored twice over.
+        rr = streams.rr.map { RrRow(it.ts.toLong(), it.rrMs, it.srcChannel) },
         events = streams.events.map { EventEntry(it.ts.toLong(), it.kind, encodePayload(it.payload)) },
         battery = streams.battery.map { BatteryRow(it.ts.toLong(), it.soc, it.mv, it.charging) },
         // The WHOOP REALTIME_DATA stream carries no SpO2/skinTemp (those are type-47-only and arrive

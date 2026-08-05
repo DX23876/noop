@@ -710,6 +710,58 @@ extension WhoopStore {
                 t.primaryKey(["deviceId", "ts"])
             }
         }
+
+        // v32 (#1071): record WHICH sensor channel produced each R-R beat.
+        //
+        // An Oura ring reports the SAME heartbeats on more than one tag, and every one of them decoded to
+        // `OuraEvent.ibi` and landed here untagged. Measured over one 488-min sleep window: 61,524 beats
+        // stored where the measured HR curve allows 29,800 (2.06x), and sum(rrMs)/wall-clock = 2.17x. The
+        // two are separable after the fact only by the accident that their quantisation grids differ
+        // (0x6E is `byte * 8`, always a multiple of 8; 0x80 is an 11-bit value on the 1 ms grid), and the
+        // 8 ms stream is ABSENT until SpO2 measurement starts and then tracks its duty cycle exactly —
+        // which is what proves these are two channels rather than accumulated re-syncs.
+        //
+        // The damage is to the VARIABILITY statistics, not the level: a duplicated beat train leaves
+        // meanNN (and so resting HR) correct while RMSSD/SDNN are built entirely from successive
+        // differences and collapse. The app's own `hrv diag` line has been reporting it as
+        // `coverage=2.21 rrIntegrity=crossSecondOverCount` with a non-physiological ~200 ms nocturnal SDNN.
+        //
+        // NOT a de-duplication: both rows are real measurements of the same beat by different optics, and
+        // the second channel is the obvious future cross-check on the first. So nothing is deleted and
+        // nothing is rewritten — the column labels the source and `Reads.rrIntervals` filters at READ.
+        //
+        // Additive nullable column, the v30-rr-ord form: no table rebuild, no existing row touched, and
+        // deliberately NOT in the primary key, which stays (deviceId, ts, rrMs, seq) from v24. Putting it
+        // in the key would make the SAME beat insertable twice under two labels, the data-loss/duplication
+        // regression the v24 note warns about from the other direction.
+        //
+        // Pre-v32 rows stay NULL and are still READ (a WHOOP row is legitimately NULL forever — one beat
+        // source, no channel to name — so a filter that dropped NULL would silently delete every WHOOP
+        // night from scoring). Historical Oura rows therefore keep their old inflated coverage; they were
+        // never labelled, and a backfill would be a guess. For the record, since this is how the defect
+        // was diagnosed: in an existing DB the two channels remain separable by `rrMs % 8`, an 0x6E row
+        // always being a multiple of 8 and an 0x80 row landing there only 1 time in 8 by chance.
+        //
+        // Values are `RRSourceChannel.rawValue` (1 green / 2 spo2 / 3 ibiAmplitude), a DURABLE wire format
+        // shared with Kotlin `RrSourceChannel`. INTEGER rather than a text label because `rrInterval` is
+        // the highest-volume table in the schema (~60k rows a night) and this column rides every one.
+        //
+        // Twin of Room MIGRATION_25_26.
+        migrator.registerMigration("v32-rr-src-channel") { db in
+            try db.alter(table: "rrInterval") { t in
+                t.add(column: "srcChannel", .integer)
+            }
+        }
+        // #1058: per-session step count on a workout. Activity-file imports previously stored steps only
+        // as a whole-day DailyMetric row keyed on (deviceId, day), so a SECOND file for the same day
+        // overwrote the first's steps instead of adding. With steps on the session, the day total is
+        // recomputed as SUM over that day's sessions — additive across files, idempotent on re-import.
+        // Nullable; only foot-sport activity-file sessions populate it (a strap never writes it).
+        migrator.registerMigration("v33-workout-steps") { db in
+            try db.alter(table: "workout") { t in
+                t.add(column: "steps", .integer)
+            }
+        }
         return migrator
     }
 }

@@ -1,7 +1,6 @@
 package com.noop.ui
 
 import com.noop.analytics.SleepEditGuard
-import java.time.Instant
 import java.time.ZoneId
 
 /**
@@ -28,17 +27,10 @@ internal data class SleepTimeEditDraft(
         ),
     )
 
-    /** Resolve a picked wake time to the first occurrence strictly after the drafted bedtime. */
-    fun withWakeTime(
-        hour: Int,
-        minute: Int,
-        zone: ZoneId = ZoneId.systemDefault(),
-    ): SleepTimeEditDraft {
-        val bed = Instant.ofEpochSecond(startTs).atZone(zone)
-        var wake = bed.withHour(hour).withMinute(minute).withSecond(0).withNano(0)
-        if (!wake.isAfter(bed)) wake = wake.plusDays(1)
-        return copy(endTs = wake.toEpochSecond())
-    }
+    /** Store a complete user-selected wake instant without deriving or shifting its calendar date. */
+    fun withWakeCandidate(candidateWakeTs: Long): SleepTimeEditDraft =
+        copy(endTs = candidateWakeTs)
+
 
     fun validatedWindow(
         nowTs: Long,

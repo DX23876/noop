@@ -165,4 +165,19 @@ final class SleepEditGuardTests: XCTestCase {
         XCTAssertNil(SleepEditGuard.clampedEditWindow(start: 5_000, end: 4_000, now: 10_000))
         XCTAssertNil(SleepEditGuard.clampedEditWindow(start: 5_000, end: 5_000, now: 10_000))
     }
+
+    func testOneDayWindowIsAllowedButMultiDayWindowIsRefused() {
+        let now = date(2026, 7, 17, 8, 0)
+        let bed = date(2026, 7, 16, 8, 0)
+        let oneDay = SleepEditGuard.clampedEditWindow(
+            start: Int(bed.timeIntervalSince1970), end: Int(now.timeIntervalSince1970),
+            now: Int(now.timeIntervalSince1970))
+        XCTAssertEqual(oneDay?.start, Int(bed.timeIntervalSince1970))
+        XCTAssertEqual(oneDay?.end, Int(now.timeIntervalSince1970))
+
+        XCTAssertNil(SleepEditGuard.clampedEditWindow(
+            start: Int(date(2026, 7, 16, 23, 0).timeIntervalSince1970),
+            end: Int(date(2026, 7, 18, 7, 0).timeIntervalSince1970),
+            now: Int(date(2026, 7, 18, 8, 0).timeIntervalSince1970)))
+    }
 }

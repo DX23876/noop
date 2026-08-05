@@ -65,6 +65,125 @@ final class MigrationTests: XCTestCase {
         XCTAssertEqual(n.rr, 3)
     }
 
+    // MARK: - v30 R-R emission order (#823)
+
+    /// `ord` must exist and must stay OUT of the primary key. An insertion counter in the key would
+    /// collide distinct beats arriving in separate batches — the data-loss regression v24's note warns
+    /// about, and the reason the obvious `ORDER BY ts, seq` fix was rejected.
+    func testV30AddsOrdColumnAndKeepsItOutOfThePrimaryKey() async throws {
+        let store = try await WhoopStore.inMemory()
+        let cols = try await store.columnNamesForTest(table: "rrInterval")
+        XCTAssertTrue(cols.contains("ord"), "rrInterval missing v30 ord column")
+        let pk = try await store.primaryKeyColumns("rrInterval")
+        XCTAssertEqual(pk, ["deviceId", "ts", "rrMs", "seq"], "ord must not enter the key")
+    }
+
+    /// The bug itself: a second's beats came back sorted by VALUE. Sorting makes successive beats
+    /// similar by construction, and RMSSD is built entirely from successive differences.
+    func testV30ReadsSameSecondBeatsInEmissionOrder() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertDevice(id: "dev1", mac: nil, name: nil)
+        let emission = [812, 795, 840, 801, 833]
+        let n = try await store.insert(
+            Streams(rr: emission.map { RRInterval(ts: 100, rrMs: $0) }), deviceId: "dev1")
+        XCTAssertEqual(n.rr, emission.count, "every distinct beat must still be stored")
+
+        let read = try await store.rrIntervals(deviceId: "dev1", from: 0, to: 1_000, limit: 100)
+        XCTAssertEqual(read.map(\.rrMs), emission,
+                       "beats must read back in emission order, not magnitude order")
+        let ords = try await store.rrOrdValuesForTest(deviceId: "dev1", ts: 100)
+        XCTAssertEqual(ords, [0, 1, 2, 3, 4])
+
+        // The measurable consequence, on the issue's own example: magnitude order reads 12.72 ms,
+        // emission order 34.85 ms. A one-directional −22 ms bias in a headline metric.
+        func rmssd(_ v: [Int]) -> Double {
+            let d = zip(v, v.dropFirst()).map { pow(Double($1 - $0), 2) }
+            return (d.reduce(0, +) / Double(d.count)).squareRoot()
+        }
+        XCTAssertEqual(rmssd(read.map(\.rrMs)), rmssd(emission), accuracy: 1e-9)
+        XCTAssertEqual(rmssd(read.map(\.rrMs)), 34.85, accuracy: 0.01)
+        XCTAssertGreaterThan(rmssd(read.map(\.rrMs)), rmssd(emission.sorted()) + 20.0,
+                             "sorted order should be the badly-biased one this fix avoids")
+    }
+
+    /// `ord` is BATCH-LOCAL — a beat's position among the beats sharing its second *in this insert* —
+    /// which is what let #1072 happen: a transport that inserts one beat at a time restarts the counter
+    /// on every row, so every beat is written `ord = 0` and the v30 fix silently does nothing. With
+    /// `ord` tied the read falls back to `(rrMs, seq)`, i.e. magnitude order, which is exactly the #823
+    /// symptom. This pins both shapes side by side so the store-side contract the Oura call sites now
+    /// satisfy (one record's beats = one insert) cannot regress unnoticed.
+    func testV30OrdIsBatchLocalSoOneInsertPerBeatRecordsNoOrder() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertDevice(id: "dev1", mac: nil, name: nil)
+        let emission = [812, 795, 840, 801, 833]
+        for v in emission {   // the pre-#1072 Oura shape: one insert per beat
+            _ = try await store.insert(Streams(rr: [RRInterval(ts: 400, rrMs: v)]), deviceId: "dev1")
+        }
+        let ords = try await store.rrOrdValuesForTest(deviceId: "dev1", ts: 400)
+        XCTAssertEqual(ords, [0, 0, 0, 0, 0], "a one-beat insert can only ever compute ord 0")
+        let read = try await store.rrIntervals(deviceId: "dev1", from: 0, to: 1_000, limit: 100)
+        XCTAssertEqual(read.map(\.rrMs), emission.sorted(),
+                       "tied ord falls through to (rrMs, seq) — the magnitude order #823 reports")
+
+        // The same beats delivered as ONE insert keep their emission order, `ord` counting 0,1,2,…
+        _ = try await store.insert(
+            Streams(rr: emission.map { RRInterval(ts: 500, rrMs: $0) }), deviceId: "dev1")
+        let batchedOrds = try await store.rrOrdValuesForTest(deviceId: "dev1", ts: 500)
+        XCTAssertEqual(batchedOrds, [0, 1, 2, 3, 4])
+    }
+
+    /// The second consequence of insert-per-beat, and the reason a post-fix night holds slightly MORE
+    /// rows than a pre-fix one: `seq` (v24) exists so two beats with the same interval in the same
+    /// second survive as distinct rows, and it is batch-local for the same reason `ord` is. One insert
+    /// per beat recomputed `seq = 0` for the second beat, so it collided on the primary key and was
+    /// silently dropped by `ON CONFLICT DO NOTHING`. Batched, both are stored — real beats recovered,
+    /// not duplicates invented.
+    func testEqualIntervalsInOneRecordSurviveOnlyWhenTheRecordIsOneInsert() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertDevice(id: "dev1", mac: nil, name: nil)
+        for _ in 0..<2 {   // the pre-#1072 shape
+            _ = try await store.insert(Streams(rr: [RRInterval(ts: 600, rrMs: 812)]), deviceId: "dev1")
+        }
+        let dropped = try await store.rrIntervals(deviceId: "dev1", from: 590, to: 610, limit: 100)
+        XCTAssertEqual(dropped.count, 1, "insert-per-beat silently loses the second identical beat")
+
+        _ = try await store.insert(
+            Streams(rr: [RRInterval(ts: 700, rrMs: 812), RRInterval(ts: 700, rrMs: 812)]),
+            deviceId: "dev1")
+        let kept = try await store.rrIntervals(deviceId: "dev1", from: 690, to: 710, limit: 100)
+        XCTAssertEqual(kept.count, 2, "batched, seq 0/1 keeps both beats")
+    }
+
+    /// Rows written before v30 have `ord` NULL — the order was never recorded, so it cannot be
+    /// backfilled. SQLite sorts NULL first in ASC, so an all-legacy second ties on `ord` and falls
+    /// through to the old (rrMs, seq) order: existing data reads back exactly as it did before.
+    func testV30LegacyNullOrdRowsKeepTheOldDeterministicOrder() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertDevice(id: "dev1", mac: nil, name: nil)
+        for v in [812, 795, 840, 801, 833] {
+            try await store.insertLegacyRrWithoutOrdForTest(deviceId: "dev1", ts: 200, rrMs: v)
+        }
+        let read = try await store.rrIntervals(deviceId: "dev1", from: 0, to: 1_000, limit: 100)
+        XCTAssertEqual(read.map(\.rrMs), [795, 801, 812, 833, 840],
+                       "pre-v30 rows must keep the old (rrMs, seq) order, unchanged and deterministic")
+        let ords = try await store.rrOrdValuesForTest(deviceId: "dev1", ts: 200)
+        XCTAssertEqual(ords, [nil, nil, nil, nil, nil])
+    }
+
+    /// A second holding both legacy and post-v30 rows (possible via import/merge) must still be
+    /// deterministic. NULL-first is arbitrary but fixed, which is the property that matters:
+    /// the same data must never read back two different ways.
+    func testV30MixedLegacyAndOrderedRowsAreDeterministic() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertDevice(id: "dev1", mac: nil, name: nil)
+        _ = try await store.insert(Streams(rr: [RRInterval(ts: 300, rrMs: 700)]), deviceId: "dev1")
+        try await store.insertLegacyRrWithoutOrdForTest(deviceId: "dev1", ts: 300, rrMs: 650)
+        let first = try await store.rrIntervals(deviceId: "dev1", from: 0, to: 1_000, limit: 100)
+        let again = try await store.rrIntervals(deviceId: "dev1", from: 0, to: 1_000, limit: 100)
+        XCTAssertEqual(first.map(\.rrMs), [650, 700], "NULL ord sorts first")
+        XCTAssertEqual(first.map(\.rrMs), again.map(\.rrMs), "repeated reads must not differ")
+    }
+
     /// v5 adds a `synced` column to all 8 decoded tables.
     func testV5AddsSyncedColumnToDecodedTables() async throws {
         let store = try await WhoopStore.inMemory()

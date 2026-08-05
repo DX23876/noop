@@ -221,6 +221,7 @@ enum AICoachError: LocalizedError, Equatable {
     /// pointless rather than worth a button.
     case offline
     case decode
+    case emptyReply(String)   // #1074: verbatim provider-error / empty-reply text (byte-parity with Android emptyReplyMessage)
     case keySaveFailed
     case badCustomURL(String)
     case noModel
@@ -240,7 +241,7 @@ enum AICoachError: LocalizedError, Equatable {
         switch self {
         case .badKey:                    return .reauthenticate
         case .rateLimited(let after):    return .retry(after: after)
-        case .offline, .network, .decode: return .retry(after: nil)
+        case .offline, .network, .decode, .emptyReply: return .retry(after: nil)
         case .server(let code, _):
             // 5xx is the provider's problem and usually transient; a 4xx is ours and retrying it
             // unchanged just fails again.
@@ -283,6 +284,8 @@ enum AICoachError: LocalizedError, Equatable {
             return String(localized: "Network problem: \(detail). The coach is the only feature that needs the internet.")
         case .decode:
             return String(localized: "Couldn't read the provider's reply. Try again.")
+        case .emptyReply(let message):
+            return message
         }
     }
 }

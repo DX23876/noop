@@ -114,9 +114,30 @@ data class HrWindowStats(
  * NULL first in ASC, so a pre-v24 second (all NULL) ties on `ord` and falls through to the old
  * `rrMs, seq` order exactly. Not backfillable: the order was never recorded.
  *
- * PARITY: the Swift `rrInterval` key was widened to match in WhoopStore `v24-rr-seq`, and `ord` lands
- * there as `v30-rr-ord`. (An earlier revision of this note said the Swift widening was still pending;
- * it had already shipped.)
+ * `srcChannel` (Room v26, #1071) is WHICH sensor channel measured the beat, as [RrSourceChannel.code].
+ * An Oura ring reports the SAME heartbeats on more than one tag — 0x80 green-quality for the whole wear
+ * period, 0x6E only while an SpO2 measurement runs — and every one of them decoded to an R-R row, so an
+ * untagged table held roughly TWO complete copies of every night (2.06x the beats the measured HR curve
+ * allows over one 488-min window). That leaves the MEAN correct — resting HR was never wrong — and
+ * destroys everything built on successive differences: RMSSD, and a ~200 ms nocturnal SDNN where a
+ * healthy adult asleep is 40-100 ms.
+ *
+ * NOT a de-duplication: both rows are real measurements of one beat by different optics, and the second
+ * channel is the obvious cross-check on the first. So nothing is deleted — the column labels the source
+ * and `WhoopDao.rrIntervals` filters at READ. Also NOT in the key, for the same reason `ord` is not:
+ * keying on the label would make the SAME beat insertable twice under two labels, which is the
+ * double-count being fixed.
+ *
+ * NULL means "no channel to name": every WHOOP row forever (one beat source), every row written before
+ * v26, and any source that does not report one. Pre-v26 rows are still READ — a filter that dropped NULL
+ * would delete every WHOOP night from scoring — so historical Oura rows keep their old inflated
+ * coverage. Not backfillable: the channel was never recorded. (For the record, since it is how this was
+ * diagnosed: in an existing DB the two remain separable by `rrMs % 8`, an 0x6E row always being a
+ * multiple of 8 and an 0x80 row landing there only 1 time in 8 by chance.)
+ *
+ * PARITY: the Swift `rrInterval` key was widened to match in WhoopStore `v24-rr-seq`, `ord` lands there
+ * as `v30-rr-ord`, and `srcChannel` as `v32-rr-src-channel`. (An earlier revision of this note said the
+ * Swift widening was still pending; it had already shipped.)
  */
 @Entity(tableName = "rrInterval", primaryKeys = ["deviceId", "ts", "rrMs", "seq"])
 data class RrInterval(
@@ -126,6 +147,7 @@ data class RrInterval(
     val seq: Int = 0,
     val synced: Int = 0,
     val ord: Int? = null,
+    val srcChannel: Int? = null,
 )
 
 /**
@@ -482,6 +504,10 @@ data class WorkoutRow(
     val zonesJSON: String? = null,
     val notes: String? = null,
     val routePolyline: String? = null, // Encoded GPS route (RouteMath polyline); null = no GPS.
+    // #1058: per-session step count (activity-file foot sports; null otherwise). The day's step total is
+    // recomputed as SUM over that day's sessions, so a second file for a day adds instead of clobbering.
+    // Declared LAST so the v27 ALTER-appended column matches this fresh-schema order. Swift `WorkoutRow.steps`.
+    val steps: Int? = null,
 )
 
 /**

@@ -57,15 +57,20 @@ public enum SleepEditGuard {
         newEnd <= coverageStart || newStart >= coverageEnd
     }
 
+    /// The maximum duration of an edited sleep window. The wake date is explicit for #970, but
+    /// allowing an unbounded date change can re-bucket stages and totals onto unrelated days (#406).
+    /// One day preserves legitimate long sleep/nap corrections while rejecting multi-day windows.
+    public static let maxEditWindowSec: Int = 24 * 3600
+
     /// Rule 3: the persistence belt-and-braces. Caps the corrected wake at `now + slackSec` (a sleep
     /// cannot END in the future; the slack absorbs clock skew) and refuses (nil) any window that is
-    /// inverted or entirely in the future once capped. The editor's own guards should make this
-    /// unreachable; it exists so NO client code path can write a phantom night the display merge
-    /// cannot render.
+    /// inverted, spans more than one day, or is entirely in the future once capped. The editor's own
+    /// guards should make this unreachable; it exists so NO client code path can write a phantom night
+    /// the display merge cannot render.
     public static func clampedEditWindow(start: Int, end: Int, now: Int,
                                          slackSec: Int = 300) -> (start: Int, end: Int)? {
         let cappedEnd = min(end, now + slackSec)
-        guard cappedEnd > start else { return nil }
+        guard cappedEnd > start, cappedEnd - start <= maxEditWindowSec else { return nil }
         return (start, cappedEnd)
     }
 }

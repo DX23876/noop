@@ -74,15 +74,22 @@ object SleepEditGuard {
         newEnd <= coverageStart || newStart >= coverageEnd
 
     /**
+     * The maximum duration of an edited sleep window. The wake date is explicit for #970, but
+     * allowing an unbounded date change can re-bucket stages and totals onto unrelated days (#406).
+     * One day preserves legitimate long sleep/nap corrections while rejecting multi-day windows.
+     */
+    const val MAX_EDIT_WINDOW_SEC: Long = 24L * 3600L
+
+    /**
      * Rule 3: the persistence belt-and-braces. Caps the corrected wake at `nowTs + slackSec` (a
      * sleep cannot END in the future; the slack absorbs clock skew) and refuses (null) any window
-     * that is inverted or entirely in the future once capped. The editor's own guards should make
-     * this unreachable; it exists so NO client code path can write a phantom night the display
-     * merge cannot render.
+     * that is inverted, spans more than one day, or is entirely in the future once capped. The
+     * editor's own guards should make this unreachable; it exists so NO client code path can write
+     * a phantom night the display merge cannot render.
      */
     fun clampedEditWindow(start: Long, end: Long, nowTs: Long, slackSec: Long = 300L): Pair<Long, Long>? {
         val cappedEnd = minOf(end, nowTs + slackSec)
-        if (cappedEnd <= start) return null
+        if (cappedEnd <= start || cappedEnd - start > MAX_EDIT_WINDOW_SEC) return null
         return start to cappedEnd
     }
 }

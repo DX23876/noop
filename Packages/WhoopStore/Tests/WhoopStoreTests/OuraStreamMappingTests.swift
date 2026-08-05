@@ -94,7 +94,64 @@ final class OuraStreamMappingTests: XCTestCase {
         XCTAssertEqual(s.spo2.map { $0.red }, [970, 12345])
         XCTAssertEqual(s.spo2.map { $0.ir }, [0, 0])
         XCTAssertEqual(s.spo2.map { $0.unit }, ["raw", "dc_raw"])
+        // Single-sample records (count == 1) keep the record's own second, exactly as before #1070.
         XCTAssertEqual(s.spo2.map { $0.ts }, [ts, ts])
+    }
+
+    // #1070: `spo2Sample` is keyed (deviceId, ts). A 0x6F record's 13 per-second samples used to be
+    // written at the record's single `ts`, so twelve collided away on insert and the night was stored at
+    // 1/13 resolution — permanently, since the ring trims its banked history once the offload is acked.
+    func testSpO2PerSampleRecordGetsThirteenDistinctSeconds() {
+        let n = 13
+        let events = (0..<n).map {
+            OuraEvent.spo2(OuraSpO2(ringTimestamp: 100, value: 950 + $0, unit: "raw", index: $0, count: n))
+        }
+        let s = OuraStreamMapping.streams(from: events, at: ts)
+
+        XCTAssertEqual(s.spo2.count, n)
+        // Thirteen DISTINCT seconds: nothing can collide on the primary key.
+        XCTAssertEqual(Set(s.spo2.map { $0.ts }).count, n, "every sample must land on its own second")
+        // Laid BACKWARD at 1 s from the record anchor, so the LAST sample keeps the record's own ts.
+        XCTAssertEqual(s.spo2.map { $0.ts }, Array((ts - n + 1)...ts))
+        XCTAssertEqual(s.spo2.last?.ts, ts, "the record anchor is unchanged: it is the last sample")
+        // Order is preserved, so sample i still carries sample i's value.
+        XCTAssertEqual(s.spo2.map { $0.red }, (0..<n).map { 950 + $0 })
+    }
+
+    func testSpO2AdjacentRecordsTileAtTheNominalCadence() {
+        // Packets arrive ~13 s apart carrying 13 values, so back-laying tiles the interval exactly:
+        // at the NOMINAL cadence consecutive records produce a gapless, non-overlapping series.
+        // The tight tail is covered separately below.
+        let n = 13
+        let first = (0..<n).map {
+            OuraEvent.spo2(OuraSpO2(ringTimestamp: 100, value: 950, unit: "raw", index: $0, count: n))
+        }
+        let second = (0..<n).map {
+            OuraEvent.spo2(OuraSpO2(ringTimestamp: 113, value: 960, unit: "raw", index: $0, count: n))
+        }
+        let a = OuraStreamMapping.streams(from: first, at: ts).spo2.map { $0.ts }
+        let b = OuraStreamMapping.streams(from: second, at: ts + 13).spo2.map { $0.ts }
+        XCTAssertEqual(Set(a).intersection(Set(b)).count, 0, "adjacent records must not overlap")
+        XCTAssertEqual(a + b, Array((ts - n + 1)...(ts + 13)), "and must tile without a gap")
+    }
+
+    func testSpO2TightCadenceOverlapsByExactlyOneSecond() {
+        // The cadence has a tight tail (p10 12 s). Back-laying 13 samples from a record only 12 s after
+        // the previous one makes the newer record's FIRST second equal the older record's LAST — one
+        // sample lost at that boundary on the (deviceId, ts) key. That is bounded and expected, not a
+        // regression: measured over a real overnight it costs 0.84 % of samples, against 92.3 % before.
+        // This test pins the bound at ONE second so a future change to the lay cannot widen it silently.
+        let n = 13
+        let first = (0..<n).map {
+            OuraEvent.spo2(OuraSpO2(ringTimestamp: 100, value: 950, unit: "raw", index: $0, count: n))
+        }
+        let second = (0..<n).map {
+            OuraEvent.spo2(OuraSpO2(ringTimestamp: 112, value: 960, unit: "raw", index: $0, count: n))
+        }
+        let a = OuraStreamMapping.streams(from: first, at: ts).spo2.map { $0.ts }
+        let b = OuraStreamMapping.streams(from: second, at: ts + 12).spo2.map { $0.ts }
+        XCTAssertEqual(Set(a).intersection(Set(b)), [ts], "exactly one second overlaps, the older anchor")
+        XCTAssertEqual(Set(a).union(Set(b)).count, 2 * n - 1, "so 25 distinct seconds carry 26 samples")
     }
 
     // MARK: - Temp 0x46/0x75 -> skinTemp:[SkinTempSample] (centi-degree-C, parity with Kotlin)
@@ -166,6 +223,53 @@ final class OuraStreamMappingTests: XCTestCase {
         ], at: ts)
         XCTAssertTrue(s.isEmpty, "Tier-B and diagnostic events must not produce any durable stream row")
         XCTAssertTrue(s.steps.isEmpty, "activity/MET must never fabricate a steps row")
+    }
+
+    // MARK: - Batching a record's events into one insert (#1072, root cause for #823)
+
+    /// The defect's shape: the store's `ord` counter is batch-local, so a record's beats only get a
+    /// real emission order if they reach the store TOGETHER. Grouping is by the resolved second.
+    func testBatchedGroupsOneRecordsBeatsIntoASingleBatch() {
+        let beats = [812, 795, 840, 801, 833]
+        let batches = OuraStreamMapping.batched(beats.map {
+            (event: OuraEvent.ibi(OuraIBI(ringTimestamp: 100, ibiMs: $0)), ts: ts)
+        })
+        XCTAssertEqual(batches.count, 1, "one record's beats must be ONE batch, not five")
+        XCTAssertEqual(batches[0].ts, ts)
+        XCTAssertEqual(batches[0].events.count, beats.count)
+        // Emission order inside the batch is the whole point — it is what `ord` will record.
+        let rr = OuraStreamMapping.streams(from: batches[0].events, at: batches[0].ts).rr
+        XCTAssertEqual(rr.map { $0.rrMs }, beats)
+    }
+
+    /// Two records anchored to different seconds stay separate batches, in the order they arrived —
+    /// `ord` numbers beats within a second, so merging distinct seconds would mean nothing.
+    func testBatchedKeepsDistinctTimestampsSeparateAndInArrivalOrder() {
+        let batches = OuraStreamMapping.batched([
+            (event: .ibi(OuraIBI(ringTimestamp: 100, ibiMs: 800)), ts: ts + 3),
+            (event: .ibi(OuraIBI(ringTimestamp: 100, ibiMs: 810)), ts: ts + 3),
+            (event: .ibi(OuraIBI(ringTimestamp: 200, ibiMs: 900)), ts: ts),
+        ])
+        XCTAssertEqual(batches.map { $0.ts }, [ts + 3, ts],
+                       "timestamps keep first-appearance order, they are not re-sorted")
+        XCTAssertEqual(batches.map { $0.events.count }, [2, 1])
+    }
+
+    /// Same-second events that arrive interleaved with other seconds still land in one batch, and
+    /// their relative order is preserved — the store may never see a second's beats twice.
+    func testBatchedFoldsInterleavedSameSecondEventsIntoOneBatch() {
+        let batches = OuraStreamMapping.batched([
+            (event: .ibi(OuraIBI(ringTimestamp: 100, ibiMs: 800)), ts: ts),
+            (event: .ibi(OuraIBI(ringTimestamp: 200, ibiMs: 900)), ts: ts + 1),
+            (event: .ibi(OuraIBI(ringTimestamp: 100, ibiMs: 810)), ts: ts),
+        ])
+        XCTAssertEqual(batches.count, 2)
+        XCTAssertEqual(OuraStreamMapping.streams(from: batches[0].events, at: ts).rr.map { $0.rrMs },
+                       [800, 810])
+    }
+
+    func testBatchedOnEmptyInputYieldsNoBatches() {
+        XCTAssertTrue(OuraStreamMapping.batched([]).isEmpty)
     }
 
     // MARK: - Empty batch + multi-signal batch

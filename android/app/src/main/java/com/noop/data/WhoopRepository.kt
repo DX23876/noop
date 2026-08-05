@@ -2,6 +2,7 @@ package com.noop.data
 
 import android.content.Context
 import com.noop.protocol.DroppedRtcEvent
+import com.noop.protocol.RrSourceChannel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlin.math.roundToInt
@@ -189,7 +190,12 @@ data class DynAccelDiag(
 
 // Device-agnostic decoded rows (deviceId attached when inserted). Mirror Streams.swift shapes.
 data class HrRow(val ts: Long, val bpm: Int)
-data class RrRow(val ts: Long, val rrMs: Int)
+
+/**
+ * One decoded R-R beat awaiting insert. [srcChannel] is the sensor channel that measured it (#1071),
+ * null for a source that does not distinguish one (every WHOOP row). Swift `RRInterval`.
+ */
+data class RrRow(val ts: Long, val rrMs: Int, val srcChannel: RrSourceChannel? = null)
 
 /**
  * Attach a tiebreaker `seq` to each R-R interval before insert (Room v18). Multiple beats share one
@@ -213,6 +219,12 @@ data class RrRow(val ts: Long, val rrMs: Int)
  * RMSSD down. Same batch-local caveat as `seq`: a second split across two live flushes restarts `ord` at 0,
  * and ON CONFLICT DO NOTHING keeps whichever row landed first. The historical path delivers a second
  * atomically, so the authoritative copy is correctly ordered.
+ *
+ * And carries `srcChannel` (Room v26, #1071): the sensor channel that measured the beat, as reported by
+ * the decoder that produced it. NULL for every WHOOP row (one beat source — there is no channel to name,
+ * and that is honest rather than a placeholder). Like `ord` it is OUTSIDE the key: two channels measuring
+ * the same beat can yield the same (ts, rrMs), and keying on the label would store both — which is
+ * precisely the double-count this fixes. Twin of the Swift StreamStore insert.
  */
 internal fun assignRrSeq(deviceId: String, rows: List<RrRow>): List<RrInterval> {
     val seqByBeat = HashMap<Pair<Long, Int>, Int>()
@@ -223,7 +235,10 @@ internal fun assignRrSeq(deviceId: String, rows: List<RrRow>): List<RrInterval> 
         seqByBeat[key] = s + 1
         val o = ordByTs.getOrDefault(row.ts, 0)
         ordByTs[row.ts] = o + 1
-        RrInterval(deviceId = deviceId, ts = row.ts, rrMs = row.rrMs, seq = s, ord = o)
+        RrInterval(
+            deviceId = deviceId, ts = row.ts, rrMs = row.rrMs, seq = s, ord = o,
+            srcChannel = row.srcChannel?.code,
+        )
     }
 }
 
@@ -1250,6 +1265,10 @@ class WhoopRepository(private val dao: WhoopDao) {
     /** Scalar COUNT twin of [workouts] (exact total, no row limit) for count badges. */
     suspend fun workoutsCount(deviceId: String, from: Long, to: Long): Int =
         dao.workoutsCount(deviceId, from, to)
+
+    /** #1058: SUM of per-session `steps` over one source's workouts with startTs in [from, to). */
+    suspend fun sumWorkoutSteps(deviceId: String, from: Long, to: Long): Int =
+        dao.sumWorkoutSteps(deviceId, from, to)
 
     /** Journal entries for the inclusive day range [from, to] (YYYY-MM-DD), oldest first. */
     suspend fun journal(deviceId: String, from: String, to: String): List<JournalEntry> =

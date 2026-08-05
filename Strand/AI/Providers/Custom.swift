@@ -44,7 +44,10 @@ struct CustomClient: AIProviderClient {
     ///   the model's own `max_completion_tokens` — since hosted context windows are typically huge.
     ///
     /// Hence the split: Ollama instructions are noise to someone pointed at a gateway, and worse, they
-    /// name a cause that isn't theirs.
+    /// name a cause that isn't theirs. (#1074 upstream collapsed this to one provider-agnostic message
+    /// for the same reason — a DeepSeek-via-gateway user was shown Ollama advice — but this fork already
+    /// keyed the message on `isLocalServer` instead, so a genuinely local server still gets the actionable
+    /// `num_ctx` fix rather than losing it.)
     static func truncationNote(isLocalServer: Bool) -> String {
         let head = "\n\n---\n*Reply cut off: the model stopped at a length limit. "
         if isLocalServer {
@@ -71,8 +74,9 @@ struct CustomClient: AIProviderClient {
         guard let choices = json["choices"] as? [[String: Any]],
               let first = choices.first,
               let message = first["message"] as? [String: Any],
-              let content = message["content"] as? String else {
-            throw AICoachError.decode
+              let content = (message["content"] as? String)?
+                  .trimmingCharacters(in: .whitespacesAndNewlines), !content.isEmpty else {
+            throw emptyReplyError(json)   // #1074: surface the provider's real error if the 200 body has one
         }
         if (first["finish_reason"] as? String)?.lowercased() == "length" {
             return content + Self.truncationNote(isLocalServer: isLocalServer)
@@ -123,6 +127,8 @@ struct CustomClient: AIProviderClient {
         session: URLSession
     ) async throws -> String {
         var body: [String: Any] = ["model": model, "messages": wire]
+        // #1074: 900 truncated detailed coaching replies mid-sentence on cloud providers; 4096 lets a
+        // full multi-section reply complete (a cap, not a target). Matches the Gemini leg + Android.
         if modernParams {
             body["max_completion_tokens"] = CoachOutputBudget.maxTokens
         } else {

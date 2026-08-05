@@ -1877,27 +1877,49 @@ private fun NightNavHeader(
         }
     }
 
-    // Wake-up picker also mutates only the draft. Its calendar day is derived from the DRAFT bedtime,
-    // so editing bedtime first and wake second produces one coherent cross-midnight window (#515/#406).
+    // Wake-up editing mutates only the draft. Date and time are selected explicitly so a correction can
+    // preserve the exact endpoint date instead of deriving it from bedtime (#970).
     val draftForWake = sleepEditDraft
     if (editingWake && session != null && draftForWake != null) {
         val endCal = Calendar.getInstance().apply { timeInMillis = draftForWake.endTs * 1000L }
         DisposableEffect(Unit) {
-            val dialog = TimePickerDialog(
+            var dateChosen = false
+            val dateDialog = DatePickerDialog(
                 context,
-                { _, h, m ->
-                    sleepEditDraft = draftForWake.withWakeTime(hour = h, minute = m)
+                { _, year, month, day ->
+                    dateChosen = true
+                    val selectedDate = Calendar.getInstance().apply {
+                        timeInMillis = draftForWake.endTs * 1000L
+                        set(Calendar.YEAR, year); set(Calendar.MONTH, month); set(Calendar.DAY_OF_MONTH, day)
+                    }
+                    val timeDialog = TimePickerDialog(
+                        context,
+                        { _, h, m ->
+                            selectedDate.set(Calendar.HOUR_OF_DAY, h); selectedDate.set(Calendar.MINUTE, m)
+                            selectedDate.set(Calendar.SECOND, 0); selectedDate.set(Calendar.MILLISECOND, 0)
+                            sleepEditDraft = draftForWake.withWakeCandidate(selectedDate.timeInMillis / 1000L)
+                        },
+                        endCal.get(Calendar.HOUR_OF_DAY), endCal.get(Calendar.MINUTE), true,
+                    ).apply { setTitle("Wake-up time") }
+                    timeDialog.setOnDismissListener {
+                        editingWake = false
+                        if (sleepEditDraft != null) showTimeChoice = true
+                    }
+                    timeDialog.show()
                 },
-                endCal.get(Calendar.HOUR_OF_DAY),
-                endCal.get(Calendar.MINUTE),
-                true,
-            ).apply { setTitle("Wake-up time") }
-            dialog.setOnDismissListener {
-                editingWake = false
-                if (sleepEditDraft != null) showTimeChoice = true
+                endCal.get(Calendar.YEAR), endCal.get(Calendar.MONTH), endCal.get(Calendar.DAY_OF_MONTH),
+            ).apply {
+                datePicker.maxDate = System.currentTimeMillis()
+                setTitle("Wake-up date")
+                setOnDismissListener {
+                    if (editingWake && !dateChosen) {
+                        editingWake = false
+                        if (sleepEditDraft != null) showTimeChoice = true
+                    }
+                }
             }
-            dialog.show()
-            onDispose { runCatching { dialog.dismiss() } }
+            dateDialog.show()
+            onDispose { runCatching { dateDialog.dismiss() } }
         }
     }
 
