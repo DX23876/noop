@@ -7,7 +7,7 @@ enum AppChangelog {
 
     /// Bump this when you add a release below. The "What's New" sheet shows automatically when the
     /// stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
-    static let currentVersion = "9.3.1-dx-beta"
+    static let currentVersion = "9.3.2-dx-beta"
 
     struct Release: Identifiable {
         let version: String
@@ -19,6 +19,18 @@ enum AppChangelog {
 
     /// Newest first.
     static let releases: [Release] = [
+        Release(
+            version: "9.3.2-dx-beta",
+            title: "Your HRV is measured right again, Oura rings stop counting every beat twice, and the app speaks your language everywhere",
+            date: "August 2026",
+            items: [
+                "**HRV is read in heartbeat order again.** Beats that share a second were being sorted by value instead of by when your heart produced them — and HRV is built entirely from the gaps between consecutive beats, so the order changes the number. Affects nightly HRV, the Charge built on it, and sleep staging.",
+                "**Oura rings stopped counting every heartbeat twice.** The ring measures the same beat on more than one optical sensor and all of them were stored, so a night held roughly two complete copies of itself. Resting heart rate survived that; everything built on beat-to-beat differences did not.",
+                "**Sleep edits keep the right date.** Correcting a wake time near midnight could move the night onto the wrong calendar day. The bed/wake pickers now catch a cross-midnight correction, ask before moving a night to a time with no recorded data, and refuse to save an impossible window.",
+                "**Every screen is fully translated again.** The chart colour styles, the sleep-time editor and the day navigation shipped English text to German, Spanish, French and Portuguese. All four are complete.",
+                "**Coach settings no longer breaks the More tab.** Opening it from More left every later row on that tab unresponsive until you switched tabs and back.",
+            ]
+        ),
         Release(
             version: "9.3.1-dx-beta",
             title: "Coach memory you can see and confirm, and a live heart rate on both Today screens",

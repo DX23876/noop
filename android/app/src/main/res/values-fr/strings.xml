@@ -1885,4 +1885,5 @@
         <item quantity="other">Construction de votre référence. Encore environ %1$d nuits avant que vos scores soient personnels.</item>
     </plurals>
     <string name="l10n_app_changelog_widgets_stop_inventing_numbers_naps_count_4f7491bb">Les widgets n\'inventent plus de chiffres, les siestes comptent pour la dette de sommeil, et les indicateurs Android parlent votre langue</string>
+    <string name="l10n_app_changelog_your_hrv_is_measured_right_again_d635e316">Votre VFC est de nouveau mesurée correctement, les bagues Oura cessent de compter chaque battement deux fois, et l\'app parle votre langue partout</string>
 </resources>

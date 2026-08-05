@@ -26,7 +26,7 @@ object AppChangelog {
      * Bump this when you add a release below. The "What's New" sheet shows automatically when the
      * stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
      */
-    const val CURRENT_VERSION = "9.3.1-dx-beta"
+    const val CURRENT_VERSION = "9.3.2-dx-beta"
 
     data class Release(
         val version: String,
@@ -37,6 +37,18 @@ object AppChangelog {
 
     /** Newest first. */
     val releases: List<Release> = listOf(
+        Release(
+            version = "9.3.2-dx-beta",
+            title = uiString(R.string.l10n_app_changelog_your_hrv_is_measured_right_again_d635e316),
+            date = "August 2026",
+            items = listOf(
+                "**HRV is read in heartbeat order again.** Beats that share a second were being sorted by value instead of by when your heart produced them — and HRV is built entirely from the gaps between consecutive beats, so the order changes the number. Affects nightly HRV, the Charge built on it, and sleep staging.",
+                "**Oura rings stopped counting every heartbeat twice.** The ring measures the same beat on more than one optical sensor and all of them were stored, so a night held roughly two complete copies of itself. Resting heart rate survived that; everything built on beat-to-beat differences did not.",
+                "**Sleep edits keep the right date.** Correcting a wake time near midnight could move the night onto the wrong calendar day. The bed/wake pickers now catch a cross-midnight correction, ask before moving a night to a time with no recorded data, and refuse to save an impossible window.",
+                "**Every screen is fully translated again.** The chart colour styles, the sleep-time editor and the day navigation shipped English text to German, Spanish, French and Portuguese. All four are complete.",
+                "**Coach settings no longer breaks the More tab.** Opening it from More left every later row on that tab unresponsive until you switched tabs and back.",
+            ),
+        ),
         Release(
             version = "9.3.1-dx-beta",
             title = uiString(R.string.l10n_app_changelog_coach_memory_you_can_see_and_4c8584af),

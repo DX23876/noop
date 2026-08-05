@@ -1879,4 +1879,5 @@
         <item quantity="other">A construir a tua linha de base. Cerca de %1$d mais noites até que a tua pontuação seja pessoal.</item>
     </plurals>
     <string name="l10n_app_changelog_widgets_stop_inventing_numbers_naps_count_4f7491bb">Os widgets deixam de inventar números, as sestas contam para a dívida de sono, e os indicadores Android falam a tua língua</string>
+    <string name="l10n_app_changelog_your_hrv_is_measured_right_again_d635e316">A tua VFC volta a ser medida corretamente, os anéis Oura deixam de contar cada batimento duas vezes, e a app fala a tua língua em todo o lado</string>
 </resources>
