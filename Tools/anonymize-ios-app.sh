@@ -59,6 +59,12 @@ print(f"scrubbed {total} occurrence(s) across {files} file(s)")
 PY
 
 # Verify: no residual home-path bytes anywhere in the bundle.
-residual=$(grep -rac "$HOME" "$APP" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
+# `grep` exits 1 when it finds NOTHING — which here is the SUCCESS case, a fully scrubbed bundle.
+# Under `set -euo pipefail` that status propagated out of the pipeline and killed the script at this
+# assignment, before the verdict below could print: the check failed precisely when it passed, with
+# no message, because grep's own output was captured into the variable. Swallow the no-match status
+# so only the COUNT decides. A real residual still exits 0 from grep and is caught below.
+# (`|| true` guards the same way in the macOS twin, anonymize-macos-app.sh.)
+residual=$({ grep -rac "$HOME" "$APP" 2>/dev/null || true; } | awk -F: '{s+=$2} END {print s+0}')
 echo "residual home-path hits: ${residual:-0}"
 [ "${residual:-0}" -eq 0 ] && echo "✓ clean" || { echo "✗ residual paths remain" >&2; exit 1; }
