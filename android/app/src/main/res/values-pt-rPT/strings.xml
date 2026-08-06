@@ -1729,6 +1729,8 @@
     <string name="l10n_data_sources_screen_last_shared_6bf8389c">"Última partilha "</string>
     <string name="l10n_data_sources_screen_sharing_paused_health_connect_permission_was_e8950315">Partilha pausada: a permissão do Health Connect foi revogada. Toca para conceder novamente.</string>
     <string name="l10n_data_sources_screen_last_share_didn_t_finish_noop_0d6c27f0">A última partilha não foi concluída – o NOOP tentará novamente automaticamente.</string>
+    <string name="settings_disclosure_expanded">Expandido</string>
+    <string name="settings_disclosure_collapsed">Recolhido</string>
     <string name="settings_streak_title">Sequência</string>
     <plurals name="settings_streak_run">
         <item quantity="one">%1$d dia seguido</item>

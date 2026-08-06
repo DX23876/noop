@@ -1672,6 +1672,8 @@
     <string name="l10n_data_sources_screen_last_shared_6bf8389c">"上次分享 "</string>
     <string name="l10n_data_sources_screen_sharing_paused_health_connect_permission_was_e8950315">分享已暂停——Health Connect 权限已被撤销。点按以重新授予。</string>
     <string name="l10n_data_sources_screen_last_share_didn_t_finish_noop_0d6c27f0">上次分享未完成——NOOP 将自动重试。</string>
+    <string name="settings_disclosure_expanded">已展开</string>
+    <string name="settings_disclosure_collapsed">已收起</string>
 
     <!-- 升级电量提醒（临界电量 + 睡前守护）。 -->
     <string name="battery_critical_title">请立即为 WHOOP 充电</string>

@@ -9,7 +9,6 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -46,7 +45,6 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.IosShare
-import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Refresh
@@ -86,15 +84,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -729,7 +723,7 @@ fun SettingsScreen(
             }
         }
 
-        SettingsSection(
+        SettingsCard(
             icon = Icons.Outlined.AccountCircle,
             title = uiString(R.string.l10n_settings_screen_profile_photo_33f385bb),
             blurb = "Optional. Add a photo for the avatar in the top-left. Stored only on this phone. NOOP is offline, so it's never uploaded.",
@@ -769,13 +763,13 @@ fun SettingsScreen(
         }
 
         // --- Profile ---
-        SettingsSection(
+        SettingsCard(
             icon = Icons.Outlined.Person,
             title = uiString(R.string.l10n_settings_screen_profile_ff4fc027),
             blurb = "These power your heart-rate zones, calorie estimates and recovery baselines. Keep them accurate.",
         ) {
             Column {
-                FormRow(label = uiString(R.string.l10n_settings_screen_age_ff9f1ff3)) {
+                SettingsFormRow(label = uiString(R.string.l10n_settings_screen_age_ff9f1ff3)) {
                     StepperField(
                         value = profile.age.toString(),
                         accessibility = "Age, ${profile.age} years",
@@ -786,8 +780,8 @@ fun SettingsScreen(
                         onPlus = { mutate { profile.setAge(profile.age + 1) } },
                     )
                 }
-                RowDivider()
-                FormRow(label = uiString(R.string.l10n_settings_screen_sex_e301dd60)) {
+                SettingsRowDivider()
+                SettingsFormRow(label = uiString(R.string.l10n_settings_screen_sex_e301dd60)) {
                     SegmentedPillControl(
                         items = SEX_OPTIONS,
                         selection = SEX_OPTIONS.firstOrNull { it.tag == profile.sex } ?: SEX_OPTIONS[0],
@@ -795,8 +789,8 @@ fun SettingsScreen(
                         onSelect = { mutate { profile.sex = it.tag } },
                     )
                 }
-                RowDivider()
-                FormRow(label = uiString(R.string.l10n_settings_screen_weight_69c0b815)) {
+                SettingsRowDivider()
+                SettingsFormRow(label = uiString(R.string.l10n_settings_screen_weight_69c0b815)) {
                     // Imperial mode steps in whole pounds and stores the kg equivalent; metric steps in
                     // 0.5 kg. The profile is always SI — only the entry unit changes.
                     if (unitSystem == UnitSystem.IMPERIAL) {
@@ -818,8 +812,8 @@ fun SettingsScreen(
                         )
                     }
                 }
-                RowDivider()
-                FormRow(label = uiString(R.string.l10n_settings_screen_height_3f608b49)) {
+                SettingsRowDivider()
+                SettingsFormRow(label = uiString(R.string.l10n_settings_screen_height_3f608b49)) {
                     // Imperial mode steps in whole inches and stores the cm equivalent; metric steps in cm.
                     if (unitSystem == UnitSystem.IMPERIAL) {
                         val (ft, inch) = UnitFormatter.cmToFeetInches(profile.heightCm)
@@ -840,12 +834,12 @@ fun SettingsScreen(
                         )
                     }
                 }
-                RowDivider()
+                SettingsRowDivider()
                 // Waist (optional): the one extra body measure that unlocks the Fitness Age VO₂max
                 // estimate. Unset (0) by design — the headline Fitness Age never needs it — so it shows
                 // "Add" until entered, then steps like Height (inches in imperial, cm in metric).
                 // First tap from unset seeds a typical adult waist rather than 1 cm.
-                FormRow(label = uiString(R.string.l10n_settings_screen_waist_optional_d5356703)) {
+                SettingsFormRow(label = uiString(R.string.l10n_settings_screen_waist_optional_d5356703)) {
                     Column(horizontalAlignment = Alignment.End) {
                         val hasWaist = profile.waistCm > 0.0
                         if (unitSystem == UnitSystem.IMPERIAL) {
@@ -883,8 +877,8 @@ fun SettingsScreen(
                         )
                     }
                 }
-                RowDivider()
-                FormRow(label = uiString(R.string.l10n_settings_screen_max_heart_rate_3d4ed858)) {
+                SettingsRowDivider()
+                SettingsFormRow(label = uiString(R.string.l10n_settings_screen_max_heart_rate_3d4ed858)) {
                     Column(horizontalAlignment = Alignment.End) {
                         StepperField(
                             value = if (profile.hrMaxOverride > 0) profile.hrMaxOverride.toString() else "Auto",
@@ -910,12 +904,12 @@ fun SettingsScreen(
                         )
                     }
                 }
-                RowDivider()
+                SettingsRowDivider()
                 // Step calibration (#139/#132): daily steps = @57 counter ticks ÷ this divisor.
                 // 1.0 = raw pass-through until the true 5/MG tick rate is known. The divisor goes
                 // up to 30 because a 5/MG motion counter can overcount by ~24×; the stepper uses a
                 // variable increment (fine near 1.0, coarse up top) so high values stay reachable.
-                FormRow(label = uiString(R.string.l10n_settings_screen_step_calibration_351c09bf)) {
+                SettingsFormRow(label = uiString(R.string.l10n_settings_screen_step_calibration_351c09bf)) {
                     StepperField(
                         value = "%.1f".format(profile.stepTicksPerStep),
                         accessibility = "Step calibration, %.1f counter ticks per step"
@@ -929,7 +923,7 @@ fun SettingsScreen(
                     style = NoopType.footnote,
                     color = Palette.textTertiary,
                 )
-                RowDivider()
+                SettingsRowDivider()
                 // Tap-through to the WHOOP 4.0 steps-ESTIMATE calibration (a SEPARATE thing from the 5/MG
                 // @57 counter divisor above): a 4.0 sends no step count, so NOOP estimates steps from
                 // motion and calibrates that to the phone. Opens the explainer + fit + comparison + manual
@@ -984,13 +978,13 @@ fun SettingsScreen(
         // Imperial/Metric display toggle + a separate temperature override. Display-only — nothing
         // stored changes; NOOP keeps everything in SI and converts at the point of display. Mirrors the
         // macOS Settings → Units card.
-        SettingsSection(
+        SettingsCard(
             icon = Icons.Filled.Straighten,
             title = uiString(R.string.l10n_settings_screen_units_12748281),
             blurb = "Choose how distances, weights, heights, temperatures and Effort are shown. Your data is always stored the same way. This only changes the display.",
         ) {
             Column {
-                FormRow(label = uiString(R.string.l10n_settings_screen_measurement_system_701d765d)) {
+                SettingsFormRow(label = uiString(R.string.l10n_settings_screen_measurement_system_701d765d)) {
                     SegmentedPillControl(
                         items = listOf(UnitSystem.METRIC, UnitSystem.IMPERIAL),
                         selection = unitSystem,
@@ -1001,8 +995,8 @@ fun SettingsScreen(
                         },
                     )
                 }
-                RowDivider()
-                FormRow(label = uiString(R.string.l10n_settings_screen_temperature_0a9062a9)) {
+                SettingsRowDivider()
+                SettingsFormRow(label = uiString(R.string.l10n_settings_screen_temperature_0a9062a9)) {
                     // Three-way: "Match" follows the system above; °C / °F pin it explicitly. Stored as an
                     // empty string ("match") or the TemperatureUnit raw value.
                     SegmentedPillControl(
@@ -1021,10 +1015,10 @@ fun SettingsScreen(
                         },
                     )
                 }
-                RowDivider()
+                SettingsRowDivider()
                 // Effort scale (#268) — NOOP's native 0–100 Effort or WHOOP's 0–21 Day Strain axis.
                 // Display-only; the stored value never changes, so a flip just re-labels every read-out.
-                FormRow(label = uiString(R.string.l10n_settings_screen_effort_scale_81afa9ef)) {
+                SettingsFormRow(label = uiString(R.string.l10n_settings_screen_effort_scale_81afa9ef)) {
                     SegmentedPillControl(
                         items = listOf(EffortScale.HUNDRED, EffortScale.WHOOP),
                         selection = effortScale,
@@ -1039,12 +1033,12 @@ fun SettingsScreen(
         }
 
         // --- Appearance (Theme) ---
-        SettingsSection(
+        SettingsCard(
             icon = Icons.Filled.Brightness6,
             title = uiString(R.string.l10n_settings_screen_appearance_41def7a0),
             blurb = "Choose Light, Dark, or follow your system. Dark is the signature near-black; Light keeps the same clean look on a bright canvas.",
         ) {
-            FormRow(label = uiString(R.string.l10n_settings_screen_theme_a797e309)) {
+            SettingsFormRow(label = uiString(R.string.l10n_settings_screen_theme_a797e309)) {
                 SegmentedPillControl(
                     items = listOf(AppearanceMode.SYSTEM, AppearanceMode.LIGHT, AppearanceMode.DARK),
                     selection = themeMode,
@@ -1055,9 +1049,9 @@ fun SettingsScreen(
                     },
                 )
             }
-            RowDivider()   // #79 parity: the hairline every other section has between FormRows (Android rows
+            SettingsRowDivider()   // #79 parity: the hairline every other section has between FormRows (Android rows
                            // were already 16dp-spaced, unlike iOS where they touched — this matches both)
-            FormRow(label = uiString(R.string.l10n_settings_screen_chart_colours_525f4a37)) {
+            SettingsFormRow(label = uiString(R.string.l10n_settings_screen_chart_colours_525f4a37)) {
                 // Titanium = brand gold/amber/blue ramps; Classic = throwback red→green readiness scale
                 // (cool→hot zones, green→red stress). Re-colours every gauge/chart, in both schemes.
                 SegmentedPillControl(
@@ -1070,10 +1064,10 @@ fun SettingsScreen(
                     },
                 )
             }
-            RowDivider()
+            SettingsRowDivider()
             // Trend chart style (line vs bar). Display-only: flips the Trends tab's charts between the
             // gradient line and value-ramp bars. The plotted data is identical either way.
-            FormRow(label = uiString(R.string.l10n_settings_screen_trend_charts_19085c81)) {
+            SettingsFormRow(label = uiString(R.string.l10n_settings_screen_trend_charts_19085c81)) {
                 SegmentedPillControl(
                     items = listOf(TrendChartStyle.LINE, TrendChartStyle.BAR),
                     selection = trendChartStyle,
@@ -1207,12 +1201,12 @@ fun SettingsScreen(
         // Two staged launcher icons — machined titanium (default) and blued/dark-blue titanium. The
         // swap is done by enabling exactly one <activity-alias> (.IconDefault / .IconNavy) at runtime;
         // the launcher may take a beat (or briefly disappear/redraw) while it re-reads the icon.
-        SettingsSection(
+        SettingsCard(
             icon = Icons.Filled.Palette,
             title = uiString(R.string.l10n_settings_screen_app_icon_abde7a74),
             blurb = "Choose how NOOP looks on your home screen. The launcher may take a moment to refresh the icon after you change it.",
         ) {
-            FormRow(label = uiString(R.string.l10n_settings_screen_icon_716f63b9)) {
+            SettingsFormRow(label = uiString(R.string.l10n_settings_screen_icon_716f63b9)) {
                 SegmentedPillControl(
                     items = listOf(false, true),
                     selection = appIconNavy,
@@ -1226,7 +1220,7 @@ fun SettingsScreen(
         }
 
         // --- Strap ---
-        SettingsSection(
+        SettingsCard(
             icon = Icons.Filled.Sensors,
             title = uiString(R.string.l10n_settings_screen_strap_02b88eeb),
             blurb = "NOOP pairs directly with your WHOOP over Bluetooth: no WHOOP app, no cloud.",
@@ -1612,7 +1606,7 @@ fun SettingsScreen(
                 // the whole night (NOOP's long-standing value) or DEEP sleep only (WHOOP-style, reads lower
                 // and more comparable to WHOOP/Polar). Unlike the Effort scale this CHANGES the number, so a
                 // switch forces a re-score + re-baseline.
-                FormRow(label = uiString(R.string.l10n_settings_screen_hrv_window_e74320b8)) {
+                SettingsFormRow(label = uiString(R.string.l10n_settings_screen_hrv_window_e74320b8)) {
                     SegmentedPillControl(
                         items = listOf(HrvWindow.WHOLE_NIGHT, HrvWindow.DEEP_SLEEP),
                         selection = hrvWindow,
@@ -1716,7 +1710,7 @@ fun SettingsScreen(
         // #477 Power saving. Two BENIGN battery levers only: the offload-cadence stretch (%-gated) and
         // the HRV-capture pause (Battery-Saver-gated). The riskier connection-priority idle throttle is
         // deliberately not surfaced here — it stays dormant pending on-strap validation (#478).
-        SettingsSection(
+        SettingsCard(
             icon = Icons.Filled.BatteryStd,
             title = stringResource(R.string.power_saving),
             blurb = stringResource(R.string.power_saving_blurb),
@@ -1750,7 +1744,7 @@ fun SettingsScreen(
                 )
             }
             if (powerSaving) {
-                RowDivider()
+                SettingsRowDivider()
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1774,7 +1768,7 @@ fun SettingsScreen(
                         ),
                     )
                 }
-                RowDivider()
+                SettingsRowDivider()
                 // HRV pause: a sub-option of power saving, ON by default when the master is on.
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1811,7 +1805,7 @@ fun SettingsScreen(
         // screen opens at the everyday handful instead of the full wall of cards. Nothing is removed;
         // the experimental probes, diagnostics, raw-capture export and Trends report all stay one tap
         // away. Mirrors the iOS SettingsView "Advanced" disclosure and the Test Centre Advanced group.
-        SettingsDisclosure(
+        SettingsDisclosureGroup(
             title = uiString(R.string.l10n_settings_screen_advanced_4d064726),
             subtitle = "Experimental probes, diagnostics, raw-sensor export, and the Trends report. Tucked away to keep the everyday screen tidy.",
             expanded = advancedOpen,
@@ -1820,7 +1814,7 @@ fun SettingsScreen(
         Column(verticalArrangement = Arrangement.spacedBy(Metrics.screenRowSpacing)) {
         // --- Experimental · WHOOP 5 / MG --- (hidden when the user is confidently on a 4.0, #22)
         if (showFiveMGControls) {
-        SettingsSection(
+        SettingsCard(
             icon = Icons.Filled.Science,
             title = uiString(R.string.l10n_settings_screen_experimental_whoop_5_mg_41ef7041),
             blurb = "Live heart rate already works on a WHOOP 5/MG strap. These probes go further and try to coax more out of it. They are guesses, off by default, and only ever touch a 5/MG strap. WHOOP 4.0 is never affected.",
@@ -2117,7 +2111,7 @@ fun SettingsScreen(
 
         // --- Diagnostics (every model) --- the raw-sensor CSV export is split out of the 5/MG card so it
         // stays available on a WHOOP 4.0 too (#22): a 4.0 owner still needs it to share decoded streams.
-        SettingsSection(
+        SettingsCard(
             icon = Icons.Filled.Science,
             title = uiString(R.string.l10n_settings_screen_diagnostics_3af2279f),
             blurb = "A read-only export of the decoded sensor streams NOOP already stores. Works on any strap. Nothing is written to your device, and nothing is uploaded.",
@@ -2245,16 +2239,16 @@ fun SettingsScreen(
         // card (its own NoopCard + range picker + CTA), so it drops in without a SettingsSection wrapper.
         TrendsReportExportSection(vm)
         } // end Advanced disclosure content Column
-        } // end SettingsDisclosure("Advanced")
+        } // end SettingsDisclosureGroup("Advanced")
 
         // --- Health & wellness (v5 opt-in toggles) ---
-        SettingsSection(
+        SettingsCard(
             icon = Icons.Filled.Science,
             title = uiString(R.string.l10n_settings_screen_health_wellness_93475778),
             blurb = "Optional, on-device wellness signals. Each is off by default, computed only on this phone from data you already have, and never a medical diagnosis.",
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                ToggleRow(
+                SettingsToggleRow(
                     title = uiString(R.string.l10n_settings_screen_illness_heads_up_97e10035),
                     detail = "Watches your resting heart rate, HRV and skin temperature for the pattern that often shows up before you feel unwell, and surfaces a gentle heads-up. An observation about your own numbers, not a diagnosis.",
                     checked = illnessWatch,
@@ -2263,14 +2257,14 @@ fun SettingsScreen(
                         vm.setIllnessWatchEnabled(it)
                     },
                 )
-                RowDivider()
+                SettingsRowDivider()
                 // #801 — not offered on a male profile (it would just sit at "Learning your pattern"). Hidden
                 // when off for a male profile so it can't be enabled here; still shown when already on so it
                 // can be turned off — mirroring HealthScreen's cycle opt-in gate (cycleOptInApplies). The
                 // sister surfaces (Health opt-in, the card's off-control) were sex-gated in v7.3.2; this
                 // Settings toggle was the one surface that was missed, so a male profile could enable it here.
                 if (cycleTracking || cycleOptInApplies(profile.sex)) {
-                    ToggleRow(
+                    SettingsToggleRow(
                         title = uiString(R.string.l10n_settings_screen_cycle_awareness_ffb94783),
                         detail = "Reads a coarse menstrual-cycle phase from your nightly skin-temperature shift, on this device only. Awareness only: not contraception, not a fertility predictor, not a medical service.",
                         checked = cycleTracking,
@@ -2279,9 +2273,9 @@ fun SettingsScreen(
                             vm.setCycleTrackingEnabled(it)
                         },
                     )
-                    RowDivider()
+                    SettingsRowDivider()
                 }
-                ToggleRow(
+                SettingsToggleRow(
                     title = uiString(R.string.l10n_settings_screen_hydration_tracking_579a2b32),
                     detail = "Adds a simple fluid log with a daily goal that adjusts to your effort. Tap to add a sip, cup or bottle and watch a progress ring fill. On this phone only. Nothing is synced.",
                     checked = hydrationTracking,
@@ -2290,8 +2284,8 @@ fun SettingsScreen(
                         NoopPrefs.setHydrationTracking(context, it)
                     },
                 )
-                RowDivider()
-                ToggleRow(
+                SettingsRowDivider()
+                SettingsToggleRow(
                     title = uiString(R.string.l10n_settings_screen_auto_detect_workouts_bed4cf2a),
                     detail = "After a sync, NOOP looks over your recent heart rate for a sustained, raised stretch that looks like exercise and offers to save it. It only ever suggests. Nothing is saved until you tap Save, and you can dismiss any suggestion. Deliberately conservative, so the odd workout may be missed. On this phone only.",
                     checked = autoDetectWorkouts,
@@ -2300,8 +2294,8 @@ fun SettingsScreen(
                         NoopPrefs.setAutoDetectWorkouts(context, it)
                     },
                 )
-                RowDivider()
-                ToggleRow(
+                SettingsRowDivider()
+                SettingsToggleRow(
                     title = uiString(R.string.l10n_journal_reminder_journal_reminder_0fdc0d9c),
                     detail = uiString(R.string.l10n_journal_reminder_show_a_today_card_reminding_you_to_log_your_journal_8228bc77),
                     checked = journalReminder,
@@ -2310,8 +2304,8 @@ fun SettingsScreen(
                         NoopPrefs.setJournalReminderEnabled(context, it)
                     },
                 )
-                RowDivider()
-                ToggleRow(
+                SettingsRowDivider()
+                SettingsToggleRow(
                     title = uiString(R.string.l10n_settings_screen_keep_screen_on_during_a_workout_42d27284),
                     detail = "Holds the screen awake while you're recording a workout, so your live heart rate stays visible without the phone dimming. Only applies during a recording. The screen sleeps normally the rest of the time. Leaving it on does use a bit more battery, and means your unlocked screen stays visible for the whole workout, so flip it off if that's a concern.",
                     checked = workoutKeepScreenOn,
@@ -2320,10 +2314,10 @@ fun SettingsScreen(
                         NoopPrefs.of(context).edit().putBoolean("workoutKeepScreenOn", it).apply()
                     },
                 )
-                RowDivider()
+                SettingsRowDivider()
                 // BETA + default ON (the one exception to this section's off-by-default rule): the flag
                 // gates the Today entry so anyone can wave the beta away here with one flip.
-                ToggleRow(
+                SettingsToggleRow(
                     title = uiString(R.string.l10n_settings_screen_live_sessions_beta_2ca3a97f),
                     detail = "Silence-first strap coaching during workouts.",
                     checked = liveSessionsBeta,
@@ -2332,8 +2326,8 @@ fun SettingsScreen(
                         LiveSessionPrefs.setEnabled(context, it)
                     },
                 )
-                RowDivider()
-                ToggleRow(
+                SettingsRowDivider()
+                SettingsToggleRow(
                     title = uiString(R.string.l10n_settings_screen_stress_check_ins_haptic_bf2746ba),
                     detail = "Lets NOOP notice a fresh HRV dip while you're still and offer a minute to breathe. \"Stress\" here is an autonomic proxy from your own baseline, never a diagnosis. The strap gives one light confirming buzz; no push notification.",
                     checked = stressCheckIn,
@@ -2345,7 +2339,7 @@ fun SettingsScreen(
                     },
                 )
                 if (stressCheckIn) {
-                    ToggleRow(
+                    SettingsToggleRow(
                         title = uiString(R.string.l10n_settings_screen_offer_a_breath_automatically_6c709dee),
                         detail = "When a dip is detected, surface the check-in card on its own (rate-limited, quiet-hours aware). Off keeps it manual.",
                         checked = stressAutoNudge,
@@ -2355,8 +2349,8 @@ fun SettingsScreen(
                         },
                     )
                 }
-                RowDivider()
-                ToggleRow(
+                SettingsRowDivider()
+                SettingsToggleRow(
                     title = uiString(R.string.l10n_settings_screen_rhythm_experimental_12d357da),
                     detail = "An experimental picture of your beat-to-beat timing: a Poincaré scatter and plain regularity stats from quiet resting windows. Not an ECG and not a diagnosis; you'll read a short disclaimer and accept before it turns on.",
                     checked = rhythmEnabled,
@@ -2372,8 +2366,8 @@ fun SettingsScreen(
                         }
                     },
                 )
-                RowDivider()
-                ToggleRow(
+                SettingsRowDivider()
+                SettingsToggleRow(
                     title = uiString(R.string.l10n_settings_screen_share_on_device_signals_with_the_b3fd747e),
                     detail = "When the opt-in Coach is set up with your own key, also include a short summary of your strongest on-device patterns and Lab Book markers in its context. Summary only; no raw data leaves your phone. Requires the Coach's own data consent first.",
                     checked = coachSignals,
@@ -2389,7 +2383,7 @@ fun SettingsScreen(
         // A nav row into the Test Centre: the single home for the diagnostic, log and test controls (spec
         // section 7). The strap log, recalibrate, scheduled export and experimental toggles also live there
         // on the same bindings, so this is a faster door to the full set without growing this screen.
-        SettingsSection(
+        SettingsCard(
             icon = Icons.Filled.BugReport,
             title = uiString(R.string.l10n_settings_screen_test_centre_37b36828),
             blurb = "Turn on a test for the thing that's wrong, wear the strap, then tap Report. Your strap log, recalibrate, scheduled export and experimental probes all live here too.",
@@ -2410,7 +2404,7 @@ fun SettingsScreen(
         // Recalibrate re-learns it from tonight onward. Writes now-seconds to BOTH noop.hrvBaselineEpoch
         // and noop.recoveryBaselineEpoch (so HRV plus resting HR / respiration / skin temp re-anchor);
         // foldHistory drops every night before that epoch and re-seeds. Mirrors the iOS/Mac button.
-        SettingsSection(
+        SettingsCard(
             icon = Icons.Filled.Favorite,
             title = uiString(R.string.l10n_settings_screen_charge_d4e1aee4),
             blurb = "Charge is NOOP's daily readiness score, learned from your own HRV, resting heart rate and more over time. Your history stays.",
@@ -2524,7 +2518,7 @@ fun SettingsScreen(
             )
         }
 
-        SettingsSection(
+        SettingsCard(
             icon = Icons.Filled.Storage,
             title = uiString(R.string.l10n_settings_screen_backup_restore_a1616284),
             blurb = "Move all your NOOP data to another phone. Export saves everything (history, sleeps, workouts, settings) to a single file you can copy across; import replaces this phone's data with a backup.",
@@ -2575,7 +2569,7 @@ fun SettingsScreen(
                     NoopBusyRow()
                 }
 
-                NoteRow(
+                SettingsNoteRow(
                     icon = Icons.Filled.Info,
                     iconTint = Palette.textTertiary,
                     text = uiString(R.string.l10n_settings_screen_importing_overwrites_everything_currently_on_this_297b76ae) +
@@ -2611,7 +2605,7 @@ fun SettingsScreen(
         // Discoverability signpost: the daily-backup toggle, folder picker and keep-count live on the
         // separate Backup & Sync screen; surface an entry here, right under the one-off Backup & restore,
         // since that's where a user looks for "turn on automatic backups".
-        SettingsSection(
+        SettingsCard(
             icon = Icons.Filled.CloudSync,
             title = uiString(R.string.l10n_settings_screen_automatic_backups_8a772f3c),
             blurb = "Have NOOP save a dated backup to a folder every day (around 1am) and keep the last several - so if data ever corrupts, restore the newest. Point the folder at Drive/Dropbox for off-device copies. Off until you switch it on.",
@@ -2626,7 +2620,7 @@ fun SettingsScreen(
         }
 
         // --- About ---
-        SettingsSection(
+        SettingsCard(
             icon = Icons.Filled.Info,
             title = uiString(R.string.l10n_settings_screen_about_6b21fb79),
             blurb = "NOOP: all your data, none of the cloud.",
@@ -2917,12 +2911,12 @@ fun SettingsScreen(
                     )
                 }
 
-                RowDivider()
+                SettingsRowDivider()
 
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Overline("Built on")
-                    AttributionRow(repo = "my-whoop", note = "WHOOP 4.0 protocol")
-                    AttributionRow(repo = "goose", note = "WHOOP 5.0 protocol")
+                    SettingsAttributionRow(repo = "my-whoop", note = "WHOOP 4.0 protocol")
+                    SettingsAttributionRow(repo = "goose", note = "WHOOP 5.0 protocol")
                 }
                 Text(
                     uiString(R.string.l10n_settings_screen_open_source_ble_reverse_engineering_work_40062271),
@@ -2930,7 +2924,7 @@ fun SettingsScreen(
                     color = Palette.textTertiary,
                 )
 
-                RowDivider()
+                SettingsRowDivider()
 
                 // Support link — opens the project's contact email (same address the
                 // Support screen lists). NOOP is anonymous, so email is the support channel.
@@ -3080,268 +3074,4 @@ private fun setAppIcon(context: Context, navy: Boolean) {
         else PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
         PackageManager.DONT_KILL_APP,
     )
-}
-
-// MARK: - Waist stepper (optional VO₂max input)
-
-/** A typical adult waist (cm) used as the first value when stepping up from "unset" (0), so the field
- *  jumps to a sensible starting point rather than 1 cm. ~34" — the rough population midpoint. */
-private const val WAIST_SEED_CM = 86.0
-
-/** Step the waist by one centimetre, seeding [WAIST_SEED_CM] when starting from unset (0). Stepping
- *  down from the seed cannot go below the seed (it never silently re-enters the "unset" sentinel). */
-private fun waistCmStep(current: Double, up: Boolean): Double {
-    if (current <= 0.0) return if (up) WAIST_SEED_CM else 0.0
-    return (current + if (up) 1.0 else -1.0).coerceAtLeast(WAIST_SEED_CM - 30.0)
-}
-
-/** Step the waist by one inch (entry unit in imperial; stored as cm), seeding [WAIST_SEED_CM] from
- *  unset. Snaps to whole inches so the up/down sequence is symmetric, mirroring the Height field. */
-private fun waistInchesStep(current: Double, up: Boolean): Double {
-    if (current <= 0.0) return if (up) WAIST_SEED_CM else 0.0
-    val inches = UnitFormatter.cmToInches(current).roundToInt()
-    val nextInches = (inches + if (up) 1 else -1)
-    val nextCm = nextInches * UnitFormatter.CENTIMETERS_PER_INCH
-    return nextCm.coerceAtLeast(WAIST_SEED_CM - 30.0)
-}
-
-// MARK: - Strap status helpers (mirror SettingsView's computed properties)
-
-private fun strapStatusTitle(bonded: Boolean, connected: Boolean): String = when {
-    bonded && connected -> "Bonded · streaming"
-    connected -> "Connected"
-    bonded -> "Bonded · idle"
-    else -> "Disconnected"
-}
-
-private fun strapTone(bonded: Boolean, connected: Boolean): StrandTone = when {
-    connected -> StrandTone.Positive
-    bonded -> StrandTone.Warning
-    else -> StrandTone.Critical
-}
-
-// `internal` (not private) so the unit test in the same package can assert the scanning branch.
-internal fun strapStatusDetail(bonded: Boolean, connected: Boolean, scanning: Boolean): String = when {
-    scanning -> "Searching for your WHOOP… make sure it's charged, on your wrist, and the official WHOOP app isn't connected to it."
-    bonded && connected -> "Your strap is paired and sending data. Open Live for a real-time heart rate."
-    connected -> "Connected. Finishing the secure pairing handshake…"
-    bonded -> "Previously paired but not currently connected. Re-scan to reconnect."
-    else -> "No strap connected. Put your WHOOP nearby and tap Re-scan to pair."
-}
-
-private fun batteryTone(pct: Double): StrandTone = when {
-    pct <= 15 -> StrandTone.Critical
-    pct <= 30 -> StrandTone.Warning
-    else -> StrandTone.Positive
-}
-
-// MARK: - Sex options
-
-private data class SexOption(val tag: String, val label: String)
-
-private val SEX_OPTIONS = listOf(
-    SexOption("male", "Male"),
-    SexOption("female", "Female"),
-    SexOption("nonbinary", "Non-binary"),
-)
-
-// MARK: - Advanced disclosure persistence (S3)
-
-/**
- * The persisted open/closed state of the Settings "Advanced" disclosure. Keyed identically to the iOS
- * `@AppStorage("settingsAdvancedOpen")` (here under the `noop.` SharedPreferences namespace), and it
- * DEFAULTS to false so a first-run user lands collapsed. Pulled out so the default is a single testable
- * fact: a regression that ships it defaulting open would dump the full wall of cards on first run again.
- */
-internal object SettingsDisclosurePrefs {
-    const val KEY = "noop.settingsAdvancedOpen"
-    const val DEFAULT_OPEN = false
-
-    fun read(prefs: SharedPreferences): Boolean = prefs.getBoolean(KEY, DEFAULT_OPEN)
-    fun write(prefs: SharedPreferences, open: Boolean) { prefs.edit().putBoolean(KEY, open).apply() }
-}
-
-// MARK: - Advanced disclosure (S3, ports SettingsView's SettingsDisclosureGroup)
-
-/**
- * A collapsible group that tucks the lower-frequency settings sections behind one tap. It is NOT a
- * section card itself (the cards it wraps keep their own [SettingsSection] chrome). It's a header row
- * plus a default-collapsed reveal, modelled on the Test Centre "Advanced" group. Nothing is removed:
- * collapsed simply means the wrapped sections aren't composed until the row is tapped open. A custom
- * header (not Material's ExposedDropdown / accordion) keeps it on NOOP's near-black instrument look.
- */
-@Composable
-private fun SettingsDisclosure(
-    title: String,
-    subtitle: String,
-    expanded: Boolean,
-    onToggle: () -> Unit,
-    content: @Composable () -> Unit,
-) {
-    val chevronRotation by animateFloatAsState(
-        targetValue = if (expanded) 0f else -90f,
-        label = uiString(R.string.l10n_settings_screen_advancedchevron_f22dfa01),
-    )
-    val headerInteraction = remember { MutableInteractionSource() }
-    Column(verticalArrangement = Arrangement.spacedBy(Metrics.screenRowSpacing)) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .liquidPress(headerInteraction)
-                .clip(RoundedCornerShape(12.dp))
-                .clickable(
-                    interactionSource = headerInteraction,
-                    indication = null,
-                    onClick = onToggle,
-                )
-                .semantics {
-                    contentDescription = title
-                    stateDescription = if (expanded) "Expanded" else "Collapsed"
-                },
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(title, style = NoopType.title2, color = Palette.textPrimary)
-                Text(subtitle, style = NoopType.subhead, color = Palette.textSecondary)
-            }
-            Icon(
-                Icons.Filled.KeyboardArrowDown,
-                contentDescription = null,
-                tint = Palette.textTertiary,
-                modifier = Modifier.size(22.dp).rotate(chevronRotation),
-            )
-        }
-        if (expanded) {
-            content()
-        }
-    }
-}
-
-// MARK: - Section card (ports SettingsView's private SettingsSection)
-
-/**
- * A grouped settings card: a "Settings" overline + icon + title header, an explanatory blurb, then
- * content. A faint brand-green wash anchors the card to NOOP's neutral chrome (mirrors macOS).
- */
-@Composable
-private fun SettingsSection(
-    icon: ImageVector,
-    title: String,
-    blurb: String,
-    content: @Composable () -> Unit,
-) {
-    NoopCard(padding = 20.dp, tint = Palette.accent) {
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Overline("Settings")
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Icon(icon, contentDescription = null, tint = Palette.accent, modifier = Modifier.size(18.dp))
-                    Text(title, style = NoopType.title2, color = Palette.textPrimary)
-                }
-            }
-            Text(blurb, style = NoopType.subhead, color = Palette.textSecondary)
-            content()
-        }
-    }
-}
-
-// MARK: - Labelled toggle row (title + detail + trailing Switch)
-
-/**
- * A title + explanatory detail on the left with a trailing [Switch], matching the in-section toggle idiom
- * the Strap/Health Connect sections already use. Used by the v5 Health & wellness group so every opt-in
- * reads consistently. The switch colours mirror the rest of Settings (gold track when on).
- */
-@Composable
-private fun ToggleRow(
-    title: String,
-    detail: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = NoopType.subhead, color = Palette.textPrimary)
-            Text(detail, style = NoopType.footnote, color = Palette.textTertiary)
-        }
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Palette.surfaceBase,
-                checkedTrackColor = Palette.accent,
-                uncheckedThumbColor = Palette.textSecondary,
-                uncheckedTrackColor = Palette.surfaceInset,
-                uncheckedBorderColor = Palette.hairline,
-            ),
-        )
-    }
-}
-
-// MARK: - Two-column form row (ports SettingsView's private FormRow)
-
-/** Label on the left, control on the right — the two-column form feel. */
-@Composable
-private fun FormRow(label: String, control: @Composable () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 44.dp)
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Text(
-            label,
-            style = NoopType.body,
-            color = Palette.textPrimary,
-            modifier = Modifier.weight(1f),
-        )
-        control()
-    }
-}
-
-// MARK: - Shared bits
-
-@Composable
-private fun RowDivider() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .height(1.dp)
-            .background(Palette.hairline),
-    )
-}
-
-@Composable
-private fun NoteRow(icon: ImageVector, iconTint: Color, text: String) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.Top,
-    ) {
-        Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(16.dp))
-        Text(text, style = NoopType.footnote, color = Palette.textSecondary)
-    }
-}
-
-@Composable
-private fun AttributionRow(repo: String, note: String) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.semantics { contentDescription = uiString(R.string.l10n_settings_screen_repo_note_0a694b50, repo, note) },
-    ) {
-        Text("›", style = NoopType.headline, color = Palette.accent)
-        Text(repo, style = NoopType.mono(12f), color = Palette.textPrimary)
-        Text(uiString(R.string.l10n_settings_screen_note_a2481d6c, note), style = NoopType.footnote, color = Palette.textTertiary)
-    }
 }
