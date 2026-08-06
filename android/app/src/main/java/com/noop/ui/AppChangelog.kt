@@ -26,7 +26,7 @@ object AppChangelog {
      * Bump this when you add a release below. The "What's New" sheet shows automatically when the
      * stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
      */
-    const val CURRENT_VERSION = "9.3.2-dx-beta"
+    const val CURRENT_VERSION = "9.3.3-dx-beta"
 
     data class Release(
         val version: String,
@@ -37,6 +37,17 @@ object AppChangelog {
 
     /** Newest first. */
     val releases: List<Release> = listOf(
+        Release(
+            version = "9.3.3-dx-beta",
+            title = uiString(R.string.l10n_app_changelog_home_and_lock_screen_widgets_now_999ac095),
+            date = "August 2026",
+            items = listOf(
+                "**Widgets are back in the AltStore/SideStore download.** The Home Screen, Lock Screen and Live Activity widgets ship in the sideload IPA again — they were removed on the mistaken assumption that sideloaders could not sign them. They can: a widget is an ordinary app extension.",
+                "**And they show your real numbers.** The build now leaves behind the capability template AltStore/SideStore need to provision the storage the app and widget share, so the widget reads your actual Charge, Effort and Rest instead of sitting on dashes forever.",
+                "**Worth knowing:** each extension uses one of the ten App IDs a free Apple ID may register per week, so installing NOOP now spends two rather than one.",
+                "**The Apple Watch app stays out of the sideload download, on purpose.** Sideloaders install an embedded watch app unreliably, and when it fails it takes the whole installation with it — you would end up with no NOOP at all. It remains in the Full IPA and in any Xcode build.",
+            ),
+        ),
         Release(
             version = "9.3.2-dx-beta",
             title = uiString(R.string.l10n_app_changelog_your_hrv_is_measured_right_again_d635e316),

@@ -7,7 +7,7 @@ enum AppChangelog {
 
     /// Bump this when you add a release below. The "What's New" sheet shows automatically when the
     /// stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
-    static let currentVersion = "9.3.2-dx-beta"
+    static let currentVersion = "9.3.3-dx-beta"
 
     struct Release: Identifiable {
         let version: String
@@ -19,6 +19,17 @@ enum AppChangelog {
 
     /// Newest first.
     static let releases: [Release] = [
+        Release(
+            version: "9.3.3-dx-beta",
+            title: "Home and Lock Screen widgets now work when you sideload",
+            date: "August 2026",
+            items: [
+                "**Widgets are back in the AltStore/SideStore download.** The Home Screen, Lock Screen and Live Activity widgets ship in the sideload IPA again — they were removed on the mistaken assumption that sideloaders could not sign them. They can: a widget is an ordinary app extension.",
+                "**And they show your real numbers.** The build now leaves behind the capability template AltStore/SideStore need to provision the storage the app and widget share, so the widget reads your actual Charge, Effort and Rest instead of sitting on dashes forever.",
+                "**Worth knowing:** each extension uses one of the ten App IDs a free Apple ID may register per week, so installing NOOP now spends two rather than one.",
+                "**The Apple Watch app stays out of the sideload download, on purpose.** Sideloaders install an embedded watch app unreliably, and when it fails it takes the whole installation with it — you would end up with no NOOP at all. It remains in the Full IPA and in any Xcode build.",
+            ]
+        ),
         Release(
             version: "9.3.2-dx-beta",
             title: "Your HRV is measured right again, Oura rings stop counting every beat twice, and the app speaks your language everywhere",

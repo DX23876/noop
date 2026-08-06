@@ -7,7 +7,7 @@
 <p align="center"><b>Your WHOOP data, on your own devices, with a coach that remembers.</b></p>
 
 <p align="center">
-  <img alt="Current release" src="https://img.shields.io/badge/current%20beta-9.3.1%20DX%20Beta-C8902F?style=flat-square">
+  <img alt="Current release" src="https://img.shields.io/badge/current%20beta-9.3.3%20DX%20Beta-C8902F?style=flat-square">
   <img alt="Platforms" src="https://img.shields.io/badge/iOS%2017%2B%20%C2%B7%20macOS%2013%2B-234F9E?style=flat-square">
   <img alt="Straps" src="https://img.shields.io/badge/WHOOP-4.0%20%C2%B7%205.0%2FMG-234F9E?style=flat-square">
   <img alt="Privacy" src="https://img.shields.io/badge/no%20account%20%C2%B7%20no%20cloud-6B737B?style=flat-square">
@@ -89,28 +89,29 @@ beta that is signed only with the Apple ID you choose.
 The upstream base and the fork additions remain intentionally separated in code so upstream protocol,
 analytics and safety fixes can continue to be merged without rewriting the coaching layer.
 
-## Latest beta — 9.3.1 DX Beta
+## Latest beta — 9.3.3 DX Beta
 
-A coach-memory release, now reconciled with RyanBR's complete upstream 9.3.1 line. The merge also
-brings the latest widget truthfulness and score rings, nap-aware sleep debt, safer BLE teardown,
-HealthKit write-back after an offload, custom AI gateway authentication and the newest protocol work.
+A packaging release: the sideload download carries the Home and Lock Screen widgets again, and — the
+half that makes them useful — the shared storage they read through is provisioned on the way out.
 
-- **When the coach remembers something, you see it happen.** A receipt under the reply names the fact
-  and offers That's right, Edit and Forget. Health facts it saved on its own were previously barred
-  from every later reply until you found a card three levels deep in settings.
-- **Memory settings you can work with.** Facts grouped by what they are, with their source, first-seen
-  date and observation count; pin one, add your own, or give one an expiry date. "Forget everything"
-  asks first.
-- **The coach starts answering sooner.** Your question is embedded before the indexing backlog rather
-  than behind it, and the index re-reads only what actually changed. What it retrieves is unchanged.
-- **Live heart rate on the classic Today screen too**, while Liquid Today's Weight tile draws its trend
-  again and Last Workouts shows six sessions instead of one.
+- **Widgets work when you sideload.** They had been stripped from the AltStore/SideStore IPA on the
+  mistaken assumption that sideloaders could not sign them; a widget is an ordinary app extension, and
+  they can. Each extension does use one of the ten App IDs a free Apple ID may register per week.
+- **And they show your real numbers.** The build now leaves behind the capability template
+  AltStore/SideStore need in order to provision the App Group the app and widget share, so the widget
+  reads your actual Charge, Effort and Rest instead of sitting on dashes.
+- **The Apple Watch app stays out of that download, deliberately.** Sideloaders install an embedded
+  watch app unreliably, and the failure takes the whole installation with it. It remains in the Full
+  IPA and in any Xcode build.
 
-Read the full [9.3.1 DX Beta notes](docs/fork/releases/v9.3.1-dx-beta.md).
+Read the full [9.3.3 DX Beta notes](docs/fork/releases/v9.3.3-dx-beta.md).
+
+Before it: [9.3.2](docs/fork/releases/v9.3.2-dx-beta.md) corrected three faults feeding wrong numbers
+into HRV, and [9.3.1](docs/fork/releases/v9.3.1-dx-beta.md) brought the coach-memory receipts.
 
 ## In development
 
-- **Android is undecided.** The Android source still builds and is version-aligned with 9.3.1, but
+- **Android is undecided.** The Android source still builds and is version-aligned with 9.3.3, but
   this fork focuses on iOS and macOS and no longer keeps Android at feature parity. Whether a public
   Android build ever ships is genuinely open — treat it as source you can build, not a promise.
 - **More practical alert history.** The inbox will keep evolving around events that actually happened,
@@ -181,11 +182,11 @@ https://raw.githubusercontent.com/DX23876/noop/main/altstore-source.json
 
 - **AltStore:** Browse → **+** → paste the source URL → add NOOP AI.
 - **SideStore:** Sources → **+ Add Source** → paste the same URL → install NOOP AI.
-- Prefer a direct file? Download `NOOP-ios-unsigned-v9.3.2-dx-beta.ipa` from the
-  [9.3.2 DX Beta release](https://github.com/DX23876/noop/releases/tag/v9.3.2-dx-beta). It includes the
+- Prefer a direct file? Download `NOOP-ios-unsigned-v9.3.3-dx-beta.ipa` from the
+  [9.3.3 DX Beta release](https://github.com/DX23876/noop/releases/tag/v9.3.3-dx-beta). It includes the
   Home/Lock-Screen **widgets**, which AltStore/SideStore sign along with the app.
 - Need the **Apple Watch** app? The same release also contains
-  `NOOP-ios-full-unsigned-v9.3.2-dx-beta.ipa`, which adds the Watch app and complication. It wants a
+  `NOOP-ios-full-unsigned-v9.3.3-dx-beta.ipa`, which adds the Watch app and complication. It wants a
   signer or paid Developer team that can provision all of it together — sideloaders install an
   embedded watchOS bundle unreliably, and a failure there costs you the whole install, which is why
   the AltStore source stays on the watch-less IPA.
@@ -196,8 +197,8 @@ instructions.
 ### Mac — DX Beta
 
 From 9.3.0 the release carries a packaged macOS build: download
-`NOOP-macos-v9.3.1-dx-beta.zip` from the
-[9.3.1 DX Beta release](https://github.com/DX23876/noop/releases/tag/v9.3.1-dx-beta), unzip it, then
+`NOOP-macos-v9.3.3-dx-beta.zip` from the
+[9.3.3 DX Beta release](https://github.com/DX23876/noop/releases/tag/v9.3.3-dx-beta), unzip it, then
 **right-click → Open** the first time (it is ad-hoc signed, not notarised, so a double-click is blocked).
 
 The bundle is universal — Apple Silicon and Intel. Ad-hoc signing is what lets macOS bind the Bluetooth
@@ -208,8 +209,8 @@ identity changes with every build.
 
 | Platform | Status | Distribution |
 |---|---|---|
-| iOS / iPadOS | 9.3.1 DX Beta | AltStore, SideStore, or build from source |
-| macOS | 9.3.1 DX Beta | Packaged `.zip` in the release, or build with Xcode |
+| iOS / iPadOS | 9.3.3 DX Beta | AltStore, SideStore, or build from source |
+| macOS | 9.3.3 DX Beta | Packaged `.zip` in the release, or build with Xcode |
 | Android | Undecided | Source builds and is version-aligned; no public build planned |
 
 ## The NOOP foundation retained

@@ -1912,4 +1912,5 @@
     </plurals>
     <string name="l10n_app_changelog_widgets_stop_inventing_numbers_naps_count_4f7491bb">Widgets stop inventing numbers, naps count toward sleep debt, and the Android status chips speak your language</string>
     <string name="l10n_app_changelog_your_hrv_is_measured_right_again_d635e316">Your HRV is measured right again, Oura rings stop counting every beat twice, and the app speaks your language everywhere</string>
+    <string name="l10n_app_changelog_home_and_lock_screen_widgets_now_999ac095">Home and Lock Screen widgets now work when you sideload</string>
 </resources>

@@ -1901,4 +1901,5 @@
     </plurals>
     <string name="l10n_app_changelog_widgets_stop_inventing_numbers_naps_count_4f7491bb">Widgets erfinden keine Zahlen mehr, Nickerchen zählen für die Schlafschuld, und die Android-Statusanzeigen sprechen deine Sprache</string>
     <string name="l10n_app_changelog_your_hrv_is_measured_right_again_d635e316">Deine HRV wird wieder richtig gemessen, Oura-Ringe zählen Herzschläge nicht mehr doppelt, und die App spricht überall deine Sprache</string>
+    <string name="l10n_app_changelog_home_and_lock_screen_widgets_now_999ac095">Home- und Sperrbildschirm-Widgets funktionieren jetzt beim Sideloading</string>
 </resources>

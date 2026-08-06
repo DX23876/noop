@@ -1814,4 +1814,5 @@
     </plurals>
     <string name="l10n_app_changelog_widgets_stop_inventing_numbers_naps_count_4f7491bb">小组件不再编造数字、小睡计入睡眠债，Android 状态提示也终于会说你的语言</string>
     <string name="l10n_app_changelog_your_hrv_is_measured_right_again_d635e316">心率变异性重新被正确测量，Oura 戒指不再重复计算每一次心跳，应用界面全面本地化</string>
+    <string name="l10n_app_changelog_home_and_lock_screen_widgets_now_999ac095">通过侧载安装时，主屏幕和锁定屏幕小组件现已可用</string>
 </resources>

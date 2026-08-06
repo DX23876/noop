@@ -1880,4 +1880,5 @@
     </plurals>
     <string name="l10n_app_changelog_widgets_stop_inventing_numbers_naps_count_4f7491bb">Os widgets deixam de inventar números, as sestas contam para a dívida de sono, e os indicadores Android falam a tua língua</string>
     <string name="l10n_app_changelog_your_hrv_is_measured_right_again_d635e316">A tua VFC volta a ser medida corretamente, os anéis Oura deixam de contar cada batimento duas vezes, e a app fala a tua língua em todo o lado</string>
+    <string name="l10n_app_changelog_home_and_lock_screen_widgets_now_999ac095">Os widgets do ecrã principal e de bloqueio já funcionam com sideload</string>
 </resources>
