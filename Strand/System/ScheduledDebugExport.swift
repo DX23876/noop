@@ -216,15 +216,22 @@ enum ScheduledDebugExport {
 
     /// If today's drop is due (we're at/after the chosen time and haven't written today), write it once.
     /// Covers macOS launches where the time passed while the app wasn't open, and the iOS foreground path.
-    private static func catchUpIfDue() {
-        guard isEnabled else { return }
+    ///
+    /// Returns whether this call can be considered successful: `true` when there was nothing to do
+    /// (feature off, not yet time, or already ran today — nothing was attempted, so nothing failed) or the
+    /// export was attempted and wrote successfully; `false` only when an export was actually attempted and
+    /// `performExport` failed to write. The iOS BGTask handler uses this to report the real outcome to
+    /// `setTaskCompleted(success:)` instead of a hardcoded success.
+    @discardableResult
+    private static func catchUpIfDue() -> Bool {
+        guard isEnabled else { return true }
         let now = Date()
         let cal = Calendar.current
         let comps = cal.dateComponents([.hour, .minute], from: now)
         let nowMinutes = (comps.hour ?? 0) * 60 + (comps.minute ?? 0)
-        guard nowMinutes >= timeMinutes else { return }      // not yet time today
-        guard UserDefaults.standard.string(forKey: K.lastRun) != dayKey(now) else { return } // already ran today
-        _ = performExport(markDay: true)
+        guard nowMinutes >= timeMinutes else { return true }      // not yet time today
+        guard UserDefaults.standard.string(forKey: K.lastRun) != dayKey(now) else { return true } // already ran today
+        return performExport(markDay: true) != nil
     }
 
     /// Seconds from now until the next wall-clock occurrence of `minuteOfDay` (today if still ahead, else
@@ -294,10 +301,36 @@ enum ScheduledDebugExport {
     /// uncalled: `submitBackgroundRequest()` fails gracefully and the macOS path + "Run now" still work.
     static func register() {
         BGTaskScheduler.shared.register(forTaskWithIdentifier: bgTaskIdentifier, using: nil) { task in
+            let completion = TaskCompletionGuard(task: task)
+            // iOS can kill the process before our work below returns if the background budget runs out;
+            // report that honestly as a failure (so the run is retried) instead of leaving the task
+            // marked incomplete, and instead of the old hardcoded `success: true`.
+            task.expirationHandler = { completion.finish(success: false) }
             // Write the drop, then immediately request the next one (BGAppRefresh is single-shot).
-            if isEnabled { catchUpIfDue() }
+            // `catchUpIfDue()` already no-ops (returning true) when the feature is off.
+            let succeeded = catchUpIfDue()
             submitBackgroundRequest()
-            task.setTaskCompleted(success: true)
+            completion.finish(success: succeeded)
+        }
+    }
+
+    /// Guards `BGTask.setTaskCompleted` against being called twice — once from the normal completion
+    /// path and once from `expirationHandler` — which BGTaskScheduler treats as a programmer error.
+    /// Plain lock rather than actor isolation: the expiration handler can be invoked by the system on a
+    /// queue other than the one running the registration closure.
+    private final class TaskCompletionGuard {
+        private let task: BGTask
+        private let lock = NSLock()
+        private var finished = false
+
+        init(task: BGTask) { self.task = task }
+
+        func finish(success: Bool) {
+            lock.lock()
+            defer { lock.unlock() }
+            guard !finished else { return }
+            finished = true
+            task.setTaskCompleted(success: success)
         }
     }
 
