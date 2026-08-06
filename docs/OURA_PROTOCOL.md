@@ -637,7 +637,38 @@ period is ever wanted, the consistent path is NOOP's OWN sleep staging from the 
 edit of the ring's tag.
 
 ### 6.13 Motion / activity
+
+> **⚑ RECORDING IS MOTION-GATED — the ABSENCE of a record is itself the signal (NOOP, 2026-08-02,
+> ground-truth validated).** The ring does not log on a fixed wall-clock cadence. When the wearer stops
+> moving it stops emitting, and resumes the moment movement resumes. On a measured 86-min walk containing
+> a deliberate ~3-min standing stop (17:49:16–17:52:17 UTC, per-second cadence from a Suunto `.fit`), all
+> three streams went silent together across the stop, then returned to their normal 30 s cadence:
+>
+> | stream | normal cadence | gap across the stop |
+> |---|---|---|
+> | `0x7E`/`0x7F` real_steps | 30 s | **174 s** |
+> | `0x47` motion | 30 s | **150 s** |
+> | `0x50` activity/MET | 60 s | **240 s** |
+>
+> Three independent streams agreeing rules out a decode drop or a drain artifact. **Consequences for
+> anyone consuming these streams:** (a) a gap must be read as "no motion", NOT as missing data to be
+> interpolated over — interpolating manufactures activity that did not happen; (b) any "samples × cadence"
+> total silently undercounts elapsed time and must not be used as a wall-clock duration; (c) it partly
+> re-explains the "~6–19 min holes … ring's own logging cadence" noted for `0x50` below — quiet periods,
+> not dropped records. It also means a stationary period yields NO rows to correlate, which is what
+> defeats the step-decoder test in the ⛔ entry further down.
+
 - **`0x47` `motion_events`** (variable): byte6 bits`[7:5]`=field_a, `[4:0]`=field_b; bytes7–9 = three **int8 × 8** axis magnitudes; optional bytes10–11. [ringverse]
+  - **⛔ `low_intensity` / `motion_seconds` SATURATE — they are occupancy, not cadence (NOOP, 2026-08-02).**
+    Both fields cap at **29** within a 30 s record. Across 168 records of continuous 4.6 km·h⁻¹ walking,
+    65 % of `low_intensity` and 82 % of `motion_seconds` samples are pinned at ≥ 27, mean 26.4 / 27.0,
+    max 29 / 29. They count **seconds containing motion**, not an amount or a rate of motion. `high_intensity`
+    is near-dead for walking (mean 0.4, zero in 77 % of records) — it is a vigorous-movement flag.
+    **Structural consequence: a step count or a cadence cannot be recovered from `0x47`, at any scale
+    factor.** A signal that is pinned at its ceiling throughout the entire dynamic range of interest carries
+    no information about how fast the wearer is moving — only that they are. This is an independent second
+    reason (beside the ⛔ ground-truth test below) why steps are unreachable over BLE, and it applies to the
+    Tier-A stream NOOP already trusts, so it will not be fixed by a better decode.
 - **`0x6B` `motion_period`** (variable): byte6 = header — bits`[7:6]`=period_type, bits`[5:4]`=`count` of valid codes in the **FINAL** byte, bits`[3:0]`=a rolling mod-16 sequence counter (record ordering / dedup, not a state); byte7… = 2-bit MOTION_STATE codes, 4 per byte (MSB-first), the last byte carrying `count` codes where **`count == 0` means 4** (a full final byte — the 2-bit field can't hold 4, so 4 wraps to 0; all 81 `count == 0` records in a real capture have a non-zero final byte, never 0x00, confirming 0 ⇒ 4). MOTION_STATE enum: `0 NO_MOTION, 1 RESTLESS, 2 TOSSING, 3 ACTIVE`. Same shape as the `0x4E` sleep-phase layout (header byte, codes from byte7). The header's low-nibble sequence counter increments and wraps mod-16 across consecutive records in a real capture — pinning byte6 as a header and codes at byte7, correcting an earlier reading (byte6/7 a 12-bit period, codes from byte8) that dropped the first code byte and read phantom codes from the final byte's padding. Layout cross-checked against the native `parse_api_motion_period` (attribution, not a port — re-derived from the capture). [ringverse][open_ring]
 - **`0x50` activity_info / `0x51`,`0x52` activity_summary**: activity category + intensity (MET-class). Layout **(UNVERIFIED - partial)**; [ringverse] notes real_steps/activity_info have unresolved constants. Gate on fixtures. [ringverse]
   - **`0x50` decode formula (PR #960 investigation, live Gen 3, 2026-07-02) [oura-rs]:** byte0 = a `state` code (activity-category, meaning unconfirmed); every following byte = one MET sample, `met = byte × 0.1` for `byte < 0x80`, else `met = 12.8 + (byte − 128) × 0.2` (two-slope: 0.1-MET resolution to 12.7, 0.2 steps above). **Plausible against six real Gen 3 captures** across two sessions - a full day from steady resting (0.9–1.1 MET) through a vigorous-activity burst (7.4 MET), everything physiologically sane, nothing negative or absurd - but **NOT ground-truth-validated** against the Oura app's own MET/step numbers. Stays Tier B: NOOP decodes it (`OuraDecoders.decodeActivityInfo` → `OuraEvent.activityInfo`, both platforms) but gates it behind `allowTierB`, logs it for investigation only, and never folds it into `OuraStreamMapping`/scoring - and NEVER derives a step count from it. `0x51`/`0x52` activity_summary stay fully undecoded (raw Tier-B bytes only).
@@ -653,6 +684,37 @@ edit of the ring's tag.
     HR/strain data model, so `0x50` remains a diagnostic JSONL corpus (`oura-activity-<id>.jsonl`); the ring's
     path into NOOP activity is HR (live push + banked IBI, §6.4), never MET. open_oura consumes this same
     `0x50` `met` as one input to its activity classifier (`activity_model.rs`). [open_oura-act]
+  - **✅ `0x50` MET TRACKS A VARYING INPUT — the strongest validation to date (NOOP, 2026-08-02, live Gen 3).**
+    The 2026-07-15 entry above showed MET correlating with speed over one 13-min walk; that is a *level*
+    match and could not exclude a coincidental fit (§194). This test uses a **transition** the wearer
+    deliberately created: an 86-min flat 6.5 km walk at 4.6 km·h⁻¹ containing a ~3-min standing stop,
+    against per-second cadence from a Suunto `.fit`. MET falls to a resting floor exactly when the feet stop
+    and recovers when they restart:
+
+    | minute (UTC) | MET | true steps·min⁻¹ |
+    |---|---|---|
+    | 17:49 | 5.0 | 106 |
+    | 17:50 | 2.8 | 24 |
+    | 17:51 | **1.3** | **1.7** |
+    | 17:52 | **1.2** | **0.0** |
+    | 17:53 | 1.7 | 74 ← MET lags ~1 min on recovery |
+    | 17:54 | 4.8 | 113 |
+
+    Over the whole walk **r = 0.860** (n = 88 minutes) against true step rate, and — the part that matters —
+    it is **robust**: dropping the 3 lowest-activity samples leaves r = 0.777 (contrast the `0x7E` field
+    below, which collapses 0.912 → 0.256 under the same test). Mean 4.75 MET is physiologically correct for
+    4.6 km·h⁻¹. The record count **independently re-confirms the 60 s cadence**: 86 MET samples for an
+    86-minute walk, exactly 1·min⁻¹. Two caveats kept explicit: MET has a **~1 min recovery lag**, so it
+    smears activity boundaries; and this validates that MET *tracks intensity*, NOT that the absolute MET
+    scale is calibrated against Oura's own numbers — it stays Tier B and unscored.
+  - **Walking-equivalent step estimate, scored against two reference devices (NOOP, 2026-08-02).** For the
+    same walk, `activeMinutes × 100` (MET ≥ 3.0 → 82 active min) gives **8,200** against a measured
+    **8,834** (Suunto `.fit` `total_cycles × 2`) and **7,868** (WHOOP, same walk): −7 % and +4 %. The
+    estimate lands **between two commercial devices that disagree with each other by 11 %**, which is the
+    realistic accuracy bar for any step figure. This does NOT promote the estimate: a walking-dominated
+    window is the single regime a walking-equivalent model should do best in, and it does not overturn the
+    857-day picture (median ≈ 0, p90 +186 %) that gates it. It is recorded because it bounds the error on
+    the one regime where the estimate is meant to apply.
   - **Real Steps (feature `0x0B`) server gating [open_oura-feat]:** real_steps is behind the server flag `activity/real_steps` (default **false**; `FeatureDefinitions.ActivityRealSteps`, Gen 3+), the same server-flag-off pattern as SpO2 (§7.1). This explains `0x7E`/`0x7F` never once appearing across the PR #960 live sessions - the ring isn't sending them, it is not a NOOP decode gap. `0x50` itself is an always-on base stream (not feature-gated), matching it appearing in every session.
 - **`0x7E`/`0x7F` real_steps_features 1/2** (18 B each): bit-packed step features merged across the paired events. **(UNVERIFIED - partial)** [ringverse]
   - **Unpack formula ([oura-rs] - Th0rgal/open_oura `crates/oura-protocol/src/events.rs#L566`, clean-room
@@ -695,6 +757,23 @@ edit of the ring's tag.
       reimplementing Oura's step model over these features, unvalidatable without many ground-truth days
       across varied activity. This closes the "decode steps from real_steps" line of investigation; `0x50`
       MET (above) already provides an activity signal with a validated cadence.
+  - **⚠️ A SECOND ground-truth walk did NOT rehabilitate the fields — and shows how a fake r = 0.91 arises
+    (NOOP, 2026-08-02).** An 86-min walk with per-second Suunto cadence gave 165 in-session `0x7E` records.
+    Naively, `fields[0]` correlates with true steps at **r = 0.912** — which would look like a decisive
+    result and is exactly the trap §194 warns about. It is an artifact, for two compounding reasons:
+    - **The input barely varied.** A flat 6.5 km at constant 4.6 km·h⁻¹ produces true steps per 30 s window
+      of p05 = 51.1, median = 55.2, max = 58.1 — 98 % of samples are effectively identical. Almost all the
+      apparent correlation rests on the 3–4 transition samples at the stop. **Dropping the 3 lowest-step
+      samples collapses r from 0.912 to 0.256**; restricted to the walking regime alone r = 0.355. A signal
+      that only "works" via a handful of points has not been shown to track anything.
+    - **The stop produced no rows to correlate.** Because recording is motion-gated (⚑ note at the top of
+      §6.13), the ring emitted NOTHING for 174 s across the stationary period — the one interval with real
+      contrast is precisely the interval with no data. At the single surviving low-motion sample
+      `fields[0]` reads 177 vs 365 walking: it **halves, it does not go to zero**. A counter zeroes.
+    - **Net: consistent with the fields being model features, not counts.** This walk neither refutes nor
+      supports a decode — it simply cannot discriminate, and is recorded so the r = 0.91 is not
+      rediscovered later and mistaken for validation. **A useful test needs cadence VARIATION** (mixed
+      slow/fast walking, stairs, walk/jog intervals), not a longer metronomic walk.
   - **WHY there is no step count on the wire at all — the sensor side (NOOP, 2026-08-02).** Recorded so
     this is not re-investigated:
     - **The Gen 3 IMU is a Bosch Sensortec BMI160** (public teardowns: [TechInsights], [System Plus]). That
@@ -866,6 +945,14 @@ NOOP ships a **read-only** probe that asks the ring to report a feature's own st
 - Validate all Tier-B sleep/activity/step layouts against real captures before enabling in scoring.
 - Confirm live-HR `0x02` path on actual Gen-4/Gen-5 hardware (only Gen-3 is verified in the corpus).
 - `0x68` and `0x86` are NOT emitted in the NOOP capture (0 of ~131k records) — do not hunt for them; wear inference uses `0x45/0x53` + live-HR (§6.15) and the `0x86` aohr never appears (§6.15).
+- **A step-decoder test needs cadence VARIATION, not more walking.** Both ground-truth sessions so far
+  (2026-08-01 golf, 2026-08-02 flat walk) were near-constant-cadence, which cannot discriminate a candidate
+  step field from a generic movement feature — the 2026-08-02 walk produced a spurious r = 0.912 that
+  collapses to 0.256 under a 3-sample drop (§6.13). Any future attempt should capture mixed slow/fast
+  walking, stairs, or walk/jog intervals with a per-second reference, and must clear the robustness test
+  (r must survive dropping the extreme samples) before being reported as a result. Note this is a test of
+  the *features*, not a route to a count: §6.13 records two independent structural reasons a count is not
+  on the wire at all.
 
 ---
 
@@ -876,7 +963,7 @@ Tags that appear in the banked stream but NOOP does not decode. Payloads are the
 
 | tag | count | len (B) | example payload | shape hint (UNCONFIRMED) |
 |---|---|---|---|---|
-| `0x61` | 28760 | 3–8 | `1a18009c3700007c150000cb` | highest-rate tag; **NOT battery** — the `[open_oura-act]`-adjacent "`0x61` battery" label does not match here (non-percent, high-frequency) |
+| `0x61` | 28760 | 3–14 | `1a18009c3700007c150000cb` | **SOLVED as a channel, see §9.1** — a subtype-multiplexed firmware DIAGNOSTIC stream, not one message and not a physiological signal. **NOT battery** — the `[open_oura-act]`-adjacent "`0x61` battery" label does not match here (non-percent, high-frequency) |
 | `0x4a` | 8416 | 10 | `00000000000000000000` | payload observed all-zero — likely a keepalive / placeholder |
 | `0x72` | 5723 | 12 | `120027000100150018000200` | six int16-LE small values — a vector (motion / accel?) |
 | `0x6a` | 5689 | 10 | `7e00230b90140001f8b0` | mixed; a `0001f8b0` / `0001feb8` trailer recurs |
@@ -891,9 +978,67 @@ Tags that appear in the banked stream but NOOP does not decode. Payloads are the
 Full-notification hex including the `type/len/rt` header is in the capture. For the highest-rate tags,
 several full records are reproduced below (`type len rt(u32LE) | payload`) so a future RE pass sees the
 record framing and cross-sample variation directly — a single stripped example once hid a truncated
-prefix and tail fields. Note `0x61`'s payload length is **not fixed** (the `len` byte moves 0x10/0x11/0x12).
+prefix and tail fields. Note `0x61`'s payload length is **not fixed** (the `len` byte moves 0x10/0x11/0x12)
+— §9.1 explains why: the length follows the subtype.
 
 - `0x61` (highest-rate): `6110 ff756600 | 1a18009c3700007c150000cb` · `6111 00766600 | 23230000090000fd02003a0000` · `6112 f9766600 | 095b914700e9e00000fe81010005`
+  (these three are subtypes `0x1a`, `0x23`, `0x09` — one example per message, which is exactly why the
+  layout looked variable)
 - `0x72` (`len` 0x10, 6×int16-LE): `7210 499b6b00 | 120027000100150018000200` · `7210 729c6b00 | 130029000100150018000200` · `7210 9c9d6b00 | 05000e000200160019000500`
 - `0x6d` (`len` 0x11, leading `00` + 4×int16-LE negatives): `6d11 ec856600 | 00c4ffffb5ffffd2ffffeaffff` · `6d11 98976600 | 00b2fffffaffffeeffffd9ffff` · `6d11 419d6600 | 00a1fffffaffffd9fffff5ffff`
 - `0x76`: `760c c2cf7100 | 4c876b00c0667000`
+
+### 9.1 `0x61` is a subtype-multiplexed firmware diagnostic channel (2026-08-05)
+
+Measured on the **first raw-writer capture** (`oura-raw.jsonl`, iOS build `9.3.1`,
+`noop-master-iOS-v9.3.1-260805-0754`): **10,208 × `0x61`** of 84,815 records, ring-time span
+9,391,251 → 10,105,610, every frame `len == bytes − 2`.
+
+**Independently corroborated by the name:** [open_oura]'s `EVENT_TAGS` map (`tools/oura_protocol.py`,
+derived from the ring's own event-parser library) lists `0x61` as **`debug_data`** — cited as a fact,
+no code taken. The structure below is NOOP's own measurement of what that debug channel contains.
+
+**Payload byte 0 is a SUBTYPE selector; the length follows the subtype.** 22 subtypes observed. This is
+why every attempt to fit one layout failed and why the count/length column above reads as a range — the
+earlier corpus was averaging ~22 different messages together.
+
+**Proof it is a log channel: subtype `0x04` is ASCII.**
+
+```
+04 4d4f5420524920323b32    → "MOT RI 2;2"
+04 45485274733b3633        → "EHRts;63"
+04 547366733b3131          → "Tsfs;11"
+04 626c655f74783a66756c6c  → "ble_tx:full"
+```
+
+These are the same class of firmware log line `0x43` `debug_text` already carries (`DHR_state:4`,
+`PPG_cont;220`, `EHRst;1;0;1`, `CVA_state;2`), so `0x61` is a **second** diagnostics stream, keyed by
+subtype rather than free text. `EHRts;N` appears in the same capture where Exercise-HR (`0x73`/`0x74`,
+§7.1) was flowing.
+
+| sub | n | layout (UNCONFIRMED) | median rt cadence | observed range |
+|---|---|---|---|---|
+| `0x09` | 2,104 | 3 × u32-LE + 1 tail byte | 11 | f0 med 3.1 M / max 124 M |
+| `0x28` | 2,070 | flag + 6 × u16-LE | **1** | repeated identical values (`780,0,0,0,780,780`) |
+| `0x33` | 1,399 | 8 B and 14 B variants | 3 | |
+| `0x0a` | 1,066 | 3 × u32-LE | 729 | f2 always 0 |
+| `0x0d` | 1,062 | 3 × u32-LE | 729 | f1 always 0; f2 max 125,829,080 |
+| `0x0c` | 1,060 | 2 × u32-LE + 1 tail byte | 729 | f0 max 125,829,085 |
+| `0x29` | 507 | 8 B | 658 | |
+| `0x14` | 435 | 3 × **i32**-LE (signed) + tail | 4,826 | f0 ≈ 2.6×10⁸ tight; f1 med −106 |
+| `0x2d` | 152 | 13 B | | |
+| `0x04` | 63 | **ASCII** | | log lines, above |
+| `0x24` `0x26` `0x15` `0x3c` `0x1a` `0x23` `0x2a` `0x2e` `0x25` `0x2b` `0x32` `0x34` | ≤ 49 each | | | |
+
+`0x0a`/`0x0c`/`0x0d` share one ~729-tick period and are mostly-zero with a single live field — a
+periodic statistics dump with several unused slots. `0x14`'s ~4,826-tick period, near-constant
+~2.6×10⁸ field and small negative deltas look like a clock/drift record.
+
+**Consequence for NOOP: nothing to decode into data.** `0x61` is 12 % of the bank by volume and carries
+no physiological signal — it should be *dropped* from the "worth reverse-engineering" list, not promoted
+because it is the highest-rate tag.
+
+**One line is operationally useful: `ble_tx:full`** — the ring reporting its own BLE transmit buffer
+overflow. Ten occurrences in this capture (15:34:43, 15:36:25, 15:38:44, 15:57:14, and 05:48:17 — the
+final second of the drain), each logged twice. That is direct ring-side evidence of a drop, and a better
+signal for diagnosing a truncated bank or a mid-drain gap than inferring loss from missing rows.
