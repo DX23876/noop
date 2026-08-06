@@ -39,6 +39,23 @@ jobs:
       - name: Detached doc comments (regression gate)
         run: python3 Tools/doc_comment_lint.py
 
+  # The sideload install sheet is generated from altstore-source.json, NOT from the signed app, so a
+  # stale `appPermissions.entitlements` under-reports what NOOP asks for and nothing about the build
+  # notices. That is exactly what happened: the fork's manifest listed only HealthKit while the app
+  # has always also requested com.apple.security.application-groups, and every release since the fork
+  # diverged shipped that wrong label — the release workflow rewrites version/size/URL in this file
+  # and never touches the permissions.
+  #
+  # Same shape as the job above: bare python3 on ubuntu-latest, no Xcode, no Gradle, seconds to run.
+  sideload-manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Manifest declares what the app requests
+        run: python3 Tools/check-sideload-manifest.py
+
   # NOOP is an anonymous project, and a pushed commit message is the one place that cannot be taken
   # back — GitHub mirrors, caches and quotes it long after any local edit. The convention "no AI
   # co-author trailer" was written down and still failed repeatedly, so it is mechanical now:

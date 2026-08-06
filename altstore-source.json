@@ -76,7 +76,8 @@
       ],
       "appPermissions": {
         "entitlements": [
-          "com.apple.developer.healthkit"
+          "com.apple.developer.healthkit",
+          "com.apple.security.application-groups"
         ],
         "privacy": {
           "NSBluetoothAlwaysUsageDescription": "NOOP connects directly to your WHOOP strap over Bluetooth to read heart rate, R-R intervals, battery, and sensor data locally on your iPhone. Nothing leaves your device.",
@@ -89,7 +90,8 @@
       "versionDate": "2026-08-06",
       "versionDescription": "NOOP AI 9.3.3 DX Beta. See the release notes for what changed.",
       "downloadURL": "https://github.com/DX23876/noop/releases/download/v9.3.3-dx-beta/NOOP-ios-unsigned-v9.3.3-dx-beta.ipa",
-      "size": 358563720
+      "size": 358563720,
+      "minOSVersion": "17.0"
     }
   ]
 }
