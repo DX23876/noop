@@ -1,12 +1,13 @@
 # iOS — Install & Build
 
-> **The iOS DX Beta ships in two variants.** Grab **`NOOP-ios-unsigned-v9.3.1-dx-beta.ipa`** from the
-> [NOOP AI prerelease](https://github.com/DX23876/noop/releases/tag/v9.3.1-dx-beta) page and install it with **AltStore** or **SideStore** — see
+> **The iOS DX Beta ships in two variants.** Grab **`NOOP-ios-unsigned-v9.3.2-dx-beta.ipa`** from the
+> [NOOP AI release](https://github.com/DX23876/noop/releases/tag/v9.3.2-dx-beta) page and install it with **AltStore** or **SideStore** — see
 > **[Install (sideload)](#install-sideload)** below. No Mac, no Xcode, no App Store, and no Apple
 > Developer account needed — **and NOOP stays anonymous**, because the `.ipa` we ship is *unsigned*
-> and **you** sign it on your own iPhone with your own free Apple ID. The release also carries
-> **`NOOP-ios-full-unsigned-v9.3.1-dx-beta.ipa`**, which contains the widgets, Watch app and
-> complication for advanced signing with correctly provisioned App Groups and HealthKit.
+> and **you** sign it on your own iPhone with your own free Apple ID. It carries the app **and the
+> Home/Lock-Screen widgets**; only the Apple Watch app is left out, for the reasons below. The release
+> also offers **`NOOP-ios-full-unsigned-v9.3.2-dx-beta.ipa`**, which adds the **Watch app and
+> complication** on top, for people signing with their own Apple Developer team.
 > The manual [`publish-ios-beta.yml`](../.github/workflows/publish-ios-beta.yml) workflow builds the
 > unsigned release IPA without an Apple team or personal signing identity.
 
@@ -19,8 +20,8 @@ Nothing about this touches NOOP's identity or Apple's servers on our side.
 1. **Install a sideloader on your computer** — [AltStore](https://altstore.io) or
    [SideStore](https://sidestore.io) (both free). Follow their one-time setup (it installs a helper +
    AltStore/SideStore onto your iPhone using your own Apple ID).
-2. **Download `NOOP-ios-unsigned-v9.3.1-dx-beta.ipa`** from the
-   [DX Beta prerelease](https://github.com/DX23876/noop/releases/tag/v9.3.1-dx-beta) to your iPhone (or your
+2. **Download `NOOP-ios-unsigned-v9.3.2-dx-beta.ipa`** from the
+   [DX Beta release](https://github.com/DX23876/noop/releases/tag/v9.3.2-dx-beta) to your iPhone (or your
    computer, then AirDrop/transfer it).
 3. **Open the `.ipa` with AltStore/SideStore** (Share → AltStore, or the app's "+" button). It signs
    and installs NOOP. First launch may need **Settings → General → VPN & Device Management → trust
@@ -45,17 +46,22 @@ releases then show up (and re-sign) automatically:
 The source always tracks the latest release, so you're one tap from the newest build instead of
 hunting for the `.ipa` each time.
 
-> ### Two honest limitations of free-Apple-ID sideloading
+> ### Three honest notes on free-Apple-ID sideloading
 > - **7-day expiry.** Apps signed with a *free* Apple ID stop launching after 7 days and need
 >   re-signing. **AltStore/SideStore refresh this automatically** in the background — keep the
 >   sideloader installed and NOOP keeps working.
-> - **The AltStore IPA deliberately contains only the iPhone/iPad app.** The build starts complete,
->   then release packaging removes `NOOPWidgets.appex` and `NOOPWatch.app` only from the AltStore copy.
->   Generic AltStore/SideStore re-signing cannot reliably provision every nested target and the shared
->   App Group/HealthKit combination used by the widgets, Watch app and complication. The core app —
->   pairing your strap, live HR, recovery/strain/sleep, history, the AI Coach, everything on-device —
->   works without those extensions. Apple Watch, complications, Home/Lock-Screen widgets and Live
->   Activities require the Full Apple source build described below.
+> - **Widgets and Live Activities ARE included.** The widget is an ordinary app extension, so
+>   AltStore/SideStore re-sign it with the host app, and the release build leaves behind the
+>   capability template AltSign needs to provision the App Group the app and widget share — so the
+>   widget shows *your* numbers, not sample data. One caveat worth knowing: **every extension consumes
+>   one of the ten App IDs a free Apple ID may register per week**, so installing NOOP spends two
+>   rather than one.
+> - **The Apple Watch app is deliberately left out of this IPA.** Sideloaders have never installed an
+>   embedded watchOS bundle reliably, and when it fails it takes the *entire* installation with it —
+>   you would end up with no NOOP at all, not merely no watch app. A free Apple ID is also limited to
+>   three sideloaded apps, and the sideloader itself already takes one. The watch app and its
+>   complication are in the Full IPA and in any Xcode source build; everything else — pairing your
+>   strap, live HR, recovery/strain/sleep, history, the AI Coach, widgets — is here.
 
 iOS shares the cross-platform Swift packages with macOS, so the number-crunching (recovery, strain,
 HRV, sleep) is the **same code** and produces the same results. iOS is newer and less battle-tested
@@ -94,10 +100,12 @@ below.
 
 The canonical `NOOPiOS` build embeds `NOOPiOSWidgets`, `NOOPWatch` and
 `NOOPWatchComplications`. Every GitHub release publishes that complete bundle as
-`NOOP-ios-full-unsigned-v<VERSION>-dx-beta.ipa`; the existing AltStore source continues to point to
-the separately thinned `NOOP-ios-unsigned-v<VERSION>-dx-beta.ipa`.
+`NOOP-ios-full-unsigned-v<VERSION>-dx-beta.ipa`. The AltStore source points at
+`NOOP-ios-unsigned-v<VERSION>-dx-beta.ipa`, which is the same bundle with **only** `Watch/` removed —
+the widget extension stays, and `Tools/prepare-ios-sideload-app.sh` embeds the App Group/HealthKit
+capability template so AltSign can provision it.
 
-The full build includes RyanBR's 9.3.1 widget corrections: a widget without readable shared data shows
+Both builds include RyanBR's 9.3.1 widget corrections: a widget without readable shared data shows
 dashes instead of gallery sample values, and the system widgets present Charge, Effort and Rest as
 score rings. The Watch app requests the newest phone snapshot on activation and reconnection, while
 the application-context transfer remains the background fallback. The Watch app and its complication

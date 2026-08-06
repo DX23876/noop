@@ -1,7 +1,18 @@
 #!/usr/bin/env bash
 # Build two unsigned IPA payloads from one complete NOOP iOS .app:
-#   1. AltStore/SideStore: phone/iPad app only (no PlugIns/ or Watch/)
+#   1. AltStore/SideStore: phone/iPad app + the iOS widget extension, WITHOUT the watchOS app
 #   2. Full Apple bundle: iOS widgets + Watch app + Watch complication intact
+#
+# Why the split falls exactly there. The widget is an ordinary app extension: AltStore/SideStore
+# re-sign it along with the host app, and `prepare-ios-sideload-app.sh` below leaves the capability
+# template AltSign needs to provision the shared App Group (#887), so widgets work sideloaded. The
+# only cost is one extra App ID out of a free account's ten per week.
+#
+# An embedded watchOS bundle is a different case: sideloaders have failed to install it reliably for
+# years, and the failure takes the WHOLE installation with it rather than just the watch half — a
+# tester would be left with nothing. A free account's 3-app limit (sideloader + NOOP + watch app)
+# is the second reason. It stays in the canonical build and in the Full IPA; source builds via Xcode
+# are unaffected. Upstream's own release path makes the same cut.
 set -euo pipefail
 
 APP="${1:?usage: $0 path/to/NOOP.app lite.ipa full.ipa}"
@@ -61,11 +72,25 @@ mkdir -p "$STAGE/full/Payload" "$STAGE/lite/Payload"
 cp -R "$APP" "$STAGE/full/Payload/"
 cp -R "$APP" "$STAGE/lite/Payload/"
 
-# Thin only the staged AltStore copy. The canonical build product and Full IPA stay intact.
-rm -rf "$STAGE/lite/Payload/$APP_NAME/PlugIns" "$STAGE/lite/Payload/$APP_NAME/Watch"
+# Thin only the staged AltStore copy — the watchOS app alone. The canonical build product and the
+# Full IPA stay intact.
+rm -rf "$STAGE/lite/Payload/$APP_NAME/Watch"
 
-[[ ! -e "$STAGE/lite/Payload/$APP_NAME/PlugIns" ]] || { echo "Lite IPA still has PlugIns" >&2; exit 1; }
 [[ ! -e "$STAGE/lite/Payload/$APP_NAME/Watch" ]] || { echo "Lite IPA still has Watch" >&2; exit 1; }
+# Assert the widget SURVIVED, the inverse of the old check. What the bundle contains is the promise
+# made to AltStore users, so the extension going missing has to be loud rather than shipping a
+# quietly widget-less IPA — which is the regression this packaging split just corrected.
+[[ -d "$STAGE/lite/Payload/$APP_NAME/PlugIns/NOOPWidgets.appex" ]] || {
+  echo "Lite IPA lost NOOPWidgets.appex" >&2; exit 1;
+}
+
+# Embed the ad-hoc capability template (App Group + HealthKit) so AltSign can discover, provision and
+# re-sign what the app and widget share (#887). It MUST run here, after the Watch removal: the script
+# codesigns the bundle, and any later mutation — deleting Watch/ included — breaks that seal. The
+# staging directory is private to this script, which is also why the workflow cannot make this call.
+# The Full IPA deliberately stays unprepped: it targets people signing with their own team, who
+# re-sign everything anyway, and the template covers only the app and widget, not the watch bundles.
+"$(dirname "$0")/prepare-ios-sideload-app.sh" "$STAGE/lite/Payload/$APP_NAME"
 
 mkdir -p "$(dirname "$LITE_IPA")" "$(dirname "$FULL_IPA")"
 rm -f "$LITE_IPA" "$FULL_IPA"

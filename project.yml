@@ -158,6 +158,9 @@ targets:
     deploymentTarget: "13.0"
     sources:
       - StrandTests
+      # Compile the exact cross-target snapshot source into the test bundle so the AltStore App Group
+      # resolver is covered without adding this iOS/widget-only type to the macOS application module.
+      - StrandiOSShared/WidgetSnapshot.swift
     # Same wrapper as the app target, so the OURA_CLOUD_IMPORT-gated Oura tests compile exactly
     # when the app's Oura lane does (flag + creds both come from the untracked OuraSecrets.xcconfig).
     configFiles:

@@ -181,12 +181,14 @@ https://raw.githubusercontent.com/DX23876/noop/main/altstore-source.json
 
 - **AltStore:** Browse → **+** → paste the source URL → add NOOP AI.
 - **SideStore:** Sources → **+ Add Source** → paste the same URL → install NOOP AI.
-- Prefer a direct file? Download `NOOP-ios-unsigned-v9.3.1-dx-beta.ipa` from the
-  [9.3.1 DX Beta release](https://github.com/DX23876/noop/releases/tag/v9.3.1-dx-beta).
-- Need widgets and Apple Watch support? The same release also contains
-  `NOOP-ios-full-unsigned-v9.3.1-dx-beta.ipa`. It requires a signer or paid Developer team that can
-  provision the iOS app, widget, Watch app, complication and shared App Group together; the AltStore
-  source deliberately remains on the phone/iPad-only IPA.
+- Prefer a direct file? Download `NOOP-ios-unsigned-v9.3.2-dx-beta.ipa` from the
+  [9.3.2 DX Beta release](https://github.com/DX23876/noop/releases/tag/v9.3.2-dx-beta). It includes the
+  Home/Lock-Screen **widgets**, which AltStore/SideStore sign along with the app.
+- Need the **Apple Watch** app? The same release also contains
+  `NOOP-ios-full-unsigned-v9.3.2-dx-beta.ipa`, which adds the Watch app and complication. It wants a
+  signer or paid Developer team that can provision all of it together — sideloaders install an
+  embedded watchOS bundle unreliably, and a failure there costs you the whole install, which is why
+  the AltStore source stays on the watch-less IPA.
 
 See [the iOS install guide](docs/IOS.md) for the free-Apple-ID limits, widget notes, and build-from-source
 instructions.

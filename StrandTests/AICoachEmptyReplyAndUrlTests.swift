@@ -73,7 +73,7 @@ final class AICoachEmptyReplyAndUrlTests: XCTestCase {
 
     func testCustomParseThrowsEmptyReplyErrorOnErrorBody() {
         let json: [String: Any] = ["error": ["message": "Insufficient balance"]]
-        XCTAssertThrowsError(try CustomClient().parseChatContent(json)) { error in
+        XCTAssertThrowsError(try CustomClient().parseChatContent(json, isLocalServer: false)) { error in
             XCTAssertEqual((error as? AICoachError)?.errorDescription,
                            "The provider returned an error: Insufficient balance")
         }
@@ -84,7 +84,7 @@ final class AICoachEmptyReplyAndUrlTests: XCTestCase {
         let json: [String: Any] = [
             "choices": [["message": ["content": ""]]]
         ]
-        XCTAssertThrowsError(try CustomClient().parseChatContent(json))
+        XCTAssertThrowsError(try CustomClient().parseChatContent(json, isLocalServer: false))
     }
 
     func testCustomParseTreatsWhitespaceOnlyContentAsEmptyReply() {
@@ -93,13 +93,13 @@ final class AICoachEmptyReplyAndUrlTests: XCTestCase {
         let json: [String: Any] = [
             "choices": [["message": ["content": "   \n  "]]]
         ]
-        XCTAssertThrowsError(try CustomClient().parseChatContent(json))
+        XCTAssertThrowsError(try CustomClient().parseChatContent(json, isLocalServer: false))
     }
 
     func testCustomParseTrimsSurroundingWhitespace() {
         let json: [String: Any] = [
             "choices": [["message": ["content": "  Get more sleep.  \n"]]]
         ]
-        XCTAssertEqual(try CustomClient().parseChatContent(json), "Get more sleep.")
+        XCTAssertEqual(try CustomClient().parseChatContent(json, isLocalServer: false), "Get more sleep.")
     }
 }
