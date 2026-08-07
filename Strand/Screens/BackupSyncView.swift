@@ -189,10 +189,17 @@ struct BackupSyncView: View {
         // the screen's normal result alert with a concrete workaround instead of staying silent. Mildly
         // chatty on a genuine Cancel; honest and actionable when the picker is actually broken.
         // `busy` guards against a double-tap stacking a second picker presentation on top of the first.
+        // Cleared in a `defer` so it is cleared on ANY exit, mirroring the #961 fix in SettingsView.
+        // It matters more here than there: EVERY control on this screen is `.disabled(busy)`, so a
+        // pick that never returns did not merely wedge one button — it wedged "Choose folder", "Back
+        // up now", Restore AND the "Use NOOP's own folder" fallback, i.e. the whole screen, with no
+        // message. That reads exactly like "I can't select a backup folder", and it also disabled the
+        // escape hatch we point people at. DocumentPicker now guarantees the continuation resumes,
+        // but the flag must not depend on that promise holding.
         busy = true
         Task {
+            defer { busy = false }
             let picked = await FolderBackup.pickFolder()
-            busy = false
             if picked != nil {
                 folderLabel = FolderBackup.folderLabel()
             } else if !FolderBackup.useInternalFolder {
@@ -222,10 +229,10 @@ struct BackupSyncView: View {
     private func backupNow() {
         busy = true
         Task {
+            defer { busy = false }   // any exit, incl. cancellation — see chooseFolder
             let ok = await FolderBackup.backupNow(checkpoint: { await model.repo.checkpointForBackup() })
             await MainActor.run {
                 lastMs = FolderBackup.lastBackupMs
-                busy = false
                 alertTitle = ok ? String(localized: "Backed up") : String(localized: "Backup problem")
                 alertMessage = ok
                     ? String(localized: "Saved a backup to your folder.")
@@ -250,13 +257,13 @@ struct BackupSyncView: View {
         pendingRestore = nil
         busy = true
         Task {
+            defer { busy = false }   // any exit, incl. cancellation — see chooseFolder
             // The restore is synchronous file I/O; run it off the main actor so the UI stays responsive
             // for a large store, then report on the main actor.
             let result = await Task.detached(priority: .userInitiated) {
                 FolderBackup.restore(snapshotNamed: snap.name)
             }.value
             await MainActor.run {
-                busy = false
                 switch result {
                 case .imported:
                     alertTitle = String(localized: "Restored")

@@ -70,7 +70,20 @@ enum DocumentPicker {
             let picker = make(coordinator)
             // Keep the coordinator alive for the lifetime of the picker.
             objc_setAssociatedObject(picker, &Coordinator.assocKey, coordinator, .OBJC_ASSOCIATION_RETAIN)
-            root.present(picker, animated: true)
+            // The continuation is otherwise resumed ONLY by a delegate callback, so a presentation that
+            // never happens hangs the caller forever — UIKit declines silently (no throw, no delegate)
+            // when the target is already presenting or is mid-transition, and `topViewController`'s walk
+            // down the presentedViewController chain is momentarily inconsistent during an animation.
+            // The caller then awaits a value that can never arrive; BackupSyncView's `busy` stayed true
+            // and disabled every control on the screen, including the fallback the failure alert points
+            // at. Verify the picker actually reached a window and resume with nil if it did not.
+            // `Coordinator.finish` is resume-once, so this cannot double-resume a picker that did open.
+            root.present(picker, animated: true) {
+                if picker.view.window == nil && picker.presentingViewController == nil {
+                    recordEvent("not-presented", url: nil)
+                    coordinator.finish(nil)
+                }
+            }
         }
     }
 
@@ -105,7 +118,9 @@ enum DocumentPicker {
             finish(nil)
         }
 
-        private func finish(_ url: URL?) {
+        /// Resume the awaiting caller exactly once. Not private: `present` calls it when UIKit declined
+        /// to show the picker at all, which is the one path no delegate callback covers.
+        func finish(_ url: URL?) {
             guard !resumed else { return }
             resumed = true
             continuation.resume(returning: url)

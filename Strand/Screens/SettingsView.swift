@@ -1014,7 +1014,17 @@ struct SettingsView: View {
                     Text("STRAP LOG").font(StrandFont.overline).tracking(StrandFont.overlineTracking)
                         .foregroundStyle(StrandPalette.textSecondary)
                     Spacer()
-                    Button("Copy") { PlatformPasteboard.copy(live.exportableLogText()) }
+                    // Same header lines as "Save…" below. They used to differ: the caption under this row
+                    // says "Grab this when you report a bug", and Copy is the button most people reach
+                    // for — yet it shipped the log WITHOUT the diagnostics added specifically for bug
+                    // reports (the #52 folder-picker outcome, write-health, backup mode). Reports arrived
+                    // missing exactly the lines built to answer them.
+                    Button("Copy") {
+                        Task {
+                            let extra = await DebugDataDiagnostics.dynamicLines(repo: model.repo)
+                            PlatformPasteboard.copy(live.exportableLogText(extraHeaderLines: extra))
+                        }
+                    }
                         .buttonStyle(.plain).font(StrandFont.mono).foregroundStyle(StrandPalette.accent)
                     Button("Save…") {
                         Task {
@@ -2007,9 +2017,13 @@ struct SettingsView: View {
             // cleared correctly before, but only because `exportPair` is non-throwing — the guard should
             // not depend on that. Otherwise the button stays disabled behind a spinner that never stops.
             defer { rawAndLogBusy = false }
+            // Carry the same diagnostics as the other two strap-log exports. This is the pair a bug
+            // report is most likely to attach, so it is the last place that should be missing them.
+            let extra = await DebugDataDiagnostics.dynamicLines(repo: model.repo)
             await FileExport.exportPair(
                 file: capture, fileSuggestedName: "noop-raw-capture-\(stamp).json",
-                text: live.exportableLogText(), textSuggestedName: "noop-strap-log-\(stamp).txt")
+                text: live.exportableLogText(extraHeaderLines: extra),
+                textSuggestedName: "noop-strap-log-\(stamp).txt")
         }
     }
 
