@@ -1895,4 +1895,5 @@
     <string name="haptics_intervals_label">Temporizador de intervalos</string>
     <string name="haptics_live_session_label">Avisos de sesión en directo</string>
     <string name="haptics_workout_label">Inicio y fin del entrenamiento</string>
+    <string name="notif_timer_alarm_title">Temporizador y alarma</string>
 </resources>

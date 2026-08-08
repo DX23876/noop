@@ -1823,4 +1823,5 @@
     <string name="haptics_intervals_label">间隔计时器</string>
     <string name="haptics_live_session_label">实时会话提示</string>
     <string name="haptics_workout_label">锻炼开始和结束</string>
+    <string name="notif_timer_alarm_title">计时器和闹钟</string>
 </resources>

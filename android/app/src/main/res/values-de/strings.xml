@@ -1910,4 +1910,5 @@
     <string name="haptics_intervals_label">Intervall-Timer</string>
     <string name="haptics_live_session_label">Live-Session-Hinweise</string>
     <string name="haptics_workout_label">Trainingsstart und -ende</string>
+    <string name="notif_timer_alarm_title">Timer &amp; Wecker</string>
 </resources>
