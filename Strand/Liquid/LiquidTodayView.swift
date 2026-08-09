@@ -34,6 +34,13 @@ struct LiquidTodayView: View {
 
     /// Shared with the real Today's card-customise editor so the two stay in sync.
     @AppStorage(DashboardCardPrefs.selectionKey) private var dashboardCardsRaw = ""
+    /// #989 parity with classic Today + Android: the hydration card is opt-in twice over — the feature
+    /// toggle AND an explicit add in CUSTOMISE. Liquid filtered on neither, so a user who added the card
+    /// and later switched the feature off kept a permanently-blank row.
+    @AppStorage(HydrationStore.enabledKey) private var hydrationEnabled = false
+    /// Today's hydration total + goal (ml), resolved in `load()`. nil → the card shows "—".
+    @State private var hydrationTotalML: Double?
+    @State private var hydrationGoalML: Int?
 
     // async-loaded via the confirmed Repository accessors
     @State private var restScore: Double?          // sleep_performance, day-keyed
@@ -247,6 +254,15 @@ struct LiquidTodayView: View {
 
                 VStack(alignment: .leading, spacing: 12) {
                     scene
+                    // The strain/illness early-warning banner, dropped in the liquid Home rewrite. Liquid is
+                    // the DEFAULT Today on both platforms (RootTabView.swift's liquidTodayEnabled = true,
+                    // RootView.swift likewise), so while this was unmounted a RAISED health alert had no
+                    // home-screen surface at all: it survived only as one push at the moment it fired
+                    // (IllnessNotifier.post) and as HeadsUpCard two taps deep in More → Health. Pinned ABOVE
+                    // the reorderable block — the same position classic TodayView uses on both platforms and
+                    // the same one Android pins it to (TodayScreen.kt) — so a warning cannot be reordered
+                    // below the fold. Renders nothing when model.healthAlert is nil.
+                    HealthAlertBanner()
                     // #105: the live "workout in progress" card, dropped in the liquid Home rewrite. Restored
                     // here as the SAME leaf the classic TodayView renders (and Android's WorkoutInProgressCard),
                     // pinned above the reorderable block so an active manual workout is immediately visible
@@ -274,6 +290,14 @@ struct LiquidTodayView: View {
                         case .journal: if selectedDayOffset == 0 { JournalReminderCard() }
                         }
                     }
+                    // Opt-in "looks like a workout?" suggestion, dropped in the liquid Home rewrite. Its
+                    // Settings toggle (PuffinExperiment.autoDetectWorkoutsKey) had no visible effect on the
+                    // DEFAULT screen: the card's only mount was classic TodayView, so a user could switch
+                    // auto-detect on and never be shown a single suggestion. Same position classic uses
+                    // (after the cards block, before Data Sources) and the same leaf Android renders.
+                    // Self-gates on the toggle AND on the detector finding an unsaved, un-dismissed window,
+                    // so it renders nothing by default.
+                    AutoWorkoutCard()
                     dataSourcesSection
                     Color.clear.frame(height: 90) // floating tab-bar clearance
                 }
@@ -322,7 +346,9 @@ struct LiquidTodayView: View {
         .liquidSelectionHaptic(trigger: selectedDayOffset)
         // A firm tick when the pull passes the release threshold (the custom liquid refresh).
         .liquidMediumHaptic(trigger: pullHaptic)
-        .task(id: "\(repo.refreshSeq)-\(selectedDayOffset)") { await load() }
+        // hydrationSeq joins the id so logging a drink re-reads the card immediately, the same trigger set
+        // classic TodayView's reloadHydration() uses.
+        .task(id: "\(repo.refreshSeq)-\(selectedDayOffset)-\(repo.hydrationSeq)-\(hydrationEnabled)") { await load() }
         .sheet(item: $guideSection) { section in
             NavigationStack { ScoringGuideView(initialSection: section, onClose: { guideSection = nil }) }
         }
@@ -582,8 +608,10 @@ struct LiquidTodayView: View {
             .padding(.top, 4)
 
             // Data-driven off the SAME @AppStorage the CUSTOMISE editor writes, so add / remove /
-            // reorder in Customise reflects on the home screen live.
-            ForEach(DashboardCardPrefs.decodeEnabled(dashboardCardsRaw)) { card in
+            // reorder in Customise reflects on the home screen live. The hydration filter mirrors classic
+            // TodayView's `enabledDashboardCards` and Android's `it != HYDRATION || hydrationEnabled`.
+            ForEach(DashboardCardPrefs.decodeEnabled(dashboardCardsRaw)
+                        .filter { hydrationEnabled || $0 != .hydration }) { card in
                 liquidCard(for: card)
             }
         }
@@ -638,8 +666,18 @@ struct LiquidTodayView: View {
             cardLink(.sleep, title: card.title, sub: card.subtitle,
                      value: sleepText, tint: StrandPalette.restColor, frac: fracOver(displayDay?.totalSleepMin, 480))
         case .hydration:
+            // #989: was hardcoded "–". `HydrationGoal.cardValueString` is unit-tested and byte-identical to
+            // the Android twin, but classic TodayView was its only caller — so on the DEFAULT screen a
+            // logged drink never appeared. Same "<total> / <goal> L" string and the same goal fraction on
+            // the ring as classic; "—" only when the goal is genuinely underivable.
             cardLink(.hydration, title: card.title, sub: card.subtitle,
-                     value: "–", tint: StrandPalette.metricCyan, frac: nil)
+                     value: hydrationGoalML.map {
+                         HydrationGoal.cardValueString(totalML: hydrationTotalML ?? 0, goalML: $0)
+                     } ?? "—",
+                     tint: StrandPalette.metricCyan,
+                     frac: hydrationGoalML.map {
+                         HydrationGoal.fraction(totalML: hydrationTotalML ?? 0, goalML: $0)
+                     })
         case .coupled:
             // A tap-through to the full Coupled day screen. No value.
             cardLink(.coupled, title: card.title, sub: card.subtitle,
@@ -1059,6 +1097,15 @@ struct LiquidTodayView: View {
     // MARK: - Data
 
     private func load() async {
+        // #989: today's hydration total + goal. One metricSeries row + a UserDefaults read, same as classic
+        // TodayView.reloadHydration(). Cleared when the feature is off so the card can't show a stale total.
+        if hydrationEnabled {
+            hydrationTotalML = await repo.hydrationTotal(day: Repository.localDayKey(Date()))
+            hydrationGoalML = repo.hydrationGoalML(profileSex: profile.sex)
+        } else {
+            hydrationTotalML = nil
+            hydrationGoalML = nil
+        }
         // Resolve the O(days) lookups ONCE here (not on every body re-render): the selected day and the
         // readiness verdict. Both scan repo.days (up to 599 rows); doing it per-render was the stutter.
         let day = resolveDisplayDay()
