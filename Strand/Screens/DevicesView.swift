@@ -121,7 +121,7 @@ private struct DevicesContent: View {
             Spacer(minLength: 0)
         }
         .padding(NoopMetrics.space3)
-        .background(StrandPalette.surfaceRaised, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(NoopPanelSurface(cornerRadius: 18))
         .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
             .strokeBorder(StrandPalette.statusWarning.opacity(0.5), lineWidth: 1))
         .accessibilityElement(children: .combine)
@@ -136,6 +136,7 @@ private struct DevicesContent: View {
             // with the guide already armed, because nothing on Devices said so. Same state and same string
             // as LiveView's banner; no new copy.
             if let guide = live.reconnectGuide { repairGuideBanner(guide) }
+            DeviceSyncStatusCard()
             // UPPERCASE overline section header, matching the liquid Today. Counts the paired bands so the
             // multi-WHOOP reality reads at a glance.
             sectionHead("YOUR BANDS", trailing: activeDevices.count == 1
@@ -451,6 +452,74 @@ private struct DevicesContent: View {
                 pickNewActive = true
             }
         }
+    }
+}
+
+// MARK: - Strap-history sync card
+
+/// The sync status formerly shown as a compact control in the Today header. Devices is the natural home
+/// for this device-level state, and the full card gives the status enough room to read without crowding
+/// Today's primary actions. This remains display-only and resolves through the existing shared state.
+private struct DeviceSyncStatusCard: View {
+    @EnvironmentObject private var live: LiveState
+
+    var body: some View {
+        switch SyncChipState.resolve(live: live) {
+        case .syncing(let chunks):
+            statusCard(
+                systemImage: "arrow.triangle.2.circlepath",
+                detail: chunks > 0
+                    ? String(localized: "Syncing… \(chunks) chunks")
+                    : String(localized: "Syncing…"),
+                tint: StrandPalette.accent,
+                accessibility: String(localized: "Syncing strap history, \(chunks) chunks")
+            )
+        case .synced(let agoText):
+            statusCard(
+                systemImage: "checkmark.circle.fill",
+                detail: String(localized: "Synced \(agoText) ago"),
+                tint: StrandPalette.statusPositive,
+                accessibility: String(localized: "Strap history synced \(agoText) ago")
+            )
+        case .experimentalLive:
+            statusCard(
+                systemImage: "checkmark.circle.fill",
+                detail: String(localized: "Connected; strap history sync is experimental on this strap"),
+                tint: StrandPalette.textSecondary,
+                accessibility: String(localized: "Connected; strap history sync is experimental on this strap")
+            )
+        case .hidden:
+            EmptyView()
+        }
+    }
+
+    private func statusCard(
+        systemImage: String,
+        detail: String,
+        tint: Color,
+        accessibility: String
+    ) -> some View {
+        NoopCard(tint: tint) {
+            HStack(alignment: .center, spacing: NoopMetrics.space3) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(tint)
+                    .frame(width: 24)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+                    Text("Strap history")
+                        .font(StrandFont.headline)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                    Text(detail)
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(accessibility))
     }
 }
 
@@ -1075,7 +1144,7 @@ private struct ExtendedBatteryProbeResultView: View {
         }
         .padding(20)
         .frame(minWidth: 340, minHeight: 260)
-        .background(StrandPalette.surfaceOverlay)
+        .background(NoopChromeSurface())
     }
 }
 
@@ -1144,7 +1213,7 @@ private struct BodyLocationProbeResultView: View {
         }
         .padding(20)
         .frame(minWidth: 340, minHeight: 260)
-        .background(StrandPalette.surfaceOverlay)
+        .background(NoopChromeSurface())
     }
 }
 
@@ -1263,7 +1332,7 @@ private struct FeatureFlagProbeResultView: View {
         }
         .padding(20)
         .frame(minWidth: 340, minHeight: 260)
-        .background(StrandPalette.surfaceOverlay)
+        .background(NoopChromeSurface())
     }
 }
 
@@ -1297,7 +1366,7 @@ private struct EcgWristSheet: View {
         }
         .padding(20)
         .frame(minWidth: 340, minHeight: 220)
-        .background(StrandPalette.surfaceOverlay)
+        .background(NoopChromeSurface())
     }
 }
 
@@ -1341,7 +1410,7 @@ private struct EcgProbeResultView: View {
         }
         .padding(20)
         .frame(minWidth: 340, minHeight: 260)
-        .background(StrandPalette.surfaceOverlay)
+        .background(NoopChromeSurface())
     }
 }
 
@@ -1412,7 +1481,7 @@ private struct DeviceConfigProbeResultView: View {
         }
         .padding(20)
         .frame(minWidth: 340, minHeight: 260)
-        .background(StrandPalette.surfaceOverlay)
+        .background(NoopChromeSurface())
     }
 }
 
